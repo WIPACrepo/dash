@@ -235,8 +235,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.setUpAllComponentLoggers()
 
             # build CnC run set
-            self.runSetID = self.CnCRPC.rpc_runset_make(self.ip,
-                                                        list(self.createRunsetRequestNames()))
+            self.runSetID = self.CnCRPC.rpc_runset_make(list(self.createRunsetRequestNames()))
             self.logmsg("Created Run Set #%d" % self.runSetID)
                             
             # Configure the run set
