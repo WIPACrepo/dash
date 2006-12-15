@@ -414,7 +414,7 @@ class DAQServer:
 
         return "OK"
 
-    def rpc_runset_make(self, logIP, nameList):
+    def rpc_runset_make(self, nameList):
         "build a set using the specified components"
         compList = [ ]
         setAdded = False
@@ -422,7 +422,7 @@ class DAQServer:
             try:
                 # buildSet fills 'compList' with the specified components
                 #
-                self.buildSet(logIP, nameList, compList)
+                self.buildSet(nameList, compList)
                 runSet = RunSet(compList)
                 self.sets.append(runSet)
                 setAdded = True
@@ -502,7 +502,7 @@ class DAQServer:
             self.pool[comp.name] = []
         self.pool[comp.name].append(comp)
 
-    def buildSet(self, logIP, nameList, compList):
+    def buildSet(self, nameList, compList):
         """
         Build a runset from the specified list of component names
         """
