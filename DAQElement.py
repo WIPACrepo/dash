@@ -586,7 +586,14 @@ class DAQServer:
         stdout of course will not appear if daemonized.
         """
         print s
-        if self.socketlog: self.socketlog.write_ts(s)
+        if self.socketlog:
+            try:
+                self.socketlog.write_ts(s)
+            except Exception, ex:
+                if str(ex).find('Connection refused') < 0:
+                    raise ex
+                self.socketlog = None
+                print 'Lost logging connection'
 
     def monitorClients(self, new):
         """check that all components in the pool are still alive"""
