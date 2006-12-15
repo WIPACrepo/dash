@@ -34,7 +34,7 @@ def main():
     daqiface     = DAQRunIface(opt.nodeName, opt.portNum)
 
     subRunNumber = 0
-    configName   = "example-runconfig"
+    configName   = "hub1001sim"
     sleeptime    = 0.4
 
     lastState    = None

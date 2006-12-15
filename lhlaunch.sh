@@ -10,6 +10,7 @@ echo "Killing existing components..."
 
 ps ax | egrep 'java icecube.daq.juggler.toybox.DAQCompApp' | grep -v grep | awk '{print $1}' | xargs kill -9
 ps ax | egrep 'java icecube.daq.eventBuilder.EBComponent'  | grep -v grep | awk '{print $1}' | xargs kill -9
+ps ax | egrep 'java -Dicecube.daq.stringhub'               | grep -v grep | awk '{print $1}' | xargs kill -9
 
 echo "Cleaning up logs..."
 
@@ -34,6 +35,9 @@ echo "Starting event builder harness component..."
 
 echo "Starting eventbuilder..."
 (cd ../eventBuilder-prod; ./run-eb -l localhost:9001 2>/dev/null &) &
+
+echo "Starting StringHub..."
+(cd ../StringHub; ./run-hub 1001 -l localhost:9001 1>/dev/null 2>/dev/null &) &
 
 echo "Done."
 echo "Type './ExpControlSkel.py' to run the test."

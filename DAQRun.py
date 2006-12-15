@@ -54,7 +54,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.runState        = "STOPPED"
         self.configDir       = configDir
         self.logDir          = logDir
-        self.runComponents   = ["zero", "eventBuilder", "ebHarness"]
+        self.requiredComps   = []
 
         # setCompID is the ID returned by CnCServer
         # daqID is e.g. 21 for string 21
@@ -84,20 +84,6 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         print m
         if self.log: self.log.dashLog(m)
 
-
-    def parseComponentNameOld(self, c, field):
-        "Find component name in string returned by CnCServer"
-        match = search(r'ID#(\d+) (\S+?)#(\d+) at (\S+?):(\d+) ', c)
-        if not match: return ''
-        compID = int(match.group(1))
-        name   = match.group(2)
-        daqID  = match.group(3)
-        addr   = match.group(4)
-        port   = int(match.group(5))
-        self.compPorts[name] = (compID, addr, port)
-        return name
-
-
     def parseComponentName(componentString):
         "Find component name in string returned by CnCServer"
         match = search(r'ID#(\d+) (\S+?)#(\d+) at (\S+?):(\d+) ', componentString)
@@ -114,19 +100,22 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         "Build list of parsed names from CnCServer"
         for x in l:
             parsed = DAQRun.parseComponentName(x)
-            yield parsed[1]
+            yield "%s#%d" % (parsed[1], parsed[2])
     getNameList = staticmethod(getNameList)
+
+    def isInList(x, l):
+        for y in l:
+            if y == x: return True
+        return False
+    isInList = staticmethod(isInList)
     
     def listContains(target, reference):
         "See if list 'target' contained in list 'reference' (Would be much easier w/ Python 2.4!)"
         for t in target:
-            found = False
-            for r in reference:
-                if t == r: found = True; break
-            if not found: return False
+            if not DAQRun.isInList(t, reference): return False
         return True
     listContains = staticmethod(listContains)
-    
+
     def waitForRequiredComponents(self, RPCObj, requiredList, timeOutSecs):
         "Verify that all components in requiredList are present on remote server"
         tstart = datetime.datetime.now()
@@ -159,16 +148,24 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     def getComponentsFromGlobalConfig(self):
         # Get and set global configuration
         self.configuration = DAQConfig.DAQConfig(self.configName, self.configDir)
-        self.stringlist    = self.configuration.strings()
-        self.kindlist      = self.configuration.kinds()
+        stringlist = self.configuration.strings()
+        kindlist   = self.configuration.kinds()
         self.logmsg("Loaded global configuration \"%s\"" % self.configName)
-        for string in self.stringlist:
+        requiredComps = []
+        for string in stringlist:
             self.logmsg("Configuration includes string %d" % string)
-        for kind in self.kindlist:
+            requiredComps.append("stringHub#%d" % string)
+        for kind in kindlist:
             self.logmsg("Configuration includes detector %s" % kind)
-
-    def setUpOneComponentLogger(logPath, selfIP, shortName, logPort, compID, compAddr, compPort):
-        logFile  = "%s/%s.log" % (logPath, shortName)
+        requiredComps.append("zero#0")
+        requiredComps.append("ebHarness#0")
+        requiredComps.append("eventBuilder#0")
+        for comp in requiredComps:
+            self.logmsg("Component list will require %s" % comp)
+        return requiredComps
+    
+    def setUpOneComponentLogger(logPath, selfIP, shortName, daqID, logPort, compID, compAddr, compPort):
+        logFile  = "%s/%s-%d.log" % (logPath, shortName, daqID)
         # self.logmsg("Creating logger for %s at %s on port %d" % (compName, logFile, logPort))
         clr = SocketLogger(logPort, shortName, logFile)
         clr.startServing()
@@ -185,6 +182,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.loggerOf[compID] = DAQRun.setUpOneComponentLogger(self.log.logPath,
                                                                    self.ip,
                                                                    self.shortNameOf[compID],
+                                                                   self.daqIDof[compID],
                                                                    9002 + ic,
                                                                    compID,
                                                                    self.addrOf[compID],
@@ -206,7 +204,11 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         "Create a list of names in the form of e.g. 'stringHub#21'"
         for r in self.setCompIDs:
             yield "%s#%d" % (self.shortNameOf[r], self.daqIDof[r])
-            
+
+    def isRequiredComponent(shortName, daqID, list):
+        return DAQRun.isInList("%s#%d" % (shortName, daqID), list)
+    isRequiredComponent = staticmethod(isRequiredComponent)
+    
     def start_run(self):
         "Includes configuration, etc. -- can take some time"
         # Log file is already defined since STARTING state does not get invoked otherwise
@@ -214,23 +216,26 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         try:
             self.CnCRPC = RPCClient("localhost", DAQRun.CNC_PORT)
             self.configureCnCLogging()
-            self.getComponentsFromGlobalConfig()
+            self.requiredComps = self.getComponentsFromGlobalConfig()
             
             # Wait for required components
             self.logmsg("Starting run %d (waiting for required %d components to register w/ CnCServer)"
-                        % (self.runNum, len(self.runComponents)))
-            remoteList = self.waitForRequiredComponents(self.CnCRPC, self.runComponents, 60)
+                        % (self.runNum, len(self.requiredComps)))
+            remoteList = self.waitForRequiredComponents(self.CnCRPC, self.requiredComps, 60)
             # Throws RequiredComponentsNotAvailableException
 
             # Form up table of discovered components
             for r in remoteList:
                 parsed    = DAQRun.parseComponentName(r)
                 setCompID = parsed[0]
-                self.setCompIDs.append(setCompID)
-                self.shortNameOf[ setCompID ] = parsed[1]
-                self.daqIDof    [ setCompID ] = parsed[2]
-                self.addrOf     [ setCompID ] = parsed[3]
-                self.portOf     [ setCompID ] = parsed[4]
+                shortName = parsed[1]
+                daqID     = parsed[2]
+                if(DAQRun.isRequiredComponent(shortName, daqID, self.requiredComps)):
+                    self.setCompIDs.append(setCompID)
+                    self.shortNameOf[ setCompID ] = shortName
+                    self.daqIDof    [ setCompID ] = daqID
+                    self.addrOf     [ setCompID ] = parsed[3]
+                    self.portOf     [ setCompID ] = parsed[4]
                 
             self.setUpAllComponentLoggers()
 
