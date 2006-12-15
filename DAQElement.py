@@ -149,11 +149,12 @@ class RunSet:
         self.id = RunSet.ID
         RunSet.ID += 1
 
+        self.configured = False
         self.runNumber = None
 
     def __str__(self):
         """String description"""
-        setStr = 'RunSet#' + str(self.id)
+        setStr = 'RunSet #' + str(self.id)
         if self.runNumber is not None:
             setStr += ' run#' + str(self.runNumber)
         return setStr
@@ -169,27 +170,34 @@ class RunSet:
         """Configure all components in the runset"""
         for c in self.set:
             c.configure()
+        self.configured = True
 
     def reset(self):
         """Reset all components in the runset back to the idle state"""
         for c in self.set:
             c.reset()
-            print 'Reset ' + str(c) + ' => ' + c.getState()
 
+        self.configured = False
         self.runNumber = None
 
     def startRun(self, runNum):
         """Start all components in the runset"""
+        if not self.configured:
+            raise ValueError, "RunSet #" + str(self.id) + " is not configured"
+
         self.runNumber = runNum
         for c in self.set:
             c.startRun(runNum)
 
     def stopRun(self):
         """Stop all components in the runset"""
+        if self.runNumber is None:
+            raise ValueError, "RunSet #" + str(self.id) + " is not running"
+
         for c in self.set:
-            print("stopping run for component %s" % `c`)
             c.stopRun()
-            print("stopped run for component %s" % `c`)
+
+        self.runNumber = None
 
     def status(self):
         """Print the current state of components in the runset"""
