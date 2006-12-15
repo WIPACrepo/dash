@@ -41,7 +41,7 @@ class Connection:
     compName - component name
     compNum - component instance number
     host - component host name
-    port - component port number for this connection    
+    port - component port number for this connection  
     """
 
     def __init__(self, type, compName, compNum, host, port):
@@ -325,7 +325,7 @@ class DAQServer:
         self.pool = {}
         self.sets = []
         self.socketlog = None
-        
+      
         notify = 1
         while 1:
             try:
@@ -356,7 +356,7 @@ class DAQServer:
         self.socketlog.close
         self.socketlog = None
         return 1
-    
+  
     def rpc_get_num_components(self):
         "return number of components currently registered"
         return len(self.pool)
@@ -572,7 +572,7 @@ class DAQServer:
         """
         print s
         if self.socketlog: self.socketlog.write_ts(s)
-        
+      
     def monitorClients(self, new):
         """check that all components in the pool are still alive"""
         count = 0
@@ -601,7 +601,7 @@ class DAQServer:
             self.logmsg(str(s))
 
         return count
-    
+  
     def serve(self, handler):
         """Start a server"""
         self.logmsg("I'm server %s running on port %d" % (self.name, self.port))
