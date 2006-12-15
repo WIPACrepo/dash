@@ -9,14 +9,10 @@ from DAQRPC import RPCClient
 set_exc_string_encoding("ascii")
 
 class FakeRun:
-    def __init__(self, logPort, compList, servername="localhost", portnum=8080):
-	compDict = {}
-	for c in compList:
-	    compDict[c] = logPort
-
+    def __init__(self, compList, servername="localhost", portnum=8080):
         cl = RPCClient(servername, portnum)
         try:
-            setId = cl.rpc_runset_make(compDict)
+            setId = cl.rpc_runset_make(compList)
         except Exception, e:
             print "Remote operation failed: %s" % e
             sys.exit(1)
@@ -40,35 +36,12 @@ class FakeRun:
             cl.rpc_runset_break(setId)
 
 if __name__ == "__main__":
-    logPort = 4444
     compList = []
 
     i = 1
     while i < len(sys.argv):
-	arg = sys.argv[i]
-	i += 1
+        arg = sys.argv[i]
+        i += 1
+        compList.append(arg)
 
-	if len(arg) > 1 and arg[0:1] == '-':
-	    if arg[1:2] == 'l':
-		if len(arg) > 2:
-		    portStr = arg[2:]
-		else:
-		    portStr = sys.argv[i]
-		    i += 1
-
-		try:
-		    logPort = int(portStr)
-		except:
-		    sys.stderr.write("Bad logging port '%s'\n" % portStr)
-		    sys.exit(1)
-
-		continue
-
-	compList.append(arg)
-
-    logger = SocketLogger(logPort, 'all-components', None)
-    try:
-	logger.startServing()
-	FakeRun(logPort, compList)
-    finally:
-	logger.stopServing()
+    FakeRun(compList)
