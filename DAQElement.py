@@ -329,7 +329,40 @@ class DAQClient:
             print exc_string()
             return None
 
-class DAQServer:
+class CnCLogger(object):
+    """CnC logging client"""
+
+    def __init__(self):
+        "create a logging client"
+        self.socketlog = None
+
+    def closeLog(self):
+        """Close the log socket"""
+        self.logmsg("End of log")
+        self.socketlog.close
+        self.socketlog = None
+
+    def logmsg(self, s):
+        """
+        Log a string to stdout and, if available, to the socket logger
+        stdout of course will not appear if daemonized.
+        """
+        print s
+        if self.socketlog:
+            try:
+                self.socketlog.write_ts(s)
+            except Exception, ex:
+                if str(ex).find('Connection refused') < 0:
+                    raise ex
+                self.socketlog = None
+                print 'Lost logging connection'
+
+    def openLog(self, host, port):
+        """initialize socket logger"""
+        self.socketlog = DAQLogger(host, port)
+        self.logmsg("Start of log")
+
+class DAQServer(CnCLogger):
     """Configuration server"""
 
     def __init__(self, name="GenericServer", port=8080):
@@ -337,7 +370,8 @@ class DAQServer:
         self.name = name
         self.pool = {}
         self.sets = []
-        self.socketlog = None
+
+        super(DAQServer, self).__init__()
 
         notify = True
         while True:
@@ -365,9 +399,7 @@ class DAQServer:
 
     def rpc_close_log(self):
         "called by DAQLog object to indicate when we should close log file"
-        self.logmsg("End of log")
-        self.socketlog.close
-        self.socketlog = None
+        self.closeLog()
         return 1
 
     def rpc_get_num_components(self):
@@ -376,8 +408,7 @@ class DAQServer:
 
     def rpc_log_to(self, host, port):
         "called by DAQLog object to tell us what UDP port to log to"
-        self.socketlog = DAQLogger(host, port)
-        self.logmsg("Start of log")
+        self.openLog(host, port)
         return 1
 
     def rpc_ping(self):
@@ -579,21 +610,6 @@ class DAQServer:
                 break
 
         return set
-
-    def logmsg(self, s):
-        """
-        Log a string to stdout and, if available, to the socket logger
-        stdout of course will not appear if daemonized.
-        """
-        print s
-        if self.socketlog:
-            try:
-                self.socketlog.write_ts(s)
-            except Exception, ex:
-                if str(ex).find('Connection refused') < 0:
-                    raise ex
-                self.socketlog = None
-                print 'Lost logging connection'
 
     def monitorClients(self, new):
         """check that all components in the pool are still alive"""
