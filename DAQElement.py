@@ -187,7 +187,9 @@ class RunSet:
     def stopRun(self):
         """Stop all components in the runset"""
         for c in self.set:
+            print("stopping run for component %s" % `c`)
             c.stopRun()
+            print("stopped run for component %s" % `c`)
 
     def status(self):
         """Print the current state of components in the runset"""
@@ -308,6 +310,7 @@ class DAQClient:
     def stopRun(self):
         """Stop component processing DAQ data"""
         try:
+            print "XMLRPC stop run for ", self.id
             return self.client.xmlrpc.stopRun(self.id)
         except Exception, e:
             print exc_string()
@@ -469,7 +472,9 @@ class DAQServer:
         if not set:
             raise ValueError, 'Could not find runset#' + str(id)
 
+        self.logmsg("stopRun+")
         set.stopRun()
+        self.logmsg("stopRun-")
 
         return "OK"
 

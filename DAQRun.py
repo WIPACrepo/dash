@@ -33,6 +33,8 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     "Serve requests to start/stop DAQ runs (exp control iface)"
     LOGDIR = "/tmp" # Should change eventually to something more sensible
     CFGDIR = "/usr/local/icecube/config"
+    CATCHALL_PORT = 9001
+    CNC_PORT      = 8080
     def __init__(self, portnum, configDir=CFGDIR, logDir=LOGDIR):
         RPCServer.__init__(self, portnum,
                            "localhost", "DAQ Run Server - object for starting and stopping DAQ runs")
@@ -55,7 +57,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.runComponents   = ["zero", "eventBuilder", "ebHarness"]
         self.compNames       = []
         self.compLogReceiver = []
-        self.catchAllLogger  = SocketLogger(9001, "Catchall", logDir + "/catchall.log")
+        self.catchAllLogger  = SocketLogger(DAQRun.CATCHALL_PORT, "Catchall", logDir + "/catchall.log")
         self.ip              = self.getIP()
         self.catchAllLogger.startServing()
         self.compPorts       = {} # Indexed by name
@@ -78,10 +80,10 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         "Find component name in string returned by CnCServer"
         match = search(r'ID#(\d+) (\S+?)#(\d+) at (\S+?):(\d+) ', c)
         if not match: return ''
-        compID = match.group(1)
+        compID = int(match.group(1))
         name   = match.group(2)
         addr   = match.group(4)
-        port   = match.group(5)
+        port   = int(match.group(5))
         self.compPorts[name] = (compID, addr, port)
         return name
     
@@ -139,32 +141,39 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     def setUpOneComponentLogging(self, compName, logPort):
         logFile  = "%s/%s.log" % (self.log.logPath, compName)
         self.logmsg("Creating logger for %s at %s on port %d" % (compName, logFile, logPort))
-        compLogReceiver = SocketLogger(logPort, compName, logFile)
-        compLogReceiver.startServing()
+        clr = SocketLogger(logPort, compName, logFile)
+        clr.startServing()
         self.compNames.append(compName)
         ID, addr, port = self.compPorts[compName] # Set of 3 - ID, addr, port
         # self.logmsg("%s(%d) -> %s:%d" % (compName, int(ID), addr, int(port)))
-        remote = RPCClient(addr, int(port))
-        remote.xmlrpc.logTo(int(ID), self.ip, logPort)
-        return compLogReceiver
+        remote = RPCClient(addr, port)
+        remote.xmlrpc.logTo(ID, self.ip, logPort)
+        return clr
 
     def setUpAllComponentLogging(self):
         # Set up logging for other components
         self.logmsg("Setting up logging for %d components" % len(self.runComponents))
         for ic in range(0, len(self.runComponents)):
             self.compLogReceiver.append(self.setUpOneComponentLogging(self.runComponents[ic], 9002 + ic))
-
+        self.logmsg("Created %d log receiver objects" % len(self.compLogReceiver))
+        
     def stopAllComponentLogging(self):
-        self.logmsg("Stopping all external component logging")
+        self.logmsg("Stopping external component logging for %d components" % len(self.runComponents))
         for ic in range(0, len(self.runComponents)):
+            name = self.runComponents[ic]
+            ID, addr, port = self.compPorts[name]
+            self.logmsg("Stopping logging for component %s (ID=%d, addr=%s, port=%d)" % (name, ID, addr, port))
+            remote = RPCClient(addr, int(port))
+            remote.xmlrpc.logTo(ID, self.ip, DAQRun.CATCHALL_PORT)
             self.compLogReceiver[ic].stopServing()
-                            
+            self.compLogReceiver[ic] = None
+            
     def start_run(self):
         "Includes configuration, etc. -- can take some time"
         # Log file is already defined since STARTING state does not get invoked otherwise
         # Set up logger for CnCServer and required components
         try:
-            self.CnCRPC = RPCClient("localhost", 8080)
+            self.CnCRPC = RPCClient("localhost", DAQRun.CNC_PORT)
             self.configureCnCLogging()
             self.getComponentsFromGlobalConfig()
             
@@ -208,15 +217,16 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         # Paranoid nested try loops to make sure we at least try to do
         # each step
         try:            
-            self.logmsg("Stopping component logging")
-            self.stopAllComponentLogging()
             
             if self.runSetID:
-                self.logmsg("Stopping run...")
+                self.logmsg("Sending set_stop_run...")
                 try: self.CnCRPC.rpc_set_stop_run(self.runSetID)
                 except: self.logmsg(exc_string())
+                
+                self.logmsg("Stopping component logging")
+                self.stopAllComponentLogging()
 
-                self.logmsg("Breaking run set:")
+                self.logmsg("Breaking run set...")
                 try:    self.CnCRPC.rpc_set_break(self.runSetID)
                 except: self.logmsg(exc_string())
 
@@ -229,10 +239,14 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 if self.CnCLogReceiver: self.CnCLogReceiver.stopServing()
             except:
                 self.logmsg(exc_string())
+
+            self.compNames = []
+            self.compLogReceiver = []
+            
         except:
             self.logmsg(exc_string())
 
-        self.runSetID       = None
+        self.runSetID = None
         self.logmsg("Run terminated.")
         self.log.close()
         self.runState = "STOPPED"
