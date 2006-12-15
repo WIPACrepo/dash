@@ -37,6 +37,13 @@ class MockComponent:
         self.runNum = None
 
 class TestRunSet(unittest.TestCase):
+    def checkStatus(self, set, compList, expState):
+        statDict = set.status()
+        self.assertEqual(len(statDict), len(compList))
+        for c in compList:
+            self.failUnless(statDict.has_key(c), 'Could not find ' + str(c))
+            self.assertEqual(statDict[c], expState)
+
     def isCompListConfigured(self, compList):
         for c in compList:
             if not c.configured:
@@ -57,6 +64,8 @@ class TestRunSet(unittest.TestCase):
         set = RunSet(compList)
         self.assertEqual(str(set), 'RunSet #' + str(set.id))
 
+        self.checkStatus(set, compList, 'Idle')
+
         if len(compList) > 0:
             self.failIf(self.isCompListConfigured(compList),
                         'Components should not be configured')
@@ -75,6 +84,8 @@ class TestRunSet(unittest.TestCase):
             self.failIf(self.isCompListRunning(compList),
                         'Components should not be running')
 
+        self.checkStatus(set, compList, 'Ready')
+
         self.assertRaises(ValueError, set.stopRun)
 
         set.startRun(runNum)
@@ -87,6 +98,8 @@ class TestRunSet(unittest.TestCase):
             self.failUnless(self.isCompListRunning(compList, runNum),
                             'Components should not be running')
 
+        self.checkStatus(set, compList, 'Running')
+
         set.stopRun()
         self.assertEqual(str(set), 'RunSet #' + str(set.id))
 
@@ -96,6 +109,8 @@ class TestRunSet(unittest.TestCase):
             self.failIf(self.isCompListRunning(compList),
                         'Components should not be running')
 
+        self.checkStatus(set, compList, 'Ready')
+
         set.reset()
         self.assertEqual(str(set), 'RunSet #' + str(set.id))
 
@@ -104,6 +119,8 @@ class TestRunSet(unittest.TestCase):
                         'Components should be configured')
             self.failIf(self.isCompListRunning(compList),
                         'Components should not be running')
+
+        self.checkStatus(set, compList, 'Idle')
 
     def testEmpty(self):
         self.runTests([], 1)

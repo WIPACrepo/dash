@@ -200,9 +200,14 @@ class RunSet:
         self.runNumber = None
 
     def status(self):
-        """Print the current state of components in the runset"""
+        """
+        Return a dictionary of components in the runset and their current state
+        """
+        setStat = {}
         for c in self.set:
-            print str(c) + ' ' + c.getState()
+            setStat[c] = c.getState()
+
+        return setStat
 
 class DAQClient:
     """DAQ component"""
@@ -469,7 +474,9 @@ class DAQServer:
         if not set:
             raise ValueError, 'Could not find runset#' + str(id)
 
-        set.status()
+        setStat = set.status()
+        for c in setStat.keys():
+            print str(c) + ' ' + c.getState()
 
         return "OK"
 
