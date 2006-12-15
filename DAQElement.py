@@ -326,14 +326,14 @@ class DAQServer:
         self.sets = []
         self.socketlog = None
 
-        notify = 1
-        while 1:
+        notify = True
+        while True:
             try:
                 self.server = RPCServer(self.port)
                 break
             except socket.error, e:
                 if notify: print "Couldn't create server socket: %s" % e
-                notify = 0
+                notify = False
                 sleep(3)
 
         self.server.register_function(self.rpc_close_log)
