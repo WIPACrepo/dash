@@ -55,8 +55,16 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.configDir       = configDir
         self.logDir          = logDir
         self.runComponents   = ["zero", "eventBuilder", "ebHarness"]
-        self.compNames       = []
-        self.compLogReceiver = []
+
+        # setCompID is the ID returned by CnCServer
+        # daqID is e.g. 21 for string 21
+        self.setCompIDs      = []
+        self.shortNameOf     = {} # indexed by setCompID
+        self.daqIDof         = {} # "                  "
+        self.addrOf          = {} # "                  "
+        self.portOf          = {} # "                  "
+        self.loggerOf        = {} # "                  "
+        
         self.catchAllLogger  = SocketLogger(DAQRun.CATCHALL_PORT, "Catchall", logDir + "/catchall.log")
         self.ip              = self.getIP()
         self.catchAllLogger.startServing()
@@ -76,22 +84,40 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         print m
         if self.log: self.log.dashLog(m)
 
-    def parseComponentName(self, c, field):
+
+    def parseComponentNameOld(self, c, field):
         "Find component name in string returned by CnCServer"
         match = search(r'ID#(\d+) (\S+?)#(\d+) at (\S+?):(\d+) ', c)
         if not match: return ''
         compID = int(match.group(1))
         name   = match.group(2)
+        daqID  = match.group(3)
         addr   = match.group(4)
         port   = int(match.group(5))
         self.compPorts[name] = (compID, addr, port)
         return name
-    
-    def parseNames(self, l):
-        "Build list of parsed names from CnCServer"
-        for x in l: yield self.parseComponentName(x, 2)
 
-    def listContains(self, target, reference):
+
+    def parseComponentName(componentString):
+        "Find component name in string returned by CnCServer"
+        match = search(r'ID#(\d+) (\S+?)#(\d+) at (\S+?):(\d+) ', componentString)
+        if not match: return ''
+        setCompID = int(match.group(1))
+        shortName = match.group(2)
+        daqID     = int(match.group(3))
+        compIP    = match.group(4)
+        compPort  = int(match.group(5))
+        return (setCompID, shortName, daqID, compIP, compPort)
+    parseComponentName = staticmethod(parseComponentName)
+
+    def getNameList(l):
+        "Build list of parsed names from CnCServer"
+        for x in l:
+            parsed = DAQRun.parseComponentName(x)
+            yield parsed[1]
+    getNameList = staticmethod(getNameList)
+    
+    def listContains(target, reference):
         "See if list 'target' contained in list 'reference' (Would be much easier w/ Python 2.4!)"
         for t in target:
             found = False
@@ -99,18 +125,21 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 if t == r: found = True; break
             if not found: return False
         return True
-
+    listContains = staticmethod(listContains)
+    
     def waitForRequiredComponents(self, RPCObj, requiredList, timeOutSecs):
         "Verify that all components in requiredList are present on remote server"
         tstart = datetime.datetime.now()
         while(datetime.datetime.now()-tstart < datetime.timedelta(seconds=timeOutSecs)):
-            self.remoteComponents = RPCObj.rpc_show_components()
-            if self.listContains(requiredList, list(self.parseNames(self.remoteComponents))): return
+            remoteList = RPCObj.rpc_show_components()
+            if DAQRun.listContains(requiredList,
+                                   list(DAQRun.getNameList(remoteList))):
+                return remoteList
             sleep(5)
 
         # Do some debug logging to show what actually showed up:
-        self.logmsg("Got the following %d remote components:" % len(remoteComponents))
-        for x in self.remoteComponents:
+        self.logmsg("Got the following %d remote components:" % len(remoteList))
+        for x in remoteList:
             self.logmsg(x)
         raise RequiredComponentsNotAvailableException()
 
@@ -138,35 +167,45 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         for kind in self.kindlist:
             self.logmsg("Configuration includes detector %s" % kind)
 
-    def setUpOneComponentLogging(self, compName, logPort):
-        logFile  = "%s/%s.log" % (self.log.logPath, compName)
-        self.logmsg("Creating logger for %s at %s on port %d" % (compName, logFile, logPort))
-        clr = SocketLogger(logPort, compName, logFile)
+    def setUpOneComponentLogger(logPath, selfIP, shortName, logPort, compID, compAddr, compPort):
+        logFile  = "%s/%s.log" % (logPath, shortName)
+        # self.logmsg("Creating logger for %s at %s on port %d" % (compName, logFile, logPort))
+        clr = SocketLogger(logPort, shortName, logFile)
         clr.startServing()
-        self.compNames.append(compName)
-        ID, addr, port = self.compPorts[compName] # Set of 3 - ID, addr, port
-        # self.logmsg("%s(%d) -> %s:%d" % (compName, int(ID), addr, int(port)))
-        remote = RPCClient(addr, port)
-        remote.xmlrpc.logTo(ID, self.ip, logPort)
+        remote = RPCClient(compAddr, compPort)
+        remote.xmlrpc.logTo(compID, selfIP, logPort)
         return clr
-
-    def setUpAllComponentLogging(self):
-        # Set up logging for other components
-        self.logmsg("Setting up logging for %d components" % len(self.runComponents))
-        for ic in range(0, len(self.runComponents)):
-            self.compLogReceiver.append(self.setUpOneComponentLogging(self.runComponents[ic], 9002 + ic))
-        self.logmsg("Created %d log receiver objects" % len(self.compLogReceiver))
+    setUpOneComponentLogger = staticmethod(setUpOneComponentLogger)
         
-    def stopAllComponentLogging(self):
-        self.logmsg("Stopping external component logging for %d components" % len(self.runComponents))
-        for ic in range(0, len(self.runComponents)):
-            name = self.runComponents[ic]
-            ID, addr, port = self.compPorts[name]
-            self.logmsg("Stopping logging for component %s (ID=%d, addr=%s, port=%d)" % (name, ID, addr, port))
-            remote = RPCClient(addr, int(port))
-            remote.xmlrpc.logTo(ID, self.ip, DAQRun.CATCHALL_PORT)
-            self.compLogReceiver[ic].stopServing()
-            self.compLogReceiver[ic] = None
+    def setUpAllComponentLoggers(self):
+        "Sets up loggers for remote components (other than CnCServer)"
+        self.logmsg("Setting up logging for %d components" % len(self.setCompIDs))
+        for ic in range(0, len(self.setCompIDs)):
+            compID = self.setCompIDs[ic]
+            self.loggerOf[compID] = DAQRun.setUpOneComponentLogger(self.log.logPath,
+                                                                   self.ip,
+                                                                   self.shortNameOf[compID],
+                                                                   9002 + ic,
+                                                                   compID,
+                                                                   self.addrOf[compID],
+                                                                   self.portOf[compID])
+            self.logmsg("%s(%d %s:%d) -> %s:%d" % (self.shortNameOf[compID], compID,
+                                                   self.addrOf[compID], self.portOf[compID],
+                                                   self.ip, 9002 + ic))
+            
+    def stopAllComponentLoggers(self):
+        "Stops loggers for remote components"
+        for ic in range(0, len(self.setCompIDs)):
+            compID = self.setCompIDs[ic]            
+            remote = RPCClient(self.addrOf[compID], self.portOf[compID])
+            remote.xmlrpc.logTo(compID, self.ip, DAQRun.CATCHALL_PORT)
+            self.loggerOf[compID].stopServing()
+            self.loggerOf[compID] = None
+            
+    def createRunsetRequestNames(self):
+        "Create a list of names in the form of e.g. 'stringHub#21'"
+        for r in self.setCompIDs:
+            yield "%s#%d" % (self.shortNameOf[r], self.daqIDof[r])
             
     def start_run(self):
         "Includes configuration, etc. -- can take some time"
@@ -180,13 +219,24 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             # Wait for required components
             self.logmsg("Starting run %d (waiting for required %d components to register w/ CnCServer)"
                         % (self.runNum, len(self.runComponents)))
-            self.waitForRequiredComponents(self.CnCRPC, self.runComponents, 60)
+            remoteList = self.waitForRequiredComponents(self.CnCRPC, self.runComponents, 60)
             # Throws RequiredComponentsNotAvailableException
 
-            self.setUpAllComponentLogging()
+            # Form up table of discovered components
+            for r in remoteList:
+                parsed    = DAQRun.parseComponentName(r)
+                setCompID = parsed[0]
+                self.setCompIDs.append(setCompID)
+                self.shortNameOf[ setCompID ] = parsed[1]
+                self.daqIDof    [ setCompID ] = parsed[2]
+                self.addrOf     [ setCompID ] = parsed[3]
+                self.portOf     [ setCompID ] = parsed[4]
+                
+            self.setUpAllComponentLoggers()
 
             # build CnC run set
-            self.runSetID = self.CnCRPC.rpc_runset_make(self.compNames)
+            self.runSetID = self.CnCRPC.rpc_runset_make(self.ip,
+                                                        list(self.createRunsetRequestNames()))
             self.logmsg("Created Run Set #%d" % self.runSetID)
                             
             # Configure the run set
@@ -224,7 +274,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 except: self.logmsg(exc_string())
                 
                 self.logmsg("Stopping component logging")
-                self.stopAllComponentLogging()
+                self.stopAllComponentLoggers()
 
                 self.logmsg("Breaking run set...")
                 try:    self.CnCRPC.rpc_runset_break(self.runSetID)
@@ -240,8 +290,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             except:
                 self.logmsg(exc_string())
 
-            self.compNames = []
-            self.compLogReceiver = []
+            self.setCompIDs = []
             
         except:
             self.logmsg(exc_string())
@@ -266,7 +315,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         
     def rpc_run_state(self):
         r'Returns DAQ State, one of "STARTING", "RUNNING", "STOPPED", "STOPPING", "ERROR", "RECOVERING"'
-        if self.runState == "RUNNING" and random() < 0.02:
+        if self.runState == "RUNNING" and random() < 0.01:
             self.logmsg("Generating fake error state.")
             self.runState = "ERROR"
         
