@@ -186,16 +186,16 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.setUpAllComponentLogging()
 
             # build CnC run set
-            self.runSetID = self.CnCRPC.rpc_set_make(self.ip, self.compNames)
+            self.runSetID = self.CnCRPC.rpc_runset_make(self.ip, self.compNames)
             self.logmsg("Created Run Set #%d" % self.runSetID)
                             
             # Configure the run set
             self.logmsg("Configuring run set...")
-            self.CnCRPC.rpc_set_configure(self.runSetID)
+            self.CnCRPC.rpc_runset_configure(self.runSetID)
 
             # Start run.  Eventually, starting/stopping runs will be done
             # without reconfiguration, if configuration hasn't changed
-            self.CnCRPC.rpc_set_start_run(self.runSetID, self.runNum)
+            self.CnCRPC.rpc_runset_start_run(self.runSetID, self.runNum)
             self.logmsg("Started run %d on run set %d" % (self.runNum, self.runSetID))
             self.runState = "RUNNING"
             return
@@ -220,14 +220,14 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             
             if self.runSetID:
                 self.logmsg("Sending set_stop_run...")
-                try: self.CnCRPC.rpc_set_stop_run(self.runSetID)
+                try: self.CnCRPC.rpc_runset_stop_run(self.runSetID)
                 except: self.logmsg(exc_string())
                 
                 self.logmsg("Stopping component logging")
                 self.stopAllComponentLogging()
 
                 self.logmsg("Breaking run set...")
-                try:    self.CnCRPC.rpc_set_break(self.runSetID)
+                try:    self.CnCRPC.rpc_runset_break(self.runSetID)
                 except: self.logmsg(exc_string())
 
             self.logmsg("Telling CNC Server to close log")

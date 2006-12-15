@@ -341,12 +341,12 @@ class DAQServer:
         self.server.register_function(self.rpc_log_to)
         self.server.register_function(self.rpc_ping)
         self.server.register_function(self.rpc_register_component)
-        self.server.register_function(self.rpc_set_break)
-        self.server.register_function(self.rpc_set_configure)
-        self.server.register_function(self.rpc_set_make)
-        self.server.register_function(self.rpc_set_start_run)
-        self.server.register_function(self.rpc_set_status)
-        self.server.register_function(self.rpc_set_stop_run)
+        self.server.register_function(self.rpc_runset_break)
+        self.server.register_function(self.rpc_runset_configure)
+        self.server.register_function(self.rpc_runset_make)
+        self.server.register_function(self.rpc_runset_start_run)
+        self.server.register_function(self.rpc_runset_status)
+        self.server.register_function(self.rpc_runset_stop_run)
         self.server.register_function(self.rpc_show_components)
         self.server.register_function(self.rpc_num_sets)
 
@@ -386,7 +386,7 @@ class DAQServer:
 
         return client.id
 
-    def rpc_set_break(self, id):
+    def rpc_runset_break(self, id):
         "break up the specified set"
         found = False
         for s in self.sets:
@@ -403,7 +403,7 @@ class DAQServer:
 
         return "OK"
 
-    def rpc_set_configure(self, id):
+    def rpc_runset_configure(self, id):
         "configure the specified set"
         set = self.findSet(id)
 
@@ -414,7 +414,7 @@ class DAQServer:
 
         return "OK"
 
-    def rpc_set_make(self, logIP, nameList):
+    def rpc_runset_make(self, logIP, nameList):
         "build a set using the specified components"
         compList = [ ]
         setAdded = False
@@ -443,7 +443,7 @@ class DAQServer:
 
         return runSet.id
 
-    def rpc_set_start_run(self, id, runNum):
+    def rpc_runset_start_run(self, id, runNum):
         "start a run with the specified set"
         set = self.findSet(id)
 
@@ -454,7 +454,7 @@ class DAQServer:
 
         return "OK"
 
-    def rpc_set_status(self, id):
+    def rpc_runset_status(self, id):
         "get run status for the specified set"
         set = self.findSet(id)
 
@@ -465,7 +465,7 @@ class DAQServer:
 
         return "OK"
 
-    def rpc_set_stop_run(self, id):
+    def rpc_runset_stop_run(self, id):
         "stop a run with the specified set"
         set = self.findSet(id)
 
