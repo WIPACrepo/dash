@@ -438,6 +438,30 @@ class DAQPool(CnCLogger):
 
         return set
 
+    def makeSet(self, nameList):
+        compList = []
+        setAdded = False
+        try:
+            try:
+                # buildSet fills 'compList' with the specified components
+                #
+                self.buildSet(nameList, compList)
+                runSet = RunSet(compList)
+                self.sets.append(runSet)
+                setAdded = True
+            except Exception, ex:
+                runSet = None
+                self.logmsg(exc_string())
+                raise ex
+        finally:
+            if not setAdded:
+                for c in compList:
+                    c.reset()
+                    self.add(c)
+                runSet = None
+
+        return runSet
+
     def monitorClients(self, new):
         """check that all components in the pool are still alive"""
         count = 0
@@ -573,31 +597,13 @@ class DAQServer(DAQPool):
 
     def rpc_runset_make(self, nameList):
         "build a set using the specified components"
-        compList = [ ]
-        setAdded = False
-        try:
-            try:
-                # buildSet fills 'compList' with the specified components
-                #
-                self.buildSet(nameList, compList)
-                runSet = RunSet(compList)
-                self.sets.append(runSet)
-                setAdded = True
-                self.logmsg("Built set with the following components:\n"+ runSet.componentListStr())
-            except Exception, ex:
-                runSet = None
-                self.logmsg(exc_string())
-                raise ex
-        finally:
-            if not setAdded:
-                for c in compList:
-                    c.reset()
-                    self.add(c)
-                runSet = None
+        runSet = self.makeSet(nameList)
 
         if not runSet:
             return -1
 
+        self.logmsg("Built set with the following components:\n" +
+                    runSet.componentListStr())
         return runSet.id
 
     def rpc_runset_start_run(self, id, runNum):
