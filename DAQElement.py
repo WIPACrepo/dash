@@ -362,14 +362,133 @@ class CnCLogger(object):
         self.socketlog = DAQLogger(host, port)
         self.logmsg("Start of log")
 
-class DAQServer(CnCLogger):
+class DAQPool(CnCLogger):
+    def __init__(self):
+        self.pool = {}
+        self.sets = []
+
+        super(DAQPool, self).__init__()
+
+    def add(self, comp):
+        """Add the component to the config server's pool"""
+        if not self.pool.has_key(comp.name):
+            self.pool[comp.name] = []
+        self.pool[comp.name].append(comp)
+
+    def buildSet(self, nameList, compList):
+        """
+        Build a runset from the specified list of component names
+        """
+        connMgr = ConnectionManager()
+
+        for name in nameList:
+            # separate name and number
+            #
+            pound = name.rfind('#')
+            if pound < 0:
+                num = -1
+            else:
+                num = int(name[pound+1:])
+                name = name[0:pound]
+
+            if not self.pool.has_key(name) or len(self.pool[name]) == 0:
+                raise ValueError, 'No "' + name + '" components are available'
+
+            # find component in pool
+            #
+            comp = None
+            for c in self.pool[name]:
+                if num < 0 or c.num == num:
+                    self.remove(c)
+                    comp = c
+                    break
+            if not comp:
+                raise ValueError, 'Component \"' + name + '#' + str(num) + \
+                    '" is not available'
+
+            # add component to temporary list
+            #
+            compList.append(comp)
+
+            # add component's connectors to the connection dictionary
+            #
+            connMgr.add(comp)
+
+        # make sure I/O channels match up
+        #
+        map = connMgr.buildConnectionMap()
+
+        # connect all components
+        #
+        for c in compList:
+            if not map.has_key(c):
+                c.connect()
+            else:
+                c.connect(map[c])
+
+        return None
+
+    def findSet(self, id):
+        """Find the runset with the specified ID"""
+        set = None
+        for s in self.sets:
+            if s.id == id:
+                set = s
+                break
+
+        return set
+
+    def monitorClients(self, new):
+        """check that all components in the pool are still alive"""
+        count = 0
+
+        keys = self.pool.keys()
+        for k in keys:
+            if new: self.logmsg("  %s:" % k)
+
+            try:
+                bin = self.pool[k]
+            except KeyError:
+                # bin may have been removed by daemon
+                continue
+
+            for c in bin:
+                state = c.monitor()
+                if state == DAQClient.STATE_DEAD:
+                    self.remove(c)
+                elif state != DAQClient.STATE_MISSING:
+                    count += 1
+
+                if new:
+                    self.logmsg("    %s %s" % (str(c), state))
+
+        for s in self.sets:
+            self.logmsg(str(s))
+
+        return count
+
+    def remove(self, comp):
+        """Remove a component from the pool"""
+        if self.pool.has_key(comp.name):
+            self.pool[comp.name].remove(comp)
+            if len(self.pool[comp.name]) == 0:
+                del self.pool[comp.name]
+
+        return comp
+
+    def returnSet(self, s):
+        """Return runset components to the pool"""
+        self.sets.remove(s)
+        s.reset()
+        for c in s.set:
+            self.add(c)
+
+class DAQServer(DAQPool):
     """Configuration server"""
 
     def __init__(self, name="GenericServer", port=8080):
         self.port = port
         self.name = name
-        self.pool = {}
-        self.sets = []
 
         super(DAQServer, self).__init__()
 
@@ -426,24 +545,18 @@ class DAQServer(CnCLogger):
 
         sleep(1)
 
-        self.addToPool(client)
+        self.add(client)
 
         return client.id
 
     def rpc_runset_break(self, id):
         "break up the specified set"
-        found = False
-        for s in self.sets:
-            if s.id == id:
-                self.sets.remove(s)
-                s.reset()
-                for c in s.set:
-                    self.addToPool(c)
-                found = True
-                break
+        set = self.findSet(id)
 
-        if not found:
-            raise ValueError, 'Could not find run#' + str(id)
+        if not set:
+            raise ValueError, 'Could not find runset#' + str(id)
+
+        self.returnSet(set)
 
         return "OK"
 
@@ -479,7 +592,7 @@ class DAQServer(CnCLogger):
             if not setAdded:
                 for c in compList:
                     c.reset()
-                    self.addToPool(c)
+                    self.add(c)
                 runSet = None
 
         if not runSet:
@@ -542,116 +655,11 @@ class DAQServer(CnCLogger):
 
         return s
 
-    def addToPool(self, comp):
-        """Add the component to the config server's pool"""
-        if not self.pool.has_key(comp.name):
-            self.pool[comp.name] = []
-        self.pool[comp.name].append(comp)
-
-    def buildSet(self, nameList, compList):
-        """
-        Build a runset from the specified list of component names
-        """
-        connMgr = ConnectionManager()
-
-        for name in nameList:
-            # separate name and number
-            #
-            pound = name.rfind('#')
-            if pound < 0:
-                num = -1
-            else:
-                num = int(name[pound+1:])
-                name = name[0:pound]
-
-            if not self.pool.has_key(name) or len(self.pool[name]) == 0:
-                raise ValueError, 'No "' + name + '" components are available'
-
-            # find component in pool
-            #
-            comp = None
-            for c in self.pool[name]:
-                if num < 0 or c.num == num:
-                    self.takeFromPool(c)
-                    comp = c
-                    break
-            if not comp:
-                raise ValueError, 'Component \"' + name + '#' + str(num) + \
-                    '" is not available'
-
-            # add component to temporary list
-            #
-            compList.append(comp)
-
-            # add component's connectors to the connection dictionary
-            #
-            connMgr.add(comp)
-
-        # make sure I/O channels match up
-        #
-        map = connMgr.buildConnectionMap()
-
-        # connect all components
-        #
-        for c in compList:
-            if not map.has_key(c):
-                c.connect()
-            else:
-                c.connect(map[c])
-
-        return None
-
-    def findSet(self, id):
-        """Find the runset with the specified ID"""
-        set = None
-        for s in self.sets:
-            if s.id == id:
-                set = s
-                break
-
-        return set
-
-    def monitorClients(self, new):
-        """check that all components in the pool are still alive"""
-        count = 0
-
-        keys = self.pool.keys()
-        for k in keys:
-            if new: self.logmsg("  %s:" % k)
-
-            try:
-                bin = self.pool[k]
-            except KeyError:
-                # bin may have been removed by daemon
-                continue
-
-            for c in bin:
-                state = c.monitor()
-                if state == DAQClient.STATE_DEAD:
-                    self.takeFromPool(c)
-                elif state != DAQClient.STATE_MISSING:
-                    count += 1
-
-                if new:
-                    self.logmsg("    %s %s" % (str(c), state))
-
-        for s in self.sets:
-            self.logmsg(str(s))
-
-        return count
-
     def serve(self, handler):
         """Start a server"""
         self.logmsg("I'm server %s running on port %d" % (self.name, self.port))
         thread.start_new_thread(handler, ())
         self.server.serve_forever()
-
-    def takeFromPool(self, comp):
-        """Remove a component from the pool"""
-        self.pool[comp.name].remove(comp)
-        if len(self.pool[comp.name]) == 0:
-            del self.pool[comp.name]
-        return comp
 
 if __name__ == "__main__":
     # Unit tests here
