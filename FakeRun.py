@@ -9,7 +9,8 @@ from DAQRPC import RPCClient
 set_exc_string_encoding("ascii")
 
 class FakeRun:
-    def __init__(self, logPort, compList, servername="localhost", portnum=8080):
+    def __init__(self, logPort, compList, delay,
+                 servername="localhost", portnum=8080):
         cl = RPCClient(servername, portnum)
         try:
             cl.rpc_log_to('127.0.0.1', logPort)
@@ -26,7 +27,7 @@ class FakeRun:
             try:
                 cl.rpc_runset_configure(setId)
                 cl.rpc_runset_start_run(setId, runNum)
-                for i in range(1,20):
+                for i in range(1,delay):
                     cl.rpc_runset_status(setId)
                     time.sleep(1)
                 cl.rpc_runset_stop_run(setId)
@@ -40,6 +41,7 @@ class FakeRun:
 if __name__ == "__main__":
     logPort = 4444
     compList = []
+    delay = 20
 
     i = 1
     while i < len(sys.argv):
@@ -47,7 +49,22 @@ if __name__ == "__main__":
         i += 1
 
         if len(arg) > 1 and arg[0:1] == '-':
-            if arg[1:2] == 'l':
+            if arg[1:2] == 'd':
+                if len(arg) > 2:
+                    delayStr = int(arg[2:])
+                else:
+                    delayStr = sys.argv[i]
+                    i += 1
+
+                try:
+                    delay = int(delayStr)
+                except:
+                    sys.stderr.write("Bad delay length '%s'\n" % delayStr)
+                    sys.exit(1)
+
+                continue
+
+            elif arg[1:2] == 'l':
                 if len(arg) > 2:
                     portStr = arg[2:]
                 else:
@@ -67,5 +84,5 @@ if __name__ == "__main__":
     logger = SocketLogger(logPort, 'all-components', None)
     try:
         logger.startServing()
-        FakeRun(logPort, compList)
+        FakeRun(logPort, compList, delay)
     finally:logger.stopServing()
