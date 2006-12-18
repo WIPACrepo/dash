@@ -215,6 +215,39 @@ class RunSet:
 
         return setStat
 
+class CnCLogger(object):
+    """CnC logging client"""
+
+    def __init__(self):
+        "create a logging client"
+        self.socketlog = None
+
+    def closeLog(self):
+        """Close the log socket"""
+        self.logmsg("End of log")
+        self.socketlog.close
+        self.socketlog = None
+
+    def logmsg(self, s):
+        """
+        Log a string to stdout and, if available, to the socket logger
+        stdout of course will not appear if daemonized.
+        """
+        print s
+        if self.socketlog:
+            try:
+                self.socketlog.write_ts(s)
+            except Exception, ex:
+                if str(ex).find('Connection refused') < 0:
+                    raise ex
+                self.socketlog = None
+                print 'Lost logging connection'
+
+    def openLog(self, host, port):
+        """initialize socket logger"""
+        self.socketlog = DAQLogger(host, port)
+        self.logmsg("Start of log")
+
 class DAQClient:
     """DAQ component"""
 
@@ -333,39 +366,6 @@ class DAQClient:
         except Exception, e:
             print exc_string()
             return None
-
-class CnCLogger(object):
-    """CnC logging client"""
-
-    def __init__(self):
-        "create a logging client"
-        self.socketlog = None
-
-    def closeLog(self):
-        """Close the log socket"""
-        self.logmsg("End of log")
-        self.socketlog.close
-        self.socketlog = None
-
-    def logmsg(self, s):
-        """
-        Log a string to stdout and, if available, to the socket logger
-        stdout of course will not appear if daemonized.
-        """
-        print s
-        if self.socketlog:
-            try:
-                self.socketlog.write_ts(s)
-            except Exception, ex:
-                if str(ex).find('Connection refused') < 0:
-                    raise ex
-                self.socketlog = None
-                print 'Lost logging connection'
-
-    def openLog(self, host, port):
-        """initialize socket logger"""
-        self.socketlog = DAQLogger(host, port)
-        self.logmsg("Start of log")
 
 class DAQPool(CnCLogger):
     def __init__(self):
