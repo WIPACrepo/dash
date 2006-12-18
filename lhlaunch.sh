@@ -41,10 +41,10 @@ echo "Starting eventbuilder..."
 (cd ../eventBuilder-prod; ./run-eb -l localhost:9001 2>/dev/null &) &
 
 echo "Starting global trigger..."
-(cd ../trigger; ./run-gltrig -l localhost:9001 2>/dev/null &) &
+(cd ../trigger; ./run-gltrig -g $cfg -l localhost:9001 2>/dev/null &) &
 
 echo "Starting in-ice trigger..."
-(cd ../trigger; ./run-iitrig -l localhost:9001 2>/dev/null &) &
+(cd ../trigger; ./run-iitrig -g $cfg -l localhost:9001 2>/dev/null &) &
 
 echo "Starting StringHub..."
 (cd ../StringHub; ./run-hub 1001 -l localhost:9001 1>/dev/null 2>/dev/null &) &
