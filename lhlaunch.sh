@@ -10,6 +10,10 @@ echo "Killing existing components..."
 
 ps ax | egrep 'java icecube.daq.juggler.toybox.DAQCompApp' | grep -v grep | awk '{print $1}' | xargs kill -9
 ps ax | egrep 'java icecube.daq.eventBuilder.EBComponent'  | grep -v grep | awk '{print $1}' | xargs kill -9
+ps ax | egrep 'java icecube.daq.trigger.component.IniceTriggerComponent'\
+                                                           | grep -v grep | awk '{print $1}' | xargs kill -9
+ps ax | egrep 'java icecube.daq.trigger.component.GlobalTriggerComponent'\
+                                                           | grep -v grep | awk '{print $1}' | xargs kill -9
 ps ax | egrep 'java -Dicecube.daq.stringhub'               | grep -v grep | awk '{print $1}' | xargs kill -9
 
 echo "Cleaning up logs..."
@@ -27,14 +31,20 @@ echo "Starting DAQRun..."
 echo "Starting CnCserver..."
 ./CnCServer.py -d
 
-echo "Starting 'zero' component..."
-(cd ../juggler; ./run-comp -l localhost:9001 zero 2>/dev/null &) &
+#echo "Starting 'zero' component..."
+#(cd ../juggler; ./run-comp -l localhost:9001 zero 2>/dev/null &) &
 
-echo "Starting event builder harness component..."
-(cd ../juggler; ./run-comp -l localhost:9001 ebHarness 2>/dev/null &) &
+#echo "Starting event builder harness component..."
+#(cd ../juggler; ./run-comp -l localhost:9001 ebHarness 2>/dev/null &) &
 
 echo "Starting eventbuilder..."
 (cd ../eventBuilder-prod; ./run-eb -l localhost:9001 2>/dev/null &) &
+
+echo "Starting global trigger..."
+(cd ../trigger; ./run-gltrig -l localhost:9001 2>/dev/null &) &
+
+echo "Starting in-ice trigger..."
+(cd ../trigger; ./run-iitrig -l localhost:9001 2>/dev/null &) &
 
 echo "Starting StringHub..."
 (cd ../StringHub; ./run-hub 1001 -l localhost:9001 1>/dev/null 2>/dev/null &) &
