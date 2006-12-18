@@ -248,7 +248,7 @@ class CnCLogger(object):
         self.socketlog = DAQLogger(host, port)
         self.logmsg("Start of log")
 
-class DAQClient:
+class DAQClient(CnCLogger):
     """DAQ component"""
 
     # next component ID
@@ -286,6 +286,8 @@ class DAQClient:
         self.client = RPCClient(host, port)
 
         self.deadCount = 0
+
+        super(DAQClient, self).__init__()
 
     def __str__(self):
         """String description"""
@@ -334,6 +336,7 @@ class DAQClient:
             return None
 
     def logTo(self, logIP, port):
+        self.openLog(logIP, port)
         self.client.xmlrpc.logTo(self.id, logIP, port)
 
     def monitor(self):
@@ -349,6 +352,7 @@ class DAQClient:
 
     def reset(self):
         """Reset component back to the idle state"""
+        self.closeLog()
         return self.client.xmlrpc.reset(self.id)
 
     def startRun(self, runNum):
