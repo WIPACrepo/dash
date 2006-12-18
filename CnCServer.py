@@ -329,7 +329,6 @@ class DAQClient:
     def stopRun(self):
         """Stop component processing DAQ data"""
         try:
-            print "XMLRPC stop run for ", self.id
             return self.client.xmlrpc.stopRun(self.id)
         except Exception, e:
             print exc_string()
@@ -381,7 +380,7 @@ class DAQPool(CnCLogger):
             self.pool[comp.name] = []
         self.pool[comp.name].append(comp)
 
-    def buildSet(self, nameList, compList):
+    def buildSet(self, nameList, compList, logIP, logPort):
         """
         Build a runset from the specified list of component names
         """
@@ -427,6 +426,8 @@ class DAQPool(CnCLogger):
         # connect all components
         #
         for c in compList:
+            if logIP is not None and logPort is not None:
+                c.logTo(logIP, logPort)
             if not map.has_key(c):
                 c.connect()
             else:
@@ -444,14 +445,14 @@ class DAQPool(CnCLogger):
 
         return set
 
-    def makeSet(self, nameList):
+    def makeSet(self, nameList, logIP, logPort):
         compList = []
         setAdded = False
         try:
             try:
                 # buildSet fills 'compList' with the specified components
                 #
-                self.buildSet(nameList, compList)
+                self.buildSet(nameList, compList, logIP, logPort)
                 runSet = RunSet(compList)
                 self.sets.append(runSet)
                 setAdded = True
@@ -601,9 +602,9 @@ class DAQServer(DAQPool):
 
         return "OK"
 
-    def rpc_runset_make(self, nameList):
+    def rpc_runset_make(self, nameList, logIP=None, logPort=None):
         "build a set using the specified components"
-        runSet = self.makeSet(nameList)
+        runSet = self.makeSet(nameList, logIP, logPort)
 
         if not runSet:
             return -1

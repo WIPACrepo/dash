@@ -14,7 +14,7 @@ class FakeRun:
         cl = RPCClient(servername, portnum)
         try:
             cl.rpc_log_to('127.0.0.1', logPort)
-            setId = cl.rpc_runset_make(compList)
+            setId = cl.rpc_runset_make(compList, '127.0.0.1', logPort)
         except Exception, e:
             print "Remote operation failed: %s" % e
             sys.exit(1)
