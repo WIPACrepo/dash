@@ -171,7 +171,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         clr = SocketLogger(logPort, shortName, logFile)
         clr.startServing()
         remote = RPCClient(compAddr, compPort)
-        remote.xmlrpc.logTo(compID, selfIP, logPort)
+        # remote.xmlrpc.logTo(compID, selfIP, logPort)
         return clr
     setUpOneComponentLogger = staticmethod(setUpOneComponentLogger)
         
@@ -197,7 +197,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         for ic in range(0, len(self.setCompIDs)):
             compID = self.setCompIDs[ic]            
             remote = RPCClient(self.addrOf[compID], self.portOf[compID])
-            remote.xmlrpc.logTo(compID, self.ip, DAQRun.CATCHALL_PORT)
+            # remote.xmlrpc.logTo(compID, self.ip, DAQRun.CATCHALL_PORT)
             self.loggerOf[compID].stopServing()
             self.loggerOf[compID] = None
             
