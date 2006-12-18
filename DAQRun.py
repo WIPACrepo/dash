@@ -31,10 +31,11 @@ class RequiredComponentsNotAvailableException(Exception): pass
 
 class DAQRun(RPCServer, Rebootable.Rebootable):
     "Serve requests to start/stop DAQ runs (exp control iface)"
-    LOGDIR = "/tmp" # Should change eventually to something more sensible
-    CFGDIR = "/usr/local/icecube/config"
-    CATCHALL_PORT = 9001
-    CNC_PORT      = 8080
+    LOGDIR         = "/tmp" # Should change eventually to something more sensible
+    CFGDIR         = "/usr/local/icecube/config"
+    CATCHALL_PORT  = 9001
+    CNC_PORT       = 8080
+    
     def __init__(self, portnum, configDir=CFGDIR, logDir=LOGDIR):
         RPCServer.__init__(self, portnum,
                            "localhost", "DAQ Run Server - object for starting and stopping DAQ runs")
@@ -200,11 +201,16 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.loggerOf[compID].stopServing()
             self.loggerOf[compID] = None
             
-    def createRunsetRequestNames(self):
+    def createRunsetRequestNameList(self):
         "Create a list of names in the form of e.g. 'stringHub#21'"
         for r in self.setCompIDs:
             yield "%s#%d" % (self.shortNameOf[r], self.daqIDof[r])
 
+    def createRunsetLoggerNameList(self, logLevel):
+        "Create a list of arguments in the form of (shortname, daqID, logport, logLevel)"
+        for r in self.setCompIDs:
+            yield (self.shortNameOf[r], self.daqIDof[r], self.portOf[r], logLevel)
+            
     def isRequiredComponent(shortName, daqID, list):
         return DAQRun.isInList("%s#%d" % (shortName, daqID), list)
     isRequiredComponent = staticmethod(isRequiredComponent)
@@ -237,10 +243,13 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     self.addrOf     [ setCompID ] = parsed[3]
                     self.portOf     [ setCompID ] = parsed[4]
                 
-            self.setUpAllComponentLoggers()
+            # self.setUpAllComponentLoggers()
 
             # build CnC run set
-            self.runSetID = self.CnCRPC.rpc_runset_make(list(self.createRunsetRequestNames()))
+            self.runSetID = self.CnCRPC.rpc_runset_make(list(self.createRunsetRequestNameList()))
+            self.CnCRPC.rpc_runset_log_to(self.runSetID, self.ip,
+                                          list(self.createRunsetLoggerNameList(SocketLogger.LOGLEVEL_INFO)))
+            
             self.logmsg("Created Run Set #%d" % self.runSetID)
                             
             # Configure the run set

@@ -17,6 +17,12 @@ import os
 import sys
 
 class SocketLogger(object):
+    LOGLEVEL_TRACE = "trace"
+    LOGLEVEL_DEBUG = "debug"
+    LOGLEVEL_INFO  = "info"
+    LOGLEVEL_WARN  = "warn"
+    LOGLEVEL_ERROR = "error"
+    LOGLEVEL_FATAL = "fatal"
     "Create class which logs requests from a remote object to a file"
     "Works nonblocking in a separate thread to guarantee concurrency"
     def __init__(self, port, cname, logpath): # Logpath should be fully qualified in case I'm a Daemon
