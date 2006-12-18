@@ -170,7 +170,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         # self.logmsg("Creating logger for %s at %s on port %d" % (compName, logFile, logPort))
         clr = SocketLogger(logPort, shortName, logFile)
         clr.startServing()
-        remote = RPCClient(compAddr, compPort)
+        # remote = RPCClient(compAddr, compPort)
         # remote.xmlrpc.logTo(compID, selfIP, logPort)
         return clr
     setUpOneComponentLogger = staticmethod(setUpOneComponentLogger)
@@ -196,7 +196,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         "Stops loggers for remote components"
         for ic in range(0, len(self.setCompIDs)):
             compID = self.setCompIDs[ic]            
-            remote = RPCClient(self.addrOf[compID], self.portOf[compID])
+            # remote = RPCClient(self.addrOf[compID], self.portOf[compID])
             # remote.xmlrpc.logTo(compID, self.ip, DAQRun.CATCHALL_PORT)
             self.loggerOf[compID].stopServing()
             self.loggerOf[compID] = None
@@ -286,12 +286,12 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 try: self.CnCRPC.rpc_runset_stop_run(self.runSetID)
                 except: self.logmsg(exc_string())
                 
-                self.logmsg("Stopping component logging")
-                self.stopAllComponentLoggers()
-
                 self.logmsg("Breaking run set...")
                 try:    self.CnCRPC.rpc_runset_break(self.runSetID)
                 except: self.logmsg(exc_string())
+
+                self.logmsg("Stopping component logging")
+                self.stopAllComponentLoggers()
 
             self.logmsg("Telling CNC Server to close log")
             try:    self.stopCnCLogging()
