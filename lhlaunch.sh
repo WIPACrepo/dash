@@ -47,7 +47,7 @@ echo "Starting in-ice trigger..."
 (cd ../trigger; ./run-iitrig -g $cfg -l localhost:9001 2>/dev/null &) &
 
 echo "Starting StringHub..."
-(cd ../StringHub; ./run-hub 1001 -l localhost:9001 1>/dev/null 2>/dev/null &) &
+(cd ../StringHub; ./run-hub 1001 -g $cfg -l localhost:9001 1>/dev/null 2>/dev/null &) &
 
 echo "Done."
 echo "Type './ExpControlSkel.py' to run the test."
