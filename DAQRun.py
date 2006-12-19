@@ -264,7 +264,6 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             return
 
         except Exception, e:
-            self.logmsg(exc_string())
             self.logmsg("Failed to initialize run: %s" % exc_string())
             self.runState = "ERROR"
             return
