@@ -51,6 +51,8 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.log             = None
         self.CnCRPC          = None
         self.runSetID        = None
+        self.runSetRunning   = False
+        self.runSetCreated   = False
         self.CnCLogReceiver  = None
         self.runState        = "STOPPED"
         self.configDir       = configDir
@@ -194,10 +196,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             
     def stopAllComponentLoggers(self):
         "Stops loggers for remote components"
-        for ic in range(0, len(self.setCompIDs)):
-            compID = self.setCompIDs[ic]            
-            # remote = RPCClient(self.addrOf[compID], self.portOf[compID])
-            # remote.xmlrpc.logTo(compID, self.ip, DAQRun.CATCHALL_PORT)
+        for compID in self.setCompIDs:
             self.loggerOf[compID].stopServing()
             self.loggerOf[compID] = None
             
@@ -242,11 +241,15 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     self.daqIDof    [ setCompID ] = daqID
                     self.addrOf     [ setCompID ] = parsed[3]
                     self.portOf     [ setCompID ] = parsed[4]
-                
-            # self.setUpAllComponentLoggers()
 
+            # Set up log receivers for remote components
+            self.setUpAllComponentLoggers()
+            
             # build CnC run set
             self.runSetID = self.CnCRPC.rpc_runset_make(list(self.createRunsetRequestNameList()))
+            self.runSetCreated = True
+
+            # Tell components where to log to
             self.CnCRPC.rpc_runset_log_to(self.runSetID, self.ip,
                                           list(self.createRunsetLoggerNameList(SocketLogger.LOGLEVEL_INFO)))
             
@@ -259,6 +262,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             # Start run.  Eventually, starting/stopping runs will be done
             # without reconfiguration, if configuration hasn't changed
             self.CnCRPC.rpc_runset_start_run(self.runSetID, self.runNum)
+            self.runSetRunning = True
             self.logmsg("Started run %d on run set %d" % (self.runNum, self.runSetID))
             self.runState = "RUNNING"
             return
@@ -281,13 +285,17 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         try:            
             
             if self.runSetID:
-                self.logmsg("Sending set_stop_run...")
-                try: self.CnCRPC.rpc_runset_stop_run(self.runSetID)
-                except: self.logmsg(exc_string())
-                
-                self.logmsg("Breaking run set...")
-                try:    self.CnCRPC.rpc_runset_break(self.runSetID)
-                except: self.logmsg(exc_string())
+                if self.runSetRunning:
+                    self.logmsg("Sending set_stop_run...")
+                    try: self.CnCRPC.rpc_runset_stop_run(self.runSetID)
+                    except: self.logmsg(exc_string())
+                self.runSetRunning = False
+
+                if self.runSetCreated:
+                    self.logmsg("Breaking run set...")
+                    try:    self.CnCRPC.rpc_runset_break(self.runSetID)
+                    except: self.logmsg(exc_string())
+                self.runSetCreated = False
 
                 self.logmsg("Stopping component logging")
                 self.stopAllComponentLoggers()
