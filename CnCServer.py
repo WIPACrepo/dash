@@ -638,7 +638,7 @@ class DAQServer(DAQPool):
 
         return "OK"
 
-    def rpc_runset_configure(self, id, globalConfigName):
+    def rpc_runset_configure(self, id, globalConfigName=None):
         "configure the specified set"
         set = self.findSet(id)
 
