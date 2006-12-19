@@ -6,11 +6,19 @@ import socket
 
 # Generic class for accessing methods on remote objects
 class RPCClient(xmlrpclib.ServerProxy):
+    "WARNING: instantiating RPCClient sets socket default timeout to 10 seconds!"
     def __init__(self, servername, portnum):
+        
         self.servername = servername
         self.portnum    = portnum
-        xmlrpclib.ServerProxy.__init__(self, "http://%s:%s" % (self.servername, self.portnum))
-    
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # !!!!!! Warning - this is ugly !!!!!!!
+        # !!!! but no other way in XMLRPC? !!!!
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        socket.setdefaulttimeout(10)            #set the timeout to 10 seconds
+        xmlrpclib.ServerProxy.__init__(self,
+                                       "http://%s:%s" % (self.servername, self.portnum))
+        
 # Generic class for serving methods to remote objects
 class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
     # also inherited: register_function
