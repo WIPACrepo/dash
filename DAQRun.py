@@ -65,8 +65,9 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.shortNameOf     = {} # indexed by setCompID
         self.daqIDof         = {} # "                  "
         self.addrOf          = {} # "                  "
-        self.portOf          = {} # "                  "
+        self.rpcPortOf       = {} # "                  "
         self.loggerOf        = {} # "                  "
+        self.logPortOf       = {} # "                  "
         
         self.catchAllLogger  = SocketLogger(DAQRun.CATCHALL_PORT, "Catchall", logDir + "/catchall.log")
         self.ip              = self.getIP()
@@ -167,13 +168,10 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.logmsg("Component list will require %s" % comp)
         return requiredComps
     
-    def setUpOneComponentLogger(logPath, selfIP, shortName, daqID, logPort, compID, compAddr, compPort):
+    def setUpOneComponentLogger(logPath, shortName, daqID, logPort):
         logFile  = "%s/%s-%d.log" % (logPath, shortName, daqID)
-        # self.logmsg("Creating logger for %s at %s on port %d" % (compName, logFile, logPort))
         clr = SocketLogger(logPort, shortName, logFile)
         clr.startServing()
-        # remote = RPCClient(compAddr, compPort)
-        # remote.xmlrpc.logTo(compID, selfIP, logPort)
         return clr
     setUpOneComponentLogger = staticmethod(setUpOneComponentLogger)
         
@@ -182,17 +180,14 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.logmsg("Setting up logging for %d components" % len(self.setCompIDs))
         for ic in range(0, len(self.setCompIDs)):
             compID = self.setCompIDs[ic]
-            self.loggerOf[compID] = DAQRun.setUpOneComponentLogger(self.log.logPath,
-                                                                   self.ip,
-                                                                   self.shortNameOf[compID],
-                                                                   self.daqIDof[compID],
-                                                                   9002 + ic,
-                                                                   compID,
-                                                                   self.addrOf[compID],
-                                                                   self.portOf[compID])
+            self.logPortOf[compID] = 9002 + ic
+            self.loggerOf[compID]  = DAQRun.setUpOneComponentLogger(self.log.logPath,
+                                                                    self.shortNameOf[compID],
+                                                                    self.daqIDof[compID],
+                                                                    self.logPortOf[compID])
             self.logmsg("%s(%d %s:%d) -> %s:%d" % (self.shortNameOf[compID], compID,
-                                                   self.addrOf[compID], self.portOf[compID],
-                                                   self.ip, 9002 + ic))
+                                                   self.addrOf[compID], self.rpcPortOf[compID],
+                                                   self.ip, self.logPortOf[compID]))
             
     def stopAllComponentLoggers(self):
         "Stops loggers for remote components"
@@ -208,7 +203,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     def createRunsetLoggerNameList(self, logLevel):
         "Create a list of arguments in the form of (shortname, daqID, logport, logLevel)"
         for r in self.setCompIDs:
-            yield (self.shortNameOf[r], self.daqIDof[r], self.portOf[r], logLevel)
+            yield [self.shortNameOf[r], self.daqIDof[r], self.logPortOf[r], logLevel]
             
     def isRequiredComponent(shortName, daqID, list):
         return DAQRun.isInList("%s#%d" % (shortName, daqID), list)
@@ -240,7 +235,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     self.shortNameOf[ setCompID ] = shortName
                     self.daqIDof    [ setCompID ] = daqID
                     self.addrOf     [ setCompID ] = parsed[3]
-                    self.portOf     [ setCompID ] = parsed[4]
+                    self.rpcPortOf  [ setCompID ] = parsed[4]
 
             # Set up log receivers for remote components
             self.setUpAllComponentLoggers()
@@ -250,8 +245,8 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.runSetCreated = True
 
             # Tell components where to log to
-            self.CnCRPC.rpc_runset_log_to(self.runSetID, self.ip,
-                                          list(self.createRunsetLoggerNameList(SocketLogger.LOGLEVEL_INFO)))
+            l = list(self.createRunsetLoggerNameList(SocketLogger.LOGLEVEL_INFO))
+            self.CnCRPC.rpc_runset_log_to(self.runSetID, self.ip, l)
             
             self.logmsg("Created Run Set #%d" % self.runSetID)
                             
