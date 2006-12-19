@@ -221,12 +221,23 @@ class CnCLogger(object):
     def __init__(self):
         "create a logging client"
         self.socketlog = None
+        self.logIP = None
+        self.logPort = None
 
     def closeLog(self):
         """Close the log socket"""
         self.logmsg("End of log")
-        self.socketlog.close
+
+    def reset(self):
+        if self.socketlog is not None:
+            try:
+                self.socketlog.close
+            except:
+                pass
+
         self.socketlog = None
+        self.logIP = None
+        self.logPort = None
 
     def logmsg(self, s):
         """
@@ -240,13 +251,15 @@ class CnCLogger(object):
             except Exception, ex:
                 if str(ex).find('Connection refused') < 0:
                     raise ex
-                self.socketlog = None
+                self.reset()
                 print 'Lost logging connection'
 
     def openLog(self, host, port):
         """initialize socket logger"""
         self.socketlog = DAQLogger(host, port)
-        self.logmsg("Start of log")
+        self.logIP = host
+        self.logPort = port
+        self.logmsg('Start of log at ' + host + ':' + str(port))
 
 class DAQClient(CnCLogger):
     """DAQ component"""
@@ -335,9 +348,9 @@ class DAQClient(CnCLogger):
             print exc_string()
             return None
 
-    def logTo(self, logIP, port):
+    def logTo(self, logIP, port, level):
         self.openLog(logIP, port)
-        self.client.xmlrpc.logTo(self.id, logIP, port)
+        self.client.xmlrpc.logTo(self.id, logIP, port, level)
 
     def monitor(self):
         state = self.getState()
@@ -431,7 +444,7 @@ class DAQPool(CnCLogger):
         #
         for c in compList:
             if logIP is not None and logPort is not None:
-                c.logTo(logIP, logPort)
+                c.logTo(logIP, logPort, 'info')
             if not map.has_key(c):
                 c.connect()
             else:
@@ -521,11 +534,15 @@ class DAQPool(CnCLogger):
 class DAQServer(DAQPool):
     """Configuration server"""
 
-    def __init__(self, name="GenericServer", port=8080):
+    def __init__(self, name="GenericServer", port=8080,
+                 logIP=None, logPort=None):
         self.port = port
         self.name = name
 
         super(DAQServer, self).__init__()
+
+        if logIP is not None and logPort is not None:
+            self.openLog(logIP, logPort)
 
         notify = True
         while True:
@@ -533,7 +550,7 @@ class DAQServer(DAQPool):
                 self.server = RPCServer(self.port)
                 break
             except socket.error, e:
-                if notify: print "Couldn't create server socket: %s" % e
+                if notify: self.logmsg("Couldn't create server socket: %s" % e)
                 notify = False
                 sleep(3)
 
@@ -582,7 +599,8 @@ class DAQServer(DAQPool):
 
         self.add(client)
 
-        return client.id
+        logLevel = 'info'
+        return [client.id, self.logIP, self.logPort, logLevel]
 
     def rpc_runset_break(self, id):
         "break up the specified set"
@@ -712,7 +730,8 @@ class CnCServer(DAQServer):
 if __name__ == "__main__":
     p = optparse.OptionParser()
     p.add_option("-k", "--kill",    action="store_true", dest="kill")
-    p.add_option("-p", "--port",    action="store",      type="int", dest="port")
+    p.add_option("-l", "--log",     action="store",      type="string", dest="log")
+    p.add_option("-p", "--port",    action="store",      type="int",    dest="port")
     p.add_option("-d", "--daemon",  action="store_true", dest="daemon")
     p.set_defaults(kill     = False,
                    nodaemon = False,
@@ -735,9 +754,21 @@ if __name__ == "__main__":
         print "ERROR: More than one instance of CnCServer.py is already running!"
         raise SystemExit
 
+    logIP = None
+    logPort = None
+
+    if opt.log:
+        colon = opt.log.find(':')
+        if colon < 0:
+            print "ERROR: Bad log argument '" + opt.log + "'"
+            raise SystemExit
+
+        logIP = opt.log[:colon]
+        logPort = int(opt.log[colon+1:])
+
     if opt.daemon: Daemon.Daemon().Daemonize()
-    
-    cnc = CnCServer("CnCServer", opt.port)
+
+    cnc = CnCServer("CnCServer", opt.port, logIP, logPort)
     try:
         cnc.run()
     except KeyboardInterrupt, k:

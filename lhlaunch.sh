@@ -29,7 +29,7 @@ echo "Starting DAQRun..."
 ./DAQRun.py -c $cfg -l $log
 
 echo "Starting CnCserver..."
-./CnCServer.py -d
+./CnCServer.py -d -l localhost:9001
 
 #echo "Starting 'zero' component..."
 #(cd ../juggler; ./run-comp -l localhost:9001 zero 2>/dev/null &) &
