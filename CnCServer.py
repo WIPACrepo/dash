@@ -338,7 +338,7 @@ class DAQClient(CnCLogger):
             else:
                 return self.client.xmlrpc.configure(self.id, configName)
         except Exception, e:
-            print exc_string()
+            self.logmsg(exc_string())
             return None
 
     def connect(self, list=None):
@@ -349,7 +349,7 @@ class DAQClient(CnCLogger):
             else:
                 return self.client.xmlrpc.connect(self.id, list)
         except Exception, e:
-            print exc_string()
+            self.logmsg(exc_string())
             return None
 
     def getState(self):
@@ -357,7 +357,7 @@ class DAQClient(CnCLogger):
         try:
             return self.client.xmlrpc.getState(self.id)
         except Exception, e:
-            print exc_string()
+            self.logmsg(exc_string())
             return None
 
     def isComponent(self, name, num):
@@ -388,7 +388,7 @@ class DAQClient(CnCLogger):
         try:
             return self.client.xmlrpc.startRun(self.id, runNum)
         except Exception, e:
-            print exc_string()
+            self.logmsg(exc_string())
             return None
 
     def stopRun(self):
@@ -396,7 +396,7 @@ class DAQClient(CnCLogger):
         try:
             return self.client.xmlrpc.stopRun(self.id)
         except Exception, e:
-            print exc_string()
+            self.logmsg(exc_string())
             return None
 
 class DAQPool(CnCLogger):
@@ -699,7 +699,7 @@ class DAQServer(DAQPool):
 
         setStat = set.status()
         for c in setStat.keys():
-            print str(c) + ' ' + c.getState()
+            self.logmsg(str(c) + ' ' + str(c.getState()))
 
         return "OK"
 
@@ -760,7 +760,7 @@ class CnCServer(DAQServer):
             try:
                 count = self.monitorClients(new)
             except Exception, ex:
-                print exc_string()
+                self.logmsg(exc_string())
                 count = lastCount
 
             new = (lastCount != count)
