@@ -730,7 +730,7 @@ class DAQServer(DAQPool):
                 except Exception:
                     state = DAQClient.STATE_DEAD
 
-                s.append(str(c) + ' ' + state)
+                s.append(str(c) + ' ' + str(state))
 
         return s
 
