@@ -172,11 +172,23 @@ class RunSet:
             setStr += str(c) + "\n"
         return setStr
 
-    def configure(self):
+    def configure(self, globalConfigName):
         """Configure all components in the runset"""
         for c in self.set:
-            c.configure()
+            c.configure(globalConfigName)
         self.configured = True
+
+    def configureLogging(self, logIP, logList):
+        """Configure logging for specified components in the runset"""
+        for c in self.set:
+            for i in range(0, len(logList)):
+                logData = logList[i]
+                if c.isComponent(logData[0], logData[1]):
+                    c.logTo(logIP, logData[2], logData[3])
+                    del logList[i]
+                    break
+
+        return logList
 
     def reset(self):
         """Reset all components in the runset back to the idle state"""
@@ -318,13 +330,13 @@ class DAQClient(CnCLogger):
         return "ID#%d %s#%d at %s:%d%s" % \
             (self.id, self.name, self.num, self.host, self.port, connStr)
 
-    def configure(self, xml=None):
+    def configure(self, configName=None):
         """Configure this component"""
         try:
-            if not xml:
+            if not configName:
                 return self.client.xmlrpc.configure(self.id)
             else:
-                return self.client.xmlrpc.configure(self.id, list)
+                return self.client.xmlrpc.configure(self.id, configName)
         except Exception, e:
             print exc_string()
             return None
@@ -347,6 +359,9 @@ class DAQClient(CnCLogger):
         except Exception, e:
             print exc_string()
             return None
+
+    def isComponent(self, name, num):
+        return self.name == name and self.num == num
 
     def logTo(self, logIP, port, level):
         self.openLog(logIP, port)
@@ -397,7 +412,7 @@ class DAQPool(CnCLogger):
             self.pool[comp.name] = []
         self.pool[comp.name].append(comp)
 
-    def buildSet(self, nameList, compList, logIP, logPort):
+    def buildSet(self, nameList, compList):
         """
         Build a runset from the specified list of component names
         """
@@ -443,8 +458,6 @@ class DAQPool(CnCLogger):
         # connect all components
         #
         for c in compList:
-            if logIP is not None and logPort is not None:
-                c.logTo(logIP, logPort, 'info')
             if not map.has_key(c):
                 c.connect()
             else:
@@ -462,14 +475,14 @@ class DAQPool(CnCLogger):
 
         return set
 
-    def makeSet(self, nameList, logIP, logPort):
+    def makeSet(self, nameList):
         compList = []
         setAdded = False
         try:
             try:
                 # buildSet fills 'compList' with the specified components
                 #
-                self.buildSet(nameList, compList, logIP, logPort)
+                self.buildSet(nameList, compList)
                 runSet = RunSet(compList)
                 self.sets.append(runSet)
                 setAdded = True
@@ -561,6 +574,7 @@ class DAQServer(DAQPool):
         self.server.register_function(self.rpc_register_component)
         self.server.register_function(self.rpc_runset_break)
         self.server.register_function(self.rpc_runset_configure)
+        self.server.register_function(self.rpc_runset_log_to)
         self.server.register_function(self.rpc_runset_make)
         self.server.register_function(self.rpc_runset_start_run)
         self.server.register_function(self.rpc_runset_status)
@@ -599,8 +613,19 @@ class DAQServer(DAQPool):
 
         self.add(client)
 
+        if self.logIP:
+            logIP = self.logIP
+        else:
+            logIP = ''
+
+        if self.logPort:
+            logPort = self.logPort
+        else:
+            logPort = 0
+
         logLevel = 'info'
-        return [client.id, self.logIP, self.logPort, logLevel]
+
+        return [client.id, logIP, logPort, logLevel]
 
     def rpc_runset_break(self, id):
         "break up the specified set"
@@ -613,20 +638,39 @@ class DAQServer(DAQPool):
 
         return "OK"
 
-    def rpc_runset_configure(self, id):
+    def rpc_runset_configure(self, id, globalConfigName):
         "configure the specified set"
         set = self.findSet(id)
 
         if not set:
             raise ValueError, 'Could not find runset#' + str(id)
 
-        set.configure()
+        set.configure(globalConfigName)
 
         return "OK"
 
-    def rpc_runset_make(self, nameList, logIP=None, logPort=None):
+    def rpc_runset_log_to(self, id, logIP, logList):
+        "configure logging for the specified set"
+        set = self.findSet(id)
+
+        if not set:
+            raise ValueError, 'Could not find runset#' + str(id)
+
+        leftOver = set.configureLogging(logIP, logList)
+
+        if len(leftOver) > 0:
+            errMsg = 'Could not configure logging for ' + \
+                str(len(leftOver)) + ' components:'
+            for l in leftOver:
+                errMsg += ' ' + l[0] + '#' + str(l[1])
+
+            self.logmsg(errMsg)
+
+        return "OK"
+
+    def rpc_runset_make(self, nameList):
         "build a set using the specified components"
-        runSet = self.makeSet(nameList, logIP, logPort)
+        runSet = self.makeSet(nameList)
 
         if not runSet:
             return -1

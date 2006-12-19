@@ -13,19 +13,31 @@ class FakeRun:
                  servername="localhost", portnum=8080):
         cl = RPCClient(servername, portnum)
         try:
-            cl.rpc_log_to('127.0.0.1', logPort)
-            setId = cl.rpc_runset_make(compList, '127.0.0.1', logPort)
+            setId = cl.rpc_runset_make(compList)
         except Exception, e:
             print "Remote operation failed: %s" % e
             sys.exit(1)
 
         print "Created runset #" + str(setId)
 
+        logList = []
+        for name in compList:
+            pound = name.rfind('#')
+            if pound < 0:
+                num = 0
+            else:
+                num = int(name[pound+1:])
+                name = name[0:pound]
+
+            logList.append([name, num, logPort, 'info'])
+
+        cl.rpc_runset_log_to(setId, '127.0.0.1', logList)
+
         runNum = int(random() * 100000)
 
         try:
             try:
-                cl.rpc_runset_configure(setId)
+                cl.rpc_runset_configure(setId, 'NoConfig')
                 cl.rpc_runset_start_run(setId, runNum)
                 for i in range(1,delay):
                     cl.rpc_runset_status(setId)
