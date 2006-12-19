@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import unittest
-from DAQElement import RunSet
+from CnCServer import RunSet
 
 class MockComponent:
     def __init__(self, name):
@@ -9,7 +9,7 @@ class MockComponent:
         self.configured = False
         self.runNum = None
 
-    def configure(self):
+    def configure(self, configName=None):
         self.configured = True
 
     def getState(self):
@@ -75,7 +75,7 @@ class TestRunSet(unittest.TestCase):
         self.assertRaises(ValueError, set.startRun, 1)
         self.assertRaises(ValueError, set.stopRun)
 
-        set.configure()
+        set.configure('xxx')
         self.assertEqual(str(set), 'RunSet #' + str(set.id))
 
         if len(compList) > 0:

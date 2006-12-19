@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import unittest
-from DAQElement import DAQPool, RunSet
+from CnCServer import DAQPool, RunSet
 
 class MockConnection:
     def __init__(self, type, isInput):
