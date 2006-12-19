@@ -158,9 +158,9 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             requiredComps.append("stringHub#%d" % string)
         for kind in kindlist:
             self.logmsg("Configuration includes detector %s" % kind)
-        requiredComps.append("zero#0")
-        requiredComps.append("ebHarness#0")
         requiredComps.append("eventBuilder#0")
+        requiredComps.append("globalTrigger#0")
+        requiredComps.append("inIceTrigger#0")
         for comp in requiredComps:
             self.logmsg("Component list will require %s" % comp)
         return requiredComps
