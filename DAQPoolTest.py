@@ -119,38 +119,6 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
-    def testBuildMultiInput(self):
-        mgr = DAQPool()
-
-        fooComp = MockComponent('foo', 0)
-        fooComp.addInput('multiIn')
-
-        barComp = MockComponent('bar', 0)
-        barComp.addInput('multiIn')
-
-        bazComp = MockComponent('baz', 0)
-        bazComp.addOutput('multiIn')
-
-        compList = [fooComp, barComp, bazComp]
-
-        self.assertEqual(len(mgr.pool), 0)
-
-        nameList = []
-        for c in compList:
-            mgr.add(c)
-            nameList.append(c.name)
-
-        self.assertEqual(len(mgr.pool), len(compList))
-
-        self.assertRaises(ValueError, mgr.makeSet, nameList)
-
-        self.assertEqual(len(mgr.pool), len(compList))
-
-        for c in compList:
-            mgr.remove(c)
-
-        self.assertEqual(len(mgr.pool), 0)
-
     def testBuildMissingOutput(self):
         mgr = DAQPool()
 
