@@ -196,10 +196,10 @@ class ConnectionTest(unittest.TestCase):
         #
         for comp in set.set:
             node = None
-            for i in range(0,len(tmpList)):
-                if comp.name == tmpList[i].name and comp.num == tmpList[i].num:
-                    node = tmpList[i]
-                    del tmpList[i]
+            for t in tmpList:
+                if comp.name == t.name and comp.num == t.num:
+                    node = t
+                    tmpList.remove(t)
                     break
 
             self.failIf(not node, 'Could not find component ' + str(comp))
@@ -213,10 +213,10 @@ class ConnectionTest(unittest.TestCase):
             #
             for type in node.outLinks:
                 conn = None
-                for i in range(0,len(compConn)):
-                    if not compConn[i].isInput and compConn[i].type == type:
-                        conn = compConn[i]
-                        del compConn[i]
+                for c in compConn:
+                    if not c.isInput and c.type == type:
+                        conn = c
+                        compConn.remove(c)
                         break
 
                 self.failIf(not conn, 'Could not find connector ' + type +
@@ -226,10 +226,10 @@ class ConnectionTest(unittest.TestCase):
             #
             for type in node.inLinks:
                 conn = None
-                for i in range(0,len(compConn)):
-                    if compConn[i].isInput and compConn[i].type == type:
-                        conn = compConn[i]
-                        del compConn[i]
+                for c in compConn:
+                    if c.isInput and c.type == type:
+                        conn = c
+                        compConn.remove(c)
                         break
 
                 self.failIf(not conn, 'Could not find connector ' + type +
