@@ -264,7 +264,7 @@ class ConnectionTest(unittest.TestCase):
         #
         n1.connectOutputTo(n2, 'out1')
         n2.connectOutputTo(n3, 'out2')
-        n3.connectOutputTo(n4, 'out2')
+        n3.connectOutputTo(n4, 'out3')
 
         # build list of all nodes
         #
