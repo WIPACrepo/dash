@@ -112,29 +112,6 @@ class ConnTypeEntry:
                 map[outComp] = []
             map[outComp].append(entry)
 
-class ConnectionManager:
-    """Manage the connections for a runset"""
-
-    def __init__(self):
-        """ConnectionManager constructor"""
-        self.connDict = {}
-
-    def add(self, comp):
-        """Add a component's connections"""
-        for n in comp.connectors:
-            if not self.connDict.has_key(n.type):
-                self.connDict[n.type] = ConnTypeEntry(n.type)
-            self.connDict[n.type].add(n, comp)
-
-    def buildConnectionMap(self):
-        """Validate and fill the map of connections for each component"""
-        map = {}
-
-        for k in self.connDict:
-            self.connDict[k].buildConnectionMap(map)
-
-        return map
-
 class RunSet:
     """A set of components to be used in a set of runs"""
 
@@ -435,11 +412,29 @@ class DAQPool(CnCLogger):
             self.pool[comp.name] = []
         self.pool[comp.name].append(comp)
 
+    def buildConnectionMap(self, compList):
+        """Validate and fill the map of connections for each component"""
+        self.connDict = {}
+
+        for comp in compList:
+            for n in comp.connectors:
+                if not self.connDict.has_key(n.type):
+                    self.connDict[n.type] = ConnTypeEntry(n.type)
+                self.connDict[n.type].add(n, comp)
+
+        map = {}
+
+        for k in self.connDict:
+            self.connDict[k].buildConnectionMap(map)
+
+        return map
+
     def buildSet(self, nameList, compList):
         """
         Build a runset from the specified list of component names
         """
-        connMgr = ConnectionManager()
+        if len(compList) > 0:
+            raise ValueError, 'Temporary component list must be empty'
 
         for name in nameList:
             # separate name and number
@@ -470,13 +465,9 @@ class DAQPool(CnCLogger):
             #
             compList.append(comp)
 
-            # add component's connectors to the connection dictionary
-            #
-            connMgr.add(comp)
-
         # make sure I/O channels match up
         #
-        map = connMgr.buildConnectionMap()
+        map = self.buildConnectionMap(compList)
 
         # connect all components
         #
