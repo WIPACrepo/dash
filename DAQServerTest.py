@@ -10,7 +10,7 @@ class MockXMLRPC:
     def configure(self, id, name=None):
         pass
 
-    def connect(self, id):
+    def connect(self, id, name=None):
         pass
 
     def getState(self, id):
