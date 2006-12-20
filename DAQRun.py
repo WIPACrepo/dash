@@ -281,15 +281,23 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             if self.runSetID:
                 if self.runSetRunning:
                     self.logmsg("Sending set_stop_run...")
-                    try: self.CnCRPC.rpc_runset_stop_run(self.runSetID)
-                    except: self.logmsg(exc_string())
-                self.runSetRunning = False
+                    try:
+                        self.runSetRunning = False
+                        self.CnCRPC.rpc_runset_stop_run(self.runSetID)
+                    except:
+                        self.logmsg(exc_string())
+                        self.runState = "ERROR"
+                        return
 
                 if self.runSetCreated:
                     self.logmsg("Breaking run set...")
-                    try:    self.CnCRPC.rpc_runset_break(self.runSetID)
-                    except: self.logmsg(exc_string())
-                self.runSetCreated = False
+                    try:
+                        self.runSetCreated = False
+                        self.CnCRPC.rpc_runset_break(self.runSetID)
+                    except:
+                        self.logmsg(exc_string())
+                        self.runState = "ERROR"
+                        return
 
                 self.logmsg("Stopping component logging")
                 self.stopAllComponentLoggers()
