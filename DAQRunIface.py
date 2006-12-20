@@ -8,6 +8,7 @@
 
 from time import sleep, time
 from datetime import datetime, timedelta
+from DAQRPC import RPCClient
 
 class DAQRunIface(object):
     START_TRANSITION_SECONDS    = 200
