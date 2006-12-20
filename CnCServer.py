@@ -412,22 +412,25 @@ class DAQPool(CnCLogger):
             self.pool[comp.name] = []
         self.pool[comp.name].append(comp)
 
-    def buildConnectionMap(self, compList):
+    def buildConnectionMap(cls, compList):
         """Validate and fill the map of connections for each component"""
-        self.connDict = {}
+        connDict = {}
 
         for comp in compList:
             for n in comp.connectors:
-                if not self.connDict.has_key(n.type):
-                    self.connDict[n.type] = ConnTypeEntry(n.type)
-                self.connDict[n.type].add(n, comp)
+                if not connDict.has_key(n.type):
+                    connDict[n.type] = ConnTypeEntry(n.type)
+                connDict[n.type].add(n, comp)
 
         map = {}
 
-        for k in self.connDict:
-            self.connDict[k].buildConnectionMap(map)
+        for k in connDict:
+            connDict[k].buildConnectionMap(map)
 
         return map
+
+    buildConnectionMap = classmethod(buildConnectionMap)
+
 
     def buildSet(self, nameList, compList):
         """
@@ -467,7 +470,7 @@ class DAQPool(CnCLogger):
 
         # make sure I/O channels match up
         #
-        map = self.buildConnectionMap(compList)
+        map = DAQPool.buildConnectionMap(compList)
 
         # connect all components
         #
