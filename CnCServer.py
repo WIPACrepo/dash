@@ -238,9 +238,13 @@ class CnCLogger(object):
 
     def closeLog(self):
         """Close the log socket"""
-        self.logmsg("End of log")
+        try:
+            self.logmsg("End of log")
+        except:
+            pass
+        self.resetLog()
 
-    def reset(self):
+    def resetLog(self):
         if self.socketlog is not None:
             try:
                 self.socketlog.close
@@ -263,7 +267,7 @@ class CnCLogger(object):
             except Exception, ex:
                 if str(ex).find('Connection refused') < 0:
                     raise ex
-                self.reset()
+                self.resetLog()
                 print 'Lost logging connection'
 
     def openLog(self, host, port):
@@ -308,7 +312,7 @@ class DAQClient(CnCLogger):
         self.id = DAQClient.ID
         DAQClient.ID += 1
 
-        self.client = RPCClient(host, port)
+        self.client = self.createClient(host, port)
 
         self.deadCount = 0
 
@@ -352,13 +356,25 @@ class DAQClient(CnCLogger):
             self.logmsg(exc_string())
             return None
 
+    def createClient(self, host, port):
+        return RPCClient(host, port)
+
     def getState(self):
         """Get current state"""
         try:
-            return self.client.xmlrpc.getState(self.id)
+            state = self.client.xmlrpc.getState(self.id)
         except Exception, e:
             self.logmsg(exc_string())
-            return None
+            state = None
+
+        if not state:
+            self.deadCount += 1
+            if self.deadCount < 3:
+                state = DAQClient.STATE_MISSING
+            else:
+                state = DAQClient.STATE_DEAD
+
+        return state
 
     def isComponent(self, name, num):
         return self.name == name and self.num == num
@@ -368,15 +384,7 @@ class DAQClient(CnCLogger):
         self.client.xmlrpc.logTo(self.id, logIP, port, level)
 
     def monitor(self):
-        state = self.getState()
-        if not state:
-            self.deadCount += 1
-            if self.deadCount < 3:
-                state = DAQClient.STATE_MISSING
-            else:
-                state = DAQClient.STATE_DEAD
-
-        return state
+        return self.getState()
 
     def reset(self):
         """Reset component back to the idle state"""
@@ -547,8 +555,10 @@ class DAQPool(CnCLogger):
 class DAQServer(DAQPool):
     """Configuration server"""
 
+    DEFAULT_LOG_LEVEL = 'info'
+
     def __init__(self, name="GenericServer", port=8080,
-                 logIP=None, logPort=None):
+                 logIP=None, logPort=None, testOnly=False):
         self.port = port
         self.name = name
 
@@ -557,30 +567,39 @@ class DAQServer(DAQPool):
         if logIP is not None and logPort is not None:
             self.openLog(logIP, logPort)
 
-        notify = True
-        while True:
-            try:
-                self.server = RPCServer(self.port)
-                break
-            except socket.error, e:
-                if notify: self.logmsg("Couldn't create server socket: %s" % e)
-                notify = False
-                sleep(3)
+        if testOnly:
+            self.server = None
+        else:
+            notify = True
+            while True:
+                try:
+                    self.server = RPCServer(self.port)
+                    break
+                except socket.error, e:
+                    if notify:
+                        self.logmsg("Couldn't create server socket: %s" % e)
+                    notify = False
+                    sleep(3)
 
-        self.server.register_function(self.rpc_close_log)
-        self.server.register_function(self.rpc_get_num_components)
-        self.server.register_function(self.rpc_log_to)
-        self.server.register_function(self.rpc_ping)
-        self.server.register_function(self.rpc_register_component)
-        self.server.register_function(self.rpc_runset_break)
-        self.server.register_function(self.rpc_runset_configure)
-        self.server.register_function(self.rpc_runset_log_to)
-        self.server.register_function(self.rpc_runset_make)
-        self.server.register_function(self.rpc_runset_start_run)
-        self.server.register_function(self.rpc_runset_status)
-        self.server.register_function(self.rpc_runset_stop_run)
-        self.server.register_function(self.rpc_show_components)
-        self.server.register_function(self.rpc_num_sets)
+        if self.server:
+            self.server.register_function(self.rpc_close_log)
+            self.server.register_function(self.rpc_get_num_components)
+            self.server.register_function(self.rpc_log_to)
+            self.server.register_function(self.rpc_ping)
+            self.server.register_function(self.rpc_register_component)
+            self.server.register_function(self.rpc_runset_break)
+            self.server.register_function(self.rpc_runset_configure)
+            self.server.register_function(self.rpc_runset_log_to)
+            self.server.register_function(self.rpc_runset_make)
+            self.server.register_function(self.rpc_runset_start_run)
+            self.server.register_function(self.rpc_runset_status)
+            self.server.register_function(self.rpc_runset_stop_run)
+            self.server.register_function(self.rpc_show_components)
+            self.server.register_function(self.rpc_num_sets)
+
+    def createClient(self, name, num, host, port, connectors):
+        "overrideable method used for testing"
+        return DAQClient(name, num, host, port, connectors)
 
     def rpc_close_log(self):
         "called by DAQLog object to indicate when we should close log file"
@@ -606,7 +625,7 @@ class DAQServer(DAQPool):
         for d in connArray:
             connectors.append(Connector(d[0], d[1], d[2]))
 
-        client = DAQClient(name, num, host, port, connectors)
+        client = self.createClient(name, num, host, port, connectors)
         self.logmsg("Got registration for %s" % str(client))
 
         sleep(1)
@@ -623,7 +642,7 @@ class DAQServer(DAQPool):
         else:
             logPort = 0
 
-        logLevel = 'info'
+        logLevel = DAQServer.DEFAULT_LOG_LEVEL
 
         return [client.id, logIP, logPort, logLevel]
 

@@ -9,6 +9,13 @@ class MockComponent:
         self.configured = False
         self.runNum = None
 
+    def __str__(self):
+        if self.configured:
+            cfgStr = ' [Configured]'
+        else:
+            cfgStr = ''
+        return self.name + cfgStr
+
     def configure(self, configName=None):
         self.configured = True
 
@@ -20,6 +27,12 @@ class MockComponent:
             return 'Ready'
 
         return 'Running'
+
+    def isComponent(self, name, num):
+        return self.name == name
+
+    def logTo(self, logIP, logPort, logLevel):
+        pass
 
     def reset(self):
         self.configured = False
@@ -65,6 +78,11 @@ class TestRunSet(unittest.TestCase):
         self.assertEqual(str(set), 'RunSet #' + str(set.id))
 
         self.checkStatus(set, compList, 'Idle')
+
+        logList = []
+        for c in compList:
+            logList.append([c.name, 0, 666, 'info'])
+        set.configureLogging('localhost', logList)
 
         if len(compList) > 0:
             self.failIf(self.isCompListConfigured(compList),
