@@ -3,7 +3,7 @@
 import unittest
 from CnCServer import Connector, DAQClient, DAQPool
 
-LOUD = True
+LOUD = False
 
 class Node(object):
     IS_OUTPUT = True
@@ -193,6 +193,26 @@ class ConnectionTest(unittest.TestCase):
         pool.returnSet(set)
         self.assertEquals(len(pool.pool), numComps)
         self.assertEquals(len(pool.sets), 0)
+
+    def testSimple(self):
+        # build nodes
+        #
+        n1 = Node('one')
+        n2 = Node('two')
+        n3 = Node('three')
+        n4 = Node('four')
+
+        # connect nodes
+        #
+        n1.connectOutputTo(n2, 'out1')
+        n2.connectOutputTo(n3, 'out2')
+        n3.connectOutputTo(n4, 'out2')
+
+        # build list of all nodes
+        #
+        allNodes = [n1, n2, n3, n4]
+
+        self.buildRunset(allNodes)
 
     def testStandard(self):
         # build nodes
