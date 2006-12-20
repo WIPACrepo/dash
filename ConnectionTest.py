@@ -100,14 +100,61 @@ class Node(object):
         map[ioType].append(comp)
 
 class MockXMLRPC:
-    def __init__(self):
-        pass
+    def __init__(self, name, num, outLinks):
+        self.name = name
+        self.num = num
+
+        self.outLinks = outLinks
 
     def configure(self, id, name=None):
         pass
 
-    def connect(self, id, name=None):
-        pass
+    def connect(self, id, list=None):
+        if not list:
+            return 'OK'
+
+        # make a copy of the links
+        #
+        tmpLinks = {}
+        for k in self.outLinks.keys():
+            tmpLinks[k] = []
+            tmpLinks[k][0:] = self.outLinks[k][0:len(self.outLinks[k])]
+
+        for l in list:
+            if not tmpLinks.has_key(l.type):
+                raise ValueError, 'Component ' + self.name + '#' + \
+                    str(self.num) + ' should not have a "' + l.type + \
+                    '" connection'
+
+            comp = None
+            for t in tmpLinks[l.type]:
+                if t.name == l.compName and t.num == l.compNum:
+                    comp = t
+                    tmpLinks[l.type].remove(t)
+                    if len(tmpLinks[l.type]) == 0:
+                        del tmpLinks[l.type]
+                    break
+
+            if not comp:
+                raise ValueError, 'Component ' + self.name + '#' + \
+                    str(self.num) + ' should not connect to ' + \
+                    l.type + ':' + l.compName + '#' + str(l.compNum)
+
+        if len(tmpLinks) > 0:
+            errMsg = 'Component ' + self.name + '#' + str(self.num) + \
+                ' is not connected to '
+
+            first = True
+            for k in tmpLinks.keys():
+                for t in tmpLinks[k]:
+                    if first:
+                        first = False
+                    else:
+                        errMsg += ', '
+                    errMsg += k + ':' + t.name + '#' + str(t.num)
+            raise ValueError, errMsg
+
+        return 'OK'
 
     def getState(self, id):
         pass
@@ -125,8 +172,8 @@ class MockXMLRPC:
         pass
 
 class MockRPCClient:
-    def __init__(self, host, port):
-        self.xmlrpc = MockXMLRPC()
+    def __init__(self, name, num, outLinks):
+        self.xmlrpc = MockXMLRPC(name, num, outLinks)
 
 class MockLogger(object):
     def __init__(self, host, port):
@@ -136,15 +183,17 @@ class MockLogger(object):
         pass
 
 class MockClient(DAQClient):
-    def __init__(self, name, num, host, port, connectors):
+    def __init__(self, name, num, host, port, connectors, outLinks):
+
+        self.outLinks = outLinks
 
         super(MockClient, self).__init__(name, num, host, port, connectors)
 
     def createClient(self, host, port):
-        return MockRPCClient(host, port)
+        return MockRPCClient(self.name, self.num, self.outLinks)
 
     def createLogger(self, host, port):
-        return MockLogger(host, port)
+        return MockLogger(self.name, self.num)
 
 class ConnectionTest(unittest.TestCase):
     EXP_ID = 1
@@ -159,7 +208,7 @@ class ConnectionTest(unittest.TestCase):
         port = -1
         for node in nodeList:
             pool.add(MockClient(node.name, node.num, None, port,
-                                node.getConnections()))
+                                node.getConnections(), node.outLinks))
             port -= 1
 
         if LOUD:
