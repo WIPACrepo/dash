@@ -35,7 +35,7 @@ class Connector:
         self.port = port
 
     def __str__(self):
-        """String description"""
+        "String description"
         if self.isInput:
             return '%d=>%s' % (self.port, self.type)
         return self.type + '=>'
@@ -66,12 +66,13 @@ class Connection:
         self.port = port
 
     def __str__(self):
-        """String description"""
+        "String description"
         return '%s:%s#%d@%s:%d' % \
             (self.type, self.compName, self.compNum, self.host, self.port)
 
 class ConnTypeEntry:
-    """Temporary class used to build the connection map for a runset
+    """
+    Temporary class used to build the connection map for a runset
     type - connection type
     inList - list of [input connection, component] entries
     inList - list of output connections
@@ -86,14 +87,14 @@ class ConnTypeEntry:
         self.outList = []
 
     def add(self, conn, comp):
-        """Add a connection and component to the appropriate list"""
+        "Add a connection and component to the appropriate list"
         if conn.isInput:
             self.inList.append([conn, comp])
         else:
             self.outList.append(comp)
 
     def buildConnectionMap(self, map):
-        """Validate and fill the map of connections for each component"""
+        "Validate and fill the map of connections for each component"
         if len(self.inList) == 0:
             raise ValueError, 'No inputs found for %d %s outputs' % \
                 (len(self.outList), self.type)
@@ -113,7 +114,7 @@ class ConnTypeEntry:
             map[outComp].append(entry)
 
 class RunSet:
-    """A set of components to be used in a set of runs"""
+    "A set of components to be used in a set of runs"
 
     ID = 1
 
@@ -133,27 +134,27 @@ class RunSet:
         self.runNumber = None
 
     def __str__(self):
-        """String description"""
+        "String description"
         setStr = 'RunSet #' + str(self.id)
         if self.runNumber is not None:
             setStr += ' run#' + str(self.runNumber)
         return setStr
 
     def componentListStr(self):
-        """Return string of all components, one per line"""
+        "Return string of all components, one per line"
         setStr = ""
         for c in self.set:
             setStr += str(c) + "\n"
         return setStr
 
     def configure(self, globalConfigName):
-        """Configure all components in the runset"""
+        "Configure all components in the runset"
         for c in self.set:
             c.configure(globalConfigName)
         self.configured = True
 
     def configureLogging(self, logIP, logList):
-        """Configure logging for specified components in the runset"""
+        "Configure logging for specified components in the runset"
         for c in self.set:
             for i in range(0, len(logList)):
                 logData = logList[i]
@@ -173,7 +174,7 @@ class RunSet:
         self.runNumber = None
 
     def reset(self):
-        """Reset all components in the runset back to the idle state"""
+        "Reset all components in the runset back to the idle state"
         for c in self.set:
             c.reset()
 
@@ -188,7 +189,7 @@ class RunSet:
             pool.add(comp)
 
     def startRun(self, runNum):
-        """Start all components in the runset"""
+        "Start all components in the runset"
         if not self.configured:
             raise ValueError, "RunSet #" + str(self.id) + " is not configured"
 
@@ -197,7 +198,7 @@ class RunSet:
             c.startRun(runNum)
 
     def stopRun(self):
-        """Stop all components in the runset"""
+        "Stop all components in the runset"
         if self.runNumber is None:
             raise ValueError, "RunSet #" + str(self.id) + " is not running"
 
@@ -217,7 +218,7 @@ class RunSet:
         return setStat
 
 class CnCLogger(object):
-    """CnC logging client"""
+    "CnC logging client"
 
     def __init__(self):
         "create a logging client"
@@ -226,7 +227,7 @@ class CnCLogger(object):
         self.logPort = None
 
     def closeLog(self):
-        """Close the log socket"""
+        "Close the log socket"
         try:
             self.logmsg("End of log")
         except:
@@ -234,18 +235,8 @@ class CnCLogger(object):
         self.resetLog()
 
     def createLogger(self, host, port):
+        "create a socket logger (overrideable method used for testing)"
         return DAQLogger(host, port)
-
-    def resetLog(self):
-        if self.socketlog is not None:
-            try:
-                self.socketlog.close
-            except:
-                pass
-
-        self.socketlog = None
-        self.logIP = None
-        self.logPort = None
 
     def logmsg(self, s):
         """
@@ -263,14 +254,26 @@ class CnCLogger(object):
                 print 'Lost logging connection'
 
     def openLog(self, host, port):
-        """initialize socket logger"""
+        "initialize socket logger"
         self.socketlog = self.createLogger(host, port)
         self.logIP = host
         self.logPort = port
         self.logmsg('Start of log at ' + host + ':' + str(port))
 
+    def resetLog(self):
+        "close current log and reset to initial state"
+        if self.socketlog is not None:
+            try:
+                self.socketlog.close
+            except:
+                pass
+
+        self.socketlog = None
+        self.logIP = None
+        self.logPort = None
+
 class DAQClient(CnCLogger):
-    """DAQ component"""
+    "DAQ component"
 
     # next component ID
     #
@@ -311,7 +314,7 @@ class DAQClient(CnCLogger):
         super(DAQClient, self).__init__()
 
     def __str__(self):
-        """String description"""
+        "String description"
         if not self.connectors or len(self.connectors) == 0:
             connStr = ''
         else:
@@ -327,7 +330,7 @@ class DAQClient(CnCLogger):
             (self.id, self.name, self.num, self.host, self.port, connStr)
 
     def configure(self, configName=None):
-        """Configure this component"""
+        "Configure this component"
         try:
             if not configName:
                 return self.client.xmlrpc.configure(self.id)
@@ -338,7 +341,7 @@ class DAQClient(CnCLogger):
             return None
 
     def connect(self, list=None):
-        """Connect this component with other components in a runset"""
+        "Connect this component with other components in a runset"
         if not list:
             return self.client.xmlrpc.connect(self.id)
         else:
@@ -348,7 +351,7 @@ class DAQClient(CnCLogger):
         return RPCClient(host, port)
 
     def getState(self):
-        """Get current state"""
+        "Get current state"
         try:
             state = self.client.xmlrpc.getState(self.id)
         except Exception, e:
@@ -365,22 +368,25 @@ class DAQClient(CnCLogger):
         return state
 
     def isComponent(self, name, num):
+        "Does this component have the specified name and number?"
         return self.name == name and self.num == num
 
     def logTo(self, logIP, port, level):
+        "Send log messages to the specified host and port"
         self.openLog(logIP, port)
         self.client.xmlrpc.logTo(self.id, logIP, port, level)
 
     def monitor(self):
+        "Return the monitoring value"
         return self.getState()
 
     def reset(self):
-        """Reset component back to the idle state"""
+        "Reset component back to the idle state"
         self.closeLog()
         return self.client.xmlrpc.reset(self.id)
 
     def startRun(self, runNum):
-        """Start component processing DAQ data"""
+        "Start component processing DAQ data"
         try:
             return self.client.xmlrpc.startRun(self.id, runNum)
         except Exception, e:
@@ -388,7 +394,7 @@ class DAQClient(CnCLogger):
             return None
 
     def stopRun(self):
-        """Stop component processing DAQ data"""
+        "Stop component processing DAQ data"
         try:
             return self.client.xmlrpc.stopRun(self.id)
         except Exception, e:
@@ -396,20 +402,23 @@ class DAQClient(CnCLogger):
             return None
 
 class DAQPool(CnCLogger):
+    "Pool of DAQClients and RunSets"
+
     def __init__(self):
+        "Create an empty pool"
         self.pool = {}
         self.sets = []
 
         super(DAQPool, self).__init__()
 
     def add(self, comp):
-        """Add the component to the config server's pool"""
+        "Add the component to the config server's pool"
         if not self.pool.has_key(comp.name):
             self.pool[comp.name] = []
         self.pool[comp.name].append(comp)
 
     def buildConnectionMap(cls, compList):
-        """Validate and fill the map of connections for each component"""
+        "Validate and fill the map of connections for each component"
         connDict = {}
 
         for comp in compList:
@@ -430,7 +439,9 @@ class DAQPool(CnCLogger):
 
     def buildSet(self, nameList, compList):
         """
-        Build a runset from the specified list of component names
+        Internal method to build a runset from the specified list of
+        component names, using the supplied 'compList' as a workspace
+        for storing components removed from the pool
         """
         if len(compList) > 0:
             raise ValueError, 'Temporary component list must be empty'
@@ -491,7 +502,7 @@ class DAQPool(CnCLogger):
         return None
 
     def findSet(self, id):
-        """Find the runset with the specified ID"""
+        "Find the runset with the specified ID"
         set = None
         for s in self.sets:
             if s.id == id:
@@ -501,6 +512,7 @@ class DAQPool(CnCLogger):
         return set
 
     def makeSet(self, nameList):
+        "Build a runset from the specified list of component names"
         compList = []
         setAdded = False
         try:
@@ -525,7 +537,7 @@ class DAQPool(CnCLogger):
         return runSet
 
     def monitorClients(self, new):
-        """check that all components in the pool are still alive"""
+        "check that all components in the pool are still alive"
         count = 0
 
         for k in self.pool.keys():
@@ -553,7 +565,7 @@ class DAQPool(CnCLogger):
         return count
 
     def remove(self, comp):
-        """Remove a component from the pool"""
+        "Remove a component from the pool"
         if self.pool.has_key(comp.name):
             self.pool[comp.name].remove(comp)
             if len(self.pool[comp.name]) == 0:
@@ -562,18 +574,19 @@ class DAQPool(CnCLogger):
         return comp
 
     def returnSet(self, s):
-        """Return runset components to the pool"""
+        "Return runset components to the pool"
         self.sets.remove(s)
         s.returnComponents(self)
         s.destroy()
 
 class DAQServer(DAQPool):
-    """Configuration server"""
+    "Configuration server"
 
     DEFAULT_LOG_LEVEL = 'info'
 
     def __init__(self, name="GenericServer", port=8080,
                  logIP=None, logPort=None, testOnly=False):
+        "Create a DAQ command and configuration server"
         self.port = port
         self.name = name
 
@@ -769,16 +782,16 @@ class DAQServer(DAQPool):
         return s
 
     def serve(self, handler):
-        """Start a server"""
+        "Start a server"
         self.logmsg("I'm server %s running on port %d" % (self.name, self.port))
         thread.start_new_thread(handler, ())
         self.server.serve_forever()
 
 class CnCServer(DAQServer):
-    """Command and Control Server"""
+    "Command and Control Server"
 
     def monitorLoop(self):
-        """Monitor components to ensure they're still alive"""
+        "Monitor components to ensure they're still alive"
         spinStr = '-\\|/'
         spinner = 0
 
@@ -802,7 +815,7 @@ class CnCServer(DAQServer):
             sleep(1)
 
     def run(self):
-        """Server loop"""
+        "Server loop"
         self.serve(self.monitorLoop)
 
 if __name__ == "__main__":
