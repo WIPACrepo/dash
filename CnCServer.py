@@ -339,14 +339,10 @@ class DAQClient(CnCLogger):
 
     def connect(self, list=None):
         """Connect this component with other components in a runset"""
-        try:
-            if not list:
-                return self.client.xmlrpc.connect(self.id)
-            else:
-                return self.client.xmlrpc.connect(self.id, list)
-        except Exception, e:
-            self.logmsg(exc_string())
-            return None
+        if not list:
+            return self.client.xmlrpc.connect(self.id)
+        else:
+            return self.client.xmlrpc.connect(self.id, list)
 
     def createClient(self, host, port):
         return RPCClient(host, port)
@@ -474,11 +470,23 @@ class DAQPool(CnCLogger):
 
         # connect all components
         #
+        errMsg = None
         for c in compList:
             if not map.has_key(c):
-                c.connect()
+                rtnVal = c.connect()
             else:
-                c.connect(map[c])
+                rtnVal = c.connect(map[c])
+
+            if not rtnVal:
+                rtnVal = 'None'
+            if rtnVal != 'OK':
+                if not errMsg:
+                    errMsg = 'Connect failed for ' + c.name + '(' + rtnVal + ')'
+                else:
+                    errMsg += ', ' + c.name + '(' + rtnVal + ')'
+
+        if errMsg:
+            raise ValueError, errMsg
 
         return None
 
