@@ -187,6 +187,64 @@ class ConnectionTest(unittest.TestCase):
         self.assertEquals(set.id, chkId)
         self.assertEquals(len(set.set), len(nodeList))
 
+        # copy node list
+        #
+        tmpList = []
+        tmpList[0:] = nodeList[0:len(nodeList)]
+
+        # validate all components in runset
+        #
+        for comp in set.set:
+            node = None
+            for i in range(0,len(tmpList)):
+                if comp.name == tmpList[i].name and comp.num == tmpList[i].num:
+                    node = tmpList[i]
+                    del tmpList[i]
+                    break
+
+            self.failIf(not node, 'Could not find component ' + str(comp))
+
+            # copy connector list
+            #
+            compConn = []
+            compConn[0:] = comp.connectors[0:len(comp.connectors)]
+
+            # remove all output connectors
+            #
+            for type in node.outLinks:
+                conn = None
+                for i in range(0,len(compConn)):
+                    if not compConn[i].isInput and compConn[i].type == type:
+                        conn = compConn[i]
+                        del compConn[i]
+                        break
+
+                self.failIf(not conn, 'Could not find connector ' + type +
+                            ' for component ' + str(comp))
+
+            # remove all input connectors
+            #
+            for type in node.inLinks:
+                conn = None
+                for i in range(0,len(compConn)):
+                    if compConn[i].isInput and compConn[i].type == type:
+                        conn = compConn[i]
+                        del compConn[i]
+                        break
+
+                self.failIf(not conn, 'Could not find connector ' + type +
+                            ' for component ' + str(comp))
+
+            # whine if any connectors are left
+            #
+            self.assertEquals(len(compConn), 0, 'Found extra connectors in ' +
+                              str(compConn))
+
+        # whine if any components are left
+        #
+        self.assertEquals(len(tmpList), 0, 'Found extra components in ' +
+                          str(tmpList))
+
         if LOUD:
             print '-- SET: ' + str(set)
 
