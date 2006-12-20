@@ -11,7 +11,7 @@ class MockXMLRPC:
         pass
 
     def connect(self, id, name=None):
-        pass
+        return 'OK'
 
     def getState(self, id):
         pass

@@ -33,6 +33,7 @@ class MockComponent:
 
     def connect(self, conn=None):
         self.connected = True
+        return 'OK'
 
     def getState(self):
         if not self.configured:
