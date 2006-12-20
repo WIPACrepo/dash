@@ -6,7 +6,6 @@
 # Started November, 2006
 # $Id:$
 
-from DAQElement import *
 from time import sleep, time
 from datetime import datetime, timedelta
 

@@ -10,7 +10,6 @@
 from sys import argv
 from time import sleep
 from DAQLog import *
-from DAQElement import *
 from random import random
 from os.path import exists
 from DAQRPC import RPCClient
