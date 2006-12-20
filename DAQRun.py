@@ -12,7 +12,7 @@ from time import sleep
 from DAQLog import *
 from random import random
 from os.path import exists
-from DAQRPC import RPCClient
+from DAQRPC import RPCClient, RPCServer
 from Process import processList, findProcess
 from exc_string import *
 from re import search
