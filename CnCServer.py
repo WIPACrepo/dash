@@ -97,9 +97,6 @@ class ConnTypeEntry:
         if len(self.inList) == 0:
             raise ValueError, 'No inputs found for %d %s outputs' % \
                 (len(self.outList), self.type)
-        elif len(self.inList) > 1:
-            raise ValueError, 'Found %d %s inputs for %d outputs' % \
-                (len(self.inList), self.type, len(self.outList))
         if len(self.outList) == 0:
             raise ValueError, 'No outputs found for %d %s inputs' % \
                 (len(self.inList), self.type)
@@ -190,6 +187,14 @@ class RunSet:
 
         return logList
 
+    def destroy(self):
+        if len(self.set) > 0:
+            raise ValueError, 'RunSet #' + str(self.id) + ' is not empty'
+
+        self.id = None
+        self.configured = False
+        self.runNumber = None
+
     def reset(self):
         """Reset all components in the runset back to the idle state"""
         for c in self.set:
@@ -197,6 +202,13 @@ class RunSet:
 
         self.configured = False
         self.runNumber = None
+
+    def returnComponents(self, pool):
+        while len(self.set) > 0:
+            comp = self.set[0]
+            del self.set[0]
+            comp.reset()
+            pool.add(comp)
 
     def startRun(self, runNum):
         """Start all components in the runset"""
@@ -244,6 +256,9 @@ class CnCLogger(object):
             pass
         self.resetLog()
 
+    def createLogger(self, host, port):
+        return DAQLogger(host, port)
+
     def resetLog(self):
         if self.socketlog is not None:
             try:
@@ -272,7 +287,7 @@ class CnCLogger(object):
 
     def openLog(self, host, port):
         """initialize socket logger"""
-        self.socketlog = DAQLogger(host, port)
+        self.socketlog = self.createLogger(host, port)
         self.logIP = host
         self.logPort = port
         self.logmsg('Start of log at ' + host + ':' + str(port))
@@ -511,8 +526,7 @@ class DAQPool(CnCLogger):
         """check that all components in the pool are still alive"""
         count = 0
 
-        keys = self.pool.keys()
-        for k in keys:
+        for k in self.pool.keys():
             if new: self.logmsg("  %s:" % k)
 
             try:
@@ -548,9 +562,8 @@ class DAQPool(CnCLogger):
     def returnSet(self, s):
         """Return runset components to the pool"""
         self.sets.remove(s)
-        s.reset()
-        for c in s.set:
-            self.add(c)
+        s.returnComponents(self)
+        s.destroy()
 
 class DAQServer(DAQPool):
     """Configuration server"""

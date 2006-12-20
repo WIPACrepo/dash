@@ -32,6 +32,13 @@ class MockRPCClient:
     def __init__(self, host, port):
         self.xmlrpc = MockXMLRPC()
 
+class MockLogger(object):
+    def __init__(self, host, port):
+        pass
+
+    def write_ts(self, s):
+        pass
+
 class MockClient(DAQClient):
     def __init__(self, name, num, host, port, connectors):
 
@@ -39,6 +46,9 @@ class MockClient(DAQClient):
 
     def createClient(self, host, port):
         return MockRPCClient(host, port)
+
+    def createLogger(self, host, port):
+        return MockLogger(host, port)
 
 class MockServer(DAQServer):
     def __init__(self):
