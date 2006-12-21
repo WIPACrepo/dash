@@ -257,7 +257,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             # Configure the run set
             self.logmsg("Configuring run set...")
             #self.CnCRPC.rpc_runset_configure(self.runSetID)
-            self.CnCRPC.rpccall("rpc_runset_configure", self.runSetID)
+            self.CnCRPC.rpccall("rpc_runset_configure", self.runSetID, self.configName)
 
             # Start run.  Eventually, starting/stopping runs will be done
             # without reconfiguration, if configuration hasn't changed
