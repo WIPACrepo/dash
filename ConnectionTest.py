@@ -113,6 +113,11 @@ class MockXMLRPC:
         if not list:
             return 'OK'
 
+        if LOUD:
+            print 'Conn[' + self.name + ':' + str(self.num) + ']'
+            for l in list:
+                print '  ' + l.type + ':' + l.compName + '#' + str(l.compNum)
+
         # make a copy of the links
         #
         tmpLinks = {}
