@@ -119,11 +119,11 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         return True
     listContains = staticmethod(listContains)
 
-    def waitForRequiredComponents(self, RPCObj, requiredList, timeOutSecs):
+    def waitForRequiredComponents(self, requiredList, timeOutSecs):
         "Verify that all components in requiredList are present on remote server"
         tstart = datetime.datetime.now()
         while(datetime.datetime.now()-tstart < datetime.timedelta(seconds=timeOutSecs)):
-            remoteList = RPCObj.rpc_show_components()
+            remoteList = self.CnCRPC.rpccall("rpc_show_components")
             if DAQRun.listContains(requiredList,
                                    list(DAQRun.getNameList(remoteList))):
                 return remoteList
@@ -139,12 +139,14 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         "Tell CnCServer where to log to"
         self.CnCLogReceiver = SocketLogger(6667, "CnCServer", self.log.logPath + "/cncserver.log")
         self.CnCLogReceiver.startServing()
-        self.CnCRPC.rpc_log_to(self.ip, 6667)
+        #self.CnCRPC.rpc_log_to(self.ip, 6667)
+        self.CnCRPC.rpccall("rpc_log_to", self.ip, 6667)
         self.logmsg("Created logger for CnCServer")
 
     def stopCnCLogging(self):
         "Turn off CnC server logging"
-        self.CnCRPC.rpc_close_log()
+        #self.CnCRPC.rpc_close_log()
+        self.CnCRPC.rpccall("rpc_close_log")
         self.CnCLogReceiver.stopServing()
         self.CnCLogReceiver = None
 
@@ -220,7 +222,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             # Wait for required components
             self.logmsg("Starting run %d (waiting for required %d components to register w/ CnCServer)"
                         % (self.runNum, len(self.requiredComps)))
-            remoteList = self.waitForRequiredComponents(self.CnCRPC, self.requiredComps, 60)
+            remoteList = self.waitForRequiredComponents(self.requiredComps, 60)
             # Throws RequiredComponentsNotAvailableException
 
             # Form up table of discovered components
@@ -240,22 +242,27 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.setUpAllComponentLoggers()
             
             # build CnC run set
-            self.runSetID = self.CnCRPC.rpc_runset_make(list(self.createRunsetRequestNameList()))
+            #self.runSetID = self.CnCRPC.rpc_runset_make(list(self.createRunsetRequestNameList()))
+            self.runSetID = self.CnCRPC.rpccall("rpc_runset_make",
+                                                list(self.createRunsetRequestNameList()))
             self.runSetCreated = True
 
             # Tell components where to log to
             l = list(self.createRunsetLoggerNameList(SocketLogger.LOGLEVEL_INFO))
-            self.CnCRPC.rpc_runset_log_to(self.runSetID, self.ip, l)
+            #self.CnCRPC.rpc_runset_log_to(self.runSetID, self.ip, l)
+            self.CnCRPC.rpccall("rpc_runset_log_to", self.runSetID, self.ip, l)
             
             self.logmsg("Created Run Set #%d" % self.runSetID)
                             
             # Configure the run set
             self.logmsg("Configuring run set...")
-            self.CnCRPC.rpc_runset_configure(self.runSetID)
+            #self.CnCRPC.rpc_runset_configure(self.runSetID)
+            self.CnCRPC.rpccall("rpc_runset_configure", self.runSetID)
 
             # Start run.  Eventually, starting/stopping runs will be done
             # without reconfiguration, if configuration hasn't changed
-            self.CnCRPC.rpc_runset_start_run(self.runSetID, self.runNum)
+            #self.CnCRPC.rpc_runset_start_run(self.runSetID, self.runNum)
+            self.CnCRPC.rpccall("rpc_runset_start_run", self.runSetID, self.runNum)
             self.runSetRunning = True
             self.logmsg("Started run %d on run set %d" % (self.runNum, self.runSetID))
             self.runState = "RUNNING"
@@ -283,7 +290,8 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     self.logmsg("Sending set_stop_run...")
                     try:
                         self.runSetRunning = False
-                        self.CnCRPC.rpc_runset_stop_run(self.runSetID)
+                        #self.CnCRPC.rpc_runset_stop_run(self.runSetID)
+                        self.CnCRPC.rpccall("rpc_runset_stop_run", self.runSetID)
                     except:
                         self.logmsg(exc_string())
                         self.runState = "ERROR"
@@ -293,7 +301,8 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     self.logmsg("Breaking run set...")
                     try:
                         self.runSetCreated = False
-                        self.CnCRPC.rpc_runset_break(self.runSetID)
+                        #self.CnCRPC.rpc_runset_break(self.runSetID)
+                        self.CnCRPC.rpccall("rpc_runset_break", self.runSetID)
                     except:
                         self.logmsg(exc_string())
                         self.runState = "ERROR"
@@ -307,7 +316,6 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             except: self.logmsg(exc_string())
 
             try:
-                self.logmsg("Closing down log receivers")
                 if self.CnCLogReceiver: self.CnCLogReceiver.stopServing()
             except:
                 self.logmsg(exc_string())
@@ -318,6 +326,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.logmsg(exc_string())
 
         self.runSetID = None
+        self.logmsg("RPC Call stats:\n%s" % self.CnCRPC.showStats())
         self.logmsg("Run terminated.")
         self.log.close()
         self.runState = "STOPPED"

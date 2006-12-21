@@ -3,9 +3,11 @@
 import DocXMLRPCServer
 import xmlrpclib
 import socket
+import datetime
+import math
 
-# Generic class for accessing methods on remote objects
 class RPCClient(xmlrpclib.ServerProxy):
+    "Generic class for accessing methods on remote objects"
     "WARNING: instantiating RPCClient sets socket default timeout to 10 seconds!"
     def __init__(self, servername, portnum):
         
@@ -18,9 +20,39 @@ class RPCClient(xmlrpclib.ServerProxy):
         socket.setdefaulttimeout(10)            #set the timeout to 10 seconds
         xmlrpclib.ServerProxy.__init__(self,
                                        "http://%s:%s" % (self.servername, self.portnum))
+        self.statDict = { }
+
+    def showStats(self):
+        r = ""
+        for x in self.callList():
+            r += "%25s: %s\n" % (x, self.statDict[x].report())
+        return r
+    
+    def callList(self):
+        return self.statDict.keys()
         
-# Generic class for serving methods to remote objects
+    def rpccall(self, method, *rest):
+        "Wrapper to benchmark speed of various RPC calls"
+        if not self.statDict.has_key(method):
+            self.statDict[method] = RPCStat()
+        tstart = datetime.datetime.now()
+        reststr = ""
+        if len(rest) > 0:
+            reststr += `rest[0]`
+            for x in rest[1:]:
+                reststr += ",%s" % `x`
+        code = "self.%s(%s)" % (method, reststr)
+        try:
+            result = eval(code)
+            self.statDict[method].tally(datetime.datetime.now()-tstart)
+        except Exception, e:
+            self.statDict[method].tally(datetime.datetime.now()-tstart)
+            raise e
+        
+        return result
+        
 class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
+    "Generic class for serving methods to remote objects"
     # also inherited: register_function
     allow_reuse_address = True
     def __init__(self, portnum, servername="localhost", documentation="DAQ Server"):
@@ -32,3 +64,51 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         self.set_server_documentation(documentation)
         # Avoid "Address in use" errors:
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+class RPCStat:
+    def __init__(self):
+        self.n     = 0
+        self.min   = None
+        self.max   = None
+        self.sum   = 0.
+        self.sumsq = 0.
+
+    def tally(self, tdel):
+        secs = tdel.seconds + tdel.microseconds * 1.E-6
+        self.n += 1
+        if self.min == None or self.min > secs:
+            self.min = secs
+        if self.max == None or self.max < secs:
+            self.max = secs
+        self.sum += secs
+        self.sumsq += secs*secs
+
+    def summaries(self):
+        if self.n == 0: return None
+        avg = self.sum / self.n
+        # rms = sqrt(x_squared-avg - x-avg-squared)
+        x2avg = self.sumsq / self.n
+        xavg2 = avg*avg
+        try:
+            rms = math.sqrt(x2avg - xavg2)
+        except Exception, e:
+            rms = None
+        return (self.n, self.min, self.max, avg, rms)
+    
+    def report(self):
+        l = self.summaries()
+        if l == None: return "No entries."
+        (n, min, max, avg, rms) = l
+        return "%d entries, min=%.4f max=%.4f, avg=%.4f, rms=%.4f" % (self.n,
+                                                                      self.min,
+                                                                      self.max,
+                                                                      avg,
+                                                                      rms)
+
+if __name__ == "__main__":
+    cl = RPCClient("localhost", 8080)
+    baz = "glatch"
+    for i in xrange(0,10):
+        cl.rpccall("rpc_ping")
+    print cl.showStats()
+
