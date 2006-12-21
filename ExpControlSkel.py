@@ -54,7 +54,7 @@ def main():
             if status == "STOPPED": continue # Restart if we had an error
             
             # Monitor run
-            for i in xrange(0, 9):
+            for i in xrange(0, 310):
                 status = daqiface.getState()
                 lastState = updateStatus(lastState, status)
                 if(status == "ERROR"): break

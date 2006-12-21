@@ -10,7 +10,6 @@
 from sys import argv
 from time import sleep
 from DAQLog import *
-from random import random
 from os.path import exists
 from DAQRPC import RPCClient, RPCServer
 from Process import processList, findProcess
@@ -346,10 +345,6 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         
     def rpc_run_state(self):
         r'Returns DAQ State, one of "STARTING", "RUNNING", "STOPPED", "STOPPING", "ERROR", "RECOVERING"'
-        if self.runState == "RUNNING" and random() < 0.01:
-            self.logmsg("Generating fake error state.")
-            self.runState = "ERROR"
-        
         return self.runState
             
     def rpc_ping(self):
