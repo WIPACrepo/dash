@@ -101,17 +101,32 @@ class ConnTypeEntry:
         if len(self.outList) == 0:
             raise ValueError, 'No outputs found for %d %s inputs' % \
                 (len(self.inList), self.type)
+        if len(self.inList) > 1 and len(self.outList)  > 1:
+            raise ValueError, 'Found %d %s outputs for %d inputs' % \
+                (len(self.outList), len(self.inList), self.type)
 
-        inConn = self.inList[0][0]
-        inComp = self.inList[0][1]
+        if len(self.inList) == 1:
+            inConn = self.inList[0][0]
+            inComp = self.inList[0][1]
 
-        for outComp in self.outList:
-            entry = Connection(inConn.type, inComp.name, inComp.num,
-                               inComp.host, inConn.port)
+            for outComp in self.outList:
+                entry = Connection(inConn.type, inComp.name, inComp.num,
+                                   inComp.host, inConn.port)
 
-            if not map.has_key(outComp):
-                map[outComp] = []
-            map[outComp].append(entry)
+                if not map.has_key(outComp):
+                    map[outComp] = []
+                map[outComp].append(entry)
+        else:
+            outComp = self.outList[0]
+
+            for inConn, inComp in self.inList:
+                entry = Connection(inConn.type, inComp.name, inComp.num,
+                                   inComp.host, inConn.port)
+
+
+                if not map.has_key(outComp):
+                    map[outComp] = []
+                map[outComp].append(entry)
 
 class RunSet:
     "A set of components to be used in a set of runs"
