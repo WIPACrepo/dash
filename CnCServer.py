@@ -347,6 +347,7 @@ class DAQClient(CnCLogger):
     def configure(self, configName=None):
         "Configure this component"
         try:
+            self.logmsg('CnC calling configure')
             if not configName:
                 return self.client.xmlrpc.configure(self.id)
             else:
