@@ -47,7 +47,7 @@ class DAQMoni(object):
         for c in self.IDs:
             self.logmsg("Tickle %s:%d..." % (self.rpcAddrOf[c], self.rpcPortOf[c]))
             try:
-                self.rpcClientOf[c].xmlrpc.rpc_monitor()
+                self.rpcClientOf[c].xmlrpc.monitor()
             except Exception, e:
                 self.logmsg("Got exception %s: %s" % (e, exc_string()))
         self.tlast = now
