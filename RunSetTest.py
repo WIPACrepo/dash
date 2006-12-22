@@ -8,6 +8,7 @@ class MockComponent:
         self.name = name
         self.configured = False
         self.runNum = None
+        self.cmdOrder = 0
 
     def __str__(self):
         if self.configured:

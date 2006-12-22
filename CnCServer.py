@@ -43,32 +43,33 @@ class Connector:
 class Connection:
     """
     Component connection data to be passed to a component
-    type - connection type
-    compName - component name
-    compNum - component instance number
-    host - component host name
-    port - component port number for this connection
+    conn - connection description
+    comp - component
     """
 
-    def __init__(self, type, compName, compNum, host, port):
+    def __init__(self, conn, comp):
         """
         Connection constructor
-        type - connection type
-        compName - component name
-        compNum - component instance number
-        host - component host name
-        port - component port number for this connection
+        conn - connection description
+        comp - component
         """
-        self.type = type
-        self.compName = compName
-        self.compNum = compNum
-        self.host = host
-        self.port = port
+        self.conn = conn
+        self.comp = comp
 
     def __str__(self):
         "String description"
         return '%s:%s#%d@%s:%d' % \
-            (self.type, self.compName, self.compNum, self.host, self.port)
+            (self.conn.type, self.comp.name, self.comp.num, self.comp.host,
+             self.conn.port)
+
+    def getMap(self):
+        map = {}
+        map['type'] = self.conn.type
+        map['compName'] = self.comp.name
+        map['compNum'] = self.comp.num
+        map['host'] = self.comp.host
+        map['port'] = self.conn.port
+        return map
 
 class ConnTypeEntry:
     """
@@ -110,8 +111,7 @@ class ConnTypeEntry:
             inComp = self.inList[0][1]
 
             for outComp in self.outList:
-                entry = Connection(inConn.type, inComp.name, inComp.num,
-                                   inComp.host, inConn.port)
+                entry = Connection(inConn, inComp)
 
                 if not map.has_key(outComp):
                     map[outComp] = []
@@ -120,8 +120,7 @@ class ConnTypeEntry:
             outComp = self.outList[0]
 
             for inConn, inComp in self.inList:
-                entry = Connection(inConn.type, inComp.name, inComp.num,
-                                   inComp.host, inConn.port)
+                entry = Connection(inConn, inComp)
 
 
                 if not map.has_key(outComp):
@@ -208,6 +207,10 @@ class RunSet:
         if not self.configured:
             raise ValueError, "RunSet #" + str(self.id) + " is not configured"
 
+        # start back to front
+        #
+        self.set.sort(lambda x, y: y.cmdOrder-x.cmdOrder)
+
         self.runNumber = runNum
         for c in self.set:
             c.startRun(runNum)
@@ -216,6 +219,10 @@ class RunSet:
         "Stop all components in the runset"
         if self.runNumber is None:
             raise ValueError, "RunSet #" + str(self.id) + " is not running"
+
+        # stop from front to back
+        #
+        self.set.sort(lambda x, y: x.cmdOrder-y.cmdOrder)
 
         for c in self.set:
             c.stopRun()
@@ -288,7 +295,17 @@ class CnCLogger(object):
         self.logPort = None
 
 class DAQClient(CnCLogger):
-    "DAQ component"
+    """DAQ component
+    id - internal client ID
+    name - component name
+    num - component instance number
+    host - component host name
+    port - component port number
+    connectors - list of Connectors
+    client - XML-RPC client
+    deadCount - number of sequential failed pings
+    cmdOrder - order in which start/stop commands are issued
+    """
 
     # next component ID
     #
@@ -325,6 +342,7 @@ class DAQClient(CnCLogger):
         self.client = self.createClient(host, port)
 
         self.deadCount = 0
+        self.cmdOrder = None
 
         super(DAQClient, self).__init__()
 
@@ -355,15 +373,23 @@ class DAQClient(CnCLogger):
             self.logmsg(exc_string())
             return None
 
-    def connect(self, list=None):
+    def connect(self, connList=None):
         "Connect this component with other components in a runset"
-        if not list:
+
+        if not connList:
             return self.client.xmlrpc.connect(self.id)
-        else:
-            return self.client.xmlrpc.connect(self.id, list)
+
+        list = []
+        for conn in connList:
+            list.append(conn.getMap())
+
+        return self.client.xmlrpc.connect(self.id, list)
 
     def createClient(self, host, port):
         return RPCClient(host, port)
+
+    def getOrder(self):
+        return self.cmdOrder
 
     def getState(self):
         "Get current state"
@@ -386,6 +412,11 @@ class DAQClient(CnCLogger):
         "Does this component have the specified name and number?"
         return self.name == name and self.num == num
 
+    def isSource(self):
+        "TODO: Move responsibility for this to DAQComponent"
+        return not self.name.endswith('Trigger') and \
+            self.name.find('Builder') < 0
+
     def logTo(self, logIP, port, level):
         "Send log messages to the specified host and port"
         self.openLog(logIP, port)
@@ -399,6 +430,9 @@ class DAQClient(CnCLogger):
         "Reset component back to the idle state"
         self.closeLog()
         return self.client.xmlrpc.reset(self.id)
+
+    def setOrder(self, orderNum):
+        self.cmdOrder = orderNum
 
     def startRun(self, runNum):
         "Start component processing DAQ data"
@@ -514,6 +548,8 @@ class DAQPool(CnCLogger):
         if errMsg:
             raise ValueError, errMsg
 
+        self.setOrder(compList, map)
+
         return None
 
     def findSet(self, id):
@@ -593,6 +629,68 @@ class DAQPool(CnCLogger):
         self.sets.remove(s)
         s.returnComponents(self)
         s.destroy()
+
+    def setOrder(self, compList, map):
+        "set the order in which components are started/stopped"
+
+        # copy list of components
+        #
+        allComps = []
+        allComps[0:] = compList[0:]
+
+        # build initial list of source components
+        #
+        curLevel = []
+        for c in allComps:
+            # clear order
+            #
+            c.setOrder(None)
+
+            # if component is a source, save it to the initial list
+            #
+            if c.isSource():
+                curLevel.append(c)
+
+        # walk through detector, setting order number for each component
+        #
+        level = 1
+        while len(allComps) > 0 and len(curLevel) > 0:
+            tmp = []
+            for c in curLevel:
+                # remove current component from the temporary component list
+                #
+                try:
+                    i = allComps.index(c)
+                    del allComps[i]
+                except:
+                    # if not found, it must have already been ordered
+                    #
+                    continue
+
+                c.setOrder(level)
+
+                if map.has_key(c):
+                    for m in map[c]:
+                        tmp.append(m.comp)
+
+            curLevel = tmp
+            level += 1
+
+        if len(allComps) > 0:
+            errStr = 'Unordered:'
+            for c in allComps:
+                errStr += ' ' + str(c)
+            self.logmsg(errStr)
+
+        for c in compList:
+            failStr = None
+            if not c.getOrder():
+                if not failStr:
+                    'No order set for ' + str(c)
+                else:
+                    failStr += ', ' + str(c)
+            if failStr:
+                raise ValueError, failStr
 
 class DAQServer(DAQPool):
     "Configuration server"

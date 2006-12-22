@@ -116,7 +116,8 @@ class MockXMLRPC:
         if LOUD:
             print 'Conn[' + self.name + ':' + str(self.num) + ']'
             for l in list:
-                print '  ' + l.type + ':' + l.compName + '#' + str(l.compNum)
+                print '  ' + l['type'] + ':' + l['compName'] + '#' + \
+                    str(l['compNum'])
 
         # make a copy of the links
         #
@@ -126,24 +127,25 @@ class MockXMLRPC:
             tmpLinks[k][0:] = self.outLinks[k][0:len(self.outLinks[k])]
 
         for l in list:
-            if not tmpLinks.has_key(l.type):
+            if not tmpLinks.has_key(l['type']):
                 raise ValueError, 'Component ' + self.name + '#' + \
-                    str(self.num) + ' should not have a "' + l.type + \
+                    str(self.num) + ' should not have a "' + l['type'] + \
                     '" connection'
 
             comp = None
-            for t in tmpLinks[l.type]:
-                if t.name == l.compName and t.num == l.compNum:
+            for t in tmpLinks[l['type']]:
+                if t.name == l['compName'] and t.num == l['compNum']:
                     comp = t
-                    tmpLinks[l.type].remove(t)
-                    if len(tmpLinks[l.type]) == 0:
-                        del tmpLinks[l.type]
+                    tmpLinks[l['type']].remove(t)
+                    if len(tmpLinks[l['type']]) == 0:
+                        del tmpLinks[l['type']]
                     break
 
             if not comp:
                 raise ValueError, 'Component ' + self.name + '#' + \
                     str(self.num) + ' should not connect to ' + \
-                    l.type + ':' + l.compName + '#' + str(l.compNum)
+                    l['type'] + ':' + l['compName'] + '#' + \
+                    str(l.getCompNum())
 
         if len(tmpLinks) > 0:
             errMsg = 'Component ' + self.name + '#' + str(self.num) + \
@@ -244,7 +246,7 @@ class ConnectionTest(unittest.TestCase):
         # copy node list
         #
         tmpList = []
-        tmpList[0:] = nodeList[0:len(nodeList)]
+        tmpList[0:] = nodeList[0:]
 
         # validate all components in runset
         #
@@ -261,7 +263,7 @@ class ConnectionTest(unittest.TestCase):
             # copy connector list
             #
             compConn = []
-            compConn[0:] = comp.connectors[0:len(comp.connectors)]
+            compConn[0:] = comp.connectors[0:]
 
             # remove all output connectors
             #
@@ -309,20 +311,22 @@ class ConnectionTest(unittest.TestCase):
     def testSimple(self):
         # build nodes
         #
-        n1 = Node('one')
+        n1a = Node('oneA')
+        n1b = Node('oneB')
         n2 = Node('two')
         n3 = Node('three')
         n4 = Node('four')
 
         # connect nodes
         #
-        n1.connectOutputTo(n2, 'out1')
+        n1a.connectOutputTo(n2, 'out1')
+        n1b.connectOutputTo(n2, 'out1')
         n2.connectOutputTo(n3, 'out2')
         n3.connectOutputTo(n4, 'out3')
 
         # build list of all nodes
         #
-        allNodes = [n1, n2, n3, n4]
+        allNodes = [n1a, n1b, n2, n3, n4]
 
         self.buildRunset(allNodes)
 

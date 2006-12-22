@@ -10,9 +10,10 @@ class MockConnection:
         self.port = -1
 
 class MockComponent:
-    def __init__(self, name, num):
+    def __init__(self, name, num, isSrc=False):
         self.name = name
         self.num = num
+        self.isSrc = isSrc
         self.host = 'localhost'
 
         self.connectors = []
@@ -21,6 +22,7 @@ class MockComponent:
         self.connected = False
         self.runNum = None
         self.monitorState = '???'
+        self.cmdOrder = None
 
     def addInput(self, type):
         self.connectors.append(MockConnection(type, True))
@@ -28,12 +30,15 @@ class MockComponent:
     def addOutput(self, type):
         self.connectors.append(MockConnection(type, False))
 
-    def configure(self):
+    def configure(self, name=None):
         self.configured = True
 
     def connect(self, conn=None):
         self.connected = True
         return 'OK'
+
+    def getOrder(self):
+        return self.cmdOrder
 
     def getState(self):
         if not self.configured:
@@ -46,11 +51,17 @@ class MockComponent:
 
         return 'Running'
 
+    def isSource(self):
+        return self.isSrc
+
     def monitor(self):
         return self.monitorState
 
     def reset(self):
         self.configured = False
+
+    def setOrder(self, num):
+        self.cmdOrder = num
 
     def startRun(self, runNum):
         if not self.configured:
@@ -93,7 +104,7 @@ class TestDAQPool(unittest.TestCase):
     def testBuildReturnSet(self):
         mgr = DAQPool()
 
-        compList = [MockComponent('foo', 0), MockComponent('bar', 0)]
+        compList = [MockComponent('foo', 0, True), MockComponent('bar', 0)]
 
         self.assertEqual(len(mgr.pool), 0)
 
@@ -123,7 +134,7 @@ class TestDAQPool(unittest.TestCase):
     def testBuildMissingOutput(self):
         mgr = DAQPool()
 
-        fooComp = MockComponent('foo', 0)
+        fooComp = MockComponent('foo', 0, True)
         fooComp.addInput('bar->foo')
         fooComp.addOutput('foo->bar')
 
@@ -153,7 +164,7 @@ class TestDAQPool(unittest.TestCase):
     def testBuildMissingInput(self):
         mgr = DAQPool()
 
-        fooComp = MockComponent('foo', 0)
+        fooComp = MockComponent('foo', 0, True)
         fooComp.addOutput('foo->bar')
 
         barComp = MockComponent('bar', 0)
@@ -179,6 +190,80 @@ class TestDAQPool(unittest.TestCase):
             mgr.remove(c)
 
         self.assertEqual(len(mgr.pool), 0)
+
+    def testStartRun(self):
+        mgr = DAQPool()
+
+        a = MockComponent('a', 0, True)
+        a.addOutput('ab');
+
+        b = MockComponent('b', 0)
+        b.addInput('ab');
+        b.addOutput('bc');
+
+        c = MockComponent('c', 0)
+        c.addInput('bc');
+
+        compList = [c, a, b]
+
+        self.assertEqual(len(mgr.pool), 0)
+
+        nameList = []
+        for c in compList:
+            mgr.add(c)
+            nameList.append(c.name)
+
+        self.assertEqual(len(mgr.pool), len(compList))
+
+        set = mgr.makeSet(nameList)
+
+        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(len(set.set), len(compList))
+
+        set.configure('abc')
+
+        ordered = True
+        prevName = None
+        for s in set.set:
+            if not prevName:
+                prevName = s.name
+            elif prevName > s.name:
+                ordered = False
+
+        self.failIf(ordered, 'Runset sorted before startRun()')
+
+        set.startRun(1)
+
+        ordered = True
+        prevName = None
+        for s in set.set:
+            if not prevName:
+                prevName = s.name
+            elif prevName < s.name:
+                ordered = False
+
+        self.failUnless(ordered, 'Runset was not sorted by startRun()')
+
+        set.stopRun()
+
+        ordered = True
+        prevName = None
+        for s in set.set:
+            if not prevName:
+                prevName = s.name
+            elif prevName > s.name:
+                ordered = False
+
+        self.failUnless(ordered, 'Runset was not reversed by stopRun()')
+
+        mgr.returnSet(set)
+
+        self.assertEqual(set.id, None)
+        self.assertEqual(set.configured, False)
+        self.assertEqual(set.runNumber, None)
+
+        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(len(set.set), 0)
 
 if __name__ == '__main__':
     unittest.main()
