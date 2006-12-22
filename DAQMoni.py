@@ -45,7 +45,7 @@ class DAQMoni(object):
         now = datetime.datetime.now()
         self.logmsg("Doing monitoring at %s" % now)
         for c in self.IDs:
-            self.logmsg("Tickle %s:%d..." % (self.rpcAddrOf[c], self.rpcPortOf[c]))
+            self.logmsg("Tickle %d: %s:%d..." % (c, self.rpcAddrOf[c], self.rpcPortOf[c]))
             try:
                 self.rpcClientOf[c].xmlrpc.monitorHack(c)
             except Exception, e:
