@@ -395,6 +395,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
 
 def fully_qualified(x):
     "True if 'x' begins with '/'"
+    if os.name == 'nt': return True
     if search(r'^/', x): return True
     else: return False
 
