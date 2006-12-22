@@ -7,7 +7,7 @@ Started November, 2006
 """
 
 from DAQRunIface import DAQRunIface
-from datetime import datetime
+from datetime import *
 from sys import argv
 import optparse
 import time
@@ -36,7 +36,7 @@ def main():
     subRunNumber = 0
     configName   = "hub1001sim"
     sleeptime    = 0.4
-
+    duration     = 300
     lastState    = None
     try:
         for runNumber in xrange(1, opt.numRuns+1):
@@ -54,7 +54,10 @@ def main():
             if status == "STOPPED": continue # Restart if we had an error
             
             # Monitor run
-            for i in xrange(0, 310):
+            tstart = datetime.now()
+            while True:
+                tnow = datetime.now()
+                if tnow-tstart > timedelta(seconds=duration): break
                 status = daqiface.getState()
                 lastState = updateStatus(lastState, status)
                 if(status == "ERROR"): break

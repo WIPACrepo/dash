@@ -8,8 +8,9 @@
 # Started November, 2006
 
 from sys import argv
-from time import sleep
 from DAQLog import *
+from DAQMoni import *
+from time import sleep
 from os.path import exists
 from DAQRPC import RPCClient, RPCServer
 from Process import processList, findProcess
@@ -33,6 +34,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     CFGDIR         = "/usr/local/icecube/config"
     CATCHALL_PORT  = 9001
     CNC_PORT       = 8080
+    MONI_PERIOD    = 10
     
     def __init__(self, portnum, configDir=CFGDIR, logDir=LOGDIR):
         RPCServer.__init__(self, portnum,
@@ -62,7 +64,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.setCompIDs      = []
         self.shortNameOf     = {} # indexed by setCompID
         self.daqIDof         = {} # "                  "
-        self.addrOf          = {} # "                  "
+        self.rpcAddrOf          = {} # "                  "
         self.rpcPortOf       = {} # "                  "
         self.loggerOf        = {} # "                  "
         self.logPortOf       = {} # "                  "
@@ -72,6 +74,8 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.catchAllLogger.startServing()
         self.compPorts       = {} # Indexed by name
 
+        self.moni            = None
+        
     def getIP(self):
         """
         Found this gem of a kludge at
@@ -186,7 +190,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                                                                     self.daqIDof[compID],
                                                                     self.logPortOf[compID])
             self.logmsg("%s(%d %s:%d) -> %s:%d" % (self.shortNameOf[compID], compID,
-                                                   self.addrOf[compID], self.rpcPortOf[compID],
+                                                   self.rpcAddrOf[compID], self.rpcPortOf[compID],
                                                    self.ip, self.logPortOf[compID]))
             
     def stopAllComponentLoggers(self):
@@ -234,7 +238,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     self.setCompIDs.append(setCompID)
                     self.shortNameOf[ setCompID ] = shortName
                     self.daqIDof    [ setCompID ] = daqID
-                    self.addrOf     [ setCompID ] = parsed[3]
+                    self.rpcAddrOf  [ setCompID ] = parsed[3]
                     self.rpcPortOf  [ setCompID ] = parsed[4]
 
             # Set up log receivers for remote components
@@ -252,7 +256,13 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.CnCRPC.rpccall("rpc_runset_log_to", self.runSetID, self.ip, l)
             
             self.logmsg("Created Run Set #%d" % self.runSetID)
-                            
+
+            # Set up monitoring
+            self.moni = DAQMoni(self.log,
+                                DAQRun.MONI_PERIOD,
+                                self.setCompIDs, self.shortNameOf, self.daqIDof,
+                                self.rpcAddrOf, self.rpcPortOf)
+            
             # Configure the run set
             self.logmsg("Configuring run set...")
             #self.CnCRPC.rpc_runset_configure(self.runSetID)
@@ -283,6 +293,8 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         # Paranoid nested try loops to make sure we at least try to do
         # each step
         try:            
+
+            if self.moni: self.moni = None
             
             if self.runSetID:
                 if self.runSetRunning:
@@ -334,6 +346,9 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         "Recover from failed run"
         self.logmsg("Recovering from failed run %d..." % self.runNum)
         self.stop_run()
+
+    def monitor(self):
+        if self.moni and self.moni.timeToMoni(): self.moni.doMoni()
         
     def run_thread(self):
         "Handle state transitions"
@@ -341,6 +356,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             if   self.runState == "STARTING":   self.start_run()
             elif self.runState == "STOPPING":   self.stop_run()
             elif self.runState == "RECOVERING": self.recover()
+            elif self.runState == "RUNNING":    self.monitor()
             else: sleep(0.25)
         
     def rpc_run_state(self):
@@ -365,7 +381,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     % (self.runNum, self.configName))
         self.runState   = "STARTING"
         return 1
-
+ 
     def rpc_stop_run(self):
         "Stop a run"
         if self.runState != "RUNNING":
