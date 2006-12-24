@@ -428,7 +428,8 @@ class DAQClient(CnCLogger):
 
     def monitorHack(self):
         "Return the monitoring value"
-        self.client.xmlrpc.monitorHack(self.id)
+        #self.client.xmlrpc.monitorHack(self.id)
+        return 'OK'
 
     def reset(self):
         "Reset component back to the idle state"
@@ -619,12 +620,6 @@ class DAQPool(CnCLogger):
 
         return count
 
-    def monitorHack(self):
-        "XXX monitoring hack XXX"
-        for s in self.sets:
-            for c in s.set:
-                c.monitorHack()
-
     def remove(self, comp):
         "Remove a component from the pool"
         if self.pool.has_key(comp.name):
@@ -736,7 +731,6 @@ class DAQServer(DAQPool):
             self.server.register_function(self.rpc_close_log)
             self.server.register_function(self.rpc_get_num_components)
             self.server.register_function(self.rpc_log_to)
-            self.server.register_function(self.rpc_monitor)
             self.server.register_function(self.rpc_ping)
             self.server.register_function(self.rpc_register_component)
             self.server.register_function(self.rpc_runset_break)
@@ -766,11 +760,6 @@ class DAQServer(DAQPool):
         "called by DAQLog object to tell us what UDP port to log to"
         self.openLog(host, port)
         return 1
-
-    def rpc_monitor(self):
-        "XXX Hack to call monitoring method of all running components XXX"
-        self.monitorHack()
-        return "OK"
 
     def rpc_ping(self):
         "remote method for far end to see if we're alive"
