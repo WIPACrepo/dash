@@ -199,11 +199,6 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.loggerOf[compID].stopServing()
             self.loggerOf[compID] = None
             
-    def createRunsetRequestNameList(self):
-        "Create a list of names in the form of e.g. 'stringHub#21'"
-        for r in self.setCompIDs:
-            yield "%s#%d" % (self.shortNameOf[r], self.daqIDof[r])
-
     def createRunsetLoggerNameList(self, logLevel):
         "Create a list of arguments in the form of (shortname, daqID, logport, logLevel)"
         for r in self.setCompIDs:
@@ -228,28 +223,24 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             remoteList = self.waitForRequiredComponents(self.requiredComps, 60)
             # Throws RequiredComponentsNotAvailableException
 
-            # Form up table of discovered components
-            for r in remoteList:
-                parsed    = DAQRun.parseComponentName(r)
-                setCompID = parsed[0]
-                shortName = parsed[1]
-                daqID     = parsed[2]
-                if(DAQRun.isRequiredComponent(shortName, daqID, self.requiredComps)):
-                    self.setCompIDs.append(setCompID)
-                    self.shortNameOf[ setCompID ] = shortName
-                    self.daqIDof    [ setCompID ] = daqID
-                    self.rpcAddrOf  [ setCompID ] = parsed[3]
-                    self.rpcPortOf  [ setCompID ] = parsed[4]
+            # build CnC run set
+            #self.runSetID = self.CnCRPC.rpc_runset_make(list(self.createRunsetRequestNameList()))
+            self.runSetID = self.CnCRPC.rpccall("rpc_runset_make",
+                                                self.requiredComps)
+            self.runSetCreated = True
+
+            # extract remote component data
+            compList = self.CnCRPC.rpccall("rpc_runset_list", self.runSetID)
+            for comp in compList:
+                self.setCompIDs.append(comp[0])
+                self.shortNameOf[ comp[0] ] = comp[1]
+                self.daqIDof    [ comp[0] ] = comp[2]
+                self.rpcAddrOf  [ comp[0] ] = comp[3]
+                self.rpcPortOf  [ comp[0] ] = comp[4]
 
             # Set up log receivers for remote components
             self.setUpAllComponentLoggers()
             
-            # build CnC run set
-            #self.runSetID = self.CnCRPC.rpc_runset_make(list(self.createRunsetRequestNameList()))
-            self.runSetID = self.CnCRPC.rpccall("rpc_runset_make",
-                                                list(self.createRunsetRequestNameList()))
-            self.runSetCreated = True
-
             # Tell components where to log to
             l = list(self.createRunsetLoggerNameList(SocketLogger.LOGLEVEL_INFO))
             #self.CnCRPC.rpc_runset_log_to(self.runSetID, self.ip, l)
