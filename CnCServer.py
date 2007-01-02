@@ -128,7 +128,7 @@ class ConnTypeEntry:
                 map[outComp].append(entry)
 
 class RunSet:
-    "A set of components to be used in a set of runs"
+    "A set of components to be used in one or more runs"
 
     ID = 1
 
@@ -491,7 +491,7 @@ class DAQPool(CnCLogger):
     buildConnectionMap = classmethod(buildConnectionMap)
 
 
-    def buildSet(self, nameList, compList):
+    def buildRunset(self, nameList, compList):
         """
         Internal method to build a runset from the specified list of
         component names, using the supplied 'compList' as a workspace
@@ -557,7 +557,7 @@ class DAQPool(CnCLogger):
 
         return None
 
-    def findSet(self, id):
+    def findRunset(self, id):
         "Find the runset with the specified ID"
         set = None
         for s in self.sets:
@@ -567,15 +567,15 @@ class DAQPool(CnCLogger):
 
         return set
 
-    def makeSet(self, nameList):
+    def makeRunset(self, nameList):
         "Build a runset from the specified list of component names"
         compList = []
         setAdded = False
         try:
             try:
-                # buildSet fills 'compList' with the specified components
+                # buildRunset fills 'compList' with the specified components
                 #
-                self.buildSet(nameList, compList)
+                self.buildRunset(nameList, compList)
                 runSet = RunSet(compList)
                 self.sets.append(runSet)
                 setAdded = True
@@ -793,35 +793,35 @@ class DAQServer(DAQPool):
         return [client.id, logIP, logPort, logLevel]
 
     def rpc_runset_break(self, id):
-        "break up the specified set"
-        set = self.findSet(id)
+        "break up the specified runset"
+        runSet = self.findRunset(id)
 
-        if not set:
+        if not runSet:
             raise ValueError, 'Could not find runset#' + str(id)
 
-        self.returnSet(set)
+        self.returnSet(runSet)
 
         return "OK"
 
     def rpc_runset_configure(self, id, globalConfigName=None):
-        "configure the specified set"
-        set = self.findSet(id)
+        "configure the specified runset"
+        runSet = self.findRunset(id)
 
-        if not set:
+        if not runSet:
             raise ValueError, 'Could not find runset#' + str(id)
 
-        set.configure(globalConfigName)
+        runSet.configure(globalConfigName)
 
         return "OK"
 
     def rpc_runset_log_to(self, id, logIP, logList):
-        "configure logging for the specified set"
-        set = self.findSet(id)
+        "configure logging for the specified runset"
+        runSet = self.findRunset(id)
 
-        if not set:
+        if not runSet:
             raise ValueError, 'Could not find runset#' + str(id)
 
-        leftOver = set.configureLogging(logIP, logList)
+        leftOver = runSet.configureLogging(logIP, logList)
 
         if len(leftOver) > 0:
             errMsg = 'Could not configure logging for ' + \
@@ -834,49 +834,49 @@ class DAQServer(DAQPool):
         return "OK"
 
     def rpc_runset_make(self, nameList):
-        "build a set using the specified components"
-        runSet = self.makeSet(nameList)
+        "build a runset using the specified components"
+        runSet = self.makeRunset(nameList)
 
         if not runSet:
             return -1
 
-        self.logmsg("Built set with the following components:\n" +
+        self.logmsg("Built runset with the following components:\n" +
                     runSet.componentListStr())
         return runSet.id
 
     def rpc_runset_start_run(self, id, runNum):
-        "start a run with the specified set"
-        set = self.findSet(id)
+        "start a run with the specified runset"
+        runSet = self.findRunset(id)
 
-        if not set:
+        if not runSet:
             raise ValueError, 'Could not find runset#' + str(id)
 
-        set.startRun(runNum)
+        runSet.startRun(runNum)
 
         return "OK"
 
     def rpc_runset_status(self, id):
-        "get run status for the specified set"
-        set = self.findSet(id)
+        "get run status for the specified runset"
+        runSet = self.findRunset(id)
 
-        if not set:
+        if not runSet:
             raise ValueError, 'Could not find runset#' + str(id)
 
-        setStat = set.status()
+        setStat = runSet.status()
         for c in setStat.keys():
             self.logmsg(str(c) + ' ' + str(c.getState()))
 
         return "OK"
 
     def rpc_runset_stop_run(self, id):
-        "stop a run with the specified set"
-        set = self.findSet(id)
+        "stop a run with the specified runset"
+        runSet = self.findRunset(id)
 
-        if not set:
+        if not runSet:
             raise ValueError, 'Could not find runset#' + str(id)
 
         self.logmsg("stopRun+")
-        set.stopRun()
+        runSet.stopRun()
         self.logmsg("stopRun-")
 
         return "OK"
