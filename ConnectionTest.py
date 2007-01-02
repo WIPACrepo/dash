@@ -190,11 +190,12 @@ class MockLogger(object):
         pass
 
 class MockClient(DAQClient):
-    def __init__(self, name, num, host, port, connectors, outLinks):
+    def __init__(self, name, num, host, port, mbeanPort, connectors, outLinks):
 
         self.outLinks = outLinks
 
-        super(MockClient, self).__init__(name, num, host, port, connectors)
+        super(MockClient, self).__init__(name, num, host, port, mbeanPort,
+              connectors)
 
     def createClient(self, host, port):
         return MockRPCClient(self.name, self.num, self.outLinks)
@@ -214,7 +215,7 @@ class ConnectionTest(unittest.TestCase):
         pool = DAQPool()
         port = -1
         for node in nodeList:
-            pool.add(MockClient(node.name, node.num, None, port,
+            pool.add(MockClient(node.name, node.num, None, port, 0,
                                 node.getConnections(), node.outLinks))
             port -= 1
 

@@ -40,9 +40,10 @@ class MockLogger(object):
         pass
 
 class MockClient(DAQClient):
-    def __init__(self, name, num, host, port, connectors):
+    def __init__(self, name, num, host, port, mbeanPort, connectors):
 
-        super(MockClient, self).__init__(name, num, host, port, connectors)
+        super(MockClient, self).__init__(name, num, host, port, mbeanPort,
+                                         connectors)
 
     def createClient(self, host, port):
         return MockRPCClient(host, port)
@@ -54,8 +55,8 @@ class MockServer(DAQServer):
     def __init__(self):
         super(MockServer, self).__init__(testOnly=True)
 
-    def createClient(self, name, num, host, port, connectors):
-        return MockClient(name, num, host, port, connectors)
+    def createClient(self, name, num, host, port, mbeanPort, connectors):
+        return MockClient(name, num, host, port, mbeanPort, connectors)
 
 class TestDAQServer(unittest.TestCase):
     def testRegister(self):
@@ -67,8 +68,9 @@ class TestDAQServer(unittest.TestCase):
         compNum = 0
         compHost = 'localhost'
         compPort = 666
+        compMBean = 0
         rtnArray = dc.rpc_register_component(compName, compNum, compHost,
-                                             compPort, [])
+                                             compPort, 0, [])
 
         self.assertEqual(dc.rpc_get_num_components(), 1)
 
@@ -94,7 +96,7 @@ class TestDAQServer(unittest.TestCase):
         self.assertEqual(dc.logIP, logHost)
         self.assertEqual(dc.logPort, logPort)
 
-        rtnArray = dc.rpc_register_component('foo', 0, 'localhost', 666, [])
+        rtnArray = dc.rpc_register_component('foo', 0, 'localhost', 666, 0, [])
 
         self.assertEqual(len(rtnArray), 4)
         self.assertEqual(rtnArray[0], DAQClient.ID - 1)
@@ -125,7 +127,7 @@ class TestDAQServer(unittest.TestCase):
         self.assertEqual(dc.rpc_num_sets(), 0)
         self.assertEqual(dc.rpc_show_components(), [])
 
-        rtnArray = dc.rpc_register_component('foo', 0, 'localhost', 666, [])
+        rtnArray = dc.rpc_register_component('foo', 0, 'localhost', 666, 0, [])
 
         self.assertEqual(dc.rpc_get_num_components(), 1)
         self.assertEqual(dc.rpc_num_sets(), 0)

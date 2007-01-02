@@ -308,6 +308,7 @@ class DAQClient(CnCLogger):
     num - component instance number
     host - component host name
     port - component port number
+    mbeanPort - component's MBean server port number
     connectors - list of Connectors
     client - XML-RPC client
     deadCount - number of sequential failed pings
@@ -328,19 +329,21 @@ class DAQClient(CnCLogger):
     #
     STATE_DEAD = 'DEAD'
 
-    def __init__(self, name, num, host, port, connectors):
+    def __init__(self, name, num, host, port, mbeanPort, connectors):
         """
         DAQClient constructor
         name - component name
         num - component instance number
         host - component host name
         port - component port number
+        mbeanPort - component MBean port number
         connectors - list of Connectors
         """
         self.name = name
         self.num = num
         self.host = host
         self.port = port
+        self.mbeanPort = mbeanPort
         self.connectors = connectors
 
         self.id = DAQClient.ID
@@ -355,19 +358,23 @@ class DAQClient(CnCLogger):
 
     def __str__(self):
         "String description"
-        if not self.connectors or len(self.connectors) == 0:
-            connStr = ''
+        if self.mbeanPort <= 0:
+            extraStr = ''
         else:
-            connStr = None
+            extraStr = ' M#' + str(self.mbeanPort)
+
+        if self.connectors and len(self.connectors) > 0:
+            first = True
             for c in self.connectors:
-                if not connStr:
-                    connStr = ' [' + str(c)
+                if first:
+                    extraStr += ' [' + str(c)
+                    first = False
                 else:
-                    connStr += ' ' + str(c)
-            connStr += ']'
+                    extraStr += ' ' + str(c)
+            extraStr += ']'
 
         return "ID#%d %s#%d at %s:%d%s" % \
-            (self.id, self.name, self.num, self.host, self.port, connStr)
+            (self.id, self.name, self.num, self.host, self.port, extraStr)
 
     def configure(self, configName=None):
         "Configure this component"
@@ -425,7 +432,8 @@ class DAQClient(CnCLogger):
             self.name.find('Builder') < 0
 
     def list(self):
-        return [ self.id, self.name, self.num, self.host, self.port ]
+        return [ self.id, self.name, self.num, self.host, self.port,
+                 self.mbeanPort ]
 
     def logTo(self, logIP, port, level):
         "Send log messages to the specified host and port"
@@ -754,9 +762,9 @@ class DAQServer(DAQPool):
             self.server.register_function(self.rpc_show_components)
             self.server.register_function(self.rpc_num_sets)
 
-    def createClient(self, name, num, host, port, connectors):
+    def createClient(self, name, num, host, port, mbeanPort, connectors):
         "overrideable method used for testing"
-        return DAQClient(name, num, host, port, connectors)
+        return DAQClient(name, num, host, port, mbeanPort, connectors)
 
     def rpc_close_log(self):
         "called by DAQLog object to indicate when we should close log file"
@@ -776,13 +784,15 @@ class DAQServer(DAQPool):
         "remote method for far end to see if we're alive"
         return "OK"
 
-    def rpc_register_component(self, name, num, host, port, connArray):
+    def rpc_register_component(self, name, num, host, port, mbeanPort,
+                               connArray):
         "register a component with the server"
         connectors = []
         for d in connArray:
             connectors.append(Connector(d[0], d[1], d[2]))
 
-        client = self.createClient(name, num, host, port, connectors)
+        client = self.createClient(name, num, host, port, mbeanPort,
+                                   connectors)
         self.logmsg("Got registration for %s" % str(client))
 
         sleep(1)

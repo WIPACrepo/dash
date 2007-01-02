@@ -26,6 +26,7 @@ class DAQConfig(object):
     parsedNDOMDict       = {}
     parsedKindListDict   = {}
     parsedStringListDict = {}
+    parsedCompListDict   = {}
     
     def __init__(self, configName="default", configDir="/usr/local/icecube/config"):
         # Optimize by looking up pre-parsed configurations:
@@ -33,6 +34,7 @@ class DAQConfig(object):
             self.ndoms      = DAQConfig.parsedNDOMDict      [ configName ]
             self.kindList   = DAQConfig.parsedKindListDict  [ configName ]
             self.stringList = DAQConfig.parsedStringListDict[ configName ]
+            self.compList   = DAQConfig.parsedCompListDict  [ configName ]
             return
         
         if not exists(configDir):
@@ -73,18 +75,23 @@ class DAQConfig(object):
                 positionDict[domID] = position
                 kindDict[domID]     = kind
         
-        domConfig = configs[0].getElementsByTagName("domConfigList")
-        if len(domConfig) < 1: raise noDOMConfigFound()
+        noDOMs = configs[0].getElementsByTagName("noDOMConfig")
+        if len(noDOMs) > 0:
+            configList = []
+        else:
+            domConfig = configs[0].getElementsByTagName("domConfigList")
+            if len(domConfig) < 1: raise noDOMConfigFound()
 
-        domConfigName = domConfig[0].childNodes[0].data
-        domConfigXML = configDir + "/" + domConfigName + ".xml"
+            domConfigName = domConfig[0].childNodes[0].data
+            domConfigXML = configDir + "/" + domConfigName + ".xml"
 
-        if not exists(domConfigXML): raise noDOMConfigFound()
+            if not exists(domConfigXML): raise noDOMConfigFound()
         
-        domConfigParsed = minidom.parse(domConfigXML)
-        configList = domConfigParsed.getElementsByTagName("domConfig")
-        # print "Found %d DOMs." % len(configList)
+            domConfigParsed = minidom.parse(domConfigXML)
+            configList = domConfigParsed.getElementsByTagName("domConfig")
+
         self.ndoms = len(configList)
+        # print "Found %d DOMs." % self.ndoms
 
         stringInConfigDict = {}
         kindInConfigDict   = {}
@@ -99,12 +106,28 @@ class DAQConfig(object):
         self.kindList   = kindInConfigDict.keys()
         self.stringList = stringInConfigDict.keys()
 
+        self.compList = []
+        compNodes = configs[0].getElementsByTagName("runComponent")
+        if len(compNodes) == 0:
+            self.compList = [ 'eventBuilder#0', 'globalTrigger#0',
+                              'inIceTrigger#0' ]
+        else:
+            for node in compNodes:
+                if not node.attributes.has_key('id'):
+                    nodeId = 0
+                else:
+                    nodeId = int(node.attributes['id'].value)
+
+                self.compList.append(node.attributes['name'].value + '#' +
+                                     str(nodeId))
+
         DAQConfig.parsedNDOMDict      [ configName ] = self.ndoms
         DAQConfig.parsedKindListDict  [ configName ] = self.kindList
         DAQConfig.parsedStringListDict[ configName ] = self.stringList
+        DAQConfig.parsedCompListDict  [ configName ] = self.compList
 
     def nDOMs(self):
-        "return number of DOMs in parsed configuration"
+        "Return number of DOMs in parsed configuration"
         return self.ndoms
     
     def kinds(self):
@@ -120,9 +143,16 @@ class DAQConfig(object):
         """
         return self.stringList
     
+    def components(self):
+        """
+        Return list of components in parsed configuration.
+        """
+        return self.compList
+    
 if __name__ == "__main__":
     configDir  = "../config"
-    configName = "example-runconfig"
+    #configName = "example-runconfig"
+    configName = "ebmin"
     
     dc = DAQConfig(configName, configDir)
     print "Number of DOMs in configuration: %s" % dc.nDOMs()
@@ -130,6 +160,8 @@ if __name__ == "__main__":
         print "String %d is in configuration." % string
     for kind in dc.kinds():
         print "Configuration includes %s" % kind
+    for comp in dc.components():
+        print "Configuration requires %s" % comp
 
     # Do it again to test optimization
     dc = DAQConfig(configName, configDir)
@@ -138,3 +170,5 @@ if __name__ == "__main__":
         print "String %d is in configuration." % string
     for kind in dc.kinds():
         print "Configuration includes %s" % kind
+    for comp in dc.components():
+        print "Configuration requires %s" % comp

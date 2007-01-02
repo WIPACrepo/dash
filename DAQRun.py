@@ -64,8 +64,9 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.setCompIDs      = []
         self.shortNameOf     = {} # indexed by setCompID
         self.daqIDof         = {} # "                  "
-        self.rpcAddrOf          = {} # "                  "
+        self.rpcAddrOf       = {} # "                  "
         self.rpcPortOf       = {} # "                  "
+        self.mbeanPortOf     = {} # "                  "
         self.loggerOf        = {} # "                  "
         self.logPortOf       = {} # "                  "
         
@@ -237,6 +238,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 self.daqIDof    [ comp[0] ] = comp[2]
                 self.rpcAddrOf  [ comp[0] ] = comp[3]
                 self.rpcPortOf  [ comp[0] ] = comp[4]
+                self.mbeanPortOf[ comp[0] ] = comp[5]
 
             # Set up log receivers for remote components
             self.setUpAllComponentLoggers()
@@ -252,7 +254,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.moni = DAQMoni(self.log,
                                 DAQRun.MONI_PERIOD,
                                 self.setCompIDs, self.shortNameOf, self.daqIDof,
-                                self.rpcAddrOf, self.rpcPortOf)
+                                self.rpcAddrOf, self.mbeanPortOf)
             
             # Configure the run set
             self.logmsg("Configuring run set...")
