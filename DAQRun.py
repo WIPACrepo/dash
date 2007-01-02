@@ -448,7 +448,7 @@ if __name__ == "__main__":
     if not exists(opt.configDir) or not fully_qualified(opt.configDir):
         print """\
 Configuration directory '%s' doesn't exist or is not fully-qualified.
-Use the -d option, or -h for help.\
+Use the -c option, or -h for help.\
         """ % opt.configDir
         raise SystemExit
 
