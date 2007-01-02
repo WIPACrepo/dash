@@ -639,7 +639,7 @@ class DAQPool(CnCLogger):
 
         return comp
 
-    def returnSet(self, s):
+    def returnRunset(self, s):
         "Return runset components to the pool"
         self.sets.remove(s)
         s.returnComponents(self)
@@ -810,7 +810,7 @@ class DAQServer(DAQPool):
         if not runSet:
             raise ValueError, 'Could not find runset#' + str(id)
 
-        self.returnSet(runSet)
+        self.returnRunset(runSet)
 
         return "OK"
 

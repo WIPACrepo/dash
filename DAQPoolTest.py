@@ -79,7 +79,7 @@ class TestDAQPool(unittest.TestCase):
     def testEmpty(self):
         mgr = DAQPool()
 
-        set = mgr.findSet(1)
+        set = mgr.findRunset(1)
         self.failIf(set is not None, 'Found set in empty manager')
 
         comp = mgr.remove(MockComponent('foo', 0))
@@ -115,14 +115,14 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), len(compList))
 
-        set = mgr.makeSet(nameList)
+        set = mgr.makeRunset(nameList)
 
         self.assertEqual(len(mgr.pool), 0)
 
-        found = mgr.findSet(set.id)
+        found = mgr.findRunset(set.id)
         self.failIf(found is None, "Couldn't find runset #" + str(set.id))
 
-        mgr.returnSet(set)
+        mgr.returnRunset(set)
 
         self.assertEqual(len(mgr.pool), len(compList))
 
@@ -152,7 +152,7 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), len(compList))
 
-        self.assertRaises(ValueError, mgr.makeSet, nameList)
+        self.assertRaises(ValueError, mgr.makeRunset, nameList)
 
         self.assertEqual(len(mgr.pool), len(compList))
 
@@ -182,7 +182,7 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), len(compList))
 
-        self.assertRaises(ValueError, mgr.makeSet, nameList)
+        self.assertRaises(ValueError, mgr.makeRunset, nameList)
 
         self.assertEqual(len(mgr.pool), len(compList))
 
@@ -215,7 +215,7 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), len(compList))
 
-        set = mgr.makeSet(nameList)
+        set = mgr.makeRunset(nameList)
 
         self.assertEqual(len(mgr.pool), 0)
         self.assertEqual(len(set.set), len(compList))
@@ -256,7 +256,7 @@ class TestDAQPool(unittest.TestCase):
 
         self.failUnless(ordered, 'Runset was not reversed by stopRun()')
 
-        mgr.returnSet(set)
+        mgr.returnRunset(set)
 
         self.assertEqual(set.id, None)
         self.assertEqual(set.configured, False)

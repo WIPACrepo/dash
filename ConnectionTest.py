@@ -231,7 +231,7 @@ class ConnectionTest(unittest.TestCase):
         for node in nodeList:
             nameList.append(node.name + '#' + str(node.num))
 
-        set = pool.makeSet(nameList)
+        set = pool.makeRunset(nameList)
 
         chkId = ConnectionTest.EXP_ID
         ConnectionTest.EXP_ID += 1
@@ -304,7 +304,7 @@ class ConnectionTest(unittest.TestCase):
         if LOUD:
             print '-- SET: ' + str(set)
 
-        pool.returnSet(set)
+        pool.returnRunset(set)
         self.assertEquals(len(pool.pool), numComps)
         self.assertEquals(len(pool.sets), 0)
 
