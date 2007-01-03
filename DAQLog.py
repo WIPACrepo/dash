@@ -39,9 +39,28 @@ class SocketLogger(object):
             self.outfile = open(self.logpath, "a+")
         else:
             self.outfile = sys.stdout
-        self.thread  = threading.Thread(target=self.listener)
+        if os.name == "nt":
+            self.thread = threading.Thread(target=self.win_listener)
+        else:
+            self.thread  = threading.Thread(target=self.listener)
         self.thread.start()
 
+    def win_listener(self):
+        """
+        Windows version of listener - no select().
+        """
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        #self.sock.setblocking(1)
+        #self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind(("", self.port))
+        while self.go:
+            data = self.sock.recv(8192)
+            print "%s %s" % (self.cname, data)
+            print >>self.outfile, "%s %s" % (self.cname, data)
+            self.outfile.flush()
+        self.sock.close()
+        if self.logpath: self.outfile.close()       
+        
     def listener(self):
         """
         Create listening, non-blocking UDP socket, read from it, and write to file;
@@ -62,6 +81,7 @@ class SocketLogger(object):
             while 1: # Slurp up waiting packets, return to select if EAGAIN
                 try:
                     data = self.sock.recv(8192, socket.MSG_DONTWAIT)
+                    print "%s %s" % (self.cname, data)
                     print >>self.outfile, "%s %s" % (self.cname, data)
                     self.outfile.flush()
                 except Exception, e:
