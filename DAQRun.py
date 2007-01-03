@@ -11,7 +11,7 @@ from sys import argv
 from DAQLog import *
 from DAQMoni import *
 from time import sleep
-from os.path import exists
+from os.path import exists, abspath
 from DAQRPC import RPCClient, RPCServer
 from Process import processList, findProcess
 from exc_string import *
@@ -402,12 +402,6 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.do_reboot()
         raise Exception("REBOOT_FAULT")
 
-def fully_qualified(x):
-    "True if 'x' begins with '/'"
-    if os.name == 'nt': return True
-    if search(r'^/', x): return True
-    else: return False
-
 if __name__ == "__main__":
     p = optparse.OptionParser()
     p.add_option("-k", "--kill",       action="store_true", dest="kill")
@@ -438,16 +432,19 @@ if __name__ == "__main__":
         print "ERROR: More than one instance of DAQRun.py is already running!"
         raise SystemExit
 
-    if not exists(opt.configDir) or not fully_qualified(opt.configDir):
+    opt.configDir = abspath(opt.configDir)
+    opt.logDir    = abspath(opt.logDir)
+    
+    if not exists(opt.configDir):
         print """\
-Configuration directory '%s' doesn't exist or is not fully-qualified.
+Configuration directory '%s' doesn't exist!
 Use the -c option, or -h for help.\
         """ % opt.configDir
         raise SystemExit
 
-    if not exists(opt.logDir) or not fully_qualified(opt.logDir):
+    if not exists(opt.logDir):
         print """\
-Log directory '%s' doesn't exist or is not fully-qualified.
+Log directory '%s' doesn't exist!
 Use the -l option, or -h for help.\
         """ % opt.logDir
         raise SystemExit

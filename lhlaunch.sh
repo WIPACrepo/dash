@@ -1,8 +1,7 @@
 #!/bin/bash
 
-wd=`pwd`
-cfg=$wd'/../config'
-log=$wd'/../log'
+cfg='../config'
+log='../log'
 
 ./lhkill.sh
 
