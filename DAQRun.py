@@ -159,6 +159,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.configuration = DAQConfig.DAQConfig(self.configName, self.configDir)
         stringlist = self.configuration.strings()
         kindlist   = self.configuration.kinds()
+        complist   = self.configuration.components()
         self.logmsg("Loaded global configuration \"%s\"" % self.configName)
         requiredComps = []
         for string in stringlist:
@@ -166,9 +167,8 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             requiredComps.append("stringHub#%d" % string)
         for kind in kindlist:
             self.logmsg("Configuration includes detector %s" % kind)
-        requiredComps.append("eventBuilder#0")
-        requiredComps.append("globalTrigger#0")
-        requiredComps.append("inIceTrigger#0")
+        for comp in complist:
+            requiredComps.append(comp)
         for comp in requiredComps:
             self.logmsg("Component list will require %s" % comp)
         return requiredComps
