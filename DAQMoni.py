@@ -29,7 +29,6 @@ class MoniData(object):
             self.beanData = {}
             for bean in beanList:
                 self.beanData[bean] = self.client.mbean.listGetters(bean)
-                print bean + ': ' + str(self.beanData[bean])
 
         for b in self.beanData.keys():
             vals = self.client.mbean.getList(b, self.beanData[b])
