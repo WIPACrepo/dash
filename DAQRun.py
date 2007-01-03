@@ -244,7 +244,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.setUpAllComponentLoggers()
             
             # Tell components where to log to
-            l = list(self.createRunsetLoggerNameList(SocketLogger.LOGLEVEL_INFO))
+            l = list(self.createRunsetLoggerNameList(SocketLogger.LOGLEVEL_DEBUG))
             #self.CnCRPC.rpc_runset_log_to(self.runSetID, self.ip, l)
             self.CnCRPC.rpccall("rpc_runset_log_to", self.runSetID, self.ip, l)
             
