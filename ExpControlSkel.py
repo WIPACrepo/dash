@@ -21,12 +21,14 @@ def updateStatus(oldStatus, newStatus):
 def main():
     "Main program"
     p = optparse.OptionParser()
-    p.add_option("-p", "--remote-port", action="store", type="int",    dest="portNum")
-    p.add_option("-r", "--remote-node", action="store", type="string", dest="nodeName")
-    p.add_option("-n", "--num-runs",    action="store", type="int",    dest="numRuns")
+    p.add_option("-p", "--remote-port",      action="store", type="int",    dest="portNum")
+    p.add_option("-r", "--remote-node",      action="store", type="string", dest="nodeName")
+    p.add_option("-n", "--num-runs",         action="store", type="int",    dest="numRuns")
+    p.add_option("-d", "--duration-seconds", action="store", type="int",    dest="duration")
     p.set_defaults(nodeName = "localhost",
                    numRuns  = 10000000,
-                   portNum  = 9000)
+                   portNum  = 9000,
+                   duration = 300)
     opt, args = p.parse_args()
 
     
@@ -36,7 +38,6 @@ def main():
     subRunNumber = 0
     configName   = "hub1001sim"
     sleeptime    = 0.4
-    duration     = 300
     lastState    = None
     try:
         for runNumber in xrange(1, opt.numRuns+1):
@@ -57,7 +58,7 @@ def main():
             tstart = datetime.now()
             while True:
                 tnow = datetime.now()
-                if tnow-tstart > timedelta(seconds=duration): break
+                if tnow-tstart > timedelta(seconds=opt.duration): break
                 status = daqiface.getState()
                 lastState = updateStatus(lastState, status)
                 if(status == "ERROR"): break
