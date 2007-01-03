@@ -34,7 +34,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     CFGDIR         = "/usr/local/icecube/config"
     CATCHALL_PORT  = 9001
     CNC_PORT       = 8080
-    MONI_PERIOD    = 10
+    MONI_PERIOD    = 20
     
     def __init__(self, portnum, configDir=CFGDIR, logDir=LOGDIR):
         RPCServer.__init__(self, portnum,

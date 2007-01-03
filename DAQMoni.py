@@ -12,10 +12,11 @@ import datetime
 from exc_string import *
 
 class MoniData(object):
-    def __init__(self, id, addr, port):
+    def __init__(self, id, fname, addr, port):
         self.id = id
         self.addr = addr
         self.port = port
+        self.fd = open(fname, "w+") # Might throw exception
         self.client = RPCClient(addr, port)
         self.beanData = None
 
@@ -34,13 +35,14 @@ class MoniData(object):
             vals = self.client.mbean.getList(b, self.beanData[b])
 
             # report monitoring data
-            print '%s: %s:\n' % (b, now)
+            print >>self.fd, '%s: %s:\n' % (b, now)
             for i in range(0,len(vals)):
-                print '%s: %s' % (self.beanData[b][i], str(vals[i]))
-            print
-
+                print >>self.fd, '\t%s: %s' % (self.beanData[b][i], str(vals[i]))
+            print >>self.fd
+            self.fd.flush()
+            
 class DAQMoni(object):
-    def __init__(self, daqLog, interval, IDs, shortNameOf, daqIDof, rpcAddrOf, rpcPortOf):
+    def __init__(self, daqLog, interval, IDs, shortNameOf, daqIDof, rpcAddrOf, mbeanPortOf):
         self.log         = daqLog
         self.path        = daqLog.logPath
         self.interval    = interval
@@ -48,17 +50,22 @@ class DAQMoni(object):
         self.tlast       = None
         self.IDs         = IDs
         self.fdOf        = {}
-        self.rpcPortOf   = rpcPortOf
+        self.mbeanPortOf = mbeanPortOf
         self.rpcAddrOf   = rpcAddrOf
-        self.moniList = []
+        self.moniList    = []
         for c in self.IDs:
-            if self.rpcPortOf[c] > 0:
+            if self.mbeanPortOf[c] > 0:
                 fname = DAQMoni.fileName(self.path, shortNameOf[c], daqIDof[c])
                 self.logmsg("Creating moni output file %s (remote is %s:%d)" % (fname,
                                                                                 self.rpcAddrOf[c],
-                                                                                self.rpcPortOf[c]))
-                self.moniList.append(MoniData(c, self.rpcAddrOf[c], self.rpcPortOf[c]))
-            
+                                                                                self.mbeanPortOf[c]))
+                try:
+                    md = MoniData(c, fname, self.rpcAddrOf[c], self.mbeanPortOf[c])
+                    self.moniList.append(md)
+                except Exception, e:
+                    self.logmsg("Couldn't create monitoring output (%s) for component %d!" % (fname, md))
+                    self.logmsg("%s: %s", e, exc_string())
+
     def fileName(path, name, daqID):
         return "%s/%s-%d.moni" % (path, name, daqID)
     fileName = staticmethod(fileName)
@@ -72,9 +79,7 @@ class DAQMoni(object):
     
     def doMoni(self):
         now = datetime.datetime.now()
-        self.logmsg("Doing monitoring at %s" % now)
         for c in self.moniList:
-            self.logmsg("Tickle %s..." % str(c))
             try:
                 c.monitor(now)
             except Exception, e:
