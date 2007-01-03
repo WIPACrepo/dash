@@ -208,74 +208,81 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     def isRequiredComponent(shortName, daqID, list):
         return DAQRun.isInList("%s#%d" % (shortName, daqID), list)
     isRequiredComponent = staticmethod(isRequiredComponent)
-    
-    def start_run(self):
-        "Includes configuration, etc. -- can take some time"
+
+    def setup_run_logging(self):
         # Log file is already defined since STARTING state does not get invoked otherwise
         # Set up logger for CnCServer and required components
-        try:
-            self.CnCRPC = RPCClient("localhost", DAQRun.CNC_PORT)
-            self.configureCnCLogging()
-            self.requiredComps = self.getComponentsFromGlobalConfig()
-            
-            # Wait for required components
-            self.logmsg("Starting run %d (waiting for required %d components to register w/ CnCServer)"
-                        % (self.runNum, len(self.requiredComps)))
-            remoteList = self.waitForRequiredComponents(self.requiredComps, 60)
-            # Throws RequiredComponentsNotAvailableException
+        self.CnCRPC = RPCClient("localhost", DAQRun.CNC_PORT)
+        self.configureCnCLogging()
 
-            # build CnC run set
-            #self.runSetID = self.CnCRPC.rpc_runset_make(list(self.createRunsetRequestNameList()))
-            self.runSetID = self.CnCRPC.rpccall("rpc_runset_make",
-                                                self.requiredComps)
-            self.runSetCreated = True
+    def stop_run_logging(self):
+        pass
 
-            # extract remote component data
-            compList = self.CnCRPC.rpccall("rpc_runset_list", self.runSetID)
-            for comp in compList:
-                self.setCompIDs.append(comp[0])
-                self.shortNameOf[ comp[0] ] = comp[1]
-                self.daqIDof    [ comp[0] ] = comp[2]
-                self.rpcAddrOf  [ comp[0] ] = comp[3]
-                self.rpcPortOf  [ comp[0] ] = comp[4]
-                self.mbeanPortOf[ comp[0] ] = comp[5]
+    def queue_for_spade(self):
+        pass
 
-            # Set up log receivers for remote components
-            self.setUpAllComponentLoggers()
-            
-            # Tell components where to log to
-            l = list(self.createRunsetLoggerNameList(SocketLogger.LOGLEVEL_DEBUG))
-            #self.CnCRPC.rpc_runset_log_to(self.runSetID, self.ip, l)
-            self.CnCRPC.rpccall("rpc_runset_log_to", self.runSetID, self.ip, l)
-            
-            self.logmsg("Created Run Set #%d" % self.runSetID)
+    def build_run_set(self):
+        self.requiredComps = self.getComponentsFromGlobalConfig()
 
-            # Set up monitoring
-            self.moni = DAQMoni(self.log,
-                                DAQRun.MONI_PERIOD,
-                                self.setCompIDs, self.shortNameOf, self.daqIDof,
-                                self.rpcAddrOf, self.mbeanPortOf)
-            
-            # Configure the run set
-            self.logmsg("Configuring run set...")
-            #self.CnCRPC.rpc_runset_configure(self.runSetID)
-            self.CnCRPC.rpccall("rpc_runset_configure", self.runSetID, self.configName)
-
-            # Start run.  Eventually, starting/stopping runs will be done
-            # without reconfiguration, if configuration hasn't changed
-            #self.CnCRPC.rpc_runset_start_run(self.runSetID, self.runNum)
-            self.CnCRPC.rpccall("rpc_runset_start_run", self.runSetID, self.runNum)
-            self.runSetRunning = True
-            self.logmsg("Started run %d on run set %d" % (self.runNum, self.runSetID))
-            self.runState = "RUNNING"
-            return
-
-        except Exception, e:
-            self.logmsg("Failed to initialize run: %s" % exc_string())
-            self.runState = "ERROR"
-            return
+        # Wait for required components
+        self.logmsg("Starting run %d (waiting for required %d components to register w/ CnCServer)"
+                    % (self.runNum, len(self.requiredComps)))
+        remoteList = self.waitForRequiredComponents(self.requiredComps, 60)
+        # Throws RequiredComponentsNotAvailableException
         
-    def stop_run(self):
+        # build CnC run set
+        self.runSetID = self.CnCRPC.rpccall("rpc_runset_make",
+                                            self.requiredComps)
+        self.runSetCreated = True
+        
+    def setup_run(self):
+        """
+        Includes configuration, etc. -- can take some time
+        Highest level must catch exceptions
+        """
+
+        # extract remote component data
+        compList = self.CnCRPC.rpccall("rpc_runset_list", self.runSetID)
+        for comp in compList:
+            self.setCompIDs.append(comp[0])
+            self.shortNameOf[ comp[0] ] = comp[1]
+            self.daqIDof    [ comp[0] ] = comp[2]
+            self.rpcAddrOf  [ comp[0] ] = comp[3]
+            self.rpcPortOf  [ comp[0] ] = comp[4]
+            self.mbeanPortOf[ comp[0] ] = comp[5]
+
+        # Set up log receivers for remote components
+        self.setUpAllComponentLoggers()
+            
+        # Tell components where to log to
+        l = list(self.createRunsetLoggerNameList(SocketLogger.LOGLEVEL_DEBUG))
+        self.CnCRPC.rpccall("rpc_runset_log_to", self.runSetID, self.ip, l)
+        
+        self.logmsg("Created Run Set #%d" % self.runSetID)
+        
+        # Set up monitoring
+        self.moni = DAQMoni(self.log,
+                            DAQRun.MONI_PERIOD,
+                            self.setCompIDs, self.shortNameOf, self.daqIDof,
+                            self.rpcAddrOf, self.mbeanPortOf)
+        
+        # Configure the run set
+        self.logmsg("Configuring run set...")
+        #self.CnCRPC.rpc_runset_configure(self.runSetID)
+        self.CnCRPC.rpccall("rpc_runset_configure", self.runSetID, self.configName)
+
+    def start_run(self):
+        # Start run.  Eventually, starting/stopping runs will be done
+        # without reconfiguration, if configuration hasn't changed
+        #self.CnCRPC.rpc_runset_start_run(self.runSetID, self.runNum)
+        self.CnCRPC.rpccall("rpc_runset_start_run", self.runSetID, self.runNum)
+        self.runSetRunning = True
+        self.logmsg("Started run %d on run set %d" % (self.runNum, self.runSetID))
+
+    def stop_run():
+        pass
+    
+    def teardown_run(self):
         "Includes collecting logging, etc. -- can take some time"
         self.logmsg("Stopping run %d" % self.runNum)
 
@@ -335,20 +342,36 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.log.close()
         self.runState = "STOPPED"
         
-    def recover(self):
-        "Recover from failed run"
-        self.logmsg("Recovering from failed run %d..." % self.runNum)
-        self.stop_run()
-
     def monitor(self):
         if self.moni and self.moni.timeToMoni(): self.moni.doMoni()
         
     def run_thread(self):
         "Handle state transitions"
         while 1:
-            if   self.runState == "STARTING":   self.start_run()
-            elif self.runState == "STOPPING":   self.stop_run()
-            elif self.runState == "RECOVERING": self.recover()
+            if self.runState == "STARTING":
+                try:
+                    self.setup_run_logging()
+                    self.build_run_set()
+                    self.setup_run()
+                    self.start_run()
+                    self.runState = "RUNNING"
+                except Exception, e:
+                    self.logmsg("Failed to start run: %s" % exc_string())
+                    self.runState = "ERROR"
+                    
+            elif self.runState == "STOPPING":
+                self.stop_run()
+                self.teardown_run()
+                self.stop_run_logging()
+                self.queue_for_spade()
+                
+            elif self.runState == "RECOVERING":
+                self.logmsg("Recovering from failed run %d..." % self.runNum)
+                self.stop_run()
+                self.teardown_run()
+                self.stop_run_logging()
+                self.queue_for_spade()
+                
             elif self.runState == "RUNNING":    self.monitor()
             else: sleep(0.25)
         
