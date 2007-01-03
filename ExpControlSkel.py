@@ -25,10 +25,12 @@ def main():
     p.add_option("-r", "--remote-node",      action="store", type="string", dest="nodeName")
     p.add_option("-n", "--num-runs",         action="store", type="int",    dest="numRuns")
     p.add_option("-d", "--duration-seconds", action="store", type="int",    dest="duration")
-    p.set_defaults(nodeName = "localhost",
-                   numRuns  = 10000000,
-                   portNum  = 9000,
-                   duration = 300)
+    p.add_option("-c", "--config-name", action="store", type="string",    dest="configName")
+    p.set_defaults(nodeName   = "localhost",
+                   numRuns    = 10000000,
+                   portNum    = 9000,
+                   duration = 300,
+                   configName = "hub1001sim")
     opt, args = p.parse_args()
 
     
@@ -36,7 +38,7 @@ def main():
     daqiface     = DAQRunIface(opt.nodeName, opt.portNum)
 
     subRunNumber = 0
-    configName   = "hub1001sim"
+    configName   = opt.configName
     sleeptime    = 0.4
     lastState    = None
     try:
