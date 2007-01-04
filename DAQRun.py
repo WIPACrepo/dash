@@ -40,6 +40,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         RPCServer.__init__(self, portnum,
                            "localhost", "DAQ Run Server - object for starting and stopping DAQ runs")
         Rebootable.Rebootable.__init__(self) # Can change reboot thread delay here if desired
+        self.runState        = "STOPPED"
         self.register_function(self.rpc_ping)
         self.register_function(self.rpc_start_run)
         self.register_function(self.rpc_stop_run)
@@ -49,12 +50,9 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.register_function(self.rpc_daq_reboot)
         self.runThread = thread.start_new_thread(self.run_thread, ())
         self.log             = None
-        self.CnCRPC          = None
         self.runSetID        = None
-        self.runSetRunning   = False
         self.runSetCreated   = False
         self.CnCLogReceiver  = None
-        self.runState        = "STOPPED"
         self.configDir       = configDir
         self.logDir          = logDir
         self.requiredComps   = []
@@ -123,11 +121,11 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         return True
     listContains = staticmethod(listContains)
 
-    def waitForRequiredComponents(self, requiredList, timeOutSecs):
+    def waitForRequiredComponents(self, cncrpc, requiredList, timeOutSecs):
         "Verify that all components in requiredList are present on remote server"
         tstart = datetime.datetime.now()
         while(datetime.datetime.now()-tstart < datetime.timedelta(seconds=timeOutSecs)):
-            remoteList = self.CnCRPC.rpccall("rpc_show_components")
+            remoteList = cncrpc.rpccall("rpc_show_components")
             if DAQRun.listContains(requiredList,
                                    list(DAQRun.getNameList(remoteList))):
                 return remoteList
@@ -139,28 +137,28 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.logmsg(x)
         raise RequiredComponentsNotAvailableException()
 
-    def configureCnCLogging(self):
+    def configureCnCLogging(self, cncrpc, ip, port, logpath):
         "Tell CnCServer where to log to"
-        self.CnCLogReceiver = SocketLogger(6667, "CnCServer", self.log.logPath + "/cncserver.log")
+        self.CnCLogReceiver = SocketLogger(port, "CnCServer", logpath + "/cncserver.log")
         self.CnCLogReceiver.startServing()
-        #self.CnCRPC.rpc_log_to(self.ip, 6667)
-        self.CnCRPC.rpccall("rpc_log_to", self.ip, 6667)
+        cncrpc.rpccall("rpc_log_to", ip, port)
         self.logmsg("Created logger for CnCServer")
 
-    def stopCnCLogging(self):
+    def stopCnCLogging(self, cncrpc):
         "Turn off CnC server logging"
-        #self.CnCRPC.rpc_close_log()
-        self.CnCRPC.rpccall("rpc_close_log")
-        self.CnCLogReceiver.stopServing()
-        self.CnCLogReceiver = None
+        #self.logmsg("Telling CNC Server to close log")
+        #cncrpc.rpccall("rpc_close_log")
+        if self.CnCLogReceiver:
+            self.CnCLogReceiver.stopServing()
+            self.CnCLogReceiver = None
 
-    def getComponentsFromGlobalConfig(self):
+    def getComponentsFromGlobalConfig(self, configName, configDir):
         # Get and set global configuration
-        self.configuration = DAQConfig.DAQConfig(self.configName, self.configDir)
+        self.configuration = DAQConfig.DAQConfig(configName, configDir)
         stringlist = self.configuration.strings()
         kindlist   = self.configuration.kinds()
         complist   = self.configuration.components()
-        self.logmsg("Loaded global configuration \"%s\"" % self.configName)
+        self.logmsg("Loaded global configuration \"%s\"" % configName)
         requiredComps = []
         for string in stringlist:
             self.logmsg("Configuration includes string %d" % string)
@@ -193,12 +191,24 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.logmsg("%s(%d %s:%d) -> %s:%d" % (self.shortNameOf[compID], compID,
                                                    self.rpcAddrOf[compID], self.rpcPortOf[compID],
                                                    self.ip, self.logPortOf[compID]))
-            
+
+    def pointComponentsToCatchall(self):
+        "Tell components to log to catchall logger"
+        self.logmsg("Pointing components to catchall logger")
+        # Do something here when Dave's ready
+
+    def pointCnCServerToCatchall(self):
+        "Tell CnCServer to log to catchall logger"
+        self.logmsg("Pointing CnCServer to catchall logger")
+        # Do something here when Dave's ready
+        
     def stopAllComponentLoggers(self):
         "Stops loggers for remote components"
-        for compID in self.setCompIDs:
-            self.loggerOf[compID].stopServing()
-            self.loggerOf[compID] = None
+        if self.runSetID:
+            self.logmsg("Stopping component logging")
+            for compID in self.setCompIDs:
+                self.loggerOf[compID].stopServing()
+                self.loggerOf[compID] = None
             
     def createRunsetLoggerNameList(self, logLevel):
         "Create a list of arguments in the form of (shortname, daqID, logport, logLevel)"
@@ -209,40 +219,40 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         return DAQRun.isInList("%s#%d" % (shortName, daqID), list)
     isRequiredComponent = staticmethod(isRequiredComponent)
 
-    def setup_run_logging(self):
+    def setup_run_logging(self, cncrpc, logDir, runNum, configName):
         # Log file is already defined since STARTING state does not get invoked otherwise
         # Set up logger for CnCServer and required components
-        self.CnCRPC = RPCClient("localhost", DAQRun.CNC_PORT)
-        self.configureCnCLogging()
-
-    def stop_run_logging(self):
-        pass
+        self.log = logCollector(runNum, logDir)
+        self.logmsg("Starting run with run number %d, config name %s"
+                    % (runNum, configName))
+        self.configureCnCLogging(cncrpc, self.ip, 6667, self.log.logPath)
 
     def queue_for_spade(self):
         pass
 
-    def build_run_set(self):
-        self.requiredComps = self.getComponentsFromGlobalConfig()
+    def build_run_set(self, cncrpc, configName, configDir):
+        self.requiredComps = self.getComponentsFromGlobalConfig(configName, configDir)
 
         # Wait for required components
         self.logmsg("Starting run %d (waiting for required %d components to register w/ CnCServer)"
                     % (self.runNum, len(self.requiredComps)))
-        remoteList = self.waitForRequiredComponents(self.requiredComps, 60)
+        remoteList = self.waitForRequiredComponents(cncrpc, self.requiredComps, 60)
         # Throws RequiredComponentsNotAvailableException
         
         # build CnC run set
-        self.runSetID = self.CnCRPC.rpccall("rpc_runset_make",
+        self.runSetID = cncrpc.rpccall("rpc_runset_make",
                                             self.requiredComps)
+        self.logmsg("Created Run Set #%d" % self.runSetID)
         self.runSetCreated = True
         
-    def setup_run(self):
+    def fill_component_dictionaries(self, cncrpc):
         """
         Includes configuration, etc. -- can take some time
         Highest level must catch exceptions
         """
 
         # extract remote component data
-        compList = self.CnCRPC.rpccall("rpc_runset_list", self.runSetID)
+        compList = cncrpc.rpccall("rpc_runset_list", self.runSetID)
         for comp in compList:
             self.setCompIDs.append(comp[0])
             self.shortNameOf[ comp[0] ] = comp[1]
@@ -251,127 +261,113 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.rpcPortOf  [ comp[0] ] = comp[4]
             self.mbeanPortOf[ comp[0] ] = comp[5]
 
+    def setup_component_loggers(self, cncrpc, ip, runset, loglevel):
         # Set up log receivers for remote components
-        self.setUpAllComponentLoggers()
-            
+        self.setUpAllComponentLoggers()            
         # Tell components where to log to
-        l = list(self.createRunsetLoggerNameList(SocketLogger.LOGLEVEL_DEBUG))
-        self.CnCRPC.rpccall("rpc_runset_log_to", self.runSetID, self.ip, l)
-        
-        self.logmsg("Created Run Set #%d" % self.runSetID)
-        
+        l = list(self.createRunsetLoggerNameList(loglevel))
+        cncrpc.rpccall("rpc_runset_log_to", runset, ip, l)
+
+    def setup_monitoring(self):
         # Set up monitoring
         self.moni = DAQMoni(self.log,
                             DAQRun.MONI_PERIOD,
                             self.setCompIDs, self.shortNameOf, self.daqIDof,
                             self.rpcAddrOf, self.mbeanPortOf)
-        
-        # Configure the run set
-        self.logmsg("Configuring run set...")
-        #self.CnCRPC.rpc_runset_configure(self.runSetID)
-        self.CnCRPC.rpccall("rpc_runset_configure", self.runSetID, self.configName)
 
-    def start_run(self):
-        # Start run.  Eventually, starting/stopping runs will be done
-        # without reconfiguration, if configuration hasn't changed
-        #self.CnCRPC.rpc_runset_start_run(self.runSetID, self.runNum)
-        self.CnCRPC.rpccall("rpc_runset_start_run", self.runSetID, self.runNum)
-        self.runSetRunning = True
+    def runset_configure(self, rpc, runSetID, configName):
+        "Configure the run set"
+        self.logmsg("Configuring run set...")
+        rpc.rpccall("rpc_runset_configure", runSetID, configName)
+
+    def start_run(self, cncrpc):
+        cncrpc.rpccall("rpc_runset_start_run", self.runSetID, self.runNum)
         self.logmsg("Started run %d on run set %d" % (self.runNum, self.runSetID))
 
-    def stop_run():
-        pass
-    
-    def teardown_run(self):
-        "Includes collecting logging, etc. -- can take some time"
+    def stop_run(self, cncrpc):
         self.logmsg("Stopping run %d" % self.runNum)
+        cncrpc.rpccall("rpc_runset_stop_run", self.runSetID)
 
-        # These operations may fail, but if they do there is nothing to be done
-        # except continue to try and shut down, so we do NOT move back into ERROR
-        # state (yet).
-        
-        # Paranoid nested try loops to make sure we at least try to do
-        # each step
-        try:            
-
-            if self.moni: self.moni = None
-            
-            if self.runSetID:
-                if self.runSetRunning:
-                    self.logmsg("Sending set_stop_run...")
-                    try:
-                        self.runSetRunning = False
-                        #self.CnCRPC.rpc_runset_stop_run(self.runSetID)
-                        self.CnCRPC.rpccall("rpc_runset_stop_run", self.runSetID)
-                    except:
-                        self.logmsg(exc_string())
-                        self.runState = "ERROR"
-                        return
-
-                if self.runSetCreated:
-                    self.logmsg("Breaking run set...")
-                    try:
-                        self.runSetCreated = False
-                        #self.CnCRPC.rpc_runset_break(self.runSetID)
-                        self.CnCRPC.rpccall("rpc_runset_break", self.runSetID)
-                    except:
-                        self.logmsg(exc_string())
-                        self.runState = "ERROR"
-                        return
-
-                self.logmsg("Stopping component logging")
-                self.stopAllComponentLoggers()
-
-            self.logmsg("Telling CNC Server to close log")
-            try:    self.stopCnCLogging()
-            except: self.logmsg(exc_string())
-
-            try:
-                if self.CnCLogReceiver: self.CnCLogReceiver.stopServing()
-            except:
-                self.logmsg(exc_string())
-
-            self.setCompIDs = []
-            
-        except:
-            self.logmsg(exc_string())
-
-        self.runSetID = None
-        self.logmsg("RPC Call stats:\n%s" % self.CnCRPC.showStats())
-        self.logmsg("Run terminated.")
-        self.log.close()
-        self.runState = "STOPPED"
+    def break_run_set(self, cncrpc):
+        if self.runSetID and self.runSetCreated:
+            self.logmsg("Breaking run set...")
+            self.runSetCreated = False
+            cncrpc.rpccall("rpc_runset_break", self.runSetID)
         
     def monitor(self):
         if self.moni and self.moni.timeToMoni(): self.moni.doMoni()
         
     def run_thread(self):
         "Handle state transitions"
+
+        cncrpc = RPCClient("localhost", DAQRun.CNC_PORT)
+
         while 1:
             if self.runState == "STARTING":
                 try:
-                    self.setup_run_logging()
-                    self.build_run_set()
-                    self.setup_run()
-                    self.start_run()
+                    # once per config/runset
+                    self.build_run_set(cncrpc, self.configName, self.configDir)
+                    # once per config/runset
+                    self.fill_component_dictionaries(cncrpc)
+                    # once per run
+                    self.setup_run_logging(cncrpc, self.logDir, self.runNum, self.configName)
+                    # once per run
+                    self.setup_component_loggers(cncrpc, self.ip, self.runSetID, SocketLogger.LOGLEVEL_WARN)
+                    # once per run
+                    self.setup_monitoring()
+                    # once per run
+                    self.runset_configure(cncrpc, self.runSetID, self.configName)
+                    # once per run
+                    self.start_run(cncrpc)
                     self.runState = "RUNNING"
                 except Exception, e:
                     self.logmsg("Failed to start run: %s" % exc_string())
                     self.runState = "ERROR"
                     
-            elif self.runState == "STOPPING":
-                self.stop_run()
-                self.teardown_run()
-                self.stop_run_logging()
-                self.queue_for_spade()
+            elif self.runState == "STOPPING" or self.runState == "RECOVERING":
+                self.moni = None
                 
-            elif self.runState == "RECOVERING":
-                self.logmsg("Recovering from failed run %d..." % self.runNum)
-                self.stop_run()
-                self.teardown_run()
-                self.stop_run_logging()
-                self.queue_for_spade()
+                if self.runState == "RECOVERING":
+                    self.logmsg("Recovering from failed run %d..." % self.runNum)
+                else:
+                    try:
+                        # once per run
+                        self.stop_run(cncrpc)
+                    except:
+                        self.logmsg(exc_string())
+                        self.runState = "ERROR" # Wait for exp. control to signal for recovery
+                        continue
+
+                # Every run:
+                try:      self.pointComponentsToCatchall()
+                except:   self.logmsg(exc_string())
                 
+                try:      self.pointCnCServerToCatchall()
+                except:   self.logmsg(exc_string())
+                
+                # once per configuration
+                try:      self.break_run_set(cncrpc)
+                except:   self.logmsg(exc_string())
+
+                # Every run:
+                try:      self.stopAllComponentLoggers()
+                except:   self.logmsg(exc_string())
+
+                try:      self.stopCnCLogging(cncrpc)
+                except:   self.logmsg(exc_string())
+
+                self.setCompIDs = []
+
+                self.runSetID = None
+                self.logmsg("RPC Call stats:\n%s" % cncrpc.showStats())
+
+                self.logmsg("Run terminated.")
+                self.log.close()
+                self.runState = "STOPPED"
+
+                # once per run
+                self.queue_for_spade()
+
             elif self.runState == "RUNNING":    self.monitor()
             else: sleep(0.25)
         
@@ -389,12 +385,9 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         runNumber, subRunNumber - integers
         configName              - ASCII configuration name
         """
-        if self.runState != "STOPPED": return 0
         self.runNum     = runNumber
         self.configName = configName
-        self.log        = logCollector(self.runNum, self.logDir)
-        self.logmsg("Starting run with run number %d, config name %s"
-                    % (self.runNum, self.configName))
+        if self.runState != "STOPPED": return 0
         self.runState   = "STARTING"
         return 1
  
