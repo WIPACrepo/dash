@@ -36,7 +36,7 @@ class SocketLogger(object):
         "Creates listener thread, prepares file for output, and returns"
         self.go      = True
         if self.logpath:
-            self.outfile = open(self.logpath, "a+")
+            self.outfile = open(self.logpath, "w")
         else:
             self.outfile = sys.stdout
         if os.name == "nt":

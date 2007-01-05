@@ -11,8 +11,6 @@ echo "Cleaning up logs..."
 if ! [ -e $spade ]
 then
     mkdir $spade
-else
-    rm -rf $spade/*
 fi
 
 if ! [ -e $log ]

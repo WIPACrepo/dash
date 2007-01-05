@@ -15,7 +15,9 @@ from os.path import exists, abspath
 from DAQRPC import RPCClient, RPCServer
 from Process import processList, findProcess
 from exc_string import *
+from tarfile import TarFile
 from re import search
+from shutil import move
 import Rebootable
 import DAQConfig
 import datetime
@@ -54,6 +56,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.log             = None
         self.runSetID        = None
         self.CnCLogReceiver  = None
+        self.catchAllLogger  = None
         self.configDir       = configDir
         self.spadeDir        = spadeDir
         self.logDir          = logDir
@@ -70,9 +73,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.loggerOf        = {} # "                  "
         self.logPortOf       = {} # "                  "
         
-        self.catchAllLogger  = SocketLogger(DAQRun.CATCHALL_PORT, "Catchall", logDir + "/catchall.log")
         self.ip              = self.getIP()
-        self.catchAllLogger.startServing()
         self.compPorts       = {} # Indexed by name
         self.cnc             = None
         self.moni            = None
@@ -224,11 +225,15 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     % (runNum, configName))
         self.configureCnCLogging(cncrpc, self.ip, 6667, self.log.logPath)
 
-    def queue_for_spade(self, spadeDir, logToplevel, runNum, runTime, runDuration):
+    def queue_for_spade(self, spadeDir, logTopLevel, runNum, runTime, runDuration):
+        """
+        Put tarball of log and moni files in SPADE directory as well as
+        semaphore file to indicate to SPADE to effect the transfer
+        """
         if not spadeDir: return
         if not exists(spadeDir): return
         self.logmsg("Queueing data for SPADE (spadeDir=%s, logDir=%s, runNum=%d..."
-                    % (spadeDir, logToplevel, runNum))
+                    % (spadeDir, logTopLevel, runNum))
         runDir = logCollector.logDirName(runNum)
         basePrefix = "SPS-pDAQ-run-%03d_%04d%02d%02d_%02d%02d%02d_%06d"   \
                      % (runNum, runTime.year, runTime.month, runTime.day, \
@@ -236,8 +241,17 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                         runDuration.days*86400+runDuration.seconds)
         tarBall = "%s/%s.dat.tar" % (spadeDir, basePrefix)
         semFile = "%s/%s.sem"     % (spadeDir, basePrefix)
-        self.logmsg("Target files are:\n%s\n%s" % (tarBall, semFile))     
-        
+        self.logmsg("Target files are:\n%s\n%s" % (tarBall, semFile))
+        try:
+            move("%s/catchall.log" % logTopLevel, "%s/%s" % (logTopLevel, runDir))
+            tarObj = TarFile(tarBall, "w")
+            tarObj.add("%s/%s" % (logTopLevel, runDir), runDir, True)
+            tarObj.close()
+            fd = open(semFile, "w")
+            fd.close()
+        except Exception, e:
+            self.logmsg("FAILED to queue data for SPADE: %s" % exc_string())
+            
     def build_run_set(self, cncrpc, configName, configDir):
         self.requiredComps = self.getComponentsFromGlobalConfig(configName, configDir)
 
@@ -314,7 +328,12 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         Handle state transitions.
         """
 
+        self.catchAllLogger = SocketLogger(DAQRun.CATCHALL_PORT, "Catchall",
+                                           self.logDir + "/catchall.log")
+        self.catchAllLogger.startServing()
+
         self.cnc = RPCClient("localhost", DAQRun.CNC_PORT)
+
         while 1:
             if self.runState == "STARTING":
                 try:
@@ -365,8 +384,12 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 self.logmsg("RPC Call stats:\n%s" % self.cnc.showStats())
 
                 self.logmsg("Run terminated.")
-                # once per run
-                self.queue_for_spade(self.spadeDir, self.logDir, self.runNum, datetime.datetime.now(), duration)
+                
+                self.catchAllLogger.stopServing() 
+                self.queue_for_spade(self.spadeDir, self.logDir, self.runNum,
+                                     datetime.datetime.now(), duration)
+                self.catchAllLogger.startServing()
+                
                 self.log.close()
                 self.runState = "STOPPED"
 
