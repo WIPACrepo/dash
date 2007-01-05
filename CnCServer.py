@@ -202,6 +202,11 @@ class RunSet:
         self.configured = False
         self.runNumber = None
 
+    def resetLogging(self):
+        "Reset logging for all components in the runset"
+        for c in self.set:
+            c.resetLogging()
+
     def returnComponents(self, pool):
         while len(self.set) > 0:
             comp = self.set[0]
@@ -255,6 +260,9 @@ class CnCLogger(object):
         self.logIP = None
         self.logPort = None
 
+        self.prevIP = None
+        self.prevPort = None
+
     def closeLog(self):
         "Close the log socket"
         try:
@@ -289,6 +297,10 @@ class CnCLogger(object):
         self.logPort = port
         self.logmsg('Start of log at ' + host + ':' + str(port))
 
+        if self.prevIP is None and self.prevPort is None:
+            self.prevIP = host
+            self.prevPort = port
+
     def resetLog(self):
         "close current log and reset to initial state"
         if self.socketlog is not None:
@@ -297,9 +309,12 @@ class CnCLogger(object):
             except:
                 pass
 
-        self.socketlog = None
-        self.logIP = None
-        self.logPort = None
+        if self.prevIP is not None and self.prevPort is not None:
+            self.openLog(self.prevIP, self.prevPort)
+        else:
+            self.socketlog = None
+            self.logIP = None
+            self.logPort = None
 
 class DAQClient(CnCLogger):
     """DAQ component
@@ -453,6 +468,11 @@ class DAQClient(CnCLogger):
         "Reset component back to the idle state"
         self.closeLog()
         return self.client.xmlrpc.reset(self.id)
+
+    def resetLogging(self):
+        "Reset component back to the idle state"
+        self.resetLog()
+        return self.client.xmlrpc.resetLogging(self.id)
 
     def setOrder(self, orderNum):
         self.cmdOrder = orderNum
@@ -749,12 +769,14 @@ class DAQServer(DAQPool):
             self.server.register_function(self.rpc_close_log)
             self.server.register_function(self.rpc_get_num_components)
             self.server.register_function(self.rpc_log_to)
+            self.server.register_function(self.rpc_log_to_default)
             self.server.register_function(self.rpc_ping)
             self.server.register_function(self.rpc_register_component)
             self.server.register_function(self.rpc_runset_break)
             self.server.register_function(self.rpc_runset_configure)
             self.server.register_function(self.rpc_runset_list)
             self.server.register_function(self.rpc_runset_log_to)
+            self.server.register_function(self.rpc_runset_log_to_default)
             self.server.register_function(self.rpc_runset_make)
             self.server.register_function(self.rpc_runset_start_run)
             self.server.register_function(self.rpc_runset_status)
@@ -778,6 +800,11 @@ class DAQServer(DAQPool):
     def rpc_log_to(self, host, port):
         "called by DAQLog object to tell us what UDP port to log to"
         self.openLog(host, port)
+        return 1
+
+    def rpc_log_to_default(self):
+        "reset logging to the default logger"
+        self.resetLog()
         return 1
 
     def rpc_ping(self):
@@ -868,6 +895,19 @@ class DAQServer(DAQPool):
 
         return "OK"
 
+    def rpc_runset_log_to_default(self, id):
+        "reset logging for the specified runset"
+        runSet = self.findRunset(id)
+
+        if not runSet:
+            raise ValueError, 'Could not find runset#' + str(id)
+
+        self.resetLog()
+
+        runSet.resetLogging()
+
+        return "OK"
+
     def rpc_runset_make(self, nameList):
         "build a runset using the specified components"
         runSet = self.makeRunset(nameList)
@@ -910,9 +950,10 @@ class DAQServer(DAQPool):
         if not runSet:
             raise ValueError, 'Could not find runset#' + str(id)
 
-        self.logmsg("stopRun+")
         runSet.stopRun()
-        self.logmsg("stopRun-")
+
+        self.resetLog()
+        runSet.resetLogging()
 
         return "OK"
 
