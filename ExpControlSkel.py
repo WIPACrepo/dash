@@ -86,5 +86,6 @@ def main():
         print e
         raise SystemExit
 
+    daqiface.release()
     
 if __name__ == "__main__": main()

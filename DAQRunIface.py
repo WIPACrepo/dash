@@ -14,6 +14,7 @@ class DAQRunIface(object):
     START_TRANSITION_SECONDS    = 200
     STOP_TRANSITION_SECONDS     = 100
     RECOVERY_TRANSITION_SECONDS = 200
+    RELEASE_TRANSITION_SECONDS  = 45
     
     def __init__(self, daqhost="localhost", daqport=8081):
         "Constructor - instantiate an RPC connection to DAQRun.py"
@@ -37,10 +38,20 @@ class DAQRunIface(object):
     def getState(self):
         "Get current DAQ state"
         return self.rpc.rpc_run_state()
+
     def flasher(self, *info):
         "Tell DAQ to flash DOMs"
         pass
+    
     def getSummary(self):
         "Get component summary from DAQRun"
         return "<daq/>"
+    
+    def release(self):
+        """
+        Release DAQ component resources (run sets) back to CnC Server
+        Use for "standalone" instances of DAQ (i.e. non-'Experiment Control')
+        """
+        self.rpc.rpc_release_runsets()
+        return DAQRunIface.RELEASE_TRANSITION_SECONDS
     
