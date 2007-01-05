@@ -2,10 +2,18 @@
 
 cfg='../config'
 log='../log'
+spade='../spade'
 
 ./lhkill.sh
 
 echo "Cleaning up logs..."
+
+if ! [ -e $spade ]
+then
+    mkdir $spade
+else
+    rm -rf $spade/*
+fi
 
 if ! [ -e $log ]
 then 
@@ -15,7 +23,7 @@ else
 fi
 
 echo "Starting DAQRun..."
-./DAQRun.py -c $cfg -l $log
+./DAQRun.py -c $cfg -l $log -s $spade
 
 echo "Starting CnCserver..."
 ./CnCServer.py -d -l localhost:9001

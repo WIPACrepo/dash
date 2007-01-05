@@ -31,13 +31,14 @@ class IncorrectDAQState(Exception): pass
 
 class DAQRun(RPCServer, Rebootable.Rebootable):
     "Serve requests to start/stop DAQ runs (exp control iface)"
-    LOGDIR         = "/tmp" # Should change eventually to something more sensible
+    LOGDIR         = "/tmp" 
     CFGDIR         = "/usr/local/icecube/config"
+    SPADEDIR       = "/tmp"
     CATCHALL_PORT  = 9001
     CNC_PORT       = 8080
     MONI_PERIOD    = 20
     
-    def __init__(self, portnum, configDir=CFGDIR, logDir=LOGDIR):
+    def __init__(self, portnum, configDir=CFGDIR, logDir=LOGDIR, spadeDir=SPADEDIR):
         RPCServer.__init__(self, portnum,
                            "localhost", "DAQ Run Server - object for starting and stopping DAQ runs")
         Rebootable.Rebootable.__init__(self) # Can change reboot thread delay here if desired
@@ -54,6 +55,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.runSetID        = None
         self.CnCLogReceiver  = None
         self.configDir       = configDir
+        self.spadeDir        = spadeDir
         self.logDir          = logDir
         self.requiredComps   = []
 
@@ -222,9 +224,20 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     % (runNum, configName))
         self.configureCnCLogging(cncrpc, self.ip, 6667, self.log.logPath)
 
-    def queue_for_spade(self):
-        pass
-
+    def queue_for_spade(self, spadeDir, logToplevel, runNum, runTime, runDuration):
+        if not spadeDir: return
+        if not exists(spadeDir): return
+        self.logmsg("Queueing data for SPADE (spadeDir=%s, logDir=%s, runNum=%d..."
+                    % (spadeDir, logToplevel, runNum))
+        runDir = logCollector.logDirName(runNum)
+        basePrefix = "SPS-pDAQ-run-%03d_%04d%02d%02d_%02d%02d%02d_%06d"   \
+                     % (runNum, runTime.year, runTime.month, runTime.day, \
+                        runTime.hour, runTime.minute, runTime.second,     \
+                        runDuration.days*86400+runDuration.seconds)
+        tarBall = "%s/%s.dat.tar" % (spadeDir, basePrefix)
+        semFile = "%s/%s.sem"     % (spadeDir, basePrefix)
+        self.logmsg("Target files are:\n%s\n%s" % (tarBall, semFile))     
+        
     def build_run_set(self, cncrpc, configName, configDir):
         self.requiredComps = self.getComponentsFromGlobalConfig(configName, configDir)
 
@@ -320,6 +333,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                         self.runset_configure(self.cnc, self.runSetID, self.configName)
 
                     self.lastConfig = self.configName
+                    runStartTime = datetime.datetime.now()
                     self.start_run(self.cnc)
                     self.runState = "RUNNING"
                 except Exception, e:
@@ -336,6 +350,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     try:
                         # Points all loggers back to catchall
                         self.stop_run(self.cnc)
+                        duration = datetime.datetime.now()-runStartTime
                     except:
                         self.logmsg(exc_string())
                         self.runState = "ERROR" # Wait for exp. control to signal for recovery
@@ -350,11 +365,10 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 self.logmsg("RPC Call stats:\n%s" % self.cnc.showStats())
 
                 self.logmsg("Run terminated.")
+                # once per run
+                self.queue_for_spade(self.spadeDir, self.logDir, self.runNum, datetime.datetime.now(), duration)
                 self.log.close()
                 self.runState = "STOPPED"
-
-                # once per run
-                self.queue_for_spade()
 
             elif self.runState == "RUNNING":
                 self.monitor()
@@ -423,9 +437,11 @@ if __name__ == "__main__":
     p.add_option("-n", "--no-daemon",  action="store_true", dest="nodaemon")
     p.add_option("-c", "--config-dir", action="store",      type="string", dest="configDir")
     p.add_option("-l", "--log-dir",    action="store",      type="string", dest="logDir")
+    p.add_option("-s", "--spade-dir",  action="store",      type="string", dest="spadeDir")
     p.set_defaults(kill      = False,
                    nodaemon  = False,
                    configDir = "/usr/local/icecube/config",
+                   spadeDir  = "/mnt/data/pdaq/runs",
                    logDir    = "/tmp",
                    port      = 9000)
     opt, args = p.parse_args()
@@ -448,6 +464,7 @@ if __name__ == "__main__":
 
     opt.configDir = abspath(opt.configDir)
     opt.logDir    = abspath(opt.logDir)
+    opt.spadeDir  = abspath(opt.spadeDir)
     
     if not exists(opt.configDir):
         print """\
@@ -462,12 +479,19 @@ Log directory '%s' doesn't exist!
 Use the -l option, or -h for help.\
         """ % opt.logDir
         raise SystemExit
+
+    if not exists(opt.spadeDir):
+        print """\
+Spade directory '%s' doesn't exist!
+Use the -s option, or -h for help.\
+        """ % opt.spadeDir
+        raise SystemExit
     
     if not opt.nodaemon: Daemon.Daemon().Daemonize()
         
     while 1:
         try:
-            cl = DAQRun(opt.port, opt.configDir, opt.logDir)
+            cl = DAQRun(opt.port, opt.configDir, opt.logDir, opt.spadeDir)
             try:
                 cl.serve_forever()
             finally:

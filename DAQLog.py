@@ -107,7 +107,7 @@ class logCollector(object):
         if not os.path.exists(loggingDir):
             self.enabled = False
             raise Exception("Directory %s not found!" % loggingDir)
-        self.logPath = loggingDir+"/"+self.logDirName(runNum)
+        self.logPath = loggingDir+"/"+logCollector.logDirName(runNum)
         if os.path.exists(self.logPath):
             self.renameToOld(self.logPath)
         os.mkdir(self.logPath)
@@ -130,10 +130,11 @@ class logCollector(object):
                 return
             basenum += 1
 
-    def logDirName(self, runNum):
+    def logDirName(runNum):
         "Get log directory name, not including loggingDir portion of path"
         return "daqrun%05d" % runNum
-
+    logDirName = staticmethod(logDirName)
+    
     def dashLog(self, msg):
         "Persist DAQRun log information to local disk, without using remote UDP logger"
         if not self.enabled: return
