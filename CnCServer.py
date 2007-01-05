@@ -4,7 +4,7 @@ from DAQRPC import RPCClient, RPCServer
 from DAQLogClient import DAQLogger
 from Process import processList, findProcess
 from exc_string import *
-from time import sleep
+from time import time, sleep
 
 import Daemon
 import optparse
@@ -746,6 +746,8 @@ class DAQServer(DAQPool):
         self.port = port
         self.name = name
 
+        self.id = int(time())
+
         super(DAQServer, self).__init__()
 
         if logIP is not None and logPort is not None:
@@ -808,8 +810,8 @@ class DAQServer(DAQPool):
         return 1
 
     def rpc_ping(self):
-        "remote method for far end to see if we're alive"
-        return "OK"
+        "remote method for far end to confirm that server is still alive"
+        return self.id
 
     def rpc_register_component(self, name, num, host, port, mbeanPort,
                                connArray):
@@ -838,7 +840,7 @@ class DAQServer(DAQPool):
 
         logLevel = DAQServer.DEFAULT_LOG_LEVEL
 
-        return [client.id, logIP, logPort, logLevel]
+        return [client.id, logIP, logPort, logLevel, self.id]
 
     def rpc_runset_break(self, id):
         "break up the specified runset"
