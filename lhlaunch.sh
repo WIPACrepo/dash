@@ -4,6 +4,15 @@ cfg='../config'
 log='../log'
 spade='../spade'
 
+# This is a hack to allow this to work with bfd built workspaces
+if [ "$1" = "bfd" ]
+then
+  comp_prefix="."
+else
+  comp_prefix="sh ./target/classes"
+fi
+  
+
 ./lhkill.sh
 
 echo "Cleaning up logs..."
@@ -33,9 +42,9 @@ startComponent () {
     id=$4
     if [ $out = 1 ]
     then
-	(cd ../$dir; ./$scr $id -g $cfg -l localhost:9001 &) &
+	(cd ../$dir; $comp_prefix/$scr $id -g $cfg -l localhost:9001 &) &
     else
-	(cd ../$dir; ./$scr $id -g $cfg -l localhost:9001 1>/dev/null 2> /dev/null &) &
+	(cd ../$dir; $comp_prefix/$scr $id -g $cfg -l localhost:9001 1>/dev/null 2> /dev/null &) &
     fi
 }
 
