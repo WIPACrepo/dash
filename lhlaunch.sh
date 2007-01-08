@@ -10,7 +10,7 @@ fi
 #
 for loc in '..' '.'; do
     if [ -d "$loc/config" -a -d "$loc/trigger" -a -d "$loc/dash" ]; then
-        topdir="$loc"
+        topdir=`cd "$loc" && pwd`
 
         # find standard scripts
         #
