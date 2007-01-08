@@ -18,7 +18,7 @@ if __name__ == "__main__":
                    scriptName  = "run-eb",
                    cncServer   = "localhost:8080",
                    logServer   = "localhost:9001",
-                   ignoreMaven = True,
+                   ignoreMaven = False,
                    id          = None,
                    verbose     = False)
               
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     if not opt.verbose: debug = "1>/dev/null 2>/dev/null"
 
     mvnSubdir = "target/classes"
-    if not opt.ignoreMaven and isdir("%s/%s/%s/%s" % (topdir, opt.compName, mvnSubdir, opt.scriptName)):
+    if not opt.ignoreMaven and exists("%s/%s/%s/%s" % (topdir, opt.compName, mvnSubdir, opt.scriptName)):
         prog = mvnSubdir+"/"+opt.scriptName
     else:
         prog = opt.scriptName
