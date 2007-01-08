@@ -37,7 +37,7 @@ class FakeRun:
 
         try:
             try:
-                cl.rpc_runset_configure(setId, 'NoConfig')
+                cl.rpc_runset_configure(setId, 'hub1001sim')
                 cl.rpc_runset_start_run(setId, runNum)
                 for i in range(1,delay):
                     cl.rpc_runset_status(setId)
