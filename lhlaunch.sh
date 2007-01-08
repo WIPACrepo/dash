@@ -12,17 +12,17 @@ for loc in '..' '.'; do
     if [ -d "$loc/config" -a -d "$loc/trigger" -a -d "$loc/dash" ]; then
         topdir="$loc"
 
-	# find standard scripts
-	#
-	if [ "$loc" = "." ]; then
-	    dash='dash'
-	else
-	    if [ -f lhkill.sh ]; then
-	        dash='.'
-	    else
-	        dash="$loc/dash"
-	    fi
-	fi
+        # find standard scripts
+        #
+        if [ "$loc" = "." ]; then
+            dash='dash'
+        else
+            if [ -f lhkill.sh ]; then
+                dash='.'
+            else
+                dash="$loc/dash"
+            fi
+        fi
     fi
 done
 
@@ -66,10 +66,10 @@ startComponent () {
         prog="$mvn_subdir/$scr"
     else
         if [ -f "$topdir/$dir/$scr" ]; then
-	    prog="$scr"
-	else
-	    prog=''
-	fi
+            prog="$scr"
+        else
+            prog=''
+        fi
     fi
 
     if [ -z "$prog" ]; then
@@ -77,10 +77,10 @@ startComponent () {
     else
         echo "Starting $nam..."
         if [ $out = 1 ]; then
-	    (cd $topdir/$dir; sh $prog $id -g $cfg -l localhost:9001 &) &
+            (cd $topdir/$dir; sh $prog $id -g $cfg -l localhost:9001 &) &
         else
             (cd $topdir/$dir; sh $prog $id -g $cfg -l localhost:9001 1>/dev/null 2> /dev/null &) &
-	fi
+        fi
     fi
 }
 
