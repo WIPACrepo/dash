@@ -3,7 +3,7 @@
 # check command-line options
 #
 if [ "$1" = "bfd" ]; then
-    ignore_mvn=true
+    imvn="--ignore-maven"
 fi
 
 # find the location of the standard directories
@@ -56,41 +56,17 @@ $dash/DAQRun.py -c $cfg -l $log -s $spade
 echo "Starting CnCserver..."
 $dash/CnCServer.py -d -l localhost:9001
 
-startComponent () {
-    nam=$1
-    dir=$2
-    scr=$3
-    out=$4
-    id=$5
-    if [ -z "$ignore_mvn" -a -f "$topdir/$dir/$mvn_subdir/$scr" ]; then
-        prog="$mvn_subdir/$scr"
-    else
-        if [ -f "$topdir/$dir/$scr" ]; then
-            prog="$scr"
-        else
-            prog=''
-        fi
-    fi
+$dash/StartComponent.py -c eventBuilder-prod -s run-eb \
+    --cnc localhost:8080 --log localhost:9001 $imvn # --verbose
 
-    if [ -z "$prog" ]; then
-        echo "$0: Couldn't find $nam script $scr" >&2 
-    else
-        echo "Starting $nam..."
-        if [ $out = 1 ]; then
-            (cd $topdir/$dir; sh $prog $id -g $cfg -l localhost:9001 &) &
-        else
-            (cd $topdir/$dir; sh $prog $id -g $cfg -l localhost:9001 1>/dev/null 2> /dev/null &) &
-        fi
-    fi
-}
+$dash/StartComponent.py -c trigger -s run-gltrig \
+    --cnc localhost:8080 --log localhost:9001 $imvn # --verbose
 
-startComponent 'event builder' eventBuilder-prod run-eb 0
+$dash/StartComponent.py -c trigger -s run-iitrig \
+    --cnc localhost:8080 --log localhost:9001 $imvn # --verbose
 
-startComponent 'global trigger' trigger run-gltrig 0
-
-startComponent 'in-ice trigger' trigger run-iitrig 0
-
-startComponent 'string hub' StringHub run-hub 0 1001
+$dash/StartComponent.py -c StringHub -s run-hub \
+    --cnc localhost:8080 --log localhost:9001 --id 1001 $imvn # --verbose
 
 echo ""
 echo "Type '$dash/ExpControlSkel.py' to run the test."
