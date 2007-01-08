@@ -66,7 +66,10 @@ class DAQCtrl:
 
     def getState(self):
         "Return the current state of the sub-system."
-        return STATE_MAPPING[self.daqiface.getState()]
+        try:
+            return STATE_MAPPING[self.daqiface.getState()]
+        except KeyError:
+            return UNKNOWN
         
 
     def getSummary(self):
