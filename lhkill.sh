@@ -14,7 +14,7 @@ for class in \
         icecube.daq.trigger.component.GlobalTriggerComponent \
         icecube.daq.stringhub
 do
-    for p in `ps axww | egrep "java $class" | grep -v grep | awk '{print $1}'`
+    for p in `ps axww | grep "java .*$class" | grep -v grep | awk '{print $1}'`
     do
         kill -9 $p
     done
