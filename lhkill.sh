@@ -1,10 +1,28 @@
 #!/bin/bash
 
-ps='ps axww'
+# find the location of the standard directories
+#
+for loc in '..' '.'; do
+    if [ -d "$loc/config" -a -d "$loc/trigger" -a -d "$loc/dash" ]; then
+        topdir="$loc"
+
+	# find standard scripts
+	#
+	if [ "$loc" = "." ]; then
+	    dash='dash'
+	else
+	    if [ -f lhkill.sh ]; then
+	        dash='.'
+	    else
+	        dash="$loc/dash"
+	    fi
+	fi
+    fi
+done
 
 echo "Killing servers..."
-./CnCServer.py -k
-./DAQRun.py    -k 
+$dash/CnCServer.py -k
+$dash/DAQRun.py    -k 
 
 echo "Killing components..."
 for class in \

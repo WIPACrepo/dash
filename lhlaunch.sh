@@ -6,13 +6,35 @@ if [ "$1" = "bfd" ]; then
     ignore_mvn=true
 fi
 
-cfg='../config'
-log='../log'
-spade='../spade'
+# find the location of the standard directories
+#
+for loc in '..' '.'; do
+    if [ -d "$loc/config" -a -d "$loc/trigger" -a -d "$loc/dash" ]; then
+        topdir="$loc"
+
+	# find standard scripts
+	#
+	if [ "$loc" = "." ]; then
+	    dash='dash'
+	else
+	    if [ -f lhkill.sh ]; then
+	        dash='.'
+	    else
+	        dash="$loc/dash"
+	    fi
+	fi
+    fi
+done
+
+# set standard directories
+#
+cfg="$topdir/config"
+log="$topdir/log"
+spade="$topdir/spade"
 
 mvn_subdir='target/classes'
 
-./lhkill.sh
+$dash/lhkill.sh
 
 echo "Cleaning up logs..."
 
@@ -21,18 +43,18 @@ then
     mkdir $spade
 fi
 
-if ! [ -e $log ]
+if ! [ -e "$log" ]
 then 
-    mkdir $log 
+    mkdir $log
 else 
     rm -rf $log/catchall.log $log/daqrun* $log/old_daqrun*
 fi
 
 echo "Starting DAQRun..."
-./DAQRun.py -c $cfg -l $log -s $spade
+$dash/DAQRun.py -c $cfg -l $log -s $spade
 
 echo "Starting CnCserver..."
-./CnCServer.py -d -l localhost:9001
+$dash/CnCServer.py -d -l localhost:9001
 
 startComponent () {
     nam=$1
@@ -40,10 +62,10 @@ startComponent () {
     scr=$3
     out=$4
     id=$5
-    if [ -z "$ignore_mvn" -a -f "../$dir/$mvn_subdir/$scr" ]; then
+    if [ -z "$ignore_mvn" -a -f "$topdir/$dir/$mvn_subdir/$scr" ]; then
         prog="$mvn_subdir/$scr"
     else
-        if [ -f "../$dir/$scr" ]; then
+        if [ -f "$topdir/$dir/$scr" ]; then
 	    prog="$scr"
 	else
 	    prog=''
@@ -55,9 +77,9 @@ startComponent () {
     else
         echo "Starting $nam..."
         if [ $out = 1 ]; then
-	    (cd ../$dir; sh $prog $id -g $cfg -l localhost:9001 &) &
+	    (cd $topdir/$dir; sh $prog $id -g $cfg -l localhost:9001 &) &
         else
-            (cd ../$dir; sh $prog $id -g $cfg -l localhost:9001 1>/dev/null 2> /dev/null &) &
+            (cd $topdir/$dir; sh $prog $id -g $cfg -l localhost:9001 1>/dev/null 2> /dev/null &) &
 	fi
     fi
 }
@@ -71,5 +93,5 @@ startComponent 'in-ice trigger' trigger run-iitrig 0
 startComponent 'string hub' StringHub run-hub 0 1001
 
 echo ""
-echo "Type './ExpControlSkel.py' to run the test."
+echo "Type '$dash/ExpControlSkel.py' to run the test."
 echo "Results will appear in $log."
