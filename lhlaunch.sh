@@ -1,17 +1,16 @@
 #!/bin/bash
 
+# check command-line options
+#
+if [ "$1" = "bfd" ]; then
+    ignore_mvn=true
+fi
+
 cfg='../config'
 log='../log'
 spade='../spade'
 
-# This is a hack to allow this to work with bfd built workspaces
-if [ "$1" = "bfd" ]
-then
-  comp_prefix="."
-else
-  comp_prefix="sh ./target/classes"
-fi
-  
+mvn_subdir='target/classes'
 
 ./lhkill.sh
 
@@ -36,32 +35,41 @@ echo "Starting CnCserver..."
 ./CnCServer.py -d -l localhost:9001
 
 startComponent () {
-    dir=$1
-    scr=$2
-    out=$3
-    id=$4
-    if [ $out = 1 ]
-    then
-	(cd ../$dir; $comp_prefix/$scr $id -g $cfg -l localhost:9001 &) &
+    nam=$1
+    dir=$2
+    scr=$3
+    out=$4
+    id=$5
+    if [ -z "$ignore_mvn" -a -f "../$dir/$mvn_subdir/$scr" ]; then
+        prog="$mvn_subdir/$scr"
     else
-	(cd ../$dir; $comp_prefix/$scr $id -g $cfg -l localhost:9001 1>/dev/null 2> /dev/null &) &
+        if [ -f "../$dir/$scr" ]; then
+	    prog="$scr"
+	else
+	    prog=''
+	fi
+    fi
+
+    if [ -z "$prog" ]; then
+        echo "$0: Couldn't find $nam script $scr" >&2 
+    else
+        echo "Starting $nam..."
+        if [ $out = 1 ]; then
+	    (cd ../$dir; sh $prog $id -g $cfg -l localhost:9001 &) &
+        else
+            (cd ../$dir; sh $prog $id -g $cfg -l localhost:9001 1>/dev/null 2> /dev/null &) &
+	fi
     fi
 }
 
-echo "Starting eventbuilder..."
-startComponent eventBuilder-prod run-eb 0
+startComponent 'event builder' eventBuilder-prod run-eb 0
 
-echo "Starting global trigger..."
-startComponent trigger run-gltrig 0
+startComponent 'global trigger' trigger run-gltrig 0
 
-echo "Starting in-ice trigger..."
-startComponent trigger run-iitrig 0
+startComponent 'in-ice trigger' trigger run-iitrig 0
 
-echo "Starting StringHub..."
-startComponent StringHub run-hub 0 1001
+startComponent 'string hub' StringHub run-hub 0 1001
 
-echo "Done."
+echo ""
 echo "Type './ExpControlSkel.py' to run the test."
 echo "Results will appear in $log."
-
-
