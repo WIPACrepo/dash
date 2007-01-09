@@ -309,7 +309,8 @@ class CnCLogger(object):
             except:
                 pass
 
-        if self.prevIP is not None and self.prevPort is not None:
+        if self.prevIP is not None and self.prevPort is not None and \
+                (self.logIP != self.prevIP or self.logPort != self.prevPort):
             self.openLog(self.prevIP, self.prevPort)
         else:
             self.socketlog = None
