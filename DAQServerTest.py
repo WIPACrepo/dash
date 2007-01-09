@@ -2,6 +2,7 @@
 
 import unittest
 from CnCServer import DAQClient, DAQServer
+from DAQLog import SocketLogger
 
 class MockXMLRPC:
     def __init__(self):
@@ -20,6 +21,9 @@ class MockXMLRPC:
         pass
 
     def reset(self, id):
+        pass
+
+    def resetLogging(self, id):
         pass
 
     def startRun(self, id, runNum):
@@ -79,7 +83,7 @@ class TestDAQServer(unittest.TestCase):
             DAQClient.STATE_MISSING
         self.assertEqual(dc.rpc_show_components(), [fooStr])
 
-        self.assertEqual(len(rtnArray), 4)
+        self.assertEqual(len(rtnArray), 5)
         self.assertEqual(rtnArray[0], DAQClient.ID - 1)
         self.assertEqual(rtnArray[1], '')
         self.assertEqual(rtnArray[2], 0)
@@ -91,6 +95,8 @@ class TestDAQServer(unittest.TestCase):
         logHost = 'localhost'
         logPort = 123
 
+        self.failUnless(dc.socketlog is None, 'socketlog is None')
+
         dc.rpc_log_to(logHost, logPort)
         self.failIf(dc.socketlog is None, 'socketlog is None')
         self.assertEqual(dc.logIP, logHost)
@@ -98,7 +104,7 @@ class TestDAQServer(unittest.TestCase):
 
         rtnArray = dc.rpc_register_component('foo', 0, 'localhost', 666, 0, [])
 
-        self.assertEqual(len(rtnArray), 4)
+        self.assertEqual(len(rtnArray), 5)
         self.assertEqual(rtnArray[0], DAQClient.ID - 1)
         self.assertEqual(rtnArray[1], logHost)
         self.assertEqual(rtnArray[2], logPort)
@@ -108,6 +114,62 @@ class TestDAQServer(unittest.TestCase):
         self.failIf(dc.socketlog is not None, 'socketlog is not None')
         self.assertEqual(dc.logIP, None)
         self.assertEqual(dc.logPort, None)
+
+    def testLogFallback(self):
+        dc = MockServer()
+
+        logHost = 'localhost'
+        logPort = 12345
+
+        logObj = SocketLogger(logPort, 'log', None)
+        logObj.startServing()
+
+        try:
+            self.failIf(dc.socketlog is not None, 'socketlog is not None')
+
+            dc.rpc_log_to(logHost, logPort)
+            self.failIf(dc.socketlog is None, 'socketlog is None')
+            self.assertEqual(dc.logIP, logHost)
+            self.assertEqual(dc.logPort, logPort)
+            self.assertEqual(dc.prevIP, logHost)
+            self.assertEqual(dc.prevPort, logPort)
+            dc.rpc_close_log()
+
+            self.failIf(dc.socketlog is not None, 'socketlog is not None')
+            self.failIf(dc.logIP is not None, 'logIP is not None')
+            self.failIf(dc.logPort is not None, 'logPort is not None')
+            self.assertEqual(dc.prevIP, logHost)
+            self.assertEqual(dc.prevPort, logPort)
+
+            newHost = 'localhost'
+            newPort = 456778
+
+            newObj = SocketLogger(newPort, 'new', None)
+            newObj.startServing()
+
+            try:
+                dc.rpc_log_to(newHost, newPort)
+                self.failIf(dc.socketlog is None, 'socketlog is None')
+                self.assertEqual(dc.logIP, newHost)
+                self.assertEqual(dc.logPort, newPort)
+                self.assertEqual(dc.prevIP, logHost)
+                self.assertEqual(dc.prevPort, logPort)
+
+                dc.rpc_close_log()
+                self.failIf(dc.socketlog is None, 'socketlog is None')
+                self.assertEqual(dc.logIP, logHost)
+                self.assertEqual(dc.logPort, logPort)
+                self.assertEqual(dc.prevIP, logHost)
+                self.assertEqual(dc.prevPort, logPort)
+            finally:
+                newObj.stopServing()
+
+            dc.rpc_close_log()
+            self.failIf(dc.socketlog is not None, 'socketlog is not None')
+            self.assertEqual(dc.logIP, None)
+            self.assertEqual(dc.logPort, None)
+        finally:
+            logObj.stopServing()
 
     def testNoRunset(self):
         dc = MockServer()
