@@ -3,7 +3,7 @@
 
 import optparse
 from sys import stderr
-from os import listdir, mkdir
+from os import listdir, mkdir, environ
 from os.path import exists, isdir, abspath
 from re import *
 from shutil import copy
@@ -14,8 +14,8 @@ if __name__ == "__main__":
     p.add_option("-s", "--spade-dir",   action="store", type="string", dest="spadeDir")
     p.add_option("-o", "--output-dir",  action="store", type="string", dest="outputDir")
     p.add_option("-a", "--replace-all", action="store_true",           dest="replaceAll")
-    p.set_defaults(spadeDir   = "../spade",
-                   outputDir  = "../reports",
+    p.set_defaults(spadeDir   = "/mnt/data/spade/localcopies/daq",
+                   outputDir  = "%s/public_html/daq-reports" % environ["HOME"],
                    replaceAll = False)
 
     opt, args = p.parse_args()
@@ -84,9 +84,13 @@ if __name__ == "__main__":
      <td><font color=grey>(Click on status link for run details)</font></td>
     </tr>
     """
-    
-    for f in listdir(opt.spadeDir):
-        match = search(r'SPS-pDAQ-run-(\S+)\.dat\.tar', f)
+
+    l =  list(listdir(opt.spadeDir))
+    l.sort()
+    for f in l:
+        prefix = 'SPS-pDAQ-run-'
+        if search(r'.done$', f): continue # Skip SPADE .done semaphores
+        match = search(r'%s(\S+)\.' % prefix, f)
         if match:
             runInfoString = match.group(1)
             infoPat = r'(\d+)_(\d\d\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)_(\d+)'
@@ -97,10 +101,13 @@ if __name__ == "__main__":
             check_make_or_exit(outDir)
             tarFile     = opt.spadeDir + "/" + f
             copyFile    = outDir + "/" + f
+            datTar      = outDir + "/" + prefix + runInfoString + ".dat.tar"
             snippetFile = outDir + "/.snippet.html"
             linkDir     = runInfoString + "/" 
+            # print datTar
             # Skip if tarball has already been copied
-            if not exists(copyFile) or not exists(snippetFile) or opt.replaceAll:
+            if not exists(copyFile) or not exists(snippetFile) \
+               or not exists(datTar) or opt.replaceAll:
                 print "%s -> %s/" % (f, outDir)
 
                 # Move tarballs into target run directories
@@ -108,9 +115,15 @@ if __name__ == "__main__":
                 if not (exists(copyFile) and tarfile.is_tarfile(copyFile)):
                     raise Exception("Bad tar file %s!" % copyFile)
 
+                # Extract top tarball
+                if datTar != copyFile:
+		    tar = tarfile.open(copyFile)
+		    for el in tar.getnames():
+		        if search('\.dat\.tar$', el): tar.extract(el, outDir)
+
                 # Extract contents
                 status = None
-                tar = tarfile.open(copyFile)
+                tar = tarfile.open(datTar)
                 for el in tar.getnames():
                     tar.extract(el, outDir)
                     # Find dash.log
