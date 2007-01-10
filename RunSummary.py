@@ -81,6 +81,7 @@ if __name__ == "__main__":
      <td align=center><b>Start<br>Time</b></td>
      <td align=center><b>Duration<br>(seconds)</b></td>
      <td align=center><b>Status</b></td>
+     <td><font color=grey>(Click on status link for run details)</font></td>
     </tr>
     """
     
