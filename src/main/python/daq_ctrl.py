@@ -95,8 +95,9 @@ class DAQCtrl:
         "Starts the DAQ sub-system running."
         result = self.daqiface.start(runNumber,
                                      configKey)
-        if (not os.path.exists(TEST_FILES)):
-            os.mkdir(TEST_FILES)
+        summaryDir = os.path.dirname(SUMMARY_FILE)
+        if (not os.path.exists(summaryDir)):
+            os.makedirs(summaryDir)
         summaryFile = file(SUMMARY_FILE, 'w')
         summaryFile.write("""<daq>
     <current-run>
