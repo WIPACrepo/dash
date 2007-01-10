@@ -10,6 +10,7 @@ from shutil import copy
 import tarfile
 
 if __name__ == "__main__":
+
     p = optparse.OptionParser()
     p.add_option("-s", "--spade-dir",   action="store", type="string", dest="spadeDir")
     p.add_option("-o", "--output-dir",  action="store", type="string", dest="outputDir")
@@ -37,10 +38,11 @@ if __name__ == "__main__":
     runDir = opt.outputDir+"/runs"
     check_make_or_exit(runDir)
 
+
     # Find all SPADE files in the form:
     # SPS-pDAQ-run-001_20070108_174324_000015.dat.tar
 
-    def makeSnippet(snippetFile, infoPat, runInfo, runLink, status):
+    def makeSnippet(snippetFile, infoPat, runInfo, runLink, configName, status):
         match = search(infoPat, runInfo)
         if not match: return
         runNum = int(match.group(1))
@@ -66,9 +68,24 @@ if __name__ == "__main__":
         <td align=center>%02d/%02d/%02d</td>
         <td align=center>%02d:%02d:%02d</td>
         <td align=center>%d</td>
+        <td align=center>%s</td>
         <td align=center bgcolor=%s><a href="%s">%s</a></td>
         </tr>
-        """ % (runNum, month, day, year, hr, mins, sec, dur, statusColor, runLink, status)
+        """ % (runNum, month, day, year, hr, mins, sec, dur,
+               configName, statusColor, runLink, status)
+
+    infoPat = r'(\d+)_(\d\d\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)_(\d+)'
+
+    def cmp(a, b):
+        amatch = search(infoPat, a)
+        bmatch = search(infoPat, b)
+        if not amatch: return
+        if not bmatch: return
+        n = 2
+        for n in [2, 3, 4, 5, 6, 7, 1, 8]:
+            ia = int(amatch.group(n)); ib = int(bmatch.group(n))
+            if ia != ib: return ib-ia
+        return 0
 
     allSummaryHtml = runDir + "/index.html"
     allSummaryFile = open(allSummaryHtml, "w")
@@ -80,20 +97,20 @@ if __name__ == "__main__":
      <td align=center><b>Start<br>Date</b></td>
      <td align=center><b>Start<br>Time</b></td>
      <td align=center><b>Duration<br>(seconds)</b></td>
+     <td align=center><b>Config</b></td>
      <td align=center><b>Status</b></td>
      <td><font color=grey>(Click on status link for run details)</font></td>
     </tr>
     """
 
     l =  list(listdir(opt.spadeDir))
-    l.sort()
+    l.sort(cmp)
     for f in l:
         prefix = 'SPS-pDAQ-run-'
         if search(r'.done$', f): continue # Skip SPADE .done semaphores
         match = search(r'%s(\S+)\.' % prefix, f)
         if match:
             runInfoString = match.group(1)
-            infoPat = r'(\d+)_(\d\d\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)_(\d+)'
             match = search(infoPat, runInfoString)
             if not match: continue
             # print "%s -> %s" % (f, runInfoString)
@@ -122,7 +139,7 @@ if __name__ == "__main__":
 		        if search('\.dat\.tar$', el): tar.extract(el, outDir)
 
                 # Extract contents
-                status = None
+                status = None; configName = None
                 tar = tarfile.open(datTar)
                 for el in tar.getnames():
                     tar.extract(el, outDir)
@@ -137,6 +154,9 @@ if __name__ == "__main__":
                             if s.group(1)=="SUCCESSFULLY": status = "SUCCESS"
                             else: status = "FAIL"
 
+                        s = search(r'config name (.+?)\n', dashContents)
+                        if s: configName = s.group(1)
+
                     # Remember more precise unpacked location for link
                     if search(r'daqrun(\d+)/$', el): 
                         linkDir = runInfoString + "/" + el
@@ -144,7 +164,7 @@ if __name__ == "__main__":
                 tar.close()
 
                 # Make HTML snippet for run summaries
-                makeSnippet(snippetFile, infoPat, runInfoString, linkDir, status)
+                makeSnippet(snippetFile, infoPat, runInfoString, linkDir, configName, status)
 
 
             lines = open(snippetFile).read()
