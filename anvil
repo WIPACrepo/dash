@@ -7,4 +7,6 @@ START_DIR=`pwd`
 REL_PATH_TO_WS=".."
 WS_DIR=`cd ${START_DIR}/${SCRIPT_DIR}/${REL_PATH_TO_WS} && pwd`
 
-$WS_DIR/anvil/src/main/python/anvil $*
+PATH=${WS_DIR}/anvil/src/main/python:${PATH}
+export PATH
+anvil $*
