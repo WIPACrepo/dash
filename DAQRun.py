@@ -361,10 +361,11 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     
             elif self.runState == "STOPPING" or self.runState == "RECOVERING":
                 self.moni = None
-                
+                hadError = False
                 if self.runState == "RECOVERING":
                     self.logmsg("Recovering from failed run %d..." % self.runNum)
                     self.lastConfig = None # "Forget" configuration so new run set will be made next time
+                    hadError = True
                 else:
                     try:
                         # Points all loggers back to catchall
@@ -376,14 +377,17 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                         continue
 
                 try:      self.stopAllComponentLoggers()
-                except:   self.logmsg(exc_string())
+                except:   hadError = True; self.logmsg(exc_string())
 
                 try:      self.stopCnCLogging(self.cnc)
-                except:   self.logmsg(exc_string())
+                except:   hadError = True; self.logmsg(exc_string())
 
                 self.logmsg("RPC Call stats:\n%s" % self.cnc.showStats())
 
-                self.logmsg("Run terminated.")
+                if hadError:
+                    self.logmsg("Run terminated WITH ERROR.")
+                else:
+                    self.logmsg("Run terminated SUCCESSFULLY.")
                 
                 self.catchAllLogger.stopServing() 
                 self.queue_for_spade(self.spadeDir, self.logDir, self.runNum,
