@@ -370,12 +370,12 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     try:
                         # Points all loggers back to catchall
                         self.stop_run(self.cnc)
-                        duration = datetime.datetime.now()-runStartTime
                     except:
                         self.logmsg(exc_string())
                         self.runState = "ERROR" # Wait for exp. control to signal for recovery
                         continue
 
+                duration = datetime.datetime.now()-runStartTime
                 try:      self.stopAllComponentLoggers()
                 except:   hadError = True; self.logmsg(exc_string())
 
