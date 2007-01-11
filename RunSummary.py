@@ -239,6 +239,7 @@ if __name__ == "__main__":
 
                 tar.close()
 
+                if status == None or configName == None: continue
                 # Make HTML snippet for run summaries
                 makeRunReport(snippetFile, infoPat, runInfoString, 
                               configName, status, runDir+"/"+linkDir,
