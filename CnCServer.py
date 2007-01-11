@@ -606,6 +606,13 @@ class DAQPool(CnCLogger):
 
         return set
 
+    def getNumComponents(self):
+        tot = 0
+        for binName in self.pool:
+            tot += len(self.pool[binName])
+
+        return tot
+
     def makeRunset(self, nameList):
         "Build a runset from the specified list of component names"
         compList = []
@@ -798,7 +805,7 @@ class DAQServer(DAQPool):
 
     def rpc_get_num_components(self):
         "return number of components currently registered"
-        return len(self.pool)
+        return self.getNumComponents()
 
     def rpc_log_to(self, host, port):
         "called by DAQLog object to tell us what UDP port to log to"
