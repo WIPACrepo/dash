@@ -3,7 +3,7 @@
 import optparse
 
 from os import chdir, execvpe, environ, system
-from os.path import exists, isdir, abspath
+from os.path import exists, isdir, abspath, join
 
 if __name__ == "__main__":
     p = optparse.OptionParser()
@@ -50,7 +50,8 @@ if __name__ == "__main__":
     if not opt.verbose: debug = "1>/dev/null 2>/dev/null"
 
     mvnSubdir = "target/classes"
-    if not opt.ignoreMaven and exists("%s/%s/%s/%s" % (topdir, opt.compName, mvnSubdir, opt.scriptName)):
+    scriptPath = join(topdir, opt.compName, mvnSubdir, opt.scriptName)
+    if not opt.ignoreMaven and exists(scriptPath):
         prog = mvnSubdir+"/"+opt.scriptName
     else:
         prog = opt.scriptName
