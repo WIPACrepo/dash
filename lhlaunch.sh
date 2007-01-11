@@ -56,6 +56,9 @@ $dash/DAQRun.py -c $cfg -l $log -s $spade
 echo "Starting CnCserver..."
 $dash/CnCServer.py -d -l localhost:9001
 
+$dash/StartComponent.py -c secondaryBuilders -s run-sb \
+    --cnc localhost:8080 --log localhost:9001 $imvn # --verbose
+
 $dash/StartComponent.py -c eventBuilder-prod -s run-eb \
     --cnc localhost:8080 --log localhost:9001 $imvn # --verbose
 

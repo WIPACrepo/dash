@@ -28,6 +28,7 @@ echo "Killing components..."
 for class in \
         icecube.daq.juggler.toybox.DAQCompApp \
         icecube.daq.eventBuilder.EBComponent \
+        icecube.daq.secBuilder.SBComponent \
         icecube.daq.trigger.component.IniceTriggerComponent \
         icecube.daq.trigger.component.GlobalTriggerComponent \
         icecube.daq.stringhub
