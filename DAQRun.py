@@ -337,6 +337,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         while 1:
             if self.runState == "STARTING":
                 try:
+                    runStartTime = None
                     # once per config/runset
                     if self.configName != self.lastConfig:
                         self.break_existing_runset(self.cnc)
@@ -375,7 +376,10 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                         self.runState = "ERROR" # Wait for exp. control to signal for recovery
                         continue
 
-                duration = datetime.datetime.now()-runStartTime
+                if runStartTime != None:
+                    duration = datetime.datetime.now()-runStartTime
+                else: duration = 0
+
                 try:      self.stopAllComponentLoggers()
                 except:   hadError = True; self.logmsg(exc_string())
 
