@@ -17,7 +17,7 @@ class RPCClient(xmlrpclib.ServerProxy):
         # !!!!!! Warning - this is ugly !!!!!!!
         # !!!! but no other way in XMLRPC? !!!!
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        socket.setdefaulttimeout(10)            #set the timeout to 10 seconds
+        socket.setdefaulttimeout(60)            #set the timeout to 60 seconds
         xmlrpclib.ServerProxy.__init__(self,
                                        "http://%s:%s" % (self.servername, self.portnum))
         self.statDict = { }
