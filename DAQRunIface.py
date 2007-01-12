@@ -12,9 +12,9 @@ from DAQRPC import RPCClient
 
 class DAQRunIface(object):
     START_TRANSITION_SECONDS    = 200
-    STOP_TRANSITION_SECONDS     = 100
+    STOP_TRANSITION_SECONDS     = 120
     RECOVERY_TRANSITION_SECONDS = 200
-    RELEASE_TRANSITION_SECONDS  = 45
+    RELEASE_TRANSITION_SECONDS  = 120
     
     def __init__(self, daqhost="localhost", daqport=8081):
         "Constructor - instantiate an RPC connection to DAQRun.py"
