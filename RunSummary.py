@@ -190,8 +190,6 @@ if __name__ == "__main__":
             if not match: continue
             # print "%s -> %s" % (f, runInfoString)
             outDir = runDir + "/" + runInfoString
-            if exists(runDir) and not opt.replaceAll:
-                continue
             check_make_or_exit(outDir)
             tarFile     = opt.spadeDir + "/" + f
             copyFile    = outDir + "/" + f
@@ -206,44 +204,49 @@ if __name__ == "__main__":
                 print "%s -> %s/" % (f, outDir)
 
                 # Move tarballs into target run directories
-                copy(tarFile, copyFile)
-                if not (exists(copyFile) and tarfile.is_tarfile(copyFile)):
-                    raise Exception("Bad tar file %s!" % copyFile)
+                if not exists(copyFile):
+                    copy(tarFile, copyFile)
+                    if not tarfile.is_tarfile(copyFile):
+                        raise Exception("Bad tar file %s!" % copyFile)
 
-                # Extract top tarball
-                if datTar != copyFile:
-		    tar = tarfile.open(copyFile)
-		    for el in tar.getnames():
-		        if search('\.dat\.tar$', el): tar.extract(el, outDir)
+                    # Extract top tarball
+                    if datTar != copyFile:
+                        tar = tarfile.open(copyFile)
+                        for el in tar.getnames():
+                            if search('\.dat\.tar$', el): tar.extract(el, outDir)
 
-                # Extract contents
-                status = None; configName = None
-                tar = tarfile.open(datTar)
-                for el in tar.getnames():
-                    tar.extract(el, outDir)
-                    # Find dash.log
-                    if search(r'dash.log', el):
-                        dashFile = outDir + "/" + el
-                        dashContents = open(dashFile).read()
+                    if not exist(datTar):
+                        raise Exception("Tarball %s didn't contain %s!", copyFile, datTar)
 
-                        # Get status
-                        s = search(r'Run terminated (.+).', dashContents)
-                        if s:
-                            if s.group(1)=="SUCCESSFULLY": status = "SUCCESS"
-                            else: status = "FAIL"
+                    # Extract contents
+                    status = None; configName = None
+                    tar = tarfile.open(datTar)
+                    for el in tar.getnames():
+                        tar.extract(el, outDir)
+                        # Find dash.log
+                        if search(r'dash.log', el):
+                            dashFile = outDir + "/" + el
+                            dashContents = open(dashFile).read()
 
-                        s = search(r'config name (.+?)\n', dashContents)
-                        if s: configName = s.group(1)
+                            # Get status
+                            s = search(r'Run terminated (.+).', dashContents)
+                            if s:
+                                if s.group(1)=="SUCCESSFULLY": status = "SUCCESS"
+                                else: status = "FAIL"
 
-                    # Remember more precise unpacked location for link
-                    if search(r'(daqrun\d+)/$', el): 
-                        linkDir = runInfoString + "/" + el
+                            s = search(r'config name (.+?)\n', dashContents)
+                            if s: configName = s.group(1)
 
-                tar.close()
+                        # Remember more precise unpacked location for link
+                        if search(r'(daqrun\d+)/$', el): 
+                            linkDir = runInfoString + "/" + el
 
-                if status == None or configName == None:
-                    print "SKIPPED null run %s" % outDir
-                    continue
+                    tar.close()
+
+                    if status == None or configName == None:
+                        print "SKIPPED null run %s" % outDir
+                        continue
+                    
                 # Make HTML snippet for run summaries
                 makeRunReport(snippetFile, infoPat, runInfoString, 
                               configName, status, runDir+"/"+linkDir,
