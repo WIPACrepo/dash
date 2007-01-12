@@ -215,7 +215,7 @@ if __name__ == "__main__":
                         for el in tar.getnames():
                             if search('\.dat\.tar$', el): tar.extract(el, outDir)
 
-                    if not exist(datTar):
+                    if not exists(datTar):
                         raise Exception("Tarball %s didn't contain %s!", copyFile, datTar)
 
                     # Extract contents
