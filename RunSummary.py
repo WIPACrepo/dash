@@ -190,6 +190,8 @@ if __name__ == "__main__":
             if not match: continue
             # print "%s -> %s" % (f, runInfoString)
             outDir = runDir + "/" + runInfoString
+            if exists(runDir) and not opt.replaceAll:
+                continue
             check_make_or_exit(outDir)
             tarFile     = opt.spadeDir + "/" + f
             copyFile    = outDir + "/" + f
