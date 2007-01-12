@@ -201,10 +201,10 @@ if __name__ == "__main__":
             if not exists(copyFile) or not exists(snippetFile) \
                or not exists(datTar) \
                or opt.replaceAll:
-                print "%s -> %s/" % (f, outDir)
 
                 # Move tarballs into target run directories
                 if not exists(copyFile):
+                    print "%s -> %s/" % (f, outDir)
                     copy(tarFile, copyFile)
                     if not tarfile.is_tarfile(copyFile):
                         raise Exception("Bad tar file %s!" % copyFile)
@@ -218,34 +218,34 @@ if __name__ == "__main__":
                     if not exists(datTar):
                         raise Exception("Tarball %s didn't contain %s!", copyFile, datTar)
 
-                    # Extract contents
-                    status = None; configName = None
-                    tar = tarfile.open(datTar)
-                    for el in tar.getnames():
-                        tar.extract(el, outDir)
-                        # Find dash.log
-                        if search(r'dash.log', el):
-                            dashFile = outDir + "/" + el
-                            dashContents = open(dashFile).read()
+                # Extract contents
+                status = None; configName = None
+                tar = tarfile.open(datTar)
+                for el in tar.getnames():
+                    tar.extract(el, outDir)
+                    # Find dash.log
+                    if search(r'dash.log', el):
+                        dashFile = outDir + "/" + el
+                        dashContents = open(dashFile).read()
+                        
+                        # Get status
+                        s = search(r'Run terminated (.+).', dashContents)
+                        if s:
+                            if s.group(1)=="SUCCESSFULLY": status = "SUCCESS"
+                            else: status = "FAIL"
 
-                            # Get status
-                            s = search(r'Run terminated (.+).', dashContents)
-                            if s:
-                                if s.group(1)=="SUCCESSFULLY": status = "SUCCESS"
-                                else: status = "FAIL"
+                        s = search(r'config name (.+?)\n', dashContents)
+                        if s: configName = s.group(1)
 
-                            s = search(r'config name (.+?)\n', dashContents)
-                            if s: configName = s.group(1)
+                    # Remember more precise unpacked location for link
+                    if search(r'(daqrun\d+)/$', el): 
+                        linkDir = runInfoString + "/" + el
 
-                        # Remember more precise unpacked location for link
-                        if search(r'(daqrun\d+)/$', el): 
-                            linkDir = runInfoString + "/" + el
+                tar.close()
 
-                    tar.close()
-
-                    if status == None or configName == None:
-                        print "SKIPPED null run %s" % outDir
-                        continue
+                if status == None or configName == None:
+                    #print "SKIPPED null run %s" % outDir
+                    continue
                     
                 # Make HTML snippet for run summaries
                 makeRunReport(snippetFile, infoPat, runInfoString, 
