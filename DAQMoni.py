@@ -79,12 +79,9 @@ class DAQMoni(object):
     
     def doMoni(self):
         now = datetime.datetime.now()
-        for c in self.moniList:
-            try:
-                c.monitor(now)
-            except Exception, e:
-                self.logmsg("Got exception %s: %s" % (e, exc_string()))
         self.tlast = now
+        for c in self.moniList:
+            c.monitor(now) # Can raise exception if far end is dead
     
     def logmsg(self, m):
         "Log message to logger, but only if logger exists"
