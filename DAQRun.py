@@ -320,8 +320,13 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.runSetID   = None
             self.lastConfig = None
 
-    def monitor(self):
-        if self.moni and self.moni.timeToMoni(): self.moni.doMoni()
+    def monitor_ok(self):
+        try:
+            if self.moni and self.moni.timeToMoni(): self.moni.doMoni()
+        except Exception, e:
+            self.logmsg("Exception in monitoring: %s" % exc_string())
+            return False
+        return True
         
     def run_thread(self):
         """
@@ -402,8 +407,11 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 self.runState = "STOPPED"
 
             elif self.runState == "RUNNING":
-                self.monitor()
-                sleep(0.25)
+                if not self.monitor_ok():
+                    self.logmsg("Caught error in system, going to ERROR state...")
+                    self.runState = "ERROR"                    
+                else:
+                    sleep(0.25)
             else:
                 sleep(0.25)
         
