@@ -47,7 +47,7 @@ if ! [ -e "$log" ]
 then 
     mkdir $log
 else 
-    rm -rf $log/catchall.log $log/daqrun* $log/old_daqrun*
+    rm -rf $log/catchall.log 
 fi
 
 echo "Starting DAQRun..."
