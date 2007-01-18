@@ -30,7 +30,11 @@ done
 #
 cfg="$topdir/config"
 log="$topdir/log"
-spade="$topdir/spade"
+if [ -d /mnt/data/spade/pdaq/runs ]; then
+    spade="/mnt/data/spade/pdaq/runs"
+else
+    spade="$topdir/spade"
+fi
 
 mvn_subdir='target/classes'
 
