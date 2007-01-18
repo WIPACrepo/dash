@@ -39,11 +39,14 @@ if __name__ == "__main__":
     check_make_or_exit(runDir)
 
     def generateSnippet(snippetFile, runNum, month, day, year, hr, mins, sec, dur,
-                        configName, runDir, status):
+                        configName, runDir, status, nEvents):
         
         snippet = open(snippetFile, 'w')
 
         statusColor = getStatusColor(status)
+
+        evStr = ""
+        if nEvents != None: evStr = nEvents
         
         print >>snippet, """
         <tr>
@@ -52,9 +55,10 @@ if __name__ == "__main__":
         <td align=center>%02d:%02d:%02d</td>
         <td align=center>%d</td>
         <td align=center>%s</td>
+        <td align=center>%s</td>
         <td align=center bgcolor=%s><a href="%s">%s</a></td>
         </tr>
-        """ % (runNum, month, day, year, hr, mins, sec, dur,
+        """ % (runNum, month, day, year, hr, mins, sec, dur, evStr,
                configName, statusColor, runDir, status)
         return
 
@@ -83,7 +87,7 @@ if __name__ == "__main__":
         return html
 
     def makeSummaryHtml(logLink, runNum, month, day, year, hr,
-                        mins, sec, dur, configName, status):
+                        mins, sec, dur, configName, status, nEvents):
         files = listdir(logLink)
         mons  = []
         logs  = []
@@ -93,6 +97,9 @@ if __name__ == "__main__":
 
         html = open(logLink+"/run.html", "w")
 
+        eventStr = "(check monitoring files)"
+        if nEvents != None: eventStr = nEvents
+        
         print >>html, "<HTML>"
         print >>html, "<TABLE><TR><TD BGCOLOR=EEEEEE>"
         print >>html, """
@@ -102,14 +109,13 @@ if __name__ == "__main__":
  <TR><TD ALIGN="right"><FONT COLOR=888888>Date</FONT></TD><TD>%s</TD></TR>
  <TR><TD ALIGN="right"><FONT COLOR=888888>Time</FONT></TD><TD>%s</TD></TR>
  <TR><TD ALIGN="right"><FONT COLOR=888888>Duration</FONT></TD><TD>%d seconds</TD></TR>
+ <TR><TD ALIGN="right"><FONT COLOR=888888>Events</FONT></TD><TD>%s</TD></TR>
  <TR><TD ALIGN="right"><FONT COLOR=888888>Status</FONT></TD><TD BGCOLOR=%s>%s</TD></TR>
 </TABLE>
-        """ % (runNum,
-               configName,
+        """ % (runNum, configName,
                "%02d/%02d/%02d" % (month, day, year),
                "%02d:%02d:%02d" % (hr, mins, sec),
-               dur, 
-               getStatusColor(status), status)
+               dur, eventStr, getStatusColor(status), status)
 
         print >>html, makeTable(logs, "Logs")
         print >>html, makeTable(mons, "Monitoring")
@@ -127,7 +133,7 @@ if __name__ == "__main__":
         html.close()
     
     def makeRunReport(snippetFile, infoPat, runInfo, configName,
-                      status, absRunDir, relRunDir):
+                      status, nEvents, absRunDir, relRunDir):
 
         match = search(infoPat, runInfo)
         if not match: return
@@ -141,9 +147,9 @@ if __name__ == "__main__":
         dur    = int(match.group(8))
 
         generateSnippet(snippetFile, runNum, month, day, year, hr, mins, sec, dur,
-                        configName, relRunDir+"/run.html", status)
+                        configName, relRunDir+"/run.html", status, nEvents)
         makeSummaryHtml(absRunDir, runNum, month, day, year, hr,
-                        mins, sec, dur, configName, status)
+                        mins, sec, dur, configName, status, nEvents)
 
     infoPat = r'(\d+)_(\d\d\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)_(\d+)'
 
@@ -171,6 +177,7 @@ if __name__ == "__main__":
      <td align=center><b>Start<br>Date</b></td>
      <td align=center><b>Start<br>Time</b></td>
      <td align=center><b>Duration<br>(seconds)</b></td>
+     <td align=center><b>Num.<br>Events</b></td>
      <td align=center><b>Config</b></td>
      <td align=center><b>Status</b></td>
      <td><font color=grey>(Click on status link for run details)</font></td>
@@ -188,7 +195,7 @@ if __name__ == "__main__":
             runInfoString = match.group(1)
             match = search(infoPat, runInfoString)
             if not match: continue
-            # print "%s -> %s" % (f, runInfoString)
+            print "%s -> %s" % (f, runInfoString)
             outDir = runDir + "/" + runInfoString
             check_make_or_exit(outDir)
             tarFile     = opt.spadeDir + "/" + f
@@ -196,6 +203,7 @@ if __name__ == "__main__":
             datTar      = outDir + "/" + prefix + runInfoString + ".dat.tar"
             snippetFile = outDir + "/.snippet"
             linkDir     = runInfoString + "/"
+            nEvents     = None
             # print datTar
             # Skip if tarball has already been copied
             if not exists(copyFile) or not exists(snippetFile) \
@@ -227,7 +235,7 @@ if __name__ == "__main__":
                     if search(r'dash.log', el):
                         dashFile = outDir + "/" + el
                         dashContents = open(dashFile).read()
-                        
+
                         # Get status
                         s = search(r'Run terminated (.+).', dashContents)
                         if s:
@@ -236,6 +244,9 @@ if __name__ == "__main__":
 
                         s = search(r'config name (.+?)\n', dashContents)
                         if s: configName = s.group(1)
+
+                        s = search(r'(\d+) events collected', dashContents)
+                        if s: nEvents = s.group(1)
 
                     # Remember more precise unpacked location for link
                     if search(r'(daqrun\d+)/$', el): 
@@ -249,10 +260,11 @@ if __name__ == "__main__":
                     
                 # Make HTML snippet for run summaries
                 makeRunReport(snippetFile, infoPat, runInfoString, 
-                              configName, status, runDir+"/"+linkDir,
+                              configName, status, nEvents, runDir+"/"+linkDir,
                               linkDir)
 
             print >>allSummaryFile, getSnippetHtml(snippetFile)
+            allSummaryFile.flush()
             
     print >>allSummaryFile, """
     </table>
