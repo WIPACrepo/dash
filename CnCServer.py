@@ -132,7 +132,12 @@ class RunSet:
 
     ID = 1
 
-    def __init__(self, set):
+    # number of seconds to wait after stopping components seem to be
+    # hung before forcing remaining components to stop
+    #
+    STOP_TIMEOUT = 10
+
+    def __init__(self, set, logger):
         """
         RunSet constructor
         set - list of components
@@ -140,6 +145,7 @@ class RunSet:
         runNumber - run number (if assigned)
         """
         self.set = set
+        self.logger = logger
 
         self.id = RunSet.ID
         RunSet.ID += 1
@@ -165,6 +171,13 @@ class RunSet:
         "Configure all components in the runset"
         for c in self.set:
             c.configure(globalConfigName)
+
+        self.waitForStateChange('configuring')
+
+        badList = self.listBadState('ready')
+        if len(badList) > 0:
+            raise ValueError, 'Could not configure ' + badList
+
         self.configured = True
 
     def configureLogging(self, logIP, logList):
@@ -194,13 +207,35 @@ class RunSet:
 
         return list
 
+    def listBadState(self, goodState):
+        list = []
+
+        for c in self.set:
+            if c.getState() != goodState:
+                list.append(c.name + '#' + str(c.num))
+
+        return list
+
+    def logmsg(self, msg):
+        if self.logger:
+            self.logger.logmsg(msg)
+        else:
+            print msg
+
     def reset(self):
         "Reset all components in the runset back to the idle state"
         for c in self.set:
             c.reset()
 
+        self.waitForStateChange('resetting')
+
+        badList = self.listBadState('idle')
+
         self.configured = False
         self.runNumber = None
+
+        if len(badList) > 0:
+            raise ValueError, 'Could not reset ' + badList
 
     def resetLogging(self):
         "Reset logging for all components in the runset"
@@ -227,6 +262,12 @@ class RunSet:
         for c in self.set:
             c.startRun(runNum)
 
+        self.waitForStateChange('starting')
+
+        badList = self.listBadState('running')
+        if len(badList) > 0:
+            raise ValueError, 'Could not start ' + badList
+
     def stopRun(self):
         "Stop all components in the runset"
         if self.runNumber is None:
@@ -236,8 +277,51 @@ class RunSet:
         #
         self.set.sort(lambda x, y: x.cmdOrder-y.cmdOrder)
 
-        for c in self.set:
-            c.stopRun()
+        waitList = self.set[:]
+
+        for i in range(0,2):
+            if i == 1:
+                warnStr = str(self) + ': Forcing ' + str(len(waitList)) + \
+                    ' components to stop:'
+                for c in waitList:
+                    warnStr += ' ' + c.name + '#' + str(c.num)
+
+                self.logmsg(warnStr)
+            for c in waitList:
+                if i == 0:
+                    c.stopRun()
+                else:
+                    c.forcedStop()
+
+            waitNum = len(waitList)
+            timeout = RunSet.STOP_TIMEOUT
+
+            while timeout > 0 and len(waitList) > 0:
+                wStr = ''
+                for c in waitList:
+                    stateStr = c.getState()
+                    if stateStr != 'stopping':
+                        preLen = len(waitList)
+                        waitList.remove(c)
+                    else:
+                        wStr += ' ' + c.name + '#' + str(c.num)
+
+                if len(waitList) == waitNum:
+                    #
+                    # hmmm ... we may be hanging
+                    #
+                    timeout -= 1
+                    sleep(1)
+                else:
+                    #
+                    # one or more components must have stopped
+                    #
+                    waitNum = len(waitList)
+
+                    if waitNum > 0:
+                        self.logmsg(str(self) + ': Trying to stop' + wStr)
+
+                    timeout = RunSet.STOP_TIMEOUT
 
         self.runNumber = None
 
@@ -250,6 +334,14 @@ class RunSet:
             setStat[c] = c.getState()
 
         return setStat
+
+    def waitForStateChange(self, stateStr):
+        waitList = self.set[:]
+        while len(waitList) > 0:
+            for c in waitList:
+                if c.getState() != stateStr:
+                    waitList.remove(c)
+            sleep(1)
 
 class CnCLogger(object):
     "CnC logging client"
@@ -418,6 +510,14 @@ class DAQClient(CnCLogger):
     def createClient(self, host, port):
         return RPCClient(host, port)
 
+    def forcedStop(self):
+        "Force component to stop running"
+        try:
+            return self.client.xmlrpc.forcedStop(self.id)
+        except Exception, e:
+            self.logmsg(exc_string())
+            return None
+
     def getOrder(self):
         return self.cmdOrder
 
@@ -581,13 +681,19 @@ class DAQPool(CnCLogger):
             else:
                 rtnVal = c.connect(map[c])
 
-            if not rtnVal:
-                rtnVal = 'None'
-            if rtnVal != 'OK':
-                if not errMsg:
-                    errMsg = 'Connect failed for ' + c.name + '(' + rtnVal + ')'
-                else:
-                    errMsg += ', ' + c.name + '(' + rtnVal + ')'
+        chkList = compList[:]
+        while len(chkList) > 0:
+            for c in chkList:
+                state = c.getState()
+                if state == 'connected':
+                    chkList.remove(c)
+                elif state != 'connecting':
+                    if not errMsg:
+                        errMsg = 'Connect failed for ' + c.name + '(' + \
+                            rtnVal + ')'
+                    else:
+                        errMsg += ', ' + c.name + '(' + rtnVal + ')'
+            sleep(1)
 
         if errMsg:
             raise ValueError, errMsg
@@ -622,7 +728,7 @@ class DAQPool(CnCLogger):
                 # buildRunset fills 'compList' with the specified components
                 #
                 self.buildRunset(nameList, compList)
-                runSet = RunSet(compList)
+                runSet = RunSet(compList, self)
                 self.sets.append(runSet)
                 setAdded = True
             except Exception, ex:
@@ -881,8 +987,6 @@ class DAQServer(DAQPool):
 
         if not runSet:
             raise ValueError, 'Could not find runset#' + str(id)
-
-        print 'Listing ' + str(runSet)
 
         return runSet.list()
 
