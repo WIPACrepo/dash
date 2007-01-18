@@ -38,7 +38,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     SPADEDIR       = "/tmp"
     CATCHALL_PORT  = 9001
     CNC_PORT       = 8080
-    MONI_PERIOD    = 20
+    MONI_PERIOD    = 30
     
     def __init__(self, portnum, configDir=CFGDIR, logDir=LOGDIR, spadeDir=SPADEDIR):
         RPCServer.__init__(self, portnum,
@@ -238,7 +238,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         basePrefix = "SPS-pDAQ-run-%03d_%04d%02d%02d_%02d%02d%02d_%06d"   \
                      % (runNum, runTime.year, runTime.month, runTime.day, \
                         runTime.hour, runTime.minute, runTime.second,     \
-                        runDuration.days*86400+runDuration.seconds)
+                        runDuration)
         tarBall = "%s/%s.dat.tar" % (spadeDir, basePrefix)
         semFile = "%s/%s.sem"     % (spadeDir, basePrefix)
         self.logmsg("Target files are:\n%s\n%s" % (tarBall, semFile))
@@ -320,9 +320,18 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.runSetID   = None
             self.lastConfig = None
 
+    def getEventCount(self):
+        for cid in self.setCompIDs:
+            if self.shortNameOf[cid] == "eventBuilder" and self.daqIDof[cid] == 0:
+                return int(self.moni.getSingleBeanField(cid, "backEnd", "TotalEventsSent"))
+        raise Exception("Could not find eventBuilder component 0!!!!")
+    
     def monitor_ok(self):
         try:
-            if self.moni and self.moni.timeToMoni(): self.moni.doMoni()
+            if self.moni and self.moni.timeToMoni():
+                self.moni.doMoni()
+                self.logmsg("\t%s events" % self.getEventCount())
+                    
         except Exception, e:
             self.logmsg("Exception in monitoring: %s" % exc_string())
             return False
@@ -366,7 +375,6 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     self.runState = "ERROR"
                     
             elif self.runState == "STOPPING" or self.runState == "RECOVERING":
-                self.moni = None
                 hadError = False
                 if self.runState == "RECOVERING":
                     self.logmsg("Recovering from failed run %d..." % self.runNum)
@@ -381,9 +389,19 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                         self.runState = "ERROR" # Wait for exp. control to signal for recovery
                         continue
 
+                nev      = 0
+                duration = 0
                 if runStartTime != None:
-                    duration = datetime.datetime.now()-runStartTime
-                else: duration = 0
+                    durDelta = datetime.datetime.now()-runStartTime
+                    duration = durDelta.days*86400 + durDelta.seconds
+                    try:
+                        nev = self.getEventCount()
+                        self.logmsg("%d events collected in %d seconds" % (nev, duration))
+                    except:
+                        self.logmsg("Could not get event count: %s" % exc_string())
+                        hadError = True;
+                        
+                self.moni = None
 
                 try:      self.stopAllComponentLoggers()
                 except:   hadError = True; self.logmsg(exc_string())
