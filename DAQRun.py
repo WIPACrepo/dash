@@ -351,7 +351,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     self.fill_component_dictionaries(self.cnc)
                     # once per run
                     self.setup_run_logging(self.cnc, self.logDir, self.runNum, self.configName)
-                    self.setup_component_loggers(self.cnc, self.ip, self.runSetID, SocketLogger.LOGLEVEL_WARN)
+                    self.setup_component_loggers(self.cnc, self.ip, self.runSetID, SocketLogger.LOGLEVEL_INFO)
                     self.setup_monitoring()
 
                     if self.configName != self.lastConfig:
