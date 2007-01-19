@@ -31,6 +31,7 @@ def getLatestFileTime(dir):
 
 def touchDoneFile(outputDir):
     x=open(outputDir+"/"+".done", "w")
+    print >>x, " "
     x.close()
 
 def getDoneFileTime(outputDir):
