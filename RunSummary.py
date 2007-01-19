@@ -1,14 +1,44 @@
 #!/usr/bin/env python
 
 
-import optparse
-from sys import stderr
-from os import listdir, mkdir, environ
-from os.path import exists, isdir, abspath
-from re import *
-from shutil import copy
 import tarfile
+import optparse
+import datetime
+from sys import stderr
+from os import listdir, mkdir, environ, stat
+from os.path import exists, isdir, abspath
+from shutil import copy
+from re import *
 
+def check_make_or_exit(dir):
+    if not exists(dir):
+        # print ("Creating %s... " % dir),
+        try: mkdir(dir, 0755)
+        except Exception, e:
+            print "Couldn't mkdir %s: %s!" % (dir, e)
+            raise SystemExit
+        # print "OK."
+
+def getLatestFileTime(dir):
+    l = listdir(dir)
+    latest = None
+    for f in l:
+        stat_dat = stat("%s/%s" % (dir, f))
+        mtim = stat_dat[8]
+        if mtim > latest or latest == None: latest = mtim
+    if latest == None: return None
+    return datetime.datetime.fromtimestamp(latest)
+
+def touchDoneFile(outputDir):
+    x=open(outputDir+"/"+".done", "w")
+    x.close()
+
+def getDoneFileTime(outputDir):
+    f = outputDir+"/.done"
+    if not exists(f): return None
+    stat_dat = stat(f)
+    return datetime.datetime.fromtimestamp(stat_dat[8])
+    
 if __name__ == "__main__":
 
     p = optparse.OptionParser()
@@ -25,16 +55,13 @@ if __name__ == "__main__":
         print "Can't find %s... giving up." % opt.spadeDir
         raise SystemExit
 
-    def check_make_or_exit(dir):
-        if not exists(dir):
-            # print ("Creating %s... " % dir),
-            try: mkdir(dir, 0755)
-            except Exception, e:
-                print "Couldn't mkdir %s: %s!" % (dir, e)
-                raise SystemExit
-            # print "OK."
-
     check_make_or_exit(opt.outputDir)
+
+    latestTime = getLatestFileTime(opt.spadeDir)
+    doneTime = getDoneFileTime(opt.outputDir)
+
+    if latestTime and doneTime and latestTime < doneTime: raise SystemExit
+    
     runDir = opt.outputDir+"/runs"
     check_make_or_exit(runDir)
 
@@ -271,4 +298,5 @@ if __name__ == "__main__":
     </html>
     """
     allSummaryFile.close()
-    
+
+    touchDoneFile(opt.outputDir)
