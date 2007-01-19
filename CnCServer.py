@@ -721,7 +721,6 @@ class DAQPool(CnCLogger):
 
     def makeRunset(self, nameList):
         "Build a runset from the specified list of component names"
-        print '=== XXX MAKE #' + str(len(nameList)) + ': ' + str(nameList)
         compList = []
         setAdded = False
         try:
@@ -730,9 +729,6 @@ class DAQPool(CnCLogger):
                 #
                 self.buildRunset(nameList, compList)
                 runSet = RunSet(compList, self)
-                print '=== XXX CREATED ' + str(len(compList)) + ' set from ' + \
-                    str(len(nameList)) + ' elements'
-
                 self.sets.append(runSet)
                 setAdded = True
             except Exception, ex:
