@@ -272,6 +272,9 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         Highest level must catch exceptions
         """
 
+        # clear old components
+        del self.setCompIDs[:]
+
         # extract remote component data
         compList = cncrpc.rpccall("rpc_runset_list", self.runSetID)
         for comp in compList:

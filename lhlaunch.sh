@@ -75,6 +75,9 @@ $dash/StartComponent.py -c trigger -s run-iitrig \
 $dash/StartComponent.py -c StringHub -s run-hub \
     --cnc localhost:8080 --log localhost:9001 --id 1001 $imvn # --verbose
 
+$dash/StartComponent.py -c StringHub -s run-hub \
+    --cnc localhost:8080 --log localhost:9001 --id 1002 $imvn # --verbose
+
 echo ""
 echo "Type '$dash/ExpControlSkel.py' to run the test."
 echo "Results will appear in $log."
