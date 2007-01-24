@@ -6,6 +6,9 @@ if [ "$1" = "bfd" ]; then
     imvn="--ignore-maven"
 fi
 
+# Uncomment the following if you want verbose info at stdout/stderr:
+# verbose="--verbose" 
+
 # find the location of the standard directories
 #
 for loc in '..' '.'; do
@@ -55,25 +58,35 @@ else
 fi
 
 echo "Starting DAQRun..."
-$dash/DAQRun.py -c $cfg -l $log -s $spade
+if [ -z "$verbose" ]
+then
+    $dash/DAQRun.py -c $cfg -l $log -s $spade
+else
+    $dash/DAQRun.py -c $cfg -l $log -s $spade -n &
+fi
 
 echo "Starting CnCserver..."
-$dash/CnCServer.py -d -l localhost:9001
+if [ -z "$verbose" ]
+then
+    $dash/CnCServer.py -d -l localhost:9001
+else
+    $dash/CnCServer.py -l localhost:9001 &
+fi
 
 $dash/StartComponent.py -c secondaryBuilders -s run-sb \
-    --cnc localhost:8080 --log localhost:9001 $imvn # --verbose
+    --cnc localhost:8080 --log localhost:9001 $imvn $verbose
 
 $dash/StartComponent.py -c eventBuilder-prod -s run-eb \
-    --cnc localhost:8080 --log localhost:9001 $imvn # --verbose
+    --cnc localhost:8080 --log localhost:9001 $imvn $verbose
 
 $dash/StartComponent.py -c trigger -s run-gltrig \
-    --cnc localhost:8080 --log localhost:9001 $imvn # --verbose
+    --cnc localhost:8080 --log localhost:9001 $imvn $verbose
 
 $dash/StartComponent.py -c trigger -s run-iitrig \
-    --cnc localhost:8080 --log localhost:9001 $imvn # --verbose
+    --cnc localhost:8080 --log localhost:9001 $imvn $verbose
 
 $dash/StartComponent.py -c StringHub -s run-hub \
-    --cnc localhost:8080 --log localhost:9001 --id 1001 $imvn # --verbose
+    --cnc localhost:8080 --log localhost:9001 --id 1001 $imvn $verbose
 
 echo ""
 echo "Type '$dash/ExpControlSkel.py' to run the test."
