@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # find the location of the standard directories
 #
@@ -22,19 +22,18 @@ done
 
 echo "Killing servers..."
 $dash/CnCServer.py -k
-$dash/DAQRun.py    -k 
+$dash/DAQRun.py    -k
 
 echo "Killing components..."
-for class in \
-        icecube.daq.juggler.toybox.DAQCompApp \
-        icecube.daq.eventBuilder.EBComponent \
-        icecube.daq.secBuilder.SBComponent \
-        icecube.daq.trigger.component.IniceTriggerComponent \
-        icecube.daq.trigger.component.GlobalTriggerComponent \
-        icecube.daq.stringhub
-do
-    for p in `ps axww | grep "java .*$class" | grep -v grep | awk '{print $1}'`
-    do
-        kill -9 $p
-    done
-done
+comp_classes_regexp="icecube.daq.juggler.toybox.DAQCompApp|\
+icecube.daq.eventBuilder.EBComponent|\
+icecube.daq.secBuilder.SBComponent|\
+icecube.daq.trigger.component.IniceTriggerComponent|\
+icecube.daq.trigger.component.GlobalTriggerComponent|\
+icecube.daq.stringhub"
+pkill -fu ${USER} ${comp_classes_regexp}
+stragglers=$(pgrep -fu ${USER} ${comp_classes_regexp})
+if [ -n "${stragglers}" ]; then
+  echo "Killing with -9..."
+  pkill -9 -fu ${USER} ${comp_classes_regexp}
+fi
