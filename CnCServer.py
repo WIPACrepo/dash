@@ -268,6 +268,16 @@ class RunSet:
         if len(badList) > 0:
             raise ValueError, 'Could not start ' + badList
 
+    def status(self):
+        """
+        Return a dictionary of components in the runset and their current state
+        """
+        setStat = {}
+        for c in self.set:
+            setStat[c] = c.getState()
+
+        return setStat
+
     def stopRun(self):
         "Stop all components in the runset"
         if self.runNumber is None:
@@ -324,16 +334,6 @@ class RunSet:
                     timeout = RunSet.STOP_TIMEOUT
 
         self.runNumber = None
-
-    def status(self):
-        """
-        Return a dictionary of components in the runset and their current state
-        """
-        setStat = {}
-        for c in self.set:
-            setStat[c] = c.getState()
-
-        return setStat
 
     def waitForStateChange(self, stateStr):
         waitList = self.set[:]
