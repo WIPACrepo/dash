@@ -152,6 +152,7 @@ class RunSet:
 
         self.configured = False
         self.runNumber = None
+        self.state = 'unknown'
 
     def __str__(self):
         "String description"
@@ -169,12 +170,16 @@ class RunSet:
 
     def configure(self, globalConfigName):
         "Configure all components in the runset"
+        self.state = 'configuring'
+
         for c in self.set:
             c.configure(globalConfigName)
 
-        self.waitForStateChange('configuring')
+        self.waitForStateChange()
 
-        badList = self.listBadState('ready')
+        self.state = 'ready'
+
+        badList = self.listBadState()
         if len(badList) > 0:
             raise ValueError, 'Could not configure ' + badList
 
@@ -199,6 +204,7 @@ class RunSet:
         self.id = None
         self.configured = False
         self.runNumber = None
+        self.state = 'destroyed'
 
     def list(self):
         list = []
@@ -207,11 +213,11 @@ class RunSet:
 
         return list
 
-    def listBadState(self, goodState):
+    def listBadState(self):
         list = []
 
         for c in self.set:
-            if c.getState() != goodState:
+            if c.getState() != self.state:
                 list.append(c.name + '#' + str(c.num))
 
         return list
@@ -224,12 +230,16 @@ class RunSet:
 
     def reset(self):
         "Reset all components in the runset back to the idle state"
+        self.state = 'resetting'
+
         for c in self.set:
             c.reset()
 
-        self.waitForStateChange('resetting')
+        self.waitForStateChange()
 
-        badList = self.listBadState('idle')
+        self.state = 'idle'
+
+        badList = self.listBadState()
 
         self.configured = False
         self.runNumber = None
@@ -258,13 +268,17 @@ class RunSet:
         #
         self.set.sort(lambda x, y: y.cmdOrder-x.cmdOrder)
 
+        self.state = 'starting'
+
         self.runNumber = runNum
         for c in self.set:
             c.startRun(runNum)
 
-        self.waitForStateChange('starting')
+        self.waitForStateChange()
 
-        badList = self.listBadState('running')
+        self.state = 'running'
+
+        badList = self.listBadState()
         if len(badList) > 0:
             raise ValueError, 'Could not start ' + badList
 
@@ -290,13 +304,18 @@ class RunSet:
         waitList = self.set[:]
 
         for i in range(0,2):
+            if i == 0:
+                self.state = 'stopping'
+            else:
+                self.state = 'forcingStop'
+
             if i == 1:
                 warnStr = str(self) + ': Forcing ' + str(len(waitList)) + \
                     ' components to stop:'
                 for c in waitList:
                     warnStr += ' ' + c.name + '#' + str(c.num)
-
                 self.logmsg(warnStr)
+
             for c in waitList:
                 if i == 0:
                     c.stopRun()
@@ -335,11 +354,12 @@ class RunSet:
 
         self.runNumber = None
 
-    def waitForStateChange(self, stateStr):
+    def waitForStateChange(self):
         waitList = self.set[:]
         while len(waitList) > 0:
             for c in waitList:
-                if c.getState() != stateStr:
+                stateStr = c.getState()
+                if stateStr != self.state:
                     waitList.remove(c)
             sleep(1)
 
