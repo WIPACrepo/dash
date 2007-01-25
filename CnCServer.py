@@ -206,6 +206,9 @@ class RunSet:
         self.runNumber = None
         self.state = 'destroyed'
 
+    def isRunning(self):
+        return self.state is not None and self.state == 'running'
+
     def list(self):
         list = []
         for c in self.set:
@@ -326,14 +329,21 @@ class RunSet:
             timeout = RunSet.STOP_TIMEOUT
 
             while timeout > 0 and len(waitList) > 0:
-                wStr = ''
+                wStr = None
+
+                newList = waitList[:]
                 for c in waitList:
                     stateStr = c.getState()
                     if stateStr != 'stopping':
                         preLen = len(waitList)
-                        waitList.remove(c)
+                        newList.remove(c)
+                    elif wStr is None:
+                        wStr = c.name + '#' + str(c.num)
                     else:
-                        wStr += ' ' + c.name + '#' + str(c.num)
+                        wStr += ', ' + c.name + '#' + str(c.num)
+
+                if len(waitList) != len(newList):
+                    waitList = newList
 
                 if len(waitList) == waitNum:
                     #
@@ -348,7 +358,8 @@ class RunSet:
                     waitNum = len(waitList)
 
                     if waitNum > 0:
-                        self.logmsg(str(self) + ': Trying to stop' + wStr)
+                        self.logmsg(str(self) + ': Waiting for ' + wStr +
+                                    ' to stop')
 
                     timeout = RunSet.STOP_TIMEOUT
 
@@ -357,11 +368,25 @@ class RunSet:
     def waitForStateChange(self):
         waitList = self.set[:]
         while len(waitList) > 0:
+
+            newList = waitList[:]
             for c in waitList:
                 stateStr = c.getState()
                 if stateStr != self.state:
-                    waitList.remove(c)
-            sleep(1)
+                    newList.remove(c)
+
+            if len(waitList) != len(newList):
+                waitList = newList
+
+                waitStr = None
+                for c in waitList:
+                    if waitStr is None:
+                        waitStr = c.name + '#' + str(c.num)
+                    else:
+                        waitStr += ', ' + c.name + '#' + str(c.num)
+                if waitStr:
+                    self.logmsg(str(self) + ': ' + self.state + ' ' + waitStr +
+                                ' (#' + str(len(waitList)) + ')')
 
 class CnCLogger(object):
     "CnC logging client"
@@ -788,7 +813,8 @@ class DAQPool(CnCLogger):
                     self.logmsg("    %s %s" % (str(c), state))
 
         for s in self.sets:
-            self.logmsg(str(s))
+            if s.isRunning():
+                self.logmsg(str(s))
 
         return count
 
