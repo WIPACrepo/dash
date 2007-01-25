@@ -20,6 +20,7 @@ sys.path = originalPath
 import ec.states
 
 import os
+import socket
 import time
 
 instance = None
@@ -55,6 +56,8 @@ class DAQCtrl:
     def __init__(self):
         self.daqiface = DAQRunIface.DAQRunIface('localhost',
                                                 9000)
+        self.errorMsg = None
+
 
     def flasher(self,
                 flasherConfiguration,
@@ -69,7 +72,10 @@ class DAQCtrl:
         try:
             return STATE_MAPPING[self.daqiface.getState()]
         except KeyError:
-            return UNKNOWN
+            return ec,states.UNKNOWN
+        except socket.error:
+            self.errorMsg = "DAQ not available"
+            return ec.states.ERROR
         
 
     def getSummary(self):
@@ -86,15 +92,21 @@ class DAQCtrl:
 
     def recover(self):
         "Recovers the sub-system from an ERROR state."
-        return self.daqiface.recover()
+        try:
+            return self.daqiface.recover()
+        except socket.error:
+            return 0
 
 
     def start(self,
               runNumber,
               configKey):
         "Starts the DAQ sub-system running."
-        result = self.daqiface.start(runNumber,
-                                     configKey)
+        try:
+            result = self.daqiface.start(runNumber,
+                                         configKey)
+        except socket.error:
+            return 0
         summaryDir = os.path.dirname(SUMMARY_FILE)
         if (not os.path.exists(summaryDir)):
             os.makedirs(summaryDir)
@@ -129,4 +141,7 @@ class DAQCtrl:
 
     def stop(self):
         "Stops the DAQ sub-system running."
-        return self.daqiface.stop()
+        try:
+            return self.daqiface.stop()
+        except socket.error:
+            return 0
