@@ -326,7 +326,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     def getEventCount(self):
         for cid in self.setCompIDs:
             if self.shortNameOf[cid] == "eventBuilder" and self.daqIDof[cid] == 0:
-                return int(self.moni.getSingleBeanField(cid, "backEnd", "TotalEventsSent"))
+                return int(self.moni.getSingleBeanField(cid, "backEnd", "NumEventsSent"))
         raise Exception("Could not find eventBuilder component 0!!!!")
     
     def monitor_ok(self):
