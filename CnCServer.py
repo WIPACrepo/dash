@@ -287,7 +287,8 @@ class RunSet:
 
     def status(self):
         """
-        Return a dictionary of components in the runset and their current state
+        Return a dictionary of components in the runset
+        and their current state
         """
         setStat = {}
         for c in self.set:
@@ -385,8 +386,8 @@ class RunSet:
                     else:
                         waitStr += ', ' + c.name + '#' + str(c.num)
                 if waitStr:
-                    self.logmsg(str(self) + ': ' + self.state + ' ' + waitStr +
-                                ' (#' + str(len(waitList)) + ')')
+                    self.logmsg(str(self) + ': ' + self.state + ' ' +
+                                waitStr)
 
 class CnCLogger(object):
     "CnC logging client"
