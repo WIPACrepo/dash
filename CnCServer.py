@@ -329,24 +329,33 @@ class RunSet:
             waitNum = len(waitList)
             timeout = RunSet.STOP_TIMEOUT
 
-            while timeout > 0 and len(waitList) > 0:
-                wStr = None
+            connDict = {}
 
+            while timeout > 0 and len(waitList) > 0:
                 newList = waitList[:]
                 for c in waitList:
                     stateStr = c.getState()
                     if stateStr != 'stopping':
                         preLen = len(waitList)
                         newList.remove(c)
-                    elif wStr is None:
-                        wStr = c.name + '#' + str(c.num)
-                    else:
-                        wStr += ', ' + c.name + '#' + str(c.num)
+                        if c in connDict:
+                            del connDict[c]
+
+                changed = False
 
                 if len(waitList) != len(newList):
                     waitList = newList
+                    changed = True
 
-                if len(waitList) == waitNum:
+                for c in waitList:
+                    csStr = c.getNonstoppedConnectorsString()
+                    if not c in connDict:
+                        connDict[c] = csStr
+                    elif connDict[c] != csStr:
+                        connDict[c] = csStr
+                        changed = True
+
+                if not changed:
                     #
                     # hmmm ... we may be hanging
                     #
@@ -357,8 +366,17 @@ class RunSet:
                     # one or more components must have stopped
                     #
                     waitNum = len(waitList)
-
                     if waitNum > 0:
+                        wStr = None
+                        for c in waitList:
+                            if not wStr:
+                                wStr = ''
+                            else:
+                                wStr += ', '
+                            wStr += c.name + '#' + str(c.num) + \
+                                connDict[c]
+
+
                         self.logmsg(str(self) + ': Waiting for ' + wStr +
                                     ' to stop')
 
@@ -583,6 +601,34 @@ class DAQClient(CnCLogger):
                 state = DAQClient.STATE_DEAD
 
         return state
+
+    def getNonstoppedConnectorsString(self):
+        """
+        Return string describing states of all connectors
+        which have not yet stopped
+        """
+        try:
+            connStates = self.client.xmlrpc.listConnectorStates(self.id)
+        except Exception, e:
+            self.logmsg(exc_string())
+            return None
+
+        csStr = None
+        for cs in connStates:
+            if cs[1] == 'idle':
+                continue
+            if not csStr:
+                csStr = '['
+            else:
+                csStr += ', '
+            csStr += str(cs[0]) + ':' + str(cs[1])
+
+        if not csStr:
+            csStr = ''
+        else:
+            csStr += ']'
+
+        return csStr
 
     def isComponent(self, name, num):
         "Does this component have the specified name and number?"
