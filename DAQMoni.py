@@ -63,7 +63,7 @@ class DAQMoni(object):
                     self.moniList[c] = md
                 except Exception, e:
                     self.logmsg("Couldn't create monitoring output (%s) for component %d!" % (fname, c))
-                    self.logmsg("%s: %s", e, exc_string())
+                    self.logmsg("%s: %s" % (e, exc_string()))
 
     def fileName(path, name, daqID):
         return "%s/%s-%d.moni" % (path, name, daqID)
