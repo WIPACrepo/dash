@@ -424,7 +424,8 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                                      datetime.datetime.now(), duration)
                 self.catchAllLogger.startServing()
                 
-                self.log.close()
+                if self.log is not None:
+                    self.log.close()
                 self.runState = "STOPPED"
 
             elif self.runState == "RUNNING":
