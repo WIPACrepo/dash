@@ -32,6 +32,8 @@ icecube.daq.trigger.component.IniceTriggerComponent|\
 icecube.daq.trigger.component.GlobalTriggerComponent|\
 icecube.daq.stringhub"
 pkill -fu ${USER} ${comp_classes_regexp}
+echo "Waiting for components to die..."
+sleep 2
 stragglers=$(pgrep -fu ${USER} ${comp_classes_regexp})
 if [ -n "${stragglers}" ]; then
   echo "Killing with -9..."
