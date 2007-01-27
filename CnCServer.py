@@ -382,6 +382,9 @@ class RunSet:
 
                     timeout = RunSet.STOP_TIMEOUT
 
+            if waitNum == 0:
+                break
+
         self.runNumber = None
 
     def waitForStateChange(self):
