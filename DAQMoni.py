@@ -47,19 +47,15 @@ class DAQMoni(object):
         self.interval    = interval
         self.tstart      = datetime.datetime.now()
         self.tlast       = None
-        self.IDs         = IDs
-        self.fdOf        = {}
-        self.mbeanPortOf = mbeanPortOf
-        self.rpcAddrOf   = rpcAddrOf
         self.moniList    = {}
-        for c in self.IDs:
-            if self.mbeanPortOf[c] > 0:
+        for c in IDs:
+            if mbeanPortOf[c] > 0:
                 fname = DAQMoni.fileName(self.path, shortNameOf[c], daqIDof[c])
                 self.logmsg("Creating moni output file %s (remote is %s:%d)" % (fname,
-                                                                                self.rpcAddrOf[c],
-                                                                                self.mbeanPortOf[c]))
+                                                                                rpcAddrOf[c],
+                                                                                mbeanPortOf[c]))
                 try:
-                    md = MoniData(c, fname, self.rpcAddrOf[c], self.mbeanPortOf[c])
+                    md = MoniData(c, fname, rpcAddrOf[c], mbeanPortOf[c])
                     self.moniList[c] = md
                 except Exception, e:
                     self.logmsg("Couldn't create monitoring output (%s) for component %d!" % (fname, c))
@@ -81,7 +77,7 @@ class DAQMoni(object):
         if beanField not in md.beanFields[beanName]:
             raise BeanFieldNotFoundException("Bean field %s not in list of bean fields (%s) for bean %s"
                                              % (beanField, `md.beanFields`, beanName))
-        return md.client.mbean.getList(beanName, [beanField])[0]
+        return md.client.mbean.get(beanName, beanField)
     
     def timeToMoni(self):
         if not self.tlast: return True
