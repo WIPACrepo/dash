@@ -335,7 +335,7 @@ class RunSet:
                 newList = waitList[:]
                 for c in waitList:
                     stateStr = c.getState()
-                    if stateStr != 'stopping':
+                    if stateStr != self.state:
                         preLen = len(waitList)
                         newList.remove(c)
                         if c in connDict:
