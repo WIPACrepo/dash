@@ -10,6 +10,7 @@
 from sys import argv
 from DAQLog import *
 from DAQMoni import *
+from RunWatchdog import RunWatchdog
 from time import sleep
 from os.path import exists, abspath
 from DAQRPC import RPCClient, RPCServer
@@ -39,6 +40,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     CATCHALL_PORT  = 9001
     CNC_PORT       = 8080
     MONI_PERIOD    = 30
+    WATCH_PERIOD   = 10
     
     def __init__(self, portnum, configDir=CFGDIR, logDir=LOGDIR, spadeDir=SPADEDIR):
         RPCServer.__init__(self, portnum,
@@ -77,6 +79,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.compPorts       = {} # Indexed by name
         self.cnc             = None
         self.moni            = None
+        self.watchdog        = None
         self.lastConfig      = None
 
         # After initialization, start run thread to handle state changes
@@ -299,6 +302,14 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                             self.setCompIDs, self.shortNameOf, self.daqIDof,
                             self.rpcAddrOf, self.mbeanPortOf)
 
+    def setup_watchdog(self):
+        # Set up run watchdog
+        self.watchdog = RunWatchdog(self.log,
+                                    DAQRun.WATCH_PERIOD,
+                                    self.setCompIDs, self.shortNameOf,
+                                    self.daqIDof, self.rpcAddrOf,
+                                    self.mbeanPortOf)
+
     def runset_configure(self, rpc, runSetID, configName):
         "Configure the run set"
         self.logmsg("Configuring run set...")
@@ -329,7 +340,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 return int(self.moni.getSingleBeanField(cid, "backEnd", "NumEventsSent"))
         raise Exception("Could not find eventBuilder component 0!!!!")
     
-    def monitor_ok(self):
+    def check_all(self):
         try:
             if self.moni and self.moni.timeToMoni():
                 self.moni.doMoni()
@@ -338,6 +349,15 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         except Exception, e:
             self.logmsg("Exception in monitoring: %s" % exc_string())
             return False
+
+        try:
+            if self.watchdog and self.watchdog.timeToWatch():
+                self.watchdog.doWatch()
+                    
+        except Exception, e:
+            self.logmsg("Exception in run watchdog: %s" % exc_string())
+            return False
+
         return True
         
     def run_thread(self):
@@ -365,6 +385,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     self.setup_run_logging(self.cnc, self.logDir, self.runNum, self.configName)
                     self.setup_component_loggers(self.cnc, self.ip, self.runSetID, SocketLogger.LOGLEVEL_INFO)
                     self.setup_monitoring()
+                    self.setup_watchdog()
 
                     if self.configName != self.lastConfig:
                         self.runset_configure(self.cnc, self.runSetID, self.configName)
@@ -405,6 +426,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                         hadError = True;
                         
                 self.moni = None
+                self.watchdog = None
 
                 try:      self.stopAllComponentLoggers()
                 except:   hadError = True; self.logmsg(exc_string())
@@ -429,7 +451,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 self.runState = "STOPPED"
 
             elif self.runState == "RUNNING":
-                if not self.monitor_ok():
+                if not self.check_all():
                     self.logmsg("Caught error in system, going to ERROR state...")
                     self.runState = "ERROR"                    
                 else:
