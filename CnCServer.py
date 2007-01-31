@@ -181,7 +181,7 @@ class RunSet:
 
         badList = self.listBadState()
         if len(badList) > 0:
-            raise ValueError, 'Could not configure ' + badList
+            raise ValueError, 'Could not configure ' + str(badList)
 
         self.configured = True
 
@@ -248,7 +248,7 @@ class RunSet:
         self.runNumber = None
 
         if len(badList) > 0:
-            raise ValueError, 'Could not reset ' + badList
+            raise ValueError, 'Could not reset ' + str(badList)
 
     def resetLogging(self):
         "Reset logging for all components in the runset"
@@ -283,7 +283,7 @@ class RunSet:
 
         badList = self.listBadState()
         if len(badList) > 0:
-            raise ValueError, 'Could not start ' + badList
+            raise ValueError, 'Could not start ' + str(badList)
 
     def status(self):
         """
