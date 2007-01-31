@@ -256,11 +256,19 @@ class RunSet:
             c.resetLogging()
 
     def returnComponents(self, pool):
+        badList = self.reset()
+
+        # transfer components back to pool
+        #
         while len(self.set) > 0:
             comp = self.set[0]
             del self.set[0]
-            comp.reset()
             pool.add(comp)
+
+        # raise exception if one or more components could not be reset
+        #
+        if len(badList) > 0:
+            raise ValueError, 'Could not reset ' + str(badList)
 
     def startRun(self, runNum):
         "Start all components in the runset"
