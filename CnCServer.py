@@ -247,8 +247,7 @@ class RunSet:
         self.configured = False
         self.runNumber = None
 
-        if len(badList) > 0:
-            raise ValueError, 'Could not reset ' + str(badList)
+        return badList
 
     def resetLogging(self):
         "Reset logging for all components in the runset"
@@ -652,8 +651,9 @@ class DAQClient(CnCLogger):
             self.name.find('Builder') < 0
 
     def list(self):
+        state = self.getState()
         return [ self.id, self.name, self.num, self.host, self.port,
-                 self.mbeanPort ]
+                 self.mbeanPort, state ]
 
     def logTo(self, logIP, port, level):
         "Send log messages to the specified host and port"
@@ -822,6 +822,14 @@ class DAQPool(CnCLogger):
             tot += len(self.pool[binName])
 
         return tot
+
+    def listRunsetIDs(self):
+        "List active runset IDs"
+        ids = []
+        for s in self.sets:
+            ids.append(s.id)
+
+        return ids
 
     def makeRunset(self, nameList):
         "Build a runset from the specified list of component names"
@@ -997,6 +1005,7 @@ class DAQServer(DAQPool):
             self.server.register_function(self.rpc_runset_break)
             self.server.register_function(self.rpc_runset_configure)
             self.server.register_function(self.rpc_runset_list)
+            self.server.register_function(self.rpc_runset_listIDs)
             self.server.register_function(self.rpc_runset_log_to)
             self.server.register_function(self.rpc_runset_log_to_default)
             self.server.register_function(self.rpc_runset_make)
@@ -1086,6 +1095,10 @@ class DAQServer(DAQPool):
         runSet.configure(globalConfigName)
 
         return "OK"
+
+    def rpc_runset_listIDs(self):
+        """return a list of active runset IDs"""
+        return self.listRunsetIDs()
 
     def rpc_runset_list(self, id):
         """
