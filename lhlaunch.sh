@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 
+# Detect verbose option:
+while getopts :v FLAG; do
+   case "${FLAG}" in
+      v) verbose=on
+         ;;
+   esac
+done
+
 # check command-line options
 #
 if [ "$1" = "bfd" ]; then
     imvn="--ignore-maven"
 fi
-
-# Uncomment the following if you want verbose info at stdout/stderr:
-# verbose="--verbose" 
 
 # find the location of the standard directories
 #
