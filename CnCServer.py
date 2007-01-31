@@ -291,7 +291,8 @@ class RunSet:
 
         badList = self.listBadState()
         if len(badList) > 0:
-            raise ValueError, 'Could not start ' + str(badList)
+            raise ValueError, 'Could not start runset#%d run#%d components: %s' \
+                % (self.id, runNum, str(badList))
 
     def status(self):
         """
