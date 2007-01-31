@@ -23,10 +23,14 @@ class RPCClient(xmlrpclib.ServerProxy):
         self.statDict = { }
 
     def showStats(self):
+        if self.nCalls() == 0: return "None"
         r = ""
         for x in self.callList():
             r += "%25s: %s\n" % (x, self.statDict[x].report())
         return r
+
+    def nCalls(self):
+        return len(self.statDict)
     
     def callList(self):
         return self.statDict.keys()

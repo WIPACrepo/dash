@@ -31,6 +31,7 @@ class SocketLogger(object):
         self.logpath = logpath
         self.go      = False
         self.thread  = None
+        self.outfile = None
 
     def startServing(self):
         "Creates listener thread, prepares file for output, and returns"
@@ -42,9 +43,14 @@ class SocketLogger(object):
         if os.name == "nt":
             self.thread = threading.Thread(target=self.win_listener)
         else:
-            self.thread  = threading.Thread(target=self.listener)
+            self.thread = threading.Thread(target=self.listener)
         self.thread.start()
 
+    def localAppend(self, s):
+        if self.outfile:
+            print >>self.outfile, "(dash) %s" % s
+            self.outfile.flush()
+    
     def win_listener(self):
         """
         Windows version of listener - no select().

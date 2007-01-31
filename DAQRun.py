@@ -97,7 +97,10 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     def logmsg(self, m):
         "Log message to logger, but only if logger exists"
         print m
-        if self.log: self.log.dashLog(m)
+        if self.log:
+            self.log.dashLog(m)
+        elif self.catchAllLogger:
+            self.catchAllLogger.localAppend(m)
 
     def parseComponentName(componentString):
         "Find component name in string returned by CnCServer"
@@ -329,7 +332,10 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         """
         if self.runSetID:
             self.logmsg("Breaking run set...")
-            cncrpc.rpccall("rpc_runset_break", self.runSetID)
+            try:
+                cncrpc.rpccall("rpc_runset_break", self.runSetID)
+            except Exception, e:
+                self.logmsg("WARNING: failed to break run set - CnC Server restarted?  Forging on...")
             self.setCompIDs = []
             self.runSetID   = None
             self.lastConfig = None
@@ -371,18 +377,22 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
 
         self.cnc = RPCClient("localhost", DAQRun.CNC_PORT)
 
+        logDirCreated = False
+        
         while 1:
             if self.runState == "STARTING":
+                logDirCreated = False
                 try:
                     runStartTime = None
                     # once per config/runset
-                    if self.configName != self.lastConfig:
+                    if self.configName != self.lastConfig: 
                         self.break_existing_runset(self.cnc)
                         self.build_run_set(self.cnc, self.configName, self.configDir)
-                        
+                                                                                        
                     self.fill_component_dictionaries(self.cnc)
                     # once per run
                     self.setup_run_logging(self.cnc, self.logDir, self.runNum, self.configName)
+                    logDirCreated = True
                     self.setup_component_loggers(self.cnc, self.ip, self.runSetID, SocketLogger.LOGLEVEL_INFO)
                     self.setup_monitoring()
                     self.setup_watchdog()
@@ -440,11 +450,12 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     self.logmsg("Run terminated WITH ERROR.")
                 else:
                     self.logmsg("Run terminated SUCCESSFULLY.")
-                
-                self.catchAllLogger.stopServing() 
-                self.queue_for_spade(self.spadeDir, self.logDir, self.runNum,
-                                     datetime.datetime.now(), duration)
-                self.catchAllLogger.startServing()
+
+                if logDirCreated:
+                    self.catchAllLogger.stopServing() 
+                    self.queue_for_spade(self.spadeDir, self.logDir, self.runNum,
+                                         datetime.datetime.now(), duration)
+                    self.catchAllLogger.startServing()
                 
                 if self.log is not None:
                     self.log.close()
