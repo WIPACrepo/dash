@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+# RunSummary.py
+# jacobsen@npxdesigns.com
+# Dec. 06/Jan. 07
+#
 
 import tarfile
 import optparse
