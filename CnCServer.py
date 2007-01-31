@@ -982,6 +982,7 @@ class DAQServer(DAQPool):
             self.server.register_function(self.rpc_get_num_components)
             self.server.register_function(self.rpc_log_to)
             self.server.register_function(self.rpc_log_to_default)
+            self.server.register_function(self.rpc_num_sets)
             self.server.register_function(self.rpc_ping)
             self.server.register_function(self.rpc_register_component)
             self.server.register_function(self.rpc_runset_break)
@@ -994,7 +995,6 @@ class DAQServer(DAQPool):
             self.server.register_function(self.rpc_runset_status)
             self.server.register_function(self.rpc_runset_stop_run)
             self.server.register_function(self.rpc_show_components)
-            self.server.register_function(self.rpc_num_sets)
 
     def createClient(self, name, num, host, port, mbeanPort, connectors):
         "overrideable method used for testing"
@@ -1018,6 +1018,10 @@ class DAQServer(DAQPool):
         "reset logging to the default logger"
         self.resetLog()
         return 1
+
+    def rpc_num_sets(self):
+        "show existing run sets"
+        return len(self.sets)
 
     def rpc_ping(self):
         "remote method for far end to confirm that server is still alive"
@@ -1166,10 +1170,6 @@ class DAQServer(DAQPool):
         runSet.resetLogging()
 
         return "OK"
-
-    def rpc_num_sets(self):
-        "show existing run sets"
-        return len(self.sets)
 
     def rpc_show_components(self):
         "show unused components and their current states"
