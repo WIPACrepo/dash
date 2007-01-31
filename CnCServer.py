@@ -968,10 +968,11 @@ class DAQServer(DAQPool):
     DEFAULT_LOG_LEVEL = 'info'
 
     def __init__(self, name="GenericServer", port=8080,
-                 logIP=None, logPort=None, testOnly=False):
+                 logIP=None, logPort=None, testOnly=False, showSpinner=False):
         "Create a DAQ command and configuration server"
         self.port = port
         self.name = name
+        self.showSpinner = showSpinner
 
         self.id = int(time())
 
@@ -1226,7 +1227,7 @@ class CnCServer(DAQServer):
         while True:
             if new:
                 print "%d bins" % len(self.pool)
-            else:
+            elif self.showSpinner:
                 sys.stderr.write(spinStr[spinner:spinner+1] + "\r")
                 spinner = (spinner + 1) % len(spinStr)
 
@@ -1246,10 +1247,11 @@ class CnCServer(DAQServer):
 
 if __name__ == "__main__":
     p = optparse.OptionParser()
-    p.add_option("-k", "--kill",    action="store_true", dest="kill")
-    p.add_option("-l", "--log",     action="store",      type="string", dest="log")
-    p.add_option("-p", "--port",    action="store",      type="int",    dest="port")
-    p.add_option("-d", "--daemon",  action="store_true", dest="daemon")
+    p.add_option("-S", "--showSpinner", action="store_true", dest="showSpinner")
+    p.add_option("-d", "--daemon",      action="store_true", dest="daemon")
+    p.add_option("-k", "--kill",        action="store_true", dest="kill")
+    p.add_option("-l", "--log",         action="store",      type="string",     dest="log")
+    p.add_option("-p", "--port",        action="store",      type="int",        dest="port")
     p.set_defaults(kill     = False,
                    nodaemon = False,
                    port     = 8080)
@@ -1285,7 +1287,8 @@ if __name__ == "__main__":
 
     if opt.daemon: Daemon.Daemon().Daemonize()
 
-    cnc = CnCServer("CnCServer", opt.port, logIP, logPort)
+    cnc = CnCServer("CnCServer", opt.port, logIP, logPort, False,
+                    opt.showSpinner)
     try:
         cnc.run()
     except KeyboardInterrupt, k:
