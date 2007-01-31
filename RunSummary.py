@@ -9,10 +9,17 @@ import tarfile
 import optparse
 import datetime
 from sys import stderr
-from os import listdir, mkdir, environ, stat
+from os import listdir, mkdir, environ, stat, popen
 from os.path import exists, isdir, abspath
 from shutil import copy
 from re import *
+
+def checkForRunningProcesses():
+    c = popen("pgrep -fl 'python .+RunSummary.py'", "r")
+    l = c.read()
+    num = len(l.split('\n'))
+    if num < 3: return False # get extra \n at end of command
+    return True
 
 def check_make_or_exit(dir):
     if not exists(dir):
@@ -56,6 +63,10 @@ if __name__ == "__main__":
 
     opt, args = p.parse_args()
 
+    if checkForRunningProcesses():
+        print "RunSummary.py is already running."
+        raise SystemExit
+    
     if not exists(opt.spadeDir):
         print "Can't find %s... giving up." % opt.spadeDir
         raise SystemExit
