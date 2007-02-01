@@ -97,10 +97,9 @@ def startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose
                 if verbose: print cmd
                 if not dryRun: system(cmd)
             else:                            # Have to ssh to run it
-                cmd = "ssh %s \"%s/StartComponent.py -c %s -s %s --cnc %s:%d --log %s:%d %s %s \""  \
-                      % (node.hostName, dashDir, subProjectDict[comp.compName],
-                         runScriptDict[comp.compName],
-                         myIP, cncPort, myIP, logPort, idStr, devNull)
+                cmd = "echo \"cd pDAQ_trunk; ./dash/StartComponent.py -c %s -s %s --cnc %s:%d --log %s:%d %s %s \" | ssh -T %s"  \
+                      % (subProjectDict[comp.compName], runScriptDict[comp.compName],
+                         myIP, cncPort, myIP, logPort, idStr, devNull, node.hostName)
                 if verbose: print cmd
                 if not dryRun: system(cmd)
                         
