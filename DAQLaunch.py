@@ -95,14 +95,14 @@ def startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose
                       % (dashDir, subProjectDict[comp.compName], runScriptDict[comp.compName],
                          cncPort, logPort, idStr, verboseSwitch, devNull)
                 if verbose: print cmd
-                system(cmd)
+                if not dryRun: system(cmd)
             else:                            # Have to ssh to run it
                 cmd = "ssh %s \"%s/StartComponent.py -c %s -s %s --cnc %s:%d --log %s:%d %s %s \""  \
                       % (node.hostName, dashDir, subProjectDict[comp.compName],
                          runScriptDict[comp.compName],
                          myIP, cncPort, myIP, logPort, idStr, devNull)
                 if verbose: print cmd
-                system(cmd)
+                if not dryRun: system(cmd)
                         
 def doKill(dryRun, dashDir, verbose, clusterConfig):
     # Kill DAQRun
@@ -146,13 +146,11 @@ def main():
     p.add_option("-c", "--config-name",  action="store", type="string", dest="configName")
     p.add_option("-l", "--log-port",     action="store", type="int",    dest="logPort")
     p.add_option("-r", "--cnc-port",     action="store", type="int",    dest="cncPort")
-    p.add_option("-p", "--parallel",     action="store_true",           dest="doParallel")
     p.add_option("-n", "--dry-run",      action="store_true",           dest="dryRun")
     p.add_option("-s", "--skip-kill",    action="store_true",           dest="skipKill")
     p.add_option("-k", "--kill-only",    action="store_true",           dest="killOnly")
     p.add_option("-v", "--verbose",      action="store_true",           dest="verbose")
     p.set_defaults(clusterConfigName = "sim-localhost",
-                   doParallel = False,
                    dryRun     = False,
                    verbose    = False,
                    logPort    = 9001,
