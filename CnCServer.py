@@ -1263,7 +1263,7 @@ if __name__ == "__main__":
         pid = int(os.getpid())
         for p in pids:
             if pid != p:
-                print "Killing %d..." % p
+                # print "Killing %d..." % p
                 import signal
                 os.kill(p, signal.SIGKILL)
                 

@@ -28,6 +28,7 @@ import Daemon
 import socket
 import thread
 import os
+from GetIP import getIP
 
 class RequiredComponentsNotAvailableException(Exception): pass
 class IncorrectDAQState(Exception): pass
@@ -75,7 +76,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.loggerOf        = {} # "                  "
         self.logPortOf       = {} # "                  "
         
-        self.ip              = self.getIP()
+        self.ip              = getIP()
         self.compPorts       = {} # Indexed by name
         self.cnc             = None
         self.moni            = None
@@ -84,15 +85,6 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
 
         # After initialization, start run thread to handle state changes
         self.runThread = thread.start_new_thread(self.run_thread, ())
-        
-    def getIP(self):
-        """
-        Found this gem of a kludge at
-        http://mail.python.org/pipermail/python-list/2005-January/300454.html
-        """
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(('1.2.3.4', 56))
-        return s.getsockname()[0]
         
     def logmsg(self, m):
         "Log message to logger, but only if logger exists"
@@ -546,7 +538,7 @@ if __name__ == "__main__":
         pid = int(os.getpid())
         for p in pids:
             if pid != p:
-                print "Killing %d..." % p
+                # print "Killing %d..." % p
                 import signal
                 os.kill(p, signal.SIGKILL)
                 

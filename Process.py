@@ -4,7 +4,7 @@ import os
 import re
 
 def processList():
-    (cmdin, cmdout) = os.popen4("ps ax"); cmdin.close()
+    (cmdin, cmdout) = os.popen4("ps axww"); cmdin.close()
     output = cmdout.read()
     result = cmdout.close()
     if result:
@@ -14,7 +14,7 @@ def processList():
 
 def findProcess(name, plist): # Iterate over list plist
     for p in plist:
-        m = re.match(r'\s*(\d+)\s+.+?python \S+%s' % name, p)
+        m = re.match(r'\s*(\d+)\s+.+?python .+?%s' % name, p)
         if m:
             yield int(m.group(1))
     return
