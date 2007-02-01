@@ -143,7 +143,7 @@ def doLaunch(dryRun, verbose, clusterConfig, dashDir,
             
 def main():
     p = optparse.OptionParser()
-    p.add_option("-c", "--config-name",  action="store", type="string", dest="configName")
+    p.add_option("-c", "--config-name",  action="store", type="string", dest="clusterConfigName")
     p.add_option("-l", "--log-port",     action="store", type="int",    dest="logPort")
     p.add_option("-r", "--cnc-port",     action="store", type="int",    dest="cncPort")
     p.add_option("-n", "--dry-run",      action="store_true",           dest="dryRun")
