@@ -879,10 +879,6 @@ class DAQPool(CnCLogger):
                 if new:
                     self.logmsg("    %s %s" % (str(c), state))
 
-        for s in self.sets:
-            if s.isRunning():
-                self.logmsg(str(s))
-
         return count
 
     def remove(self, comp):
