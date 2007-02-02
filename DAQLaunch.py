@@ -29,14 +29,14 @@ def findHost(component, compID, clusterConfig):
             if comp.compName == component and comp.compID == compID: return node.hostName
     raise HostNotFoundForComponent(component+":"+compID)
 
-def killJavaProcesses(dryRun, clusterConfig, verbose):
+def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9):
     classDict = { "eventBuilder"      : "icecube.daq.eventBuilder.EBComponent",
                   "SecondaryBuilders" : "icecube.daq.secBuilder.SBComponent",
                   "inIceTrigger"      : "icecube.daq.trigger.component.IniceTriggerComponent",
                   "globalTrigger"     : "icecube.daq.trigger.component.GlobalTriggerComponent",
                   "StringHub"         : "icecube.daq.stringhub"
                 }
-    
+
     parallel = ParallelShell()
     for node in clusterConfig.nodes:
         for comp in node.comps:
@@ -45,12 +45,14 @@ def killJavaProcesses(dryRun, clusterConfig, verbose):
                                                           node.hostName)
             if not classDict.has_key(comp.compName): raise JavaClassNotFoundForComponent(comp.compName)
             javaClass = classDict[ comp.compName ]
+            if killWith9: niner = "-9"
+            else:         niner = ""
             if node.hostName == "localhost": # Just kill it
-                parallel.add("pkill -fu %s %s"    % (environ["USER"], javaClass))
-                parallel.add("sleep 2; pkill -9 -fu %s %s" % (environ["USER"], javaClass))
+                parallel.add("pkill %s -fu %s %s" % (niner, environ["USER"], javaClass))
+                if not killWith9: parallel.add("sleep 2; pkill -9 -fu %s %s" % (environ["USER"], javaClass))
             else:                            # Have to ssh to kill
-                parallel.add("ssh %s pkill -f %s" % (node.hostName, javaClass))
-                parallel.add("sleep 2; ssh %s pkill -9 -f %s" % (node.hostName, javaClass))
+                parallel.add("ssh %s pkill %s -f %s" % (node.hostName, niner, javaClass))
+                if not killWith9: parallel.add("sleep 2; ssh %s pkill -9 -f %s" % (node.hostName, javaClass))
 
     if verbose and not dryRun: parallel.showAll()
     if not dryRun:
@@ -74,7 +76,7 @@ def startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose
 
 
     myIP = getIP()
-    
+
     for node in clusterConfig.nodes:
         for comp in node.comps:
             if verbose: print "Starting %s:%d on %s..." % (comp.compName,
@@ -103,7 +105,7 @@ def startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose
                 if verbose: print cmd
                 if not dryRun: system(cmd)
                         
-def doKill(dryRun, dashDir, verbose, clusterConfig):
+def doKill(dryRun, dashDir, verbose, clusterConfig, killWith9):
     # Kill DAQRun
     cmd = "%s/DAQRun.py -k" % dashDir
     if verbose: print cmd
@@ -114,7 +116,7 @@ def doKill(dryRun, dashDir, verbose, clusterConfig):
     if verbose: print cmd
     if not dryRun: system(cmd)
 
-    killJavaProcesses(dryRun, clusterConfig, verbose)
+    killJavaProcesses(dryRun, clusterConfig, verbose, killWith9)
     
 def doLaunch(dryRun, verbose, clusterConfig, dashDir,
              configDir, logDir, spadeDir, logPort, cncPort):
@@ -123,8 +125,9 @@ def doLaunch(dryRun, verbose, clusterConfig, dashDir,
         cmd = "%s/DAQRun.py -c %s -l %s -s %s -n &" % (dashDir, configDir, logDir, spadeDir)
         # Fixme - this is a little kludgy, but CnCServer won't log correctly if DAQRun isn't started.
         print cmd
-        if not dryRun: system(cmd)
-        sleep(5)
+        if not dryRun:
+            system(cmd)
+            sleep(5)
     else:
         cmd = "%s/DAQRun.py -c %s -l %s -s %s" % (dashDir, configDir, logDir, spadeDir)
         if not dryRun: system(cmd)
@@ -148,6 +151,8 @@ def main():
     p.add_option("-n", "--dry-run",      action="store_true",           dest="dryRun")
     p.add_option("-s", "--skip-kill",    action="store_true",           dest="skipKill")
     p.add_option("-k", "--kill-only",    action="store_true",           dest="killOnly")
+    p.add_option("-9", "--kill-kill",    action="store_true",           dest="killWith9",
+                 help="just kill everything dead")
     p.add_option("-v", "--verbose",      action="store_true",           dest="verbose")
     p.set_defaults(clusterConfigName = "sim-localhost",
                    dryRun     = False,
@@ -155,6 +160,7 @@ def main():
                    logPort    = 9001,
                    cncPort    = 8080,
                    skipKill   = False,
+                   killWith9  = False,
                    killOnly   = False)
     opt, args = p.parse_args()
 
@@ -178,7 +184,7 @@ def main():
                 print "%s:%d " % (comp.compName, comp.compID),
             print
 
-    if not opt.skipKill: doKill(opt.dryRun, dashDir, opt.verbose, clusterConfig)
+    if not opt.skipKill: doKill(opt.dryRun, dashDir, opt.verbose, clusterConfig, opt.killWith9)
     if not opt.killOnly: doLaunch(opt.dryRun, opt.verbose, clusterConfig,
                                   dashDir, configDir, logDir, spadeDir, opt.logPort, opt.cncPort)
 
