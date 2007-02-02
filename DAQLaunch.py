@@ -10,7 +10,7 @@
 import sys
 from os import system, environ
 from time import sleep
-from os.path import abspath
+from os.path import abspath, isabs
 import optparse
 clustConfigPath = abspath("../cluster-config")
 sys.path.append(clustConfigPath)
@@ -164,13 +164,18 @@ def main():
                    killOnly   = False)
     opt, args = p.parse_args()
 
+    metaDir   = abspath("..")
     configDir = abspath("../config")
     logDir    = abspath("../log")
-    spadeDir  = abspath("../spade")
     dashDir   = abspath(".")
     clusterConfigDir = abspath("../cluster-config/src/main/xml")
-    clusterConfig = deployConfig(clusterConfigDir, opt.clusterConfigName)
+    clusterConfig    = deployConfig(clusterConfigDir, opt.clusterConfigName)
+    spadeDir  = clusterConfig.logDirForSpade
+    if not isabs(spadeDir): # Assume non-fully-qualified paths are relative to metaproject top dir
+        spadeDir = metaDir+"/"+spadeDir
 
+    if not exists(spadeDir): mkdir(spadeDir)
+    
     if not exists(logDir):
         mkdir(logDir)
     else:
