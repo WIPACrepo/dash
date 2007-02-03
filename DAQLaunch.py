@@ -8,12 +8,17 @@
 # Started January, 2007
 
 import sys
-from os import system, environ
+from os import environ, system
 from time import sleep
-from os.path import abspath, isabs
+from os.path import abspath, isabs, join
 import optparse
-clustConfigPath = abspath("../cluster-config")
-sys.path.append(clustConfigPath)
+from locate_pdaq import find_pdaq_trunk
+
+# add 'cluster-config' to Python library search path
+#
+metaDir = find_pdaq_trunk()
+sys.path.append(join(metaDir, 'cluster-config'))
+
 from ClusterConfig import *
 from ParallelShell import *
 from GetIP import getIP
@@ -99,20 +104,22 @@ def startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose
                 if verbose: print cmd
                 if not dryRun: system(cmd)
             else:                            # Have to ssh to run it
-                cmd = "echo \"cd pDAQ_trunk; ./dash/StartComponent.py -c %s -s %s --cnc %s:%d --log %s:%d %s %s \" | ssh -T %s"  \
-                      % (subProjectDict[comp.compName], runScriptDict[comp.compName],
+                cmd = "echo \"cd %s; ./dash/StartComponent.py -c %s -s %s --cnc %s:%d --log %s:%d %s %s \" | ssh -T %s"  \
+                      % (metaDir, subProjectDict[comp.compName], runScriptDict[comp.compName],
                          myIP, cncPort, myIP, logPort, idStr, devNull, node.hostName)
                 if verbose: print cmd
                 if not dryRun: system(cmd)
                         
 def doKill(dryRun, dashDir, verbose, clusterConfig, killWith9):
     # Kill DAQRun
-    cmd = "%s/DAQRun.py -k" % dashDir
+    daqRun = join(dashDir, 'DAQRun.py')
+    cmd = daqRun + ' -k'
     if verbose: print cmd
     if not dryRun: system(cmd)
 
     # Kill CnCServer
-    cmd = "%s/CnCServer.py -k" % dashDir
+    cncServer = join(dashDir, 'CnCServer.py')
+    cmd = cncServer + ' -k'
     if verbose: print cmd
     if not dryRun: system(cmd)
 
@@ -121,24 +128,26 @@ def doKill(dryRun, dashDir, verbose, clusterConfig, killWith9):
 def doLaunch(dryRun, verbose, clusterConfig, dashDir,
              configDir, logDir, spadeDir, logPort, cncPort):
     # Start DAQRun
+    daqRun = join(dashDir, 'DAQRun.py')
     if verbose:
-        cmd = "%s/DAQRun.py -c %s -l %s -s %s -n &" % (dashDir, configDir, logDir, spadeDir)
+        cmd = "%s -c %s -l %s -s %s -n &" % (daqRun, configDir, logDir, spadeDir)
         # Fixme - this is a little kludgy, but CnCServer won't log correctly if DAQRun isn't started.
         print cmd
         if not dryRun:
             system(cmd)
             sleep(5)
     else:
-        cmd = "%s/DAQRun.py -c %s -l %s -s %s" % (dashDir, configDir, logDir, spadeDir)
+        cmd = "%s -c %s -l %s -s %s" % (daqRun, configDir, logDir, spadeDir)
         if not dryRun: system(cmd)
 
     # Start CnCServer
+    cncServer = join(dashDir, 'CnCServer.py')
     if verbose:
-        cmd = "%s/CnCServer.py -l localhost:9001 &" % dashDir
+        cmd = "%s -l localhost:9001 &" % cncServer
         print cmd
         if not dryRun: system(cmd)
     else:
-        cmd = "%s/CnCServer.py -l localhost:9001 -d" % dashDir
+        cmd = "%s -l localhost:9001 -d" % cncServer
         if not dryRun: system(cmd)
 
     startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose)
@@ -146,14 +155,14 @@ def doLaunch(dryRun, verbose, clusterConfig, dashDir,
 def main():
     p = optparse.OptionParser()
     p.add_option("-c", "--config-name",  action="store", type="string", dest="clusterConfigName")
-    p.add_option("-l", "--log-port",     action="store", type="int",    dest="logPort")
-    p.add_option("-r", "--cnc-port",     action="store", type="int",    dest="cncPort")
-    p.add_option("-n", "--dry-run",      action="store_true",           dest="dryRun")
-    p.add_option("-s", "--skip-kill",    action="store_true",           dest="skipKill")
     p.add_option("-k", "--kill-only",    action="store_true",           dest="killOnly")
+    p.add_option("-l", "--log-port",     action="store", type="int",    dest="logPort")
+    p.add_option("-n", "--dry-run",      action="store_true",           dest="dryRun")
+    p.add_option("-r", "--cnc-port",     action="store", type="int",    dest="cncPort")
+    p.add_option("-s", "--skip-kill",    action="store_true",           dest="skipKill")
+    p.add_option("-v", "--verbose",      action="store_true",           dest="verbose")
     p.add_option("-9", "--kill-kill",    action="store_true",           dest="killWith9",
                  help="just kill everything dead")
-    p.add_option("-v", "--verbose",      action="store_true",           dest="verbose")
     p.set_defaults(clusterConfigName = "sim-localhost",
                    dryRun     = False,
                    verbose    = False,
@@ -164,22 +173,22 @@ def main():
                    killOnly   = False)
     opt, args = p.parse_args()
 
-    metaDir   = abspath("..")
-    configDir = abspath("../config")
-    logDir    = abspath("../log")
-    dashDir   = abspath(".")
-    clusterConfigDir = abspath("../cluster-config/src/main/xml")
+    configDir = join(metaDir, 'config')
+    logDir    = join(metaDir, 'log')
+    dashDir   = join(metaDir, 'dash')
+    clusterConfigDir = join(metaDir, 'cluster-config', 'src', 'main', 'xml')
+
     clusterConfig    = deployConfig(clusterConfigDir, opt.clusterConfigName)
     spadeDir  = clusterConfig.logDirForSpade
     if not isabs(spadeDir): # Assume non-fully-qualified paths are relative to metaproject top dir
-        spadeDir = metaDir+"/"+spadeDir
+        spadeDir = join(metaDir, spadeDir)
 
     if not exists(spadeDir): mkdir(spadeDir)
     
     if not exists(logDir):
         mkdir(logDir)
     else:
-        system("rm -f %s/catchall.log" % logDir)
+        system('rm -f %s' % join(logDir, 'catchall.log'))
     
     if opt.verbose:
         print "NODES:"
