@@ -183,10 +183,10 @@ def main():
     if not isabs(spadeDir): # Assume non-fully-qualified paths are relative to metaproject top dir
         spadeDir = join(metaDir, spadeDir)
 
-    if not exists(spadeDir): mkdir(spadeDir)
+    if not exists(spadeDir) and not opt.dryRun: mkdir(spadeDir)
     
     if not exists(logDir):
-        mkdir(logDir)
+        if not opt.dryRun: mkdir(logDir)
     else:
         system('rm -f %s' % join(logDir, 'catchall.log'))
     
