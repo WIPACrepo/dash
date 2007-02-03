@@ -45,7 +45,9 @@ class DAQRunIface(object):
     
     def getSummary(self):
         "Get component summary from DAQRun"
-        return "<daq/>"
+        return """\
+<daq/>
+"""
     
     def release(self):
         """
@@ -55,3 +57,11 @@ class DAQRunIface(object):
         self.rpc.rpc_release_runsets()
         return DAQRunIface.RELEASE_TRANSITION_SECONDS
     
+
+    def getDaqLabels(self):
+        result = {}
+        result['Physics'] = ('hub1001sim',
+                             'Standard physics data-taking [implemented as sim only right now]',
+                             'Physics')
+        return result
+                                                                                                
