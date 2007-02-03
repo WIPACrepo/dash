@@ -252,7 +252,7 @@ def main():
             print "%s -> %s" % (f, runInfoString)
             outDir = runDir + "/" + runInfoString
             check_make_or_exit(outDir)
-            tarFile     = opt.spadeDir + "/" + f
+            tarFile     = f
             copyFile    = outDir + "/" + basename(f)
             datTar      = outDir + "/" + prefix + runInfoString + ".dat.tar"
             snippetFile = outDir + "/.snippet"
