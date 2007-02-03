@@ -337,6 +337,9 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             if self.shortNameOf[cid] == "eventBuilder" and self.daqIDof[cid] == 0:
                 return int(self.moni.getSingleBeanField(cid, "backEnd", "NumEventsSent"))
         raise Exception("Could not find eventBuilder component 0!!!!")
+
+    unHealthyCount      = 0
+    MAX_UNHEALTHY_COUNT = 3
     
     def check_all(self):
         try:
@@ -350,14 +353,20 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
 
         try:
             if self.watchdog and self.watchdog.timeToWatch():
-                self.watchdog.doWatch()
+                healthy = self.watchdog.doWatch()
+                if healthy:
+                    DAQRun.unHealthyCount = 0
+                else:
+                    DAQRun.unHealthyCount += 1
+                    if DAQRun.unHealthyCount >= DAQRun.MAX_UNHEALTHY_COUNT:
+                        DAQRun.unHealthyCount = 0
+                        return False
                     
         except Exception, e:
             self.logmsg("Exception in run watchdog: %s" % exc_string())
             return False
-
         return True
-        
+    
     def run_thread(self):
         """
         Handle state transitions.

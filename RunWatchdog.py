@@ -250,7 +250,7 @@ class RunWatchdog(object):
     def doWatch(self):
         now = datetime.datetime.now()
         self.tlast = now
-
+        healthy = True
         starved = []
         stagnant = []
 
@@ -298,14 +298,19 @@ class RunWatchdog(object):
             if noInStr:
                 self.logmsg('** Run watchdog reports stagnant components: ' +
                             noOutStr + ' and starved components: ' + noInStr)
+                healthy = False
             else:
                 self.logmsg('** Run watchdog reports stagnant components: ' +
                             noOutStr)
+                healthy = False
         elif noInStr:
             self.logmsg('** Run watchdog reports starving components: ' +
                         noInStr)
-        else:
-            self.logmsg('** Run watchdog reports all components are healthy')
+            healthy = False
+        #else:
+            # self.logmsg('** Run watchdog reports all components are healthy')
+
+        return healthy
 
     def logmsg(self, m):
         "Log message to logger, but only if logger exists"
