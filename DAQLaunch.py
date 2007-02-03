@@ -8,7 +8,7 @@
 # Started January, 2007
 
 import sys
-from os import environ, system
+from os import environ, mkdir, system
 from time import sleep
 from os.path import abspath, isabs, join
 import optparse
