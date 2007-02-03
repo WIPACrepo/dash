@@ -81,7 +81,7 @@ def startJavaProcesses(dryRun, realHubs, clusterConfig, dashDir, logPort, cncPor
 
 
     myIP = getIP()
-
+    parallel = ParallelShell()
     for node in clusterConfig.nodes:
         for comp in node.comps:
             if verbose: print "Starting %s:%d on %s..." % (comp.compName,
@@ -106,13 +106,24 @@ def startJavaProcesses(dryRun, realHubs, clusterConfig, dashDir, logPort, cncPor
                       % (dashDir, subProjectDict[comp.compName], runScriptDict[comp.compName],
                          cncPort, logPort, idStr, verboseSwitch, devNull, realArg)
                 if verbose: print cmd
-                if not dryRun: system(cmd)
+                parallel.add(cmd)
             else:                            # Have to ssh to run it
-                cmd = "echo \"cd %s; ./dash/StartComponent.py -c %s -s %s --cnc %s:%d --log %s:%d %s %s %s \" | ssh -T %s"  \
-                      % (metaDir, subProjectDict[comp.compName], runScriptDict[comp.compName],
-                         myIP, cncPort, myIP, logPort, idStr, devNull, realArg, node.hostName)
+                if comp.compName == "StringHub":
+                    cmd = "echo \"cd %s; ./dash/StartComponent.py -c %s -s %s --cnc %s:%d --log %s:%d %s %s %s \" | ssh -T %s"  \
+                          % (metaDir, subProjectDict[comp.compName], runScriptDict[comp.compName],
+                             myIP, cncPort, myIP, logPort, idStr, devNull, realArg, node.hostName)
+                else:
+                    cmd = "ssh %s \'cd %s && ./dash/StartComponent.py -c %s -s %s --cnc %s:%d --log %s:%d %s %s \'"  \
+                          % (node.hostName, metaDir, subProjectDict[comp.compName], runScriptDict[comp.compName],
+                             myIP, cncPort, myIP, logPort, idStr, devNull)
+
                 if verbose: print cmd
-                if not dryRun: system(cmd)
+                parallel.add(cmd)
+    if verbose and not dryRun: parallel.showAll()
+    if not dryRun:
+        parallel.start()
+        parallel.wait()
+    if verbose: print "Done."; parallel.showAll()                        
                         
 def doKill(dryRun, dashDir, verbose, clusterConfig, killWith9):
     # Kill DAQRun
