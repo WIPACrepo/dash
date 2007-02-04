@@ -196,8 +196,10 @@ def main():
     p.add_option("-s", "--spade-dir",   action="store", type="string", dest="spadeDir")
     p.add_option("-o", "--output-dir",  action="store", type="string", dest="outputDir")
     p.add_option("-a", "--replace-all", action="store_true",           dest="replaceAll")
+    p.add_option("-v", "--verbose",     action="store_true",           dest="verbose")
     p.set_defaults(spadeDir   = "/mnt/data/spade/localcopies/daq",
                    outputDir  = "%s/public_html/daq-reports" % environ["HOME"],
+                   verbose    = False,
                    replaceAll = False)
 
     opt, args = p.parse_args()
@@ -214,7 +216,6 @@ def main():
 
     latestTime = getLatestFileTime(opt.spadeDir)
     doneTime   = getDoneFileTime(opt.outputDir)
-
     if latestTime and doneTime and latestTime < doneTime and not opt.replaceAll: raise SystemExit
     
     runDir = opt.outputDir+"/runs"
@@ -240,6 +241,7 @@ def main():
     l = traverseList(opt.spadeDir)
     # l = listdir(opt.spadeDir)
     l.sort(cmp)
+
     for f in l:
         prefix = 'SPS-pDAQ-run-'
         if search(r'.done$', f): continue # Skip SPADE .done semaphores
@@ -249,7 +251,7 @@ def main():
             runInfoString = match.group(1)
             match = search(infoPat, runInfoString)
             if not match: continue
-            print "%s -> %s" % (f, runInfoString)
+            if opt.verbose: print "%s -> %s" % (f, runInfoString)
             outDir = runDir + "/" + runInfoString
             check_make_or_exit(outDir)
             tarFile     = f
@@ -261,11 +263,13 @@ def main():
             # print datTar
             # Skip if tarball has already been copied
             if not exists(copyFile) or not exists(snippetFile) \
-               or not exists(datTar) \
-               or opt.replaceAll:
+                or not exists(datTar) \
+                or opt.replaceAll:
 
                 # Move tarballs into target run directories
                 if not exists(copyFile):
+
+
                     print "%s -> %s/" % (f, outDir)
                     copy(tarFile, copyFile)
                     if not tarfile.is_tarfile(copyFile):
@@ -279,12 +283,17 @@ def main():
 
                     if not exists(datTar):
                         raise Exception("Tarball %s didn't contain %s!", copyFile, datTar)
-
+                    
                 # Extract contents
                 status = None; configName = None
                 tar = tarfile.open(datTar)
                 for el in tar.getnames():
-                    tar.extract(el, outDir)
+
+                    # Extract contents if not already extracted
+                    if opt.replaceAll or not exists("%s/%s" % (outDir, el)):
+                        if opt.verbose: print "extracting %s..." % el
+                        tar.extract(el, outDir)
+                        
                     # Find dash.log
                     if search(r'dash.log', el):
                         dashFile = outDir + "/" + el
