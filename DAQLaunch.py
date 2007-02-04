@@ -172,7 +172,9 @@ def main():
     p.add_option("-R", "--real-hubs",    action="store_true",           dest="realHubs")
     p.add_option("-c", "--config-name",  action="store", type="string", dest="clusterConfigName")
     p.add_option("-k", "--kill-only",    action="store_true",           dest="killOnly")
-    p.add_option("-l", "--log-port",     action="store", type="int",    dest="logPort")
+    p.add_option("-l", "--list-configs", action="store_true",           dest="doList",
+                 help="List available configs")
+    p.add_option("-o", "--log-port",     action="store", type="int",    dest="logPort")
     p.add_option("-n", "--dry-run",      action="store_true",           dest="dryRun")
     p.add_option("-r", "--cnc-port",     action="store", type="int",    dest="cncPort")
     p.add_option("-s", "--skip-kill",    action="store_true",           dest="skipKill")
@@ -183,6 +185,7 @@ def main():
                    realHubs   = False,
                    dryRun     = False,
                    verbose    = False,
+                   doList     = False,
                    logPort    = 9001,
                    cncPort    = 8080,
                    skipKill   = False,
@@ -194,6 +197,8 @@ def main():
     logDir    = join(metaDir, 'log')
     dashDir   = join(metaDir, 'dash')
     clusterConfigDir = join(metaDir, 'cluster-config', 'src', 'main', 'xml')
+
+    if opt.doList: showConfigs(clusterConfigDir); raise SystemExit
 
     clusterConfig    = deployConfig(clusterConfigDir, opt.clusterConfigName)
     spadeDir  = clusterConfig.logDirForSpade
