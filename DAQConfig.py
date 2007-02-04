@@ -82,9 +82,8 @@ class DAQConfig(object):
             configList = []
         else:
             for domConfig in configs[0].getElementsByTagName("domConfigList"):
-                if len(domConfig) < 1: raise noDOMConfigFound()
                 
-                domConfigName = domConfig[0].childNodes[0].data
+                domConfigName = domConfig.childNodes[0].data
                 domConfigXML = configDir + "/" + domConfigName + ".xml"
                 
                 if not exists(domConfigXML): raise noDOMConfigFound()
