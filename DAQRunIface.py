@@ -63,5 +63,5 @@ class DAQRunIface(object):
         result['Physics'] = ('hub1001sim',
                              'Standard physics data-taking [implemented as sim only right now]',
                              'Physics')
-        return result
-                                                                                                
+        return result, 'Physics'
+    
