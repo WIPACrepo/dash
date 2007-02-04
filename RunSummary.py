@@ -267,7 +267,7 @@ def main():
                 or opt.replaceAll:
 
                 # Move tarballs into target run directories
-                if not exists(copyFile) or not exists(datDar):
+                if not exists(copyFile) or not exists(datTar):
 
 
                     print "%s -> %s/" % (f, outDir)
