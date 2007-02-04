@@ -138,7 +138,7 @@ class WatchData(object):
 
             valList = self.client.mbean.getList(watchList[0].beanName, fldList)
             for i in range(0,len(fldList)):
-                prevVal = watchList[0].prevValue
+                prevVal = watchList[i].prevValue
                 if not watchList[i].check(valList[i]):
                     unhealthy.append(str(watchList[i]) + ' (' + str(prevVal) +
                                      '->' + str(valList[i]) + ')')
