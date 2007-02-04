@@ -25,11 +25,13 @@ def main():
     p.add_option("-r", "--remote-node",      action="store", type="string", dest="nodeName")
     p.add_option("-n", "--num-runs",         action="store", type="int",    dest="numRuns")
     p.add_option("-d", "--duration-seconds", action="store", type="int",    dest="duration")
-    p.add_option("-c", "--config-name", action="store", type="string",    dest="configName")
+    p.add_option("-x", "--show-status-xml",  action="store_true",           dest="showXML")
+    p.add_option("-c", "--config-name", action="store", type="string",      dest="configName")
     p.set_defaults(nodeName   = "localhost",
                    numRuns    = 10000000,
                    portNum    = 9000,
-                   duration = 300,
+                   duration   = 300,
+                   showXML    = False,
                    configName = "hub1001sim")
     opt, args = p.parse_args()
 
@@ -40,6 +42,7 @@ def main():
     subRunNumber = 0
     configName   = opt.configName
     sleeptime    = 0.4
+    xmlIval      = 10
     lastState    = None
     try:
         for runNumber in xrange(1, opt.numRuns+1):
@@ -58,12 +61,17 @@ def main():
             
             # Monitor run
             tstart = datetime.now()
+            txml   = None
             while True:
                 tnow = datetime.now()
                 if tnow-tstart > timedelta(seconds=opt.duration): break
                 status = daqiface.getState()
                 lastState = updateStatus(lastState, status)
                 if(status == "ERROR"): break
+                if opt.showXML:
+                    if not txml or tnow-txml > timedelta(seconds=xmlIval):
+                        print daqiface.getSummary()
+                        txml = tnow
                 time.sleep(sleeptime)
 
             # Stop run, do error recovery if needed

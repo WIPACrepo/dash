@@ -31,8 +31,22 @@ import os
 from GetIP import getIP
 
 class RequiredComponentsNotAvailableException(Exception): pass
-class IncorrectDAQState(Exception): pass
+class IncorrectDAQState                      (Exception): pass
+class InsufficientRunInfoData                (Exception): pass
 
+class RunInfo:
+    def __init__(self, runNum=None, startTime=None, physicsEvents=None,
+                 moniEvents=None, snEvents=None, tcalEvents=None):
+        self.runNum        = runNum
+        self.startTime     = startTime
+        self.physicsEvents = physicsEvents
+        self.moniEvents    = moniEvents
+        self.snEvents      = snEvents
+        self.tcalEvents    = tcalEvents
+        if runNum == None or startTime == None or physicsEvents == None \
+           or moniEvents == None or snEvents == None or tcalEvents == None:
+            raise InsufficientRunInfoData()
+        
 class DAQRun(RPCServer, Rebootable.Rebootable):
     "Serve requests to start/stop DAQ runs (exp control iface)"
     LOGDIR         = "/tmp" 
@@ -56,6 +70,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.register_function(self.rpc_recover)
         self.register_function(self.rpc_daq_reboot)
         self.register_function(self.rpc_release_runsets)
+        self.register_function(self.rpc_daq_summary_xml)
         self.log             = None
         self.runSetID        = None
         self.CnCLogReceiver  = None
@@ -82,6 +97,8 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.moni            = None
         self.watchdog        = None
         self.lastConfig      = None
+
+        self.prevRunInfo     = None
 
         # After initialization, start run thread to handle state changes
         self.runThread = thread.start_new_thread(self.run_thread, ())
@@ -337,6 +354,13 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             if self.shortNameOf[cid] == "eventBuilder" and self.daqIDof[cid] == 0:
                 return int(self.moni.getSingleBeanField(cid, "backEnd", "NumEventsSent"))
         raise Exception("Could not find eventBuilder component 0!!!!")
+    
+    def getEBDiskUsage(self):
+        for cid in self.setCompIDs:
+            if self.shortNameOf[cid] == "eventBuilder" and self.daqIDof[cid] == 0:
+                return [int(self.moni.getSingleBeanField(cid, "backEnd", "DiskAvailable")),
+                        int(self.moni.getSingleBeanField(cid, "backEnd", "DiskSize"))]
+        raise Exception("Could not find eventBuilder component 0!!!!")
 
     unHealthyCount      = 0
     MAX_UNHEALTHY_COUNT = 3
@@ -345,7 +369,8 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         try:
             if self.moni and self.moni.timeToMoni():
                 self.moni.doMoni()
-                self.logmsg("\t%s events" % self.getEventCount())
+                self.numEvents = self.getEventCount() # Updated in rpc_daq_summary_xml as well
+                self.logmsg("\t%s events" % self.numEvents)
                     
         except Exception, e:
             self.logmsg("Exception in monitoring: %s" % exc_string())
@@ -382,9 +407,10 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         
         while 1:
             if self.runState == "STARTING":
+                self.numEvents = 0
                 logDirCreated = False
                 try:
-                    runStartTime = None
+                    self.runStartTime = None
                     # once per config/runset
                     if self.configName != self.lastConfig: 
                         self.break_existing_runset(self.cnc)
@@ -402,7 +428,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                         self.runset_configure(self.cnc, self.runSetID, self.configName)
 
                     self.lastConfig = self.configName
-                    runStartTime = datetime.datetime.now()
+                    self.runStartTime = datetime.datetime.now()
                     self.start_run(self.cnc)
                     self.runState = "RUNNING"
                 except Exception, e:
@@ -426,12 +452,12 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
 
                 nev      = 0
                 duration = 0
-                if runStartTime != None:
-                    durDelta = datetime.datetime.now()-runStartTime
+                if self.runStartTime != None:
+                    durDelta = datetime.datetime.now()-self.runStartTime
                     duration = durDelta.days*86400 + durDelta.seconds
                     try:
-                        nev = self.getEventCount()
-                        self.logmsg("%d events collected in %d seconds" % (nev, duration))
+                        self.numEvents = self.getEventCount()
+                        self.logmsg("%d events collected in %d seconds" % (self.numEvents, duration))
                     except:
                         self.logmsg("Could not get event count: %s" % exc_string())
                         hadError = True;
@@ -451,6 +477,12 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     self.logmsg("Run terminated WITH ERROR.")
                 else:
                     self.logmsg("Run terminated SUCCESSFULLY.")
+
+                try:
+                    self.prevRunInfo = RunInfo(self.runNum, self.runStartTime, self.numEvents, 0, 0, 0)
+                except:
+                    self.logmsg("Couldn't save run info: %s" % exc_string())
+                    self.prevRunInfo = None
 
                 if logDirCreated:
                     self.catchAllLogger.stopServing() 
@@ -524,6 +556,85 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             raise IncorrectDAQState("DAQ State is %s, need to be %s" % (self.runState, "STOPPED"))
         self.break_existing_runset(self.cnc)
         return 1
+
+    def rpc_daq_summary_xml(self):
+        "Return DAQ status overview XML for Experiment Control"
+
+        # Get summary for current run, if available
+        currentRun = ""
+        prevRun    = ""
+        if self.prevRunInfo:
+                prevRun = """
+   <run ordering="previous">
+      <number>%s</number>
+      <start-time>%s</start-time>
+      <events>
+         <stream>physics</stream>
+         <count>%s</count>
+      </events>
+      <events>
+         <stream>monitor</stream>
+         <count>%s</count>
+      </events>
+      <events>
+         <stream>sn</stream>
+         <count>%s</count>
+      </events>
+      <events>
+         <stream>tcal</stream>
+         <count>%s</count>
+      </events>
+   </run>\
+""" % (self.prevRunInfo.runNum, str(self.prevRunInfo.startTime),
+       self.prevRunInfo.physicsEvents, self.prevRunInfo.moniEvents,
+       self.prevRunInfo.snEvents,      self.prevRunInfo.tcalEvents)
+            
+        if self.runState == "RUNNING":
+            try:
+                self.numEvents       = self.getEventCount() # Updated in check_all as well
+                self.EBDiskAvailable, self.EBDiskSize = self.getEBDiskUsage()
+                currentRun = """
+   <run ordering="current">
+      <number>%s</number>
+      <start-time>%s</start-time>
+      <events>
+         <stream>physics</stream>
+         <count>%s</count>
+      </events>
+      <events>
+         <stream>monitor</stream>
+         <count>%s</count>
+      </events>
+      <events>
+         <stream>sn</stream>
+         <count>%s</count>
+      </events>
+      <events>
+         <stream>tcal</stream>
+         <count>%s</count>
+      </events>
+   </run>
+   <resource warning="10">
+      <available>%s</available>
+      <capacity>%s</capacity>
+      <units>MB</units>
+      <name>EventBuilder dispatch cache</name>
+   </resource>\
+""" % (self.runNum, str(self.runStartTime), self.numEvents, 0, 0, 0,
+       self.EBDiskAvailable, self.EBDiskSize)
+      
+            except:
+                self.logmsg("Failed to update event builder quantities for summary XML (%s)!" % exc_string())
+
+        # Global summary
+        ret = """\
+<daq>%s%s
+</daq>\
+""" % (prevRun, currentRun)
+
+        return ret
+
+
     
 if __name__ == "__main__":
     p = optparse.OptionParser()

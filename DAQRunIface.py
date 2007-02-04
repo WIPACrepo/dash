@@ -45,9 +45,7 @@ class DAQRunIface(object):
     
     def getSummary(self):
         "Get component summary from DAQRun"
-        return """\
-<daq/>
-"""
+        return self.rpc.rpc_daq_summary_xml()
     
     def release(self):
         """
