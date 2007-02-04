@@ -75,21 +75,22 @@ class DAQConfig(object):
                 stringDict[domID]   = stringNum
                 positionDict[domID] = position
                 kindDict[domID]     = kind
-        
+
+        configList = []
         noDOMs = configs[0].getElementsByTagName("noDOMConfig")
         if len(noDOMs) > 0:
             configList = []
         else:
-            domConfig = configs[0].getElementsByTagName("domConfigList")
-            if len(domConfig) < 1: raise noDOMConfigFound()
-
-            domConfigName = domConfig[0].childNodes[0].data
-            domConfigXML = configDir + "/" + domConfigName + ".xml"
-
-            if not exists(domConfigXML): raise noDOMConfigFound()
-        
-            domConfigParsed = minidom.parse(domConfigXML)
-            configList = domConfigParsed.getElementsByTagName("domConfig")
+            for domConfig in configs[0].getElementsByTagName("domConfigList"):
+                if len(domConfig) < 1: raise noDOMConfigFound()
+                
+                domConfigName = domConfig[0].childNodes[0].data
+                domConfigXML = configDir + "/" + domConfigName + ".xml"
+                
+                if not exists(domConfigXML): raise noDOMConfigFound()
+                
+                domConfigParsed = minidom.parse(domConfigXML)
+                configList += domConfigParsed.getElementsByTagName("domConfig")
 
         self.ndoms = len(configList)
         # print "Found %d DOMs." % self.ndoms

@@ -11,6 +11,7 @@ if __name__ == "__main__":
     p.add_option("-s", "--script-name",    action="store", type="string", dest="scriptName")
     p.add_option("-n", "--cnc",            action="store", type="string", dest="cncServer")
     p.add_option("-l", "--log",            action="store", type="string", dest="logServer")
+    p.add_option("-R", "--real-hub",       action="store_true",           dest="realHub")
     p.add_option("-i", "--id",             action="store", type="string", dest="id")
     p.add_option("-a", "--ignore-maven",   action="store_true", dest="ignoreMaven")
     p.add_option("-v", "--verbose",        action="store_true", dest="verbose")
@@ -20,6 +21,7 @@ if __name__ == "__main__":
                    logServer   = "localhost:9001",
                    ignoreMaven = False,
                    id          = None,
+                   realHub     = False,
                    verbose     = False)
               
             
@@ -59,11 +61,13 @@ if __name__ == "__main__":
             print "Couldn't find %s script %s" % (opt.compName, opt.scriptName)
             raise SystemExit
         
-                                     
+
+    realHubArg = ""
+    if opt.realHub: realHubArg = "--real-hub"
     id    = ""
     if opt.id: id = opt.id
-    system("(sh %s %s -g %s -l %s -c %s %s &)&" %
-           (prog, id, config, opt.logServer, opt.cncServer, debug))
+    system("(sh %s %s -g %s -l %s -c %s %s %s &)&" %
+           (prog, id, config, opt.logServer, realHubArg, opt.cncServer, debug))
 
     raise SystemExit
 
