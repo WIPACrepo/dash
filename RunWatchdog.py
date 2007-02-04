@@ -123,37 +123,55 @@ class WatchData(object):
         self.outputFields[beanName].append(vw)
 
     def checkValues(self, watchList):
+        unhealthy = []
         if len(watchList) == 1:
             val = self.client.mbean.get(watchList[0].beanName,
                                         watchList[0].fieldName)
-            healthy = watchList[0].check(val)
+            prevVal = watchList[0].prevValue
+            if not watchList[0].check(val):
+                unhealthy.append(str(watchList[0]) + ' (' + str(prevVal) +
+                                 '->' + str(val) + ')')
         else:
-            healthy = True
-
             fldList = []
             for f in watchList:
                 fldList.append(f.fieldName)
 
             valList = self.client.mbean.getList(watchList[0].beanName, fldList)
             for i in range(0,len(fldList)):
+                prevVal = watchList[0].prevValue
                 if not watchList[i].check(valList[i]):
-                    healthy = False
+                    unhealthy.append(str(watchList[i]) + ' (' + str(prevVal) +
+                                     '->' + str(valList[i]) + ')')
 
-        return healthy
+        if len(unhealthy) == 0:
+            return None
+
+        return unhealthy
 
     def checkInputs(self, now):
-        healthy = True
+        unhealthy = []
         for b in self.inputFields:
-            if not self.checkValues(self.inputFields[b]):
-                healthy = False
-        return healthy
+            badList = self.checkValues(self.inputFields[b])
+            if badList is not None:
+                unhealthy += badList
+
+        if len(unhealthy) == 0:
+            return None
+
+        return unhealthy
+
 
     def checkOutputs(self, now):
-        healthy = True
+        unhealthy = []
         for b in self.outputFields:
-            if not self.checkValues(self.outputFields[b]):
-                healthy = False
-        return healthy
+            badList = self.checkValues(self.outputFields[b])
+            if badList is not None:
+                unhealthy += badList
+
+        if len(unhealthy) == 0:
+            return None
+
+        return unhealthy
 
 class BeanFieldNotFoundException(Exception): pass
 
@@ -238,13 +256,12 @@ class RunWatchdog(object):
         return False
     
     def joinAll(self, comps):
-        # XXX this should use some sort of 'join' method
         compStr = None
         for c in comps:
             if compStr is None:
-                compStr = str(c)
+                compStr = '    ' + str(c)
             else:
-                compStr += ', ' + str(c)
+                compStr += "\n    " + str(c)
         return compStr
 
     def doWatch(self):
@@ -258,31 +275,35 @@ class RunWatchdog(object):
         for comp in self.stringHubs:
             isStarved = False
             try:
-                if not comp.checkInputs(now):
-                    starved.append(comp)
+                badList = comp.checkInputs(now)
+                if badList is not None:
+                    starved += badList
                     isStarved = True
             except Exception, e:
                 self.logmsg(str(comp) + ' inputs: ' + exc_string())
 
             if not isStarved:
                 try:
-                    if not comp.checkOutputs(now):
-                        stagnant.append(comp)
+                    badList = comp.checkOutputs(now)
+                    if badList is not None:
+                        stagnant += badList
                 except Exception, e:
                     self.logmsg(str(comp) + ' outinputs: ' + exc_string())
 
         for comp in self.soloComps:
             isStarved = False
             try:
-                if not comp.checkInputs(now):
-                    starved.append(comp)
+                badList = comp.checkInputs(now)
+                if badList is not None:
+                    starved += badList
                     isStarved = True
             except Exception, e:
                 self.logmsg(str(comp) + ': ' + exc_string())
             if not isStarved:
                 try:
-                    if not comp.checkOutputs(now):
-                        stagnant.append(comp)
+                    badList = comp.checkOutputs(now)
+                    if badList is not None:
+                        stagnant += badList
                 except Exception, e:
                     self.logmsg(str(comp) + ': ' + exc_string())
 
@@ -296,15 +317,15 @@ class RunWatchdog(object):
 
         if noOutStr:
             if noInStr:
-                self.logmsg('** Run watchdog reports stagnant components: ' +
-                            noOutStr + ' and starved components: ' + noInStr)
+                self.logmsg("** Run watchdog reports stagnant components:\n" +
+                            noOutStr + "\nand starved components:\n" + noInStr)
                 healthy = False
             else:
-                self.logmsg('** Run watchdog reports stagnant components: ' +
+                self.logmsg("** Run watchdog reports stagnant components:\n" +
                             noOutStr)
                 healthy = False
         elif noInStr:
-            self.logmsg('** Run watchdog reports starving components: ' +
+            self.logmsg("** Run watchdog reports starving components:\n" +
                         noInStr)
             healthy = False
         #else:
