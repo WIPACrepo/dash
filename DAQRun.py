@@ -363,7 +363,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         raise Exception("Could not find eventBuilder component 0!!!!")
 
     unHealthyCount      = 0
-    MAX_UNHEALTHY_COUNT = 3
+    MAX_UNHEALTHY_COUNT = 10
     
     def check_all(self):
         try:
