@@ -39,6 +39,7 @@ def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9):
                   "SecondaryBuilders" : "icecube.daq.secBuilder.SBComponent",
                   "inIceTrigger"      : "icecube.daq.trigger.component.IniceTriggerComponent",
                   "globalTrigger"     : "icecube.daq.trigger.component.GlobalTriggerComponent",
+                  "amandaTrigger"     : "icecube.daq.trigger.component.AmandaTriggerComponent",
                   "StringHub"         : "icecube.daq.stringhub"
                 }
 
@@ -70,12 +71,14 @@ def startJavaProcesses(dryRun, realHubs, clusterConfig, dashDir, logPort, cncPor
                       "SecondaryBuilders" : "run-sb",
                       "inIceTrigger"      : "run-iitrig",
                       "globalTrigger"     : "run-gltrig",
-                      "StringHub"         : "run-hub"
+                      "StringHub"         : "run-hub",
+                      "amandaTrigger"     : "run-amtrig"
                     }
     subProjectDict = { "eventBuilder"      : "eventBuilder-prod",
                        "SecondaryBuilders" : "secondaryBuilders",
                        "inIceTrigger"      : "trigger",
                        "globalTrigger"     : "trigger",
+                       "amandaTrigger"     : "trigger",
                        "StringHub"         : "StringHub"
                      }
 
@@ -89,33 +92,33 @@ def startJavaProcesses(dryRun, realHubs, clusterConfig, dashDir, logPort, cncPor
                                                            node.hostName)
             if not runScriptDict.has_key(comp.compName):  raise RunScriptNotFoundForComponent(comp.compName)
             if not subProjectDict.has_key(comp.compName): raise SubProjectNotFoundForComponent(comp.compName)
+            switches = ""
             if verbose:
-                verboseSwitch = "--verbose"
-                devNull       = ""
+                switches += "--verbose "
             else:
-                verboseSwitch = ""
-                devNull       = "2>&1 > /dev/null"
-            realArg = ''
+                switches += "2>&1 > /dev/null "
+
             if comp.compName == "StringHub":
-                idStr = "--id %d" % comp.compID
-                if realHubs: realArg = '--real-hub'
-            else:
-                idStr = ""
+                switches += "--id %d " % comp.compID
+                if realHubs: switches += "--real-hub "
+
+            switches += "-c %s " % subProjectDict[comp.compName]
+            switches += "-s %s " % runScriptDict [comp.compName]
             if node.hostName == "localhost": # Just run it
-                cmd = "%s/StartComponent.py -c %s -s %s --cnc localhost:%d --log localhost:%d %s %s %s %s"  \
-                      % (dashDir, subProjectDict[comp.compName], runScriptDict[comp.compName],
-                         cncPort, logPort, idStr, verboseSwitch, devNull, realArg)
+                switches += "--cnc localhost:%d " % cncPort
+                switches += "--log localhost:%d " % logPort
+                cmd = "%s/StartComponent.py %s" % (dashDir, switches)
                 if verbose: print cmd
                 parallel.add(cmd)
             else:                            # Have to ssh to run it
+                switches += "--cnc %s:%d " % (myIP, cncPort)
+                switches += "--log %s:%d " % (myIP, logPort)
                 if comp.compName == "StringHub":
-                    cmd = "echo \"cd %s; ./dash/StartComponent.py -c %s -s %s --cnc %s:%d --log %s:%d %s %s %s \" | ssh -T %s"  \
-                          % (metaDir, subProjectDict[comp.compName], runScriptDict[comp.compName],
-                             myIP, cncPort, myIP, logPort, idStr, devNull, realArg, node.hostName)
+                    cmd = "echo \"cd %s; ./dash/StartComponent.py %s \" | ssh -T %s" \
+                          % (metaDir, switches, node.hostName)
                 else:
-                    cmd = "ssh %s \'cd %s && ./dash/StartComponent.py -c %s -s %s --cnc %s:%d --log %s:%d %s %s \'"  \
-                          % (node.hostName, metaDir, subProjectDict[comp.compName], runScriptDict[comp.compName],
-                             myIP, cncPort, myIP, logPort, idStr, devNull)
+                    cmd = "ssh %s \'cd %s && ./dash/StartComponent.py %s \' " \
+                          % (node.hostName, metaDir, switches)
 
                 if verbose: print cmd
                 parallel.add(cmd)
