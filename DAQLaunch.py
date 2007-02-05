@@ -8,11 +8,11 @@
 # Started January, 2007
 
 import sys
-from os import environ, mkdir, system
-from time import sleep
-from os.path import abspath, isabs, join
 import optparse
+from time import sleep
+from os import environ, mkdir, system
 from locate_pdaq import find_pdaq_trunk
+from os.path import abspath, isabs, join
 
 # add 'cluster-config' to Python library search path
 #
@@ -87,9 +87,8 @@ def startJavaProcesses(dryRun, realHubs, clusterConfig, dashDir, logPort, cncPor
     parallel = ParallelShell()
     for node in clusterConfig.nodes:
         for comp in node.comps:
-            if verbose: print "Starting %s:%d on %s..." % (comp.compName,
-                                                           comp.compID,
-                                                           node.hostName)
+            if verbose: print "Starting %s:%d on %s..." \
+               % (comp.compName, comp.compID, node.hostName)
             if not runScriptDict.has_key(comp.compName):  raise RunScriptNotFoundForComponent(comp.compName)
             if not subProjectDict.has_key(comp.compName): raise SubProjectNotFoundForComponent(comp.compName)
             switches = ""
@@ -102,6 +101,7 @@ def startJavaProcesses(dryRun, realHubs, clusterConfig, dashDir, logPort, cncPor
                 switches += "--id %d " % comp.compID
                 if realHubs: switches += "--real-hub "
 
+            switches += "-d %s " % comp.logLevel
             switches += "-c %s " % subProjectDict[comp.compName]
             switches += "-s %s " % runScriptDict [comp.compName]
             if node.hostName == "localhost": # Just run it
@@ -203,7 +203,7 @@ def main():
 
     if opt.doList: showConfigs(clusterConfigDir); raise SystemExit
 
-    clusterConfig    = deployConfig(clusterConfigDir, opt.clusterConfigName)
+    clusterConfig = deployConfig(clusterConfigDir, opt.clusterConfigName)
     spadeDir  = clusterConfig.logDirForSpade
     if not isabs(spadeDir): # Assume non-fully-qualified paths are relative to metaproject top dir
         spadeDir = join(metaDir, spadeDir)
@@ -220,7 +220,7 @@ def main():
         for node in clusterConfig.nodes:
             print "  %s(%s)" % (node.hostName, node.locName),
             for comp in node.comps:
-                print "%s:%d " % (comp.compName, comp.compID),
+                print "%s-%d " % (comp.compName, comp.compID),
             print
 
     if not opt.skipKill: doKill(opt.dryRun, dashDir, opt.verbose, clusterConfig, opt.killWith9)

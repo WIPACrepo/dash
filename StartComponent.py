@@ -11,8 +11,9 @@ if __name__ == "__main__":
     p.add_option("-s", "--script-name",    action="store", type="string", dest="scriptName")
     p.add_option("-n", "--cnc",            action="store", type="string", dest="cncServer")
     p.add_option("-l", "--log",            action="store", type="string", dest="logServer")
+    p.add_option("-d", "--log-level",      action="store", type="string", dest="logLevel")
     p.add_option("-R", "--real-hub",       action="store_true",           dest="realHub")
-    p.add_option("-i", "--id",             action="store", type="string", dest="id")
+    p.add_option("-i", "--id",             action="store", type="string", dest="compID")
     p.add_option("-a", "--ignore-maven",   action="store_true", dest="ignoreMaven")
     p.add_option("-v", "--verbose",        action="store_true", dest="verbose")
     p.set_defaults(compName    = "eventBuilder-prod",
@@ -20,7 +21,8 @@ if __name__ == "__main__":
                    cncServer   = "localhost:8080",
                    logServer   = "localhost:9001",
                    ignoreMaven = False,
-                   id          = None,
+                   logLevel    = "INFO",
+                   compID      = None,
                    realHub     = False,
                    verbose     = False)
               
@@ -61,13 +63,16 @@ if __name__ == "__main__":
             print "Couldn't find %s script %s" % (opt.compName, opt.scriptName)
             raise SystemExit
         
-
-    realHubArg = ""
-    if opt.realHub: realHubArg = "--real-hub"
-    id    = ""
-    if opt.id: id = opt.id
-    system("(sh %s %s -g %s -l %s -c %s %s %s &)&" %
-           (prog, id, config, opt.logServer, realHubArg, opt.cncServer, debug))
+    args = ""
+    if opt.compID: args += "%d " % int(opt.compID)
+    if opt.realHub: args += "--real-hub "
+    args += "-g %s " % config
+    args += "-l %s,%s " % (opt.logServer, opt.logLevel)
+    args += "-c %s " % opt.cncServer
+    
+    cmd = "(sh %s %s %s &)&" % (prog, args, debug)
+    if opt.verbose: print cmd
+    system(cmd)
 
     raise SystemExit
 

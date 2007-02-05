@@ -223,10 +223,10 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     self.loggerOf[compID].stopServing()
                     self.loggerOf[compID] = None
             
-    def createRunsetLoggerNameList(self, logLevel):
+    def createRunsetLoggerNameList(self):
         "Create a list of arguments in the form of (shortname, daqID, logport, logLevel)"
         for r in self.setCompIDs:
-            yield [self.shortNameOf[r], self.daqIDof[r], self.logPortOf[r], logLevel]
+            yield [self.shortNameOf[r], self.daqIDof[r], self.logPortOf[r]]
             
     def isRequiredComponent(shortName, daqID, list):
         return DAQRun.isInList("%s#%d" % (shortName, daqID), list)
@@ -300,11 +300,11 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.rpcPortOf  [ comp[0] ] = comp[4]
             self.mbeanPortOf[ comp[0] ] = comp[5]
 
-    def setup_component_loggers(self, cncrpc, ip, runset, loglevel):
+    def setup_component_loggers(self, cncrpc, ip, runset):
         # Set up log receivers for remote components
         self.setUpAllComponentLoggers()            
         # Tell components where to log to
-        l = list(self.createRunsetLoggerNameList(loglevel))
+        l = list(self.createRunsetLoggerNameList())
         cncrpc.rpccall("rpc_runset_log_to", runset, ip, l)
 
     def setup_monitoring(self):
@@ -420,7 +420,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     # once per run
                     self.setup_run_logging(self.cnc, self.logDir, self.runNum, self.configName)
                     logDirCreated = True
-                    self.setup_component_loggers(self.cnc, self.ip, self.runSetID, SocketLogger.LOGLEVEL_INFO)
+                    self.setup_component_loggers(self.cnc, self.ip, self.runSetID)
                     self.setup_monitoring()
                     self.setup_watchdog()
 

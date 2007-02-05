@@ -191,7 +191,7 @@ class RunSet:
             for i in range(0, len(logList)):
                 logData = logList[i]
                 if c.isComponent(logData[0], logData[1]):
-                    c.logTo(logIP, logData[2], logData[3])
+                    c.logTo(logIP, logData[2])
                     del logList[i]
                     break
 
@@ -655,10 +655,10 @@ class DAQClient(CnCLogger):
         return [ self.id, self.name, self.num, self.host, self.port,
                  self.mbeanPort, state ]
 
-    def logTo(self, logIP, port, level):
+    def logTo(self, logIP, port):
         "Send log messages to the specified host and port"
         self.openLog(logIP, port)
-        self.client.xmlrpc.logTo(self.id, logIP, port, level)
+        self.client.xmlrpc.logTo(self.id, logIP, port)
 
     def monitor(self):
         "Return the monitoring value"
@@ -1067,9 +1067,7 @@ class DAQServer(DAQPool):
         else:
             logPort = 0
 
-        logLevel = DAQServer.DEFAULT_LOG_LEVEL
-
-        return [client.id, logIP, logPort, logLevel, self.id]
+        return [client.id, logIP, logPort, self.id]
 
     def rpc_runset_break(self, id):
         "break up the specified runset"
