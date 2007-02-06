@@ -188,6 +188,7 @@ class RunWatchdog(object):
 
         iniceTrigger  = None
         icetopTrigger  = None
+        amandaTrigger  = None
         globalTrigger   = None
         eventBuilder   = None
         secondaryBuilders   = None
@@ -215,6 +216,10 @@ class RunWatchdog(object):
                         cw.addOutputValue('globalTrigger', 'trigger',
                                           'RecordsSent')
                         icetopTrigger = cw
+                    elif shortNameOf[c] == 'amandaTrigger':
+                        cw.addOutputValue('globalTrigger', 'trigger',
+                                          'RecordsSent')
+                        amandaTrigger = cw
                     elif shortNameOf[c] == 'globalTrigger':
                         cw.addInputValue('triggers', 'trigger',
                                          'RecordsReceived')
@@ -244,6 +249,7 @@ class RunWatchdog(object):
         #
         if iniceTrigger: self.soloComps.append(iniceTrigger)
         if icetopTrigger: self.soloComps.append(icetopTrigger)
+        if amandaTrigger: self.soloComps.append(amandaTrigger)
         if globalTrigger: self.soloComps.append(globalTrigger)
         if eventBuilder: self.soloComps.append(eventBuilder)
         if secondaryBuilders: self.soloComps.append(secondaryBuilders)
