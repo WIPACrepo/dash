@@ -269,14 +269,34 @@ class RunSet:
         if len(badList) > 0:
             raise ValueError, 'Could not reset ' + str(badList)
 
+    def sortCmp(self, x, y):
+        if y.cmdOrder is None:
+            self.logmsg('Comp ' + str(y) + ' is none')
+            return -1
+        elif x.cmdOrder is None:
+            self.logmsg('Comp ' + str(x) + ' is none')
+            return 1
+        else:
+            return y.cmdOrder-x.cmdOrder
+
     def startRun(self, runNum):
         "Start all components in the runset"
         if not self.configured:
             raise ValueError, "RunSet #" + str(self.id) + " is not configured"
 
+        failStr = None
+        for c in self.set:
+            if c.cmdOrder is None:
+                if not failStr:
+                    'No order set for ' + str(c)
+                else:
+                    failStr += ', ' + str(c)
+        if failStr:
+            raise ValueError, failStr
+
         # start back to front
         #
-        self.set.sort(lambda x, y: y.cmdOrder-x.cmdOrder)
+        self.set.sort(lambda x, y: self.sortCmp(x, y))
 
         self.state = 'starting'
 
