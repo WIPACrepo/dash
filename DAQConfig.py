@@ -16,7 +16,13 @@ from xml.dom import minidom
 class DAQConfigNotFound          (Exception): pass
 class DAQConfigDirNotFound       (Exception): pass
 class noRunConfigFound           (Exception): pass
-class noDOMConfigFound           (Exception): pass
+class noDOMConfigFound           (Exception):
+    def __init__(self, configName):
+        self.configName = configName
+
+    def __str__(self):
+        return self.configName
+    
 class noDeployedStringsListFound (Exception): pass
 class noComponentsFound          (Exception): pass
 
@@ -86,7 +92,7 @@ class DAQConfig(object):
                 domConfigName = domConfig.childNodes[0].data
                 domConfigXML = configDir + "/" + domConfigName + ".xml"
                 
-                if not exists(domConfigXML): raise noDOMConfigFound()
+                if not exists(domConfigXML): raise noDOMConfigFound(domConfigName)
                 
                 domConfigParsed = minidom.parse(domConfigXML)
                 configList += domConfigParsed.getElementsByTagName("domConfig")
