@@ -92,9 +92,8 @@ class DAQMoni(object):
         for c in self.moniList.keys():
             try:
                 self.moniList[c].monitor(now)
-            except:
-                # ignore remote exceptions
-                pass
+            except Exception, e:
+                self.logmsg("Ignoring %s: %s" % (e, exc_string()))
 
     def logmsg(self, m):
         "Log message to logger, but only if logger exists"
