@@ -63,8 +63,11 @@ class DAQCtrl:
                 flasherConfiguration,
                 subrunNumber):
         "Changes the current DAQ run to use the specified configuration"
-        self.daqiface.flasher(flasherConfiguration,
-                              subrunNumber)
+        try:
+            return self.daqiface.flasher(flasherConfiguration,
+                                         subrunNumber)
+        except socket.error:
+            return 0
 
 
     def getState(self):
@@ -80,14 +83,10 @@ class DAQCtrl:
 
     def getSummary(self):
         "Returns an XML snippet containing DAQ summary information"
-        if (not os.path.exists(SUMMARY_FILE)):
-            return '<' + SYSTEM + '/>'
-        summaryFile = file(SUMMARY_FILE, 'r')
-        lines = summaryFile.readlines()
-        result = ''
-        for line in lines:
-            result += line
-        return result
+        try:
+            return self.daqiface.getSummary()
+        except socket.error:
+            return 0
 
 
     def recover(self):
@@ -107,34 +106,6 @@ class DAQCtrl:
                                          configKey)
         except socket.error:
             return 0
-        summaryDir = os.path.dirname(SUMMARY_FILE)
-        if (not os.path.exists(summaryDir)):
-            os.makedirs(summaryDir)
-        summaryFile = file(SUMMARY_FILE, 'w')
-        summaryFile.write("""<daq>
-    <current-run>
-        <number>""" + str(runNumber) + """</number>
-        <start-time>""" + time.strftime(XML_DATETIME_FORMAT) + """</start-time>
-        <builder>
-            <stream>physics</stream>
-            <count>0</count>
-        </builder>
-        <builder>
-            <stream>monitor</stream>
-            <count>-1</count>
-        </builder>
-        <builder>
-            <stream>sn</stream>
-            <count>-1</count>
-        </builder>
-        <builder>
-            <stream>tcal</stream>
-            <count>-1</count>
-        </builder>
-    </current-run>
-</daq>
-""")
-        summaryFile.close()
         return result
 
 
