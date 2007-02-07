@@ -90,7 +90,11 @@ class DAQMoni(object):
         now = datetime.datetime.now()
         self.tlast = now
         for c in self.moniList.keys():
-            self.moniList[c].monitor(now) # Can raise exception if far end is dead
+            try:
+                self.moniList[c].monitor(now)
+            except:
+                # ignore remote exceptions
+                pass
 
     def logmsg(self, m):
         "Log message to logger, but only if logger exists"
