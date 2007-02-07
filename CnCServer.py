@@ -473,7 +473,7 @@ class CnCLogger(object):
                 self.socketlog.write_ts(s)
             except Exception, ex:
                 if str(ex).find('Connection refused') < 0:
-                    raise ex
+                    raise
                 self.resetLog()
                 print 'Lost logging connection'
 
@@ -866,7 +866,7 @@ class DAQPool(CnCLogger):
             except Exception, ex:
                 runSet = None
                 self.logmsg(exc_string())
-                raise ex
+                raise
         finally:
             if not setAdded:
                 for c in compList:

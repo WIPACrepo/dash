@@ -51,7 +51,7 @@ class RPCClient(xmlrpclib.ServerProxy):
             self.statDict[method].tally(datetime.datetime.now()-tstart)
         except Exception, e:
             self.statDict[method].tally(datetime.datetime.now()-tstart)
-            raise e
+            raise
         
         return result
         
