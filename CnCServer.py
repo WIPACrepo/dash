@@ -419,10 +419,11 @@ class RunSet:
 
         self.runNumber = None
 
-    def waitForStateChange(self):
+    def waitForStateChange(self, timeoutSecs=TIMEOUT_SECS):
         waitList = self.set[:]
 
-        while len(waitList) > 0:
+        endSecs = time() + timeoutSecs
+        while len(waitList) > 0 and time() < endSecs:
             newList = waitList[:]
             for c in waitList:
                 stateStr = c.getState()
@@ -431,7 +432,9 @@ class RunSet:
 
             # if one or more components changed state...
             #
-            if len(waitList) != len(newList):
+            if len(waitList) == len(newList):
+                sleep(1)
+            else:
 
                 waitList = newList
 
@@ -445,6 +448,14 @@ class RunSet:
                 if waitStr:
                     self.logmsg(str(self) + ': Waiting for ' + self.state +
                                 ' ' + waitStr)
+
+                # reset timeout
+                #
+                endSecs = time() + timeoutSecs
+
+        if len(waitList) > 0:
+            raise ValueError, 'Still waiting for %d components to leave %s' % \
+                (len(waitList), self.state)
 
 class CnCLogger(object):
     "CnC logging client"
