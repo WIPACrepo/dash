@@ -30,6 +30,8 @@ def check_make_or_exit(dir):
             raise SystemExit
         # print "OK."
 
+def getFileSize(f): return stat(f)[6]
+    
 def getLatestFileTime(dir):
     l = listdir(dir)
     latest = None
@@ -197,9 +199,11 @@ def main():
     p.add_option("-o", "--output-dir",  action="store", type="string", dest="outputDir")
     p.add_option("-a", "--replace-all", action="store_true",           dest="replaceAll")
     p.add_option("-v", "--verbose",     action="store_true",           dest="verbose")
+    p.add_option("-m", "--max-mb",      action="store", type="int",    dest="maxMegs")
     p.set_defaults(spadeDir   = "/mnt/data/spade/localcopies/daq",
                    outputDir  = "%s/public_html/daq-reports" % environ["HOME"],
                    verbose    = False,
+                   maxMegs    = None,
                    replaceAll = False)
 
     opt, args = p.parse_args()
@@ -255,6 +259,10 @@ def main():
             outDir = runDir + "/" + runInfoString
             check_make_or_exit(outDir)
             tarFile     = f
+            size = getFileSize(tarFile)
+            if opt.maxMegs and size > opt.maxMegs*100000:
+                continue
+
             copyFile    = outDir + "/" + basename(f)
             datTar      = outDir + "/" + prefix + runInfoString + ".dat.tar"
             snippetFile = outDir + "/.snippet"
@@ -268,7 +276,6 @@ def main():
 
                 # Move tarballs into target run directories
                 if not exists(copyFile) or not exists(datTar):
-
 
                     print "%s -> %s/" % (f, outDir)
                     copy(tarFile, copyFile)
