@@ -41,15 +41,14 @@ class MockComponent:
         return self.cmdOrder
 
     def getState(self):
-        if not self.configured:
-            return 'Idle'
-
         if not self.connected:
-            return "Configured"
+            return 'idle'
+        if not self.configured:
+            return 'connected'
         if not self.runNum:
-            return 'Ready'
+            return 'ready'
 
-        return 'Running'
+        return 'running'
 
     def isSource(self):
         return self.isSrc
@@ -58,7 +57,9 @@ class MockComponent:
         return self.monitorState
 
     def reset(self):
+        self.connected = False
         self.configured = False
+        self.runNum = None
 
     def setOrder(self, num):
         self.cmdOrder = num

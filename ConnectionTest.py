@@ -193,15 +193,32 @@ class MockClient(DAQClient):
     def __init__(self, name, num, host, port, mbeanPort, connectors, outLinks):
 
         self.outLinks = outLinks
+        self.state = 'idle'
 
         super(MockClient, self).__init__(name, num, host, port, mbeanPort,
               connectors)
+
+    def __str__(self):
+        tmpStr = super(MockClient, self).__str__()
+        return 'Mock' + tmpStr
+
+    def connect(self, map=None):
+        self.state = 'connected'
+        return super(MockClient, self).connect(map)
 
     def createClient(self, host, port):
         return MockRPCClient(self.name, self.num, self.outLinks)
 
     def createLogger(self, host, port):
         return MockLogger(self.name, self.num)
+
+    def getState(self):
+        return self.state
+
+    def reset(self):
+        print str(self) + ' -> idle'
+        self.state = 'idle'
+        return super(MockClient, self).reset()
 
 class ConnectionTest(unittest.TestCase):
     EXP_ID = 1

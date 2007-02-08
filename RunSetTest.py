@@ -3,9 +3,18 @@
 import unittest
 from CnCServer import RunSet
 
+class MockLogger(object):
+    def __init__(self, host, port):
+        pass
+
+    def write_ts(self, s):
+        pass
+
 class MockComponent:
-    def __init__(self, name):
+    def __init__(self, name, num):
         self.name = name
+        self.num = num
+        self.connected = False
         self.configured = False
         self.runNum = None
         self.cmdOrder = 0
@@ -18,25 +27,35 @@ class MockComponent:
         return self.name + cfgStr
 
     def configure(self, configName=None):
+        if not self.connected:
+            self.connected = True
         self.configured = True
+        return 'OK'
+
+    def connect(self, conn=None):
+        self.connected = True
+        return 'OK'
 
     def getState(self):
+        if not self.connected:
+            return 'idle'
         if not self.configured:
-            return 'Idle'
-
+            return 'connected'
         if not self.runNum:
-            return 'Ready'
+            return 'ready'
 
-        return 'Running'
+        return 'running'
 
     def isComponent(self, name, num):
         return self.name == name
 
-    def logTo(self, logIP, logPort, logLevel):
+    def logTo(self, logIP, logPort):
         pass
 
     def reset(self):
+        self.connected = False
         self.configured = False
+        self.runNum = None
 
     def startRun(self, runNum):
         if not self.configured:
@@ -75,10 +94,10 @@ class TestRunSet(unittest.TestCase):
         return True
 
     def runTests(self, compList, runNum):
-        set = RunSet(compList)
+        set = RunSet(compList, MockLogger('foo', 0))
         self.assertEqual(str(set), 'RunSet #' + str(set.id))
 
-        self.checkStatus(set, compList, 'Idle')
+        self.checkStatus(set, compList, 'idle')
 
         logList = []
         for c in compList:
@@ -103,7 +122,7 @@ class TestRunSet(unittest.TestCase):
             self.failIf(self.isCompListRunning(compList),
                         'Components should not be running')
 
-        self.checkStatus(set, compList, 'Ready')
+        self.checkStatus(set, compList, 'ready')
 
         self.assertRaises(ValueError, set.stopRun)
 
@@ -117,7 +136,7 @@ class TestRunSet(unittest.TestCase):
             self.failUnless(self.isCompListRunning(compList, runNum),
                             'Components should not be running')
 
-        self.checkStatus(set, compList, 'Running')
+        self.checkStatus(set, compList, 'running')
 
         set.stopRun()
         self.assertEqual(str(set), 'RunSet #' + str(set.id))
@@ -128,7 +147,7 @@ class TestRunSet(unittest.TestCase):
             self.failIf(self.isCompListRunning(compList),
                         'Components should not be running')
 
-        self.checkStatus(set, compList, 'Ready')
+        self.checkStatus(set, compList, 'ready')
 
         set.reset()
         self.assertEqual(str(set), 'RunSet #' + str(set.id))
@@ -139,13 +158,13 @@ class TestRunSet(unittest.TestCase):
             self.failIf(self.isCompListRunning(compList),
                         'Components should not be running')
 
-        self.checkStatus(set, compList, 'Idle')
+        self.checkStatus(set, compList, 'idle')
 
     def testEmpty(self):
         self.runTests([], 1)
 
     def testSet(self):
-        compList = [MockComponent('foo'), MockComponent('bar')]
+        compList = [MockComponent('foo', 1), MockComponent('bar', 2)]
         self.runTests(compList, 2)
 
 if __name__ == '__main__':

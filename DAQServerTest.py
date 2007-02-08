@@ -17,7 +17,7 @@ class MockXMLRPC:
     def getState(self, id):
         pass
 
-    def logTo(self, id, logIP, port, level):
+    def logTo(self, id, logIP, port):
         pass
 
     def reset(self, id):
@@ -46,14 +46,35 @@ class MockLogger(object):
 class MockClient(DAQClient):
     def __init__(self, name, num, host, port, mbeanPort, connectors):
 
+        self.state = 'idle'
+
         super(MockClient, self).__init__(name, num, host, port, mbeanPort,
                                          connectors)
+
+    def configure(self, cfgName):
+        self.state = 'ready'
+        return super(MockClient, self).configure(cfgName)
+
+    def connect(self, map=None):
+        self.state = 'connected'
+        return super(MockClient, self).connect(map)
 
     def createClient(self, host, port):
         return MockRPCClient(host, port)
 
     def createLogger(self, host, port):
         return MockLogger(host, port)
+
+    def getState(self):
+        return self.state
+
+    def reset(self):
+        self.state = 'idle'
+        return super(MockClient, self).reset()
+
+    def startRun(self, runNum):
+        self.state = 'running'
+        return super(MockClient, self).startRun(runNum)
 
 class MockServer(DAQServer):
     def __init__(self):
@@ -80,14 +101,13 @@ class TestDAQServer(unittest.TestCase):
 
         fooStr = 'ID#' + str(DAQClient.ID - 1) + ' ' + compName + '#' + \
             str(compNum) + ' at ' + compHost + ':' + str(compPort) + ' ' + \
-            DAQClient.STATE_MISSING
+            'idle'
         self.assertEqual(dc.rpc_show_components(), [fooStr])
 
-        self.assertEqual(len(rtnArray), 5)
+        self.assertEqual(len(rtnArray), 4)
         self.assertEqual(rtnArray[0], DAQClient.ID - 1)
         self.assertEqual(rtnArray[1], '')
         self.assertEqual(rtnArray[2], 0)
-        self.assertEqual(rtnArray[3], DAQServer.DEFAULT_LOG_LEVEL)
 
     def testRegisterWithLog(self):
         dc = MockServer()
@@ -104,11 +124,10 @@ class TestDAQServer(unittest.TestCase):
 
         rtnArray = dc.rpc_register_component('foo', 0, 'localhost', 666, 0, [])
 
-        self.assertEqual(len(rtnArray), 5)
+        self.assertEqual(len(rtnArray), 4)
         self.assertEqual(rtnArray[0], DAQClient.ID - 1)
         self.assertEqual(rtnArray[1], logHost)
         self.assertEqual(rtnArray[2], logPort)
-        self.assertEqual(rtnArray[3], DAQServer.DEFAULT_LOG_LEVEL)
 
         dc.rpc_close_log()
         self.failIf(dc.socketlog is not None, 'socketlog is not None')
