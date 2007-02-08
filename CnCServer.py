@@ -135,7 +135,7 @@ class RunSet:
     # number of seconds to wait after stopping components seem to be
     # hung before forcing remaining components to stop
     #
-    STOP_TIMEOUT = 10
+    TIMEOUT_SECS = 10
 
     def __init__(self, set, logger):
         """
@@ -355,27 +355,28 @@ class RunSet:
                 else:
                     c.forcedStop()
 
-            waitNum = len(waitList)
-            timeout = RunSet.STOP_TIMEOUT
-
             connDict = {}
 
-            while timeout > 0 and len(waitList) > 0:
+            endSecs = time() + RunSet.TIMEOUT_SECS
+            while len(waitList) > 0 and time() < endSecs:
                 newList = waitList[:]
                 for c in waitList:
                     stateStr = c.getState()
                     if stateStr != self.state:
-                        preLen = len(waitList)
                         newList.remove(c)
                         if c in connDict:
                             del connDict[c]
 
                 changed = False
 
+                # if any components have changed state...
+                #
                 if len(waitList) != len(newList):
                     waitList = newList
                     changed = True
 
+                # ...or if any component's engines have changed state...
+                #
                 for c in waitList:
                     csStr = c.getNonstoppedConnectorsString()
                     if not c in connDict:
@@ -388,56 +389,62 @@ class RunSet:
                     #
                     # hmmm ... we may be hanging
                     #
-                    timeout -= 1
                     sleep(1)
                 else:
                     #
                     # one or more components must have stopped
                     #
-                    waitNum = len(waitList)
-                    if waitNum > 0:
-                        wStr = None
+                    if len(waitList) > 0:
+                        waitStr = None
                         for c in waitList:
-                            if not wStr:
-                                wStr = ''
+                            if waitStr is None:
+                                waitStr = ''
                             else:
-                                wStr += ', '
-                            wStr += c.name + '#' + str(c.num) + \
+                                waitStr += ', '
+                            waitStr += c.name + '#' + str(c.num) + \
                                 connDict[c]
 
+                        if waitStr:
+                            self.logmsg(str(self) + ': Waiting for ' +
+                                        self.state + ' ' + waitStr)
 
-                        self.logmsg(str(self) + ': Waiting for ' + wStr +
-                                    ' to stop')
+                        # reset timeout
+                        #
+                        endSecs = time() + RunSet.TIMEOUT_SECS
 
-                    timeout = RunSet.STOP_TIMEOUT
-
-            if waitNum == 0:
+            # if the components all stopped normally, don't force-stop them
+            #
+            if len(waitList) == 0:
                 break
 
         self.runNumber = None
 
     def waitForStateChange(self):
         waitList = self.set[:]
-        while len(waitList) > 0:
 
+        while len(waitList) > 0:
             newList = waitList[:]
             for c in waitList:
                 stateStr = c.getState()
                 if stateStr != self.state:
                     newList.remove(c)
 
+            # if one or more components changed state...
+            #
             if len(waitList) != len(newList):
+
                 waitList = newList
 
                 waitStr = None
                 for c in waitList:
                     if waitStr is None:
-                        waitStr = c.name + '#' + str(c.num)
+                        waitStr = ''
                     else:
-                        waitStr += ', ' + c.name + '#' + str(c.num)
+                        waitStr += ', '
+                    waitStr += c.name + '#' + str(c.num)
                 if waitStr:
-                    self.logmsg(str(self) + ': ' + self.state + ' ' +
-                                waitStr)
+                    self.logmsg(str(self) + ': Waiting for ' + self.state +
+                                ' ' + waitStr)
 
 class CnCLogger(object):
     "CnC logging client"
