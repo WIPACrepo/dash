@@ -220,8 +220,9 @@ class RunSet:
         list = []
 
         for c in self.set:
-            if c.getState() != self.state:
-                list.append(c.name + '#' + str(c.num))
+            stateStr = c.getState()
+            if stateStr != self.state:
+                list.append(c.name + '#' + str(c.num) + ':' + stateStr)
 
         return list
 
