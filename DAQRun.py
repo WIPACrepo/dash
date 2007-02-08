@@ -57,7 +57,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     MONI_PERIOD    = 30
     WATCH_PERIOD   = 10
     
-    def __init__(self, portnum, configDir=CFGDIR, logDir=LOGDIR, spadeDir=SPADEDIR):
+    def __init__(self, portnum, configDir=CFGDIR, logDir=LOGDIR, spadeDir=SPADEDIR, forceConfig=False):
         RPCServer.__init__(self, portnum,
                            "localhost", "DAQ Run Server - object for starting and stopping DAQ runs")
         Rebootable.Rebootable.__init__(self) # Can change reboot thread delay here if desired
@@ -75,6 +75,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.runSetID        = None
         self.CnCLogReceiver  = None
         self.catchAllLogger  = None
+        self.forceConfig     = forceConfig
         self.configDir       = configDir
         self.spadeDir        = spadeDir
         self.logDir          = logDir
@@ -412,7 +413,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 try:
                     self.runStartTime = None
                     # once per config/runset
-                    if self.configName != self.lastConfig: 
+                    if self.forceConfig or (self.configName != self.lastConfig):
                         self.break_existing_runset(self.cnc)
                         self.build_run_set(self.cnc, self.configName, self.configDir)
                                                                                         
@@ -424,7 +425,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     self.setup_monitoring()
                     self.setup_watchdog()
 
-                    if self.configName != self.lastConfig:
+                    if self.forceConfig or (self.configName != self.lastConfig):
                         self.runset_configure(self.cnc, self.runSetID, self.configName)
 
                     self.lastConfig = self.configName
@@ -638,18 +639,21 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     
 if __name__ == "__main__":
     p = optparse.OptionParser()
-    p.add_option("-k", "--kill",       action="store_true", dest="kill")
-    p.add_option("-p", "--port",       action="store",      type="int", dest="port")
-    p.add_option("-n", "--no-daemon",  action="store_true", dest="nodaemon")
-    p.add_option("-c", "--config-dir", action="store",      type="string", dest="configDir")
-    p.add_option("-l", "--log-dir",    action="store",      type="string", dest="logDir")
-    p.add_option("-s", "--spade-dir",  action="store",      type="string", dest="spadeDir")
-    p.set_defaults(kill      = False,
-                   nodaemon  = False,
-                   configDir = "/usr/local/icecube/config",
-                   spadeDir  = "/mnt/data/pdaq/runs",
-                   logDir    = "/tmp",
-                   port      = 9000)
+    p.add_option("-c", "--config-dir",     action="store",      type="string", dest="configDir")
+    p.add_option("-f", "--force-reconfig", action="store_true", dest="forceConfig",
+                                           help="Force 'configure' opration between runs")
+    p.add_option("-k", "--kill",           action="store_true", dest="kill")
+    p.add_option("-l", "--log-dir",        action="store",      type="string", dest="logDir")
+    p.add_option("-n", "--no-daemon",      action="store_true", dest="nodaemon")
+    p.add_option("-p", "--port",           action="store",      type="int", dest="port")
+    p.add_option("-s", "--spade-dir",      action="store",      type="string", dest="spadeDir")
+    p.set_defaults(kill        = False,
+                   nodaemon    = False,
+                   forceConfig = False,
+                   configDir   = "/usr/local/icecube/config",
+                   spadeDir    = "/mnt/data/pdaq/runs",
+                   logDir      = "/tmp",
+                   port        = 9000)
     opt, args = p.parse_args()
 
     pids = list(findProcess("DAQRun.py", processList()))
@@ -697,7 +701,7 @@ Use the -s option, or -h for help.\
         
     while 1:
         try:
-            cl = DAQRun(opt.port, opt.configDir, opt.logDir, opt.spadeDir)
+            cl = DAQRun(opt.port, opt.configDir, opt.logDir, opt.spadeDir, opt.forceConfig)
             try:
                 cl.serve_forever()
             finally:

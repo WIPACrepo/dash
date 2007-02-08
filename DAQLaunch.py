@@ -148,14 +148,14 @@ def doLaunch(dryRun, verbose, realHubs, clusterConfig, dashDir,
     # Start DAQRun
     daqRun = join(dashDir, 'DAQRun.py')
     if verbose:
-        cmd = "%s -c %s -l %s -s %s -n &" % (daqRun, configDir, logDir, spadeDir)
+        cmd = "%s -f -c %s -l %s -s %s -n &" % (daqRun, configDir, logDir, spadeDir)
         # Fixme - this is a little kludgy, but CnCServer won't log correctly if DAQRun isn't started.
         print cmd
         if not dryRun:
             system(cmd)
             sleep(5)
     else:
-        cmd = "%s -c %s -l %s -s %s" % (daqRun, configDir, logDir, spadeDir)
+        cmd = "%s -f -c %s -l %s -s %s" % (daqRun, configDir, logDir, spadeDir)
         if not dryRun: system(cmd)
 
     # Start CnCServer
@@ -169,7 +169,16 @@ def doLaunch(dryRun, verbose, realHubs, clusterConfig, dashDir,
         if not dryRun: system(cmd)
 
     startJavaProcesses(dryRun, realHubs, clusterConfig, dashDir, logPort, cncPort, verbose)
-            
+
+def getDeployedClusterConfig(clusterFile):
+    try:
+        f = open(clusterFile, "r")
+        ret = f.readline()
+        f.close()
+        return ret.rstrip('\r\n')
+    except:
+        return None
+    
 def main():
     p = optparse.OptionParser()
     p.add_option("-R", "--real-hubs",    action="store_true",           dest="realHubs")
@@ -184,7 +193,7 @@ def main():
     p.add_option("-v", "--verbose",      action="store_true",           dest="verbose")
     p.add_option("-9", "--kill-kill",    action="store_true",           dest="killWith9",
                  help="just kill everything dead")
-    p.set_defaults(clusterConfigName = "sim-localhost",
+    p.set_defaults(clusterConfigName = None,
                    realHubs   = False,
                    dryRun     = False,
                    verbose    = False,
@@ -196,6 +205,15 @@ def main():
                    killOnly   = False)
     opt, args = p.parse_args()
 
+    readClusterConfig = getDeployedClusterConfig(join(metaDir, 'cluster-config', '.config'))
+    
+    # Choose configuration
+    configToUse = "sim-localhost"
+    if readClusterConfig:
+        configToUse = readClusterConfig
+    if opt.clusterConfigName:
+        configToUse = opt.clusterConfigName
+
     configDir = join(metaDir, 'config')
     logDir    = join(metaDir, 'log')
     dashDir   = join(metaDir, 'dash')
@@ -203,7 +221,7 @@ def main():
 
     if opt.doList: showConfigs(clusterConfigDir); raise SystemExit
 
-    clusterConfig = deployConfig(clusterConfigDir, opt.clusterConfigName)
+    clusterConfig = deployConfig(clusterConfigDir, configToUse)
     spadeDir  = clusterConfig.logDirForSpade
     if not isabs(spadeDir): # Assume non-fully-qualified paths are relative to metaproject top dir
         spadeDir = join(metaDir, spadeDir)
