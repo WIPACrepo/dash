@@ -1,5 +1,12 @@
 #!/usr/bin/env python
 
+#
+# DAQRPC - Python wrapper for pDAQ RPC calls
+#          Implemented with XML-RPC
+#
+# J. Jacobsen, for UW-IceCube 2006-2007
+#
+
 import DocXMLRPCServer
 import xmlrpclib
 import socket
@@ -8,7 +15,7 @@ import math
 
 class RPCClient(xmlrpclib.ServerProxy):
     "Generic class for accessing methods on remote objects"
-    "WARNING: instantiating RPCClient sets socket default timeout to 10 seconds!"
+    "WARNING: instantiating RPCClient sets socket default timeout duration!"
     def __init__(self, servername, portnum):
         
         self.servername = servername
@@ -23,6 +30,7 @@ class RPCClient(xmlrpclib.ServerProxy):
         self.statDict = { }
 
     def showStats(self):
+        "Return string representation of accumulated statistics"
         if self.nCalls() == 0: return "None"
         r = ""
         for x in self.callList():
@@ -30,9 +38,11 @@ class RPCClient(xmlrpclib.ServerProxy):
         return r
 
     def nCalls(self):
+        "Return number of invocations of RPC method"
         return len(self.statDict)
     
     def callList(self):
+        "Return list of registered methods"
         return self.statDict.keys()
         
     def rpccall(self, method, *rest):
@@ -70,6 +80,7 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 class RPCStat:
+    "Class for accumulating statistics about an RPC call"
     def __init__(self):
         self.n     = 0
         self.min   = None
@@ -111,7 +122,6 @@ class RPCStat:
 
 if __name__ == "__main__":
     cl = RPCClient("localhost", 8080)
-    baz = "glatch"
     for i in xrange(0,10):
         cl.rpccall("rpc_ping")
     print cl.showStats()
