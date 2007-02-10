@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 # RunSummary.py
+# Reporting for pDAQ runs at UW and Pole
 # jacobsen@npxdesigns.com
 # Dec. 06/Jan. 07
 #
@@ -200,6 +201,7 @@ def main():
     p.add_option("-a", "--replace-all", action="store_true",           dest="replaceAll")
     p.add_option("-v", "--verbose",     action="store_true",           dest="verbose")
     p.add_option("-m", "--max-mb",      action="store", type="int",    dest="maxMegs")
+    
     p.set_defaults(spadeDir   = "/mnt/data/spade/localcopies/daq",
                    outputDir  = "%s/public_html/daq-reports" % environ["HOME"],
                    verbose    = False,
