@@ -11,8 +11,10 @@ import sys
 import optparse
 from time import sleep
 from os import environ, mkdir, system
-from locate_pdaq import find_pdaq_trunk
 from os.path import abspath, isabs, join
+
+from GetIP import getIP
+from locate_pdaq import find_pdaq_trunk
 
 # add 'cluster-config' to Python library search path
 #
@@ -21,7 +23,6 @@ sys.path.append(join(metaDir, 'cluster-config'))
 
 from ClusterConfig import *
 from ParallelShell import *
-from GetIP import getIP
 
 class HostNotFoundForComponent      (Exception): pass
 class JavaClassNotFoundForComponent (Exception): pass
@@ -29,44 +30,50 @@ class RunScriptNotFoundForComponent (Exception): pass
 class SubProjectNotFoundForComponent(Exception): pass
 
 def findHost(component, compID, clusterConfig):
+    "Find host name where component:compID runs"
     for node in clusterConfig.nodes:
         for comp in node.comps:
             if comp.compName == component and comp.compID == compID: return node.hostName
     raise HostNotFoundForComponent(component+":"+compID)
 
 def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9):
-    classDict = { "eventBuilder"      : "icecube.daq.eventBuilder.EBComponent",
-                  "SecondaryBuilders" : "icecube.daq.secBuilder.SBComponent",
-                  "inIceTrigger"      : "icecube.daq.trigger.component.IniceTriggerComponent",
-                  "globalTrigger"     : "icecube.daq.trigger.component.GlobalTriggerComponent",
-                  "amandaTrigger"     : "icecube.daq.trigger.component.AmandaTriggerComponent",
-                  "StringHub"         : "icecube.daq.stringhub"
-                }
+    classDict = \
+            { "eventBuilder"      : "icecube.daq.eventBuilder.EBComponent",
+              "SecondaryBuilders" : "icecube.daq.secBuilder.SBComponent",
+              "inIceTrigger"      : "icecube.daq.trigger.component.IniceTriggerComponent",
+              "globalTrigger"     : "icecube.daq.trigger.component.GlobalTriggerComponent",
+              "amandaTrigger"     : "icecube.daq.trigger.component.AmandaTriggerComponent",
+              "StringHub"         : "icecube.daq.stringhub"
+            }
 
     parallel = ParallelShell()
     for node in clusterConfig.nodes:
         for comp in node.comps:
-            if verbose: print "Killing %s:%d on %s..." % (comp.compName,
-                                                          comp.compID,
-                                                          node.hostName)
-            if not classDict.has_key(comp.compName): raise JavaClassNotFoundForComponent(comp.compName)
+            if not classDict.has_key(comp.compName):
+                raise JavaClassNotFoundForComponent(comp.compName)
             javaClass = classDict[ comp.compName ]
             if killWith9: niner = "-9"
             else:         niner = ""
             if node.hostName == "localhost": # Just kill it
-                parallel.add("pkill %s -fu %s %s" % (niner, environ["USER"], javaClass))
-                if not killWith9: parallel.add("sleep 2; pkill -9 -fu %s %s" % (environ["USER"], javaClass))
+                cmd = "pkill %s -fu %s %s" % (niner, environ["USER"], javaClass)
+                if verbose: print cmd
+                parallel.add(cmd)
+                if not killWith9:
+                    cmd = "sleep 2; pkill -9 -fu %s %s" % (environ["USER"], javaClass)
+                    if verbose: print cmd
+                    parallel.add(cmd)
             else:                            # Have to ssh to kill
-                parallel.add("ssh %s pkill %s -f %s" % (node.hostName, niner, javaClass))
-                if not killWith9: parallel.add("sleep 2; ssh %s pkill -9 -f %s" % (node.hostName, javaClass))
+                cmd = "ssh %s pkill %s -f %s" % (node.hostName, niner, javaClass)
+                parallel.add(cmd)
+                if not killWith9:
+                    cmd = "sleep 2; ssh %s pkill -9 -f %s" % (node.hostName, javaClass)
+                    parallel.add(cmd)
 
-    if verbose and not dryRun: parallel.showAll()
     if not dryRun:
         parallel.start()
         parallel.wait()
-    if verbose: print "Done."; parallel.showAll()
 
-def startJavaProcesses(dryRun, realHubs, clusterConfig, dashDir, logPort, cncPort, verbose):
+def startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose):
     runScriptDict = { "eventBuilder"      : "run-eb",
                       "SecondaryBuilders" : "run-sb",
                       "inIceTrigger"      : "run-iitrig",
@@ -87,10 +94,10 @@ def startJavaProcesses(dryRun, realHubs, clusterConfig, dashDir, logPort, cncPor
     parallel = ParallelShell()
     for node in clusterConfig.nodes:
         for comp in node.comps:
-            if verbose: print "Starting %s:%d on %s..." \
-               % (comp.compName, comp.compID, node.hostName)
-            if not runScriptDict.has_key(comp.compName):  raise RunScriptNotFoundForComponent(comp.compName)
-            if not subProjectDict.has_key(comp.compName): raise SubProjectNotFoundForComponent(comp.compName)
+            if not runScriptDict.has_key(comp.compName):
+                raise RunScriptNotFoundForComponent(comp.compName)
+            if not subProjectDict.has_key(comp.compName):
+                raise SubProjectNotFoundForComponent(comp.compName)
             switches = ""
             if verbose:
                 switches += "--verbose "
@@ -99,7 +106,6 @@ def startJavaProcesses(dryRun, realHubs, clusterConfig, dashDir, logPort, cncPor
 
             if comp.compName == "StringHub":
                 switches += "--id %d " % comp.compID
-                if realHubs: switches += "--real-hub "
 
             switches += "-d %s " % comp.logLevel
             switches += "-c %s " % subProjectDict[comp.compName]
@@ -126,15 +132,17 @@ def startJavaProcesses(dryRun, realHubs, clusterConfig, dashDir, logPort, cncPor
     if not dryRun:
         parallel.start()
         parallel.wait()
-    if verbose: print "Done."; parallel.showAll()                        
                         
-def doKill(dryRun, dashDir, verbose, clusterConfig, killWith9):
-    # Kill DAQRun
-    daqRun = join(dashDir, 'DAQRun.py')
-    cmd = daqRun + ' -k'
-    if verbose: print cmd
-    if not dryRun: system(cmd)
-
+def doKill(doDAQRun, dryRun, dashDir, verbose, clusterConfig, killWith9):
+    "Kill pDAQ python and java components in clusterConfig"
+    if verbose: print "COMMANDS:"
+    if doDAQRun:
+        # Kill DAQRun
+        daqRun = join(dashDir, 'DAQRun.py')
+        cmd = daqRun + ' -k'
+        if verbose: print cmd
+        if not dryRun: system(cmd)
+        
     # Kill CnCServer
     cncServer = join(dashDir, 'CnCServer.py')
     cmd = cncServer + ' -k'
@@ -142,21 +150,26 @@ def doKill(dryRun, dashDir, verbose, clusterConfig, killWith9):
     if not dryRun: system(cmd)
 
     killJavaProcesses(dryRun, clusterConfig, verbose, killWith9)
+    if verbose and not dryRun: print "DONE."
     
-def doLaunch(dryRun, verbose, realHubs, clusterConfig, dashDir,
+def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
              configDir, logDir, spadeDir, logPort, cncPort):
+    "Launch components"
     # Start DAQRun
-    daqRun = join(dashDir, 'DAQRun.py')
-    if verbose:
-        cmd = "%s -f -c %s -l %s -s %s -n &" % (daqRun, configDir, logDir, spadeDir)
-        # Fixme - this is a little kludgy, but CnCServer won't log correctly if DAQRun isn't started.
-        print cmd
-        if not dryRun:
-            system(cmd)
-            sleep(5)
-    else:
-        cmd = "%s -f -c %s -l %s -s %s" % (daqRun, configDir, logDir, spadeDir)
-        if not dryRun: system(cmd)
+    if doDAQRun:
+        daqRun = join(dashDir, 'DAQRun.py')
+        options = "-r -f -c %s -l %s -s %s" % (configDir, logDir, spadeDir)
+        if verbose:
+            cmd = "%s %s -n &" % (daqRun, options)
+            print cmd
+            if not dryRun:
+                system(cmd)
+                sleep(5) # Fixme - this is a little kludgy, but CnCServer
+                         # won't log correctly if DAQRun isn't started.
+
+        else:
+            cmd = "%s %s" % (daqRun, options)
+            if not dryRun: system(cmd)
 
     # Start CnCServer
     cncServer = join(dashDir, 'CnCServer.py')
@@ -168,9 +181,11 @@ def doLaunch(dryRun, verbose, realHubs, clusterConfig, dashDir,
         cmd = "%s -l localhost:9001 -d" % cncServer
         if not dryRun: system(cmd)
 
-    startJavaProcesses(dryRun, realHubs, clusterConfig, dashDir, logPort, cncPort, verbose)
-
+    startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose)
+    if verbose and not dryRun: print "DONE."
+    
 def getDeployedClusterConfig(clusterFile):
+    "Get cluster configuration name persisted in clusterFile"
     try:
         f = open(clusterFile, "r")
         ret = f.readline()
@@ -178,31 +193,44 @@ def getDeployedClusterConfig(clusterFile):
         return ret.rstrip('\r\n')
     except:
         return None
-    
+
+def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, logPort, cncPort):
+    "Completely cycle pDAQ except for DAQRun - can be used by DAQRun when cycling"
+    "pDAQ in an attempt to wipe the slate clean after a failure"
+    doKill(False, False, dashDir, False, clusterConfig, False)
+    doLaunch(False, False, False, clusterConfig, dashDir,
+             configDir, logDir, spadeDir, logPort, cncPort)
+
 def main():
     p = optparse.OptionParser()
-    p.add_option("-R", "--real-hubs",    action="store_true",           dest="realHubs")
-    p.add_option("-c", "--config-name",  action="store", type="string", dest="clusterConfigName")
-    p.add_option("-k", "--kill-only",    action="store_true",           dest="killOnly")
-    p.add_option("-l", "--list-configs", action="store_true",           dest="doList",
+    p.add_option("-c", "--config-name",  action="store", type="string",
+                 dest="clusterConfigName",
+                 help="Cluster configuration name, subset of deployed configuration.")
+    p.add_option("-k", "--kill-only",    action="store_true", dest="killOnly",
+                 help="Kill pDAQ components, don't restart")
+    p.add_option("-l", "--list-configs", action="store_true", dest="doList",
                  help="List available configs")
-    p.add_option("-o", "--log-port",     action="store", type="int",    dest="logPort")
-    p.add_option("-n", "--dry-run",      action="store_true",           dest="dryRun")
-    p.add_option("-r", "--cnc-port",     action="store", type="int",    dest="cncPort")
-    p.add_option("-s", "--skip-kill",    action="store_true",           dest="skipKill")
-    p.add_option("-v", "--verbose",      action="store_true",           dest="verbose")
-    p.add_option("-9", "--kill-kill",    action="store_true",           dest="killWith9",
-                 help="just kill everything dead")
+    p.add_option("-o", "--log-port",     action="store", type="int", dest="logPort",
+                 help="Port for default/catchall logging")
+    p.add_option("-r", "--cnc-port",     action="store", type="int", dest="cncPort",
+                 help="RPC Port for CnC Server")
+    p.add_option("-n", "--dry-run",      action="store_true",        dest="dryRun",
+                 help="\"Dry run\" only, don't actually do anything")
+    p.add_option("-s", "--skip-kill",    action="store_true",        dest="skipKill",
+                 help="Don't kill anything, just launch")
+    p.add_option("-v", "--verbose",      action="store_true",        dest="verbose",
+                 help="Log output for all components to terminal")
+    p.add_option("-9", "--kill-kill",    action="store_true",        dest="killWith9",
+                 help="just kill everything with extreme (-9) prejudice")
     p.set_defaults(clusterConfigName = None,
-                   realHubs   = False,
-                   dryRun     = False,
-                   verbose    = False,
-                   doList     = False,
-                   logPort    = 9001,
-                   cncPort    = 8080,
-                   skipKill   = False,
-                   killWith9  = False,
-                   killOnly   = False)
+                   dryRun            = False,
+                   verbose           = False,
+                   doList            = False,
+                   logPort           = 9001,
+                   cncPort           = 8080,
+                   skipKill          = False,
+                   killWith9         = False,
+                   killOnly          = False)
     opt, args = p.parse_args()
 
     readClusterConfig = getDeployedClusterConfig(join(metaDir, 'cluster-config', '.config'))
@@ -221,9 +249,12 @@ def main():
 
     if opt.doList: showConfigs(clusterConfigDir); raise SystemExit
 
+    # Get/parse cluster configuration
     clusterConfig = deployConfig(clusterConfigDir, configToUse)
+
     spadeDir  = clusterConfig.logDirForSpade
-    if not isabs(spadeDir): # Assume non-fully-qualified paths are relative to metaproject top dir
+    # Assume non-fully-qualified paths are relative to metaproject top dir:
+    if not isabs(spadeDir): 
         spadeDir = join(metaDir, spadeDir)
 
     if not exists(spadeDir) and not opt.dryRun: mkdir(spadeDir)
@@ -234,6 +265,7 @@ def main():
         system('rm -f %s' % join(logDir, 'catchall.log'))
     
     if opt.verbose:
+        print "CONFIG: %s" % configToUse
         print "NODES:"
         for node in clusterConfig.nodes:
             print "  %s(%s)" % (node.hostName, node.locName),
@@ -241,8 +273,10 @@ def main():
                 print "%s-%d " % (comp.compName, comp.compID),
             print
 
-    if not opt.skipKill: doKill(opt.dryRun, dashDir, opt.verbose, clusterConfig, opt.killWith9)
-    if not opt.killOnly: doLaunch(opt.dryRun, opt.verbose, opt.realHubs, clusterConfig,
-                                  dashDir, configDir, logDir, spadeDir, opt.logPort, opt.cncPort)
+    if not opt.skipKill: doKill(True, opt.dryRun, dashDir, opt.verbose,
+                                clusterConfig, opt.killWith9)
+    if not opt.killOnly: doLaunch(True, opt.dryRun, opt.verbose, clusterConfig,
+                                  dashDir, configDir, logDir,
+                                  spadeDir, opt.logPort, opt.cncPort)
 
 if __name__ == "__main__": main()
