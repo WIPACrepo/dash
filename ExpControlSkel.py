@@ -71,49 +71,42 @@ def main():
     configName   = opt.configName
     sleeptime    = 0.4
     xmlIval      = 10
-    lastState    = None
+    state        = None
+    txml         = None
+    runNum       = startRunNum
+    startTime    = None
 
     try:
-        for runNumber in xrange(startRunNum, opt.numRuns+startRunNum):
-            # Start run
-            print "Starting run %d" % runNumber
-            setLastRunNum(runFile, runNumber)
-            try:
-                daqiface.start(runNumber, configName)
-                while 1:
-                    status = daqiface.getState()
-                    lastState = updateStatus(lastState, status)
-                    if status == "ERROR" : daqiface.recover()
-                    if status == "RUNNING" or status == "STOPPED" : break
-                    time.sleep(sleeptime)
-            except KeyboardInterrupt, k:
-                print "\nKeyboard interrupt before start."
-                raise SystemExit
-            except Exception, e:
-                print "Run start failed: %s" % e
-                daqiface.recover() # If recovery throws an exception then we're hosed
-                continue
-
-            if status == "STOPPED": continue # Restart if we had an error
-
-            # Monitor run
-            tstart   = datetime.now()
-            txml     = None
-            hadError = False
-            while True:
-                tnow = datetime.now()
-                if tnow-tstart > timedelta(seconds=opt.duration): break
+        while True:
+            if state == None: # Get a well-defined state
+                state = updateStatus(state, daqiface.getState())
+            if state == "STOPPED": # Try to start run
+                if runNum >= startRunNum + opt.numRuns: raise SystemExit
+                print "Starting run %d..." % runNum
+                setLastRunNum(runFile, runNum)
                 try:
-                    status = daqiface.getState()
-                except KeyboardInterrupt, k: raise
+                    daqiface.start(runNum, configName)
+                    startTime = datetime.now()
+                    runNum += 1
+                    state = updateStatus(state, daqiface.getState())
                 except Exception, e:
-                    print "Get status failed: %s" % e
-                    daqiface.recover()
-                    hadError = True
-                    break
+                    print "Failed transition: %s" % e
+                    state = "ERROR"
+            if state == "STARTING" or state == "RECOVERING" or state == "STOPPING":
+                time.sleep(1)
+                state = updateStatus(state, daqiface.getState())
+            if state == "RUNNING":
+                tnow = datetime.now()
+                if not startTime or tnow-startTime > timedelta(seconds=opt.duration):
+                    try:
+                        daqiface.stop()
+                        state = updateStatus(state, daqiface.getState())
+                        continue
+                    except Exception, e:
+                        print "Failed transition: %s" % e
+                        state = "ERROR"
+                    time.sleep(1)
 
-                lastState = updateStatus(lastState, status)
-                if(status == "ERROR"): break
                 if opt.showXML and (not txml or tnow-txml > timedelta(seconds=xmlIval)):
                     try:
                         print daqiface.getSummary()
@@ -127,49 +120,18 @@ def main():
 
                 time.sleep(sleeptime)
 
-            if hadError: continue # Restart run if something failed
-
-            # Stop run, do error recovery if needed
-            try:
-                status = daqiface.getState()
-            except KeyboardInterrupt, k: raise
-            except Exception, e:
-                print "Get status failed: %s" % e
-                daqiface.recover()
-                continue
-
-            lastState = updateStatus(lastState, status)
-            if(status == "ERROR"):
-                daqiface.recover()
-                continue
-            else:
+            if state == "ERROR":
                 try:
-                    daqiface.stop()
-                except KeyboardInterrupt, k: raise
+                    daqiface.recover()
+                    state = updateStatus(state, daqiface.getState())
                 except Exception, e:
-                    print "Stop operation failed: %s" % e
-                    daqiface.recover()
-                    continue
-
-            while 1:
-                try:
-                    status = daqiface.getState()
-                except KeyboardInterrupt, k: raise
-                except Exception, e:
-                    print "Get state failed: %s" % e
-                    daqiface.recover()
-                    continue
-                lastState = updateStatus(lastState, status)
-                if status == "STOPPED": break
-                if status == "ERROR" :
-                    daqiface.recover()
-                    continue
-
-                time.sleep(sleeptime)
-    except KeyboardInterrupt, k:
+                    print "Failed transition: %s" % e
+                    raise SystemExit
+    except KeyboardInterrupt:
+        print "\nInterrupted... sending stop signal..."
         daqiface.stop()
-        raise SystemExit
-    
+    print "Done."
+
     daqiface.release()
     
 if __name__ == "__main__": main()
