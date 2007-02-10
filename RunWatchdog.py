@@ -72,8 +72,13 @@ class ValueWatcher(object):
 class WatchData(object):
     def __init__(self, id, compType, compNum, addr, port):
         self.id = id
-        self.compType = compType
-        self.compNum = compNum
+
+        if compNum == 0:
+            numStr = ''
+        else:
+            numStr = '#' + str(compNum)
+        self.name = compType + numStr
+
         self.client = RPCClient(addr, port)
         self.beanFields = {}
         self.beanList = self.client.mbean.listMBeans()
@@ -83,43 +88,38 @@ class WatchData(object):
         self.outputFields = {}
 
     def __str__(self):
-        if self.compNum == 0:
-            numStr = ''
-        else:
-            numStr = '#' + str(self.compNum)
-
-        return '#' + str(self.id) + ': ' + self.compType + numStr
+        return '#' + str(self.id) + ': ' + self.name
 
     def addInputValue(self, otherType, beanName, fieldName):
         if beanName not in self.beanList:
             raise BeanFieldNotFoundException('Unknown MBean ' + beanName +
-                                             ' for ' + self.compType)
+                                             ' for ' + self.name)
 
         if fieldName not in self.beanFields[beanName]:
             raise BeanFieldNotFoundException('Unknown MBean ' + beanName +
                                              ' field ' + fieldName +
-                                             ' for ' + self.compType)
+                                             ' for ' + self.name)
 
         if beanName not in self.inputFields:
             self.inputFields[beanName] = []
 
-        vw = ValueWatcher(otherType, self.compType, beanName, fieldName)
+        vw = ValueWatcher(otherType, self.name, beanName, fieldName)
         self.inputFields[beanName].append(vw)
 
     def addOutputValue(self, otherType, beanName, fieldName):
         if beanName not in self.beanList:
             raise BeanFieldNotFoundException('Unknown MBean ' + beanName +
-                                             ' for ' + self.compType)
+                                             ' for ' + self.name)
 
         if fieldName not in self.beanFields[beanName]:
             raise BeanFieldNotFoundException('Unknown MBean ' + beanName +
                                              ' field ' + fieldName +
-                                             ' for ' + self.compType)
+                                             ' for ' + self.name)
 
         if beanName not in self.outputFields:
             self.outputFields[beanName] = []
 
-        vw = ValueWatcher(self.compType, otherType, beanName, fieldName)
+        vw = ValueWatcher(self.name, otherType, beanName, fieldName)
         self.outputFields[beanName].append(vw)
 
     def checkValues(self, watchList):
