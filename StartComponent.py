@@ -12,7 +12,6 @@ if __name__ == "__main__":
     p.add_option("-n", "--cnc",            action="store", type="string", dest="cncServer")
     p.add_option("-l", "--log",            action="store", type="string", dest="logServer")
     p.add_option("-d", "--log-level",      action="store", type="string", dest="logLevel")
-    p.add_option("-R", "--real-hub",       action="store_true",           dest="realHub")
     p.add_option("-i", "--id",             action="store", type="string", dest="compID")
     p.add_option("-a", "--ignore-maven",   action="store_true", dest="ignoreMaven")
     p.add_option("-v", "--verbose",        action="store_true", dest="verbose")
@@ -23,7 +22,6 @@ if __name__ == "__main__":
                    ignoreMaven = False,
                    logLevel    = "INFO",
                    compID      = None,
-                   realHub     = False,
                    verbose     = False)
               
             
@@ -65,7 +63,6 @@ if __name__ == "__main__":
         
     args = ""
     if opt.compID: args += "%d " % int(opt.compID)
-    if opt.realHub: args += "--real-hub "
     args += "-g %s " % config
     args += "-l %s,%s " % (opt.logServer, opt.logLevel)
     args += "-c %s " % opt.cncServer
