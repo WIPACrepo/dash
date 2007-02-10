@@ -240,8 +240,8 @@ class RunWatchdog(object):
                         raise Exception, 'Unknown component type ' + \
                             shortNameOf[c]
                 except Exception, e:
-                    self.logmsg('Couldn''t create watcher (%s#%d)' +
-                                ' for component %d: %s' %
+                    self.logmsg(('Couldn''t create watcher (%s#%d)' +
+                                 ' for component %d: %s') %
                                 (shortNameOf[c], daqIDof[c], c, exc_string()))
 
         # soloComps is filled here so we can determine the order
