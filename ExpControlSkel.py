@@ -119,6 +119,7 @@ def main():
                     txml = tnow
 
                 time.sleep(sleeptime)
+                state = updateStatus(state, daqiface.getState())
 
             if state == "ERROR":
                 try:
