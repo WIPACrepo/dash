@@ -9,7 +9,40 @@
 from time import sleep, time
 from datetime import datetime, timedelta
 from DAQRPC import RPCClient
+from locate_pdaq import find_pdaq_trunk
+from os.path import join, exists
+from xml.dom import minidom
 
+class LabelConfigFileNotFoundException(Exception): pass
+class MalformedLabelConfigException   (Exception): pass
+
+def getElementSingleTagName(root, name):
+    "Fetch a single element tag name of form <tagName>yowsa!</tagName>"
+    elems = root.getElementsByTagName(name)
+    if len(elems) != 1:
+        raise MalformedLabelConfigException("Expected exactly one %s" % name)
+    if len(elems[0].childNodes) != 1:
+        raise MalformedLabelConfigException("Expected exactly one child node of %s" %name)
+    return elems[0].childNodes[0].data
+
+class DAQLabelParser:
+    def __init__(self, configFile):
+        if not exists(configFile): raise LabelConfigFileNotFound(configFile)
+        self.configFile   = configFile
+        self.dict         = {}
+        self.defaultLabel = None
+        parsed = minidom.parse(self.configFile)
+        daqLabels = parsed.getElementsByTagName("daqLabels")
+        if len(daqLabels) != 1: raise MalformedLabelConfigException(self.configFile)
+        runs = daqLabels[0].getElementsByTagName("run")
+        self.defaultLabel = getElementSingleTagName(daqLabels[0], "defaultLabel")
+        for run in runs:
+            alias = str(run.attributes["alias"].value)
+            runConfig   = getElementSingleTagName(run, "runConfig")
+            description = getElementSingleTagName(run, "description")
+            runMode     = getElementSingleTagName(run, "runMode")
+            self.dict[alias] = ( str(runConfig), str(description), str(runMode) )
+    
 class DAQRunIface(object):
     START_TRANSITION_SECONDS    = 200
     STOP_TRANSITION_SECONDS     = 120
@@ -55,11 +88,11 @@ class DAQRunIface(object):
         self.rpc.rpc_release_runsets()
         return DAQRunIface.RELEASE_TRANSITION_SECONDS
     
-
     def getDaqLabels(self):
-        result = {}
-        result['Physics'] = ('hub1001sim',
-                             'Standard physics data-taking [implemented as sim only right now]',
-                             'Physics')
-        return result, 'Physics'
+        home = find_pdaq_trunk()
+        parser = DAQLabelParser(join(home, "dash", "config", "daqlabels.xml"))
+        return parser.dict, parser.defaultLabel
     
+if __name__ == "__main__":
+    iface = DAQRunIface()
+    print iface.getDaqLabels()

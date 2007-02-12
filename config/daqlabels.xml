@@ -1,0 +1,8 @@
+<daqLabels>
+  <defaultLabel>Physics</defaultLabel>
+  <run alias="Physics">
+    <runConfig>sps-test-amanda-9str-001</runConfig>
+    <description>Nine icecube strings receiving AMANDA trigger from TWR</description>
+    <runMode>Physics</runMode>
+  </run>
+</daqLabels>
