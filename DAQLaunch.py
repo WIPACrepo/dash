@@ -41,6 +41,7 @@ def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9):
             { "eventBuilder"      : "icecube.daq.eventBuilder.EBComponent",
               "SecondaryBuilders" : "icecube.daq.secBuilder.SBComponent",
               "inIceTrigger"      : "icecube.daq.trigger.component.IniceTriggerComponent",
+              "iceTopTrigger"     : "icecube.daq.trigger.component.IcetopTriggerComponent",
               "globalTrigger"     : "icecube.daq.trigger.component.GlobalTriggerComponent",
               "amandaTrigger"     : "icecube.daq.trigger.component.AmandaTriggerComponent",
               "StringHub"         : "icecube.daq.stringhub"
@@ -77,6 +78,7 @@ def startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose
     runScriptDict = { "eventBuilder"      : "run-eb",
                       "SecondaryBuilders" : "run-sb",
                       "inIceTrigger"      : "run-iitrig",
+                      "iceTopTrigger"     : "run-ittrig",
                       "globalTrigger"     : "run-gltrig",
                       "StringHub"         : "run-hub",
                       "amandaTrigger"     : "run-amtrig"
@@ -84,6 +86,7 @@ def startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose
     subProjectDict = { "eventBuilder"      : "eventBuilder-prod",
                        "SecondaryBuilders" : "secondaryBuilders",
                        "inIceTrigger"      : "trigger",
+                       "iceTopTrigger"     : "trigger",
                        "globalTrigger"     : "trigger",
                        "amandaTrigger"     : "trigger",
                        "StringHub"         : "StringHub"
