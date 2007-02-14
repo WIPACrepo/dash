@@ -175,7 +175,7 @@ class RunSet:
         for c in self.set:
             c.configure(globalConfigName)
 
-        self.waitForStateChange()
+        self.waitForStateChange(20)
 
         self.state = 'ready'
 
