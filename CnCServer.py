@@ -1092,7 +1092,7 @@ class DAQServer(DAQPool):
                                    connectors)
         self.logmsg("Got registration for %s" % str(client))
 
-        sleep(1)
+        sleep(0.1)
 
         self.add(client)
 
