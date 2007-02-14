@@ -65,6 +65,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     CNC_PORT       = 8080
     MONI_PERIOD    = 30
     WATCH_PERIOD   = 10
+    COMP_TOUT      = 300
     
     def __init__(self, portnum, dashDir, clusterConfig,
                  configDir=CFGDIR, logDir=LOGDIR, spadeDir=SPADEDIR, forceConfig=False,
@@ -293,7 +294,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         # Wait for required components
         self.logmsg("Starting run %d (waiting for required %d components to register w/ CnCServer)"
                     % (self.runNum, len(self.requiredComps)))
-        remoteList = self.waitForRequiredComponents(cncrpc, self.requiredComps, 60)
+        remoteList = self.waitForRequiredComponents(cncrpc, self.requiredComps, DAQRun.COMP_TOUT)
         # Throws RequiredComponentsNotAvailableException
         
         # build CnC run set
