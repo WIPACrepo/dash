@@ -90,7 +90,7 @@ class DAQConfig(object):
             for domConfig in configs[0].getElementsByTagName("domConfigList"):
                 
                 domConfigName = domConfig.childNodes[0].data
-                domConfigXML = configDir + "/" + domConfigName + ".xml"
+                domConfigXML = configDir + "/domconfigs/" + domConfigName + ".xml"
                 
                 if not exists(domConfigXML): raise noDOMConfigFound(domConfigName)
                 
