@@ -30,17 +30,17 @@ class DAQConfig(object):
 
     DEPLOYEDDOMS   = "default-dom-geometry" # ".xml" implied, below.
 
-    parsedNDOMDict       = {}
-    parsedKindListDict   = {}
-    parsedStringListDict = {}
-    parsedCompListDict   = {}
+    parsedNDOMDict          = {}
+    parsedKindListDict      = {}
+    parsedHubIDListDict     = {}
+    parsedCompListDict      = {}
     
     def __init__(self, configName="default", configDir="/usr/local/icecube/config"):
         # Optimize by looking up pre-parsed configurations:
         if DAQConfig.parsedNDOMDict.has_key(configName):
             self.ndoms      = DAQConfig.parsedNDOMDict      [ configName ]
             self.kindList   = DAQConfig.parsedKindListDict  [ configName ]
-            self.stringList = DAQConfig.parsedStringListDict[ configName ]
+            self.hubIDList  = DAQConfig.parsedHubIDListDict[ configName ]
             self.compList   = DAQConfig.parsedCompListDict  [ configName ]
             return
         
@@ -59,7 +59,9 @@ class DAQConfig(object):
         deployedStrings = deployedDOMsParsed.getElementsByTagName("string")
         if len(deployedStrings) < 1: raise noDeployedStringsListFound()
 
-        nameDict = {}; stringDict = {}; positionDict = {}; kindDict = {}
+        nameDict     = {}; stringDict = {}
+        positionDict = {}; kindDict   = {}
+        compDict     = {};
 
         for string in deployedStrings:
             stringNumTag = string.getElementsByTagName("number")
@@ -80,6 +82,7 @@ class DAQConfig(object):
                 nameDict[domID]     = name
                 stringDict[domID]   = stringNum
                 positionDict[domID] = position
+                compDict[domID]     = DAQConfig.lookUpHubIDbyStringAndPosition(stringNum, position)
                 kindDict[domID]     = kind
 
         configList = []
@@ -100,18 +103,18 @@ class DAQConfig(object):
         self.ndoms = len(configList)
         # print "Found %d DOMs." % self.ndoms
 
-        stringInConfigDict = {}
+        hubIDInConfigDict = {}
         kindInConfigDict   = {}
         for dom in configList:
-            domID = dom.getAttribute("mbid")
-            string = stringDict[domID]
+            domID  = dom.getAttribute("mbid")
+            hubID = compDict[domID]
             kind   = kindDict[domID]
             # print "Got DOM %s string %s kind %s" % (domID, string, kind)
-            stringInConfigDict[string] = True
+            hubIDInConfigDict[hubID] = True
             kindInConfigDict[kind]     = True
 
         self.kindList   = kindInConfigDict.keys()
-        self.stringList = stringInConfigDict.keys()
+        self.hubIDList = hubIDInConfigDict.keys()
 
         self.compList = []
         compNodes = configs[0].getElementsByTagName("runComponent")
@@ -125,11 +128,27 @@ class DAQConfig(object):
             self.compList.append(node.attributes['name'].value + '#' +
                                  str(nodeId))
 
-        DAQConfig.parsedNDOMDict      [ configName ] = self.ndoms
-        DAQConfig.parsedKindListDict  [ configName ] = self.kindList
-        DAQConfig.parsedStringListDict[ configName ] = self.stringList
-        DAQConfig.parsedCompListDict  [ configName ] = self.compList
+        DAQConfig.parsedNDOMDict     [ configName ] = self.ndoms
+        DAQConfig.parsedKindListDict [ configName ] = self.kindList
+        DAQConfig.parsedHubIDListDict[ configName ] = self.hubIDList
+        DAQConfig.parsedCompListDict [ configName ] = self.compList
 
+    def lookUpHubIDbyStringAndPosition(stringNum, position):
+        # This is a somewhat kludgy approach but we let the L2 make the call and file
+        # a mantis issue to clean this up later...
+        # ithub01: 46, 55, 56, 65, 72, 73, 77, 78
+        # ithub02: 38, 39, 48, 58, 64, 66, 71, 74
+        # ithub03: 30, 40, 47, 49, 50, 57, 59, 67
+        # ithub04: 21, 29
+        if position <= 60: return stringNum
+        if stringNum in [46, 55, 56, 65, 72, 73, 77, 78]: return 81
+        if stringNum in [38, 39, 48, 58, 64, 66, 71, 74]: return 82
+        if stringNum in [30, 40, 47, 49, 50, 57, 59, 67]: return 83
+        if stringNum in [21, 29]: return 84
+        if stringNum == 0: return 0
+        return stringNum
+    lookUpHubIDbyStringAndPosition = staticmethod(lookUpHubIDbyStringAndPosition)
+    
     def nDOMs(self):
         "return number of DOMs in parsed configuration"
         return self.ndoms
@@ -141,11 +160,11 @@ class DAQConfig(object):
         """
         return self.kindList
     
-    def strings(self):
+    def hubIDs(self):
         """
         Return list of strings in parsed configuration.  String 0 refers to AMANDA.
         """
-        return self.stringList
+        return self.hubIDList
     
     def components(self):
         """
@@ -155,23 +174,16 @@ class DAQConfig(object):
     
 if __name__ == "__main__":
     configDir  = "../config"
-    configName = "example-runconfig"
-    
-    dc = DAQConfig(configName, configDir)
-    print "Number of DOMs in configuration: %s" % dc.nDOMs()
-    for string in dc.strings():
-        print "String %d is in configuration." % string
-    for kind in dc.kinds():
-        print "Configuration includes %s" % kind
-    for comp in dc.components():
-        print "Configuration requires %s" % comp
+    configName = "sps-inice-18str-icetop-001"
 
-    # Do it again to test optimization
-    dc = DAQConfig(configName, configDir)
-    print "Number of DOMs in configuration: %s" % dc.nDOMs()
-    for string in dc.strings():
-        print "String %d is in configuration." % string
-    for kind in dc.kinds():
-        print "Configuration includes %s" % kind
-    for comp in dc.components():
-        print "Configuration requires %s" % comp
+    for i in range(1,2):
+        dc = DAQConfig(configName, configDir)
+        print "Number of DOMs in configuration: %s" % dc.nDOMs()
+        for hubID in dc.hubIDs():
+            print "String/hubID %d is in configuration." % hubID
+        for kind in dc.kinds():
+            print "Configuration includes %s" % kind
+        for comp in dc.components():
+            print "Configuration requires %s" % comp
+
+

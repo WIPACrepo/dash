@@ -196,13 +196,13 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     def getComponentsFromGlobalConfig(self, configName, configDir):
         # Get and set global configuration
         self.configuration = DAQConfig.DAQConfig(configName, configDir)
-        stringlist = self.configuration.strings()
+        stringlist = self.configuration.hubIDs()
         kindlist   = self.configuration.kinds()
         complist   = self.configuration.components()
         self.logmsg("Loaded global configuration \"%s\"" % configName)
         requiredComps = []
         for string in stringlist:
-            self.logmsg("Configuration includes string %d" % string)
+            self.logmsg("Configuration includes string/ID %d" % string)
             requiredComps.append("stringHub#%d" % string)
         for kind in kindlist:
             self.logmsg("Configuration includes detector %s" % kind)
