@@ -5,7 +5,7 @@ import optparse
 from DAQRPC import RPCClient
 
 def cmpComp(x, y):
-    c = cmp(x[7], y[7])
+    c = cmp(x[6], y[6])
     if c == 0:
         c = cmp(x[1], y[1])
         if c == 0:
@@ -13,22 +13,37 @@ def cmpComp(x, y):
 
     return c
 
-def dumpComp(comp, numList):
-    if len(numList) > 0:
-        if len(numList) == 1:
-            print '  ' + comp
-        else:
-            numStr = None
-            for n in numList:
-                if numStr is None:
-                    numStr = str(n)
-                else:
-                    numStr += ' ' + str(n)
+def dumpComp(comp, numList, indent):
+    if comp is None or len(numList) == 0:
+        return
 
-                    print '  ' + str(len(numList)) + ' ' + comp + 's: ' + \
-                        numStr
+    if len(numList) == 1 and numList[0] == 0:
+        print indent + '  ' + comp
+    else:
+        numStr = None
+        for n in numList:
+            if numStr is None:
+                numStr = str(n)
+            else:
+                numStr += ' ' + str(n)
 
-def listTerse(list):
+        front = indent + '  ' + str(len(numList)) + ' ' + comp + 's: '
+        frontLen = len(front)
+
+        lineLen = 78
+
+        while len(numStr) > 0:
+            if frontLen + len(numStr) < lineLen:
+                print front + numStr
+                break
+            subStr = numStr[0:lineLen-frontLen]
+            numStr = numStr[lineLen-frontLen:]
+            if numStr[0] == ' ':
+                numStr = numStr[1:]
+            print front + subStr
+            front = ' '*len(front)
+
+def listTerse(list, indent=''):
     list.sort(cmpComp)
 
     prevState = None
@@ -36,19 +51,22 @@ def listTerse(list):
 
     numList = []
     for c in list:
-        if cmp(prevState, c[7]) != 0:
-            prevState = c[7]
-            print prevState
-        if cmp(prevComp, c[1]) != 0:
-            dumpComp(prevComp, numList)
+        compChanged = cmp(prevComp, c[1]) != 0
+        stateChanged = cmp(prevState, c[6]) != 0
+        if compChanged or stateChanged:
+            dumpComp(prevComp, numList, indent)
             prevComp = c[1]
-            numList = [c[3], ]
-    dumpComp(prevComp, numList)
+            numList = []
+        if stateChanged:
+            prevState = c[6]
+            print indent + prevState
+        numList.append(c[2])
+    dumpComp(prevComp, numList, indent)
 
 def listVerbose(list):
     for c in list:
-        print '\t#%d %s#%d at %s:%d M#%d %s' % \
-            (c[0], c[1], c[2], c[3], c[4], c[5], c[6])
+        print '%s  #%d %s#%d at %s:%d M#%d %s' % \
+            (indent, c[0], c[1], c[2], c[3], c[4], c[5], c[6])
 
 if __name__ == "__main__":
     p = optparse.OptionParser()
@@ -90,9 +108,9 @@ if __name__ == "__main__":
         ls = cncrpc.rpc_runset_list(id)
         print '\tRunSet#%d' % id
         if opt.verbose:
-            listVerbose(lc)
+            listVerbose(ls, '\t')
         else:
-            listTerse(lc)
+            listTerse(ls, '\t')
 
     daqrpc = RPCClient(daqserver, daqport)
     try:
