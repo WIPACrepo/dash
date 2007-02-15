@@ -53,7 +53,6 @@ def main():
             spadeTar = "SPS-pDAQ-2ndBld-%s.dat.tar" % dateTag
             moniLink = "SPS-pDAQ-2ndBld-%s.mon.tar" % dateTag
             spadeSem = "SPS-pDAQ-2ndBld-%s.sem"     % dateTag
-            moniSem  = "SPS-pDAQ-2ndBld-%s.msem"    % dateTag
 
             # Create spade tarball
             print spadeTar
@@ -73,9 +72,6 @@ def main():
             # Create spade .sem
             f = open(spadeSem, "w"); f.close()
             
-            # Create moni .sem
-            f = open(moniSem, "w"); f.close()
-
             # Clean up tar'ed files
             for toAdd in filesToTar:
                 print "Removing %s..." % toAdd
