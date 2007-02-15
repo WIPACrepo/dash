@@ -1033,6 +1033,7 @@ class DAQServer(DAQPool):
         if self.server:
             self.server.register_function(self.rpc_close_log)
             self.server.register_function(self.rpc_get_num_components)
+            self.server.register_function(self.rpc_list_components)
             self.server.register_function(self.rpc_log_to)
             self.server.register_function(self.rpc_log_to_default)
             self.server.register_function(self.rpc_num_sets)
@@ -1062,6 +1063,21 @@ class DAQServer(DAQPool):
     def rpc_get_num_components(self):
         "return number of components currently registered"
         return self.getNumComponents()
+
+    def rpc_list_components(self):
+        "list unused components"
+        s = []
+        for k in self.pool:
+            for c in self.pool[k]:
+                try:
+                    state = c.getState()
+                except Exception:
+                    state = DAQClient.STATE_DEAD
+
+                s.append([c.id, c.name, c.num, c.host, c.port, c.mbeanPort,
+                          state])
+
+        return s
 
     def rpc_log_to(self, host, port):
         "called by DAQLog object to tell us what UDP port to log to"
