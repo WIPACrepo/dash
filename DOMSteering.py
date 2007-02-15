@@ -89,20 +89,38 @@ def createConfig(cursor, mbid, **kwargs):
     
     # Setup defaults
     gain = 1.0E+07
-    mpeQ = 10.0
-    speQ = 0.25
+    mpeQ = 16.0
+    speQ = 0.4
+    trigger_mode = "spe"
     
     lc_type = "hard"
 
     omKey = getOmKey(mbid)
     pos = int(omKey[3:5])
 
+    lc_mode    = "up-or-down"
+    lc_tx_mode = "both"
+    
     if pos == 1:
         lc_mode = "down"
     elif pos == 60:
         lc_mode = "up"
-    else:
-        lc_mode = "up-or-down"
+    elif pos == 61:     # IceTop HG tank A
+        gain = 5.0E+06
+        trigger_mode = "mpe"
+    elif pos == 62:     # IceTop LG tank A
+        gain = 5.0E+05
+        mpeQ = 8.0
+        speQ = 1.0
+        lc_tx_mode = "none"
+    elif pos == 63:     # IceTop HG tank B
+        gain = 5.0E+06
+        trigger_mode = "mpe"
+    elif pos == 64:     # IceTop LG tank B
+        gain = 5.0E+05 
+        mpeQ = 8.0
+        speQ = 1.0
+        lc_tx_mode = "none"
 
     # Check for special LC cases
     if omKey in lc_special_modes: lc_mode = lc_special_modes[omKey]
@@ -148,7 +166,7 @@ def createConfig(cursor, mbid, **kwargs):
             txt += "</atwd>\n"
         txt += "</engineeringFormat>\n"
     txt += "</format>\n"
-    txt += "<triggerMode> spe </triggerMode>\n"
+    txt += "<triggerMode> %3s </triggerMode>\n" % trigger_mode
     txt += "<atwd0TriggerBias>         850 </atwd0TriggerBias>\n"
     txt += "<atwd1TriggerBias>         850 </atwd1TriggerBias>\n"
     txt += "<atwd0RampRate>            350 </atwd0RampRate>\n"
@@ -172,7 +190,7 @@ def createConfig(cursor, mbid, **kwargs):
     txt += "<localCoincidence>\n"
     txt += "<type> %10s </type>\n" % lc_type
     txt += "<mode> %10s </mode>\n" % lc_mode
-    txt += "<txMode>     both </txMode>\n"
+    txt += "<txMode> %8s</txMode>\n" % lc_tx_mode
     txt += "<source>      spe </source>\n"
     txt += "<span>          %d </span>\n" % lc_span
     txt += "<preTrigger>  %4d </preTrigger>\n" % lc_pre_trigger
@@ -223,16 +241,30 @@ if __name__ == '__main__':
                       help="Specify database user")
     parser.add_option("-p", "--password", dest="passwd", action="store_true", default=False,
                       help="Database user will need a password")
+    parser.add_option("-E", "--engineering-readout", dest="engFmt", default="",
+                      help ="Use engineering format readout")
     
     (opts, args) = parser.parse_args()
     if len(args) < 1: sys.exit(1)
 
+    # Extract the engineering format
+    if opts.engFmt == "":
+        engFmt = ((128, 128, 128, 0), 250)
+    else:
+        vec = opts.engFmt.split(",")
+        if len(vec) != 5:
+            print >> sys.error, "ERROR: engineering format spec is --E ATWD0,ATWD1,ATWD2,ATWD3,FADC"
+            sys.exit(1)
+        engFmt = (tuple([ int(x) for x in vec[0:4] ]), int(vec[4]))
+        
     passwd = ""
     if opts.passwd: getpass("Enter password for user " + opts.user + " on " + opts.dbHost + ": ")
         
     db = MySQLdb.connect(host=opts.dbHost, user=opts.user, passwd=passwd, db="domprodtest")
 
     cmd = re.compile('(\d{1,2})([it])')
+    print "<?xml version='1.0' encoding='UTF-8'?>"
+    print "<domConfigList>"
     for s in args:
         m = cmd.search(s)
         if m is None: continue
@@ -244,9 +276,14 @@ if __name__ == '__main__':
             p0 = 61
             p1 = 65
         kList = [ "%2.2d-%2.2d" % (istr, pos) for pos in range(p0, p1) ]
-        mbidList = [ getByOmKey(k)[0] for k in kList ]
-        print "<?xml version='1.0' encoding='UTF-8'?>"
-        print "<domConfigList>"
-        for mbid in mbidList: print createConfig(db.cursor(), mbid, engFormat=((128, 32, 32, 0), 100))
-        print "</domConfigList>"
+        mbidList = [ ]
+        for k in kList:
+            try:
+                mbid = getByOmKey(k)[0]
+                mbidList.append(mbid)
+            except KeyError:
+                print >>sys.stderr, "WARN:", k, "not found in nicknames"
+                
+        for mbid in mbidList: print createConfig(db.cursor(), mbid, engFormat=engFmt)
+    print "</domConfigList>"
         
