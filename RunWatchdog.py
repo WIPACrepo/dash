@@ -210,7 +210,7 @@ class RunWatchdog(object):
                         cw.addOutputValue('globalTrigger', 'trigger',
                                           'RecordsSent')
                         iniceTrigger = cw
-                    elif shortNameOf[c] == 'icetopTrigger':
+                    elif shortNameOf[c] == 'iceTopTrigger':
                         cw.addInputValue('stringHub', 'stringHit',
                                          'RecordsReceived')
                         cw.addOutputValue('globalTrigger', 'trigger',
