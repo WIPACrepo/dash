@@ -64,7 +64,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     CATCHALL_PORT  = 9001
     CNC_PORT       = 8080
     MONI_PERIOD    = 30
-    WATCH_PERIOD   = 10
+    WATCH_PERIOD   = 30
     COMP_TOUT      = 300
     
     def __init__(self, portnum, dashDir, clusterConfig,
