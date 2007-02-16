@@ -63,7 +63,7 @@ def listTerse(list, indent=''):
         numList.append(c[2])
     dumpComp(prevComp, numList, indent)
 
-def listVerbose(list):
+def listVerbose(list, indent=''):
     for c in list:
         print '%s  #%d %s#%d at %s:%d M#%d %s' % \
             (indent, c[0], c[1], c[2], c[3], c[4], c[5], c[6])
