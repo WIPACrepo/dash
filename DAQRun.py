@@ -63,13 +63,13 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     SPADEDIR       = "/tmp"
     CATCHALL_PORT  = 9001
     CNC_PORT       = 8080
-    MONI_PERIOD    = 30
-    WATCH_PERIOD   = 30
-    COMP_TOUT      = 300
+    MONI_PERIOD    = 10
+    WATCH_PERIOD   = 10
+    COMP_TOUT      = 60
     
     def __init__(self, portnum, dashDir, clusterConfig,
-                 configDir=CFGDIR, logDir=LOGDIR, spadeDir=SPADEDIR, forceConfig=False,
-                 doRelaunch=False):
+                 configDir=CFGDIR, logDir=LOGDIR, spadeDir=SPADEDIR, copyDir=None,
+                 forceConfig=False, doRelaunch=False):
         RPCServer.__init__(self, portnum, "localhost",
                            "DAQ Run Server - object for starting and stopping DAQ runs")
         
@@ -94,6 +94,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.dashDir          = dashDir
         self.configDir        = configDir
         self.spadeDir         = spadeDir
+        self.copyDir          = copyDir
         self.clusterConfig    = clusterConfig
         self.logDir           = logDir
         self.requiredComps    = []
@@ -261,7 +262,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     % (runNum, configName))
         self.configureCnCLogging(cncrpc, self.ip, 6667, self.log.logPath)
 
-    def queue_for_spade(self, spadeDir, logTopLevel, runNum, runTime, runDuration):
+    def queue_for_spade(self, spadeDir, copyDir, logTopLevel, runNum, runTime, runDuration):
         """
         Put tarball of log and moni files in SPADE directory as well as
         semaphore file to indicate to SPADE to effect the transfer
@@ -276,6 +277,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                         runTime.hour, runTime.minute, runTime.second,     \
                         runDuration)
         tarBall = "%s/%s.dat.tar" % (spadeDir, basePrefix)
+        if copyDir: copyFile = "%s/%s.dat.tar" % (copyDir, basePrefix)
         semFile = "%s/%s.sem"     % (spadeDir, basePrefix)
         self.logmsg("Target files are:\n%s\n%s" % (tarBall, semFile))
         try:
@@ -285,6 +287,9 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             tarObj.close()
             fd = open(semFile, "w")
             fd.close()
+            if copyDir:
+                self.logmsg("Making hard link for local copies (%s->%s)" % (tarBall, copyFile))
+                os.link(tarBall, copyFile)
         except Exception, e:
             self.logmsg("FAILED to queue data for SPADE: %s" % exc_string())
             
@@ -385,7 +390,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         raise Exception("Could not find eventBuilder component 0!!!!")
 
     unHealthyCount      = 0
-    MAX_UNHEALTHY_COUNT = 10
+    MAX_UNHEALTHY_COUNT = 3
     
     def check_all(self):
         try:
@@ -514,8 +519,8 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
 
                 if logDirCreated:
                     self.catchAllLogger.stopServing() 
-                    self.queue_for_spade(self.spadeDir, self.logDir, self.runNum,
-                                         datetime.datetime.now(), duration)
+                    self.queue_for_spade(self.spadeDir, self.copyDir, self.logDir,
+                                         self.runNum, datetime.datetime.now(), duration)
                     self.catchAllLogger.startServing()
 
                 if hadError and self.doViolentRestart:
@@ -523,7 +528,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                         self.logmsg("Doing complete rip-down and restart of pDAQ "+
                                     "(everything but DAQRun)")
                         cyclePDAQ(self.dashDir, self.clusterConfig, self.configDir,
-                                  self.logDir, self.spadeDir,
+                                  self.logDir, self.spadeDir, self.copyDir,
                                   DAQRun.CATCHALL_PORT, DAQRun.CNC_PORT)
                     except:
                         self.logmsg("Couldn't cycle pDAQ components ('%s')!!!"
@@ -715,7 +720,12 @@ if __name__ == "__main__":
                  action="store",      type="string",
                  dest="spadeDir",
                  help="Directory where SPADE will pick up tar'ed logs/moni files")
-    
+
+    p.add_option("-a", "--copy-dir",
+                 action="store",      type="string",
+                 dest="copyDir",
+                 help="Directory for copies of files sent to SPADE")
+
     p.add_option("-u", "--cluster-config",
                  action="store",      type="string",
                  dest="clusterConfigName",
@@ -728,6 +738,7 @@ if __name__ == "__main__":
                    doRelaunch        = False,
                    configDir         = "/usr/local/icecube/config",
                    spadeDir          = "/mnt/data/pdaq/runs",
+                   copyDir           = None,
                    logDir            = "/tmp",
                    port              = 9000)
     opt, args = p.parse_args()
@@ -753,6 +764,7 @@ if __name__ == "__main__":
     opt.configDir    = abspath(opt.configDir)
     opt.logDir       = abspath(opt.logDir)
     opt.spadeDir     = abspath(opt.spadeDir)
+    if opt.copyDir: opt.copyDir = abspath(opt.copyDir)
 
     readClusterConfig = getDeployedClusterConfig(join(clusterConfigDir, '.config'))
 
@@ -780,13 +792,17 @@ if __name__ == "__main__":
         print "Spade directory '%s' doesn't exist!  Use the -s option, "+\
               " or -h for help." % opt.spadeDir
         raise SystemExit
+
+    if opt.copyDir and not exists(opt.copyDir):
+        print "Log copies directory '%s' doesn't exist!" % opt.copyDir
+        raise SystemExit
     
     if not opt.nodaemon: Daemon.Daemon().Daemonize()
         
     while 1:
         try:
             cl = DAQRun(opt.port, dashDir, clusterConfig,
-                        opt.configDir, opt.logDir, opt.spadeDir,
+                        opt.configDir, opt.logDir, opt.spadeDir, opt.copyDir,
                         opt.forceConfig, opt.doRelaunch)
             try:
                 cl.serve_forever()

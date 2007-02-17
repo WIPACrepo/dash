@@ -156,12 +156,13 @@ def doKill(doDAQRun, dryRun, dashDir, verbose, clusterConfig, killWith9):
     if verbose and not dryRun: print "DONE."
     
 def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
-             configDir, logDir, spadeDir, logPort, cncPort):
+             configDir, logDir, spadeDir, copyDir, logPort, cncPort):
     "Launch components"
     # Start DAQRun
     if doDAQRun:
         daqRun = join(dashDir, 'DAQRun.py')
         options = "-r -f -c %s -l %s -s %s" % (configDir, logDir, spadeDir)
+        if copyDir: options += " -a %s" % copyDir
         if verbose:
             cmd = "%s %s -n &" % (daqRun, options)
             print cmd
@@ -197,12 +198,12 @@ def getDeployedClusterConfig(clusterFile):
     except:
         return None
 
-def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, logPort, cncPort):
+def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, copyDir, logPort, cncPort):
     "Completely cycle pDAQ except for DAQRun - can be used by DAQRun when cycling"
     "pDAQ in an attempt to wipe the slate clean after a failure"
     doKill(False, False, dashDir, False, clusterConfig, False)
     doLaunch(False, False, False, clusterConfig, dashDir,
-             configDir, logDir, spadeDir, logPort, cncPort)
+             configDir, logDir, spadeDir, copyDir, logPort, cncPort)
 
 def main():
     p = optparse.OptionParser()
@@ -261,6 +262,13 @@ def main():
         spadeDir = join(metaDir, spadeDir)
 
     if not exists(spadeDir) and not opt.dryRun: mkdir(spadeDir)
+
+    copyDir   = clusterConfig.logDirCopies
+    # Assume non-fully-qualified paths are relative to metaproject top dir:
+    if not isabs(copyDir):
+        copyDir = join(metaDir, copyDir)
+
+    if not exists(copyDir) and not opt.dryRun: mkdir(copyDir)
     
     if not exists(logDir):
         if not opt.dryRun: mkdir(logDir)
@@ -280,6 +288,6 @@ def main():
                                 clusterConfig, opt.killWith9)
     if not opt.killOnly: doLaunch(True, opt.dryRun, opt.verbose, clusterConfig,
                                   dashDir, configDir, logDir,
-                                  spadeDir, opt.logPort, opt.cncPort)
+                                  spadeDir, copyDir, opt.logPort, opt.cncPort)
 
 if __name__ == "__main__": main()
