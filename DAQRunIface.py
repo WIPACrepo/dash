@@ -44,10 +44,10 @@ class DAQLabelParser:
             self.dict[alias] = ( str(runConfig), str(description), str(runMode) )
     
 class DAQRunIface(object):
-    START_TRANSITION_SECONDS    = 200
-    STOP_TRANSITION_SECONDS     = 120
-    RECOVERY_TRANSITION_SECONDS = 200
-    RELEASE_TRANSITION_SECONDS  = 120
+    START_TRANSITION_SECONDS    = 300
+    STOP_TRANSITION_SECONDS     = 300
+    RECOVERY_TRANSITION_SECONDS = 300
+    RELEASE_TRANSITION_SECONDS  = 300
     
     def __init__(self, daqhost="localhost", daqport=8081):
         "Constructor - instantiate an RPC connection to DAQRun.py"
