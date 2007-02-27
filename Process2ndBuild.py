@@ -52,11 +52,14 @@ def main():
                                                                 t.hour, t.minute, t.second, 0)
             spadeTar = "SPS-pDAQ-2ndBld-%s.dat.tar" % dateTag
             moniLink = "SPS-pDAQ-2ndBld-%s.mon.tar" % dateTag
+            moniSem  = "SPS-pDAQ-2ndBld-%s.msem"    % dateTag
             spadeSem = "SPS-pDAQ-2ndBld-%s.sem"     % dateTag
 
             # Create spade tarball
             print spadeTar
-            if exists(spadeTar): sleep(1); continue # Duplicate file: wait for a new second, recalculate everything
+            
+            # Duplicate file: wait for a new second, recalculate everything:
+            if exists(spadeTar): sleep(1); continue 
             
             tarball = tarfile.open(spadeTar, "w")
             for toAdd in filesToTar:
@@ -71,7 +74,10 @@ def main():
             
             # Create spade .sem
             f = open(spadeSem, "w"); f.close()
-            
+
+            # Create monitoring .msem
+            f = open(moniSem, "w"); f.close()
+
             # Clean up tar'ed files
             for toAdd in filesToTar:
                 print "Removing %s..." % toAdd
