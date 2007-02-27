@@ -265,10 +265,10 @@ def main():
 
     copyDir   = clusterConfig.logDirCopies
     # Assume non-fully-qualified paths are relative to metaproject top dir:
-    if not isabs(copyDir):
-        copyDir = join(metaDir, copyDir)
-
-    if not exists(copyDir) and not opt.dryRun: mkdir(copyDir)
+    if copyDir:
+        if not isabs(copyDir):
+            copyDir = join(metaDir, copyDir)
+        if not exists(copyDir) and not opt.dryRun: mkdir(copyDir)
     
     if not exists(logDir):
         if not opt.dryRun: mkdir(logDir)
