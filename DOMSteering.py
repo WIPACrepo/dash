@@ -186,7 +186,7 @@ def createConfig(cursor, mbid, **kwargs):
     txt += "<pmtHighVoltage>          %4d </pmtHighVoltage>\n" % hv
     txt += "<analogMux>                off </analogMux>\n"
     txt += "<pulserMode>            beacon </pulserMode>\n"
-    txt += "<pulserRate>                 5 </pulserRate>\n"
+    txt += "<pulserRate>                 1 </pulserRate>\n"
     txt += "<localCoincidence>\n"
     txt += "<type> %10s </type>\n" % lc_type
     txt += "<mode> %10s </mode>\n" % lc_mode
