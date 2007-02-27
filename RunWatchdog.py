@@ -14,7 +14,7 @@ import datetime
 from exc_string import *
 
 class ValueWatcher(object):
-    NUM_UNCHANGED = 10
+    NUM_UNCHANGED = 3
 
     def __init__(self, fromComp, toComp, beanName, fieldName):
         self.fromComp = fromComp
