@@ -135,7 +135,7 @@ class RunSet:
     # number of seconds to wait after stopping components seem to be
     # hung before forcing remaining components to stop
     #
-    TIMEOUT_SECS = 10
+    TIMEOUT_SECS = 300
 
     def __init__(self, set, logger):
         """
@@ -175,7 +175,7 @@ class RunSet:
         for c in self.set:
             c.configure(globalConfigName)
 
-        self.waitForStateChange(20)
+        self.waitForStateChange(45)
 
         self.state = 'ready'
 
@@ -332,7 +332,8 @@ class RunSet:
 
         # stop from front to back
         #
-        self.set.sort(lambda x, y: x.cmdOrder-y.cmdOrder)
+        #self.set.sort(lambda x, y: x.cmdOrder-y.cmdOrder)
+        self.set.sort(self.sortCmp)
 
         waitList = self.set[:]
 
