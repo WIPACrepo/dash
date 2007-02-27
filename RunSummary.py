@@ -129,6 +129,8 @@ def makeSummaryHtml(logLink, runNum, month, day, year, hr,
     for f in files:
         if search(r'\.log$', f): logs.append(f)
         if search(r'\.moni$', f): mons.append(f)
+    mons.sort()
+    logs.sort()
 
     html = open(logLink+"/run.html", "w")
 
