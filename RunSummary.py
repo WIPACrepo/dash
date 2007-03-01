@@ -253,7 +253,7 @@ def main():
     for f in l:
         prefix = 'SPS-pDAQ-run-'
         if search(r'.done$', f): continue # Skip SPADE .done semaphores
-        if search(r'.sem$', f):  continue # Skip SPADE .done semaphores
+        if search(r'.sem$', f):  continue # Skip SPADE .sem  semaphores
         match = search(r'%s(\S+?)\.' % prefix, f)
         if match:
             runInfoString = match.group(1)
