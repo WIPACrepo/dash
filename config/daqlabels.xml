@@ -5,4 +5,14 @@
     <description>Nine icecube strings receiving AMANDA trigger from TWR</description>
     <runMode>Physics</runMode>
   </run>
+  <run alias="sim13str-noise10Hz">
+    <runConfig>sim13str-noise10Hz</runConfig>
+    <description>unknown</description>
+    <runMode>SPTS64-Test</runMode>
+  </run>
+  <run alias="sim18str-noise10Hz">
+    <runConfig>sim18str-noise10Hz</runConfig>
+    <description>unknown</description>
+    <runMode>SPTS64-Test</runMode>
+  </run>
 </daqLabels>
