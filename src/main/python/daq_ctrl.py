@@ -69,6 +69,9 @@ class DAQCtrl:
         except socket.error:
             return 0
 
+    def getDaqLabels(self):
+        return self.daqiface.getDaqLabels()
+
 
     def getState(self):
         "Return the current state of the sub-system."
