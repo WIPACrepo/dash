@@ -1,329 +1,293 @@
 #!/usr/bin/env python
-"""
-`pdaq launch` script used to start/stop the detector
-"""
 
+#
+# DAQ launch script - assumes deployment has occurred already.
+# Run from an "experiment control" node - localhost/laptop or spXsX-expcont
+#
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started January, 2007
 
-from __future__ import print_function
-
-import os
-import subprocess
 import sys
-import traceback
+import optparse
+from time import sleep
+from os import environ, mkdir, system
+from os.path import abspath, isabs, join
 
-from utils.Machineid import Machineid
+from GetIP import getIP
+from locate_pdaq import find_pdaq_trunk
 
-from ComponentManager import ComponentManager
-from DAQConfig import DAQConfigParser
-from DAQConfigExceptions import DAQConfigException
-from DAQConst import DAQPort
-from locate_pdaq import find_pdaq_config, find_pdaq_trunk
-from scmversion import get_scmversion_str
+# add 'cluster-config' to Python library search path
+#
+metaDir = find_pdaq_trunk()
+sys.path.append(join(metaDir, 'cluster-config'))
 
+from ClusterConfig import *
+from ParallelShell import *
 
-# find top pDAQ directory
-PDAQ_HOME = find_pdaq_trunk()
+class HostNotFoundForComponent      (Exception): pass
+class JavaClassNotFoundForComponent (Exception): pass
+class RunScriptNotFoundForComponent (Exception): pass
+class SubProjectNotFoundForComponent(Exception): pass
 
+def findHost(component, compID, clusterConfig):
+    "Find host name where component:compID runs"
+    for node in clusterConfig.nodes:
+        for comp in node.comps:
+            if comp.compName == component and comp.compID == compID: return node.hostName
+    raise HostNotFoundForComponent(component+":"+compID)
 
-class ConsoleLogger(object):
-    "Console logger"
-    def __init__(self):
-        "Create a console logger"
-        return
+def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9):
+    classDict = \
+            { "eventBuilder"      : "icecube.daq.eventBuilder.EBComponent",
+              "SecondaryBuilders" : "icecube.daq.secBuilder.SBComponent",
+              "inIceTrigger"      : "icecube.daq.trigger.component.IniceTriggerComponent",
+              "iceTopTrigger"     : "icecube.daq.trigger.component.IcetopTriggerComponent",
+              "globalTrigger"     : "icecube.daq.trigger.component.GlobalTriggerComponent",
+              "amandaTrigger"     : "icecube.daq.trigger.component.AmandaTriggerComponent",
+              "StringHub"         : "icecube.daq.stringhub"
+            }
 
-    @classmethod
-    def error(cls, msg):
-        "Print an error message"
-        print(msg, file=sys.stderr)
+    parallel = ParallelShell()
+    for node in clusterConfig.nodes:
+        for comp in node.comps:
+            if not classDict.has_key(comp.compName):
+                raise JavaClassNotFoundForComponent(comp.compName)
+            javaClass = classDict[ comp.compName ]
+            if killWith9: niner = "-9"
+            else:         niner = ""
+            if node.hostName == "localhost": # Just kill it
+                cmd = "pkill %s -fu %s %s" % (niner, environ["USER"], javaClass)
+                if verbose: print cmd
+                parallel.add(cmd)
+                if not killWith9:
+                    cmd = "sleep 2; pkill -9 -fu %s %s" % (environ["USER"], javaClass)
+                    if verbose: print cmd
+                    parallel.add(cmd)
+            else:                            # Have to ssh to kill
+                cmd = "ssh %s pkill %s -f %s" % (node.hostName, niner, javaClass)
+                parallel.add(cmd)
+                if not killWith9:
+                    cmd = "sleep 2; ssh %s pkill -9 -f %s" % (node.hostName, javaClass)
+                    parallel.add(cmd)
 
-    @classmethod
-    def info(cls, msg):
-        "Print an informational message"
-        print(msg)
+    if not dryRun:
+        parallel.start()
+        parallel.wait()
 
-
-def add_arguments_both(parser):
-    "Add arguments which apply to both 'pdaq kill' and 'pdaq launch'"
-
-    parser.add_argument("-9", "--kill-kill", dest="kill_with_9",
-                        action="store_true", default=False,
-                        help="Kill everything with extreme (-9) prejudice")
-    parser.add_argument("-C", "--cluster-desc", dest="cluster_desc",
-                        help="Cluster description name.")
-    parser.add_argument("-S", "--server-kill", dest="serverKill",
-                        action="store_true", default=False,
-                        help="Kill all the components known by the server")
-    parser.add_argument("-f", "--force", dest="force",
-                        action="store_true", default=False,
-                        help="kill components even if there is an active run")
-    parser.add_argument("-m", "--no-host-check", dest="nohostcheck",
-                        action="store_true", default=False,
-                        help=("Disable checking the host type for"
-                              " run permission"))
-    parser.add_argument("-n", "--dry-run", dest="dry_run",
-                        action="store_true", default=False,
-                        help="\"Dry run\" only, don't actually do anything")
-    parser.add_argument("-v", "--verbose", dest="verbose",
-                        action="store_true", default=False,
-                        help="Log output for all components to terminal")
-    parser.add_argument("-z", "--no-schema-validation", dest="validate",
-                        action="store_false", default=True,
-                        help=("Disable schema validation of xml"
-                              " configuration files"))
-
-
-def add_arguments_kill(_):
-    "Add arguments which only apply to 'pdaq kill'"
-    return
-
-
-def add_arguments_launch(parser, config_as_arg=True):
-    "Add arguments which only apply to 'pdaq launch'"
-
-    if config_as_arg:
-        parser.add_argument("-c", "--config-name", dest="config_name",
-                            help="Configuration name")
-    else:
-        parser.add_argument("config_name", nargs="?",
-                            help="Run configuration name")
-
-    parser.add_argument("-F", "--no-force-restart", dest="force_restart",
-                        action="store_false", default=True,
-                        help=("Do not force healthy components to restart at"
-                              " run end"))
-    parser.add_argument("-e", "--event-check", dest="event_check",
-                        action="store_true", default=False,
-                        help="Event builder will validate events")
-    parser.add_argument("-k", "--kill-only", dest="killOnly",
-                        action="store_true", default=False,
-                        help="Kill pDAQ components, don't restart")
-    parser.add_argument("-s", "--skip-kill", dest="skipKill",
-                        action="store_true", default=False,
-                        help="Don't kill anything, just launch")
+def startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose):
+    runScriptDict = { "eventBuilder"      : "run-eb",
+                      "SecondaryBuilders" : "run-sb",
+                      "inIceTrigger"      : "run-iitrig",
+                      "iceTopTrigger"     : "run-ittrig",
+                      "globalTrigger"     : "run-gltrig",
+                      "StringHub"         : "run-hub",
+                      "amandaTrigger"     : "run-amtrig"
+                    }
+    subProjectDict = { "eventBuilder"      : "eventBuilder-prod",
+                       "SecondaryBuilders" : "secondaryBuilders",
+                       "inIceTrigger"      : "trigger",
+                       "iceTopTrigger"     : "trigger",
+                       "globalTrigger"     : "trigger",
+                       "amandaTrigger"     : "trigger",
+                       "StringHub"         : "StringHub"
+                     }
 
 
-def add_arguments_old(parser):
-    "Add backward compatibility arguments"
-    parser.add_argument("-l", "--list-configs", dest="doList",
-                        action="store_true", default=False,
-                        help="List available configs")
+    myIP = getIP()
+    parallel = ParallelShell()
+    for node in clusterConfig.nodes:
+        for comp in node.comps:
+            if not runScriptDict.has_key(comp.compName):
+                raise RunScriptNotFoundForComponent(comp.compName)
+            if not subProjectDict.has_key(comp.compName):
+                raise SubProjectNotFoundForComponent(comp.compName)
+            switches = ""
+            if verbose:
+                switches += "--verbose "
+            else:
+                switches += "2>&1 > /dev/null "
 
+            if comp.compName == "StringHub":
+                switches += "--id %d " % comp.compID
 
-def check_arguments(args):
-    "Warn about ignored/incompatible arguments"
-    ignored = []
-    if args.killOnly:
-        if args.skipKill:
-            raise SystemExit("Cannot specify both -k(illOnly) and -s(kipKill")
-        if args.config_name is not None:
-            ignored.append("--config-name")
-        if args.event_check:
-            ignored.append("--event-check")
-    elif args.skipKill:
-        if args.kill_with_9:
-            ignored.append("--kill-kill")
-        if args.force:
-            ignored.append("--force")
-        if args.serverKill:
-            ignored.append("--server-kill")
-    if len(ignored) > 0:  # pylint: disable=len-as-condition
-        print("Ignoring " + ", ".join(ignored), file=sys.stderr)
+            switches += "-d %s " % comp.logLevel
+            switches += "-c %s " % subProjectDict[comp.compName]
+            switches += "-s %s " % runScriptDict [comp.compName]
+            if node.hostName == "localhost": # Just run it
+                switches += "--cnc localhost:%d " % cncPort
+                switches += "--log localhost:%d " % logPort
+                cmd = "%s/StartComponent.py %s" % (dashDir, switches)
+                if verbose: print cmd
+                parallel.add(cmd)
+            else:                            # Have to ssh to run it
+                switches += "--cnc %s:%d " % (myIP, cncPort)
+                switches += "--log %s:%d " % (myIP, logPort)
+                if comp.compName == "StringHub":
+                    cmd = "echo \"cd %s; ./dash/StartComponent.py %s \" | ssh -T %s" \
+                          % (metaDir, switches, node.hostName)
+                else:
+                    cmd = "ssh %s \'cd %s && ./dash/StartComponent.py %s \' " \
+                          % (node.hostName, metaDir, switches)
 
+                if verbose: print cmd
+                parallel.add(cmd)
+    if verbose and not dryRun: parallel.showAll()
+    if not dryRun:
+        parallel.start()
+        parallel.wait()
+                        
+def doKill(doDAQRun, dryRun, dashDir, verbose, clusterConfig, killWith9):
+    "Kill pDAQ python and java components in clusterConfig"
+    if verbose: print "COMMANDS:"
+    if doDAQRun:
+        # Kill DAQRun
+        daqRun = join(dashDir, 'DAQRun.py')
+        cmd = daqRun + ' -k'
+        if verbose: print cmd
+        if not dryRun: system(cmd)
+        
+    # Kill CnCServer
+    cncServer = join(dashDir, 'CnCServer.py')
+    cmd = cncServer + ' -k'
+    if verbose: print cmd
+    if not dryRun: system(cmd)
 
-def check_detector_state():
-    "If there are active runsets, print them to the console and exit"
-    (runsets, active) = ComponentManager.count_active_runsets()
-    if active > 0:
-        if len(runsets) == 1:
-            plural = ''
+    killJavaProcesses(dryRun, clusterConfig, verbose, killWith9)
+    if verbose and not dryRun: print "DONE."
+    
+def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
+             configDir, logDir, spadeDir, copyDir, logPort, cncPort):
+    "Launch components"
+    # Start DAQRun
+    if doDAQRun:
+        daqRun = join(dashDir, 'DAQRun.py')
+        options = "-r -f -c %s -l %s -s %s" % (configDir, logDir, spadeDir)
+        if copyDir: options += " -a %s" % copyDir
+        if verbose:
+            cmd = "%s %s -n &" % (daqRun, options)
+            print cmd
+            if not dryRun:
+                system(cmd)
+                sleep(5) # Fixme - this is a little kludgy, but CnCServer
+                         # won't log correctly if DAQRun isn't started.
+
         else:
-            plural = 's'
-        print('Found %d active runset%s:' % (len(runsets), plural),
-              file=sys.stderr)
-        for rid in list(runsets.keys()):
-            print("  %d: %s" % (rid, runsets[rid]), file=sys.stderr)
-        raise SystemExit('To force a restart, rerun with the --force option')
+            cmd = "%s %s" % (daqRun, options)
+            if not dryRun: system(cmd)
 
-
-def kill(config_dir, logger, args=None):
-    "Kill the components specified by the run configuration"
-    if args is None:
-        cluster_desc = None
-        validate = None
-        server_kill = None
-        verbose = None
-        dry_run = None
-        kill_with_9 = None
-        force = None
-    else:
-        cluster_desc = args.cluster_desc
-        validate = args.validate
-        server_kill = args.serverKill
-        verbose = args.verbose
-        dry_run = args.dry_run
-        kill_with_9 = args.kill_with_9
-        force = args.force
-
-    comps = ComponentManager.get_active_components(cluster_desc,
-                                                   config_dir=config_dir,
-                                                   validate=validate,
-                                                   use_cnc=server_kill,
-                                                   logger=logger)
-
-    if comps is not None:
-        kill_cnc = True
-
-        ComponentManager.kill(comps, verbose=verbose, dry_run=dry_run,
-                              kill_cnc=kill_cnc, kill_with_9=kill_with_9,
-                              logger=logger)
-
-    if force:
-        print("Remember to run 'pdaq queuelogs' to recover any orphaned data",
-              file=sys.stderr)
-
-
-def launch(config_dir, dash_dir, logger, parallel=None, check_exists=True,
-           args=None):
-    "Launch the components required by the run configuration"
-    if args is None:
-        cluster_cfg = None
-        config_name = None
-        validate = None
-        verbose = None
-        dry_run = None
-        event_check = None
-        force_restart = None
-    else:
-        cluster_cfg = args.cluster_desc
-        config_name = args.config_name
-        validate = args.validate
-        verbose = args.verbose
-        dry_run = args.dry_run
-        event_check = args.event_check
-        force_restart = args.force_restart
-
-    if config_name is None:
-        config_name = livecmd_default_config()
-
-    try:
-        cluster_config = \
-            DAQConfigParser.get_cluster_configuration(config_name,
-                                                      use_active_config=False,
-                                                      cluster_desc=cluster_cfg,
-                                                      config_dir=config_dir,
-                                                      validate=validate)
-    except DAQConfigException:
-        raise SystemExit("DAQ Config exception:\n\t%s" %
-                         traceback.format_exc())
-
+    # Start CnCServer
+    cncServer = join(dashDir, 'CnCServer.py')
     if verbose:
-        print("Version info: " + get_scmversion_str())
-        if cluster_config.description is None:
-            print("CLUSTER CONFIG: %s" % (cluster_config.config_name, ))
-        else:
-            print("CONFIG: %s" % (cluster_config.config_name, ))
-            print("CLUSTER: %s" % cluster_config.description)
+        cmd = "%s -l localhost:9001 &" % cncServer
+        print cmd
+        if not dryRun: system(cmd)
+    else:
+        cmd = "%s -l localhost:9001 -d" % cncServer
+        if not dryRun: system(cmd)
 
-        print("NODES:")
-        for node in sorted(cluster_config.nodes()):
-            print("  %s(%s)" % (node.hostname, node.location), end=' ')
+    startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose)
+    if verbose and not dryRun: print "DONE."
+    
+def getDeployedClusterConfig(clusterFile):
+    "Get cluster configuration name persisted in clusterFile"
+    try:
+        f = open(clusterFile, "r")
+        ret = f.readline()
+        f.close()
+        return ret.rstrip('\r\n')
+    except:
+        return None
 
-            for comp in sorted(node.components):
-                print("%s#%d " % (comp.name, comp.id), end=' ')
-            print()
-
-    spade_dir = cluster_config.log_dir_for_spade
-    copy_dir = cluster_config.log_dir_copies
-    log_dir = cluster_config.daq_log_dir
-    log_dir_fallback = os.path.join(PDAQ_HOME, "log")
-    daq_data_dir = cluster_config.daq_data_dir
-
-    do_cnc = True
-
-    log_port = None
-    live_port = DAQPort.I3LIVE_ZMQ
-
-    ComponentManager.launch(do_cnc, dry_run, verbose, cluster_config, dash_dir,
-                            config_dir, daq_data_dir, log_dir,
-                            log_dir_fallback, spade_dir, copy_dir, log_port,
-                            live_port, event_check=event_check,
-                            check_exists=check_exists, start_missing=True,
-                            force_restart=force_restart, logger=logger,
-                            parallel=parallel)
-
-
-def livecmd_default_config():
-    "Get the default run configuration from LiveCmd"
-    cmd = "livecmd config"
-
-    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT, close_fds=True,
-                            shell=True)
-    proc.stdin.close()
-
-    config = None
-    for line in proc.stdout:
-        if isinstance(line, bytes):
-            line = line.decode()
-        line = line.rstrip()
-
-        if line.find("Traceback ") >= 0:
-            raise SystemExit("Cannot get default run config file name from"
-                             " \"livecmd\"")
-        config = line
-        break
-
-    proc.stdout.close()
-    proc.wait()
-
-    if proc.returncode > 1:
-        raise SystemExit("Cannot get default run config file name from"
-                         " \"livecmd\"")
-
-    return config
-
+def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, copyDir, logPort, cncPort):
+    "Completely cycle pDAQ except for DAQRun - can be used by DAQRun when cycling"
+    "pDAQ in an attempt to wipe the slate clean after a failure"
+    doKill(False, False, dashDir, False, clusterConfig, False)
+    doLaunch(False, False, False, clusterConfig, dashDir,
+             configDir, logDir, spadeDir, copyDir, logPort, cncPort)
 
 def main():
-    "Main program"
+    p = optparse.OptionParser()
+    p.add_option("-c", "--config-name",  action="store", type="string",
+                 dest="clusterConfigName",
+                 help="Cluster configuration name, subset of deployed configuration.")
+    p.add_option("-k", "--kill-only",    action="store_true", dest="killOnly",
+                 help="Kill pDAQ components, don't restart")
+    p.add_option("-l", "--list-configs", action="store_true", dest="doList",
+                 help="List available configs")
+    p.add_option("-o", "--log-port",     action="store", type="int", dest="logPort",
+                 help="Port for default/catchall logging")
+    p.add_option("-r", "--cnc-port",     action="store", type="int", dest="cncPort",
+                 help="RPC Port for CnC Server")
+    p.add_option("-n", "--dry-run",      action="store_true",        dest="dryRun",
+                 help="\"Dry run\" only, don't actually do anything")
+    p.add_option("-s", "--skip-kill",    action="store_true",        dest="skipKill",
+                 help="Don't kill anything, just launch")
+    p.add_option("-v", "--verbose",      action="store_true",        dest="verbose",
+                 help="Log output for all components to terminal")
+    p.add_option("-9", "--kill-kill",    action="store_true",        dest="killWith9",
+                 help="just kill everything with extreme (-9) prejudice")
+    p.set_defaults(clusterConfigName = None,
+                   dryRun            = False,
+                   verbose           = False,
+                   doList            = False,
+                   logPort           = 9001,
+                   cncPort           = 8080,
+                   skipKill          = False,
+                   killWith9         = False,
+                   killOnly          = False)
+    opt, args = p.parse_args()
 
-    import argparse
+    readClusterConfig = getDeployedClusterConfig(join(metaDir, 'cluster-config', '.config'))
+    
+    # Choose configuration
+    configToUse = "sim-localhost"
+    if readClusterConfig:
+        configToUse = readClusterConfig
+    if opt.clusterConfigName:
+        configToUse = opt.clusterConfigName
 
-    parser = argparse.ArgumentParser()
+    configDir = join(metaDir, 'config')
+    logDir    = join(metaDir, 'log')
+    dashDir   = join(metaDir, 'dash')
+    clusterConfigDir = join(metaDir, 'cluster-config', 'src', 'main', 'xml')
 
-    add_arguments_kill(parser)
-    add_arguments_launch(parser)
-    add_arguments_both(parser)
-    add_arguments_old(parser)
+    if opt.doList: showConfigs(clusterConfigDir); raise SystemExit
 
-    args = parser.parse_args()
+    # Get/parse cluster configuration
+    clusterConfig = deployConfig(clusterConfigDir, configToUse)
 
-    # complain about superfluous options
-    check_arguments(args)
+    spadeDir  = clusterConfig.logDirForSpade
+    # Assume non-fully-qualified paths are relative to metaproject top dir:
+    if not isabs(spadeDir): 
+        spadeDir = join(metaDir, spadeDir)
 
-    if not args.nohostcheck:
-        # exit if not running on expcont
-        hostid = Machineid()
-        if (not (hostid.is_control_host or
-                 (hostid.is_unknown_host and hostid.is_unknown_cluster))):
-            raise SystemExit("Are you sure you are launching"
-                             " from the correct host?")
+    if not exists(spadeDir) and not opt.dryRun: mkdir(spadeDir)
 
-    if not args.force:
-        check_detector_state()
+    copyDir   = clusterConfig.logDirCopies
+    # Assume non-fully-qualified paths are relative to metaproject top dir:
+    if copyDir:
+        if not isabs(copyDir):
+            copyDir = join(metaDir, copyDir)
+        if not exists(copyDir) and not opt.dryRun: mkdir(copyDir)
+    
+    if not exists(logDir):
+        if not opt.dryRun: mkdir(logDir)
+    else:
+        system('rm -f %s' % join(logDir, 'catchall.log'))
+    
+    if opt.verbose:
+        print "CONFIG: %s" % configToUse
+        print "NODES:"
+        for node in clusterConfig.nodes:
+            print "  %s(%s)" % (node.hostName, node.locName),
+            for comp in node.comps:
+                print "%s-%d " % (comp.compName, comp.compID),
+            print
 
-    config_dir = find_pdaq_config()
-    dash_dir = os.path.join(PDAQ_HOME, "dash")
+    if not opt.skipKill: doKill(True, opt.dryRun, dashDir, opt.verbose,
+                                clusterConfig, opt.killWith9)
+    if not opt.killOnly: doLaunch(True, opt.dryRun, opt.verbose, clusterConfig,
+                                  dashDir, configDir, logDir,
+                                  spadeDir, copyDir, opt.logPort, opt.cncPort)
 
-    logger = ConsoleLogger()
-
-    if not args.skipKill:
-        kill(config_dir, logger, args=args)
-
-    if not args.killOnly:
-        launch(config_dir, dash_dir, logger, args=args)
-
-
-if __name__ == "__main__":
-    main()
+if __name__ == "__main__": main()

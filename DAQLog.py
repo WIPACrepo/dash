@@ -1,535 +1,180 @@
 #!/usr/bin/env python
-"""
-Logging objects used by CnCServer
-"""
 
 # DAQLog.py
 # jaacobsen@npxdesigns.com
 # Nov. - Dec. 2006
 #
-# Logging classes
+# Objects for persisting DAQ data, grouped in separate directories labeled by run number
 
-from __future__ import print_function
-
-import datetime
-import errno
-import os
-import select
-import socket
-import sys
+from datetime import datetime
+from DAQRPC import RPCClient
+from select import select
+from time import sleep
 import threading
+import os.path
+import socket
+import os
+import sys
 
-from DAQConst import DAQPort
-from LiveImports import LIVE_IMPORT, MoniClient, Prio, SERVICE_NAME
-from decorators import classproperty
-from i3helper import reraise_excinfo
+class SocketLogger(object):
+    LOGLEVEL_TRACE = "trace"
+    LOGLEVEL_DEBUG = "debug"
+    LOGLEVEL_INFO  = "info"
+    LOGLEVEL_WARN  = "warn"
+    LOGLEVEL_ERROR = "error"
+    LOGLEVEL_FATAL = "fatal"
+    "Create class which logs requests from a remote object to a file"
+    "Works nonblocking in a separate thread to guarantee concurrency"
+    def __init__(self, port, cname, logpath): # Logpath should be fully qualified in case I'm a Daemon
+        self.port    = port
+        self.cname   = cname
+        self.logpath = logpath
+        self.go      = False
+        self.thread  = None
+        self.outfile = None
 
-
-class LogException(Exception):
-    "Exception used by log-related classes"
-
-
-class LogSocketServer(object):
-    """
-    Log requests from a remote object to a file.
-    Works nonblocking in a separate thread to guarantee concurrency
-    """
-
-    NEXT_PORT = DAQPort.EPHEMERAL_BASE
-    NEXT_LOCK = threading.Lock()
-
-    def __init__(self, port, cname, logpath, quiet=False):
-        "Logpath should be fully qualified in case I'm a Daemon"
-        if not os.path.isabs(logpath):
-            raise LogException("Cannot log to non-absolute path \"%s\"" %
-                               (logpath, ))
-
-        self.__port = port
-        self.__cname = cname
-        self.__logpath = logpath
-        self.__quiet = quiet
-        self.__thread = None
-        self.__outfile = None
-        self.__serving = False
-
-    def __main(self):
-        """
-        Create listening, non-blocking UDP socket, read from it,
-        and write to file; close socket and end thread if signaled via
-        self.__thread variable.
-        """
-
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        if os.name != "nt":
-            # initialize POSIX socket
-            sock.setblocking(0)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-        if self.__port is not None:
-            try:
-                sock.bind(("", self.__port))
-            except socket.error:
-                raise LogException('Cannot bind %s log server to port %d' %
-                                   (self.__cname, self.__port))
+    def startServing(self):
+        "Creates listener thread, prepares file for output, and returns"
+        self.go      = True
+        if self.logpath:
+            self.outfile = open(self.logpath, "w")
         else:
-            while True:
-                self.__port = self.next_log_port
+            self.outfile = sys.stdout
+        if os.name == "nt":
+            self.thread = threading.Thread(target=self.win_listener)
+        else:
+            self.thread = threading.Thread(target=self.listener)
+        self.thread.start()
 
-                try:
-                    sock.bind(("", self.__port))
-                    break
-                except socket.error:
-                    pass
-
-        self.__outfile = self.__open_path(self.__logpath)
-        self.__serving = True
-        try:
-            if os.name == "nt":
-                self.__win_loop(sock)
-            else:
-                self.__posix_loop(sock)
-        finally:
-            self.__serving = False
-
-            try:
-                sock.close()
-            except:   # pylint: disable=bare-except
-                pass  # ignore errors on close
-
-            if self.__outfile is not None:
-                try:
-                    self.__outfile.close()
-                except:   # pylint: disable=bare-except
-                    pass  # ignore errors on close
-                self.__outfile = None
-
-    @classmethod
-    def __open_path(cls, path):
-        if path is None:
-            return sys.stdout
-        return open(path, "a")
-
-    def __posix_loop(self, sock):
-        prd = [sock]
-        pwr = []
-        per = [sock]
-        while self.__thread is not None:
-            srd, _, sre = select.select(prd, pwr, per, 0.5)
-            if len(sre) != 0:  # pylint: disable=len-as-condition
-                if self.__outfile is not None:
-                    print("Error on select was detected.", file=self.__outfile)
-            if len(srd) == 0:  # pylint: disable=len-as-condition
-                continue
-            while True:  # Slurp up waiting packets, return to select if EAGAIN
-                try:
-                    data = sock.recv(8192, socket.MSG_DONTWAIT)
-                    self.__write_data(data)
-                except socket.error as sockerr:
-                    if sockerr.errno == errno.EWOULDBLOCK:
-                        break  # Go back to select so we don't busy-wait
-                    raise
-
-    def __win_loop(self, sock):
+    def localAppend(self, s):
+        if self.outfile:
+            print >>self.outfile, "(dash) %s" % s
+            self.outfile.flush()
+    
+    def win_listener(self):
         """
         Windows version of listener - no select().
         """
-        while self.__thread is not None:
-            data = sock.recv(8192)
-            self.__write_data(data)
-
-    def __write_data(self, data):
-        if self.__outfile is None:
-            return
-
-        outstr = "%s %s" % (self.__cname, data.decode("utf-8"))
-        if not self.__quiet:
-            print("%s" % outstr)
-        print(outstr, file=self.__outfile)
-        self.__outfile.flush()
-
-    @property
-    def is_serving(self):
-        "Is this object actively processing data?"
-        return self.__serving
-
-    @classproperty
-    def next_log_port(cls):  # pylint: disable=no-self-argument
-        with cls.NEXT_LOCK:
-            port = cls.NEXT_PORT
-            cls.NEXT_PORT += 1  # pylint: disable=invalid-name
-            if cls.NEXT_PORT > DAQPort.EPHEMERAL_MAX:
-                cls.NEXT_PORT = DAQPort.EPHEMERAL_BASE
-            return port
-
-    @property
-    def port(self):
-        "Return the socket port number used by this object"
-        return self.__port
-
-    def start_serving(self):
-        "Creates listener thread, prepares file for output, and returns"
-        if self.__thread is not None:
-            raise LogException("Thread for %s:%s has started" %
-                               (self.__cname, self.__logpath))
-
-        self.__serving = False
-        self.__thread = threading.Thread(target=self.__main,
-                                         name=self.__logpath)
-        self.__thread.setDaemon(True)
-        self.__thread.start()
-
-    def set_output(self, new_path):
-        "Change logging output file.  Send to sys.stdout if path is None"
-        old_fd = self.__outfile
-        self.__outfile = self.__open_path(new_path)
-        try:
-            if old_fd is not None:
-                old_fd.close()
-        except:  # pylint: disable=bare-except
-            pass
-
-        # rename the thread
-        #
-        self.__thread.name = new_path
-
-    def stop_serving(self):
-        "Signal listening thread to exit; wait for thread to finish"
-        if self.__thread is not None:
-            thread = self.__thread
-            self.__thread = None
-            thread.join()
-
-
-class BaseAppender(object):
-    "Base log appender"
-    def __init__(self, name):
-        "Stash away this appender's name"
-        self.__name = name
-
-    def __str__(self):
-        "Return the appender name"
-        return self.__name
-
-    def close(self):  # pylint: disable=no-self-use
-        "Close the appender"
-        raise NotImplementedError()
-
-    @property
-    def name(self):
-        "Return this appender's name"
-        return self.__name
-
-    def write(self, msg, mtime=None, level=None):
-        "Write the log message"
-        raise NotImplementedError()
-
-
-class BaseFileAppender(BaseAppender):
-    "Write log messages to a file handle"
-    def __init__(self, name, fdesc):
-        "Create a file-based appender"
-        super(BaseFileAppender, self).__init__(name)
-
-        self.__fdesc = fdesc
-
-    def _write(self, fdesc, mtime, msg):
-        "Format the log message and write it to the file"
-        print("%s [%s] %s" % (self.name, mtime, msg), file=fdesc)
-        fdesc.flush()
-
-    def close(self):
-        "Close the file handle"
-        if self.__fdesc is not None:
-            self.close_fd(self.__fdesc)
-            self.__fdesc = None
-
-    def close_fd(self, fdesc):  # pylint: disable=no-self-use
-        "Close the file descriptor (ConsoleAppender overrides this)"
-        fdesc.close()
-
-    def write(self, msg, mtime=None, level=None):
-        "Write log message to local file"
-        if self.__fdesc is None:
-            raise LogException('Appender %s has been closed' % (self.name, ))
-
-        if mtime is None:
-            mtime = datetime.datetime.now()
-
-        self._write(self.__fdesc, mtime, msg)
-
-
-class ConsoleAppender(BaseFileAppender):
-    "Write log messages to sys.stdout"
-    def __init__(self, name):
-        "Create a console logger"
-        super(ConsoleAppender, self).__init__(name, sys.stdout)
-
-    def close_fd(self, fdesc):  # pylint: disable=no-self-use
-        "Don't close system file handle"
-        return
-
-
-class DAQLog(object):
-    "Log message handler"
-    TRACE = 1
-    DEBUG = 2
-    INFO = 3
-    WARN = 4
-    ERROR = 5
-    FATAL = 6
-
-    __LEVEL_NAME = {
-        TRACE: "TRACE",
-        DEBUG: "DEBUG",
-        INFO: "INFO",
-        WARN: "WARN",
-        ERROR: "ERROR",
-        FATAL: "FATAL",
-    }
-
-    def __init__(self, name, appender=None, level=TRACE):
-        if not isinstance(name, str):
-            raise Exception("Name cannot be %s<%s>" % (name, type(name)))
-        self.__name = name
-        self.__level = level
-        self.__appender_list = []
-        if appender is not None:
-            self.__appender_list.append(appender)
-
-    def __str__(self):
-        return '%s@%s:%s' % (self.__name, self.__get_level_name(),
-                             str(self.__appender_list))
-
-    def __get_level_name(self):
-        if self.__level in self.__LEVEL_NAME:
-            return self.__LEVEL_NAME[self.__level]
-        return "?level=%d?" % self.__level
-
-    def _logmsg(self, level, msg,
-                retry=False):  # pylint: disable=unused-argument
-        "This is semi-private so CnCLogger can extend it"
-        if level >= self.__level:
-            # pylint: disable=len-as-condition
-            if len(self.__appender_list) == 0:
-                raise LogException("No appenders have been added to %s: %s" %
-                                   (self.__name, msg))
-            for apnd in self.__appender_list:
-                apnd.write(msg, level=level)
-
-    def add_appender(self, appender):
-        "Add an appender"
-        if appender is None:
-            raise LogException("Cannot add null appender")
-        self.__appender_list.append(appender)
-
-    def close(self):
-        "Close all appenders used by this logger"
-        saved_exc = None
-        for apnd in self.__appender_list:
-            try:
-                apnd.close()
-            except:  # pylint: disable=bare-except
-                saved_exc = sys.exc_info()
-        del self.__appender_list[:]
-        if saved_exc:
-            reraise_excinfo(saved_exc)
-
-    def debug(self, msg):
-        "Log a debugging message"
-        self._logmsg(DAQLog.DEBUG, msg)
-
-    def error(self, msg):
-        "Log an error message"
-        self._logmsg(DAQLog.ERROR, msg)
-
-    def fatal(self, msg):
-        "Log a fatal message"
-        self._logmsg(DAQLog.FATAL, msg)
-
-    def has_appender(self):
-        "Does this logger have at least one appender?"
-        return len(self.__appender_list) > 0
-
-    def info(self, msg):
-        "Log an informational message"
-        self._logmsg(DAQLog.INFO, msg)
-
-    @property
-    def is_debug_enabled(self):
-        "Are DEBUG level messages enabled?"
-        return self.__level == DAQLog.DEBUG
-
-    @property
-    def is_error_enabled(self):
-        "Are ERROR level messages enabled?"
-        return self.__level == DAQLog.ERROR
-
-    @property
-    def is_fatal_enabled(self):
-        "Are FATAL level messages enabled?"
-        return self.__level == DAQLog.FATAL
-
-    @property
-    def is_info_enabled(self):
-        "Are INFO level messages enabled?"
-        return self.__level == DAQLog.INFO
-
-    @property
-    def is_trace_enabled(self):
-        "Are TRACE level messages enabled?"
-        return self.__level == DAQLog.TRACE
-
-    @property
-    def is_warn_enabled(self):
-        "Are WARN level messages enabled?"
-        return self.__level == DAQLog.WARN
-
-    def set_level(self, level):
-        "Set logger level"
-        self.__level = level
-
-    def trace(self, msg):
-        "Log a trace message"
-        self._logmsg(DAQLog.TRACE, msg)
-
-    def warn(self, msg):
-        "Log a warning"
-        self._logmsg(DAQLog.WARN, msg)
-
-
-class FileAppender(BaseFileAppender):
-    "Write log messages to a file"
-    def __init__(self, name, path):
-        "Create a file-based appender"
-        super(FileAppender, self).__init__(name, open(path, "w"))
-
-
-class LogSocketAppender(BaseFileAppender):
-    "Write log messages to a DAQ logging socket"
-    def __init__(self, node, port):
-        if port is None:
-            raise Exception("Port cannot be None")
-
-        self.__loc = '%s:%d' % (node, port)
-
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.connect((node, port))
-
-        super(LogSocketAppender, self).__init__(self.__loc, sock)
-
-    def _write(self, fdesc, mtime, msg):
-        "Format the log message and write it to the file"
-        try:
-            fdesc.send(("%s %s [%s] %s" % ('-', '-', mtime, msg)).encode())
-        except socket.error as sex:
-            raise LogException('LogSocket %s: %s' % (self.__loc, sex))
-
-
-class LiveSocketAppender(BaseAppender):
-    "Write log messages to an I3Live logging socket"
-    def __init__(self, node, port, priority=Prio.DEBUG, service=SERVICE_NAME):
-        super(LiveSocketAppender, self).__init__("LiveSocketAppender")
-
-        self.__client = None
-        if LIVE_IMPORT:
-            self.__client = MoniClient(service, node, port)
-        self.__client_lock = threading.Lock()
-        self.__prio = priority
-
-    def close(self):
-        "Close the monitoring client"
-        if self.__client:
-            with self.__client_lock:
-                self.__client.close()
-                self.__client = None
-
-    def write(self, msg, mtime=None, level=DAQLog.DEBUG):
-        "Send the log message to I3Live"
-        msg = str(msg)
-
-        with self.__client_lock:
-            if not msg.startswith('Start of log at '):
-                if self.__client:
-                    self.__client.sendMoni("log", msg, prio=self.__prio,
-                                           time=mtime)
-
-
-if __name__ == "__main__":
-    import argparse
-    import time as pytime
-
-    from CnCLogger import CnCLogger
-
-    def add_arguments(parser):
-        "Add command-line arguments"
-
-        parser.add_argument("-L", "--liveLog", dest="livelog",
-                            help="Hostname:port for IceCube Live")
-        parser.add_argument("-M", "--mesg", dest="logmsg", default="",
-                            help="Message to log")
-        parser.add_argument("logfile")
-        parser.add_argument("port", type=int)
-
-    def main():
-        "Main program"
-
-        parser = argparse.ArgumentParser()
-        add_arguments(parser)
-        args = parser.parse_args()
-
-        logfile = args.logfile
-        port = args.port
-
-        if logfile == '-':
-            logfile = None
-            filename = 'stderr'
-        else:
-            filename = logfile
-
-        print("Write log messages arriving on port %d to %s." %
-              (port, filename))
-
-        # if someone specifies a live ip and port connect to it and
-        # send a few test messages
-
-        if args.livelog:
-            import random
-
-            try:
-                live_addr, port_str = args.livelog.split(':')
-                live_port = int(port_str)
-                print("User specified a live logging destination,"
-                      " try to use it")
-                print("Dest: (%s:%d)" % (live_addr, live_port))
-            except ValueError:
-                sys.exit("ERROR: Bad livelog argument '%s'" % args.livelog)
-
-            log = CnCLogger("live", quiet=False)
-            log_server = LogSocketServer(port, "all-components", logfile)
-            try:
-                log_server.start_serving()
-
-                log.open_log("localhost", port, live_addr, live_port)
-                for idx in range(100):
-                    msg = "Logging test message (%s) %d" % (args.logmsg, idx)
-                    log.debug(msg)
-                    sleep_time = random.uniform(0, 0.5)
-                    pytime.sleep(sleep_time)
-
-            finally:
-                log_server.stop_serving()
-        else:
-            try:
-                logger = LogSocketServer(port, "all-components", logfile)
-                logger.start_serving()
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        #self.sock.setblocking(1)
+        #self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind(("", self.port))
+        while self.go:
+            data = self.sock.recv(8192)
+            print "%s %s" % (self.cname, data)
+            print >>self.outfile, "%s %s" % (self.cname, data)
+            self.outfile.flush()
+        self.sock.close()
+        if self.logpath: self.outfile.close()       
+        
+    def listener(self):
+        """
+        Create listening, non-blocking UDP socket, read from it, and write to file;
+        close socket and end thread if signaled via self.go variable.
+        """
+                 
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setblocking(0)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind(("", self.port))
+        pr = [self.sock]
+        pw = []
+        pe = [self.sock]
+        while self.go:
+            rd, rw, re = select(pr, pw, pe, 0.5)
+            if len(re) != 0: print >>self.outfile, "Error on select was detected."
+            if len(rd) == 0: continue
+            while 1: # Slurp up waiting packets, return to select if EAGAIN
                 try:
-                    while True:
-                        pytime.sleep(1)
-                except:  # pylint: disable=bare-except
-                    pass
-            finally:
-                # This tells thread to stop if KeyboardInterrupt
-                # If you skip this step you will be unable to control-C
-                logger.stop_serving()
+                    data = self.sock.recv(8192, socket.MSG_DONTWAIT)
+                    print "%s %s" % (self.cname, data)
+                    print >>self.outfile, "%s %s" % (self.cname, data)
+                    self.outfile.flush()
+                except Exception, e:
+                    break # Go back to select so we don't busy-wait
+        self.sock.close()
+        if self.logpath:
+            self.outfile.close()
 
-    main()
+    def stopServing(self):
+        "Signal listening thread to exit; wait for thread to finish"
+        self.go = False
+        if self.thread != None: self.thread.join()
+        self.thread = None
+
+
+class logCollector(object):
+    "Methods for creating log directory for a run and for primary DAQ output (dash.log)"
+    def __init__(self, runNum, loggingDir):
+        self.runNum      = runNum
+        self.enabled     = True
+        self.dashLogFile = None
+        self.name        = "DAQRun"
+        if not os.path.exists(loggingDir):
+            self.enabled = False
+            raise Exception("Directory %s not found!" % loggingDir)
+        self.logPath = loggingDir+"/"+logCollector.logDirName(runNum)
+        if os.path.exists(self.logPath):
+            self.renameToOld(self.logPath)
+        os.mkdir(self.logPath)
+        self.dashLogFile = self.logPath + "/" + "dash.log"
+        self.log         = open(self.dashLogFile, "w")
+
+    def close(self):
+        self.enabled = False
+        self.log.close()
+        
+    def renameToOld(self, dir):
+        "Rename existing directory to old one without clobbering output file"
+        basenum = 0
+        path    = os.path.dirname(dir)
+        name    = os.path.basename(dir)
+        while 1:
+            dest = "%s/old_%s_%02d" % (path, name, basenum)
+            if not os.path.exists(dest):
+                os.rename(dir, dest)
+                return
+            basenum += 1
+
+    def logDirName(runNum):
+        "Get log directory name, not including loggingDir portion of path"
+        return "daqrun%05d" % runNum
+    logDirName = staticmethod(logDirName)
+    
+    def dashLog(self, msg):
+        "Persist DAQRun log information to local disk, without using remote UDP logger"
+        if not self.enabled: return
+        if self.dashLogFile == None: return
+        print >>self.log, "%s [%s] %s" % (self.name, datetime.now(), msg)
+        self.log.flush()
+        
+if __name__ == "__main__":
+
+    try:
+        print "Creating logger..."
+        logger = SocketLogger(6666, "javaComponent", "./test.log")
+        print "Start serving..."
+        logger.startServing()
+        sleep(10000)
+    except KeyboardInterrupt, k:
+        raise SystemExit        
+    
+    raise SystemExit
+
+    # Old test:
+    remote = RPCClient("localhost", 6667)
+    for i in xrange(0,50):
+        logger = SocketLogger(6666, "myComponent", "/tmp/better%05d.log" % i)
+        logger.startServing()
+        try:
+            remote.log_to("localhost", 6666)
+            # sleep(0.01)
+            remote.close_log()
+            logger.stopServing()
+            logger = None
+            # sleep(0.01)
+        except KeyboardInterrupt, k:
+            raise SystemExit
+        except Exception, e:
+            print "Failed to set up remote logging: ", e
+

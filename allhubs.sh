@@ -1,0 +1,19 @@
+#!/bin/bash
+./StringHub.py 21 &
+./StringHub.py 29 &
+./StringHub.py 30 &
+./StringHub.py 38 &
+./StringHub.py 39 &
+./StringHub.py 40 &
+./StringHub.py 49 & 
+./StringHub.py 50 &
+./StringHub.py 59 &
+./StringHub.py 60 &
+./StringHub.py 61 &
+./StringHub.py 62 &
+./StringHub.py 63 &
+./StringHub.py 64 &
+./StringHub.py 65 &
+./StringHub.py 66 &
+./StringHub.py 67 &
+./StringHub.py 68 &
