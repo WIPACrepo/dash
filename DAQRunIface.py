@@ -98,6 +98,10 @@ class DAQRunIface(object):
         
         parser = DAQLabelParser(join(home, "dash", "config", "daqlabels.xml"))
         return parser.dict, parser.defaultLabel
+
+    def isValidConfig(self, configName):
+        "Placeholder only until this is implemented"
+        return True
     
 if __name__ == "__main__":
     iface = DAQRunIface()
