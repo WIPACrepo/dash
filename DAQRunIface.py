@@ -9,8 +9,8 @@
 from time import sleep, time
 from datetime import datetime, timedelta
 from DAQRPC import RPCClient
-from locate_pdaq import find_pdaq_trunk
 from os.path import join, exists
+from os import environ
 from xml.dom import minidom
 
 class LabelConfigFileNotFoundException(Exception): pass
@@ -89,7 +89,13 @@ class DAQRunIface(object):
         return DAQRunIface.RELEASE_TRANSITION_SECONDS
     
     def getDaqLabels(self):
-        home = find_pdaq_trunk()
+        # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+        if environ.has_key("PDAQ_HOME"):
+            home = environ["PDAQ_HOME"]
+        else:
+            from locate_pdaq import find_pdaq_trunk
+            home = find_pdaq_trunk()
+        
         parser = DAQLabelParser(join(home, "dash", "config", "daqlabels.xml"))
         return parser.dict, parser.defaultLabel
     

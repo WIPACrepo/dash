@@ -31,10 +31,15 @@ import socket
 import thread
 import os
 
-from locate_pdaq import find_pdaq_trunk
+# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+if os.environ.has_key("PDAQ_HOME"):
+    metaDir = os.environ["PDAQ_HOME"]
+else:
+    from locate_pdaq import find_pdaq_trunk
+    metaDir = find_pdaq_trunk()
+
 # add 'cluster-config' to Python library search path
 #
-metaDir = find_pdaq_trunk()
 sys.path.append(join(metaDir, 'cluster-config'))
 from ClusterConfig import *
 
