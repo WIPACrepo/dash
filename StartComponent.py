@@ -30,13 +30,12 @@ if __name__ == "__main__":
     topdir = None
     dash   = None
     
-    for loc in ('..', '.'):
-        if isdir(loc+"/config") and isdir(loc+"/trigger") and isdir(loc+"/dash"):
-            topdir = loc
-            if loc == ".": dash = "dash"
-            else:
-                if exists("lhkill.sh"): dash = "."
-                else:                   dash = loc+"/dash"
+    # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+    if environ.has_key("PDAQ_HOME"):
+        topdir = environ["PDAQ_HOME"]
+    else:
+        from locate_pdaq import find_pdaq_trunk
+        topdir = find_pdaq_trunk()
 
     topdir = abspath(topdir)
     
