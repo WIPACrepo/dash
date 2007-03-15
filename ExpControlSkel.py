@@ -131,6 +131,10 @@ def main():
     except KeyboardInterrupt:
         print "\nInterrupted... sending stop signal..."
         daqiface.stop()
+        while True:
+            state = updateStatus(state, daqiface.getState())
+            time.sleep(sleeptime)
+            if state == "STOPPED": break
     print "Done."
 
     daqiface.release()
