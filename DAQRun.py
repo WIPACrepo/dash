@@ -68,7 +68,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     SPADEDIR       = "/tmp"
     CATCHALL_PORT  = 9001
     CNC_PORT       = 8080
-    MONI_PERIOD    = 10
+    MONI_PERIOD    = 30
     WATCH_PERIOD   = 10
     COMP_TOUT      = 60
     
