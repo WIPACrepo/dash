@@ -385,14 +385,14 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         for cid in self.setCompIDs:
             if self.shortNameOf[cid] == "eventBuilder" and self.daqIDof[cid] == 0:
                 return int(self.moni.getSingleBeanField(cid, "backEnd", "NumEventsSent"))
-        raise Exception("Could not find eventBuilder component 0!!!!")
+        return 0
     
     def getEBDiskUsage(self):
         for cid in self.setCompIDs:
             if self.shortNameOf[cid] == "eventBuilder" and self.daqIDof[cid] == 0:
                 return [int(self.moni.getSingleBeanField(cid, "backEnd", "DiskAvailable")),
                         int(self.moni.getSingleBeanField(cid, "backEnd", "DiskSize"))]
-        raise Exception("Could not find eventBuilder component 0!!!!")
+        return [0, 0]
 
     unHealthyCount      = 0
     MAX_UNHEALTHY_COUNT = 3
