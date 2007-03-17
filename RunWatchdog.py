@@ -199,32 +199,46 @@ class RunWatchdog(object):
                                    rpcAddrOf[c], mbeanPortOf[c])
                     if shortNameOf[c] == 'stringHub':
                         cw.addInputValue('dom', 'sender', 'NumHitsReceived')
-                        cw.addInputValue('eventBuilder', 'sender',
-                                         'NumReadoutRequestsReceived')
-                        cw.addOutputValue('eventBuilder', 'sender',
-                                          'NumReadoutsSent')
+                        if self.contains(shortNameOf, 'eventBuilder'):
+                            cw.addInputValue('eventBuilder', 'sender',
+                                             'NumReadoutRequestsReceived')
+                            cw.addOutputValue('eventBuilder', 'sender',
+                                              'NumReadoutsSent')
                         self.stringHubs.append(cw)
                     elif shortNameOf[c] == 'inIceTrigger':
-                        cw.addInputValue('stringHub', 'stringHit',
-                                         'RecordsReceived')
-                        cw.addOutputValue('globalTrigger', 'trigger',
-                                          'RecordsSent')
+                        if self.contains(shortNameOf, 'stringHub'):
+                            cw.addInputValue('stringHub', 'stringHit',
+                                             'RecordsReceived')
+                        if self.contains(shortNameOf, 'globalTrigger'):
+                            cw.addOutputValue('globalTrigger', 'trigger',
+                                              'RecordsSent')
                         iniceTrigger = cw
                     elif shortNameOf[c] == 'iceTopTrigger':
-                        cw.addInputValue('stringHub', 'stringHit',
-                                         'RecordsReceived')
-                        cw.addOutputValue('globalTrigger', 'trigger',
-                                          'RecordsSent')
+                        if self.contains(shortNameOf, 'stringHub'):
+                            cw.addInputValue('stringHub', 'stringHit',
+                                             'RecordsReceived')
+                        if self.contains(shortNameOf, 'globalTrigger'):
+                            cw.addOutputValue('globalTrigger', 'trigger',
+                                              'RecordsSent')
                         icetopTrigger = cw
                     elif shortNameOf[c] == 'amandaTrigger':
-                        cw.addOutputValue('globalTrigger', 'trigger',
-                                          'RecordsSent')
+                        if self.contains(shortNameOf, 'globalTrigger'):
+                            cw.addOutputValue('globalTrigger', 'trigger',
+                                              'RecordsSent')
                         amandaTrigger = cw
                     elif shortNameOf[c] == 'globalTrigger':
-                        cw.addInputValue('triggers', 'trigger',
-                                         'RecordsReceived')
-                        cw.addOutputValue('eventBuilder', 'glblTrig',
-                                          'RecordsSent')
+                        if self.contains(shortNameOf, 'inIceTrigger'):
+                            cw.addInputValue('inIceTrigger', 'trigger',
+                                             'RecordsReceived')
+                        if self.contains(shortNameOf, 'iceTopTrigger'):
+                            cw.addInputValue('iceTopTrigger', 'trigger',
+                                             'RecordsReceived')
+                        if self.contains(shortNameOf, 'amandaTrigger'):
+                            cw.addInputValue('amandaTrigger', 'trigger',
+                                             'RecordsReceived')
+                        if self.contains(shortNameOf, 'eventBuilder'):
+                            cw.addOutputValue('eventBuilder', 'glblTrig',
+                                              'RecordsSent')
                         globalTrigger = cw
                     elif shortNameOf[c] == 'eventBuilder':
                         cw.addInputValue('globalTrigger', 'backEnd',
@@ -253,6 +267,13 @@ class RunWatchdog(object):
         if globalTrigger: self.soloComps.append(globalTrigger)
         if eventBuilder: self.soloComps.append(eventBuilder)
         if secondaryBuilders: self.soloComps.append(secondaryBuilders)
+
+    def contains(self, nameList, compName):
+        for n in nameList:
+            if n == compName:
+                return True
+
+        return False
 
     def timeToWatch(self):
         if not self.tlast: return True
