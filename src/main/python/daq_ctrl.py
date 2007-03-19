@@ -75,6 +75,7 @@ class DAQCtrl:
         labels['sps-icecube-amanda-noswt-002'] = ('sps-icecube-amanda-noswt-002',
                                                   'Unknown')
 	labels['sps-icecube-only-001'] = ('sps-icecube-only-001', 'Unknown')
+        labels['sps-icecube-amanda-noswt-002-noicetop'] = ('sps-icecube-amanda-noswt-002-noicetop', 'Unknown')
         return labels, default
 
 
