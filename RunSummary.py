@@ -169,7 +169,7 @@ def makeSummaryHtml(logLink, runNum, month, day, year, hr,
     print >>html, "</HTML>"
     html.close()
 
-infoPat = r'(\d+)_(\d\d\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)_(\d+).+?'
+infoPat = r'(\d+)_(\d\d\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)_(\d+)'
 
 def getTarFileSubset(l):
     ret = []
