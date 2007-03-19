@@ -169,7 +169,14 @@ def makeSummaryHtml(logLink, runNum, month, day, year, hr,
     print >>html, "</HTML>"
     html.close()
 
-infoPat = r'(\d+)_(\d\d\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)_(\d+)'
+infoPat = r'(\d+)_(\d\d\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)_(\d+).+?'
+
+def getTarFileSubset(l):
+    ret = []
+    for f in l:
+        if not search("SPS-pDAQ-run.+?.tar", f): continue
+        if search(infoPat, f): ret.append(f)
+    return ret
 
 def cmp(a, b):
     amatch = search(infoPat, a)
@@ -203,16 +210,18 @@ def main():
     p.add_option("-a", "--replace-all", action="store_true",           dest="replaceAll")
     p.add_option("-v", "--verbose",     action="store_true",           dest="verbose")
     p.add_option("-m", "--max-mb",      action="store", type="int",    dest="maxMegs")
-    
+    p.add_option("-i", "--ignore-process",
+                                        action="store_true",           dest="ignoreExisting")
     p.set_defaults(spadeDir   = "/mnt/data/spade/localcopies/daq",
                    outputDir  = "%s/public_html/daq-reports" % environ["HOME"],
                    verbose    = False,
                    maxMegs    = None,
+                   ignoreExisting = False,
                    replaceAll = False)
 
     opt, args = p.parse_args()
 
-    if checkForRunningProcesses():
+    if not opt.ignoreExisting and checkForRunningProcesses():
         print "RunSummary.py is already running."
         raise SystemExit
     
@@ -225,7 +234,7 @@ def main():
     latestTime = getLatestFileTime(opt.spadeDir)
     doneTime   = getDoneFileTime(opt.outputDir)
     if latestTime and doneTime and latestTime < doneTime and not opt.replaceAll: raise SystemExit
-    
+
     runDir = opt.outputDir+"/runs"
     check_make_or_exit(runDir)
     
@@ -247,10 +256,10 @@ def main():
     """
 
     l = traverseList(opt.spadeDir)
-    # l = listdir(opt.spadeDir)
-    l.sort(cmp)
+    tarlist = getTarFileSubset(l)
+    tarlist.sort(cmp)
 
-    for f in l:
+    for f in tarlist:
         prefix = 'SPS-pDAQ-run-'
         if search(r'.done$', f): continue # Skip SPADE .done semaphores
         if search(r'.sem$', f):  continue # Skip SPADE .sem  semaphores
@@ -280,21 +289,29 @@ def main():
 
                 # Move tarballs into target run directories
                 if not exists(copyFile) or not exists(datTar):
-
-                    print "%s -> %s/" % (f, outDir)
+                    tarSize = getFileSize(tarFile)
+                    if opt.verbose: print "%s(%dB) -> %s/" % (f, tarSize, outDir)
                     copy(tarFile, copyFile)
                     if not tarfile.is_tarfile(copyFile):
                         raise Exception("Bad tar file %s!" % copyFile)
 
                     # Extract top tarball
                     if datTar != copyFile:
+                        
+                        if opt.verbose: print "OPEN(%s)" % copyFile
                         tar = tarfile.open(copyFile)
+                        
                         for el in tar.getnames():
-                            if search('\.dat\.tar$', el): tar.extract(el, outDir)
+                            if search('\.dat\.tar$', el):
+                                if opt.verbose: print "Extract %s -> %s" % (el, outDir)
+                                tar.extract(el, outDir)
+                                
+                        if opt.verbose: print "CLOSE"
+                        tar.close()
 
                     if not exists(datTar):
                         raise Exception("Tarball %s didn't contain %s!", copyFile, datTar)
-                    
+
                 # Extract contents
                 status = None; configName = None
                 tar = tarfile.open(datTar)
