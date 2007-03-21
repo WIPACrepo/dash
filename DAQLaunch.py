@@ -58,7 +58,7 @@ componentDB = { "eventBuilder"      : \
                 "globalTrigger"     : \
                     { "cls" : "icecube.daq.trigger.component.GlobalTriggerComponent",
                       "dir" : "trigger",
-                      "run" : "run-gttrig",
+                      "run" : "run-gltrig",
                     },
                 "amandaTrigger"     : \
                     { "cls" : "icecube.daq.trigger.component.AmandaTriggerComponent",
