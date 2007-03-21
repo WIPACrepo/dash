@@ -79,6 +79,11 @@ class DAQCtrl:
         return labels, default
 
 
+    def isValidConfig(self, config):
+        "Forward configuration validity check to pDaq."
+        return self.daqiface.isValidConfig(config)
+
+
     def getState(self):
         "Return the current state of the sub-system."
         try:
