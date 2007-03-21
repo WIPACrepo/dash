@@ -33,6 +33,71 @@ class HostNotFoundForComponent      (Exception): pass
 class JavaClassNotFoundForComponent (Exception): pass
 class RunScriptNotFoundForComponent (Exception): pass
 class SubProjectNotFoundForComponent(Exception): pass
+class ComponentNotFoundInDatabase   (Exception): pass
+
+componentDB = { "eventBuilder"      : \
+                    { "cls" : "icecube.daq.eventBuilder.EBComponent",
+                      "dir" : "eventBuilder-prod",
+                      "run" : "run-eb"
+                    },
+                "SecondaryBuilders" : \
+                    { "cls" : "icecube.daq.secBuilder.SBComponent",
+                      "dir" : "secondaryBuilders",
+                      "run" : "run-sb"
+                    },
+                "inIceTrigger"      : \
+                    { "cls" : "icecube.daq.trigger.component.IniceTriggerComponent",
+                      "dir" : "trigger",
+                      "run" : "run-iitrig",
+                    },
+                "iceTopTrigger"     : \
+                    { "cls" : "icecube.daq.trigger.component.IcetopTriggerComponent",
+                      "dir" : "trigger",
+                      "run" : "run-ittrig",
+                    },
+                "globalTrigger"     : \
+                    { "cls" : "icecube.daq.trigger.component.GlobalTriggerComponent",
+                      "dir" : "trigger",
+                      "run" : "run-gttrig",
+                    },
+                "amandaTrigger"     : \
+                    { "cls" : "icecube.daq.trigger.component.AmandaTriggerComponent",
+                      "dir" : "trigger",
+                      "run" : "run-amtrig",
+                    },
+                "StringHub"         : \
+                    { "cls" : "icecube.daq.stringhub",
+                      "dir" : "StringHub",
+                      "run" : "run-hub",
+                    },
+              }
+
+def getRunScript(compName):
+    if not componentDB.has_key(compName):
+        raise ComponentNotFoundInDatabase(comp)
+
+    if not componentDB[compName].has_key("run"):
+        raise RunScriptNotFoundForComponent(compName)
+
+    return componentDB[compName]["run"]
+
+def getSubProject(compName):
+    if not componentDB.has_key(compName):
+        raise ComponentNotFoundInDatabase(comp)
+
+    if not componentDB[compName].has_key("dir"):
+        raise SubProjectNotFoundForComponent(compName)
+
+    return componentDB[compName]["dir"]
+
+def getJavaClass(compName):
+    if not componentDB.has_key(compName):
+        raise ComponentNotFoundInDatabase(comp)
+
+    if not componentDB[compName].has_key("cls"):
+        raise JavaClassNotFoundForComponent(compName)
+
+    return componentDB[compName]["cls"]
 
 def findHost(component, compID, clusterConfig):
     "Find host name where component:compID runs"
@@ -42,22 +107,10 @@ def findHost(component, compID, clusterConfig):
     raise HostNotFoundForComponent(component+":"+compID)
 
 def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9):
-    classDict = \
-            { "eventBuilder"      : "icecube.daq.eventBuilder.EBComponent",
-              "SecondaryBuilders" : "icecube.daq.secBuilder.SBComponent",
-              "inIceTrigger"      : "icecube.daq.trigger.component.IniceTriggerComponent",
-              "iceTopTrigger"     : "icecube.daq.trigger.component.IcetopTriggerComponent",
-              "globalTrigger"     : "icecube.daq.trigger.component.GlobalTriggerComponent",
-              "amandaTrigger"     : "icecube.daq.trigger.component.AmandaTriggerComponent",
-              "StringHub"         : "icecube.daq.stringhub"
-            }
-
     parallel = ParallelShell()
     for node in clusterConfig.nodes:
         for comp in node.comps:
-            if not classDict.has_key(comp.compName):
-                raise JavaClassNotFoundForComponent(comp.compName)
-            javaClass = classDict[ comp.compName ]
+            javaClass = getJavaClass(comp.compName)
             if killWith9: niner = "-9"
             else:         niner = ""
             if node.hostName == "localhost": # Just kill it
@@ -80,32 +133,12 @@ def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9):
         parallel.wait()
 
 def startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose):
-    runScriptDict = { "eventBuilder"      : "run-eb",
-                      "SecondaryBuilders" : "run-sb",
-                      "inIceTrigger"      : "run-iitrig",
-                      "iceTopTrigger"     : "run-ittrig",
-                      "globalTrigger"     : "run-gltrig",
-                      "StringHub"         : "run-hub",
-                      "amandaTrigger"     : "run-amtrig"
-                    }
-    subProjectDict = { "eventBuilder"      : "eventBuilder-prod",
-                       "SecondaryBuilders" : "secondaryBuilders",
-                       "inIceTrigger"      : "trigger",
-                       "iceTopTrigger"     : "trigger",
-                       "globalTrigger"     : "trigger",
-                       "amandaTrigger"     : "trigger",
-                       "StringHub"         : "StringHub"
-                     }
-
-
     myIP = getIP()
     parallel = ParallelShell()
     for node in clusterConfig.nodes:
         for comp in node.comps:
-            if not runScriptDict.has_key(comp.compName):
-                raise RunScriptNotFoundForComponent(comp.compName)
-            if not subProjectDict.has_key(comp.compName):
-                raise SubProjectNotFoundForComponent(comp.compName)
+            runScript = getRunScript(comp.compName)
+            subProject = getSubProject(comp.compName)
             switches = ""
             if verbose:
                 switches += "--verbose "
@@ -116,8 +149,8 @@ def startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose
                 switches += "--id %d " % comp.compID
 
             switches += "-d %s " % comp.logLevel
-            switches += "-c %s " % subProjectDict[comp.compName]
-            switches += "-s %s " % runScriptDict [comp.compName]
+            switches += "-c %s " % subProject
+            switches += "-s %s " % runScript
             if node.hostName == "localhost": # Just run it
                 switches += "--cnc localhost:%d " % cncPort
                 switches += "--log localhost:%d " % logPort
