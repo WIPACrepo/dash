@@ -256,7 +256,7 @@ def main():
     dashDir   = join(metaDir, 'dash')
     clusterConfigDir = join(metaDir, 'cluster-config', 'src', 'main', 'xml')
 
-    if opt.doList: showConfigs(clusterConfigDir); raise SystemExit
+    if opt.doList: showConfigs(clusterConfigDir, configToUse); raise SystemExit
 
     # Get/parse cluster configuration
     clusterConfig = deployConfig(clusterConfigDir, configToUse)
