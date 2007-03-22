@@ -245,8 +245,8 @@ def main():
     <table>
     <tr>
      <td align=center><b>Run</b></td>
-     <td align=center><b>Start<br>Date</b></td>
-     <td align=center><b>Start<br>Time</b></td>
+     <td align=center><b>Run<br>Stop<br>Date</b></td>
+     <td align=center><b>Run<br>Stop<br>Time</b></td>
      <td align=center><b>Duration<br>(seconds)</b></td>
      <td align=center><b>Num.<br>Events</b></td>
      <td align=center><b>Config</b></td>
