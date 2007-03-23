@@ -66,7 +66,7 @@ componentDB = { "eventBuilder"      : \
                       "run" : "run-amtrig",
                     },
                 "StringHub"         : \
-                    { "cls" : "icecube.daq.stringhub",
+                    { "cls" : "icecube.daq.stringhub.Shell",
                       "dir" : "StringHub",
                       "run" : "run-hub",
                     },
