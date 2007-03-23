@@ -16,7 +16,7 @@ import math
 class RPCClient(xmlrpclib.ServerProxy):
     "Generic class for accessing methods on remote objects"
     "WARNING: instantiating RPCClient sets socket default timeout duration!"
-    def __init__(self, servername, portnum):
+    def __init__(self, servername, portnum, verbose=0):
         
         self.servername = servername
         self.portnum    = portnum
@@ -26,7 +26,7 @@ class RPCClient(xmlrpclib.ServerProxy):
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         socket.setdefaulttimeout(120)            #set the timeout to 60 seconds
         xmlrpclib.ServerProxy.__init__(self,
-                                       "http://%s:%s" % (self.servername, self.portnum))
+                                       "http://%s:%s" % (self.servername, self.portnum), verbose=verbose)
         self.statDict = { }
 
     def showStats(self):
