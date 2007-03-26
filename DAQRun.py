@@ -784,18 +784,18 @@ if __name__ == "__main__":
                                  clusterConfigName)
             
     if not exists(opt.configDir):
-        print "Configuration directory '%s' doesn't exist!  "+\
-              "Use the -c option, or -h for help." % opt.configDir
+        print ("Configuration directory '%s' doesn't exist!  "+\
+               "Use the -c option, or -h for help.") % opt.configDir
         raise SystemExit
 
     if not exists(opt.logDir):
-        print "Log directory '%s' doesn't exist!  Use the -l option, "+\
-              " or -h for help." % opt.logDir
+        print ("Log directory '%s' doesn't exist!  Use the -l option, "+\
+               " or -h for help.") % opt.logDir
         raise SystemExit
 
     if not exists(opt.spadeDir):
-        print "Spade directory '%s' doesn't exist!  Use the -s option, "+\
-              " or -h for help." % opt.spadeDir
+        print ("Spade directory '%s' doesn't exist!  Use the -s option, "+\
+               " or -h for help.") % opt.spadeDir
         raise SystemExit
 
     if opt.copyDir and not exists(opt.copyDir):
