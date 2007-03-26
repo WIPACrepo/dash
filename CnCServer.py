@@ -704,11 +704,6 @@ class DAQClient(CnCLogger):
         "Return the monitoring value"
         return self.getState()
 
-    def monitorHack(self):
-        "Return the monitoring value"
-        #self.client.xmlrpc.monitorHack(self.id)
-        return 'OK'
-
     def reset(self):
         "Reset component back to the idle state"
         self.closeLog()
