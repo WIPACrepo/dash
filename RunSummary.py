@@ -9,8 +9,9 @@
 import tarfile
 import optparse
 import datetime
+import time
 from sys import stderr
-from os import listdir, mkdir, environ, stat, popen
+from os import listdir, mkdir, environ, stat, popen, symlink
 from os.path import exists, isdir, abspath, basename
 from shutil import copy
 from re import *
@@ -32,7 +33,8 @@ def check_make_or_exit(dir):
         # print "OK."
 
 def getFileSize(f): return stat(f)[6]
-    
+def getFileTime(f): return stat(f)[8]
+
 def getLatestFileTime(dir):
     l = listdir(dir)
     latest = None
@@ -203,6 +205,13 @@ def traverseList(dir):
             ret.append("%s/%s" % (dir, f))
     return ret
 
+def daysOf(f):
+    t = getFileTime(f)
+    now = int(time.time())
+    dt = now-t
+    # print "daysOf %s %d %d %d" % (f, t, now, dt)
+    return dt/86400
+
 def main():
     p = optparse.OptionParser()
     p.add_option("-s", "--spade-dir",   action="store", type="string", dest="spadeDir")
@@ -210,14 +219,19 @@ def main():
     p.add_option("-a", "--replace-all", action="store_true",           dest="replaceAll")
     p.add_option("-v", "--verbose",     action="store_true",           dest="verbose")
     p.add_option("-m", "--max-mb",      action="store", type="int",    dest="maxMegs")
+    p.add_option("-l", "--use-symlinks",
+                                        action="store_true",           dest="useSymlinks")
     p.add_option("-i", "--ignore-process",
                                         action="store_true",           dest="ignoreExisting")
-    p.set_defaults(spadeDir   = "/mnt/data/spade/localcopies/daq",
-                   outputDir  = "%s/public_html/daq-reports" % environ["HOME"],
-                   verbose    = False,
-                   maxMegs    = None,
+    p.add_option("-t", "--oldest-time", action="store", type="int",    dest="oldestTime")
+    p.set_defaults(spadeDir       = "/mnt/data/spade/localcopies/daq",
+                   outputDir      = "%s/public_html/daq-reports" % environ["HOME"],
+                   verbose        = False,
+                   maxMegs        = None,
+                   useSymlinks    = False,
                    ignoreExisting = False,
-                   replaceAll = False)
+                   oldestTime     = 100000,
+                   replaceAll     = False)
 
     opt, args = p.parse_args()
 
@@ -268,7 +282,6 @@ def main():
             runInfoString = match.group(1)
             match = search(infoPat, runInfoString)
             if not match: continue
-            if opt.verbose: print "%s -> %s" % (f, runInfoString)
             outDir = runDir + "/" + runInfoString
             check_make_or_exit(outDir)
             tarFile     = f
@@ -281,7 +294,12 @@ def main():
             snippetFile = outDir + "/.snippet"
             linkDir     = runInfoString + "/"
             nEvents     = None
-            # print datTar
+
+            # Skip files older than oldestTime weeks
+            if daysOf(tarFile) > opt.oldestTime: continue
+
+            if opt.verbose: print "%s -> %s" % (f, runInfoString)
+
             # Skip if tarball has already been copied
             if not exists(copyFile) or not exists(snippetFile) \
                 or not exists(datTar) \
@@ -290,8 +308,17 @@ def main():
                 # Move tarballs into target run directories
                 if not exists(copyFile) or not exists(datTar):
                     tarSize = getFileSize(tarFile)
-                    if opt.verbose: print "%s(%dB) -> %s/" % (f, tarSize, outDir)
-                    copy(tarFile, copyFile)
+                    if opt.useSymlinks: vec = "-(l)->"
+                    else: vec = "->"
+                    if opt.verbose: print "%s(%dB) %s %s/" % (f, tarSize, vec, outDir)
+
+                    # Copy or symlink tarball first
+                    if not exists(copyFile):
+                        if opt.useSymlinks:
+                            symlink(tarFile, copyFile)
+                        else:
+                            copy(tarFile, copyFile)
+                            
                     if not tarfile.is_tarfile(copyFile):
                         raise Exception("Bad tar file %s!" % copyFile)
 
