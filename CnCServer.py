@@ -603,9 +603,9 @@ class DAQClient(CnCLogger):
         "Configure this component"
         try:
             if not configName:
-                return self.client.xmlrpc.configure(self.id)
+                return self.client.xmlrpc.configure()
             else:
-                return self.client.xmlrpc.configure(self.id, configName)
+                return self.client.xmlrpc.configure(configName)
         except Exception, e:
             self.logmsg(exc_string())
             return None
@@ -614,13 +614,13 @@ class DAQClient(CnCLogger):
         "Connect this component with other components in a runset"
 
         if not connList:
-            return self.client.xmlrpc.connect(self.id)
+            return self.client.xmlrpc.connect()
 
         list = []
         for conn in connList:
             list.append(conn.getMap())
 
-        return self.client.xmlrpc.connect(self.id, list)
+        return self.client.xmlrpc.connect(list)
 
     def createClient(self, host, port):
         return RPCClient(host, port)
@@ -628,7 +628,7 @@ class DAQClient(CnCLogger):
     def forcedStop(self):
         "Force component to stop running"
         try:
-            return self.client.xmlrpc.forcedStop(self.id)
+            return self.client.xmlrpc.forcedStop()
         except Exception, e:
             self.logmsg(exc_string())
             return None
@@ -639,7 +639,7 @@ class DAQClient(CnCLogger):
     def getState(self):
         "Get current state"
         try:
-            state = self.client.xmlrpc.getState(self.id)
+            state = self.client.xmlrpc.getState()
         except Exception, e:
             self.logmsg(exc_string())
             state = None
@@ -659,7 +659,7 @@ class DAQClient(CnCLogger):
         which have not yet stopped
         """
         try:
-            connStates = self.client.xmlrpc.listConnectorStates(self.id)
+            connStates = self.client.xmlrpc.listConnectorStates()
         except Exception, e:
             self.logmsg(exc_string())
             return None
@@ -698,7 +698,7 @@ class DAQClient(CnCLogger):
     def logTo(self, logIP, port):
         "Send log messages to the specified host and port"
         self.openLog(logIP, port)
-        self.client.xmlrpc.logTo(self.id, logIP, port)
+        self.client.xmlrpc.logTo(logIP, port)
 
     def monitor(self):
         "Return the monitoring value"
@@ -707,12 +707,12 @@ class DAQClient(CnCLogger):
     def reset(self):
         "Reset component back to the idle state"
         self.closeLog()
-        return self.client.xmlrpc.reset(self.id)
+        return self.client.xmlrpc.reset()
 
     def resetLogging(self):
         "Reset component back to the idle state"
         self.resetLog()
-        return self.client.xmlrpc.resetLogging(self.id)
+        return self.client.xmlrpc.resetLogging()
 
     def setOrder(self, orderNum):
         self.cmdOrder = orderNum
@@ -720,7 +720,7 @@ class DAQClient(CnCLogger):
     def startRun(self, runNum):
         "Start component processing DAQ data"
         try:
-            return self.client.xmlrpc.startRun(self.id, runNum)
+            return self.client.xmlrpc.startRun(runNum)
         except Exception, e:
             self.logmsg(exc_string())
             return None
@@ -728,7 +728,7 @@ class DAQClient(CnCLogger):
     def stopRun(self):
         "Stop component processing DAQ data"
         try:
-            return self.client.xmlrpc.stopRun(self.id)
+            return self.client.xmlrpc.stopRun()
         except Exception, e:
             self.logmsg(exc_string())
             return None
