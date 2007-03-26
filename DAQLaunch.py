@@ -92,7 +92,7 @@ def getSubProject(compName):
 
 def getJavaClass(compName):
     if not componentDB.has_key(compName):
-        raise ComponentNotFoundInDatabase(comp)
+        raise ComponentNotFoundInDatabase(compName)
 
     if not componentDB[compName].has_key("cls"):
         raise JavaClassNotFoundForComponent(compName)
