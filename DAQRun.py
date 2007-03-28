@@ -31,10 +31,15 @@ import socket
 import thread
 import os
 
-from locate_pdaq import find_pdaq_trunk
+# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+if os.environ.has_key("PDAQ_HOME"):
+    metaDir = os.environ["PDAQ_HOME"]
+else:
+    from locate_pdaq import find_pdaq_trunk
+    metaDir = find_pdaq_trunk()
+
 # add 'cluster-config' to Python library search path
 #
-metaDir = find_pdaq_trunk()
 sys.path.append(join(metaDir, 'cluster-config'))
 from ClusterConfig import *
 
@@ -63,7 +68,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     SPADEDIR       = "/tmp"
     CATCHALL_PORT  = 9001
     CNC_PORT       = 8080
-    MONI_PERIOD    = 10
+    MONI_PERIOD    = 30
     WATCH_PERIOD   = 10
     COMP_TOUT      = 60
     
@@ -380,14 +385,14 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         for cid in self.setCompIDs:
             if self.shortNameOf[cid] == "eventBuilder" and self.daqIDof[cid] == 0:
                 return int(self.moni.getSingleBeanField(cid, "backEnd", "NumEventsSent"))
-        raise Exception("Could not find eventBuilder component 0!!!!")
+        return 0
     
     def getEBDiskUsage(self):
         for cid in self.setCompIDs:
             if self.shortNameOf[cid] == "eventBuilder" and self.daqIDof[cid] == 0:
                 return [int(self.moni.getSingleBeanField(cid, "backEnd", "DiskAvailable")),
                         int(self.moni.getSingleBeanField(cid, "backEnd", "DiskSize"))]
-        raise Exception("Could not find eventBuilder component 0!!!!")
+        return [0, 0]
 
     unHealthyCount      = 0
     MAX_UNHEALTHY_COUNT = 3

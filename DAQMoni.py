@@ -8,7 +8,7 @@
 
 from DAQLog import *
 from DAQRPC import RPCClient
-import datetime
+import datetime, sys
 from exc_string import *
 
 class MoniData(object):
@@ -16,7 +16,10 @@ class MoniData(object):
         self.id = id
         self.addr = addr
         self.port = port
-        self.fd = open(fname, "w+") # Might throw exception
+        if fname is None:
+            self.fd = sys.stdout
+        else:
+            self.fd = open(fname, "w+") # Might throw exception
         self.client = RPCClient(addr, port)
         self.beanFields = {}
         self.beanList = self.client.mbean.listMBeans()
@@ -100,3 +103,23 @@ class DAQMoni(object):
         print m
         if self.log: self.log.dashLog(m)
      
+if __name__ == "__main__":
+    usage = False
+    if len(sys.argv) < 2:
+        usage = True
+    else:
+        for i in range(1,len(sys.argv)):
+            colon = sys.argv[i].find(':')
+            if colon < 0:
+                print "No colon"
+                usage = True
+            else:
+                host = sys.argv[i][:colon]
+                port = sys.argv[i][colon+1:]
+
+                moni = MoniData(i, None, host, port)
+                moni.monitor('snapshot')
+    if usage:
+        print "Usage: DAQMoni.py host:beanPort [host:beanPort ...]"
+        raise SystemExit
+
