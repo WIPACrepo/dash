@@ -29,19 +29,6 @@ class MoniData(object):
     def __str__(self):
         return '%d: %s:%d' % (self.id, self.addr, self.port)
 
-    def OLDmonitor(self, now):
-        for b in self.beanFields.keys():
-            print >>self.fd, "Bean ", b
-            vals = self.client.mbean.getList(b, self.beanFields[b])
-
-            # report monitoring data
-            print >>self.fd, '%s: %s:\n' % (b, now)
-            for i in range(0,len(vals)):
-                print >>self.fd, '\t%s: %s' % \
-                    (self.beanFields[b][i], str(vals[i]))
-            print >>self.fd
-            self.fd.flush()
-
     def monitor(self, now):
         for b in self.beanFields.keys():
             print >>self.fd, "Bean ", b
