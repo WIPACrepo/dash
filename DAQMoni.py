@@ -31,7 +31,6 @@ class MoniData(object):
 
     def monitor(self, now):
         for b in self.beanFields.keys():
-            print >>self.fd, "Bean ", b
             map = self.client.mbean.getAttributes(b, self.beanFields[b])
 
             # report monitoring data
