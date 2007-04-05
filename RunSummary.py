@@ -9,8 +9,9 @@
 import tarfile
 import optparse
 import datetime
+import time
 from sys import stderr
-from os import listdir, mkdir, environ, stat, popen
+from os import listdir, mkdir, environ, stat, popen, symlink
 from os.path import exists, isdir, abspath, basename
 from shutil import copy
 from re import *
@@ -32,7 +33,8 @@ def check_make_or_exit(dir):
         # print "OK."
 
 def getFileSize(f): return stat(f)[6]
-    
+def getFileTime(f): return stat(f)[8]
+
 def getLatestFileTime(dir):
     l = listdir(dir)
     latest = None
@@ -171,6 +173,13 @@ def makeSummaryHtml(logLink, runNum, month, day, year, hr,
 
 infoPat = r'(\d+)_(\d\d\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)_(\d+)'
 
+def getTarFileSubset(l):
+    ret = []
+    for f in l:
+        if not search("SPS-pDAQ-run.+?.tar", f): continue
+        if search(infoPat, f): ret.append(f)
+    return ret
+
 def cmp(a, b):
     amatch = search(infoPat, a)
     bmatch = search(infoPat, b)
@@ -196,6 +205,13 @@ def traverseList(dir):
             ret.append("%s/%s" % (dir, f))
     return ret
 
+def daysOf(f):
+    t = getFileTime(f)
+    now = int(time.time())
+    dt = now-t
+    # print "daysOf %s %d %d %d" % (f, t, now, dt)
+    return dt/86400
+
 def main():
     p = optparse.OptionParser()
     p.add_option("-s", "--spade-dir",   action="store", type="string", dest="spadeDir")
@@ -203,16 +219,23 @@ def main():
     p.add_option("-a", "--replace-all", action="store_true",           dest="replaceAll")
     p.add_option("-v", "--verbose",     action="store_true",           dest="verbose")
     p.add_option("-m", "--max-mb",      action="store", type="int",    dest="maxMegs")
-    
-    p.set_defaults(spadeDir   = "/mnt/data/spade/localcopies/daq",
-                   outputDir  = "%s/public_html/daq-reports" % environ["HOME"],
-                   verbose    = False,
-                   maxMegs    = None,
-                   replaceAll = False)
+    p.add_option("-l", "--use-symlinks",
+                                        action="store_true",           dest="useSymlinks")
+    p.add_option("-i", "--ignore-process",
+                                        action="store_true",           dest="ignoreExisting")
+    p.add_option("-t", "--oldest-time", action="store", type="int",    dest="oldestTime")
+    p.set_defaults(spadeDir       = "/mnt/data/spade/localcopies/daq",
+                   outputDir      = "%s/public_html/daq-reports" % environ["HOME"],
+                   verbose        = False,
+                   maxMegs        = None,
+                   useSymlinks    = False,
+                   ignoreExisting = False,
+                   oldestTime     = 100000,
+                   replaceAll     = False)
 
     opt, args = p.parse_args()
 
-    if checkForRunningProcesses():
+    if not opt.ignoreExisting and checkForRunningProcesses():
         print "RunSummary.py is already running."
         raise SystemExit
     
@@ -225,7 +248,7 @@ def main():
     latestTime = getLatestFileTime(opt.spadeDir)
     doneTime   = getDoneFileTime(opt.outputDir)
     if latestTime and doneTime and latestTime < doneTime and not opt.replaceAll: raise SystemExit
-    
+
     runDir = opt.outputDir+"/runs"
     check_make_or_exit(runDir)
     
@@ -236,8 +259,8 @@ def main():
     <table>
     <tr>
      <td align=center><b>Run</b></td>
-     <td align=center><b>Start<br>Date</b></td>
-     <td align=center><b>Start<br>Time</b></td>
+     <td align=center><b>Run<br>Stop<br>Date</b></td>
+     <td align=center><b>Run<br>Stop<br>Time</b></td>
      <td align=center><b>Duration<br>(seconds)</b></td>
      <td align=center><b>Num.<br>Events</b></td>
      <td align=center><b>Config</b></td>
@@ -247,10 +270,10 @@ def main():
     """
 
     l = traverseList(opt.spadeDir)
-    # l = listdir(opt.spadeDir)
-    l.sort(cmp)
+    tarlist = getTarFileSubset(l)
+    tarlist.sort(cmp)
 
-    for f in l:
+    for f in tarlist:
         prefix = 'SPS-pDAQ-run-'
         if search(r'.done$', f): continue # Skip SPADE .done semaphores
         if search(r'.sem$', f):  continue # Skip SPADE .sem  semaphores
@@ -259,7 +282,6 @@ def main():
             runInfoString = match.group(1)
             match = search(infoPat, runInfoString)
             if not match: continue
-            if opt.verbose: print "%s -> %s" % (f, runInfoString)
             outDir = runDir + "/" + runInfoString
             check_make_or_exit(outDir)
             tarFile     = f
@@ -272,7 +294,12 @@ def main():
             snippetFile = outDir + "/.snippet"
             linkDir     = runInfoString + "/"
             nEvents     = None
-            # print datTar
+
+            # Skip files older than oldestTime weeks
+            if daysOf(tarFile) > opt.oldestTime: continue
+
+            if opt.verbose: print "%s -> %s" % (f, runInfoString)
+
             # Skip if tarball has already been copied
             if not exists(copyFile) or not exists(snippetFile) \
                 or not exists(datTar) \
@@ -280,21 +307,38 @@ def main():
 
                 # Move tarballs into target run directories
                 if not exists(copyFile) or not exists(datTar):
+                    tarSize = getFileSize(tarFile)
+                    if opt.useSymlinks: vec = "-(l)->"
+                    else: vec = "->"
+                    if opt.verbose: print "%s(%dB) %s %s/" % (f, tarSize, vec, outDir)
 
-                    print "%s -> %s/" % (f, outDir)
-                    copy(tarFile, copyFile)
+                    # Copy or symlink tarball first
+                    if not exists(copyFile):
+                        if opt.useSymlinks:
+                            symlink(tarFile, copyFile)
+                        else:
+                            copy(tarFile, copyFile)
+                            
                     if not tarfile.is_tarfile(copyFile):
                         raise Exception("Bad tar file %s!" % copyFile)
 
                     # Extract top tarball
                     if datTar != copyFile:
+                        
+                        if opt.verbose: print "OPEN(%s)" % copyFile
                         tar = tarfile.open(copyFile)
+                        
                         for el in tar.getnames():
-                            if search('\.dat\.tar$', el): tar.extract(el, outDir)
+                            if search('\.dat\.tar$', el):
+                                if opt.verbose: print "Extract %s -> %s" % (el, outDir)
+                                tar.extract(el, outDir)
+                                
+                        if opt.verbose: print "CLOSE"
+                        tar.close()
 
                     if not exists(datTar):
                         raise Exception("Tarball %s didn't contain %s!", copyFile, datTar)
-                    
+
                 # Extract contents
                 status = None; configName = None
                 tar = tarfile.open(datTar)
