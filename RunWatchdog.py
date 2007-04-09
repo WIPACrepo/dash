@@ -256,6 +256,17 @@ class RunWatchdog(object):
         if eventBuilder: self.soloComps.append(eventBuilder)
         if secondaryBuilders: self.soloComps.append(secondaryBuilders)
 
+    def appendError(errMsg, compType, compErr):
+        if errMsg is None:
+            errMsg = "** Run watchdog reports"
+        else:
+            errMsg += "\nand"
+        errMsg += " " + compType + " components:\n" + compErr
+
+        return errMsg
+
+    appendError = staticmethod(appendError)
+
     def contains(self, nameList, compName):
         for n in nameList:
             if n == compName:
@@ -298,15 +309,6 @@ class RunWatchdog(object):
             except Exception, e:
                 self.logmsg(str(comp) + ' outputs: ' + exc_string())
 
-    def appendError(errMsg, compType, compErr):
-        if errMsg is None:
-            errMsg = "** Run watchdog reports"
-        else:
-            errMsg += "\nand"
-        errMsg += " " + compType + " components:\n" + compErr
-
-        return errMsg
-
     def doWatch(self):
         self.tlast = datetime.datetime.now()
         starved = []
@@ -322,10 +324,12 @@ class RunWatchdog(object):
         errMsg = None
 
         if len(stagnant) > 0:
-            errMsg = appendError(errMsg, 'stagnant', self.joinAll(stagnant))
+            errMsg = RunWatchdog.appendError(errMsg, 'stagnant',
+                                             self.joinAll(stagnant))
 
         if len(starved) > 0:
-            errMsg = appendError(errMsg, 'starving', self.joinAll(starved))
+            errMsg = RunWatchdog.appendError(errMsg, 'starving',
+                                             self.joinAll(starved))
 
         healthy = True
         if errMsg is not None:
