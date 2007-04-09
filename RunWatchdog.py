@@ -149,10 +149,12 @@ class WatchData(object):
             for f in watchList:
                 fldList.append(f.fieldName)
 
-            valList = self.client.mbean.getList(watchList[0].beanName, fldList)
+            valMap = self.client.mbean.getAttributes(watchList[0].beanName,
+                                                     fldList)
             for i in range(0,len(fldList)):
-                if not watchList[i].check(valList[i]):
-                    unhealthy.append(watchList[i].unhealthyString(valList[i]))
+                val = valMap[fldList[i]]
+                if not watchList[i].check(val):
+                    unhealthy.append(watchList[i].unhealthyString(val))
 
         if len(unhealthy) == 0:
             return None
