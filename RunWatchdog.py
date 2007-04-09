@@ -289,72 +289,60 @@ class RunWatchdog(object):
                 compStr += "\n    " + str(c)
         return compStr
 
+    def checkComp(self, comp, starved, stagnant):
+        isProblem = False
+        try:
+            badList = comp.checkInputs(self.tlast)
+            if badList is not None:
+                starved += badList
+                isProblem = True
+        except Exception, e:
+            self.logmsg(str(comp) + ' inputs: ' + exc_string())
+
+        if not isProblem:
+            try:
+                badList = comp.checkOutputs(self.tlast)
+                if badList is not None:
+                    stagnant += badList
+                    isProblem = True
+            except Exception, e:
+                self.logmsg(str(comp) + ' outputs: ' + exc_string())
+
+    def appendError(errMsg, compType, compErr):
+        if errMsg is None:
+            errMsg = "** Run watchdog reports"
+        else:
+            errMsg += "\nand"
+        errMsg += " " + compType + " components:\n" + compErr
+
+        return errMsg
+
     def doWatch(self):
-        now = datetime.datetime.now()
-        self.tlast = now
-        healthy = True
+        self.tlast = datetime.datetime.now()
         starved = []
         stagnant = []
 
-        # checkInputs/checkOutputs can raise exception if far end is dead
+        # checks can raise exception if far end is dead
         for comp in self.stringHubs:
-            isStarved = False
-            try:
-                badList = comp.checkInputs(now)
-                if badList is not None:
-                    starved += badList
-                    isStarved = True
-            except Exception, e:
-                self.logmsg(str(comp) + ' inputs: ' + exc_string())
-
-            if not isStarved:
-                try:
-                    badList = comp.checkOutputs(now)
-                    if badList is not None:
-                        stagnant += badList
-                except Exception, e:
-                    self.logmsg(str(comp) + ' outinputs: ' + exc_string())
+            self.checkComp(comp, starved, stagnant)
 
         for comp in self.soloComps:
-            isStarved = False
-            try:
-                badList = comp.checkInputs(now)
-                if badList is not None:
-                    starved += badList
-                    isStarved = True
-            except Exception, e:
-                self.logmsg(str(comp) + ': ' + exc_string())
-            if not isStarved:
-                try:
-                    badList = comp.checkOutputs(now)
-                    if badList is not None:
-                        stagnant += badList
-                except Exception, e:
-                    self.logmsg(str(comp) + ': ' + exc_string())
+            self.checkComp(comp, starved, stagnant)
 
-        noOutStr = None
+        errMsg = None
+
         if len(stagnant) > 0:
-            noOutStr = self.joinAll(stagnant)
+            errMsg = appendError(errMsg, 'stagnant', self.joinAll(stagnant))
 
-        noInStr = None
         if len(starved) > 0:
-            noInStr = self.joinAll(starved)
+            errMsg = appendError(errMsg, 'starving', self.joinAll(starved))
 
-        if noOutStr:
-            if noInStr:
-                self.logmsg("** Run watchdog reports stagnant components:\n" +
-                            noOutStr + "\nand starved components:\n" + noInStr)
-                healthy = False
-            else:
-                self.logmsg("** Run watchdog reports stagnant components:\n" +
-                            noOutStr)
-                healthy = False
-        elif noInStr:
-            self.logmsg("** Run watchdog reports starving components:\n" +
-                        noInStr)
+        healthy = True
+        if errMsg is not None:
+            self.logmsg(errMsg)
             healthy = False
         #else:
-            # self.logmsg('** Run watchdog reports all components are healthy')
+        #    self.logmsg('** Run watchdog reports all components are healthy')
 
         return healthy
 
