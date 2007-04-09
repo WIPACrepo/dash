@@ -13,6 +13,44 @@ from DAQRPC import RPCClient
 import datetime
 from exc_string import *
 
+class ThresholdWatcher(object):
+    def __init__(self, comp, beanName, fieldName, threshold, lessThan):
+        self.comp = comp
+        self.beanName = beanName
+        self.fieldName = fieldName
+        self.threshold = threshold
+        self.lessThan = lessThan
+
+        if self.lessThan:
+            self.opDescription = 'below'
+        else:
+            self.opDescription = 'above'
+
+    def __str__(self):
+        return self.comp + ' ' + self.beanName + '.' + self.fieldName + ' ' + \
+            self.opDescription + ' ' + str(self.threshold)
+
+    def check(self, newValue):
+        if type(newValue) != type(self.threshold):
+            raise Exception, 'Threshold value for ' + str(self) + ' is ' + \
+                str(type(self.threshold)) + ', new value is ' + \
+                str(type(newValue))
+        elif type(newValue) == list:
+            raise Exception, 'ThresholdValue does not support lists'
+        elif self.compare(self.threshold, newValue):
+            return False
+
+        return True
+
+    def compare(self, threshold, value):
+        if self.lessThan:
+            return value < threshold
+        else:
+            return value > threshold
+
+    def unhealthyString(self, value):
+        return str(self) + ' (value=' + str(value) + ')'
+
 class ValueWatcher(object):
     NUM_UNCHANGED = 3
 
@@ -89,6 +127,7 @@ class WatchData(object):
             self.beanFields[bean] = self.client.mbean.listGetters(bean)
         self.inputFields = {}
         self.outputFields = {}
+        self.thresholdFields = {}
 
     def __str__(self):
         return '#' + str(self.id) + ': ' + self.name
@@ -124,6 +163,28 @@ class WatchData(object):
 
         vw = ValueWatcher(self.name, otherType, beanName, fieldName)
         self.outputFields[beanName].append(vw)
+
+    def addThresholdValue(self, beanName, fieldName, threshold, lessThan=True):
+        """
+        Watchdog triggers if field value drops below the threshold value
+        (or, when lessThan==False, if value rises above the threshold 
+        """
+
+        if beanName not in self.beanList:
+            raise BeanFieldNotFoundException('Unknown MBean ' + beanName +
+                                             ' for ' + self.name)
+
+        if fieldName not in self.beanFields[beanName]:
+            raise BeanFieldNotFoundException('Unknown MBean ' + beanName +
+                                             ' field ' + fieldName +
+                                             ' for ' + self.name)
+
+        if beanName not in self.thresholdFields:
+            self.thresholdFields[beanName] = []
+
+        tw = ThresholdWatcher(self.name, beanName, fieldName, threshold,
+                              lessThan)
+        self.thresholdFields[beanName].append(tw)
 
     def checkList(self, list, now):
         unhealthy = []
@@ -235,8 +296,10 @@ class RunWatchdog(object):
                                          'NumReadoutsReceived');
                         cw.addOutputValue('dispatch', 'backEnd',
                                           'NumEventsSent');
+                        cw.addThresholdValue('backEnd', 'DiskAvailable', 1024)
                         eventBuilder = cw
                     elif shortNameOf[c] == 'secondaryBuilders':
+                        cw.addThresholdValue('snBuilder', 'DiskAvailable', 1024)
                         secondaryBuilders = cw
                     else:
                         raise Exception, 'Unknown component type ' + \
@@ -290,7 +353,7 @@ class RunWatchdog(object):
                 compStr += "\n    " + str(c)
         return compStr
 
-    def checkComp(self, comp, starved, stagnant):
+    def checkComp(self, comp, starved, stagnant, threshold):
         isProblem = False
         try:
             badList = comp.checkList(comp.inputFields, self.tlast)
@@ -309,17 +372,27 @@ class RunWatchdog(object):
             except Exception, e:
                 self.logmsg(str(comp) + ' outputs: ' + exc_string())
 
+            if not isProblem:
+                try:
+                    badList = comp.checkList(comp.thresholdFields, self.tlast)
+                    if badList is not None:
+                        threshold += badList
+                        isProblem = True
+                except Exception, e:
+                    self.logmsg(str(comp) + ' thresholds: ' + exc_string())
+
     def doWatch(self):
         self.tlast = datetime.datetime.now()
         starved = []
         stagnant = []
+        threshold = []
 
         # checks can raise exception if far end is dead
         for comp in self.stringHubs:
-            self.checkComp(comp, starved, stagnant)
+            self.checkComp(comp, starved, stagnant, threshold)
 
         for comp in self.soloComps:
-            self.checkComp(comp, starved, stagnant)
+            self.checkComp(comp, starved, stagnant, threshold)
 
         errMsg = None
 
@@ -330,6 +403,10 @@ class RunWatchdog(object):
         if len(starved) > 0:
             errMsg = RunWatchdog.appendError(errMsg, 'starving',
                                              self.joinAll(starved))
+
+        if len(threshold) > 0:
+            errMsg = RunWatchdog.appendError(errMsg, 'threshold',
+                                             self.joinAll(threshold))
 
         healthy = True
         if errMsg is not None:
