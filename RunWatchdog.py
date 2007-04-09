@@ -125,6 +125,18 @@ class WatchData(object):
         vw = ValueWatcher(self.name, otherType, beanName, fieldName)
         self.outputFields[beanName].append(vw)
 
+    def checkList(self, list, now):
+        unhealthy = []
+        for b in list:
+            badList = self.checkValues(list[b])
+            if badList is not None:
+                unhealthy += badList
+
+        if len(unhealthy) == 0:
+            return None
+
+        return unhealthy
+
     def checkValues(self, watchList):
         unhealthy = []
         if len(watchList) == 1:
@@ -141,30 +153,6 @@ class WatchData(object):
             for i in range(0,len(fldList)):
                 if not watchList[i].check(valList[i]):
                     unhealthy.append(watchList[i].unhealthyString(valList[i]))
-
-        if len(unhealthy) == 0:
-            return None
-
-        return unhealthy
-
-    def checkInputs(self, now):
-        unhealthy = []
-        for b in self.inputFields:
-            badList = self.checkValues(self.inputFields[b])
-            if badList is not None:
-                unhealthy += badList
-
-        if len(unhealthy) == 0:
-            return None
-
-        return unhealthy
-
-    def checkOutputs(self, now):
-        unhealthy = []
-        for b in self.outputFields:
-            badList = self.checkValues(self.outputFields[b])
-            if badList is not None:
-                unhealthy += badList
 
         if len(unhealthy) == 0:
             return None
@@ -292,7 +280,7 @@ class RunWatchdog(object):
     def checkComp(self, comp, starved, stagnant):
         isProblem = False
         try:
-            badList = comp.checkInputs(self.tlast)
+            badList = comp.checkList(comp.inputFields, self.tlast)
             if badList is not None:
                 starved += badList
                 isProblem = True
@@ -301,7 +289,7 @@ class RunWatchdog(object):
 
         if not isProblem:
             try:
-                badList = comp.checkOutputs(self.tlast)
+                badList = comp.checkList(comp.outputFields, self.tlast)
                 if badList is not None:
                     stagnant += badList
                     isProblem = True
