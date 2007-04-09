@@ -69,6 +69,9 @@ class ValueWatcher(object):
 
         return newValue == oldValue
 
+    def unhealthyString(self, value):
+        return str(self) + ' not changing from ' + str(self.prevValue)
+
 class WatchData(object):
     def __init__(self, id, compType, compNum, addr, port):
         self.id = id
@@ -127,10 +130,8 @@ class WatchData(object):
         if len(watchList) == 1:
             val = self.client.mbean.get(watchList[0].beanName,
                                         watchList[0].fieldName)
-            prevVal = watchList[0].prevValue
             if not watchList[0].check(val):
-                unhealthy.append(str(watchList[0]) + ' (' + str(prevVal) +
-                                 '->' + str(val) + ')')
+                unhealthy.append(watchList[0].unhealthyString(val))
         else:
             fldList = []
             for f in watchList:
@@ -138,10 +139,8 @@ class WatchData(object):
 
             valList = self.client.mbean.getList(watchList[0].beanName, fldList)
             for i in range(0,len(fldList)):
-                prevVal = watchList[i].prevValue
                 if not watchList[i].check(valList[i]):
-                    unhealthy.append(str(watchList[i]) + ' (' + str(prevVal) +
-                                     '->' + str(valList[i]) + ')')
+                    unhealthy.append(watchList[i].unhealthyString(valList[i]))
 
         if len(unhealthy) == 0:
             return None
@@ -159,7 +158,6 @@ class WatchData(object):
             return None
 
         return unhealthy
-
 
     def checkOutputs(self, now):
         unhealthy = []
