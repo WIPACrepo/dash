@@ -205,6 +205,11 @@ def traverseList(dir):
             ret.append("%s/%s" % (dir, f))
     return ret
 
+def makePlaceHolderFile(shortName, dir, size):
+    x = open(dir+"/"+shortName, "w")
+    print >>x, "(FILE TOO LARGE (%s bytes), NOT EXTRACTED)" % size
+    x.close()
+    
 def daysOf(f):
     t = getFileTime(f)
     now = int(time.time())
@@ -218,16 +223,19 @@ def main():
     p.add_option("-o", "--output-dir",  action="store", type="string", dest="outputDir")
     p.add_option("-a", "--replace-all", action="store_true",           dest="replaceAll")
     p.add_option("-v", "--verbose",     action="store_true",           dest="verbose")
-    p.add_option("-m", "--max-mb",      action="store", type="int",    dest="maxMegs")
+    p.add_option("-m", "--max-mb",      action="store", type="int",    dest="maxTarMegs")
     p.add_option("-l", "--use-symlinks",
                                         action="store_true",           dest="useSymlinks")
     p.add_option("-i", "--ignore-process",
                                         action="store_true",           dest="ignoreExisting")
     p.add_option("-t", "--oldest-time", action="store", type="int",    dest="oldestTime")
+    p.add_option("-x", "--max-extract-file-mb",
+                                        action="store", type="float",  dest="maxFileMegs")
     p.set_defaults(spadeDir       = "/mnt/data/spade/localcopies/daq",
                    outputDir      = "%s/public_html/daq-reports" % environ["HOME"],
                    verbose        = False,
-                   maxMegs        = None,
+                   maxTarMegs     = None,
+                   maxFileMegs    = None,
                    useSymlinks    = False,
                    ignoreExisting = False,
                    oldestTime     = 100000,
@@ -286,7 +294,7 @@ def main():
             check_make_or_exit(outDir)
             tarFile     = f
             size = getFileSize(tarFile)
-            if opt.maxMegs and size > opt.maxMegs*100000:
+            if opt.maxTarMegs and size > opt.maxTarMegs*100000:
                 continue
 
             copyFile    = outDir + "/" + basename(f)
@@ -347,6 +355,11 @@ def main():
                     # Extract contents if not already extracted
                     if opt.replaceAll or not exists("%s/%s" % (outDir, el)):
                         if opt.verbose: print "extracting %s..." % el
+                        fsiz = tar.getmember(el).size
+                        if fsiz > opt.maxFileMegs*1000*1000:
+                            if opt.verbose: print "SKIPPING %s (%d bytes)" % (el, fsiz)
+                            makePlaceHolderFile(el, outDir, fsiz)
+                            continue
                         tar.extract(el, outDir)
                         
                     # Find dash.log
