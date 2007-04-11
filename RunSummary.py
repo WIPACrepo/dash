@@ -11,7 +11,7 @@ import optparse
 import datetime
 import time
 from sys import stderr
-from os import listdir, mkdir, environ, stat, popen, symlink
+from os import listdir, mkdir, environ, stat, popen, symlink, unlink
 from os.path import exists, isdir, abspath, basename
 from shutil import copy
 from re import *
@@ -231,6 +231,8 @@ def main():
     p.add_option("-t", "--oldest-time", action="store", type="int",    dest="oldestTime")
     p.add_option("-x", "--max-extract-file-mb",
                                         action="store", type="float",  dest="maxFileMegs")
+    p.add_option("-r", "--remove-intermediate-tarballs",
+                                        action="store_true",           dest="removeTars")
     p.set_defaults(spadeDir       = "/mnt/data/spade/localcopies/daq",
                    outputDir      = "%s/public_html/daq-reports" % environ["HOME"],
                    verbose        = False,
@@ -238,6 +240,7 @@ def main():
                    maxFileMegs    = None,
                    useSymlinks    = False,
                    ignoreExisting = False,
+                   removeTars     = False,
                    oldestTime     = 100000,
                    replaceAll     = False)
 
@@ -309,10 +312,7 @@ def main():
             if opt.verbose: print "%s -> %s" % (f, runInfoString)
 
             # Skip if tarball has already been copied
-            if not exists(copyFile) or not exists(snippetFile) \
-                or not exists(datTar) \
-                or opt.replaceAll:
-
+            if not exists(snippetFile) or opt.replaceAll:
                 # Move tarballs into target run directories
                 if not exists(copyFile) or not exists(datTar):
                     tarSize = getFileSize(tarFile)
@@ -340,6 +340,7 @@ def main():
                             if search('\.dat\.tar$', el):
                                 if opt.verbose: print "Extract %s -> %s" % (el, outDir)
                                 tar.extract(el, outDir)
+                                extractedTarball = True
                                 
                         if opt.verbose: print "CLOSE"
                         tar.close()
@@ -385,6 +386,11 @@ def main():
 
                 tar.close()
 
+                # Cleanup intermediate tar files
+                if extractedTarball and opt.removeTars:
+                    if opt.verbose: print "REMOVING %s..." % datTar
+                    unlink(datTar)
+                    
                 if status == None or configName == None:
                     #print "SKIPPED null run %s" % outDir
                     continue
