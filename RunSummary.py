@@ -65,7 +65,11 @@ def getStatusColor(status):
         statusColor = "CCFFCC"
     return statusColor
 
-def generateSnippet(snippetFile, runNum, month, day, year, hr, mins, sec, dur,
+def fmt(s):
+    if s != None: return sub('\s', '&nbsp;', str(s))
+    return " "
+
+def generateSnippet(snippetFile, runNum, starttime, startsec, stoptime, stopsec, dtsec,
                     configName, runDir, status, nEvents):
         
     snippet = open(snippetFile, 'w')
@@ -74,18 +78,25 @@ def generateSnippet(snippetFile, runNum, month, day, year, hr, mins, sec, dur,
     
     evStr = ""
     if nEvents != None: evStr = nEvents
+
+    rateStr = None
+    if dtsec > 0 and nEvents > 0: rateStr = str(nEvents/dtsec)
     
     print >>snippet, """
     <tr>
     <td align=center>%d</td>
-    <td align=center>%02d/%02d/%02d</td>
-    <td align=center>%02d:%02d:%02d</td>
-    <td align=center>%d</td>
+    <td align=center bgcolor="eeeeee">%s</td>
+    <td align=center><font size=-2>%s</font></td>
+    <td align=center bgcolor="eeeeee">%s</td>
+    <td align=center><font size=-2>%s</font></td>
+    <td align=center bgcolor="eeeeee">%s</td>
     <td align=center>%s</td>
+    <td align=center bgcolor="eeeeee">%s</td>
     <td align=center>%s</td>
     <td align=center bgcolor=%s><a href="%s">%s</a></td>
     </tr>
-    """ % (runNum, month, day, year, hr, mins, sec, dur, evStr,
+    """ % (runNum, fmt(starttime), fmt(startsec), fmt(stoptime),
+           fmt(stopsec), fmt(dtsec), evStr, fmt(rateStr),
            configName, statusColor, runDir, status)
     return
 
@@ -104,9 +115,61 @@ def makeTable(files, name):
         html += "</TABLE>"
     return html
 
-def makeRunReport(snippetFile, infoPat, runInfo, configName,
+def getDashEvent(dashFile, pat):
+    df = open(dashFile, "r")
+    ret = None
+    for l in df.readlines():
+        if search(pat, l):
+            match = search(r'^DAQRun \[(.+?)\]', l)
+            if match:
+                ret = match.group(1)
+                break
+    df.close()
+    return ret
+
+def jan0(year):
+    return datetime.datetime(year, 1, 1, 0, 0, 0)
+
+def dashTime(str):
+    "Get datetime object from string in form 'yyyy-mm-dd hh:mm:ss.uuuuuu'"
+    if not str: return None
+    match = search(r'(\d\d\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)\.(\d\d\d\d\d\d)', str)
+    if not match: return None
+    return datetime.datetime(int(match.group(1)),
+                             int(match.group(2)),
+                             int(match.group(3)),
+                             int(match.group(4)),
+                             int(match.group(5)),
+                             int(match.group(6)),
+                             int(match.group(7)))
+
+def dtSeconds(t0, t1):
+    if t0 == None or t1 == None: return None
+    dt = t1-t0
+    return dt.days*86400 + dt.seconds
+
+def toSeconds(t):
+    if t == None: return None
+    return t.days*86400 + t.seconds
+
+def makeRunReport(snippetFile, dashFile, infoPat, runInfo, configName,
                       status, nEvents, absRunDir, relRunDir):
 
+    starttime = dashTime(getDashEvent(dashFile, r'Started run \d+ on run set'))
+    stoptime  = dashTime(getDashEvent(dashFile, r'Stopping run'))
+    if not stoptime:
+        stoptime = dashTime(getDashEvent(dashFile, r'Recovering from failed run'))
+    if not stoptime:
+        stoptime = dashTime(getDashEvent(dashfile, r'Failed to start run'))
+    if not stoptime: print "WARNING: no stop time!"; return
+
+    j0 = jan0(stoptime.year)
+    startsec = dtSeconds(j0, starttime)
+    stopsec  = dtSeconds(j0, stoptime)
+    dtsec    = dtSeconds(starttime, stoptime)
+
+    # print "%s [%s] -(%s seconds)-> %s [%s]" % (starttime, startsec, dtsec, stoptime, stopsec)
+        
     match = search(infoPat, runInfo)
     if not match: return
     runNum = int(match.group(1))
@@ -118,13 +181,14 @@ def makeRunReport(snippetFile, infoPat, runInfo, configName,
     sec    = int(match.group(7))
     dur    = int(match.group(8))
     
-    generateSnippet(snippetFile, runNum, month, day, year, hr, mins, sec, dur,
+    generateSnippet(snippetFile, runNum, starttime, startsec, stoptime, stopsec, dtsec,
                     configName, relRunDir+"/run.html", status, nEvents)
-    makeSummaryHtml(absRunDir, runNum, month, day, year, hr,
-                    mins, sec, dur, configName, status, nEvents)
+    makeSummaryHtml(absRunDir, runNum, configName, status, nEvents,
+                    starttime, startsec, stoptime, stopsec, dtsec)
+
+def makeSummaryHtml(logLink, runNum, configName, status, nEvents,
+                    starttime, startsec, stoptime, stopsec, dtsec):
     
-def makeSummaryHtml(logLink, runNum, month, day, year, hr,
-                    mins, sec, dur, configName, status, nEvents):
     files = listdir(logLink)
     mons  = []
     logs  = []
@@ -145,16 +209,24 @@ def makeSummaryHtml(logLink, runNum, month, day, year, hr,
 <TABLE>
  <TR><TD ALIGN="right"><FONT COLOR=888888>Run</FONT></TD><TD><FONT SIZE=+3>%d</FONT></TD></TR>
  <TR><TD ALIGN="right"><FONT COLOR=888888>Configuration</FONT></TD><TD>%s</TD></TR>
- <TR><TD ALIGN="right"><FONT COLOR=888888>Date</FONT></TD><TD>%s</TD></TR>
- <TR><TD ALIGN="right"><FONT COLOR=888888>Time</FONT></TD><TD>%s</TD></TR>
- <TR><TD ALIGN="right"><FONT COLOR=888888>Duration</FONT></TD><TD>%d seconds</TD></TR>
+ <TR><TD ALIGN="right" VALIGN="top">
+  <FONT COLOR=888888>Start Date</FONT></TD><TD VALIGN="top">%s</TD>
+ </TR>
+ <TR><TD ALIGN="right" VALIGN="top">
+  <FONT COLOR=888888>Secs. since Jan. 0</FONT></TD><TD VALIGN="top">%s</TD>
+ </TR>
+ <TR><TD ALIGN="right" VALIGN="top">
+  <FONT COLOR=888888>End Date</FONT></TD><TD VALIGN="top">%s</TD>
+ </TR>
+ <TR><TD ALIGN="right" VALIGN="top">
+  <FONT COLOR=888888>Secs. since Jan. 0</FONT></TD><TD VALIGN="top">%s</TD>
+ </TR>
+ <TR><TD ALIGN="right"><FONT COLOR=888888>Duration</FONT></TD><TD>%s seconds</TD></TR>
  <TR><TD ALIGN="right"><FONT COLOR=888888>Events</FONT></TD><TD>%s</TD></TR>
  <TR><TD ALIGN="right"><FONT COLOR=888888>Status</FONT></TD><TD BGCOLOR=%s>%s</TD></TR>
 </TABLE>
-     """ % (runNum, configName,
-            "%02d/%02d/%02d" % (month, day, year),
-            "%02d:%02d:%02d" % (hr, mins, sec),
-            dur, eventStr, getStatusColor(status), status)
+     """ % (runNum, configName, fmt(starttime), startsec, fmt(stoptime), stopsec,
+            dtsec, eventStr, getStatusColor(status), status)
 
     print >>html, makeTable(logs, "Logs")
     print >>html, makeTable(mons, "Monitoring")
@@ -270,10 +342,13 @@ def main():
     <table>
     <tr>
      <td align=center><b>Run</b></td>
-     <td align=center><b>Run<br>Stop<br>Date</b></td>
+     <td align=center><b>Run<br>Start<br>Time</b></td>
+     <td align=center><b>(since<br>Jan0)</b></td>
      <td align=center><b>Run<br>Stop<br>Time</b></td>
+     <td align=center><b>(since<br>Jan0)</b></td>
      <td align=center><b>Duration<br>(seconds)</b></td>
      <td align=center><b>Num.<br>Events</b></td>
+     <td align=center><b>Rate<br>(Hz)</b></td>
      <td align=center><b>Config</b></td>
      <td align=center><b>Status</b></td>
      <td><font color=grey>(Click on status link for run details)</font></td>
@@ -351,6 +426,9 @@ def main():
                 # Extract contents
                 status = None; configName = None
                 tar = tarfile.open(datTar)
+                
+                dashFile = None # Pick up during extraction
+                
                 for el in tar.getnames():
 
                     # Extract contents if not already extracted
@@ -378,7 +456,7 @@ def main():
                         if s: configName = s.group(1)
 
                         s = search(r'(\d+) events collected', dashContents)
-                        if s: nEvents = s.group(1)
+                        if s: nEvents = int(s.group(1))
 
                     # Remember more precise unpacked location for link
                     if search(r'(daqrun\d+)/$', el): 
@@ -396,7 +474,7 @@ def main():
                     continue
                     
                 # Make HTML snippet for run summaries
-                makeRunReport(snippetFile, infoPat, runInfoString, 
+                makeRunReport(snippetFile, dashFile, infoPat, runInfoString, 
                               configName, status, nEvents, runDir+"/"+linkDir,
                               linkDir)
 
