@@ -437,7 +437,7 @@ def main():
                     if opt.replaceAll or not exists("%s/%s" % (outDir, el)):
                         if opt.verbose: print "extracting %s..." % el
                         fsiz = tar.getmember(el).size
-                        if fsiz > opt.maxFileMegs*1000*1000:
+                        if opt.maxFileMegs and fsiz > opt.maxFileMegs*1000*1000:
                             if opt.verbose: print "SKIPPING %s (%d bytes)" % (el, fsiz)
                             makePlaceHolderFile(el, outDir, fsiz)
                             continue
