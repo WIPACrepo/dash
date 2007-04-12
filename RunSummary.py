@@ -371,6 +371,8 @@ def main():
             outDir = runDir + "/" + runInfoString
             check_make_or_exit(outDir)
             tarFile     = f
+            extractedTarball = False
+
             size = getFileSize(tarFile)
             if opt.maxTarMegs and size > opt.maxTarMegs*100000:
                 continue
