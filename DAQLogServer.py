@@ -19,7 +19,13 @@ if __name__ == "__main__":
     logfile = argv[1]
     port    = int(argv[2])
 
-    print "Will log messages arriving on port %d to %s." % (port, logfile)
+    if logfile == '-':
+        logfile = None
+        filename = 'stderr'
+    else:
+        filename = logfile
+
+    print "Write log messages arriving on port %d to %s." % (port, filename)
     
     try:
         logger = SocketLogger(port, "all-components", logfile)
