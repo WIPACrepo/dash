@@ -133,9 +133,9 @@ def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9):
         parallel.wait()
 
 def startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose):
-    myIP = getIP()
     parallel = ParallelShell()
     for node in clusterConfig.nodes:
+        myIP = getIP(node.hostName)
         for comp in node.comps:
             runScript = getRunScript(comp.compName)
             subProject = getSubProject(comp.compName)
