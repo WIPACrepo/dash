@@ -74,7 +74,7 @@ componentDB = { "eventBuilder"      : \
 
 def getRunScript(compName):
     if not componentDB.has_key(compName):
-        raise ComponentNotFoundInDatabase(comp)
+        raise ComponentNotFoundInDatabase(compName)
 
     if not componentDB[compName].has_key("run"):
         raise RunScriptNotFoundForComponent(compName)
@@ -83,7 +83,7 @@ def getRunScript(compName):
 
 def getSubProject(compName):
     if not componentDB.has_key(compName):
-        raise ComponentNotFoundInDatabase(comp)
+        raise ComponentNotFoundInDatabase(compName)
 
     if not componentDB[compName].has_key("dir"):
         raise SubProjectNotFoundForComponent(compName)
