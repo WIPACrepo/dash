@@ -29,44 +29,44 @@ sys.path.append(join(metaDir, 'cluster-config'))
 from ClusterConfig import *
 from ParallelShell import *
 
-class HostNotFoundForComponent      (Exception): pass
-class JavaClassNotFoundForComponent (Exception): pass
-class RunScriptNotFoundForComponent (Exception): pass
-class SubProjectNotFoundForComponent(Exception): pass
-class ComponentNotFoundInDatabase   (Exception): pass
+class HostNotFoundForComponent       (Exception): pass
+class KillPatternNotFoundForComponent(Exception): pass
+class RunScriptNotFoundForComponent  (Exception): pass
+class SubProjectNotFoundForComponent (Exception): pass
+class ComponentNotFoundInDatabase    (Exception): pass
 
 componentDB = { "eventBuilder"      : \
-                    { "cls" : "icecube.daq.eventBuilder.EBComponent",
+                    { "pat" : "icecube.daq.eventBuilder.EBComponent",
                       "dir" : "eventBuilder-prod",
                       "run" : "run-eb"
                     },
                 "SecondaryBuilders" : \
-                    { "cls" : "icecube.daq.secBuilder.SBComponent",
+                    { "pat" : "icecube.daq.secBuilder.SBComponent",
                       "dir" : "secondaryBuilders",
                       "run" : "run-sb"
                     },
                 "inIceTrigger"      : \
-                    { "cls" : "icecube.daq.trigger.component.IniceTriggerComponent",
+                    { "pat" : "icecube.daq.trigger.component.IniceTriggerComponent",
                       "dir" : "trigger",
                       "run" : "run-iitrig",
                     },
                 "iceTopTrigger"     : \
-                    { "cls" : "icecube.daq.trigger.component.IcetopTriggerComponent",
+                    { "pat" : "icecube.daq.trigger.component.IcetopTriggerComponent",
                       "dir" : "trigger",
                       "run" : "run-ittrig",
                     },
                 "globalTrigger"     : \
-                    { "cls" : "icecube.daq.trigger.component.GlobalTriggerComponent",
+                    { "pat" : "icecube.daq.trigger.component.GlobalTriggerComponent",
                       "dir" : "trigger",
                       "run" : "run-gltrig",
                     },
                 "amandaTrigger"     : \
-                    { "cls" : "icecube.daq.trigger.component.AmandaTriggerComponent",
+                    { "pat" : "icecube.daq.trigger.component.AmandaTriggerComponent",
                       "dir" : "trigger",
                       "run" : "run-amtrig",
                     },
                 "StringHub"         : \
-                    { "cls" : "icecube.daq.stringhub.Shell",
+                    { "pat" : "icecube.daq.stringhub.componentId=#",
                       "dir" : "StringHub",
                       "run" : "run-hub",
                     },
@@ -90,14 +90,14 @@ def getSubProject(compName):
 
     return componentDB[compName]["dir"]
 
-def getJavaClass(compName):
+def getKillPattern(compName):
     if not componentDB.has_key(compName):
         raise ComponentNotFoundInDatabase(compName)
 
-    if not componentDB[compName].has_key("cls"):
-        raise JavaClassNotFoundForComponent(compName)
+    if not componentDB[compName].has_key("pat"):
+        raise KillPatternNotFoundForComponent(compName)
 
-    return componentDB[compName]["cls"]
+    return componentDB[compName]["pat"]
 
 def findHost(component, compID, clusterConfig):
     "Find host name where component:compID runs"
@@ -110,22 +110,24 @@ def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9):
     parallel = ParallelShell()
     for node in clusterConfig.nodes:
         for comp in node.comps:
-            javaClass = getJavaClass(comp.compName)
+            killPat = getKillPattern(comp.compName)
+            if killPat.endswith("#"):
+                killPat = killPat[:-1] + str(comp.compID)
             if killWith9: niner = "-9"
             else:         niner = ""
             if node.hostName == "localhost": # Just kill it
-                cmd = "pkill %s -fu %s %s" % (niner, environ["USER"], javaClass)
+                cmd = "pkill %s -fu %s %s" % (niner, environ["USER"], killPat)
                 if verbose: print cmd
                 parallel.add(cmd)
                 if not killWith9:
-                    cmd = "sleep 2; pkill -9 -fu %s %s" % (environ["USER"], javaClass)
+                    cmd = "sleep 2; pkill -9 -fu %s %s" % (environ["USER"], killPat)
                     if verbose: print cmd
                     parallel.add(cmd)
             else:                            # Have to ssh to kill
-                cmd = "ssh %s pkill %s -f %s" % (node.hostName, niner, javaClass)
+                cmd = "ssh %s pkill %s -f %s" % (node.hostName, niner, killPat)
                 parallel.add(cmd)
                 if not killWith9:
-                    cmd = "sleep 2; ssh %s pkill -9 -f %s" % (node.hostName, javaClass)
+                    cmd = "sleep 2; ssh %s pkill -9 -f %s" % (node.hostName, killPat)
                     parallel.add(cmd)
 
     if not dryRun:
