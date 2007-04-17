@@ -107,7 +107,7 @@ def findHost(component, compID, clusterConfig):
     raise HostNotFoundForComponent(component+":"+compID)
 
 def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9):
-    parallel = ParallelShell()
+    parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose)
     for node in clusterConfig.nodes:
         for comp in node.comps:
             killPat = getKillPattern(comp.compName)
@@ -135,7 +135,7 @@ def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9):
         parallel.wait()
 
 def startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose):
-    parallel = ParallelShell()
+    parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose)
     for node in clusterConfig.nodes:
         myIP = getIP(node.hostName)
         for comp in node.comps:
@@ -193,7 +193,7 @@ def doKill(doDAQRun, dryRun, dashDir, verbose, clusterConfig, killWith9):
     if not dryRun: system(cmd)
 
     killJavaProcesses(dryRun, clusterConfig, verbose, killWith9)
-    if verbose and not dryRun: print "DONE."
+    if verbose and not dryRun: print "DONE with killing Java Processes."
     
 def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
              configDir, logDir, spadeDir, copyDir, logPort, cncPort):
@@ -226,7 +226,7 @@ def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
         if not dryRun: system(cmd)
 
     startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose)
-    if verbose and not dryRun: print "DONE."
+    if verbose and not dryRun: print "DONE with starting Java Processes."
     
 def getDeployedClusterConfig(clusterFile):
     "Get cluster configuration name persisted in clusterFile"
