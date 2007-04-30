@@ -334,10 +334,12 @@ def main():
 
     runDir = opt.outputDir+"/runs"
     check_make_or_exit(runDir)
-    
-    allSummaryHtml = runDir + "/index.html"
-    allSummaryFile = open(allSummaryHtml, "w")
-    print >>allSummaryFile, """
+
+    firstSummaryHtml = runDir + "/index.html"
+    allSummaryHtml   = runDir + "/all.html"
+    firstSummaryFile = open(firstSummaryHtml, "w")
+    allSummaryFile   = open(allSummaryHtml, "w")
+    top = """
     <html>
     <table>
     <tr>
@@ -355,10 +357,15 @@ def main():
     </tr>
     """
 
+    print >>allSummaryFile, top
+    print >>firstSummaryFile, top
+
     l = traverseList(opt.spadeDir)
     tarlist = getTarFileSubset(l)
     tarlist.sort(cmp)
-
+    numRuns          = 0
+    maxFirstFileRuns = 100
+    
     for f in tarlist:
         prefix = 'SPS-pDAQ-run-'
         if search(r'.done$', f): continue # Skip SPADE .done semaphores
@@ -480,6 +487,20 @@ def main():
                               configName, status, nEvents, runDir+"/"+linkDir,
                               linkDir)
 
+            # Write summaries for first 100 runs only:
+            numRuns += 1
+            if numRuns < maxFirstFileRuns:
+                print >>firstSummaryFile, getSnippetHtml(snippetFile)
+                firstSummaryFile.flush()
+            elif numRuns == maxFirstFileRuns:
+                print >>firstSummaryFile, """
+                </table>
+                <font size=+2>Click <A HREF="all.html">here</A> for a complete list of runs.<P></font>
+                </html>
+                """
+                firstSummaryFile.close()    
+
+            # Write all summaries:
             print >>allSummaryFile, getSnippetHtml(snippetFile)
             allSummaryFile.flush()
             
