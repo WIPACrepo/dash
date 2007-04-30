@@ -202,7 +202,8 @@ def makeSummaryHtml(logLink, runNum, configName, status, nEvents,
 
     eventStr = "(check monitoring files)"
     if nEvents != None: eventStr = nEvents
-    
+
+    print >>html, "<HEAD><TITLE>Run %d</TITLE></HEAD>" % runNum
     print >>html, "<HTML>"
     print >>html, "<TABLE><TR><TD BGCOLOR=EEEEEE VALIGN=TOP>"
     print >>html, """
