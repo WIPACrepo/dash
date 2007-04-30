@@ -34,6 +34,13 @@ def getLastRunNum(runFile):
     except:
         return None
 
+def showXML(daqruniface):
+    try:
+        print daqruniface.getSummary()
+    except KeyboardInterrupt, k: raise
+    except Exception, e:
+        print "getSummary failed: %s" % e
+                            
 def main():
     "Main program"
     p = optparse.OptionParser()
@@ -70,18 +77,26 @@ def main():
     subRunNumber = 0
     configName   = opt.configName
     sleeptime    = 0.4
-    xmlIval      = 10
+    xmlIval      = 5
     state        = None
-    txml         = None
+    txml         = datetime.now()
     runNum       = startRunNum
     startTime    = None
 
     try:
         while True:
-            if state == None: # Get a well-defined state
+            tnow = datetime.now()
+
+            if state == None: # Get a well-defined state (probably STOPPED)
                 state = updateStatus(state, daqiface.getState())
+                
+            if opt.showXML and (not txml or tnow-txml > timedelta(seconds=xmlIval)):
+                showXML(daqiface)
+                txml = tnow
+
             if state == "STOPPED": # Try to start run
-                if runNum >= startRunNum + opt.numRuns: raise SystemExit
+                if runNum >= startRunNum + opt.numRuns: break
+
                 print "Starting run %d..." % runNum
                 setLastRunNum(runFile, runNum)
                 try:
@@ -96,7 +111,6 @@ def main():
                 time.sleep(1)
                 state = updateStatus(state, daqiface.getState())
             if state == "RUNNING":
-                tnow = datetime.now()
                 if not startTime or tnow-startTime > timedelta(seconds=opt.duration):
                     try:
                         daqiface.stop()
@@ -106,17 +120,6 @@ def main():
                         print "Failed transition: %s" % e
                         state = "ERROR"
                     time.sleep(1)
-
-                if opt.showXML and (not txml or tnow-txml > timedelta(seconds=xmlIval)):
-                    try:
-                        print daqiface.getSummary()
-                    except KeyboardInterrupt, k: raise
-                    except Exception, e:
-                        print "getSummary failed: %s" % e
-                        daqiface.recover()
-                        hadError = True
-                        break
-                    txml = tnow
 
                 time.sleep(sleeptime)
                 state = updateStatus(state, daqiface.getState())
@@ -128,6 +131,7 @@ def main():
                 except Exception, e:
                     print "Failed transition: %s" % e
                     raise SystemExit
+                
     except KeyboardInterrupt:
         print "\nInterrupted... sending stop signal..."
         daqiface.stop()
@@ -137,6 +141,9 @@ def main():
             if state == "STOPPED": break
     print "Done."
 
+    if opt.showXML:
+        showXML(daqiface)
+            
     daqiface.release()
     
 if __name__ == "__main__": main()
