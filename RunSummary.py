@@ -341,7 +341,15 @@ def main():
     allSummaryHtml   = runDir + "/all.html"
     firstSummaryFile = open(firstSummaryHtml, "w")
     allSummaryFile   = open(allSummaryHtml, "w")
+    print runDir
+    if search(r'daq-reports/spts64', runDir):
+        title = "SPTS64 Run Summaries"
+    elif search(r'daq-reports/sps', runDir):
+        title = "SPS Run Summaries"
+    else:
+        title = "IceCube DAQ Run Summaries"
     top = """
+    <head><title>%s</title></head>
     <html>
     <table>
     <tr>
@@ -357,7 +365,7 @@ def main():
      <td align=center><b>Status</b></td>
      <td><font color=grey>(Click on status link for run details)</font></td>
     </tr>
-    """
+    """ % title
 
     print >>allSummaryFile, top
     print >>firstSummaryFile, top
