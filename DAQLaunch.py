@@ -230,6 +230,7 @@ def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
     
 def getDeployedClusterConfig(clusterFile):
     "Get cluster configuration name persisted in clusterFile"
+    # FIXME - this is duplicated in DeployPDAQ.py
     try:
         f = open(clusterFile, "r")
         ret = f.readline()
