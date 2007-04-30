@@ -253,6 +253,7 @@ def getTarFileSubset(l):
         if search(infoPat, f): ret.append(f)
     return ret
 
+
 def cmp(a, b):
     amatch = search(infoPat, a)
     bmatch = search(infoPat, b)
@@ -366,6 +367,7 @@ def main():
     tarlist.sort(cmp)
     numRuns          = 0
     maxFirstFileRuns = 100
+    prevRun          = None
     
     for f in tarlist:
         prefix = 'SPS-pDAQ-run-'
@@ -376,6 +378,7 @@ def main():
             runInfoString = match.group(1)
             match = search(infoPat, runInfoString)
             if not match: continue
+            runNum = int(match.group(1))
             outDir = runDir + "/" + runInfoString
             check_make_or_exit(outDir)
             tarFile     = f
@@ -488,9 +491,29 @@ def main():
                               configName, status, nEvents, runDir+"/"+linkDir,
                               linkDir)
 
+            if prevRun and (runNum != prevRun-1):
+                skippedRun = True
+            else:
+                skippedRun = False
+            prevRun = runNum
+            
             # Write summaries for first 100 runs only:
+            skipper = """<TR HEIGHT=2>
+            <TD ALIGN=center>...</TD>
+            <TD BGCOLOR='eeeeee'></TD>
+            <TD></TD>
+            <TD BGCOLOR='eeeeee'></TD>
+            <TD></TD>
+            <TD BGCOLOR='eeeeee'></TD>
+            <TD></TD>
+            <TD BGCOLOR='eeeeee'></TD>
+            <TD></TD>
+            <TD BGCOLOR='eeeeee'></TD>
+            </TR>"""
+            
             numRuns += 1
             if numRuns < maxFirstFileRuns:
+                if(skippedRun): print >>firstSummaryFile, skipper
                 print >>firstSummaryFile, getSnippetHtml(snippetFile)
                 firstSummaryFile.flush()
             elif numRuns == maxFirstFileRuns:
@@ -502,6 +525,7 @@ def main():
                 firstSummaryFile.close()    
 
             # Write all summaries:
+            if(skippedRun): print >>allSummaryFile, skipper
             print >>allSummaryFile, getSnippetHtml(snippetFile)
             allSummaryFile.flush()
             
