@@ -468,7 +468,7 @@ def main():
                         s = search(r'config name (.+?)\n', dashContents)
                         if s: configName = s.group(1)
 
-                        s = search(r'(\d+) events collected', dashContents)
+                        s = search(r'(\d+).+?events collected', dashContents)
                         if s: nEvents = int(s.group(1))
 
                     # Remember more precise unpacked location for link
