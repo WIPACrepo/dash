@@ -12,6 +12,7 @@ from DAQRPC import RPCClient
 from os.path import join, exists
 from os import environ
 from xml.dom import minidom
+from DAQConfig import configExists
 
 class LabelConfigFileNotFoundException(Exception): pass
 class MalformedLabelConfigException   (Exception): pass
@@ -51,6 +52,14 @@ class DAQRunIface(object):
     
     def __init__(self, daqhost="localhost", daqport=8081):
         "Constructor - instantiate an RPC connection to DAQRun.py"
+
+        # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+        if environ.has_key("PDAQ_HOME"):
+            self.home = environ["PDAQ_HOME"]
+        else:
+            from locate_pdaq import find_pdaq_trunk
+            self.home = find_pdaq_trunk()
+        
         self.rpc = RPCClient(daqhost, int(daqport))
 
     def start(self, r, config):
@@ -88,20 +97,14 @@ class DAQRunIface(object):
         self.rpc.rpc_release_runsets()
         return DAQRunIface.RELEASE_TRANSITION_SECONDS
     
-    def getDaqLabels(self):
-        # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-        if environ.has_key("PDAQ_HOME"):
-            home = environ["PDAQ_HOME"]
-        else:
-            from locate_pdaq import find_pdaq_trunk
-            home = find_pdaq_trunk()
-        
-        parser = DAQLabelParser(join(home, "dash", "config", "daqlabels.xml"))
+    def getDaqLabels(self):        
+        parser = DAQLabelParser(join(self.home, "dash", "config", "daqlabels.xml"))
         return parser.dict, parser.defaultLabel
 
     def isValidConfig(self, configName):
         "Placeholder only until this is implemented"
-        return True
+        configDir = join(self.home, "config")
+        return configExists(configDir, configName)
     
 if __name__ == "__main__":
     iface = DAQRunIface()

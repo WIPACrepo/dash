@@ -74,8 +74,12 @@ def main():
     # Connect to DAQ run server
     daqiface     = DAQRunIface(opt.nodeName, opt.portNum)
 
+    # Check for valid confuration name
+    if not daqiface.isValidConfig(opt.configName):
+        print "Run configuration %s does not exist or is not valid!" % opt.configName
+        raise SystemExit
+    
     subRunNumber = 0
-    configName   = opt.configName
     sleeptime    = 0.4
     xmlIval      = 5
     state        = None
@@ -100,7 +104,7 @@ def main():
                 print "Starting run %d..." % runNum
                 setLastRunNum(runFile, runNum)
                 try:
-                    daqiface.start(runNum, configName)
+                    daqiface.start(runNum, opt.configName)
                     startTime = datetime.now()
                     runNum += 1
                     state = updateStatus(state, daqiface.getState())
