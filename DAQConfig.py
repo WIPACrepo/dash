@@ -53,9 +53,13 @@ def showList(configDir):
     ok.sort()
     for cname in ok: print "%60s" % cname
 
+def xmlOf(name):
+    if not re.search(r'^(.+?)\.xml$', name): return name+".xml"
+    return name
+
 def configExists(configDir, configName):
     if not exists(configDir): return False
-    configFile = join(configDir, configName + ".xml")
+    configFile = xmlOf(join(configDir, configName))
     if not exists(configFile): return False
     return True
     
@@ -69,8 +73,8 @@ def checkForValidConfig(configDir, configName):
         return False
         
 class DAQConfig(object):
-
-    DEPLOYEDDOMS   = "default-dom-geometry" # ".xml" implied, below.
+    
+    DEPLOYEDDOMS   = "default-dom-geometry.xml"
 
     parsedNDOMDict          = {}
     parsedKindListDict      = {}
@@ -89,7 +93,7 @@ class DAQConfig(object):
         
         if not exists(configDir):
             raise DAQConfigDirNotFound("Could not find config dir %s" % configDir)
-        self.configFile = join(configDir, configName + ".xml")
+        self.configFile = xmlOf(join(configDir, configName))
         if not exists(self.configFile): raise DAQConfigNotFound("Could not find configuration file!")
 
         parsed = minidom.parse(self.configFile)
@@ -97,7 +101,7 @@ class DAQConfig(object):
         if len(configs) < 1: raise noRunConfigFound("No runconfig field found!")
 
         if DAQConfig.deployedDOMsParsed == None:
-            deployedDOMsXML = join(configDir, DAQConfig.DEPLOYEDDOMS + ".xml")
+            deployedDOMsXML = xmlOf(join(configDir, DAQConfig.DEPLOYEDDOMS))
             if not exists(deployedDOMsXML): raise noDeployedDOMsListFound("no deployed DOMs list found!")
             DAQConfig.deployedDOMsParsed = minidom.parse(deployedDOMsXML)
 
@@ -138,7 +142,7 @@ class DAQConfig(object):
             for domConfig in configs[0].getElementsByTagName("domConfigList"):
                 
                 domConfigName = domConfig.childNodes[0].data
-                domConfigXML = join(configDir, "domconfigs", domConfigName + ".xml")
+                domConfigXML = xmlOf(join(configDir, "domconfigs", domConfigName))
                 
                 if not exists(domConfigXML): raise noDOMConfigFound("DOMConfig not found: %s" % domConfigName)
                 
@@ -165,7 +169,7 @@ class DAQConfig(object):
         if len(triggerConfigs) == 0: raise triggerException("no triggers found")
         for trig in triggerConfigs:
             trigName = trig.childNodes[0].data
-            trigXML = join(configDir, "trigger", trigName + ".xml")
+            trigXML = xmlOf(join(configDir, "trigger", trigName))
             if not exists(trigXML): raise triggerException("trigger config file not found: %s" % trigXML)
             
         self.compList = []

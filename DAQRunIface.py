@@ -13,6 +13,7 @@ from os.path import join, exists
 from os import environ
 from xml.dom import minidom
 from DAQConfig import configExists
+from re import sub
 
 class LabelConfigFileNotFoundException(Exception): pass
 class MalformedLabelConfigException   (Exception): pass
@@ -64,6 +65,7 @@ class DAQRunIface(object):
 
     def start(self, r, config):
         "Tell DAQRun to start a run"
+        config = sub('\.xml$', '', config)
         self.rpc.rpc_start_run(r, 0, config)
         return DAQRunIface.START_TRANSITION_SECONDS
     
