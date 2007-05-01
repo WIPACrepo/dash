@@ -53,6 +53,12 @@ def showList(configDir):
     ok.sort()
     for cname in ok: print "%60s" % cname
 
+def configExists(configDir, configName):
+    if not exists(configDir): return False
+    configFile = join(configDir, configName + ".xml")
+    if not exists(configFile): return False
+    return True
+    
 def checkForValidConfig(configDir, configName):
     try:
         dc = DAQConfig(configName, configDir)
