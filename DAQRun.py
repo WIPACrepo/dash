@@ -163,22 +163,26 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         return False
     isInList = staticmethod(isInList)
     
-    def listContains(target, reference):
-        "See if list 'target' contained in list 'reference'"
-        "(Would be much easier w/ Python 2.4!)"
+    def findMissing(target, reference):
+        "Get the list of missing components"
+        missing = []
         for t in target:
-            if not DAQRun.isInList(t, reference): return False
-        return True
-    listContains = staticmethod(listContains)
+            if not DAQRun.isInList(t, reference): missing.append(str(t))
+        return missing
+    findMissing = staticmethod(findMissing)
 
     def waitForRequiredComponents(self, cncrpc, requiredList, timeOutSecs):
         "Verify that all components in requiredList are present on remote server"
         tstart = datetime.datetime.now()
         while(datetime.datetime.now()-tstart < datetime.timedelta(seconds=timeOutSecs)):
             remoteList = cncrpc.rpccall("rpc_show_components")
-            if DAQRun.listContains(requiredList,
-                                   list(DAQRun.getNameList(remoteList))):
-                return remoteList
+            remoteNames = list(DAQRun.getNameList(remoteList))
+
+            waitList = findMissing(requiredList, remoteNames)
+            if len(waitList) == 0: return remoteList
+            self.logmsg("Waiting for " + " ".join(waitList))
+
+            # wait for things to show up
             sleep(5)
 
         # Do some debug logging to show what actually showed up:
