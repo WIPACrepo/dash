@@ -178,7 +178,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             remoteList = cncrpc.rpccall("rpc_show_components")
             remoteNames = list(DAQRun.getNameList(remoteList))
 
-            waitList = findMissing(requiredList, remoteNames)
+            waitList = DAQRun.findMissing(requiredList, remoteNames)
             if len(waitList) == 0: return remoteList
             self.logmsg("Waiting for " + " ".join(waitList))
 
