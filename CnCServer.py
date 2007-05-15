@@ -891,13 +891,11 @@ class DAQPool(CnCLogger):
 
         return runSet
 
-    def monitorClients(self, new):
+    def monitorClients(self):
         "check that all components in the pool are still alive"
         count = 0
 
         for k in self.pool.keys():
-            if new: self.logmsg("  %s:" % k)
-
             try:
                 bin = self.pool[k]
             except KeyError:
@@ -910,9 +908,6 @@ class DAQPool(CnCLogger):
                     self.remove(c)
                 elif state != DAQClient.STATE_MISSING:
                     count += 1
-
-                if new:
-                    self.logmsg("    %s %s" % (str(c), state))
 
         return count
 
@@ -1277,7 +1272,7 @@ class CnCServer(DAQServer):
                 spinner = (spinner + 1) % len(spinStr)
 
             try:
-                count = self.monitorClients(new)
+                count = self.monitorClients()
             except Exception, ex:
                 self.logmsg(exc_string())
                 count = lastCount
