@@ -2,7 +2,7 @@
 
 import optparse
 import sys
-from os import environ
+from os import environ, getpid
 from os.path import abspath, isabs, join, exists
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
@@ -80,8 +80,10 @@ def main():
     copySet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose,
                             trace=opt.verbose)
 
+    remoteFile = "/tmp/release%d.hex" % os.getpid()
+    
     for domhub in hublist:
-        copySet.add("scp -q %s %s:/tmp/release.hex" % (releaseFile, domhub))
+        copySet.add("scp -q %s %s:%s" % (releaseFile, domhub, remoteFile))
 
     copySet.start()
     if hasNonZero(copySet.wait()):
@@ -104,7 +106,7 @@ def main():
                               trace=opt.verbose)
 
     for domhub in hublist:
-        uploadSet.add("ssh %s /usr/local/bin/reldall /tmp/release.hex" % domhub)
+        uploadSet.add("ssh %s /usr/local/bin/reldall %s" % domhub, remoteFile)
 
     uploadSet.start()
     if hasNonZero(uploadSet.wait()):
