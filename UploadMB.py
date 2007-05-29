@@ -92,24 +92,31 @@ def main():
     # DOM prep phase - put DOMs in iceboot
     prepSet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose,
                                                         trace=opt.verbose)
-
     for domhub in hublist:
         prepSet.add("ssh %s /usr/local/bin/iceboot all" % domhub)
-
     prepSet.start()
-    
     if hasNonZero(prepSet.wait()):
         raise RuntimeError("One or more parallel operations failed")
         
     # Upload phase - upload release
     uploadSet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose,
                               trace=opt.verbose)
-
     for domhub in hublist:
         uploadSet.add("ssh %s /usr/local/bin/reldall %s" % (domhub, remoteFile))
-
     uploadSet.start()
     if hasNonZero(uploadSet.wait()):
         raise RuntimeError("One or more parallel operations failed")
+
+    # Cleanup phase - remove remote files from /tmp on hubs
+    cleanUpSet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose,
+                                                             trace=opt.verbose)
+    for domhub in hublist:
+        cleanUpSet.add("ssh %s /bin/rm -f %s" % (domhub, remoteFile))
+    cleanUpSet.start()
+    if hasNonZero(cleanUpSet.wait()):
+        raise RuntimeError("One or more parallel operations failed")
+
+
+    print "\n\nDONE."
 
 if __name__ == "__main__": main()
