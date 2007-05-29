@@ -80,7 +80,7 @@ def main():
     copySet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose,
                             trace=opt.verbose)
 
-    remoteFile = "/tmp/release%d.hex" % os.getpid()
+    remoteFile = "/tmp/release%d.hex" % getpid()
     
     for domhub in hublist:
         copySet.add("scp -q %s %s:%s" % (releaseFile, domhub, remoteFile))
