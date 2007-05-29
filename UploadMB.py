@@ -106,7 +106,7 @@ def main():
                               trace=opt.verbose)
 
     for domhub in hublist:
-        uploadSet.add("ssh %s /usr/local/bin/reldall %s" % domhub, remoteFile)
+        uploadSet.add("ssh %s /usr/local/bin/reldall %s" % (domhub, remoteFile))
 
     uploadSet.start()
     if hasNonZero(uploadSet.wait()):
