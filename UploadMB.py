@@ -19,6 +19,12 @@ sys.path.append(join(metaDir, 'cluster-config'))
 from ClusterConfig import *
 from ParallelShell import *
 
+def hasNonZero(l):
+    if not l: raise RuntimeError("List is empty!")
+    for x in l:
+        if x != 0: return True
+    return False
+
 def main():
     p = optparse.OptionParser()
     p.add_option("-c", "--config-name",  action="store", type="string",
@@ -78,7 +84,8 @@ def main():
         copySet.add("scp -q %s %s:/tmp/release.hex" % (releaseFile, domhub))
 
     copySet.start()
-    copySet.wait()
+    if hasNonZero(copySet.wait()):
+        raise RuntimeError("One or more parallel operations failed")
 
     # DOM prep phase - put DOMs in iceboot
     prepSet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose,
@@ -88,7 +95,9 @@ def main():
         prepSet.add("ssh %s /usr/local/bin/iceboot all" % domhub)
 
     prepSet.start()
-    prepSet.wait()
+    
+    if hasNonZero(prepSet.wait()):
+        raise RuntimeError("One or more parallel operations failed")
         
     # Upload phase - upload release
     uploadSet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose,
@@ -98,6 +107,7 @@ def main():
         uploadSet.add("ssh %s /usr/local/bin/reldall /tmp/release.hex" % domhub)
 
     uploadSet.start()
-    uploadSet.wait()
-    
+    if hasNonZero(uploadSet.wait()):
+        raise RuntimeError("One or more parallel operations failed")
+
 if __name__ == "__main__": main()
