@@ -228,17 +228,6 @@ def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
     startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose)
     if verbose and not dryRun: print "DONE with starting Java Processes."
     
-def getDeployedClusterConfig(clusterFile):
-    "Get cluster configuration name persisted in clusterFile"
-    # FIXME - this is duplicated in DeployPDAQ.py
-    try:
-        f = open(clusterFile, "r")
-        ret = f.readline()
-        f.close()
-        return ret.rstrip('\r\n')
-    except:
-        return None
-
 def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, copyDir, logPort, cncPort):
     "Completely cycle pDAQ except for DAQRun - can be used by DAQRun when cycling"
     "pDAQ in an attempt to wipe the slate clean after a failure"

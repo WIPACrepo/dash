@@ -246,7 +246,7 @@ if __name__ == "__main__":
 
     if(opt.toCheck):
         checkForValidConfig(configDir, opt.toCheck)
-        raise SystemExit
+        #raise SystemExit
     
     raise SystemExit
 
