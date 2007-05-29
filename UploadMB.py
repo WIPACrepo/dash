@@ -85,7 +85,7 @@ def main():
                                                         trace=opt.verbose)
 
     for domhub in hublist:
-        prepSet.add("/usr/local/bin/iceboot all")
+        prepSet.add("ssh %s /usr/local/bin/iceboot all" % domhub)
 
     prepSet.start()
     prepSet.wait()
@@ -95,7 +95,7 @@ def main():
                               trace=opt.verbose)
 
     for domhub in hublist:
-        uploadSet.add("/usr/local/bin/reldall /tmp/release.hex")
+        uploadSet.add("ssh %s /usr/local/bin/reldall /tmp/release.hex" % domhub)
 
     uploadSet.start()
     uploadSet.wait()
