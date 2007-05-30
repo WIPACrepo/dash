@@ -140,9 +140,10 @@ def main():
         print "\nInterrupted... sending stop signal..."
         daqiface.stop()
         while True:
+            time.sleep(1)
             state = updateStatus(state, daqiface.getState())
-            time.sleep(sleeptime)
             if state == "STOPPED": break
+            if state != "STOPPING": daqiface.stop()
     print "Done."
 
     if opt.showXML:
