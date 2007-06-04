@@ -94,8 +94,8 @@ def main():
                                               int(match.group(3)),
                                               int(match.group(4)))
 
-        print "TOTAL: %d pairs plugged, %d pairs powered; %d DOMs communicating, %d in iceboot" \
-              % (numPlugged, numPowered, numCommunicating, numIceboot)
+    print "TOTAL: %d pairs plugged, %d pairs powered; %d DOMs communicating, %d in iceboot" \
+          % (numPlugged, numPowered, numCommunicating, numIceboot)
 
             
 if __name__ == "__main__": main()
