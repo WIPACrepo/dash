@@ -89,7 +89,10 @@ def main():
 
         if match:
             (numPlugged, numPowered,
-             numCommunicating, numIceboot) = (int(x) for x in match.group(1:5))
+             numCommunicating, numIceboot) = (int(match.group(1)),
+                                              int(match.group(2)),
+                                              int(match.group(3)),
+                                              int(match.group(4)))
 
         print "TOTAL: %d pairs plugged, %d pairs powered; %d DOMs communicating, %d in iceboot" \
               % (numPlugged, numPowered, numCommunicating, numIceboot)
