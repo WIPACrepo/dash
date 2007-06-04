@@ -69,7 +69,6 @@ def main():
     ids = {}
     for hub in hublist:
         cmd = "ssh %s DOMPrep.py" % hub
-        print cmd
         ids[hub] = (cmds.add(cmd))
 
     cmds.start()
