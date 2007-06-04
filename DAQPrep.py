@@ -65,7 +65,7 @@ def main():
                 except ValueError:
                     hublist.append(node.hostName)
 
-    cmds = ParallelShell(dryRun = True, verbose = True, timeout = 30)
+    cmds = ParallelShell(dryRun = opt.dryRun, verbose = True, timeout = 30)
     ids = {}
     for hub in hublist:
         cmd = "ssh %s DAQPrep.py" % hub
