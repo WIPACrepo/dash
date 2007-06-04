@@ -64,7 +64,7 @@ def main():
                 except ValueError:
                     hublist.append(node.hostName)
 
-    cmds = ParallelShell(dryRun = opt.dryRun, timeout = 30)
+    cmds = ParallelShell(dryRun = opt.dryRun, timeout = 45)
     ids = {}
     for hub in hublist:
         cmd = "ssh %s DOMPrep.py" % hub
@@ -79,20 +79,20 @@ def main():
     numIceboot       = 0
     
     for hub in hublist:
-        print "Hub %s:" % hub
+        print "Hub %s: " % hub,
         result = cmds.getResult(ids[hub])
-
+        result = result.rstrip()
+        print result
         # Parse template:
         # 2 pairs plugged, 2 powered; 4 DOMs communicating, 4 in iceboot
         match = re.search(r'(\d+) pairs plugged, (\d+) powered; (\d+) DOMs communicating, (\d+) in iceboot',
                           result)
 
         if match:
-            (numPlugged, numPowered,
-             numCommunicating, numIceboot) = (int(match.group(1)),
-                                              int(match.group(2)),
-                                              int(match.group(3)),
-                                              int(match.group(4)))
+            numPlugged       += int(match.group(1))
+            numPowered       += int(match.group(2))
+            numCommunicating += int(match.group(3))
+            numIceboot       += int(match.group(4))
 
     print "TOTAL: %d pairs plugged, %d pairs powered; %d DOMs communicating, %d in iceboot" \
           % (numPlugged, numPowered, numCommunicating, numIceboot)
