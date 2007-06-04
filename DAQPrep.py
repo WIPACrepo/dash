@@ -68,7 +68,7 @@ def main():
     cmds = ParallelShell(dryRun = opt.dryRun, verbose = True, timeout = 30)
     ids = {}
     for hub in hublist:
-        cmd = "ssh %s DAQPrep.py" % hub
+        cmd = "ssh %s DOMPrep.py" % hub
         print cmd
         ids[hub] = (cmds.add(cmd))
 
