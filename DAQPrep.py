@@ -76,7 +76,7 @@ def main():
     cmds.wait()
     
     for hub in hublist:
-        print "Hub %d:"
+        print "Hub %d:" % hub
         print cmds.getResult[ids[hub]]
         
 if __name__ == "__main__": main()
