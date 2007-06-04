@@ -4,8 +4,7 @@
 # John Jacobsen, NPX Designs, Inc., jacobsen\@npxdesigns.com
 # Started: Fri Jun  1 15:57:10 2007
 
-import sys
-import optparse
+import sys, optparse, re
 from os import environ, getcwd, listdir, system
 from os.path import abspath, isabs, join
 
@@ -73,10 +72,28 @@ def main():
 
     cmds.start()
     cmds.wait()
+
+    numPlugged       = 0
+    numPowered       = 0
+    numCommunicating = 0
+    numIceboot       = 0
     
     for hub in hublist:
         print "Hub %s:" % hub
-        print cmds.getResult(ids[hub])
-        
+        result = cmds.getResult(ids[hub])
+
+        # Parse template:
+        # 2 pairs plugged, 2 powered; 4 DOMs communicating, 4 in iceboot
+        match = re.search(r'(\d+) pairs plugged, (\d+) powered; (\d+) DOMs communicating, (\d+) in iceboot',
+                          result)
+
+        if match:
+            (numPlugged, numPowered,
+             numCommunicating, numIceboot) = (int(x) for x in match.group(1:5))
+
+        print "TOTAL: %d pairs plugged, %d pairs powered; %d DOMs communicating, %d in iceboot" \
+              % (numPlugged, numPowered, numCommunicating, numIceboot)
+
+            
 if __name__ == "__main__": main()
 
