@@ -55,14 +55,7 @@ def main():
     config = deployConfig(configXMLDir, configToUse)
     
     # Get relevant hubs - if it has a stringhub component on it, run DOMPrep.py there.
-    hublist = []
-    for node in config.nodes:
-        for comp in node.comps:
-            if comp.compName == "StringHub":
-                try:
-                    hublist.index(node.hostName)
-                except ValueError:
-                    hublist.append(node.hostName)
+    hublist = config.getHubNodes()
 
     cmds = ParallelShell(dryRun = opt.dryRun, timeout = 45)
     ids = {}
