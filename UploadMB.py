@@ -68,13 +68,7 @@ def main():
     # Get/parse cluster configuration
     clusterConfig = deployConfig(clusterConfigDir, configToUse)
 
-    hublist = []
-    
-    for node in clusterConfig.nodes:
-        addNode = False
-        for comp in node.comps:
-            if comp.compName == "StringHub": addNode = True
-        if addNode: hublist.append(node.hostName)
+    hublist = clusterConfig.getHubNodes()
 
     # Copy phase - copy mainboard release.hex file to remote nodes
     copySet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose,
