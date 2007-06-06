@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import optparse
+import signal
 import sys
 from os import environ, getpid
 from os.path import abspath, isabs, join, exists
@@ -38,7 +39,7 @@ def main():
                  help="Don't run rsyncs, just print as they would be run (disables quiet)")
     p.set_defaults(clusterConfigName = None,
                    quiet             = False,
-                   verbose           = True,
+                   verbose           = False,
                    dryRun            = False)
     opt, args = p.parse_args()
 
@@ -71,45 +72,49 @@ def main():
     hublist = clusterConfig.getHubNodes()
 
     # Copy phase - copy mainboard release.hex file to remote nodes
-    copySet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose,
-                            trace=opt.verbose)
-
-    remoteFile = "/tmp/release%d.hex" % getpid()
+    copySet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose, timeout=300)
     
+    remoteFile = "/tmp/release%d.hex" % getpid()
     for domhub in hublist:
         copySet.add("scp -q %s %s:%s" % (releaseFile, domhub, remoteFile))
 
+    print "Copying %s to all hubs as %s..." % (releaseFile, remoteFile)
     copySet.start()
-    if hasNonZero(copySet.wait()):
+    try:
+        copySet.wait(monitorIval=15)
+    except KeyboardInterrupt, k:
+        print "\nInterrupted."
+        raise SystemExit
+        
+    if hasNonZero(copySet.getReturnCodes()):
+        print copySet.getAllResults()
         raise RuntimeError("One or more parallel operations failed")
 
-    # DOM prep phase - put DOMs in iceboot
-    prepSet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose,
-                                                        trace=opt.verbose)
-    for domhub in hublist:
-        prepSet.add("ssh %s /usr/local/bin/iceboot all" % domhub)
-    prepSet.start()
-    if hasNonZero(prepSet.wait()):
-        raise RuntimeError("One or more parallel operations failed")
-        
     # Upload phase - upload release
-    uploadSet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose,
-                              trace=opt.verbose)
+    uploadSet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose, timeout=450)
     for domhub in hublist:
         uploadSet.add("ssh %s /usr/local/bin/reldall %s" % (domhub, remoteFile))
+    
+    print "Uploading %s on all hubs..." % remoteFile
     uploadSet.start()
-    if hasNonZero(uploadSet.wait()):
-        raise RuntimeError("One or more parallel operations failed")
+    uploadSet.wait(monitorIval=15)
+    if hasNonZero(uploadSet.getReturnCodes()):
+        print uploadSet.getAllResults()
+        print "One or more upload operations failed or were interrupted."
+        print "DOMs are in an unknown state!"
+        raise SystemExit
 
     # Cleanup phase - remove remote files from /tmp on hubs
-    cleanUpSet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose,
-                                                             trace=opt.verbose)
+    cleanUpSet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose)
     for domhub in hublist:
         cleanUpSet.add("ssh %s /bin/rm -f %s" % (domhub, remoteFile))
-    cleanUpSet.start()
-    if hasNonZero(cleanUpSet.wait()):
-        raise RuntimeError("One or more parallel operations failed")
 
+    print "Cleaning up %s on all hubs..." % remoteFile
+    cleanUpSet.start()
+    cleanUpSet.wait()
+    if hasNonZero(cleanUpSet.getReturnCodes()):
+        print cleanUpSet.getAllResults()
+        raise RuntimeError("One or more parallel operations failed")
 
     print "\n\nDONE."
 
