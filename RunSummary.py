@@ -424,7 +424,7 @@ def main():
                             copy(tarFile, copyFile)
                             
                     if not tarfile.is_tarfile(copyFile):
-                        if opt.verbose: print "WARNING: bad tar file %s!" % copyFile)
+                        if opt.verbose: print "WARNING: bad tar file %s!" % copyFile
                         continue
 
                     # Extract top tarball
