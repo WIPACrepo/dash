@@ -123,7 +123,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.moni             = None
         self.watchdog         = None
         self.lastConfig       = None
-        self.doViolentRestart = doRelaunch
+        self.restartOnError   = doRelaunch
         self.prevRunStats     = None
         self.runStats         = RunStats()
 
@@ -209,9 +209,10 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     def getComponentsFromGlobalConfig(self, configName, configDir):
         # Get and set global configuration
         self.configuration = DAQConfig.DAQConfig(configName, configDir)
-        stringlist = self.configuration.hubIDs()
-        kindlist   = self.configuration.kinds()
-        complist   = self.configuration.components()
+        stringlist   = self.configuration.hubIDs()
+        kindlist     = self.configuration.kinds()
+        complist     = self.configuration.components()
+        forceRestart = self.configuration.alwaysRestart()
         self.logmsg("Loaded global configuration \"%s\"" % configName)
         requiredComps = []
         for string in stringlist:
@@ -223,7 +224,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             requiredComps.append(comp)
         for comp in requiredComps:
             self.logmsg("Component list will require %s" % comp)
-        return requiredComps
+        return (forceRestart, requiredComps)
     
     def setUpOneComponentLogger(logPath, shortName, daqID, logPort):
         logFile  = "%s/%s-%d.log" % (logPath, shortName, daqID)
@@ -305,18 +306,15 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         except Exception, e:
             self.logmsg("FAILED to queue data for SPADE: %s" % exc_string())
             
-    def build_run_set(self, cncrpc, configName, configDir):
-        self.requiredComps = self.getComponentsFromGlobalConfig(configName, configDir)
-
+    def build_run_set(self, cncrpc, configName, configDir, requiredComps):
         # Wait for required components
         self.logmsg("Starting run %d (waiting for required %d components to register w/ CnCServer)"
-                    % (self.runStats.runNum, len(self.requiredComps)))
-        remoteList = self.waitForRequiredComponents(cncrpc, self.requiredComps, DAQRun.COMP_TOUT)
+                    % (self.runStats.runNum, len(requiredComps)))
+        remoteList = self.waitForRequiredComponents(cncrpc, requiredComps, DAQRun.COMP_TOUT)
         # Throws RequiredComponentsNotAvailableException
         
         # build CnC run set
-        self.runSetID = cncrpc.rpccall("rpc_runset_make",
-                                            self.requiredComps)
+        self.runSetID = cncrpc.rpccall("rpc_runset_make", requiredComps)
         self.logmsg("Created Run Set #%d" % self.runSetID)
         
     def fill_component_dictionaries(self, cncrpc):
@@ -484,6 +482,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.cnc = RPCClient("localhost", DAQRun.CNC_PORT)
 
         logDirCreated = False
+        forceRestart  = False
         
         while 1:
             if self.runState == "STARTING":
@@ -497,7 +496,8 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     # once per config/runset
                     if self.forceConfig or (self.configName != self.lastConfig):
                         self.break_existing_runset(self.cnc)
-                        self.build_run_set(self.cnc, self.configName, self.configDir)
+                        (forceRestart, requiredComps) = self.getComponentsFromGlobalConfig(self.configName, self.configDir)
+                        self.build_run_set(self.cnc, self.configName, self.configDir, requiredComps)
                                                                                         
                     self.fill_component_dictionaries(self.cnc)
                     # once per run
@@ -577,7 +577,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                                          self.runStats.runNum, datetime.datetime.now(), duration)
                     self.catchAllLogger.startServing()
 
-                if hadError and self.doViolentRestart:
+                if forceRestart or (hadError and self.restartOnError):
                     try:
                         self.logmsg("Doing complete rip-down and restart of pDAQ "+
                                     "(everything but DAQRun)")
