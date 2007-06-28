@@ -212,7 +212,6 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         stringlist   = self.configuration.hubIDs()
         kindlist     = self.configuration.kinds()
         complist     = self.configuration.components()
-        forceRestart = self.configuration.alwaysRestart()
         self.logmsg("Loaded global configuration \"%s\"" % configName)
         requiredComps = []
         for string in stringlist:
@@ -224,7 +223,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             requiredComps.append(comp)
         for comp in requiredComps:
             self.logmsg("Component list will require %s" % comp)
-        return (forceRestart, requiredComps)
+        return requiredComps
     
     def setUpOneComponentLogger(logPath, shortName, daqID, logPort):
         logFile  = "%s/%s-%d.log" % (logPath, shortName, daqID)
@@ -482,7 +481,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.cnc = RPCClient("localhost", DAQRun.CNC_PORT)
 
         logDirCreated = False
-        forceRestart  = False
+        forceRestart  = True
         
         while 1:
             if self.runState == "STARTING":
@@ -496,7 +495,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     # once per config/runset
                     if self.forceConfig or (self.configName != self.lastConfig):
                         self.break_existing_runset(self.cnc)
-                        (forceRestart, requiredComps) = self.getComponentsFromGlobalConfig(self.configName, self.configDir)
+                        requiredComps = self.getComponentsFromGlobalConfig(self.configName, self.configDir)
                         self.build_run_set(self.cnc, self.configName, self.configDir, requiredComps)
                                                                                         
                     self.fill_component_dictionaries(self.cnc)

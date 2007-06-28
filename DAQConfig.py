@@ -80,7 +80,6 @@ class DAQConfig(object):
     parsedKindListDict      = {}
     parsedHubIDListDict     = {}
     parsedCompListDict      = {}
-    parsedForceRestartDict  = {}
     deployedDOMsParsed      = None  # Parse this only once, in case we cycle over multiple configs
     
     def __init__(self, configName="default", configDir="/usr/local/icecube/config"):
@@ -90,7 +89,6 @@ class DAQConfig(object):
             self.kindList     = DAQConfig.parsedKindListDict     [ configName ]
             self.hubIDList    = DAQConfig.parsedHubIDListDict    [ configName ]
             self.compList     = DAQConfig.parsedCompListDict     [ configName ]
-            self.forceRestart = DAQConfig.parsedForceRestartDict [ configName ]
             return
         
         if not exists(configDir):
@@ -186,15 +184,10 @@ class DAQConfig(object):
             self.compList.append(node.attributes['name'].value + '#' +
                                  str(nodeId))
 
-        self.forceRestart = False
-        if len(configs[0].getElementsByTagName("restartComponents")) > 0:
-            self.forceRestart = True
-
         DAQConfig.parsedNDOMDict        [ configName ] = self.ndoms
         DAQConfig.parsedKindListDict    [ configName ] = self.kindList
         DAQConfig.parsedHubIDListDict   [ configName ] = self.hubIDList
         DAQConfig.parsedCompListDict    [ configName ] = self.compList
-        DAQConfig.parsedForceRestartDict[ configName ] = self.forceRestart
 
     def lookUpHubIDbyStringAndPosition(stringNum, position):
         # This is a somewhat kludgy approach but we let the L2 make the call and file
@@ -212,10 +205,6 @@ class DAQConfig(object):
         return stringNum
     lookUpHubIDbyStringAndPosition = staticmethod(lookUpHubIDbyStringAndPosition)
 
-    def alwaysRestart(self):
-        "returns whether or not forced restart is called for regardless of whether runs succeed"
-        return self.forceRestart
-    
     def nDOMs(self):
         "return number of DOMs in parsed configuration"
         return self.ndoms
