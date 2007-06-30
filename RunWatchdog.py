@@ -10,7 +10,7 @@
 
 from DAQLog import *
 from DAQRPC import RPCClient
-import datetime, threading
+import datetime
 from exc_string import *
 
 class ThresholdWatcher(object):
@@ -186,7 +186,7 @@ class WatchData(object):
                               lessThan)
         self.thresholdFields[beanName].append(tw)
 
-    def checkList(self, list):
+    def checkList(self, list, now):
         unhealthy = []
         for b in list:
             badList = self.checkValues(list[b])
@@ -224,26 +224,6 @@ class WatchData(object):
 
 class BeanFieldNotFoundException(Exception): pass
 
-class WatchThread(threading.Thread):
-    def __init__(self, watchdog):
-        self.watchdog = watchdog
-        self.done = False
-        self.error = False
-        self.healthy = False
-
-        threading.Thread.__init__(self)
-
-        self.setName('RunWatchdog')
-
-    def run(self):
-        try:
-            self.healthy = self.watchdog.realWatch()
-            self.done = True
-        except Exception:
-            self.watchdog.logmsg("Exception in run watchdog: %s" %
-                                 exc_string())
-            self.error = True
-
 class RunWatchdog(object):
     def __init__(self, daqLog, interval, IDs, shortNameOf, daqIDof, rpcAddrOf, mbeanPortOf):
         self.log         = daqLog
@@ -254,10 +234,8 @@ class RunWatchdog(object):
         self.IDs         = IDs
         self.stringHubs  = []
         self.soloComps   = []
-        self.thread      = None
 
         iniceTrigger  = None
-        simpleTrigger  = None
         icetopTrigger  = None
         amandaTrigger  = None
         globalTrigger   = None
@@ -284,14 +262,6 @@ class RunWatchdog(object):
                             cw.addOutputValue('globalTrigger', 'trigger',
                                               'RecordsSent')
                         iniceTrigger = cw
-                    elif shortNameOf[c] == 'simpleTrigger':
-                        if self.contains(shortNameOf, 'stringHub'):
-                            cw.addInputValue('stringHub', 'stringHit',
-                                             'RecordsReceived')
-                        if self.contains(shortNameOf, 'globalTrigger'):
-                            cw.addOutputValue('globalTrigger', 'trigger',
-                                              'RecordsSent')
-                        iniceTrigger = cw
                     elif shortNameOf[c] == 'iceTopTrigger':
                         if self.contains(shortNameOf, 'stringHub'):
                             cw.addInputValue('stringHub', 'stringHit',
@@ -308,9 +278,6 @@ class RunWatchdog(object):
                     elif shortNameOf[c] == 'globalTrigger':
                         if self.contains(shortNameOf, 'inIceTrigger'):
                             cw.addInputValue('inIceTrigger', 'trigger',
-                                             'RecordsReceived')
-                        if self.contains(shortNameOf, 'simpleTrigger'):
-                            cw.addInputValue('simpleTrigger', 'trigger',
                                              'RecordsReceived')
                         if self.contains(shortNameOf, 'iceTopTrigger'):
                             cw.addInputValue('iceTopTrigger', 'trigger',
@@ -346,7 +313,6 @@ class RunWatchdog(object):
         # of components in the list
         #
         if iniceTrigger: self.soloComps.append(iniceTrigger)
-        if simpleTrigger: self.soloComps.append(simpleTrigger)
         if icetopTrigger: self.soloComps.append(icetopTrigger)
         if amandaTrigger: self.soloComps.append(amandaTrigger)
         if globalTrigger: self.soloComps.append(globalTrigger)
@@ -372,7 +338,6 @@ class RunWatchdog(object):
         return False
 
     def timeToWatch(self):
-        if self.inProgress(): return False
         if not self.tlast: return True
         now = datetime.datetime.now()
         dt  = now - self.tlast
@@ -391,7 +356,7 @@ class RunWatchdog(object):
     def checkComp(self, comp, starved, stagnant, threshold):
         isProblem = False
         try:
-            badList = comp.checkList(comp.inputFields)
+            badList = comp.checkList(comp.inputFields, self.tlast)
             if badList is not None:
                 starved += badList
                 isProblem = True
@@ -400,7 +365,7 @@ class RunWatchdog(object):
 
         if not isProblem:
             try:
-                badList = comp.checkList(comp.outputFields)
+                badList = comp.checkList(comp.outputFields, self.tlast)
                 if badList is not None:
                     stagnant += badList
                     isProblem = True
@@ -409,14 +374,15 @@ class RunWatchdog(object):
 
             if not isProblem:
                 try:
-                    badList = comp.checkList(comp.thresholdFields)
+                    badList = comp.checkList(comp.thresholdFields, self.tlast)
                     if badList is not None:
                         threshold += badList
                         isProblem = True
                 except Exception, e:
                     self.logmsg(str(comp) + ' thresholds: ' + exc_string())
 
-    def realWatch(self):
+    def doWatch(self):
+        self.tlast = datetime.datetime.now()
         starved = []
         stagnant = []
         threshold = []
@@ -450,26 +416,6 @@ class RunWatchdog(object):
         #    self.logmsg('** Run watchdog reports all components are healthy')
 
         return healthy
-
-    def startWatch(self):
-        self.tlast = datetime.datetime.now()
-        self.thread = WatchThread(self)
-        self.thread.start()
-
-    def inProgress(self):
-        return self.thread is not None
-
-    def isDone(self):
-        return self.thread is not None and self.thread.done
-
-    def isHealthy(self):
-        return self.thread is not None and self.thread.healthy
-
-    def caughtError(self):
-        return self.thread is not None and self.thread.error
-
-    def clearThread(self):
-        self.thread = None
 
     def logmsg(self, m):
         "Log message to logger, but only if logger exists"

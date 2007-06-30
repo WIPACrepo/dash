@@ -3,10 +3,6 @@
 import optparse
 
 from DAQRPC import RPCClient
-from SVNVersionInfo import getVersionInfo
-
-SVN_ID  = "$Id: DAQStatus.py 2153 2007-10-17 22:17:58Z ksb $"
-SVN_URL = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/releases/Grange/DAQStatus.py $"
 
 def cmpComp(x, y):
     c = cmp(x[6], y[6])
@@ -25,25 +21,12 @@ def dumpComp(comp, numList, indent):
         print indent + '  ' + comp
     else:
         numStr = None
-        prevNum = -1
-        inRange = False
         for n in numList:
             if numStr is None:
                 numStr = str(n)
             else:
-                if prevNum + 1 == n:
-                    if not inRange:
-                        inRange = True
-                else:
-                    if inRange:
-                        numStr += '-' + str(prevNum)
-                        inRange = False
-                    numStr += ' ' + str(n)
-            prevNum = n
-        if inRange:
-            numStr += '-' + str(prevNum)
+                numStr += ' ' + str(n)
 
-        if len(indent) > 0: indent = '|' + indent[1:]
         front = indent + '  ' + str(len(numList)) + ' ' + comp + 's: '
         frontLen = len(front)
 
@@ -53,12 +36,9 @@ def dumpComp(comp, numList, indent):
             if frontLen + len(numStr) < lineLen:
                 print front + numStr
                 break
-            tmpLen = lineLen - frontLen
-            while tmpLen > 0 and numStr[tmpLen] != ' ':
-                tmpLen -= 1
-            subStr = numStr[0:tmpLen]
-            numStr = numStr[tmpLen:]
-            if len(numStr) > 0 and numStr[0] == ' ':
+            subStr = numStr[0:lineLen-frontLen]
+            numStr = numStr[lineLen-frontLen:]
+            if numStr[0] == ' ':
                 numStr = numStr[1:]
             print front + subStr
             front = ' '*len(front)
@@ -91,10 +71,7 @@ def listVerbose(list, indent=''):
             (indent, c[0], c[1], c[2], c[3], c[4], c[5], c[6])
 
 if __name__ == "__main__":
-    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % getVersionInfo(SVN_ID, SVN_URL)
-    usage = "%prog [options]\nversion: " + ver_info
-    p = optparse.OptionParser(usage=usage, version=ver_info)
-
+    p = optparse.OptionParser()
     p.add_option("-v", "--verbose", action="store_true", dest="verbose")
     p.set_defaults(verbose = False)
 
