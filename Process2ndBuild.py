@@ -22,7 +22,6 @@ def isTargetFile(f):
 
 def main():
     MAX_FILES_PER_TARBALL = 50
-    SLEEP_INTERVAL        = 60*5
     targetDir             = "/mnt/data/pdaqlocal"
     chdir(targetDir)
     # Make sure I'm not already running - so I can auto-restart out of crontab
@@ -43,9 +42,8 @@ def main():
                 if len(filesToTar) >= MAX_FILES_PER_TARBALL: break
             
             if len(filesToTar) == 0:
-                sleep(SLEEP_INTERVAL)
-                continue
-                
+                raise SystemExit
+            
             print filesToTar
             t = datetime.datetime.now()
             dateTag  = "%03d_%04d%02d%02d_%02d%02d%02d_%06d" % (0, t.year, t.month, t.day,
