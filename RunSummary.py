@@ -80,7 +80,7 @@ def generateSnippet(snippetFile, runNum, starttime, startsec, stoptime, stopsec,
     if nEvents != None: evStr = nEvents
 
     rateStr = None
-    if dtsec > 0 and nEvents > 0: rateStr = str(nEvents/dtsec)
+    if dtsec > 0 and nEvents > 0: rateStr = "%2.2f" % float(nEvents)/float(dtsec))
     
     print >>snippet, """
     <tr>
