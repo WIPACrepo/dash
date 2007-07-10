@@ -80,8 +80,10 @@ def generateSnippet(snippetFile, runNum, starttime, startsec, stoptime, stopsec,
     if nEvents != None: evStr = nEvents
 
     rateStr = None
-    if dtsec > 0 and nEvents > 0: rateStr = "%2.2f" % float(nEvents)/float(dtsec)
-    
+    try:
+       if dtsec > 0 and nEvents > 0: rateStr = "%2.2f" % (float(nEvents)/float(dtsec))
+    except TypeError, t:
+       rateStr = "???" 
     print >>snippet, """
     <tr>
     <td align=center>%d</td>
@@ -479,6 +481,7 @@ def main():
 
                         s = search(r'\]\s+(\d+).+?events collected', dashContents)
                         if s: nEvents = int(s.group(1))
+                        else: nEvents = 0
 
                     # Remember more precise unpacked location for link
                     if search(r'(daqrun\d+)/$', el): 
