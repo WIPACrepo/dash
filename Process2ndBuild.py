@@ -50,6 +50,7 @@ def main():
                                                                 t.hour, t.minute, t.second, 0)
             spadeTar = "SPS-pDAQ-2ndBld-%s.dat.tar" % dateTag
             moniLink = "SPS-pDAQ-2ndBld-%s.mon.tar" % dateTag
+            snLink   = "SPS-pDAQ-2ndBld-%s.sn.tar"  % dateTag
             moniSem  = "SPS-pDAQ-2ndBld-%s.msem"    % dateTag
             spadeSem = "SPS-pDAQ-2ndBld-%s.sem"     % dateTag
 
@@ -69,6 +70,10 @@ def main():
             # Create moni hard link
             print moniLink
             link(spadeTar, moniLink)
+
+            # Create sn hard link
+            print snLink
+            link(spadeTar, snLink)
             
             # Create spade .sem
             f = open(spadeSem, "w"); f.close()
