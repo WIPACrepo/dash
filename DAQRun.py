@@ -612,14 +612,14 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         "Returns 1 - use to see if object is reachable"
         return 1
 
-    def rpc_flash(self, flashingDomsList):
+    def rpc_flash(self, subRunID, flashingDomsList):
         if self.runState != "RUNNING":
             self.logmsg("Warning: invalid state (%s), won't flash DOMs." % self.runState)
             return 0
         if len(flashingDomsList) > 0:
-            self.logmsg("Got command to flash DOMs (%s)" % str(flashingDomsList))
+            self.logmsg("Subrun %d: flashing DOMs (%s)" % (subRunID, str(flashingDomsList)))
         else:
-            self.logmsg("Got command to stop flashers (empty arg list)")
+            self.logmsg("Subrun %d: Got command to stop flashers" % subRunID)
         return 1
     
     def rpc_start_run(self, runNumber, subRunNumber, configName):

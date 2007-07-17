@@ -83,14 +83,13 @@ class DAQRunIface(object):
         "Get current DAQ state"
         return self.rpc.rpc_run_state()
 
-    def flasher(self, *info):
+    def flasher(self, subRunID, flashingDomsList):
         "Tell DAQ to flash DOMs"
-        l = info[0]
-        if l == []:
-            print "No DOMs to flash."
+        if flashingDomsList == []:
+            print "Subrun %d: No DOMs to flash." % subRunID
         else:
-            print "DOMs to flash: %s" % str(l)
-        return self.rpc.rpc_flash(l)
+            print "Subrun %d: DOMs to flash: %s" % (subRunID, str(flashingDomsList))
+        return self.rpc.rpc_flash(subRunID, flashingDomsList)
     
     def getSummary(self):
         "Get component summary from DAQRun"

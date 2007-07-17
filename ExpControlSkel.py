@@ -219,7 +219,7 @@ def main():
                         subRunSet = SubRunSet(opt.flasherRun)
                         thisSubRun = subRunSet.next()
                         if thisSubRun.type == SubRun.FLASH:
-                            daqiface.flasher(thisSubRun.flasherInfo())
+                            daqiface.flasher(thisSubRun.id, thisSubRun.flasherInfo())
                         else:
                             pass # Don't explicitly send signal if first transition
                                  # is a delay
@@ -231,9 +231,9 @@ def main():
                         if thisSubRun == None:
                             doStop = True
                         elif thisSubRun.type == SubRun.FLASH:
-                            daqiface.flasher(thisSubRun.flasherInfo())
+                            daqiface.flasher(thisSubRun.id, thisSubRun.flasherInfo())
                         else:
-                            daqiface.flasher([])
+                            daqiface.flasher(thisSubRun.id, [])
                         lastStateChg = tnow
 
                 if doStop:
