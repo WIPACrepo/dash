@@ -31,6 +31,7 @@ import socket
 import thread
 import os
 
+
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
     metaDir = os.environ["PDAQ_HOME"]
@@ -625,10 +626,12 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         args = (self.runSetID, subRunID, flashingDomsList)
         try:
             self.cnc.rpccall("rpc_runset_subrun", args)
-        except xmlrpclib.Fault, f:
+#        except xmlrpclib.Fault, f:
+#            self.logmsg("CnCServer subrun transition failed: %s" % exc_string())
+#            return 0
+        except Exception, e:
             self.logmsg("CnCServer subrun transition failed: %s" % exc_string())
             return 0
-        
         return 1
     
     def rpc_start_run(self, runNumber, subRunNumber, configName):

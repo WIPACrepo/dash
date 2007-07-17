@@ -219,7 +219,8 @@ def main():
                         subRunSet = SubRunSet(opt.flasherRun)
                         thisSubRun = subRunSet.next()
                         if thisSubRun.type == SubRun.FLASH:
-                            daqiface.flasher(thisSubRun.id, thisSubRun.flasherInfo())
+                            status = daqiface.flasher(thisSubRun.id, thisSubRun.flasherInfo())
+                            if status == 0: print "WARNING: flasher op failed, check pDAQ logs!"
                         else:
                             pass # Don't explicitly send signal if first transition
                                  # is a delay
@@ -231,9 +232,11 @@ def main():
                         if thisSubRun == None:
                             doStop = True
                         elif thisSubRun.type == SubRun.FLASH:
-                            daqiface.flasher(thisSubRun.id, thisSubRun.flasherInfo())
+                            status = daqiface.flasher(thisSubRun.id, thisSubRun.flasherInfo())
+                            if status == 0: print "WARNING: flasher op failed, check pDAQ logs!"
                         else:
-                            daqiface.flasher(thisSubRun.id, [])
+                            status = daqiface.flasher(thisSubRun.id, [])
+                            if status == 0: print "WARNING: flasher op failed, check pDAQ logs!"
                         lastStateChg = tnow
 
                 if doStop:
