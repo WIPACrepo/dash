@@ -21,6 +21,7 @@ from exc_string import *
 from shutil import move
 from GetIP import getIP
 from re import search
+from xmlrpclib import Fault
 import Rebootable
 import DAQConfig
 import datetime
@@ -626,10 +627,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         args = (self.runSetID, subRunID, flashingDomsList)
         try:
             self.cnc.rpccall("rpc_runset_subrun", args)
-#        except xmlrpclib.Fault, f:
-#            self.logmsg("CnCServer subrun transition failed: %s" % exc_string())
-#            return 0
-        except Exception, e:
+        except Fault, f:
             self.logmsg("CnCServer subrun transition failed: %s" % exc_string())
             return 0
         return 1
