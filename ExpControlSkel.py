@@ -72,7 +72,19 @@ class SubRun:
             for m in self.domdict.keys():
                 s += "DOM %s: %s\n" % (m, self.domdict[m])
         return s
-    
+
+    def flasherInfo(self):
+        if self.type != SubRun.FLASH: return None
+        l = []
+        for d in self.domdict.keys():
+            l.append((d,
+                      self.domdict[d].bright,
+                      self.domdict[d].window,
+                      self.domdict[d].delay,
+                      self.domdict[d].mask,
+                      self.domdict[d].rate))
+        return l
+        
 class SubRunSet:
     def __init__(self, fileName):
         self.subruns = []
@@ -116,10 +128,6 @@ class SubRunSet:
         except IndexError:
             return None
 
-def doSubrunTransition(subrun):
-    if subrun == None: return
-    print "Doing subrun %s" % str(subrun),
-    
 def main():
     "Main program"
     p = optparse.OptionParser()
@@ -210,14 +218,23 @@ def main():
                     if subRunSet == None:
                         subRunSet = SubRunSet(opt.flasherRun)
                         thisSubRun = subRunSet.next()
-                        doSubrunTransition(thisSubRun)                        
-
+                        if thisSubRun.type == SubRun.FLASH:
+                            daqiface.flasher(thisSubRun.flasherInfo())
+                        else:
+                            pass # Don't explicitly send signal if first transition
+                                 # is a delay
+                    # Handle transitions            
                     dt = tnow - lastStateChg
                     if dt > timedelta(seconds=thisSubRun.duration):
+                        print "-- subrun state change --"
                         thisSubRun = subRunSet.next()
-                        doSubrunTransition(thisSubRun)
+                        if thisSubRun == None:
+                            doStop = True
+                        elif thisSubRun.type == SubRun.FLASH:
+                            daqiface.flasher(thisSubRun.flasherInfo())
+                        else:
+                            daqiface.flasher([])
                         lastStateChg = tnow
-                        if thisSubRun == None: doStop = True
 
                 if doStop:
                     try:

@@ -93,6 +93,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.register_function(self.rpc_daq_reboot)
         self.register_function(self.rpc_release_runsets)
         self.register_function(self.rpc_daq_summary_xml)
+        self.register_function(self.rpc_flash)
         self.log              = None
         self.runSetID         = None
         self.CnCLogReceiver   = None
@@ -611,6 +612,16 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         "Returns 1 - use to see if object is reachable"
         return 1
 
+    def rpc_flash(self, flashingDomsList):
+        if self.runState != "RUNNING":
+            self.logmsg("Warning: invalid state (%s), won't flash DOMs." % self.runState)
+            return 0
+        if len(flashingDomsList) > 0:
+            self.logmsg("Got command to flash DOMs (%s)" % str(flashingDomsList))
+        else:
+            self.logmsg("Got command to stop flashers (empty arg list)")
+        return 1
+    
     def rpc_start_run(self, runNumber, subRunNumber, configName):
         """
         Start a run

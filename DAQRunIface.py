@@ -85,7 +85,12 @@ class DAQRunIface(object):
 
     def flasher(self, *info):
         "Tell DAQ to flash DOMs"
-        pass
+        l = info[0]
+        if l == []:
+            print "No DOMs to flash."
+        else:
+            print "DOMs to flash: %s" % str(l)
+        return self.rpc.rpc_flash(l)
     
     def getSummary(self):
         "Get component summary from DAQRun"
