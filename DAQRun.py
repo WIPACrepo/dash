@@ -613,13 +613,17 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         return 1
 
     def rpc_flash(self, subRunID, flashingDomsList):
-        if self.runState != "RUNNING":
-            self.logmsg("Warning: invalid state (%s), won't flash DOMs." % self.runState)
+        if self.runState != "RUNNING" or self.runSetID == None:
+            self.logmsg("Warning: invalid state (%s) or runSet ID (%d), won't flash DOMs."
+                        % (self.runState, self.runSetID))
             return 0
+        
         if len(flashingDomsList) > 0:
             self.logmsg("Subrun %d: flashing DOMs (%s)" % (subRunID, str(flashingDomsList)))
         else:
             self.logmsg("Subrun %d: Got command to stop flashers" % subRunID)
+        args = (self.runSetID, subRunID, flashingDomsList)
+        self.cnc.rpccall("rpc_runset_subrun", args)
         return 1
     
     def rpc_start_run(self, runNumber, subRunNumber, configName):
