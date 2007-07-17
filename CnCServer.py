@@ -420,6 +420,28 @@ class RunSet:
 
         self.runNumber = None
 
+    def subrun(self, id, data):
+        "Start all components in the runset"
+        if self.runNumber is None:
+            raise ValueError, "RunSet #" + str(self.id) + " is not running"
+
+        for c in self.set:
+            if c.isComponent("eventBuilder"):
+                c.prepareSubrun(id)
+
+        latestTime = None
+        for c in self.set:
+            if c.isComponent("stringHub"):
+                t = c.startSubrun(id, data)
+                if latestTime is None or t > latestTime:
+                    latestTime = t
+
+        for c in self.set:
+            if c.isComponent("eventBuilder"):
+                c.commitSubrun(id, latestTime)
+
+        pass
+
     def waitForStateChange(self, timeoutSecs=TIMEOUT_SECS):
         waitList = self.set[:]
 
@@ -681,9 +703,9 @@ class DAQClient(CnCLogger):
 
         return csStr
 
-    def isComponent(self, name, num):
+    def isComponent(self, name, num=-1):
         "Does this component have the specified name and number?"
-        return self.name == name and self.num == num
+        return self.name == name and (self.num >= 0 and self.num == num)
 
     def isSource(self):
         "TODO: Move responsibility for this to DAQComponent"
@@ -1231,6 +1253,17 @@ class DAQServer(DAQPool):
 
         self.resetLog()
         runSet.resetLogging()
+
+        return "OK"
+
+    def rpc_runset_subrun(self, id, subrunId, subrunData):
+        "start a subrun with the specified runset"
+        runSet = self.findRunset(id)
+
+        if not runSet:
+            raise ValueError, 'Could not find runset#' + str(id)
+
+        runSet.subrun(subrunId, subrunData)
 
         return "OK"
 
