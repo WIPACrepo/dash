@@ -1062,6 +1062,7 @@ class DAQServer(DAQPool):
             self.server.register_function(self.rpc_runset_start_run)
             self.server.register_function(self.rpc_runset_status)
             self.server.register_function(self.rpc_runset_stop_run)
+            self.server.register_function(self.rpc_runset_subrun)
             self.server.register_function(self.rpc_show_components)
 
     def createClient(self, name, num, host, port, mbeanPort, connectors):
