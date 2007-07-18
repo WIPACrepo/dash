@@ -15,6 +15,7 @@ from os import listdir, mkdir, environ, stat, popen, symlink, unlink
 from os.path import exists, isdir, abspath, basename
 from shutil import copy
 from re import *
+from exc_string import *
 
 def checkForRunningProcesses():
     c = popen("pgrep -fl 'python .+RunSummary.py'", "r")
@@ -538,7 +539,10 @@ def main():
 
             # Write all summaries:
             if(skippedRun): print >>allSummaryFile, skipper
-            print >>allSummaryFile, getSnippetHtml(snippetFile)
+            try:
+                print >>allSummaryFile, getSnippetHtml(snippetFile)
+            except IOError, e:
+                print "WARNING: couldn't write snippet file (%s)" % exc_string()
             allSummaryFile.flush()
             
     print >>allSummaryFile, """
