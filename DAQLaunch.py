@@ -277,7 +277,8 @@ def main():
         configToUse = opt.clusterConfigName
 
     configDir = join(metaDir, 'config')
-    logDir    = join(metaDir, 'log')
+    logDir    = join(' ', 'mnt', 'data', 'pdaq', 'log').strip()
+    logDirFallBack = join(metaDir, 'log')
     dashDir   = join(metaDir, 'dash')
     clusterConfigDir = join(metaDir, 'cluster-config', 'src', 'main', 'xml')
 
@@ -299,9 +300,18 @@ def main():
         if not isabs(copyDir):
             copyDir = join(metaDir, copyDir)
         if not exists(copyDir) and not opt.dryRun: mkdir(copyDir)
-    
+
+    # Set up logDir
     if not exists(logDir):
-        if not opt.dryRun: mkdir(logDir)
+        if not opt.dryRun:
+            try:
+                mkdir(logDir)
+            except OSError, (errno, strerror):
+                if opt.verbose:
+                    print "Problem making log dir: '%s' (%s)" % (logDir, strerror)
+                    print "Using fallback for logDir: %s" % (logDirFallBack)
+                logDir = logDirFallBack
+                if not exists(logDir): mkdir(logDir)
     else:
         system('rm -f %s' % join(logDir, 'catchall.log'))
     
