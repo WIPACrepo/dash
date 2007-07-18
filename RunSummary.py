@@ -94,12 +94,12 @@ def generateSnippet(snippetFile, runNum, starttime, startsec, stoptime, stopsec,
     <td align=center bgcolor="eeeeee">%s</td>
     <td align=center>%s</td>
     <td align=center bgcolor="eeeeee">%s</td>
-    <td align=center>%s</td>
     <td align=center bgcolor=%s><a href="%s">%s</a></td>
+    <td align=left>%s</td>
     </tr>
     """ % (runNum, fmt(starttime), fmt(startsec), fmt(stoptime),
            fmt(stopsec), fmt(dtsec), evStr, fmt(rateStr),
-           configName, statusColor, runDir, status)
+           statusColor, runDir, status, configName)
     return
 
 def makeTable(files, name):
@@ -363,8 +363,8 @@ def main():
      <td align=center><b>Duration<br>(seconds)</b></td>
      <td align=center><b>Num.<br>Events</b></td>
      <td align=center><b>Rate<br>(Hz)</b></td>
-     <td align=center><b>Config</b></td>
      <td align=center><b>Status</b></td>
+     <td align=left><b>Config</b></td>
      <td><font color=grey>(Click on status link for run details)</font></td>
     </tr>
     """ % title
