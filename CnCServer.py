@@ -432,13 +432,14 @@ class RunSet:
         latestTime = None
         for c in self.set:
             if c.isComponent("stringHub"):
-                t = c.startSubrun(id, data)
+                tStr = c.startSubrun(data)
+                t = long(tStr)
                 if latestTime is None or t > latestTime:
                     latestTime = t
 
         for c in self.set:
             if c.isComponent("eventBuilder"):
-                c.commitSubrun(id, latestTime)
+                c.commitSubrun(id, repr(latestTime))
 
     def waitForStateChange(self, timeoutSecs=TIMEOUT_SECS):
         waitList = self.set[:]
@@ -619,6 +620,14 @@ class DAQClient(CnCLogger):
         return "ID#%d %s#%d at %s:%d%s" % \
             (self.id, self.name, self.num, self.host, self.port, extraStr)
 
+    def commitSubrun(self, subrunNum, latestTime):
+        "Start marking events with the subrun number"
+        try:
+            return self.client.xmlrpc.commitSubrun(subrunNum, latestTime)
+        except Exception, e:
+            self.logmsg(exc_string())
+            return None
+
     def configure(self, configName=None):
         "Configure this component"
         try:
@@ -703,7 +712,7 @@ class DAQClient(CnCLogger):
 
     def isComponent(self, name, num=-1):
         "Does this component have the specified name and number?"
-        return self.name == name and (self.num >= 0 and self.num == num)
+        return self.name == name and (num < 0 or self.num == num)
 
     def isSource(self):
         "TODO: Move responsibility for this to DAQComponent"
@@ -723,6 +732,14 @@ class DAQClient(CnCLogger):
     def monitor(self):
         "Return the monitoring value"
         return self.getState()
+
+    def prepareSubrun(self, subrunNum):
+        "Start marking events as bogus in preparation for subrun"
+        try:
+            return self.client.xmlrpc.prepareSubrun(subrunNum)
+        except Exception, e:
+            self.logmsg(exc_string())
+            return None
 
     def reset(self):
         "Reset component back to the idle state"
@@ -749,6 +766,14 @@ class DAQClient(CnCLogger):
         "Stop component processing DAQ data"
         try:
             return self.client.xmlrpc.stopRun()
+        except Exception, e:
+            self.logmsg(exc_string())
+            return None
+
+    def startSubrun(self, data):
+        "Send subrun data to stringHubs"
+        try:
+            return self.client.xmlrpc.startSubrun(data)
         except Exception, e:
             self.logmsg(exc_string())
             return None
