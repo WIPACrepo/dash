@@ -624,9 +624,8 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.logmsg("Subrun %d: flashing DOMs (%s)" % (subRunID, str(flashingDomsList)))
         else:
             self.logmsg("Subrun %d: Got command to stop flashers" % subRunID)
-        args = (self.runSetID, subRunID, flashingDomsList)
         try:
-            self.cnc.rpccall("rpc_runset_subrun", args)
+            self.cnc.rpccall("rpc_runset_subrun", self.runSetID, subRunID, flashingDomsList)
         except Fault, f:
             self.logmsg("CnCServer subrun transition failed: %s" % exc_string())
             return 0

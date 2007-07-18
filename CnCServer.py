@@ -440,8 +440,6 @@ class RunSet:
             if c.isComponent("eventBuilder"):
                 c.commitSubrun(id, latestTime)
 
-        pass
-
     def waitForStateChange(self, timeoutSecs=TIMEOUT_SECS):
         waitList = self.set[:]
 
