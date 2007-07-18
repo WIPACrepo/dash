@@ -112,7 +112,7 @@ class SubRunSet:
                 bright = int(m.group(2))
                 window = int(m.group(3))
                 delay  = int(m.group(4))
-                mask   = m.group(5)
+                mask   = int(m.group(5), 16)
                 rate   = int(m.group(6))
                 sr.addDOM(mbid, bright, window, delay, mask, rate)
                 
