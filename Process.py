@@ -14,7 +14,7 @@ def processList():
 
 def findProcess(name, plist): # Iterate over list plist
     for p in plist:
-        m = re.match(r'\s*(\d+)\s+.+?python .+?%s' % name, p)
+        m = re.match(r'\s*(\d+)\s+.+?[pP]ython .+?%s' % name, p)
         if m:
             yield int(m.group(1))
     return
