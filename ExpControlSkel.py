@@ -7,7 +7,7 @@ Started November, 2006
 """
 
 from DAQRunIface import DAQRunIface
-from os.path import join
+from os.path import join, exists
 from os import environ
 from datetime import *
 from sys import argv
@@ -163,6 +163,11 @@ def main():
     # Connect to DAQ run server
     daqiface     = DAQRunIface(opt.nodeName, opt.portNum)
 
+    # Check for valid flasher input file
+    if opt.flasherRun and not exists(opt.flasherRun):
+        print "Flasher file '%s' doesn't exist!" % opt.flasherRun
+        raise SystemExit
+    
     # Check for valid confuration name
     if not daqiface.isValidConfig(opt.configName):
         print "Run configuration %s does not exist or is not valid!" % opt.configName
