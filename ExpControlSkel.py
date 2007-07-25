@@ -41,16 +41,6 @@ def showXML(daqruniface):
     except KeyboardInterrupt, k: raise
     except Exception, e:
         print "getSummary failed: %s" % e
-
-class FlashingDOM:
-    def __init__(self, bright, window, delay, mask, rate):
-        self.bright = bright
-        self.window = window
-        self.delay  = delay
-        self.mask   = mask
-        self.rate   = rate
-    def __str__(self): return "%d %d %d %s %d" % (self.bright, self.window, self.delay,
-                                                  self.mask, self.rate)
         
 class SubRun:
     FLASH = 1
@@ -59,30 +49,25 @@ class SubRun:
         self.type     = type
         self.duration = duration
         self.id       = id
-        self.domdict  = {}
+        self.domlist  = []
         
-    def addDOM(self, mbid, bright, window, delay, mask, rate):
-        self.domdict[ mbid ] = FlashingDOM(bright, window, delay, mask, rate)
+    def addDOM(self, l):
+        self.domlist.append(l)
         
     def __str__(self):
         type = "FLASHER"
         if self.type == SubRun.DELAY: type = "DELAY"
         s = "SubRun ID=%d TYPE=%s DURATION=%d\n" % (self.id, type, self.duration)
         if self.type == SubRun.FLASH:
-            for m in self.domdict.keys():
-                s += "DOM %s: %s\n" % (m, self.domdict[m])
+            for m in self.domlist:
+                s += "%s\n" % m
         return s
 
     def flasherInfo(self):
         if self.type != SubRun.FLASH: return None
         l = []
-        for d in self.domdict.keys():
-            l.append((d,
-                      self.domdict[d].bright,
-                      self.domdict[d].window,
-                      self.domdict[d].delay,
-                      self.domdict[d].mask,
-                      self.domdict[d].rate))
+        for d in self.domlist:
+            l.append(d)
         return l
         
 class SubRunSet:
@@ -106,15 +91,25 @@ class SubRunSet:
                 sr = SubRun(SubRun.FLASH, t, id)
                 self.subruns.append(sr)
                 id += 1
-            m = search('(\S+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(\d+)', l)
-            if m and sr:
-                mbid   = m.group(1)
-                bright = int(m.group(2))
-                window = int(m.group(3))
-                delay  = int(m.group(4))
-                mask   = int(m.group(5), 16)
-                rate   = int(m.group(6))
-                sr.addDOM(mbid, bright, window, delay, mask, rate)
+            m6 = search('^\s*(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
+            m7 = search('^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
+            if m7 and sr:
+                string = int(m7.group(1))
+                pos    = int(m7.group(2))
+                bright = int(m7.group(3))
+                window = int(m7.group(4))
+                delay  = int(m7.group(5))
+                mask   = int(m7.group(6), 16)
+                rate   = int(m7.group(7))
+                sr.addDOM((string, pos,  bright, window, delay, mask, rate))
+            elif m6 and sr:
+                mbid   = m6.group(1)
+                bright = int(m6.group(2))
+                window = int(m6.group(3))
+                delay  = int(m6.group(4))
+                mask   = int(m6.group(5), 16)
+                rate   = int(m6.group(6))
+                sr.addDOM((mbid, bright, window, delay, mask, rate))
                 
     def __str__(self):
         s = ""

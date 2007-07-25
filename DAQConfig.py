@@ -33,7 +33,8 @@ class noDOMConfigFound           (Exception):
     
 class noDeployedStringsListFound (Exception): pass
 class noComponentsFound          (Exception): pass
-class triggerException            (Exception): pass
+class triggerException           (Exception): pass
+class DOMNotInConfigException    (Exception): pass
 
 def showList(configDir):
     if not exists(configDir):
@@ -74,32 +75,27 @@ def checkForValidConfig(configDir, configName):
         
 class DAQConfig(object):
     
-    DEPLOYEDDOMS   = "default-dom-geometry.xml"
-
-    parsedNDOMDict          = {}
-    parsedKindListDict      = {}
-    parsedHubIDListDict     = {}
-    parsedCompListDict      = {}
+    DEPLOYEDDOMS            = "default-dom-geometry.xml"
     deployedDOMsParsed      = None  # Parse this only once, in case we cycle over multiple configs
+    persister               = {}
     
     def __init__(self, configName="default", configDir="/usr/local/icecube/config"):
         # Optimize by looking up pre-parsed configurations:
-        if DAQConfig.parsedNDOMDict.has_key(configName):
-            self.ndoms        = DAQConfig.parsedNDOMDict         [ configName ]
-            self.kindList     = DAQConfig.parsedKindListDict     [ configName ]
-            self.hubIDList    = DAQConfig.parsedHubIDListDict    [ configName ]
-            self.compList     = DAQConfig.parsedCompListDict     [ configName ]
+        if DAQConfig.persister.has_key(configName):
+            self.__dict__ = DAQConfig.persister[configName]
             return
-        
+                
         if not exists(configDir):
             raise DAQConfigDirNotFound("Could not find config dir %s" % configDir)
         self.configFile = xmlOf(join(configDir, configName))
         if not exists(self.configFile): raise DAQConfigNotFound("Could not find configuration file!")
 
+        # Parse the runconfig
         parsed = minidom.parse(self.configFile)
         configs = parsed.getElementsByTagName("runConfig")
         if len(configs) < 1: raise noRunConfigFound("No runconfig field found!")
 
+        # Parse the comprehensive lookup table "default-dom-geometry.xml"
         if DAQConfig.deployedDOMsParsed == None:
             deployedDOMsXML = xmlOf(join(configDir, DAQConfig.DEPLOYEDDOMS))
             if not exists(deployedDOMsXML): raise noDeployedDOMsListFound("no deployed DOMs list found!")
@@ -108,9 +104,12 @@ class DAQConfig(object):
         deployedStrings = DAQConfig.deployedDOMsParsed.getElementsByTagName("string")
         if len(deployedStrings) < 1: raise noDeployedStringsListFound("No string list in deployed DOMs XML!")
 
-        nameDict     = {}; stringDict = {}
-        positionDict = {}; kindDict   = {}
-        compDict     = {};
+        self.nameOf   = {} # Save names from deployed DOMs list - these supercede names in domconfig files.
+        self.stringOf = {}
+        self.posOf    = {}
+        positionDict  = {}
+        kindDict      = {}
+        compDict      = {}
 
         for string in deployedStrings:
             stringNumTag = string.getElementsByTagName("number")
@@ -128,11 +127,11 @@ class DAQConfig(object):
                 if(re.search(r'AMANDA_', name)): kind = "amanda"
                 # print "%20s %25s %2d %2d %s" % (domID, name, stringNum, position, kind)
             
-                nameDict[domID]     = name
-                stringDict[domID]   = stringNum
-                positionDict[domID] = position
-                compDict[domID]     = DAQConfig.lookUpHubIDbyStringAndPosition(stringNum, position)
-                kindDict[domID]     = kind
+                self.nameOf[domID]   = name
+                self.stringOf[domID] = stringNum
+                self.posOf[domID]    = position
+                compDict[domID]      = DAQConfig.lookUpHubIDbyStringAndPosition(stringNum, position)
+                kindDict[domID]      = kind
 
         configList = []
         noDOMs = configs[0].getElementsByTagName("noDOMConfig")
@@ -153,9 +152,12 @@ class DAQConfig(object):
         # print "Found %d DOMs." % self.ndoms
 
         hubIDInConfigDict = {}
-        kindInConfigDict   = {}
+        kindInConfigDict  = {}
+        self.domlist      = []
+        
         for dom in configList:
             domID  = dom.getAttribute("mbid")
+            self.domlist.append(domID)
             hubID = compDict[domID]
             kind   = kindDict[domID]
             # print "Got DOM %s string %s kind %s" % (domID, string, kind)
@@ -184,10 +186,7 @@ class DAQConfig(object):
             self.compList.append(node.attributes['name'].value + '#' +
                                  str(nodeId))
 
-        DAQConfig.parsedNDOMDict        [ configName ] = self.ndoms
-        DAQConfig.parsedKindListDict    [ configName ] = self.kindList
-        DAQConfig.parsedHubIDListDict   [ configName ] = self.hubIDList
-        DAQConfig.parsedCompListDict    [ configName ] = self.compList
+        DAQConfig.persister             [ configName ] = self.__dict__
 
     def lookUpHubIDbyStringAndPosition(stringNum, position):
         # This is a somewhat kludgy approach but we let the L2 make the call and file
@@ -227,7 +226,33 @@ class DAQConfig(object):
         Return list of components in parsed configuration.
         """
         return self.compList
+
+    def hasDOM(self, domid):
+        "Indicate whether DOM mainboard id domid is in the current configuration"
+        for d in self.domlist:
+            if d == domid: return True
+        return False
     
+    def getIDbyName(self, name):
+        """
+        Get DOM mainboard ID for given DOM name (e.g., 'Alpaca').  Raise DOMNotInConfigException
+        if DOM is missing
+        """        
+        for d in self.nameOf.keys():
+            if self.nameOf[d] == name: return str(d) # Convert from unicode to ASCII
+        raise DOMNotInConfigException()
+    
+    def getIDbyStringPos(self, string, pos):
+        """
+        Get DOM mainboard ID for a given string, position.  Raise DOMNotInConfigException
+        if DOM is missing
+        """
+        for d in self.domlist:
+            if self.stringOf.has_key(d)   and self.posOf.has_key(d) and \
+               string == self.stringOf[d] and pos == self.posOf[d]:
+                return str(d)
+        raise DOMNotInConfigException()
+        
 if __name__ == "__main__":
     p = optparse.OptionParser()
     p.add_option("-l", "--list-configs", action="store_true", dest="doList",
@@ -246,14 +271,13 @@ if __name__ == "__main__":
 
     if(opt.toCheck):
         checkForValidConfig(configDir, opt.toCheck)
-        #raise SystemExit
+        raise SystemExit
     
-    raise SystemExit
-
     # Code for testing:
-    configName = "sps-inice-18str-icetop-001"
+    configName = "sim5str"
 
-    for i in range(1,2):
+    for i in range(4):
+        print "Trial %d config %s" % (i, configName)
         dc = DAQConfig(configName, configDir)
         print "Number of DOMs in configuration: %s" % dc.nDOMs()
         for hubID in dc.hubIDs():
@@ -262,5 +286,4 @@ if __name__ == "__main__":
             print "Configuration includes %s" % kind
         for comp in dc.components():
             print "Configuration requires %s" % comp
-
 

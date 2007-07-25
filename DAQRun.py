@@ -48,6 +48,7 @@ from ClusterConfig import *
 
 class RequiredComponentsNotAvailableException(Exception): pass
 class IncorrectDAQState                      (Exception): pass
+class InvalidFlasherArgList                  (Exception): pass
 
 class RunStats:
     def __init__(self, runNum=None, startTime=None, stopTime=None, physicsEvents=None,
@@ -141,6 +142,34 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         elif self.catchAllLogger:
             self.catchAllLogger.localAppend(m)
 
+    def validateFlashingDoms(config, domlist):
+        "Make sure flasher arguments are valid and convert names or string/pos to mbid if needed"        
+        l = [] # Create modified list of arguments for downstream processing
+        for args in domlist:
+            # Look for (dommb, f0, ..., f4) or (name, f0, ..., f4)
+            if len(args) == 6:
+                domid = args[0]
+                if not config.hasDOM(domid):
+                    # Look by DOM name
+                    try:
+                        args[0] = config.getIDbyName(domid)
+                    except DAQConfig.DOMNotInConfigException, e:
+                        raise InvalidFlasherArgList("DOM %s not found in config!" % domid)
+            # Look for (str, pos, f0, ..., f4)
+            elif len(args) == 7:
+                pos    = args[1]
+                string = args.pop(0)
+                try:
+                    args[0] = config.getIDbyStringPos(string, pos)
+                except DAQConfig.DOMNotInConfigException, e:
+                    raise InvalidFlasherArgList("DOM at %s-%s not found in config!" %
+                                                (string, pos))
+            else:
+                raise InvalidFlasherArgList("Too many args in %s" % str(args))
+            l.append(args)
+        return l
+    validateFlashingDoms = staticmethod(validateFlashingDoms)
+    
     def parseComponentName(componentString):
         "Find component name in string returned by CnCServer"
         match = search(r'ID#(\d+) (\S+?)#(\d+) at (\S+?):(\d+) ', componentString)
@@ -621,6 +650,11 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             return 0
         
         if len(flashingDomsList) > 0:
+            try:
+                flashingDomsList = DAQRun.validateFlashingDoms(self.configuration, flashingDomsList)
+            except InvalidFlasherArgList, i:
+                self.logmsg("Subrun %d: invalid argument list ('%s')" % (subRunID, i))
+                return 0
             self.logmsg("Subrun %d: flashing DOMs (%s)" % (subRunID, str(flashingDomsList)))
         else:
             self.logmsg("Subrun %d: Got command to stop flashers" % subRunID)
