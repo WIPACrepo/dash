@@ -38,7 +38,7 @@ def dumpComp(comp, numList, indent):
                 break
             subStr = numStr[0:lineLen-frontLen]
             numStr = numStr[lineLen-frontLen:]
-            if numStr[0] == ' ':
+            if len(numStr) > 0 and numStr[0] == ' ':
                 numStr = numStr[1:]
             print front + subStr
             front = ' '*len(front)
