@@ -175,10 +175,30 @@ class RunSet:
         for c in self.set:
             c.configure(globalConfigName)
 
-        self.waitForStateChange(45)
+        waitLoop = 0
+        while True:
+            waitNum = 0
+            stDict = {}
+            for c in self.set:
+                stateStr = c.getState()
+                if stateStr != 'configuring' and stateStr != 'ready':
+                    waitNum += 1
+                    if not stDict.has_key(stateStr):
+                        stDict[stateStr] = 0
+                    stDict[stateStr] += 1
+
+            if waitNum == 0:
+                break
+            self.logmsg('Waiting for ' + str(waitNum) +
+                        ' components to start configuring: ' + str(stDict))
+            sleep(1)
+            waitLoop += 1
+            if waitLoop > 60:
+                break
+
+        self.waitForStateChange(30)
 
         self.state = 'ready'
-
         badList = self.listBadState()
         if len(badList) > 0:
             raise ValueError, 'Could not configure ' + str(badList)
