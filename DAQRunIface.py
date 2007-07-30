@@ -83,9 +83,23 @@ class DAQRunIface(object):
         "Get current DAQ state"
         return self.rpc.rpc_run_state()
 
-    def flasher(self, *info):
-        "Tell DAQ to flash DOMs"
-        pass
+    def flasher(self, subRunID, flashingDomsList):
+        """
+        
+        Tell DAQ to flash DOMs.  subRunID is 0, 1, ....  flashingDomsList is a list of
+        tuples in the form (domid,       brightness, window, delay, mask, rate)
+        or                 (dom_name,    "                                   ")
+        or                 (string, pos, "                                   ")
+
+        Return value is 1 if the operation succeeded (subrun successfully started),
+        else 0 (in which case, check the pDAQ logs for diagnostic information).
+        
+        """
+        if flashingDomsList == []:
+            print "Subrun %d: No DOMs to flash." % subRunID
+        else:
+            print "Subrun %d: DOMs to flash: %s" % (subRunID, str(flashingDomsList))
+        return self.rpc.rpc_flash(subRunID, flashingDomsList)
     
     def getSummary(self):
         "Get component summary from DAQRun"

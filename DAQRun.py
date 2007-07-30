@@ -21,6 +21,7 @@ from exc_string import *
 from shutil import move
 from GetIP import getIP
 from re import search
+from xmlrpclib import Fault
 import Rebootable
 import DAQConfig
 import datetime
@@ -30,6 +31,7 @@ import Daemon
 import socket
 import thread
 import os
+
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -46,6 +48,7 @@ from ClusterConfig import *
 
 class RequiredComponentsNotAvailableException(Exception): pass
 class IncorrectDAQState                      (Exception): pass
+class InvalidFlasherArgList                  (Exception): pass
 
 class RunStats:
     def __init__(self, runNum=None, startTime=None, stopTime=None, physicsEvents=None,
@@ -93,6 +96,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.register_function(self.rpc_daq_reboot)
         self.register_function(self.rpc_release_runsets)
         self.register_function(self.rpc_daq_summary_xml)
+        self.register_function(self.rpc_flash)
         self.log              = None
         self.runSetID         = None
         self.CnCLogReceiver   = None
@@ -138,6 +142,34 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         elif self.catchAllLogger:
             self.catchAllLogger.localAppend(m)
 
+    def validateFlashingDoms(config, domlist):
+        "Make sure flasher arguments are valid and convert names or string/pos to mbid if needed"        
+        l = [] # Create modified list of arguments for downstream processing
+        for args in domlist:
+            # Look for (dommb, f0, ..., f4) or (name, f0, ..., f4)
+            if len(args) == 6:
+                domid = args[0]
+                if not config.hasDOM(domid):
+                    # Look by DOM name
+                    try:
+                        args[0] = config.getIDbyName(domid)
+                    except DAQConfig.DOMNotInConfigException, e:
+                        raise InvalidFlasherArgList("DOM %s not found in config!" % domid)
+            # Look for (str, pos, f0, ..., f4)
+            elif len(args) == 7:
+                pos    = args[1]
+                string = args.pop(0)
+                try:
+                    args[0] = config.getIDbyStringPos(string, pos)
+                except DAQConfig.DOMNotInConfigException, e:
+                    raise InvalidFlasherArgList("DOM at %s-%s not found in config!" %
+                                                (string, pos))
+            else:
+                raise InvalidFlasherArgList("Too many args in %s" % str(args))
+            l.append(args)
+        return l
+    validateFlashingDoms = staticmethod(validateFlashingDoms)
+    
     def parseComponentName(componentString):
         "Find component name in string returned by CnCServer"
         match = search(r'ID#(\d+) (\S+?)#(\d+) at (\S+?):(\d+) ', componentString)
@@ -611,6 +643,28 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         "Returns 1 - use to see if object is reachable"
         return 1
 
+    def rpc_flash(self, subRunID, flashingDomsList):
+        if self.runState != "RUNNING" or self.runSetID == None:
+            self.logmsg("Warning: invalid state (%s) or runSet ID (%d), won't flash DOMs."
+                        % (self.runState, self.runSetID))
+            return 0
+        
+        if len(flashingDomsList) > 0:
+            try:
+                flashingDomsList = DAQRun.validateFlashingDoms(self.configuration, flashingDomsList)
+            except InvalidFlasherArgList, i:
+                self.logmsg("Subrun %d: invalid argument list ('%s')" % (subRunID, i))
+                return 0
+            self.logmsg("Subrun %d: flashing DOMs (%s)" % (subRunID, str(flashingDomsList)))
+        else:
+            self.logmsg("Subrun %d: Got command to stop flashers" % subRunID)
+        try:
+            self.cnc.rpccall("rpc_runset_subrun", self.runSetID, subRunID, flashingDomsList)
+        except Fault, f:
+            self.logmsg("CnCServer subrun transition failed: %s" % exc_string())
+            return 0
+        return 1
+    
     def rpc_start_run(self, runNumber, subRunNumber, configName):
         """
         Start a run

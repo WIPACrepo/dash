@@ -175,10 +175,30 @@ class RunSet:
         for c in self.set:
             c.configure(globalConfigName)
 
-        self.waitForStateChange(45)
+        waitLoop = 0
+        while True:
+            waitNum = 0
+            stDict = {}
+            for c in self.set:
+                stateStr = c.getState()
+                if stateStr != 'configuring' and stateStr != 'ready':
+                    waitNum += 1
+                    if not stDict.has_key(stateStr):
+                        stDict[stateStr] = 0
+                    stDict[stateStr] += 1
+
+            if waitNum == 0:
+                break
+            self.logmsg('Waiting for ' + str(waitNum) +
+                        ' components to start configuring: ' + str(stDict))
+            sleep(1)
+            waitLoop += 1
+            if waitLoop > 60:
+                break
+
+        self.waitForStateChange(30)
 
         self.state = 'ready'
-
         badList = self.listBadState()
         if len(badList) > 0:
             raise ValueError, 'Could not configure ' + str(badList)
@@ -420,6 +440,27 @@ class RunSet:
 
         self.runNumber = None
 
+    def subrun(self, id, data):
+        "Start all components in the runset"
+        if self.runNumber is None:
+            raise ValueError, "RunSet #" + str(self.id) + " is not running"
+
+        for c in self.set:
+            if c.isComponent("eventBuilder"):
+                c.prepareSubrun(id)
+
+        latestTime = None
+        for c in self.set:
+            if c.isComponent("stringHub"):
+                tStr = c.startSubrun(data)
+                t = long(tStr)
+                if latestTime is None or t > latestTime:
+                    latestTime = t
+
+        for c in self.set:
+            if c.isComponent("eventBuilder"):
+                c.commitSubrun(id, repr(latestTime))
+
     def waitForStateChange(self, timeoutSecs=TIMEOUT_SECS):
         waitList = self.set[:]
 
@@ -599,6 +640,14 @@ class DAQClient(CnCLogger):
         return "ID#%d %s#%d at %s:%d%s" % \
             (self.id, self.name, self.num, self.host, self.port, extraStr)
 
+    def commitSubrun(self, subrunNum, latestTime):
+        "Start marking events with the subrun number"
+        try:
+            return self.client.xmlrpc.commitSubrun(subrunNum, latestTime)
+        except Exception, e:
+            self.logmsg(exc_string())
+            return None
+
     def configure(self, configName=None):
         "Configure this component"
         try:
@@ -681,9 +730,9 @@ class DAQClient(CnCLogger):
 
         return csStr
 
-    def isComponent(self, name, num):
+    def isComponent(self, name, num=-1):
         "Does this component have the specified name and number?"
-        return self.name == name and self.num == num
+        return self.name == name and (num < 0 or self.num == num)
 
     def isSource(self):
         "TODO: Move responsibility for this to DAQComponent"
@@ -703,6 +752,14 @@ class DAQClient(CnCLogger):
     def monitor(self):
         "Return the monitoring value"
         return self.getState()
+
+    def prepareSubrun(self, subrunNum):
+        "Start marking events as bogus in preparation for subrun"
+        try:
+            return self.client.xmlrpc.prepareSubrun(subrunNum)
+        except Exception, e:
+            self.logmsg(exc_string())
+            return None
 
     def reset(self):
         "Reset component back to the idle state"
@@ -729,6 +786,14 @@ class DAQClient(CnCLogger):
         "Stop component processing DAQ data"
         try:
             return self.client.xmlrpc.stopRun()
+        except Exception, e:
+            self.logmsg(exc_string())
+            return None
+
+    def startSubrun(self, data):
+        "Send subrun data to stringHubs"
+        try:
+            return self.client.xmlrpc.startSubrun(data)
         except Exception, e:
             self.logmsg(exc_string())
             return None
@@ -1040,6 +1105,7 @@ class DAQServer(DAQPool):
             self.server.register_function(self.rpc_runset_start_run)
             self.server.register_function(self.rpc_runset_status)
             self.server.register_function(self.rpc_runset_stop_run)
+            self.server.register_function(self.rpc_runset_subrun)
             self.server.register_function(self.rpc_show_components)
 
     def createClient(self, name, num, host, port, mbeanPort, connectors):
@@ -1231,6 +1297,17 @@ class DAQServer(DAQPool):
 
         self.resetLog()
         runSet.resetLogging()
+
+        return "OK"
+
+    def rpc_runset_subrun(self, id, subrunId, subrunData):
+        "start a subrun with the specified runset"
+        runSet = self.findRunset(id)
+
+        if not runSet:
+            raise ValueError, 'Could not find runset#' + str(id)
+
+        runSet.subrun(subrunId, subrunData)
 
         return "OK"
 

@@ -15,6 +15,7 @@ from os import listdir, mkdir, environ, stat, popen, symlink, unlink
 from os.path import exists, isdir, abspath, basename
 from shutil import copy
 from re import *
+from exc_string import *
 
 def checkForRunningProcesses():
     c = popen("pgrep -fl 'python .+RunSummary.py'", "r")
@@ -80,8 +81,10 @@ def generateSnippet(snippetFile, runNum, starttime, startsec, stoptime, stopsec,
     if nEvents != None: evStr = nEvents
 
     rateStr = None
-    if dtsec > 0 and nEvents > 0: rateStr = str(nEvents/dtsec)
-    
+    try:
+       if dtsec > 0 and nEvents > 0: rateStr = "%2.2f" % (float(nEvents)/float(dtsec))
+    except TypeError, t:
+       rateStr = "???" 
     print >>snippet, """
     <tr>
     <td align=center>%d</td>
@@ -92,12 +95,12 @@ def generateSnippet(snippetFile, runNum, starttime, startsec, stoptime, stopsec,
     <td align=center bgcolor="eeeeee">%s</td>
     <td align=center>%s</td>
     <td align=center bgcolor="eeeeee">%s</td>
-    <td align=center>%s</td>
     <td align=center bgcolor=%s><a href="%s">%s</a></td>
+    <td align=left>%s</td>
     </tr>
     """ % (runNum, fmt(starttime), fmt(startsec), fmt(stoptime),
            fmt(stopsec), fmt(dtsec), evStr, fmt(rateStr),
-           configName, statusColor, runDir, status)
+           statusColor, runDir, status, configName)
     return
 
 def makeTable(files, name):
@@ -361,8 +364,8 @@ def main():
      <td align=center><b>Duration<br>(seconds)</b></td>
      <td align=center><b>Num.<br>Events</b></td>
      <td align=center><b>Rate<br>(Hz)</b></td>
-     <td align=center><b>Config</b></td>
      <td align=center><b>Status</b></td>
+     <td align=left><b>Config</b></td>
      <td><font color=grey>(Click on status link for run details)</font></td>
     </tr>
     """ % title
@@ -479,6 +482,7 @@ def main():
 
                         s = search(r'\]\s+(\d+).+?events collected', dashContents)
                         if s: nEvents = int(s.group(1))
+                        else: nEvents = 0
 
                     # Remember more precise unpacked location for link
                     if search(r'(daqrun\d+)/$', el): 
@@ -535,7 +539,10 @@ def main():
 
             # Write all summaries:
             if(skippedRun): print >>allSummaryFile, skipper
-            print >>allSummaryFile, getSnippetHtml(snippetFile)
+            try:
+                print >>allSummaryFile, getSnippetHtml(snippetFile)
+            except IOError, e:
+                print "WARNING: couldn't write snippet file (%s)" % exc_string()
             allSummaryFile.flush()
             
     print >>allSummaryFile, """

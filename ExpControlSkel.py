@@ -7,10 +7,11 @@ Started November, 2006
 """
 
 from DAQRunIface import DAQRunIface
-from os.path import join
+from os.path import join, exists
 from os import environ
 from datetime import *
 from sys import argv
+from re import search
 import optparse
 import time
 
@@ -40,12 +41,94 @@ def showXML(daqruniface):
     except KeyboardInterrupt, k: raise
     except Exception, e:
         print "getSummary failed: %s" % e
-                            
+        
+class SubRun:
+    FLASH = 1
+    DELAY = 2
+    def __init__(self, type, duration, id):
+        self.type     = type
+        self.duration = duration
+        self.id       = id
+        self.domlist  = []
+        
+    def addDOM(self, l):
+        self.domlist.append(l)
+        
+    def __str__(self):
+        type = "FLASHER"
+        if self.type == SubRun.DELAY: type = "DELAY"
+        s = "SubRun ID=%d TYPE=%s DURATION=%d\n" % (self.id, type, self.duration)
+        if self.type == SubRun.FLASH:
+            for m in self.domlist:
+                s += "%s\n" % m
+        return s
+
+    def flasherInfo(self):
+        if self.type != SubRun.FLASH: return None
+        l = []
+        for d in self.domlist:
+            l.append(d)
+        return l
+        
+class SubRunSet:
+    def __init__(self, fileName):
+        self.subruns = []
+        id = 0
+        sr = None
+        for l in open(fileName).readlines():
+            # Look for bare "delay lines"
+            m = search(r'delay (\d+)', l)
+            if m:
+                t = int(m.group(1))
+                self.subruns.append(SubRun(SubRun.DELAY, t, id))
+                id += 1
+                sr = None
+                continue
+            
+            m = search(r'flash (\d+)', l)
+            if m:
+                t = int(m.group(1))
+                sr = SubRun(SubRun.FLASH, t, id)
+                self.subruns.append(sr)
+                id += 1
+            m6 = search('^\s*(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
+            m7 = search('^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
+            if m7 and sr:
+                string = int(m7.group(1))
+                pos    = int(m7.group(2))
+                bright = int(m7.group(3))
+                window = int(m7.group(4))
+                delay  = int(m7.group(5))
+                mask   = int(m7.group(6), 16)
+                rate   = int(m7.group(7))
+                sr.addDOM((string, pos,  bright, window, delay, mask, rate))
+            elif m6 and sr:
+                mbid   = m6.group(1)
+                bright = int(m6.group(2))
+                window = int(m6.group(3))
+                delay  = int(m6.group(4))
+                mask   = int(m6.group(5), 16)
+                rate   = int(m6.group(6))
+                sr.addDOM((mbid, bright, window, delay, mask, rate))
+                
+    def __str__(self):
+        s = ""
+        for l in self.subruns:
+            s += str(l)+"\n"
+        return s
+
+    def next(self):
+        try:
+            return self.subruns.pop(0)
+        except IndexError:
+            return None
+
 def main():
     "Main program"
     p = optparse.OptionParser()
-    p.add_option("-c", "--config-name", action="store", type="string",      dest="configName")
+    p.add_option("-c", "--config-name",      action="store", type="string", dest="configName")
     p.add_option("-d", "--duration-seconds", action="store", type="int",    dest="duration")
+    p.add_option("-f", "--flasher-run",      action="store", type="string", dest="flasherRun")
     p.add_option("-n", "--num-runs",         action="store", type="int",    dest="numRuns")
     p.add_option("-p", "--remote-port",      action="store", type="int",    dest="portNum")
     p.add_option("-r", "--remote-node",      action="store", type="string", dest="nodeName")
@@ -57,6 +140,7 @@ def main():
                    numRuns     = 10000000,
                    portNum     = 9000,
                    duration    = 300,
+                   flasherRun  = None,
                    showXML     = False,
                    startRunNum = None,
                    configName  = "hub1001sim")
@@ -74,11 +158,16 @@ def main():
     # Connect to DAQ run server
     daqiface     = DAQRunIface(opt.nodeName, opt.portNum)
 
+    # Check for valid flasher input file
+    if opt.flasherRun and not exists(opt.flasherRun):
+        print "Flasher file '%s' doesn't exist!" % opt.flasherRun
+        raise SystemExit
+    
     # Check for valid confuration name
     if not daqiface.isValidConfig(opt.configName):
         print "Run configuration %s does not exist or is not valid!" % opt.configName
         raise SystemExit
-    
+
     subRunNumber = 0
     sleeptime    = 0.4
     xmlIval      = 5
@@ -86,6 +175,9 @@ def main():
     txml         = datetime.now()
     runNum       = startRunNum
     startTime    = None
+    lastStateChg = None
+    thisSubRun   = None
+    subRunSet    = None
 
     try:
         while True:
@@ -100,7 +192,7 @@ def main():
 
             if state == "STOPPED": # Try to start run
                 if runNum >= startRunNum + opt.numRuns: break
-
+                subRunSet = None # Reset state of subruns
                 print "Starting run %d..." % runNum
                 setLastRunNum(runFile, runNum)
                 try:
@@ -115,7 +207,39 @@ def main():
                 time.sleep(1)
                 state = updateStatus(state, daqiface.getState())
             if state == "RUNNING":
+                
+                doStop = False
                 if not startTime or tnow-startTime > timedelta(seconds=opt.duration):
+                    doStop = True
+
+                if opt.flasherRun:
+                    if lastStateChg == None: lastStateChg = tnow
+                    # Prep subruns 
+                    if subRunSet == None:
+                        subRunSet = SubRunSet(opt.flasherRun)
+                        thisSubRun = subRunSet.next()
+                        if thisSubRun.type == SubRun.FLASH:
+                            status = daqiface.flasher(thisSubRun.id, thisSubRun.flasherInfo())
+                            if status == 0: print "WARNING: flasher op failed, check pDAQ logs!"
+                        else:
+                            pass # Don't explicitly send signal if first transition
+                                 # is a delay
+                    # Handle transitions            
+                    dt = tnow - lastStateChg
+                    if dt > timedelta(seconds=thisSubRun.duration):
+                        print "-- subrun state change --"
+                        thisSubRun = subRunSet.next()
+                        if thisSubRun == None:
+                            doStop = True
+                        elif thisSubRun.type == SubRun.FLASH:
+                            status = daqiface.flasher(thisSubRun.id, thisSubRun.flasherInfo())
+                            if status == 0: print "WARNING: flasher op failed, check pDAQ logs!"
+                        else:
+                            status = daqiface.flasher(thisSubRun.id, [])
+                            if status == 0: print "WARNING: flasher op failed, check pDAQ logs!"
+                        lastStateChg = tnow
+
+                if doStop:
                     try:
                         daqiface.stop()
                         state = updateStatus(state, daqiface.getState())

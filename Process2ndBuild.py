@@ -22,7 +22,6 @@ def isTargetFile(f):
 
 def main():
     MAX_FILES_PER_TARBALL = 50
-    SLEEP_INTERVAL        = 60*5
     targetDir             = "/mnt/data/pdaqlocal"
     chdir(targetDir)
     # Make sure I'm not already running - so I can auto-restart out of crontab
@@ -43,15 +42,15 @@ def main():
                 if len(filesToTar) >= MAX_FILES_PER_TARBALL: break
             
             if len(filesToTar) == 0:
-                sleep(SLEEP_INTERVAL)
-                continue
-                
+                raise SystemExit
+            
             print filesToTar
             t = datetime.datetime.now()
             dateTag  = "%03d_%04d%02d%02d_%02d%02d%02d_%06d" % (0, t.year, t.month, t.day,
                                                                 t.hour, t.minute, t.second, 0)
             spadeTar = "SPS-pDAQ-2ndBld-%s.dat.tar" % dateTag
             moniLink = "SPS-pDAQ-2ndBld-%s.mon.tar" % dateTag
+            snLink   = "SPS-pDAQ-2ndBld-%s.sn.tar"  % dateTag
             moniSem  = "SPS-pDAQ-2ndBld-%s.msem"    % dateTag
             spadeSem = "SPS-pDAQ-2ndBld-%s.sem"     % dateTag
 
@@ -71,6 +70,10 @@ def main():
             # Create moni hard link
             print moniLink
             link(spadeTar, moniLink)
+
+            # Create sn hard link
+            print snLink
+            link(spadeTar, snLink)
             
             # Create spade .sem
             f = open(spadeSem, "w"); f.close()
