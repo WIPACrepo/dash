@@ -121,6 +121,9 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort, cncPo
     # The dir where all the "executable" jar files are
     binDir = join(metaDir, 'target', 'pDAQ-1.0.0-SNAPSHOT-dist.dir', 'bin')
 
+    # What is used when not verbose
+    quietStr = " < /dev/null 2>&1 > /dev/null"
+
     for node in clusterConfig.nodes:
         myIP = getIP(node.hostName)
         for comp in node.comps:
@@ -134,17 +137,13 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort, cncPo
             switches += " -c %s:%d" % (myIP, cncPort)
             switches += " -l %s:%d,%s" % (myIP, logPort, comp.logLevel)
             if not verbose:
-                switches += " 2>&1 > /dev/null"
+                switches += quietStr
 
             if node.hostName == "localhost": # Just run it
                 cmd = "java %s -jar %s %s &" % (jvmArgs, execJar, switches)
             else:                            # Have to ssh to run it
-                if comp.compName == "StringHub":
-                    cmd = "echo \"java %s -jar %s %s \" | ssh -T %s &" \
-                          % (jvmArgs, execJar, switches, node.hostName)
-                else:
-                    cmd = "ssh %s \'java %s -jar %s %s \' &" \
-                          % (node.hostName, jvmArgs, execJar, switches)
+                cmd = """ssh -n %s \'sh -c \"java %s -jar %s %s &\" %s &\'""" \
+                      % (node.hostName, jvmArgs, execJar, switches, not verbose and quietStr or "")
 
             if verbose: print cmd
             parallel.add(cmd)
