@@ -15,7 +15,7 @@ from RunWatchdog import RunWatchdog
 from DAQRPC import RPCClient, RPCServer
 from os.path import exists, abspath, join
 from Process import processList, findProcess
-from DAQLaunch import cyclePDAQ, getDeployedClusterConfig
+from DAQLaunch import cyclePDAQ, ClusterConfig, ConfigNotSpecifiedException
 from tarfile import TarFile
 from exc_string import *
 from shutil import move
@@ -852,25 +852,20 @@ if __name__ == "__main__":
         print "ERROR: More than one instance of DAQRun.py is already running!"
         raise SystemExit
 
-    dashDir          = join(metaDir, 'dash')
-    clusterConfigDir = join(metaDir, 'cluster-config')
     opt.configDir    = abspath(opt.configDir)
     opt.logDir       = abspath(opt.logDir)
     opt.spadeDir     = abspath(opt.spadeDir)
     if opt.copyDir: opt.copyDir = abspath(opt.copyDir)
 
-    readClusterConfig = getDeployedClusterConfig(join(clusterConfigDir, '.config'))
+    dashDir          = join(metaDir, 'dash')
 
-    # Choose configuration
-    clusterConfigName = "sim-localhost"
-    if readClusterConfig:
-        clusterConfigName = readClusterConfig
-    if opt.clusterConfigName:
-        clusterConfigName = opt.clusterConfigName
+    try:
+        clusterConfig = ClusterConfig(metaDir, opt.clusterConfigName, False,
+                                      False, True)
+    except ConfigNotSpecifiedException:
+        print "ERROR: No cluster configuration was found!"
+        raise SystemExit
 
-    clusterConfig = deployConfig(join(clusterConfigDir, 'src', 'main', 'xml'),
-                                 clusterConfigName)
-            
     if not exists(opt.configDir):
         print ("Configuration directory '%s' doesn't exist!  "+\
                "Use the -c option, or -h for help.") % opt.configDir

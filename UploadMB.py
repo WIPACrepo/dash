@@ -55,19 +55,8 @@ def main():
         print "Release file %s doesn't exist!\n\n" % releaseFile
         print usage
         raise SystemExit
-    
-    readClusterConfig = getDeployedClusterConfig(join(metaDir, 'cluster-config', '.config'))
 
-    # Choose configuration
-    configToUse = "sim-localhost"
-    if readClusterConfig:
-        configToUse = readClusterConfig
-    if opt.clusterConfigName:
-        configToUse = opt.clusterConfigName
-
-    clusterConfigDir = join(metaDir, 'cluster-config', 'src', 'main', 'xml')
-    # Get/parse cluster configuration
-    clusterConfig = deployConfig(clusterConfigDir, configToUse)
+    clusterConfig = ClusterConfig(metaDir, opt.clusterConfigName)
 
     hublist = clusterConfig.getHubNodes()
 

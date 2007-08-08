@@ -171,6 +171,9 @@ def doKill(doDAQRun, dryRun, dashDir, verbose, clusterConfig, killWith9):
 
     killJavaProcesses(dryRun, clusterConfig, verbose, killWith9)
     if verbose and not dryRun: print "DONE with killing Java Processes."
+
+    # clear the active configuration
+    clusterConfig.clearActiveConfig()
     
 def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
              configDir, logDir, spadeDir, copyDir, logPort, cncPort):
@@ -178,7 +181,8 @@ def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
     # Start DAQRun
     if doDAQRun:
         daqRun = join(dashDir, 'DAQRun.py')
-        options = "-r -f -c %s -l %s -s %s" % (configDir, logDir, spadeDir)
+        options = "-r -f -c %s -l %s -s %s -u %s" % \
+            (configDir, logDir, spadeDir, clusterConfig.configName)
         if copyDir: options += " -a %s" % copyDir
         if verbose:
             cmd = "%s %s -n &" % (daqRun, options)
@@ -204,6 +208,9 @@ def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
 
     startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort, cncPort, verbose)
     if verbose and not dryRun: print "DONE with starting Java Processes."
+
+    # remember the active configuration
+    clusterConfig.writeCacheFile(True)
     
 def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, copyDir, logPort, cncPort):
     "Completely cycle pDAQ except for DAQRun - can be used by DAQRun when cycling"
@@ -244,25 +251,12 @@ def main():
                    killOnly          = False)
     opt, args = p.parse_args()
 
-    readClusterConfig = getDeployedClusterConfig(join(metaDir, 'cluster-config', '.config'))
-    
-    # Choose configuration
-    configToUse = "sim-localhost"
-    if readClusterConfig:
-        configToUse = readClusterConfig
-    if opt.clusterConfigName:
-        configToUse = opt.clusterConfigName
-
     configDir = join(metaDir, 'config')
     logDir    = join(' ', 'mnt', 'data', 'pdaq', 'log').strip()
     logDirFallBack = join(metaDir, 'log')
     dashDir   = join(metaDir, 'dash')
-    clusterConfigDir = join(metaDir, 'cluster-config', 'src', 'main', 'xml')
 
-    if opt.doList: showConfigs(clusterConfigDir, configToUse); raise SystemExit
-
-    # Get/parse cluster configuration
-    clusterConfig = deployConfig(clusterConfigDir, configToUse)
+    clusterConfig = ClusterConfig(metaDir, opt.clusterConfigName, opt.doList)
 
     spadeDir  = clusterConfig.logDirForSpade
     # Assume non-fully-qualified paths are relative to metaproject top dir:
@@ -293,7 +287,7 @@ def main():
         system('rm -f %s' % join(logDir, 'catchall.log'))
     
     if opt.verbose:
-        print "CONFIG: %s" % configToUse
+        print "CONFIG: %s" % clusterConfig.configName
         print "NODES:"
         for node in clusterConfig.nodes:
             print "  %s(%s)" % (node.hostName, node.locName),
@@ -301,8 +295,13 @@ def main():
                 print "%s-%d " % (comp.compName, comp.compID),
             print
 
-    if not opt.skipKill: doKill(True, opt.dryRun, dashDir, opt.verbose,
-                                clusterConfig, opt.killWith9)
+    if not opt.skipKill:
+        try:
+            activeConfig = ClusterConfig(metaDir, None, False, False, True)
+            doKill(True, opt.dryRun, dashDir, opt.verbose, activeConfig,
+                   opt.killWith9)
+        except ConfigNotSpecifiedException:
+            if opt.killOnly: print >>sys.stderr, 'DAQ is not currently active'
     if not opt.killOnly: doLaunch(True, opt.dryRun, opt.verbose, clusterConfig,
                                   dashDir, configDir, logDir,
                                   spadeDir, copyDir, opt.logPort, opt.cncPort)
