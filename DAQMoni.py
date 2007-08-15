@@ -12,8 +12,10 @@ import datetime, sys
 from exc_string import *
 
 class MoniData(object):
-    def __init__(self, id, fname, addr, port):
+    def __init__(self, id, fname, name, daqID, addr, port):
         self.id = id
+        self.name = name
+        self.daqID = daqID
         self.addr = addr
         self.port = port
         if fname is None:
@@ -27,7 +29,7 @@ class MoniData(object):
             self.beanFields[bean] = self.client.mbean.listGetters(bean)
 
     def __str__(self):
-        return '%d: %s:%d' % (self.id, self.addr, self.port)
+        return '%s-%d' % (self.name, self.daqID)
 
     def monitor(self, now):
         for b in self.beanFields.keys():
@@ -59,7 +61,7 @@ class DAQMoni(object):
                                                                                 rpcAddrOf[c],
                                                                                 mbeanPortOf[c]))
                 try:
-                    md = MoniData(c, fname, rpcAddrOf[c], mbeanPortOf[c])
+                    md = MoniData(c, fname, shortNameOf[c], daqIDof[c], rpcAddrOf[c], mbeanPortOf[c])
                     self.moniList[c] = md
                 except Exception, e:
                     self.logmsg("Couldn't create monitoring output (%s) for component %d!" % (fname, c))
@@ -97,7 +99,8 @@ class DAQMoni(object):
             try:
                 self.moniList[c].monitor(now)
             except Exception, e:
-                self.logmsg("Ignoring %s: %s" % (e, exc_string()))
+                self.logmsg("Ignoring %s: %s" % \
+                    (str(self.moniList[c]), exc_string()))
 
     def logmsg(self, m):
         "Log message to logger, but only if logger exists"
@@ -118,7 +121,7 @@ if __name__ == "__main__":
                 host = sys.argv[i][:colon]
                 port = sys.argv[i][colon+1:]
 
-                moni = MoniData(i, None, host, port)
+                moni = MoniData(i, None, 'unknown', 0, host, port)
                 moni.monitor('snapshot')
     if usage:
         print "Usage: DAQMoni.py host:beanPort [host:beanPort ...]"
