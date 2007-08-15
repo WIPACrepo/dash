@@ -259,7 +259,11 @@ class RunSet:
         for c in self.set:
             c.reset()
 
-        self.waitForStateChange()
+        try:
+            self.waitForStateChange(60)
+        except:
+            # give up after 60 seconds
+            pass
 
         self.state = 'idle'
 
@@ -325,7 +329,7 @@ class RunSet:
         for c in self.set:
             c.startRun(runNum)
 
-        self.waitForStateChange()
+        self.waitForStateChange(30)
 
         self.state = 'running'
 
