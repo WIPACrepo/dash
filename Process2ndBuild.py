@@ -3,7 +3,7 @@
 import tarfile
 import datetime
 from sys import argv
-from os import popen, listdir, chdir, link, unlink, stat
+from os import popen, listdir, chdir, link, unlink, stat, chmod
 from time import sleep
 from os.path import basename, join, exists
 from re import search
@@ -74,6 +74,7 @@ def main():
             # Create sn hard link
             print snLink
             link(spadeTar, snLink)
+            chmod(snLink, 0666); # So that Alex can delete if he's not running as pdaq
             
             # Create spade .sem
             f = open(spadeSem, "w"); f.close()
