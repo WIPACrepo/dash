@@ -189,6 +189,13 @@ def makeRunReport(snippetFile, dashFile, infoPat, runInfo, configName,
     makeSummaryHtml(absRunDir, runNum, configName, status, nEvents,
                     starttime, startsec, stoptime, stopsec, dtsec)
 
+def escapeBraces(txt):
+    """
+    Escape HTML control characters '<' and '>' so that preformatted text appears
+    correctly in a Web page.
+    """
+    return txt.replace(">","&GT;").replace("<","&LT;")
+
 def makeSummaryHtml(logLink, runNum, configName, status, nEvents,
                     starttime, startsec, stoptime, stopsec, dtsec):
     
@@ -240,7 +247,7 @@ def makeSummaryHtml(logLink, runNum, configName, status, nEvents,
     dashlog = logLink+"/dash.log"
     if exists(dashlog):
         print >>html, "<PRE>"
-        print >>html, open(dashlog).read()
+        print >>html, escapeBraces(open(dashlog).read())
         print >>html, "</PRE>"
         
     print >>html, "</TD></TR></TABLE>"
