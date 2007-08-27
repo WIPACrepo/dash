@@ -1079,16 +1079,13 @@ class DAQServer(DAQPool):
         if testOnly:
             self.server = None
         else:
-            notify = True
             while True:
                 try:
                     self.server = RPCServer(self.port)
                     break
                 except socket.error, e:
-                    if notify:
-                        self.logmsg("Couldn't create server socket: %s" % e)
-                    notify = False
-                    sleep(3)
+                    self.logmsg("Couldn't create server socket: %s" % e)
+                    raise SystemExit
 
         if self.server:
             self.server.register_function(self.rpc_close_log)
