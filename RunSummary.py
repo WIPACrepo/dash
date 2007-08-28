@@ -12,10 +12,11 @@ import datetime
 import time
 from sys import stderr
 from os import listdir, mkdir, environ, stat, popen, symlink, unlink
-from os.path import exists, isdir, abspath, basename
+from os.path import exists, isdir, abspath, basename, join
 from shutil import copy
 from re import *
 from exc_string import *
+from tarfile import TarFile
 
 def checkForRunningProcesses():
     c = popen("pgrep -fl 'python .+RunSummary.py'", "r")
@@ -62,6 +63,8 @@ def getStatusColor(status):
     statusColor = "EFEFEF"
     if status == "FAIL":
         statusColor = "FF3300"
+    elif status == "INCOMPLETE":
+        statusColor = "FF9999"
     elif status == "SUCCESS":
         statusColor = "CCFFCC"
     return statusColor
@@ -72,19 +75,18 @@ def fmt(s):
 
 def generateSnippet(snippetFile, runNum, starttime, startsec, stoptime, stopsec, dtsec,
                     configName, runDir, status, nEvents):
-        
     snippet = open(snippetFile, 'w')
     
     statusColor = getStatusColor(status)
     
-    evStr = ""
+    evStr = "?"
     if nEvents != None: evStr = nEvents
 
     rateStr = None
     try:
        if dtsec > 0 and nEvents > 0: rateStr = "%2.2f" % (float(nEvents)/float(dtsec))
     except TypeError, t:
-       rateStr = "???" 
+       rateStr = "?"
     print >>snippet, """
     <tr>
     <td align=center>%d</td>
@@ -163,18 +165,23 @@ def makeRunReport(snippetFile, dashFile, infoPat, runInfo, configName,
     if not stoptime:
         stoptime = dashTime(getDashEvent(dashFile, r'Recovering from failed run'))
     if not stoptime:
-        stoptime = dashTime(getDashEvent(dashfile, r'Failed to start run'))
-    if not stoptime: print "WARNING: no stop time!"; return
+        stoptime = dashTime(getDashEvent(dashFile, r'Failed to start run'))
+    if not stoptime:
+        print "WARNING: no stop time for %s!" % dashFile
+        startsec = None
+        stopsec  = None
+        dtsec    = None
+    else:
+        j0 = jan0(stoptime.year)
+        startsec = dtSeconds(j0, starttime)
+        stopsec  = dtSeconds(j0, stoptime)
+        dtsec    = dtSeconds(starttime, stoptime)
 
-    j0 = jan0(stoptime.year)
-    startsec = dtSeconds(j0, starttime)
-    stopsec  = dtSeconds(j0, stoptime)
-    dtsec    = dtSeconds(starttime, stoptime)
-
-    # print "%s [%s] -(%s seconds)-> %s [%s]" % (starttime, startsec, dtsec, stoptime, stopsec)
-        
     match = search(infoPat, runInfo)
-    if not match: return
+    if not match:
+        print "WARNING: run info from file name (%s) doesn't match canonical pattern (%s), skipping!" % \
+              (runInfo, infoPat)              
+        return
     runNum = int(match.group(1))
     year   = int(match.group(2))
     month  = int(match.group(3))
@@ -256,14 +263,6 @@ def makeSummaryHtml(logLink, runNum, configName, status, nEvents,
 
 infoPat = r'(\d+)_(\d\d\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)_(\d+)'
 
-def getTarFileSubset(l):
-    ret = []
-    for f in l:
-        if not search("SPS-pDAQ-run.+?.tar", f): continue
-        if search(infoPat, f): ret.append(f)
-    return ret
-
-
 def cmp(a, b):
     amatch = search(infoPat, a)
     bmatch = search(infoPat, b)
@@ -278,15 +277,45 @@ def cmp(a, b):
 def getSnippetHtml(snippetFile):
     return open(snippetFile).read()
 
-def traverseList(dir):
+def processInclusionDir(dir):
+    """
+    Prep 'included-by-hand' directories so that they look like SPADEd tarballs;
+    do the best we can, pick the last log time from dash.log to name the tarball
+    """
+    l = listdir(dir)
+    for dirfile in l:
+        m = search(r'^daqrun(\d+)$', dirfile)
+        if m:
+            run = int(m.group(1))
+            dashFile = join(dir, dirfile, 'dash.log')
+            if exists(dashFile):
+                tarFile = None
+                for f in open(dashFile).readlines():
+                    p = search(r'^DAQRun \[(\d+)-(\d+)-(\d+) (\d+):(\d+):(\d+)', f)
+                    if p:
+                        tarFile = join(dir, "SPS-pDAQ-run-%d_%04d%02d%02d_%02d%02d%02d_000000.dat.tar" % \
+                                       (run,
+                                        int(p.group(1)),
+                                        int(p.group(2)),
+                                        int(p.group(3)),
+                                        int(p.group(4)),
+                                        int(p.group(5)),
+                                        int(p.group(6))))
+                if tarFile and not exists(tarFile): # !
+                    tf = TarFile(tarFile, "w")
+                    tf.add(join(dir, dirfile), dirfile, True)
+                    tf.close()
+        
+def recursiveGetTarFiles(dir):
     l = listdir(dir)
     ret = []
     for f in l:
         fq = "%s/%s" % (dir, f)
         if isdir(fq):
-            ret = ret + traverseList(fq)
+            ret += recursiveGetTarFiles(fq)
         else:
-            ret.append("%s/%s" % (dir, f))
+            if search("SPS-pDAQ-run-%s" % infoPat, f):
+                ret.append("%s/%s" % (dir, f))
     return ret
 
 def makePlaceHolderFile(shortName, dir, size):
@@ -317,6 +346,9 @@ def main():
                                         action="store", type="float",  dest="maxFileMegs")
     p.add_option("-r", "--remove-intermediate-tarballs",
                                         action="store_true",           dest="removeTars")
+    p.add_option("-p", "--process-inclusions",
+                                        action="store", type="string", dest="inclusionDir")
+    
     p.set_defaults(spadeDir       = "/mnt/data/spade/localcopies/daq",
                    outputDir      = "%s/public_html/daq-reports" % environ["HOME"],
                    verbose        = False,
@@ -325,6 +357,7 @@ def main():
                    useSymlinks    = False,
                    ignoreExisting = False,
                    removeTars     = False,
+                   inclusionDir   = False,
                    oldestTime     = 100000,
                    replaceAll     = False)
 
@@ -338,6 +371,10 @@ def main():
         print "Can't find %s... giving up." % opt.spadeDir
         raise SystemExit
 
+    if opt.inclusionDir and not exists(opt.inclusionDir):
+        print "Can't find inclusion dir %s... giving up." % opt.inclusionDir
+        raise SystemExit
+    
     check_make_or_exit(opt.outputDir)
 
     latestTime = getLatestFileTime(opt.spadeDir)
@@ -380,9 +417,12 @@ def main():
     print >>allSummaryFile, top
     print >>firstSummaryFile, top
 
-    l = traverseList(opt.spadeDir)
-    tarlist = getTarFileSubset(l)
+    tarlist = recursiveGetTarFiles(opt.spadeDir)
+    if opt.inclusionDir:
+        processInclusionDir(opt.inclusionDir)
+        tarlist += recursiveGetTarFiles(opt.inclusionDir)
     tarlist.sort(cmp)
+
     numRuns          = 0
     maxFirstFileRuns = 100
     prevRun          = None
@@ -489,7 +529,6 @@ def main():
 
                         s = search(r'\]\s+(\d+).+?events collected', dashContents)
                         if s: nEvents = int(s.group(1))
-                        else: nEvents = 0
 
                     # Remember more precise unpacked location for link
                     if search(r'(daqrun\d+)/$', el): 
@@ -502,10 +541,9 @@ def main():
                     if opt.verbose: print "REMOVING %s..." % datTar
                     unlink(datTar)
                     
-                if status == None or configName == None:
-                    #print "SKIPPED null run %s" % outDir
-                    continue
-                    
+                if configName == None: continue
+                if status == None: status = "INCOMPLETE"
+                
                 # Make HTML snippet for run summaries
                 makeRunReport(snippetFile, dashFile, infoPat, runInfoString, 
                               configName, status, nEvents, runDir+"/"+linkDir,
@@ -549,7 +587,7 @@ def main():
             try:
                 print >>allSummaryFile, getSnippetHtml(snippetFile)
             except IOError, e:
-                print "WARNING: couldn't write snippet file (%s)" % exc_string()
+                print "WARNING: couldn't read snippet file (%s)" % exc_string()
             allSummaryFile.flush()
             
     print >>allSummaryFile, """
