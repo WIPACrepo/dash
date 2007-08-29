@@ -302,8 +302,9 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         # Log file is already defined since STARTING state does not get invoked otherwise
         # Set up logger for CnCServer and required components
         self.log = logCollector(runNum, logDir)
-        self.logmsg("Starting run with run number %d, config name %s"
-                    % (runNum, configName))
+        self.logmsg("Starting run %d..." % runNum)
+        self.logmsg("Run configuration: %s" % configName)
+        self.logmsg("Cluster configuration: %s" % self.clusterConfig.configName)
         self.configureCnCLogging(cncrpc, self.ip, 6667, self.log.logPath)
 
     def queue_for_spade(self, spadeDir, copyDir, logTopLevel, runNum, runTime, runDuration):
