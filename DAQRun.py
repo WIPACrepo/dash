@@ -468,20 +468,25 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             self.logmsg("Exception in monitoring: %s" % exc_string())
             return False
 
-        try:
-            if self.watchdog and self.watchdog.timeToWatch():
-                healthy = self.watchdog.doWatch()
-                if healthy:
-                    DAQRun.unHealthyCount = 0
-                else:
-                    DAQRun.unHealthyCount += 1
-                    if DAQRun.unHealthyCount >= DAQRun.MAX_UNHEALTHY_COUNT:
+        if self.watchdog:
+            if self.watchdog.inProgress():
+                if self.watchdog.caughtError():
+                    self.watchdog.clearThread()
+                    return False
+
+                if self.watchdog.isDone():
+                    healthy = self.watchdog.isHealthy()
+                    self.watchdog.clearThread()
+                    if healthy:
                         DAQRun.unHealthyCount = 0
-                        return False
-                    
-        except Exception, e:
-            self.logmsg("Exception in run watchdog: %s" % exc_string())
-            return False
+                    else:
+                        DAQRun.unHealthyCount += 1
+                        if DAQRun.unHealthyCount >= DAQRun.MAX_UNHEALTHY_COUNT:
+                            DAQRun.unHealthyCount = 0
+                            return False
+            elif self.watchdog.timeToWatch():
+                self.watchdog.startWatch()
+
         return True
 
     def updateRunStats(self):

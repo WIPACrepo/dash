@@ -10,7 +10,7 @@
 
 from DAQLog import *
 from DAQRPC import RPCClient
-import datetime
+import datetime, threading
 from exc_string import *
 
 class ThresholdWatcher(object):
@@ -224,6 +224,26 @@ class WatchData(object):
 
 class BeanFieldNotFoundException(Exception): pass
 
+class WatchThread(threading.Thread):
+    def __init__(self, watchdog):
+        self.watchdog = watchdog
+        self.done = False
+        self.error = False
+        self.healthy = False
+
+        threading.Thread.__init__(self)
+
+        self.setName('RunWatchdog')
+
+    def run(self):
+        try:
+            self.healthy = self.watchdog.realWatch()
+            self.done = True
+        except Exception:
+            self.watchdog.logmsg("Exception in run watchdog: %s" %
+                                 exc_string())
+            self.error = True
+
 class RunWatchdog(object):
     def __init__(self, daqLog, interval, IDs, shortNameOf, daqIDof, rpcAddrOf, mbeanPortOf):
         self.log         = daqLog
@@ -234,6 +254,7 @@ class RunWatchdog(object):
         self.IDs         = IDs
         self.stringHubs  = []
         self.soloComps   = []
+        self.thread      = None
 
         iniceTrigger  = None
         icetopTrigger  = None
@@ -338,6 +359,7 @@ class RunWatchdog(object):
         return False
 
     def timeToWatch(self):
+        if self.inProgress(): return False
         if not self.tlast: return True
         now = datetime.datetime.now()
         dt  = now - self.tlast
@@ -381,8 +403,7 @@ class RunWatchdog(object):
                 except Exception, e:
                     self.logmsg(str(comp) + ' thresholds: ' + exc_string())
 
-    def doWatch(self):
-        self.tlast = datetime.datetime.now()
+    def realWatch(self):
         starved = []
         stagnant = []
         threshold = []
@@ -416,6 +437,26 @@ class RunWatchdog(object):
         #    self.logmsg('** Run watchdog reports all components are healthy')
 
         return healthy
+
+    def startWatch(self):
+        self.tlast = datetime.datetime.now()
+        self.thread = WatchThread(self)
+        self.thread.start()
+
+    def inProgress(self):
+        return self.thread is not None
+
+    def isDone(self):
+        return self.thread is not None and self.thread.done
+
+    def isHealthy(self):
+        return self.thread is not None and self.thread.healthy
+
+    def caughtError(self):
+        return self.thread is not None and self.thread.error
+
+    def clearThread(self):
+        self.thread = None
 
     def logmsg(self, m):
         "Log message to logger, but only if logger exists"
