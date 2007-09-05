@@ -186,7 +186,7 @@ class WatchData(object):
                               lessThan)
         self.thresholdFields[beanName].append(tw)
 
-    def checkList(self, list, now):
+    def checkList(self, list):
         unhealthy = []
         for b in list:
             badList = self.checkValues(list[b])
@@ -356,7 +356,7 @@ class RunWatchdog(object):
     def checkComp(self, comp, starved, stagnant, threshold):
         isProblem = False
         try:
-            badList = comp.checkList(comp.inputFields, self.tlast)
+            badList = comp.checkList(comp.inputFields)
             if badList is not None:
                 starved += badList
                 isProblem = True
@@ -365,7 +365,7 @@ class RunWatchdog(object):
 
         if not isProblem:
             try:
-                badList = comp.checkList(comp.outputFields, self.tlast)
+                badList = comp.checkList(comp.outputFields)
                 if badList is not None:
                     stagnant += badList
                     isProblem = True
@@ -374,7 +374,7 @@ class RunWatchdog(object):
 
             if not isProblem:
                 try:
-                    badList = comp.checkList(comp.thresholdFields, self.tlast)
+                    badList = comp.checkList(comp.thresholdFields)
                     if badList is not None:
                         threshold += badList
                         isProblem = True
