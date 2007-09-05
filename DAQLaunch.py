@@ -60,7 +60,7 @@ componentDB = { "eventBuilder"      : \
                     },
                 "StringHub"         : \
                     { "ejar"     : "StringHub-1.0.0-SNAPSHOT-comp.jar",
-                      "jvm_args" : "-Xmx1024m -Dicecube.daq.bindery.StreamBinder.prescale=1",
+                      "jvm_args" : "-Xmx350m -Dicecube.daq.bindery.StreamBinder.prescale=1",
                     },
               }
 
