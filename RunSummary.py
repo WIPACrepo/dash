@@ -526,6 +526,9 @@ def main():
 
                         s = search(r'config name (.+?)\n', dashContents)
                         if s: configName = s.group(1)
+                        else:
+                            s = search(r'Run configuration: (.+?)\n', dashContents)
+                            if s: configName = s.group(1)
 
                         s = search(r'\]\s+(\d+).+?events collected', dashContents)
                         if s: nEvents = int(s.group(1))
@@ -540,10 +543,10 @@ def main():
                 if extractedTarball and opt.removeTars:
                     if opt.verbose: print "REMOVING %s..." % datTar
                     unlink(datTar)
-                    
+
                 if configName == None: continue
                 if status == None: status = "INCOMPLETE"
-                
+
                 # Make HTML snippet for run summaries
                 makeRunReport(snippetFile, dashFile, infoPat, runInfoString, 
                               configName, status, nEvents, runDir+"/"+linkDir,
