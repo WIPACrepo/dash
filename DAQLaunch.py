@@ -129,21 +129,24 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort, cncPo
         for comp in node.comps:
             execJar = join(binDir, getExecJar(comp.compName))
 
+            javaCmd = "java"
             jvmArgs = getJVMArgs(comp.compName)
-            if comp.compName == "StringHub":
-                jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % comp.compID
-
             switches = "-g %s" % configDir
             switches += " -c %s:%d" % (myIP, cncPort)
             switches += " -l %s:%d,%s" % (myIP, logPort, comp.logLevel)
             if not verbose:
                 switches += quietStr
 
+            if comp.compName == "StringHub":
+                #javaCmd = "/usr/java/jdk1.5.0_07/bin/java"
+                jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % comp.compID
+                #switches += " -M 10"
+
             if node.hostName == "localhost": # Just run it
-                cmd = "java %s -jar %s %s &" % (jvmArgs, execJar, switches)
+                cmd = "%s %s -jar %s %s &" % (javaCmd, jvmArgs, execJar, switches)
             else:                            # Have to ssh to run it
-                cmd = """ssh -n %s \'sh -c \"java %s -jar %s %s &\" %s &\'""" \
-                      % (node.hostName, jvmArgs, execJar, switches, not verbose and quietStr or "")
+                cmd = """ssh -n %s \'sh -c \"%s %s -jar %s %s &\" %s &\'""" \
+                      % (node.hostName, javaCmd, jvmArgs, execJar, switches, not verbose and quietStr or "")
 
             if verbose: print cmd
             parallel.add(cmd)
