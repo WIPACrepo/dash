@@ -29,15 +29,19 @@ def main():
     
     while True:
         try:
-            # Get list of available files
-            allfiles   = listdir(targetDir)
-            allfiles.sort(lambda x, y: (cmp(stat(x)[8],stat(y)[8])))
+            # Get list of available files, matching target tar pattern:
+            allFiles = listdir(targetDir)
+            matchingFiles = []
+            for f in allFiles:
+                if isTargetFile(f): 
+                    matchingFiles.append(f)
+                
+            matchingFiles.sort(lambda x, y: (cmp(stat(x)[8],stat(y)[8])))
             
             # Make list for tarball - restrict total number of files
             filesToTar = []
-            for f in allfiles:
-                # print f
-                if not isTargetFile(f): continue
+            for f in matchingFiles:
+                if not isTargetFile(f): continue # Redundant
                 filesToTar.append(f)
                 if len(filesToTar) >= MAX_FILES_PER_TARBALL: break
             
