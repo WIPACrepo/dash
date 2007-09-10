@@ -226,6 +226,15 @@ class RunSet:
         self.runNumber = None
         self.state = 'destroyed'
 
+    def getEvents(self, subrunNumber):
+        "Get the number of events in the specified subrun"
+        for c in self.set:
+            if c.isComponent("eventBuilder"):
+                return c.getEvents(subrunNumber)
+
+        raise ValueError, 'RunSet #' + str(self.id) + \
+            ' does not contain an event builder'
+
     def isRunning(self):
         return self.state is not None and self.state == 'running'
 
@@ -686,6 +695,14 @@ class DAQClient(CnCLogger):
             self.logmsg(exc_string())
             return None
 
+    def getEvents(self, subrunNumber):
+        "Get the number of events in the specified subrun"
+        try:
+            return self.client.xmlrpc.getEvents(subrunNumber)
+        except Exception, e:
+            self.logmsg(exc_string())
+            return None
+
     def getOrder(self):
         return self.cmdOrder
 
@@ -1098,6 +1115,7 @@ class DAQServer(DAQPool):
             self.server.register_function(self.rpc_register_component)
             self.server.register_function(self.rpc_runset_break)
             self.server.register_function(self.rpc_runset_configure)
+            self.server.register_function(self.rpc_runset_events)
             self.server.register_function(self.rpc_runset_list)
             self.server.register_function(self.rpc_runset_listIDs)
             self.server.register_function(self.rpc_runset_log_to)
@@ -1203,6 +1221,18 @@ class DAQServer(DAQPool):
         runSet.configure(globalConfigName)
 
         return "OK"
+
+    def rpc_runset_events(self, id, subrunNumber:
+        """
+        get the number of events for the specified subrun
+        from the specified runset
+        """
+        runSet = self.findRunset(id)
+
+        if not runSet:
+            raise ValueError, 'Could not find runset#' + str(id)
+
+        return runSet.getEvents(subrunNumber)
 
     def rpc_runset_listIDs(self):
         """return a list of active runset IDs"""
