@@ -447,7 +447,7 @@ def main():
     <table>
     <tr>
      <td>
-      <img src="/net/user/pdaq/daq-reports/images/header.png">
+      <img src="/net/user/pdaq/daq-reports/images/header.gif">
      </td>
      <td valign="bottom">
       <A HREF="http://internal.icecube.wisc.edu/status/detector-summary.xml">Current SPS Status</A><br>
