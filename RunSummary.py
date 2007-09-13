@@ -10,13 +10,57 @@ import tarfile
 import optparse
 import datetime
 import time
-from sys import stderr
+from sys import stderr, argv
 from os import listdir, mkdir, environ, stat, popen, symlink, unlink
 from os.path import exists, isdir, abspath, basename, join
 from shutil import copy
 from re import *
 from exc_string import *
 from tarfile import TarFile
+
+class SnippetRunRec:
+    """
+    Storage class to store, parse and massage HTML snippets
+    """
+    def __init__(self, fileName):
+        # Snippet sample for illustrative purposes only, to help explain the regexp below:
+        sample_snippet_html = """
+
+<tr>
+<td align=center>100887</td>
+<td align=center bgcolor="eeeeee">2007-02-22&nbsp;00:56:43.728586</td>
+<td align=center><font size=-2>4496203</font></td>
+<td align=center bgcolor="eeeeee">2007-02-22&nbsp;01:01:44.038826</td>
+<td align=center><font size=-2>4496504</font></td>
+<td align=center bgcolor="eeeeee">300</td>
+<td align=center>20207</td>
+<td align=center bgcolor="eeeeee">67.36</td>
+<td align=center bgcolor=CCFFCC><a href="100887_20070222_010150_000306/daqrun100887//run.html">SUCCESS</a></td>
+<td align=left>sps-icecube-only-001</td>
+</tr>
+"""
+
+        self.txt      = open(fileName).read()
+        self.config   = None
+        self.startDay = None
+        self.endDay   = None
+        m = search(r'(\d\d\d\d\-\d\d\-\d\d).nbsp.+?(\d\d\d\d\-\d\d\-\d\d).nbsp.+?<td.+?>(\S+?)</td>\s*?</tr>', self.txt, S)
+        if m:
+            self.startDay = m.group(1)
+            self.endDay   = m.group(2)
+            self.config   = m.group(3)
+    
+    def html(self, lastConfig, lastStartDay):
+        """
+        Return HTML, but grey out repeated dates and configurations for visual clarity
+        """
+        grey = "999999"
+        ret = self.txt
+        if lastConfig == self.config and self.config != None:
+            ret = sub(self.config, "<FONT COLOR=%s>%s</FONT>" % (grey, self.config), ret)
+        if lastStartDay == self.startDay and self.startDay != None:
+            ret = sub(self.startDay, "<FONT COLOR=%s>%s</FONT>" % (grey, self.startDay), ret)
+        return ret
 
 def checkForRunningProcesses():
     c = popen("pgrep -fl 'python .+RunSummary.py'", "r")
@@ -274,9 +318,6 @@ def cmp(a, b):
         if ia != ib: return ib-ia
     return 0
 
-def getSnippetHtml(snippetFile):
-    return open(snippetFile).read()
-
 def processInclusionDir(dir):
     """
     Prep 'included-by-hand' directories so that they look like SPADEd tarballs;
@@ -381,8 +422,12 @@ def main():
     doneTime   = getDoneFileTime(opt.outputDir)
     if latestTime and doneTime and latestTime < doneTime and not opt.replaceAll: raise SystemExit
 
-    runDir = opt.outputDir+"/runs"
+    runDir = join(opt.outputDir, "runs")
     check_make_or_exit(runDir)
+
+    picFile = "/net/user/pdaq/daq-reports/images/icecube_pale.jpg"
+    if not exists(picFile):
+        print "%s doesn't exist!" % picFile; raise SystemExit
 
     firstSummaryHtml = runDir + "/index.html"
     allSummaryHtml   = runDir + "/all.html"
@@ -398,21 +443,34 @@ def main():
     top = """
     <head><title>%s</title></head>
     <html>
+    <body background='%s'>
     <table>
     <tr>
-     <td align=center><b>Run</b></td>
-     <td align=center><b>Run<br>Start<br>Time</b></td>
-     <td align=center><b>(since<br>Jan0)</b></td>
-     <td align=center><b>Run<br>Stop<br>Time</b></td>
-     <td align=center><b>(since<br>Jan0)</b></td>
-     <td align=center><b>Duration<br>(seconds)</b></td>
-     <td align=center><b>Num.<br>Events</b></td>
-     <td align=center><b>Rate<br>(Hz)</b></td>
-     <td align=center><b>Status</b></td>
-     <td align=left><b>Config</b></td>
-     <td><font color=grey>(Click on status link for run details)</font></td>
+     <td>
+      <img src="/net/user/pdaq/daq-reports/images/header.png">
+     </td>
+     <td valign="bottom">
+      <A HREF="http://internal.icecube.wisc.edu/status/detector-summary.xml">Current SPS Status</A><br>
+      <A HREF="http://internal.icecube.wisc.edu/status/detector-daily.xml">Daily SPS Status</A><br>
+      Detailed <A HREF="http://icecube.berkeley.edu/i3-monitoring/2007/monitor.shtml">Detector Monitoring</A> (UCB)
+     </td>
     </tr>
-    """ % title
+    </table>
+    <br>
+    <table>
+    <tr>
+     <td align=center><b><font size=-1>Run</font></b></td>
+     <td align=center><b><font size=-1>Run Start Time</font></b></td>
+     <td align=center><b><font size=-3>(since Jan0)</font></b></td>
+     <td align=center><b><font size=-1>Run Stop Time</font></b></td>
+     <td align=center><b><font size=-3>(since Jan0)</font></b></td>
+     <td align=center><b><font size=-1>Duration (seconds)</font></b></td>
+     <td align=center><b><font size=-1>Num. Events</font></b></td>
+     <td align=center><b><font size=-1>Rate (Hz)</font></b></td>
+     <td align=center><b><font size=-1>Status</font></b></td>
+     <td align=left><b><font size=-1>Config</font></b></td>
+    </tr>
+    """ % (title, picFile)
 
     print >>allSummaryFile, top
     print >>firstSummaryFile, top
@@ -426,6 +484,8 @@ def main():
     numRuns          = 0
     maxFirstFileRuns = 100
     prevRun          = None
+    prevConfig       = None
+    prevStartDay     = None
     
     for f in tarlist:
         prefix = 'SPS-pDAQ-run-'
@@ -573,14 +633,17 @@ def main():
             </TR>"""
             
             numRuns += 1
+            runRec = SnippetRunRec(snippetFile)
+            
             if numRuns < maxFirstFileRuns:
                 if(skippedRun): print >>firstSummaryFile, skipper
-                print >>firstSummaryFile, getSnippetHtml(snippetFile)
+                print >>firstSummaryFile, runRec.html(prevConfig, prevStartDay)
                 firstSummaryFile.flush()
             elif numRuns == maxFirstFileRuns:
                 print >>firstSummaryFile, """
                 </table>
                 <font size=+2>Click <A HREF="all.html">here</A> for a complete list of runs.<P></font>
+                </body>
                 </html>
                 """
                 firstSummaryFile.close()    
@@ -588,13 +651,18 @@ def main():
             # Write all summaries:
             if(skippedRun): print >>allSummaryFile, skipper
             try:
-                print >>allSummaryFile, getSnippetHtml(snippetFile)
+                print >>allSummaryFile, runRec.html(prevConfig, prevStartDay)
             except IOError, e:
                 print "WARNING: couldn't read snippet file (%s)" % exc_string()
+
+            prevConfig   = runRec.config
+            prevStartDay = runRec.startDay
+            
             allSummaryFile.flush()
             
     print >>allSummaryFile, """
     </table>
+    </body>
     </html>
     """
     allSummaryFile.close()
