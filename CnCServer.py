@@ -1222,7 +1222,7 @@ class DAQServer(DAQPool):
 
         return "OK"
 
-    def rpc_runset_events(self, id, subrunNumber:
+    def rpc_runset_events(self, id, subrunNumber):
         """
         get the number of events for the specified subrun
         from the specified runset
