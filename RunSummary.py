@@ -117,7 +117,7 @@ def fmt(s):
     if s != None: return sub('\s', '&nbsp;', str(s))
     return " "
 
-def generateSnippet(snippetFile, runNum, starttime, startsec, stoptime, stopsec, dtsec,
+def generateSnippet(snippetFile, runNum, starttime, stoptime, dtsec,
                     configName, runDir, status, nEvents):
     snippet = open(snippetFile, 'w')
     
@@ -135,17 +135,15 @@ def generateSnippet(snippetFile, runNum, starttime, startsec, stoptime, stopsec,
     <tr>
     <td align=center>%d</td>
     <td align=center bgcolor="eeeeee">%s</td>
-    <td align=center><font size=-2>%s</font></td>
-    <td align=center bgcolor="eeeeee">%s</td>
-    <td align=center><font size=-2>%s</font></td>
+    <td align=center>%s</td>
     <td align=center bgcolor="eeeeee">%s</td>
     <td align=center>%s</td>
     <td align=center bgcolor="eeeeee">%s</td>
     <td align=center bgcolor=%s><a href="%s">%s</a></td>
     <td align=left>%s</td>
     </tr>
-    """ % (runNum, fmt(starttime), fmt(startsec), fmt(stoptime),
-           fmt(stopsec), fmt(dtsec), evStr, fmt(rateStr),
+    """ % (runNum, fmt(starttime), fmt(stoptime),
+           fmt(dtsec), evStr, fmt(rateStr),
            statusColor, runDir, status, configName)
     return
 
@@ -212,13 +210,11 @@ def makeRunReport(snippetFile, dashFile, infoPat, runInfo, configName,
         stoptime = dashTime(getDashEvent(dashFile, r'Failed to start run'))
     if not stoptime:
         print "WARNING: no stop time for %s!" % dashFile
-        startsec = None
-        stopsec  = None
         dtsec    = None
     else:
         j0 = jan0(stoptime.year)
-        startsec = dtSeconds(j0, starttime)
-        stopsec  = dtSeconds(j0, stoptime)
+        #startsec = dtSeconds(j0, starttime)
+        #stopsec  = dtSeconds(j0, stoptime)
         dtsec    = dtSeconds(starttime, stoptime)
 
     match = search(infoPat, runInfo)
@@ -235,10 +231,10 @@ def makeRunReport(snippetFile, dashFile, infoPat, runInfo, configName,
     sec    = int(match.group(7))
     dur    = int(match.group(8))
     
-    generateSnippet(snippetFile, runNum, starttime, startsec, stoptime, stopsec, dtsec,
+    generateSnippet(snippetFile, runNum, starttime, stoptime, dtsec,
                     configName, relRunDir+"/run.html", status, nEvents)
     makeSummaryHtml(absRunDir, runNum, configName, status, nEvents,
-                    starttime, startsec, stoptime, stopsec, dtsec)
+                    starttime, stoptime, dtsec)
 
 def escapeBraces(txt):
     """
@@ -248,7 +244,7 @@ def escapeBraces(txt):
     return txt.replace(">","&GT;").replace("<","&LT;")
 
 def makeSummaryHtml(logLink, runNum, configName, status, nEvents,
-                    starttime, startsec, stoptime, stopsec, dtsec):
+                    starttime, stoptime, dtsec):
     
     files = listdir(logLink)
     mons  = []
@@ -275,20 +271,14 @@ def makeSummaryHtml(logLink, runNum, configName, status, nEvents,
   <FONT COLOR=888888>Start Date</FONT></TD><TD VALIGN="top">%s</TD>
  </TR>
  <TR><TD ALIGN="right" VALIGN="top">
-  <FONT COLOR=888888>Secs. since Jan. 0</FONT></TD><TD VALIGN="top">%s</TD>
- </TR>
- <TR><TD ALIGN="right" VALIGN="top">
   <FONT COLOR=888888>End Date</FONT></TD><TD VALIGN="top">%s</TD>
- </TR>
- <TR><TD ALIGN="right" VALIGN="top">
-  <FONT COLOR=888888>Secs. since Jan. 0</FONT></TD><TD VALIGN="top">%s</TD>
  </TR>
  <TR><TD ALIGN="right"><FONT COLOR=888888>Duration</FONT></TD><TD>%s seconds</TD></TR>
  <TR><TD ALIGN="right"><FONT COLOR=888888>Events</FONT></TD><TD>%s</TD></TR>
  <TR><TD ALIGN="right"><FONT COLOR=888888>Status</FONT></TD><TD BGCOLOR=%s>%s</TD></TR>
 </TABLE>
-     """ % (runNum, configName, fmt(starttime), startsec, fmt(stoptime), stopsec,
-            dtsec, eventStr, getStatusColor(status), status)
+     """ % (runNum, configName, fmt(starttime), fmt(stoptime), dtsec, eventStr,
+            getStatusColor(status), status)
 
     print >>html, makeTable(logs, "Logs")
     print >>html, makeTable(mons, "Monitoring")
@@ -461,9 +451,7 @@ def main():
     <tr>
      <td align=center><b><font size=-1>Run</font></b></td>
      <td align=center><b><font size=-1>Run Start Time</font></b></td>
-     <td align=center><b><font size=-3>(since Jan0)</font></b></td>
      <td align=center><b><font size=-1>Run Stop Time</font></b></td>
-     <td align=center><b><font size=-3>(since Jan0)</font></b></td>
      <td align=center><b><font size=-1>Duration (seconds)</font></b></td>
      <td align=center><b><font size=-1>Num. Events</font></b></td>
      <td align=center><b><font size=-1>Rate (Hz)</font></b></td>
