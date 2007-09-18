@@ -46,6 +46,10 @@ componentDB = { "eventBuilder"      : \
                     { "ejar"     : "trigger-1.0.0-SNAPSHOT-iitrig.jar",
                       "jvm_args" : "-Xmx1600m",
                     },
+                "simpleTrigger"      : \
+                    { "ejar"     : "trigger-1.0.0-SNAPSHOT-simptrig.jar",
+                      "jvm_args" : "-Xmx4500m",
+                    },
                 "iceTopTrigger"     : \
                     { "ejar"     : "trigger-1.0.0-SNAPSHOT-ittrig.jar",
                       "jvm_args" : "-Xmx1600m ",

@@ -257,6 +257,7 @@ class RunWatchdog(object):
         self.thread      = None
 
         iniceTrigger  = None
+        simpleTrigger  = None
         icetopTrigger  = None
         amandaTrigger  = None
         globalTrigger   = None
@@ -283,6 +284,14 @@ class RunWatchdog(object):
                             cw.addOutputValue('globalTrigger', 'trigger',
                                               'RecordsSent')
                         iniceTrigger = cw
+                    elif shortNameOf[c] == 'simpleTrigger':
+                        if self.contains(shortNameOf, 'stringHub'):
+                            cw.addInputValue('stringHub', 'stringHit',
+                                             'RecordsReceived')
+                        if self.contains(shortNameOf, 'globalTrigger'):
+                            cw.addOutputValue('globalTrigger', 'trigger',
+                                              'RecordsSent')
+                        iniceTrigger = cw
                     elif shortNameOf[c] == 'iceTopTrigger':
                         if self.contains(shortNameOf, 'stringHub'):
                             cw.addInputValue('stringHub', 'stringHit',
@@ -299,6 +308,9 @@ class RunWatchdog(object):
                     elif shortNameOf[c] == 'globalTrigger':
                         if self.contains(shortNameOf, 'inIceTrigger'):
                             cw.addInputValue('inIceTrigger', 'trigger',
+                                             'RecordsReceived')
+                        if self.contains(shortNameOf, 'simpleTrigger'):
+                            cw.addInputValue('simpleTrigger', 'trigger',
                                              'RecordsReceived')
                         if self.contains(shortNameOf, 'iceTopTrigger'):
                             cw.addInputValue('iceTopTrigger', 'trigger',
@@ -334,6 +346,7 @@ class RunWatchdog(object):
         # of components in the list
         #
         if iniceTrigger: self.soloComps.append(iniceTrigger)
+        if simpleTrigger: self.soloComps.append(simpleTrigger)
         if icetopTrigger: self.soloComps.append(icetopTrigger)
         if amandaTrigger: self.soloComps.append(amandaTrigger)
         if globalTrigger: self.soloComps.append(globalTrigger)
