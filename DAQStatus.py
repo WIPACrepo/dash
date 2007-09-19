@@ -21,12 +21,25 @@ def dumpComp(comp, numList, indent):
         print indent + '  ' + comp
     else:
         numStr = None
+        prevNum = -1
+        inRange = False
         for n in numList:
             if numStr is None:
                 numStr = str(n)
             else:
-                numStr += ' ' + str(n)
+                if prevNum + 1 == n:
+                    if not inRange:
+                        inRange = True
+                else:
+                    if inRange:
+                        numStr += '-' + str(prevNum)
+                        inRange = False
+                    numStr += ' ' + str(n)
+            prevNum = n
+        if inRange:
+            numStr += '-' + str(prevNum)
 
+        if len(indent) > 0: indent = '|' + indent[1:]
         front = indent + '  ' + str(len(numList)) + ' ' + comp + 's: '
         frontLen = len(front)
 
@@ -36,8 +49,11 @@ def dumpComp(comp, numList, indent):
             if frontLen + len(numStr) < lineLen:
                 print front + numStr
                 break
-            subStr = numStr[0:lineLen-frontLen]
-            numStr = numStr[lineLen-frontLen:]
+            tmpLen = lineLen - frontLen
+            while tmpLen > 0 and numStr[tmpLen] != ' ':
+                tmpLen -= 1
+            subStr = numStr[0:tmpLen]
+            numStr = numStr[tmpLen:]
             if len(numStr) > 0 and numStr[0] == ' ':
                 numStr = numStr[1:]
             print front + subStr
