@@ -85,6 +85,7 @@ def getLatestFileTime(dir):
     l = listdir(dir)
     latest = None
     for f in l:
+        if not search("SPS-pDAQ-run", f): continue
         stat_dat = stat("%s/%s" % (dir, f))
         mtim = stat_dat[8]
         if mtim > latest or latest == None: latest = mtim
