@@ -146,6 +146,7 @@ def generateSnippet(snippetFile, runNum, starttime, stoptime, dtsec,
     """ % (runNum, fmt(starttime), fmt(stoptime),
            fmt(dtsec), evStr, fmt(rateStr),
            statusColor, runDir, status, configName)
+    snippet.close()
     return
 
 def makeTable(files, name):
