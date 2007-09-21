@@ -466,9 +466,15 @@ class RunSet:
         for c in self.set:
             if c.isComponent("stringHub"):
                 tStr = c.startSubrun(data)
+                if tStr is None:
+                    raise ValueError, "Couldn't start subrun on %s" % \
+                        c.getName()
                 t = long(tStr)
                 if latestTime is None or t > latestTime:
                     latestTime = t
+
+        if latestTime is None:
+            raise ValueError, "Couldn't start subrun on any string hubs"
 
         for c in self.set:
             if c.isComponent("eventBuilder"):
@@ -702,6 +708,9 @@ class DAQClient(CnCLogger):
         except Exception, e:
             self.logmsg(exc_string())
             return None
+
+    def getName(self):
+        return '%s#%d' % (self.name, self.num)
 
     def getOrder(self):
         return self.cmdOrder
