@@ -14,6 +14,7 @@ from os import environ
 from xml.dom import minidom
 from DAQConfig import configExists
 from re import sub
+from types import DictType
 
 class LabelConfigFileNotFoundException(Exception): pass
 class MalformedLabelConfigException   (Exception): pass
@@ -90,13 +91,17 @@ class DAQRunIface(object):
         tuples in the form (domid,       brightness, window, delay, mask, rate)
         or                 (dom_name,    "                                   ")
         or                 (string, pos, "                                   ")
-
+        or a list of dictionaries, one per DOM, whose keys are
+            'stringHub','domPosition','brightness','window','delay','mask','rate'
         Return value is 1 if the operation succeeded (subrun successfully started),
         else 0 (in which case, check the pDAQ logs for diagnostic information).
         
         """
         if flashingDomsList == []:
             print "Subrun %d: No DOMs to flash." % subRunID
+        elif type(flashingDomsList[0]) == DictType: # Check for dictionary list signature
+            print "Subrun %d: dictionary signature not implemented yet" % subRunID
+            return
         else:
             print "Subrun %d: DOMs to flash: %s" % (subRunID, str(flashingDomsList))
         return self.rpc.rpc_flash(subRunID, flashingDomsList)

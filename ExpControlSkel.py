@@ -15,6 +15,8 @@ from re import search
 import optparse
 import time
 
+class DOMArgumentException(Exception): pass
+
 def updateStatus(oldStatus, newStatus):
     "Show any changes in status on stdout"
     if oldStatus != newStatus:
@@ -41,7 +43,57 @@ def showXML(daqruniface):
     except KeyboardInterrupt, k: raise
     except Exception, e:
         print "getSummary failed: %s" % e
+
+class DOM:
+    def __init__(self, *args):
+        if len(args) == 7:
+            self.string = args[0]
+            self.pos    = args[1]
+            self.bright = args[2]
+            self.window = args[3]
+            self.delay  = args[4]
+            self.mask   = args[5]
+            self.rate   = args[6]
+            self.mbid   = None
+        elif len(args) == 6:
+            self.string = None
+            self.pos    = None
+            self.mbid   = args[0]
+            self.bright = args[1]
+            self.window = args[2]
+            self.delay  = args[3]
+            self.mask   = args[4]
+            self.rate   = args[5]
+        else:
+            raise DOMArgumentException()
         
+    def flasherInfo(self):
+        if self.mbid != None:
+            return (self.mbid, self.bright, self.window, self.delay, self.mask, self.rate)
+        elif self.string != None and self.pos != None:
+            return (self.string, self.pos, self.bright, self.window, self.delay, self.mask, self.rate)
+        else:
+            raise DOMArgumentException()
+
+    def flasherHash(self):
+        if self.mbid != None:
+            return {"MBID"        : self.mbid,
+                    "brightness"  : self.bright,
+                    "window"      : self.window,
+                    "delay"       : self.delay,
+                    "mask"        : self.mask,
+                    "rate"        : self.rate }
+        elif self.string != None and self.pos != None:
+            return {"stringHub"   : self.string,
+                    "domPosition" : self.pos,
+                    "brightness"  : self.bright,
+                    "window"      : self.window,
+                    "delay"       : self.delay,
+                    "mask"        : self.mask,
+                    "rate"        : self.rate }
+        else:
+            raise DOMArgumentException()
+                    
 class SubRun:
     FLASH = 1
     DELAY = 2
@@ -51,8 +103,8 @@ class SubRun:
         self.id       = id
         self.domlist  = []
         
-    def addDOM(self, l):
-        self.domlist.append(l)
+    def addDOM(self, d):
+        self.domlist.append(d)
         
     def __str__(self):
         type = "FLASHER"
@@ -65,11 +117,11 @@ class SubRun:
 
     def flasherInfo(self):
         if self.type != SubRun.FLASH: return None
-        l = []
-        for d in self.domlist:
-            l.append(d)
-        return l
-        
+        return [d.flasherInfo() for d in self.domlist]
+
+    def flasherDictList(self):
+        return [d.flasherHash() for d in self.domlist]
+                
 class SubRunSet:
     def __init__(self, fileName):
         self.subruns = []
@@ -101,7 +153,7 @@ class SubRunSet:
                 delay  = int(m7.group(5))
                 mask   = int(m7.group(6), 16)
                 rate   = int(m7.group(7))
-                sr.addDOM((string, pos,  bright, window, delay, mask, rate))
+                sr.addDOM(DOM(string, pos,  bright, window, delay, mask, rate))
             elif m6 and sr:
                 mbid   = m6.group(1)
                 bright = int(m6.group(2))
@@ -109,7 +161,7 @@ class SubRunSet:
                 delay  = int(m6.group(4))
                 mask   = int(m6.group(5), 16)
                 rate   = int(m6.group(6))
-                sr.addDOM((mbid, bright, window, delay, mask, rate))
+                sr.addDOM(DOM(mbid, bright, window, delay, mask, rate))
                 
     def __str__(self):
         s = ""
@@ -219,6 +271,8 @@ def main():
                         subRunSet = SubRunSet(opt.flasherRun)
                         thisSubRun = subRunSet.next()
                         if thisSubRun.type == SubRun.FLASH:
+                            # Switch these to get the "new" signature
+                            # status = daqiface.flasher(thisSubRun.id, thisSubRun.flasherDictList())
                             status = daqiface.flasher(thisSubRun.id, thisSubRun.flasherInfo())
                             if status == 0: print "WARNING: flasher op failed, check pDAQ logs!"
                         else:
@@ -232,6 +286,8 @@ def main():
                         if thisSubRun == None:
                             doStop = True
                         elif thisSubRun.type == SubRun.FLASH:
+                            # Switch these to get the "new" signature
+                            # status = daqiface.flasher(thisSubRun.id, thisSubRun.flasherDictList())
                             status = daqiface.flasher(thisSubRun.id, thisSubRun.flasherInfo())
                             if status == 0: print "WARNING: flasher op failed, check pDAQ logs!"
                         else:
