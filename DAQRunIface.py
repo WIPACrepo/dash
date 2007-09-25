@@ -18,6 +18,7 @@ from types import DictType
 
 class LabelConfigFileNotFoundException(Exception): pass
 class MalformedLabelConfigException   (Exception): pass
+class MalformedFlasherInput           (Exception): pass
 
 def getElementSingleTagName(root, name):
     "Fetch a single element tag name of form <tagName>yowsa!</tagName>"
@@ -86,24 +87,49 @@ class DAQRunIface(object):
 
     def flasher(self, subRunID, flashingDomsList):
         """
-        
         Tell DAQ to flash DOMs.  subRunID is 0, 1, ....  flashingDomsList is a list of
         tuples in the form (domid,       brightness, window, delay, mask, rate)
         or                 (dom_name,    "                                   ")
         or                 (string, pos, "                                   ")
         or a list of dictionaries, one per DOM, whose keys are
             'stringHub','domPosition','brightness','window','delay','mask','rate'
+            (THIS OPTION WILL RAISE A KEYERROR IF YOU DON'T PASS THE CORRECT ARGS)
         Return value is 1 if the operation succeeded (subrun successfully started),
         else 0 (in which case, check the pDAQ logs for diagnostic information).
         
         """
-        if flashingDomsList == []:
-            print "Subrun %d: No DOMs to flash." % subRunID
+        if flashingDomsList == []: pass # Nothing to do except stop the subrun
         elif type(flashingDomsList[0]) == DictType: # Check for dictionary list signature
-            print "Subrun %d: dictionary signature not implemented yet" % subRunID
-            return
-        else:
-            print "Subrun %d: DOMs to flash: %s" % (subRunID, str(flashingDomsList))
+            l = []
+            # Throws exception if dictionary is messed up:
+            try:
+                for dom in flashingDomsList:
+                    if dom.has_key('stringHub') and dom.has_key('domPosition'):
+                        l.append((dom['stringHub'],
+                                  dom['domPosition'],
+                                  dom['brightness'],
+                                  dom['window'],
+                                  dom['delay'],
+                                  dom['mask'],
+                                  dom['rate']))
+                    elif dom.has_key('MBID'):
+                        l.append((dom['MBID'],
+                                  dom['brightness'],
+                                  dom['window'],
+                                  dom['delay'],
+                                  dom['mask'],
+                                  dom['rate']))
+                    else: raise MalformedFlasherInput('Hash error on input')
+            except Exception, e:
+                m = 'Input was: '+str(flashingDomsList)
+                if not e.args: e.args = [ m, ]
+                else:
+                    e.args = (e.args[0], m) + e.args[1:]
+                raise
+
+            flashingDomsList = l
+
+        #print "Subrun %d: DOMs to flash: %s" % (subRunID, str(flashingDomsList))
         return self.rpc.rpc_flash(subRunID, flashingDomsList)
     
     def getSummary(self):

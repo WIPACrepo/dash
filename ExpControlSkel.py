@@ -271,9 +271,8 @@ def main():
                         subRunSet = SubRunSet(opt.flasherRun)
                         thisSubRun = subRunSet.next()
                         if thisSubRun.type == SubRun.FLASH:
-                            # Switch these to get the "new" signature
-                            # status = daqiface.flasher(thisSubRun.id, thisSubRun.flasherDictList())
-                            status = daqiface.flasher(thisSubRun.id, thisSubRun.flasherInfo())
+                            print str(thisSubRun.flasherDictList())
+                            status = daqiface.flasher(thisSubRun.id, thisSubRun.flasherDictList())
                             if status == 0: print "WARNING: flasher op failed, check pDAQ logs!"
                         else:
                             pass # Don't explicitly send signal if first transition
@@ -286,9 +285,8 @@ def main():
                         if thisSubRun == None:
                             doStop = True
                         elif thisSubRun.type == SubRun.FLASH:
-                            # Switch these to get the "new" signature
-                            # status = daqiface.flasher(thisSubRun.id, thisSubRun.flasherDictList())
-                            status = daqiface.flasher(thisSubRun.id, thisSubRun.flasherInfo())
+                            print str(thisSubRun.flasherDictList())
+                            status = daqiface.flasher(thisSubRun.id, thisSubRun.flasherDictList())
                             if status == 0: print "WARNING: flasher op failed, check pDAQ logs!"
                         else:
                             status = daqiface.flasher(thisSubRun.id, [])
