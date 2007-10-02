@@ -49,6 +49,7 @@ from ClusterConfig import *
 class RequiredComponentsNotAvailableException(Exception): pass
 class IncorrectDAQState                      (Exception): pass
 class InvalidFlasherArgList                  (Exception): pass
+class RunawayGeneratorException              (Exception): pass
 
 class RunStats:
     def __init__(self, runNum=None, startTime=None, stopTime=None, physicsEvents=None,
@@ -434,6 +435,12 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 ntcal = int(self.moni.getSingleBeanField(cid, "tcalBuilder", "TotalDispatchedData"))
             
         return (nev, nmoni, nsn, ntcal)
+
+    def getEBSubRunNumber(self):
+        for cid in self.setCompIDs:
+            if self.shortNameOf[cid] == "eventBuilder" and self.daqIDof[cid] == 0:
+                return int(self.moni.getSingleBeanField(cid, "backEnd", "SubrunNumber"))
+        return 0
     
     def getEBDiskUsage(self):
         for cid in self.setCompIDs:
@@ -718,15 +725,29 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.break_existing_runset(self.cnc)
         return 1
 
+    def seqMap(n):
+        """
+        Return [0, -1, 1, -2, 2, ... n]
+        """
+        MAXSEQ = 10000
+        x = 0
+        while abs(x) < MAXSEQ:
+            if x==n:
+                yield n
+                return
+            if x < 0: yield x; x = -x
+            else:     yield x; x = -(x+1)
+        raise RunawayGeneratorException("x=%s n=%s", str(x), str(n))
+    seqMap = staticmethod(seqMap)
+    
     def rpc_daq_summary_xml(self):
         "Return DAQ status overview XML for Experiment Control"
 
         # Get summary for current run, if available
-        currentRun = ""
-        prevRun    = ""
+        currentRun   = ""
+        prevRun      = ""
         if self.prevRunStats:
-                prevRun = """
-   <run ordering="previous">
+                prevRun = """<run ordering="previous">
       <number>%s</number>
       <start-time>%s</start-time>
       <stop-time>%s</stop-time>
@@ -734,7 +755,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
       <events><stream>monitor</stream><count>%s</count></events>
       <events><stream>sn</stream>     <count>%s</count></events>
       <events><stream>tcal</stream>   <count>%s</count></events>
-   </run>\
+   </run>
 """ % (self.prevRunStats.runNum, str(self.prevRunStats.startTime), str(self.prevRunStats.stopTime),
        self.prevRunStats.physicsEvents, self.prevRunStats.moniEvents,
        self.prevRunStats.snEvents,      self.prevRunStats.tcalEvents)
@@ -752,7 +773,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                             "for summary XML (%s)!" % exc_string())
 
         if self.runStats.runNum:
-            currentRun = """
+            currentRun = """\
    <run ordering="current">
       <number>%s</number>
       <start-time>%s</start-time>
@@ -769,19 +790,32 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
       <available>%s</available><capacity>%s</capacity><units>MB</units>
       <name>Secondary builders dispatch cache</name>
    </resource>
-""" % (self.runStats.runNum, str(self.runStats.startTime), self.runStats.physicsEvents,
-       self.runStats.moniEvents, self.runStats.snEvents, self.runStats.tcalEvents,
-       self.runStats.EBDiskAvailable, self.runStats.EBDiskSize, self.runStats.SBDiskAvailable, self.runStats.SBDiskSize)
+""" % (self.runStats.runNum, str(self.runStats.startTime), 
+                        self.runStats.physicsEvents, self.runStats.moniEvents, 
+                        self.runStats.snEvents, self.runStats.tcalEvents, 
+                        self.runStats.EBDiskAvailable, self.runStats.EBDiskSize,
+                        self.runStats.SBDiskAvailable, self.runStats.SBDiskSize)
 
+        # Add subrun counts
+        subRunCounts = ""
+        try:
+            currentSubRun = self.getEBSubRunNumber()
+            for i in DAQRun.seqMap(currentSubRun):
+                subRunCounts += "      <subRun><subRunNum>%d</subRunNum><events>%s</events></subRun>\n" \
+                                 % (i, self.cnc.rpccall("rpc_runset_events", self.runSetID, i))
+        except AttributeError, a: # This happens after eventbuilder disappears
+            pass
+        except Exception, e:
+            self.logmsg(exc_string())        
+
+        subRunEventXML  = "   <subRunEventCounts>\n"
+        subRunEventXML += subRunCounts
+        subRunEventXML += "   </subRunEventCounts>\n"
+        
         # Global summary
-        ret = """\
-<daq>%s%s</daq>\
-""" % (prevRun, currentRun)
-
+        ret = """<daq>\n%s%s%s</daq>""" % (prevRun, currentRun, subRunEventXML)
         return ret
 
-
-    
 if __name__ == "__main__":
     p = optparse.OptionParser()
     
