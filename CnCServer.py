@@ -704,7 +704,10 @@ class DAQClient(CnCLogger):
     def getEvents(self, subrunNumber):
         "Get the number of events in the specified subrun"
         try:
-            return self.client.xmlrpc.getEvents(subrunNumber)
+            evts = self.client.xmlrpc.getEvents(subrunNumber)
+            if type(evts) == str:
+                evts = long(evts[:-1])
+            return evts
         except Exception, e:
             self.logmsg(exc_string())
             return None
