@@ -16,6 +16,7 @@ from DAQRPC import RPCClient, RPCServer
 from os.path import exists, abspath, join
 from Process import processList, findProcess
 from DAQLaunch import cyclePDAQ, ClusterConfig, ConfigNotSpecifiedException
+from SVNRelease import getReleaseInfo
 from tarfile import TarFile
 from exc_string import *
 from shutil import move
@@ -32,6 +33,8 @@ import socket
 import thread
 import os
 
+svn_id = "$Id: DAQRun.py 2116 2007-10-11 22:47:55Z ksb $"
+svn_url = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/DAQRun.py $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -307,6 +310,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         # Log file is already defined since STARTING state does not get invoked otherwise
         # Set up logger for CnCServer and required components
         self.log = logCollector(runNum, logDir)
+        self.logmsg("DAQRun release: %s revision: %s date: %s %s author %s" % getReleaseInfo(svn_id, svn_url))
         self.logmsg("Starting run %d..." % runNum)
         self.logmsg("Run configuration: %s" % configName)
         self.logmsg("Cluster configuration: %s" % self.clusterConfig.configName)
@@ -821,7 +825,10 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         return ret
 
 if __name__ == "__main__":
-    p = optparse.OptionParser()
+    rel_info = "%s %s %s %s %s" % getReleaseInfo(svn_id, svn_url)
+    usage = "%prog [options]\nrelease: " + rel_info
+    version = "%prog: " + rel_info
+    p = optparse.OptionParser(usage=usage, version=version)
     
     p.add_option("-c", "--config-dir",
                  action="store",      type="string",
