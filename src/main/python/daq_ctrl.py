@@ -60,12 +60,12 @@ class DAQCtrl:
 
 
     def flasher(self,
-                flasherConfiguration,
-                subrunNumber):
+                subrunNumber,
+                flasherConfiguration):
         "Changes the current DAQ run to use the specified configuration"
         try:
-            return self.daqiface.flasher(flasherConfiguration,
-                                         subrunNumber)
+            return self.daqiface.flasher(subrunNumber,
+                                         flasherConfiguration)
         except socket.error:
             return 0
 
