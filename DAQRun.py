@@ -158,8 +158,12 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                         raise InvalidFlasherArgList("DOM %s not found in config!" % domid)
             # Look for (str, pos, f0, ..., f4)
             elif len(args) == 7:
-                pos    = args[1]
-                string = args.pop(0)
+                try:
+                    pos    = int(args[1])
+                    string = int(args.pop(0))
+                except ValueError, e:
+                    raise InvalidFlasherArgList("Bad DOM arguments '%s'-'%s' (need integers)!" %
+                                                (string, pos))
                 try:
                     args[0] = config.getIDbyStringPos(string, pos)
                 except DAQConfig.DOMNotInConfigException, e:

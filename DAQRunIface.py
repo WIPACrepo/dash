@@ -93,6 +93,7 @@ class DAQRunIface(object):
         or                 (string, pos, "                                   ")
         or a list of dictionaries, one per DOM, whose keys are
             'stringHub','domPosition','brightness','window','delay','mask','rate'
+            and whose values are strings.
             (THIS OPTION WILL RAISE A KEYERROR IF YOU DON'T PASS THE CORRECT ARGS)
         Return value is 1 if the operation succeeded (subrun successfully started),
         else 0 (in which case, check the pDAQ logs for diagnostic information).
@@ -105,20 +106,20 @@ class DAQRunIface(object):
             try:
                 for dom in flashingDomsList:
                     if dom.has_key('stringHub') and dom.has_key('domPosition'):
-                        l.append((dom['stringHub'],
-                                  dom['domPosition'],
-                                  dom['brightness'],
-                                  dom['window'],
-                                  dom['delay'],
-                                  dom['mask'],
-                                  dom['rate']))
+                        l.append((int(dom['stringHub']),
+                                  int(dom['domPosition']),
+                                  int(dom['brightness']),
+                                  int(dom['window']),
+                                  int(dom['delay']),
+                                  int(dom['mask'], 16),
+                                  int(dom['rate'])))
                     elif dom.has_key('MBID'):
-                        l.append((dom['MBID'],
-                                  dom['brightness'],
-                                  dom['window'],
-                                  dom['delay'],
-                                  dom['mask'],
-                                  dom['rate']))
+                        l.append((str(dom['MBID']),
+                                  int(dom['brightness']),
+                                  int(dom['window']),
+                                  int(dom['delay']),
+                                  int(dom['mask'], 16),
+                                  int(dom['rate'])))
                     else: raise MalformedFlasherInput('Hash error on input')
             except Exception, e:
                 m = 'Input was: '+str(flashingDomsList)
