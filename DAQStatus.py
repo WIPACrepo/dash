@@ -5,7 +5,7 @@ import optparse
 from DAQRPC import RPCClient
 from SVNRelease import getReleaseInfo
 
-svn_id = "$Id: DAQStatus.py 2120 2007-10-12 00:11:25Z ksb $"
+svn_id = "$Id: DAQStatus.py 2125 2007-10-12 18:27:05Z ksb $"
 svn_url = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/DAQStatus.py $"
 
 def cmpComp(x, y):

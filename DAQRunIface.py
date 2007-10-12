@@ -4,7 +4,7 @@
 # Object to interface w/ DAQ run script
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started November, 2006
-# $Id:$
+# $Id: DAQRunIface.py 2125 2007-10-12 18:27:05Z ksb $
 
 from time import sleep, time
 from datetime import datetime, timedelta
