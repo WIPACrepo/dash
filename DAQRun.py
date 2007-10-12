@@ -33,7 +33,7 @@ import socket
 import thread
 import os
 
-svn_id = "$Id: DAQRun.py 2116 2007-10-11 22:47:55Z ksb $"
+svn_id = "$Id: DAQRun.py 2120 2007-10-12 00:11:25Z ksb $"
 svn_url = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/DAQRun.py $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
@@ -113,6 +113,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.clusterConfig    = clusterConfig
         self.logDir           = logDir
         self.requiredComps    = []
+        self.releaseInfo      = getReleaseInfo(svn_id, svn_url)
 
         # setCompID is the ID returned by CnCServer
         # daqID is e.g. 21 for string 21
@@ -310,7 +311,8 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         # Log file is already defined since STARTING state does not get invoked otherwise
         # Set up logger for CnCServer and required components
         self.log = logCollector(runNum, logDir)
-        self.logmsg("DAQRun release: %s revision: %s date: %s %s author %s" % getReleaseInfo(svn_id, svn_url))
+        self.logmsg("DAQRun release: %s" % self.releaseInfo[0])
+        self.logmsg("  Last changed revision: %s; date: %s %s; author %s" % self.releaseInfo[1:])
         self.logmsg("Starting run %d..." % runNum)
         self.logmsg("Run configuration: %s" % configName)
         self.logmsg("Cluster configuration: %s" % self.clusterConfig.configName)

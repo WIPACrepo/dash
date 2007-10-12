@@ -3,6 +3,10 @@
 import optparse
 
 from DAQRPC import RPCClient
+from SVNRelease import getReleaseInfo
+
+svn_id = "$Id: DAQStatus.py 2120 2007-10-12 00:11:25Z ksb $"
+svn_url = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/DAQStatus.py $"
 
 def cmpComp(x, y):
     c = cmp(x[6], y[6])
@@ -87,7 +91,11 @@ def listVerbose(list, indent=''):
             (indent, c[0], c[1], c[2], c[3], c[4], c[5], c[6])
 
 if __name__ == "__main__":
-    p = optparse.OptionParser()
+    rel_info = "%s %s %s %s %s" % getReleaseInfo(svn_id, svn_url)
+    usage = "%prog [options]\nrelease: " + rel_info
+    version = "%prog: " + rel_info
+    p = optparse.OptionParser(usage=usage, version=version)
+
     p.add_option("-v", "--verbose", action="store_true", dest="verbose")
     p.set_defaults(verbose = False)
 

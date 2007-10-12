@@ -14,6 +14,10 @@ from os import environ, mkdir, system
 from os.path import abspath, isabs, join
 
 from GetIP import getIP
+from SVNRelease import getReleaseInfo
+
+svn_id = "$Id: DAQLaunch.py 2120 2007-10-12 00:11:25Z ksb $"
+svn_url = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/DAQLaunch.py $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -227,7 +231,11 @@ def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, copyDir, logP
              configDir, logDir, spadeDir, copyDir, logPort, cncPort)
 
 def main():
-    p = optparse.OptionParser()
+    rel_info = "%s %s %s %s %s" % getReleaseInfo(svn_id, svn_url)
+    usage = "%prog [options]\nrelease: " + rel_info
+    version = "%prog: " + rel_info
+    p = optparse.OptionParser(usage=usage, version=version)
+
     p.add_option("-c", "--config-name",  action="store", type="string",
                  dest="clusterConfigName",
                  help="Cluster configuration name, subset of deployed configuration.")

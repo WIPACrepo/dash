@@ -7,6 +7,7 @@ Started November, 2006
 """
 
 from DAQRunIface import DAQRunIface
+from SVNRelease import getReleaseInfo
 from os.path import join, exists
 from os import environ
 from datetime import *
@@ -14,6 +15,9 @@ from sys import argv
 from re import search
 import optparse
 import time
+
+svn_id = "$Id: ExpControlSkel.py 2120 2007-10-12 00:11:25Z ksb $"
+svn_url = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/ExpControlSkel.py $"
 
 class DOMArgumentException(Exception): pass
 
@@ -177,7 +181,11 @@ class SubRunSet:
 
 def main():
     "Main program"
-    p = optparse.OptionParser()
+    rel_info = "%s %s %s %s %s" % getReleaseInfo(svn_id, svn_url)
+    usage = "%prog [options]\nrelease: " + rel_info
+    version = "%prog: " + rel_info
+    p = optparse.OptionParser(usage=usage, version=version)
+
     p.add_option("-c", "--config-name",      action="store", type="string", dest="configName")
     p.add_option("-d", "--duration-seconds", action="store", type="int",    dest="duration")
     p.add_option("-f", "--flasher-run",      action="store", type="string", dest="flasherRun")
