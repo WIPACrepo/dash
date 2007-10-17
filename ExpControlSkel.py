@@ -7,7 +7,7 @@ Started November, 2006
 """
 
 from DAQRunIface import DAQRunIface
-from SVNRelease import getReleaseInfo
+from SVNVersionInfo import getVersionInfo
 from os.path import join, exists
 from os import environ
 from datetime import *
@@ -16,8 +16,8 @@ from re import search
 import optparse
 import time
 
-svn_id = "$Id: ExpControlSkel.py 2120 2007-10-12 00:11:25Z ksb $"
-svn_url = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/ExpControlSkel.py $"
+SVN_ID  = "$Id: ExpControlSkel.py 2146 2007-10-17 01:37:59Z ksb $"
+SVN_URL = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/ExpControlSkel.py $"
 
 class DOMArgumentException(Exception): pass
 
@@ -181,10 +181,9 @@ class SubRunSet:
 
 def main():
     "Main program"
-    rel_info = "%s %s %s %s %s" % getReleaseInfo(svn_id, svn_url)
-    usage = "%prog [options]\nrelease: " + rel_info
-    version = "%prog: " + rel_info
-    p = optparse.OptionParser(usage=usage, version=version)
+    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % getVersionInfo(SVN_ID, SVN_URL)
+    usage = "%prog [options]\nversion: " + ver_info
+    p = optparse.OptionParser(usage=usage, version=ver_info)
 
     p.add_option("-c", "--config-name",      action="store", type="string", dest="configName")
     p.add_option("-d", "--duration-seconds", action="store", type="int",    dest="duration")

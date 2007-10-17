@@ -2,6 +2,7 @@
 
 from DAQRPC import RPCClient, RPCServer
 from DAQLogClient import DAQLogger
+from SVNVersionInfo import getVersionInfo
 from Process import processList, findProcess
 from exc_string import *
 from time import time, sleep
@@ -12,6 +13,9 @@ import os
 import socket
 import sys
 import thread
+
+SVN_ID  = "$Id: CnCServer.py 2146 2007-10-17 01:37:59Z ksb $"
+SVN_URL = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/CnCServer.py $"
 
 set_exc_string_encoding("ascii")
 
@@ -782,6 +786,10 @@ class DAQClient(CnCLogger):
         self.openLog(logIP, port)
         self.client.xmlrpc.logTo(logIP, port)
 
+        # Make RPC call to get svn version info into a dict
+        cvid = self.client.xmlrpc.getVersionInfo()
+        self.logmsg("Version info: %(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % getVersionInfo(cvid['id'], cvid['url']))
+
     def monitor(self):
         "Return the monitoring value"
         return self.getState()
@@ -1097,6 +1105,7 @@ class DAQServer(DAQPool):
         self.port = port
         self.name = name
         self.showSpinner = showSpinner
+        self.versionInfo = getVersionInfo(SVN_ID, SVN_URL)
 
         self.id = int(time())
 
@@ -1371,6 +1380,7 @@ class DAQServer(DAQPool):
     def serve(self, handler):
         "Start a server"
         self.logmsg("I'm server %s running on port %d" % (self.name, self.port))
+        self.logmsg("%(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % self.versionInfo)
         thread.start_new_thread(handler, ())
         self.server.serve_forever()
 
@@ -1406,7 +1416,9 @@ class CnCServer(DAQServer):
         self.serve(self.monitorLoop)
 
 if __name__ == "__main__":
-    p = optparse.OptionParser()
+    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % getVersionInfo(SVN_ID, SVN_URL)
+    usage = "%prog [options]\nversion: " + ver_info
+    p = optparse.OptionParser(usage=usage, version=ver_info)
     p.add_option("-S", "--showSpinner", action="store_true", dest="showSpinner")
     p.add_option("-d", "--daemon",      action="store_true", dest="daemon")
     p.add_option("-k", "--kill",        action="store_true", dest="kill")

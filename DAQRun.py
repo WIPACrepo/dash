@@ -13,10 +13,10 @@ from DAQMoni import *
 from time import sleep
 from RunWatchdog import RunWatchdog
 from DAQRPC import RPCClient, RPCServer
-from os.path import exists, abspath, join
+from os.path import exists, abspath, join, basename
 from Process import processList, findProcess
 from DAQLaunch import cyclePDAQ, ClusterConfig, ConfigNotSpecifiedException
-from SVNRelease import getReleaseInfo
+from SVNVersionInfo import getVersionInfo
 from tarfile import TarFile
 from exc_string import *
 from shutil import move
@@ -33,8 +33,8 @@ import socket
 import thread
 import os
 
-svn_id = "$Id: DAQRun.py 2120 2007-10-12 00:11:25Z ksb $"
-svn_url = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/DAQRun.py $"
+SVN_ID  = "$Id: DAQRun.py 2146 2007-10-17 01:37:59Z ksb $"
+SVN_URL = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/DAQRun.py $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -113,7 +113,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.clusterConfig    = clusterConfig
         self.logDir           = logDir
         self.requiredComps    = []
-        self.releaseInfo      = getReleaseInfo(svn_id, svn_url)
+        self.versionInfo      = getVersionInfo(SVN_ID, SVN_URL)
 
         # setCompID is the ID returned by CnCServer
         # daqID is e.g. 21 for string 21
@@ -311,8 +311,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         # Log file is already defined since STARTING state does not get invoked otherwise
         # Set up logger for CnCServer and required components
         self.log = logCollector(runNum, logDir)
-        self.logmsg("DAQRun release: %s" % self.releaseInfo[0])
-        self.logmsg("  Last changed revision: %s; date: %s %s; author %s" % self.releaseInfo[1:])
+        self.logmsg("Version Info: %(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % self.versionInfo)
         self.logmsg("Starting run %d..." % runNum)
         self.logmsg("Run configuration: %s" % configName)
         self.logmsg("Cluster configuration: %s" % self.clusterConfig.configName)
@@ -827,10 +826,9 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         return ret
 
 if __name__ == "__main__":
-    rel_info = "%s %s %s %s %s" % getReleaseInfo(svn_id, svn_url)
-    usage = "%prog [options]\nrelease: " + rel_info
-    version = "%prog: " + rel_info
-    p = optparse.OptionParser(usage=usage, version=version)
+    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % getVersionInfo(SVN_ID, SVN_URL)
+    usage = "%prog [options]\nversion: " + ver_info
+    p = optparse.OptionParser(usage=usage, version=ver_info)
     
     p.add_option("-c", "--config-dir",
                  action="store",      type="string",
