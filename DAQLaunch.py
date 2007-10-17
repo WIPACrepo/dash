@@ -11,9 +11,13 @@ import sys
 import optparse
 from time import sleep
 from os import environ, mkdir, system
-from os.path import abspath, isabs, join
+from os.path import abspath, isabs, join, basename
 
 from GetIP import getIP
+from SVNVersionInfo import getVersionInfo
+
+SVN_ID = "$Id: DAQLaunch.py 2153 2007-10-17 22:17:58Z ksb $"
+SVN_URL = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/releases/Grange/DAQLaunch.py $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -29,75 +33,62 @@ sys.path.append(join(metaDir, 'cluster-config'))
 from ClusterConfig import *
 from ParallelShell import *
 
-class HostNotFoundForComponent      (Exception): pass
-class JavaClassNotFoundForComponent (Exception): pass
-class RunScriptNotFoundForComponent (Exception): pass
-class SubProjectNotFoundForComponent(Exception): pass
-class ComponentNotFoundInDatabase   (Exception): pass
+class HostNotFoundForComponent   (Exception): pass
+class ExecJarNotFoundForComponent(Exception): pass
+class JVMArgsNotFoundForComponent(Exception): pass
+class ComponentNotFoundInDatabase(Exception): pass
 
 componentDB = { "eventBuilder"      : \
-                    { "cls" : "icecube.daq.eventBuilder.EBComponent",
-                      "dir" : "eventBuilder-prod",
-                      "run" : "run-eb"
+                    { "ejar"     : "eventBuilder-prod-1.0.0-SNAPSHOT-comp.jar",
+                      "jvm_args" : "-Xmx1024m",
                     },
                 "SecondaryBuilders" : \
-                    { "cls" : "icecube.daq.secBuilder.SBComponent",
-                      "dir" : "secondaryBuilders",
-                      "run" : "run-sb"
+                    { "ejar"     : "secondaryBuilders-1.0.0-SNAPSHOT-comp.jar",
+                      "jvm_args" : "",
                     },
                 "inIceTrigger"      : \
-                    { "cls" : "icecube.daq.trigger.component.IniceTriggerComponent",
-                      "dir" : "trigger",
-                      "run" : "run-iitrig",
+                    { "ejar"     : "trigger-1.0.0-SNAPSHOT-iitrig.jar",
+                      "jvm_args" : "-Xmx1600m",
+                    },
+                "simpleTrigger"      : \
+                    { "ejar"     : "trigger-1.0.0-SNAPSHOT-simptrig.jar",
+                      "jvm_args" : "-Xmx4500m",
                     },
                 "iceTopTrigger"     : \
-                    { "cls" : "icecube.daq.trigger.component.IcetopTriggerComponent",
-                      "dir" : "trigger",
-                      "run" : "run-ittrig",
+                    { "ejar"     : "trigger-1.0.0-SNAPSHOT-ittrig.jar",
+                      "jvm_args" : "-Xmx1600m ",
                     },
                 "globalTrigger"     : \
-                    { "cls" : "icecube.daq.trigger.component.GlobalTriggerComponent",
-                      "dir" : "trigger",
-                      "run" : "run-gltrig",
+                    { "ejar"     : "trigger-1.0.0-SNAPSHOT-gtrig.jar",
+                      "jvm_args" : "-Xmx1600m",
                     },
                 "amandaTrigger"     : \
-                    { "cls" : "icecube.daq.trigger.component.AmandaTriggerComponent",
-                      "dir" : "trigger",
-                      "run" : "run-amtrig",
+                    { "ejar"     : "trigger-1.0.0-SNAPSHOT-amtrig.jar",
+                      "jvm_args" : "-Xmx1600m",
                     },
                 "StringHub"         : \
-                    { "cls" : "icecube.daq.stringhub.Shell",
-                      "dir" : "StringHub",
-                      "run" : "run-hub",
+                    { "ejar"     : "StringHub-1.0.0-SNAPSHOT-comp.jar",
+                      "jvm_args" : "-Xmx350m -Dicecube.daq.bindery.StreamBinder.prescale=1",
                     },
               }
 
-def getRunScript(compName):
-    if not componentDB.has_key(compName):
-        raise ComponentNotFoundInDatabase(comp)
-
-    if not componentDB[compName].has_key("run"):
-        raise RunScriptNotFoundForComponent(compName)
-
-    return componentDB[compName]["run"]
-
-def getSubProject(compName):
-    if not componentDB.has_key(compName):
-        raise ComponentNotFoundInDatabase(comp)
-
-    if not componentDB[compName].has_key("dir"):
-        raise SubProjectNotFoundForComponent(compName)
-
-    return componentDB[compName]["dir"]
-
-def getJavaClass(compName):
+def getJVMArgs(compName):
     if not componentDB.has_key(compName):
         raise ComponentNotFoundInDatabase(compName)
 
-    if not componentDB[compName].has_key("cls"):
-        raise JavaClassNotFoundForComponent(compName)
+    if not componentDB[compName].has_key("jvm_args"):
+        raise JVMArgsNotFoundForComponent(compName)
 
-    return componentDB[compName]["cls"]
+    return componentDB[compName]["jvm_args"]
+
+def getExecJar(compName):
+    if not componentDB.has_key(compName):
+        raise ComponentNotFoundInDatabase(compName)
+
+    if not componentDB[compName].has_key("ejar"):
+        raise ExecJarNotFoundForComponent(compName)
+
+    return componentDB[compName]["ejar"]
 
 def findHost(component, compID, clusterConfig):
     "Find host name where component:compID runs"
@@ -107,68 +98,67 @@ def findHost(component, compID, clusterConfig):
     raise HostNotFoundForComponent(component+":"+compID)
 
 def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9):
-    parallel = ParallelShell()
+    parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose)
     for node in clusterConfig.nodes:
         for comp in node.comps:
-            javaClass = getJavaClass(comp.compName)
+            killPat = getExecJar(comp.compName)
             if killWith9: niner = "-9"
             else:         niner = ""
             if node.hostName == "localhost": # Just kill it
-                cmd = "pkill %s -fu %s %s" % (niner, environ["USER"], javaClass)
+                cmd = "pkill %s -fu %s %s" % (niner, environ["USER"], killPat)
                 if verbose: print cmd
                 parallel.add(cmd)
                 if not killWith9:
-                    cmd = "sleep 2; pkill -9 -fu %s %s" % (environ["USER"], javaClass)
+                    cmd = "sleep 2; pkill -9 -fu %s %s" % (environ["USER"], killPat)
                     if verbose: print cmd
                     parallel.add(cmd)
             else:                            # Have to ssh to kill
-                cmd = "ssh %s pkill %s -f %s" % (node.hostName, niner, javaClass)
+                cmd = "ssh %s pkill %s -f %s" % (node.hostName, niner, killPat)
                 parallel.add(cmd)
                 if not killWith9:
-                    cmd = "sleep 2; ssh %s pkill -9 -f %s" % (node.hostName, javaClass)
+                    cmd = "sleep 2; ssh %s pkill -9 -f %s" % (node.hostName, killPat)
                     parallel.add(cmd)
 
     if not dryRun:
         parallel.start()
         parallel.wait()
 
-def startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose):
-    myIP = getIP()
-    parallel = ParallelShell()
+def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort, cncPort, verbose):
+    parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose)
+
+    # The dir where all the "executable" jar files are
+    binDir = join(metaDir, 'target', 'pDAQ-1.0.0-SNAPSHOT-dist.dir', 'bin')
+
+    # What is used when not verbose
+    quietStr = " < /dev/null 2>&1 > /dev/null"
+
     for node in clusterConfig.nodes:
+        myIP = getIP(node.hostName)
         for comp in node.comps:
-            runScript = getRunScript(comp.compName)
-            subProject = getSubProject(comp.compName)
-            switches = ""
-            if verbose:
-                switches += "--verbose "
-            else:
-                switches += "2>&1 > /dev/null "
+            execJar = join(binDir, getExecJar(comp.compName))
+
+            javaCmd = "java"
+            jvmArgs = getJVMArgs(comp.compName)
+            switches = "-g %s" % configDir
+            switches += " -c %s:%d" % (myIP, cncPort)
+            switches += " -l %s:%d,%s" % (myIP, logPort, comp.logLevel)
+            if not verbose:
+                switches += quietStr
 
             if comp.compName == "StringHub":
-                switches += "--id %d " % comp.compID
+                #javaCmd = "/usr/java/jdk1.5.0_07/bin/java"
+                jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % comp.compID
+                #switches += " -M 10"
 
-            switches += "-d %s " % comp.logLevel
-            switches += "-c %s " % subProject
-            switches += "-s %s " % runScript
             if node.hostName == "localhost": # Just run it
-                switches += "--cnc localhost:%d " % cncPort
-                switches += "--log localhost:%d " % logPort
-                cmd = "%s/StartComponent.py %s" % (dashDir, switches)
-                if verbose: print cmd
-                parallel.add(cmd)
+                cmd = "%s %s -jar %s %s &" % (javaCmd, jvmArgs, execJar, switches)
             else:                            # Have to ssh to run it
-                switches += "--cnc %s:%d " % (myIP, cncPort)
-                switches += "--log %s:%d " % (myIP, logPort)
-                if comp.compName == "StringHub":
-                    cmd = "echo \"cd %s; ./dash/StartComponent.py %s \" | ssh -T %s" \
-                          % (metaDir, switches, node.hostName)
-                else:
-                    cmd = "ssh %s \'cd %s && ./dash/StartComponent.py %s \' " \
-                          % (node.hostName, metaDir, switches)
+                cmd = """ssh -n %s \'sh -c \"%s %s -jar %s %s &\" %s &\'""" \
+                      % (node.hostName, javaCmd, jvmArgs, execJar, switches, not verbose and quietStr or "")
 
-                if verbose: print cmd
-                parallel.add(cmd)
+            if verbose: print cmd
+            parallel.add(cmd)
+
     if verbose and not dryRun: parallel.showAll()
     if not dryRun:
         parallel.start()
@@ -191,7 +181,10 @@ def doKill(doDAQRun, dryRun, dashDir, verbose, clusterConfig, killWith9):
     if not dryRun: system(cmd)
 
     killJavaProcesses(dryRun, clusterConfig, verbose, killWith9)
-    if verbose and not dryRun: print "DONE."
+    if verbose and not dryRun: print "DONE with killing Java Processes."
+
+    # clear the active configuration
+    clusterConfig.clearActiveConfig()
     
 def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
              configDir, logDir, spadeDir, copyDir, logPort, cncPort):
@@ -199,7 +192,8 @@ def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
     # Start DAQRun
     if doDAQRun:
         daqRun = join(dashDir, 'DAQRun.py')
-        options = "-r -f -c %s -l %s -s %s" % (configDir, logDir, spadeDir)
+        options = "-r -f -c %s -l %s -s %s -u %s" % \
+            (configDir, logDir, spadeDir, clusterConfig.configName)
         if copyDir: options += " -a %s" % copyDir
         if verbose:
             cmd = "%s %s -n &" % (daqRun, options)
@@ -223,19 +217,12 @@ def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
         cmd = "%s -l localhost:9001 -d" % cncServer
         if not dryRun: system(cmd)
 
-    startJavaProcesses(dryRun, clusterConfig, dashDir, logPort, cncPort, verbose)
-    if verbose and not dryRun: print "DONE."
-    
-def getDeployedClusterConfig(clusterFile):
-    "Get cluster configuration name persisted in clusterFile"
-    try:
-        f = open(clusterFile, "r")
-        ret = f.readline()
-        f.close()
-        return ret.rstrip('\r\n')
-    except:
-        return None
+    startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort, cncPort, verbose)
+    if verbose and not dryRun: print "DONE with starting Java Processes."
 
+    # remember the active configuration
+    clusterConfig.writeCacheFile(True)
+    
 def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, copyDir, logPort, cncPort):
     "Completely cycle pDAQ except for DAQRun - can be used by DAQRun when cycling"
     "pDAQ in an attempt to wipe the slate clean after a failure"
@@ -244,7 +231,10 @@ def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, copyDir, logP
              configDir, logDir, spadeDir, copyDir, logPort, cncPort)
 
 def main():
-    p = optparse.OptionParser()
+    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % getVersionInfo(SVN_ID, SVN_URL)
+    usage = "%prog [options]\nversion: " + ver_info
+    p = optparse.OptionParser(usage=usage, version=ver_info)
+
     p.add_option("-c", "--config-name",  action="store", type="string",
                  dest="clusterConfigName",
                  help="Cluster configuration name, subset of deployed configuration.")
@@ -275,24 +265,12 @@ def main():
                    killOnly          = False)
     opt, args = p.parse_args()
 
-    readClusterConfig = getDeployedClusterConfig(join(metaDir, 'cluster-config', '.config'))
-    
-    # Choose configuration
-    configToUse = "sim-localhost"
-    if readClusterConfig:
-        configToUse = readClusterConfig
-    if opt.clusterConfigName:
-        configToUse = opt.clusterConfigName
-
     configDir = join(metaDir, 'config')
-    logDir    = join(metaDir, 'log')
+    logDir    = join(' ', 'mnt', 'data', 'pdaq', 'log').strip()
+    logDirFallBack = join(metaDir, 'log')
     dashDir   = join(metaDir, 'dash')
-    clusterConfigDir = join(metaDir, 'cluster-config', 'src', 'main', 'xml')
 
-    if opt.doList: showConfigs(clusterConfigDir, configToUse); raise SystemExit
-
-    # Get/parse cluster configuration
-    clusterConfig = deployConfig(clusterConfigDir, configToUse)
+    clusterConfig = ClusterConfig(metaDir, opt.clusterConfigName, opt.doList)
 
     spadeDir  = clusterConfig.logDirForSpade
     # Assume non-fully-qualified paths are relative to metaproject top dir:
@@ -307,14 +285,24 @@ def main():
         if not isabs(copyDir):
             copyDir = join(metaDir, copyDir)
         if not exists(copyDir) and not opt.dryRun: mkdir(copyDir)
-    
+
+    # Set up logDir
     if not exists(logDir):
-        if not opt.dryRun: mkdir(logDir)
+        if not opt.dryRun:
+            try:
+                mkdir(logDir)
+            except OSError, (errno, strerror):
+                if opt.verbose:
+                    print "Problem making log dir: '%s' (%s)" % (logDir, strerror)
+                    print "Using fallback for logDir: %s" % (logDirFallBack)
+                logDir = logDirFallBack
+                if not exists(logDir): mkdir(logDir)
     else:
         system('rm -f %s' % join(logDir, 'catchall.log'))
     
     if opt.verbose:
-        print "CONFIG: %s" % configToUse
+        print "Version: %(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % getVersionInfo(SVN_ID, SVN_URL)
+        print "CONFIG: %s" % clusterConfig.configName
         print "NODES:"
         for node in clusterConfig.nodes:
             print "  %s(%s)" % (node.hostName, node.locName),
@@ -322,8 +310,13 @@ def main():
                 print "%s-%d " % (comp.compName, comp.compID),
             print
 
-    if not opt.skipKill: doKill(True, opt.dryRun, dashDir, opt.verbose,
-                                clusterConfig, opt.killWith9)
+    if not opt.skipKill:
+        try:
+            activeConfig = ClusterConfig(metaDir, None, False, False, True)
+            doKill(True, opt.dryRun, dashDir, opt.verbose, activeConfig,
+                   opt.killWith9)
+        except ConfigNotSpecifiedException:
+            if opt.killOnly: print >>sys.stderr, 'DAQ is not currently active'
     if not opt.killOnly: doLaunch(True, opt.dryRun, opt.verbose, clusterConfig,
                                   dashDir, configDir, logDir,
                                   spadeDir, copyDir, opt.logPort, opt.cncPort)

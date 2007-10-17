@@ -4,7 +4,7 @@
 # Object to interface w/ DAQ run script
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started November, 2006
-# $Id:$
+# $Id: DAQRunIface.py 2153 2007-10-17 22:17:58Z ksb $
 
 from time import sleep, time
 from datetime import datetime, timedelta
@@ -12,9 +12,13 @@ from DAQRPC import RPCClient
 from os.path import join, exists
 from os import environ
 from xml.dom import minidom
+from DAQConfig import configExists
+from re import sub
+from types import DictType
 
 class LabelConfigFileNotFoundException(Exception): pass
 class MalformedLabelConfigException   (Exception): pass
+class MalformedFlasherInput           (Exception): pass
 
 def getElementSingleTagName(root, name):
     "Fetch a single element tag name of form <tagName>yowsa!</tagName>"
@@ -51,10 +55,19 @@ class DAQRunIface(object):
     
     def __init__(self, daqhost="localhost", daqport=8081):
         "Constructor - instantiate an RPC connection to DAQRun.py"
+
+        # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+        if environ.has_key("PDAQ_HOME"):
+            self.home = environ["PDAQ_HOME"]
+        else:
+            from locate_pdaq import find_pdaq_trunk
+            self.home = find_pdaq_trunk()
+        
         self.rpc = RPCClient(daqhost, int(daqport))
 
     def start(self, r, config):
         "Tell DAQRun to start a run"
+        config = sub('\.xml$', '', config)
         self.rpc.rpc_start_run(r, 0, config)
         return DAQRunIface.START_TRANSITION_SECONDS
     
@@ -72,9 +85,53 @@ class DAQRunIface(object):
         "Get current DAQ state"
         return self.rpc.rpc_run_state()
 
-    def flasher(self, *info):
-        "Tell DAQ to flash DOMs"
-        pass
+    def flasher(self, subRunID, flashingDomsList):
+        """
+        Tell DAQ to flash DOMs.  subRunID is 0, 1, ....  flashingDomsList is a list of
+        tuples in the form (domid,       brightness, window, delay, mask, rate)
+        or                 (dom_name,    "                                   ")
+        or                 (string, pos, "                                   ")
+        or a list of dictionaries, one per DOM, whose keys are
+            'stringHub','domPosition','brightness','window','delay','mask','rate'
+            and whose values are strings.
+            (THIS OPTION WILL RAISE A KEYERROR IF YOU DON'T PASS THE CORRECT ARGS)
+        Return value is 1 if the operation succeeded (subrun successfully started),
+        else 0 (in which case, check the pDAQ logs for diagnostic information).
+        
+        """
+        if flashingDomsList == []: pass # Nothing to do except stop the subrun
+        elif type(flashingDomsList[0]) == DictType: # Check for dictionary list signature
+            l = []
+            # Throws exception if dictionary is messed up:
+            try:
+                for dom in flashingDomsList:
+                    if dom.has_key('stringHub') and dom.has_key('domPosition'):
+                        l.append((int(dom['stringHub']),
+                                  int(dom['domPosition']),
+                                  int(dom['brightness']),
+                                  int(dom['window']),
+                                  int(dom['delay']),
+                                  int(dom['mask'], 16),
+                                  int(dom['rate'])))
+                    elif dom.has_key('MBID'):
+                        l.append((str(dom['MBID']),
+                                  int(dom['brightness']),
+                                  int(dom['window']),
+                                  int(dom['delay']),
+                                  int(dom['mask'], 16),
+                                  int(dom['rate'])))
+                    else: raise MalformedFlasherInput('Hash error on input')
+            except Exception, e:
+                m = 'Input was: '+str(flashingDomsList)
+                if not e.args: e.args = [ m, ]
+                else:
+                    e.args = (e.args[0], m) + e.args[1:]
+                raise
+
+            flashingDomsList = l
+
+        #print "Subrun %d: DOMs to flash: %s" % (subRunID, str(flashingDomsList))
+        return self.rpc.rpc_flash(subRunID, flashingDomsList)
     
     def getSummary(self):
         "Get component summary from DAQRun"
@@ -88,20 +145,14 @@ class DAQRunIface(object):
         self.rpc.rpc_release_runsets()
         return DAQRunIface.RELEASE_TRANSITION_SECONDS
     
-    def getDaqLabels(self):
-        # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-        if environ.has_key("PDAQ_HOME"):
-            home = environ["PDAQ_HOME"]
-        else:
-            from locate_pdaq import find_pdaq_trunk
-            home = find_pdaq_trunk()
-        
-        parser = DAQLabelParser(join(home, "dash", "config", "daqlabels.xml"))
+    def getDaqLabels(self):        
+        parser = DAQLabelParser(join(self.home, "dash", "config", "daqlabels.xml"))
         return parser.dict, parser.defaultLabel
 
     def isValidConfig(self, configName):
         "Placeholder only until this is implemented"
-        return True
+        configDir = join(self.home, "config")
+        return configExists(configDir, configName)
     
 if __name__ == "__main__":
     iface = DAQRunIface()

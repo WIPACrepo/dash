@@ -8,12 +8,14 @@
 
 from DAQLog import *
 from DAQRPC import RPCClient
-import datetime, sys
+import datetime, sys, threading
 from exc_string import *
 
 class MoniData(object):
-    def __init__(self, id, fname, addr, port):
+    def __init__(self, id, fname, name, daqID, addr, port):
         self.id = id
+        self.name = name
+        self.daqID = daqID
         self.addr = addr
         self.port = port
         if fname is None:
@@ -27,7 +29,7 @@ class MoniData(object):
             self.beanFields[bean] = self.client.mbean.listGetters(bean)
 
     def __str__(self):
-        return '%d: %s:%d' % (self.id, self.addr, self.port)
+        return '%s-%d' % (self.name, self.daqID)
 
     def monitor(self, now):
         for b in self.beanFields.keys():
@@ -44,6 +46,37 @@ class MoniData(object):
 
 class BeanFieldNotFoundException(Exception): pass
 
+class MoniThread(threading.Thread):
+    def __init__(self, moniData, log):
+        self.moniData = moniData
+        self.log = log
+
+        self.now = None
+        self.done = True
+
+        threading.Thread.__init__(self)
+
+        self.setName(str(self.moniData))
+
+    def getNewThread(self, now):
+        mt = MoniThread(self.moniData, self.log)
+        mt.now = now
+        return mt
+
+    def logmsg(self, m):
+        "Log message to logger, but only if logger exists"
+        print m
+        if self.log: self.log.dashLog(m)
+     
+    def run(self):
+        done = False
+        try:
+            self.moniData.monitor(self.now)
+        except Exception:
+            self.logmsg("Ignoring %s: %s" % \
+                            (str(self.moniData), exc_string()))
+        done = True
+
 class DAQMoni(object):
     def __init__(self, daqLog, interval, IDs, shortNameOf, daqIDof, rpcAddrOf, mbeanPortOf):
         self.log         = daqLog
@@ -52,6 +85,7 @@ class DAQMoni(object):
         self.tstart      = datetime.datetime.now()
         self.tlast       = None
         self.moniList    = {}
+        self.threadList  = {}
         for c in IDs:
             if mbeanPortOf[c] > 0:
                 fname = DAQMoni.fileName(self.path, shortNameOf[c], daqIDof[c])
@@ -59,8 +93,9 @@ class DAQMoni(object):
                                                                                 rpcAddrOf[c],
                                                                                 mbeanPortOf[c]))
                 try:
-                    md = MoniData(c, fname, rpcAddrOf[c], mbeanPortOf[c])
+                    md = MoniData(c, fname, shortNameOf[c], daqIDof[c], rpcAddrOf[c], mbeanPortOf[c])
                     self.moniList[c] = md
+                    self.threadList[c] = MoniThread(md, self.log)
                 except Exception, e:
                     self.logmsg("Couldn't create monitoring output (%s) for component %d!" % (fname, c))
                     self.logmsg("%s: %s" % (e, exc_string()))
@@ -93,11 +128,10 @@ class DAQMoni(object):
     def doMoni(self):
         now = datetime.datetime.now()
         self.tlast = now
-        for c in self.moniList.keys():
-            try:
-                self.moniList[c].monitor(now)
-            except Exception, e:
-                self.logmsg("Ignoring %s: %s" % (e, exc_string()))
+        for c in self.threadList.keys():
+            if self.threadList[c].done:
+                self.threadList[c] = self.threadList[c].getNewThread(now)
+                self.threadList[c].start()
 
     def logmsg(self, m):
         "Log message to logger, but only if logger exists"
@@ -118,7 +152,7 @@ if __name__ == "__main__":
                 host = sys.argv[i][:colon]
                 port = sys.argv[i][colon+1:]
 
-                moni = MoniData(i, None, host, port)
+                moni = MoniData(i, None, 'unknown', 0, host, port)
                 moni.monitor('snapshot')
     if usage:
         print "Usage: DAQMoni.py host:beanPort [host:beanPort ...]"

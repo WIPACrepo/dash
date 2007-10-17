@@ -10,8 +10,46 @@
 
 from DAQLog import *
 from DAQRPC import RPCClient
-import datetime
+import datetime, threading
 from exc_string import *
+
+class ThresholdWatcher(object):
+    def __init__(self, comp, beanName, fieldName, threshold, lessThan):
+        self.comp = comp
+        self.beanName = beanName
+        self.fieldName = fieldName
+        self.threshold = threshold
+        self.lessThan = lessThan
+
+        if self.lessThan:
+            self.opDescription = 'below'
+        else:
+            self.opDescription = 'above'
+
+    def __str__(self):
+        return self.comp + ' ' + self.beanName + '.' + self.fieldName + ' ' + \
+            self.opDescription + ' ' + str(self.threshold)
+
+    def check(self, newValue):
+        if type(newValue) != type(self.threshold):
+            raise Exception, 'Threshold value for ' + str(self) + ' is ' + \
+                str(type(self.threshold)) + ', new value is ' + \
+                str(type(newValue))
+        elif type(newValue) == list:
+            raise Exception, 'ThresholdValue does not support lists'
+        elif self.compare(self.threshold, newValue):
+            return False
+
+        return True
+
+    def compare(self, threshold, value):
+        if self.lessThan:
+            return value < threshold
+        else:
+            return value > threshold
+
+    def unhealthyString(self, value):
+        return str(self) + ' (value=' + str(value) + ')'
 
 class ValueWatcher(object):
     NUM_UNCHANGED = 3
@@ -69,6 +107,9 @@ class ValueWatcher(object):
 
         return newValue == oldValue
 
+    def unhealthyString(self, value):
+        return str(self) + ' not changing from ' + str(self.prevValue)
+
 class WatchData(object):
     def __init__(self, id, compType, compNum, addr, port):
         self.id = id
@@ -86,6 +127,7 @@ class WatchData(object):
             self.beanFields[bean] = self.client.mbean.listGetters(bean)
         self.inputFields = {}
         self.outputFields = {}
+        self.thresholdFields = {}
 
     def __str__(self):
         return '#' + str(self.id) + ': ' + self.name
@@ -122,51 +164,58 @@ class WatchData(object):
         vw = ValueWatcher(self.name, otherType, beanName, fieldName)
         self.outputFields[beanName].append(vw)
 
+    def addThresholdValue(self, beanName, fieldName, threshold, lessThan=True):
+        """
+        Watchdog triggers if field value drops below the threshold value
+        (or, when lessThan==False, if value rises above the threshold 
+        """
+
+        if beanName not in self.beanList:
+            raise BeanFieldNotFoundException('Unknown MBean ' + beanName +
+                                             ' for ' + self.name)
+
+        if fieldName not in self.beanFields[beanName]:
+            raise BeanFieldNotFoundException('Unknown MBean ' + beanName +
+                                             ' field ' + fieldName +
+                                             ' for ' + self.name)
+
+        if beanName not in self.thresholdFields:
+            self.thresholdFields[beanName] = []
+
+        tw = ThresholdWatcher(self.name, beanName, fieldName, threshold,
+                              lessThan)
+        self.thresholdFields[beanName].append(tw)
+
+    def checkList(self, list):
+        unhealthy = []
+        for b in list:
+            badList = self.checkValues(list[b])
+            if badList is not None:
+                unhealthy += badList
+
+        if len(unhealthy) == 0:
+            return None
+
+        return unhealthy
+
     def checkValues(self, watchList):
         unhealthy = []
         if len(watchList) == 1:
             val = self.client.mbean.get(watchList[0].beanName,
                                         watchList[0].fieldName)
-            prevVal = watchList[0].prevValue
             if not watchList[0].check(val):
-                unhealthy.append(str(watchList[0]) + ' (' + str(prevVal) +
-                                 '->' + str(val) + ')')
+                unhealthy.append(watchList[0].unhealthyString(val))
         else:
             fldList = []
             for f in watchList:
                 fldList.append(f.fieldName)
 
-            valList = self.client.mbean.getList(watchList[0].beanName, fldList)
+            valMap = self.client.mbean.getAttributes(watchList[0].beanName,
+                                                     fldList)
             for i in range(0,len(fldList)):
-                prevVal = watchList[i].prevValue
-                if not watchList[i].check(valList[i]):
-                    unhealthy.append(str(watchList[i]) + ' (' + str(prevVal) +
-                                     '->' + str(valList[i]) + ')')
-
-        if len(unhealthy) == 0:
-            return None
-
-        return unhealthy
-
-    def checkInputs(self, now):
-        unhealthy = []
-        for b in self.inputFields:
-            badList = self.checkValues(self.inputFields[b])
-            if badList is not None:
-                unhealthy += badList
-
-        if len(unhealthy) == 0:
-            return None
-
-        return unhealthy
-
-
-    def checkOutputs(self, now):
-        unhealthy = []
-        for b in self.outputFields:
-            badList = self.checkValues(self.outputFields[b])
-            if badList is not None:
-                unhealthy += badList
+                val = valMap[fldList[i]]
+                if not watchList[i].check(val):
+                    unhealthy.append(watchList[i].unhealthyString(val))
 
         if len(unhealthy) == 0:
             return None
@@ -174,6 +223,26 @@ class WatchData(object):
         return unhealthy
 
 class BeanFieldNotFoundException(Exception): pass
+
+class WatchThread(threading.Thread):
+    def __init__(self, watchdog):
+        self.watchdog = watchdog
+        self.done = False
+        self.error = False
+        self.healthy = False
+
+        threading.Thread.__init__(self)
+
+        self.setName('RunWatchdog')
+
+    def run(self):
+        try:
+            self.healthy = self.watchdog.realWatch()
+            self.done = True
+        except Exception:
+            self.watchdog.logmsg("Exception in run watchdog: %s" %
+                                 exc_string())
+            self.error = True
 
 class RunWatchdog(object):
     def __init__(self, daqLog, interval, IDs, shortNameOf, daqIDof, rpcAddrOf, mbeanPortOf):
@@ -185,8 +254,10 @@ class RunWatchdog(object):
         self.IDs         = IDs
         self.stringHubs  = []
         self.soloComps   = []
+        self.thread      = None
 
         iniceTrigger  = None
+        simpleTrigger  = None
         icetopTrigger  = None
         amandaTrigger  = None
         globalTrigger   = None
@@ -213,6 +284,14 @@ class RunWatchdog(object):
                             cw.addOutputValue('globalTrigger', 'trigger',
                                               'RecordsSent')
                         iniceTrigger = cw
+                    elif shortNameOf[c] == 'simpleTrigger':
+                        if self.contains(shortNameOf, 'stringHub'):
+                            cw.addInputValue('stringHub', 'stringHit',
+                                             'RecordsReceived')
+                        if self.contains(shortNameOf, 'globalTrigger'):
+                            cw.addOutputValue('globalTrigger', 'trigger',
+                                              'RecordsSent')
+                        iniceTrigger = cw
                     elif shortNameOf[c] == 'iceTopTrigger':
                         if self.contains(shortNameOf, 'stringHub'):
                             cw.addInputValue('stringHub', 'stringHit',
@@ -229,6 +308,9 @@ class RunWatchdog(object):
                     elif shortNameOf[c] == 'globalTrigger':
                         if self.contains(shortNameOf, 'inIceTrigger'):
                             cw.addInputValue('inIceTrigger', 'trigger',
+                                             'RecordsReceived')
+                        if self.contains(shortNameOf, 'simpleTrigger'):
+                            cw.addInputValue('simpleTrigger', 'trigger',
                                              'RecordsReceived')
                         if self.contains(shortNameOf, 'iceTopTrigger'):
                             cw.addInputValue('iceTopTrigger', 'trigger',
@@ -247,8 +329,10 @@ class RunWatchdog(object):
                                          'NumReadoutsReceived');
                         cw.addOutputValue('dispatch', 'backEnd',
                                           'NumEventsSent');
+                        cw.addThresholdValue('backEnd', 'DiskAvailable', 1024)
                         eventBuilder = cw
                     elif shortNameOf[c] == 'secondaryBuilders':
+                        cw.addThresholdValue('snBuilder', 'DiskAvailable', 1024)
                         secondaryBuilders = cw
                     else:
                         raise Exception, 'Unknown component type ' + \
@@ -262,11 +346,23 @@ class RunWatchdog(object):
         # of components in the list
         #
         if iniceTrigger: self.soloComps.append(iniceTrigger)
+        if simpleTrigger: self.soloComps.append(simpleTrigger)
         if icetopTrigger: self.soloComps.append(icetopTrigger)
         if amandaTrigger: self.soloComps.append(amandaTrigger)
         if globalTrigger: self.soloComps.append(globalTrigger)
         if eventBuilder: self.soloComps.append(eventBuilder)
         if secondaryBuilders: self.soloComps.append(secondaryBuilders)
+
+    def appendError(errMsg, compType, compErr):
+        if errMsg is None:
+            errMsg = "** Run watchdog reports"
+        else:
+            errMsg += "\nand"
+        errMsg += " " + compType + " components:\n" + compErr
+
+        return errMsg
+
+    appendError = staticmethod(appendError)
 
     def contains(self, nameList, compName):
         for n in nameList:
@@ -276,6 +372,7 @@ class RunWatchdog(object):
         return False
 
     def timeToWatch(self):
+        if self.inProgress(): return False
         if not self.tlast: return True
         now = datetime.datetime.now()
         dt  = now - self.tlast
@@ -291,74 +388,88 @@ class RunWatchdog(object):
                 compStr += "\n    " + str(c)
         return compStr
 
-    def doWatch(self):
-        now = datetime.datetime.now()
-        self.tlast = now
-        healthy = True
+    def checkComp(self, comp, starved, stagnant, threshold):
+        isProblem = False
+        try:
+            badList = comp.checkList(comp.inputFields)
+            if badList is not None:
+                starved += badList
+                isProblem = True
+        except Exception, e:
+            self.logmsg(str(comp) + ' inputs: ' + exc_string())
+
+        if not isProblem:
+            try:
+                badList = comp.checkList(comp.outputFields)
+                if badList is not None:
+                    stagnant += badList
+                    isProblem = True
+            except Exception, e:
+                self.logmsg(str(comp) + ' outputs: ' + exc_string())
+
+            if not isProblem:
+                try:
+                    badList = comp.checkList(comp.thresholdFields)
+                    if badList is not None:
+                        threshold += badList
+                        isProblem = True
+                except Exception, e:
+                    self.logmsg(str(comp) + ' thresholds: ' + exc_string())
+
+    def realWatch(self):
         starved = []
         stagnant = []
+        threshold = []
 
-        # checkInputs/checkOutputs can raise exception if far end is dead
+        # checks can raise exception if far end is dead
         for comp in self.stringHubs:
-            isStarved = False
-            try:
-                badList = comp.checkInputs(now)
-                if badList is not None:
-                    starved += badList
-                    isStarved = True
-            except Exception, e:
-                self.logmsg(str(comp) + ' inputs: ' + exc_string())
-
-            if not isStarved:
-                try:
-                    badList = comp.checkOutputs(now)
-                    if badList is not None:
-                        stagnant += badList
-                except Exception, e:
-                    self.logmsg(str(comp) + ' outinputs: ' + exc_string())
+            self.checkComp(comp, starved, stagnant, threshold)
 
         for comp in self.soloComps:
-            isStarved = False
-            try:
-                badList = comp.checkInputs(now)
-                if badList is not None:
-                    starved += badList
-                    isStarved = True
-            except Exception, e:
-                self.logmsg(str(comp) + ': ' + exc_string())
-            if not isStarved:
-                try:
-                    badList = comp.checkOutputs(now)
-                    if badList is not None:
-                        stagnant += badList
-                except Exception, e:
-                    self.logmsg(str(comp) + ': ' + exc_string())
+            self.checkComp(comp, starved, stagnant, threshold)
 
-        noOutStr = None
+        errMsg = None
+
         if len(stagnant) > 0:
-            noOutStr = self.joinAll(stagnant)
+            errMsg = RunWatchdog.appendError(errMsg, 'stagnant',
+                                             self.joinAll(stagnant))
 
-        noInStr = None
         if len(starved) > 0:
-            noInStr = self.joinAll(starved)
+            errMsg = RunWatchdog.appendError(errMsg, 'starving',
+                                             self.joinAll(starved))
 
-        if noOutStr:
-            if noInStr:
-                self.logmsg("** Run watchdog reports stagnant components:\n" +
-                            noOutStr + "\nand starved components:\n" + noInStr)
-                healthy = False
-            else:
-                self.logmsg("** Run watchdog reports stagnant components:\n" +
-                            noOutStr)
-                healthy = False
-        elif noInStr:
-            self.logmsg("** Run watchdog reports starving components:\n" +
-                        noInStr)
+        if len(threshold) > 0:
+            errMsg = RunWatchdog.appendError(errMsg, 'threshold',
+                                             self.joinAll(threshold))
+
+        healthy = True
+        if errMsg is not None:
+            self.logmsg(errMsg)
             healthy = False
         #else:
-            # self.logmsg('** Run watchdog reports all components are healthy')
+        #    self.logmsg('** Run watchdog reports all components are healthy')
 
         return healthy
+
+    def startWatch(self):
+        self.tlast = datetime.datetime.now()
+        self.thread = WatchThread(self)
+        self.thread.start()
+
+    def inProgress(self):
+        return self.thread is not None
+
+    def isDone(self):
+        return self.thread is not None and self.thread.done
+
+    def isHealthy(self):
+        return self.thread is not None and self.thread.healthy
+
+    def caughtError(self):
+        return self.thread is not None and self.thread.error
+
+    def clearThread(self):
+        self.thread = None
 
     def logmsg(self, m):
         "Log message to logger, but only if logger exists"

@@ -3,7 +3,7 @@
 import tarfile
 import datetime
 from sys import argv
-from os import popen, listdir, chdir, link, unlink, stat
+from os import popen, listdir, chdir, link, unlink, stat, chmod
 from time import sleep
 from os.path import basename, join, exists
 from re import search
@@ -22,7 +22,6 @@ def isTargetFile(f):
 
 def main():
     MAX_FILES_PER_TARBALL = 50
-    SLEEP_INTERVAL        = 60*5
     targetDir             = "/mnt/data/pdaqlocal"
     chdir(targetDir)
     # Make sure I'm not already running - so I can auto-restart out of crontab
@@ -30,28 +29,32 @@ def main():
     
     while True:
         try:
-            # Get list of available files
-            allfiles   = listdir(targetDir)
-            allfiles.sort(lambda x, y: (cmp(stat(x)[8],stat(y)[8])))
+            # Get list of available files, matching target tar pattern:
+            allFiles = listdir(targetDir)
+            matchingFiles = []
+            for f in allFiles:
+                if isTargetFile(f): 
+                    matchingFiles.append(f)
+                
+            matchingFiles.sort(lambda x, y: (cmp(stat(x)[8],stat(y)[8])))
             
             # Make list for tarball - restrict total number of files
             filesToTar = []
-            for f in allfiles:
-                # print f
-                if not isTargetFile(f): continue
+            for f in matchingFiles:
+                if not isTargetFile(f): continue # Redundant
                 filesToTar.append(f)
                 if len(filesToTar) >= MAX_FILES_PER_TARBALL: break
             
             if len(filesToTar) == 0:
-                sleep(SLEEP_INTERVAL)
-                continue
-                
+                raise SystemExit
+            
             print filesToTar
             t = datetime.datetime.now()
             dateTag  = "%03d_%04d%02d%02d_%02d%02d%02d_%06d" % (0, t.year, t.month, t.day,
                                                                 t.hour, t.minute, t.second, 0)
             spadeTar = "SPS-pDAQ-2ndBld-%s.dat.tar" % dateTag
             moniLink = "SPS-pDAQ-2ndBld-%s.mon.tar" % dateTag
+            snLink   = "SPS-pDAQ-2ndBld-%s.sn.tar"  % dateTag
             moniSem  = "SPS-pDAQ-2ndBld-%s.msem"    % dateTag
             spadeSem = "SPS-pDAQ-2ndBld-%s.sem"     % dateTag
 
@@ -71,6 +74,11 @@ def main():
             # Create moni hard link
             print moniLink
             link(spadeTar, moniLink)
+
+            # Create sn hard link
+            print snLink
+            link(spadeTar, snLink)
+            chmod(snLink, 0666); # So that Alex can delete if he's not running as pdaq
             
             # Create spade .sem
             f = open(spadeSem, "w"); f.close()
