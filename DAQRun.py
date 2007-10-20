@@ -16,7 +16,7 @@ from DAQRPC import RPCClient, RPCServer
 from os.path import exists, abspath, join, basename
 from Process import processList, findProcess
 from DAQLaunch import cyclePDAQ, ClusterConfig, ConfigNotSpecifiedException
-from SVNVersionInfo import getVersionInfo
+from SVNVersionInfo import get_version_info
 from tarfile import TarFile
 from exc_string import *
 from shutil import move
@@ -33,7 +33,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 2146 2007-10-17 01:37:59Z ksb $"
+SVN_ID  = "$Id: DAQRun.py 2168 2007-10-20 01:15:02Z ksb $"
 SVN_URL = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/DAQRun.py $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
@@ -113,7 +113,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.clusterConfig    = clusterConfig
         self.logDir           = logDir
         self.requiredComps    = []
-        self.versionInfo      = getVersionInfo(SVN_ID, SVN_URL)
+        self.versionInfo      = get_version_info(SVN_ID)
 
         # setCompID is the ID returned by CnCServer
         # daqID is e.g. 21 for string 21
@@ -826,7 +826,8 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         return ret
 
 if __name__ == "__main__":
-    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % getVersionInfo(SVN_ID, SVN_URL)
+    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s " \
+               "%(release)s %(repo_rev)s" % get_version_info(SVN_ID)
     usage = "%prog [options]\nversion: " + ver_info
     p = optparse.OptionParser(usage=usage, version=ver_info)
     

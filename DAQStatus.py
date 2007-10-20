@@ -3,10 +3,9 @@
 import optparse
 
 from DAQRPC import RPCClient
-from SVNVersionInfo import getVersionInfo
+from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQStatus.py 2146 2007-10-17 01:37:59Z ksb $"
-SVN_URL = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/DAQStatus.py $"
+SVN_ID  = "$Id: DAQStatus.py 2168 2007-10-20 01:15:02Z ksb $"
 
 def cmpComp(x, y):
     c = cmp(x[6], y[6])
@@ -91,7 +90,8 @@ def listVerbose(list, indent=''):
             (indent, c[0], c[1], c[2], c[3], c[4], c[5], c[6])
 
 if __name__ == "__main__":
-    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % getVersionInfo(SVN_ID, SVN_URL)
+    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s " \
+               "%(release)s %(repo_rev)s" % get_version_info(SVN_ID)
     usage = "%prog [options]\nversion: " + ver_info
     p = optparse.OptionParser(usage=usage, version=ver_info)
 

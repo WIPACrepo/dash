@@ -14,10 +14,9 @@ from os import environ, mkdir, system
 from os.path import abspath, isabs, join, basename
 
 from GetIP import getIP
-from SVNVersionInfo import getVersionInfo
+from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 2146 2007-10-17 01:37:59Z ksb $"
-SVN_URL = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/DAQLaunch.py $"
+SVN_ID = "$Id: DAQLaunch.py 2168 2007-10-20 01:15:02Z ksb $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -231,7 +230,7 @@ def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, copyDir, logP
              configDir, logDir, spadeDir, copyDir, logPort, cncPort)
 
 def main():
-    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % getVersionInfo(SVN_ID, SVN_URL)
+    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % get_version_info(SVN_ID)
     usage = "%prog [options]\nversion: " + ver_info
     p = optparse.OptionParser(usage=usage, version=ver_info)
 
@@ -301,7 +300,8 @@ def main():
         system('rm -f %s' % join(logDir, 'catchall.log'))
     
     if opt.verbose:
-        print "Version: %(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % getVersionInfo(SVN_ID, SVN_URL)
+        print "Version: %(filename)s %(revision)s %(date)s %(time)s " \
+              "%(author)s %(release)s %(repo_rev)s" % get_version_info(SVN_ID)
         print "CONFIG: %s" % clusterConfig.configName
         print "NODES:"
         for node in clusterConfig.nodes:

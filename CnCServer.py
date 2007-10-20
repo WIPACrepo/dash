@@ -2,7 +2,7 @@
 
 from DAQRPC import RPCClient, RPCServer
 from DAQLogClient import DAQLogger
-from SVNVersionInfo import getVersionInfo
+from SVNVersionInfo import get_version_info
 from Process import processList, findProcess
 from exc_string import *
 from time import time, sleep
@@ -14,8 +14,7 @@ import socket
 import sys
 import thread
 
-SVN_ID  = "$Id: CnCServer.py 2146 2007-10-17 01:37:59Z ksb $"
-SVN_URL = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/CnCServer.py $"
+SVN_ID  = "$Id: CnCServer.py 2168 2007-10-20 01:15:02Z ksb $"
 
 set_exc_string_encoding("ascii")
 
@@ -786,9 +785,9 @@ class DAQClient(CnCLogger):
         self.openLog(logIP, port)
         self.client.xmlrpc.logTo(logIP, port)
 
-        # Make RPC call to get svn version info into a dict
-        cvid = self.client.xmlrpc.getVersionInfo()
-        self.logmsg("Version info: %(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % getVersionInfo(cvid['id'], cvid['url']))
+        self.logmsg("Version info: %(filename)s %(revision)s %(date)s " \
+                    "%(time)s %(author)s %(release)s %(repo_rev)s" % \
+                    get_version_info(self.client.xmlrpc.getVersionInfo()))
 
     def monitor(self):
         "Return the monitoring value"
@@ -1105,7 +1104,7 @@ class DAQServer(DAQPool):
         self.port = port
         self.name = name
         self.showSpinner = showSpinner
-        self.versionInfo = getVersionInfo(SVN_ID, SVN_URL)
+        self.versionInfo = get_version_info(SVN_ID)
 
         self.id = int(time())
 
@@ -1416,7 +1415,8 @@ class CnCServer(DAQServer):
         self.serve(self.monitorLoop)
 
 if __name__ == "__main__":
-    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % getVersionInfo(SVN_ID, SVN_URL)
+    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s "\
+               "%(release)s %(repo_rev)s" % get_version_info(SVN_ID)
     usage = "%prog [options]\nversion: " + ver_info
     p = optparse.OptionParser(usage=usage, version=ver_info)
     p.add_option("-S", "--showSpinner", action="store_true", dest="showSpinner")
