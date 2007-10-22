@@ -80,7 +80,7 @@ def main():
         raise RuntimeError("One or more parallel operations failed")
 
     # Upload phase - upload release
-    uploadSet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose, timeout=450)
+    uploadSet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose, timeout=740)
     for domhub in hublist:
         uploadSet.add("ssh %s /usr/local/bin/reldall %s" % (domhub, remoteFile))
     
