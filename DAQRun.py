@@ -33,7 +33,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 2168 2007-10-20 01:15:02Z ksb $"
+SVN_ID  = "$Id: DAQRun.py 2169 2007-10-22 19:16:10Z jacobsen $"
 SVN_URL = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/DAQRun.py $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
@@ -475,10 +475,18 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 # Updated in rpc_daq_summary_xml as well:
                 (self.runStats.physicsEvents, self.runStats.moniEvents,
                  self.runStats.snEvents,      self.runStats.tcalEvents) = self.getEventCounts()
-                self.logmsg("\t%s physics events, %s moni events, %s SN events, %s tcals" % (self.runStats.physicsEvents,
-                                                                     self.runStats.moniEvents,
-                                                                     self.runStats.snEvents,
-                                                                     self.runStats.tcalEvents))
+                rateStr = ""
+                if self.runStats.startTime:
+                    dt = datetime.datetime.now() - self.runStats.startTime
+                    dtsec = dt.days*86400 + dt.seconds
+                    if dtsec > 0:
+                        rateStr = " (%2.2f Hz)" % (float(self.runStats.physicsEvents)/float(dtsec))
+                self.logmsg("\t%s physics events%s, %s moni events, %s SN events, %s tcals" \
+                            % (self.runStats.physicsEvents,
+                               rateStr,
+                               self.runStats.moniEvents,
+                               self.runStats.snEvents,
+                               self.runStats.tcalEvents))
                     
         except Exception, e:
             self.logmsg("Exception in monitoring: %s" % exc_string())
@@ -599,8 +607,11 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     try:
                         (self.runStats.physicsEvents, self.runStats.moniEvents,
                          self.runStats.snEvents,      self.runStats.tcalEvents) = self.getEventCounts()
-                        self.logmsg("%d physics events collected in %d seconds" % (self.runStats.physicsEvents,
-                                                                                   duration))
+                        rateStr = ""
+                        if duration > 0:
+                            rateStr = " (%2.2f Hz)" % (float(self.runStats.physicsEvents)/float(duration))
+                        self.logmsg("%d physics events collected in %d seconds%s" % (self.runStats.physicsEvents,
+                                                                                   duration, rateStr))
                         self.logmsg("%d moni events, %d SN events, %d tcals" % (self.runStats.moniEvents,
                                                                                 self.runStats.snEvents,
                                                                                 self.runStats.tcalEvents))
