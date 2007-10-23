@@ -16,7 +16,7 @@ from re import search
 import optparse
 import time
 
-SVN_ID = "$Id: ExpControlSkel.py 2168 2007-10-20 01:15:02Z ksb $"
+SVN_ID = "$Id: ExpControlSkel.py 2176 2007-10-23 18:47:53Z jacobsen $"
 
 class DOMArgumentException(Exception): pass
 
@@ -84,7 +84,7 @@ class DOM:
                     "brightness"  : self.bright,
                     "window"      : self.window,
                     "delay"       : self.delay,
-                    "mask"        : self.mask,
+                    "mask"        : str(self.mask),
                     "rate"        : self.rate }
         elif self.string != None and self.pos != None:
             return {"stringHub"   : self.string,
@@ -92,7 +92,7 @@ class DOM:
                     "brightness"  : self.bright,
                     "window"      : self.window,
                     "delay"       : self.delay,
-                    "mask"        : self.mask,
+                    "mask"        : str(self.mask),
                     "rate"        : self.rate }
         else:
             raise DOMArgumentException()
