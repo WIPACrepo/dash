@@ -6,6 +6,7 @@
 import os, re, sys, time
 
 PRINT_VERBOSE = False
+EXTRA_VERBOSE = False
 DATA_ONLY = False
 
 MONISEC_PAT = \
@@ -266,7 +267,8 @@ def processFile(fileName, comp):
 
 def reportDataRates(allData):
     """Report the DAQ data rates"""
-    print 'Data Rates:'
+    if not DATA_ONLY:
+        print 'Data Rates:'
     reportList = [('stringHub', 'stringHit'),
                   ('inIceTrigger', 'stringHit'),
                   ('icetopHub', 'icetopHit'),
@@ -347,7 +349,7 @@ def reportRatesInternal(allData, reportList):
                         print '    %s%s.%s: %f' % \
                             (indent, comp, sect, rateTuple[0])
                     else:
-                        if PRINT_VERBOSE:
+                        if EXTRA_VERBOSE:
                             print '    %s%s.%s: %s  Total: %f' % \
                                 (indent, comp, sect, str(rateTuple[1]),
                                  rateTuple[0])
@@ -391,7 +393,13 @@ if __name__ == "__main__":
     fileList = []
     for arg in sys.argv[1:]:
         if arg == '-v':
+            if not PRINT_VERBOSE:
+                PRINT_VERBOSE = True
+            else:
+                EXTRA_VERBOSE = True
+        elif arg == '-vv':
             PRINT_VERBOSE = True
+            EXTRA_VERBOSE = True
         elif arg == '-d':
             DATA_ONLY = True
         elif os.path.isdir(arg):
@@ -410,7 +418,10 @@ if __name__ == "__main__":
         badArg = True
 
     if badArg:
-        print >>sys.stderr, 'Usage: %s [moniDir | moniFile [...]]'
+        print >>sys.stderr, 'Usage: %s' +
+            ' [-d(ataOnly)]' +
+            ' [-v(erbose)]' +
+            ' (moniDir | moniFile [...])'
         sys.exit(1)
 
     if len(fileList) > 0:
