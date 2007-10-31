@@ -66,10 +66,14 @@ COMP_FIELDS = {
     'secondaryBuilders' :
         { #'moniData' : 'TotalRecordsReceived',
           'moniData' : 'RecordsReceived',
+          'moniBuilder' : 'TotalDispatchedData',
           #'snData' : 'TotalRecordsReceived',
           'snData' : 'RecordsReceived',
+          'snBuilder' : 'TotalDispatchedData',
           #'tcalData' : 'TotalRecordsReceived',
-          'tcalData' : 'RecordsReceived' },
+          'tcalData' : 'RecordsReceived',
+          'tcalBuilder' : 'TotalDispatchedData',
+          },
 }
 
 class Component(object):
@@ -291,7 +295,8 @@ def reportMonitorRates(allData):
     """Report the DAQ monitoring rates"""
     print 'Monitoring Rates:'
     reportList = [('amandaHub', 'moniData'), ('stringHub', 'moniData'),
-                  ('icetopHub', 'moniData'), ('secondaryBuilders', 'moniData')]
+                  ('icetopHub', 'moniData'), ('secondaryBuilders', 'moniData'),
+                  ('secondaryBuilders', 'moniBuilder')]
     reportRatesInternal(allData, reportList)
 
 def reportRatesInternal(allData, reportList):
@@ -369,14 +374,16 @@ def reportSupernovaRates(allData):
     """Report the DAQ supernova rates"""
     print 'Supernova Rates:'
     reportList = [('amandaHub', 'snData'), ('stringHub', 'snData'),
-                  ('icetopHub', 'snData'), ('secondaryBuilders', 'snData')]
+                  ('icetopHub', 'snData'), ('secondaryBuilders', 'snData'),
+                  ('secondaryBuilders', 'snBuilder')]
     reportRatesInternal(allData, reportList)
 
 def reportTimeCalRates(allData):
     """Report the DAQ time calibration rates"""
     print 'TimeCal Rates:'
     reportList = [('amandaHub', 'tcalData'), ('stringHub', 'tcalData'),
-                  ('icetopHub', 'tcalData'), ('secondaryBuilders', 'tcalData')]
+                  ('icetopHub', 'tcalData'), ('secondaryBuilders', 'tcalData'),
+                  ('secondaryBuilders', 'tcalBuilder')]
     reportRatesInternal(allData, reportList)
 
 def reportRates(allData):
