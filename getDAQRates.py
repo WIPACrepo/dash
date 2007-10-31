@@ -418,9 +418,9 @@ if __name__ == "__main__":
         badArg = True
 
     if badArg:
-        print >>sys.stderr, 'Usage: %s' +
-            ' [-d(ataOnly)]' +
-            ' [-v(erbose)]' +
+        print >>sys.stderr, 'Usage: %s' + \
+            ' [-d(ataOnly)]' + \
+            ' [-v(erbose)]' + \
             ' (moniDir | moniFile [...])'
         sys.exit(1)
 
