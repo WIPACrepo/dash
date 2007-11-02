@@ -5,15 +5,15 @@ import pprint
 
 PP = pprint.PrettyPrinter(indent=2)
 
-SVN_ID = "$Id: SVNVersionInfo.py 2218 2007-10-31 21:20:08Z ksb $"
+SVN_ID = "$Id: SVNVersionInfo.py 2226 2007-11-02 00:28:47Z ksb $"
 
 # This will hold the global svn revision # for a release as determined
 # by 'svnversion' at release time.  When on the trunk (not part of a
 # release) this will be 0.
-SVN_GLOBAL_REV = 2218
+SVN_GLOBAL_REV = 0
 
 # The release name, 'trunk' for unreleased, development versions
-RELEASE = 'Latimer'
+RELEASE = 'trunk'
 
 def get_version_info(svn_id):
 
