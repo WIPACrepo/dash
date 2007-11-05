@@ -6,15 +6,14 @@
 import os, re, sys, time
 
 PRINT_VERBOSE = False
-EXTRA_VERBOSE = False
 DATA_ONLY = False
+TIME_INTERVAL = None
 
 MONISEC_PAT = \
     re.compile(r'^(.*):\s+(\d+-\d+-\d+ \d+:\d+:\d+)\.(\d+):\s*$')
 MONILINE_PAT = re.compile(r'^\s+([^:]+):\s+(.*)$')
 
 TIMEFMT = '%Y-%m-%d %H:%M:%S'
-TIME_INTERVAL = 3600 # 1 hour
 
 COMP_FIELDS = {
     'amandaHub' :
@@ -232,6 +231,7 @@ def processFile(fileName, comp):
     secName = None
     secTime = None
 
+    secFirst = {}
     secLastSaved = {}
     secSeenData = {}
 
@@ -250,13 +250,16 @@ def processFile(fileName, comp):
                 vals = m.group(2)
 
                 if flds is None or flds[secName] == name:
-                    if secTime > secLastSaved[secName] + TIME_INTERVAL:
+                    if TIME_INTERVAL is not None and \
+                            secTime > secLastSaved[secName] + TIME_INTERVAL:
                         newVal = fixValue(vals)
                         if newVal > 0:
                             data[secName][secTime] = newVal
                             secLastSaved[secName] = secTime
                     elif vals != '0':
                         secSeenData[secName] = (secTime, vals)
+                        if not secFirst.has_key(secName):
+                            secFirst[secName] = (secTime, vals)
                 continue
 
         m = MONISEC_PAT.match(line)
@@ -275,12 +278,16 @@ def processFile(fileName, comp):
                 secSeenData[secName] = None
 
     for k in data:
-        if not secSeenData.has_key(k) or secSeenData[k] is None:
-            continue
+        if TIME_INTERVAL is None and \
+                secFirst.has_key(k) and secFirst[k] is not None:
+            (firstTime, firstVals) = secFirst[k]
+            if not data[k].has_key(firstTime):
+                data[k][firstTime] = fixValue(firstVals)
 
-        (lastTime, lastVals) = secSeenData[k]
-        if not data[k].has_key(lastTime):
-            data[k][lastTime] = fixValue(lastVals)
+        if secSeenData.has_key(k) and secSeenData[k] is not None:
+            (lastTime, lastVals) = secSeenData[k]
+            if not data[k].has_key(lastTime):
+                data[k][lastTime] = fixValue(lastVals)
 
     return data
 
@@ -322,6 +329,7 @@ def reportRatesInternal(allData, reportList):
     combinedComp = None
     combinedField = None
     combinedRate = None
+    combinedSplit = None
 
     for rptTuple in reportList:
         isCombined = rptTuple[0].endswith('Hub') or \
@@ -333,18 +341,25 @@ def reportRatesInternal(allData, reportList):
                 if combinedRate is None:
                     print '    %s.%s: Not enough data' % \
                         (combinedComp, combinedField)
-                else:
+                elif len(combinedSplit) == 0:
                     print '    %s.%s: %.1f' % \
                         (combinedComp, combinedField, combinedRate)
+                else:
+                    print '    %s.%s: %s  Total: %.1f' % \
+                        (combinedComp, combinedField,
+                         formatRates(combinedSplit), combinedRate)
+
                 combinedComp = None
                 combinedField = None
                 combinedRate = None
+                combinedSplit = None
 
         if isCombined:
             if combinedField is None:
                 combinedComp = 'All %ss' % rptTuple[0]
                 combinedField = rptTuple[1]
                 combinedRate = None
+                combinedSplit = []
             elif combinedComp is not None:
                 if rptTuple[0].endswith('Hub'):
                     combinedComp = 'All Hubs'
@@ -373,19 +388,27 @@ def reportRatesInternal(allData, reportList):
                         print '    %s%s.%s: %.1f' % \
                             (indent, comp, sect, rateTuple[0])
                     else:
-                        if EXTRA_VERBOSE:
+                        if TIME_INTERVAL is None:
+                            print '    %s%s.%s: %.1f' % \
+                                (indent, comp, sect, rateTuple[0])
+                        else:
                             print '    %s%s.%s: %s  Total: %.1f' % \
                                 (indent, comp, sect, formatRates(rateTuple[1]),
                                  rateTuple[0])
-                        else:
-                            print '    %s%s.%s: %.1f' % \
-                                (indent, comp, sect, rateTuple[0])
                     needNL = False
 
-                if combinedComp is not None and rateTuple[0] is not None:
-                    if combinedRate is None:
-                        combinedRate = 0.0
-                    combinedRate += rateTuple[0]
+                if combinedComp is not None:
+                    if rateTuple[0] is not None:
+                        if combinedRate is None:
+                            combinedRate = 0.0
+                        combinedRate += rateTuple[0]
+                    if rateTuple[1] is not None:
+                        tupleLen = len(rateTuple[1])
+                        if len(combinedSplit) < tupleLen:
+                            for i in range(len(combinedSplit), tupleLen):
+                                combinedSplit.append(0.0)
+                        for i in range(0, tupleLen):
+                            combinedSplit[i] += rateTuple[1][i]
 
         if needNL:
             print ''
@@ -417,19 +440,23 @@ def reportRates(allData):
 
 if __name__ == "__main__":
     badArg = False
+    grabTimeInterval = False
     dirList = []
     fileList = []
     for arg in sys.argv[1:]:
-        if arg == '-v':
+        if grabTimeInterval:
+            TIME_INTERVAL = int(arg)
+            grabTimeInterval = False
+        elif arg == '-v':
             if not PRINT_VERBOSE:
                 PRINT_VERBOSE = True
-            else:
-                EXTRA_VERBOSE = True
-        elif arg == '-vv':
-            PRINT_VERBOSE = True
-            EXTRA_VERBOSE = True
         elif arg == '-d':
             DATA_ONLY = True
+        elif arg.startswith('-i'):
+            if arg == '-i':
+                grabTimeInterval = True
+            else:
+                TIME_INTERVAL = int(arg[2:])
         elif os.path.isdir(arg):
             dirList.append(arg)
         elif os.path.exists(arg):
@@ -448,6 +475,7 @@ if __name__ == "__main__":
     if badArg:
         print >>sys.stderr, 'Usage: %s' + \
             ' [-d(ataOnly)]' + \
+            ' [-i timeInterval ]' + \
             ' [-v(erbose)]' + \
             ' (moniDir | moniFile [...])'
         sys.exit(1)
