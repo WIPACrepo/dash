@@ -154,7 +154,10 @@ def computeRates(dataDict):
         rates = None
         totRate = None
     elif len(rates) == 1:
-        totRate = rates[0]
+        if float(rates[0]) == 0.0:
+            totRate = None
+        else:
+            totRate = rates[0]
         rates = None
     else:
         totSecs = prevTime - firstTime
@@ -327,8 +330,12 @@ def reportRatesInternal(allData, reportList):
                  
         if combinedField is not None:
             if not isCombined or combinedField != rptTuple[1]:
-                print '    %s.%s: %.1f' % \
-                    (combinedComp, combinedField, combinedRate)
+                if combinedRate is None:
+                    print '    %s.%s: Not enough data' % \
+                        (combinedComp, combinedField)
+                else:
+                    print '    %s.%s: %.1f' % \
+                        (combinedComp, combinedField, combinedRate)
                 combinedComp = None
                 combinedField = None
                 combinedRate = None
@@ -337,8 +344,8 @@ def reportRatesInternal(allData, reportList):
             if combinedField is None:
                 combinedComp = 'All %ss' % rptTuple[0]
                 combinedField = rptTuple[1]
-                combinedRate = 0.0
-            elif combinedComp != None:
+                combinedRate = None
+            elif combinedComp is not None:
                 if rptTuple[0].endswith('Hub'):
                     combinedComp = 'All Hubs'
                 else:
@@ -375,7 +382,9 @@ def reportRatesInternal(allData, reportList):
                                 (indent, comp, sect, rateTuple[0])
                     needNL = False
 
-                if combinedRate is not None and rateTuple[0] is not None:
+                if combinedComp is not None and rateTuple[0] is not None:
+                    if combinedRate is None:
+                        combinedRate = 0.0
                     combinedRate += rateTuple[0]
 
         if needNL:
