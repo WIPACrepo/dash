@@ -188,6 +188,18 @@ def fixValue(valStr):
 
     return tot
 
+def formatRates(rates):
+    """format a list of rates"""
+    rStr = '['
+    needComma = False
+    for r in rates:
+        if not needComma:
+            needComma = True
+        else:
+            rStr += ', '
+        rStr += '%.1f' % r
+    return rStr + ']'
+
 def processDir(dirName):
     """Process all .moni files in the specified directory"""
     allData = {}
@@ -315,7 +327,7 @@ def reportRatesInternal(allData, reportList):
                  
         if combinedField is not None:
             if not isCombined or combinedField != rptTuple[1]:
-                print '    %s.%s: %f' % \
+                print '    %s.%s: %.1f' % \
                     (combinedComp, combinedField, combinedRate)
                 combinedComp = None
                 combinedField = None
@@ -351,15 +363,15 @@ def reportRatesInternal(allData, reportList):
                         print '    %s%s.%s: Not enough data' % \
                             (indent, comp, sect)
                     elif rateTuple[1] is None:
-                        print '    %s%s.%s: %f' % \
+                        print '    %s%s.%s: %.1f' % \
                             (indent, comp, sect, rateTuple[0])
                     else:
                         if EXTRA_VERBOSE:
-                            print '    %s%s.%s: %s  Total: %f' % \
-                                (indent, comp, sect, str(rateTuple[1]),
+                            print '    %s%s.%s: %s  Total: %.1f' % \
+                                (indent, comp, sect, formatRates(rateTuple[1]),
                                  rateTuple[0])
                         else:
-                            print '    %s%s.%s: %f' % \
+                            print '    %s%s.%s: %.1f' % \
                                 (indent, comp, sect, rateTuple[0])
                     needNL = False
 
