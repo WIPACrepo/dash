@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
-import optparse
-import signal
-import sys
+import optparse, signal, sys, threading, time
 from os import environ, getpid
 from os.path import abspath, isabs, join, exists
 
@@ -26,8 +24,55 @@ def hasNonZero(l):
         if x != 0: return True
     return False
 
+class HubMux:
+    def __init__(self,timeoutSec=None):
+        self.timeoutSec = timeoutSec
+        self.hubs    = []
+        self.hubcmds = {}
+        self.results = {}
+        self.tmpFile = "/tmp/__hub_uploader.out"
+        self.lock    = threading.Lock()
+        self.threads = {}
+
+    def runThread(self, hub):
+        print "Running command for %s" % hub
+        time.sleep(3)
+        
+    def add(self, hub, sshCmd):
+        self.hubs.append(hub)
+        self.hubcmds[hub] = "(ssh %s %s 2>&1) > %s" % (hub, sshCmd, self.tmpFile)
+        
+    def done(self, hub):
+        if self.threads.has_key(hub) and self.threads[hub].isAlive(): return False
+        return True
+
+    def watcher(self):
+        while True:
+            allDone = True
+            for hub in self.hubs:
+                print "Hub %s: " % hub,
+                if self.done(hub):
+                    print "Done"
+
+                else:
+                    allDone = False
+                    print "Waiting..."
+            if allDone: break
+            time.sleep(1)
+    
+    def start(self):
+        for hub in self.hubs:
+            print "Launching:"
+            print self.hubcmds[hub]
+            self.threads[hub] = threading.Thread(target=self.runThread, args=(hub, ))
+            self.threads[hub].start()
+            self.watchThread = threading.Thread(target=self.watcher)
+            self.watchThread.start()
+            
+    def results(self, hub): return ""
+                
 def main():
-    p = optparse.OptionParser()
+    p = optparse.OptionParser(usage="usage: %prog [options] <releasefile>")
     p.add_option("-c", "--config-name",  action="store", type="string",
                  dest="clusterConfigName",
                  help="Cluster configuration name, subset of deployed configuration.")
@@ -43,9 +88,8 @@ def main():
                    dryRun            = False)
     opt, args = p.parse_args()
 
-    usage = "Usage: UploadMB [args: -h to list] release.hex"
     if len(args) < 1:
-        print usage
+        p.error("An argument is required!")
         raise SystemExit
 
     releaseFile = args[0]
@@ -80,18 +124,32 @@ def main():
         raise RuntimeError("One or more parallel operations failed")
 
     # Upload phase - upload release
-    uploadSet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose, timeout=1000)
+    #uploadSet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose, timeout=1000)
+    #counter = 0
+    #hubHash = {}
+    #for domhub in hublist:
+    #    uploadSet.add("ssh %s UploadDOMs.py %s" % (domhub, remoteFile))
+    #    hubHash[counter] = str(domhub)
+    #    counter += 1
+
+    mux = HubMux(timeoutSec=1000)
     for domhub in hublist:
-        uploadSet.add("ssh %s /usr/local/bin/reldall %s" % (domhub, remoteFile))
-    
+        mux.add(domhub, "UploadDOMs.py %s" % remoteFile)
+
     print "Uploading %s on all hubs..." % remoteFile
-    uploadSet.start()
-    uploadSet.wait(monitorIval=15)
-    if hasNonZero(uploadSet.getReturnCodes()):
-        print uploadSet.getAllResults()
-        print "One or more upload operations failed or were interrupted."
-        print "DOMs are in an unknown state!"
-        raise SystemExit
+    mux.start()
+        
+    #uploadSet.start()
+    #monitorUpload(uploadSet, counter, hubHash)
+
+    #raise SystemExit
+    
+    #uploadSet.wait(monitorIval=15)
+    #if hasNonZero(uploadSet.getReturnCodes()):
+    #    print uploadSet.getAllResults()
+    #    print "One or more upload operations failed or were interrupted."
+    #    print "DOMs are in an unknown state!"
+    #    raise SystemExit
 
     # Cleanup phase - remove remote files from /tmp on hubs
     cleanUpSet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose)
