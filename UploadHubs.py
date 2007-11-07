@@ -61,14 +61,21 @@ class ThreadableProcess:
 class DOMCounter:
     def __init__(self, s):
         self.data = s
-    def length(self): return len(self.data)
+
+    def doneDOMs(self):
+        return re.findall('(\d)(\d)(\w): DONE \((\d+)\)', self.data)
+    
     def versionHash(self):
-        list = re.findall('(\d)(\d)(\w): DONE \((\d+)\)', self.data)
+        list = self.doneDOMs()
         h = {}
         for dom in list:
             if not h.has_key(dom[3]): h[dom[3]] = 1 # There's a better way to do this, but I forgot...
             else: h[dom[3]] += 1
         return h
+
+    def domCount(self):
+        return len(self.doneDOMs())
+    
     def failList(self):
         list = re.findall('(\d)(\d)(\w): FAIL', self.data)
         return ["%s%s%s" % dom for dom in list]
@@ -114,10 +121,14 @@ class ThreadSet:
 
     def watch(self):
         while True:
-            allDone = True
+            nDone = 0
+            domCount = 0
             for hub in self.hubs:
-                if not self.procs[hub].done: allDone = False
-            if allDone: break
+                if self.procs[hub].done:
+                    nDone += 1
+                    domCount += DOMCounter(self.procs[hub].results()).domCount()
+            if nDone == len(self.hubs): break
+            print "Done with %d of %d hubs (%d DOMs)." % (nDone, len(self.hubs), domCount)
             time.sleep(1)
         for hub in self.hubs:
             print "Hub", hub,
@@ -139,53 +150,6 @@ def testProcs():
     ts.start()
     ts.watch()
     
-class HubMux:
-    def __init__(self,timeoutSec=None):
-        self.timeoutSec = timeoutSec
-        self.hubs    = []
-        self.hubcmds = {}
-        self.results = {}
-        self.tmpFile = "/tmp/__hub_uploader.out"
-        self.lock    = threading.Lock()
-        self.threads = {}
-
-    def runThread(self, hub):
-        print "Running command for %s" % hub
-        time.sleep(3)
-        
-    def add(self, hub, sshCmd):
-        self.hubs.append(hub)
-        self.hubcmds[hub] = "(ssh %s %s 2>&1) > %s" % (hub, sshCmd, self.tmpFile)
-        
-    def done(self, hub):
-        if self.threads.has_key(hub) and self.threads[hub].isAlive(): return False
-        return True
-
-    def watcher(self):
-        while True:
-            allDone = True
-            for hub in self.hubs:
-                print "Hub %s: " % hub,
-                if self.done(hub):
-                    print "Done"
-
-                else:
-                    allDone = False
-                    print "Waiting..."
-            if allDone: break
-            time.sleep(1)
-    
-    def start(self):
-        for hub in self.hubs:
-            print "Launching:"
-            print self.hubcmds[hub]
-            self.threads[hub] = threading.Thread(target=self.runThread, args=(hub, ))
-            self.threads[hub].start()
-            self.watchThread = threading.Thread(target=self.watcher)
-            self.watchThread.start()
-            
-    def results(self, hub): return ""
-                
 def main():
     testProcs()
     raise SystemExit
@@ -250,12 +214,7 @@ def main():
     #    hubHash[counter] = str(domhub)
     #    counter += 1
 
-    mux = HubMux(timeoutSec=1000)
-    for domhub in hublist:
-        mux.add(domhub, "UploadDOMs.py %s" % remoteFile)
-
     print "Uploading %s on all hubs..." % remoteFile
-    mux.start()
         
     #uploadSet.start()
     #monitorUpload(uploadSet, counter, hubHash)
