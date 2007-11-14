@@ -44,13 +44,17 @@ class SnippetRunRec:
         self.config   = None
         self.startDay = None
         self.endDay   = None
-        m = search(r'(\d\d\d\d\-\d\d\-\d\d).nbsp.+?(\d\d\d\d\-\d\d\-\d\d).nbsp.+?<td.+?>(\S+?)</td>\s*?</tr>', self.txt, S)
+        self.release  = None
+        m = search(r'<tr>.+?<td.+?>.+?</td>\s*<td.+?>(\S+)</td>', self.txt, S)
+        if m: self.release = m.group(1)
+        m = search(r'.+?(\d\d\d\d\-\d\d\-\d\d).nbsp.+?(\d\d\d\d\-\d\d\-\d\d).nbsp.+?<td.+?>(\S+?)</td>\s*?</tr>',
+                   self.txt, S)
         if m:
             self.startDay = m.group(1)
             self.endDay   = m.group(2)
             self.config   = m.group(3)
     
-    def html(self, lastConfig, lastStartDay):
+    def html(self, lastRelease, lastConfig, lastStartDay):
         """
         Return HTML, but grey out repeated dates and configurations for visual clarity
         """
@@ -60,6 +64,8 @@ class SnippetRunRec:
             ret = sub(self.config, "<FONT COLOR=%s>%s</FONT>" % (grey, self.config), ret)
         if lastStartDay == self.startDay and self.startDay != None:
             ret = sub(self.startDay, "<FONT COLOR=%s>%s</FONT>" % (grey, self.startDay), ret)
+        if lastRelease == self.release and self.release != None:
+            ret = sub(self.release, "<FONT COLOR=%s>%s</FONT>" % (grey, self.release), ret)
         return ret
 
 def checkForRunningProcesses():
@@ -118,14 +124,15 @@ def fmt(s):
     if s != None: return sub('\s', '&nbsp;', str(s))
     return " "
 
-def generateSnippet(snippetFile, runNum, starttime, stoptime, dtsec,
+def generateSnippet(snippetFile, runNum, release, starttime, stoptime, dtsec,
                     configName, runDir, status, nEvents):
     snippet = open(snippetFile, 'w')
     
     statusColor = getStatusColor(status)
     
     evStr = "?"
-    if nEvents != None: evStr = nEvents
+    if nEvents is not None: evStr = nEvents
+    if release is None: release = ""
 
     rateStr = None
     try:
@@ -140,10 +147,11 @@ def generateSnippet(snippetFile, runNum, starttime, stoptime, dtsec,
     <td align=center bgcolor="eeeeee">%s</td>
     <td align=center>%s</td>
     <td align=center bgcolor="eeeeee">%s</td>
+    <td align=center>%s</td>
     <td align=center bgcolor=%s><a href="%s">%s</a></td>
     <td align=left>%s</td>
     </tr>
-    """ % (runNum, fmt(starttime), fmt(stoptime),
+    """ % (runNum, release, fmt(starttime), fmt(stoptime),
            fmt(dtsec), evStr, fmt(rateStr),
            statusColor, runDir, status, configName)
     snippet.close()
@@ -201,7 +209,7 @@ def toSeconds(t):
     if t == None: return None
     return t.days*86400 + t.seconds
 
-def makeRunReport(snippetFile, dashFile, infoPat, runInfo, configName,
+def makeRunReport(snippetFile, dashFile, release, infoPat, runInfo, configName,
                       status, nEvents, absRunDir, relRunDir):
 
     starttime = dashTime(getDashEvent(dashFile, r'Started run \d+ on run set'))
@@ -232,10 +240,10 @@ def makeRunReport(snippetFile, dashFile, infoPat, runInfo, configName,
     mins   = int(match.group(6))
     sec    = int(match.group(7))
     dur    = int(match.group(8))
-    
-    generateSnippet(snippetFile, runNum, starttime, stoptime, dtsec,
+
+    generateSnippet(snippetFile, runNum, release, starttime, stoptime, dtsec,
                     configName, relRunDir+"/run.html", status, nEvents)
-    makeSummaryHtml(absRunDir, runNum, configName, status, nEvents,
+    makeSummaryHtml(absRunDir, runNum, release, configName, status, nEvents,
                     starttime, stoptime, dtsec)
 
 def escapeBraces(txt):
@@ -245,7 +253,7 @@ def escapeBraces(txt):
     """
     return txt.replace(">","&GT;").replace("<","&LT;")
 
-def makeSummaryHtml(logLink, runNum, configName, status, nEvents,
+def makeSummaryHtml(logLink, runNum, release, configName, status, nEvents,
                     starttime, stoptime, dtsec):
     
     files = listdir(logLink)
@@ -260,7 +268,8 @@ def makeSummaryHtml(logLink, runNum, configName, status, nEvents,
     html = open(logLink+"/run.html", "w")
 
     eventStr = "(check monitoring files)"
-    if nEvents != None: eventStr = nEvents
+    if nEvents is not None: eventStr = nEvents
+    if release is None: release = ""
 
     print >>html, "<HEAD><TITLE>Run %d</TITLE></HEAD>" % runNum
     print >>html, "<HTML>"
@@ -268,6 +277,7 @@ def makeSummaryHtml(logLink, runNum, configName, status, nEvents,
     print >>html, """
 <TABLE>
  <TR><TD ALIGN="right"><FONT COLOR=888888>Run</FONT></TD><TD><FONT SIZE=+3>%d</FONT></TD></TR>
+ <TR><TD ALIGN="right"><FONT COLOR=888888>pDAQ&nbsp;Release</FONT></TD><TD>%s</TD></TR>
  <TR><TD ALIGN="right"><FONT COLOR=888888>Configuration</FONT></TD><TD>%s</TD></TR>
  <TR><TD ALIGN="right" VALIGN="top">
   <FONT COLOR=888888>Start Date</FONT></TD><TD VALIGN="top">%s</TD>
@@ -279,7 +289,7 @@ def makeSummaryHtml(logLink, runNum, configName, status, nEvents,
  <TR><TD ALIGN="right"><FONT COLOR=888888>Events</FONT></TD><TD>%s</TD></TR>
  <TR><TD ALIGN="right"><FONT COLOR=888888>Status</FONT></TD><TD BGCOLOR=%s>%s</TD></TR>
 </TABLE>
-     """ % (runNum, configName, fmt(starttime), fmt(stoptime), dtsec, eventStr,
+     """ % (runNum, release, configName, fmt(starttime), fmt(stoptime), dtsec, eventStr,
             getStatusColor(status), status)
 
     print >>html, makeTable(logs, "Logs")
@@ -452,6 +462,7 @@ def main():
     <table>
     <tr>
      <td align=center><b><font size=-1>Run</font></b></td>
+     <td align=center><b><font size=-1>Release</font></b></td>
      <td align=center><b><font size=-1>Run Start Time</font></b></td>
      <td align=center><b><font size=-1>Run Stop Time</font></b></td>
      <td align=center><b><font size=-1>Duration (seconds)</font></b></td>
@@ -476,7 +487,7 @@ def main():
     prevRun          = None
     prevConfig       = None
     prevStartDay     = None
-    
+    prevRelease      = None
     for f in tarlist:
         prefix = 'SPS-pDAQ-run-'
         if search(r'.done$', f): continue # Skip SPADE .done semaphores
@@ -550,7 +561,7 @@ def main():
                 tar = tarfile.open(datTar)
                 
                 dashFile = None # Pick up during extraction
-                
+                release  = None 
                 for el in tar.getnames():
 
                     # Extract contents if not already extracted
@@ -583,6 +594,8 @@ def main():
                         s = search(r'\]\s+(\d+).+?events collected', dashContents)
                         if s: nEvents = int(s.group(1))
 
+                        s = search(r'Version Info:.+\s+(\S+)\s+\d+\n', dashContents)
+                        if s: release = s.group(1)
                     # Remember more precise unpacked location for link
                     if search(r'(daqrun\d+)/$', el): 
                         linkDir = runInfoString + "/" + el
@@ -598,7 +611,7 @@ def main():
                 if status == None: status = "INCOMPLETE"
 
                 # Make HTML snippet for run summaries
-                makeRunReport(snippetFile, dashFile, infoPat, runInfoString, 
+                makeRunReport(snippetFile, dashFile, release, infoPat, runInfoString, 
                               configName, status, nEvents, runDir+"/"+linkDir,
                               linkDir)
 
@@ -627,7 +640,7 @@ def main():
             
             if numRuns < maxFirstFileRuns:
                 if(skippedRun): print >>firstSummaryFile, skipper
-                print >>firstSummaryFile, runRec.html(prevConfig, prevStartDay)
+                print >>firstSummaryFile, runRec.html(prevRelease, prevConfig, prevStartDay)
                 firstSummaryFile.flush()
             elif numRuns == maxFirstFileRuns:
                 print >>firstSummaryFile, """
@@ -641,12 +654,13 @@ def main():
             # Write all summaries:
             if(skippedRun): print >>allSummaryFile, skipper
             try:
-                print >>allSummaryFile, runRec.html(prevConfig, prevStartDay)
+                print >>allSummaryFile, runRec.html(prevRelease, prevConfig, prevStartDay)
             except IOError, e:
                 print "WARNING: couldn't read snippet file (%s)" % exc_string()
 
             prevConfig   = runRec.config
             prevStartDay = runRec.startDay
+            prevRelease  = runRec.release
             
             allSummaryFile.flush()
             
