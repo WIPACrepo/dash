@@ -1,19 +1,29 @@
 #!/usr/bin/env python
 
-import optparse, signal, sys, threading, time, select
-from os import environ, getpid, popen
-from os.path import abspath, isabs, join, exists
+"""
+
+UploadHubs.py
+
+Upload DOM Mainboard release to all hubs *robustly*, giving full account
+of any errors, slow DOMs, etc.
+
+John Jacobsen, jacobsen@npxdesigns.com
+Started November, 2007
+
+"""
+
+import optparse, signal, sys, threading, time, select, popen2, os, os.path
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if environ.has_key("PDAQ_HOME"):
-    metaDir = environ["PDAQ_HOME"]
+if os.environ.has_key("PDAQ_HOME"):
+    metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
 # add 'cluster-config' to Python library search path
 #
-sys.path.append(join(metaDir, 'cluster-config'))
+sys.path.append(os.path.join(metaDir, 'cluster-config'))
 
 from ClusterConfig import *
 from ParallelShell import *
@@ -25,117 +35,288 @@ def hasNonZero(l):
     return False
 
 class ThreadableProcess:
-    def __init__(self, hub, cmd):
+    """
+    Small class for a single instance of an operation to run concurrently
+    w/ other instances (using ThreadSet)
+    """
+    def __init__(self, hub, cmd, verbose=False):
         self.cmd     = cmd
         self.hub     = hub
         self.fd      = None
         self.started = False
         self.done    = False
+        self.doStop  = False
         self.thread  = None
         self.output  = ""
         self.lock    = None
+        self.pop     = None
+        self.verbose = verbose
         
     def _reader(self, hub, cmd):
+        """
+        Thread for starting, watching and controlling external process
+        """
+        if self.verbose: print "Starting '%s' on %s..." % (cmd, hub)
         self.lock    = threading.Lock()
         self.started = True
-        self.fd = popen(cmd)
-        for r in self.fd:
+        self.pop = popen2.Popen4(cmd, 0)
+        self.fd  = self.pop.fromchild
+        fileno   = self.fd.fileno()
+        while not self.doStop:
+            ready = select.select([fileno],[],[], 1)
+            if len(ready[0]) < 1: continue # Pick up stop signal
             self.lock.acquire()
-            self.output += r
+            buf = os.read(fileno, 4096)
+            self.output += buf
             self.lock.release()
+            if buf == "": break
+        if self.doStop:
+            if self.verbose: print "Killing %s" % self.pop.pid
+            os.kill(self.pop.pid, signal.SIGKILL)
         self.done    = True
         self.started = False
-        
+
+    def wait(self):
+        """
+        Wait until external process is done
+        """
+        while not self.done: time.sleep(0.3)
+        if self.pop:
+            if self.verbose: print "Waiting for %s" % self.pop.pid
+            self.pop.wait()
+    
     def start(self):
+        """
+        Start run thread for the desired external command
+        """
         self.done = False
         if not self.thread:
             self.thread  = threading.Thread(target=self._reader, args=(self.hub, self.cmd, ))
             self.thread.start()
 
     def results(self):
+        """
+        Fetch results of external command in a thread-safe way
+        """
         if self.lock: self.lock.acquire()
         r = self.output
         if self.lock: self.lock.release()
         return r
 
-class DOMCounter:
-    def __init__(self, s):
-        self.data = s
+    def stop(self):
+        """
+        Signal control thread to stop
+        """
+        if self.verbose: print "OK, stopping thread for %s (%s)" % (self.hub, self.cmd)
+        self.doStop = True
 
-    def doneDOMs(self):
-        return re.findall('(\d)(\d)(\w): DONE \((\d+)\)', self.data)
-    
-    def versionHash(self):
-        list = self.doneDOMs()
-        h = {}
-        for dom in list:
-            if not h.has_key(dom[3]): h[dom[3]] = 1 # There's a better way to do this, but I forgot...
-            else: h[dom[3]] += 1
-        return h
-
-    def domCount(self):
-        return len(self.doneDOMs())
-    
-    def failList(self):
-        list = re.findall('(\d)(\d)(\w): FAIL', self.data)
-        return ["%s%s%s" % dom for dom in list]
-
-    def warnText(self):
-        txt = re.sub('\d\d\w: DONE \(\d+\)\s*','',self.data)
-        return txt
+class DOM:
+    """
+    Small class to represent DOM states
+    """
+    def __init__(self,cwd, lines=None):
+        self.cwd        = cwd
+        self.lines      = []
+        if lines:
+            for l in lines: self.addData(l)
+        self.failed     = False
+        self.hasWarning = False
+        self.done       = False
+        self.version    = None
+        
+    def addData(self, line):
+        self.lines.append(line)
+        if re.search('FAIL', line):    self.failed = True
+        if re.search('WARNING', line): self.hasWarning = True
+        m = re.search('DONE \((\d+)\)', line)
+        if m:
+            self.done = True
+            self.version = m.group(1)
+        
+    def lastState(self):
+        try:
+            return self.lines[-1]
+        except KeyError:
+            return None
+        
+    def hasWarning(self): return self.hasWarning
+    def failed(self):     return self.failed
         
     def __str__(self):
-        s = "Versions: "
-        v = self.versionHash()
-        l = ["%s (%s DOMs)" % (k, v[k]) for k in v.keys()]
-        if len(l) == 0:
-            s += "None\n"
-        else:
-            s += "; ".join(l)
-        f = self.failList()
-        if f or self.warnText() != "":
-            s += "\nFailures: "
-            if f:
-                s += " ".join(f)+"\n"
+        s = "DOM %s:\n" % self.cwd
+        for l in self.lines:
+            s += "\t%s\n" % l
+        return s
+
+class DOMCounter:
+    """
+    Class to represent and summarize output from upload script
+    """
+    def __init__(self, s):
+        self.data    = s
+        self.domDict = {}
+
+        list = re.findall('(\d\d\w): (.+)', self.data)
+        for line in list:
+            cwd = line[0]
+            dat = line[1]
+            if not self.domDict.has_key(cwd):
+                self.domDict[cwd] = DOM(cwd)
+            self.domDict[cwd].addData(dat)
+        
+    def doms(self): return self.domDict.keys()
+    
+    def lastState(self, dom): return self.domDict[dom].lastState()
+    
+    def getVersion(self, dom):
+        return self.domDict[dom].version
+    
+    def doneDomCount(self):
+        n = 0
+        for d in self.domDict:
+            if self.domDict[d].done: n += 1
+        return n
+
+    def notDoneDoms(self):
+        l = []
+        for d in self.domDict:
+            if not self.domDict[d].done: l.append(self.domDict[d])        
+        return l
+    
+    def failedDoms(self):
+        failed = []
+        for d in self.domDict:
+            if self.domDict[d].failed: failed.append(self.domDict[d])
+        return failed
+
+    def warningDoms(self):
+        warns = []
+        for d in self.domDict:
+            if self.domDict[d].hasWarning: warns.append(self.domDict[d])
+        return warns
+    
+    def versionCounts(self):
+        versions = {}
+        for d in self.domDict.keys():
+            thisVersion = self.getVersion(d)
+            if thisVersion == None: continue
+            if not versions.has_key(thisVersion):
+                versions[thisVersion] = 1
             else:
-                s += "None\n"
-            s += "--------------------------\n"
-            s += self.warnText()
-            s += "--------------------------\n\n"
+                versions[thisVersion] += 1
+        return versions
+    
+    def __str__(self):
+        s = ""
+        # Show DOMs with warnings:
+        warns = self.warningDoms()
+        if len(warns) > 0:
+            s += "\n%2d DOMs with WARNINGS:\n" % len(warns)
+            for d in warns:
+                s += str(d)
+        # Show failed/unfinished DOMs:
+        notdone = self.notDoneDoms()
+        if len(notdone) > 0:
+            s += "\n%2d DOMs failed or did not finish:\n" % len(notdone)
+            for d in notdone:
+                s += str(d)
+        # Show versions
+        vc = self.versionCounts()
+        if len(vc) == 0:
+            s += "NO DOMs UPLOADED SUCCESSFULLY!\n"
+        elif len(vc) == 1:
+            s += "Uploaded DOM-MB %s to %d DOMs\n" % (vc.keys()[0], self.doneDomCount())
+        else:
+            s += "WARNING: version mismatch\n"
+            for version in vc:
+                s += "%2d DOMs with %s: " % (vc[version], version)
+                for d in self.domDict.keys():
+                    if self.getVersion(d) == version: s += "%s " % d
+                s += "\n"
         return s
     
 class ThreadSet:
-    def __init__(self):
+    """
+    Lightweight class to handle concurrent ThreadableProcesses
+    """
+    def __init__(self, verbose=False):
         self.hubs    = []
         self.procs   = {}
         self.threads = {}
         self.output  = {}
+        self.verbose = verbose
         
-    def add(self, hub, cmd):
+    def add(self, cmd, hub=None):
+        if not hub: hub = len(self.hubs)
         self.hubs.append(hub)
-        self.procs[hub] = ThreadableProcess(hub, cmd)
+        self.procs[hub] = ThreadableProcess(hub, cmd, self.verbose)
         
     def start(self):
         for hub in self.hubs:
             self.procs[hub].start()
 
-    def watch(self):
-        while True:
-            nDone = 0
-            domCount = 0
-            for hub in self.hubs:
-                if self.procs[hub].done:
-                    nDone += 1
-                    domCount += DOMCounter(self.procs[hub].results()).domCount()
-            if nDone == len(self.hubs): break
-            print "Done with %d of %d hubs (%d DOMs)." % (nDone, len(self.hubs), domCount)
-            time.sleep(1)
+    def stop(self):
         for hub in self.hubs:
-            print "Hub", hub,
-            print DOMCounter(self.procs[hub].results())
+            self.procs[hub].stop()
+
+    def wait(self):
+        for hub in self.hubs:
+            self.procs[hub].wait()
+
+class HubThreadSet(ThreadSet):
+    """
+    Class to watch progress of uploads and summarize details
+    """
+    def __init__(self, verbose=False, watchPeriod=15, stragglerTime=240):
+        ThreadSet.__init__(self, verbose)
+        self.watchPeriod   = watchPeriod
+        self.stragglerTime = stragglerTime
+        
+    def summary(self):
+        r = ""
+        failedDOMs  = 0
+        warningDOMs = 0
+        doneDOMs    = 0
+        for hub in self.hubs:
+            dc = DOMCounter(self.procs[hub].results())
+            domCount = len(dc.doms())
+            done     = dc.doneDomCount()
+            doneDOMs    += done
+            warningDOMs += len(dc.warningDoms())
+            failedDOMs  += (domCount-done) # Include DOMs which didn't complete
+            r += "%s: %s\n" % (hub, str(dc).strip())
+        r += "%d DOMs uploaded successfully" % doneDOMs
+        r += " (%d with warnings)\n" % warningDOMs
+        r += "%d DOMs did not upload successfully\n" % failedDOMs
+        return r
+        
+    def watch(self):
+        tstart = datetime.datetime.now()
+        while True:
+            t = datetime.datetime.now()
+            dt = t-tstart
+            if dt.seconds > 0 and dt.seconds % self.watchPeriod == 0:
+                nDone = 0
+                doneDomCount = 0
+                for hub in self.hubs:
+                    dc = DOMCounter(self.procs[hub].results())
+                    doneDomCount += dc.doneDomCount()
+                    if self.procs[hub].done:
+                        nDone += 1
+                    nd = dc.notDoneDoms()
+                    if nd and dt.seconds > self.stragglerTime:
+                        print "Waiting for %s:" % hub
+                        for notDone in dc.notDoneDoms():
+                            print "\t%s: %s" % (notDone.cwd, notDone.lastState())
+                if nDone == len(self.hubs): break
+                print "%s Done with %d of %d hubs (%d DOMs)." % (str(datetime.datetime.now()),
+                                                                 nDone,
+                                                                 len(self.hubs),
+                                                                 doneDomCount)
+            time.sleep(1)
             
 def testProcs():
-    ts = ThreadSet()
+    ts = HubThreadSet(verbose=True)
     hublist = ["sps-ichub21",
                "sps-ichub29",
                "sps-ichub30",
@@ -146,28 +327,34 @@ def testProcs():
                "sps-ichub50",
                "sps-ichub59"]
     for hub in hublist:
-        ts.add(hub, "./simUpload.py")
+        ts.add("./simUpload.py", hub)
     ts.start()
-    ts.watch()
+    try:
+        ts.watch()
+    except KeyboardInterrupt:
+        ts.stop()
     
 def main():
-    testProcs()
-    raise SystemExit
 
     p = optparse.OptionParser(usage="usage: %prog [options] <releasefile>")
     p.add_option("-c", "--config-name",  action="store", type="string",
                  dest="clusterConfigName",
                  help="Cluster configuration name, subset of deployed configuration.")
-    p.add_option("-q", "--quiet",        action="store_true",           dest="quiet",
-                 help="Run quietly")
     p.add_option("-v", "--verbose",      action="store_true",           dest="verbose",
                  help="Be chatty")
-    p.add_option("-n", "--dry-run",      action="store_true",           dest="dryRun",
-                 help="Don't run rsyncs, just print as they would be run (disables quiet)")
+    p.add_option("-f", "--skip-flash",   action="store_true",           dest="skipFlash",
+                 help="Don't actually write flash on DOMs - just 'practice' all other steps")
+    p.add_option("-s", "--straggler-time", action="store", type="int",  dest="stragglerTime",
+                 help="Time (seconds) to wait before reporting details of straggler DOMs (default: 240)")
+    p.add_option("-w", "--watch-period",   action="store", type="int",  dest="watchPeriod",
+                 help="Interval (seconds) between status reports during upload (default: 15)")
+    
     p.set_defaults(clusterConfigName = None,
-                   quiet             = False,
                    verbose           = False,
-                   dryRun            = False)
+                   stragglerTime     = 240,
+                   watchPeriod       = 15,
+                   skipFlash         = False)
+        
     opt, args = p.parse_args()
 
     if len(args) < 1:
@@ -177,7 +364,7 @@ def main():
     releaseFile = args[0]
 
     # Make sure file exists
-    if not exists(releaseFile):
+    if not os.path.exists(releaseFile):
         print "Release file %s doesn't exist!\n\n" % releaseFile
         print usage
         raise SystemExit
@@ -187,59 +374,63 @@ def main():
     hublist = clusterConfig.getHubNodes()
 
     # Copy phase - copy mainboard release.hex file to remote nodes
-    copySet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose, timeout=300)
+    copySet = ThreadSet(opt.verbose)
     
-    remoteFile = "/tmp/release%d.hex" % getpid()
+    remoteFile = "/tmp/release%d.hex" % os.getpid()
     for domhub in hublist:
         copySet.add("scp -q %s %s:%s" % (releaseFile, domhub, remoteFile))
 
     print "Copying %s to all hubs as %s..." % (releaseFile, remoteFile)
     copySet.start()
     try:
-        copySet.wait(monitorIval=15)
-    except KeyboardInterrupt, k:
+        copySet.wait()
+    except KeyboardInterrupt:
         print "\nInterrupted."
+        copySet.stop()
         raise SystemExit
         
-    if hasNonZero(copySet.getReturnCodes()):
-        print copySet.getAllResults()
-        raise RuntimeError("One or more parallel operations failed")
-
     # Upload phase - upload release
-    #uploadSet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose, timeout=1000)
-    #counter = 0
-    #hubHash = {}
-    #for domhub in hublist:
-    #    uploadSet.add("ssh %s UploadDOMs.py %s" % (domhub, remoteFile))
-    #    hubHash[counter] = str(domhub)
-    #    counter += 1
-
     print "Uploading %s on all hubs..." % remoteFile
+
+    uploader = HubThreadSet(opt.verbose, opt.watchPeriod, opt.stragglerTime)
+    for domhub in hublist:
+        f   = opt.skipFlash and "-f" or ""
+        cmd = "ssh %s UploadDOMs.py %s -v %s" % (domhub, remoteFile, f)
+        uploader.add(cmd, domhub)
         
-    #uploadSet.start()
-    #monitorUpload(uploadSet, counter, hubHash)
-
-    #raise SystemExit
-    
-    #uploadSet.wait(monitorIval=15)
-    #if hasNonZero(uploadSet.getReturnCodes()):
-    #    print uploadSet.getAllResults()
-    #    print "One or more upload operations failed or were interrupted."
-    #    print "DOMs are in an unknown state!"
-    #    raise SystemExit
-
+    uploader.start()
+    try:
+        uploader.watch()
+    except KeyboardInterrupt:
+        print "Got keyboardInterrupt... stopping threads..."
+        uploader.stop()
+        try:
+            uploader.wait()
+            print "Killing remote upload processes..."
+            killer = ThreadSet(opt.verbose)
+            for domhub in hublist:
+                killer.add("ssh %s killall -9 UploadDOMs.py" % domhub, domhub)
+            killer.start()
+            killer.wait()
+        except KeyboardInterrupt:
+            pass            
+        
     # Cleanup phase - remove remote files from /tmp on hubs
-    cleanUpSet = ParallelShell(parallel=True, dryRun=opt.dryRun, verbose=opt.verbose)
+    cleanUpSet = ThreadSet(opt.verbose)
     for domhub in hublist:
         cleanUpSet.add("ssh %s /bin/rm -f %s" % (domhub, remoteFile))
 
     print "Cleaning up %s on all hubs..." % remoteFile
     cleanUpSet.start()
-    cleanUpSet.wait()
-    if hasNonZero(cleanUpSet.getReturnCodes()):
-        print cleanUpSet.getAllResults()
-        raise RuntimeError("One or more parallel operations failed")
+    try:
+        cleanUpSet.wait()
+    except KeyboardInterrupt:
+        print "\nInterrupted."
+        cleanUpSet.stop()
+        raise SystemExit
 
+    
     print "\n\nDONE."
-
+    print uploader.summary()
+    
 if __name__ == "__main__": main()
