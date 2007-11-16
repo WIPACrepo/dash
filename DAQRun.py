@@ -34,7 +34,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 2286 2007-11-16 20:36:22Z jacobsen $"
+SVN_ID  = "$Id: DAQRun.py 2287 2007-11-16 20:56:13Z jacobsen $"
 SVN_URL = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/DAQRun.py $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
@@ -480,16 +480,9 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 now = datetime.datetime.now()
                 self.runStats.physicsRate.add(now, self.runStats.physicsEvents)
                 try:
-                    newRateStr = " (%2.2f Hz)" % self.runStats.physicsRate.rate()
-                except:
-                    newRateStr = ""
-                self.logmsg("New rate is "+newRateStr)
-                rateStr = ""
-                if self.runStats.startTime:
-                    dt = now - self.runStats.startTime
-                    dtsec = dt.days*86400 + dt.seconds
-                    if dtsec > 0:
-                        rateStr = " (%2.2f Hz)" % (float(self.runStats.physicsEvents)/float(dtsec))
+                    rateStr = " (%2.2f Hz)" % self.runStats.physicsRate.rate()
+                except (InsufficientEntriesException, ZeroTimeDeltaException), e:
+                    rateStr = ""
                 self.logmsg("\t%s physics events%s, %s moni events, %s SN events, %s tcals" \
                             % (self.runStats.physicsEvents,
                                rateStr,
@@ -617,11 +610,13 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     try:
                         (self.runStats.physicsEvents, self.runStats.moniEvents,
                          self.runStats.snEvents,      self.runStats.tcalEvents) = self.getEventCounts()
+                        # Here we don't want just the last five minutes, so we calculate total rate by hand:
                         rateStr = ""
                         if duration > 0:
                             rateStr = " (%2.2f Hz)" % (float(self.runStats.physicsEvents)/float(duration))
-                        self.logmsg("%d physics events collected in %d seconds%s" % (self.runStats.physicsEvents,
-                                                                                   duration, rateStr))
+                        self.logmsg("%d physics events collected in %d seconds%s" \
+                                    % (self.runStats.physicsEvents,
+                                       duration, rateStr))
                         self.logmsg("%d moni events, %d SN events, %d tcals" % (self.runStats.moniEvents,
                                                                                 self.runStats.snEvents,
                                                                                 self.runStats.tcalEvents))
