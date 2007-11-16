@@ -28,12 +28,13 @@ import DAQConfig
 import datetime
 import optparse
 import DAQLog
+import RateCalc
 import Daemon
 import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 2169 2007-10-22 19:16:10Z jacobsen $"
+SVN_ID  = "$Id: DAQRun.py 2286 2007-11-16 20:36:22Z jacobsen $"
 SVN_URL = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/DAQRun.py $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
@@ -69,6 +70,7 @@ class RunStats:
         self.EBDiskSize      = EBDiskSize
         self.SBDiskAvailable = SBDiskAvailable
         self.SBDiskSize      = SBDiskSize
+        self.physicsRate     = RateCalc.RateCalc(300.) # Calculates rate over latest 5min interval
         
 class DAQRun(RPCServer, Rebootable.Rebootable):
     "Serve requests to start/stop DAQ runs (exp control iface)"
@@ -475,9 +477,16 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 # Updated in rpc_daq_summary_xml as well:
                 (self.runStats.physicsEvents, self.runStats.moniEvents,
                  self.runStats.snEvents,      self.runStats.tcalEvents) = self.getEventCounts()
+                now = datetime.datetime.now()
+                self.runStats.physicsRate.add(now, self.runStats.physicsEvents)
+                try:
+                    newRateStr = " (%2.2f Hz)" % self.runStats.physicsRate.rate()
+                except:
+                    newRateStr = ""
+                self.logmsg("New rate is "+newRateStr)
                 rateStr = ""
                 if self.runStats.startTime:
-                    dt = datetime.datetime.now() - self.runStats.startTime
+                    dt = now - self.runStats.startTime
                     dtsec = dt.days*86400 + dt.seconds
                     if dtsec > 0:
                         rateStr = " (%2.2f Hz)" % (float(self.runStats.physicsEvents)/float(dtsec))
@@ -574,6 +583,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
 
                     self.lastConfig = self.configName
                     self.runStats.startTime = datetime.datetime.now()
+                    self.runStats.physicsRate.add(self.runStats.startTime, 0) # Run starts w/ 0 events
                     self.start_run(self.cnc)
                     self.runState = "RUNNING"
                 except Exception, e:
