@@ -34,7 +34,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 2300 2007-11-21 19:05:21Z jacobsen $"
+SVN_ID  = "$Id: DAQRun.py 2301 2007-11-21 19:14:21Z jacobsen $"
 SVN_URL = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/DAQRun.py $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
@@ -480,8 +480,16 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 now = datetime.datetime.now()
                 self.runStats.physicsRate.add(now, self.runStats.physicsEvents)
                 try:
-                    rateStr = " (%2.2f Hz)" % self.runStats.physicsRate.rate()
-                except (InsufficientEntriesException, ZeroTimeDeltaException), e:
+                    rate = self.runStats.physicsRate.rate()
+                    # This occurred in issue 2034 and is dealt with:
+                    # debug code can be removed at will
+                    if rate < 0:
+                        self.logmsg("WARNING: rate < 0")
+                        for entry in self.runStats.physicsRate.entries:
+                            self.logmsg(str(entry))
+                    #
+                    rateStr = " (%2.2f Hz)" % rate
+                except (RateCalc.InsufficientEntriesException, RateCalc.ZeroTimeDeltaException), e:
                     rateStr = ""
                 self.logmsg("\t%s physics events%s, %s moni events, %s SN events, %s tcals" \
                             % (self.runStats.physicsEvents,
