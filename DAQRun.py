@@ -34,7 +34,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 2287 2007-11-16 20:56:13Z jacobsen $"
+SVN_ID  = "$Id: DAQRun.py 2300 2007-11-21 19:05:21Z jacobsen $"
 SVN_URL = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/DAQRun.py $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
@@ -610,7 +610,9 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     try:
                         (self.runStats.physicsEvents, self.runStats.moniEvents,
                          self.runStats.snEvents,      self.runStats.tcalEvents) = self.getEventCounts()
-                        # Here we don't want just the last five minutes, so we calculate total rate by hand:
+                        # Here we don't want just the last five minutes, so we calculate total rate by hand,
+                        # but we reset the rate object for next run
+                        self.runStats.physicsRate.reset()
                         rateStr = ""
                         if duration > 0:
                             rateStr = " (%2.2f Hz)" % (float(self.runStats.physicsEvents)/float(duration))

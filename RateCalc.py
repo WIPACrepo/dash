@@ -29,6 +29,8 @@ class RateCalc:
         self.maxentries = maxentries
         self.entries    = []
 
+    def reset(self): self.entries = []
+    
     def add(self, time, count):
         """
         Add new entry to list, but don't let list exceed self.maxentries
