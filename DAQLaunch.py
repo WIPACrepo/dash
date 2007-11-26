@@ -14,9 +14,8 @@ from os import environ, mkdir, system
 from os.path import abspath, isabs, join, basename
 
 from GetIP import getIP
-from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 2168 2007-10-20 01:15:02Z ksb $"
+SVN_ID = "$Id: DAQLaunch.py 2312 2007-11-26 23:03:57Z ksb $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -25,10 +24,12 @@ else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
-# add 'cluster-config' to Python library search path
-#
+# add 'cluster-config' and meta-project python dir to Python library
+# search path
 sys.path.append(join(metaDir, 'cluster-config'))
+sys.path.append(join(metaDir, 'src', 'main', 'python'))
 
+from SVNVersionInfo import get_version_info
 from ClusterConfig import *
 from ParallelShell import *
 

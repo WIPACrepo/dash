@@ -16,7 +16,6 @@ from DAQRPC import RPCClient, RPCServer
 from os.path import exists, abspath, join, basename
 from Process import processList, findProcess
 from DAQLaunch import cyclePDAQ, ClusterConfig, ConfigNotSpecifiedException
-from SVNVersionInfo import get_version_info
 from tarfile import TarFile
 from exc_string import *
 from shutil import move
@@ -34,8 +33,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 2301 2007-11-21 19:14:21Z jacobsen $"
-SVN_URL = "$URL: http://code.icecube.wisc.edu/daq/projects/dash/trunk/DAQRun.py $"
+SVN_ID  = "$Id: DAQRun.py 2312 2007-11-26 23:03:57Z ksb $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -44,11 +42,12 @@ else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
-# add 'cluster-config' to Python library search path
-#
+# add 'cluster-config' and meta-project python dir to Python library
+# search path
 sys.path.append(join(metaDir, 'cluster-config'))
 from ClusterConfig import *
-
+sys.path.append(join(metaDir, 'src', 'main', 'python'))
+from SVNVersionInfo import get_version_info
 
 class RequiredComponentsNotAvailableException(Exception): pass
 class IncorrectDAQState                      (Exception): pass

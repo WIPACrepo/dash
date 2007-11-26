@@ -2,7 +2,6 @@
 
 from DAQRPC import RPCClient, RPCServer
 from DAQLogClient import DAQLogger
-from SVNVersionInfo import get_version_info
 from Process import processList, findProcess
 from exc_string import *
 from time import time, sleep
@@ -14,7 +13,19 @@ import socket
 import sys
 import thread
 
-SVN_ID  = "$Id: CnCServer.py 2168 2007-10-20 01:15:02Z ksb $"
+SVN_ID  = "$Id: CnCServer.py 2312 2007-11-26 23:03:57Z ksb $"
+
+# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+if os.environ.has_key("PDAQ_HOME"):
+    metaDir = os.environ["PDAQ_HOME"]
+else:
+    from locate_pdaq import find_pdaq_trunk
+    metaDir = find_pdaq_trunk()
+
+# add meta-project python dir to Python library search path
+sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
+from SVNVersionInfo import get_version_info
+                    
 
 set_exc_string_encoding("ascii")
 

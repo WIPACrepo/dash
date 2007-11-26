@@ -1,11 +1,22 @@
 #!/usr/bin/env python
 
-import optparse
-
+import optparse, sys
+from os import environ
+from os.path import join
 from DAQRPC import RPCClient
+
+# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+if environ.has_key("PDAQ_HOME"):
+    metaDir = environ["PDAQ_HOME"]
+else:
+    from locate_pdaq import find_pdaq_trunk
+    metaDir = find_pdaq_trunk()
+
+# add meta-project python dir to Python library search path
+sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQStatus.py 2168 2007-10-20 01:15:02Z ksb $"
+SVN_ID  = "$Id: DAQStatus.py 2312 2007-11-26 23:03:57Z ksb $"
 
 def cmpComp(x, y):
     c = cmp(x[6], y[6])
