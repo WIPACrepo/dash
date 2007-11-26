@@ -474,7 +474,7 @@ def main():
      <td align=center><b><font size=-1>Status</font></b></td>
      <td align=left><b><font size=-1>Config</font></b></td>
     </tr>
-    """ % (title, hdrHTML, picHTML)
+    """ % (title, picHTML, hdrHTML)
 
     print >>allSummaryFile, top
     print >>firstSummaryFile, top
