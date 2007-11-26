@@ -427,12 +427,12 @@ def main():
     runDir = join(opt.outputDir, "runs")
     check_make_or_exit(runDir)
 
-    logoHTML = ""
     bodyHTML = "<BODY>"
-    logoFile = "/net/user/pdaq/daq-reports/images/header.gif"
+    logoHTML = ""
     bodyFile = "/net/user/pdaq/daq-reports/images/icecube_pale.jpg"
-    if exists(logoFile): logoHTML = "<IMG SRC='%s'>" % logoFile
+    logoFile = "/net/user/pdaq/daq-reports/images/header.gif"
     if exists(bodyFile): bodyHTML = "<BODY background='%s'>" % bodyFile
+    if exists(logoFile): logoHTML = "<IMG SRC='%s'>" % logoFile
     
     firstSummaryHtml = runDir + "/index.html"
     allSummaryHtml   = runDir + "/all.html"
