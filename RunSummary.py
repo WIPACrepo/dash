@@ -427,12 +427,12 @@ def main():
     runDir = join(opt.outputDir, "runs")
     check_make_or_exit(runDir)
 
-    picHTML = ""
-    hdrHTML = "<BODY>"
-    picFile = "/net/user/pdaq/daq-reports/images/icecube_pale.jpg"
-    hdrFile = "/net/user/pdaq/daq-reports/images/header.gif"
-    if exists(picFile): picHTML = "<IMG SRC='%s'>" % picFile
-    if exists(hdrFile): hdrHTML = "<BODY background='%s'>" % hdrFile
+    logoHTML = ""
+    bodyHTML = "<BODY>"
+    logoFile = "/net/user/pdaq/daq-reports/images/header.gif"
+    bodyFile = "/net/user/pdaq/daq-reports/images/icecube_pale.jpg"
+    if exists(logoFile): logoHTML = "<IMG SRC='%s'>" % logoFile
+    if exists(bodyFile): bodyHTML = "<BODY background='%s'>" % bodyFile
     
     firstSummaryHtml = runDir + "/index.html"
     allSummaryHtml   = runDir + "/all.html"
@@ -474,7 +474,7 @@ def main():
      <td align=center><b><font size=-1>Status</font></b></td>
      <td align=left><b><font size=-1>Config</font></b></td>
     </tr>
-    """ % (title, picHTML, hdrHTML)
+    """ % (title, bodyHTML, logoHTML)
 
     print >>allSummaryFile, top
     print >>firstSummaryFile, top
