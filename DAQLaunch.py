@@ -15,7 +15,7 @@ from os.path import abspath, isabs, join, basename
 
 from GetIP import getIP
 
-SVN_ID = "$Id: DAQLaunch.py 2312 2007-11-26 23:03:57Z ksb $"
+SVN_ID = "$Id: DAQLaunch.py 2364 2007-12-03 22:01:01Z jacobsen $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -153,9 +153,12 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort, cncPo
             if node.hostName == "localhost": # Just run it
                 cmd = "%s %s -jar %s %s &" % (javaCmd, jvmArgs, execJar, switches)
             else:                            # Have to ssh to run it
-                cmd = """ssh -n %s \'sh -c \"%s %s -jar %s %s &\" %s &\'""" \
-                      % (node.hostName, javaCmd, jvmArgs, execJar, switches, not verbose and quietStr or "")
+                #cmd = """ssh -n %s \'sh -c \"%s %s -jar %s %s &\" %s &\'""" \
+                #      % (node.hostName, javaCmd, jvmArgs, execJar, switches, not verbose and quietStr or "")
+                cmd = """ssh -n %s \'sh -c \"%s %s -jar %s %s &\" '""" \
+                      % (node.hostName, javaCmd, jvmArgs, execJar, switches)
 
+            print cmd
             if verbose: print cmd
             parallel.add(cmd)
 
