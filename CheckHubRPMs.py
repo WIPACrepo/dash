@@ -4,8 +4,15 @@
 # John Jacobsen, NPX Designs, Inc., john@mail.npxdesigns.com
 # Started: Mon Dec  3 15:21:10 2007
 
-import optparse, re, os
+import optparse, re, os, os.path
 
+# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+if os.environ.has_key("PDAQ_HOME"):
+    metaDir = os.environ["PDAQ_HOME"]
+else:
+    from locate_pdaq import find_pdaq_trunk
+    metaDir = find_pdaq_trunk()
+                    
 class RPMCheckException          (Exception):         pass
 class BadRPMLineException        (RPMCheckException): pass
 class RPMNotFoundException       (RPMCheckException): pass
@@ -22,7 +29,7 @@ def checkrpm(rpmfull, rpm):
                                                      (result, rpmfull))
     
 def main():
-    default_config_file = "standard-domhub-rpms.txt"
+    default_config_file = os.path.join(metaDir, "dash", "standard-domhub-rpms.txt")
     lines = file(default_config_file).readlines()
     ok = True
     for line in lines:
