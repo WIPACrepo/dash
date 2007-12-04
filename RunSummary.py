@@ -132,21 +132,36 @@ def fmt(s):
     if s != None: return sub('\s', '&nbsp;', str(s))
     return " "
 
+def eventRepr(nEvents, cumEvents):
+    """
+    Convert cumulative event count cumEvents, or (preferably) definitive
+    event count nEvents, into a string representation
+    """
+    evStr = "?"
+    if cumEvents is not None: evStr = ">%d" % cumEvents
+    if nEvents is not None: evStr = str(nEvents)
+    return evStr
+
+def rateRepr(nEvents, cumEvents, dtsec):
+    rateStr = None
+    n       = 0
+    if cumEvents is not None: n = cumEvents
+    if nEvents   is not None: n = nEvents
+    try:
+       if dtsec > 0: rateStr = "%2.2f" % (float(n)/float(dtsec))
+    except TypeError, t:
+       rateStr = "?"
+    
 def generateSnippet(snippetFile, runNum, release, starttime, stoptime, dtsec,
-                    configName, runDir, status, nEvents):
+                    configName, runDir, status, nEvents, cumEvents):
     snippet = open(snippetFile, 'w')
     
     statusColor = getStatusColor(status, nEvents)
     
-    evStr = "?"
-    if nEvents is not None: evStr = nEvents
+    evStr = eventRepr(nEvents, cumEvents)
     if release is None: release = ""
+    rateStr = rateRepr(nEvents, cumEvents, dtsec)
 
-    rateStr = None
-    try:
-       if dtsec > 0 and nEvents > 0: rateStr = "%2.2f" % (float(nEvents)/float(dtsec))
-    except TypeError, t:
-       rateStr = "?"
     print >>snippet, """
     <tr>
     <td align=center>%d</td>
@@ -218,7 +233,7 @@ def toSeconds(t):
     return t.days*86400 + t.seconds
 
 def makeRunReport(snippetFile, dashFile, release, infoPat, runInfo, configName,
-                      status, nEvents, absRunDir, relRunDir):
+                      status, nEvents, cumEvents, absRunDir, relRunDir):
 
     starttime = dashTime(getDashEvent(dashFile, r'Started run \d+ on run set'))
     stoptime  = dashTime(getDashEvent(dashFile, r'Stopping run'))
@@ -250,8 +265,8 @@ def makeRunReport(snippetFile, dashFile, release, infoPat, runInfo, configName,
     dur    = int(match.group(8))
 
     generateSnippet(snippetFile, runNum, release, starttime, stoptime, dtsec,
-                    configName, relRunDir+"/run.html", status, nEvents)
-    makeSummaryHtml(absRunDir, runNum, release, configName, status, nEvents,
+                    configName, relRunDir+"/run.html", status, nEvents, cumEvents)
+    makeSummaryHtml(absRunDir, runNum, release, configName, status, nEvents, eventStr,
                     starttime, stoptime, dtsec)
 
 def escapeBraces(txt):
@@ -261,7 +276,7 @@ def escapeBraces(txt):
     """
     return txt.replace(">","&GT;").replace("<","&LT;")
 
-def makeSummaryHtml(logLink, runNum, release, configName, status, nEvents,
+def makeSummaryHtml(logLink, runNum, release, configName, status, nEvents, cumEvents,
                     starttime, stoptime, dtsec):
     
     files = listdir(logLink)
@@ -275,9 +290,9 @@ def makeSummaryHtml(logLink, runNum, release, configName, status, nEvents,
 
     html = open(logLink+"/run.html", "w")
 
-    eventStr = "(check monitoring files)"
-    if nEvents is not None: eventStr = nEvents
     if release is None: release = ""
+
+    eventStr = eventRepr(nEvents, cumEvents)
 
     print >>html, "<HEAD><TITLE>Run %d</TITLE></HEAD>" % runNum
     print >>html, "<HTML>"
@@ -522,7 +537,8 @@ def main():
             datTar      = outDir + "/" + prefix + runInfoString + ".dat.tar"
             snippetFile = outDir + "/.snippet"
             linkDir     = runInfoString + "/"
-            nEvents     = None
+            nEvents     = None # End of run accounting
+            cumEvents   = None # Cumulative event accounting
 
             # Skip files older than oldestTime weeks
             if daysOf(tarFile) > opt.oldestTime: continue
@@ -607,6 +623,10 @@ def main():
 
                         s = search(r'Version Info:.+\s+(\S+)\s+\d+\n', dashContents)
                         if s: release = s.group(1)
+
+                        lines = findall('(\d+) physics events', dashContents)
+                        if lines: cumEvents = lines[-1]
+                        
                     # Remember more precise unpacked location for link
                     if search(r'(daqrun\d+)/$', el): 
                         linkDir = runInfoString + "/" + el
@@ -623,7 +643,7 @@ def main():
 
                 # Make HTML snippet for run summaries
                 makeRunReport(snippetFile, dashFile, release, infoPat, runInfoString, 
-                              configName, status, nEvents, runDir+"/"+linkDir,
+                              configName, status, nEvents, cumEvents, runDir+"/"+linkDir,
                               linkDir)
 
             if prevRun and (runNum != prevRun-1):
