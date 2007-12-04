@@ -138,7 +138,7 @@ def eventRepr(nEvents, cumEvents):
     event count nEvents, into a string representation
     """
     evStr = "?"
-    if cumEvents is not None: evStr = ">%d" % cumEvents
+    if cumEvents is not None: evStr = "<font color=708090>&ge;</font>%s" % cumEvents
     if nEvents is not None: evStr = str(nEvents)
     return evStr
 
@@ -266,7 +266,7 @@ def makeRunReport(snippetFile, dashFile, release, infoPat, runInfo, configName,
 
     generateSnippet(snippetFile, runNum, release, starttime, stoptime, dtsec,
                     configName, relRunDir+"/run.html", status, nEvents, cumEvents)
-    makeSummaryHtml(absRunDir, runNum, release, configName, status, nEvents, eventStr,
+    makeSummaryHtml(absRunDir, runNum, release, configName, status, nEvents, cumEvents,
                     starttime, stoptime, dtsec)
 
 def escapeBraces(txt):
