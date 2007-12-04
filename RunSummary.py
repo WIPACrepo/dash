@@ -109,36 +109,13 @@ def getDoneFileTime(outputDir):
     stat_dat = stat(f)
     return datetime.datetime.fromtimestamp(stat_dat[8])
 
-def getStatusColor(status, nEvents):
-    # Calculate status color
-    yellow  = "F0E68C"
-    red     = "FF3300"
-    magenta = "FF9999"
-    green   = "CCFFCC"
-    
-    statusColor = "EFEFEF"
-    if status == "FAIL":
-        if (type(nEvents).__name__ == "int") and (nEvents > 100):
-            statusColor = yellow
-        else:
-            statusColor = red
-    elif status == "INCOMPLETE":
-        statusColor = magenta
-    elif status == "SUCCESS":
-        statusColor = green
-    return statusColor
-
-def fmt(s):
-    if s != None: return sub('\s', '&nbsp;', str(s))
-    return " "
-
-def eventRepr(nEvents, cumEvents):
+def eventsRepr(nEvents, cumEvents):
     """
     Convert cumulative event count cumEvents, or (preferably) definitive
     event count nEvents, into a string representation
     """
     evStr = "?"
-    if cumEvents is not None: evStr = "<font color=708090>&ge;</font>%s" % cumEvents
+    if cumEvents is not None: evStr = ">%d" % cumEvents
     if nEvents is not None: evStr = str(nEvents)
     return evStr
 
@@ -152,13 +129,40 @@ def rateRepr(nEvents, cumEvents, dtsec):
     except TypeError, t:
        rateStr = "?"
     
+def getStatusColor(status, nEvents, cumEvents):
+    # Calculate status color
+    yellow  = "F0E68C"
+    red     = "FF3300"
+    magenta = "FF9999"
+    green   = "CCFFCC"
+    
+    statusColor = "EFEFEF"
+    evStr = eventsRepr(nEvents, cumEvents)
+    if status == "FAIL":
+        m = search('(\d+)', evStr)
+        if m and m.group(1) > 0:
+            statusColor = yellow
+        else:
+            statusColor = red
+        print evStr, m, statusColor
+    elif status == "INCOMPLETE":
+        statusColor = magenta
+    elif status == "SUCCESS":
+        statusColor = green
+    return statusColor
+
+def fmt(s):
+    if s != None: return sub('\s', '&nbsp;', str(s))
+    return " "
+
+    
 def generateSnippet(snippetFile, runNum, release, starttime, stoptime, dtsec,
                     configName, runDir, status, nEvents, cumEvents):
     snippet = open(snippetFile, 'w')
     
-    statusColor = getStatusColor(status, nEvents)
+    statusColor = getStatusColor(status, nEvents, cumEvents)
     
-    evStr = eventRepr(nEvents, cumEvents)
+    evStr = eventsRepr(nEvents, cumEvents)
     if release is None: release = ""
     rateStr = rateRepr(nEvents, cumEvents, dtsec)
 
@@ -292,7 +296,7 @@ def makeSummaryHtml(logLink, runNum, release, configName, status, nEvents, cumEv
 
     if release is None: release = ""
 
-    eventStr = eventRepr(nEvents, cumEvents)
+    eventStr = eventsRepr(nEvents, cumEvents)
 
     print >>html, "<HEAD><TITLE>Run %d</TITLE></HEAD>" % runNum
     print >>html, "<HTML>"
@@ -313,7 +317,7 @@ def makeSummaryHtml(logLink, runNum, release, configName, status, nEvents, cumEv
  <TR><TD ALIGN="right"><FONT COLOR=888888>Status</FONT></TD><TD BGCOLOR=%s>%s</TD></TR>
 </TABLE>
      """ % (runNum, release, configName, fmt(starttime), fmt(stoptime), dtsec, eventStr,
-            getStatusColor(status, nEvents), status)
+            getStatusColor(status, nEvents, cumEvents), status)
 
     print >>html, makeTable(logs, "Logs")
     print >>html, makeTable(mons, "Monitoring")
