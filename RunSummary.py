@@ -115,7 +115,7 @@ def eventsRepr(nEvents, cumEvents):
     event count nEvents, into a string representation
     """
     evStr = "?"
-    if cumEvents is not None: evStr = ">%d" % cumEvents
+    if cumEvents is not None: evStr = "<font color=b0c4de>&ge;</font>%s" % cumEvents
     if nEvents is not None: evStr = str(nEvents)
     return evStr
 
@@ -137,14 +137,12 @@ def getStatusColor(status, nEvents, cumEvents):
     green   = "CCFFCC"
     
     statusColor = "EFEFEF"
-    evStr = eventsRepr(nEvents, cumEvents)
     if status == "FAIL":
-        m = search('(\d+)', evStr)
-        if m and m.group(1) > 0:
+        statusColor = red
+        if type(nEvents).__name__ == "int" and nEvents > 0:
             statusColor = yellow
-        else:
-            statusColor = red
-        print evStr, m, statusColor
+        if type(cumEvents).__name__ == "int" and cumEvents > 0:
+            statusColor = yellow
     elif status == "INCOMPLETE":
         statusColor = magenta
     elif status == "SUCCESS":
@@ -629,7 +627,7 @@ def main():
                         if s: release = s.group(1)
 
                         lines = findall('(\d+) physics events', dashContents)
-                        if lines: cumEvents = lines[-1]
+                        if lines: cumEvents = int(lines[-1])
                         
                     # Remember more precise unpacked location for link
                     if search(r'(daqrun\d+)/$', el): 
