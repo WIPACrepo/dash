@@ -333,6 +333,9 @@ class RunWatchdog(object):
                         eventBuilder = cw
                     elif shortNameOf[c] == 'secondaryBuilders':
                         cw.addThresholdValue('snBuilder', 'DiskAvailable', 1024)
+                        cw.addOutputValue('moniBuilder', 'TotalDispatchedData')
+                        cw.addOutputValue('snBuilder', 'TotalDispatchedData')
+                        cw.addOutputValue('tcalBuilder', 'TotalDispatchedData')
                         secondaryBuilders = cw
                     else:
                         raise Exception, 'Unknown component type ' + \
