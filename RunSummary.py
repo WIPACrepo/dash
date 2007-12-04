@@ -109,15 +109,23 @@ def getDoneFileTime(outputDir):
     stat_dat = stat(f)
     return datetime.datetime.fromtimestamp(stat_dat[8])
 
-def getStatusColor(status):
+def getStatusColor(status, nEvents):
     # Calculate status color
+    yellow  = "F0E68C"
+    red     = "FF3300"
+    magenta = "FF9999"
+    green   = "CCFFCC"
+    
     statusColor = "EFEFEF"
     if status == "FAIL":
-        statusColor = "FF3300"
+        if (type(nEvents).__name__ == "int") and (nEvents > 100):
+            statusColor = yellow
+        else:
+            statusColor = red
     elif status == "INCOMPLETE":
-        statusColor = "FF9999"
+        statusColor = magenta
     elif status == "SUCCESS":
-        statusColor = "CCFFCC"
+        statusColor = green
     return statusColor
 
 def fmt(s):
@@ -128,7 +136,7 @@ def generateSnippet(snippetFile, runNum, release, starttime, stoptime, dtsec,
                     configName, runDir, status, nEvents):
     snippet = open(snippetFile, 'w')
     
-    statusColor = getStatusColor(status)
+    statusColor = getStatusColor(status, nEvents)
     
     evStr = "?"
     if nEvents is not None: evStr = nEvents
@@ -290,7 +298,7 @@ def makeSummaryHtml(logLink, runNum, release, configName, status, nEvents,
  <TR><TD ALIGN="right"><FONT COLOR=888888>Status</FONT></TD><TD BGCOLOR=%s>%s</TD></TR>
 </TABLE>
      """ % (runNum, release, configName, fmt(starttime), fmt(stoptime), dtsec, eventStr,
-            getStatusColor(status), status)
+            getStatusColor(status, nEvents), status)
 
     print >>html, makeTable(logs, "Logs")
     print >>html, makeTable(mons, "Monitoring")
