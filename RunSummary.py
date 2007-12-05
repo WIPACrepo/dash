@@ -120,15 +120,16 @@ def eventsRepr(nEvents, cumEvents):
     return evStr
 
 def rateRepr(nEvents, cumEvents, dtsec):
-    rateStr = None
+    rateStr = " "
     n       = 0
     if cumEvents is not None: n = cumEvents
     if nEvents   is not None: n = nEvents
     try:
        if dtsec > 0: rateStr = "%2.2f" % (float(n)/float(dtsec))
     except TypeError, t:
-       rateStr = "?"
-    
+        rateStr = "?"
+    return rateStr
+
 def getStatusColor(status, nEvents, cumEvents):
     # Calculate status color
     yellow  = "F0E68C"
@@ -177,7 +178,7 @@ def generateSnippet(snippetFile, runNum, release, starttime, stoptime, dtsec,
     <td align=left>%s</td>
     </tr>
     """ % (runNum, release, fmt(starttime), fmt(stoptime),
-           fmt(dtsec), evStr, fmt(rateStr),
+           fmt(dtsec), evStr, rateStr,
            statusColor, runDir, status, configName)
     snippet.close()
     return
