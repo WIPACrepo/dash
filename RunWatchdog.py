@@ -333,9 +333,13 @@ class RunWatchdog(object):
                         eventBuilder = cw
                     elif shortNameOf[c] == 'secondaryBuilders':
                         cw.addThresholdValue('snBuilder', 'DiskAvailable', 1024)
-                        cw.addOutputValue('moniBuilder', 'TotalDispatchedData')
-                        cw.addOutputValue('snBuilder', 'TotalDispatchedData')
-                        cw.addOutputValue('tcalBuilder', 'TotalDispatchedData')
+                        cw.addOutputValue('dispatch', 'moniBuilder',
+                                          'TotalDispatchedData')
+                        cw.addOutputValue('dispatch', 'snBuilder',
+                                          'TotalDispatchedData')
+                        # XXX - Disabled until there's a simulated tcal stream 
+                        #cw.addOutputValue('dispatch', 'tcalBuilder',
+                        #                  'TotalDispatchedData')
                         secondaryBuilders = cw
                     else:
                         raise Exception, 'Unknown component type ' + \
