@@ -18,54 +18,96 @@ from re import *
 from exc_string import *
 from tarfile import TarFile
 
+class BadSnippetFormatException(Exception): pass
+
+def dayTime(s):
+    n = search("""
+    (\d\d\d\d-\d\d-\d\d).*? # yyyymmdd
+    (\d\d:\d\d:\d\d)*?      # hhmmss
+    """, s, S|X)
+    if n:
+        return (n.group(1), n.group(2))
+    else:
+        return (None, None)
+
 class SnippetRunRec:
     """
     Storage class to store, parse and massage HTML snippets
     """
     def __init__(self, fileName):
-        # Snippet sample for illustrative purposes only, to help explain the regexp below:
-        sample_snippet_html = """
-
-<tr>
-<td align=center>100887</td>
-<td align=center bgcolor="eeeeee">2007-02-22&nbsp;00:56:43.728586</td>
-<td align=center><font size=-2>4496203</font></td>
-<td align=center bgcolor="eeeeee">2007-02-22&nbsp;01:01:44.038826</td>
-<td align=center><font size=-2>4496504</font></td>
-<td align=center bgcolor="eeeeee">300</td>
-<td align=center>20207</td>
-<td align=center bgcolor="eeeeee">67.36</td>
-<td align=center bgcolor=CCFFCC><a href="100887_20070222_010150_000306/daqrun100887//run.html">SUCCESS</a></td>
-<td align=left>sps-icecube-only-001</td>
-</tr>
-"""
-
-        self.txt      = open(fileName).read()
-        self.config   = None
-        self.startDay = None
-        self.endDay   = None
-        self.release  = None
-        m = search(r'<tr>.+?<td.+?>.+?</td>\s*<td.+?>(\S+)</td>', self.txt, S)
-        if m: self.release = m.group(1)
-        m = search(r'.+?(\d\d\d\d\-\d\d\-\d\d).nbsp.+?(\d\d\d\d\-\d\d\-\d\d).nbsp.+?<td.+?>(\S+?)</td>\s*?</tr>',
-                   self.txt, S)
+        self.txt       = open(fileName).read()
+        self.config    = None
+        self.startDay  = None
+        self.stopDay   = None
+        self.endDay    = None
+        self.release   = None
+        self.startTime = None
+        self.stopTime  = None
+        m = search("""
+           <tr>.*?                                # Start table
+           <td.*?div\ class="release"\s*>(.*?)</div></td>.*? # Release
+           <td.*?div\ class="start"  \s*>(.*?)</div></td>.*? # Start time
+           <td.*?div\ class="stop"   \s*>(.*?)</div></td>.*? # Stop time
+           <td.*?div\ class="config" \s*>(.*?)</div></td>.*? # Config
+           """, self.txt, S|X)
+        
         if m:
-            self.startDay = m.group(1)
-            self.endDay   = m.group(2)
-            self.config   = m.group(3)
+            self.release   = m.group(1)
+            start          = m.group(2)
+            stop           = m.group(3)
+            self.config    = m.group(4)
+
+            self.startDay, self.startTime = dayTime(start)
+            self.stopDay,  self.stopTime  = dayTime(stop)
+                      
+        else:
+            raise BadSnippetFormatException(self.txt)
+    def __str__(self): return "%s %s %s %s" % (self.release,
+                                               self.startDay,
+                                               self.endDay,
+                                               self.config)
+    def colorTableCell(html, label, color):
+        ret = ""
+        for line in html.split('\n'):
+            m = search("""
+            <td.*?class="%s.*?".*?> # Start cell, pick out label
+            (.+?)                   # Contents
+            </td>                   # End cell
+            """ % label, line, X)
+            if m:
+                contents = m.group(1)
+                n = search("""
+                <a\ href=.+?> # Pick out symlinks
+                (.+?)        # Contents
+                </a>         
+                """, contents, X)
+                if n: contents = n.group(1)
+                # Pick out first part of space-separated content
+                #  this is slightly kludgy but the easiest way to make
+                #  HH:MM:SS *not* greyed-out
+                n = search("(.+?)&nbsp;", contents)
+                if n: contents = n.group(1)
+                line = sub(contents,
+                           "<FONT COLOR='%s'>%s</FONT>" % (color,contents),
+                           line)
+            ret += line
+        return ret
+    colorTableCell = staticmethod(colorTableCell)
     
-    def html(self, lastRelease, lastConfig, lastStartDay):
+    def html(self, lastRelease, lastConfig, lastStartDay, lastStopDay):
         """
         Return HTML, but grey out repeated dates and configurations for visual clarity
         """
         grey = "999999"
         ret = self.txt
         if lastConfig == self.config and self.config != None:
-            ret = sub(self.config, "<FONT COLOR=%s>%s</FONT>" % (grey, self.config), ret)
+            ret = SnippetRunRec.colorTableCell(ret, "config",  grey)
         if lastStartDay == self.startDay and self.startDay != None:
-            ret = sub(self.startDay, "<FONT COLOR=%s>%s</FONT>" % (grey, self.startDay), ret)
+            ret = SnippetRunRec.colorTableCell(ret, "start",   grey)
+        if lastStopDay == self.stopDay and self.stopDay != None:
+            ret = SnippetRunRec.colorTableCell(ret, "stop",   grey)
         if lastRelease == self.release and self.release != None:
-            ret = sub(self.release, "<FONT COLOR=%s>%s</FONT>" % (grey, self.release), ret)
+            ret = SnippetRunRec.colorTableCell(ret, "release", grey)
         return ret
 
 def checkForRunningProcesses():
@@ -154,7 +196,27 @@ def fmt(s):
     if s != None: return sub('\s', '&nbsp;', str(s))
     return " "
 
-    
+def yyyymmdd(t):
+    if t is None: return ""
+    return "%d-%02d-%02d" % (t.year, t.month, t.day)
+
+def hhmmss(t):
+    if t is None: return ""
+    return "%02d:%02d:%02d" % (t.hour, t.minute, t.second)
+
+def dashTime(str):
+    "Get datetime object from string in form 'yyyy-mm-dd hh:mm:ss.uuuuuu'"
+    if not str: return None
+    match = search(r'(\d\d\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)\.(\d\d\d\d\d\d)', str)
+    if not match: return None
+    return datetime.datetime(int(match.group(1)),
+                             int(match.group(2)),
+                             int(match.group(3)),
+                             int(match.group(4)),
+                             int(match.group(5)),
+                             int(match.group(6)),
+                             int(match.group(7)))
+
 def generateSnippet(snippetFile, runNum, release, starttime, stoptime, dtsec,
                     configName, runDir, status, nEvents, cumEvents):
     snippet = open(snippetFile, 'w')
@@ -165,19 +227,24 @@ def generateSnippet(snippetFile, runNum, release, starttime, stoptime, dtsec,
     if release is None: release = ""
     rateStr = rateRepr(nEvents, cumEvents, dtsec)
 
+    startday  = yyyymmdd(starttime)
+    starttime = hhmmss(starttime)
+    stopday   = yyyymmdd(stoptime)
+    stoptime  = hhmmss(stoptime)
+    
     print >>snippet, """
     <tr>
-    <td align=center>%d</td>
-    <td align=center bgcolor="eeeeee">%s</td>
-    <td align=center>%s</td>
-    <td align=center bgcolor="eeeeee">%s</td>
-    <td align=center>%s</td>
-    <td align=center bgcolor="eeeeee">%s</td>
-    <td align=center>%s</td>
-    <td align=center bgcolor=%s><a href="%s">%s</a></td>
-    <td align=left>%s</td>
+    <td align=center>                 <div class="run"    >%d</div></td>
+    <td align=center bgcolor="eeeeee"><div class="release">%s</div></td>
+    <td align=center>                 <div class="start"  >%s&nbsp;%s</div></td>
+    <td align=center bgcolor="eeeeee"><div class="stop"   >%s&nbsp;%s</div></td>
+    <td align=center>                 <div class="deltat" >%s</div></td>
+    <td align=center bgcolor="eeeeee"><div class="nevents">%s</div></td>
+    <td align=center>                 <div class="rate"   >%s</div></td>
+    <td align=center bgcolor=%s>      <div class="status" ><a href="%s">%s</a></div></td>
+    <td align=left>                   <div class="config" >%s</div></td>
     </tr>
-    """ % (runNum, release, fmt(starttime), fmt(stoptime),
+    """ % (runNum, release, startday, starttime, stopday, stoptime,
            fmt(dtsec), evStr, rateStr,
            statusColor, runDir, status, configName)
     snippet.close()
@@ -212,19 +279,6 @@ def getDashEvent(dashFile, pat):
 
 def jan0(year):
     return datetime.datetime(year, 1, 1, 0, 0, 0)
-
-def dashTime(str):
-    "Get datetime object from string in form 'yyyy-mm-dd hh:mm:ss.uuuuuu'"
-    if not str: return None
-    match = search(r'(\d\d\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)\.(\d\d\d\d\d\d)', str)
-    if not match: return None
-    return datetime.datetime(int(match.group(1)),
-                             int(match.group(2)),
-                             int(match.group(3)),
-                             int(match.group(4)),
-                             int(match.group(5)),
-                             int(match.group(6)),
-                             int(match.group(7)))
 
 def dtSeconds(t0, t1):
     if t0 == None or t1 == None: return None
@@ -516,6 +570,7 @@ def main():
     prevRun          = None
     prevConfig       = None
     prevStartDay     = None
+    prevStopDay      = None
     prevRelease      = None
     for f in tarlist:
         prefix = 'SPS-pDAQ-run-'
@@ -674,7 +729,7 @@ def main():
             
             if numRuns < maxFirstFileRuns:
                 if(skippedRun): print >>firstSummaryFile, skipper
-                print >>firstSummaryFile, runRec.html(prevRelease, prevConfig, prevStartDay)
+                print >>firstSummaryFile, runRec.html(prevRelease, prevConfig, prevStartDay, prevStopDay)
                 firstSummaryFile.flush()
             elif numRuns == maxFirstFileRuns:
                 print >>firstSummaryFile, """
@@ -688,13 +743,14 @@ def main():
             # Write all summaries:
             if(skippedRun): print >>allSummaryFile, skipper
             try:
-                print >>allSummaryFile, runRec.html(prevRelease, prevConfig, prevStartDay)
+                print >>allSummaryFile, runRec.html(prevRelease, prevConfig, prevStartDay, prevStopDay)
             except IOError, e:
                 print "WARNING: couldn't read snippet file (%s)" % exc_string()
 
-            prevConfig   = runRec.config
-            prevStartDay = runRec.startDay
-            prevRelease  = runRec.release
+            if runRec.config   is not None: prevConfig   = runRec.config
+            if runRec.startDay is not None: prevStartDay = runRec.startDay
+            if runRec.stopDay  is not None: prevStopDay  = runRec.stopDay
+            if runRec.release  is not None: prevRelease  = runRec.release
             
             allSummaryFile.flush()
             
