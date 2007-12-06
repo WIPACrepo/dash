@@ -70,9 +70,9 @@ class SnippetRunRec:
         ret = ""
         for line in html.split('\n'):
             m = search("""
-            <td.*?class="%s.*?".*?> # Start cell, pick out label
-            (.+?)                   # Contents
-            </td>                   # End cell
+            <td.*?div\ class="%s.*?".*?> # Start cell, pick out label
+            (.+?)                        # Contents
+            </div>.*?</td>               # End cell
             """ % label, line, X)
             if m:
                 contents = m.group(1)
