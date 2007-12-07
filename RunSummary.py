@@ -90,7 +90,7 @@ class SnippetRunRec:
                 line = sub(contents,
                            "<FONT COLOR='%s'>%s</FONT>" % (color,contents),
                            line)
-            ret += line
+            ret += line+"\n"
         return ret
     colorTableCell = staticmethod(colorTableCell)
     
