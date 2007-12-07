@@ -161,17 +161,6 @@ def eventsRepr(nEvents, cumEvents):
     if nEvents is not None: evStr = str(nEvents)
     return evStr
 
-def rateRepr(nEvents, cumEvents, dtsec):
-    rateStr = " "
-    n       = 0
-    if cumEvents is not None: n = cumEvents
-    if nEvents   is not None: n = nEvents
-    try:
-       if dtsec > 0: rateStr = "%2.2f" % (float(n)/float(dtsec))
-    except TypeError, t:
-        rateStr = "?"
-    return rateStr
-
 def getStatusColor(status, nEvents, cumEvents):
     # Calculate status color
     yellow  = "F0E68C"
@@ -218,14 +207,13 @@ def dashTime(str):
                              int(match.group(7)))
 
 def generateSnippet(snippetFile, runNum, release, starttime, stoptime, dtsec,
-                    configName, runDir, status, nEvents, cumEvents):
+                    rateStr, configName, runDir, status, nEvents, cumEvents):
     snippet = open(snippetFile, 'w')
     
     statusColor = getStatusColor(status, nEvents, cumEvents)
     
     evStr = eventsRepr(nEvents, cumEvents)
     if release is None: release = ""
-    rateStr = rateRepr(nEvents, cumEvents, dtsec)
 
     startday  = yyyymmdd(starttime)
     starttime = hhmmss(starttime)
@@ -290,22 +278,34 @@ def toSeconds(t):
     return t.days*86400 + t.seconds
 
 def makeRunReport(snippetFile, dashFile, release, infoPat, runInfo, configName,
-                      status, nEvents, cumEvents, absRunDir, relRunDir):
-
-    starttime = dashTime(getDashEvent(dashFile, r'Started run \d+ on run set'))
-    stoptime  = dashTime(getDashEvent(dashFile, r'Stopping run'))
+                      status, nEvents, cumEvents, lastTimeStr, absRunDir, relRunDir):
+    """
+    Calculate start and stop times, duration and rate.  Make HTML summary line
+    and summary page for the run.  If the run failed, use the last "good" event
+    count and rate (cumEvents and lastTimeStr) to calculate rate.
+    """
+    starttime = dashTime(getDashEvent(dashFile, 'Started run \d+ on run set'))
+    stoptime  = dashTime(getDashEvent(dashFile, 'Stopping run'))
+    lasttime  = dashTime(lastTimeStr)
+    dtsec     = None
     if not stoptime:
         stoptime = dashTime(getDashEvent(dashFile, r'Recovering from failed run'))
     if not stoptime:
         stoptime = dashTime(getDashEvent(dashFile, r'Failed to start run'))
     if not stoptime:
-        print "WARNING: no stop time for %s!" % dashFile
-        dtsec    = None
-    else:
-        j0 = jan0(stoptime.year)
-        #startsec = dtSeconds(j0, starttime)
-        #stopsec  = dtSeconds(j0, stoptime)
-        dtsec    = dtSeconds(starttime, stoptime)
+        stoptime = lasttime
+
+    rateStr = ""
+    if stoptime:
+        if status == "SUCCESS":
+            dtsec  = dtSeconds(starttime, stoptime)
+            if dtsec > 0:
+                rateStr = "%2.2f" % (float(nEvents)/float(dtsec))
+        else:
+            dtsec  = dtSeconds(starttime, lasttime)
+            if dtsec > 0 and cumEvents > 0: # Skip runs w/ zero 'cumEvents' since it misses
+                                            # Azriel's requirements for rate calculation
+                rateStr = "%2.2f" % (float(cumEvents)/float(dtsec))
 
     match = search(infoPat, runInfo)
     if not match:
@@ -313,15 +313,8 @@ def makeRunReport(snippetFile, dashFile, release, infoPat, runInfo, configName,
               (runInfo, infoPat)              
         return
     runNum = int(match.group(1))
-    year   = int(match.group(2))
-    month  = int(match.group(3))
-    day    = int(match.group(4))
-    hr     = int(match.group(5))
-    mins   = int(match.group(6))
-    sec    = int(match.group(7))
-    dur    = int(match.group(8))
 
-    generateSnippet(snippetFile, runNum, release, starttime, stoptime, dtsec,
+    generateSnippet(snippetFile, runNum, release, starttime, stoptime, dtsec, rateStr,
                     configName, relRunDir+"/run.html", status, nEvents, cumEvents)
     makeSummaryHtml(absRunDir, runNum, release, configName, status, nEvents, cumEvents,
                     starttime, stoptime, dtsec)
@@ -597,7 +590,7 @@ def main():
             linkDir     = runInfoString + "/"
             nEvents     = None # End of run accounting
             cumEvents   = None # Cumulative event accounting
-
+            lastTimeStr = None
             # Skip files older than oldestTime weeks
             if daysOf(tarFile) > opt.oldestTime: continue
 
@@ -682,8 +675,10 @@ def main():
                         s = search(r'Version Info:.+\s+(\S+)\s+\d+\n', dashContents)
                         if s: release = s.group(1)
 
-                        lines = findall('(\d+) physics events', dashContents)
-                        if lines: cumEvents = int(lines[-1])
+                        lines = findall('\[(.+?)\]\s+(\d+) physics events \(.+? Hz\)\,', dashContents)
+                        if lines:
+                            lastTimeStr = lines[-1][0]
+                            cumEvents   = int(lines[-1][1])
                         
                     # Remember more precise unpacked location for link
                     if search(r'(daqrun\d+)/$', el): 
@@ -701,8 +696,8 @@ def main():
 
                 # Make HTML snippet for run summaries
                 makeRunReport(snippetFile, dashFile, release, infoPat, runInfoString, 
-                              configName, status, nEvents, cumEvents, runDir+"/"+linkDir,
-                              linkDir)
+                              configName, status, nEvents, cumEvents, lastTimeStr,
+                              runDir+"/"+linkDir, linkDir)
 
             if prevRun and (runNum != prevRun-1):
                 skippedRun = True
