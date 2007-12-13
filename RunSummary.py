@@ -44,7 +44,7 @@ class SnippetRunRec:
         self.startTime = None
         self.stopTime  = None
         m = search("""
-           <tr>.*?                                # Start table
+           <tr>.*?                                           # Start table
            <td.*?div\ class="release"\s*>(.*?)</div></td>.*? # Release
            <td.*?div\ class="start"  \s*>(.*?)</div></td>.*? # Start time
            <td.*?div\ class="stop"   \s*>(.*?)</div></td>.*? # Stop time
@@ -68,6 +68,7 @@ class SnippetRunRec:
                                                self.config)
     def colorTableCell(html, label, color):
         ret = ""
+        found = False
         for line in html.split('\n'):
             m = search("""
             <td.*?div\ class="%s.*?".*?> # Start cell, pick out label
@@ -75,6 +76,7 @@ class SnippetRunRec:
             </div>.*?</td>               # End cell
             """ % label, line, X)
             if m:
+                found = True
                 contents = m.group(1)
                 n = search("""
                 <a\ href=.+?> # Pick out symlinks
@@ -91,6 +93,9 @@ class SnippetRunRec:
                            "<FONT COLOR='%s'>%s</FONT>" % (color,contents),
                            line)
             ret += line+"\n"
+        if not found:
+            print "ERROR: label %s not found!" % label
+            raise SystemExit
         return ret
     colorTableCell = staticmethod(colorTableCell)
     
@@ -672,8 +677,8 @@ def main():
                         s = search(r'\]\s+(\d+).+?events collected', dashContents)
                         if s: nEvents = int(s.group(1))
 
-                        s = search(r'Version Info:.+\s+(\S+)\s+\d+\n', dashContents)
-                        if s: release = s.group(1)
+                        s = search(r'Version Info:.+\s+(\S+)\s+(\d+)\n', dashContents)
+                        if s: release = "%s_%s" % (s.group(1), s.group(2)) 
 
                         lines = findall('\[(.+?)\]\s+(\d+) physics events \(.+? Hz\)\,', dashContents)
                         if lines:
