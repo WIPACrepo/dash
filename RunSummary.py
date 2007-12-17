@@ -72,7 +72,7 @@ class SnippetRunRec:
         for line in html.split('\n'):
             m = search("""
             <td.*?div\ class="%s.*?".*?> # Start cell, pick out label
-            (.+?)                        # Contents
+            (.*?)                        # Contents
             </div>.*?</td>               # End cell
             """ % label, line, X)
             if m:
@@ -94,8 +94,7 @@ class SnippetRunRec:
                            line)
             ret += line+"\n"
         if not found:
-            print "ERROR: label %s not found!" % label
-            raise SystemExit
+            raise Exception("ERROR: label %s not found!" % label)
         return ret
     colorTableCell = staticmethod(colorTableCell)
     
