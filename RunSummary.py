@@ -71,9 +71,9 @@ class SnippetRunRec:
         found = False
         for line in html.split('\n'):
             m = search("""
-            <td.*?div\ class="%s.*?".*?> # Start cell, pick out label
+            <td.*?div\ class="%s.*?"\s*> # Start cell, pick out label
             (.*?)                        # Contents
-            </div>.*?</td>               # End cell
+            </div></td>                  # End cell
             """ % label, line, X)
             if m:
                 found = True
@@ -89,8 +89,8 @@ class SnippetRunRec:
                 #  HH:MM:SS *not* greyed-out
                 n = search("(.+?)&nbsp;", contents)
                 if n: contents = n.group(1)
-                line = sub(contents,
-                           "<FONT COLOR='%s'>%s</FONT>" % (color,contents),
+                line = sub(">%s<" % contents,
+                           ">%s<" % ("<FONT COLOR='%s'>%s</FONT>" % (color,contents)),
                            line)
             ret += line+"\n"
         if not found:
