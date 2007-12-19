@@ -19,11 +19,30 @@ from exc_string import *
 from tarfile import TarFile
 
 class BadSnippetFormatException(Exception): pass
+class BadDayTimeException(Exception):       pass
+
+def datetimeFromDayTime(day, time):
+    """
+    Convert day, time strings to a single datetime object
+    """
+    dp = search('^(\d\d\d\d)-(\d\d)-(\d\d)$', day)
+    tp = search('^(\d\d):(\d\d):(\d\d)$', time)
+    if (not dp) or (not tp):
+        raise BadDayTimeException(day+","+time)
+    return datetime.datetime(int(dp.group(1)),
+                             int(dp.group(2)),
+                             int(dp.group(3)),
+                             int(tp.group(1)),
+                             int(tp.group(2)),
+                             int(tp.group(3)))
 
 def dayTime(s):
+    """
+    Pull out day, time strings from YYYY-MM-DD hh:mm:ss in <s>
+    """
     n = search("""
     (\d\d\d\d-\d\d-\d\d).*? # yyyymmdd
-    (\d\d:\d\d:\d\d)*?      # hhmmss
+    (\d\d:\d\d:\d\d).*?     # hhmmss
     """, s, S|X)
     if n:
         return (n.group(1), n.group(2))
@@ -36,15 +55,16 @@ class SnippetRunRec:
     """
     def __init__(self, fileName):
         self.txt       = open(fileName).read()
+        self.run       = None
         self.config    = None
         self.startDay  = None
         self.stopDay   = None
-        self.endDay    = None
         self.release   = None
         self.startTime = None
         self.stopTime  = None
         m = search("""
            <tr>.*?                                           # Start table
+           <td.*?div\ class="run"\s*>(.*?)</div></td>.*?     # Run
            <td.*?div\ class="release"\s*>(.*?)</div></td>.*? # Release
            <td.*?div\ class="start"  \s*>(.*?)</div></td>.*? # Start time
            <td.*?div\ class="stop"   \s*>(.*?)</div></td>.*? # Stop time
@@ -52,20 +72,21 @@ class SnippetRunRec:
            """, self.txt, S|X)
         
         if m:
-            self.release   = m.group(1)
-            start          = m.group(2)
-            stop           = m.group(3)
-            self.config    = m.group(4)
+            self.run       = int(m.group(1))
+            self.release   = m.group(2)
+            start          = m.group(3)
+            stop           = m.group(4)
+            self.config    = m.group(5)
 
             self.startDay, self.startTime = dayTime(start)
             self.stopDay,  self.stopTime  = dayTime(stop)
                       
         else:
             raise BadSnippetFormatException(self.txt)
-    def __str__(self): return "%s %s %s %s" % (self.release,
-                                               self.startDay,
-                                               self.endDay,
-                                               self.config)
+    def __str__(self): return "%d %s %s %s %s %s %s" % (self.run, self.release,
+                                                        self.startDay, self.startTime,
+                                                        self.stopDay,  self.stopTime,
+                                                        self.config)
     def colorTableCell(html, label, color):
         ret = ""
         found = False
@@ -121,7 +142,7 @@ def checkForRunningProcesses():
     if num < 3: return False # get extra \n at end of command
     return True
 
-def check_make_or_exit(dir):
+def makeDirOrExit(dir):
     if not exists(dir):
         # print ("Creating %s... " % dir),
         try: mkdir(dir, 0755)
@@ -450,6 +471,217 @@ def daysOf(f):
     # print "daysOf %s %d %d %d" % (f, t, now, dt)
     return dt/86400
 
+def createTopHTML(runDir, liveTime24hr=None, liveTime7days=None):
+    bodyHTML = "<BODY>"
+    logoHTML = ""
+    bodyFile = "/net/user/pdaq/daq-reports/images/icecube_pale.jpg"
+    logoFile = "/net/user/pdaq/daq-reports/images/header.gif"
+    if exists(bodyFile): bodyHTML = "<BODY background='%s'>" % bodyFile
+    if exists(logoFile): logoHTML = "<IMG SRC='%s'>" % logoFile
+    
+    if search(r'daq-reports/spts64', runDir):
+        title = "SPTS64 Run Summaries"
+    elif search(r'daq-reports/sps', runDir):
+        title = "SPS Run Summaries"
+    else:
+        title = "IceCube DAQ Run Summaries"
+    if liveTime24hr != None and liveTime7days != None:
+        lt = """
+<table>
+<tr><td align=right><font color="555555">24 hour livetime:</font></td><td>%2.2f%%</td></tr>
+<tr><td align=right><font color="555555"  >7 day livetime:</font></td><td>%2.2f%%</td></tr>
+<tr>
+<td colspan=2 width=200px>
+<font size="-2" color="777777">
+Fine print: live time is calculated up to the end of the most recent run.
+At times, run information may be delayed by 24 hours or longer, so detector uptime should be considered
+a lower limit.  Times are based on best guess start and end times for the pDAQ run.
+</font>
+</td>
+</tr>
+</table>
+
+""" % (liveTime24hr, liveTime7days)
+    else:
+        lt = ""
+        
+    top = """
+    <head><title>%s</title></head>
+    <html>
+    %s
+    <table>
+    <tr>
+     <td valign="top">
+      %s<br>
+      <A HREF="http://internal.icecube.wisc.edu/status/detector-summary.xml">Current SPS Status</A><br>
+      <A HREF="http://internal.icecube.wisc.edu/status/detector-daily.xml">Daily SPS Status</A><br>
+      Detailed <A HREF="http://icecube.berkeley.edu/i3-monitoring/2007/monitor.shtml">Detector Monitoring</A> (UCB)
+     </td>
+     <td>
+      %s
+     </td>
+    </tr>
+    </table>
+    <br>
+    <table>
+    <tr>
+     <td align=center><b><font size=-1>Run</font></b></td>
+     <td align=center><b><font size=-1>Release</font></b></td>
+     <td align=center><b><font size=-1>Run Start Time</font></b></td>
+     <td align=center><b><font size=-1>Run Stop Time</font></b></td>
+     <td align=center><b><font size=-1>Duration (seconds)</font></b></td>
+     <td align=center><b><font size=-1>Num. Events</font></b></td>
+     <td align=center><b><font size=-1>Rate (Hz)</font></b></td>
+     <td align=center><b><font size=-1>Status</font></b></td>
+     <td align=left><b><font size=-1>Config</font></b></td>
+    </tr>
+    """ % (title, bodyHTML, logoHTML, lt)
+    return top
+
+def createBotHtml(isSubset=False):
+    if isSubset:
+        return """
+</table>
+<font size=+2>Click <A HREF="all.html">here</A> for a complete list of runs.<P></font>
+</body>
+</html>
+"""
+    else:
+        return """
+</table>
+</body>
+</html>
+"""
+
+# HTML snippet for separating missing runs
+def skipper():
+    return """<TR HEIGHT=2>
+<TD ALIGN=center>...</TD>
+<TD BGCOLOR='eeeeee'></TD>
+<TD></TD>
+<TD BGCOLOR='eeeeee'></TD>
+<TD></TD>
+<TD BGCOLOR='eeeeee'></TD>
+<TD></TD>
+<TD BGCOLOR='eeeeee'></TD>
+<TD></TD>
+<TD BGCOLOR='eeeeee'></TD>
+</TR>"""
+
+findpat = "^\d+_(\d\d\d\d\d\d\d\d)_(\d\d\d\d\d\d)_\d+$"
+
+def byDate(a, b):
+    pa = search(findpat, a)
+    pb = search(findpat, b)
+    if (not pa) or (not pb): return 0
+    if pa.group(1) > pb.group(1): return -1
+    if pa.group(1) < pb.group(1): return 1
+    if pa.group(2) > pb.group(2): return -1
+    if pa.group(2) < pb.group(2): return 1
+    return 0
+
+def findall(pat, l):
+    ret = []
+    for item in l:
+        if search(pat, item): ret.append(item)
+    return ret
+
+def getSortedRunReportDirs(outputDir):
+    rundirs = findall(findpat, listdir(outputDir))
+    rundirs.sort(byDate)
+    return [join(outputDir, x) for x in rundirs]
+
+def getRunRecs(sortedDirs):
+    for dir in sortedDirs:
+        sf = join(dir, ".snippet")
+        if exists(sf):
+            try:
+                rec = SnippetRunRec(sf)
+                yield rec
+            except BadSnippetFormatException, e:
+                print "WARNING: HTML summary for %d is corrupt ('%s')!" % (rec, e)
+
+def getLiveTimes(runDirs):
+    """
+    Calculate live time based on run snippets stored in directory list runDirs
+    Add increments of time going backwards through recent runs until a run boundary
+    is reached which exceeds the 24hr or 7day interval; use only the parts of the
+    run which live inside that interval.
+    """
+    lastTime    = None
+    lastLess24h = None
+    lastLess7d  = None
+    sum24h      = 0
+    sum7d       = 0
+    done24h     = False
+    done7d      = False
+    for rec in getRunRecs(runDirs):
+        runStop = datetimeFromDayTime(rec.stopDay, rec.stopTime)
+        if not lastTime:
+            lastTime = runStop
+            lastLess24h = lastTime - datetime.timedelta(1) # 1 day earlier
+            lastLess7d  = lastTime - datetime.timedelta(7) # 1 week earlier
+        try:
+            runStart = datetimeFromDayTime(rec.startDay, rec.startTime)
+        except TypeError, t: # Skip runs with missing start times
+            continue
+        
+        if runStop <= lastLess24h:
+            done24h = True
+        if runStop <= lastLess7d:
+            done7d  = True
+
+        if not done24h:
+            startMark = runStart
+            if startMark <= lastLess24h:
+                startMark = lastLess24h
+                done24h = True
+            dt = runStop-startMark
+            inc = dt.days*86400 + dt.seconds
+            sum24h += inc
+
+        if not done7d:
+            startMark  = runStart
+            if startMark <= lastLess7d:
+                startMark = lastLess7d
+                done7d = True
+            dt = runStop-startMark
+            inc = dt.days*86400 + dt.seconds
+            sum7d += inc
+            
+        if done24h and done7d:
+            break
+    return (sum24h*100./86400., sum7d*100./(86400.*7.))
+
+def generateOutputPage(runDirName, runDirectories, liveTime24hr, liveTime7days, htmlName, maxRuns=None):
+    prevRelease  = None
+    prevConfig   = None
+    prevStartDay = None
+    prevStopDay  = None
+    prevRun      = None
+    numRuns      = 0
+    print "Making", htmlName
+    htmlFile = open(join(runDirName, htmlName), "w")
+    print >>htmlFile, createTopHTML(runDirName, liveTime24hr, liveTime7days)
+    for rec in getRunRecs(runDirectories):
+        if prevRun and (rec.run != prevRun-1):
+            skippedRun = True
+        else:
+            skippedRun = False
+        prevRun = rec.run
+        if skippedRun: print >>htmlFile, skipper()
+        print >>htmlFile, rec.html(prevRelease, prevConfig, prevStartDay, prevStopDay)
+        htmlFile.flush()
+        if rec.config   is not None: prevConfig   = rec.config
+        if rec.startDay is not None: prevStartDay = rec.startDay
+        if rec.stopDay  is not None: prevStopDay  = rec.stopDay
+        if rec.release  is not None: prevRelease  = rec.release
+        numRuns += 1
+        if maxRuns is not None and numRuns >= maxRuns:
+            break
+    print >>htmlFile, createBotHtml(maxRuns != None and True or False)
+    htmlFile.close()
+
 def main():
     p = optparse.OptionParser()
     p.add_option("-s", "--spade-dir",   action="store", type="string", dest="spadeDir")
@@ -495,66 +727,14 @@ def main():
         print "Can't find inclusion dir %s... giving up." % opt.inclusionDir
         raise SystemExit
     
-    check_make_or_exit(opt.outputDir)
+    makeDirOrExit(opt.outputDir)
 
     latestTime = getLatestFileTime(opt.spadeDir)
     doneTime   = getDoneFileTime(opt.outputDir)
     if latestTime and doneTime and latestTime < doneTime and not opt.replaceAll: raise SystemExit
 
     runDir = join(opt.outputDir, "runs")
-    check_make_or_exit(runDir)
-
-    bodyHTML = "<BODY>"
-    logoHTML = ""
-    bodyFile = "/net/user/pdaq/daq-reports/images/icecube_pale.jpg"
-    logoFile = "/net/user/pdaq/daq-reports/images/header.gif"
-    if exists(bodyFile): bodyHTML = "<BODY background='%s'>" % bodyFile
-    if exists(logoFile): logoHTML = "<IMG SRC='%s'>" % logoFile
-    
-    firstSummaryHtml = runDir + "/index.html"
-    allSummaryHtml   = runDir + "/all.html"
-    firstSummaryFile = open(firstSummaryHtml, "w")
-    allSummaryFile   = open(allSummaryHtml, "w")
-    print runDir
-    if search(r'daq-reports/spts64', runDir):
-        title = "SPTS64 Run Summaries"
-    elif search(r'daq-reports/sps', runDir):
-        title = "SPS Run Summaries"
-    else:
-        title = "IceCube DAQ Run Summaries"
-    top = """
-    <head><title>%s</title></head>
-    <html>
-    %s
-    <table>
-    <tr>
-     <td>
-      %s
-     </td>
-     <td valign="bottom">
-      <A HREF="http://internal.icecube.wisc.edu/status/detector-summary.xml">Current SPS Status</A><br>
-      <A HREF="http://internal.icecube.wisc.edu/status/detector-daily.xml">Daily SPS Status</A><br>
-      Detailed <A HREF="http://icecube.berkeley.edu/i3-monitoring/2007/monitor.shtml">Detector Monitoring</A> (UCB)
-     </td>
-    </tr>
-    </table>
-    <br>
-    <table>
-    <tr>
-     <td align=center><b><font size=-1>Run</font></b></td>
-     <td align=center><b><font size=-1>Release</font></b></td>
-     <td align=center><b><font size=-1>Run Start Time</font></b></td>
-     <td align=center><b><font size=-1>Run Stop Time</font></b></td>
-     <td align=center><b><font size=-1>Duration (seconds)</font></b></td>
-     <td align=center><b><font size=-1>Num. Events</font></b></td>
-     <td align=center><b><font size=-1>Rate (Hz)</font></b></td>
-     <td align=center><b><font size=-1>Status</font></b></td>
-     <td align=left><b><font size=-1>Config</font></b></td>
-    </tr>
-    """ % (title, bodyHTML, logoHTML)
-
-    print >>allSummaryFile, top
-    print >>firstSummaryFile, top
+    makeDirOrExit(runDir)
 
     tarlist = recursiveGetTarFiles(opt.spadeDir)
     if opt.inclusionDir:
@@ -562,13 +742,7 @@ def main():
         tarlist += recursiveGetTarFiles(opt.inclusionDir)
     tarlist.sort(cmp)
 
-    numRuns          = 0
     maxFirstFileRuns = 100
-    prevRun          = None
-    prevConfig       = None
-    prevStartDay     = None
-    prevStopDay      = None
-    prevRelease      = None
     for f in tarlist:
         prefix = 'SPS-pDAQ-run-'
         if search(r'.done$', f): continue # Skip SPADE .done semaphores
@@ -580,7 +754,7 @@ def main():
             if not match: continue
             runNum = int(match.group(1))
             outDir = runDir + "/" + runInfoString
-            check_make_or_exit(outDir)
+            makeDirOrExit(outDir)
             tarFile     = f
             extractedTarball = False
 
@@ -703,63 +877,13 @@ def main():
                               configName, status, nEvents, cumEvents, lastTimeStr,
                               runDir+"/"+linkDir, linkDir)
 
-            if prevRun and (runNum != prevRun-1):
-                skippedRun = True
-            else:
-                skippedRun = False
-            prevRun = runNum
-            
-            # Write summaries for first 100 runs only:
-            skipper = """<TR HEIGHT=2>
-            <TD ALIGN=center>...</TD>
-            <TD BGCOLOR='eeeeee'></TD>
-            <TD></TD>
-            <TD BGCOLOR='eeeeee'></TD>
-            <TD></TD>
-            <TD BGCOLOR='eeeeee'></TD>
-            <TD></TD>
-            <TD BGCOLOR='eeeeee'></TD>
-            <TD></TD>
-            <TD BGCOLOR='eeeeee'></TD>
-            </TR>"""
-            
-            numRuns += 1
-            runRec = SnippetRunRec(snippetFile)
-            
-            if numRuns < maxFirstFileRuns:
-                if(skippedRun): print >>firstSummaryFile, skipper
-                print >>firstSummaryFile, runRec.html(prevRelease, prevConfig, prevStartDay, prevStopDay)
-                firstSummaryFile.flush()
-            elif numRuns == maxFirstFileRuns:
-                print >>firstSummaryFile, """
-                </table>
-                <font size=+2>Click <A HREF="all.html">here</A> for a complete list of runs.<P></font>
-                </body>
-                </html>
-                """
-                firstSummaryFile.close()    
-
-            # Write all summaries:
-            if(skippedRun): print >>allSummaryFile, skipper
-            try:
-                print >>allSummaryFile, runRec.html(prevRelease, prevConfig, prevStartDay, prevStopDay)
-            except IOError, e:
-                print "WARNING: couldn't read snippet file (%s)" % exc_string()
-
-            if runRec.config   is not None: prevConfig   = runRec.config
-            if runRec.startDay is not None: prevStartDay = runRec.startDay
-            if runRec.stopDay  is not None: prevStopDay  = runRec.stopDay
-            if runRec.release  is not None: prevRelease  = runRec.release
-            
-            allSummaryFile.flush()
-            
-    print >>allSummaryFile, """
-    </table>
-    </body>
-    </html>
-    """
-    allSummaryFile.close()
-
+    # Iterate over generated directories to find livetime, etc.
+    runDirectories = getSortedRunReportDirs(runDir)
+    liveTime24hr, liveTime7days = getLiveTimes(runDirectories)
+    print "24 hour livetime = %2.3f%%; 7 day livetime = %2.3f%%" % (liveTime24hr, liveTime7days)
+    # Produce final output
+    generateOutputPage(runDir, runDirectories, liveTime24hr, liveTime7days, "index.html", 100)
+    generateOutputPage(runDir, runDirectories, liveTime24hr, liveTime7days, "all.html")
     touchDoneFile(opt.outputDir)
 
 if __name__ == "__main__": main()
