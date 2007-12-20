@@ -33,7 +33,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 2312 2007-11-26 23:03:57Z ksb $"
+SVN_ID  = "$Id: DAQRun.py 2435 2007-12-20 23:16:52Z jacobsen $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -586,6 +586,9 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     self.runStats.physicsRate.add(self.runStats.startTime, 0) # Run starts w/ 0 events
                     self.start_run(self.cnc)
                     self.runState = "RUNNING"
+                except Fault, fault:
+                    self.logmsg("Run start failed: %s" % fault.faultString)
+                    self.runState = "ERROR"
                 except Exception, e:
                     self.logmsg("Failed to start run: %s" % exc_string())
                     self.runState = "ERROR"

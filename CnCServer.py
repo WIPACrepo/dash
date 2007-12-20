@@ -13,7 +13,7 @@ import socket
 import sys
 import thread
 
-SVN_ID  = "$Id: CnCServer.py 2312 2007-11-26 23:03:57Z ksb $"
+SVN_ID  = "$Id: CnCServer.py 2435 2007-12-20 23:16:52Z jacobsen $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -494,10 +494,31 @@ class RunSet:
             if c.isComponent("eventBuilder"):
                 c.commitSubrun(id, repr(latestTime))
 
+    def listComponentsCommaSep(waitList):
+        """
+        Concatenate a list of components into a string showing names and IDs, similar to
+        componentListStr but more compact
+        """
+        waitStr = None
+        for c in waitList:
+            if waitStr == None:
+                waitStr = ''
+            else:
+                waitStr += ', '
+            waitStr += c.name + '#' + str(c.num)
+        return waitStr
+    listComponentsCommaSep = staticmethod(listComponentsCommaSep)
+    
     def waitForStateChange(self, timeoutSecs=TIMEOUT_SECS):
+        """
+        Wait for state change, with a timeout of timeoutSecs (renewed each time
+        any component changes state).  Raise a ValueError if the state change
+        fails.
+        """
         waitList = self.set[:]
 
         endSecs = time() + timeoutSecs
+        waitStr = ''
         while len(waitList) > 0 and time() < endSecs:
             newList = waitList[:]
             for c in waitList:
@@ -507,30 +528,21 @@ class RunSet:
 
             # if one or more components changed state...
             #
+            waitStr  = RunSet.listComponentsCommaSep(newList)
             if len(waitList) == len(newList):
                 sleep(1)
             else:
-
                 waitList = newList
-
-                waitStr = None
-                for c in waitList:
-                    if waitStr is None:
-                        waitStr = ''
-                    else:
-                        waitStr += ', '
-                    waitStr += c.name + '#' + str(c.num)
                 if waitStr:
                     self.logmsg(str(self) + ': Waiting for ' + self.state +
                                 ' ' + waitStr)
-
                 # reset timeout
                 #
                 endSecs = time() + timeoutSecs
 
         if len(waitList) > 0:
-            raise ValueError, 'Still waiting for %d components to leave %s' % \
-                (len(waitList), self.state)
+            raise ValueError, 'Still waiting for %d components to leave %s (%s)' % \
+                (len(waitList), self.state, waitStr)
 
 class CnCLogger(object):
     "CnC logging client"
