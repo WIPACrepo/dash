@@ -471,14 +471,19 @@ def daysOf(f):
     # print "daysOf %s %d %d %d" % (f, t, now, dt)
     return dt/86400
 
-def createTopHTML(runDir, liveTime24hr=None, liveTime7days=None):
+def createTopHTML(runDir, liveTime24hr=None, liveTime7days=None, refresh=None):
     bodyHTML = "<BODY>"
     logoHTML = ""
     bodyFile = "/net/user/pdaq/daq-reports/images/icecube_pale.jpg"
     logoFile = "/net/user/pdaq/daq-reports/images/header.gif"
     if exists(bodyFile): bodyHTML = "<BODY background='%s'>" % bodyFile
     if exists(logoFile): logoHTML = "<IMG SRC='%s'>" % logoFile
-    
+
+    if refresh:
+        refreshHTML = "<META http-equiv='refresh' content='%d'>" % refresh
+    else:
+        refreshHTML = ""
+        
     if search(r'daq-reports/spts64', runDir):
         title = "SPTS64 Run Summaries"
     elif search(r'daq-reports/sps', runDir):
@@ -506,7 +511,10 @@ a lower limit.  Times are based on best guess start and end times for the pDAQ r
         lt = ""
         
     top = """
-    <head><title>%s</title></head>
+    <head>
+    <title>%s</title>
+    %s
+    </head>
     <html>
     %s
     <table>
@@ -535,7 +543,7 @@ a lower limit.  Times are based on best guess start and end times for the pDAQ r
      <td align=center><b><font size=-1>Status</font></b></td>
      <td align=left><b><font size=-1>Config</font></b></td>
     </tr>
-    """ % (title, bodyHTML, logoHTML, lt)
+    """ % (title, refreshHTML, bodyHTML, logoHTML, lt)
     return top
 
 def createBotHtml(isSubset=False):
@@ -653,7 +661,8 @@ def getLiveTimes(runDirs):
             break
     return (sum24h*100./86400., sum7d*100./(86400.*7.))
 
-def generateOutputPage(runDirName, runDirectories, liveTime24hr, liveTime7days, htmlName, maxRuns=None):
+def generateOutputPage(runDirName, runDirectories, liveTime24hr, liveTime7days, htmlName,
+                       maxRuns=None):
     prevRelease  = None
     prevConfig   = None
     prevStartDay = None
@@ -662,7 +671,8 @@ def generateOutputPage(runDirName, runDirectories, liveTime24hr, liveTime7days, 
     numRuns      = 0
     print "Making", htmlName
     htmlFile = open(join(runDirName, htmlName), "w")
-    print >>htmlFile, createTopHTML(runDirName, liveTime24hr, liveTime7days)
+    print >>htmlFile, createTopHTML(runDirName, liveTime24hr, liveTime7days,
+                                    maxRuns and 300 or None) # Refresh abbreviated page every 5min
     for rec in getRunRecs(runDirectories):
         if prevRun and (rec.run != prevRun-1):
             skippedRun = True
