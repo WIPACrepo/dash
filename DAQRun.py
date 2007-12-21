@@ -33,7 +33,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 2435 2007-12-20 23:16:52Z jacobsen $"
+SVN_ID  = "$Id: DAQRun.py 2439 2007-12-21 21:48:04Z jacobsen $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -200,13 +200,20 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     getNameList = staticmethod(getNameList)
 
     def isInList(x, l):
-        for y in l:
-            if y == x: return True
-        return False
+        """
+        See if x is in l
+        """
+        try:
+            i = l.index(x)
+            return True
+        except ValueError:
+            return False
     isInList = staticmethod(isInList)
     
     def findMissing(target, reference):
-        "Get the list of missing components"
+        """
+        Get the list of missing components
+        """
         missing = []
         for t in target:
             if not DAQRun.isInList(t, reference): missing.append(str(t))
@@ -214,25 +221,23 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     findMissing = staticmethod(findMissing)
 
     def waitForRequiredComponents(self, cncrpc, requiredList, timeOutSecs):
-        "Verify that all components in requiredList are present on remote server"
+        """
+        Verify that all components in requiredList are present on remote server;
+        indicate to dash.log or catchall.log which ones are missing if we time out.
+        """
         tstart = datetime.datetime.now()
-        while(datetime.datetime.now()-tstart < datetime.timedelta(seconds=timeOutSecs)):
+        while True:
             remoteList = cncrpc.rpccall("rpc_show_components")
             remoteNames = list(DAQRun.getNameList(remoteList))
-
             waitList = DAQRun.findMissing(requiredList, remoteNames)
-            if len(waitList) == 0: return remoteList
+            if waitList == []: return remoteList
+
+            if True or datetime.datetime.now()-tstart >= datetime.timedelta(seconds=timeOutSecs):
+                raise RequiredComponentsNotAvailableException("Still waiting for "+
+                                                              ",".join(waitList))
             self.logmsg("Waiting for " + " ".join(waitList))
-
-            # wait for things to show up
             sleep(5)
-
-        # Do some debug logging to show what actually showed up:
-        self.logmsg("Got the following %d remote components:" % len(remoteList))
-        for x in remoteList:
-            self.logmsg(x)
-        raise RequiredComponentsNotAvailableException()
-
+            
     def configureCnCLogging(self, cncrpc, ip, port, logpath):
         "Tell CnCServer where to log to"
         self.CnCLogReceiver = SocketLogger(port, "CnCServer", logpath + "/cncserver.log")

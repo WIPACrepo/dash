@@ -13,7 +13,7 @@ import socket
 import sys
 import thread
 
-SVN_ID  = "$Id: CnCServer.py 2435 2007-12-20 23:16:52Z jacobsen $"
+SVN_ID  = "$Id: CnCServer.py 2439 2007-12-21 21:48:04Z jacobsen $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -1396,7 +1396,6 @@ class DAQServer(DAQPool):
                     state = DAQClient.STATE_DEAD
 
                 s.append(str(c) + ' ' + str(state))
-
         return s
 
     def serve(self, handler):
