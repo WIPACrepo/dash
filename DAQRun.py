@@ -13,7 +13,8 @@ from DAQMoni import *
 from time import sleep
 from RunWatchdog import RunWatchdog
 from DAQRPC import RPCClient, RPCServer
-from os.path import exists, abspath, join, basename
+from os.path import exists, abspath, join, basename, isdir
+from os import listdir
 from Process import processList, findProcess
 from DAQLaunch import cyclePDAQ, ClusterConfig, ConfigNotSpecifiedException
 from tarfile import TarFile
@@ -33,7 +34,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 2439 2007-12-21 21:48:04Z jacobsen $"
+SVN_ID  = "$Id: DAQRun.py 2443 2008-01-02 17:34:05Z jacobsen $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -323,6 +324,17 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.logmsg("Cluster configuration: %s" % self.clusterConfig.configName)
         self.configureCnCLogging(cncrpc, self.ip, 6667, self.log.logPath)
 
+    def recursivelyAddToTar(self, tar, absDir, file):
+        toAdd = join(absDir, file)
+        self.logmsg("Add %s to tarball as %s..." % (toAdd, file))
+        tar.add(toAdd, file, False)
+        self.logmsg("Done adding %s." % toAdd)
+        if isdir(toAdd):
+            fileList = listdir(toAdd)
+            for f in fileList:
+                newFile = join(file, f)
+                self.recursivelyAddToTar(tar, absDir, newFile)
+        
     def queue_for_spade(self, spadeDir, copyDir, logTopLevel, runNum, runTime, runDuration):
         """
         Put tarball of log and moni files in SPADE directory as well as
@@ -344,7 +356,8 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         try:
             move("%s/catchall.log" % logTopLevel, "%s/%s" % (logTopLevel, runDir))
             tarObj = TarFile(tarBall, "w")
-            tarObj.add("%s/%s" % (logTopLevel, runDir), runDir, True)
+            # tarObj.add("%s/%s" % (logTopLevel, runDir), runDir, True)
+            self.recursivelyAddToTar(tarObj, logTopLevel, runDir)
             tarObj.close()
             fd = open(semFile, "w")
             fd.close()
