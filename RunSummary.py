@@ -244,7 +244,7 @@ def generateSnippet(snippetFile, runNum, release, starttime, stoptime, dtsec,
     starttime = hhmmss(starttime)
     stopday   = yyyymmdd(stoptime)
     stoptime  = hhmmss(stoptime)
-    
+
     print >>snippet, """
     <tr>
     <td align=center>                 <div class="run"    >%d</div></td>
@@ -863,11 +863,17 @@ def main():
                         s = search(r'Version Info:.+\s+(\S+)\s+(\d+)\n', dashContents)
                         if s: release = "%s_%s" % (s.group(1), s.group(2)) 
 
-                        lines = findall('\[(.+?)\]\s+(\d+) physics events \(.+? Hz\)\,', dashContents)
-                        if lines:
+                        # lines = findall('\[(.+?)\]\s+(\d+) physics events \(.+? Hz\)\,', dashContents)
+                        # For some reason findall is failing on this straightforward regexp; matching "by hand" works tho...
+                        dc = dashContents.split('\n')
+                        lines = []
+                        for l in dc:
+                            s = search('\[(.+?)\]\s+(\d+) physics events \(.+? Hz\)\,', l)
+                            if s: lines.append((s.group(1),s.group(2)))
+                        if len(lines) > 0:
                             lastTimeStr = lines[-1][0]
                             cumEvents   = int(lines[-1][1])
-                        
+                            
                     # Remember more precise unpacked location for link
                     if search(r'(daqrun\d+)/$', el): 
                         linkDir = runInfoString + "/" + el
