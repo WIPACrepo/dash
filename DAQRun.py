@@ -34,7 +34,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 2443 2008-01-02 17:34:05Z jacobsen $"
+SVN_ID  = "$Id: DAQRun.py 2447 2008-01-04 05:04:53Z jacobsen $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -352,8 +352,21 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         tarBall = "%s/%s.dat.tar" % (spadeDir, basePrefix)
         if copyDir: copyFile = "%s/%s.dat.tar" % (copyDir, basePrefix)
         semFile = "%s/%s.sem"     % (spadeDir, basePrefix)
+        testOnSpade = join(spadeDir, "%s.test" % basePrefix)
+        testOnLogs  = join(logTopLevel, runDir, "%s.test" % basePrefix)
         self.logmsg("Target files are:\n%s\n%s" % (tarBall, semFile))
         try:
+            # Measure any delays writing to SPADE directory
+            self.logmsg("touch %s+" % testOnSpade)
+            open(testOnSpade, "w").close()
+            self.logmsg("touch %s-" % testOnSpade)
+
+            # Measure any delays writing to log directory (shouldn't have any
+            # because moving catchall.log never hangs up
+            self.logmsg("touch %s+" % testOnLogs)
+            open(testOnLogs, "w").close()
+            self.logmsg("touch %s-" % testOnLogs)
+            
             move("%s/catchall.log" % logTopLevel, "%s/%s" % (logTopLevel, runDir))
             tarObj = TarFile(tarBall, "w")
             # tarObj.add("%s/%s" % (logTopLevel, runDir), runDir, True)
