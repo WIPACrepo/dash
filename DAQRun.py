@@ -34,7 +34,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 2447 2008-01-04 05:04:53Z jacobsen $"
+SVN_ID  = "$Id: DAQRun.py 2475 2008-01-14 21:30:48Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -233,7 +233,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             waitList = DAQRun.findMissing(requiredList, remoteNames)
             if waitList == []: return remoteList
 
-            if True or datetime.datetime.now()-tstart >= datetime.timedelta(seconds=timeOutSecs):
+            if datetime.datetime.now()-tstart >= datetime.timedelta(seconds=timeOutSecs):
                 raise RequiredComponentsNotAvailableException("Still waiting for "+
                                                               ",".join(waitList))
             self.logmsg("Waiting for " + " ".join(waitList))
