@@ -34,7 +34,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 2516 2008-01-23 09:50:23Z jacobsen $"
+SVN_ID  = "$Id: DAQRun.py 2522 2008-01-23 17:35:36Z jacobsen $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -163,6 +163,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                         args[0] = config.getIDbyName(domid)
                     except DAQConfig.DOMNotInConfigException, e:
                         not_found.append("DOM %s not found in config!" % domid)
+                        continue
             # Look for (str, pos, f0, ..., f4)
             elif len(args) == 7:
                 try:
@@ -176,6 +177,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 except DAQConfig.DOMNotInConfigException, e:
                     not_found.append("DOM at %s-%s not found in config!" %
                                    (string, pos))
+                    continue
             else:
                 raise InvalidFlasherArgList("Too many args in %s" % str(args))
             l.append(args)
@@ -723,7 +725,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 (flashingDomsList,
                  missingDomWarnings) = DAQRun.validateFlashingDoms(self.configuration, flashingDomsList)
                 for w in missingDomWarnings:
-                    self.logmsg("Subrun %d: will ignore missing DOM ('%s')..." % w)
+                    self.logmsg("Subrun %d: will ignore missing DOM ('%s')..." % (subRunID, w))
             except InvalidFlasherArgList, i:
                 self.logmsg("Subrun %d: invalid argument list ('%s')" % (subRunID, i))
                 return 0
