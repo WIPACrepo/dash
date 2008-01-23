@@ -34,7 +34,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 2515 2008-01-23 09:31:37Z jacobsen $"
+SVN_ID  = "$Id: DAQRun.py 2516 2008-01-23 09:50:23Z jacobsen $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -152,6 +152,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     def validateFlashingDoms(config, domlist):
         "Make sure flasher arguments are valid and convert names or string/pos to mbid if needed"        
         l = [] # Create modified list of arguments for downstream processing
+        not_found = []
         for args in domlist:
             # Look for (dommb, f0, ..., f4) or (name, f0, ..., f4)
             if len(args) == 6:
@@ -161,7 +162,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                     try:
                         args[0] = config.getIDbyName(domid)
                     except DAQConfig.DOMNotInConfigException, e:
-                        raise InvalidFlasherArgList("DOM %s not found in config!" % domid)
+                        not_found.append("DOM %s not found in config!" % domid)
             # Look for (str, pos, f0, ..., f4)
             elif len(args) == 7:
                 try:
@@ -173,12 +174,12 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 try:
                     args[0] = config.getIDbyStringPos(string, pos)
                 except DAQConfig.DOMNotInConfigException, e:
-                    raise InvalidFlasherArgList("DOM at %s-%s not found in config!" %
-                                                (string, pos))
+                    not_found.append("DOM at %s-%s not found in config!" %
+                                   (string, pos))
             else:
                 raise InvalidFlasherArgList("Too many args in %s" % str(args))
             l.append(args)
-        return l
+        return (l, not_found)
     validateFlashingDoms = staticmethod(validateFlashingDoms)
     
     def parseComponentName(componentString):
@@ -719,7 +720,10 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         
         if len(flashingDomsList) > 0:
             try:
-                flashingDomsList = DAQRun.validateFlashingDoms(self.configuration, flashingDomsList)
+                (flashingDomsList,
+                 missingDomWarnings) = DAQRun.validateFlashingDoms(self.configuration, flashingDomsList)
+                for w in missingDomWarnings:
+                    self.logmsg("Subrun %d: will ignore missing DOM ('%s')..." % w)
             except InvalidFlasherArgList, i:
                 self.logmsg("Subrun %d: invalid argument list ('%s')" % (subRunID, i))
                 return 0
