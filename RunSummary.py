@@ -860,7 +860,7 @@ def main():
                         s = search(r'\]\s+(\d+).+?events collected', dashContents)
                         if s: nEvents = int(s.group(1))
 
-                        s = search(r'Version Info:.+\s+(\S+)\s+(\d+)\n', dashContents)
+                        s = search(r'Version Info:.+\s+(\S+)\s+(\d\S*)\n', dashContents)
                         if s: release = "%s_%s" % (s.group(1), s.group(2)) 
 
                         # lines = findall('\[(.+?)\]\s+(\d+) physics events \(.+? Hz\)\,', dashContents)
