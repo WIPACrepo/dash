@@ -263,17 +263,24 @@ def generateSnippet(snippetFile, runNum, release, starttime, stoptime, dtsec,
     snippet.close()
     return
 
-def makeTable(files, name):
+def makeTable(extractPath, files, name):
     html = ""
     if files:
         html += "<PRE>\n\n</PRE><TABLE>"
         virgin = True
         for l in files:
+            try:
+                size = getFileSize(join(extractPath, l))
+            except OSError:
+                size = "?"
             html += "<TR>"
             if virgin: html += r'<TD ALIGN="right"><FONT COLOR=888888>%s</FONT></TD>' % name
             else: html += "<TD></TD>"
             virgin = False
-            html += r'<TD><A HREF="%s">%s</A></TD>' % (l, l)
+            html += """
+<TD>
+ <FONT color=999999>%s&nbsp;B</FONT>&nbsp;<A HREF="%s">%s</A>
+</TD>""" % (size, l, l)
             html += "</TR>"
         html += "</TABLE>"
     return html
@@ -390,8 +397,8 @@ def makeSummaryHtml(logLink, runNum, release, configName, status, nEvents, cumEv
      """ % (runNum, release, configName, fmt(starttime), fmt(stoptime), dtsec, eventStr,
             getStatusColor(status, nEvents, cumEvents), status)
 
-    print >>html, makeTable(logs, "Logs")
-    print >>html, makeTable(mons, "Monitoring")
+    print >>html, makeTable(logLink, logs, "Logs")
+    print >>html, makeTable(logLink, mons, "Monitoring")
     
     print >>html, "</TD><TD VALIGN=top>"
         
@@ -804,6 +811,9 @@ def main():
                         if opt.verbose: print "WARNING: bad tar file %s!" % copyFile
                         continue
 
+                    if(search('\.test', copyFile)): continue # Hack/workaround for 'test' files put in during
+                                                             # run stop failure debugging
+                    
                     # Extract top tarball
                     if datTar != copyFile:
                         
@@ -820,7 +830,7 @@ def main():
                         tar.close()
 
                     if not exists(datTar):
-                        raise Exception("Tarball %s didn't contain %s!", copyFile, datTar)
+                        raise Exception("Tarball ", copyFile, "didn't contain target file", datTar)
 
                 # Extract contents
                 status = None; configName = None
