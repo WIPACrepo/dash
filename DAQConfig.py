@@ -13,6 +13,7 @@ import optparse
 from os import environ, listdir
 from os.path import exists, join
 from xml.dom import minidom
+from exc_string import *
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -70,7 +71,7 @@ def checkForValidConfig(configDir, configName):
         print "%s/%s is ok." % (configDir, configName)
         return True
     except Exception, e:
-        print "%s/%s is not a valid config: %s" % (configDir, configName, e)
+        print "%s/%s is not a valid config: %s [%s]" % (configDir, configName, e, exc_string())
         return False
         
 class DAQConfig(object):
@@ -141,6 +142,7 @@ class DAQConfig(object):
             for domConfig in configs[0].getElementsByTagName("domConfigList"):
                 
                 domConfigName = domConfig.childNodes[0].data
+                # print "Parsing %s" % domConfigName
                 domConfigXML = xmlOf(join(configDir, "domconfigs", domConfigName))
                 
                 if not exists(domConfigXML): raise noDOMConfigFound("DOMConfig not found: %s" % domConfigName)
@@ -158,11 +160,11 @@ class DAQConfig(object):
         for dom in configList:
             domID  = dom.getAttribute("mbid")
             self.domlist.append(domID)
-            hubID = compDict[domID]
+            hubID  = compDict[domID]
             kind   = kindDict[domID]
-            # print "Got DOM %s string %s kind %s" % (domID, string, kind)
+            # print "Got DOM %s hub %s kind %s" % (domID, hubID, kind)
             hubIDInConfigDict[hubID] = True
-            kindInConfigDict[kind]     = True
+            kindInConfigDict[kind]   = True
 
         self.kindList   = kindInConfigDict.keys()
         self.hubIDList = hubIDInConfigDict.keys()
@@ -200,6 +202,9 @@ class DAQConfig(object):
         if stringNum in [38, 39, 48, 58, 64, 66, 71, 74]: return 82
         if stringNum in [30, 40, 47, 49, 50, 57, 59, 67]: return 83
         if stringNum in [21, 29]: return 84
+        if stringNum in [62, 54, 63, 45, 75, 76, 69, 70]: return 85
+        if stringNum in [60, 68, 61, 44, 52, 53]: return 86
+
         if stringNum == 0: return 0
         return stringNum
     lookUpHubIDbyStringAndPosition = staticmethod(lookUpHubIDbyStringAndPosition)
