@@ -15,7 +15,7 @@ from os.path import abspath, isabs, join, basename
 
 from GetIP import getIP
 
-SVN_ID = "$Id: DAQLaunch.py 2365 2007-12-03 22:05:19Z jacobsen $"
+SVN_ID = "$Id: DAQLaunch.py 2605 2008-02-04 20:44:58Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -129,8 +129,11 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort, cncPo
     # The dir where all the "executable" jar files are
     binDir = join(metaDir, 'target', 'pDAQ-1.0.0-SNAPSHOT-dist.dir', 'bin')
 
-    # What is used when not verbose
-    quietStr = " < /dev/null 2>&1 > /dev/null"
+    # how are I/O streams handled?
+    if not verbose:
+        quietStr = " </dev/null >/dev/null 2>&1"
+    else:
+        quietStr = ""
 
     for node in clusterConfig.nodes:
         myIP = getIP(node.hostName)
@@ -142,19 +145,20 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort, cncPo
             switches = "-g %s" % configDir
             switches += " -c %s:%d" % (myIP, cncPort)
             switches += " -l %s:%d,%s" % (myIP, logPort, comp.logLevel)
-            if not verbose:
-                switches += quietStr
+            compIO = quietStr
 
             if comp.compName == "StringHub":
                 #javaCmd = "/usr/java/jdk1.5.0_07/bin/java"
                 jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % comp.compID
                 #switches += " -M 10"
 
+            #compIO = " </dev/null >/tmp/%s.%d 2>&1" % (comp.compName, comp.compID)
+
             if node.hostName == "localhost": # Just run it
-                cmd = "%s %s -jar %s %s &" % (javaCmd, jvmArgs, execJar, switches)
+                cmd = "%s %s -jar %s %s %s &" % (javaCmd, jvmArgs, execJar, switches, compIO)
             else:                            # Have to ssh to run it
-                cmd = """ssh -n %s \'sh -c \"%s %s -jar %s %s &\" %s &\'""" \
-                      % (node.hostName, javaCmd, jvmArgs, execJar, switches, not verbose and quietStr or "")
+                cmd = """ssh -n %s \'sh -c \"%s %s -jar %s %s %s &\" %s &\'""" \
+                      % (node.hostName, javaCmd, jvmArgs, execJar, switches, compIO, quietStr)
 
             if verbose: print cmd
             parallel.add(cmd)
