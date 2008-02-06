@@ -12,8 +12,9 @@ import os
 import socket
 import sys
 import thread
+import threading
 
-SVN_ID  = "$Id: CnCServer.py 2612 2008-02-06 19:14:40Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 2613 2008-02-06 19:15:48Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -139,6 +140,25 @@ class ConnTypeEntry:
                 if not map.has_key(outComp):
                     map[outComp] = []
                 map[outComp].append(entry)
+
+class SubrunThread(threading.Thread):
+    "A thread which starts the subrun in an individual stringHub"
+
+    def __init__(self, comp, data):
+        self.comp = comp
+        self.data = data
+        self.time = None
+        self.done = False
+
+        threading.Thread.__init__(self)
+
+        self.setName(str(comp) + ":subrun")
+
+    def run(self):
+        tStr = self.comp.startSubrun(self.data)
+        if tStr is not None:
+            self.time = long(tStr)
+        self.done = True
 
 class RunSet:
     "A set of components to be used in one or more runs"
@@ -490,19 +510,31 @@ class RunSet:
             if c.isComponent("eventBuilder"):
                 c.prepareSubrun(id)
 
-        latestTime = None
+        shThreads = []
         for c in self.set:
             if c.isComponent("stringHub"):
-                tStr = c.startSubrun(data)
-                if tStr is None:
-                    raise ValueError, "Couldn't start subrun on %s" % \
-                        c.getName()
-                t = long(tStr)
-                if latestTime is None or t > latestTime:
-                    latestTime = t
+                thread = SubrunThread(c, data)
+                thread.start()
+                shThreads.append(thread)
+
+        badComps = []
+
+        latestTime = None
+        while len(shThreads) > 0:
+            for thread in shThreads:
+                if thread.done:
+                    if thread.time is None:
+                        badComps.append(thread.comp)
+                    elif latestTime is None or thread.time > latestTime:
+                        latestTime = thread.time
+                    shThreads.remove(thread)
 
         if latestTime is None:
             raise ValueError, "Couldn't start subrun on any string hubs"
+
+        if len(badComps) > 0:
+            raise ValueError, "Couldn't start subrun on %s" % \
+                listComponentsCommaSep(badComps)
 
         for c in self.set:
             if c.isComponent("eventBuilder"):
