@@ -13,7 +13,7 @@ import socket
 import sys
 import thread
 
-SVN_ID  = "$Id: CnCServer.py 2439 2007-12-21 21:48:04Z jacobsen $"
+SVN_ID  = "$Id: CnCServer.py 2612 2008-02-06 19:14:40Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -25,7 +25,6 @@ else:
 # add meta-project python dir to Python library search path
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
-                    
 
 set_exc_string_encoding("ascii")
 
@@ -269,6 +268,21 @@ class RunSet:
 
         return list
 
+    def listComponentsCommaSep(waitList):
+        """
+        Concatenate a list of components into a string showing names and IDs,
+        similar to componentListStr but more compact
+        """
+        waitStr = None
+        for c in waitList:
+            if waitStr == None:
+                waitStr = ''
+            else:
+                waitStr += ', '
+            waitStr += c.name + '#' + str(c.num)
+        return waitStr
+    listComponentsCommaSep = staticmethod(listComponentsCommaSep)
+
     def logmsg(self, msg):
         if self.logger:
             self.logger.logmsg(msg)
@@ -468,7 +482,7 @@ class RunSet:
         self.runNumber = None
 
     def subrun(self, id, data):
-        "Start all components in the runset"
+        "Start a subrun with all components in the runset"
         if self.runNumber is None:
             raise ValueError, "RunSet #" + str(self.id) + " is not running"
 
@@ -494,21 +508,6 @@ class RunSet:
             if c.isComponent("eventBuilder"):
                 c.commitSubrun(id, repr(latestTime))
 
-    def listComponentsCommaSep(waitList):
-        """
-        Concatenate a list of components into a string showing names and IDs, similar to
-        componentListStr but more compact
-        """
-        waitStr = None
-        for c in waitList:
-            if waitStr == None:
-                waitStr = ''
-            else:
-                waitStr += ', '
-            waitStr += c.name + '#' + str(c.num)
-        return waitStr
-    listComponentsCommaSep = staticmethod(listComponentsCommaSep)
-    
     def waitForStateChange(self, timeoutSecs=TIMEOUT_SECS):
         """
         Wait for state change, with a timeout of timeoutSecs (renewed each time
@@ -1460,7 +1459,7 @@ if __name__ == "__main__":
                 # print "Killing %d..." % p
                 import signal
                 os.kill(p, signal.SIGKILL)
-                
+
         raise SystemExit
 
     if len(pids) > 1:
