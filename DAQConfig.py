@@ -89,7 +89,7 @@ class DAQConfig(object):
         if not exists(configDir):
             raise DAQConfigDirNotFound("Could not find config dir %s" % configDir)
         self.configFile = xmlOf(join(configDir, configName))
-        if not exists(self.configFile): raise DAQConfigNotFound("Could not find configuration file!")
+        if not exists(self.configFile): raise DAQConfigNotFound(self.configFile)
 
         # Parse the runconfig
         parsed = minidom.parse(self.configFile)
