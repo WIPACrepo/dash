@@ -34,7 +34,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 2522 2008-01-23 17:35:36Z jacobsen $"
+SVN_ID  = "$Id: DAQRun.py 2842 2008-03-20 21:15:54Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -260,18 +260,12 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     def getComponentsFromGlobalConfig(self, configName, configDir):
         # Get and set global configuration
         self.configuration = DAQConfig.DAQConfig(configName, configDir)
-        stringlist   = self.configuration.hubIDs()
-        kindlist     = self.configuration.kinds()
-        complist     = self.configuration.components()
         self.logmsg("Loaded global configuration \"%s\"" % configName)
         requiredComps = []
-        for string in stringlist:
-            self.logmsg("Configuration includes string/ID %d" % string)
-            requiredComps.append("stringHub#%d" % string)
-        for kind in kindlist:
-            self.logmsg("Configuration includes detector %s" % kind)
-        for comp in complist:
+        for comp in self.configuration.components():
             requiredComps.append(comp)
+        for kind in self.configuration.kinds():
+            self.logmsg("Configuration includes detector %s" % kind)
         for comp in requiredComps:
             self.logmsg("Component list will require %s" % comp)
         return requiredComps
