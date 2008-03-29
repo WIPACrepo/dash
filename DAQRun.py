@@ -34,7 +34,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 2863 2008-03-29 01:02:32Z ksb $"
+SVN_ID  = "$Id: DAQRun.py 2864 2008-03-29 19:04:03Z jacobsen $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -339,7 +339,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         """
         if not spadeDir: return
         if not exists(spadeDir): return
-        self.logmsg("Queueing data for SPADE (spadeDir=%s, logDir=%s, runNum=%d..."
+        self.logmsg("Queueing data for SPADE (spadeDir=%s, logDir=%s, runNum=%d)..."
                     % (spadeDir, logTopLevel, runNum))
         runDir = logCollector.logDirName(runNum)
         basePrefix = "SPS-pDAQ-run-%03d_%04d%02d%02d_%02d%02d%02d_%06d"   \
@@ -575,6 +575,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 self.runStats.moniEvents    = 0
                 self.runStats.snEvents      = 0
                 self.runStats.tcalEvents    = 0
+                self.runStats.physicsRate.reset()
                 logDirCreated = False
                 try:
                     self.runStats.startTime = None
@@ -632,9 +633,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
                 if self.runStats.startTime != None:
                     durDelta = self.runStats.stopTime-self.runStats.startTime
                     duration = durDelta.days*86400 + durDelta.seconds
-                    # Here we don't want just the last five minutes, so we calculate total rate by hand,
-                    # but we reset the rate object for next run
-                    self.runStats.physicsRate.reset()
+                    # Here we don't want just the last five minutes, so we calculate total rate by hand.
                     try:
                         (self.runStats.physicsEvents, self.runStats.moniEvents,
                          self.runStats.snEvents,      self.runStats.tcalEvents) = self.getEventCounts()
@@ -686,6 +685,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
 
                 if self.log is not None:
                     self.log.close()
+                    self.log = None   # Makes everythong go to catchall
 
                 self.updateRunStats() # Update and reset counters
                 self.runState = "STOPPED"
