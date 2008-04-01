@@ -14,7 +14,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 2871 2008-04-01 20:03:38Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 2872 2008-04-01 20:05:49Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -168,7 +168,7 @@ class RunSet:
     # number of seconds to wait after stopping components seem to be
     # hung before forcing remaining components to stop
     #
-    TIMEOUT_SECS = 300
+    TIMEOUT_SECS = RPCClient.TIMEOUT_SECS - 5
 
     def __init__(self, set, logger):
         """
@@ -421,14 +421,15 @@ class RunSet:
         for i in range(0,2):
             if i == 0:
                 self.state = 'stopping'
+                timeoutSecs = int(RunSet.TIMEOUT_SECS * .75)
             else:
                 self.state = 'forcingStop'
+                timeoutSecs = int(RunSet.TIMEOUT_SECS * .25)
 
             if i == 1:
                 warnStr = str(self) + ': Forcing ' + str(len(waitList)) + \
-                    ' components to stop:'
-                for c in waitList:
-                    warnStr += ' ' + c.name + '#' + str(c.num)
+                    ' components to stop: ' + \
+                    self.listComponentsCommaSep(waitList)
                 self.logmsg(warnStr)
 
             for c in waitList:
@@ -439,7 +440,7 @@ class RunSet:
 
             connDict = {}
 
-            endSecs = time() + RunSet.TIMEOUT_SECS
+            endSecs = time() + timeoutSecs
             while len(waitList) > 0 and time() < endSecs:
                 newList = waitList[:]
                 for c in waitList:
@@ -490,16 +491,26 @@ class RunSet:
                             self.logmsg(str(self) + ': Waiting for ' +
                                         self.state + ' ' + waitStr)
 
-                        # reset timeout
-                        #
-                        endSecs = time() + RunSet.TIMEOUT_SECS
-
             # if the components all stopped normally, don't force-stop them
             #
             if len(waitList) == 0:
                 break
 
         self.runNumber = None
+
+        if len(waitList) > 0:
+            waitStr = None
+            for c in waitList:
+                if waitStr is None:
+                    waitStr = ''
+                else:
+                    waitStr += ', '
+                waitStr += c.name + '#' + str(c.num) + connDict[c]
+
+            errStr = str(self) + ': Could not stop ' + \
+                self.listComponentsCommaSep(waitList)
+            self.logmsg(errStr)
+            raise ValueError, errMsg
 
     def subrun(self, id, data):
         "Start a subrun with all components in the runset"
