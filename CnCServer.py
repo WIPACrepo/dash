@@ -14,7 +14,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 2613 2008-02-06 19:15:48Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 2871 2008-04-01 20:03:38Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -288,19 +288,19 @@ class RunSet:
 
         return list
 
-    def listComponentsCommaSep(waitList):
+    def listComponentsCommaSep(compList):
         """
         Concatenate a list of components into a string showing names and IDs,
         similar to componentListStr but more compact
         """
-        waitStr = None
-        for c in waitList:
-            if waitStr == None:
-                waitStr = ''
+        compStr = None
+        for c in compList:
+            if compStr == None:
+                compStr = ''
             else:
-                waitStr += ', '
-            waitStr += c.name + '#' + str(c.num)
-        return waitStr
+                compStr += ', '
+            compStr += c.name + '#' + str(c.num)
+        return compStr
     listComponentsCommaSep = staticmethod(listComponentsCommaSep)
 
     def logmsg(self, msg):
