@@ -14,6 +14,10 @@ import datetime
 import math
 
 class RPCClient(xmlrpclib.ServerProxy):
+
+    "number of seconds before RPC call is aborted"
+    TIMEOUT_SECS = 120
+
     "Generic class for accessing methods on remote objects"
     "WARNING: instantiating RPCClient sets socket default timeout duration!"
     def __init__(self, servername, portnum, verbose=0):
@@ -24,7 +28,7 @@ class RPCClient(xmlrpclib.ServerProxy):
         # !!!!!! Warning - this is ugly !!!!!!!
         # !!!! but no other way in XMLRPC? !!!!
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        socket.setdefaulttimeout(120)            #set the timeout to 60 seconds
+        socket.setdefaulttimeout(self.TIMEOUT_SECS)
         xmlrpclib.ServerProxy.__init__(self,
                                        "http://%s:%s" % (self.servername, self.portnum), verbose=verbose)
         self.statDict = { }
