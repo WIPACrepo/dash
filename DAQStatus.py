@@ -16,7 +16,9 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQStatus.py 2312 2007-11-26 23:03:57Z ksb $"
+SVN_ID  = "$Id: DAQStatus.py 2976 2008-05-01 21:47:31Z dglo $"
+
+LINE_LENGTH = 78
 
 def cmpComp(x, y):
     c = cmp(x[6], y[6])
@@ -28,6 +30,8 @@ def cmpComp(x, y):
     return c
 
 def dumpComp(comp, numList, indent):
+    ""Dump list of component instances, breaking long lists across lines""
+
     if comp is None or len(numList) == 0:
         return
 
@@ -50,28 +54,45 @@ def dumpComp(comp, numList, indent):
                         inRange = False
                     numStr += ' ' + str(n)
             prevNum = n
-        if inRange:
+        if numStr is None:
+            numStr = ""
+        elif inRange:
             numStr += '-' + str(prevNum)
 
         if len(indent) > 0: indent = '|' + indent[1:]
         front = indent + '  ' + str(len(numList)) + ' ' + comp + 's: '
         frontLen = len(front)
-
-        lineLen = 78
+        frontCleared = False
 
         while len(numStr) > 0:
-            if frontLen + len(numStr) < lineLen:
+            # if list of numbers fits on the line, print it
+            if frontLen + len(numStr) < LINE_LENGTH:
                 print front + numStr
                 break
-            tmpLen = lineLen - frontLen
+
+            # look for break point
+            tmpLen = LINE_LENGTH - frontLen
+            if tmpLen >= len(numStr):
+                tmpLen = len(numStr) - 1
             while tmpLen > 0 and numStr[tmpLen] != ' ':
                 tmpLen -= 1
-            subStr = numStr[0:tmpLen]
+            if tmpLen == 0:
+                tmpLen = LINE_LENGTH - frontLen
+                while tmpLen < len(numStr) and numStr[tmpLen] != ' ':
+                    tmpLen += 1
+
+            # split line at break point
+            print front + numStr[0:tmpLen]
+
+            # set numStr to remainder of string and strip leading whitespace
             numStr = numStr[tmpLen:]
-            if len(numStr) > 0 and numStr[0] == ' ':
+            while len(numStr) > 0 and numStr[0] == ' ':
                 numStr = numStr[1:]
-            print front + subStr
-            front = ' '*len(front)
+
+            # after first line, set front string to whitespace
+            if not frontCleared:
+                front = ' '*len(front)
+                frontCleared = True
 
 def listTerse(list, indent=''):
     list.sort(cmpComp)
