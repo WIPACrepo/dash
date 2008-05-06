@@ -16,7 +16,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQStatus.py 2976 2008-05-01 21:47:31Z dglo $"
+SVN_ID  = "$Id: DAQStatus.py 2978 2008-05-06 01:13:07Z ksb $"
 
 LINE_LENGTH = 78
 
@@ -30,7 +30,7 @@ def cmpComp(x, y):
     return c
 
 def dumpComp(comp, numList, indent):
-    ""Dump list of component instances, breaking long lists across lines""
+    """Dump list of component instances, breaking long lists across lines"""
 
     if comp is None or len(numList) == 0:
         return
