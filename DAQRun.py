@@ -34,7 +34,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 2864 2008-03-29 19:04:03Z jacobsen $"
+SVN_ID  = "$Id: DAQRun.py 3000 2008-05-15 20:25:12Z jacobsen $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -356,11 +356,11 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
             tarObj.add("%s/%s" % (logTopLevel, runDir), runDir, True)
             # self.recursivelyAddToTar(tarObj, logTopLevel, runDir)
             tarObj.close()
-            fd = open(semFile, "w")
-            fd.close()
             if copyDir:
                 self.logmsg("Making hard link for local copies (%s->%s)" % (tarBall, copyFile))
                 os.link(tarBall, copyFile)
+            fd = open(semFile, "w")
+            fd.close()
         except Exception, e:
             self.logmsg("FAILED to queue data for SPADE: %s" % exc_string())
             
