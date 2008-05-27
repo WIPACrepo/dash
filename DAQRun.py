@@ -34,7 +34,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 3000 2008-05-15 20:25:12Z jacobsen $"
+SVN_ID  = "$Id: DAQRun.py 3080 2008-05-27 21:09:27Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -934,7 +934,7 @@ if __name__ == "__main__":
                    port              = 9000)
     opt, args = p.parse_args()
 
-    pids = list(findProcess("DAQRun.py", processList()))
+    pids = list(findProcess(basename(argv[0]), processList()))
 
     if opt.kill:
         pid = int(os.getpid())
@@ -947,7 +947,8 @@ if __name__ == "__main__":
         raise SystemExit
     
     if len(pids) > 1:
-        print "ERROR: More than one instance of DAQRun.py is already running!"
+        print "ERROR: More than one instance of %s is already running!" % \
+            basename(argv[0])
         raise SystemExit
 
     opt.configDir    = abspath(opt.configDir)
