@@ -473,11 +473,12 @@ if __name__ == "__main__":
         badArg = True
 
     if badArg:
-        print >>sys.stderr, 'Usage: %s' + \
-            ' [-d(ataOnly)]' + \
-            ' [-i timeInterval ]' + \
-            ' [-v(erbose)]' + \
-            ' (moniDir | moniFile [...])'
+        print >>sys.stderr, \
+            ('Usage: %s' + \
+             ' [-d(ataOnly)]' + \
+             ' [-i timeInterval ]' + \
+             ' [-v(erbose)]' + \
+             ' (moniDir | moniFile [...])' % sys.argv[0]
         sys.exit(1)
 
     if len(fileList) > 0:
