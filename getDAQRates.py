@@ -474,10 +474,10 @@ if __name__ == "__main__":
 
     if badArg:
         print >>sys.stderr, \
-            ('Usage: %s' + \
-             ' [-d(ataOnly)]' + \
-             ' [-i timeInterval ]' + \
-             ' [-v(erbose)]' + \
+            ('Usage: %s' +
+             ' [-d(ataOnly)]' +
+             ' [-i timeInterval ]' +
+             ' [-v(erbose)]' +
              ' (moniDir | moniFile [...])' % sys.argv[0]
         sys.exit(1)
 
