@@ -323,10 +323,11 @@ class RunWatchdog(object):
                                               'RecordsSent')
                         globalTrigger = cw
                     elif shortNameOf[c] == 'eventBuilder':
-                        cw.addInputValue('globalTrigger', 'backEnd',
-                                         'NumTriggerRequestsReceived');
                         cw.addInputValue('stringHub', 'backEnd',
                                          'NumReadoutsReceived');
+                        if self.contains(shortNameOf, 'globalTrigger'):
+                            cw.addInputValue('globalTrigger', 'backEnd',
+                                             'NumTriggerRequestsReceived');
                         cw.addOutputValue('dispatch', 'backEnd',
                                           'NumEventsSent');
                         cw.addThresholdValue('backEnd', 'DiskAvailable', 1024)
