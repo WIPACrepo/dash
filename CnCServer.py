@@ -14,7 +14,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 2872 2008-04-01 20:05:49Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3068 2008-05-27 20:27:08Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -114,11 +114,23 @@ class ConnTypeEntry:
             raise ValueError, 'No inputs found for %d %s outputs' % \
                 (len(self.outList), self.type)
         if len(self.outList) == 0:
-            raise ValueError, 'No outputs found for %d %s inputs' % \
-                (len(self.inList), self.type)
+            inStr = ''
+            for inPair in self.inList:
+                if len(inStr) == 0:
+                    inStr = str(inPair[1])
+                else:
+                    inStr += ', ' + str(inPair[1])
+            raise ValueError, 'No outputs found for %d %s inputs (%s)' % \
+                (len(self.inList), self.type, inStr)
         if len(self.inList) > 1 and len(self.outList)  > 1:
-            raise ValueError, 'Found %d %s outputs for %d inputs' % \
-                (len(self.outList), len(self.inList), self.type)
+            inStr = ''
+            for inPair in self.inList:
+                if len(inStr) == 0:
+                    inStr = str(inPair[1])
+                else:
+                    inStr += ', ' + str(inPair[1])
+            raise ValueError, 'Found %d %s outputs for %d inputs (%s)' % \
+                (len(self.outList), len(self.inList), self.type, inStr)
 
         if len(self.inList) == 1:
             inConn = self.inList[0][0]
