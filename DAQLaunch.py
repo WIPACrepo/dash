@@ -15,7 +15,7 @@ from os.path import abspath, isabs, join, basename
 
 from GetIP import getIP
 
-SVN_ID = "$Id: DAQLaunch.py 2605 2008-02-04 20:44:58Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 3064 2008-05-27 19:59:50Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -139,6 +139,10 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort, cncPo
         myIP = getIP(node.hostName)
         for comp in node.comps:
             execJar = join(binDir, getExecJar(comp.compName))
+            if not os.path.exists(execJar):
+                print "%s jar file does not exist: %s" % \
+                    (comp.compName, execJar)
+                continue
 
             javaCmd = "java"
             jvmArgs = getJVMArgs(comp.compName)
