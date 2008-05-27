@@ -34,7 +34,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 3083 2008-05-27 21:42:07Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3084 2008-05-27 21:44:21Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -584,8 +584,8 @@ class DAQRun(Rebootable.Rebootable):
             try:
                 cncrpc.rpccall("rpc_runset_break", self.runSetID)
             except Exception, e:
-                self.logmsg("WARNING: failed to break run set - CnC Server restarted? "
-                            +"Forging on...")
+                self.logmsg("WARNING: failed to break run set - " +
+                            exc_string())
             self.setCompIDs = []
             self.runSetID   = None
             self.lastConfig = None
