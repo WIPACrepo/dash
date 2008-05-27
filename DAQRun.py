@@ -34,7 +34,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 3082 2008-05-27 21:35:33Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3083 2008-05-27 21:42:07Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -213,7 +213,7 @@ class RunStats:
         self.SBDiskSize      = SBDiskSize
         self.physicsRate     = RateCalc.RateCalc(300.) # Calculates rate over latest 5min interval
 
-class DAQRun(RPCServer, Rebootable.Rebootable):
+class DAQRun(Rebootable.Rebootable):
     "Serve requests to start/stop DAQ runs (exp control iface)"
     LOGDIR         = "/tmp"
     CFGDIR         = "/usr/local/icecube/config"
@@ -225,23 +225,14 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     COMP_TOUT      = 60
 
     def __init__(self, runArgs):
-        RPCServer.__init__(self, runArgs.port, "localhost",
-                           "DAQ Run Server - object for starting and stopping DAQ runs")
 
         # Can change reboot thread delay here if desired:
         Rebootable.Rebootable.__init__(self)
 
         self.runState         = "STOPPED"
-        self.register_function(self.rpc_ping)
-        self.register_function(self.rpc_start_run)
-        self.register_function(self.rpc_stop_run)
-        self.register_function(self.rpc_run_state)
-        self.register_function(self.rpc_daq_status)
-        self.register_function(self.rpc_recover)
-        self.register_function(self.rpc_daq_reboot)
-        self.register_function(self.rpc_release_runsets)
-        self.register_function(self.rpc_daq_summary_xml)
-        self.register_function(self.rpc_flash)
+
+        self.setPort(runArgs.port)
+
         self.log              = None
         self.runSetID         = None
         self.CnCLogReceiver   = None
@@ -279,6 +270,22 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
 
         # After initialization, start run thread to handle state changes
         self.runThread = thread.start_new_thread(self.run_thread, ())
+
+    def setPort(self, portnum):
+        self.server = RPCServer(portnum, "localhost",
+                                "DAQ Run Server for starting and" +
+                                " stopping DAQ runs")
+
+        self.server.register_function(self.rpc_ping)
+        self.server.register_function(self.rpc_start_run)
+        self.server.register_function(self.rpc_stop_run)
+        self.server.register_function(self.rpc_run_state)
+        self.server.register_function(self.rpc_daq_status)
+        self.server.register_function(self.rpc_recover)
+        self.server.register_function(self.rpc_daq_reboot)
+        self.server.register_function(self.rpc_release_runsets)
+        self.server.register_function(self.rpc_daq_summary_xml)
+        self.server.register_function(self.rpc_flash)
 
     def logmsg(self, m):
         "Log message to logger, but only if logger exists"
@@ -907,7 +914,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     def rpc_daq_reboot(self):
         "Signal DAQ to restart all components"
         self.logmsg("YIKES!!! GOT REBOOT SIGNAL FROM EXPCONT!")
-        self.server_close()
+        self.server.server_close()
         self.do_reboot()
         raise Exception("REBOOT_FAULT")
 
@@ -1018,11 +1025,11 @@ if __name__ == "__main__":
         try:
             cl = DAQRun(runArgs)
             try:
-                cl.serve_forever()
+                cl.server.serve_forever()
             finally:
-                cl.server_close()
+                cl.server.server_close()
         except KeyboardInterrupt, k:
-            cl.server_close()
+            cl.server.server_close()
             raise SystemExit
         except socket.error, e:
             sleep(3)
