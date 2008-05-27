@@ -34,7 +34,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 3081 2008-05-27 21:33:53Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3082 2008-05-27 21:35:33Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -54,6 +54,147 @@ class RequiredComponentsNotAvailableException(Exception): pass
 class IncorrectDAQState                      (Exception): pass
 class InvalidFlasherArgList                  (Exception): pass
 class RunawayGeneratorException              (Exception): pass
+
+class RunArgs(object):
+    def __init__(self):
+        pass
+
+    def build_parser(self):
+        ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s " \
+            "%(release)s %(repo_rev)s" % get_version_info(SVN_ID)
+        usage = "%prog [options]\nversion: " + ver_info
+        p = optparse.OptionParser(usage=usage, version=ver_info)
+
+        p.add_option("-c", "--config-dir",
+                     action="store",      type="string",
+                     dest="configDir",
+                     help="Directory where run configurations are stored")
+
+        p.add_option("-f", "--force-reconfig",
+                     action="store_true",
+                     dest="forceConfig",
+                     help="Force 'configure' opration between runs")
+
+        p.add_option("-k", "--kill",
+                     action="store_true",
+                     dest="kill",
+                     help="Kill existing instance(s) of DAQRun")
+
+        p.add_option("-l", "--log-dir",
+                     action="store",      type="string",
+                     dest="logDir",
+                     help="Directory where pDAQ logs/monitoring should be stored")
+
+        p.add_option("-n", "--no-daemon",
+                     action="store_true",
+                     dest="nodaemon",
+                     help="Do not daemonize process")
+
+        p.add_option("-p", "--port",
+                     action="store",      type="int",
+                     dest="port",
+                     help="Listening port for Exp. Control RPC commands")
+
+        p.add_option("-r", "--relaunch",
+                     action="store_true",
+                     dest="doRelaunch",
+                     help="Relaunch pDAQ components during recovery from failed runs")
+
+        p.add_option("-s", "--spade-dir",
+                     action="store",      type="string",
+                     dest="spadeDir",
+                     help="Directory where SPADE will pick up tar'ed logs/moni files")
+
+        p.add_option("-a", "--copy-dir",
+                     action="store",      type="string",
+                     dest="copyDir",
+                     help="Directory for copies of files sent to SPADE")
+
+        p.add_option("-u", "--cluster-config",
+                     action="store",      type="string",
+                     dest="clusterConfigName",
+                     help="Configuration to relaunch [if --relaunch]")
+
+        p.set_defaults(kill              = False,
+                       clusterConfigName = None,
+                       nodaemon          = False,
+                       forceConfig       = False,
+                       doRelaunch        = False,
+                       configDir         = "/usr/local/icecube/config",
+                       spadeDir          = "/mnt/data/pdaq/runs",
+                       copyDir           = None,
+                       logDir            = "/tmp",
+                       port              = 9000)
+
+        return p
+
+    def parse(self):
+        p = self.build_parser()
+        opt, args = p.parse_args()
+        self.process_options(opt)
+
+    def process_options(self, opt):
+        pids = list(findProcess(basename(argv[0]), processList()))
+
+        if opt.kill:
+            pid = int(os.getpid())
+            for p in pids:
+                if pid != p:
+                    # print "Killing %d..." % p
+                    import signal
+                    os.kill(p, signal.SIGKILL)
+
+            raise SystemExit
+
+        if len(pids) > 1:
+            print "ERROR: More than one instance of %s is already running!" % \
+                basename(argv[0])
+            raise SystemExit
+
+        opt.configDir    = abspath(opt.configDir)
+        opt.logDir       = abspath(opt.logDir)
+        opt.spadeDir     = abspath(opt.spadeDir)
+        if opt.copyDir: opt.copyDir = abspath(opt.copyDir)
+
+        dashDir          = join(metaDir, 'dash')
+
+        try:
+            clusterConfig = ClusterConfig(metaDir, opt.clusterConfigName, False,
+                                          False, True)
+        except ConfigNotSpecifiedException:
+            print "ERROR: No cluster configuration was found!"
+            raise SystemExit
+
+        if not exists(opt.configDir):
+            print ("Configuration directory '%s' doesn't exist!  "+\
+                   "Use the -c option, or -h for help.") % opt.configDir
+            raise SystemExit
+
+        if not exists(opt.logDir):
+            print ("Log directory '%s' doesn't exist!  Use the -l option, "+\
+                   " or -h for help.") % opt.logDir
+            raise SystemExit
+
+        if not exists(opt.spadeDir):
+            print ("Spade directory '%s' doesn't exist!  Use the -s option, "+\
+                   " or -h for help.") % opt.spadeDir
+            raise SystemExit
+
+        if opt.copyDir and not exists(opt.copyDir):
+            print "Log copies directory '%s' doesn't exist!" % opt.copyDir
+            raise SystemExit
+
+        if not opt.nodaemon: Daemon.Daemon().Daemonize()
+
+        self.port = opt.port
+        self.dashDir = dashDir
+        self.clusterConfig = clusterConfig
+        self.configDir = opt.configDir
+        self.logDir = opt.logDir
+        self.spadeDir = opt.spadeDir
+        self.copyDir = opt.copyDir
+        self.forceConfig = opt.forceConfig
+        self.doRelaunch = opt.doRelaunch
 
 class RunStats:
     def __init__(self, runNum=None, startTime=None, stopTime=None, physicsEvents=None,
@@ -83,10 +224,8 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
     WATCH_PERIOD   = 10
     COMP_TOUT      = 60
 
-    def __init__(self, portnum, dashDir, clusterConfig,
-                 configDir=CFGDIR, logDir=LOGDIR, spadeDir=SPADEDIR, copyDir=None,
-                 forceConfig=False, doRelaunch=False):
-        RPCServer.__init__(self, portnum, "localhost",
+    def __init__(self, runArgs):
+        RPCServer.__init__(self, runArgs.port, "localhost",
                            "DAQ Run Server - object for starting and stopping DAQ runs")
 
         # Can change reboot thread delay here if desired:
@@ -107,13 +246,13 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.runSetID         = None
         self.CnCLogReceiver   = None
         self.catchAllLogger   = None
-        self.forceConfig      = forceConfig
-        self.dashDir          = dashDir
-        self.configDir        = configDir
-        self.spadeDir         = spadeDir
-        self.copyDir          = copyDir
-        self.clusterConfig    = clusterConfig
-        self.logDir           = logDir
+        self.forceConfig      = runArgs.forceConfig
+        self.dashDir          = runArgs.dashDir
+        self.configDir        = runArgs.configDir
+        self.spadeDir         = runArgs.spadeDir
+        self.copyDir          = runArgs.copyDir
+        self.clusterConfig    = runArgs.clusterConfig
+        self.logDir           = runArgs.logDir
         self.requiredComps    = []
         self.versionInfo      = get_version_info(SVN_ID)
 
@@ -134,7 +273,7 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         self.moni             = None
         self.watchdog         = None
         self.lastConfig       = None
-        self.restartOnError   = doRelaunch
+        self.restartOnError   = runArgs.doRelaunch
         self.prevRunStats     = None
         self.runStats         = RunStats()
 
@@ -872,125 +1011,12 @@ class DAQRun(RPCServer, Rebootable.Rebootable):
         return ret
 
 if __name__ == "__main__":
-    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s " \
-               "%(release)s %(repo_rev)s" % get_version_info(SVN_ID)
-    usage = "%prog [options]\nversion: " + ver_info
-    p = optparse.OptionParser(usage=usage, version=ver_info)
-
-    p.add_option("-c", "--config-dir",
-                 action="store",      type="string",
-                 dest="configDir",    help="Directory where run configurations are stored")
-
-    p.add_option("-f", "--force-reconfig",
-                 action="store_true",
-                 dest="forceConfig",  help="Force 'configure' opration between runs")
-
-    p.add_option("-k", "--kill",
-                 action="store_true",
-                 dest="kill",         help="Kill existing instance(s) of DAQRun")
-
-    p.add_option("-l", "--log-dir",
-                 action="store",      type="string",
-                 dest="logDir",
-                 help="Directory where pDAQ logs/monitoring should be stored")
-
-    p.add_option("-n", "--no-daemon",
-                 action="store_true",
-                 dest="nodaemon",     help="Do not daemonize process")
-
-    p.add_option("-p", "--port",
-                 action="store",      type="int",
-                 dest="port",         help="Listening port for Exp. Control RPC commands")
-
-    p.add_option("-r", "--relaunch",
-                 action="store_true",
-                 dest="doRelaunch",
-                 help="Relaunch pDAQ components during recovery from failed runs")
-
-    p.add_option("-s", "--spade-dir",
-                 action="store",      type="string",
-                 dest="spadeDir",
-                 help="Directory where SPADE will pick up tar'ed logs/moni files")
-
-    p.add_option("-a", "--copy-dir",
-                 action="store",      type="string",
-                 dest="copyDir",
-                 help="Directory for copies of files sent to SPADE")
-
-    p.add_option("-u", "--cluster-config",
-                 action="store",      type="string",
-                 dest="clusterConfigName",
-                 help="Configuration to relaunch [if --relaunch]")
-
-    p.set_defaults(kill              = False,
-                   clusterConfigName = None,
-                   nodaemon          = False,
-                   forceConfig       = False,
-                   doRelaunch        = False,
-                   configDir         = "/usr/local/icecube/config",
-                   spadeDir          = "/mnt/data/pdaq/runs",
-                   copyDir           = None,
-                   logDir            = "/tmp",
-                   port              = 9000)
-    opt, args = p.parse_args()
-
-    pids = list(findProcess(basename(argv[0]), processList()))
-
-    if opt.kill:
-        pid = int(os.getpid())
-        for p in pids:
-            if pid != p:
-                # print "Killing %d..." % p
-                import signal
-                os.kill(p, signal.SIGKILL)
-
-        raise SystemExit
-
-    if len(pids) > 1:
-        print "ERROR: More than one instance of %s is already running!" % \
-            basename(argv[0])
-        raise SystemExit
-
-    opt.configDir    = abspath(opt.configDir)
-    opt.logDir       = abspath(opt.logDir)
-    opt.spadeDir     = abspath(opt.spadeDir)
-    if opt.copyDir: opt.copyDir = abspath(opt.copyDir)
-
-    dashDir          = join(metaDir, 'dash')
-
-    try:
-        clusterConfig = ClusterConfig(metaDir, opt.clusterConfigName, False,
-                                      False, True)
-    except ConfigNotSpecifiedException:
-        print "ERROR: No cluster configuration was found!"
-        raise SystemExit
-
-    if not exists(opt.configDir):
-        print ("Configuration directory '%s' doesn't exist!  "+\
-               "Use the -c option, or -h for help.") % opt.configDir
-        raise SystemExit
-
-    if not exists(opt.logDir):
-        print ("Log directory '%s' doesn't exist!  Use the -l option, "+\
-               " or -h for help.") % opt.logDir
-        raise SystemExit
-
-    if not exists(opt.spadeDir):
-        print ("Spade directory '%s' doesn't exist!  Use the -s option, "+\
-               " or -h for help.") % opt.spadeDir
-        raise SystemExit
-
-    if opt.copyDir and not exists(opt.copyDir):
-        print "Log copies directory '%s' doesn't exist!" % opt.copyDir
-        raise SystemExit
-
-    if not opt.nodaemon: Daemon.Daemon().Daemonize()
+    runArgs = RunArgs()
+    runArgs.parse()
 
     while 1:
         try:
-            cl = DAQRun(opt.port, dashDir, clusterConfig,
-                        opt.configDir, opt.logDir, opt.spadeDir, opt.copyDir,
-                        opt.forceConfig, opt.doRelaunch)
+            cl = DAQRun(runArgs)
             try:
                 cl.serve_forever()
             finally:
