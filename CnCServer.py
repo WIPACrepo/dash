@@ -14,7 +14,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3068 2008-05-27 20:27:08Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3069 2008-05-27 20:28:00Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -544,6 +544,7 @@ class RunSet:
 
         latestTime = None
         while len(shThreads) > 0:
+            sleep(0.1)
             for thread in shThreads:
                 if thread.done:
                     if thread.time is None:
