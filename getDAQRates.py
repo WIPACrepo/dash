@@ -478,7 +478,7 @@ if __name__ == "__main__":
              ' [-d(ataOnly)]' +
              ' [-i timeInterval ]' +
              ' [-v(erbose)]' +
-             ' (moniDir | moniFile [...])' % sys.argv[0]
+             ' (moniDir | moniFile [...])') % sys.argv[0]
         sys.exit(1)
 
     if len(fileList) > 0:
