@@ -14,7 +14,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3069 2008-05-27 20:28:00Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3070 2008-05-27 20:28:32Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -803,6 +803,8 @@ class DAQClient(CnCLogger):
         "Get current state"
         try:
             state = self.client.xmlrpc.getState()
+        except socket.error:
+            state = None
         except Exception, e:
             self.logmsg(exc_string())
             state = None
