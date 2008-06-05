@@ -478,7 +478,7 @@ def daysOf(f):
     # print "daysOf %s %d %d %d" % (f, t, now, dt)
     return dt/86400
 
-def createTopHTML(runDir, liveTime24hr=None, liveTime7days=None, refresh=None):
+def createTopHTML(runDir, liveTime24hr=None, liveTime7days=None, refresh=15):
     bodyHTML = "<BODY>"
     logoHTML = ""
     bodyFile = "/net/user/pdaq/daq-reports/images/icecube_pale.jpg"
@@ -486,15 +486,19 @@ def createTopHTML(runDir, liveTime24hr=None, liveTime7days=None, refresh=None):
     if exists(bodyFile): bodyHTML = "<BODY background='%s'>" % bodyFile
     if exists(logoFile): logoHTML = "<IMG SRC='%s'>" % logoFile
 
-    if refresh:
-        refreshHTML = "<META http-equiv='refresh' content='%d'>" % refresh
-    else:
-        refreshHTML = ""
+    refreshHTML = "<META http-equiv='refresh' content='%d;url=http://live.icecube.wisc.edu/recent'>" % refresh
         
     if search(r'daq-reports/spts64', runDir):
         title = "SPTS64 Run Summaries"
+        refreshNotice = ""
     elif search(r'daq-reports/sps', runDir):
         title = "SPS Run Summaries"
+        refreshNotice = """
+        <strong><FONT SIZE=+2>WARNING: these pages are going away, replaced by
+        <a href="http://live.icecube.wisc.edu/recent/">the equivalent pages<a> within
+        <a href="http://live.icecube.wisc.edu/">IceCube Live</a>.</FONT><br/><br/>
+        <p>You will be redirected in %d seconds.</p><p>Please update your bookmarks!</p></strong>    
+        <br>""" % refresh
     else:
         title = "IceCube DAQ Run Summaries"
     if liveTime24hr != None and liveTime7days != None:
@@ -538,6 +542,7 @@ a lower limit.  Times are based on best guess start and end times for the pDAQ r
     </tr>
     </table>
     <br>
+    %s
     <table>
     <tr>
      <td align=center><b><font size=-1>Run</font></b></td>
@@ -550,7 +555,7 @@ a lower limit.  Times are based on best guess start and end times for the pDAQ r
      <td align=center><b><font size=-1>Status</font></b></td>
      <td align=left><b><font size=-1>Config</font></b></td>
     </tr>
-    """ % (title, refreshHTML, bodyHTML, logoHTML, lt)
+    """ % (title, refreshHTML, bodyHTML, logoHTML, lt, refreshNotice)
     return top
 
 def createBotHtml(isSubset=False):
@@ -678,8 +683,7 @@ def generateOutputPage(runDirName, runDirectories, liveTime24hr, liveTime7days, 
     numRuns      = 0
     print "Making", htmlName
     htmlFile = open(join(runDirName, htmlName), "w")
-    print >>htmlFile, createTopHTML(runDirName, liveTime24hr, liveTime7days,
-                                    maxRuns and 300 or None) # Refresh abbreviated page every 5min
+    print >>htmlFile, createTopHTML(runDirName, liveTime24hr, liveTime7days, 15)
     for rec in getRunRecs(runDirectories):
         if prevRun and (rec.run != prevRun-1):
             skippedRun = True
