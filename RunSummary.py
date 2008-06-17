@@ -486,12 +486,13 @@ def createTopHTML(runDir, liveTime24hr=None, liveTime7days=None, refresh=15):
     if exists(bodyFile): bodyHTML = "<BODY background='%s'>" % bodyFile
     if exists(logoFile): logoHTML = "<IMG SRC='%s'>" % logoFile
 
-    refreshHTML = "<META http-equiv='refresh' content='%d;url=http://live.icecube.wisc.edu/recent'>" % refresh
         
     if search(r'daq-reports/spts64', runDir):
+        refreshHTML = ""
         title = "SPTS64 Run Summaries"
         refreshNotice = ""
     elif search(r'daq-reports/sps', runDir):
+        refreshHTML = "<META http-equiv='refresh' content='%d;url=http://live.icecube.wisc.edu/recent'>" % refresh
         title = "SPS Run Summaries"
         refreshNotice = """
         <strong><FONT SIZE=+2>WARNING: these pages are going away, replaced by
