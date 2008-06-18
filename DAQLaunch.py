@@ -15,7 +15,7 @@ from os.path import abspath, isabs, join, basename
 
 from GetIP import getIP
 
-SVN_ID = "$Id: DAQLaunch.py 3064 2008-05-27 19:59:50Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 3201 2008-06-18 17:02:59Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -69,6 +69,10 @@ componentDB = { "eventBuilder"      : \
                 "StringHub"         : \
                     { "ejar"     : "StringHub-1.0.0-SNAPSHOT-comp.jar",
                       "jvm_args" : "-Xmx350m -Dicecube.daq.bindery.StreamBinder.prescale=1",
+                    },
+                "replayHub"        : \
+                    { "ejar"     : "StringHub-1.0.0-SNAPSHOT-replay.jar",
+                      "jvm_args" : "-Xmx350m",
                     },
               }
 
@@ -151,7 +155,7 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort, cncPo
             switches += " -l %s:%d,%s" % (myIP, logPort, comp.logLevel)
             compIO = quietStr
 
-            if comp.compName == "StringHub":
+            if comp.compName == "StringHub" or comp.compName == "replayHub":
                 #javaCmd = "/usr/java/jdk1.5.0_07/bin/java"
                 jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % comp.compID
                 #switches += " -M 10"

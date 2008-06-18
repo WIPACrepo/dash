@@ -268,7 +268,8 @@ class RunWatchdog(object):
                 try:
                     cw = WatchData(c, shortNameOf[c], daqIDof[c],
                                    rpcAddrOf[c], mbeanPortOf[c])
-                    if shortNameOf[c] == 'stringHub':
+                    if shortNameOf[c] == 'stringHub' or \
+                            shortNameOf[c] == 'replayHub':
                         cw.addInputValue('dom', 'sender', 'NumHitsReceived')
                         if self.contains(shortNameOf, 'eventBuilder'):
                             cw.addInputValue('eventBuilder', 'sender',
@@ -277,24 +278,27 @@ class RunWatchdog(object):
                                               'NumReadoutsSent')
                         self.stringHubs.append(cw)
                     elif shortNameOf[c] == 'inIceTrigger':
-                        if self.contains(shortNameOf, 'stringHub'):
-                            cw.addInputValue('stringHub', 'stringHit',
+                        hubName = self.findHub(shortNameOf[c])
+                        if hubName is not None:
+                            cw.addInputValue(hubName, 'stringHit',
                                              'RecordsReceived')
                         if self.contains(shortNameOf, 'globalTrigger'):
                             cw.addOutputValue('globalTrigger', 'trigger',
                                               'RecordsSent')
                         iniceTrigger = cw
                     elif shortNameOf[c] == 'simpleTrigger':
-                        if self.contains(shortNameOf, 'stringHub'):
-                            cw.addInputValue('stringHub', 'stringHit',
+                        hubName = self.findHub(shortNameOf[c])
+                        if hubName is not None:
+                            cw.addInputValue(hubName, 'stringHit',
                                              'RecordsReceived')
                         if self.contains(shortNameOf, 'globalTrigger'):
                             cw.addOutputValue('globalTrigger', 'trigger',
                                               'RecordsSent')
                         iniceTrigger = cw
                     elif shortNameOf[c] == 'iceTopTrigger':
-                        if self.contains(shortNameOf, 'stringHub'):
-                            cw.addInputValue('stringHub', 'stringHit',
+                        hubName = self.findHub(shortNameOf[c])
+                        if hubName is not None:
+                            cw.addInputValue(hubName, 'stringHit',
                                              'RecordsReceived')
                         if self.contains(shortNameOf, 'globalTrigger'):
                             cw.addOutputValue('globalTrigger', 'trigger',
@@ -323,8 +327,10 @@ class RunWatchdog(object):
                                               'RecordsSent')
                         globalTrigger = cw
                     elif shortNameOf[c] == 'eventBuilder':
-                        cw.addInputValue('stringHub', 'backEnd',
-                                         'NumReadoutsReceived');
+                        hubName = self.findHub(shortNameOf[c])
+                        if hubName is not None:
+                            cw.addInputValue(hubName, 'backEnd',
+                                             'NumReadoutsReceived');
                         if self.contains(shortNameOf, 'globalTrigger'):
                             cw.addInputValue('globalTrigger', 'backEnd',
                                              'NumTriggerRequestsReceived');
@@ -378,6 +384,13 @@ class RunWatchdog(object):
                 return True
 
         return False
+
+    def findHub(self, nameList):
+        for n in ('stringHub', 'replayHub'):
+            if self.contains(nameList, n):
+                return n
+
+        return None
 
     def timeToWatch(self):
         if self.inProgress(): return False

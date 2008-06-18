@@ -222,6 +222,7 @@ class DAQConfig(object):
 
         noDOMs = configs[0].getElementsByTagName("noDOMConfig")
         domCfgList = configs[0].getElementsByTagName("domConfigList")
+        hubFileList = configs[0].getElementsByTagName("hubFiles")
 
         hubType = None
 
@@ -258,6 +259,15 @@ class DAQConfig(object):
             hubIDList      = hubIDInConfigDict.keys()
 
             hubType = 'stringHub'
+
+        elif len(hubFileList) == 1:
+            # WARNING: not currently building the 'kind' list
+            hubFile = hubFileList[0]
+            for hubNode in hubFileList[0].getElementsByTagName("hub"):
+                idStr = hubNode.getAttribute("id")
+                hubIDList.append(int(idStr))
+
+            hubType = 'replayHub'
 
         self.ndoms = len(self.domlist)
         # print "Found %d DOMs." % self.ndoms
@@ -360,6 +370,9 @@ if __name__ == "__main__":
     for configName in args:
         print "Config %s" % configName
         dc = DAQConfig(configName, configDir)
+        print "Number of DOMs in configuration: %s" % dc.nDOMs()
+        for hubID in dc.hubIDs():
+            print "String/hubID %d is in configuration." % hubID
         for kind in dc.kinds():
             print "Configuration includes %s" % kind
         for comp in dc.components():

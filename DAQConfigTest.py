@@ -119,5 +119,21 @@ class DAQConfigTest(unittest.TestCase):
 
         self.lookup(cfg, dataList)
 
+    def testReplay(self):
+        cfg = DAQConfig.DAQConfig("replay-ic22-it4", metaDir + "/config")
+
+        kinds = cfg.kinds()
+        self.assertEquals(len(kinds), 0, "Expected empty 'kinds' list, not " +
+                          str(kinds))
+
+        comps = cfg.components()
+        for exp in ('inIceTrigger#0', 'iceTopTrigger#0', 'globalTrigger#0',
+                    'eventBuilder#0', 'replayHub#0', 'replayHub#21',
+                    'replayHub#29', 'replayHub#84'):
+            try:
+                idx = comps.index(exp)
+            except:
+                self.fail('Expected component "%s" was not returned' % exp)
+
 if __name__ == '__main__':
     unittest.main()
