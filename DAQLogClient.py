@@ -20,7 +20,7 @@ class DAQLogger(object): # Log to UDP socket, somewhere
         self.socket.send(s)
     def write_ts(self, s):
         "Write time-stamped log msg to remote logger"
-        self.socket.send("[%s] %s" % (datetime.now(), s))
+        self.socket.send("- - [%s] %s" % (datetime.now(), s))
     def close(self):
         "Shutdown socket to remote server - better do this to avoid stale sockets"
         self.socket.close()

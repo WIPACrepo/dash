@@ -39,21 +39,8 @@ def main():
     
     opt, args = p.parse_args()
 
-    configXMLDir = abspath(join(metaDir, 'cluster-config', 'src', 'main', 'xml'))
-    readClusterConfig = getDeployedClusterConfig(join(metaDir, 'cluster-config', '.config'))
+    config = ClusterConfig(metaDir, opt.clusterConfigName, opt.doList)
 
-    if opt.doList: showConfigs(configXMLDir, readClusterConfig); raise SystemExit
-
-    # Choose configuration
-    configToUse = "sim-localhost"
-    if readClusterConfig:
-        configToUse = readClusterConfig
-    if opt.clusterConfigName:
-        configToUse = opt.clusterConfigName
-
-    # Parse configuration
-    config = deployConfig(configXMLDir, configToUse)
-    
     hublist = config.getHubNodes()
 
     cmds = ParallelShell(dryRun = opt.dryRun, timeout = 20)

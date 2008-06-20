@@ -12,6 +12,20 @@ import os
 import socket
 import sys
 import thread
+import threading
+
+SVN_ID  = "$Id: CnCServer.py 3070 2008-05-27 20:28:32Z dglo $"
+
+# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+if os.environ.has_key("PDAQ_HOME"):
+    metaDir = os.environ["PDAQ_HOME"]
+else:
+    from locate_pdaq import find_pdaq_trunk
+    metaDir = find_pdaq_trunk()
+
+# add meta-project python dir to Python library search path
+sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
+from SVNVersionInfo import get_version_info
 
 set_exc_string_encoding("ascii")
 
@@ -100,11 +114,23 @@ class ConnTypeEntry:
             raise ValueError, 'No inputs found for %d %s outputs' % \
                 (len(self.outList), self.type)
         if len(self.outList) == 0:
-            raise ValueError, 'No outputs found for %d %s inputs' % \
-                (len(self.inList), self.type)
+            inStr = ''
+            for inPair in self.inList:
+                if len(inStr) == 0:
+                    inStr = str(inPair[1])
+                else:
+                    inStr += ', ' + str(inPair[1])
+            raise ValueError, 'No outputs found for %d %s inputs (%s)' % \
+                (len(self.inList), self.type, inStr)
         if len(self.inList) > 1 and len(self.outList)  > 1:
-            raise ValueError, 'Found %d %s outputs for %d inputs' % \
-                (len(self.outList), len(self.inList), self.type)
+            inStr = ''
+            for inPair in self.inList:
+                if len(inStr) == 0:
+                    inStr = str(inPair[1])
+                else:
+                    inStr += ', ' + str(inPair[1])
+            raise ValueError, 'Found %d %s outputs for %d inputs (%s)' % \
+                (len(self.outList), len(self.inList), self.type, inStr)
 
         if len(self.inList) == 1:
             inConn = self.inList[0][0]
@@ -127,6 +153,25 @@ class ConnTypeEntry:
                     map[outComp] = []
                 map[outComp].append(entry)
 
+class SubrunThread(threading.Thread):
+    "A thread which starts the subrun in an individual stringHub"
+
+    def __init__(self, comp, data):
+        self.comp = comp
+        self.data = data
+        self.time = None
+        self.done = False
+
+        threading.Thread.__init__(self)
+
+        self.setName(str(comp) + ":subrun")
+
+    def run(self):
+        tStr = self.comp.startSubrun(self.data)
+        if tStr is not None:
+            self.time = long(tStr)
+        self.done = True
+
 class RunSet:
     "A set of components to be used in one or more runs"
 
@@ -135,7 +180,7 @@ class RunSet:
     # number of seconds to wait after stopping components seem to be
     # hung before forcing remaining components to stop
     #
-    TIMEOUT_SECS = 300
+    TIMEOUT_SECS = RPCClient.TIMEOUT_SECS - 5
 
     def __init__(self, set, logger):
         """
@@ -226,6 +271,15 @@ class RunSet:
         self.runNumber = None
         self.state = 'destroyed'
 
+    def getEvents(self, subrunNumber):
+        "Get the number of events in the specified subrun"
+        for c in self.set:
+            if c.isComponent("eventBuilder"):
+                return c.getEvents(subrunNumber)
+
+        raise ValueError, 'RunSet #' + str(self.id) + \
+            ' does not contain an event builder'
+
     def isRunning(self):
         return self.state is not None and self.state == 'running'
 
@@ -246,6 +300,21 @@ class RunSet:
 
         return list
 
+    def listComponentsCommaSep(compList):
+        """
+        Concatenate a list of components into a string showing names and IDs,
+        similar to componentListStr but more compact
+        """
+        compStr = None
+        for c in compList:
+            if compStr == None:
+                compStr = ''
+            else:
+                compStr += ', '
+            compStr += c.name + '#' + str(c.num)
+        return compStr
+    listComponentsCommaSep = staticmethod(listComponentsCommaSep)
+
     def logmsg(self, msg):
         if self.logger:
             self.logger.logmsg(msg)
@@ -259,7 +328,11 @@ class RunSet:
         for c in self.set:
             c.reset()
 
-        self.waitForStateChange()
+        try:
+            self.waitForStateChange(60)
+        except:
+            # give up after 60 seconds
+            pass
 
         self.state = 'idle'
 
@@ -325,7 +398,7 @@ class RunSet:
         for c in self.set:
             c.startRun(runNum)
 
-        self.waitForStateChange()
+        self.waitForStateChange(30)
 
         self.state = 'running'
 
@@ -360,14 +433,15 @@ class RunSet:
         for i in range(0,2):
             if i == 0:
                 self.state = 'stopping'
+                timeoutSecs = int(RunSet.TIMEOUT_SECS * .75)
             else:
                 self.state = 'forcingStop'
+                timeoutSecs = int(RunSet.TIMEOUT_SECS * .25)
 
             if i == 1:
                 warnStr = str(self) + ': Forcing ' + str(len(waitList)) + \
-                    ' components to stop:'
-                for c in waitList:
-                    warnStr += ' ' + c.name + '#' + str(c.num)
+                    ' components to stop: ' + \
+                    self.listComponentsCommaSep(waitList)
                 self.logmsg(warnStr)
 
             for c in waitList:
@@ -378,7 +452,7 @@ class RunSet:
 
             connDict = {}
 
-            endSecs = time() + RunSet.TIMEOUT_SECS
+            endSecs = time() + timeoutSecs
             while len(waitList) > 0 and time() < endSecs:
                 newList = waitList[:]
                 for c in waitList:
@@ -429,10 +503,6 @@ class RunSet:
                             self.logmsg(str(self) + ': Waiting for ' +
                                         self.state + ' ' + waitStr)
 
-                        # reset timeout
-                        #
-                        endSecs = time() + RunSet.TIMEOUT_SECS
-
             # if the components all stopped normally, don't force-stop them
             #
             if len(waitList) == 0:
@@ -440,8 +510,22 @@ class RunSet:
 
         self.runNumber = None
 
+        if len(waitList) > 0:
+            waitStr = None
+            for c in waitList:
+                if waitStr is None:
+                    waitStr = ''
+                else:
+                    waitStr += ', '
+                waitStr += c.name + '#' + str(c.num) + connDict[c]
+
+            errStr = str(self) + ': Could not stop ' + \
+                self.listComponentsCommaSep(waitList)
+            self.logmsg(errStr)
+            raise ValueError, errMsg
+
     def subrun(self, id, data):
-        "Start all components in the runset"
+        "Start a subrun with all components in the runset"
         if self.runNumber is None:
             raise ValueError, "RunSet #" + str(self.id) + " is not running"
 
@@ -449,22 +533,47 @@ class RunSet:
             if c.isComponent("eventBuilder"):
                 c.prepareSubrun(id)
 
-        latestTime = None
+        shThreads = []
         for c in self.set:
             if c.isComponent("stringHub"):
-                tStr = c.startSubrun(data)
-                t = long(tStr)
-                if latestTime is None or t > latestTime:
-                    latestTime = t
+                thread = SubrunThread(c, data)
+                thread.start()
+                shThreads.append(thread)
+
+        badComps = []
+
+        latestTime = None
+        while len(shThreads) > 0:
+            sleep(0.1)
+            for thread in shThreads:
+                if thread.done:
+                    if thread.time is None:
+                        badComps.append(thread.comp)
+                    elif latestTime is None or thread.time > latestTime:
+                        latestTime = thread.time
+                    shThreads.remove(thread)
+
+        if latestTime is None:
+            raise ValueError, "Couldn't start subrun on any string hubs"
+
+        if len(badComps) > 0:
+            raise ValueError, "Couldn't start subrun on %s" % \
+                listComponentsCommaSep(badComps)
 
         for c in self.set:
             if c.isComponent("eventBuilder"):
                 c.commitSubrun(id, repr(latestTime))
 
     def waitForStateChange(self, timeoutSecs=TIMEOUT_SECS):
+        """
+        Wait for state change, with a timeout of timeoutSecs (renewed each time
+        any component changes state).  Raise a ValueError if the state change
+        fails.
+        """
         waitList = self.set[:]
 
         endSecs = time() + timeoutSecs
+        waitStr = ''
         while len(waitList) > 0 and time() < endSecs:
             newList = waitList[:]
             for c in waitList:
@@ -474,30 +583,21 @@ class RunSet:
 
             # if one or more components changed state...
             #
+            waitStr  = RunSet.listComponentsCommaSep(newList)
             if len(waitList) == len(newList):
                 sleep(1)
             else:
-
                 waitList = newList
-
-                waitStr = None
-                for c in waitList:
-                    if waitStr is None:
-                        waitStr = ''
-                    else:
-                        waitStr += ', '
-                    waitStr += c.name + '#' + str(c.num)
                 if waitStr:
                     self.logmsg(str(self) + ': Waiting for ' + self.state +
                                 ' ' + waitStr)
-
                 # reset timeout
                 #
                 endSecs = time() + timeoutSecs
 
         if len(waitList) > 0:
-            raise ValueError, 'Still waiting for %d components to leave %s' % \
-                (len(waitList), self.state)
+            raise ValueError, 'Still waiting for %d components to leave %s (%s)' % \
+                (len(waitList), self.state, waitStr)
 
 class CnCLogger(object):
     "CnC logging client"
@@ -682,6 +782,20 @@ class DAQClient(CnCLogger):
             self.logmsg(exc_string())
             return None
 
+    def getEvents(self, subrunNumber):
+        "Get the number of events in the specified subrun"
+        try:
+            evts = self.client.xmlrpc.getEvents(subrunNumber)
+            if type(evts) == str:
+                evts = long(evts[:-1])
+            return evts
+        except Exception, e:
+            self.logmsg(exc_string())
+            return None
+
+    def getName(self):
+        return '%s#%d' % (self.name, self.num)
+
     def getOrder(self):
         return self.cmdOrder
 
@@ -689,6 +803,8 @@ class DAQClient(CnCLogger):
         "Get current state"
         try:
             state = self.client.xmlrpc.getState()
+        except socket.error:
+            state = None
         except Exception, e:
             self.logmsg(exc_string())
             state = None
@@ -748,6 +864,10 @@ class DAQClient(CnCLogger):
         "Send log messages to the specified host and port"
         self.openLog(logIP, port)
         self.client.xmlrpc.logTo(logIP, port)
+
+        self.logmsg("Version info: %(filename)s %(revision)s %(date)s " \
+                    "%(time)s %(author)s %(release)s %(repo_rev)s" % \
+                    get_version_info(self.client.xmlrpc.getVersionInfo()))
 
     def monitor(self):
         "Return the monitoring value"
@@ -1064,6 +1184,7 @@ class DAQServer(DAQPool):
         self.port = port
         self.name = name
         self.showSpinner = showSpinner
+        self.versionInfo = get_version_info(SVN_ID)
 
         self.id = int(time())
 
@@ -1075,16 +1196,13 @@ class DAQServer(DAQPool):
         if testOnly:
             self.server = None
         else:
-            notify = True
             while True:
                 try:
                     self.server = RPCServer(self.port)
                     break
                 except socket.error, e:
-                    if notify:
-                        self.logmsg("Couldn't create server socket: %s" % e)
-                    notify = False
-                    sleep(3)
+                    self.logmsg("Couldn't create server socket: %s" % e)
+                    raise SystemExit
 
         if self.server:
             self.server.register_function(self.rpc_close_log)
@@ -1097,6 +1215,7 @@ class DAQServer(DAQPool):
             self.server.register_function(self.rpc_register_component)
             self.server.register_function(self.rpc_runset_break)
             self.server.register_function(self.rpc_runset_configure)
+            self.server.register_function(self.rpc_runset_events)
             self.server.register_function(self.rpc_runset_list)
             self.server.register_function(self.rpc_runset_listIDs)
             self.server.register_function(self.rpc_runset_log_to)
@@ -1202,6 +1321,18 @@ class DAQServer(DAQPool):
         runSet.configure(globalConfigName)
 
         return "OK"
+
+    def rpc_runset_events(self, id, subrunNumber):
+        """
+        get the number of events for the specified subrun
+        from the specified runset
+        """
+        runSet = self.findRunset(id)
+
+        if not runSet:
+            raise ValueError, 'Could not find runset#' + str(id)
+
+        return runSet.getEvents(subrunNumber)
 
     def rpc_runset_listIDs(self):
         """return a list of active runset IDs"""
@@ -1322,12 +1453,12 @@ class DAQServer(DAQPool):
                     state = DAQClient.STATE_DEAD
 
                 s.append(str(c) + ' ' + str(state))
-
         return s
 
     def serve(self, handler):
         "Start a server"
         self.logmsg("I'm server %s running on port %d" % (self.name, self.port))
+        self.logmsg("%(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % self.versionInfo)
         thread.start_new_thread(handler, ())
         self.server.serve_forever()
 
@@ -1363,7 +1494,10 @@ class CnCServer(DAQServer):
         self.serve(self.monitorLoop)
 
 if __name__ == "__main__":
-    p = optparse.OptionParser()
+    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s "\
+               "%(release)s %(repo_rev)s" % get_version_info(SVN_ID)
+    usage = "%prog [options]\nversion: " + ver_info
+    p = optparse.OptionParser(usage=usage, version=ver_info)
     p.add_option("-S", "--showSpinner", action="store_true", dest="showSpinner")
     p.add_option("-d", "--daemon",      action="store_true", dest="daemon")
     p.add_option("-k", "--kill",        action="store_true", dest="kill")
@@ -1383,7 +1517,7 @@ if __name__ == "__main__":
                 # print "Killing %d..." % p
                 import signal
                 os.kill(p, signal.SIGKILL)
-                
+
         raise SystemExit
 
     if len(pids) > 1:

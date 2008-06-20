@@ -10,7 +10,7 @@
 
 from DAQLog import *
 from DAQRPC import RPCClient
-import datetime
+import datetime, threading
 from exc_string import *
 
 class ThresholdWatcher(object):
@@ -186,7 +186,7 @@ class WatchData(object):
                               lessThan)
         self.thresholdFields[beanName].append(tw)
 
-    def checkList(self, list, now):
+    def checkList(self, list):
         unhealthy = []
         for b in list:
             badList = self.checkValues(list[b])
@@ -224,6 +224,26 @@ class WatchData(object):
 
 class BeanFieldNotFoundException(Exception): pass
 
+class WatchThread(threading.Thread):
+    def __init__(self, watchdog):
+        self.watchdog = watchdog
+        self.done = False
+        self.error = False
+        self.healthy = False
+
+        threading.Thread.__init__(self)
+
+        self.setName('RunWatchdog')
+
+    def run(self):
+        try:
+            self.healthy = self.watchdog.realWatch()
+            self.done = True
+        except Exception:
+            self.watchdog.logmsg("Exception in run watchdog: %s" %
+                                 exc_string())
+            self.error = True
+
 class RunWatchdog(object):
     def __init__(self, daqLog, interval, IDs, shortNameOf, daqIDof, rpcAddrOf, mbeanPortOf):
         self.log         = daqLog
@@ -234,8 +254,10 @@ class RunWatchdog(object):
         self.IDs         = IDs
         self.stringHubs  = []
         self.soloComps   = []
+        self.thread      = None
 
         iniceTrigger  = None
+        simpleTrigger  = None
         icetopTrigger  = None
         amandaTrigger  = None
         globalTrigger   = None
@@ -246,7 +268,8 @@ class RunWatchdog(object):
                 try:
                     cw = WatchData(c, shortNameOf[c], daqIDof[c],
                                    rpcAddrOf[c], mbeanPortOf[c])
-                    if shortNameOf[c] == 'stringHub':
+                    if shortNameOf[c] == 'stringHub' or \
+                            shortNameOf[c] == 'replayHub':
                         cw.addInputValue('dom', 'sender', 'NumHitsReceived')
                         if self.contains(shortNameOf, 'eventBuilder'):
                             cw.addInputValue('eventBuilder', 'sender',
@@ -255,16 +278,27 @@ class RunWatchdog(object):
                                               'NumReadoutsSent')
                         self.stringHubs.append(cw)
                     elif shortNameOf[c] == 'inIceTrigger':
-                        if self.contains(shortNameOf, 'stringHub'):
-                            cw.addInputValue('stringHub', 'stringHit',
+                        hubName = self.findHub(shortNameOf[c])
+                        if hubName is not None:
+                            cw.addInputValue(hubName, 'stringHit',
+                                             'RecordsReceived')
+                        if self.contains(shortNameOf, 'globalTrigger'):
+                            cw.addOutputValue('globalTrigger', 'trigger',
+                                              'RecordsSent')
+                        iniceTrigger = cw
+                    elif shortNameOf[c] == 'simpleTrigger':
+                        hubName = self.findHub(shortNameOf[c])
+                        if hubName is not None:
+                            cw.addInputValue(hubName, 'stringHit',
                                              'RecordsReceived')
                         if self.contains(shortNameOf, 'globalTrigger'):
                             cw.addOutputValue('globalTrigger', 'trigger',
                                               'RecordsSent')
                         iniceTrigger = cw
                     elif shortNameOf[c] == 'iceTopTrigger':
-                        if self.contains(shortNameOf, 'stringHub'):
-                            cw.addInputValue('stringHub', 'stringHit',
+                        hubName = self.findHub(shortNameOf[c])
+                        if hubName is not None:
+                            cw.addInputValue(hubName, 'stringHit',
                                              'RecordsReceived')
                         if self.contains(shortNameOf, 'globalTrigger'):
                             cw.addOutputValue('globalTrigger', 'trigger',
@@ -279,6 +313,9 @@ class RunWatchdog(object):
                         if self.contains(shortNameOf, 'inIceTrigger'):
                             cw.addInputValue('inIceTrigger', 'trigger',
                                              'RecordsReceived')
+                        if self.contains(shortNameOf, 'simpleTrigger'):
+                            cw.addInputValue('simpleTrigger', 'trigger',
+                                             'RecordsReceived')
                         if self.contains(shortNameOf, 'iceTopTrigger'):
                             cw.addInputValue('iceTopTrigger', 'trigger',
                                              'RecordsReceived')
@@ -290,16 +327,26 @@ class RunWatchdog(object):
                                               'RecordsSent')
                         globalTrigger = cw
                     elif shortNameOf[c] == 'eventBuilder':
-                        cw.addInputValue('globalTrigger', 'backEnd',
-                                         'NumTriggerRequestsReceived');
-                        cw.addInputValue('stringHub', 'backEnd',
-                                         'NumReadoutsReceived');
+                        hubName = self.findHub(shortNameOf[c])
+                        if hubName is not None:
+                            cw.addInputValue(hubName, 'backEnd',
+                                             'NumReadoutsReceived');
+                        if self.contains(shortNameOf, 'globalTrigger'):
+                            cw.addInputValue('globalTrigger', 'backEnd',
+                                             'NumTriggerRequestsReceived');
                         cw.addOutputValue('dispatch', 'backEnd',
                                           'NumEventsSent');
                         cw.addThresholdValue('backEnd', 'DiskAvailable', 1024)
                         eventBuilder = cw
                     elif shortNameOf[c] == 'secondaryBuilders':
                         cw.addThresholdValue('snBuilder', 'DiskAvailable', 1024)
+                        cw.addOutputValue('dispatch', 'moniBuilder',
+                                          'TotalDispatchedData')
+                        cw.addOutputValue('dispatch', 'snBuilder',
+                                          'TotalDispatchedData')
+                        # XXX - Disabled until there's a simulated tcal stream 
+                        #cw.addOutputValue('dispatch', 'tcalBuilder',
+                        #                  'TotalDispatchedData')
                         secondaryBuilders = cw
                     else:
                         raise Exception, 'Unknown component type ' + \
@@ -313,6 +360,7 @@ class RunWatchdog(object):
         # of components in the list
         #
         if iniceTrigger: self.soloComps.append(iniceTrigger)
+        if simpleTrigger: self.soloComps.append(simpleTrigger)
         if icetopTrigger: self.soloComps.append(icetopTrigger)
         if amandaTrigger: self.soloComps.append(amandaTrigger)
         if globalTrigger: self.soloComps.append(globalTrigger)
@@ -337,7 +385,15 @@ class RunWatchdog(object):
 
         return False
 
+    def findHub(self, nameList):
+        for n in ('stringHub', 'replayHub'):
+            if self.contains(nameList, n):
+                return n
+
+        return None
+
     def timeToWatch(self):
+        if self.inProgress(): return False
         if not self.tlast: return True
         now = datetime.datetime.now()
         dt  = now - self.tlast
@@ -356,7 +412,7 @@ class RunWatchdog(object):
     def checkComp(self, comp, starved, stagnant, threshold):
         isProblem = False
         try:
-            badList = comp.checkList(comp.inputFields, self.tlast)
+            badList = comp.checkList(comp.inputFields)
             if badList is not None:
                 starved += badList
                 isProblem = True
@@ -365,7 +421,7 @@ class RunWatchdog(object):
 
         if not isProblem:
             try:
-                badList = comp.checkList(comp.outputFields, self.tlast)
+                badList = comp.checkList(comp.outputFields)
                 if badList is not None:
                     stagnant += badList
                     isProblem = True
@@ -374,15 +430,14 @@ class RunWatchdog(object):
 
             if not isProblem:
                 try:
-                    badList = comp.checkList(comp.thresholdFields, self.tlast)
+                    badList = comp.checkList(comp.thresholdFields)
                     if badList is not None:
                         threshold += badList
                         isProblem = True
                 except Exception, e:
                     self.logmsg(str(comp) + ' thresholds: ' + exc_string())
 
-    def doWatch(self):
-        self.tlast = datetime.datetime.now()
+    def realWatch(self):
         starved = []
         stagnant = []
         threshold = []
@@ -416,6 +471,26 @@ class RunWatchdog(object):
         #    self.logmsg('** Run watchdog reports all components are healthy')
 
         return healthy
+
+    def startWatch(self):
+        self.tlast = datetime.datetime.now()
+        self.thread = WatchThread(self)
+        self.thread.start()
+
+    def inProgress(self):
+        return self.thread is not None
+
+    def isDone(self):
+        return self.thread is not None and self.thread.done
+
+    def isHealthy(self):
+        return self.thread is not None and self.thread.healthy
+
+    def caughtError(self):
+        return self.thread is not None and self.thread.error
+
+    def clearThread(self):
+        self.thread = None
 
     def logmsg(self, m):
         "Log message to logger, but only if logger exists"

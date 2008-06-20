@@ -1,8 +1,24 @@
 #!/usr/bin/env python
 
-import optparse
-
+import optparse, sys
+from os import environ
+from os.path import join
 from DAQRPC import RPCClient
+
+# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+if environ.has_key("PDAQ_HOME"):
+    metaDir = environ["PDAQ_HOME"]
+else:
+    from locate_pdaq import find_pdaq_trunk
+    metaDir = find_pdaq_trunk()
+
+# add meta-project python dir to Python library search path
+sys.path.append(join(metaDir, 'src', 'main', 'python'))
+from SVNVersionInfo import get_version_info
+
+SVN_ID  = "$Id: DAQStatus.py 2978 2008-05-06 01:13:07Z ksb $"
+
+LINE_LENGTH = 78
 
 def cmpComp(x, y):
     c = cmp(x[6], y[6])
@@ -14,6 +30,8 @@ def cmpComp(x, y):
     return c
 
 def dumpComp(comp, numList, indent):
+    """Dump list of component instances, breaking long lists across lines"""
+
     if comp is None or len(numList) == 0:
         return
 
@@ -21,27 +39,60 @@ def dumpComp(comp, numList, indent):
         print indent + '  ' + comp
     else:
         numStr = None
+        prevNum = -1
+        inRange = False
         for n in numList:
             if numStr is None:
                 numStr = str(n)
             else:
-                numStr += ' ' + str(n)
+                if prevNum + 1 == n:
+                    if not inRange:
+                        inRange = True
+                else:
+                    if inRange:
+                        numStr += '-' + str(prevNum)
+                        inRange = False
+                    numStr += ' ' + str(n)
+            prevNum = n
+        if numStr is None:
+            numStr = ""
+        elif inRange:
+            numStr += '-' + str(prevNum)
 
+        if len(indent) > 0: indent = '|' + indent[1:]
         front = indent + '  ' + str(len(numList)) + ' ' + comp + 's: '
         frontLen = len(front)
-
-        lineLen = 78
+        frontCleared = False
 
         while len(numStr) > 0:
-            if frontLen + len(numStr) < lineLen:
+            # if list of numbers fits on the line, print it
+            if frontLen + len(numStr) < LINE_LENGTH:
                 print front + numStr
                 break
-            subStr = numStr[0:lineLen-frontLen]
-            numStr = numStr[lineLen-frontLen:]
-            if len(numStr) > 0 and numStr[0] == ' ':
+
+            # look for break point
+            tmpLen = LINE_LENGTH - frontLen
+            if tmpLen >= len(numStr):
+                tmpLen = len(numStr) - 1
+            while tmpLen > 0 and numStr[tmpLen] != ' ':
+                tmpLen -= 1
+            if tmpLen == 0:
+                tmpLen = LINE_LENGTH - frontLen
+                while tmpLen < len(numStr) and numStr[tmpLen] != ' ':
+                    tmpLen += 1
+
+            # split line at break point
+            print front + numStr[0:tmpLen]
+
+            # set numStr to remainder of string and strip leading whitespace
+            numStr = numStr[tmpLen:]
+            while len(numStr) > 0 and numStr[0] == ' ':
                 numStr = numStr[1:]
-            print front + subStr
-            front = ' '*len(front)
+
+            # after first line, set front string to whitespace
+            if not frontCleared:
+                front = ' '*len(front)
+                frontCleared = True
 
 def listTerse(list, indent=''):
     list.sort(cmpComp)
@@ -71,7 +122,11 @@ def listVerbose(list, indent=''):
             (indent, c[0], c[1], c[2], c[3], c[4], c[5], c[6])
 
 if __name__ == "__main__":
-    p = optparse.OptionParser()
+    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s " \
+               "%(release)s %(repo_rev)s" % get_version_info(SVN_ID)
+    usage = "%prog [options]\nversion: " + ver_info
+    p = optparse.OptionParser(usage=usage, version=ver_info)
+
     p.add_option("-v", "--verbose", action="store_true", dest="verbose")
     p.set_defaults(verbose = False)
 

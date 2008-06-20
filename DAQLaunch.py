@@ -11,9 +11,11 @@ import sys
 import optparse
 from time import sleep
 from os import environ, mkdir, system
-from os.path import abspath, isabs, join
+from os.path import abspath, isabs, join, basename
 
 from GetIP import getIP
+
+SVN_ID = "$Id: DAQLaunch.py 3201 2008-06-18 17:02:59Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -22,10 +24,12 @@ else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
-# add 'cluster-config' to Python library search path
-#
+# add 'cluster-config' and meta-project python dir to Python library
+# search path
 sys.path.append(join(metaDir, 'cluster-config'))
+sys.path.append(join(metaDir, 'src', 'main', 'python'))
 
+from SVNVersionInfo import get_version_info
 from ClusterConfig import *
 from ParallelShell import *
 
@@ -46,6 +50,10 @@ componentDB = { "eventBuilder"      : \
                     { "ejar"     : "trigger-1.0.0-SNAPSHOT-iitrig.jar",
                       "jvm_args" : "-Xmx1600m",
                     },
+                "simpleTrigger"      : \
+                    { "ejar"     : "trigger-1.0.0-SNAPSHOT-simptrig.jar",
+                      "jvm_args" : "-Xmx4500m",
+                    },
                 "iceTopTrigger"     : \
                     { "ejar"     : "trigger-1.0.0-SNAPSHOT-ittrig.jar",
                       "jvm_args" : "-Xmx1600m ",
@@ -60,7 +68,11 @@ componentDB = { "eventBuilder"      : \
                     },
                 "StringHub"         : \
                     { "ejar"     : "StringHub-1.0.0-SNAPSHOT-comp.jar",
-                      "jvm_args" : "-Xmx1024m -Dicecube.daq.bindery.StreamBinder.prescale=1",
+                      "jvm_args" : "-Xmx350m -Dicecube.daq.bindery.StreamBinder.prescale=1",
+                    },
+                "replayHub"        : \
+                    { "ejar"     : "StringHub-1.0.0-SNAPSHOT-replay.jar",
+                      "jvm_args" : "-Xmx350m",
                     },
               }
 
@@ -121,29 +133,40 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort, cncPo
     # The dir where all the "executable" jar files are
     binDir = join(metaDir, 'target', 'pDAQ-1.0.0-SNAPSHOT-dist.dir', 'bin')
 
-    # What is used when not verbose
-    quietStr = " < /dev/null 2>&1 > /dev/null"
+    # how are I/O streams handled?
+    if not verbose:
+        quietStr = " </dev/null >/dev/null 2>&1"
+    else:
+        quietStr = ""
 
     for node in clusterConfig.nodes:
         myIP = getIP(node.hostName)
         for comp in node.comps:
             execJar = join(binDir, getExecJar(comp.compName))
+            if not os.path.exists(execJar):
+                print "%s jar file does not exist: %s" % \
+                    (comp.compName, execJar)
+                continue
 
+            javaCmd = "java"
             jvmArgs = getJVMArgs(comp.compName)
-            if comp.compName == "StringHub":
-                jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % comp.compID
-
             switches = "-g %s" % configDir
             switches += " -c %s:%d" % (myIP, cncPort)
             switches += " -l %s:%d,%s" % (myIP, logPort, comp.logLevel)
-            if not verbose:
-                switches += quietStr
+            compIO = quietStr
+
+            if comp.compName == "StringHub" or comp.compName == "replayHub":
+                #javaCmd = "/usr/java/jdk1.5.0_07/bin/java"
+                jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % comp.compID
+                #switches += " -M 10"
+
+            #compIO = " </dev/null >/tmp/%s.%d 2>&1" % (comp.compName, comp.compID)
 
             if node.hostName == "localhost": # Just run it
-                cmd = "java %s -jar %s %s &" % (jvmArgs, execJar, switches)
+                cmd = "%s %s -jar %s %s %s &" % (javaCmd, jvmArgs, execJar, switches, compIO)
             else:                            # Have to ssh to run it
-                cmd = """ssh -n %s \'sh -c \"java %s -jar %s %s &\" %s &\'""" \
-                      % (node.hostName, jvmArgs, execJar, switches, not verbose and quietStr or "")
+                cmd = """ssh -n %s \'sh -c \"%s %s -jar %s %s %s &\" %s &\'""" \
+                      % (node.hostName, javaCmd, jvmArgs, execJar, switches, compIO, quietStr)
 
             if verbose: print cmd
             parallel.add(cmd)
@@ -171,6 +194,9 @@ def doKill(doDAQRun, dryRun, dashDir, verbose, clusterConfig, killWith9):
 
     killJavaProcesses(dryRun, clusterConfig, verbose, killWith9)
     if verbose and not dryRun: print "DONE with killing Java Processes."
+
+    # clear the active configuration
+    clusterConfig.clearActiveConfig()
     
 def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
              configDir, logDir, spadeDir, copyDir, logPort, cncPort):
@@ -178,7 +204,8 @@ def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
     # Start DAQRun
     if doDAQRun:
         daqRun = join(dashDir, 'DAQRun.py')
-        options = "-r -f -c %s -l %s -s %s" % (configDir, logDir, spadeDir)
+        options = "-r -f -c %s -l %s -s %s -u %s" % \
+            (configDir, logDir, spadeDir, clusterConfig.configName)
         if copyDir: options += " -a %s" % copyDir
         if verbose:
             cmd = "%s %s -n &" % (daqRun, options)
@@ -204,6 +231,9 @@ def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
 
     startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort, cncPort, verbose)
     if verbose and not dryRun: print "DONE with starting Java Processes."
+
+    # remember the active configuration
+    clusterConfig.writeCacheFile(True)
     
 def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, copyDir, logPort, cncPort):
     "Completely cycle pDAQ except for DAQRun - can be used by DAQRun when cycling"
@@ -213,7 +243,10 @@ def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, copyDir, logP
              configDir, logDir, spadeDir, copyDir, logPort, cncPort)
 
 def main():
-    p = optparse.OptionParser()
+    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % get_version_info(SVN_ID)
+    usage = "%prog [options]\nversion: " + ver_info
+    p = optparse.OptionParser(usage=usage, version=ver_info)
+
     p.add_option("-c", "--config-name",  action="store", type="string",
                  dest="clusterConfigName",
                  help="Cluster configuration name, subset of deployed configuration.")
@@ -244,25 +277,12 @@ def main():
                    killOnly          = False)
     opt, args = p.parse_args()
 
-    readClusterConfig = getDeployedClusterConfig(join(metaDir, 'cluster-config', '.config'))
-    
-    # Choose configuration
-    configToUse = "sim-localhost"
-    if readClusterConfig:
-        configToUse = readClusterConfig
-    if opt.clusterConfigName:
-        configToUse = opt.clusterConfigName
-
     configDir = join(metaDir, 'config')
     logDir    = join(' ', 'mnt', 'data', 'pdaq', 'log').strip()
     logDirFallBack = join(metaDir, 'log')
     dashDir   = join(metaDir, 'dash')
-    clusterConfigDir = join(metaDir, 'cluster-config', 'src', 'main', 'xml')
 
-    if opt.doList: showConfigs(clusterConfigDir, configToUse); raise SystemExit
-
-    # Get/parse cluster configuration
-    clusterConfig = deployConfig(clusterConfigDir, configToUse)
+    clusterConfig = ClusterConfig(metaDir, opt.clusterConfigName, opt.doList)
 
     spadeDir  = clusterConfig.logDirForSpade
     # Assume non-fully-qualified paths are relative to metaproject top dir:
@@ -293,7 +313,9 @@ def main():
         system('rm -f %s' % join(logDir, 'catchall.log'))
     
     if opt.verbose:
-        print "CONFIG: %s" % configToUse
+        print "Version: %(filename)s %(revision)s %(date)s %(time)s " \
+              "%(author)s %(release)s %(repo_rev)s" % get_version_info(SVN_ID)
+        print "CONFIG: %s" % clusterConfig.configName
         print "NODES:"
         for node in clusterConfig.nodes:
             print "  %s(%s)" % (node.hostName, node.locName),
@@ -301,8 +323,13 @@ def main():
                 print "%s-%d " % (comp.compName, comp.compID),
             print
 
-    if not opt.skipKill: doKill(True, opt.dryRun, dashDir, opt.verbose,
-                                clusterConfig, opt.killWith9)
+    if not opt.skipKill:
+        try:
+            activeConfig = ClusterConfig(metaDir, None, False, False, True)
+            doKill(True, opt.dryRun, dashDir, opt.verbose, activeConfig,
+                   opt.killWith9)
+        except ConfigNotSpecifiedException:
+            if opt.killOnly: print >>sys.stderr, 'DAQ is not currently active'
     if not opt.killOnly: doLaunch(True, opt.dryRun, opt.verbose, clusterConfig,
                                   dashDir, configDir, logDir,
                                   spadeDir, copyDir, opt.logPort, opt.cncPort)
