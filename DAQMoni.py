@@ -33,30 +33,25 @@ class MoniData(object):
 
     def unFixValue(self, obj):
 
-        """ Look for longs masquerading as strings ending in an 'L'.
-        If a obj is such a string, return it converted to a long.  If
-        obj is a dict or list, recuse into it converting all such
-        masquerading strings to long.  All other types are
-        unaltered.  This pairs with the similarly name fix* methods in
+        """ Look for numbers masquerading as strings.  If an obj is a
+        string and successfully converts to a number, return that
+        convertion.  If obj is a dict or list, recuse into it
+        converting all such masquerading strings.  All other types are
+        unaltered.  This pairs with the similarly named fix* methods in
         icecube.daq.juggler.mbean.XMLRPCServer """
 
-        print "ksb - unFixValue: %s" % (str(obj))
         if type(obj) is dict:
             for k in obj.keys():
                 obj[k] = self.unFixValue(obj[k])
-            return obj
         elif type(obj) is list:
             for i in xrange(0, len(obj)):
                 obj[i] = self.unFixValue(obj[i])
-            return obj
-        elif type(obj) is str and obj[-1] == 'L':
+        elif type(obj) is str:
             try:
-                return long(obj[:-1])
+                return int(obj)
             except ValueError:
                 pass
-            return obj
-        else:
-            return obj
+        return obj
 
     def monitor(self, now):
         for b in self.beanFields.keys():
