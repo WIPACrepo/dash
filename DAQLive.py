@@ -198,7 +198,7 @@ class DAQLive(Component):
 
     def stopping(self, retry=True):
         "Stop current pDAQ run"
-        self.logInfo('Stopping pDAQ')
+        self.logInfo('Stopping run %d' % self.runNumber)
 
         try:
             self.runIface.stop()
