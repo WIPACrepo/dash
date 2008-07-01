@@ -224,7 +224,10 @@ class DAQLive(Component):
         n = 0
         while True:
             state = self.__getState()
-            if state is None or state == expState:
+            if state is None:
+                break
+            self.runState = state
+            if state == expState:
                 break
             time.sleep(1)
             n += 1
