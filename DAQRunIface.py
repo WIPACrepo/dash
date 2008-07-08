@@ -4,7 +4,7 @@
 # Object to interface w/ DAQ run script
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started November, 2006
-# $Id: DAQRunIface.py 2151 2007-10-17 19:39:49Z ksb $
+# $Id: DAQRunIface.py 3260 2008-07-08 17:06:38Z dglo $
 
 from time import sleep, time
 from datetime import datetime, timedelta
@@ -154,6 +154,10 @@ class DAQRunIface(object):
         configDir = join(self.home, "config")
         return configExists(configDir, configName)
     
+    def monitorRun(self):
+        "Get run monitoring data"
+        return self.rpc.rpc_run_monitoring()
+
 if __name__ == "__main__":
     iface = DAQRunIface()
     print iface.getDaqLabels()
