@@ -4,6 +4,7 @@
 
 from exc_string import *
 from live.control.component import Component
+from live.control.log import ITS_PRIO, EMAIL_PRIO, TDRSS_PRIO, DEBUG_PRIO
 
 import optparse, os, socket, sys, thread, time
 import DAQRunIface
@@ -69,6 +70,7 @@ class DAQLive(Component):
 
         self.runNumber = 0
         self.runState = None
+        self.runCallCount = 0
 
         Component.__init__(self, self.SERVICE_NAME, self.runArgs.livePort,
                            synchronous=True)
@@ -141,6 +143,13 @@ class DAQLive(Component):
             else:
                 self.logError('Could not recover pDAQ')
 
+    def __reportMoni(self):
+        "Report run monitoring quantities"
+        if self.moniClient:
+            moniData = self.runIface.monitorRun()
+            for k in moniData.keys():
+                self.moniClient.sendMoni(k, moniData[k], TDRSS_PRIO)
+
     def runChange(self):
         "Stop current pDAQ run and start a new run"
         self.logInfo('RunChange pDAQ')
@@ -156,6 +165,12 @@ class DAQLive(Component):
         if state != self.runState:
             self.logInfo('pDAQ = ' + state)
             self.runState = state
+
+        if self.runState == "RUNNING":
+            self.runCallCount += 1
+            if self.runCallCount >= 200:
+                self.__reportMoni()
+                self.runCallCount = 0
 
     def starting(self, stateArgs=None, runNumber=None, retry=True):
         """
@@ -177,6 +192,8 @@ class DAQLive(Component):
             runNumber = self.__getNextRunNumber()
 
         self.logInfo('Starting run %d - %s' % (runNumber, self.runConfig))
+
+        self.runCallCount = 0
 
         # tell DAQRun to start a run
         try:

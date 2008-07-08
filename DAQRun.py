@@ -34,7 +34,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 3258 2008-07-08 16:57:43Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3259 2008-07-08 17:02:35Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -353,6 +353,7 @@ class DAQRun(Rebootable.Rebootable):
         self.server.register_function(self.rpc_release_runsets)
         self.server.register_function(self.rpc_daq_summary_xml)
         self.server.register_function(self.rpc_flash)
+        self.server.register_function(self.rpc_run_monitoring)
 
     def logmsg(self, m):
         "Log message to logger, but only if logger exists"
@@ -1046,6 +1047,19 @@ class DAQRun(Rebootable.Rebootable):
         # Global summary
         ret = """<daq>\n%s%s%s</daq>""" % (prevRun, currentRun, subRunEventXML)
         return ret
+
+    def rpc_run_monitoring(self):
+        "Return monitoring data for the current run"
+
+        monDict = {}
+
+        if self.runStats.runNum and self.runState == "RUNNING":
+            monDict["physicsEvents"] = self.runStats.physicsEvents
+            monDict["moniEvents"] = self.runStats.moniEvents
+            monDict["snEvents"] = self.runStats.snEvents
+            monDict["tcalEvents"] = self.runStats.tcalEvents
+
+        return monDict
 
 if __name__ == "__main__":
     runArgs = RunArgs()
