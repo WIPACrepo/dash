@@ -136,13 +136,19 @@ class DAQLive(Component):
 
         try:
             self.runIface.recover()
+            recoveryStarted = True
         except socket.error:
+            recoveryStarted = False
             if retry:
                 self.__connectToDAQRun()
                 self.recovering(retry=False)
             else:
                 self.logError('Could not recover pDAQ')
 
+        if recoveryStarted:
+            if self.__waitForState('STOPPED'):
+                self.logInfo('Recovered DAQ')
+                
     def __reportMoni(self):
         "Report run monitoring quantities"
         if self.moniClient:
@@ -160,7 +166,7 @@ class DAQLive(Component):
         "Check run state and puke if there's an error"
         state = self.__getState()
         if state is None or state == "ERROR":
-            raise Exception("pDAQ encountered an error")
+            raise Exception("pDAQ encountered an error (state is '%s')" % state)
 
         if state != self.runState:
             self.logInfo('pDAQ = ' + state)
@@ -234,13 +240,15 @@ class DAQLive(Component):
                 self.logInfo('Stopped run %d' % self.runNumber)
 
     "Maximum number of loops to wait inside waitForState()"
-    MAX_WAIT = 20
+    MAX_WAIT = 120
 
     def __waitForState(self, expState):
         "Wait for pDAQ to reach the expected state"
         n = 0
         while True:
             state = self.__getState()
+            if state == "ERROR":
+                raise Exception("PDAQ went into ERROR state, wanted %s", expState)
             if state is None:
                 break
             self.runState = state
