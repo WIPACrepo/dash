@@ -15,7 +15,7 @@ from os.path import abspath, isabs, join, basename
 
 from GetIP import getIP
 
-SVN_ID = "$Id: DAQLaunch.py 3201 2008-06-18 17:02:59Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 3272 2008-07-11 22:16:48Z jacobsen $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -100,6 +100,7 @@ def findHost(component, compID, clusterConfig):
         for comp in node.comps:
             if comp.compName == component and comp.compID == compID: return node.hostName
     raise HostNotFoundForComponent(component+":"+compID)
+
 
 def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9):
     parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose)
@@ -192,6 +193,9 @@ def doKill(doDAQRun, dryRun, dashDir, verbose, clusterConfig, killWith9):
     if verbose: print cmd
     if not dryRun: system(cmd)
 
+    # Kill DAQLive
+    if not dryRun: system("pkill -9 -fu %s DAQLive.py" % environ["USER"])
+    
     killJavaProcesses(dryRun, clusterConfig, verbose, killWith9)
     if verbose and not dryRun: print "DONE with killing Java Processes."
 
@@ -224,11 +228,19 @@ def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
     if verbose:
         cmd = "%s -l localhost:9001 &" % cncServer
         print cmd
-        if not dryRun: system(cmd)
     else:
         cmd = "%s -l localhost:9001 -d" % cncServer
-        if not dryRun: system(cmd)
+    if not dryRun: system(cmd)
 
+    # Start DAQLive
+    daqLive = join(dashDir, 'DAQLive.py')
+    if verbose:
+        cmd = "%s -v &" % daqLive
+        print cmd
+    else:
+        cmd = "%s &" % daqLive
+    if not dryRun: system(cmd)
+    
     startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort, cncPort, verbose)
     if verbose and not dryRun: print "DONE with starting Java Processes."
 
