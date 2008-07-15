@@ -34,7 +34,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 3259 2008-07-08 17:02:35Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3273 2008-07-15 21:55:21Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -930,6 +930,9 @@ class DAQRun(Rebootable.Rebootable):
 
     def rpc_stop_run(self):
         "Stop a run"
+        if self.runState == "STOPPED":
+            self.logmsg("Warning: run is already stopped.")
+            return 1
         if self.runState != "RUNNING":
             self.logmsg("Warning: invalid state (%s), won't stop run." % self.runState)
             return 0
