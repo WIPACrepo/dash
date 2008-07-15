@@ -215,9 +215,13 @@ class DAQLive(Component):
                 
         if runStarted:
             # wait for DAQRun to indicate that the run has started
-            if self.__waitForState('RUNNING'):
+            if self.__waitForState('RUNNING',
+                                   ('ERROR', 'STOPPED', 'RECOVERING')):
                 self.runNumber = runNumber
                 self.logInfo('Started run %d' % self.runNumber)
+            else:
+                self.__waitForState('STOPPED')
+                self.logInfo('Failed to start run %d' % self.runNumber)
 
     def stopping(self, retry=True):
         "Stop current pDAQ run"
@@ -242,15 +246,18 @@ class DAQLive(Component):
     "Maximum number of loops to wait inside waitForState()"
     MAX_WAIT = 120
 
-    def __waitForState(self, expState):
+    def __waitForState(self, expState, badStates=('ERROR')):
         "Wait for pDAQ to reach the expected state"
         n = 0
         while True:
             state = self.__getState()
-            if state == "ERROR":
-                raise Exception("PDAQ went into ERROR state, wanted %s", expState)
             if state is None:
                 break
+            if badStates is not None and len(badStates) > 0:
+                for bs in badStates:
+                    if state == bs:
+                        raise Exception("PDAQ went into %s state, wanted %s" %
+                                        (state, expState))
             self.runState = state
             if state == expState:
                 break
