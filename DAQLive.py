@@ -2,12 +2,17 @@
 #
 # Glue server which hooks pDAQ to IceCube Live
 
-from exc_string import *
-from live.control.component import Component
-from live.control.log import ITS_PRIO, EMAIL_PRIO, TDRSS_PRIO, DEBUG_PRIO
-
 import optparse, os, socket, sys, thread, time
 import DAQRunIface
+
+from exc_string import *
+try:
+    from live.control.component import Component
+    from live.control.log import ITS_PRIO, EMAIL_PRIO, TDRSS_PRIO, DEBUG_PRIO
+except ImportError:
+    print >>sys.stderr, ('ERROR: Cannot import IceCube Live code ...' +
+                         ' DAQLive aborting')
+    sys.exit(1)
 
 SVN_ID  = "$Id: DAQRun.py 3084 2008-05-27 21:44:21Z dglo $"
 
