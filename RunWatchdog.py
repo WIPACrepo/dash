@@ -337,6 +337,8 @@ class RunWatchdog(object):
                         cw.addOutputValue('dispatch', 'backEnd',
                                           'NumEventsSent');
                         cw.addThresholdValue('backEnd', 'DiskAvailable', 1024)
+                        cw.addThresholdValue('backEnd', 'NumBadEvents', 0,
+                                             False)
                         eventBuilder = cw
                     elif shortNameOf[c] == 'secondaryBuilders':
                         cw.addThresholdValue('snBuilder', 'DiskAvailable', 1024)

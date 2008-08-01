@@ -15,7 +15,7 @@ from os.path import abspath, isabs, join, basename
 
 from GetIP import getIP
 
-SVN_ID = "$Id: DAQLaunch.py 3272 2008-07-11 22:16:48Z jacobsen $"
+SVN_ID = "$Id: DAQLaunch.py 3343 2008-08-01 22:03:36Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -128,7 +128,8 @@ def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9):
         parallel.start()
         parallel.wait()
 
-def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort, cncPort, verbose):
+def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
+                       cncPort, verbose, eventCheck):
     parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose)
 
     # The dir where all the "executable" jar files are
@@ -160,6 +161,9 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort, cncPo
                 #javaCmd = "/usr/java/jdk1.5.0_07/bin/java"
                 jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % comp.compID
                 #switches += " -M 10"
+
+            if eventCheck and comp.compName == "eventBuilder":
+                jvmArgs += " -Dicecube.daq.eventBuilder.validateEvents"
 
             #compIO = " </dev/null >/tmp/%s.%d 2>&1" % (comp.compName, comp.compID)
 
@@ -203,7 +207,8 @@ def doKill(doDAQRun, dryRun, dashDir, verbose, clusterConfig, killWith9):
     clusterConfig.clearActiveConfig()
     
 def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
-             configDir, logDir, spadeDir, copyDir, logPort, cncPort):
+             configDir, logDir, spadeDir, copyDir, logPort, cncPort,
+             eventCheck=False):
     "Launch components"
     # Start DAQRun
     if doDAQRun:
@@ -241,7 +246,8 @@ def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
         cmd = "%s &" % daqLive
     if not dryRun: system(cmd)
     
-    startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort, cncPort, verbose)
+    startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
+                       cncPort, verbose, eventCheck)
     if verbose and not dryRun: print "DONE with starting Java Processes."
 
     # remember the active configuration
@@ -262,6 +268,8 @@ def main():
     p.add_option("-c", "--config-name",  action="store", type="string",
                  dest="clusterConfigName",
                  help="Cluster configuration name, subset of deployed configuration.")
+    p.add_option("-e", "--event-check",  action="store_true", dest="eventCheck",
+                 help="Event builder will validate events")
     p.add_option("-k", "--kill-only",    action="store_true", dest="killOnly",
                  help="Kill pDAQ components, don't restart")
     p.add_option("-l", "--list-configs", action="store_true", dest="doList",
@@ -286,7 +294,8 @@ def main():
                    cncPort           = 8080,
                    skipKill          = False,
                    killWith9         = False,
-                   killOnly          = False)
+                   killOnly          = False,
+                   eventCheck        = False)
     opt, args = p.parse_args()
 
     configDir = join(metaDir, 'config')
@@ -344,6 +353,7 @@ def main():
             if opt.killOnly: print >>sys.stderr, 'DAQ is not currently active'
     if not opt.killOnly: doLaunch(True, opt.dryRun, opt.verbose, clusterConfig,
                                   dashDir, configDir, logDir,
-                                  spadeDir, copyDir, opt.logPort, opt.cncPort)
+                                  spadeDir, copyDir, opt.logPort, opt.cncPort,
+                                  opt.eventCheck)
 
 if __name__ == "__main__": main()
