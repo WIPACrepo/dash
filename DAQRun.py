@@ -19,7 +19,7 @@ from Process import processList, findProcess
 from DAQLaunch import cyclePDAQ, ClusterConfig, ConfigNotSpecifiedException
 from tarfile import TarFile
 from exc_string import *
-from shutil import move
+from shutil import move, copyfile
 from GetIP import getIP
 from re import search
 from xmlrpclib import Fault
@@ -34,7 +34,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 3273 2008-07-15 21:55:21Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3382 2008-08-13 16:43:01Z jacobsen $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -280,6 +280,15 @@ class RunStats:
         if addRate:
             self.physicsRate.add(datetime.datetime.now(), self.physicsEvents)
 
+def linkOrCopy(src, dest):
+    try:
+        os.link(src, dest)
+    except OSError, e:
+        if e.errno == 18: # Cross-device link
+            copyfile(src, dest)
+        else:
+            raise
+                                                
 class DAQRun(Rebootable.Rebootable):
     "Serve requests to start/stop DAQ runs (exp control iface)"
     LOGDIR         = "/tmp"
@@ -571,8 +580,8 @@ class DAQRun(Rebootable.Rebootable):
             # self.recursivelyAddToTar(tarObj, logTopLevel, runDir)
             tarObj.close()
             if copyDir:
-                self.logmsg("Making hard link for local copies (%s->%s)" % (tarBall, copyFile))
-                os.link(tarBall, copyFile)
+                self.logmsg("Link or copy %s->%s" % (tarBall, copyFile))
+                linkOrCopy(tarBall, copyFile)
             fd = open(semFile, "w")
             fd.close()
         except Exception, e:
