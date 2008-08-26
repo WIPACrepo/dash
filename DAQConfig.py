@@ -79,12 +79,14 @@ class DOMData(object):
     """
     DOM Geometry data
     """
-    def __init__(self, name, string, pos, kind, comp):
+    def __init__(self, name, string, pos):
         self.name = name
         self.string = string
         self.pos = pos
-        self.kind = kind
-        self.comp = comp
+
+        if(re.search(r'AMANDA_', name)): self.kind = "amanda"
+        elif(pos > 60):                  self.kind = "icetop"
+        else:                            self.kind = "in-ice"
 
 class DefaultDOMGeometry(object):
 
@@ -118,25 +120,19 @@ class DefaultDOMGeometry(object):
                 name        = nameTag[0].childNodes[0].data
                 positionTag = dom.getElementsByTagName("position")
                 position    = int(positionTag[0].childNodes[0].data)
-                kind        = "in-ice"
-                if(position > 60): kind = "icetop"
-                if(re.search(r'AMANDA_', name)): kind = "amanda"
-                comp        = \
-                    self.lookUpHubIDbyStringAndPosition(stringNum, position)
-                # print "%20s %25s %2d %2d %s %s" % \
-                # (domID, name, stringNum, position, kind, str(comp))
+                # print "%20s %25s %2d %2d %s" % \
+                # (domID, name, stringNum, position, kind)
 
-                self.domDict[domID] = \
-                    DOMData(name, stringNum, position, kind, comp)
+                self.domDict[domID] = DOMData(name, stringNum, position)
 
         # clean up DOM
         deployedDOMsParsed.unlink()
 
-    def getComponent(self, domID):
+    def getHubID(self, domID):
         """
-        Get the component name associated with the DOM mainboard ID
+        Get the stringhub id associated with the DOM mainboard ID
         """
-        return self.domDict[domID].comp
+        return self.domDict[domID].string
 
     def getKind(self, domID):
         """
@@ -166,26 +162,6 @@ class DefaultDOMGeometry(object):
                     pos == self.domDict[d].pos:
                 return str(d)
         raise DOMNotInConfigException()
-
-    def lookUpHubIDbyStringAndPosition(stringNum, position):
-        # This is a somewhat kludgy approach but we let the L2 make the call
-        # and file a mantis issue to clean this up later...
-        # ithub01: 46, 55, 56, 65, 72, 73, 77, 78
-        # ithub02: 38, 39, 48, 58, 64, 66, 71, 74
-        # ithub03: 30, 40, 47, 49, 50, 57, 59, 67
-        # ithub04: 21, 29
-        if position <= 60: return stringNum
-        if stringNum in [46, 55, 56, 65, 72, 73, 77, 78]: return 81
-        if stringNum in [38, 39, 48, 58, 64, 66, 71, 74]: return 82
-        if stringNum in [30, 40, 47, 49, 50, 57, 59, 67]: return 83
-        if stringNum in [21, 29]: return 84
-        if stringNum in [62, 54, 63, 45, 75, 76, 69, 70]: return 85
-        if stringNum in [60, 68, 61, 44, 52, 53]: return 86
-
-        if stringNum == 0: return 0
-        return stringNum
-    lookUpHubIDbyStringAndPosition = \
-        staticmethod(lookUpHubIDbyStringAndPosition)
 
 class DAQConfig(object):
 
@@ -249,7 +225,7 @@ class DAQConfig(object):
             kindInConfigDict  = {}
 
             for domID in self.domlist:
-                hubID  = DAQConfig.DeployedDOMs.getComponent(domID)
+                hubID  = DAQConfig.DeployedDOMs.getHubID(domID)
                 kind   = DAQConfig.DeployedDOMs.getKind(domID)
                 # print "Got DOM %s hub %s kind %s" % (domID, hubID, kind)
                 hubIDInConfigDict[hubID] = True
