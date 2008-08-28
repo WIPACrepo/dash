@@ -8,7 +8,7 @@ import DAQRunIface
 from exc_string import *
 try:
     from live.control.component import Component
-    from live.control.Queue import Prio
+    from live.transport.Queue import Prio
 except ImportError:
     print >>sys.stderr, ('ERROR: Cannot import IceCube Live code ...' +
                          ' DAQLive aborting')
