@@ -8,7 +8,7 @@ import DAQRunIface
 from exc_string import *
 try:
     from live.control.component import Component
-    from live.control.log import ITS_PRIO, EMAIL_PRIO, TDRSS_PRIO, DEBUG_PRIO
+    from live.control.Queue import Prio
 except ImportError:
     print >>sys.stderr, ('ERROR: Cannot import IceCube Live code ...' +
                          ' DAQLive aborting')
@@ -159,7 +159,7 @@ class DAQLive(Component):
         if self.moniClient:
             moniData = self.runIface.monitorRun()
             for k in moniData.keys():
-                self.moniClient.sendMoni(k, moniData[k], TDRSS_PRIO)
+                self.moniClient.sendMoni(k, moniData[k], Prio.SCP)
 
     def runChange(self):
         "Stop current pDAQ run and start a new run"
