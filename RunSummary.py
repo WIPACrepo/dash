@@ -501,7 +501,9 @@ def createTopHTML(runDir, liveTime24hr=None, liveTime7days=None, refresh=15):
         <p>You will be redirected in %d seconds.</p><p>Please update your bookmarks!</p></strong>    
         <br>""" % refresh
     else:
+        refreshHTML = ""
         title = "IceCube DAQ Run Summaries"
+        refreshNotice = ""
     if liveTime24hr != None and liveTime7days != None:
         lt = """
 <table>
