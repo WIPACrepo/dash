@@ -24,6 +24,11 @@ class MockComponent:
         self.monitorState = '???'
         self.cmdOrder = None
 
+    def __str__(self):
+        if self.num == 0:
+            return self.name
+        return '%s#%d' % (self.name, self.num)
+
     def addInput(self, type):
         self.connectors.append(MockConnection(type, True))
 

@@ -8,28 +8,31 @@ class MockXMLRPC:
     def __init__(self):
         pass
 
-    def configure(self, id, name=None):
+    def configure(self, name=None):
         pass
 
-    def connect(self, id, name=None):
+    def connect(self, name=None):
         return 'OK'
 
-    def getState(self, id):
+    def getState(self):
         pass
 
-    def logTo(self, id, logIP, port):
+    def getVersionInfo(self):
+        return ''
+
+    def logTo(self, logIP, port):
         pass
 
-    def reset(self, id):
+    def reset(self):
         pass
 
-    def resetLogging(self, id):
+    def resetLogging(self):
         pass
 
-    def startRun(self, id, runNum):
+    def startRun(self, runNum):
         pass
 
-    def stopRun(self, id):
+    def stopRun(self):
         pass
 
 class MockRPCClient:

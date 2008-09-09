@@ -106,10 +106,10 @@ class MockXMLRPC:
 
         self.outLinks = outLinks
 
-    def configure(self, id, name=None):
+    def configure(self, name=None):
         pass
 
-    def connect(self, id, list=None):
+    def connect(self, list=None):
         if not list:
             return 'OK'
 
@@ -163,19 +163,19 @@ class MockXMLRPC:
 
         return 'OK'
 
-    def getState(self, id):
+    def getState(self):
         pass
 
-    def logTo(self, id, logIP, port, level):
+    def logTo(self, logIP, port, level):
         pass
 
-    def reset(self, id):
+    def reset(self):
         pass
 
-    def startRun(self, id, runNum):
+    def startRun(self, runNum):
         pass
 
-    def stopRun(self, id):
+    def stopRun(self):
         pass
 
 class MockRPCClient:
