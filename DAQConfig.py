@@ -104,8 +104,8 @@ class DefaultDOMGeometry(object):
 
         deployedStrings = deployedDOMsParsed.getElementsByTagName("string")
         if len(deployedStrings) < 1:
-            raise noDeployedStringsListFound("No string list in %s!" %
-                                             DefaultDOMGeomety.DEPLOYEDDOMS)
+            raise noDeployedDOMsListFound("No string list in %s!" %
+                                          DefaultDOMGeomety.DEPLOYEDDOMS)
 
         self.domDict  = {}
 
@@ -149,7 +149,7 @@ class DefaultDOMGeometry(object):
         for d in domlist:
             if self.domDict.has_key(d) and self.domDict[d].name == name:
                 return str(d) # Convert from unicode to ASCII
-        raise DOMNotInConfigException()
+        raise DOMNotInConfigException("Cannot find DOM named \"%s\"" % name)
 
     def getIDbyStringPos(self, domlist, string, pos):
         """
@@ -161,7 +161,8 @@ class DefaultDOMGeometry(object):
                     string == self.domDict[d].string and \
                     pos == self.domDict[d].pos:
                 return str(d)
-        raise DOMNotInConfigException()
+        raise DOMNotInConfigException("Cannot find string %d pos %d" %
+                                      (string, pos))
 
 class DAQConfig(object):
 
