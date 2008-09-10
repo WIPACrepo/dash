@@ -14,7 +14,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3070 2008-05-27 20:28:32Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3494 2008-09-10 18:27:08Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -390,7 +390,7 @@ class RunSet:
 
         # start back to front
         #
-        self.set.sort(lambda x, y: self.sortCmp(x, y))
+        self.set.sort(self.sortCmp)
 
         self.state = 'starting'
 
@@ -426,7 +426,8 @@ class RunSet:
         # stop from front to back
         #
         #self.set.sort(lambda x, y: x.cmdOrder-y.cmdOrder)
-        self.set.sort(self.sortCmp)
+        #self.set.sort(self.sortCmp)
+        self.set.sort(lambda x, y: self.sortCmp(y, x))
 
         waitList = self.set[:]
 
