@@ -14,8 +14,9 @@ from os import environ, mkdir, system
 from os.path import abspath, isabs, join, basename
 
 from GetIP import getIP
+from DAQRPC import RPCClient
 
-SVN_ID = "$Id: DAQLaunch.py 3488 2008-09-10 02:12:35Z jacobsen $"
+SVN_ID = "$Id: DAQLaunch.py 3502 2008-09-10 23:11:57Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -68,7 +69,7 @@ componentDB = { "eventBuilder"      : \
                     },
                 "StringHub"         : \
                     { "ejar"     : "StringHub-1.0.0-SNAPSHOT-comp.jar",
-                      "jvm_args" : "-server -Xms640m -Xmx640m -Dicecube.daq.bindery.StreamBinder.prescale=1",
+                      "jvm_args" : "-Xmx350m -Dicecube.daq.bindery.StreamBinder.prescale=1",
                     },
                 "replayHub"        : \
                     { "ejar"     : "StringHub-1.0.0-SNAPSHOT-replay.jar",
@@ -260,6 +261,15 @@ def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, copyDir, logP
     doLaunch(False, False, False, clusterConfig, dashDir,
              configDir, logDir, spadeDir, copyDir, logPort, cncPort)
 
+def getNumberOfRuns():
+    "Get the number of active runs from CnCServer"
+    # connect to CnCServer
+    cncrpc = RPCClient('localhost', 8080)
+    try:
+        return int(cncrpc.rpc_num_sets())
+    except:
+        return -1
+
 def main():
     ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % get_version_info(SVN_ID)
     usage = "%prog [options]\nversion: " + ver_info
@@ -270,6 +280,8 @@ def main():
                  help="Cluster configuration name, subset of deployed configuration.")
     p.add_option("-e", "--event-check",  action="store_true", dest="eventCheck",
                  help="Event builder will validate events")
+    p.add_option("-f", "--force",        action="store_true", dest="force",
+                 help="kill components even if there is an active run")
     p.add_option("-k", "--kill-only",    action="store_true", dest="killOnly",
                  help="Kill pDAQ components, don't restart")
     p.add_option("-l", "--list-configs", action="store_true", dest="doList",
@@ -295,7 +307,8 @@ def main():
                    skipKill          = False,
                    killWith9         = False,
                    killOnly          = False,
-                   eventCheck        = False)
+                   eventCheck        = False,
+                   force             = False)
     opt, args = p.parse_args()
 
     configDir = join(metaDir, 'config')
@@ -332,7 +345,19 @@ def main():
                 if not exists(logDir): mkdir(logDir)
     else:
         system('rm -f %s' % join(logDir, 'catchall.log'))
-    
+
+    if not opt.force:
+        numRuns = getNumberOfRuns()
+        if numRuns > 0:
+            if numRuns == 1:
+                plural = ''
+            else:
+                plural = 's'
+            print >>sys.stderr, 'Found %d active run%s' % (numRuns, plural)
+            print >>sys.stderr, \
+                'To force a restart, rerun with the --force option'
+            raise SystemExit
+
     if opt.verbose:
         print "Version: %(filename)s %(revision)s %(date)s %(time)s " \
               "%(author)s %(release)s %(repo_rev)s" % get_version_info(SVN_ID)
