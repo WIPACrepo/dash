@@ -2,15 +2,18 @@
 
 import unittest
 import DAQConfig
-from os import environ
+import os
 
-if environ.has_key("PDAQ_HOME"):
-    metaDir = environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
-                    
 class DAQConfigTest(unittest.TestCase):
+    def initPDAQHome(self):
+        curDir = os.getcwd()
+        tstRsrc = os.path.join(curDir, 'src', 'test', 'resources')
+        if not os.path.exists(os.path.join(tstRsrc, 'config')):
+            self.fail('No "config" directory in resource directory ' +
+                      tstRsrs)
+        os.environ["PDAQ_HOME"] = tstRsrc
+        return tstRsrc
+
     def lookup(self, cfg, dataList):
         for data in dataList:
             self.assert_(cfg.hasDOM(data[0]), "Didn't find mbid " + data[0])
@@ -34,6 +37,7 @@ class DAQConfigTest(unittest.TestCase):
                              (data[2], data[3], data[0], dom))
 
     def testListsSim5(self):
+        metaDir = self.initPDAQHome()
         cfg = DAQConfig.DAQConfig("sim5str", metaDir + "/config")
 
         kinds = cfg.kinds()
@@ -66,14 +70,34 @@ class DAQConfigTest(unittest.TestCase):
                 pass # expect this to fail
 
     def testLookupSim5(self):
+        metaDir = self.initPDAQHome()
         cfg = DAQConfig.DAQConfig("sim5str", metaDir + "/config")
 
         dataList = (('53494d550101', 'Nicholson_Baker', 1001, 1),
-                    ('53494d550564', 'SIM0320', 1005, 64))
+                    ('53494d550120', 'SIM0020', 1001, 20),
+                    ('53494d550140', 'SIM0040', 1001, 40),
+                    ('53494d550160', 'SIM0060', 1001, 60),
+                    ('53494d550201', 'SIM0065', 1002, 1),
+                    ('53494d550220', 'SIM0084', 1002, 20),
+                    ('53494d550240', 'SIM0104', 1002, 40),
+                    ('53494d550260', 'SIM0124', 1002, 60),
+                    ('53494d550301', 'SIM0129', 1003, 1),
+                    ('53494d550320', 'SIM0148', 1003, 20),
+                    ('53494d550340', 'SIM0168', 1003, 40),
+                    ('53494d550360', 'SIM0188', 1003, 60),
+                    ('53494d550401', 'SIM0193', 1004, 1),
+                    ('53494d550420', 'SIM0212', 1004, 20),
+                    ('53494d550440', 'SIM0232', 1004, 40),
+                    ('53494d550460', 'SIM0252', 1004, 60),
+                    ('53494d550501', 'SIM0257', 1005, 1),
+                    ('53494d550520', 'SIM0276', 1005, 20),
+                    ('53494d550540', 'SIM0296', 1005, 40),
+                    ('53494d550560', 'SIM0316', 1005, 60))
 
         self.lookup(cfg, dataList)
 
     def testListsSpsIC40IT6(self):
+        metaDir = self.initPDAQHome()
         cfg = DAQConfig.DAQConfig("sps-IC40-IT6-AM-Revert-IceTop-V029",
                                   metaDir + "/config")
 
@@ -108,18 +132,21 @@ class DAQConfigTest(unittest.TestCase):
                 self.fail('Expected component "%s" was not returned' % exp)
 
     def testLookupSpsIC40IT6(self):
+        metaDir = self.initPDAQHome()
         cfg = DAQConfig.DAQConfig("sps-IC40-IT6-AM-Revert-IceTop-V029",
                                   metaDir + "/config")
 
         dataList = (('737d355af587', 'Bat', 21, 1),
                     ('499ccc773077', 'Werewolf', 66, 6),
-                    ('3681e9662126', 'Dead_Stop', 78, 64),
+                    ('efc9607742b9', 'Big_Two_Card', 78, 60),
                     ('1e5b72775d19', 'AMANDA_SYNC_DOM', 0, 91),
-                    ('1d165fc478ca', 'AMANDA_TRIG_DOM', 0, 92))
+                    ('1d165fc478ca', 'AMANDA_TRIG_DOM', 0, 92),
+                    )
 
         self.lookup(cfg, dataList)
 
     def testReplay(self):
+        metaDir = self.initPDAQHome()
         cfg = DAQConfig.DAQConfig("replay-ic22-it4", metaDir + "/config")
 
         kinds = cfg.kinds()
