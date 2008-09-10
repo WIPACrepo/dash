@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<runConfig>
+    <hubFiles baseDir="/home/dglo">
+      <!-- <hub id="0" hitFile="HIT-stringHub#0" /> -->
+      <hub id="21" hitFile="HIT-stringHub#21" />
+      <hub id="29" hitFile="HIT-stringHub#29" />
+      <hub id="30" hitFile="HIT-stringHub#30" />
+      <hub id="38" hitFile="HIT-stringHub#38" />
+      <hub id="39" hitFile="HIT-stringHub#39" />
+      <hub id="40" hitFile="HIT-stringHub#40" />
+      <hub id="46" hitFile="HIT-stringHub#46" />
+      <hub id="47" hitFile="HIT-stringHub#47" />
+      <hub id="48" hitFile="HIT-stringHub#48" />
+      <hub id="49" hitFile="HIT-stringHub#49" />
+      <hub id="50" hitFile="HIT-stringHub#50" />
+      <hub id="56" hitFile="HIT-stringHub#56" />
+      <hub id="57" hitFile="HIT-stringHub#57" />
+      <hub id="58" hitFile="HIT-stringHub#58" />
+      <hub id="59" hitFile="HIT-stringHub#59" />
+      <hub id="65" hitFile="HIT-stringHub#65" />
+      <hub id="66" hitFile="HIT-stringHub#66" />
+      <hub id="67" hitFile="HIT-stringHub#67" />
+      <hub id="72" hitFile="HIT-stringHub#72" />
+      <hub id="73" hitFile="HIT-stringHub#73" />
+      <hub id="74" hitFile="HIT-stringHub#74" />
+      <hub id="78" hitFile="HIT-stringHub#78" />
+      <hub id="81" hitFile="HIT-stringHub#81" />
+      <hub id="82" hitFile="HIT-stringHub#82" />
+      <hub id="83" hitFile="HIT-stringHub#83" />
+      <hub id="84" hitFile="HIT-stringHub#84" />
+    </hubFiles>
+    <triggerConfig>sps-icecube-amanda-008</triggerConfig>
+    <runComponent name="inIceTrigger"/>
+    <runComponent name="iceTopTrigger"/>
+    <runComponent name="globalTrigger"/>
+    <runComponent name="eventBuilder"/>
+    <!-- <runComponent name="secondaryBuilders"/> -->
+</runConfig>
