@@ -8,9 +8,11 @@ class DAQConfigTest(unittest.TestCase):
     def initPDAQHome(self):
         curDir = os.getcwd()
         tstRsrc = os.path.join(curDir, 'src', 'test', 'resources')
+        if not os.path.exists(tstRsrc):
+            self.fail('Cannot find test resources')
         if not os.path.exists(os.path.join(tstRsrc, 'config')):
             self.fail('No "config" directory in resource directory ' +
-                      tstRsrs)
+                      tstRsrc)
         os.environ["PDAQ_HOME"] = tstRsrc
         return tstRsrc
 
