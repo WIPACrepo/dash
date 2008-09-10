@@ -1,0 +1,68 @@
+<project
+    xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <parent>
+    <artifactId>pDAQ</artifactId>
+    <groupId>edu.wisc.icecube</groupId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+
+  <modelVersion>4.0.0</modelVersion>
+  <artifactId>dash</artifactId>
+  <packaging>pom</packaging>
+  <name>dash</name>
+  <description>The dash sub-system of the Surface Data Acquisition system for the IceCube Project.</description>
+
+  <scm>
+    <connection>scm:svn:http://code.icecube.wisc.edu/daq/projects/${project.name}/trunk</connection>
+    <developerConnection>scm:svn:http://code.icecube.wisc.edu/daq/projects/${project.name}/trunk</developerConnection>
+    <tag>HEAD</tag>
+    <url>http://code.icecube.wisc.edu/daq/projects/${project.name}</url>
+  </scm>
+
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-clean-plugin</artifactId>
+        <configuration>
+          <filesets>
+            <fileset>
+              <directory>.</directory>
+              <includes>
+                <include>*.pyc</include>
+              </includes>
+            </fileset>
+          </filesets>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>edu.wisc.icecube</groupId>
+        <artifactId>pytest-plugin</artifactId>
+        <configuration>
+          <sourceDirectory>.</sourceDirectory>
+          <testDirectory>.</testDirectory>
+<!--
+          <includes>
+            <include>**/*Test.py</include>
+          </includes>
+          <excludes>
+            <exclude>**/fooTest.py</exclude>
+          </excludes>
+-->
+        </configuration>
+        <executions>
+          <execution>
+            <phase>test</phase>
+            <goals>
+              <goal>
+                pytest
+              </goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
