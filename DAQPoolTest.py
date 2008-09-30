@@ -71,13 +71,13 @@ class MockComponent:
 
     def startRun(self, runNum):
         if not self.configured:
-            raise Error, name + ' has not been configured'
+            raise Exception, self.name + ' has not been configured'
 
         self.runNum = runNum
 
     def stopRun(self):
         if self.runNum is None:
-            raise Error, name + ' is not running'
+            raise Exception, self.name + ' is not running'
 
         self.runNum = None
 
@@ -88,12 +88,18 @@ class TestDAQPool(unittest.TestCase):
         runset = mgr.findRunset(1)
         self.failIf(runset is not None, 'Found set in empty manager')
 
-        comp = mgr.remove(MockComponent('foo', 0))
+        mgr.remove(MockComponent('foo', 0))
 
     def testAddRemove(self):
         mgr = DAQPool()
 
-        compList = [MockComponent('foo', 0), MockComponent('bar', 0)]
+        compList = []
+
+        comp = MockComponent('foo', 0)
+        compList.append(comp)
+
+        comp = MockComponent('bar', 0)
+        compList.append(comp)
 
         self.assertEqual(len(mgr.pool), 0)
 
@@ -110,7 +116,15 @@ class TestDAQPool(unittest.TestCase):
     def testBuildReturnSet(self):
         mgr = DAQPool()
 
-        compList = [MockComponent('foo', 0, True), MockComponent('bar', 0)]
+        compList = []
+
+        comp = MockComponent('foo', 0, True)
+        comp.addOutput('aaa')
+        compList.append(comp)
+
+        comp = MockComponent('bar', 0)
+        comp.addInput('aaa')
+        compList.append(comp)
 
         self.assertEqual(len(mgr.pool), 0)
 
@@ -137,17 +151,19 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
-    def testBuildMissingOutput(self):
+    def testBuildMissingOneOutput(self):
         mgr = DAQPool()
 
-        fooComp = MockComponent('foo', 0, True)
-        fooComp.addInput('bar->foo')
-        fooComp.addOutput('foo->bar')
+        compList = []
 
-        barComp = MockComponent('bar', 0)
-        barComp.addInput('foo->bar')
+        comp = MockComponent('foo', 0, True)
+        comp.addOutput('aaa')
+        comp.addInput('xxx')
+        compList.append(comp)
 
-        compList = [fooComp, barComp]
+        comp = MockComponent('bar', 0)
+        comp.addInput('aaa')
+        compList.append(comp)
 
         self.assertEqual(len(mgr.pool), 0)
 
@@ -167,17 +183,18 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
-    def testBuildMissingInput(self):
+    def testBuildMissingMultiOutput(self):
         mgr = DAQPool()
 
-        fooComp = MockComponent('foo', 0, True)
-        fooComp.addOutput('foo->bar')
+        compList = []
 
-        barComp = MockComponent('bar', 0)
-        barComp.addInput('foo->bar')
-        fooComp.addOutput('bar->foo')
+        comp = MockComponent('foo', 0, True)
+        comp.addInput('xxx')
+        compList.append(comp)
 
-        compList = [fooComp, barComp]
+        comp = MockComponent('bar', 0)
+        comp.addInput('xxx')
+        compList.append(comp)
 
         self.assertEqual(len(mgr.pool), 0)
 
@@ -189,6 +206,222 @@ class TestDAQPool(unittest.TestCase):
         self.assertEqual(len(mgr.pool), len(compList))
 
         self.assertRaises(ValueError, mgr.makeRunset, nameList)
+
+        self.assertEqual(len(mgr.pool), len(compList))
+
+        for c in compList:
+            mgr.remove(c)
+
+        self.assertEqual(len(mgr.pool), 0)
+
+    def testBuildMatchPlusMissingMultiOutput(self):
+        mgr = DAQPool()
+
+        compList = []
+
+        comp = MockComponent('foo', 0, True)
+        comp.addInput('xxx')
+        comp.addInput('yyy')
+        comp.addOutput('aaa')
+        compList.append(comp)
+
+        comp = MockComponent('bar', 0)
+        comp.addInput('aaa')
+        compList.append(comp)
+
+        self.assertEqual(len(mgr.pool), 0)
+
+        nameList = []
+        for c in compList:
+            mgr.add(c)
+            nameList.append(c.name)
+
+        self.assertEqual(len(mgr.pool), len(compList))
+
+        self.assertRaises(ValueError, mgr.makeRunset, nameList)
+
+        self.assertEqual(len(mgr.pool), len(compList))
+
+        for c in compList:
+            mgr.remove(c)
+
+        self.assertEqual(len(mgr.pool), 0)
+
+    def testBuildMissingOneInput(self):
+        mgr = DAQPool()
+
+        compList = []
+
+        comp = MockComponent('foo', 0, True)
+        comp.addOutput('aaa')
+        compList.append(comp)
+
+        comp = MockComponent('bar', 0)
+        comp.addInput('aaa')
+        comp.addOutput('xxx')
+        compList.append(comp)
+
+        self.assertEqual(len(mgr.pool), 0)
+
+        nameList = []
+        for c in compList:
+            mgr.add(c)
+            nameList.append(c.name)
+
+        self.assertEqual(len(mgr.pool), len(compList))
+
+        self.assertRaises(ValueError, mgr.makeRunset, nameList)
+
+        self.assertEqual(len(mgr.pool), len(compList))
+
+        for c in compList:
+            mgr.remove(c)
+
+        self.assertEqual(len(mgr.pool), 0)
+
+    def testBuildMatchPlusMissingMultiInput(self):
+        mgr = DAQPool()
+
+        compList = []
+
+        comp = MockComponent('foo', 0, True)
+        compList.append(comp)
+
+        comp = MockComponent('bar', 0)
+        comp.addOutput('xxx')
+        comp.addOutput('yyy')
+        compList.append(comp)
+
+        self.assertEqual(len(mgr.pool), 0)
+
+        nameList = []
+        for c in compList:
+            mgr.add(c)
+            nameList.append(c.name)
+
+        self.assertEqual(len(mgr.pool), len(compList))
+
+        self.assertRaises(ValueError, mgr.makeRunset, nameList)
+
+        self.assertEqual(len(mgr.pool), len(compList))
+
+        for c in compList:
+            mgr.remove(c)
+
+        self.assertEqual(len(mgr.pool), 0)
+
+    def testBuildMatchPlusMissingMultiInput(self):
+        mgr = DAQPool()
+
+        compList = []
+
+        comp = MockComponent('foo', 0, True)
+        comp.addOutput('aaa')
+        comp.addOutput('xxx')
+        compList.append(comp)
+
+        comp = MockComponent('bar', 0)
+        comp.addInput('aaa')
+        comp.addOutput('xxx')
+        compList.append(comp)
+
+        self.assertEqual(len(mgr.pool), 0)
+
+        nameList = []
+        for c in compList:
+            mgr.add(c)
+            nameList.append(c.name)
+
+        self.assertEqual(len(mgr.pool), len(compList))
+
+        self.assertRaises(ValueError, mgr.makeRunset, nameList)
+
+        self.assertEqual(len(mgr.pool), len(compList))
+
+        for c in compList:
+            mgr.remove(c)
+
+        self.assertEqual(len(mgr.pool), 0)
+
+    def testBuildMultiMissing(self):
+        mgr = DAQPool()
+
+        compList = []
+
+        comp = MockComponent('foo', 0, True)
+        comp.addInput('xxx')
+        compList.append(comp)
+
+        comp = MockComponent('bar', 0)
+        comp.addOutput('xxx')
+        compList.append(comp)
+
+        comp = MockComponent('fee', 0, True)
+        comp.addInput('xxx')
+        compList.append(comp)
+
+        comp = MockComponent('baz', 0)
+        comp.addOutput('xxx')
+        compList.append(comp)
+
+        self.assertEqual(len(mgr.pool), 0)
+
+        nameList = []
+        for c in compList:
+            mgr.add(c)
+            nameList.append(c.name)
+
+        self.assertEqual(len(mgr.pool), len(compList))
+
+        try:
+            mgr.makeRunset(nameList)
+            self.fail('Unexpected success')
+        except ValueError:
+            pass
+        except:
+            self.fail('Unexpected exception')
+
+        self.assertEqual(len(mgr.pool), len(compList))
+
+        for c in compList:
+            mgr.remove(c)
+
+        self.assertEqual(len(mgr.pool), 0)
+
+    def testBuildMultiInput(self):
+        mgr = DAQPool()
+
+        compList = []
+
+        comp = MockComponent('foo', 0, True)
+        comp.addOutput('conn')
+        compList.append(comp)
+
+        comp = MockComponent('bar', 0)
+        comp.addInput('conn')
+        compList.append(comp)
+
+        comp = MockComponent('baz', 0)
+        comp.addInput('conn')
+        compList.append(comp)
+
+        self.assertEqual(len(mgr.pool), 0)
+
+        nameList = []
+        for c in compList:
+            mgr.add(c)
+            nameList.append(c.name)
+
+        self.assertEqual(len(mgr.pool), len(compList))
+
+        runset = mgr.makeRunset(nameList)
+
+        self.assertEqual(len(mgr.pool), 0)
+
+        found = mgr.findRunset(runset.id)
+        self.failIf(found is None, "Couldn't find runset #" + str(runset.id))
+
+        mgr.returnRunset(runset)
 
         self.assertEqual(len(mgr.pool), len(compList))
 
