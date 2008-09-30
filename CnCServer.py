@@ -14,7 +14,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3528 2008-09-30 22:40:19Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3529 2008-09-30 22:42:44Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -641,13 +641,14 @@ class CnCLogger(object):
     def openLog(self, host, port):
         "initialize socket logger"
         self.socketlog = self.createLogger(host, port)
+
+        if self.prevIP is None and self.prevPort is None:
+            self.prevIP = self.logIP
+            self.prevPort = self.logPort
+
         self.logIP = host
         self.logPort = port
         self.logmsg('Start of log at ' + host + ':' + str(port))
-
-        if self.prevIP is None and self.prevPort is None:
-            self.prevIP = host
-            self.prevPort = port
 
     def resetLog(self):
         "close current log and reset to initial state"
@@ -664,6 +665,9 @@ class CnCLogger(object):
             self.socketlog = None
             self.logIP = None
             self.logPort = None
+
+        self.prevIP = None
+        self.prevPort = None
 
 class DAQClient(CnCLogger):
     """DAQ component
