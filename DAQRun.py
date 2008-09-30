@@ -33,7 +33,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 3513 2008-09-30 21:59:20Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3523 2008-09-30 22:27:46Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -94,6 +94,11 @@ class RunArgs(object):
                      dest="port",
                      help="Listening port for Exp. Control RPC commands")
 
+        p.add_option("-q", "--quiet",
+                     action="store_true",
+                     dest="quiet",
+                     help="Do not write log messages to console")
+
         p.add_option("-r", "--relaunch",
                      action="store_true",
                      dest="doRelaunch",
@@ -117,6 +122,7 @@ class RunArgs(object):
         p.set_defaults(kill              = False,
                        clusterConfigName = None,
                        nodaemon          = False,
+                       quiet             = False,
                        forceConfig       = False,
                        doRelaunch        = False,
                        configDir         = "/usr/local/icecube/config",
@@ -194,6 +200,7 @@ class RunArgs(object):
         self.copyDir = opt.copyDir
         self.forceConfig = opt.forceConfig
         self.doRelaunch = opt.doRelaunch
+        self.quiet = opt.quiet
 
 class RunStats:
     def __init__(self, runNum=None, startTime=None, stopTime=None, physicsEvents=None,
@@ -299,7 +306,7 @@ class DAQRun(Rebootable.Rebootable):
     WATCH_PERIOD   = 10
     COMP_TOUT      = 60
 
-    def __init__(self, runArgs):
+    def __init__(self, runArgs, startServer=True):
 
         # Can change reboot thread delay here if desired:
         Rebootable.Rebootable.__init__(self)
@@ -342,9 +349,11 @@ class DAQRun(Rebootable.Rebootable):
         self.restartOnError   = runArgs.doRelaunch
         self.prevRunStats     = None
         self.runStats         = RunStats()
+        self.quiet            = runArgs.quiet
 
         # After initialization, start run thread to handle state changes
-        self.runThread = thread.start_new_thread(self.run_thread, ())
+        if startServer:
+            self.runThread = thread.start_new_thread(self.run_thread, ())
 
     def setPort(self, portnum):
         self.server = RPCServer(portnum, "localhost",
@@ -365,7 +374,8 @@ class DAQRun(Rebootable.Rebootable):
 
     def logmsg(self, m):
         "Log message to logger, but only if logger exists"
-        print m
+        if not self.quiet:
+            print m
         if self.log:
             self.log.dashLog(m)
         elif self.catchAllLogger:
@@ -408,8 +418,8 @@ class DAQRun(Rebootable.Rebootable):
 
     def parseComponentName(componentString):
         "Find component name in string returned by CnCServer"
-        match = search(r'ID#(\d+) (\S+?)#(\d+) at (\S+?):(\d+) ', componentString)
-        if not match: return ''
+        match = search(r'ID#(\d+) (\S+?)#(\d+) at (\S+?):(\d+)', componentString)
+        if not match: return ()
         setCompID = int(match.group(1))
         shortName = match.group(2)
         daqID     = int(match.group(3))
@@ -422,7 +432,8 @@ class DAQRun(Rebootable.Rebootable):
         "Build list of parsed names from CnCServer"
         for x in l:
             parsed = DAQRun.parseComponentName(x)
-            yield "%s#%d" % (parsed[1], parsed[2])
+            if len(parsed) > 0:
+                yield "%s#%d" % (parsed[1], parsed[2])
     getNameList = staticmethod(getNameList)
 
     def isInList(x, l):
@@ -466,8 +477,9 @@ class DAQRun(Rebootable.Rebootable):
 
     def configureCnCLogging(self, cncrpc, ip, port, logpath):
         "Tell CnCServer where to log to"
-        self.CnCLogReceiver = SocketLogger(port, "CnCServer", logpath + "/cncserver.log")
-        self.CnCLogReceiver.startServing()
+        self.CnCLogReceiver = \
+            self.createSocketLogger(port, "CnCServer",
+                                    logpath + "/cncserver.log")
         cncrpc.rpccall("rpc_log_to", ip, port)
         self.logmsg("Created logger for CnCServer")
 
@@ -492,12 +504,14 @@ class DAQRun(Rebootable.Rebootable):
             self.logmsg("Component list will require %s" % comp)
         return requiredComps
 
-    def setUpOneComponentLogger(logPath, shortName, daqID, logPort):
-        logFile  = "%s/%s-%d.log" % (logPath, shortName, daqID)
+    def createSocketLogger(cls, logPort, shortName, logFile):
         clr = SocketLogger(logPort, shortName, logFile)
         clr.startServing()
         return clr
-    setUpOneComponentLogger = staticmethod(setUpOneComponentLogger)
+    createSocketLogger = classmethod(createSocketLogger)
+
+    def createLogCollector(self, runNum, logDir):
+        return logCollector(runNum, logDir)
 
     def setUpAllComponentLoggers(self):
         "Sets up loggers for remote components (other than CnCServer)"
@@ -505,15 +519,16 @@ class DAQRun(Rebootable.Rebootable):
         for ic in range(0, len(self.setCompIDs)):
             compID = self.setCompIDs[ic]
             self.logPortOf[compID] = 9002 + ic
-            self.loggerOf[compID]  = \
-                                  DAQRun.setUpOneComponentLogger(self.log.logPath,
-                                                                 self.shortNameOf[compID],
-                                                                 self.daqIDof[compID],
-                                                                 self.logPortOf[compID])
-            self.logmsg("%s(%d %s:%d) -> %s:%d" % (self.shortNameOf[compID], compID,
-                                                   self.rpcAddrOf[compID],
-                                                   self.rpcPortOf[compID],
-                                                   self.ip, self.logPortOf[compID]))
+            logFile  = "%s/%s-%d.log" % \
+                (self.log.logPath, self.shortNameOf[compID],
+                 self.daqIDof[compID])
+            self.loggerOf[compID]  =\
+                self.createSocketLogger(self.logPortOf[compID],
+                                        self.shortNameOf[compID], logFile)
+            self.logmsg("%s(%d %s:%d) -> %s:%d" %
+                        (self.shortNameOf[compID], compID,
+                         self.rpcAddrOf[compID], self.rpcPortOf[compID],
+                         self.ip, self.logPortOf[compID]))
 
     def stopAllComponentLoggers(self):
         "Stops loggers for remote components"
@@ -525,7 +540,7 @@ class DAQRun(Rebootable.Rebootable):
                     self.loggerOf[compID] = None
 
     def createRunsetLoggerNameList(self):
-        "Create a list of arguments in the form of (shortname, daqID, logport, logLevel)"
+        "Create a list of arguments in the form of (shortname, daqID, logport)"
         for r in self.setCompIDs:
             yield [self.shortNameOf[r], self.daqIDof[r], self.logPortOf[r]]
 
@@ -536,7 +551,7 @@ class DAQRun(Rebootable.Rebootable):
     def setup_run_logging(self, cncrpc, logDir, runNum, configName):
         # Log file is already defined since STARTING state does not get invoked otherwise
         # Set up logger for CnCServer and required components
-        self.log = logCollector(runNum, logDir)
+        self.log = self.createLogCollector(runNum, logDir)
         self.logmsg("Version Info: %(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % self.versionInfo)
         self.logmsg("Starting run %d..." % runNum)
         self.logmsg("Run configuration: %s" % configName)
@@ -554,6 +569,23 @@ class DAQRun(Rebootable.Rebootable):
                 newFile = join(file, f)
                 self.recursivelyAddToTar(tar, absDir, newFile)
 
+    def get_base_prefix(self, runNum, runTime, runDuration):
+        return "SPS-pDAQ-run-%03d_%04d%02d%02d_%02d%02d%02d_%06d" % \
+            (runNum, runTime.year, runTime.month, runTime.day, runTime.hour,
+             runTime.minute, runTime.second, runDuration)
+
+    def move_spade_files(self, copyDir, logTopLevel, runDir, tarBall, semFile):
+        move("%s/catchall.log" % logTopLevel, "%s/%s" % (logTopLevel, runDir))
+        tarObj = TarFile(tarBall, "w")
+        tarObj.add("%s/%s" % (logTopLevel, runDir), runDir, True)
+        # self.recursivelyAddToTar(tarObj, logTopLevel, runDir)
+        tarObj.close()
+        if copyDir:
+            self.logmsg("Link or copy %s->%s" % (tarBall, copyFile))
+            linkOrCopy(tarBall, copyFile)
+        fd = open(semFile, "w")
+        fd.close()
+
     def queue_for_spade(self, spadeDir, copyDir, logTopLevel, runNum, runTime, runDuration):
         """
         Put tarball of log and moni files in SPADE directory as well as
@@ -564,25 +596,13 @@ class DAQRun(Rebootable.Rebootable):
         self.logmsg("Queueing data for SPADE (spadeDir=%s, logDir=%s, runNum=%d)..."
                     % (spadeDir, logTopLevel, runNum))
         runDir = logCollector.logDirName(runNum)
-        basePrefix = "SPS-pDAQ-run-%03d_%04d%02d%02d_%02d%02d%02d_%06d"   \
-                     % (runNum, runTime.year, runTime.month, runTime.day, \
-                        runTime.hour, runTime.minute, runTime.second,     \
-                        runDuration)
+        basePrefix = self.get_base_prefix(runNum, runTime, runDuration)
         tarBall = "%s/%s.dat.tar" % (spadeDir, basePrefix)
         if copyDir: copyFile = "%s/%s.dat.tar" % (copyDir, basePrefix)
         semFile = "%s/%s.sem"     % (spadeDir, basePrefix)
         self.logmsg("Target files are:\n%s\n%s" % (tarBall, semFile))
         try:
-            move("%s/catchall.log" % logTopLevel, "%s/%s" % (logTopLevel, runDir))
-            tarObj = TarFile(tarBall, "w")
-            tarObj.add("%s/%s" % (logTopLevel, runDir), runDir, True)
-            # self.recursivelyAddToTar(tarObj, logTopLevel, runDir)
-            tarObj.close()
-            if copyDir:
-                self.logmsg("Link or copy %s->%s" % (tarBall, copyFile))
-                linkOrCopy(tarBall, copyFile)
-            fd = open(semFile, "w")
-            fd.close()
+            self.move_spade_files(copyDir, logTopLevel, runDir, tarBall, semFile)
         except Exception:
             self.logmsg("FAILED to queue data for SPADE: %s" % exc_string())
 
@@ -615,6 +635,8 @@ class DAQRun(Rebootable.Rebootable):
             self.rpcAddrOf  [ comp[0] ] = comp[3]
             self.rpcPortOf  [ comp[0] ] = comp[4]
             self.mbeanPortOf[ comp[0] ] = comp[5]
+            self.loggerOf   [ comp[0] ] = None
+            self.logPortOf  [ comp[0] ] = None
 
     def setup_component_loggers(self, cncrpc, ip, runset):
         # Set up log receivers for remote components
@@ -663,6 +685,14 @@ class DAQRun(Rebootable.Rebootable):
                 self.logmsg("WARNING: failed to break run set - " +
                             exc_string())
             self.setCompIDs = []
+            self.shortNameOf.clear()
+            self.daqIDof.clear()
+            self.rpcAddrOf.clear()
+            self.rpcPortOf.clear()
+            self.mbeanPortOf.clear()
+            self.loggerOf.clear()
+            self.logPortOf.clear()
+
             self.runSetID   = None
             self.lastConfig = None
 
@@ -761,21 +791,36 @@ class DAQRun(Rebootable.Rebootable):
         self.prevRunStats.clone(self.runStats)
         self.runStats.clearAll()
 
-    def run_thread(self):
+    def restartComponents(self):
+        try:
+            self.logmsg("Doing complete rip-down and restart of pDAQ " +
+                        "(everything but DAQRun)")
+            cyclePDAQ(self.dashDir, self.clusterConfig, self.configDir,
+                      self.logDir, self.spadeDir, self.copyDir,
+                      DAQRun.CATCHALL_PORT, DAQRun.CNC_PORT)
+        except:
+            self.logmsg("Couldn't cycle pDAQ components ('%s')!!!" %
+                        exc_string())
+
+    def run_thread(self, cnc=None):
         """
         Handle state transitions.
         """
 
-        self.catchAllLogger = SocketLogger(DAQRun.CATCHALL_PORT, "Catchall",
-                                           self.logDir + "/catchall.log")
-        self.catchAllLogger.startServing()
+        self.catchAllLogger = \
+            self.createSocketLogger(DAQRun.CATCHALL_PORT, "Catchall",
+                                    self.logDir + "/catchall.log")
 
-        self.cnc = RPCClient("localhost", DAQRun.CNC_PORT)
+        if cnc is not None:
+            self.cnc = cnc
+        else:
+            self.cnc = RPCClient("localhost", DAQRun.CNC_PORT)
 
         logDirCreated = False
         forceRestart  = True
 
-        while 1:
+        self.running = True
+        while self.running:
             if self.runState == "STARTING":
                 self.runStats.clear()
                 logDirCreated = False
@@ -864,15 +909,7 @@ class DAQRun(Rebootable.Rebootable):
                     self.catchAllLogger.startServing()
 
                 if forceRestart or (hadError and self.restartOnError):
-                    try:
-                        self.logmsg("Doing complete rip-down and restart of pDAQ "+
-                                    "(everything but DAQRun)")
-                        cyclePDAQ(self.dashDir, self.clusterConfig, self.configDir,
-                                  self.logDir, self.spadeDir, self.copyDir,
-                                  DAQRun.CATCHALL_PORT, DAQRun.CNC_PORT)
-                    except:
-                        self.logmsg("Couldn't cycle pDAQ components ('%s')!!!"
-                                    % exc_string())
+                    self.restartComponents()
 
                 if self.log is not None:
                     self.log.close()
