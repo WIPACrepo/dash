@@ -14,7 +14,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3510 2008-09-30 21:40:15Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3528 2008-09-30 22:40:19Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -130,7 +130,7 @@ class ConnTypeEntry:
                 else:
                     inStr += ', ' + str(inPair[1])
             raise ValueError, 'Found %d %s outputs for %d inputs (%s)' % \
-                (len(self.outList), len(self.inList), self.type, inStr)
+                (len(self.outList), self.type, len(self.inList), inStr)
 
         if len(self.inList) == 1:
             inConn = self.inList[0][0]
@@ -147,7 +147,6 @@ class ConnTypeEntry:
 
             for inConn, inComp in self.inList:
                 entry = Connection(inConn, inComp)
-
 
                 if not connMap.has_key(outComp):
                     connMap[outComp] = []
@@ -382,7 +381,7 @@ class RunSet:
         for c in self.set:
             if c.cmdOrder is None:
                 if not failStr:
-                    'No order set for ' + str(c)
+                    failStr = 'No order set for ' + str(c)
                 else:
                     failStr += ', ' + str(c)
         if failStr:
@@ -523,7 +522,7 @@ class RunSet:
             errStr = str(self) + ': Could not stop ' + \
                 self.listComponentsCommaSep(waitList)
             self.logmsg(errStr)
-            raise ValueError, errMsg
+            raise ValueError, errStr
 
     def subrun(self, id, data):
         "Start a subrun with all components in the runset"
@@ -559,7 +558,7 @@ class RunSet:
 
         if len(badComps) > 0:
             raise ValueError, "Couldn't start subrun on %s" % \
-                listComponentsCommaSep(badComps)
+                self.listComponentsCommaSep(badComps)
 
         for c in self.set:
             if c.isComponent("eventBuilder"):
@@ -654,7 +653,7 @@ class CnCLogger(object):
         "close current log and reset to initial state"
         if self.socketlog is not None:
             try:
-                self.socketlog.close
+                self.socketlog.close()
             except:
                 pass
 
@@ -1168,7 +1167,7 @@ class DAQPool(CnCLogger):
             failStr = None
             if not c.getOrder():
                 if not failStr:
-                    'No order set for ' + str(c)
+                    failStr = 'No order set for ' + str(c)
                 else:
                     failStr += ', ' + str(c)
             if failStr:
