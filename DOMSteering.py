@@ -199,9 +199,9 @@ def createConfig(cursor, mbid, **kwargs):
     txt += "<span>          %d </span>\n" % lc_span
     txt += "<preTrigger>  %4d </preTrigger>\n" % lc_pre_trigger
     txt += "<postTrigger> %4d </postTrigger>\n" % lc_post_trigger
-    for dir in ("up", "down"):
+    for d in ("up", "down"):
         for dist in range(4):
-            txt += '<cableLength dir="%s" dist="%d"> %4d </cableLength>\n' % (dir, dist+1, clen[dir][dist])
+            txt += '<cableLength dir="%s" dist="%d"> %4d </cableLength>\n' % (d, dist+1, clen[dir][dist])
     txt += "</localCoincidence>\n"
     txt += '<supernovaMode enabled="true">\n'
     txt += "<deadtime> %d </deadtime>\n" % sn_deadtime

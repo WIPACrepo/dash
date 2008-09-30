@@ -27,7 +27,7 @@ sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
 
-SVN_ID = "$Id: ExpControlSkel.py 3510 2008-09-30 21:40:15Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 3512 2008-09-30 21:58:15Z dglo $"
 
 class DOMArgumentException(Exception): pass
 
@@ -121,9 +121,9 @@ class SubRun:
         self.domlist.append(d)
         
     def __str__(self):
-        type = "FLASHER"
-        if self.type == SubRun.DELAY: type = "DELAY"
-        s = "SubRun ID=%d TYPE=%s DURATION=%d\n" % (self.id, type, self.duration)
+        typ = "FLASHER"
+        if self.type == SubRun.DELAY: typ = "DELAY"
+        s = "SubRun ID=%d TYPE=%s DURATION=%d\n" % (self.id, typ, self.duration)
         if self.type == SubRun.FLASH:
             for m in self.domlist:
                 s += "%s\n" % m
@@ -139,24 +139,24 @@ class SubRun:
 class SubRunSet:
     def __init__(self, fileName):
         self.subruns = []
-        id = 0
+        num = 0
         sr = None
         for l in open(fileName).readlines():
             # Look for bare "delay lines"
             m = search(r'delay (\d+)', l)
             if m:
                 t = int(m.group(1))
-                self.subruns.append(SubRun(SubRun.DELAY, t, id))
-                id += 1
+                self.subruns.append(SubRun(SubRun.DELAY, t, num))
+                num += 1
                 sr = None
                 continue
             
             m = search(r'flash (\d+)', l)
             if m:
                 t = int(m.group(1))
-                sr = SubRun(SubRun.FLASH, t, id)
+                sr = SubRun(SubRun.FLASH, t, num)
                 self.subruns.append(sr)
-                id += 1
+                num += 1
             m6 = search('^\s*(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
             m7 = search('^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
             if m7 and sr:

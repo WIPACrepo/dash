@@ -414,7 +414,7 @@ def makeSummaryHtml(logLink, runNum, release, configName, status, nEvents, cumEv
 
 infoPat = r'(\d+)_(\d\d\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)_(\d+)'
 
-def cmp(a, b):
+def infocmp(a, b):
     amatch = search(infoPat, a)
     bmatch = search(infoPat, b)
     if not amatch: return 0
@@ -615,8 +615,8 @@ def getSortedRunReportDirs(outputDir):
     return [join(outputDir, x) for x in rundirs]
 
 def getRunRecs(sortedDirs):
-    for dir in sortedDirs:
-        sf = join(dir, ".snippet")
+    for d in sortedDirs:
+        sf = join(d, ".snippet")
         if exists(sf):
             try:
                 rec = SnippetRunRec(sf)
@@ -764,7 +764,7 @@ def main():
     if opt.inclusionDir:
         processInclusionDir(opt.inclusionDir)
         tarlist += recursiveGetTarFiles(opt.inclusionDir)
-    tarlist.sort(cmp)
+    tarlist.sort(infocmp)
 
     maxFirstFileRuns = 100
     for f in tarlist:
