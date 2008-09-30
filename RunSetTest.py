@@ -70,8 +70,8 @@ class MockComponent:
         self.runNum = None
 
 class TestRunSet(unittest.TestCase):
-    def checkStatus(self, set, compList, expState):
-        statDict = set.status()
+    def checkStatus(self, runset, compList, expState):
+        statDict = runset.status()
         self.assertEqual(len(statDict), len(compList))
         for c in compList:
             self.failUnless(statDict.has_key(c), 'Could not find ' + str(c))
@@ -94,15 +94,15 @@ class TestRunSet(unittest.TestCase):
         return True
 
     def runTests(self, compList, runNum):
-        set = RunSet(compList, MockLogger('foo', 0))
-        self.assertEqual(str(set), 'RunSet #' + str(set.id))
+        runset = RunSet(compList, MockLogger('foo', 0))
+        self.assertEqual(str(runset), 'RunSet #' + str(runset.id))
 
-        self.checkStatus(set, compList, 'idle')
+        self.checkStatus(runset, compList, 'idle')
 
         logList = []
         for c in compList:
             logList.append([c.name, 0, 666, 'info'])
-        set.configureLogging('localhost', logList)
+        runset.configureLogging('localhost', logList)
 
         if len(compList) > 0:
             self.failIf(self.isCompListConfigured(compList),
@@ -110,11 +110,11 @@ class TestRunSet(unittest.TestCase):
             self.failIf(self.isCompListRunning(compList),
                         'Components should not be running')
 
-        self.assertRaises(ValueError, set.startRun, 1)
-        self.assertRaises(ValueError, set.stopRun)
+        self.assertRaises(ValueError, runset.startRun, 1)
+        self.assertRaises(ValueError, runset.stopRun)
 
-        set.configure('xxx')
-        self.assertEqual(str(set), 'RunSet #' + str(set.id))
+        runset.configure('xxx')
+        self.assertEqual(str(runset), 'RunSet #' + str(runset.id))
 
         if len(compList) > 0:
             self.failUnless(self.isCompListConfigured(compList),
@@ -122,12 +122,12 @@ class TestRunSet(unittest.TestCase):
             self.failIf(self.isCompListRunning(compList),
                         'Components should not be running')
 
-        self.checkStatus(set, compList, 'ready')
+        self.checkStatus(runset, compList, 'ready')
 
-        self.assertRaises(ValueError, set.stopRun)
+        self.assertRaises(ValueError, runset.stopRun)
 
-        set.startRun(runNum)
-        self.assertEqual(str(set), 'RunSet #' + str(set.id) +
+        runset.startRun(runNum)
+        self.assertEqual(str(runset), 'RunSet #' + str(runset.id) +
                          ' run#' + str(runNum))
 
         if len(compList) > 0:
@@ -136,10 +136,10 @@ class TestRunSet(unittest.TestCase):
             self.failUnless(self.isCompListRunning(compList, runNum),
                             'Components should not be running')
 
-        self.checkStatus(set, compList, 'running')
+        self.checkStatus(runset, compList, 'running')
 
-        set.stopRun()
-        self.assertEqual(str(set), 'RunSet #' + str(set.id))
+        runset.stopRun()
+        self.assertEqual(str(runset), 'RunSet #' + str(runset.id))
 
         if len(compList) > 0:
             self.failUnless(self.isCompListConfigured(compList),
@@ -147,10 +147,10 @@ class TestRunSet(unittest.TestCase):
             self.failIf(self.isCompListRunning(compList),
                         'Components should not be running')
 
-        self.checkStatus(set, compList, 'ready')
+        self.checkStatus(runset, compList, 'ready')
 
-        set.reset()
-        self.assertEqual(str(set), 'RunSet #' + str(set.id))
+        runset.reset()
+        self.assertEqual(str(runset), 'RunSet #' + str(runset.id))
 
         if len(compList) > 0:
             self.failIf(self.isCompListConfigured(compList),
@@ -158,7 +158,7 @@ class TestRunSet(unittest.TestCase):
             self.failIf(self.isCompListRunning(compList),
                         'Components should not be running')
 
-        self.checkStatus(set, compList, 'idle')
+        self.checkStatus(runset, compList, 'idle')
 
     def testEmpty(self):
         self.runTests([], 1)

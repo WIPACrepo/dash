@@ -16,7 +16,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQStatus.py 2978 2008-05-06 01:13:07Z ksb $"
+SVN_ID  = "$Id: DAQStatus.py 3508 2008-09-30 21:18:38Z dglo $"
 
 LINE_LENGTH = 78
 
@@ -94,14 +94,14 @@ def dumpComp(comp, numList, indent):
                 front = ' '*len(front)
                 frontCleared = True
 
-def listTerse(list, indent=''):
-    list.sort(cmpComp)
+def listTerse(compList, indent=''):
+    compList.sort(cmpComp)
 
     prevState = None
     prevComp = None
 
     numList = []
-    for c in list:
+    for c in compList:
         compChanged = cmp(prevComp, c[1]) != 0
         stateChanged = cmp(prevState, c[6]) != 0
         if compChanged or stateChanged:
@@ -114,10 +114,10 @@ def listTerse(list, indent=''):
         numList.append(c[2])
     dumpComp(prevComp, numList, indent)
 
-def listVerbose(list, indent=''):
-    list.sort(cmpComp)
+def listVerbose(compList, indent=''):
+    compList.sort(cmpComp)
 
-    for c in list:
+    for c in compList:
         print '%s  #%d %s#%d at %s:%d M#%d %s' % \
             (indent, c[0], c[1], c[2], c[3], c[4], c[5], c[6])
 
@@ -161,9 +161,9 @@ if __name__ == "__main__":
 
     print "-----------------------"
     print "%d run sets" % ns
-    for id in ids:
-        ls = cncrpc.rpc_runset_list(id)
-        print '\tRunSet#%d' % id
+    for runid in ids:
+        ls = cncrpc.rpc_runset_list(runid)
+        print '\tRunSet#%d' % runid
         if opt.verbose:
             listVerbose(ls, '\t')
         else:

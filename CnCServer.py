@@ -14,7 +14,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3494 2008-09-10 18:27:08Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3508 2008-09-30 21:18:38Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -77,13 +77,13 @@ class Connection:
              self.conn.port)
 
     def getMap(self):
-        map = {}
-        map['type'] = self.conn.type
-        map['compName'] = self.comp.name
-        map['compNum'] = self.comp.num
-        map['host'] = self.comp.host
-        map['port'] = self.conn.port
-        return map
+        connDict = {}
+        connDict['type'] = self.conn.type
+        connDict['compName'] = self.comp.name
+        connDict['compNum'] = self.comp.num
+        connDict['host'] = self.comp.host
+        connDict['port'] = self.conn.port
+        return connDict
 
 class ConnTypeEntry:
     """
@@ -108,7 +108,7 @@ class ConnTypeEntry:
         else:
             self.outList.append(comp)
 
-    def buildConnectionMap(self, map):
+    def buildConnectionMap(self, connMap):
         "Validate and fill the map of connections for each component"
         if len(self.inList) == 0:
             raise ValueError, 'No inputs found for %d %s outputs' % \
@@ -139,9 +139,9 @@ class ConnTypeEntry:
             for outComp in self.outList:
                 entry = Connection(inConn, inComp)
 
-                if not map.has_key(outComp):
-                    map[outComp] = []
-                map[outComp].append(entry)
+                if not connMap.has_key(outComp):
+                    connMap[outComp] = []
+                connMap[outComp].append(entry)
         else:
             outComp = self.outList[0]
 
@@ -149,9 +149,9 @@ class ConnTypeEntry:
                 entry = Connection(inConn, inComp)
 
 
-                if not map.has_key(outComp):
-                    map[outComp] = []
-                map[outComp].append(entry)
+                if not connMap.has_key(outComp):
+                    connMap[outComp] = []
+                connMap[outComp].append(entry)
 
 class SubrunThread(threading.Thread):
     "A thread which starts the subrun in an individual stringHub"
@@ -284,21 +284,21 @@ class RunSet:
         return self.state is not None and self.state == 'running'
 
     def list(self):
-        list = []
+        slst = []
         for c in self.set:
-            list.append(c.list())
+            slst.append(c.list())
 
-        return list
+        return slst
 
     def listBadState(self):
-        list = []
+        slst = []
 
         for c in self.set:
             stateStr = c.getState()
             if stateStr != self.state:
-                list.append(c.name + '#' + str(c.num) + ':' + stateStr)
+                slst.append(c.name + '#' + str(c.num) + ':' + stateStr)
 
-        return list
+        return slst
 
     def listComponentsCommaSep(compList):
         """
@@ -766,11 +766,11 @@ class DAQClient(CnCLogger):
         if not connList:
             return self.client.xmlrpc.connect()
 
-        list = []
+        cl = []
         for conn in connList:
-            list.append(conn.getMap())
+            cl.append(conn.getMap())
 
-        return self.client.xmlrpc.connect(list)
+        return self.client.xmlrpc.connect(cl)
 
     def createClient(self, host, port):
         return RPCClient(host, port)
@@ -945,12 +945,12 @@ class DAQPool(CnCLogger):
                     connDict[n.type] = ConnTypeEntry(n.type)
                 connDict[n.type].add(n, comp)
 
-        map = {}
+        connMap = {}
 
         for k in connDict:
-            connDict[k].buildConnectionMap(map)
+            connDict[k].buildConnectionMap(connMap)
 
-        return map
+        return connMap
 
     buildConnectionMap = classmethod(buildConnectionMap)
 
@@ -995,16 +995,16 @@ class DAQPool(CnCLogger):
 
         # make sure I/O channels match up
         #
-        map = DAQPool.buildConnectionMap(compList)
+        connMap = DAQPool.buildConnectionMap(compList)
 
         # connect all components
         #
         errMsg = None
         for c in compList:
-            if not map.has_key(c):
+            if not connMap.has_key(c):
                 rtnVal = c.connect()
             else:
-                rtnVal = c.connect(map[c])
+                rtnVal = c.connect(connMap[c])
 
         chkList = compList[:]
         while len(chkList) > 0:
@@ -1023,19 +1023,19 @@ class DAQPool(CnCLogger):
         if errMsg:
             raise ValueError, errMsg
 
-        self.setOrder(compList, map)
+        self.setOrder(compList, connMap)
 
         return None
 
     def findRunset(self, id):
         "Find the runset with the specified ID"
-        set = None
+        runset = None
         for s in self.sets:
             if s.id == id:
-                set = s
+                runset = s
                 break
 
-        return set
+        return runset
 
     def getNumComponents(self):
         tot = 0
@@ -1112,7 +1112,7 @@ class DAQPool(CnCLogger):
         s.returnComponents(self)
         s.destroy()
 
-    def setOrder(self, compList, map):
+    def setOrder(self, compList, connMap):
         "set the order in which components are started/stopped"
 
         # copy list of components
@@ -1151,8 +1151,8 @@ class DAQPool(CnCLogger):
 
                 c.setOrder(level)
 
-                if map.has_key(c):
-                    for m in map[c]:
+                if connMap.has_key(c):
+                    for m in connMap[c]:
                         tmp.append(m.comp)
 
             curLevel = tmp

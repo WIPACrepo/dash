@@ -90,14 +90,14 @@ class Node(object):
 
     def link(self, comp, ioType, isOutput):
         if isOutput:
-            map = self.outLinks
+            links = self.outLinks
         else:
-            map = self.inLinks
+            links = self.inLinks
 
-        if not map.has_key(ioType):
-            map[ioType] = []
+        if not links.has_key(ioType):
+            links[ioType] = []
 
-        map[ioType].append(comp)
+        links[ioType].append(comp)
 
 class MockXMLRPC:
     def __init__(self, name, num, outLinks):
@@ -202,9 +202,9 @@ class MockClient(DAQClient):
         tmpStr = super(MockClient, self).__str__()
         return 'Mock' + tmpStr
 
-    def connect(self, map=None):
+    def connect(self, links=None):
         self.state = 'connected'
-        return super(MockClient, self).connect(map)
+        return super(MockClient, self).connect(links)
 
     def createClient(self, host, port):
         return MockRPCClient(self.name, self.num, self.outLinks)
@@ -249,17 +249,17 @@ class ConnectionTest(unittest.TestCase):
         for node in nodeList:
             nameList.append(node.name + '#' + str(node.num))
 
-        set = pool.makeRunset(nameList)
+        runset = pool.makeRunset(nameList)
 
         chkId = ConnectionTest.EXP_ID
         ConnectionTest.EXP_ID += 1
 
         self.assertEquals(len(pool.pool), 0)
         self.assertEquals(len(pool.sets), 1)
-        self.assertEquals(pool.sets[0], set)
+        self.assertEquals(pool.sets[0], runset)
 
-        self.assertEquals(set.id, chkId)
-        self.assertEquals(len(set.set), len(nodeList))
+        self.assertEquals(runset.id, chkId)
+        self.assertEquals(len(runset.set), len(nodeList))
 
         # copy node list
         #
@@ -268,7 +268,7 @@ class ConnectionTest(unittest.TestCase):
 
         # validate all components in runset
         #
-        for comp in set.set:
+        for comp in runset.set:
             node = None
             for t in tmpList:
                 if comp.name == t.name and comp.num == t.num:
@@ -285,28 +285,28 @@ class ConnectionTest(unittest.TestCase):
 
             # remove all output connectors
             #
-            for type in node.outLinks:
+            for typ in node.outLinks:
                 conn = None
                 for c in compConn:
-                    if not c.isInput and c.type == type:
+                    if not c.isInput and c.type == typ:
                         conn = c
                         compConn.remove(c)
                         break
 
-                self.failIf(not conn, 'Could not find connector ' + type +
+                self.failIf(not conn, 'Could not find connector ' + typ +
                             ' for component ' + str(comp))
 
             # remove all input connectors
             #
-            for type in node.inLinks:
+            for typ in node.inLinks:
                 conn = None
                 for c in compConn:
-                    if c.isInput and c.type == type:
+                    if c.isInput and c.type == typ:
                         conn = c
                         compConn.remove(c)
                         break
 
-                self.failIf(not conn, 'Could not find connector ' + type +
+                self.failIf(not conn, 'Could not find connector ' + typ +
                             ' for component ' + str(comp))
 
             # whine if any connectors are left
@@ -320,9 +320,9 @@ class ConnectionTest(unittest.TestCase):
                           str(tmpList))
 
         if LOUD:
-            print '-- SET: ' + str(set)
+            print '-- SET: ' + str(runset)
 
-        pool.returnRunset(set)
+        pool.returnRunset(runset)
         self.assertEquals(len(pool.pool), numComps)
         self.assertEquals(len(pool.sets), 0)
 

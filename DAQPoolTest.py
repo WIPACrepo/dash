@@ -85,8 +85,8 @@ class TestDAQPool(unittest.TestCase):
     def testEmpty(self):
         mgr = DAQPool()
 
-        set = mgr.findRunset(1)
-        self.failIf(set is not None, 'Found set in empty manager')
+        runset = mgr.findRunset(1)
+        self.failIf(runset is not None, 'Found set in empty manager')
 
         comp = mgr.remove(MockComponent('foo', 0))
 
@@ -121,14 +121,14 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), len(compList))
 
-        set = mgr.makeRunset(nameList)
+        runset = mgr.makeRunset(nameList)
 
         self.assertEqual(len(mgr.pool), 0)
 
-        found = mgr.findRunset(set.id)
-        self.failIf(found is None, "Couldn't find runset #" + str(set.id))
+        found = mgr.findRunset(runset.id)
+        self.failIf(found is None, "Couldn't find runset #" + str(runset.id))
 
-        mgr.returnRunset(set)
+        mgr.returnRunset(runset)
 
         self.assertEqual(len(mgr.pool), len(compList))
 
@@ -221,16 +221,16 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), len(compList))
 
-        set = mgr.makeRunset(nameList)
+        runset = mgr.makeRunset(nameList)
 
         self.assertEqual(len(mgr.pool), 0)
-        self.assertEqual(len(set.set), len(compList))
+        self.assertEqual(len(runset.set), len(compList))
 
-        set.configure('abc')
+        runset.configure('abc')
 
         ordered = True
         prevName = None
-        for s in set.set:
+        for s in runset.set:
             if not prevName:
                 prevName = s.name
             elif prevName > s.name:
@@ -238,11 +238,11 @@ class TestDAQPool(unittest.TestCase):
 
         self.failIf(ordered, 'Runset sorted before startRun()')
 
-        set.startRun(1)
+        runset.startRun(1)
 
         ordered = True
         prevName = None
-        for s in set.set:
+        for s in runset.set:
             if not prevName:
                 prevName = s.name
             elif prevName < s.name:
@@ -250,11 +250,11 @@ class TestDAQPool(unittest.TestCase):
 
         self.failUnless(ordered, 'Runset was not sorted by startRun()')
 
-        set.stopRun()
+        runset.stopRun()
 
         ordered = True
         prevName = None
-        for s in set.set:
+        for s in runset.set:
             if not prevName:
                 prevName = s.name
             elif prevName > s.name:
@@ -262,14 +262,14 @@ class TestDAQPool(unittest.TestCase):
 
         self.failUnless(ordered, 'Runset was not reversed by stopRun()')
 
-        mgr.returnRunset(set)
+        mgr.returnRunset(runset)
 
-        self.assertEqual(set.id, None)
-        self.assertEqual(set.configured, False)
-        self.assertEqual(set.runNumber, None)
+        self.assertEqual(runset.id, None)
+        self.assertEqual(runset.configured, False)
+        self.assertEqual(runset.runNumber, None)
 
         self.assertEqual(len(mgr.pool), len(compList))
-        self.assertEqual(len(set.set), 0)
+        self.assertEqual(len(runset.set), 0)
 
 if __name__ == '__main__':
     unittest.main()

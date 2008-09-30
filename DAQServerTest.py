@@ -58,9 +58,9 @@ class MockClient(DAQClient):
         self.state = 'ready'
         return super(MockClient, self).configure(cfgName)
 
-    def connect(self, map=None):
+    def connect(self, connMap=None):
         self.state = 'connected'
-        return super(MockClient, self).connect(map)
+        return super(MockClient, self).connect(connMap)
 
     def createClient(self, host, port):
         return MockRPCClient(host, port)

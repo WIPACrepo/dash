@@ -156,8 +156,8 @@ class DOMCounter:
         self.data    = s
         self.domDict = {}
 
-        list = re.findall('(\d\d\w): (.+)', self.data)
-        for line in list:
+        domList = re.findall('(\d\d\w): (.+)', self.data)
+        for line in domList:
             cwd = line[0]
             dat = line[1]
             if not self.domDict.has_key(cwd):

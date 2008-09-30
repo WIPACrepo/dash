@@ -33,14 +33,14 @@ class MoniData(object):
 
     def monitor(self, now):
         for b in self.beanFields.keys():
-            map = self.client.mbean.getAttributes(b, self.beanFields[b])
+            attrs = self.client.mbean.getAttributes(b, self.beanFields[b])
 
             # report monitoring data
-            if len(map) > 0:
+            if len(attrs) > 0:
                 print >>self.fd, '%s: %s:' % (b, now)
-                for key in map:
+                for key in attrs:
                     print >>self.fd, '\t%s: %s' % \
-                            (key, str(map[key]))
+                            (key, str(attrs[key]))
             print >>self.fd
             self.fd.flush()
 

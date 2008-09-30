@@ -33,7 +33,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 3507 2008-09-30 20:32:53Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3508 2008-09-30 21:18:38Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -529,8 +529,8 @@ class DAQRun(Rebootable.Rebootable):
         for r in self.setCompIDs:
             yield [self.shortNameOf[r], self.daqIDof[r], self.logPortOf[r]]
 
-    def isRequiredComponent(shortName, daqID, list):
-        return DAQRun.isInList("%s#%d" % (shortName, daqID), list)
+    def isRequiredComponent(shortName, daqID, compList):
+        return DAQRun.isInList("%s#%d" % (shortName, daqID), compList)
     isRequiredComponent = staticmethod(isRequiredComponent)
 
     def setup_run_logging(self, cncrpc, logDir, runNum, configName):

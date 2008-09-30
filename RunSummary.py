@@ -218,10 +218,10 @@ def hhmmss(t):
     if t is None: return ""
     return "%02d:%02d:%02d" % (t.hour, t.minute, t.second)
 
-def dashTime(str):
+def dashTime(dateStr):
     "Get datetime object from string in form 'yyyy-mm-dd hh:mm:ss.uuuuuu'"
-    if not str: return None
-    match = search(r'(\d\d\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)\.(\d\d\d\d\d\d)', str)
+    if not dateStr: return None
+    match = search(r'(\d\d\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)\.(\d\d\d\d\d\d)', dateStr)
     if not match: return None
     return datetime.datetime(int(match.group(1)),
                              int(match.group(2)),

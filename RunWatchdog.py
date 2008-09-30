@@ -186,10 +186,10 @@ class WatchData(object):
                               lessThan)
         self.thresholdFields[beanName].append(tw)
 
-    def checkList(self, list):
+    def checkList(self, inList):
         unhealthy = []
-        for b in list:
-            badList = self.checkValues(list[b])
+        for b in inList:
+            badList = self.checkValues(inList[b])
             if badList is not None:
                 unhealthy += badList
 
