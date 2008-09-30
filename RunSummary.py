@@ -16,7 +16,6 @@ from os.path import exists, isdir, abspath, basename, join
 from shutil import copy
 from re import *
 from exc_string import *
-from tarfile import TarFile
 
 class BadSnippetFormatException(Exception): pass
 class BadDayTimeException(Exception):       pass
@@ -450,7 +449,7 @@ def processInclusionDir(dir):
                                         int(p.group(5)),
                                         int(p.group(6))))
                 if tarFile and not exists(tarFile): # !
-                    tf = TarFile(tarFile, "w")
+                    tf = tarfile.TarFile(tarFile, "w")
                     tf.add(join(dir, dirfile), dirfile, True)
                     tf.close()
         
