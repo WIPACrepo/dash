@@ -31,7 +31,7 @@ class noDOMConfigFound           (Exception):
     def __str__(self):
         return self.configName
 
-class noDeployedStringsListFound (Exception): pass
+class noDeployedDOMsListFound    (Exception): pass
 class noComponentsFound          (Exception): pass
 class triggerException           (Exception): pass
 class DOMNotInConfigException    (Exception): pass
@@ -67,7 +67,7 @@ def configExists(configDir, configName):
 
 def checkForValidConfig(configDir, configName):
     try:
-        dc = DAQConfig(configName, configDir)
+        DAQConfig(configName, configDir)
         print "%s/%s is ok." % (configDir, configName)
         return True
     except Exception, e:
@@ -105,7 +105,7 @@ class DefaultDOMGeometry(object):
         deployedStrings = deployedDOMsParsed.getElementsByTagName("string")
         if len(deployedStrings) < 1:
             raise noDeployedDOMsListFound("No string list in %s!" %
-                                          DefaultDOMGeomety.DEPLOYEDDOMS)
+                                          DefaultDOMGeometry.DEPLOYEDDOMS)
 
         self.domDict  = {}
 
@@ -239,7 +239,6 @@ class DAQConfig(object):
 
         elif len(hubFileList) == 1:
             # WARNING: not currently building the 'kind' list
-            hubFile = hubFileList[0]
             for hubNode in hubFileList[0].getElementsByTagName("hub"):
                 idStr = hubNode.getAttribute("id")
                 hubIDList.append(int(idStr))

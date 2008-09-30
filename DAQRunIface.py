@@ -4,7 +4,7 @@
 # Object to interface w/ DAQ run script
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started November, 2006
-# $Id: DAQRunIface.py 3260 2008-07-08 17:06:38Z dglo $
+# $Id: DAQRunIface.py 3520 2008-09-30 22:22:25Z dglo $
 
 from time import sleep, time
 from datetime import datetime, timedelta
@@ -16,17 +16,17 @@ from DAQConfig import configExists
 from re import sub
 from types import DictType
 
-class LabelConfigFileNotFoundException(Exception): pass
-class MalformedLabelConfigException   (Exception): pass
-class MalformedFlasherInput           (Exception): pass
+class LabelConfigFileNotFound(Exception): pass
+class MalformedLabelConfig   (Exception): pass
+class MalformedFlasherInput  (Exception): pass
 
 def getElementSingleTagName(root, name):
     "Fetch a single element tag name of form <tagName>yowsa!</tagName>"
     elems = root.getElementsByTagName(name)
     if len(elems) != 1:
-        raise MalformedLabelConfigException("Expected exactly one %s" % name)
+        raise MalformedLabelConfig("Expected exactly one %s" % name)
     if len(elems[0].childNodes) != 1:
-        raise MalformedLabelConfigException("Expected exactly one child node of %s" %name)
+        raise MalformedLabelConfig("Expected exactly one child node of %s" %name)
     return elems[0].childNodes[0].data
 
 class DAQLabelParser:
@@ -37,7 +37,7 @@ class DAQLabelParser:
         self.defaultLabel = None
         parsed = minidom.parse(self.configFile)
         daqLabels = parsed.getElementsByTagName("daqLabels")
-        if len(daqLabels) != 1: raise MalformedLabelConfigException(self.configFile)
+        if len(daqLabels) != 1: raise MalformedLabelConfig(self.configFile)
         runs = daqLabels[0].getElementsByTagName("run")
         self.defaultLabel = getElementSingleTagName(daqLabels[0], "defaultLabel")
         for run in runs:
