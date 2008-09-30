@@ -4,7 +4,7 @@
 # John Jacobsen, NPX Designs, Inc., jacobsen\@npxdesigns.com
 # Started: Fri Jun  1 15:57:10 2007
 
-import sys, optparse, re
+import sys, optparse
 from os import environ, getcwd, listdir, system
 from os.path import abspath, isabs, join
 

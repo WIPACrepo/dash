@@ -11,7 +11,6 @@ from DAQRPC import RPCClient
 from select import select
 from time import sleep
 import threading
-import os.path
 import socket
 import os
 import sys

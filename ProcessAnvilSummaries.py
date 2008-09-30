@@ -4,7 +4,7 @@
 # John Jacobsen, NPX Designs, Inc., john@mail.npxdesigns.com
 # Started: Sat Jan 19 07:43:50 2008
 
-import unittest, optparse, xml.dom.minidom, os, os.path, tarfile, re
+import optparse, xml.dom.minidom, os, tarfile, re
 
 def getField(xml, name):
     """

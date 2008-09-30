@@ -4,7 +4,7 @@
 # John Jacobsen, NPX Designs, Inc., john@mail.npxdesigns.com
 # Started: Mon Dec  3 15:21:10 2007
 
-import optparse, re, os, os.path
+import re, os
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):

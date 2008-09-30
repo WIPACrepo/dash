@@ -8,7 +8,7 @@
 # Started November, 2006
 
 from sys import argv
-from DAQLog import *
+from DAQLog import logCollector, SocketLogger
 from DAQMoni import *
 from time import sleep
 from RunWatchdog import RunWatchdog
@@ -27,14 +27,13 @@ import Rebootable
 import DAQConfig
 import datetime
 import optparse
-import DAQLog
 import RateCalc
 import Daemon
 import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 3382 2008-08-13 16:43:01Z jacobsen $"
+SVN_ID  = "$Id: DAQRun.py 3507 2008-09-30 20:32:53Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):

@@ -8,7 +8,6 @@
 
 from datetime import datetime
 from DAQRPC import RPCServer
-import DAQLog
 import socket
 
 class DAQLogger(object): # Log to UDP socket, somewhere

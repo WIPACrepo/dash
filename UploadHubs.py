@@ -12,7 +12,7 @@ Started November, 2007
 
 """
 
-import optparse, signal, sys, threading, time, select, popen2, os, os.path
+import optparse, signal, sys, threading, time, select, popen2, os
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
