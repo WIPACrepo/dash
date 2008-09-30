@@ -24,13 +24,16 @@ class SocketLogger(object):
     LOGLEVEL_FATAL = "fatal"
     "Create class which logs requests from a remote object to a file"
     "Works nonblocking in a separate thread to guarantee concurrency"
-    def __init__(self, port, cname, logpath): # Logpath should be fully qualified in case I'm a Daemon
+    def __init__(self, port, cname, logpath, quiet=False):
+        "Logpath should be fully qualified in case I'm a Daemon"
         self.port    = port
         self.cname   = cname
         self.logpath = logpath
+        self.quiet = quiet
         self.go      = False
         self.thread  = None
         self.outfile = None
+        self.serving = False
 
     def startServing(self):
         "Creates listener thread, prepares file for output, and returns"
@@ -43,6 +46,7 @@ class SocketLogger(object):
             self.thread = threading.Thread(target=self.win_listener)
         else:
             self.thread = threading.Thread(target=self.listener)
+        self.serving = False
         self.thread.start()
 
     def localAppend(self, s):
@@ -58,14 +62,16 @@ class SocketLogger(object):
         #self.sock.setblocking(1)
         #self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind(("", self.port))
+        self.serving = True
         while self.go:
             data = self.sock.recv(8192)
-            print "%s %s" % (self.cname, data)
+            if not self.quiet: print "%s %s" % (self.cname, data)
             print >>self.outfile, "%s %s" % (self.cname, data)
             self.outfile.flush()
         self.sock.close()
         if self.logpath: self.outfile.close()       
-        
+        self.serving = False
+
     def listener(self):
         """
         Create listening, non-blocking UDP socket, read from it, and write to file;
@@ -76,6 +82,7 @@ class SocketLogger(object):
         self.sock.setblocking(0)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind(("", self.port))
+        self.serving = True
         pr = [self.sock]
         pw = []
         pe = [self.sock]
@@ -86,7 +93,7 @@ class SocketLogger(object):
             while 1: # Slurp up waiting packets, return to select if EAGAIN
                 try:
                     data = self.sock.recv(8192, socket.MSG_DONTWAIT)
-                    print "%s %s" % (self.cname, data)
+                    if not self.quiet: print "%s %s" % (self.cname, data)
                     print >>self.outfile, "%s %s" % (self.cname, data)
                     self.outfile.flush()
                 except Exception:
@@ -94,6 +101,7 @@ class SocketLogger(object):
         self.sock.close()
         if self.logpath:
             self.outfile.close()
+        self.serving = False
 
     def stopServing(self):
         "Signal listening thread to exit; wait for thread to finish"
@@ -154,7 +162,8 @@ if __name__ == "__main__":
         logger = SocketLogger(6666, "javaComponent", "./test.log")
         print "Start serving..."
         logger.startServing()
-        sleep(10000)
+        while not logger.serving:
+            sleep(.001)
     except KeyboardInterrupt:
         raise SystemExit        
     
@@ -165,6 +174,8 @@ if __name__ == "__main__":
     for i in xrange(0,50):
         logger = SocketLogger(6666, "myComponent", "/tmp/better%05d.log" % i)
         logger.startServing()
+        while not logger.serving:
+            sleep(.001)
         try:
             remote.log_to("localhost", 6666)
             # sleep(0.01)
