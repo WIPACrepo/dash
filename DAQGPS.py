@@ -53,11 +53,6 @@ def main():
     cmds.start()
     cmds.wait()
 
-    numPlugged       = 0
-    numPowered       = 0
-    numCommunicating = 0
-    numIceboot       = 0
-    
     for hub in hublist:
         print "Hub %s: " % hub,
         result = cmds.getResult(ids[hub])

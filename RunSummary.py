@@ -766,7 +766,6 @@ def main():
         tarlist += recursiveGetTarFiles(opt.inclusionDir)
     tarlist.sort(infocmp)
 
-    maxFirstFileRuns = 100
     for f in tarlist:
         prefix = 'SPS-pDAQ-run-'
         if search(r'.done$', f): continue # Skip SPADE .done semaphores
@@ -776,7 +775,7 @@ def main():
             runInfoString = match.group(1)
             match = search(infoPat, runInfoString)
             if not match: continue
-            runNum = int(match.group(1))
+            #runNum = int(match.group(1))
             outDir = runDir + "/" + runInfoString
             makeDirOrExit(outDir)
             tarFile     = f

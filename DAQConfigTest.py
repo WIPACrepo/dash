@@ -45,13 +45,13 @@ class DAQConfigTest(unittest.TestCase):
         kinds = cfg.kinds()
         for exp in ('in-ice', 'icetop'):
             try:
-                idx = kinds.index(exp)
+                kinds.index(exp)
             except:
                 self.fail('Expected kind "%s" was not returned' % exp)
 
         for exp in ('amanda', ):
             try:
-                idx = kinds.index(exp)
+                kinds.index(exp)
                 self.fail('"kinds" should not contain %s' % exp)
             except:
                 pass # expect this to fail
@@ -61,12 +61,12 @@ class DAQConfigTest(unittest.TestCase):
                     'secondaryBuilders#0',  'stringHub#1001', 'stringHub#1002',
                     'stringHub#1003', 'stringHub#1004', 'stringHub#1005'):
             try:
-                idx = comps.index(exp)
+                comps.index(exp)
             except:
                 self.fail('Expected component "%s" was not returned' % exp)
         for exp in ('iceTopTrigger#0', 'amandaTrigger#0'):
             try:
-                idx = comps.index(exp)
+                comps.index(exp)
                 self.fail('"components" should not contain %s' % exp)
             except:
                 pass # expect this to fail
@@ -106,7 +106,7 @@ class DAQConfigTest(unittest.TestCase):
         kinds = cfg.kinds()
         for exp in ('amanda', 'in-ice', 'icetop'):
             try:
-                idx = kinds.index(exp)
+                kinds.index(exp)
             except:
                 self.fail('Expected kind "%s" was not returned' % exp)
 
@@ -129,7 +129,7 @@ class DAQConfigTest(unittest.TestCase):
                     'stringHub#77', 'stringHub#78', 'stringHub#81',
                     'stringHub#82', 'stringHub#83', 'stringHub#84'):
             try:
-                idx = comps.index(exp)
+                comps.index(exp)
             except:
                 self.fail('Expected component "%s" was not returned' % exp)
 
@@ -161,7 +161,7 @@ class DAQConfigTest(unittest.TestCase):
                     #'replayHub#0',
                     'replayHub#21', 'replayHub#29', 'replayHub#84'):
             try:
-                idx = comps.index(exp)
+                comps.index(exp)
             except:
                 self.fail('Expected component "%s" was not returned' % exp)
 

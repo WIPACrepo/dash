@@ -27,7 +27,7 @@ sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
 
-SVN_ID = "$Id: ExpControlSkel.py 3512 2008-09-30 21:58:15Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 3516 2008-09-30 22:14:06Z dglo $"
 
 class DOMArgumentException(Exception): pass
 
@@ -238,7 +238,6 @@ def main():
         print "Run configuration %s does not exist or is not valid!" % opt.configName
         raise SystemExit
 
-    subRunNumber = 0
     sleeptime    = 0.4
     xmlIval      = 5
     state        = None
