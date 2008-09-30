@@ -97,7 +97,7 @@ class PnFInfo:
     Storage/parsing class for PnF information
     """
     def __init__(self, xml):
-        reading = getSubTag(xml, "reading")
+        #reading = getSubTag(xml, "reading")
         self.readEvent = getField(getSubTag(xml, "reading"), "event")
         processing = getSubTag(xml, "processing")
         try: 
@@ -126,9 +126,9 @@ class PnFInfo:
 class DetectorSummary:
     def __init__(self, filename):
         parsed = xml.dom.minidom.parse(filename)
-        summary   = getSubTag(parsed, "detector-summary") 
+        #summary   = getSubTag(parsed, "detector-summary") 
         status    = getSubTag(parsed, "status")
-        twr       = getSubTag(parsed, "twr")
+        #twr       = getSubTag(parsed, "twr")
         daq       = getSubTag(parsed, "daq")
         pnf       = getSubTag(parsed, "pnf")
         self.date = getField(status, "date")
