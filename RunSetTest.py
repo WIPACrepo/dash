@@ -59,13 +59,13 @@ class MockComponent:
 
     def startRun(self, runNum):
         if not self.configured:
-            raise Error, name + ' has not been configured'
+            raise Exception, self.name + ' has not been configured'
 
         self.runNum = runNum
 
     def stopRun(self):
         if self.runNum is None:
-            raise Error, name + ' is not running'
+            raise Exception, self.name + ' is not running'
 
         self.runNum = None
 
