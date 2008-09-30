@@ -33,7 +33,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 3508 2008-09-30 21:18:38Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3510 2008-09-30 21:40:15Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -583,7 +583,7 @@ class DAQRun(Rebootable.Rebootable):
                 linkOrCopy(tarBall, copyFile)
             fd = open(semFile, "w")
             fd.close()
-        except Exception, e:
+        except Exception:
             self.logmsg("FAILED to queue data for SPADE: %s" % exc_string())
 
     def build_run_set(self, cncrpc, configName, configDir, requiredComps):
@@ -1083,7 +1083,7 @@ if __name__ == "__main__":
                 cl.server.serve_forever()
             finally:
                 cl.server.server_close()
-        except KeyboardInterrupt, k:
+        except KeyboardInterrupt:
             cl.server.server_close()
             raise SystemExit
         except socket.error, e:

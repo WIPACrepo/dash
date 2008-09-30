@@ -91,7 +91,7 @@ def main():
                 print "Removing %s..." % toAdd
                 unlink(toAdd)
                 
-        except KeyboardInterrupt, k: break
+        except KeyboardInterrupt: break
         #except: pass
 
 if __name__ == "__main__": main()

@@ -89,7 +89,7 @@ class SocketLogger(object):
                     print "%s %s" % (self.cname, data)
                     print >>self.outfile, "%s %s" % (self.cname, data)
                     self.outfile.flush()
-                except Exception, e:
+                except Exception:
                     break # Go back to select so we don't busy-wait
         self.sock.close()
         if self.logpath:
@@ -155,7 +155,7 @@ if __name__ == "__main__":
         print "Start serving..."
         logger.startServing()
         sleep(10000)
-    except KeyboardInterrupt, k:
+    except KeyboardInterrupt:
         raise SystemExit        
     
     raise SystemExit
@@ -172,7 +172,7 @@ if __name__ == "__main__":
             logger.stopServing()
             logger = None
             # sleep(0.01)
-        except KeyboardInterrupt, k:
+        except KeyboardInterrupt:
             raise SystemExit
         except Exception, e:
             print "Failed to set up remote logging: ", e

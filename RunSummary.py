@@ -646,7 +646,7 @@ def getLiveTimes(runDirs):
             lastLess7d  = lastTime - datetime.timedelta(7) # 1 week earlier
         try:
             runStart = datetimeFromDayTime(rec.startDay, rec.startTime)
-        except TypeError, t: # Skip runs with missing start times
+        except TypeError: # Skip runs with missing start times
             continue
         
         if runStop <= lastLess24h:

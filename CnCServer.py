@@ -14,7 +14,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3508 2008-09-30 21:18:38Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3510 2008-09-30 21:40:15Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -745,7 +745,7 @@ class DAQClient(CnCLogger):
         "Start marking events with the subrun number"
         try:
             return self.client.xmlrpc.commitSubrun(subrunNum, latestTime)
-        except Exception, e:
+        except Exception:
             self.logmsg(exc_string())
             return None
 
@@ -756,7 +756,7 @@ class DAQClient(CnCLogger):
                 return self.client.xmlrpc.configure()
             else:
                 return self.client.xmlrpc.configure(configName)
-        except Exception, e:
+        except Exception:
             self.logmsg(exc_string())
             return None
 
@@ -779,7 +779,7 @@ class DAQClient(CnCLogger):
         "Force component to stop running"
         try:
             return self.client.xmlrpc.forcedStop()
-        except Exception, e:
+        except Exception:
             self.logmsg(exc_string())
             return None
 
@@ -790,7 +790,7 @@ class DAQClient(CnCLogger):
             if type(evts) == str:
                 evts = long(evts[:-1])
             return evts
-        except Exception, e:
+        except Exception:
             self.logmsg(exc_string())
             return None
 
@@ -806,7 +806,7 @@ class DAQClient(CnCLogger):
             state = self.client.xmlrpc.getState()
         except socket.error:
             state = None
-        except Exception, e:
+        except Exception:
             self.logmsg(exc_string())
             state = None
 
@@ -826,7 +826,7 @@ class DAQClient(CnCLogger):
         """
         try:
             connStates = self.client.xmlrpc.listConnectorStates()
-        except Exception, e:
+        except Exception:
             self.logmsg(exc_string())
             return None
 
@@ -878,7 +878,7 @@ class DAQClient(CnCLogger):
         "Start marking events as bogus in preparation for subrun"
         try:
             return self.client.xmlrpc.prepareSubrun(subrunNum)
-        except Exception, e:
+        except Exception:
             self.logmsg(exc_string())
             return None
 
@@ -899,7 +899,7 @@ class DAQClient(CnCLogger):
         "Start component processing DAQ data"
         try:
             return self.client.xmlrpc.startRun(runNum)
-        except Exception, e:
+        except Exception:
             self.logmsg(exc_string())
             return None
 
@@ -907,7 +907,7 @@ class DAQClient(CnCLogger):
         "Stop component processing DAQ data"
         try:
             return self.client.xmlrpc.stopRun()
-        except Exception, e:
+        except Exception:
             self.logmsg(exc_string())
             return None
 
@@ -915,7 +915,7 @@ class DAQClient(CnCLogger):
         "Send subrun data to stringHubs"
         try:
             return self.client.xmlrpc.startSubrun(data)
-        except Exception, e:
+        except Exception:
             self.logmsg(exc_string())
             return None
 
@@ -1064,7 +1064,7 @@ class DAQPool(CnCLogger):
                 runSet = RunSet(compList, self)
                 self.sets.append(runSet)
                 setAdded = True
-            except Exception, ex:
+            except Exception:
                 runSet = None
                 self.logmsg(exc_string())
                 raise
@@ -1482,7 +1482,7 @@ class CnCServer(DAQServer):
 
             try:
                 count = self.monitorClients()
-            except Exception, ex:
+            except Exception:
                 self.logmsg(exc_string())
                 count = lastCount
 
@@ -1543,6 +1543,6 @@ if __name__ == "__main__":
                     opt.showSpinner)
     try:
         cnc.run()
-    except KeyboardInterrupt, k:
+    except KeyboardInterrupt:
         print "Interrupted."
         raise SystemExit

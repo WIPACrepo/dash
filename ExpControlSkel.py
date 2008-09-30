@@ -27,7 +27,7 @@ sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
 
-SVN_ID = "$Id: ExpControlSkel.py 2312 2007-11-26 23:03:57Z ksb $"
+SVN_ID = "$Id: ExpControlSkel.py 3510 2008-09-30 21:40:15Z dglo $"
 
 class DOMArgumentException(Exception): pass
 
@@ -54,7 +54,7 @@ def getLastRunNum(runFile):
 def showXML(daqruniface):
     try:
         print daqruniface.getSummary()
-    except KeyboardInterrupt, k: raise
+    except KeyboardInterrupt: raise
     except Exception, e:
         print "getSummary failed: %s" % e
 

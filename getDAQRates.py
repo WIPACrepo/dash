@@ -182,7 +182,7 @@ def fixValue(valStr):
         subStr = valStr[idx+1:nxt]
         try:
             tot += long(subStr)
-        except ValueError, ex:
+        except ValueError:
             print >>sys.stderr, \
                 "Couldn't get integer value for '%s' ('%s' idx %d nxt %d)" % \
                 (subStr, valStr, idx, nxt)

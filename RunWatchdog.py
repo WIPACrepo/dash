@@ -353,7 +353,7 @@ class RunWatchdog(object):
                     else:
                         raise Exception, 'Unknown component type ' + \
                             shortNameOf[c]
-                except Exception, e:
+                except Exception:
                     self.logmsg(('Couldn''t create watcher (%s#%d)' +
                                  ' for component %d: %s') %
                                 (shortNameOf[c], daqIDof[c], c, exc_string()))
@@ -418,7 +418,7 @@ class RunWatchdog(object):
             if badList is not None:
                 starved += badList
                 isProblem = True
-        except Exception, e:
+        except Exception:
             self.logmsg(str(comp) + ' inputs: ' + exc_string())
 
         if not isProblem:
@@ -427,7 +427,7 @@ class RunWatchdog(object):
                 if badList is not None:
                     stagnant += badList
                     isProblem = True
-            except Exception, e:
+            except Exception:
                 self.logmsg(str(comp) + ' outputs: ' + exc_string())
 
             if not isProblem:
@@ -436,7 +436,7 @@ class RunWatchdog(object):
                     if badList is not None:
                         threshold += badList
                         isProblem = True
-                except Exception, e:
+                except Exception:
                     self.logmsg(str(comp) + ' thresholds: ' + exc_string())
 
     def realWatch(self):

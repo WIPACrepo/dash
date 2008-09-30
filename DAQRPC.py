@@ -63,7 +63,7 @@ class RPCClient(xmlrpclib.ServerProxy):
         try:
             result = eval(code)
             self.statDict[method].tally(datetime.datetime.now()-tstart)
-        except Exception, e:
+        except Exception:
             self.statDict[method].tally(datetime.datetime.now()-tstart)
             raise
         
@@ -110,7 +110,7 @@ class RPCStat:
         xavg2 = avg*avg
         try:
             rms = math.sqrt(x2avg - xavg2)
-        except Exception, e:
+        except Exception:
             rms = None
         return (self.n, self.min, self.max, avg, rms)
     

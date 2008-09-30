@@ -20,7 +20,7 @@ class ServeAndPing(object):
             sleep(1)
             try:
                 print "%s" % self.client.CnC.rpc_ping()
-            except KeyboardInterrupt, k:
+            except KeyboardInterrupt:
                 raise SystemExit
             except Exception, e:
                 print e
