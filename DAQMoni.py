@@ -69,13 +69,14 @@ class MoniThread(threading.Thread):
         if self.log: self.log.dashLog(m)
      
     def run(self):
-        done = False
+        self.done = False
         try:
             self.moniData.monitor(self.now)
         except Exception:
             self.logmsg("Ignoring %s: %s" % \
                             (str(self.moniData), exc_string()))
-        done = True
+
+        self.done = True
 
 class DAQMoni(object):
     def __init__(self, daqLog, interval, IDs, shortNameOf, daqIDof, rpcAddrOf, mbeanPortOf):
