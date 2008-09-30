@@ -336,7 +336,8 @@ def testProcs():
     
 def main():
 
-    p = optparse.OptionParser(usage="usage: %prog [options] <releasefile>")
+    usage="usage: %prog [options] <releasefile>"
+    p = optparse.OptionParser(usage=usage)
     p.add_option("-c", "--config-name",  action="store", type="string",
                  dest="clusterConfigName",
                  help="Cluster configuration name, subset of deployed configuration.")

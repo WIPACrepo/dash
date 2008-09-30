@@ -25,7 +25,7 @@ from ParallelShell import *
 def main():
     "Main program"
     usage = "%prog [options]"
-    p = optparse.OptionParser()
+    p = optparse.OptionParser(usage=usage)
     p.add_option("-c", "--config-name",  action="store", type="string", dest="clusterConfigName",
                  help="REQUIRED: Configuration name")
     p.add_option("-n", "--dry-run",      action="store_true",           dest="dryRun",
