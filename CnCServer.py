@@ -14,7 +14,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3529 2008-09-30 22:42:44Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3530 2008-09-30 22:44:52Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -100,6 +100,10 @@ class ConnTypeEntry:
         self.type = type
         self.inList = []
         self.outList = []
+
+    def __str__(self):
+        return '%s in#%d out#%d' % (self.type, len(self.inList),
+                                    len(self.outList))
 
     def add(self, conn, comp):
         "Add a connection and component to the appropriate list"
@@ -602,8 +606,10 @@ class RunSet:
 class CnCLogger(object):
     "CnC logging client"
 
-    def __init__(self):
+    def __init__(self, quiet=False):
         "create a logging client"
+        self.quiet = quiet
+
         self.socketlog = None
         self.logIP = None
         self.logPort = None
@@ -628,7 +634,7 @@ class CnCLogger(object):
         Log a string to stdout and, if available, to the socket logger
         stdout of course will not appear if daemonized.
         """
-        print s
+        if not self.quiet: print s
         if self.socketlog:
             try:
                 self.socketlog.write_ts(s)
@@ -1069,7 +1075,6 @@ class DAQPool(CnCLogger):
                 setAdded = True
             except Exception:
                 runSet = None
-                self.logmsg(exc_string())
                 raise
         finally:
             if not setAdded:
@@ -1388,7 +1393,10 @@ class DAQServer(DAQPool):
 
     def rpc_runset_make(self, nameList):
         "build a runset using the specified components"
-        runSet = self.makeRunset(nameList)
+        try:
+            runSet = self.makeRunset(nameList)
+        except:
+            self.logmsg(exc_string())
 
         if not runSet:
             return -1
