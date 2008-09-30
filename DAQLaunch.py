@@ -16,7 +16,7 @@ from os.path import abspath, isabs, join, basename
 from GetIP import getIP
 from DAQRPC import RPCClient
 
-SVN_ID = "$Id: DAQLaunch.py 3502 2008-09-10 23:11:57Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 3527 2008-09-30 22:36:29Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -69,7 +69,7 @@ componentDB = { "eventBuilder"      : \
                     },
                 "StringHub"         : \
                     { "ejar"     : "StringHub-1.0.0-SNAPSHOT-comp.jar",
-                      "jvm_args" : "-Xmx350m -Dicecube.daq.bindery.StreamBinder.prescale=1",
+                      "jvm_args" : "-server -Xms640m -Xmx640m -Dicecube.daq.bindery.StreamBinder.prescale=1",
                     },
                 "replayHub"        : \
                     { "ejar"     : "StringHub-1.0.0-SNAPSHOT-replay.jar",
