@@ -117,7 +117,7 @@ class RPCStat:
     def report(self):
         l = self.summaries()
         if l == None: return "No entries."
-        (n, min, max, avg, rms) = l
+        (n, Xmin, Xmax, avg, rms) = l
         return "%d entries, min=%.4f max=%.4f, avg=%.4f, rms=%.4f" % (self.n,
                                                                       self.min,
                                                                       self.max,
