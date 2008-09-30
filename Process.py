@@ -4,7 +4,8 @@ import os
 import re
 
 def processList():
-    (cmdin, cmdout) = os.popen4("ps axww"); cmdin.close()
+    command = "ps axww"
+    (cmdin, cmdout) = os.popen4(command); cmdin.close()
     output = cmdout.read()
     result = cmdout.close()
     if result:
