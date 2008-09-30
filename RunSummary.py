@@ -309,7 +309,7 @@ def toSeconds(t):
     if t == None: return None
     return t.days*86400 + t.seconds
 
-def makeRunReport(snippetFile, dashFile, release, infoPat, runInfo, configName,
+def makeRunReport(snippetFile, dashFile, release, runInfo, configName,
                       status, nEvents, cumEvents, lastTimeStr, absRunDir, relRunDir):
     """
     Calculate start and stop times, duration and rate.  Make HTML summary line
@@ -906,7 +906,7 @@ def main():
                 if status == None: status = "INCOMPLETE"
 
                 # Make HTML snippet for run summaries
-                makeRunReport(snippetFile, dashFile, release, infoPat, runInfoString, 
+                makeRunReport(snippetFile, dashFile, release, runInfoString, 
                               configName, status, nEvents, cumEvents, lastTimeStr,
                               runDir+"/"+linkDir, linkDir)
 

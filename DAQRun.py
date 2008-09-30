@@ -33,7 +33,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 3510 2008-09-30 21:40:15Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3513 2008-09-30 21:59:20Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -586,7 +586,7 @@ class DAQRun(Rebootable.Rebootable):
         except Exception:
             self.logmsg("FAILED to queue data for SPADE: %s" % exc_string())
 
-    def build_run_set(self, cncrpc, configName, configDir, requiredComps):
+    def build_run_set(self, cncrpc, requiredComps):
         # Wait for required components
         self.logmsg("Starting run %d (waiting for required %d components to register w/ CnCServer)"
                     % (self.runStats.runNum, len(requiredComps)))
@@ -784,7 +784,7 @@ class DAQRun(Rebootable.Rebootable):
                     if self.forceConfig or (self.configName != self.lastConfig):
                         self.break_existing_runset(self.cnc)
                         requiredComps = self.getComponentsFromGlobalConfig(self.configName, self.configDir)
-                        self.build_run_set(self.cnc, self.configName, self.configDir, requiredComps)
+                        self.build_run_set(self.cnc, requiredComps)
 
                     self.fill_component_dictionaries(self.cnc)
                     # once per run
