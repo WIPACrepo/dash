@@ -202,6 +202,9 @@ class MockClient(DAQClient):
         tmpStr = super(MockClient, self).__str__()
         return 'Mock' + tmpStr
 
+    def closeLog(self):
+        pass
+
     def connect(self, links=None):
         self.state = 'connected'
         return super(MockClient, self).connect(links)
@@ -216,7 +219,6 @@ class MockClient(DAQClient):
         return self.state
 
     def reset(self):
-        print str(self) + ' -> idle'
         self.state = 'idle'
         return super(MockClient, self).reset()
 
