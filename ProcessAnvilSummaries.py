@@ -302,10 +302,10 @@ class WebDisplay:
 """
         prevRun = None
         prevDay = None
-        for sum in self.summaries:
-            r += sum.rowHTML(prevDay, prevRun)
-            prevRun = sum.latestDAQRun
-            prevDay = sum.day
+        for s in self.summaries:
+            r += s.rowHTML(prevDay, prevRun)
+            prevRun = s.latestDAQRun
+            prevDay = s.day
         r += """
 </TABLE>
 </BODY>
