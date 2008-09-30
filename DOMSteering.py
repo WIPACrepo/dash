@@ -201,7 +201,7 @@ def createConfig(cursor, mbid, **kwargs):
     txt += "<postTrigger> %4d </postTrigger>\n" % lc_post_trigger
     for d in ("up", "down"):
         for dist in range(4):
-            txt += '<cableLength dir="%s" dist="%d"> %4d </cableLength>\n' % (d, dist+1, clen[dir][dist])
+            txt += '<cableLength dir="%s" dist="%d"> %4d </cableLength>\n' % (d, dist+1, clen[d][dist])
     txt += "</localCoincidence>\n"
     txt += '<supernovaMode enabled="true">\n'
     txt += "<deadtime> %d </deadtime>\n" % sn_deadtime
