@@ -244,8 +244,9 @@ class StubbedDAQRun(DAQRun):
     def get_base_prefix(self, runNum, runTime, runDuration):
         return 'MockPrefix#%d' % runNum
 
-    def move_spade_files(self, copyDir, logTopLevel, runDir, tarBall, semFile):
+    def move_spade_files(self, copyDir, basePrefix, logTopLevel, runDir, spadeDir):
         pass
+
     def restartComponents(self):
         pass
 
@@ -1242,10 +1243,7 @@ class TestDAQRun(unittest.TestCase):
                    'Run terminated SUCCESSFULLY.',
                    ('Queueing data for SPADE (spadeDir=%s, logDir=%s,' +
                     ' runNum=%s)...') %
-                   (TestDAQRun.SPADE_DIR, TestDAQRun.LOG_DIR, runNum),
-                   'Target files are:\n%s/%s.dat.tar\n%s/%s.sem' %
-                   (TestDAQRun.SPADE_DIR, basePrefix,
-                    TestDAQRun.SPADE_DIR, basePrefix), )
+                   (TestDAQRun.SPADE_DIR, TestDAQRun.LOG_DIR, runNum))
         self.checkLogMessages(logger, expMsgs)
 
         dr.rpc_release_runsets()

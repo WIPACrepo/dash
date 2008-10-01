@@ -33,7 +33,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 3523 2008-09-30 22:27:46Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3532 2008-10-01 18:44:24Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -574,18 +574,6 @@ class DAQRun(Rebootable.Rebootable):
             (runNum, runTime.year, runTime.month, runTime.day, runTime.hour,
              runTime.minute, runTime.second, runDuration)
 
-    def move_spade_files(self, copyDir, logTopLevel, runDir, tarBall, semFile):
-        move("%s/catchall.log" % logTopLevel, "%s/%s" % (logTopLevel, runDir))
-        tarObj = TarFile(tarBall, "w")
-        tarObj.add("%s/%s" % (logTopLevel, runDir), runDir, True)
-        # self.recursivelyAddToTar(tarObj, logTopLevel, runDir)
-        tarObj.close()
-        if copyDir:
-            self.logmsg("Link or copy %s->%s" % (tarBall, copyFile))
-            linkOrCopy(tarBall, copyFile)
-        fd = open(semFile, "w")
-        fd.close()
-
     def queue_for_spade(self, spadeDir, copyDir, logTopLevel, runNum, runTime, runDuration):
         """
         Put tarball of log and moni files in SPADE directory as well as
@@ -597,14 +585,26 @@ class DAQRun(Rebootable.Rebootable):
                     % (spadeDir, logTopLevel, runNum))
         runDir = logCollector.logDirName(runNum)
         basePrefix = self.get_base_prefix(runNum, runTime, runDuration)
-        tarBall = "%s/%s.dat.tar" % (spadeDir, basePrefix)
-        if copyDir: copyFile = "%s/%s.dat.tar" % (copyDir, basePrefix)
-        semFile = "%s/%s.sem"     % (spadeDir, basePrefix)
-        self.logmsg("Target files are:\n%s\n%s" % (tarBall, semFile))
         try:
-            self.move_spade_files(copyDir, logTopLevel, runDir, tarBall, semFile)
+            self.move_spade_files(copyDir, basePrefix, logTopLevel, runDir, spadeDir)
         except Exception:
             self.logmsg("FAILED to queue data for SPADE: %s" % exc_string())
+
+    def move_spade_files(self, copyDir, basePrefix, logTopLevel, runDir, spadeDir):
+        tarBall = "%s/%s.dat.tar" % (spadeDir, basePrefix)
+        semFile = "%s/%s.sem"     % (spadeDir, basePrefix)
+        self.logmsg("Target files are:\n%s\n%s" % (tarBall, semFile))
+        move("%s/catchall.log" % logTopLevel, "%s/%s" % (logTopLevel, runDir))
+        tarObj = TarFile(tarBall, "w")
+        tarObj.add("%s/%s" % (logTopLevel, runDir), runDir, True)
+        # self.recursivelyAddToTar(tarObj, logTopLevel, runDir)
+        tarObj.close()
+        if copyDir:
+            copyFile = "%s/%s.dat.tar" % (copyDir, basePrefix)
+            self.logmsg("Link or copy %s->%s" % (tarBall, copyFile))
+            linkOrCopy(tarBall, copyFile)
+        fd = open(semFile, "w")
+        fd.close()
 
     def build_run_set(self, cncrpc, requiredComps):
         # Wait for required components
