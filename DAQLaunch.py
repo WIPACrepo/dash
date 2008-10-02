@@ -16,7 +16,7 @@ from os.path import abspath, isabs, join, basename
 from GetIP import getIP
 from DAQRPC import RPCClient
 
-SVN_ID = "$Id: DAQLaunch.py 3527 2008-09-30 22:36:29Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 3536 2008-10-02 03:08:46Z jacobsen $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -191,6 +191,8 @@ def doKill(doDAQRun, dryRun, dashDir, verbose, clusterConfig, killWith9):
         cmd = daqRun + ' -k'
         if verbose: print cmd
         if not dryRun: system(cmd)
+        # Kill DAQLive
+        if not dryRun: system("pkill -9 -fu %s DAQLive.py" % environ["USER"])
         
     # Kill CnCServer
     cncServer = join(dashDir, 'CnCServer.py')
@@ -198,8 +200,6 @@ def doKill(doDAQRun, dryRun, dashDir, verbose, clusterConfig, killWith9):
     if verbose: print cmd
     if not dryRun: system(cmd)
 
-    # Kill DAQLive
-    if not dryRun: system("pkill -9 -fu %s DAQLive.py" % environ["USER"])
     
     killJavaProcesses(dryRun, clusterConfig, verbose, killWith9)
     if verbose and not dryRun: print "DONE with killing Java Processes."
@@ -213,7 +213,8 @@ def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
     "Launch components"
     # Start DAQRun
     if doDAQRun:
-        daqRun = join(dashDir, 'DAQRun.py')
+        daqLive = join(dashDir, 'DAQLive.py')
+        daqRun  = join(dashDir, 'DAQRun.py')
         options = "-r -f -c %s -l %s -s %s -u %s" % \
             (configDir, logDir, spadeDir, clusterConfig.configName)
         if copyDir: options += " -a %s" % copyDir
@@ -228,6 +229,11 @@ def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
         else:
             cmd = "%s %s" % (daqRun, options)
             if not dryRun: system(cmd)
+            
+        # Start DAQLive
+        cmd = "%s %s &" % (daqLive, verbose and "-v" or "")
+        if verbose: print cmd
+        if not dryRun: system(cmd)    
 
     # Start CnCServer
     cncServer = join(dashDir, 'CnCServer.py')
@@ -238,15 +244,6 @@ def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
         cmd = "%s -l localhost:9001 -d" % cncServer
     if not dryRun: system(cmd)
 
-    # Start DAQLive
-    daqLive = join(dashDir, 'DAQLive.py')
-    if verbose:
-        cmd = "%s -v &" % daqLive
-        print cmd
-    else:
-        cmd = "%s &" % daqLive
-    if not dryRun: system(cmd)
-    
     startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
                        cncPort, verbose, eventCheck)
     if verbose and not dryRun: print "DONE with starting Java Processes."
