@@ -1246,6 +1246,22 @@ class TestDAQRun(unittest.TestCase):
                    (TestDAQRun.SPADE_DIR, TestDAQRun.LOG_DIR, runNum))
         self.checkLogMessages(logger, expMsgs)
 
+        moni = dr.rpc_run_monitoring()
+        self.failIf(moni is None, 'rpc_run_monitoring returned None')
+        self.failIf(len(moni) == 0, 'rpc_run_monitoring returned no data')
+        self.assertEquals(numEvts, moni['physicsEvents'],
+                          'Expected %d physics events, not %d' %
+                          (numEvts, moni['physicsEvents']))
+        self.assertEquals(numMoni, moni['moniEvents'],
+                          'Expected %d moni events, not %d' %
+                          (numMoni, moni['moniEvents']))
+        self.assertEquals(numSN, moni['snEvents'],
+                          'Expected %d sn events, not %d' %
+                          (numSN, moni['snEvents']))
+        self.assertEquals(numTCal, moni['tcalEvents'],
+                          'Expected %d tcal events, not %d' %
+                          (numTCal, moni['tcalEvents']))
+
         dr.rpc_release_runsets()
         self.assertTrue(cnc.RSBreakFlag, 'Runset should have been broken')
         cnc.resetFlags()

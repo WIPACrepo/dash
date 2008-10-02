@@ -33,7 +33,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 3532 2008-10-01 18:44:24Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3538 2008-10-02 20:58:15Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -1106,6 +1106,11 @@ class DAQRun(Rebootable.Rebootable):
             monDict["moniEvents"] = self.runStats.moniEvents
             monDict["snEvents"] = self.runStats.snEvents
             monDict["tcalEvents"] = self.runStats.tcalEvents
+        elif self.prevRunStats.runNum and self.runState == "STOPPED":
+            monDict["physicsEvents"] = self.prevRunStats.physicsEvents
+            monDict["moniEvents"] = self.prevRunStats.moniEvents
+            monDict["snEvents"] = self.prevRunStats.snEvents
+            monDict["tcalEvents"] = self.prevRunStats.tcalEvents
 
         return monDict
 
