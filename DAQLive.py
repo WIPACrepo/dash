@@ -248,6 +248,8 @@ class DAQLive(Component):
             if self.__waitForState('STOPPED'):
                 self.logInfo('Stopped run %d' % self.runNumber)
 
+        self.__reportMoni()
+
     "Maximum number of loops to wait inside waitForState()"
     MAX_WAIT = 120
 
