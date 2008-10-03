@@ -187,7 +187,9 @@ class DAQLive(Component):
         """
         Start a new pDAQ run
         stateArgs - should be a dictionary of run data:
-            ['runConfig'] - the name of the run configuration
+            'runConfig' - the name of the run configuration
+            'runNumber' - run number
+            'subRunNumber' - subrun number
         runNumber - if not None, the run number for this run
         retry - if True, reopen a bad socket connection to DAQRun
                 otherwise, 
@@ -199,6 +201,7 @@ class DAQLive(Component):
         elif self.runConfig is None:
             raise Exception('No configuration specified')
 
+        runNumber = stateArgs.get('runNumber')
         if runNumber is None:
             runNumber = self.__getNextRunNumber()
 
@@ -214,7 +217,7 @@ class DAQLive(Component):
             runStarted = False
             if retry:
                 self.__connectToDAQRun()
-                self.starting(None, runNumber, False)
+                self.starting(None, stateArgs, False)
             else:
                 self.logError('Could not start pDAQ')
                 
