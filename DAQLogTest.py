@@ -55,7 +55,7 @@ class TestDAQLog(unittest.TestCase):
 
         self.sockLog = SocketLogger(port, cname, logPath, True)
         self.sockLog.startServing()
-        self.assertTrue(os.path.exists(logPath), 'Log file was not created')
+        self.failUnless(os.path.exists(logPath), 'Log file was not created')
 
         msg = 'Test 1 2 3'
 
@@ -77,7 +77,7 @@ class TestDAQLog(unittest.TestCase):
 
         logPath = '%s/%s/dash.log' % (TestDAQLog.DIR_PATH, midDir)
 
-        self.assertTrue(os.path.exists(logPath), 'Log file was not created')
+        self.failUnless(os.path.exists(logPath), 'Log file was not created')
 
         msg = 'Test msg'
 
@@ -91,10 +91,10 @@ class TestDAQLog(unittest.TestCase):
         prefix = 'DAQRun ['
 
         line = lines[0].rstrip()
-        self.assertTrue(line.startswith(prefix),
+        self.failUnless(line.startswith(prefix),
                         'Log entry "%s" should start with "%s"' %
                         (line, prefix))
-        self.assertTrue(line.endswith('] ' + msg),
+        self.failUnless(line.endswith('] ' + msg),
                         'Log entry "%s" should start with "%s"' %
                         (line, '] ' + msg))
 
@@ -107,7 +107,7 @@ class TestDAQLog(unittest.TestCase):
 
         logPath = '%s/%s/dash.log' % (TestDAQLog.DIR_PATH, midDir)
 
-        self.assertTrue(os.path.exists(logPath), 'Log file was not created')
+        self.failUnless(os.path.exists(logPath), 'Log file was not created')
 
         self.collector.close()
 
@@ -115,7 +115,7 @@ class TestDAQLog(unittest.TestCase):
 
         oldPath = '%s/old_%s_00/dash.log' % (TestDAQLog.DIR_PATH, midDir)
 
-        self.assertTrue(os.path.exists(oldPath), 'Old file was not created')
+        self.failUnless(os.path.exists(oldPath), 'Old file was not created')
 
 if __name__ == '__main__':
     unittest.main()

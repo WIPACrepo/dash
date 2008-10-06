@@ -426,8 +426,8 @@ class TestDAQRun(unittest.TestCase):
             dr.waitForRequiredComponents(cnc, required, 0)
             self.fail('Unexpected success')
         except Exception, e:
-            self.assertEquals('Still waiting for ' + required[0], e.message,
-                              'Unexpected exception message "%s"' % e.message)
+            self.assertEquals('Still waiting for ' + required[0], str(e),
+                              'Unexpected exception message "%s"' % str(e))
 
         self.checkLogMessages(logger)
 
@@ -479,8 +479,8 @@ class TestDAQRun(unittest.TestCase):
             dr.build_run_set(cnc, required)
             self.fail('Unexpected success')
         except Exception, e:
-            self.assertEquals('Still waiting for ' + required[0], e.message,
-                              'Unexpected exception message "%s"' % e.message)
+            self.assertEquals('Still waiting for ' + required[0], str(e),
+                              'Unexpected exception message "%s"' % str(e))
 
         expMsgs = (('Starting run %d (waiting for required %d components' +
                    ' to register w/ CnCServer)') %
@@ -573,7 +573,7 @@ class TestDAQRun(unittest.TestCase):
         cnc = MockCnCRPC()
 
         dr.runset_configure(cnc, 1, 'foo')
-        self.assertTrue(cnc.RSConfigFlag, 'Runset was not configured')
+        self.failUnless(cnc.RSConfigFlag, 'Runset was not configured')
 
         self.checkLogMessages(logger, ('Configuring run set...', ))
 
@@ -592,7 +592,7 @@ class TestDAQRun(unittest.TestCase):
         dr.runSetID = expId
 
         dr.start_run(cnc)
-        self.assertTrue(cnc.RSStartFlag, 'Runset was not started')
+        self.failUnless(cnc.RSStartFlag, 'Runset was not started')
 
         self.checkLogMessages(logger, ('Started run %d on run set %d' %
                                        (expRunNum, expId), ))
@@ -610,7 +610,7 @@ class TestDAQRun(unittest.TestCase):
         dr.runStats.runNum = expRunNum
 
         dr.stop_run(cnc)
-        self.assertTrue(cnc.RSStopFlag, 'Runset was not started')
+        self.failUnless(cnc.RSStopFlag, 'Runset was not started')
 
         self.checkLogMessages(logger, ('Stopping run %d' % expRunNum, ))
 
@@ -627,7 +627,7 @@ class TestDAQRun(unittest.TestCase):
         dr.runSetID = expId
 
         dr.break_existing_runset(cnc)
-        self.assertTrue(cnc.RSBreakFlag, 'Runset was not broken')
+        self.failUnless(cnc.RSBreakFlag, 'Runset was not broken')
         self.assertEquals(0, len(dr.setCompIDs),
                           'Should not have any components')
         self.assertEquals(0, len(dr.shortNameOf),
@@ -659,7 +659,7 @@ class TestDAQRun(unittest.TestCase):
         dr.runSetID = expId
 
         dr.break_existing_runset(cnc)
-        self.assertFalse(cnc.RSBreakFlag, 'Runset was broken')
+        self.failIf(cnc.RSBreakFlag, 'Runset was broken')
         self.assertEquals(0, len(dr.setCompIDs),
                           'Should not have any components')
         self.assertEquals(0, len(dr.shortNameOf),
@@ -743,7 +743,7 @@ class TestDAQRun(unittest.TestCase):
         cnc = MockCnCRPC()
 
         rtnVal = dr.check_all()
-        self.assertTrue(rtnVal, 'Expected call to succeed')
+        self.failUnless(rtnVal, 'Expected call to succeed')
 
         self.checkLogMessages(logger)
 
@@ -788,7 +788,7 @@ class TestDAQRun(unittest.TestCase):
         dr.fill_component_dictionaries(cnc)
 
         rtnVal = dr.check_all()
-        self.assertTrue(rtnVal, 'Expected call to succeed')
+        self.failUnless(rtnVal, 'Expected call to succeed')
 
         self.checkLogMessages(logger, ((('\t%d physics events (2.00 Hz)' +
                                          ', %d moni events, %d SN events' +
@@ -827,7 +827,7 @@ class TestDAQRun(unittest.TestCase):
         dr.fill_component_dictionaries(cnc)
 
         rtnVal = dr.check_all()
-        self.assertTrue(rtnVal, 'Expected call to succeed')
+        self.failUnless(rtnVal, 'Expected call to succeed')
 
         self.checkLogMessages(logger, ((('\t%d physics events, %d moni events' +
                                          ', %d SN events, %d tcals') %
@@ -852,10 +852,10 @@ class TestDAQRun(unittest.TestCase):
         cnc = MockCnCRPC()
 
         rtnVal = dr.check_all()
-        self.assertTrue(rtnVal, 'Expected call to succeed')
+        self.failUnless(rtnVal, 'Expected call to succeed')
 
-        self.assertFalse(dog.threadCleared, 'Should not have cleared thread')
-        self.assertFalse(dog.watchStarted, 'Should not have started watchdog')
+        self.failIf(dog.threadCleared, 'Should not have cleared thread')
+        self.failIf(dog.watchStarted, 'Should not have started watchdog')
         self.assertEquals(expCnt, DAQRun.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
                           (expCnt, DAQRun.unHealthyCount))
@@ -882,10 +882,10 @@ class TestDAQRun(unittest.TestCase):
         cnc = MockCnCRPC()
 
         rtnVal = dr.check_all()
-        self.assertTrue(rtnVal, 'Expected call to succeed')
+        self.failUnless(rtnVal, 'Expected call to succeed')
 
-        self.assertFalse(dog.threadCleared, 'Should not have cleared thread')
-        self.assertTrue(dog.watchStarted, 'Should have started watchdog')
+        self.failIf(dog.threadCleared, 'Should not have cleared thread')
+        self.failUnless(dog.watchStarted, 'Should have started watchdog')
         self.assertEquals(expCnt, DAQRun.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
                           (expCnt, DAQRun.unHealthyCount))
@@ -911,10 +911,10 @@ class TestDAQRun(unittest.TestCase):
         cnc = MockCnCRPC()
 
         rtnVal = dr.check_all()
-        self.assertFalse(rtnVal, 'Expected call to succeed')
+        self.failIf(rtnVal, 'Expected call to succeed')
 
-        self.assertTrue(dog.threadCleared, 'Should have cleared thread')
-        self.assertFalse(dog.watchStarted, 'Should not have started watchdog')
+        self.failUnless(dog.threadCleared, 'Should have cleared thread')
+        self.failIf(dog.watchStarted, 'Should not have started watchdog')
         self.assertEquals(expCnt, DAQRun.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
                           (expCnt, DAQRun.unHealthyCount))
@@ -943,10 +943,10 @@ class TestDAQRun(unittest.TestCase):
         cnc = MockCnCRPC()
 
         rtnVal = dr.check_all()
-        self.assertTrue(rtnVal, 'Expected call to succeed')
+        self.failUnless(rtnVal, 'Expected call to succeed')
 
-        self.assertTrue(dog.threadCleared, 'Should have cleared thread')
-        self.assertFalse(dog.watchStarted, 'Should not have started watchdog')
+        self.failUnless(dog.threadCleared, 'Should have cleared thread')
+        self.failIf(dog.watchStarted, 'Should not have started watchdog')
         self.assertEquals(expCnt, DAQRun.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
                           (expCnt, DAQRun.unHealthyCount))
@@ -974,10 +974,10 @@ class TestDAQRun(unittest.TestCase):
         cnc = MockCnCRPC()
 
         rtnVal = dr.check_all()
-        self.assertTrue(rtnVal, 'Expected call to succeed')
+        self.failUnless(rtnVal, 'Expected call to succeed')
 
-        self.assertTrue(dog.threadCleared, 'Should have cleared thread')
-        self.assertFalse(dog.watchStarted, 'Should not have started watchdog')
+        self.failUnless(dog.threadCleared, 'Should have cleared thread')
+        self.failIf(dog.watchStarted, 'Should not have started watchdog')
         self.assertEquals(expCnt, DAQRun.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
                           (expCnt, DAQRun.unHealthyCount))
@@ -1005,10 +1005,10 @@ class TestDAQRun(unittest.TestCase):
         cnc = MockCnCRPC()
 
         rtnVal = dr.check_all()
-        self.assertFalse(rtnVal, 'Expected call to succeed')
+        self.failIf(rtnVal, 'Expected call to succeed')
 
-        self.assertTrue(dog.threadCleared, 'Should have cleared thread')
-        self.assertFalse(dog.watchStarted, 'Should not have started watchdog')
+        self.failUnless(dog.threadCleared, 'Should have cleared thread')
+        self.failIf(dog.watchStarted, 'Should not have started watchdog')
         self.assertEquals(expCnt, DAQRun.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
                           (expCnt, DAQRun.unHealthyCount))
@@ -1159,9 +1159,9 @@ class TestDAQRun(unittest.TestCase):
             numTries += 1
         self.assertEquals('RUNNING', dr.runState, 'Should be running, not ' +
                           dr.runState)
-        self.assertFalse(cnc.RSBreakFlag, 'Runset should not have been broken')
-        self.assertTrue(cnc.RSConfigFlag, 'Runset was not configured')
-        self.assertTrue(cnc.RSStartFlag, 'Runset was not started')
+        self.failIf(cnc.RSBreakFlag, 'Runset should not have been broken')
+        self.failUnless(cnc.RSConfigFlag, 'Runset was not configured')
+        self.failUnless(cnc.RSStartFlag, 'Runset was not started')
         cnc.resetFlags()
 
         expMsgs = ['Loaded global configuration "%s"' % configName,
@@ -1202,7 +1202,7 @@ class TestDAQRun(unittest.TestCase):
                    ('a', 0, 1, 2, 3, 4)]
 
         dr.rpc_flash(subRunId, domList)
-        self.assertTrue(cnc.RSFlashFlag, 'Runset should have flashed')
+        self.failUnless(cnc.RSFlashFlag, 'Runset should have flashed')
 
         expMsgs = (("Subrun %d: will ignore missing DOM ('DOM %s not found" +
                     " in config!')...") % (subRunId, domList[2][0]),
@@ -1229,7 +1229,7 @@ class TestDAQRun(unittest.TestCase):
             numTries += 1
         self.assertEquals('STOPPED', dr.runState, 'Should be stopped, not ' +
                           dr.runState)
-        self.assertTrue(cnc.RSStopFlag, 'Runset was not stopped')
+        self.failUnless(cnc.RSStopFlag, 'Runset was not stopped')
         cnc.resetFlags()
 
         basePrefix = dr.get_base_prefix(runNum, None, None)
@@ -1263,7 +1263,7 @@ class TestDAQRun(unittest.TestCase):
                           (numTCal, moni['tcalEvents']))
 
         dr.rpc_release_runsets()
-        self.assertTrue(cnc.RSBreakFlag, 'Runset should have been broken')
+        self.failUnless(cnc.RSBreakFlag, 'Runset should have been broken')
         cnc.resetFlags()
 
         self.checkLogMessages(logger)
