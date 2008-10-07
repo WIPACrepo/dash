@@ -10,8 +10,9 @@ try:
     from live.control.component import Component
     from live.transport.Queue import Prio
 except ImportError:
-    print >>sys.stderr, ('ERROR: Cannot import IceCube Live code ...' +
-                         ' DAQLive aborting')
+    print >>sys.stderr, """\
+Warning: Can't import IceCube Live code. Probably DAQLive isn't installed.
+DAQ should work ok, but IceCube Live won't be able to control it."""
     sys.exit(1)
 
 SVN_ID  = "$Id: DAQRun.py 3084 2008-05-27 21:44:21Z dglo $"
