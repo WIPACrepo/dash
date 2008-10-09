@@ -33,7 +33,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 3538 2008-10-02 20:58:15Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3571 2008-10-09 17:12:33Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -552,7 +552,7 @@ class DAQRun(Rebootable.Rebootable):
         # Log file is already defined since STARTING state does not get invoked otherwise
         # Set up logger for CnCServer and required components
         self.log = self.createLogCollector(runNum, logDir)
-        self.logmsg("Version Info: %(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % self.versionInfo)
+        self.logmsg("Version info: %(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % self.versionInfo)
         self.logmsg("Starting run %d..." % runNum)
         self.logmsg("Run configuration: %s" % configName)
         self.logmsg("Cluster configuration: %s" % self.clusterConfig.configName)
