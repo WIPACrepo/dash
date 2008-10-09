@@ -1186,7 +1186,7 @@ class TestDAQRun(unittest.TestCase):
         expMsgs.append(('Starting run %d (waiting for required %d components' +
                         ' to register w/ CnCServer)') % (runNum, len(comps)))
         expMsgs.append('Created Run Set #%d' % setId)
-        expMsgs.append(('Version Info: %(filename)s %(revision)s %(date)s' +
+        expMsgs.append(('Version info: %(filename)s %(revision)s %(date)s' +
                         ' %(time)s %(author)s %(release)s %(repo_rev)s') %
                        dr.versionInfo)
         expMsgs.append('Starting run %d...' % runNum)
