@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import datetime, re, sys, thread, time, unittest
+import datetime, os, re, sys, thread, time, unittest
 from DAQRun import DAQRun, RunArgs
 
 class MockLogger(object):
@@ -1037,7 +1037,12 @@ class TestDAQRun(unittest.TestCase):
             dr.setUpAllComponentLoggers()
         finally:
             for k in dr.loggerOf.keys():
-                dr.loggerOf[k].stopServing()
+                if dr.loggerOf[k] is not None:
+                    dr.loggerOf[k].stopServing()
+            for c in expComps:
+                path = os.path.join(logger.logPath, '%s-%d' % (c[1], c[2]))
+                if os.path.exists(path):
+                    os.remove(path)
 
         nextPort = 9002
         expMsgs = ['Setting up logging for %d components' % len(expComps), ]
@@ -1056,8 +1061,8 @@ class TestDAQRun(unittest.TestCase):
         dr.log = logger
 
         expId = 99
-        expComps = [(3, 'foo', 0, 'localhost', 1234, 5678),
-                    (7, 'bar', 1, 'localhost', 4321, 8765)]
+        expComps = [(3, 'foon', 5, 'localhost', 1234, 5678),
+                    (7, 'barn', 4, 'localhost', 4321, 8765)]
 
         cnc = MockCnCRPC()
         cnc.setRunSet(expId, expComps)
@@ -1070,7 +1075,12 @@ class TestDAQRun(unittest.TestCase):
             logList = dr.setup_component_loggers(cnc, 'xxx', expId)
         finally:
             for k in dr.loggerOf.keys():
-                dr.loggerOf[k].stopServing()
+                if dr.loggerOf[k] is not None:
+                    dr.loggerOf[k].stopServing()
+            for c in expComps:
+                path = os.path.join(logger.logPath, '%s-%d' % (c[1], c[2]))
+                if os.path.exists(path):
+                    os.remove(path)
 
         logList = cnc.getRunsetLoggers()
         if logList is None:
