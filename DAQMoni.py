@@ -31,6 +31,28 @@ class MoniData(object):
     def __str__(self):
         return '%s-%d' % (self.name, self.daqID)
 
+    def unFixValue(self, obj):
+
+        """ Look for numbers masquerading as strings.  If an obj is a
+        string and successfully converts to a number, return that
+        convertion.  If obj is a dict or list, recuse into it
+        converting all such masquerading strings.  All other types are
+        unaltered.  This pairs with the similarly named fix* methods in
+        icecube.daq.juggler.mbean.XMLRPCServer """
+
+        if type(obj) is dict:
+            for k in obj.keys():
+                obj[k] = self.unFixValue(obj[k])
+        elif type(obj) is list:
+            for i in xrange(0, len(obj)):
+                obj[i] = self.unFixValue(obj[i])
+        elif type(obj) is str:
+            try:
+                return int(obj)
+            except ValueError:
+                pass
+        return obj
+
     def monitor(self, now):
         for b in self.beanFields.keys():
             attrs = self.client.mbean.getAttributes(b, self.beanFields[b])
@@ -40,7 +62,7 @@ class MoniData(object):
                 print >>self.fd, '%s: %s:' % (b, now)
                 for key in attrs:
                     print >>self.fd, '\t%s: %s' % \
-                            (key, str(attrs[key]))
+                            (key, str(self.unFixValue(attrs[key])))
             print >>self.fd
             self.fd.flush()
 
