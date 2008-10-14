@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, tempfile, time, unittest
+import datetime, os, tempfile, time, unittest
 from DAQLog import SocketLogger, logCollector
 from DAQLogClient import DAQLogger
 
@@ -57,16 +57,17 @@ class TestDAQLog(unittest.TestCase):
         self.sockLog.startServing()
         self.failUnless(os.path.exists(logPath), 'Log file was not created')
 
+        time = datetime.datetime.now()
         msg = 'Test 1 2 3'
 
         client = DAQLogger('localhost', port)
-        client.write(msg)
+        client.write_ts(msg, time)
 
         client.close()
 
         self.sockLog.stopServing()
 
-        self.checkLog(logPath, (cname + ' ' + msg, ))
+        self.checkLog(logPath, ('%s - - [%s] %s' % (cname, str(time), msg), ))
 
     def testLogCollector(self):
         runNum = 123

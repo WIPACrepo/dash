@@ -184,10 +184,29 @@ class MockRPCClient:
 
 class MockLogger(object):
     def __init__(self, host, port):
-        pass
+        self.expMsgs = []
+
+    def __checkMsg(self, msg):
+        if len(self.expMsgs) == 0:
+            raise Exception('Unexpected log message: %s' % msg)
+        if self.expMsgs[0] != msg:
+            raise Exception('Expected log message "%s", not "%s"' %
+                            (self.expMsgs[0], msg))
+        del self.expMsgs[0]
+
+    def addExpected(self, msg):
+        self.expMsgs.append(msg)
+
+    def checkEmpty(self):
+        if len(self.expMsgs) != 0:
+            raise Exception("Didn't receive %d expected log messages: %s" %
+                            (len(self.expMsgs), str(self.expMsgs)))
+
+    def logmsg(self, msg):
+        self.__checkMsg(msg)
 
     def write_ts(self, s):
-        pass
+        self.__checkMsg(s)
 
 class MockClient(DAQClient):
     def __init__(self, name, num, host, port, mbeanPort, connectors, outLinks):
