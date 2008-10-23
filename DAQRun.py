@@ -33,7 +33,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 3571 2008-10-09 17:12:33Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3614 2008-10-23 18:37:40Z kael $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -837,12 +837,15 @@ class DAQRun(Rebootable.Rebootable):
                                            self.configName)
                     logDirCreated = True
                     self.setup_component_loggers(self.cnc, self.ip, self.runSetID)
-                    self.setup_monitoring()
-                    self.setup_watchdog()
 
                     if self.forceConfig or (self.configName != self.lastConfig):
                         self.runset_configure(self.cnc, self.runSetID, self.configName)
 
+                    # The next 2 setups were postponed until after configure
+                    # to allow the late-binding of the StringHub/datacollector MBeans
+                    self.setup_monitoring()
+                    self.setup_watchdog()
+                    
                     self.lastConfig = self.configName
                     self.runStats.start()
                     self.start_run(self.cnc)
