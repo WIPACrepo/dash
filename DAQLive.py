@@ -79,7 +79,7 @@ class DAQLive(Component):
         self.runCallCount = 0
 
         Component.__init__(self, self.SERVICE_NAME, self.runArgs.livePort,
-                           synchronous=True)
+                           synchronous=True, lightSensitive=True, makesLight=True)
         self.logInfo('Started %s service on port %d' %
                      (self.SERVICE_NAME, self.runArgs.livePort))
 
