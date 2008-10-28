@@ -33,7 +33,7 @@ import socket
 import thread
 import os
 
-SVN_ID  = "$Id: DAQRun.py 3614 2008-10-23 18:37:40Z kael $"
+SVN_ID  = "$Id: DAQRun.py 3615 2008-10-28 15:03:56Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -302,7 +302,7 @@ class DAQRun(Rebootable.Rebootable):
     SPADEDIR       = "/tmp"
     CATCHALL_PORT  = 9001
     CNC_PORT       = 8080
-    MONI_PERIOD    = 30
+    MONI_PERIOD    = 60
     WATCH_PERIOD   = 10
     COMP_TOUT      = 60
 
