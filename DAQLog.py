@@ -171,7 +171,7 @@ if __name__ == "__main__":
 
     # Old test:
     remote = RPCClient("localhost", 6667)
-    for i in xrange(0,50):
+    for i in xrange(0, 50):
         logger = SocketLogger(6666, "myComponent", "/tmp/better%05d.log" % i)
         logger.startServing()
         while not logger.serving:

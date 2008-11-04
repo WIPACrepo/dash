@@ -7,9 +7,8 @@
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started November, 2006
 
-from sys import argv
 from DAQLog import logCollector, SocketLogger
-from DAQMoni import *
+from DAQMoni import DAQMoni
 from time import sleep
 from RunWatchdog import RunWatchdog
 from DAQRPC import RPCClient, RPCServer
@@ -18,7 +17,6 @@ from os import listdir
 from Process import processList, findProcess
 from DAQLaunch import cyclePDAQ, ClusterConfig, ConfigNotSpecifiedException
 from tarfile import TarFile
-from exc_string import *
 from shutil import move, copyfile
 from GetIP import getIP
 from re import search
@@ -32,8 +30,12 @@ import Daemon
 import socket
 import thread
 import os
+import sys
 
-SVN_ID  = "$Id: DAQRun.py 3615 2008-10-28 15:03:56Z dglo $"
+from exc_string import exc_string, set_exc_string_encoding
+set_exc_string_encoding("ascii")
+
+SVN_ID  = "$Id: DAQRun.py 3645 2008-11-04 20:25:24Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -139,7 +141,7 @@ class RunArgs(object):
         self.process_options(opt)
 
     def process_options(self, opt):
-        pids = list(findProcess(basename(argv[0]), processList()))
+        pids = list(findProcess(basename(sys.argv[0]), processList()))
 
         if opt.kill:
             pid = int(os.getpid())
@@ -153,7 +155,7 @@ class RunArgs(object):
 
         if len(pids) > 1:
             print "ERROR: More than one instance of %s is already running!" % \
-                basename(argv[0])
+                basename(sys.argv[0])
             raise SystemExit
 
         opt.configDir    = abspath(opt.configDir)
@@ -393,7 +395,7 @@ class DAQRun(Rebootable.Rebootable):
                     # Look by DOM name
                     try:
                         args[0] = config.getIDbyName(domid)
-                    except DAQConfig.DOMNotInConfigException, e:
+                    except DAQConfig.DOMNotInConfigException:
                         not_found.append("DOM %s not found in config!" % domid)
                         continue
             # Look for (str, pos, f0, ..., f4)
@@ -401,12 +403,12 @@ class DAQRun(Rebootable.Rebootable):
                 try:
                     pos    = int(args[1])
                     string = int(args.pop(0))
-                except ValueError, e:
+                except ValueError:
                     raise InvalidFlasherArgList("Bad DOM arguments '%s'-'%s' (need integers)!" %
                                                 (string, pos))
                 try:
                     args[0] = config.getIDbyStringPos(string, pos)
-                except DAQConfig.DOMNotInConfigException, e:
+                except DAQConfig.DOMNotInConfigException:
                     not_found.append("DOM at %s-%s not found in config!" %
                                    (string, pos))
                     continue
@@ -441,7 +443,7 @@ class DAQRun(Rebootable.Rebootable):
         See if x is in l
         """
         try:
-            i = l.index(x)
+            l.index(x)
             return True
         except ValueError:
             return False
@@ -522,7 +524,7 @@ class DAQRun(Rebootable.Rebootable):
             logFile  = "%s/%s-%d.log" % \
                 (self.log.logPath, self.shortNameOf[compID],
                  self.daqIDof[compID])
-            self.loggerOf[compID]  =\
+            self.loggerOf[compID] = \
                 self.createSocketLogger(self.logPortOf[compID],
                                         self.shortNameOf[compID], logFile)
             self.logmsg("%s(%d %s:%d) -> %s:%d" %
@@ -610,7 +612,7 @@ class DAQRun(Rebootable.Rebootable):
         # Wait for required components
         self.logmsg("Starting run %d (waiting for required %d components to register w/ CnCServer)"
                     % (self.runStats.runNum, len(requiredComps)))
-        remoteList = self.waitForRequiredComponents(cncrpc, requiredComps, DAQRun.COMP_TOUT)
+        self.waitForRequiredComponents(cncrpc, requiredComps, DAQRun.COMP_TOUT)
         # Throws RequiredComponentsNotAvailableException
 
         # build CnC run set
@@ -681,7 +683,7 @@ class DAQRun(Rebootable.Rebootable):
             self.logmsg("Breaking run set...")
             try:
                 cncrpc.rpccall("rpc_runset_break", self.runSetID)
-            except Exception, e:
+            except Exception:
                 self.logmsg("WARNING: failed to break run set - " +
                             exc_string())
             self.setCompIDs = []
@@ -752,7 +754,7 @@ class DAQRun(Rebootable.Rebootable):
                             self.logmsg(str(entry))
                     #
                     rateStr = " (%2.2f Hz)" % rate
-                except (RateCalc.InsufficientEntriesException, RateCalc.ZeroTimeDeltaException), e:
+                except (RateCalc.InsufficientEntriesException, RateCalc.ZeroTimeDeltaException):
                     rateStr = ""
                 self.logmsg("\t%s physics events%s, %s moni events, %s SN events, %s tcals" \
                             % (self.runStats.physicsEvents,
@@ -761,7 +763,7 @@ class DAQRun(Rebootable.Rebootable):
                                self.runStats.snEvents,
                                self.runStats.tcalEvents))
 
-        except Exception, e:
+        except Exception:
             self.logmsg("Exception in monitoring: %s" % exc_string())
             return False
 
@@ -853,7 +855,7 @@ class DAQRun(Rebootable.Rebootable):
                 except Fault, fault:
                     self.logmsg("Run start failed: %s" % fault.faultString)
                     self.runState = "ERROR"
-                except Exception, e:
+                except Exception:
                     self.logmsg("Failed to start run: %s" % exc_string())
                     self.runState = "ERROR"
 
@@ -959,7 +961,7 @@ class DAQRun(Rebootable.Rebootable):
             self.logmsg("Subrun %d: Got command to stop flashers" % subRunID)
         try:
             self.cnc.rpccall("rpc_runset_subrun", self.runSetID, subRunID, flashingDomsList)
-        except Fault, f:
+        except Fault:
             self.logmsg("CnCServer subrun transition failed: %s" % exc_string())
             return 0
         return 1
@@ -1021,7 +1023,7 @@ class DAQRun(Rebootable.Rebootable):
         MAXSEQ = 10000
         x = 0
         while abs(x) < MAXSEQ:
-            if x==n:
+            if x == n:
                 yield n
                 return
             if x < 0: yield x; x = -x
@@ -1036,7 +1038,7 @@ class DAQRun(Rebootable.Rebootable):
         currentRun   = ""
         prevRun      = ""
         if self.prevRunStats:
-                prevRun = """<run ordering="previous">
+            prevRun = """<run ordering="previous">
       <number>%s</number>
       <start-time>%s</start-time>
       <stop-time>%s</stop-time>
@@ -1086,9 +1088,9 @@ class DAQRun(Rebootable.Rebootable):
             for i in DAQRun.seqMap(currentSubRun):
                 subRunCounts += "      <subRun><subRunNum>%d</subRunNum><events>%s</events></subRun>\n" \
                                  % (i, self.cnc.rpccall("rpc_runset_events", self.runSetID, i))
-        except AttributeError, a: # This happens after eventbuilder disappears
+        except AttributeError: # This happens after eventbuilder disappears
             pass
-        except Exception, e:
+        except Exception:
             self.logmsg(exc_string())
 
         subRunEventXML  = "   <subRunEventCounts>\n"
@@ -1131,7 +1133,7 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             cl.server.server_close()
             raise SystemExit
-        except socket.error, e:
+        except socket.error:
             sleep(3)
         except Exception, e:
             print e

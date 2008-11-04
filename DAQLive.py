@@ -2,10 +2,12 @@
 #
 # Glue server which hooks pDAQ to IceCube Live
 
-import optparse, os, socket, sys, thread, time
+import optparse, os, socket, sys, time
 import DAQRunIface
 
-from exc_string import *
+from exc_string import exc_string, set_exc_string_encoding
+set_exc_string_encoding("ascii")
+
 try:
     from live.control.component import Component
     from live.transport.Queue import Prio
@@ -162,7 +164,7 @@ class DAQLive(Component):
             for k in moniData.keys():
                 self.moniClient.sendMoni(k, moniData[k], Prio.SCP)
 
-    def runChange(self):
+    def runChange(self, stateArgs=None):
         "Stop current pDAQ run and start a new run"
         self.logInfo('RunChange pDAQ')
         self.stopping()
@@ -184,14 +186,13 @@ class DAQLive(Component):
                 self.__reportMoni()
                 self.runCallCount = 0
 
-    def starting(self, stateArgs=None, runNumber=None, retry=True):
+    def starting(self, stateArgs=None, retry=True):
         """
         Start a new pDAQ run
         stateArgs - should be a dictionary of run data:
             'runConfig' - the name of the run configuration
             'runNumber' - run number
             'subRunNumber' - subrun number
-        runNumber - if not None, the run number for this run
         retry - if True, reopen a bad socket connection to DAQRun
                 otherwise, 
         """
@@ -218,7 +219,7 @@ class DAQLive(Component):
             runStarted = False
             if retry:
                 self.__connectToDAQRun()
-                self.starting(None, stateArgs, False)
+                self.starting(stateArgs, False)
             else:
                 self.logError('Could not start pDAQ')
                 

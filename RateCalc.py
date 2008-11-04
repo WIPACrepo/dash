@@ -67,7 +67,7 @@ def main():
     rc = RateCalc(interval=5)
     count = 0
     rc.add(datetime.datetime.now(), count)
-    for i in range(0,10):
+    for i in range(0, 10):
         time.sleep(1)
         count += 1
         rc.add(datetime.datetime.now(), count)
@@ -78,7 +78,7 @@ def main():
     rc.add(datetime.datetime.now(), count)
     print rc.rate()
 
-    for i in range(0,10):
+    for i in range(0, 10):
         time.sleep(1)
         count += 1
         rc.add(datetime.datetime.now(), count)

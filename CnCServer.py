@@ -3,8 +3,10 @@
 from DAQRPC import RPCClient, RPCServer
 from DAQLogClient import DAQLogger
 from Process import processList, findProcess
-from exc_string import *
 from time import time, sleep
+
+from exc_string import exc_string, set_exc_string_encoding
+set_exc_string_encoding("ascii")
 
 import Daemon
 import optparse
@@ -14,7 +16,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3530 2008-09-30 22:44:52Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3645 2008-11-04 20:25:24Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -26,8 +28,6 @@ else:
 # add meta-project python dir to Python library search path
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
-
-set_exc_string_encoding("ascii")
 
 class Connector:
     """
@@ -434,7 +434,7 @@ class RunSet:
 
         waitList = self.set[:]
 
-        for i in range(0,2):
+        for i in range(0, 2):
             if i == 0:
                 self.state = 'stopping'
                 timeoutSecs = int(RunSet.TIMEOUT_SECS * .75)

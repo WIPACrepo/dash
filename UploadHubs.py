@@ -12,7 +12,7 @@ Started November, 2007
 
 """
 
-import optparse, signal, sys, threading, time, select, popen2, os
+import datetime, optparse, os, popen2, re, select, signal, sys, threading, time
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -63,7 +63,7 @@ class ThreadableProcess:
         self.fd  = self.pop.fromchild
         fileno   = self.fd.fileno()
         while not self.doStop:
-            ready = select.select([fileno],[],[], 1)
+            ready = select.select([fileno], [], [], 1)
             if len(ready[0]) < 1: continue # Pick up stop signal
             self.lock.acquire()
             buf = os.read(fileno, 4096)
@@ -114,7 +114,7 @@ class DOM:
     """
     Small class to represent DOM states
     """
-    def __init__(self,cwd, lines=None):
+    def __init__(self, cwd, lines=None):
         self.cwd        = cwd
         self.lines      = []
         if lines:
@@ -336,7 +336,7 @@ def testProcs():
     
 def main():
 
-    usage="usage: %prog [options] <releasefile>"
+    usage = "usage: %prog [options] <releasefile>"
     p = optparse.OptionParser(usage=usage)
     p.add_option("-c", "--config-name",  action="store", type="string",
                  dest="clusterConfigName",

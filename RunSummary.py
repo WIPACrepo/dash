@@ -884,7 +884,7 @@ def main():
                         lines = []
                         for l in dc:
                             s = search('\[(.+?)\]\s+(\d+) physics events \(.+? Hz\)\,', l)
-                            if s: lines.append((s.group(1),s.group(2)))
+                            if s: lines.append((s.group(1), s.group(2)))
                         if len(lines) > 0:
                             lastTimeStr = lines[-1][0]
                             cumEvents   = int(lines[-1][1])

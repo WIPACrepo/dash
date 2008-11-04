@@ -5,8 +5,8 @@
 # Started: Fri Jun  1 15:57:10 2007
 
 import sys, optparse
-from os import environ, getcwd, listdir, system
-from os.path import abspath, isabs, join
+from os import environ
+from os.path import join
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):

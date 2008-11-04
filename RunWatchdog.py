@@ -8,10 +8,11 @@
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started December, 2006
 
-from DAQLog import *
 from DAQRPC import RPCClient
 import datetime, threading
-from exc_string import *
+
+from exc_string import exc_string, set_exc_string_encoding
+set_exc_string_encoding("ascii")
 
 class ThresholdWatcher(object):
     def __init__(self, comp, beanName, fieldName, threshold, lessThan):
@@ -87,7 +88,7 @@ class ValueWatcher(object):
                 str(len(newValue))
         else:
             tmpStag = False
-            for i in range(0,len(newValue)):
+            for i in range(0, len(newValue)):
                 if self.compare(self.prevValue[i], newValue[i]):
                     tmpStag = True
                 else:
@@ -212,7 +213,7 @@ class WatchData(object):
 
             valMap = self.client.mbean.getAttributes(watchList[0].beanName,
                                                      fldList)
-            for i in range(0,len(fldList)):
+            for i in range(0, len(fldList)):
                 val = valMap[fldList[i]]
                 if not watchList[i].check(val):
                     unhealthy.append(watchList[i].unhealthyString(val))

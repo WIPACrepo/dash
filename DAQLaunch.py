@@ -11,12 +11,12 @@ import sys
 import optparse
 from time import sleep
 from os import environ, mkdir, system
-from os.path import abspath, isabs, join, basename
+from os.path import exists, isabs, join
 
 from GetIP import getIP
 from DAQRPC import RPCClient
 
-SVN_ID = "$Id: DAQLaunch.py 3536 2008-10-02 03:08:46Z jacobsen $"
+SVN_ID = "$Id: DAQLaunch.py 3645 2008-11-04 20:25:24Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -146,7 +146,7 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
         myIP = getIP(node.hostName)
         for comp in node.comps:
             execJar = join(binDir, getExecJar(comp.compName))
-            if not os.path.exists(execJar):
+            if not exists(execJar):
                 print "%s jar file does not exist: %s" % \
                     (comp.compName, execJar)
                 continue

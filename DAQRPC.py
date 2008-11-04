@@ -126,7 +126,7 @@ class RPCStat:
 
 if __name__ == "__main__":
     cl = RPCClient("localhost", 8080)
-    for i in xrange(0,10):
+    for i in xrange(0, 10):
         cl.rpccall("rpc_ping")
     print cl.showStats()
 

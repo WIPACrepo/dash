@@ -6,10 +6,11 @@
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started December, 2006
 
-from DAQLog import *
 from DAQRPC import RPCClient
 import datetime, sys, threading
-from exc_string import *
+
+from exc_string import exc_string, set_exc_string_encoding
+set_exc_string_encoding("ascii")
 
 class MoniData(object):
     def __init__(self, id, fname, name, daqID, addr, port):
@@ -166,7 +167,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         usage = True
     else:
-        for i in range(1,len(sys.argv)):
+        for i in range(1, len(sys.argv)):
             colon = sys.argv[i].find(':')
             if colon < 0:
                 print "No colon"

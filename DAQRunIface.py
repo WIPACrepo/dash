@@ -4,10 +4,8 @@
 # Object to interface w/ DAQ run script
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started November, 2006
-# $Id: DAQRunIface.py 3520 2008-09-30 22:22:25Z dglo $
+# $Id: DAQRunIface.py 3645 2008-11-04 20:25:24Z dglo $
 
-from time import sleep, time
-from datetime import datetime, timedelta
 from DAQRPC import RPCClient
 from os.path import join, exists
 from os import environ
