@@ -16,7 +16,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3645 2008-11-04 20:25:24Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3646 2008-11-04 20:36:15Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-class Connector:
+class Connector(object):
     """
     Component connector description
     type - connection type
@@ -54,7 +54,7 @@ class Connector:
             return '%d=>%s' % (self.port, self.type)
         return self.type + '=>'
 
-class Connection:
+class Connection(object):
     """
     Component connection data to be passed to a component
     conn - connection description
@@ -85,7 +85,7 @@ class Connection:
         connDict['port'] = self.conn.port
         return connDict
 
-class ConnTypeEntry:
+class ConnTypeEntry(object):
     """
     Temporary class used to build the connection map for a runset
     type - connection type
@@ -175,7 +175,7 @@ class SubrunThread(threading.Thread):
             self.time = long(tStr)
         self.done = True
 
-class RunSet:
+class RunSet(object):
     "A set of components to be used in one or more runs"
 
     ID = 1

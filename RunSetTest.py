@@ -29,7 +29,7 @@ class MockLogger(object):
     def write_ts(self, s):
         self.__checkMsg(s)
 
-class MockComponent:
+class MockComponent(object):
     def __init__(self, name, num):
         self.name = name
         self.num = num

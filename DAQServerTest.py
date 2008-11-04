@@ -4,7 +4,7 @@ import time, unittest
 from CnCServer import DAQClient, DAQServer
 from DAQLog import SocketLogger
 
-class MockXMLRPC:
+class MockXMLRPC(object):
     def __init__(self):
         pass
 
@@ -35,7 +35,7 @@ class MockXMLRPC:
     def stopRun(self):
         pass
 
-class MockRPCClient:
+class MockRPCClient(object):
     def __init__(self, host, port):
         self.xmlrpc = MockXMLRPC()
 

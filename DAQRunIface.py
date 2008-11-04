@@ -4,7 +4,7 @@
 # Object to interface w/ DAQ run script
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started November, 2006
-# $Id: DAQRunIface.py 3645 2008-11-04 20:25:24Z dglo $
+# $Id: DAQRunIface.py 3646 2008-11-04 20:36:15Z dglo $
 
 from DAQRPC import RPCClient
 from os.path import join, exists
@@ -27,7 +27,7 @@ def getElementSingleTagName(root, name):
         raise MalformedLabelConfig("Expected exactly one child node of %s" %name)
     return elems[0].childNodes[0].data
 
-class DAQLabelParser:
+class DAQLabelParser(object):
     def __init__(self, configFile):
         if not exists(configFile): raise LabelConfigFileNotFound(configFile)
         self.configFile   = configFile

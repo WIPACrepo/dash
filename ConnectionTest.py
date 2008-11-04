@@ -99,7 +99,7 @@ class Node(object):
 
         links[ioType].append(comp)
 
-class MockXMLRPC:
+class MockXMLRPC(object):
     def __init__(self, name, num, outLinks):
         self.name = name
         self.num = num
@@ -178,7 +178,7 @@ class MockXMLRPC:
     def stopRun(self):
         pass
 
-class MockRPCClient:
+class MockRPCClient(object):
     def __init__(self, name, num, outLinks):
         self.xmlrpc = MockXMLRPC(name, num, outLinks)
 

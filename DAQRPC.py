@@ -83,7 +83,7 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         # Avoid "Address in use" errors:
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-class RPCStat:
+class RPCStat(object):
     "Class for accumulating statistics about an RPC call"
     def __init__(self):
         self.n     = 0

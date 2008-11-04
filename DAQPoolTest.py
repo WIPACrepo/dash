@@ -3,13 +3,13 @@
 import unittest
 from CnCServer import DAQPool, RunSet
 
-class MockConnection:
+class MockConnection(object):
     def __init__(self, type, isInput):
         self.type = type
         self.isInput = isInput
         self.port = -1
 
-class MockComponent:
+class MockComponent(object):
     def __init__(self, name, num, isSrc=False):
         self.name = name
         self.num = num

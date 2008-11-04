@@ -10,7 +10,7 @@ import time
 class InsufficientEntriesException(Exception): pass
 class ZeroTimeDeltaException      (Exception): pass
 
-class RateCalcEntry:
+class RateCalcEntry(object):
     def __init__(self, time, n):
         self.time = time; self.n = n
     def __str__(self): return "%s: %s" % (self.time, self.n)
@@ -19,7 +19,7 @@ def dt(t0, t1): # Calculate absolute time delta in seconds from datetime objects
     d = t1-t0
     return d.days*86400 + d.seconds + 1.E-6*d.microseconds
 
-class RateCalc:
+class RateCalc(object):
     def __init__(self, interval=300., maxentries=1000):
         """
         Interval is the maximum time between rate bins, i.e. if 300 seconds,

@@ -35,7 +35,7 @@ import sys
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-SVN_ID  = "$Id: DAQRun.py 3645 2008-11-04 20:25:24Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3646 2008-11-04 20:36:15Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -204,7 +204,7 @@ class RunArgs(object):
         self.doRelaunch = opt.doRelaunch
         self.quiet = opt.quiet
 
-class RunStats:
+class RunStats(object):
     def __init__(self, runNum=None, startTime=None, stopTime=None, physicsEvents=None,
                  moniEvents=None, snEvents=None, tcalEvents=None, EBDiskAvailable=None,
                  EBDiskSize=None, SBDiskAvailable=None, SBDiskSize=None):
