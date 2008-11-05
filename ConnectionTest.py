@@ -128,9 +128,9 @@ class MockXMLRPC(object):
 
         for l in list:
             if not tmpLinks.has_key(l['type']):
-                raise ValueError, 'Component ' + self.name + '#' + \
-                    str(self.num) + ' should not have a "' + l['type'] + \
-                    '" connection'
+                raise ValueError(('Component %s#%d should not have a "%s"' +
+                                  ' connection') %
+                                 (self.name, self.num, l['type']))
 
             comp = None
             for t in tmpLinks[l['type']]:
@@ -142,10 +142,10 @@ class MockXMLRPC(object):
                     break
 
             if not comp:
-                raise ValueError, 'Component ' + self.name + '#' + \
-                    str(self.num) + ' should not connect to ' + \
-                    l['type'] + ':' + l['compName'] + '#' + \
-                    str(l.getCompNum())
+                raise ValueError(('Component %s#%d should not connect to' +
+                                  ' %s:%s#%d') %
+                                 (self.name, self.num, l['type'],
+                                  l['compName'], l.getCompNum()))
 
         if len(tmpLinks) > 0:
             errMsg = 'Component ' + self.name + '#' + str(self.num) + \
@@ -159,7 +159,7 @@ class MockXMLRPC(object):
                     else:
                         errMsg += ', '
                     errMsg += k + ':' + t.name + '#' + str(t.num)
-            raise ValueError, errMsg
+            raise ValueError(errMsg)
 
         return 'OK'
 

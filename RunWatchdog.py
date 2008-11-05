@@ -33,11 +33,11 @@ class ThresholdWatcher(object):
 
     def check(self, newValue):
         if type(newValue) != type(self.threshold):
-            raise Exception, 'Threshold value for ' + str(self) + ' is ' + \
-                str(type(self.threshold)) + ', new value is ' + \
-                str(type(newValue))
+            raise Exception('Threshold value for ' + str(self) + ' is ' +
+                            str(type(self.threshold)) + ', new value is ' +
+                            str(type(newValue)))
         elif type(newValue) == list:
-            raise Exception, 'ThresholdValue does not support lists'
+            raise Exception('ThresholdValue does not support lists')
         elif self.compare(self.threshold, newValue):
             return False
 
@@ -71,21 +71,21 @@ class ValueWatcher(object):
         if self.prevValue is None:
             self.prevValue = newValue
         elif type(newValue) != type(self.prevValue):
-            raise Exception, 'Previous value for ' + str(self) + ' was ' + \
-                str(type(self.prevValue)) + ', new value is ' + \
-                str(type(newValue))
+            raise Exception('Previous value for ' + str(self) + ' was ' +
+                            str(type(self.prevValue)) + ', new value is ' +
+                            str(type(newValue))
         elif type(newValue) != list:
             if self.compare(self.prevValue, newValue):
                 self.unchanged += 1
                 if self.unchanged == ValueWatcher.NUM_UNCHANGED:
-                    raise Exception, str(self) + ' is not changing'
+                    raise Exception(str(self) + ' is not changing')
             else:
                 self.unchanged = 0
                 self.prevValue = newValue
         elif len(newValue) != len(self.prevValue):
-            raise Exception, 'Previous ' + str(self) + ' list had ' + \
-                str(len(self.prevValue)) + ' entries, new list has ' + \
-                str(len(newValue))
+            raise Exception('Previous ' + str(self) + ' list had ' +
+                            str(len(self.prevValue)) +
+                            ' entries, new list has ' + str(len(newValue)))
         else:
             tmpStag = False
             for i in range(0, len(newValue)):
@@ -96,15 +96,15 @@ class ValueWatcher(object):
             if tmpStag:
                 self.unchanged += 1
                 if self.unchanged == ValueWatcher.NUM_UNCHANGED:
-                    raise Exception, 'At least one ' + str(self) + \
-                        ' value is not changing'
+                    raise Exception('At least one ' + str(self) +
+                                    ' value is not changing')
 
         return self.unchanged == 0
 
     def compare(self, oldValue, newValue):
         if newValue < oldValue:
-            raise Exception, str(self) + ' DECREASED (' + str(oldValue) + \
-                '->' + str(newValue) + ')'
+            raise Exception(str(self) + ' DECREASED (' + str(oldValue) +
+                            '->' + str(newValue) + ')')
 
         return newValue == oldValue
 
@@ -352,8 +352,8 @@ class RunWatchdog(object):
                         #                  'TotalDispatchedData')
                         secondaryBuilders = cw
                     else:
-                        raise Exception, 'Unknown component type ' + \
-                            shortNameOf[c]
+                        raise Exception('Unknown component type ' +
+                                        shortNameOf[c])
                 except Exception:
                     self.logmsg(('Couldn''t create watcher (%s#%d)' +
                                  ' for component %d: %s') %
