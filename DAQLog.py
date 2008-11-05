@@ -6,8 +6,6 @@
 #
 # Objects for persisting DAQ data, grouped in separate directories labeled by run number
 
-from datetime import datetime
-from DAQRPC import RPCClient
 from select import select
 from time import sleep
 import threading
@@ -15,176 +13,119 @@ import socket
 import os
 import sys
 
-class SocketLogger(object):
-    LOGLEVEL_TRACE = "trace"
-    LOGLEVEL_DEBUG = "debug"
-    LOGLEVEL_INFO  = "info"
-    LOGLEVEL_WARN  = "warn"
-    LOGLEVEL_ERROR = "error"
-    LOGLEVEL_FATAL = "fatal"
+class LogSocketServer(object):
     "Create class which logs requests from a remote object to a file"
     "Works nonblocking in a separate thread to guarantee concurrency"
     def __init__(self, port, cname, logpath, quiet=False):
         "Logpath should be fully qualified in case I'm a Daemon"
-        self.port    = port
-        self.cname   = cname
-        self.logpath = logpath
-        self.quiet = quiet
-        self.go      = False
-        self.thread  = None
-        self.outfile = None
-        self.serving = False
+        self.__port    = port
+        self.__cname   = cname
+        self.__logpath = logpath
+        self.__quiet   = quiet
+        self.__thread  = None
+        self.__outfile = None
+        self.__serving = False
 
-    def startServing(self):
-        "Creates listener thread, prepares file for output, and returns"
-        self.go      = True
-        if self.logpath:
-            self.outfile = open(self.logpath, "w")
-        else:
-            self.outfile = sys.stdout
-        if os.name == "nt":
-            self.thread = threading.Thread(target=self.win_listener)
-        else:
-            self.thread = threading.Thread(target=self.listener)
-        self.serving = False
-        self.thread.start()
-
-    def localAppend(self, s):
-        if self.outfile:
-            print >>self.outfile, "(dash) %s" % s
-            self.outfile.flush()
-    
-    def win_listener(self):
-        """
-        Windows version of listener - no select().
-        """
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        #self.sock.setblocking(1)
-        #self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.bind(("", self.port))
-        self.serving = True
-        while self.go:
-            data = self.sock.recv(8192)
-            if not self.quiet: print "%s %s" % (self.cname, data)
-            print >>self.outfile, "%s %s" % (self.cname, data)
-            self.outfile.flush()
-        self.sock.close()
-        if self.logpath: self.outfile.close()       
-        self.serving = False
-
-    def listener(self):
+    def __listener(self):
         """
         Create listening, non-blocking UDP socket, read from it, and write to file;
-        close socket and end thread if signaled via self.go variable.
+        close socket and end thread if signaled via self.__thread variable.
         """
-                 
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.setblocking(0)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.bind(("", self.port))
-        self.serving = True
-        pr = [self.sock]
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setblocking(0)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind(("", self.__port))
+        except socket.error:
+            raise Exception('Cannot bind %s log server to port %d' %
+                            (self.__cname, self.__port))
+
+        self.__serving = True
+        pr = [sock]
         pw = []
-        pe = [self.sock]
-        while self.go:
+        pe = [sock]
+        while self.__thread is not None:
             rd, rw, re = select(pr, pw, pe, 0.5)
-            if len(re) != 0: print >>self.outfile, "Error on select was detected."
+            if len(re) != 0: print >>self.__outfile, "Error on select was detected."
             if len(rd) == 0: continue
             while 1: # Slurp up waiting packets, return to select if EAGAIN
                 try:
-                    data = self.sock.recv(8192, socket.MSG_DONTWAIT)
-                    if not self.quiet: print "%s %s" % (self.cname, data)
-                    print >>self.outfile, "%s %s" % (self.cname, data)
-                    self.outfile.flush()
+                    data = sock.recv(8192, socket.MSG_DONTWAIT)
+                    if not self.__quiet: print "%s %s" % (self.__cname, data)
+                    print >>self.__outfile, "%s %s" % (self.__cname, data)
+                    self.__outfile.flush()
                 except Exception:
                     break # Go back to select so we don't busy-wait
-        self.sock.close()
-        if self.logpath:
-            self.outfile.close()
-        self.serving = False
+        sock.close()
+        if self.__logpath:
+            self.__outfile.close()
+        self.__serving = False
+
+    def __win_listener(self):
+        """
+        Windows version of listener - no select().
+        """
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        #sock.setblocking(1)
+        #sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(("", self.__port))
+        self.__serving = True
+        while self.__thread is not None:
+            data = sock.recv(8192)
+            if not self.__quiet: print "%s %s" % (self.__cname, data)
+            print >>self.__outfile, "%s %s" % (self.__cname, data)
+            self.__outfile.flush()
+        sock.close()
+        if self.__logpath: self.__outfile.close()
+        self.__serving = False
+
+    def startServing(self):
+        "Creates listener thread, prepares file for output, and returns"
+        if self.__logpath:
+            self.__outfile = open(self.__logpath, "w")
+        else:
+            self.__outfile = sys.stdout
+        if os.name == "nt":
+            self.__thread = threading.Thread(target=self.__win_listener)
+        else:
+            self.__thread = threading.Thread(target=self.__listener)
+        self.__serving = False
+        self.__thread.start()
 
     def stopServing(self):
         "Signal listening thread to exit; wait for thread to finish"
-        self.go = False
-        if self.thread != None: self.thread.join()
-        self.thread = None
+        if self.__thread != None:
+            thread = self.__thread
+            self.__thread = None
+            thread.join()
 
-
-class logCollector(object):
-    "Methods for creating log directory for a run and for primary DAQ output (dash.log)"
-    def __init__(self, runNum, loggingDir):
-        self.runNum      = runNum
-        self.enabled     = True
-        self.dashLogFile = None
-        self.name        = "DAQRun"
-        if not os.path.exists(loggingDir):
-            self.enabled = False
-            raise Exception("Directory %s not found!" % loggingDir)
-        self.logPath = loggingDir+"/"+logCollector.logDirName(runNum)
-        if os.path.exists(self.logPath):
-            self.renameToOld(self.logPath)
-        os.mkdir(self.logPath)
-        self.dashLogFile = self.logPath + "/" + "dash.log"
-        self.log         = open(self.dashLogFile, "w")
-
-    def close(self):
-        self.enabled = False
-        self.log.close()
-        
-    def renameToOld(self, dir):
-        "Rename existing directory to old one without clobbering output file"
-        basenum = 0
-        path    = os.path.dirname(dir)
-        name    = os.path.basename(dir)
-        while 1:
-            dest = "%s/old_%s_%02d" % (path, name, basenum)
-            if not os.path.exists(dest):
-                os.rename(dir, dest)
-                return
-            basenum += 1
-
-    def logDirName(runNum):
-        "Get log directory name, not including loggingDir portion of path"
-        return "daqrun%05d" % runNum
-    logDirName = staticmethod(logDirName)
-    
-    def dashLog(self, msg):
-        "Persist DAQRun log information to local disk, without using remote UDP logger"
-        if not self.enabled: return
-        if self.dashLogFile == None: return
-        print >>self.log, "%s [%s] %s" % (self.name, datetime.now(), msg)
-        self.log.flush()
-        
 if __name__ == "__main__":
 
-    try:
-        print "Creating logger..."
-        logger = SocketLogger(6666, "javaComponent", "./test.log")
-        print "Start serving..."
-        logger.startServing()
-        while not logger.serving:
-            sleep(.001)
-    except KeyboardInterrupt:
-        raise SystemExit        
+    if len(sys.argv) < 2:
+        print "Usage: DAQLogServer.py <file> <port>"
+        raise SystemExit
+
+    logfile = sys.argv[1]
+    port    = int(sys.argv[2])
+
+    if logfile == '-':
+        logfile = None
+        filename = 'stderr'
+    else:
+        filename = logfile
+
+    print "Write log messages arriving on port %d to %s." % (port, filename)
     
-    raise SystemExit
-
-    # Old test:
-    remote = RPCClient("localhost", 6667)
-    for i in xrange(0, 50):
-        logger = SocketLogger(6666, "myComponent", "/tmp/better%05d.log" % i)
+    try:
+        logger = LogSocketServer(port, "all-components", logfile)
         logger.startServing()
-        while not logger.serving:
-            sleep(.001)
         try:
-            remote.log_to("localhost", 6666)
-            # sleep(0.01)
-            remote.close_log()
-            logger.stopServing()
-            logger = None
-            # sleep(0.01)
-        except KeyboardInterrupt:
-            raise SystemExit
-        except Exception, e:
-            print "Failed to set up remote logging: ", e
-
+            while 1:
+                sleep(1)
+        except:
+            pass
+    finally:
+         # This tells thread to stop if KeyboardInterrupt
+        # If you skip this step you will be unable to control-C
+        logger.stopServing()

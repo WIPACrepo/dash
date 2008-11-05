@@ -7,7 +7,8 @@
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started November, 2006
 
-from DAQLog import logCollector, SocketLogger
+from DAQLog import LogSocketServer
+from DAQLogClient import DAQLog, FileAppender, LogSocketAppender
 from DAQMoni import DAQMoni
 from time import sleep
 from RunWatchdog import RunWatchdog
@@ -35,7 +36,7 @@ import sys
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-SVN_ID  = "$Id: DAQRun.py 3652 2008-11-05 01:31:12Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3657 2008-11-05 01:49:08Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -317,10 +318,9 @@ class DAQRun(Rebootable.Rebootable):
 
         self.setPort(runArgs.port)
 
-        self.log              = None
+        self.log              = self.createDAQLog()
         self.runSetID         = None
         self.CnCLogReceiver   = None
-        self.catchAllLogger   = None
         self.forceConfig      = runArgs.forceConfig
         self.dashDir          = runArgs.dashDir
         self.configDir        = runArgs.configDir
@@ -357,6 +357,9 @@ class DAQRun(Rebootable.Rebootable):
         if startServer:
             self.runThread = thread.start_new_thread(self.run_thread, ())
 
+    def createDAQLog(self, appender=None):
+        return DAQLog(appender)
+
     def setPort(self, portnum):
         self.server = RPCServer(portnum, "localhost",
                                 "DAQ Run Server for starting and" +
@@ -373,15 +376,6 @@ class DAQRun(Rebootable.Rebootable):
         self.server.register_function(self.rpc_daq_summary_xml)
         self.server.register_function(self.rpc_flash)
         self.server.register_function(self.rpc_run_monitoring)
-
-    def logmsg(self, m):
-        "Log message to logger, but only if logger exists"
-        if not self.quiet:
-            print m
-        if self.log:
-            self.log.dashLog(m)
-        elif self.catchAllLogger:
-            self.catchAllLogger.localAppend(m)
 
     def validateFlashingDoms(config, domlist):
         "Make sure flasher arguments are valid and convert names or string/pos to mbid if needed"
@@ -463,21 +457,19 @@ class DAQRun(Rebootable.Rebootable):
             if datetime.datetime.now()-tstart >= datetime.timedelta(seconds=timeOutSecs):
                 raise RequiredComponentsNotAvailableException("Still waiting for "+
                                                               ",".join(waitList))
-            self.logmsg("Waiting for " + " ".join(waitList))
+            self.log.info("Waiting for " + " ".join(waitList))
             sleep(5)
 
     def configureCnCLogging(self, cncrpc, ip, port, logpath):
         "Tell CnCServer where to log to"
         self.CnCLogReceiver = \
-            self.createSocketLogger(port, "CnCServer",
-                                    logpath + "/cncserver.log")
+            self.createLogSocketServer(port, "CnCServer",
+                                       logpath + "/cncserver.log")
         cncrpc.rpccall("rpc_log_to", ip, port)
-        self.logmsg("Created logger for CnCServer")
+        self.log.info("Created logger for CnCServer")
 
     def stopCnCLogging(self, cncrpc):
         "Turn off CnC server logging"
-        #self.logmsg("Telling CNC Server to close log")
-        #cncrpc.rpccall("rpc_close_log")
         if self.CnCLogReceiver:
             self.CnCLogReceiver.stopServing()
             self.CnCLogReceiver = None
@@ -485,47 +477,78 @@ class DAQRun(Rebootable.Rebootable):
     def getComponentsFromGlobalConfig(self, configName, configDir):
         "Get and set global configuration"
         self.configuration = DAQConfig.DAQConfig(configName, configDir)
-        self.logmsg("Loaded global configuration \"%s\"" % configName)
+        self.log.info("Loaded global configuration \"%s\"" % configName)
         requiredComps = []
         for comp in self.configuration.components():
             requiredComps.append(comp)
         for kind in self.configuration.kinds():
-            self.logmsg("Configuration includes detector %s" % kind)
+            self.log.info("Configuration includes detector %s" % kind)
         for comp in requiredComps:
-            self.logmsg("Component list will require %s" % comp)
+            self.log.info("Component list will require %s" % comp)
         return requiredComps
 
-    def createSocketLogger(cls, logPort, shortName, logFile):
-        clr = SocketLogger(logPort, shortName, logFile)
+    def createLogSocketServer(cls, logPort, shortName, logFile):
+        clr = LogSocketServer(logPort, shortName, logFile)
         clr.startServing()
         return clr
-    createSocketLogger = classmethod(createSocketLogger)
+    createLogSocketServer = classmethod(createLogSocketServer)
 
-    def createLogCollector(self, runNum, logDir):
-        return logCollector(runNum, logDir)
+    def logDirName(runNum):
+        "Get log directory name, not including loggingDir portion of path"
+        return "daqrun%05d" % runNum
+    logDirName = staticmethod(logDirName)
+
+    def createRunLogDirectory(self, runNum, logDir):
+        self.setLogPath(runNum, logDir) 
+
+        if os.path.exists(self.__logpath):
+            # rename unexpectedly lingering log directory
+            basenum = 0
+            path    = os.path.dirname(self.__logpath)
+            name    = os.path.basename(self.__logpath)
+            while 1:
+                dest = os.path.join(path, "old_%s_%02d" % (name, basenum))
+                if not os.path.exists(dest):
+                    os.rename(self.__logpath, dest)
+                    return
+                basenum += 1
+
+        os.mkdir(self.__logpath)
+
+    def createFileAppender(self):
+        "Return logger which writes to dash.log"
+        return FileAppender("DAQRun", os.path.join(self.__logpath, "dash.log"))
+
+    def getLogPath(self): return self.__logpath
+
+    def setLogPath(self, runNum, logDir):
+        if not os.path.exists(logDir):
+            raise Exception("Directory %s not found!" % logDir)
+
+        self.__logpath = os.path.join(logDir, DAQRun.logDirName(runNum))
 
     def setUpAllComponentLoggers(self):
         "Sets up loggers for remote components (other than CnCServer)"
-        self.logmsg("Setting up logging for %d components" %
-                    len(self.setCompIDs))
+        self.log.info("Setting up logging for %d components" %
+                      len(self.setCompIDs))
         for ic in range(0, len(self.setCompIDs)):
             compID = self.setCompIDs[ic]
             self.logPortOf[compID] = 9002 + ic
             logFile  = "%s/%s-%d.log" % \
-                (self.log.logPath, self.shortNameOf[compID],
+                (self.__logpath, self.shortNameOf[compID],
                  self.daqIDof[compID])
             self.loggerOf[compID] = \
-                self.createSocketLogger(self.logPortOf[compID],
-                                        self.shortNameOf[compID], logFile)
-            self.logmsg("%s(%d %s:%d) -> %s:%d" %
-                        (self.shortNameOf[compID], compID,
-                         self.rpcAddrOf[compID], self.rpcPortOf[compID],
-                         self.ip, self.logPortOf[compID]))
+                self.createLogSocketServer(self.logPortOf[compID],
+                                           self.shortNameOf[compID], logFile)
+            self.log.info("%s(%d %s:%d) -> %s:%d" %
+                          (self.shortNameOf[compID], compID,
+                           self.rpcAddrOf[compID], self.rpcPortOf[compID],
+                           self.ip, self.logPortOf[compID]))
 
     def stopAllComponentLoggers(self):
         "Stops loggers for remote components"
         if self.runSetID:
-            self.logmsg("Stopping component logging")
+            self.log.info("Stopping component logging")
             for compID in self.setCompIDs:
                 if self.loggerOf[compID]:
                     self.loggerOf[compID].stopServing()
@@ -537,26 +560,29 @@ class DAQRun(Rebootable.Rebootable):
             yield [self.shortNameOf[r], self.daqIDof[r], self.logPortOf[r]]
 
     def isRequiredComponent(shortName, daqID, compList):
+        "XXX - this seems to be unused"
         return "%s#%d" % (shortName, daqID) in compList
     isRequiredComponent = staticmethod(isRequiredComponent)
 
     def setup_run_logging(self, cncrpc, logDir, runNum, configName):
         "Set up logger for CnCServer and required components"
         # Log file is already defined since STARTING state does not get invoked otherwise
-        self.log = self.createLogCollector(runNum, logDir)
-        self.logmsg("Version info: %(filename)s %(revision)s %(date)s" +
-                    " %(time)s %(author)s %(release)s %(repo_rev)s" %
-                    self.versionInfo)
-        self.logmsg("Starting run %d..." % runNum)
-        self.logmsg("Run configuration: %s" % configName)
-        self.logmsg("Cluster configuration: %s" % self.clusterConfig.configName)
-        self.configureCnCLogging(cncrpc, self.ip, 6667, self.log.logPath)
+        self.createRunLogDirectory(runNum, logDir)
+        self.log.setAppender(self.createFileAppender())
+        self.log.info(("Version info: %(filename)s %(revision)s %(date)s" +
+                       " %(time)s %(author)s %(release)s %(repo_rev)s") %
+                      self.versionInfo)
+        self.log.info("Starting run %d..." % runNum)
+        self.log.info("Run configuration: %s" % configName)
+        self.log.info("Cluster configuration: %s" %
+                      self.clusterConfig.configName)
+        self.configureCnCLogging(cncrpc, self.ip, 6667, self.__logpath)
 
     def recursivelyAddToTar(self, tar, absDir, file):
         toAdd = join(absDir, file)
-        self.logmsg("Add %s to tarball as %s..." % (toAdd, file))
+        self.log.info("Add %s to tarball as %s..." % (toAdd, file))
         tar.add(toAdd, file, False)
-        self.logmsg("Done adding %s." % toAdd)
+        self.log.info("Done adding %s." % toAdd)
         if isdir(toAdd):
             fileList = listdir(toAdd)
             for f in fileList:
@@ -575,19 +601,19 @@ class DAQRun(Rebootable.Rebootable):
         """
         if not spadeDir: return
         if not exists(spadeDir): return
-        self.logmsg("Queueing data for SPADE (spadeDir=%s, logDir=%s," +
-                    " runNum=%d)..." % (spadeDir, logTopLevel, runNum))
-        runDir = logCollector.logDirName(runNum)
+        self.log.info(("Queueing data for SPADE (spadeDir=%s, logDir=%s," +
+                       " runNum=%d)...") % (spadeDir, logTopLevel, runNum))
+        runDir = DAQRun.logDirName(runNum)
         basePrefix = self.get_base_prefix(runNum, runTime, runDuration)
         try:
             self.move_spade_files(copyDir, basePrefix, logTopLevel, runDir, spadeDir)
         except Exception:
-            self.logmsg("FAILED to queue data for SPADE: %s" % exc_string())
+            self.log.error("FAILED to queue data for SPADE: %s" % exc_string())
 
     def move_spade_files(self, copyDir, basePrefix, logTopLevel, runDir, spadeDir):
         tarBall = "%s/%s.dat.tar" % (spadeDir, basePrefix)
         semFile = "%s/%s.sem"     % (spadeDir, basePrefix)
-        self.logmsg("Target files are:\n%s\n%s" % (tarBall, semFile))
+        self.log.info("Target files are:\n%s\n%s" % (tarBall, semFile))
         move("%s/catchall.log" % logTopLevel, "%s/%s" % (logTopLevel, runDir))
         tarObj = TarFile(tarBall, "w")
         tarObj.add("%s/%s" % (logTopLevel, runDir), runDir, True)
@@ -595,7 +621,7 @@ class DAQRun(Rebootable.Rebootable):
         tarObj.close()
         if copyDir:
             copyFile = "%s/%s.dat.tar" % (copyDir, basePrefix)
-            self.logmsg("Link or copy %s->%s" % (tarBall, copyFile))
+            self.log.info("Link or copy %s->%s" % (tarBall, copyFile))
             linkOrCopy(tarBall, copyFile)
         fd = open(semFile, "w")
         fd.close()
@@ -604,14 +630,14 @@ class DAQRun(Rebootable.Rebootable):
         "build CnC run set"
 
         # Wait for required components
-        self.logmsg("Starting run %d (waiting for required %d components" +
-                    " to register w/ CnCServer)" %
-                    (self.runStats.runNum, len(requiredComps)))
+        self.log.info(("Starting run %d (waiting for required %d components" +
+                       " to register w/ CnCServer)") %
+                      (self.runStats.runNum, len(requiredComps)))
         self.waitForRequiredComponents(cncrpc, requiredComps, DAQRun.COMP_TOUT)
         # Throws RequiredComponentsNotAvailableException
 
         self.runSetID = cncrpc.rpccall("rpc_runset_make", requiredComps)
-        self.logmsg("Created Run Set #%d" % self.runSetID)
+        self.log.info("Created Run Set #%d" % self.runSetID)
 
     def fill_component_dictionaries(self, cncrpc):
         """
@@ -643,33 +669,30 @@ class DAQRun(Rebootable.Rebootable):
         l = list(self.createRunsetLoggerNameList())
         cncrpc.rpccall("rpc_runset_log_to", runset, ip, l)
 
-    def setup_monitoring(self):
+    def setup_monitoring(self, log, moniPath, interval, compIDs, shortNames,
+                         daqIDs, rpcAddrs, mbeanPorts):
         "Set up monitoring"
-        self.moni = DAQMoni(self.log,
-                            DAQRun.MONI_PERIOD,
-                            self.setCompIDs, self.shortNameOf, self.daqIDof,
-                            self.rpcAddrOf, self.mbeanPortOf)
+        return DAQMoni(log, moniPath, interval, compIDs, shortNames, daqIDs,
+                            rpcAddrs, mbeanPorts)
 
-    def setup_watchdog(self):
+    def setup_watchdog(self, log, interval, compIDs, shortNames, daqIDs,
+                       rpcAddrs, mbeanPorts):
         "Set up run watchdog"
-        self.watchdog = RunWatchdog(self.log,
-                                    DAQRun.WATCH_PERIOD,
-                                    self.setCompIDs, self.shortNameOf,
-                                    self.daqIDof, self.rpcAddrOf,
-                                    self.mbeanPortOf)
+        return RunWatchdog(log, interval, compIDs, shortNames, daqIDs,
+                           rpcAddrs, mbeanPorts)
 
     def runset_configure(self, rpc, runSetID, configName):
         "Configure the run set"
-        self.logmsg("Configuring run set...")
+        self.log.info("Configuring run set...")
         rpc.rpccall("rpc_runset_configure", runSetID, configName)
 
     def start_run(self, cncrpc):
         cncrpc.rpccall("rpc_runset_start_run", self.runSetID, self.runStats.runNum)
-        self.logmsg("Started run %d on run set %d" %
-                    (self.runStats.runNum, self.runSetID))
+        self.log.info("Started run %d on run set %d" %
+                      (self.runStats.runNum, self.runSetID))
 
     def stop_run(self, cncrpc):
-        self.logmsg("Stopping run %d" % self.runStats.runNum)
+        self.log.info("Stopping run %d" % self.runStats.runNum)
         cncrpc.rpccall("rpc_runset_stop_run", self.runSetID)
 
     def break_existing_runset(self, cncrpc):
@@ -677,12 +700,12 @@ class DAQRun(Rebootable.Rebootable):
         See if runSetID is defined - if so, we have a runset to release
         """
         if self.runSetID:
-            self.logmsg("Breaking run set...")
+            self.log.info("Breaking run set...")
             try:
                 cncrpc.rpccall("rpc_runset_break", self.runSetID)
             except Exception:
-                self.logmsg("WARNING: failed to break run set - " +
-                            exc_string())
+                self.log.error("WARNING: failed to break run set - " +
+                               exc_string())
             self.setCompIDs = []
             self.shortNameOf.clear()
             self.daqIDof.clear()
@@ -746,23 +769,23 @@ class DAQRun(Rebootable.Rebootable):
                     # This occurred in issue 2034 and is dealt with:
                     # debug code can be removed at will
                     if rate < 0:
-                        self.logmsg("WARNING: rate < 0")
+                        self.log.warn("WARNING: rate < 0")
                         for entry in self.runStats.physicsRate.entries:
-                            self.logmsg(str(entry))
+                            self.log.warn(str(entry))
                     #
                     rateStr = " (%2.2f Hz)" % rate
                 except (RateCalc.InsufficientEntriesException, RateCalc.ZeroTimeDeltaException):
                     rateStr = ""
-                self.logmsg(("\t%s physics events%s, %s moni events," +
-                             " %s SN events, %s tcals") %
-                            (self.runStats.physicsEvents,
-                             rateStr,
-                             self.runStats.moniEvents,
-                             self.runStats.snEvents,
-                             self.runStats.tcalEvents))
+                self.log.info(("\t%s physics events%s, %s moni events," +
+                               " %s SN events, %s tcals")  %
+                              (self.runStats.physicsEvents,
+                               rateStr,
+                               self.runStats.moniEvents,
+                               self.runStats.snEvents,
+                               self.runStats.tcalEvents))
 
         except Exception:
-            self.logmsg("Exception in monitoring: %s" % exc_string())
+            self.log.error("Exception in monitoring: %s" % exc_string())
             return False
 
         if self.watchdog:
@@ -793,23 +816,27 @@ class DAQRun(Rebootable.Rebootable):
 
     def restartComponents(self):
         try:
-            self.logmsg("Doing complete rip-down and restart of pDAQ " +
-                        "(everything but DAQRun)")
+            self.log.info("Doing complete rip-down and restart of pDAQ " +
+                          "(everything but DAQRun)")
             cyclePDAQ(self.dashDir, self.clusterConfig, self.configDir,
                       self.logDir, self.spadeDir, self.copyDir,
                       DAQRun.CATCHALL_PORT, DAQRun.CNC_PORT)
         except:
-            self.logmsg("Couldn't cycle pDAQ components ('%s')!!!" %
-                        exc_string())
+            self.log.error("Couldn't cycle pDAQ components ('%s')!!!" %
+                            exc_string())
 
     def run_thread(self, cnc=None):
         """
         Handle state transitions.
         """
 
-        self.catchAllLogger = \
-            self.createSocketLogger(DAQRun.CATCHALL_PORT, "Catchall",
-                                    self.logDir + "/catchall.log")
+        catchAllLogger = \
+            self.createLogSocketServer(DAQRun.CATCHALL_PORT, "Catchall",
+                                       self.logDir + "/catchall.log")
+
+        catchallAppender = \
+            LogSocketAppender('localhost', DAQRun.CATCHALL_PORT)
+        self.log.setAppender(catchallAppender)
 
         if cnc is not None:
             self.cnc = cnc
@@ -843,25 +870,34 @@ class DAQRun(Rebootable.Rebootable):
 
                     # The next 2 setups were postponed until after configure
                     # to allow the late-binding of the StringHub/datacollector MBeans
-                    self.setup_monitoring()
-                    self.setup_watchdog()
+                    self.moni = \
+                        self.setup_monitoring(self.log, self.__logpath,
+                                              DAQRun.MONI_PERIOD,
+                                              self.setCompIDs, self.shortNameOf,
+                                              self.daqIDof, self.rpcAddrOf,
+                                              self.mbeanPortOf)
+                    self.watchdog = \
+                        self.setup_watchdog(self.log, DAQRun.WATCH_PERIOD,
+                                            self.setCompIDs, self.shortNameOf,
+                                            self.daqIDof, self.rpcAddrOf,
+                                            self.mbeanPortOf)
 
                     self.lastConfig = self.configName
                     self.runStats.start()
                     self.start_run(self.cnc)
                     self.runState = "RUNNING"
                 except Fault, fault:
-                    self.logmsg("Run start failed: %s" % fault.faultString)
+                    self.log.error("Run start failed: %s" % fault.faultString)
                     self.runState = "ERROR"
                 except Exception:
-                    self.logmsg("Failed to start run: %s" % exc_string())
+                    self.log.error("Failed to start run: %s" % exc_string())
                     self.runState = "ERROR"
 
             elif self.runState == "STOPPING" or self.runState == "RECOVERING":
                 hadError = False
                 if self.runState == "RECOVERING":
-                    self.logmsg("Recovering from failed run %d..." %
-                                self.runStats.runNum)
+                    self.log.info("Recovering from failed run %d..." %
+                                  self.runStats.runNum)
                     # "Forget" configuration so new run set will be made next time:
                     self.lastConfig = None
                     hadError = True
@@ -870,7 +906,7 @@ class DAQRun(Rebootable.Rebootable):
                         # Points all loggers back to catchall
                         self.stop_run(self.cnc)
                     except:
-                        self.logmsg(exc_string())
+                        self.log.error(exc_string())
                         # Wait for exp. control to signal for recovery:
                         self.runState = "ERROR"
                         continue
@@ -882,54 +918,54 @@ class DAQRun(Rebootable.Rebootable):
                         rateStr = ""
                     else:
                         rateStr = " (%2.2f Hz)" % (float(nev) / float(duration))
-                    self.logmsg("%d physics events collected in %d seconds%s" %
-                                (nev, duration, rateStr))
-                    self.logmsg("%d moni events, %d SN events, %d tcals" %
-                                (nmoni, nsn, ntcal))
+                    self.log.info(("%d physics events collected in %d seconds" +
+                                   "%s") % (nev, duration, rateStr))
+                    self.log.info("%d moni events, %d SN events, %d tcals" %
+                                  (nmoni, nsn, ntcal))
                 except:
-                    self.logmsg("Could not get event count: %s" % exc_string())
+                    self.log.error("Could not get event count: %s" % exc_string())
                     hadError = True;
 
                 self.moni = None
                 self.watchdog = None
 
                 try:      self.stopAllComponentLoggers()
-                except:   hadError = True; self.logmsg(exc_string())
+                except:   hadError = True; self.log.error(exc_string())
 
                 try:      self.stopCnCLogging(self.cnc)
-                except:   hadError = True; self.logmsg(exc_string())
+                except:   hadError = True; self.log.error(exc_string())
 
-                self.logmsg("RPC Call stats:\n%s" % self.cnc.showStats())
+                self.log.info("RPC Call stats:\n%s" % self.cnc.showStats())
 
                 if hadError:
-                    self.logmsg("Run terminated WITH ERROR.")
+                    self.log.error("Run terminated WITH ERROR.")
                 else:
-                    self.logmsg("Run terminated SUCCESSFULLY.")
+                    self.log.info("Run terminated SUCCESSFULLY.")
 
                 if logDirCreated:
-                    self.catchAllLogger.stopServing()
+                    catchAllLogger.stopServing()
                     self.queue_for_spade(self.spadeDir, self.copyDir, self.logDir,
                                          self.runStats.runNum, datetime.datetime.now(), duration)
-                    self.catchAllLogger.startServing()
+                    catchAllLogger.startServing()
 
                 if forceRestart or (hadError and self.restartOnError):
                     self.restartComponents()
 
-                if self.log is not None:
-                    self.log.close()
-                    self.log = None   # Makes everythong go to catchall
+                self.log.setAppender(catchallAppender)
 
                 self.saveAndResetRunStats()
                 self.runState = "STOPPED"
 
             elif self.runState == "RUNNING":
                 if not self.check_all():
-                    self.logmsg("Caught error in system, going to ERROR state...")
+                    self.log.error("Caught error in system, going to ERROR state...")
                     self.runState = "ERROR"
                 else:
                     sleep(0.25)
             else:
                 sleep(0.25)
+
+        catchAllLogger.stopServing()
 
     def rpc_run_state(self):
         r'Returns DAQ State, one of "STARTING", "RUNNING", "STOPPED",'
@@ -942,8 +978,9 @@ class DAQRun(Rebootable.Rebootable):
 
     def rpc_flash(self, subRunID, flashingDomsList):
         if self.runState != "RUNNING" or self.runSetID == None:
-            self.logmsg("Warning: invalid state (%s) or runSet ID (%d), won't flash DOMs."
-                        % (self.runState, self.runSetID))
+            self.log.warn(("Warning: invalid state (%s) or runSet ID (%d)," +
+                           " won't flash DOMs.") %
+                          (self.runState, self.runSetID))
             return 0
 
         if len(flashingDomsList) > 0:
@@ -951,17 +988,22 @@ class DAQRun(Rebootable.Rebootable):
                 (flashingDomsList,
                  missingDomWarnings) = DAQRun.validateFlashingDoms(self.configuration, flashingDomsList)
                 for w in missingDomWarnings:
-                    self.logmsg("Subrun %d: will ignore missing DOM ('%s')..." % (subRunID, w))
+                    self.log.warn(("Subrun %d: will ignore missing DOM" +
+                                   " ('%s')...") % (subRunID, w))
             except InvalidFlasherArgList, i:
-                self.logmsg("Subrun %d: invalid argument list ('%s')" % (subRunID, i))
+                self.log.error("Subrun %d: invalid argument list ('%s')" %
+                               (subRunID, i))
                 return 0
-            self.logmsg("Subrun %d: flashing DOMs (%s)" % (subRunID, str(flashingDomsList)))
+            self.log.info("Subrun %d: flashing DOMs (%s)" %
+                            (subRunID, str(flashingDomsList)))
         else:
-            self.logmsg("Subrun %d: Got command to stop flashers" % subRunID)
+            self.log.info("Subrun %d: Got command to stop flashers" %
+                            subRunID)
         try:
             self.cnc.rpccall("rpc_runset_subrun", self.runSetID, subRunID, flashingDomsList)
         except Fault:
-            self.logmsg("CnCServer subrun transition failed: %s" % exc_string())
+            self.log.error("CnCServer subrun transition failed: %s" %
+                            exc_string())
             return 0
         return 1
 
@@ -980,10 +1022,11 @@ class DAQRun(Rebootable.Rebootable):
     def rpc_stop_run(self):
         "Stop a run"
         if self.runState == "STOPPED":
-            self.logmsg("Warning: run is already stopped.")
+            self.log.warn("Warning: run is already stopped.")
             return 1
         if self.runState != "RUNNING":
-            self.logmsg("Warning: invalid state (%s), won't stop run." % self.runState)
+            self.log.warn("Warning: invalid state (%s), won't stop run." %
+                            self.runState)
             return 0
         self.runState = "STOPPING"
         return 1
@@ -1002,7 +1045,7 @@ class DAQRun(Rebootable.Rebootable):
 
     def rpc_daq_reboot(self):
         "Signal DAQ to restart all components"
-        self.logmsg("YIKES!!! GOT REBOOT SIGNAL FROM EXPCONT!")
+        self.log.fatal("YIKES!!! GOT REBOOT SIGNAL FROM EXPCONT!")
         self.server.server_close()
         self.do_reboot()
         raise Exception("REBOOT_FAULT")
@@ -1054,8 +1097,8 @@ class DAQRun(Rebootable.Rebootable):
             try:
                 self.runStats.updateDiskUsage(self)
             except:
-                self.logmsg("Failed to update disk usage quantities "+
-                            "for summary XML (%s)!" % exc_string())
+                self.log.error("Failed to update disk usage quantities "+
+                               "for summary XML (%s)!" % exc_string())
 
             currentRun = """\
    <run ordering="current">
@@ -1090,7 +1133,7 @@ class DAQRun(Rebootable.Rebootable):
         except AttributeError: # This happens after eventbuilder disappears
             pass
         except Exception:
-            self.logmsg(exc_string())
+            self.log.error(exc_string())
 
         subRunEventXML  = "   <subRunEventCounts>\n"
         subRunEventXML += subRunCounts

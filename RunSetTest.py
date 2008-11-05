@@ -3,101 +3,7 @@
 import unittest
 from CnCServer import RunSet
 
-class MockLogger(object):
-    def __init__(self, host, port):
-        self.expMsgs = []
-
-    def __checkMsg(self, msg):
-        if len(self.expMsgs) == 0:
-            raise Exception('Unexpected log message: %s' % msg)
-        if self.expMsgs[0] != msg:
-            raise Exception('Expected log message "%s", not "%s"' %
-                            (self.expMsgs[0], msg))
-        del self.expMsgs[0]
-
-    def addExpected(self, msg):
-        self.expMsgs.append(msg)
-
-    def checkEmpty(self):
-        if len(self.expMsgs) != 0:
-            raise Exception("Didn't receive %d expected log messages: %s" %
-                            (len(self.expMsgs), str(self.expMsgs)))
-
-    def logmsg(self, msg):
-        self.__checkMsg(msg)
-
-    def write_ts(self, s):
-        self.__checkMsg(s)
-
-class MockComponent(object):
-    def __init__(self, name, num):
-        self.name = name
-        self.num = num
-        self.connected = False
-        self.configured = False
-        self.configWait = 0;
-        self.runNum = None
-        self.cmdOrder = 0
-
-    def __str__(self):
-        if self.configured:
-            cfgStr = ' [Configured]'
-        else:
-            cfgStr = ''
-        return self.name + cfgStr
-
-    def configure(self, configName=None):
-        if not self.connected:
-            self.connected = True
-        self.configured = True
-        return 'OK'
-
-    def connect(self, conn=None):
-        self.connected = True
-        return 'OK'
-
-    def getName(self):
-        if self.num == 0 and self.name[-3:].lower() != 'hub':
-            return self.name
-        return '%s#%d' % (self.name, self.num)
-
-    def getState(self):
-        if not self.connected:
-            return 'idle'
-        if not self.configured or self.configWait > 0:
-            if self.configured and self.configWait > 0:
-                self.configWait -= 1
-            return 'connected'
-        if not self.runNum:
-            return 'ready'
-
-        return 'running'
-
-    def isComponent(self, name, num):
-        return self.name == name
-
-    def logTo(self, logIP, logPort):
-        pass
-
-    def reset(self):
-        self.connected = False
-        self.configured = False
-        self.runNum = None
-
-    def setConfigureWait(self, waitNum):
-        self.configWait = waitNum
-
-    def startRun(self, runNum):
-        if not self.configured:
-            raise Exception(self.name + ' has not been configured')
-
-        self.runNum = runNum
-
-    def stopRun(self):
-        if self.runNum is None:
-            raise Exception(self.name + ' is not running')
-
-        self.runNum = None
+from DAQMocks import MockComponent, MockLogger
 
 class TestRunSet(unittest.TestCase):
     def checkStatus(self, runset, compList, expState):
@@ -109,7 +15,7 @@ class TestRunSet(unittest.TestCase):
 
     def isCompListConfigured(self, compList):
         for c in compList:
-            if not c.configured:
+            if not c.isConfigured():
                 return False
 
         return True
@@ -124,7 +30,12 @@ class TestRunSet(unittest.TestCase):
         return True
 
     def runTests(self, compList, runNum):
-        logger = MockLogger('foo', 0)
+        logger = MockLogger('foo#0')
+
+        num = 1
+        for c in compList:
+            c.setOrder(num)
+            num += 1
 
         runset = RunSet(compList, logger)
         self.assertEqual(str(runset), 'RunSet #' + str(runset.id))
@@ -133,7 +44,7 @@ class TestRunSet(unittest.TestCase):
 
         logList = []
         for c in compList:
-            logList.append([c.name, 0, 666, 'info'])
+            logList.append([c.name, c.num, 666, 'info'])
         runset.configureLogging('localhost', logList)
 
         if len(compList) > 0:
@@ -147,17 +58,19 @@ class TestRunSet(unittest.TestCase):
 
         i = 0
         while True:
-            cfgWaitNum = 0
+            cfgWaitStr = None
             for c in compList:
-                if c.configWait > i:
-                    cfgWaitNum += 1
+                if c.getConfigureWait() > i:
+                    if cfgWaitStr is None:
+                        cfgWaitStr = c.getName()
+                    else:
+                        cfgWaitStr += ', ' + c.getName()
 
-            if cfgWaitNum == 0:
+            if cfgWaitStr is None:
                 break
 
-            cfgDict = { 'connected' : cfgWaitNum }
-            logger.addExpected('Waiting for %d components to start configuring: %s' %
-                               (cfgWaitNum, str(cfgDict)))
+            logger.addExpectedExact('RunSet #%d: Waiting for configuring: %s' %
+                                    (runset.id, cfgWaitStr))
             i += 1
 
         runset.configure('xxx')

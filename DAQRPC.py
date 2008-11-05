@@ -12,6 +12,7 @@ import xmlrpclib
 import socket
 import datetime
 import math
+import select
 
 class RPCClient(xmlrpclib.ServerProxy):
 
@@ -73,15 +74,34 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
     "Generic class for serving methods to remote objects"
     # also inherited: register_function
     allow_reuse_address = True
-    def __init__(self, portnum, servername="localhost", documentation="DAQ Server"):
+    def __init__(self, portnum, servername="localhost", documentation="DAQ Server", timeout=60):
         self.servername = servername
         self.portnum    = portnum
+
+        self.__running = False
+        self.__timeout = timeout
+
         DocXMLRPCServer.DocXMLRPCServer.__init__(self, ('', portnum), logRequests=False)
         self.set_server_title("Server Methods")
         self.set_server_name("DAQ server at %s:%s" % (servername, portnum))
         self.set_server_documentation(documentation)
         # Avoid "Address in use" errors:
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+    def server_close(self):
+        self.__running = False
+        DocXMLRPCServer.DocXMLRPCServer.server_close(self)
+
+    def serve_forever(self):
+        """Handle one request at a time until doomsday."""
+        self.__running = True
+        while self.__running:
+            try:
+                r,w,e = select.select([self.fileno()], [], [], self.__timeout)
+            except select.error:
+                break
+            if r:
+                self.handle_request()
 
 class RPCStat(object):
     "Class for accumulating statistics about an RPC call"

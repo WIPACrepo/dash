@@ -1,85 +1,9 @@
 #!/usr/bin/env python
 
 import unittest
-from CnCServer import DAQPool, RunSet
+from CnCServer import DAQPool
 
-class MockConnection(object):
-    def __init__(self, type, isInput):
-        self.type = type
-        self.isInput = isInput
-        self.port = -1
-
-class MockComponent(object):
-    def __init__(self, name, num, isSrc=False):
-        self.name = name
-        self.num = num
-        self.isSrc = isSrc
-        self.host = 'localhost'
-
-        self.connectors = []
-
-        self.configured = False
-        self.connected = False
-        self.runNum = None
-        self.monitorState = '???'
-        self.cmdOrder = None
-
-    def __str__(self):
-        if self.num == 0:
-            return self.name
-        return '%s#%d' % (self.name, self.num)
-
-    def addInput(self, type):
-        self.connectors.append(MockConnection(type, True))
-
-    def addOutput(self, type):
-        self.connectors.append(MockConnection(type, False))
-
-    def configure(self, name=None):
-        self.configured = True
-
-    def connect(self, conn=None):
-        self.connected = True
-        return 'OK'
-
-    def getOrder(self):
-        return self.cmdOrder
-
-    def getState(self):
-        if not self.connected:
-            return 'idle'
-        if not self.configured:
-            return 'connected'
-        if not self.runNum:
-            return 'ready'
-
-        return 'running'
-
-    def isSource(self):
-        return self.isSrc
-
-    def monitor(self):
-        return self.monitorState
-
-    def reset(self):
-        self.connected = False
-        self.configured = False
-        self.runNum = None
-
-    def setOrder(self, num):
-        self.cmdOrder = num
-
-    def startRun(self, runNum):
-        if not self.configured:
-            raise Exception(self.name + ' has not been configured')
-
-        self.runNum = runNum
-
-    def stopRun(self):
-        if self.runNum is None:
-            raise Exception(self.name + ' is not running')
-
-        self.runNum = None
+from DAQMocks import MockComponent, MockLogger
 
 class TestDAQPool(unittest.TestCase):
     def testEmpty(self):
@@ -118,7 +42,7 @@ class TestDAQPool(unittest.TestCase):
 
         compList = []
 
-        comp = MockComponent('foo', 0, True)
+        comp = MockComponent('foo', 0, isSrc=True)
         comp.addOutput('aaa')
         compList.append(comp)
 
@@ -135,7 +59,8 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), len(compList))
 
-        runset = mgr.makeRunset(nameList)
+        logger = MockLogger('main')
+        runset = mgr.makeRunset(nameList, logger)
 
         self.assertEqual(len(mgr.pool), 0)
 
@@ -151,12 +76,14 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
+        logger.checkEmpty()
+
     def testBuildMissingOneOutput(self):
         mgr = DAQPool()
 
         compList = []
 
-        comp = MockComponent('foo', 0, True)
+        comp = MockComponent('foo', 0, isSrc=True)
         comp.addOutput('aaa')
         comp.addInput('xxx')
         compList.append(comp)
@@ -174,7 +101,8 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), len(compList))
 
-        self.assertRaises(ValueError, mgr.makeRunset, nameList)
+        logger = MockLogger('main')
+        self.assertRaises(ValueError, mgr.makeRunset, nameList, logger)
 
         self.assertEqual(len(mgr.pool), len(compList))
 
@@ -183,12 +111,14 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
+        logger.checkEmpty()
+
     def testBuildMissingMultiOutput(self):
         mgr = DAQPool()
 
         compList = []
 
-        comp = MockComponent('foo', 0, True)
+        comp = MockComponent('foo', 0, isSrc=True)
         comp.addInput('xxx')
         compList.append(comp)
 
@@ -205,7 +135,8 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), len(compList))
 
-        self.assertRaises(ValueError, mgr.makeRunset, nameList)
+        logger = MockLogger('main')
+        self.assertRaises(ValueError, mgr.makeRunset, nameList, logger)
 
         self.assertEqual(len(mgr.pool), len(compList))
 
@@ -214,12 +145,14 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
+        logger.checkEmpty()
+
     def testBuildMatchPlusMissingMultiOutput(self):
         mgr = DAQPool()
 
         compList = []
 
-        comp = MockComponent('foo', 0, True)
+        comp = MockComponent('foo', 0, isSrc=True)
         comp.addInput('xxx')
         comp.addInput('yyy')
         comp.addOutput('aaa')
@@ -238,7 +171,8 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), len(compList))
 
-        self.assertRaises(ValueError, mgr.makeRunset, nameList)
+        logger = MockLogger('main')
+        self.assertRaises(ValueError, mgr.makeRunset, nameList, logger)
 
         self.assertEqual(len(mgr.pool), len(compList))
 
@@ -247,12 +181,14 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
+        logger.checkEmpty()
+
     def testBuildMissingOneInput(self):
         mgr = DAQPool()
 
         compList = []
 
-        comp = MockComponent('foo', 0, True)
+        comp = MockComponent('foo', 0, isSrc=True)
         comp.addOutput('aaa')
         compList.append(comp)
 
@@ -270,7 +206,8 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), len(compList))
 
-        self.assertRaises(ValueError, mgr.makeRunset, nameList)
+        logger = MockLogger('main')
+        self.assertRaises(ValueError, mgr.makeRunset, nameList, logger)
 
         self.assertEqual(len(mgr.pool), len(compList))
 
@@ -279,12 +216,14 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
+        logger.checkEmpty()
+
     def testBuildMatchPlusMissingMultiInput(self):
         mgr = DAQPool()
 
         compList = []
 
-        comp = MockComponent('foo', 0, True)
+        comp = MockComponent('foo', 0, isSrc=True)
         compList.append(comp)
 
         comp = MockComponent('bar', 0)
@@ -301,7 +240,8 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), len(compList))
 
-        self.assertRaises(ValueError, mgr.makeRunset, nameList)
+        logger = MockLogger('main')
+        self.assertRaises(ValueError, mgr.makeRunset, nameList, logger)
 
         self.assertEqual(len(mgr.pool), len(compList))
 
@@ -310,12 +250,14 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
+        logger.checkEmpty()
+
     def testBuildMatchPlusMissingMultiInput(self):
         mgr = DAQPool()
 
         compList = []
 
-        comp = MockComponent('foo', 0, True)
+        comp = MockComponent('foo', 0, isSrc=True)
         comp.addOutput('aaa')
         comp.addOutput('xxx')
         compList.append(comp)
@@ -334,7 +276,8 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), len(compList))
 
-        self.assertRaises(ValueError, mgr.makeRunset, nameList)
+        logger = MockLogger('main')
+        self.assertRaises(ValueError, mgr.makeRunset, nameList, logger)
 
         self.assertEqual(len(mgr.pool), len(compList))
 
@@ -343,12 +286,14 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
+        logger.checkEmpty()
+
     def testBuildMultiMissing(self):
         mgr = DAQPool()
 
         compList = []
 
-        comp = MockComponent('foo', 0, True)
+        comp = MockComponent('foo', 0, isSrc=True)
         comp.addInput('xxx')
         compList.append(comp)
 
@@ -356,7 +301,7 @@ class TestDAQPool(unittest.TestCase):
         comp.addOutput('xxx')
         compList.append(comp)
 
-        comp = MockComponent('fee', 0, True)
+        comp = MockComponent('fee', 0, isSrc=True)
         comp.addInput('xxx')
         compList.append(comp)
 
@@ -373,8 +318,9 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), len(compList))
 
+        logger = MockLogger('main')
         try:
-            mgr.makeRunset(nameList)
+            mgr.makeRunset(nameList, logger)
             self.fail('Unexpected success')
         except ValueError:
             pass
@@ -388,12 +334,14 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
+        logger.checkEmpty()
+
     def testBuildMultiInput(self):
         mgr = DAQPool()
 
         compList = []
 
-        comp = MockComponent('foo', 0, True)
+        comp = MockComponent('foo', 0, isSrc=True)
         comp.addOutput('conn')
         compList.append(comp)
 
@@ -414,7 +362,8 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), len(compList))
 
-        runset = mgr.makeRunset(nameList)
+        logger = MockLogger('main')
+        runset = mgr.makeRunset(nameList, logger)
 
         self.assertEqual(len(mgr.pool), 0)
 
@@ -430,10 +379,12 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
+        logger.checkEmpty()
+
     def testStartRun(self):
         mgr = DAQPool()
 
-        a = MockComponent('a', 0, True)
+        a = MockComponent('a', 0, isSrc=True)
         a.addOutput('ab');
 
         b = MockComponent('b', 0)
@@ -454,7 +405,8 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), len(compList))
 
-        runset = mgr.makeRunset(nameList)
+        logger = MockLogger('main')
+        runset = mgr.makeRunset(nameList, logger)
 
         self.assertEqual(len(mgr.pool), 0)
         self.assertEqual(len(runset.set), len(compList))
@@ -503,6 +455,8 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), len(compList))
         self.assertEqual(len(runset.set), 0)
+
+        logger.checkEmpty()
 
 if __name__ == '__main__':
     unittest.main()

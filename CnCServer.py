@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from DAQRPC import RPCClient, RPCServer
-from DAQLogClient import DAQLogger
+from DAQLogClient import DAQLog, LogSocketAppender
 from Process import processList, findProcess
 from time import time, sleep
 
@@ -16,7 +16,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3651 2008-11-05 01:23:53Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3657 2008-11-05 01:49:08Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -194,7 +194,7 @@ class RunSet(object):
         runNumber - run number (if assigned)
         """
         self.set = set
-        self.logger = logger
+        self.__logger = logger
 
         self.id = RunSet.ID
         RunSet.ID += 1
@@ -226,20 +226,18 @@ class RunSet(object):
 
         waitLoop = 0
         while True:
-            waitNum = 0
-            stDict = {}
+            waitList = []
             for c in self.set:
                 stateStr = c.getState()
                 if stateStr != 'configuring' and stateStr != 'ready':
-                    waitNum += 1
-                    if not stDict.has_key(stateStr):
-                        stDict[stateStr] = 0
-                    stDict[stateStr] += 1
+                    waitList.append(c)
 
-            if waitNum == 0:
+            if len(waitList) == 0:
                 break
-            self.logmsg('Waiting for ' + str(waitNum) +
-                        ' components to start configuring: ' + str(stDict))
+            self.__logger.info('%s: Waiting for %s: %s' %
+                               (str(self), self.state,
+                                self.listComponentsCommaSep(waitList)))
+
             sleep(1)
             waitLoop += 1
             if waitLoop > 60:
@@ -319,12 +317,6 @@ class RunSet(object):
         return compStr
     listComponentsCommaSep = staticmethod(listComponentsCommaSep)
 
-    def logmsg(self, msg):
-        if self.logger:
-            self.logger.logmsg(msg)
-        else:
-            print msg
-
     def reset(self):
         "Reset all components in the runset back to the idle state"
         self.state = 'resetting'
@@ -369,10 +361,10 @@ class RunSet(object):
 
     def sortCmp(self, x, y):
         if y.cmdOrder is None:
-            self.logmsg('Comp %s is None' % str(y))
+            self.__logger.error('Comp %s cmdOrder is None' % str(y))
             return -1
         elif x.cmdOrder is None:
-            self.logmsg('Comp %s is None' % str(x))
+            self.__logger.error('Comp %s cmdOrder is None' % str(x))
             return 1
         else:
             return y.cmdOrder-x.cmdOrder
@@ -384,7 +376,7 @@ class RunSet(object):
 
         failStr = None
         for c in self.set:
-            if c.cmdOrder is None:
+            if c.getOrder() is None:
                 if not failStr:
                     failStr = 'No order set for ' + str(c)
                 else:
@@ -444,9 +436,9 @@ class RunSet(object):
                 timeoutSecs = int(RunSet.TIMEOUT_SECS * .25)
 
             if i == 1:
-                self.logmsg('%s: Forcing %d components to stop: %s' %
-                            (str(self), len(waitList),
-                             self.listComponentsCommaSep(waitList)))
+                self.__logger.error('%s: Forcing %d components to stop: %s' %
+                                    (str(self), len(waitList),
+                                     self.listComponentsCommaSep(waitList)))
 
             for c in waitList:
                 if i == 0:
@@ -502,9 +494,8 @@ class RunSet(object):
                                 waitStr += ', '
                             waitStr += c.getName() + connDict[c]
 
-                        if waitStr:
-                            self.logmsg('%s: Waiting for %s %s' %
-                                        (str(self), self.state, waitStr))
+                        self.__logger.info('%s: Waiting for %s %s' %
+                                           (str(self), self.state, waitStr))
 
             # if the components all stopped normally, don't force-stop them
             #
@@ -523,7 +514,7 @@ class RunSet(object):
                 waitStr += c.getName() + connDict[c]
 
             errStr = '%s: Could not stop %s' % (str(self), waitStr)
-            self.logmsg(errStr)
+            self.__logger.error(errStr)
             raise ValueError(errStr)
 
     def subrun(self, id, data):
@@ -575,7 +566,6 @@ class RunSet(object):
         waitList = self.set[:]
 
         endSecs = time() + timeoutSecs
-        waitStr = ''
         while len(waitList) > 0 and time() < endSecs:
             newList = waitList[:]
             for c in waitList:
@@ -585,95 +575,133 @@ class RunSet(object):
 
             # if one or more components changed state...
             #
-            waitStr  = RunSet.listComponentsCommaSep(newList)
             if len(waitList) == len(newList):
                 sleep(1)
             else:
                 waitList = newList
-                if waitStr:
-                    self.logmsg('%s: Waiting for %s %s' %
-                                (str(self), self.state, waitStr))
+                if len(waitList) > 0:
+                    waitStr = RunSet.listComponentsCommaSep(waitList)
+                    self.__logger.info('%s: Waiting for %s %s' %
+                                       (str(self), self.state, waitStr))
+
                 # reset timeout
                 #
                 endSecs = time() + timeoutSecs
 
         if len(waitList) > 0:
+            waitStr = RunSet.listComponentsCommaSep(waitList)
             raise ValueError(('Still waiting for %d components to leave %s' +
-                              ' (%s)' % (len(waitList), self.state, waitStr))
+                              ' (%s)') % (len(waitList), self.state, waitStr))
 
-class CnCLogger(object):
+class CnCLogger(DAQLog):
     "CnC logging client"
 
-    def __init__(self, quiet=False):
+    def __init__(self, appender=None, quiet=False):
         "create a logging client"
-        self.quiet = quiet
+        self.__quiet = quiet
 
-        self.socketlog = None
-        self.logIP = None
-        self.logPort = None
+        self.__prevAppender = None
+        self.__prevIP = None
+        self.__prevPort = None
 
-        self.prevIP = None
-        self.prevPort = None
+        self.__logAppender = None
+        self.__logIP = None
+        self.__logPort = None
+
+        super(CnCLogger, self).__init__(appender)
+
+    def __getName(self):
+        if self.__logAppender is not None:
+            return 'LOG=%s:%d' % (self.__logIP, self.__logPort)
+        if self.__prevAppender is not None:
+            return 'PREV=%s:%d' % (self.__prevIP, self.__prevPort)
+        return '?LOG?'
+
+    def __str__(self):
+        return self.__getName()
 
     def closeLog(self):
         "Close the log socket"
-        try:
-            self.logmsg("End of log")
-        except:
-            pass
+        self.info("End of log")
         self.resetLog()
 
-    def createLogger(self, host, port):
+    def createAppender(self, host, port):
         "create a socket logger (overrideable method used for testing)"
-        return DAQLogger(host, port)
+        return LogSocketAppender(host, port)
 
-    def logmsg(self, s):
+    def getLogHost(self):
+        return self.__logIP
+
+    def getLogPort(self):
+        return self.__logPort
+
+    def getPreviousHost(self):
+        return self.__prevIP
+
+    def getPreviousPort(self):
+        return self.__prevPort
+
+    def isQuiet(self):
+        return self.__quiet
+
+    def _logmsg(self, level, s):
         """
         Log a string to stdout and, if available, to the socket logger
         stdout of course will not appear if daemonized.
         """
-        if not self.quiet: print s
-        if self.socketlog:
-            try:
-                self.socketlog.write_ts(s)
-            except Exception, ex:
-                if str(ex).find('Connection refused') < 0:
-                    raise
-                self.resetLog()
-                print 'Lost logging connection'
+        if not self.__quiet: print s
+        try:
+            super(CnCLogger, self)._logmsg(level, s)
+        except Exception, ex:
+            if str(ex).find('Connection refused') < 0:
+                raise
+            print 'Lost logging connection to %s:%s' % \
+                (str(self.__logIP), str(self.__logPort))
+            self.resetLog()
+            self._logmsg(level, s)
 
     def openLog(self, host, port):
         "initialize socket logger"
-        self.socketlog = self.createLogger(host, port)
+        if self.__prevAppender is None:
+            self.__prevAppender = self.__logAppender
+            self.__prevIP = self.__logIP
+            self.__prevPort = self.__logPort
 
-        if self.prevIP is None and self.prevPort is None:
-            self.prevIP = self.logIP
-            self.prevPort = self.logPort
+        self.__logAppender = self.createAppender(host, port)
+        self.__logIP = host
+        self.__logPort = port
 
-        self.logIP = host
-        self.logPort = port
-        self.logmsg('Start of log at %s:%d' % (host, port))
+        self.setAppender(self.__logAppender)
+        self.info('Start of log at %s' % str(self.__logAppender))
 
     def resetLog(self):
         "close current log and reset to initial state"
-        if self.socketlog is not None:
+        if self.__logAppender is not None:
             try:
-                self.socketlog.close()
+                self.__logAppender.close()
             except:
                 pass
 
-        if self.prevIP is not None and self.prevPort is not None and \
-                (self.logIP != self.prevIP or self.logPort != self.prevPort):
-            self.openLog(self.prevIP, self.prevPort)
+        if self.__prevIP is not None and self.__prevPort is not None and \
+                (self.__logIP != self.__prevIP or
+                 self.__logPort != self.__prevPort):
+            self.__logAppender = self.__prevAppender
+            self.__logIP = self.__prevIP
+            self.__logPort = self.__prevPort
         else:
-            self.socketlog = None
-            self.logIP = None
-            self.logPort = None
+            self.__logAppender = None
+            self.__logIP = None
+            self.__logPort = None
 
-        self.prevIP = None
-        self.prevPort = None
+        self.__prevAppender = None
+        self.__prevIP = None
+        self.__prevPort = None
 
-class DAQClient(CnCLogger):
+        self.setAppender(self.__logAppender)
+        if self.__logAppender is not None:
+            self.info('Reset log to %s' % str(self.__logAppender))
+
+class DAQClient(object):
     """DAQ component
     id - internal client ID
     name - component name
@@ -701,7 +729,8 @@ class DAQClient(CnCLogger):
     #
     STATE_DEAD = 'DEAD'
 
-    def __init__(self, name, num, host, port, mbeanPort, connectors):
+    def __init__(self, name, num, host, port, mbeanPort, connectors,
+                 quiet=False):
         """
         DAQClient constructor
         name - component name
@@ -721,12 +750,12 @@ class DAQClient(CnCLogger):
         self.id = DAQClient.ID
         DAQClient.ID += 1
 
+        self.__log = self.createCnCLogger(quiet)
+
         self.client = self.createClient(host, port)
 
         self.deadCount = 0
         self.cmdOrder = None
-
-        super(DAQClient, self).__init__()
 
     def __str__(self):
         "String description"
@@ -753,7 +782,7 @@ class DAQClient(CnCLogger):
         try:
             return self.client.xmlrpc.commitSubrun(subrunNum, latestTime)
         except Exception:
-            self.logmsg(exc_string())
+            self.__log.error(exc_string())
             return None
 
     def configure(self, configName=None):
@@ -764,7 +793,7 @@ class DAQClient(CnCLogger):
             else:
                 return self.client.xmlrpc.configure(configName)
         except Exception:
-            self.logmsg(exc_string())
+            self.__log.error(exc_string())
             return None
 
     def connect(self, connList=None):
@@ -782,12 +811,15 @@ class DAQClient(CnCLogger):
     def createClient(self, host, port):
         return RPCClient(host, port)
 
+    def createCnCLogger(self, quiet):
+        return CnCLogger(quiet)
+
     def forcedStop(self):
         "Force component to stop running"
         try:
             return self.client.xmlrpc.forcedStop()
         except Exception:
-            self.logmsg(exc_string())
+            self.__log.error(exc_string())
             return None
 
     def getEvents(self, subrunNumber):
@@ -798,7 +830,7 @@ class DAQClient(CnCLogger):
                 evts = long(evts[:-1])
             return evts
         except Exception:
-            self.logmsg(exc_string())
+            self.__log.error(exc_string())
             return None
 
     def getName(self):
@@ -816,7 +848,7 @@ class DAQClient(CnCLogger):
         except socket.error:
             state = None
         except Exception:
-            self.logmsg(exc_string())
+            self.__log.error(exc_string())
             state = None
 
         if not state:
@@ -836,7 +868,7 @@ class DAQClient(CnCLogger):
         try:
             connStates = self.client.xmlrpc.listConnectorStates()
         except Exception:
-            self.logmsg(exc_string())
+            self.__log.error(exc_string())
             return None
 
         csStr = None
@@ -872,12 +904,12 @@ class DAQClient(CnCLogger):
 
     def logTo(self, logIP, port):
         "Send log messages to the specified host and port"
-        self.openLog(logIP, port)
+        self.__log.openLog(logIP, port)
         self.client.xmlrpc.logTo(logIP, port)
 
-        self.logmsg("Version info: %(filename)s %(revision)s %(date)s " \
-                    "%(time)s %(author)s %(release)s %(repo_rev)s" % \
-                    get_version_info(self.client.xmlrpc.getVersionInfo()))
+        self.__log.info(("Version info: %(filename)s %(revision)s %(date)s " +
+                         "%(time)s %(author)s %(release)s %(repo_rev)s") %
+                        get_version_info(self.client.xmlrpc.getVersionInfo()))
 
     def monitor(self):
         "Return the monitoring value"
@@ -888,17 +920,17 @@ class DAQClient(CnCLogger):
         try:
             return self.client.xmlrpc.prepareSubrun(subrunNum)
         except Exception:
-            self.logmsg(exc_string())
+            self.__log.error(exc_string())
             return None
 
     def reset(self):
         "Reset component back to the idle state"
-        self.closeLog()
+        self.__log.closeLog()
         return self.client.xmlrpc.reset()
 
     def resetLogging(self):
         "Reset component back to the idle state"
-        self.resetLog()
+        self.__log.resetLog()
         return self.client.xmlrpc.resetLogging()
 
     def setOrder(self, orderNum):
@@ -909,7 +941,7 @@ class DAQClient(CnCLogger):
         try:
             return self.client.xmlrpc.startRun(runNum)
         except Exception:
-            self.logmsg(exc_string())
+            self.__log.error(exc_string())
             return None
 
     def stopRun(self):
@@ -917,7 +949,7 @@ class DAQClient(CnCLogger):
         try:
             return self.client.xmlrpc.stopRun()
         except Exception:
-            self.logmsg(exc_string())
+            self.__log.error(exc_string())
             return None
 
     def startSubrun(self, data):
@@ -925,10 +957,10 @@ class DAQClient(CnCLogger):
         try:
             return self.client.xmlrpc.startSubrun(data)
         except Exception:
-            self.logmsg(exc_string())
+            self.__log.error(exc_string())
             return None
 
-class DAQPool(CnCLogger):
+class DAQPool(object):
     "Pool of DAQClients and RunSets"
 
     def __init__(self):
@@ -963,8 +995,7 @@ class DAQPool(CnCLogger):
 
     buildConnectionMap = classmethod(buildConnectionMap)
 
-
-    def buildRunset(self, nameList, compList):
+    def __buildRunset(self, nameList, compList, logger):
         """
         Internal method to build a runset from the specified list of
         component names, using the supplied 'compList' as a workspace
@@ -1032,7 +1063,7 @@ class DAQPool(CnCLogger):
         if errMsg:
             raise ValueError(errMsg)
 
-        self.setOrder(compList, connMap)
+        self.setOrder(compList, connMap, logger)
 
         return None
 
@@ -1061,16 +1092,16 @@ class DAQPool(CnCLogger):
 
         return ids
 
-    def makeRunset(self, nameList):
+    def makeRunset(self, nameList, logger):
         "Build a runset from the specified list of component names"
         compList = []
         setAdded = False
         try:
             try:
-                # buildRunset fills 'compList' with the specified components
+                # __buildRunset fills 'compList' with the specified components
                 #
-                self.buildRunset(nameList, compList)
-                runSet = RunSet(compList, self)
+                self.__buildRunset(nameList, compList, logger)
+                runSet = RunSet(compList, logger)
                 self.sets.append(runSet)
                 setAdded = True
             except Exception:
@@ -1120,7 +1151,7 @@ class DAQPool(CnCLogger):
         s.returnComponents(self)
         s.destroy()
 
-    def setOrder(self, compList, connMap):
+    def setOrder(self, compList, connMap, logger):
         "set the order in which components are started/stopped"
 
         # copy list of components
@@ -1170,7 +1201,7 @@ class DAQPool(CnCLogger):
             errStr = 'Unordered:'
             for c in allComps:
                 errStr += ' ' + str(c)
-            self.logmsg(errStr)
+            logger.error(errStr)
 
         for c in compList:
             failStr = None
@@ -1185,10 +1216,12 @@ class DAQPool(CnCLogger):
 class DAQServer(DAQPool):
     "Configuration server"
 
+    DEFAULT_PORT = 8080
     DEFAULT_LOG_LEVEL = 'info'
 
-    def __init__(self, name="GenericServer", port=8080,
-                 logIP=None, logPort=None, testOnly=False, showSpinner=False):
+    def __init__(self, name="GenericServer", port=DEFAULT_PORT,
+                 logIP=None, logPort=None, testOnly=False, showSpinner=False,
+                 quiet=False):
         "Create a DAQ command and configuration server"
         self.port = port
         self.name = name
@@ -1199,8 +1232,10 @@ class DAQServer(DAQPool):
 
         super(DAQServer, self).__init__()
 
+        self.__log = self.createCnCLogger(testOnly or quiet)
+
         if logIP is not None and logPort is not None:
-            self.openLog(logIP, logPort)
+            self.__log.openLog(logIP, logPort)
 
         if testOnly:
             self.server = None
@@ -1210,7 +1245,7 @@ class DAQServer(DAQPool):
                     self.server = RPCServer(self.port)
                     break
                 except socket.error, e:
-                    self.logmsg("Couldn't create server socket: %s" % e)
+                    self.__log.error("Couldn't create server socket: %s" % e)
                     raise SystemExit
 
         if self.server:
@@ -1236,13 +1271,20 @@ class DAQServer(DAQPool):
             self.server.register_function(self.rpc_runset_subrun)
             self.server.register_function(self.rpc_show_components)
 
+    def closeServer(self):
+        self.server.server_close()
+
     def createClient(self, name, num, host, port, mbeanPort, connectors):
         "overrideable method used for testing"
-        return DAQClient(name, num, host, port, mbeanPort, connectors)
+        return DAQClient(name, num, host, port, mbeanPort, connectors,
+                         self.__log.isQuiet())
+
+    def createCnCLogger(self, quiet):
+        return CnCLogger(quiet)
 
     def rpc_close_log(self):
         "called by DAQLog object to indicate when we should close log file"
-        self.closeLog()
+        self.__log.closeLog()
         return 1
 
     def rpc_get_num_components(self):
@@ -1266,12 +1308,12 @@ class DAQServer(DAQPool):
 
     def rpc_log_to(self, host, port):
         "called by DAQLog object to tell us what UDP port to log to"
-        self.openLog(host, port)
+        self.__log.openLog(host, port)
         return 1
 
     def rpc_log_to_default(self):
         "reset logging to the default logger"
-        self.resetLog()
+        self.__log.resetLog()
         return 1
 
     def rpc_num_sets(self):
@@ -1291,20 +1333,18 @@ class DAQServer(DAQPool):
 
         client = self.createClient(name, num, host, port, mbeanPort,
                                    connectors)
-        self.logmsg("Got registration for %s" % str(client))
+        self.__log.info("Got registration for %s" % str(client))
 
         sleep(0.1)
 
         self.add(client)
 
-        if self.logIP:
-            logIP = self.logIP
-        else:
+        logIP = self.__log.getLogHost()
+        if logIP is None:
             logIP = ''
 
-        if self.logPort:
-            logPort = self.logPort
-        else:
+        logPort = self.__log.getLogPort()
+        if logPort is None:
             logPort = 0
 
         return [client.id, logIP, logPort, self.id]
@@ -1374,7 +1414,7 @@ class DAQServer(DAQPool):
             for l in leftOver:
                 errMsg += ' %s#%d' % (l[0], l[1])
 
-            self.logmsg(errMsg)
+            self.__log.error(errMsg)
 
         return "OK"
 
@@ -1385,7 +1425,7 @@ class DAQServer(DAQPool):
         if not runSet:
             raise ValueError('Could not find runset#%d' % id)
 
-        self.resetLog()
+        self.__log.resetLog()
 
         runSet.resetLogging()
 
@@ -1394,15 +1434,16 @@ class DAQServer(DAQPool):
     def rpc_runset_make(self, nameList):
         "build a runset using the specified components"
         try:
-            runSet = self.makeRunset(nameList)
+            runSet = self.makeRunset(nameList, self.__log)
         except:
-            self.logmsg(exc_string())
+            self.__log.error(exc_string())
+            runSet = None
 
         if not runSet:
             return -1
 
-        self.logmsg("Built runset with the following components:\n" +
-                    runSet.componentListStr())
+        self.__log.info("Built runset with the following components:\n" +
+                        runSet.componentListStr())
         return runSet.id
 
     def rpc_runset_start_run(self, id, runNum):
@@ -1425,7 +1466,7 @@ class DAQServer(DAQPool):
 
         setStat = runSet.status()
         for c in setStat.keys():
-            self.logmsg(str(c) + ' ' + str(c.getState()))
+            self.__log.info(str(c) + ' ' + str(c.getState()))
 
         return "OK"
 
@@ -1438,7 +1479,7 @@ class DAQServer(DAQPool):
 
         runSet.stopRun()
 
-        self.resetLog()
+        self.__log.resetLog()
         runSet.resetLogging()
 
         return "OK"
@@ -1469,10 +1510,11 @@ class DAQServer(DAQPool):
 
     def serve(self, handler):
         "Start a server"
-        self.logmsg("I'm server %s running on port %d" % (self.name, self.port))
-        self.logmsg(("%(filename)s %(revision)s %(date)s %(time)s" +
-                     " %(author)s %(release)s %(repo_rev)s" %
-                    self.versionInfo)
+        self.__log.info("I'm server %s running on port %d" %
+                        (self.name, self.port))
+        self.__log.info(("%(filename)s %(revision)s %(date)s %(time)s" +
+                         " %(author)s %(release)s %(repo_rev)s") %
+                        self.versionInfo)
         thread.start_new_thread(handler, ())
         self.server.serve_forever()
 
@@ -1496,7 +1538,7 @@ class CnCServer(DAQServer):
             try:
                 count = self.monitorClients()
             except Exception:
-                self.logmsg(exc_string())
+                self.__log.error(exc_string())
                 count = lastCount
 
             new = (lastCount != count)

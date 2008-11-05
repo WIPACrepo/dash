@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 import unittest
-from CnCServer import Connector, DAQClient, DAQPool
+from CnCServer import Connector, DAQPool
+
+from DAQMocks import MockAppender, MockDAQClient, MockLogger
 
 LOUD = False
 
@@ -99,148 +101,6 @@ class Node(object):
 
         links[ioType].append(comp)
 
-class MockXMLRPC(object):
-    def __init__(self, name, num, outLinks):
-        self.name = name
-        self.num = num
-
-        self.outLinks = outLinks
-
-    def configure(self, name=None):
-        pass
-
-    def connect(self, list=None):
-        if not list:
-            return 'OK'
-
-        if LOUD:
-            print 'Conn[' + self.name + ':' + str(self.num) + ']'
-            for l in list:
-                print '  ' + l['type'] + ':' + l['compName'] + '#' + \
-                    str(l['compNum'])
-
-        # make a copy of the links
-        #
-        tmpLinks = {}
-        for k in self.outLinks.keys():
-            tmpLinks[k] = []
-            tmpLinks[k][0:] = self.outLinks[k][0:len(self.outLinks[k])]
-
-        for l in list:
-            if not tmpLinks.has_key(l['type']):
-                raise ValueError(('Component %s#%d should not have a "%s"' +
-                                  ' connection') %
-                                 (self.name, self.num, l['type']))
-
-            comp = None
-            for t in tmpLinks[l['type']]:
-                if t.name == l['compName'] and t.num == l['compNum']:
-                    comp = t
-                    tmpLinks[l['type']].remove(t)
-                    if len(tmpLinks[l['type']]) == 0:
-                        del tmpLinks[l['type']]
-                    break
-
-            if not comp:
-                raise ValueError(('Component %s#%d should not connect to' +
-                                  ' %s:%s#%d') %
-                                 (self.name, self.num, l['type'],
-                                  l['compName'], l.getCompNum()))
-
-        if len(tmpLinks) > 0:
-            errMsg = 'Component ' + self.name + '#' + str(self.num) + \
-                ' is not connected to '
-
-            first = True
-            for k in tmpLinks.keys():
-                for t in tmpLinks[k]:
-                    if first:
-                        first = False
-                    else:
-                        errMsg += ', '
-                    errMsg += k + ':' + t.name + '#' + str(t.num)
-            raise ValueError(errMsg)
-
-        return 'OK'
-
-    def getState(self):
-        pass
-
-    def logTo(self, logIP, port, level):
-        pass
-
-    def reset(self):
-        pass
-
-    def startRun(self, runNum):
-        pass
-
-    def stopRun(self):
-        pass
-
-class MockRPCClient(object):
-    def __init__(self, name, num, outLinks):
-        self.xmlrpc = MockXMLRPC(name, num, outLinks)
-
-class MockLogger(object):
-    def __init__(self, host, port):
-        self.expMsgs = []
-
-    def __checkMsg(self, msg):
-        if len(self.expMsgs) == 0:
-            raise Exception('Unexpected log message: %s' % msg)
-        if self.expMsgs[0] != msg:
-            raise Exception('Expected log message "%s", not "%s"' %
-                            (self.expMsgs[0], msg))
-        del self.expMsgs[0]
-
-    def addExpected(self, msg):
-        self.expMsgs.append(msg)
-
-    def checkEmpty(self):
-        if len(self.expMsgs) != 0:
-            raise Exception("Didn't receive %d expected log messages: %s" %
-                            (len(self.expMsgs), str(self.expMsgs)))
-
-    def logmsg(self, msg):
-        self.__checkMsg(msg)
-
-    def write_ts(self, s):
-        self.__checkMsg(s)
-
-class MockClient(DAQClient):
-    def __init__(self, name, num, host, port, mbeanPort, connectors, outLinks):
-
-        self.outLinks = outLinks
-        self.state = 'idle'
-
-        super(MockClient, self).__init__(name, num, host, port, mbeanPort,
-              connectors)
-
-    def __str__(self):
-        tmpStr = super(MockClient, self).__str__()
-        return 'Mock' + tmpStr
-
-    def closeLog(self):
-        pass
-
-    def connect(self, links=None):
-        self.state = 'connected'
-        return super(MockClient, self).connect(links)
-
-    def createClient(self, host, port):
-        return MockRPCClient(self.name, self.num, self.outLinks)
-
-    def createLogger(self, host, port):
-        return MockLogger(self.name, self.num)
-
-    def getState(self):
-        return self.state
-
-    def reset(self):
-        self.state = 'idle'
-        return super(MockClient, self).reset()
-
 class ConnectionTest(unittest.TestCase):
     EXP_ID = 1
 
@@ -250,11 +110,16 @@ class ConnectionTest(unittest.TestCase):
             for node in nodeList:
                 print node.getDescription()
 
+        nodeLog = {}
+
         pool = DAQPool()
         port = -1
         for node in nodeList:
-            pool.add(MockClient(node.name, node.num, None, port, 0,
-                                node.getConnections(), node.outLinks))
+            key = '%s#%d' % (node.name, node.num)
+            nodeLog[key] = MockAppender('Log-%s' % key)
+            pool.add(MockDAQClient(node.name, node.num, None, port, 0,
+                                   node.getConnections(), nodeLog[key],
+                                   node.outLinks))
             port -= 1
 
         if LOUD:
@@ -270,7 +135,8 @@ class ConnectionTest(unittest.TestCase):
         for node in nodeList:
             nameList.append(node.name + '#' + str(node.num))
 
-        runset = pool.makeRunset(nameList)
+        logger = MockLogger('main')
+        runset = pool.makeRunset(nameList, logger)
 
         chkId = ConnectionTest.EXP_ID
         ConnectionTest.EXP_ID += 1
@@ -343,9 +209,16 @@ class ConnectionTest(unittest.TestCase):
         if LOUD:
             print '-- SET: ' + str(runset)
 
+        for key in nodeLog:
+            nodeLog[key].addExpectedExact('End of log')
         pool.returnRunset(runset)
         self.assertEquals(len(pool.pool), numComps)
         self.assertEquals(len(pool.sets), 0)
+
+        logger.checkEmpty()
+
+        for key in nodeLog:
+            nodeLog[key].checkEmpty()
 
     def testSimple(self):
         # build nodes
@@ -375,7 +248,7 @@ class ConnectionTest(unittest.TestCase):
         shList = []
         ihList = []
 
-        for i in range(0,4):
+        for i in range(0, 4):
             shList.append(Node('StringHub', i + 10))
             ihList.append(Node('IcetopHub', i + 20))
 

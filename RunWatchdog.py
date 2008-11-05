@@ -122,7 +122,7 @@ class WatchData(object):
         else:
             self.__name = '%s#%d' % (compType, compNum)
 
-        self.__client = RPCClient(addr, port)
+        self.__client = self.getRPCClient(addr, port)
         self.__beanFields = {}
         self.__beanList = self.__client.mbean.listMBeans()
         for bean in self.__beanList:
@@ -224,6 +224,9 @@ class WatchData(object):
 
         return unhealthy
 
+    def getRPCClient(self, addr, port):
+        return RPCClient(addr, port)
+
 class BeanFieldNotFoundException(Exception): pass
 
 class WatchThread(threading.Thread):
@@ -244,17 +247,27 @@ class WatchThread(threading.Thread):
             self.healthy = self.__watchdog.realWatch()
             self.done = True
         except Exception:
-            self.__log.logmsg("Exception in run watchdog: %s" % exc_string())
+            self.__log.error("Exception in run watchdog: %s" % exc_string())
             self.error = True
 
 class RunWatchdog(object):
-    def __init__(self, daqLog, interval, IDs, shortNameOf, daqIDof, rpcAddrOf, mbeanPortOf):
+    IN_PROGRESS = 1
+    NOT_RUNNING = 0
+    CAUGHT_ERROR = -1
+    UNHEALTHY = -2
+
+    MAX_UNHEALTHY_COUNT = 3
+
+    def __init__(self, daqLog, interval, IDs, shortNameOf, daqIDof, rpcAddrOf,
+                 mbeanPortOf, quiet=False):
         self.__log            = daqLog
         self.__interval       = interval
         self.__tlast          = None
         self.__stringHubs     = []
         self.__soloComps      = []
         self.__thread         = None
+        self.__quiet          = quiet
+        self.__unHealthyCount = 0
 
         iniceTrigger  = None
         simpleTrigger  = None
@@ -266,8 +279,8 @@ class RunWatchdog(object):
         for c in IDs:
             if mbeanPortOf[c] > 0:
                 try:
-                    cw = WatchData(c, shortNameOf[c], daqIDof[c],
-                                   rpcAddrOf[c], mbeanPortOf[c])
+                    cw = self.createData(c, shortNameOf[c], daqIDof[c],
+                                         rpcAddrOf[c], mbeanPortOf[c])
                     if shortNameOf[c] == 'stringHub' or \
                             shortNameOf[c] == 'replayHub':
                         cw.addInputValue('dom', 'sender', 'NumHitsReceived')
@@ -351,12 +364,14 @@ class RunWatchdog(object):
                         #                  'TotalDispatchedData')
                         secondaryBuilders = cw
                     else:
-                        raise Exception('Unknown component type ' +
-                                        shortNameOf[c])
+                        self.__log.error("Couldn't create watcher for" +
+                                         ' unknown component #%d type %s#%d' %
+                                         (c, shortNameOf[c], daqIDof[c]))
                 except Exception:
-                    self.logmsg(('Couldn''t create watcher (%s#%d)' +
-                                 ' for component %d: %s') %
-                                (shortNameOf[c], daqIDof[c], c, exc_string()))
+                    self.__log.error("Couldn't create watcher for component" +
+                                     ' #%d type %s#%d: %s' %
+                                     (c, shortNameOf[c], daqIDof[c],
+                                      exc_string()))
 
         # soloComps is filled here so we can determine the order
         # of components in the list
@@ -388,7 +403,7 @@ class RunWatchdog(object):
                 starved += badList
                 isProblem = True
         except Exception:
-            self.logmsg(str(comp) + ' inputs: ' + exc_string())
+            self.__log.error(str(comp) + ' inputs: ' + exc_string())
 
         if not isProblem:
             try:
@@ -397,7 +412,7 @@ class RunWatchdog(object):
                     stagnant += badList
                     isProblem = True
             except Exception:
-                self.logmsg(str(comp) + ' outputs: ' + exc_string())
+                self.__log.error(str(comp) + ' outputs: ' + exc_string())
 
             if not isProblem:
                 try:
@@ -406,7 +421,7 @@ class RunWatchdog(object):
                         threshold += badList
                         isProblem = True
                 except Exception:
-                    self.logmsg(str(comp) + ' thresholds: ' + exc_string())
+                    self.__log.error(str(comp) + ' thresholds: ' + exc_string())
 
     def __contains(self, nameDict, compName):
         for n in nameDict.values():
@@ -434,8 +449,35 @@ class RunWatchdog(object):
     def caughtError(self):
         return self.__thread is not None and self.__thread.error
 
+    def checkProgress(self):
+        if self.inProgress():
+            if self.caughtError():
+                self.clearThread()
+                return RunWatchdog.CAUGHT_ERROR
+
+            if self.isDone():
+                healthy = self.isHealthy()
+                self.clearThread()
+                if healthy:
+                    self.__unHealthyCount = 0
+                else:
+                    self.__unHealthyCount += 1
+                    if self.__unHealthyCount >= RunWatchdog.MAX_UNHEALTHY_COUNT:
+                        self.__unHealthyCount = 0
+                        return RunWatchdog.UNHEALTHY
+
+            return RunWatchdog.IN_PROGRESS
+        elif self.timeToWatch():
+            self.startWatch()
+            return RunWatchdog.IN_PROGRESS
+
+        return RunWatchdog.NOT_RUNNING
+
     def clearThread(self):
         self.__thread = None
+
+    def createData(self, id, name, daqID, rpcAddr, mbeanPort):
+        return WatchData(id, name, daqID, rpcAddr, mbeanPort)
 
     def inProgress(self):
         return self.__thread is not None
@@ -445,11 +487,6 @@ class RunWatchdog(object):
 
     def isHealthy(self):
         return self.__thread is not None and self.__thread.healthy
-
-    def logmsg(self, m):
-        "Log message to logger, but only if logger exists"
-        print m
-        if self.__log: self.__log.dashLog(m)
 
     def realWatch(self):
         starved = []
@@ -479,10 +516,8 @@ class RunWatchdog(object):
 
         healthy = True
         if errMsg is not None:
-            self.logmsg(errMsg)
+            self.__log.error(errMsg)
             healthy = False
-        #else:
-        #    self.logmsg('** Run watchdog reports all components are healthy')
 
         return healthy
 

@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 import datetime, os, tempfile, time, unittest
-from DAQLog import SocketLogger, logCollector
-from DAQLogClient import DAQLogger
+from DAQLog import LogSocketServer
+
+from DAQMocks import SocketWriter
 
 class TestDAQLog(unittest.TestCase):
     DIR_PATH = None
@@ -27,15 +28,12 @@ class TestDAQLog(unittest.TestCase):
 
     def setUp(self):
         self.sockLog = None
-        self.collector = None
 
         TestDAQLog.DIR_PATH = tempfile.mkdtemp()
 
     def tearDown(self):
         if self.sockLog is not None:
             self.sockLog.stopServing()
-        if self.collector is not None:
-            self.collector.close()
 
         time.sleep(0.1)
 
@@ -48,19 +46,19 @@ class TestDAQLog(unittest.TestCase):
         os.rmdir(TestDAQLog.DIR_PATH)
         TestDAQLog.DIR_PATH = None
 
-    def testSocketLogger(self):
+    def testLogSocketServer(self):
         port = 5432
         cname = 'foo'
-        logPath = os.path.join(TestDAQLog.DIR_PATH, 'foo.log')
+        logPath = os.path.join(TestDAQLog.DIR_PATH, cname + '.log')
 
-        self.sockLog = SocketLogger(port, cname, logPath, True)
+        self.sockLog = LogSocketServer(port, cname, logPath, True)
         self.sockLog.startServing()
         self.failUnless(os.path.exists(logPath), 'Log file was not created')
 
         time = datetime.datetime.now()
         msg = 'Test 1 2 3'
 
-        client = DAQLogger('localhost', port)
+        client = SocketWriter('localhost', port)
         client.write_ts(msg, time)
 
         client.close()
@@ -68,55 +66,6 @@ class TestDAQLog(unittest.TestCase):
         self.sockLog.stopServing()
 
         self.checkLog(logPath, ('%s - - [%s] %s' % (cname, str(time), msg), ))
-
-    def testLogCollector(self):
-        runNum = 123
-
-        self.collector = logCollector(runNum, TestDAQLog.DIR_PATH)
-
-        midDir = logCollector.logDirName(runNum)
-
-        logPath = '%s/%s/dash.log' % (TestDAQLog.DIR_PATH, midDir)
-
-        self.failUnless(os.path.exists(logPath), 'Log file was not created')
-
-        msg = 'Test msg'
-
-        self.collector.dashLog(msg)
-
-        self.collector.close()
-
-        lines = self.readLog(logPath)
-        self.assertEquals(1, len(lines), 'Expected 1 line, not %d' % len(lines))
-
-        prefix = 'DAQRun ['
-
-        line = lines[0].rstrip()
-        self.failUnless(line.startswith(prefix),
-                        'Log entry "%s" should start with "%s"' %
-                        (line, prefix))
-        self.failUnless(line.endswith('] ' + msg),
-                        'Log entry "%s" should start with "%s"' %
-                        (line, '] ' + msg))
-
-    def testLogCollectorTwice(self):
-        runNum = 123
-
-        self.collector = logCollector(runNum, TestDAQLog.DIR_PATH)
-
-        midDir = logCollector.logDirName(runNum)
-
-        logPath = '%s/%s/dash.log' % (TestDAQLog.DIR_PATH, midDir)
-
-        self.failUnless(os.path.exists(logPath), 'Log file was not created')
-
-        self.collector.close()
-
-        self.collector = logCollector(runNum, TestDAQLog.DIR_PATH)
-
-        oldPath = '%s/old_%s_00/dash.log' % (TestDAQLog.DIR_PATH, midDir)
-
-        self.failUnless(os.path.exists(oldPath), 'Old file was not created')
 
 if __name__ == '__main__':
     unittest.main()
