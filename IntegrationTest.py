@@ -971,8 +971,7 @@ class IntegrationTest(unittest.TestCase):
 
         catchall.addExpectedText("I'm server %s running on port %d" %
                                  (cnc.name, cnc.port))
-        catchall.addExpectedTextRegexp('unknown unknown unknown unknown' +
-                                       r' unknown \S+ \S+')
+        catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
         thread.start_new_thread(cnc.run, ())
         thread.start_new_thread(dr.run_thread, ())
@@ -984,8 +983,7 @@ class IntegrationTest(unittest.TestCase):
 
         catchall.addExpectedText("I'm server %s running on port %d" %
                                   (cnc.name, cnc.port))
-        catchall.addExpectedTextRegexp('unknown unknown unknown unknown' +
-                                       r' unknown \S+ \S+')
+        catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
         thread.start_new_thread(cnc.run, ())
         thread.start_new_thread(self.__finishRunThreadTest,
@@ -997,8 +995,7 @@ class IntegrationTest(unittest.TestCase):
 
         catchall.addExpectedText("I'm server %s running on port %d" %
                                  (cnc.name, cnc.port))
-        catchall.addExpectedTextRegexp('unknown unknown unknown unknown' +
-                                       r' unknown \S+ \S+')
+        catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
         thread.start_new_thread(dr.run_thread, ())
         thread.start_new_thread(self.__finishRunThreadTest,
