@@ -100,7 +100,9 @@ class ValueWatcher(object):
                     tmpStag = True
                 else:
                     self.__prevValue[i] = newValue[i]
-            if tmpStag:
+            if not tmpStag:
+                self.__unchanged = 0
+            else:
                 self.__unchanged += 1
                 if self.__unchanged == ValueWatcher.NUM_UNCHANGED:
                     raise Exception('At least one %s value is not changing' %
