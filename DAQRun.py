@@ -35,7 +35,7 @@ import sys
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-SVN_ID  = "$Id: DAQRun.py 3646 2008-11-04 20:36:15Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3649 2008-11-05 00:32:33Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -60,7 +60,7 @@ class RunArgs(object):
     def __init__(self):
         pass
 
-    def build_parser(self):
+    def __build_parser(self):
         ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s " \
             "%(release)s %(repo_rev)s" % get_version_info(SVN_ID)
         usage = "%prog [options]\nversion: " + ver_info
@@ -135,12 +135,7 @@ class RunArgs(object):
 
         return p
 
-    def parse(self):
-        p = self.build_parser()
-        opt, args = p.parse_args()
-        self.process_options(opt)
-
-    def process_options(self, opt):
+    def __process_options(self, opt):
         pids = list(findProcess(basename(sys.argv[0]), processList()))
 
         if opt.kill:
@@ -203,6 +198,11 @@ class RunArgs(object):
         self.forceConfig = opt.forceConfig
         self.doRelaunch = opt.doRelaunch
         self.quiet = opt.quiet
+
+    def parse(self):
+        p = self.__build_parser()
+        opt, args = p.parse_args()
+        self.__process_options(opt)
 
 class RunStats(object):
     def __init__(self, runNum=None, startTime=None, stopTime=None, physicsEvents=None,
@@ -296,7 +296,7 @@ def linkOrCopy(src, dest):
             copyfile(src, dest)
         else:
             raise
-                                                
+
 class DAQRun(Rebootable.Rebootable):
     "Serve requests to start/stop DAQ runs (exp control iface)"
     LOGDIR         = "/tmp"
@@ -494,7 +494,7 @@ class DAQRun(Rebootable.Rebootable):
             self.CnCLogReceiver = None
 
     def getComponentsFromGlobalConfig(self, configName, configDir):
-        # Get and set global configuration
+        "Get and set global configuration"
         self.configuration = DAQConfig.DAQConfig(configName, configDir)
         self.logmsg("Loaded global configuration \"%s\"" % configName)
         requiredComps = []
@@ -517,7 +517,8 @@ class DAQRun(Rebootable.Rebootable):
 
     def setUpAllComponentLoggers(self):
         "Sets up loggers for remote components (other than CnCServer)"
-        self.logmsg("Setting up logging for %d components" % len(self.setCompIDs))
+        self.logmsg("Setting up logging for %d components" %
+                    len(self.setCompIDs))
         for ic in range(0, len(self.setCompIDs)):
             compID = self.setCompIDs[ic]
             self.logPortOf[compID] = 9002 + ic
@@ -551,10 +552,12 @@ class DAQRun(Rebootable.Rebootable):
     isRequiredComponent = staticmethod(isRequiredComponent)
 
     def setup_run_logging(self, cncrpc, logDir, runNum, configName):
+        "Set up logger for CnCServer and required components"
         # Log file is already defined since STARTING state does not get invoked otherwise
-        # Set up logger for CnCServer and required components
         self.log = self.createLogCollector(runNum, logDir)
-        self.logmsg("Version info: %(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % self.versionInfo)
+        self.logmsg("Version info: %(filename)s %(revision)s %(date)s" +
+                    " %(time)s %(author)s %(release)s %(repo_rev)s" %
+                    self.versionInfo)
         self.logmsg("Starting run %d..." % runNum)
         self.logmsg("Run configuration: %s" % configName)
         self.logmsg("Cluster configuration: %s" % self.clusterConfig.configName)
@@ -583,8 +586,8 @@ class DAQRun(Rebootable.Rebootable):
         """
         if not spadeDir: return
         if not exists(spadeDir): return
-        self.logmsg("Queueing data for SPADE (spadeDir=%s, logDir=%s, runNum=%d)..."
-                    % (spadeDir, logTopLevel, runNum))
+        self.logmsg("Queueing data for SPADE (spadeDir=%s, logDir=%s," +
+                    " runNum=%d)..." % (spadeDir, logTopLevel, runNum))
         runDir = logCollector.logDirName(runNum)
         basePrefix = self.get_base_prefix(runNum, runTime, runDuration)
         try:
@@ -609,13 +612,15 @@ class DAQRun(Rebootable.Rebootable):
         fd.close()
 
     def build_run_set(self, cncrpc, requiredComps):
+        "build CnC run set"
+
         # Wait for required components
-        self.logmsg("Starting run %d (waiting for required %d components to register w/ CnCServer)"
-                    % (self.runStats.runNum, len(requiredComps)))
+        self.logmsg("Starting run %d (waiting for required %d components" +
+                    " to register w/ CnCServer)" %
+                    (self.runStats.runNum, len(requiredComps)))
         self.waitForRequiredComponents(cncrpc, requiredComps, DAQRun.COMP_TOUT)
         # Throws RequiredComponentsNotAvailableException
 
-        # build CnC run set
         self.runSetID = cncrpc.rpccall("rpc_runset_make", requiredComps)
         self.logmsg("Created Run Set #%d" % self.runSetID)
 
@@ -641,21 +646,23 @@ class DAQRun(Rebootable.Rebootable):
             self.logPortOf  [ comp[0] ] = None
 
     def setup_component_loggers(self, cncrpc, ip, runset):
+        "Tell components where to log to"
+
         # Set up log receivers for remote components
         self.setUpAllComponentLoggers()
-        # Tell components where to log to
+
         l = list(self.createRunsetLoggerNameList())
         cncrpc.rpccall("rpc_runset_log_to", runset, ip, l)
 
     def setup_monitoring(self):
-        # Set up monitoring
+        "Set up monitoring"
         self.moni = DAQMoni(self.log,
                             DAQRun.MONI_PERIOD,
                             self.setCompIDs, self.shortNameOf, self.daqIDof,
                             self.rpcAddrOf, self.mbeanPortOf)
 
     def setup_watchdog(self):
-        # Set up run watchdog
+        "Set up run watchdog"
         self.watchdog = RunWatchdog(self.log,
                                     DAQRun.WATCH_PERIOD,
                                     self.setCompIDs, self.shortNameOf,
@@ -669,7 +676,8 @@ class DAQRun(Rebootable.Rebootable):
 
     def start_run(self, cncrpc):
         cncrpc.rpccall("rpc_runset_start_run", self.runSetID, self.runStats.runNum)
-        self.logmsg("Started run %d on run set %d" % (self.runStats.runNum, self.runSetID))
+        self.logmsg("Started run %d on run set %d" %
+                    (self.runStats.runNum, self.runSetID))
 
     def stop_run(self, cncrpc):
         self.logmsg("Stopping run %d" % self.runStats.runNum)
@@ -756,12 +764,13 @@ class DAQRun(Rebootable.Rebootable):
                     rateStr = " (%2.2f Hz)" % rate
                 except (RateCalc.InsufficientEntriesException, RateCalc.ZeroTimeDeltaException):
                     rateStr = ""
-                self.logmsg("\t%s physics events%s, %s moni events, %s SN events, %s tcals" \
-                            % (self.runStats.physicsEvents,
-                               rateStr,
-                               self.runStats.moniEvents,
-                               self.runStats.snEvents,
-                               self.runStats.tcalEvents))
+                self.logmsg(("\t%s physics events%s, %s moni events," +
+                             " %s SN events, %s tcals") %
+                            (self.runStats.physicsEvents,
+                             rateStr,
+                             self.runStats.moniEvents,
+                             self.runStats.snEvents,
+                             self.runStats.tcalEvents))
 
         except Exception:
             self.logmsg("Exception in monitoring: %s" % exc_string())
@@ -847,7 +856,7 @@ class DAQRun(Rebootable.Rebootable):
                     # to allow the late-binding of the StringHub/datacollector MBeans
                     self.setup_monitoring()
                     self.setup_watchdog()
-                    
+
                     self.lastConfig = self.configName
                     self.runStats.start()
                     self.start_run(self.cnc)
@@ -862,7 +871,8 @@ class DAQRun(Rebootable.Rebootable):
             elif self.runState == "STOPPING" or self.runState == "RECOVERING":
                 hadError = False
                 if self.runState == "RECOVERING":
-                    self.logmsg("Recovering from failed run %d..." % self.runStats.runNum)
+                    self.logmsg("Recovering from failed run %d..." %
+                                self.runStats.runNum)
                     # "Forget" configuration so new run set will be made next time:
                     self.lastConfig = None
                     hadError = True

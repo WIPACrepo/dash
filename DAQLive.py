@@ -33,9 +33,10 @@ import SVNVersionInfo
 class LiveArgs(object):
     "Command-line argument handler for DAQLive"
     def __init__(self):
-        pass
+        self.__livePort = None
+        self.__verbose = False
 
-    def build_parser(self):
+    def __build_parser(self):
         ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s " \
             "%(release)s %(repo_rev)s" % SVNVersionInfo.get_version_info(SVN_ID)
         usage = "%prog [options]\nversion: " + ver_info
@@ -53,37 +54,46 @@ class LiveArgs(object):
 
         return p
 
-    def parse(self):
-        p = self.build_parser()
-        opt, args = p.parse_args()
-        self.process_options(opt)
+    def __process_options(self, opt):
+        self.__livePort = opt.livePort
+        self.__verbose = opt.verbose
 
-    def process_options(self, opt):
-        self.livePort = opt.livePort
-        self.verbose = opt.verbose
+    def getPort(self):   return self.__livePort
+    def isVerbose(self): return self.__verbose
+
+    def parse(self):
+        p = self.__build_parser()
+        opt, args = p.parse_args()
+        self.__process_options(opt)
 
 class DAQLive(Component):
     "Server which acts as the DAQ interface for IceCube Live"
     SERVICE_NAME = "pdaq"
 
+    "Maximum number of loops to wait inside __waitForState()"
+    MAX_WAIT = 120
+
     def __init__(self):
         "Initialize DAQLive"
-        self.runArgs = LiveArgs()
-        self.runArgs.parse()
+        self.__runArgs = LiveArgs()
+        self.__runArgs.parse()
 
         self.__connectToDAQRun(True)
-        self.runNumFile = None
+        self.__runNumFile = None
 
-        self.runConfig = None
+        self.__runConfig = None
 
-        self.runNumber = 0
-        self.runState = None
-        self.runCallCount = 0
+        self.__runNumber = 0
+        self.__runState = None
+        self.__runCallCount = 0
 
-        Component.__init__(self, self.SERVICE_NAME, self.runArgs.livePort,
-                           synchronous=True, lightSensitive=True, makesLight=True)
+        self.__runIface = None
+
+        Component.__init__(self, self.SERVICE_NAME, self.__runArgs.getPort(),
+                           synchronous=True, lightSensitive=True,
+                           makesLight=True)
         self.logInfo('Started %s service on port %d' %
-                     (self.SERVICE_NAME, self.runArgs.livePort))
+                     (self.SERVICE_NAME, self.__runArgs.getPort()))
 
     def __connectToDAQRun(self, firstTime=False):
         "Connect to the DAQRun server"
@@ -92,16 +102,17 @@ class DAQLive(Component):
         else:
             self.logInfo('Reconnecting to DAQRun')
 
-        self.runIface = DAQRunIface.DAQRunIface('localhost', 9000)
+        self.__runIface = DAQRunIface.DAQRunIface('localhost', 9000)
 
     def __getNextRunNumber(self):
         "Get the next run number from $HOME/.last_pdaq_run"
-        if self.runNumFile is None:
-            self.runNumFile = os.path.join(os.environ["HOME"], ".last_pdaq_run")
+        if self.__runNumFile is None:
+            self.__runNumFile = \
+                os.path.join(os.environ["HOME"], ".last_pdaq_run")
 
         # attempt to read a run number from the file
         try:
-            f = open(self.runNumFile, "r")
+            f = open(self.__runNumFile, "r")
             rStr = f.readline()
             f.close()
             runNum = int(rStr.rstrip("\r\n")) + 1
@@ -110,7 +121,7 @@ class DAQLive(Component):
 
         # if we've gotten a run number, update the file
         if runNum is not None:
-            fd = open(self.runNumFile, "w")
+            fd = open(self.__runNumFile, "w")
             print >>fd, str(runNum)
             fd.close()
 
@@ -119,7 +130,7 @@ class DAQLive(Component):
     def __getState(self, retry=True):
         "Get the current pDAQ state"
         try:
-            state = self.runIface.getState()
+            state = self.__runIface.getState()
         except socket.error:
             if retry:
                 self.__connectToDAQRun()
@@ -129,134 +140,12 @@ class DAQLive(Component):
 
         return state
 
-    def logInfo(self, msg):
-        "Log informational message"
-        if self.runArgs.verbose:
-            print >>sys.stdout, msg
-
-    def logError(self, msg):
-        "Log error message"
-        print >>sys.stderr, msg + '\n' + exc_string()
-
-    def recovering(self, retry=True):
-        "Try to recover (from an error state?)"
-        self.logInfo('Recovering pDAQ')
-
-        try:
-            self.runIface.recover()
-            recoveryStarted = True
-        except socket.error:
-            recoveryStarted = False
-            if retry:
-                self.__connectToDAQRun()
-                self.recovering(retry=False)
-            else:
-                self.logError('Could not recover pDAQ')
-
-        if recoveryStarted:
-            if self.__waitForState('STOPPED'):
-                self.logInfo('Recovered DAQ')
-                
     def __reportMoni(self):
         "Report run monitoring quantities"
         if self.moniClient:
-            moniData = self.runIface.monitorRun()
+            moniData = self.__runIface.monitorRun()
             for k in moniData.keys():
                 self.moniClient.sendMoni(k, moniData[k], Prio.SCP)
-
-    def runChange(self, stateArgs=None):
-        "Stop current pDAQ run and start a new run"
-        self.logInfo('RunChange pDAQ')
-        self.stopping()
-        self.starting()
-
-    def running(self, retry=True):
-        "Check run state and puke if there's an error"
-        state = self.__getState()
-        if state is None or state == "ERROR":
-            raise Exception("pDAQ encountered an error (state is '%s')" % state)
-
-        if state != self.runState:
-            self.logInfo('pDAQ = ' + state)
-            self.runState = state
-
-        if self.runState == "RUNNING":
-            self.runCallCount += 1
-            if self.runCallCount >= 200:
-                self.__reportMoni()
-                self.runCallCount = 0
-
-    def starting(self, stateArgs=None, retry=True):
-        """
-        Start a new pDAQ run
-        stateArgs - should be a dictionary of run data:
-            'runConfig' - the name of the run configuration
-            'runNumber' - run number
-            'subRunNumber' - subrun number
-        retry - if True, reopen a bad socket connection to DAQRun
-                otherwise, 
-        """
-
-        # either use specified runConfig or reuse previous value
-        if stateArgs is not None and stateArgs.has_key('runConfig'):
-            self.runConfig = stateArgs['runConfig']
-        elif self.runConfig is None:
-            raise Exception('No configuration specified')
-
-        runNumber = stateArgs.get('runNumber')
-        if runNumber is None:
-            runNumber = self.__getNextRunNumber()
-
-        self.logInfo('Starting run %d - %s' % (runNumber, self.runConfig))
-
-        self.runCallCount = 0
-
-        # tell DAQRun to start a run
-        try:
-            self.runIface.start(runNumber, self.runConfig)
-            runStarted = True
-        except socket.error:
-            runStarted = False
-            if retry:
-                self.__connectToDAQRun()
-                self.starting(stateArgs, False)
-            else:
-                self.logError('Could not start pDAQ')
-                
-        if runStarted:
-            # wait for DAQRun to indicate that the run has started
-            if self.__waitForState('RUNNING',
-                                   ('ERROR', 'STOPPED', 'RECOVERING')):
-                self.runNumber = runNumber
-                self.logInfo('Started run %d' % self.runNumber)
-            else:
-                self.__waitForState('STOPPED')
-                self.logInfo('Failed to start run %d' % self.runNumber)
-
-    def stopping(self, retry=True):
-        "Stop current pDAQ run"
-        self.logInfo('Stopping run %d' % self.runNumber)
-
-        try:
-            self.runIface.stop()
-            runStopped = True
-        except socket.error:
-            runStopped = False
-            if retry:
-                self.__connectToDAQRun()
-                self.stopping(retry=False)
-            else:
-                self.logError('Could not stop pDAQ')
-
-        if runStopped:
-            # wait for DAQRun to indicate that the run has stopped
-            if self.__waitForState('STOPPED'):
-                self.logInfo('Stopped run %d' % self.runNumber)
-
-        self.__reportMoni()
-
-    "Maximum number of loops to wait inside waitForState()"
-    MAX_WAIT = 120
 
     def __waitForState(self, expState, badStates=('ERROR')):
         "Wait for pDAQ to reach the expected state"
@@ -270,7 +159,7 @@ class DAQLive(Component):
                     if state == bs:
                         raise Exception("PDAQ went into %s state, wanted %s" %
                                         (state, expState))
-            self.runState = state
+            self.__runState = state
             if state == expState:
                 break
             time.sleep(1)
@@ -281,6 +170,125 @@ class DAQLive(Component):
                 return False
 
         return True
+
+    def logInfo(self, msg):
+        "Log informational message"
+        if self.__runArgs.isVerbose():
+            print >>sys.stdout, msg
+
+    def logError(self, msg):
+        "Log error message"
+        print >>sys.stderr, msg + '\n' + exc_string()
+
+    def recovering(self, retry=True):
+        "Try to recover (from an error state?)"
+        self.logInfo('Recovering pDAQ')
+
+        try:
+            self.__runIface.recover()
+            recoveryStarted = True
+        except socket.error:
+            recoveryStarted = False
+            if retry:
+                self.__connectToDAQRun()
+                self.recovering(retry=False)
+            else:
+                self.logError('Could not recover pDAQ')
+
+        if recoveryStarted:
+            if self.__waitForState('STOPPED'):
+                self.logInfo('Recovered DAQ')
+
+    def runChange(self, stateArgs=None):
+        "Stop current pDAQ run and start a new run"
+        self.logInfo('RunChange pDAQ')
+        self.stopping()
+        self.starting()
+
+    def running(self, retry=True):
+        "Check run state and puke if there's an error"
+        state = self.__getState()
+        if state is None or state == "ERROR":
+            raise Exception("pDAQ encountered an error (state is '%s')" % state)
+
+        if state != self.__runState:
+            self.logInfo('pDAQ = ' + state)
+            self.__runState = state
+
+        if self.__runState == "RUNNING":
+            self.__runCallCount += 1
+            if self.__runCallCount >= 200:
+                self.__reportMoni()
+                self.__runCallCount = 0
+
+    def starting(self, stateArgs=None, retry=True):
+        """
+        Start a new pDAQ run
+        stateArgs - should be a dictionary of run data:
+            'runConfig' - the name of the run configuration
+            'runNumber' - run number
+            'subRunNumber' - subrun number
+        retry - if True, reopen a bad socket connection to DAQRun
+                otherwise,
+        """
+
+        # either use specified runConfig or reuse previous value
+        if stateArgs is not None and stateArgs.has_key('runConfig'):
+            self.__runConfig = stateArgs['runConfig']
+        elif self.__runConfig is None:
+            raise Exception('No configuration specified')
+
+        runNumber = stateArgs.get('runNumber')
+        if runNumber is None:
+            runNumber = self.__getNextRunNumber()
+
+        self.logInfo('Starting run %d - %s' % (runNumber, self.__runConfig))
+
+        self.__runCallCount = 0
+
+        # tell DAQRun to start a run
+        try:
+            self.__runIface.start(runNumber, self.__runConfig)
+            runStarted = True
+        except socket.error:
+            runStarted = False
+            if retry:
+                self.__connectToDAQRun()
+                self.starting(stateArgs, False)
+            else:
+                self.logError('Could not start pDAQ')
+
+        if runStarted:
+            # wait for DAQRun to indicate that the run has started
+            if self.__waitForState('RUNNING',
+                                   ('ERROR', 'STOPPED', 'RECOVERING')):
+                self.__runNumber = runNumber
+                self.logInfo('Started run %d' % self.__runNumber)
+            else:
+                self.__waitForState('STOPPED')
+                self.logInfo('Failed to start run %d' % self.__runNumber)
+
+    def stopping(self, retry=True):
+        "Stop current pDAQ run"
+        self.logInfo('Stopping run %d' % self.__runNumber)
+
+        try:
+            self.__runIface.stop()
+            runStopped = True
+        except socket.error:
+            runStopped = False
+            if retry:
+                self.__connectToDAQRun()
+                self.stopping(retry=False)
+            else:
+                self.logError('Could not stop pDAQ')
+
+        if runStopped:
+            # wait for DAQRun to indicate that the run has stopped
+            if self.__waitForState('STOPPED'):
+                self.logInfo('Stopped run %d' % self.__runNumber)
+
+        self.__reportMoni()
 
 if __name__ == "__main__":
     comp = DAQLive()
