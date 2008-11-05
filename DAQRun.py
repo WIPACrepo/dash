@@ -35,7 +35,7 @@ import sys
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-SVN_ID  = "$Id: DAQRun.py 3649 2008-11-05 00:32:33Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3652 2008-11-05 01:31:12Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -438,24 +438,13 @@ class DAQRun(Rebootable.Rebootable):
                 yield "%s#%d" % (parsed[1], parsed[2])
     getNameList = staticmethod(getNameList)
 
-    def isInList(x, l):
-        """
-        See if x is in l
-        """
-        try:
-            l.index(x)
-            return True
-        except ValueError:
-            return False
-    isInList = staticmethod(isInList)
-
     def findMissing(target, reference):
         """
         Get the list of missing components
         """
         missing = []
         for t in target:
-            if not DAQRun.isInList(t, reference): missing.append(str(t))
+            if not t in reference: missing.append(str(t))
         return missing
     findMissing = staticmethod(findMissing)
 
@@ -548,7 +537,7 @@ class DAQRun(Rebootable.Rebootable):
             yield [self.shortNameOf[r], self.daqIDof[r], self.logPortOf[r]]
 
     def isRequiredComponent(shortName, daqID, compList):
-        return DAQRun.isInList("%s#%d" % (shortName, daqID), compList)
+        return "%s#%d" % (shortName, daqID) in compList
     isRequiredComponent = staticmethod(isRequiredComponent)
 
     def setup_run_logging(self, cncrpc, logDir, runNum, configName):
