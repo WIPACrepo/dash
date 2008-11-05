@@ -16,7 +16,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3650 2008-11-05 01:02:26Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3651 2008-11-05 01:23:53Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -205,9 +205,9 @@ class RunSet(object):
 
     def __str__(self):
         "String description"
-        setStr = 'RunSet #' + str(self.id)
+        setStr = 'RunSet #%d' % self.id
         if self.runNumber is not None:
-            setStr += ' run#' + str(self.runNumber)
+            setStr += ' run#%d' % self.runNumber
         return setStr
 
     def componentListStr(self):
@@ -250,7 +250,7 @@ class RunSet(object):
         self.state = 'ready'
         badList = self.listBadState()
         if len(badList) > 0:
-            raise ValueError('Could not configure ' + str(badList))
+            raise ValueError('Could not configure %s' % str(badList))
 
         self.configured = True
 
@@ -268,7 +268,7 @@ class RunSet(object):
 
     def destroy(self):
         if len(self.set) > 0:
-            raise ValueError('RunSet #' + str(self.id) + ' is not empty')
+            raise ValueError('RunSet #%d is not empty' % self.id)
 
         self.id = None
         self.configured = False
@@ -281,8 +281,8 @@ class RunSet(object):
             if c.isComponent("eventBuilder"):
                 return c.getEvents(subrunNumber)
 
-        raise ValueError('RunSet #' + str(self.id) +
-                         ' does not contain an event builder')
+        raise ValueError('RunSet #%d does not contain an event builder' %
+                         self.id)
 
     def isRunning(self):
         return self.state is not None and self.state == 'running'
@@ -365,14 +365,14 @@ class RunSet(object):
         # raise exception if one or more components could not be reset
         #
         if len(badList) > 0:
-            raise ValueError('Could not reset ' + str(badList))
+            raise ValueError('Could not reset %s' % str(badList))
 
     def sortCmp(self, x, y):
         if y.cmdOrder is None:
-            self.logmsg('Comp ' + str(y) + ' is none')
+            self.logmsg('Comp %s is None' % str(y))
             return -1
         elif x.cmdOrder is None:
-            self.logmsg('Comp ' + str(x) + ' is none')
+            self.logmsg('Comp %s is None' % str(x))
             return 1
         else:
             return y.cmdOrder-x.cmdOrder
@@ -380,7 +380,7 @@ class RunSet(object):
     def startRun(self, runNum):
         "Start all components in the runset"
         if not self.configured:
-            raise ValueError("RunSet #" + str(self.id) + " is not configured")
+            raise ValueError("RunSet #%d is not configured" % self.id)
 
         failStr = None
         for c in self.set:
@@ -425,7 +425,7 @@ class RunSet(object):
     def stopRun(self):
         "Stop all components in the runset"
         if self.runNumber is None:
-            raise ValueError("RunSet #" + str(self.id) + " is not running")
+            raise ValueError("RunSet #%d is not running" % self.id)
 
         # stop from front to back
         #
@@ -444,10 +444,9 @@ class RunSet(object):
                 timeoutSecs = int(RunSet.TIMEOUT_SECS * .25)
 
             if i == 1:
-                warnStr = str(self) + ': Forcing ' + str(len(waitList)) + \
-                    ' components to stop: ' + \
-                    self.listComponentsCommaSep(waitList)
-                self.logmsg(warnStr)
+                self.logmsg('%s: Forcing %d components to stop: %s' %
+                            (str(self), len(waitList),
+                             self.listComponentsCommaSep(waitList)))
 
             for c in waitList:
                 if i == 0:
@@ -504,8 +503,8 @@ class RunSet(object):
                             waitStr += c.getName() + connDict[c]
 
                         if waitStr:
-                            self.logmsg(str(self) + ': Waiting for ' +
-                                        self.state + ' ' + waitStr)
+                            self.logmsg('%s: Waiting for %s %s' %
+                                        (str(self), self.state, waitStr))
 
             # if the components all stopped normally, don't force-stop them
             #
@@ -523,15 +522,14 @@ class RunSet(object):
                     waitStr += ', '
                 waitStr += c.getName() + connDict[c]
 
-            errStr = str(self) + ': Could not stop ' + \
-                self.listComponentsCommaSep(waitList)
+            errStr = '%s: Could not stop %s' % (str(self), waitStr)
             self.logmsg(errStr)
             raise ValueError(errStr)
 
     def subrun(self, id, data):
         "Start a subrun with all components in the runset"
         if self.runNumber is None:
-            raise ValueError("RunSet #" + str(self.id) + " is not running")
+            raise ValueError("RunSet #%d is not running" % self.id)
 
         for c in self.set:
             if c.isComponent("eventBuilder"):
@@ -593,15 +591,15 @@ class RunSet(object):
             else:
                 waitList = newList
                 if waitStr:
-                    self.logmsg(str(self) + ': Waiting for ' + self.state +
-                                ' ' + waitStr)
+                    self.logmsg('%s: Waiting for %s %s' %
+                                (str(self), self.state, waitStr))
                 # reset timeout
                 #
                 endSecs = time() + timeoutSecs
 
         if len(waitList) > 0:
-            raise ValueError('Still waiting for %d components to leave %s (%s)' %
-                             (len(waitList), self.state, waitStr))
+            raise ValueError(('Still waiting for %d components to leave %s' +
+                              ' (%s)' % (len(waitList), self.state, waitStr))
 
 class CnCLogger(object):
     "CnC logging client"
@@ -654,7 +652,7 @@ class CnCLogger(object):
 
         self.logIP = host
         self.logPort = port
-        self.logmsg('Start of log at ' + host + ':' + str(port))
+        self.logmsg('Start of log at %s:%d' % (host, port))
 
     def resetLog(self):
         "close current log and reset to initial state"
@@ -735,7 +733,7 @@ class DAQClient(CnCLogger):
         if self.mbeanPort <= 0:
             extraStr = ''
         else:
-            extraStr = ' M#' + str(self.mbeanPort)
+            extraStr = ' M#%d' % self.mbeanPort
 
         if self.connectors and len(self.connectors) > 0:
             first = True
@@ -805,7 +803,7 @@ class DAQClient(CnCLogger):
 
     def getName(self):
         if self.num == 0 and self.name[-3:].lower() != 'hub':
-            return  self.name
+            return self.name
         return '%s#%d' % (self.name, self.num)
 
     def getOrder(self):
@@ -849,7 +847,7 @@ class DAQClient(CnCLogger):
                 csStr = '['
             else:
                 csStr += ', '
-            csStr += str(cs[0]) + ':' + str(cs[1])
+            csStr += '%s:%s' % (cs[0], cs[1])
 
         if not csStr:
             csStr = ''
@@ -986,7 +984,7 @@ class DAQPool(CnCLogger):
                 name = name[0:pound]
 
             if not self.pool.has_key(name) or len(self.pool[name]) == 0:
-                raise ValueError('No "' + name + '" components are available')
+                raise ValueError('No "%s" components are available' % name)
 
             # find component in pool
             #
@@ -997,8 +995,8 @@ class DAQPool(CnCLogger):
                     comp = c
                     break
             if not comp:
-                raise ValueError('Component \"' + name + '#' + str(num) +
-                                 '" is not available')
+                raise ValueError('Component "%s#%d" is not available' %
+                                 (name, num))
 
             # add component to temporary list
             #
@@ -1025,10 +1023,10 @@ class DAQPool(CnCLogger):
                     chkList.remove(c)
                 elif state != 'connecting':
                     if not errMsg:
-                        errMsg = 'Connect failed for ' + c.getName() + '(' + \
-                            rtnVal + ')'
+                        errMsg = 'Connect failed for %s (%s)' % \
+                            (c.getName(), rtnVal)
                     else:
-                        errMsg += ', ' + c.getName() + '(' + rtnVal + ')'
+                        errMsg += ', %s (%s)' % (c.getName(), rtnVal)
             sleep(1)
 
         if errMsg:
@@ -1316,7 +1314,7 @@ class DAQServer(DAQPool):
         runSet = self.findRunset(id)
 
         if not runSet:
-            raise ValueError('Could not find runset#' + str(id))
+            raise ValueError('Could not find runset#%d' % id)
 
         self.returnRunset(runSet)
 
@@ -1327,7 +1325,7 @@ class DAQServer(DAQPool):
         runSet = self.findRunset(id)
 
         if not runSet:
-            raise ValueError('Could not find runset#' + str(id))
+            raise ValueError('Could not find runset#%d' % id)
 
         runSet.configure(globalConfigName)
 
@@ -1341,7 +1339,7 @@ class DAQServer(DAQPool):
         runSet = self.findRunset(id)
 
         if not runSet:
-            raise ValueError('Could not find runset#' + str(id))
+            raise ValueError('Could not find runset#%d' % id)
 
         return runSet.getEvents(subrunNumber)
 
@@ -1357,7 +1355,7 @@ class DAQServer(DAQPool):
         runSet = self.findRunset(id)
 
         if not runSet:
-            raise ValueError('Could not find runset#' + str(id))
+            raise ValueError('Could not find runset#%d' % id)
 
         return runSet.list()
 
@@ -1366,15 +1364,15 @@ class DAQServer(DAQPool):
         runSet = self.findRunset(id)
 
         if not runSet:
-            raise ValueError('Could not find runset#' + str(id))
+            raise ValueError('Could not find runset#%d' % id)
 
         leftOver = runSet.configureLogging(logIP, logList)
 
         if len(leftOver) > 0:
-            errMsg = 'Could not configure logging for ' + \
-                str(len(leftOver)) + ' components:'
+            errMsg = 'Could not configure logging for %d components:' % \
+                len(leftOver)
             for l in leftOver:
-                errMsg += ' ' + l[0] + '#' + str(l[1])
+                errMsg += ' %s#%d' % (l[0], l[1])
 
             self.logmsg(errMsg)
 
@@ -1385,7 +1383,7 @@ class DAQServer(DAQPool):
         runSet = self.findRunset(id)
 
         if not runSet:
-            raise ValueError('Could not find runset#' + str(id))
+            raise ValueError('Could not find runset#%d' % id)
 
         self.resetLog()
 
@@ -1412,7 +1410,7 @@ class DAQServer(DAQPool):
         runSet = self.findRunset(id)
 
         if not runSet:
-            raise ValueError('Could not find runset#' + str(id))
+            raise ValueError('Could not find runset#%d' % id)
 
         runSet.startRun(runNum)
 
@@ -1423,7 +1421,7 @@ class DAQServer(DAQPool):
         runSet = self.findRunset(id)
 
         if not runSet:
-            raise ValueError('Could not find runset#' + str(id))
+            raise ValueError('Could not find runset#%d' % id)
 
         setStat = runSet.status()
         for c in setStat.keys():
@@ -1436,7 +1434,7 @@ class DAQServer(DAQPool):
         runSet = self.findRunset(id)
 
         if not runSet:
-            raise ValueError('Could not find runset#' + str(id))
+            raise ValueError('Could not find runset#%d' % id)
 
         runSet.stopRun()
 
@@ -1450,7 +1448,7 @@ class DAQServer(DAQPool):
         runSet = self.findRunset(id)
 
         if not runSet:
-            raise ValueError('Could not find runset#' + str(id))
+            raise ValueError('Could not find runset#%d' % id)
 
         runSet.subrun(subrunId, subrunData)
 
@@ -1472,7 +1470,9 @@ class DAQServer(DAQPool):
     def serve(self, handler):
         "Start a server"
         self.logmsg("I'm server %s running on port %d" % (self.name, self.port))
-        self.logmsg("%(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % self.versionInfo)
+        self.logmsg(("%(filename)s %(revision)s %(date)s %(time)s" +
+                     " %(author)s %(release)s %(repo_rev)s" %
+                    self.versionInfo)
         thread.start_new_thread(handler, ())
         self.server.serve_forever()
 
