@@ -28,14 +28,15 @@ class ThresholdWatcher(object):
             self.opDescription = 'above'
 
     def __str__(self):
-        return self.comp + ' ' + self.beanName + '.' + self.fieldName + ' ' + \
-            self.opDescription + ' ' + str(self.threshold)
+        return '%s %s.%s %s %s' % \
+            (self.comp, self.beanName, self.fieldName,
+             self.opDescription, str(self.threshold))
 
     def check(self, newValue):
         if type(newValue) != type(self.threshold):
-            raise Exception('Threshold value for ' + str(self) + ' is ' +
-                            str(type(self.threshold)) + ', new value is ' +
-                            str(type(newValue)))
+            raise Exception('Threshold value for %s is %s, new value is %s' %
+                            (str(self), str(type(self.__threshold)),
+                             str(type(newValue))))
         elif type(newValue) == list:
             raise Exception('ThresholdValue does not support lists')
         elif self.compare(self.threshold, newValue):
@@ -50,7 +51,7 @@ class ThresholdWatcher(object):
             return value > threshold
 
     def unhealthyString(self, value):
-        return str(self) + ' (value=' + str(value) + ')'
+        return '%s (value=%s)' % (str(self), str(value))
 
 class ValueWatcher(object):
     NUM_UNCHANGED = 3
@@ -64,16 +65,16 @@ class ValueWatcher(object):
         self.unchanged = 0
 
     def __str__(self):
-        return self.fromComp + '->' + self.toComp + ' ' + self.beanName + \
-            '.' + self.fieldName
+        return '%s->%s %s.%s' % \
+            (self.fromComp, self.toComp, self.beanName, self.fieldName)
 
     def check(self, newValue):
         if self.prevValue is None:
             self.prevValue = newValue
         elif type(newValue) != type(self.prevValue):
-            raise Exception('Previous value for ' + str(self) + ' was ' +
-                            str(type(self.prevValue)) + ', new value is ' +
-                            str(type(newValue))
+            raise Exception('Previous value for %s was %s, new value is %s' %
+                            (str(self), str(type(self.prevValue)),
+                             str(type(newValue))))
         elif type(newValue) != list:
             if self.compare(self.prevValue, newValue):
                 self.unchanged += 1
@@ -83,9 +84,8 @@ class ValueWatcher(object):
                 self.unchanged = 0
                 self.prevValue = newValue
         elif len(newValue) != len(self.prevValue):
-            raise Exception('Previous ' + str(self) + ' list had ' +
-                            str(len(self.prevValue)) +
-                            ' entries, new list has ' + str(len(newValue)))
+            raise Exception('Previous %s list had %d entries, new list has %d' %
+                            (str(self), len(self.prevValue), len(newValue)))
         else:
             tmpStag = False
             for i in range(0, len(newValue)):
@@ -96,30 +96,29 @@ class ValueWatcher(object):
             if tmpStag:
                 self.unchanged += 1
                 if self.unchanged == ValueWatcher.NUM_UNCHANGED:
-                    raise Exception('At least one ' + str(self) +
-                                    ' value is not changing')
+                    raise Exception('At least one %s value is not changing' %
+                                    str(self))
 
         return self.unchanged == 0
 
     def compare(self, oldValue, newValue):
         if newValue < oldValue:
-            raise Exception(str(self) + ' DECREASED (' + str(oldValue) +
-                            '->' + str(newValue) + ')')
+            raise Exception('%s DECREASED (%s->%s)' %
+                            (str(self), str(oldValue), str(newValue)))
 
         return newValue == oldValue
 
     def unhealthyString(self, value):
-        return str(self) + ' not changing from ' + str(self.prevValue)
+        return '%s not changing from %s' % (str(self), str(self.prevValue))
 
 class WatchData(object):
     def __init__(self, id, compType, compNum, addr, port):
         self.id = id
 
         if compNum == 0:
-            numStr = ''
+            self.name = compType
         else:
-            numStr = '#' + str(compNum)
-        self.name = compType + numStr
+            self.name = '%s#%d' + (compType, compNum)
 
         self.client = RPCClient(addr, port)
         self.beanFields = {}
@@ -131,7 +130,7 @@ class WatchData(object):
         self.thresholdFields = {}
 
     def __str__(self):
-        return '#' + str(self.id) + ': ' + self.name
+        return '#%d: %s' + (self.id, self.name)
 
     def addInputValue(self, otherType, beanName, fieldName):
         if beanName not in self.beanList:
@@ -241,8 +240,7 @@ class WatchThread(threading.Thread):
             self.healthy = self.watchdog.realWatch()
             self.done = True
         except Exception:
-            self.watchdog.logmsg("Exception in run watchdog: %s" %
-                                 exc_string())
+            self.watchdog.logmsg("Exception in run watchdog: %s" % exc_string())
             self.error = True
 
 class RunWatchdog(object):
