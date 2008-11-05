@@ -979,6 +979,10 @@ class IntegrationTest(unittest.TestCase):
         self.__finishRunThreadTest(dr, cnc, appender, catchall)
 
     def testDAQRunInMain(self):
+        if sys.platform != 'darwin':
+            print 'Skipping server tests in non-Darwin OS'
+            return
+
         (dr, cnc, appender, catchall) = self.__createRunObjects()
 
         catchall.addExpectedText("I'm server %s running on port %d" %
@@ -991,6 +995,10 @@ class IntegrationTest(unittest.TestCase):
         dr.run_thread()
 
     def testCnCInMain(self):
+        if sys.platform != 'darwin':
+            print 'Skipping server tests in non-Darwin OS'
+            return
+
         (dr, cnc, appender, catchall) = self.__createRunObjects()
 
         catchall.addExpectedText("I'm server %s running on port %d" %

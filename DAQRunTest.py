@@ -1317,6 +1317,10 @@ class TestDAQRun(unittest.TestCase):
         self.__finishRunThreadTest(dr, cnc, logger, catchall, ebID, sbID, comps)
 
     def testRunThreadInverted(self):
+        if sys.platform != 'darwin':
+            print 'Skipping server tests in non-Darwin OS'
+            return
+
         dr = StubbedDAQRun(self.__getRunArgs(), False)
 
         ebID = 67

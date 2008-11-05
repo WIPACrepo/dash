@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import thread, unittest, xmlrpclib
+import sys, thread, unittest, xmlrpclib
 
 from CnCServer import CnCServer, DAQClient
 from DAQRPC import RPCServer
@@ -338,6 +338,10 @@ class TestCnCServer(unittest.TestCase):
         self.__runEverything()
 
     def testEverythingAgain(self):
+        if sys.platform != 'darwin':
+            print 'Skipping server tests in non-Darwin OS'
+            return
+
         self.__runEverything()
 
 if __name__ == '__main__':
