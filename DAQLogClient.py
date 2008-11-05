@@ -68,6 +68,9 @@ class DAQLog(object):
     def info(self, msg): self._logmsg(DAQLog.INFO, msg)
 
     def setAppender(self, appender):
+        if self.__appender != self.__defaultAppender:
+            self.__appender.close()
+
         if appender is not None:
             self.__appender = appender
         else:

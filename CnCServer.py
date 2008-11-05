@@ -16,7 +16,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3657 2008-11-05 01:49:08Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3661 2008-11-05 22:02:55Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -600,20 +600,18 @@ class CnCLogger(DAQLog):
         "create a logging client"
         self.__quiet = quiet
 
-        self.__prevAppender = None
         self.__prevIP = None
         self.__prevPort = None
 
-        self.__logAppender = None
         self.__logIP = None
         self.__logPort = None
 
         super(CnCLogger, self).__init__(appender)
 
     def __getName(self):
-        if self.__logAppender is not None:
+        if self.__logIP is not None and self.__logPort is not None:
             return 'LOG=%s:%d' % (self.__logIP, self.__logPort)
-        if self.__prevAppender is not None:
+        if self.__prevIP is not None and self.__prevPort is not None:
             return 'PREV=%s:%d' % (self.__prevIP, self.__prevPort)
         return '?LOG?'
 
@@ -662,44 +660,36 @@ class CnCLogger(DAQLog):
 
     def openLog(self, host, port):
         "initialize socket logger"
-        if self.__prevAppender is None:
-            self.__prevAppender = self.__logAppender
+        if self.__prevIP is None or self.__prevPort is None:
             self.__prevIP = self.__logIP
             self.__prevPort = self.__logPort
 
-        self.__logAppender = self.createAppender(host, port)
+        logAppender = self.createAppender(host, port)
         self.__logIP = host
         self.__logPort = port
 
-        self.setAppender(self.__logAppender)
-        self.info('Start of log at %s' % str(self.__logAppender))
+        self.setAppender(logAppender)
+        self.info('Start of log at %s' % str(logAppender))
 
     def resetLog(self):
         "close current log and reset to initial state"
-        if self.__logAppender is not None:
-            try:
-                self.__logAppender.close()
-            except:
-                pass
-
         if self.__prevIP is not None and self.__prevPort is not None and \
                 (self.__logIP != self.__prevIP or
                  self.__logPort != self.__prevPort):
-            self.__logAppender = self.__prevAppender
             self.__logIP = self.__prevIP
             self.__logPort = self.__prevPort
+            logAppender = self.createAppender(self.__logIP, self.__logPort)
         else:
-            self.__logAppender = None
+            logAppender = None
             self.__logIP = None
             self.__logPort = None
 
-        self.__prevAppender = None
         self.__prevIP = None
         self.__prevPort = None
 
-        self.setAppender(self.__logAppender)
-        if self.__logAppender is not None:
-            self.info('Reset log to %s' % str(self.__logAppender))
+        self.setAppender(logAppender)
+        if logAppender is not None:
+            self.info('Reset log to %s' % str(logAppender))
 
 class DAQClient(object):
     """DAQ component

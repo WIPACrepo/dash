@@ -36,7 +36,7 @@ import sys
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-SVN_ID  = "$Id: DAQRun.py 3657 2008-11-05 01:49:08Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3661 2008-11-05 22:02:55Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -834,9 +834,8 @@ class DAQRun(Rebootable.Rebootable):
             self.createLogSocketServer(DAQRun.CATCHALL_PORT, "Catchall",
                                        self.logDir + "/catchall.log")
 
-        catchallAppender = \
-            LogSocketAppender('localhost', DAQRun.CATCHALL_PORT)
-        self.log.setAppender(catchallAppender)
+        self.log.setAppender(LogSocketAppender('localhost',
+                                               DAQRun.CATCHALL_PORT))
 
         if cnc is not None:
             self.cnc = cnc
@@ -951,7 +950,8 @@ class DAQRun(Rebootable.Rebootable):
                 if forceRestart or (hadError and self.restartOnError):
                     self.restartComponents()
 
-                self.log.setAppender(catchallAppender)
+                self.log.setAppender(LogSocketAppender('localhost',
+                                                       DAQRun.CATCHALL_PORT))
 
                 self.saveAndResetRunStats()
                 self.runState = "STOPPED"
