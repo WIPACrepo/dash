@@ -278,7 +278,7 @@ class RunWatchdog(object):
                                               'NumReadoutsSent')
                         self.__stringHubs.append(cw)
                     elif shortNameOf[c] == 'inIceTrigger':
-                        hubName = self.__findHub(shortNameOf[c])
+                        hubName = self.__findHub(shortNameOf)
                         if hubName is not None:
                             cw.addInputValue(hubName, 'stringHit',
                                              'RecordsReceived')
@@ -287,7 +287,7 @@ class RunWatchdog(object):
                                               'RecordsSent')
                         iniceTrigger = cw
                     elif shortNameOf[c] == 'simpleTrigger':
-                        hubName = self.__findHub(shortNameOf[c])
+                        hubName = self.__findHub(shortNameOf)
                         if hubName is not None:
                             cw.addInputValue(hubName, 'stringHit',
                                              'RecordsReceived')
@@ -296,7 +296,7 @@ class RunWatchdog(object):
                                               'RecordsSent')
                         iniceTrigger = cw
                     elif shortNameOf[c] == 'iceTopTrigger':
-                        hubName = self.__findHub(shortNameOf[c])
+                        hubName = self.__findHub(shortNameOf)
                         if hubName is not None:
                             cw.addInputValue(hubName, 'stringHit',
                                              'RecordsReceived')
@@ -327,7 +327,7 @@ class RunWatchdog(object):
                                               'RecordsSent')
                         globalTrigger = cw
                     elif shortNameOf[c] == 'eventBuilder':
-                        hubName = self.__findHub(shortNameOf[c])
+                        hubName = self.__findHub(shortNameOf)
                         if hubName is not None:
                             cw.addInputValue(hubName, 'backEnd',
                                              'NumReadoutsReceived');
@@ -408,16 +408,16 @@ class RunWatchdog(object):
                 except Exception:
                     self.logmsg(str(comp) + ' thresholds: ' + exc_string())
 
-    def __contains(self, nameList, compName):
-        for n in nameList:
+    def __contains(self, nameDict, compName):
+        for n in nameDict.values():
             if n == compName:
                 return True
 
         return False
 
-    def __findHub(self, nameList):
-        for n in ('stringHub', 'replayHub'):
-            if self.contains(nameList, n):
+    def __findHub(self, nameDict):
+        for n in nameDict.values():
+            if n == 'stringHub' or n == 'replayHub':
                 return n
 
         return None
