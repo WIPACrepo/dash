@@ -16,7 +16,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3647 2008-11-05 00:25:03Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3650 2008-11-05 01:02:26Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -300,7 +300,7 @@ class RunSet(object):
         for c in self.set:
             stateStr = c.getState()
             if stateStr != self.state:
-                slst.append(c.name + '#' + str(c.num) + ':' + stateStr)
+                slst.append(c.getName() + ':' + stateStr)
 
         return slst
 
@@ -315,7 +315,7 @@ class RunSet(object):
                 compStr = ''
             else:
                 compStr += ', '
-            compStr += c.name + '#' + str(c.num)
+            compStr += c.getName()
         return compStr
     listComponentsCommaSep = staticmethod(listComponentsCommaSep)
 
@@ -501,8 +501,7 @@ class RunSet(object):
                                 waitStr = ''
                             else:
                                 waitStr += ', '
-                            waitStr += c.name + '#' + str(c.num) + \
-                                connDict[c]
+                            waitStr += c.getName() + connDict[c]
 
                         if waitStr:
                             self.logmsg(str(self) + ': Waiting for ' +
@@ -522,7 +521,7 @@ class RunSet(object):
                     waitStr = ''
                 else:
                     waitStr += ', '
-                waitStr += c.name + '#' + str(c.num) + connDict[c]
+                waitStr += c.getName() + connDict[c]
 
             errStr = str(self) + ': Could not stop ' + \
                 self.listComponentsCommaSep(waitList)
@@ -805,6 +804,8 @@ class DAQClient(CnCLogger):
             return None
 
     def getName(self):
+        if self.num == 0 and self.name[-3:].lower() != 'hub':
+            return  self.name
         return '%s#%d' % (self.name, self.num)
 
     def getOrder(self):
@@ -1024,10 +1025,10 @@ class DAQPool(CnCLogger):
                     chkList.remove(c)
                 elif state != 'connecting':
                     if not errMsg:
-                        errMsg = 'Connect failed for ' + c.name + '(' + \
+                        errMsg = 'Connect failed for ' + c.getName() + '(' + \
                             rtnVal + ')'
                     else:
-                        errMsg += ', ' + c.name + '(' + rtnVal + ')'
+                        errMsg += ', ' + c.getName() + '(' + rtnVal + ')'
             sleep(1)
 
         if errMsg:
