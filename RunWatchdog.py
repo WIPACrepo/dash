@@ -117,7 +117,7 @@ class WatchData(object):
     def __init__(self, id, compType, compNum, addr, port):
         self.__id = id
 
-        if compNum == 0 and not not compType.lower().endswith('hub'):
+        if compNum == 0 and not compType.lower().endswith('hub'):
             self.__name = compType
         else:
             self.__name = '%s#%d' % (compType, compNum)
