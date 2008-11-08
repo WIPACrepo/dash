@@ -290,6 +290,14 @@ class DAQLive(Component):
 
         self.__reportMoni()
 
+    def subrun(self, subrunId, domList):
+        """
+        Start new subrun, basically a passthru to give <domList> to DAQRunIface.
+        """
+        ret = self.runIface.flasher(subrunId, domList)
+        if ret != 1: return "New subrun FAILED.  See pDAQ logs for more info."
+        return "OK"
+        
 if __name__ == "__main__":
     comp = DAQLive()
     try:
