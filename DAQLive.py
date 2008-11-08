@@ -78,6 +78,8 @@ class DAQLive(Component):
         self.__runArgs = LiveArgs()
         self.__runArgs.parse()
 
+        self.__runIface = None
+
         self.__connectToDAQRun(True)
         self.__runNumFile = None
 
@@ -87,7 +89,6 @@ class DAQLive(Component):
         self.__runState = None
         self.__runCallCount = 0
 
-        self.__runIface = None
 
         Component.__init__(self, self.SERVICE_NAME, self.__runArgs.getPort(),
                            synchronous=True, lightSensitive=True,
@@ -294,7 +295,7 @@ class DAQLive(Component):
         """
         Start new subrun, basically a passthru to give <domList> to DAQRunIface.
         """
-        ret = self.runIface.flasher(subrunId, domList)
+        ret = self.__runIface.flasher(subrunId, domList)
         if ret != 1: return "New subrun FAILED.  See pDAQ logs for more info."
         return "OK"
         
