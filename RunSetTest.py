@@ -120,7 +120,7 @@ class TestRunSet(unittest.TestCase):
 
         self.checkStatus(runset, compList, 'idle')
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testEmpty(self):
         self.runTests([], 1)

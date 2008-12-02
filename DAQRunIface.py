@@ -4,7 +4,7 @@
 # Object to interface w/ DAQ run script
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started November, 2006
-# $Id: DAQRunIface.py 3646 2008-11-04 20:36:15Z dglo $
+# $Id: DAQRunIface.py 3678 2008-12-02 15:11:08Z dglo $
 
 from DAQRPC import RPCClient
 from os.path import join, exists
@@ -60,13 +60,13 @@ class DAQRunIface(object):
         else:
             from locate_pdaq import find_pdaq_trunk
             self.home = find_pdaq_trunk()
-        
+
         self.rpc = RPCClient(daqhost, int(daqport))
 
-    def start(self, r, config):
+    def start(self, r, config, logInfo=()):
         "Tell DAQRun to start a run"
         config = sub('\.xml$', '', config)
-        self.rpc.rpc_start_run(r, 0, config)
+        self.rpc.rpc_start_run(r, 0, config, logInfo)
         return DAQRunIface.START_TRANSITION_SECONDS
     
     def stop(self):

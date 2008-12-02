@@ -73,7 +73,6 @@ class RPCClient(xmlrpclib.ServerProxy):
 class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
     "Generic class for serving methods to remote objects"
     # also inherited: register_function
-    allow_reuse_address = True
     def __init__(self, portnum, servername="localhost", documentation="DAQ Server", timeout=60):
         self.servername = servername
         self.portnum    = portnum
@@ -81,12 +80,11 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         self.__running = False
         self.__timeout = timeout
 
+        self.allow_reuse_address = True
         DocXMLRPCServer.DocXMLRPCServer.__init__(self, ('', portnum), logRequests=False)
         self.set_server_title("Server Methods")
         self.set_server_name("DAQ server at %s:%s" % (servername, portnum))
         self.set_server_documentation(documentation)
-        # Avoid "Address in use" errors:
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     def server_close(self):
         self.__running = False
@@ -145,7 +143,8 @@ class RPCStat(object):
                                                                       rms)
 
 if __name__ == "__main__":
-    cl = RPCClient("localhost", 8080)
+    from DAQConst import DAQPort
+    cl = RPCClient("localhost", DAQPort.CNCSERVER)
     for i in xrange(0, 10):
         cl.rpccall("rpc_ping")
     print cl.showStats()

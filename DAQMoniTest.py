@@ -2,7 +2,7 @@
 
 import StringIO, time, unittest
 from DAQLogClient import DAQLog
-from DAQMoni import BeanFieldNotFoundException, DAQMoni, MoniData
+from DAQMoni import BeanFieldNotFoundException, DAQMoni, FileMoniData
 
 from DAQMocks import MockAppender
 
@@ -20,25 +20,36 @@ class MockMBeanClient(object):
         return attrs
 
     def listGetters(self, bean):
+        if self.__mbeanDict is None:
+            return []
+
         k = self.__mbeanDict[bean].keys()
         k.sort()
         return k
 
     def listMBeans(self):
+        if self.__mbeanDict is None:
+            return []
+
         k = self.__mbeanDict.keys()
         k.sort()
         return k
 
 class MockRPCClient(object):
-    def __init__(self, mbeans):
+    def __init__(self, addr, port, mbeans):
+        self.__addr = addr
+        self.__port = port
         self.mbean = MockMBeanClient(mbeans)
 
-class MockData(MoniData):
-    def __init__(self, name, daqID, fname, addr, port, rpcClient):
+    def __str__(self):
+        return '%s:%d' % (self.__addr, self.__port)
+
+class MockFileData(FileMoniData):
+    def __init__(self, name, daqID, addr, port, rpcClient):
         self.__client = rpcClient
         self.__stringFile = None
 
-        super(MockData, self).__init__(name, daqID, fname, addr, port)
+        super(MockFileData, self).__init__(name, daqID, addr, port, None)
 
     def getOutputLines(self):
         if self.__stringFile is None:
@@ -55,18 +66,55 @@ class MockData(MoniData):
 
 class MockMoni(DAQMoni):
     __MOCK = None
+    __CLIENT = {}
 
     def __init__(self, log, moniPath, interval, IDs, names, daqIDs, addrs,
                  mbeanPorts):
         super(MockMoni, self).__init__(log, moniPath, interval, IDs, names,
-                                       daqIDs, addrs, mbeanPorts, True)
+                                       daqIDs, addrs, mbeanPorts,
+                                       DAQMoni.TYPE_FILE, quiet=True)
 
-    def createData(cls, name, daqId, fname, addr, port):
-        return cls.__MOCK['%s-%s' % (name, daqId)]
+    def clear(cls):
+        cls.__MOCK = None
+        cls.__CLIENT.clear()
+    clear = classmethod(clear)
 
-    def setMockData(cls, data):
-        cls.__MOCK = data
-    setMockData = classmethod(setMockData)
+    def createBothData(cls, name, daqId, addr, port, fname):
+        raise Exception('Unimplemented')
+    createBothData = classmethod(createBothData)
+
+    def createFileData(cls, name, daqId, addr, port, fname):
+        key = '%s-%s' % (name, daqId)
+        if cls.__MOCK is not None and cls.__MOCK.has_key(key):
+            raise Exception('MockData already created for %s' % key)
+        if cls.__CLIENT.has_key(key):
+            md = MockFileData(name, daqId, addr, port, cls.__CLIENT[key])
+            if cls.__MOCK is None:
+                cls.__MOCK = {}
+            cls.__MOCK[key] = md
+            return md
+        raise Exception('No MockFileData found for %s' % key)
+    createFileData = classmethod(createFileData)
+
+    def createLiveData(cls, name, daqId, addr, port):
+        raise Exception('Unimplemented')
+    createLiveData = classmethod(createLiveData)
+
+    def getMockData(cls, name, daqId):
+        if cls.__MOCK is None:
+            raise Exception('No MockData objects have been created')
+
+        key = '%s-%s' % (name, daqId)
+        if not cls.__MOCK.has_key(key):
+            raise Exception('No MockData found for %s' % key)
+
+        return cls.__MOCK[key]
+    getMockData = classmethod(getMockData)
+
+    def setRPCClient(cls, name, daqId, client):
+        key = '%s-%d' % (name, daqId)
+        cls.__CLIENT[key] = client
+    setRPCClient = classmethod(setRPCClient)
 
 class TestDAQMoni(unittest.TestCase):
     def __buildLines(self, mbeans, time):
@@ -88,24 +136,13 @@ class TestDAQMoni(unittest.TestCase):
         lines.append('')
         return lines
 
-    def testCreate(self):
-        mbeans = {'abean' : {'a':1, 'b':2}}
-
-        client = MockRPCClient(mbeans)
-
-        name = 'xyz'
-        daqId = 515
-
-        md = MockData(name, daqId, None, None, 5, client)
-
-        expStr = '%s-%d' % (name, daqId)
-        self.assertEquals(expStr, str(md),
-                          'Expected "%s", not "%s"' % (expStr, str(md)))
+    def setUp(self):
+        MockMoni.clear()
 
     def testUnfix(self):
         strVals = { 'a':'123', 'b':['123', '123'], 'c':'abc'}
 
-        vals = MoniData.unFixValue(strVals)
+        vals = FileMoniData.unFixValue(strVals)
         for k in vals:
             if k == 'a':
                 good = 123
@@ -140,12 +177,15 @@ class TestDAQMoni(unittest.TestCase):
                   'dbean' : {'fldDict':{'i':1, 'f':2.3}},
                   'ebean' : {'a':'123', 'b':'45.67'}}
 
-        client = MockRPCClient(mbeans)
+        addr = None
+        port = 5
+
+        client = MockRPCClient(addr, port, mbeans)
 
         name = 'xyz'
         daqId = 515
 
-        md = MockData(name, daqId, None, None, 5, client)
+        md = MockFileData(name, daqId, addr, port, client)
 
         time = 'now'
         md.monitor(time)
@@ -162,14 +202,17 @@ class TestDAQMoni(unittest.TestCase):
                               (i, expLines[i], lines[i]))
 
     def testCreate(self):
+        addr = 'foo'
+        port = 678
+
+        client = MockRPCClient(addr, port, None)
+
         name = 'xyz'
         daqId = 515
 
-        MockMoni.setMockData({'%s-%d' % (name, daqId) : None, })
+        MockMoni.setRPCClient(name, daqId, client)
 
         moniPath = 'x'
-        addr = 'foo'
-        port = 678
 
         appender = MockAppender('log')
         appender.addExpectedExact(('Creating moni output file %s/%s-%d.moni' +
@@ -182,28 +225,27 @@ class TestDAQMoni(unittest.TestCase):
                  {compId:name, }, {compId:daqId, }, {compId:addr, },
                  {compId:port, })
 
-        appender.checkEmpty()
+        appender.checkStatus(10)
 
     def testSingleBean(self):
         mbeans = {'abean' : {'a':1, 'b':2}}
 
-        client = MockRPCClient(mbeans)
-
-        name = 'xyz'
-        daqId = 515
         addr = 'foo'
         port = 678
 
-        md = MockData(name, daqId, None, addr, port, client)
+        client = MockRPCClient(addr, port, mbeans)
 
-        MockMoni.setMockData({'%s-%d' % (name, daqId) : md, })
+        name = 'xyz'
+        daqId = 515
+
+        MockMoni.setRPCClient(name, daqId, client)
 
         moniPath = 'x'
 
         appender = MockAppender('log')
         appender.addExpectedExact(('Creating moni output file %s/%s-%d.moni' +
-                                   ' (remote is %s:%d)') %
-                                  (moniPath, name, daqId, addr, port))
+                                   ' (remote is %s)') %
+                                  (moniPath, name, daqId, str(client)))
 
         compId = 1
 
@@ -211,7 +253,7 @@ class TestDAQMoni(unittest.TestCase):
                         {compId:name, }, {compId:daqId, }, {compId:addr, },
                         {compId:port, })
 
-        appender.checkEmpty()
+        appender.checkStatus(10)
 
         badId = compId + 1
         badBean = 'xxx'
@@ -250,28 +292,27 @@ class TestDAQMoni(unittest.TestCase):
                               'Expected bean %s fld %s val %s, not %s ' %
                           (bean, fld, str(mbeans[bean][fld]), str(val)))
 
-        appender.checkEmpty()
+        appender.checkStatus(10)
 
     def testDoMoni(self):
         mbeans = {'abean' : {'a':1, 'b':2}}
 
-        client = MockRPCClient(mbeans)
-
-        name = 'xyz'
-        daqId = 515
         addr = 'foo'
         port = 678
 
-        md = MockData(name, daqId, None, addr, port, client)
+        client = MockRPCClient(addr, port, mbeans)
 
-        MockMoni.setMockData({'%s-%d' % (name, daqId) : md, })
+        name = 'xyz'
+        daqId = 515
+
+        MockMoni.setRPCClient(name, daqId, client)
 
         moniPath = 'x'
 
         appender = MockAppender('log')
         appender.addExpectedExact(('Creating moni output file %s/%s-%d.moni' +
-                                   ' (remote is %s:%d)') %
-                                  (moniPath, name, daqId, addr, port))
+                                   ' (remote is %s)') %
+                                  (moniPath, name, daqId, str(client)))
 
         compId = 1
 
@@ -279,19 +320,17 @@ class TestDAQMoni(unittest.TestCase):
                         {compId:name, }, {compId:daqId, }, {compId:addr, },
                         {compId:port, })
 
-        appender.checkEmpty()
+        appender.checkStatus(10)
 
         moni.doMoni()
 
-
-        lines = md.getOutputLines()
-
         tries = 0
-        while len(lines) == 0 and tries < 10:
+        while moni.isActive() and tries < 10:
             time.sleep(0.1)
-            lines = md.getOutputLines()
             tries += 1
 
+        md = MockMoni.getMockData(name, daqId)
+        lines = md.getOutputLines()
         self.failUnless(len(lines) > 0, "doMoni didn't print anything")
         self.failUnless(len(lines[0]) > 0, "doMoni printed a blank line")
         self.assertEquals(':', lines[0][-1],
@@ -311,7 +350,7 @@ class TestDAQMoni(unittest.TestCase):
                               'Expected line#%d "%s", not "%s"' %
                               (i, expLines[i], lines[i]))
 
-        appender.checkEmpty()
+        appender.checkStatus(10)
 
 if __name__ == '__main__':
     unittest.main()

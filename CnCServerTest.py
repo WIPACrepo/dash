@@ -3,6 +3,7 @@
 import sys, thread, unittest, xmlrpclib
 
 from CnCServer import CnCServer, DAQClient
+from DAQConst import DAQPort
 from DAQRPC import RPCServer
 
 from DAQMocks \
@@ -49,7 +50,7 @@ class MostlyCnCServer(CnCServer):
 class RealComponent(object):
     APPENDERS = {}
 
-    def __init__(self, name, num, cmdPort, mbeanPort, cncPort, verbose=False):
+    def __init__(self, name, num, cmdPort, mbeanPort, verbose=False):
         self.__name = name
         self.__num = num
 
@@ -74,8 +75,8 @@ class RealComponent(object):
         self.__mbean = RPCServer(mbeanPort)
         thread.start_new_thread(self.__mbean.serve_forever, ())
 
-        self.__cnc = xmlrpclib.ServerProxy('http://localhost:%d' % cncPort,
-                                           verbose=verbose)
+        self.__cnc = xmlrpclib.ServerProxy('http://localhost:%d' %
+                                           DAQPort.CNCSERVER, verbose=verbose)
         self.__cnc.rpc_register_component(self.__name, self.__num,
                                                  'localhost', cmdPort,
                                                  mbeanPort, [])
@@ -105,12 +106,22 @@ class RealComponent(object):
     def __getVersionInfo(self):
         return '$Id: filename revision date time author xxx'
 
-    def __logTo(self, host, port):
-        if port != self.__expRunPort:
+    def __logTo(self, logHost, logPort, liveHost, livePort):
+        if logHost is not None and logHost == '':
+            logHost = None
+        if logPort is not None and logPort == 0:
+            logPort = None
+        if liveHost is not None and liveHost == '':
+            liveHost = None
+        if livePort is not None and livePort == 0:
+            livePort = None
+        if logPort != self.__expRunPort:
             raise Exception('Expected runlog port %d, not %d' %
-                            (self.__expRunPort, port))
+                            (self.__expRunPort, logPort))
+        if liveHost is not None and livePort is not None:
+            raise Exception("Didn't expect I3Live logging")
 
-        self.__logger = SocketWriter(host, port)
+        self.__logger = SocketWriter(logHost, logPort)
         self.__logger.write('Test msg')
         return 'OK'
 
@@ -176,9 +187,9 @@ class TestCnCServer(unittest.TestCase):
 
     def tearDown(self):
         for key in RealComponent.APPENDERS:
-            RealComponent.APPENDERS[key].checkEmpty()
+            RealComponent.APPENDERS[key].WaitForEmpty(10)
         for key in MostlyCnCServer.APPENDERS:
-            MostlyCnCServer.APPENDERS[key].checkEmpty()
+            MostlyCnCServer.APPENDERS[key].checkStatus(10)
 
         if self.comp is not None:
             self.comp.close()
@@ -191,33 +202,29 @@ class TestCnCServer(unittest.TestCase):
         catchall = self.createLog('master', 18999)
 
         catchall.addExpectedText("I'm server %s running on port %d" %
-                                 (MostlyCnCServer.SERVER_NAME, CnCServer.DEFAULT_PORT))
+                                 (MostlyCnCServer.SERVER_NAME,
+                                  DAQPort.CNCSERVER))
         catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
         self.cnc = MostlyCnCServer(logPort=catchall.getPort())
         thread.start_new_thread(self.cnc.run, ())
 
-        catchall.waitForEmpty(100)
-        catchall.checkEmpty()
+        catchall.checkStatus(100)
 
         compName = 'foo'
         compNum = 1
         host = 'localhost'
         cmdPort = 19001
         mbeanPort = 19002
-        verbose = False
 
         catchall.addExpectedText(('Got registration for ID#%d %s#%d at' +
                                   ' localhost:%d M#%d') %
                                  (DAQClient.ID, compName, compNum, cmdPort,
                                   mbeanPort))
 
-        self.comp = RealComponent(compName, compNum, cmdPort, mbeanPort,
-                                  self.cnc.port, verbose)
+        self.comp = RealComponent(compName, compNum, cmdPort, mbeanPort)
 
-        catchall.waitForEmpty(100)
-        if catchall.isError():
-            self.fail(catchall.getError())
+        catchall.checkStatus(100)
 
         s = self.cnc.rpc_list_components()
         self.assertEquals(1, len(s),
@@ -245,9 +252,7 @@ class TestCnCServer(unittest.TestCase):
         self.assertEquals('connected', self.comp.getState(),
                           'Unexpected state %s' % self.comp.getState())
 
-        catchall.waitForEmpty(100)
-        if catchall.isError():
-            self.fail(catchall.getError())
+        catchall.checkStatus(100)
 
         catchall.addExpectedText('ID#%d %s#%d at %s:%d M#%s %s' % \
                                      (compId, compName, compNum, host, cmdPort,
@@ -255,8 +260,7 @@ class TestCnCServer(unittest.TestCase):
 
         self.assertEqual(self.cnc.rpc_runset_status(setId), 'OK')
 
-        catchall.waitForEmpty(100)
-        catchall.checkEmpty()
+        catchall.checkStatus(100)
 
         runPort = 18998
 
@@ -270,15 +274,13 @@ class TestCnCServer(unittest.TestCase):
         logList = [(compName, compNum, runPort), ]
         self.assertEqual(self.cnc.rpc_runset_log_to(setId, host, logList), 'OK')
 
-        runlog.waitForEmpty(100)
-        runlog.checkEmpty()
+        runlog.checkStatus(100)
 
         runlog.addExpectedExact('Config %s#%d' % (compName, compNum))
 
         self.assertEqual(self.cnc.rpc_runset_configure(setId), 'OK')
 
-        runlog.waitForEmpty(100)
-        runlog.checkEmpty()
+        runlog.checkStatus(100)
 
         cfgName = 'zzz'
 
@@ -287,8 +289,7 @@ class TestCnCServer(unittest.TestCase):
 
         self.assertEqual(self.cnc.rpc_runset_configure(setId, cfgName), 'OK')
 
-        runlog.waitForEmpty(100)
-        runlog.checkEmpty()
+        runlog.checkStatus(100)
 
         runNum = 444
 
@@ -297,15 +298,13 @@ class TestCnCServer(unittest.TestCase):
 
         self.assertEqual(self.cnc.rpc_runset_start_run(setId, runNum), 'OK')
 
-        runlog.waitForEmpty(100)
-        runlog.checkEmpty()
+        runlog.checkStatus(100)
 
         runlog.addExpectedExact('Stop %s#%d' % (compName, compNum))
 
         self.assertEqual(self.cnc.rpc_runset_stop_run(setId), 'OK')
 
-        runlog.waitForEmpty(100)
-        runlog.checkEmpty()
+        runlog.checkStatus(100)
 
         self.assertEqual(self.cnc.rpc_get_num_components(), 0)
         self.assertEqual(self.cnc.rpc_num_sets(), 1)
@@ -315,24 +314,15 @@ class TestCnCServer(unittest.TestCase):
 
         self.assertEquals(self.cnc.rpc_runset_break(setId), 'OK')
 
-        serverAppender.waitForEmpty(100)
-        serverAppender.checkEmpty()
+        serverAppender.checkStatus(100)
 
         self.assertEqual(self.cnc.rpc_get_num_components(), 1)
         self.assertEqual(self.cnc.rpc_num_sets(), 0)
 
-        serverAppender.waitForEmpty(100)
-        serverAppender.checkEmpty()
+        serverAppender.checkStatus(100)
 
-        runlog.waitForEmpty(100)
-        if runlog.isError():
-            self.fail(runlog.getError())
-        runlog.checkEmpty()
-
-        catchall.waitForEmpty(100)
-        if catchall.isError():
-            self.fail(catchall.getError())
-        catchall.checkEmpty()
+        runlog.checkStatus(100)
+        catchall.checkStatus(100)
 
     def testEverything(self):
         self.__runEverything()

@@ -215,10 +215,10 @@ class ConnectionTest(unittest.TestCase):
         self.assertEquals(len(pool.pool), numComps)
         self.assertEquals(len(pool.sets), 0)
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
         for key in nodeLog:
-            nodeLog[key].checkEmpty()
+            nodeLog[key].checkStatus(10)
 
     def testSimple(self):
         # build nodes

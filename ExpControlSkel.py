@@ -7,6 +7,7 @@ Started November, 2006
 """
 
 from DAQRunIface import DAQRunIface
+from DAQConst import DAQPort
 from os.path import join, exists
 from os import environ
 from datetime import *
@@ -27,7 +28,7 @@ sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
 
-SVN_ID = "$Id: ExpControlSkel.py 3516 2008-09-30 22:14:06Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 3678 2008-12-02 15:11:08Z dglo $"
 
 class DOMArgumentException(Exception): pass
 
@@ -208,7 +209,7 @@ def main():
     p.add_option("-x", "--show-status-xml",  action="store_true",           dest="showXML")
     p.set_defaults(nodeName    = "localhost",
                    numRuns     = 10000000,
-                   portNum     = 9000,
+                   portNum     = DAQPort.DAQRUN,
                    duration    = 300,
                    flasherRun  = None,
                    showXML     = False,

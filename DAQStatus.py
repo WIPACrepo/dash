@@ -3,6 +3,7 @@
 import optparse, sys
 from os import environ
 from os.path import join
+from DAQConst import DAQPort
 from DAQRPC import RPCClient
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
@@ -16,7 +17,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQStatus.py 3508 2008-09-30 21:18:38Z dglo $"
+SVN_ID  = "$Id: DAQStatus.py 3678 2008-12-02 15:11:08Z dglo $"
 
 LINE_LENGTH = 78
 
@@ -132,12 +133,7 @@ if __name__ == "__main__":
 
     opt, args = p.parse_args()
 
-    cncserver = "localhost"
-    cncport   = 8080
-    daqserver = "localhost"
-    daqport   = 9000
-
-    cncrpc = RPCClient(cncserver, cncport)
+    cncrpc = RPCClient("localhost", DAQPort.CNCSERVER)
 
     try:
         nc = cncrpc.rpc_get_num_components()
@@ -150,7 +146,7 @@ if __name__ == "__main__":
         ns = 0
         ids = []
 
-    print "CNC %s:%d" % (cncserver, cncport)
+    print "CNC %s:%d" % ("localhost", DAQPort.CNCSERVER)
 
     print "-----------------------"
     print "%d unused components" % nc
@@ -169,7 +165,7 @@ if __name__ == "__main__":
         else:
             listTerse(ls, '\t')
 
-    daqrpc = RPCClient(daqserver, daqport)
+    daqrpc = RPCClient("localhost", DAQPort.DAQRUN)
     try:
         state  = daqrpc.rpc_run_state()
     except:

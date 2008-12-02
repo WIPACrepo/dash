@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
+from DAQConst import DAQPort
+from DAQLogClient \
+    import BothSocketAppender, DAQLog, LiveSocketAppender, LogSocketAppender
 from DAQRPC import RPCClient, RPCServer
-from DAQLogClient import DAQLog, LogSocketAppender
 from Process import processList, findProcess
 from time import time, sleep
 
@@ -16,7 +18,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3661 2008-11-05 22:02:55Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3678 2008-12-02 15:11:08Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -252,13 +254,30 @@ class RunSet(object):
 
         self.configured = True
 
+    def configureBothLogging(self, liveIP, livePort, pdaqIP, pdaqList):
+        "Configure I3Live and pDAQ logging for all components in the runset"
+        for c in self.set:
+            for i in range(0, len(pdaqList)):
+                logData = pdaqList[i]
+                if c.isComponent(logData[0], logData[1]):
+                    c.logTo(pdaqIP, logData[2], liveIP, livePort)
+                    del pdaqList[i]
+                    break
+
+        return pdaqList
+
+    def configureLiveLogging(self, logIP, logPort):
+        "Configure I3Live logging for all components in the runset"
+        for c in self.set:
+            c.logTo(None, None, logIP, logPort)
+
     def configureLogging(self, logIP, logList):
         "Configure logging for specified components in the runset"
         for c in self.set:
             for i in range(0, len(logList)):
                 logData = logList[i]
                 if c.isComponent(logData[0], logData[1]):
-                    c.logTo(logIP, logData[2])
+                    c.logTo(logIP, logData[2], None, None)
                     del logList[i]
                     break
 
@@ -593,6 +612,38 @@ class RunSet(object):
             raise ValueError(('Still waiting for %d components to leave %s' +
                               ' (%s)') % (len(waitList), self.state, waitStr))
 
+class LogInfo(object):
+    def __init__(self, logHost, logPort, liveHost, livePort):
+        self.__logHost = logHost
+        self.__logPort = logPort
+        self.__liveHost = liveHost
+        self.__livePort = livePort
+
+    def __cmp__(self, other):
+        val = cmp(self.__logHost, other.__logHost)
+        if val == 0:
+            val = cmp(self.__logPort, other.__logPort)
+            if val == 0:
+                val = cmp(self.__liveHost, other.__liveHost)
+                if val == 0:
+                    val = cmp(self.__livePort, other.__livePort)
+        return val
+
+    def __str__(self):
+        outStr = ''
+        if self.__logHost is not None and self.__logPort is not None:
+            outStr += ' log(%s:%d)' % (self.__logHost, self.__logPort)
+        if self.__liveHost is not None and self.__livePort is not None:
+            outStr += ' live(%s:%d)' % (self.__liveHost, self.__livePort)
+        if len(outStr) == 0:
+            return 'NoInfo'
+        return outStr[1:]
+            
+    def logHost(self): return self.__logHost
+    def logPort(self): return self.__logPort
+    def liveHost(self): return self.__liveHost
+    def livePort(self): return self.__livePort
+
 class CnCLogger(DAQLog):
     "CnC logging client"
 
@@ -600,47 +651,20 @@ class CnCLogger(DAQLog):
         "create a logging client"
         self.__quiet = quiet
 
-        self.__prevIP = None
-        self.__prevPort = None
-
-        self.__logIP = None
-        self.__logPort = None
+        self.__prevInfo = None
+        self.__logInfo = None
 
         super(CnCLogger, self).__init__(appender)
 
     def __getName(self):
-        if self.__logIP is not None and self.__logPort is not None:
-            return 'LOG=%s:%d' % (self.__logIP, self.__logPort)
-        if self.__prevIP is not None and self.__prevPort is not None:
-            return 'PREV=%s:%d' % (self.__prevIP, self.__prevPort)
+        if self.__logInfo is not None:
+            return 'LOG=%s' % str(self.__logInfo)
+        if self.__prevInfo is not None:
+            return 'PREV=%s' % str(self.__prevInfo)
         return '?LOG?'
 
     def __str__(self):
         return self.__getName()
-
-    def closeLog(self):
-        "Close the log socket"
-        self.info("End of log")
-        self.resetLog()
-
-    def createAppender(self, host, port):
-        "create a socket logger (overrideable method used for testing)"
-        return LogSocketAppender(host, port)
-
-    def getLogHost(self):
-        return self.__logIP
-
-    def getLogPort(self):
-        return self.__logPort
-
-    def getPreviousHost(self):
-        return self.__prevIP
-
-    def getPreviousPort(self):
-        return self.__prevPort
-
-    def isQuiet(self):
-        return self.__quiet
 
     def _logmsg(self, level, s):
         """
@@ -653,39 +677,79 @@ class CnCLogger(DAQLog):
         except Exception, ex:
             if str(ex).find('Connection refused') < 0:
                 raise
-            print 'Lost logging connection to %s:%s' % \
-                (str(self.__logIP), str(self.__logPort))
+            print 'Lost logging connection to %s' % str(self.__logInfo)
             self.resetLog()
             self._logmsg(level, s)
 
-    def openLog(self, host, port):
-        "initialize socket logger"
-        if self.__prevIP is None or self.__prevPort is None:
-            self.__prevIP = self.__logIP
-            self.__prevPort = self.__logPort
+    def closeLog(self):
+        "Close the log socket"
+        self.info("End of log")
+        self.resetLog()
 
-        logAppender = self.createAppender(host, port)
-        self.__logIP = host
-        self.__logPort = port
+    def closeFinal(self):
+        self.close()
+        self.__logInfo = None
+        self.__prevInfo = None
+
+    def createAppender(self, logHost, logPort, liveHost, livePort):
+        "create a socket logger (overrideable method used for testing)"
+        if logHost is not None and logPort is not None:
+            if liveHost is not None and livePort is not None:
+                return BothSocketAppender(logHost, logPort, liveHost, livePort)
+            return LogSocketAppender(logHost, logPort)
+        elif liveHost is not None and livePort is not None:
+            return LiveSocketAppender(liveHost, livePort)
+        raise Exception('Could not create appender: log(%s:%s) live(%s:%s)' %
+                        (str(logHost), str(logPort), str(liveHost),
+                         str(livePort)))
+
+    def getLiveHost(self):
+        if self.__logInfo is None:
+            return None
+        return self.__logInfo.liveHost()
+
+    def getLivePort(self):
+        if self.__logInfo is None:
+            return None
+        return self.__logInfo.livePort()
+
+    def getLogHost(self):
+        if self.__logInfo is None:
+            return None
+        return self.__logInfo.logHost()
+
+    def getLogPort(self):
+        if self.__logInfo is None:
+            return None
+        return self.__logInfo.logPort()
+
+    def isQuiet(self):
+        return self.__quiet
+
+    def openLog(self, logHost, logPort, liveHost, livePort):
+        "initialize socket logger"
+        if self.__prevInfo is None:
+            self.__prevInfo = self.__logInfo
+
+        self.__logInfo = LogInfo(logHost, logPort, liveHost, livePort)
+        logAppender = self.createAppender(logHost, logPort, liveHost, livePort)
 
         self.setAppender(logAppender)
-        self.info('Start of log at %s' % str(logAppender))
+        self.debug('Start of log at %s' % str(logAppender))
 
     def resetLog(self):
         "close current log and reset to initial state"
-        if self.__prevIP is not None and self.__prevPort is not None and \
-                (self.__logIP != self.__prevIP or
-                 self.__logPort != self.__prevPort):
-            self.__logIP = self.__prevIP
-            self.__logPort = self.__prevPort
-            logAppender = self.createAppender(self.__logIP, self.__logPort)
+        if self.__prevInfo is not None and self.__logInfo != self.__prevInfo:
+            self.__logInfo = self.__prevInfo
+            logAppender = self.createAppender(self.__logInfo.logHost(),
+                                              self.__logInfo.logPort(),
+                                              self.__logInfo.liveHost(),
+                                              self.__logInfo.livePort())
         else:
             logAppender = None
-            self.__logIP = None
-            self.__logPort = None
+            self.__logInfo = None
 
-        self.__prevIP = None
-        self.__prevPort = None
+        self.__prevInfo = None
 
         self.setAppender(logAppender)
         if logAppender is not None:
@@ -766,6 +830,9 @@ class DAQClient(object):
 
         return "ID#%d %s#%d at %s:%d%s" % \
             (self.id, self.name, self.num, self.host, self.port, extraStr)
+
+    def close(self):
+        self.__log.close()
 
     def commitSubrun(self, subrunNum, latestTime):
         "Start marking events with the subrun number"
@@ -892,14 +959,24 @@ class DAQClient(object):
         return [ self.id, self.name, self.num, self.host, self.port,
                  self.mbeanPort, state ]
 
-    def logTo(self, logIP, port):
+    def logTo(self, logIP, logPort, liveIP, livePort):
         "Send log messages to the specified host and port"
-        self.__log.openLog(logIP, port)
-        self.client.xmlrpc.logTo(logIP, port)
+        self.__log.openLog(logIP, logPort, liveIP, livePort)
 
-        self.__log.info(("Version info: %(filename)s %(revision)s %(date)s " +
-                         "%(time)s %(author)s %(release)s %(repo_rev)s") %
-                        get_version_info(self.client.xmlrpc.getVersionInfo()))
+        if logIP is None:
+            logIP = ''
+        if logPort is None:
+            logPort = 0
+        if liveIP is None:
+            liveIP = ''
+        if livePort is None:
+            livePort = 0
+        self.client.xmlrpc.logTo(logIP, logPort, liveIP, livePort)
+
+        infoStr = self.client.xmlrpc.getVersionInfo()
+        self.__log.debug(("Version info: %(filename)s %(revision)s" +
+                          " %(date)s %(time)s %(author)s %(release)s" +
+                          " %(repo_rev)s") % get_version_info(infoStr))
 
     def monitor(self):
         "Return the monitoring value"
@@ -1206,16 +1283,12 @@ class DAQPool(object):
 class DAQServer(DAQPool):
     "Configuration server"
 
-    DEFAULT_PORT = 8080
     DEFAULT_LOG_LEVEL = 'info'
 
-    def __init__(self, name="GenericServer", port=DEFAULT_PORT,
-                 logIP=None, logPort=None, testOnly=False, showSpinner=False,
-                 quiet=False):
+    def __init__(self, name="GenericServer", logIP=None, logPort=None,
+                 liveIP=None, livePort=None, testOnly=False, quiet=False):
         "Create a DAQ command and configuration server"
-        self.port = port
         self.name = name
-        self.showSpinner = showSpinner
         self.versionInfo = get_version_info(SVN_ID)
 
         self.id = int(time())
@@ -1224,15 +1297,16 @@ class DAQServer(DAQPool):
 
         self.__log = self.createCnCLogger(testOnly or quiet)
 
-        if logIP is not None and logPort is not None:
-            self.__log.openLog(logIP, logPort)
+        if (logIP is not None and logPort is not None) or \
+                (liveIP is not None and livePort is not None):
+            self.__log.openLog(logIP, logPort, liveIP, livePort)
 
         if testOnly:
             self.server = None
         else:
             while True:
                 try:
-                    self.server = RPCServer(self.port)
+                    self.server = RPCServer(DAQPort.CNCSERVER)
                     break
                 except socket.error, e:
                     self.__log.error("Couldn't create server socket: %s" % e)
@@ -1248,10 +1322,12 @@ class DAQServer(DAQPool):
             self.server.register_function(self.rpc_ping)
             self.server.register_function(self.rpc_register_component)
             self.server.register_function(self.rpc_runset_break)
+            self.server.register_function(self.rpc_runset_bothlog_to)
             self.server.register_function(self.rpc_runset_configure)
             self.server.register_function(self.rpc_runset_events)
             self.server.register_function(self.rpc_runset_list)
             self.server.register_function(self.rpc_runset_listIDs)
+            self.server.register_function(self.rpc_runset_livelog_to)
             self.server.register_function(self.rpc_runset_log_to)
             self.server.register_function(self.rpc_runset_log_to_default)
             self.server.register_function(self.rpc_runset_make)
@@ -1261,8 +1337,19 @@ class DAQServer(DAQPool):
             self.server.register_function(self.rpc_runset_subrun)
             self.server.register_function(self.rpc_show_components)
 
+    def __getHostAddress(self, name):
+        if name is None or name == '':
+            name = 'localhost'
+        if name == 'localhost' or name == '127.0.0.1':
+            name = socket.gethostbyaddr(socket.gethostname())[2][0]
+        return name
+
     def closeServer(self):
         self.server.server_close()
+        self.__log.closeFinal()
+        for k in self.pool:
+            for c in self.pool[k]:
+                c.close()
 
     def createClient(self, name, num, host, port, mbeanPort, connectors):
         "overrideable method used for testing"
@@ -1270,10 +1357,10 @@ class DAQServer(DAQPool):
                          self.__log.isQuiet())
 
     def createCnCLogger(self, quiet):
-        return CnCLogger(quiet)
+        return CnCLogger(None, quiet)
 
     def rpc_close_log(self):
-        "called by DAQLog object to indicate when we should close log file"
+        "close log file (and possibly roll back to previous log file)"
         self.__log.closeLog()
         return 1
 
@@ -1296,9 +1383,17 @@ class DAQServer(DAQPool):
 
         return s
 
-    def rpc_log_to(self, host, port):
+    def rpc_log_to(self, logHost, logPort, liveHost, livePort):
         "called by DAQLog object to tell us what UDP port to log to"
-        self.__log.openLog(host, port)
+        if logHost is not None and len(logHost) == 0:
+            logHost = None
+        if logPort is not None and logPort == 0:
+            logPort = None
+        if liveHost is not None and len(liveHost) == 0:
+            liveHost = None
+        if livePort is not None and livePort == 0:
+            livePort = None
+        self.__log.openLog(logHost, logPort, liveHost, livePort)
         return 1
 
     def rpc_log_to_default(self):
@@ -1329,15 +1424,39 @@ class DAQServer(DAQPool):
 
         self.add(client)
 
-        logIP = self.__log.getLogHost()
-        if logIP is None:
-            logIP = ''
+        logIP = self.__getHostAddress(self.__log.getLogHost())
 
         logPort = self.__log.getLogPort()
         if logPort is None:
             logPort = 0
 
-        return [client.id, logIP, logPort, self.id]
+        liveIP = self.__getHostAddress(self.__log.getLiveHost())
+
+        livePort = self.__log.getLivePort()
+        if livePort is None:
+            livePort = 0
+
+        return [client.id, logIP, logPort, liveIP, livePort, self.id]
+
+    def rpc_runset_bothlog_to(self, id, liveIP, livePort, pdaqIP, pdaqList):
+        "configure I3Live logging for the specified runset"
+        runSet = self.findRunset(id)
+
+        if not runSet:
+            raise ValueError, 'Could not find runset#%d' % id
+
+        leftOver = runSet.configureBothLogging(liveIP, livePort,
+                                               pdaqIP, pdaqList)
+
+        if len(leftOver) > 0:
+            errMsg = 'Could not configure logging for %d components:' % \
+                len(leftOver)
+            for l in leftOver:
+                errMsg += ' %s#%d' % (l[0], l[1])
+
+            self.__log.error(errMsg)
+
+        return "OK"
 
     def rpc_runset_break(self, id):
         "break up the specified runset"
@@ -1388,6 +1507,17 @@ class DAQServer(DAQPool):
             raise ValueError('Could not find runset#%d' % id)
 
         return runSet.list()
+
+    def rpc_runset_livelog_to(self, id, logIP, logPort):
+        "configure I3Live logging for the specified runset"
+        runSet = self.findRunset(id)
+
+        if not runSet:
+            raise ValueError, 'Could not find runset#%d' % id
+
+        runSet.configureLiveLogging(logIP, logPort)
+
+        return "OK"
 
     def rpc_runset_log_to(self, id, logIP, logList):
         "configure logging for the specified runset"
@@ -1501,7 +1631,7 @@ class DAQServer(DAQPool):
     def serve(self, handler):
         "Start a server"
         self.__log.info("I'm server %s running on port %d" %
-                        (self.name, self.port))
+                        (self.name, DAQPort.CNCSERVER))
         self.__log.info(("%(filename)s %(revision)s %(date)s %(time)s" +
                          " %(author)s %(release)s %(repo_rev)s") %
                         self.versionInfo)
@@ -1513,17 +1643,11 @@ class CnCServer(DAQServer):
 
     def monitorLoop(self):
         "Monitor components to ensure they're still alive"
-        spinStr = '-\\|/'
-        spinner = 0
-
         new = True
         lastCount = 0
         while True:
             if new:
                 print "%d bins" % len(self.pool)
-            elif self.showSpinner:
-                sys.stderr.write(spinStr[spinner:spinner+1] + "\r")
-                spinner = (spinner + 1) % len(spinStr)
 
             try:
                 count = self.monitorClients()
@@ -1544,14 +1668,16 @@ if __name__ == "__main__":
                "%(release)s %(repo_rev)s" % get_version_info(SVN_ID)
     usage = "%prog [options]\nversion: " + ver_info
     p = optparse.OptionParser(usage=usage, version=ver_info)
-    p.add_option("-S", "--showSpinner", action="store_true", dest="showSpinner")
-    p.add_option("-d", "--daemon",      action="store_true", dest="daemon")
-    p.add_option("-k", "--kill",        action="store_true", dest="kill")
-    p.add_option("-l", "--log",         action="store",      type="string",     dest="log")
-    p.add_option("-p", "--port",        action="store",      type="int",        dest="port")
+    p.add_option("-d", "--daemon",  action="store_true", dest="daemon")
+    p.add_option("-k", "--kill",    action="store_true", dest="kill")
+    p.add_option("-l", "--log",     action="store",      dest="log",
+                 type="string")
+    p.add_option("-L", "--liveLog", action="store",      dest="liveLog",
+                 type="string")
     p.set_defaults(kill     = False,
-                   nodaemon = False,
-                   port     = 8080)
+                   liveLog  = None,
+                   log      = None,
+                   nodaemon = False)
     opt, args = p.parse_args()
 
     pids = list(findProcess("CnCServer.py", processList()))
@@ -1570,10 +1696,10 @@ if __name__ == "__main__":
         print "ERROR: More than one instance of CnCServer.py is already running!"
         raise SystemExit
 
-    logIP = None
-    logPort = None
-
-    if opt.log:
+    if opt.log is None:
+        logIP = None
+        logPort = None
+    else:
         colon = opt.log.find(':')
         if colon < 0:
             print "ERROR: Bad log argument '" + opt.log + "'"
@@ -1582,10 +1708,22 @@ if __name__ == "__main__":
         logIP = opt.log[:colon]
         logPort = int(opt.log[colon+1:])
 
+    if opt.liveLog is None:
+        liveIP = None
+        livePort = None
+    else:
+        colon = opt.liveLog.find(':')
+        if colon < 0:
+            print "ERROR: Bad liveLog argument '" + opt.liveLog + "'"
+            raise SystemExit
+
+        liveIP = opt.liveLog[:colon]
+        livePort = int(opt.liveLog[colon+1:])
+
     if opt.daemon: Daemon.Daemon().Daemonize()
 
-    cnc = CnCServer("CnCServer", opt.port, logIP, logPort, False,
-                    opt.showSpinner)
+    cnc = CnCServer("CnCServer", logIP=logIP, logPort=logPort, liveIP=liveIP,
+                    livePort=livePort, testOnly=False)
     try:
         cnc.run()
     except KeyboardInterrupt:

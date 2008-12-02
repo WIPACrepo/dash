@@ -7,8 +7,11 @@
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started November, 2006
 
+from DAQConst import DAQPort
 from DAQLog import LogSocketServer
-from DAQLogClient import DAQLog, FileAppender, LogSocketAppender
+from DAQLogClient \
+    import BothSocketAppender, DAQLog, FileAppender, LiveSocketAppender, \
+    LogSocketAppender, Prio
 from DAQMoni import DAQMoni
 from time import sleep
 from RunWatchdog import RunWatchdog
@@ -16,7 +19,7 @@ from DAQRPC import RPCClient, RPCServer
 from os.path import exists, abspath, join, basename, isdir
 from os import listdir
 from Process import processList, findProcess
-from DAQLaunch import cyclePDAQ, ClusterConfig, ConfigNotSpecifiedException
+from DAQLaunch import cyclePDAQ
 from tarfile import TarFile
 from shutil import move, copyfile
 from GetIP import getIP
@@ -36,7 +39,7 @@ import sys
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-SVN_ID  = "$Id: DAQRun.py 3661 2008-11-05 22:02:55Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3678 2008-12-02 15:11:08Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -57,6 +60,15 @@ class IncorrectDAQState                      (Exception): pass
 class InvalidFlasherArgList                  (Exception): pass
 class RunawayGeneratorException              (Exception): pass
 
+class LiveInfo(object):
+    def __init__(self, host, port):
+        self.__host = host
+        self.__port = port
+
+    def __str__(self): return 'Live+%s:%d' % (self.__host, self.__port)
+    def getHost(self): return self.__host
+    def getPort(self): return self.__port
+
 class RunArgs(object):
     def __init__(self):
         pass
@@ -66,6 +78,16 @@ class RunArgs(object):
             "%(release)s %(repo_rev)s" % get_version_info(SVN_ID)
         usage = "%prog [options]\nversion: " + ver_info
         p = optparse.OptionParser(usage=usage, version=ver_info)
+
+        p.add_option("-a", "--copy-dir",
+                     action="store",      type="string",
+                     dest="copyDir",
+                     help="Directory for copies of files sent to SPADE")
+
+        p.add_option("-B", "--log-to-files-and-i3live",
+                     action="store_true",
+                     dest="bothMode",
+                     help="Send log messages to both I3Live and to local files")
 
         p.add_option("-c", "--config-dir",
                      action="store",      type="string",
@@ -86,6 +108,11 @@ class RunArgs(object):
                      action="store",      type="string",
                      dest="logDir",
                      help="Directory where pDAQ logs/monitoring should be stored")
+
+        p.add_option("-L", "--log-to-i3live",
+                     action="store_true",
+                     dest="liveMode",
+                     help="Send log messages to I3Live")
 
         p.add_option("-n", "--no-daemon",
                      action="store_true",
@@ -112,11 +139,6 @@ class RunArgs(object):
                      dest="spadeDir",
                      help="Directory where SPADE will pick up tar'ed logs/moni files")
 
-        p.add_option("-a", "--copy-dir",
-                     action="store",      type="string",
-                     dest="copyDir",
-                     help="Directory for copies of files sent to SPADE")
-
         p.add_option("-u", "--cluster-config",
                      action="store",      type="string",
                      dest="clusterConfigName",
@@ -132,7 +154,9 @@ class RunArgs(object):
                        spadeDir          = "/mnt/data/pdaq/runs",
                        copyDir           = None,
                        logDir            = "/tmp",
-                       port              = 9000)
+                       port              = DAQPort.DAQRUN,
+                       liveMode          = False,
+                       bothMode          = False)
 
         return p
 
@@ -187,6 +211,11 @@ class RunArgs(object):
             print "Log copies directory '%s' doesn't exist!" % opt.copyDir
             raise SystemExit
 
+        if opt.liveMode and opt.bothMode:
+            print "Cannot specify both --log-to-files-and-i3live and" + \
+                " --log-to-i3live"
+            raise SystemExit
+
         if not opt.nodaemon: Daemon.Daemon().Daemonize()
 
         self.port = opt.port
@@ -199,6 +228,8 @@ class RunArgs(object):
         self.forceConfig = opt.forceConfig
         self.doRelaunch = opt.doRelaunch
         self.quiet = opt.quiet
+        self.liveMode = opt.liveMode
+        self.bothMode = opt.bothMode
 
     def parse(self):
         p = self.__build_parser()
@@ -300,14 +331,14 @@ def linkOrCopy(src, dest):
 
 class DAQRun(Rebootable.Rebootable):
     "Serve requests to start/stop DAQ runs (exp control iface)"
-    LOGDIR         = "/tmp"
-    CFGDIR         = "/usr/local/icecube/config"
-    SPADEDIR       = "/tmp"
-    CATCHALL_PORT  = 9001
-    CNC_PORT       = 8080
     MONI_PERIOD    = 60
     WATCH_PERIOD   = 10
     COMP_TOUT      = 60
+
+    # note that these are bitmapped
+    LOG_TO_FILE    = 1
+    LOG_TO_LIVE    = 2
+    LOG_TO_BOTH    = 3
 
     def __init__(self, runArgs, startServer=True):
 
@@ -318,7 +349,30 @@ class DAQRun(Rebootable.Rebootable):
 
         self.setPort(runArgs.port)
 
-        self.log              = self.createDAQLog()
+        self.__appender = BothSocketAppender(None, None, None, None)
+        self.log              = DAQLog(self.__appender)
+
+        if runArgs.bothMode:
+            self.__logMode = DAQRun.LOG_TO_BOTH
+        elif runArgs.liveMode:
+            self.__logMode = DAQRun.LOG_TO_LIVE
+        else:
+            self.__logMode = DAQRun.LOG_TO_FILE
+ 
+        if self.__logMode == DAQRun.LOG_TO_FILE or \
+                self.__logMode == DAQRun.LOG_TO_BOTH:
+            self.__appender.setLogAppender(self.createInitialAppender())
+        else:
+            self.__appender.setLogAppender(None)
+
+        if self.__logMode == DAQRun.LOG_TO_LIVE or \
+                self.__logMode == DAQRun.LOG_TO_BOTH:
+            appender = LiveSocketAppender('localhost', DAQPort.I3LIVE,
+                                          priority=Prio.EMAIL)
+            self.__appender.setLiveAppender(appender)
+        else:
+            self.__appender.setLiveAppender(None)
+
         self.runSetID         = None
         self.CnCLogReceiver   = None
         self.forceConfig      = runArgs.forceConfig
@@ -353,12 +407,20 @@ class DAQRun(Rebootable.Rebootable):
         self.runStats         = RunStats()
         self.quiet            = runArgs.quiet
 
+        self.__liveInfo       = None
+
         # After initialization, start run thread to handle state changes
         if startServer:
             self.runThread = thread.start_new_thread(self.run_thread, ())
 
-    def createDAQLog(self, appender=None):
-        return DAQLog(appender)
+    def __isLogToFile(self):
+        return (self.__logMode & DAQRun.LOG_TO_FILE) == DAQRun.LOG_TO_FILE
+
+    def __isLogToLive(self):
+        return (self.__logMode & DAQRun.LOG_TO_LIVE) == DAQRun.LOG_TO_LIVE
+
+    def createInitialAppender(self):
+        return None
 
     def setPort(self, portnum):
         self.server = RPCServer(portnum, "localhost",
@@ -460,12 +522,22 @@ class DAQRun(Rebootable.Rebootable):
             self.log.info("Waiting for " + " ".join(waitList))
             sleep(5)
 
-    def configureCnCLogging(self, cncrpc, ip, port, logpath):
+    def __configureCnCLogging(self, cncrpc, logIP, logPort, liveIP, livePort,
+                              logpath):
         "Tell CnCServer where to log to"
-        self.CnCLogReceiver = \
-            self.createLogSocketServer(port, "CnCServer",
-                                       logpath + "/cncserver.log")
-        cncrpc.rpccall("rpc_log_to", ip, port)
+        if logPort is not None and logpath is not None:
+            self.CnCLogReceiver = \
+                self.createLogSocketServer(logPort, "CnCServer",
+                                           logpath + "/cncserver.log")
+        if logIP is None:
+            logIP = ''
+        if logPort is None:
+            logPort = 0
+        if liveIP is None:
+            liveIP = ''
+        if livePort is None:
+            livePort = 0
+        cncrpc.rpccall("rpc_log_to", logIP, logPort, liveIP, livePort)
         self.log.info("Created logger for CnCServer")
 
     def stopCnCLogging(self, cncrpc):
@@ -499,7 +571,7 @@ class DAQRun(Rebootable.Rebootable):
     logDirName = staticmethod(logDirName)
 
     def createRunLogDirectory(self, runNum, logDir):
-        self.setLogPath(runNum, logDir) 
+        self.setLogPath(runNum, logDir)
 
         if os.path.exists(self.__logpath):
             # rename unexpectedly lingering log directory
@@ -533,7 +605,7 @@ class DAQRun(Rebootable.Rebootable):
                       len(self.setCompIDs))
         for ic in range(0, len(self.setCompIDs)):
             compID = self.setCompIDs[ic]
-            self.logPortOf[compID] = 9002 + ic
+            self.logPortOf[compID] = DAQPort.RUNCOMP_BASE + ic
             logFile  = "%s/%s-%d.log" % \
                 (self.__logpath, self.shortNameOf[compID],
                  self.daqIDof[compID])
@@ -566,9 +638,11 @@ class DAQRun(Rebootable.Rebootable):
 
     def setup_run_logging(self, cncrpc, logDir, runNum, configName):
         "Set up logger for CnCServer and required components"
-        # Log file is already defined since STARTING state does not get invoked otherwise
-        self.createRunLogDirectory(runNum, logDir)
-        self.log.setAppender(self.createFileAppender())
+        if (self.__logMode & DAQRun.LOG_TO_FILE) == DAQRun.LOG_TO_FILE and \
+                not (self.__logMode == DAQRun.LOG_TO_FILE and \
+                         self.__liveInfo is not None):
+            self.__appender.setLogAppender(self.createFileAppender())
+
         self.log.info(("Version info: %(filename)s %(revision)s %(date)s" +
                        " %(time)s %(author)s %(release)s %(repo_rev)s") %
                       self.versionInfo)
@@ -576,7 +650,22 @@ class DAQRun(Rebootable.Rebootable):
         self.log.info("Run configuration: %s" % configName)
         self.log.info("Cluster configuration: %s" %
                       self.clusterConfig.configName)
-        self.configureCnCLogging(cncrpc, self.ip, 6667, self.__logpath)
+
+        if self.__logMode == DAQRun.LOG_TO_FILE:
+            self.__configureCnCLogging(cncrpc, self.ip, DAQPort.CNC2RUNLOG,
+                                       None, None, self.__logpath)
+        elif self.__logMode == DAQRun.LOG_TO_LIVE:
+            self.__configureCnCLogging(cncrpc, None, None,
+                                       self.__liveInfo.getHost(),
+                                       self.__liveInfo.getPort(),
+                                       self.__logpath)
+        elif self.__logMode == DAQRun.LOG_TO_BOTH:
+            self.__configureCnCLogging(cncrpc, self.ip, DAQPort.CNC2RUNLOG,
+                                       self.__liveInfo.getHost(),
+                                       self.__liveInfo.getPort(),
+                                       self.__logpath)
+        else:
+            raise Exception('Unknown log mode %s' % self.__logMode)
 
     def recursivelyAddToTar(self, tar, absDir, file):
         toAdd = join(absDir, file)
@@ -664,16 +753,33 @@ class DAQRun(Rebootable.Rebootable):
         "Tell components where to log to"
 
         # Set up log receivers for remote components
-        self.setUpAllComponentLoggers()
+        if self.__logMode == DAQRun.LOG_TO_LIVE or \
+                (self.__logMode == DAQRun.LOG_TO_FILE and
+                 self.__liveInfo is not None):
+            # standard I3Live logging or
+            # standard pDAQ logging  but the run has been started by I3Live
+            cncrpc.rpccall("rpc_runset_livelog_to", runset,
+                           self.__liveInfo.getHost(), self.__liveInfo.getPort())
+        elif (self.__logMode & DAQRun.LOG_TO_FILE) == DAQRun.LOG_TO_FILE:
+            # standard pDAQ logging or both I3Live and standard pDAQ logging
+            self.setUpAllComponentLoggers()
 
-        l = list(self.createRunsetLoggerNameList())
-        cncrpc.rpccall("rpc_runset_log_to", runset, ip, l)
+            l = list(self.createRunsetLoggerNameList())
+            if self.__logMode == DAQRun.LOG_TO_FILE:
+                cncrpc.rpccall("rpc_runset_log_to", runset, ip, l)
+            else:
+                cncrpc.rpccall("rpc_runset_bothlog_to", runset,
+                               self.__liveInfo.getHost(),
+                               self.__liveInfo.getPort(), ip, l)
+        else:
+            raise Exception('Unknown log mode %s (info=%s)' %
+                            (self.__logMode, str(self.__liveInfo)))
 
     def setup_monitoring(self, log, moniPath, interval, compIDs, shortNames,
-                         daqIDs, rpcAddrs, mbeanPorts):
+                         daqIDs, rpcAddrs, mbeanPorts, moniType):
         "Set up monitoring"
         return DAQMoni(log, moniPath, interval, compIDs, shortNames, daqIDs,
-                            rpcAddrs, mbeanPorts)
+                       rpcAddrs, mbeanPorts, moniType)
 
     def setup_watchdog(self, log, interval, compIDs, shortNames, daqIDs,
                        rpcAddrs, mbeanPorts):
@@ -814,33 +920,42 @@ class DAQRun(Rebootable.Rebootable):
         self.prevRunStats.clone(self.runStats)
         self.runStats.clearAll()
 
-    def restartComponents(self):
+    def restartComponents(self, pShell):
         try:
             self.log.info("Doing complete rip-down and restart of pDAQ " +
                           "(everything but DAQRun)")
+            if self.__isLogToFile():
+                logPort = DAQPort.CATCHALL
+            else:
+                logPort = None
+            if self.__isLogToLive():
+                livePort = DAQPort.I3LIVE
+            else:
+                livePort = None
             cyclePDAQ(self.dashDir, self.clusterConfig, self.configDir,
                       self.logDir, self.spadeDir, self.copyDir,
-                      DAQRun.CATCHALL_PORT, DAQRun.CNC_PORT)
+                      logPort, livePort, parallel=pShell)
         except:
             self.log.error("Couldn't cycle pDAQ components ('%s')!!!" %
                             exc_string())
 
-    def run_thread(self, cnc=None):
+    def run_thread(self, cnc=None, pShell=None):
         """
         Handle state transitions.
         """
 
-        catchAllLogger = \
-            self.createLogSocketServer(DAQRun.CATCHALL_PORT, "Catchall",
-                                       self.logDir + "/catchall.log")
+        if self.__isLogToFile():
+            catchAllLogger = \
+                self.createLogSocketServer(DAQPort.CATCHALL, "Catchall",
+                                           self.logDir + "/catchall.log")
 
-        self.log.setAppender(LogSocketAppender('localhost',
-                                               DAQRun.CATCHALL_PORT))
+            self.__appender.setLogAppender(LogSocketAppender('localhost',
+                                                             DAQPort.CATCHALL))
 
         if cnc is not None:
             self.cnc = cnc
         else:
-            self.cnc = RPCClient("localhost", DAQRun.CNC_PORT)
+            self.cnc = RPCClient("localhost", DAQPort.CNCSERVER)
 
         logDirCreated = False
         forceRestart  = True
@@ -854,27 +969,48 @@ class DAQRun(Rebootable.Rebootable):
                     # once per config/runset
                     if self.forceConfig or (self.configName != self.lastConfig):
                         self.break_existing_runset(self.cnc)
-                        requiredComps = self.getComponentsFromGlobalConfig(self.configName, self.configDir)
+                        requiredComps = \
+                            self.getComponentsFromGlobalConfig(self.configName,
+                                                               self.configDir)
                         self.build_run_set(self.cnc, requiredComps)
 
                     self.fill_component_dictionaries(self.cnc)
-                    # once per run
-                    self.setup_run_logging(self.cnc, self.logDir, self.runStats.runNum,
+
+                    if self.__isLogToLive() and not self.__isLogToFile():
+                        self.__logpath = None
+                        logDirCreated = False
+                    else:
+                        self.createRunLogDirectory(self.runStats.runNum,
+                                                   self.logDir)
+                        logDirCreated = True
+
+                    self.setup_run_logging(self.cnc, self.logDir,
+                                           self.runStats.runNum,
                                            self.configName)
-                    logDirCreated = True
-                    self.setup_component_loggers(self.cnc, self.ip, self.runSetID)
+                    self.setup_component_loggers(self.cnc, self.ip,
+                                                 self.runSetID)
 
                     if self.forceConfig or (self.configName != self.lastConfig):
-                        self.runset_configure(self.cnc, self.runSetID, self.configName)
+                        self.runset_configure(self.cnc, self.runSetID,
+                                              self.configName)
 
                     # The next 2 setups were postponed until after configure
                     # to allow the late-binding of the StringHub/datacollector MBeans
+                    if self.__logMode == DAQRun.LOG_TO_FILE:
+                        moniType = DAQMoni.TYPE_FILE
+                    elif self.__logMode == DAQRun.LOG_TO_LIVE:
+                        moniType = DAQMoni.TYPE_LIVE
+                    elif self.__logMode == DAQRun.LOG_TO_BOTH:
+                        moniType = DAQMoni.TYPE_BOTH
+                    else:
+                        raise Exception('Unknown log mode %s' %
+                                        str(self.__logMode))
                     self.moni = \
                         self.setup_monitoring(self.log, self.__logpath,
                                               DAQRun.MONI_PERIOD,
                                               self.setCompIDs, self.shortNameOf,
                                               self.daqIDof, self.rpcAddrOf,
-                                              self.mbeanPortOf)
+                                              self.mbeanPortOf, moniType)
                     self.watchdog = \
                         self.setup_watchdog(self.log, DAQRun.WATCH_PERIOD,
                                             self.setCompIDs, self.shortNameOf,
@@ -885,8 +1021,8 @@ class DAQRun(Rebootable.Rebootable):
                     self.runStats.start()
                     self.start_run(self.cnc)
                     self.runState = "RUNNING"
-                except Fault, fault:
-                    self.log.error("Run start failed: %s" % fault.faultString)
+                except Fault:
+                    self.log.error("Run start failed: %s" % exc_string())
                     self.runState = "ERROR"
                 except Exception:
                     self.log.error("Failed to start run: %s" % exc_string())
@@ -895,8 +1031,11 @@ class DAQRun(Rebootable.Rebootable):
             elif self.runState == "STOPPING" or self.runState == "RECOVERING":
                 hadError = False
                 if self.runState == "RECOVERING":
-                    self.log.info("Recovering from failed run %d..." %
-                                  self.runStats.runNum)
+                    if self.runStats.runNum is None:
+                        self.log.info("Recovering from failed initial state")
+                    else:
+                        self.log.info("Recovering from failed run %d..." %
+                                      self.runStats.runNum)
                     # "Forget" configuration so new run set will be made next time:
                     self.lastConfig = None
                     hadError = True
@@ -941,17 +1080,20 @@ class DAQRun(Rebootable.Rebootable):
                 else:
                     self.log.info("Run terminated SUCCESSFULLY.")
 
-                if logDirCreated:
+                if self.__isLogToFile() and logDirCreated:
                     catchAllLogger.stopServing()
                     self.queue_for_spade(self.spadeDir, self.copyDir, self.logDir,
                                          self.runStats.runNum, datetime.datetime.now(), duration)
                     catchAllLogger.startServing()
 
                 if forceRestart or (hadError and self.restartOnError):
-                    self.restartComponents()
+                    self.restartComponents(pShell)
 
-                self.log.setAppender(LogSocketAppender('localhost',
-                                                       DAQRun.CATCHALL_PORT))
+                if self.__isLogToFile():
+                    app = LogSocketAppender('localhost', DAQPort.CATCHALL)
+                    self.__appender.setLogAppender(app)
+                    if not self.__isLogToLive():
+                        self.__appender.setLiveAppender(None)
 
                 self.saveAndResetRunStats()
                 self.runState = "STOPPED"
@@ -965,7 +1107,9 @@ class DAQRun(Rebootable.Rebootable):
             else:
                 sleep(0.25)
 
-        catchAllLogger.stopServing()
+        self.log.close()
+        if self.__isLogToFile():
+            catchAllLogger.stopServing()
 
     def rpc_run_state(self):
         r'Returns DAQ State, one of "STARTING", "RUNNING", "STOPPED",'
@@ -1007,14 +1151,26 @@ class DAQRun(Rebootable.Rebootable):
             return 0
         return 1
 
-    def rpc_start_run(self, runNumber, subRunNumber, configName):
+    def rpc_start_run(self, runNumber, subRunNumber, configName, logInfo=None):
         """
         Start a run
         runNumber, subRunNumber - integers
         configName              - ASCII configuration name
+        logInfo                 - tuple containing (host name/IP, log port)
         """
         self.runStats.runNum = runNumber
         self.configName      = configName
+
+        if logInfo is not None and len(logInfo) == 2:
+            self.__liveInfo = LiveInfo(logInfo[0], logInfo[1])
+            appender = LiveSocketAppender(logInfo[0], logInfo[1],
+                                          priority=Prio.EMAIL)
+            self.__appender.setLiveAppender(appender)
+            if self.__logMode == DAQRun.LOG_TO_FILE:
+                self.__appender.setLogAppender(None)
+        else:
+            self.__liveInfo = None
+
         if self.runState != "STOPPED": return 0
         self.runState   = "STARTING"
         return 1

@@ -76,7 +76,7 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testBuildMissingOneOutput(self):
         mgr = DAQPool()
@@ -111,7 +111,7 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testBuildMissingMultiOutput(self):
         mgr = DAQPool()
@@ -145,7 +145,7 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testBuildMatchPlusMissingMultiOutput(self):
         mgr = DAQPool()
@@ -181,7 +181,7 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testBuildMissingOneInput(self):
         mgr = DAQPool()
@@ -216,9 +216,9 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
-    def testBuildMatchPlusMissingMultiInput(self):
+    def testBuildMatchPlusMissingInput(self):
         mgr = DAQPool()
 
         compList = []
@@ -250,7 +250,7 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testBuildMatchPlusMissingMultiInput(self):
         mgr = DAQPool()
@@ -286,7 +286,7 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testBuildMultiMissing(self):
         mgr = DAQPool()
@@ -334,7 +334,7 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testBuildMultiInput(self):
         mgr = DAQPool()
@@ -379,20 +379,20 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(len(mgr.pool), 0)
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testStartRun(self):
         mgr = DAQPool()
 
         a = MockComponent('a', 0, isSrc=True)
-        a.addOutput('ab');
+        a.addOutput('ab')
 
         b = MockComponent('b', 0)
-        b.addInput('ab');
-        b.addOutput('bc');
+        b.addInput('ab')
+        b.addOutput('bc')
 
         c = MockComponent('c', 0)
-        c.addInput('bc');
+        c.addInput('bc')
 
         compList = [c, a, b]
 
@@ -456,7 +456,7 @@ class TestDAQPool(unittest.TestCase):
         self.assertEqual(len(mgr.pool), len(compList))
         self.assertEqual(len(runset.set), 0)
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
 if __name__ == '__main__':
     unittest.main()

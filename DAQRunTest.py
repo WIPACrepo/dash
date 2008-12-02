@@ -2,8 +2,8 @@
 
 import datetime, os, sys
 import tempfile, thread, time, unittest
-from DAQLogClient import DAQLog
 from DAQRun import DAQRun, RunArgs
+from DAQConst import DAQPort
 
 from DAQMocks import MockAppender, MockLogger, SocketReaderFactory
 
@@ -201,28 +201,62 @@ class MockCnCRPC(object):
         return 'NoStats'
 
 class MostlyDAQRun(DAQRun):
-    def __init__(self, args, startServer):
+    def __init__(self, extraArgs=None, startServer=False):
         self.__mockAppender = None
 
-        super(MostlyDAQRun, self).__init__(args, startServer)
+        super(MostlyDAQRun, self).__init__(self.__getRunArgs(extraArgs),
+                                           startServer)
 
-    def createDAQLog(self):
+    def __getRunArgs(self, extraArgs=None):
+
+        stdArgs = { '-c' : 'src/test/resources/config',
+                    '-l' : TestDAQRun.LOG_DIR,
+                    '-n' : '',
+                    '-p' : str(TestDAQRun.NEXTPORT),
+                    '-q' : '',
+                    '-s' : TestDAQRun.SPADE_DIR,
+                    '-u' : TestDAQRun.CLUSTER_CONFIG }
+        TestDAQRun.NEXTPORT += 1
+
+        oldArgv = sys.argv
+        try:
+            sys.argv = ['foo']
+
+            for k in stdArgs.keys():
+                if extraArgs is None or not extraArgs.has_key(k):
+                    sys.argv.append(k)
+                    if len(stdArgs[k]) > 0:
+                        sys.argv.append(stdArgs[k])
+
+            if extraArgs is not None:
+                for k in extraArgs.keys():
+                    sys.argv.append(k)
+                    if len(extraArgs[k]) > 0:
+                        sys.argv.append(extraArgs[k])
+
+            args = RunArgs()
+            args.parse()
+        finally:
+            sys.argv = oldArgv
+
+        return args
+
+    def createInitialAppender(self):
         if self.__mockAppender is None:
             self.__mockAppender = MockAppender('runlog')
 
-        return DAQLog(self.__mockAppender)
+        return self.__mockAppender
 
 class StubbedDAQRun(MostlyDAQRun):
     __logServer = None
 
-    def __init__(self, args, startServer):
+    def __init__(self, extraArgs=None, startServer=False):
         self.__fileAppender = None
         self.__logServer = None
 
-        self.liveLog = None
         self.catchAllLog = None
 
-        super(StubbedDAQRun, self).__init__(args, startServer)
+        super(StubbedDAQRun, self).__init__(extraArgs, startServer)
 
     def createFileAppender(self):
         return self.__fileAppender
@@ -243,7 +277,7 @@ class StubbedDAQRun(MostlyDAQRun):
                          spadeDir):
         pass
 
-    def restartComponents(self):
+    def restartComponents(self, pShell):
         pass
 
     def setFileAppender(self, appender):
@@ -254,7 +288,7 @@ class StubbedDAQRun(MostlyDAQRun):
     setLogSocketServer = classmethod(setLogSocketServer)
 
     def setup_monitoring(self, log, moniPath, interval, compIDs, shortNames,
-                         daqIDs, rpcAddrs, mbeanPorts):
+                         daqIDs, rpcAddrs, mbeanPorts, moniType):
         return MockMoni()
 
     def setup_watchdog(self, log, interval, compIDs, shortNames, daqIDs,
@@ -271,7 +305,7 @@ class TestDAQRun(unittest.TestCase):
         appender = MockAppender('main')
         dr.setFileAppender(appender)
 
-        catchall = self.__logFactory.createLog('catchall', DAQRun.CATCHALL_PORT,
+        catchall = self.__logFactory.createLog('catchall', DAQPort.CATCHALL,
                                                False)
         StubbedDAQRun.setLogSocketServer(catchall)
 
@@ -315,7 +349,7 @@ class TestDAQRun(unittest.TestCase):
         appender.addExpectedExact('Setting up logging for %d components' %
                                 len(comps))
 
-        nextPort = 9002
+        nextPort = DAQPort.RUNCOMP_BASE
         for c in compSrt:
             appender.addExpectedExact('%s(%d %s:%d) -> %s:%d' %
                                     (c[1], c[0], c[3], c[4], dr.ip, nextPort))
@@ -335,7 +369,7 @@ class TestDAQRun(unittest.TestCase):
         self.failIf(cnc.RSBreakFlag, 'Runset should not have been broken')
         self.failUnless(cnc.RSConfigFlag, 'Runset was not configured')
         self.failUnless(cnc.RSStartFlag, 'Runset was not started')
-        catchall.checkEmpty()
+        catchall.checkStatus(10)
         cnc.resetFlags()
 
         numTries = 0
@@ -343,7 +377,7 @@ class TestDAQRun(unittest.TestCase):
             time.sleep(0.1)
             numTries += 1
 
-        appender.checkEmpty()
+        appender.checkStatus(10)
 
         subRunId = 1
         domList = [('53494d550101', 0, 1, 2, 3, 4),
@@ -359,8 +393,8 @@ class TestDAQRun(unittest.TestCase):
 
         dr.rpc_flash(subRunId, domList)
         self.failUnless(cnc.RSFlashFlag, 'Runset should have flashed')
-        appender.checkEmpty()
-        catchall.checkEmpty()
+        appender.checkStatus(10)
+        catchall.checkStatus(10)
 
         numEvts = 17
         numMoni = 222
@@ -395,8 +429,8 @@ class TestDAQRun(unittest.TestCase):
         self.assertEquals('STOPPED', dr.runState, 'Should be stopped, not ' +
                           dr.runState)
         self.failUnless(cnc.RSStopFlag, 'Runset was not stopped')
-        appender.checkEmpty()
-        catchall.checkEmpty()
+        appender.checkStatus(10)
+        catchall.checkStatus(10)
         cnc.resetFlags()
 
         moni = dr.rpc_run_monitoring()
@@ -414,14 +448,14 @@ class TestDAQRun(unittest.TestCase):
         self.assertEquals(numTCal, moni['tcalEvents'],
                           'Expected %d tcal events, not %d' %
                           (numTCal, moni['tcalEvents']))
-        appender.checkEmpty()
-        catchall.checkEmpty()
+        appender.checkStatus(10)
+        catchall.checkStatus(10)
 
         catchall.addExpectedText('Breaking run set...')
 
         dr.rpc_release_runsets()
         self.failUnless(cnc.RSBreakFlag, 'Runset should have been broken')
-        appender.checkEmpty()
+        appender.checkStatus(10)
         cnc.resetFlags()
 
         dr.running = False
@@ -432,43 +466,8 @@ class TestDAQRun(unittest.TestCase):
             time.sleep(0.1)
             numTries += 1
 
-        appender.checkEmpty()
-        catchall.checkEmpty()
-        if catchall.isError(): self.fail(catchall.getError())
-
-    def __getRunArgs(self, extraArgs=None):
-
-        stdArgs = { '-c' : 'src/test/resources/config',
-                    '-l' : TestDAQRun.LOG_DIR,
-                    '-n' : '',
-                    '-p' : str(TestDAQRun.NEXTPORT),
-                    '-q' : '',
-                    '-s' : TestDAQRun.SPADE_DIR,
-                    '-u' : TestDAQRun.CLUSTER_CONFIG }
-        TestDAQRun.NEXTPORT += 1
-
-        oldArgv = sys.argv
-        try:
-            sys.argv = ['foo']
-
-            for k in stdArgs.keys():
-                if extraArgs is None or not extraArgs.has_key(k):
-                    sys.argv.append(k)
-                    if len(stdArgs[k]) > 0:
-                        sys.argv.append(stdArgs[k])
-
-            if extraArgs is not None:
-                for k in extraArgs.keys():
-                    sys.argv.append(k)
-                    if len(extraArgs[k]) > 0:
-                        sys.argv.append(extraArgs[k])
-
-            args = RunArgs()
-            args.parse()
-        finally:
-            sys.argv = oldArgv
-
-        return args
+        appender.checkStatus(10)
+        catchall.checkStatus(10)
 
     def __sortCompTuple(self, x, y):
         if x[1] == 'stringHub' and y[1] != 'stringHub':
@@ -574,14 +573,14 @@ class TestDAQRun(unittest.TestCase):
         self.assertEquals(0, len(waitList), "Did not expect %s" % str(waitList))
 
     def testCreate(self):
-        MostlyDAQRun(self.__getRunArgs(), False)
+        MostlyDAQRun()
 
     def testWaitForRequiredBad(self):
         comps = [(0, 'abc', 1, 'xxx', 1, 2),
                  (1, 'def', 2, 'yyy', 3, 4),
                  (2, 'ghi', 3, 'zzz', 5, 6)]
 
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -612,14 +611,14 @@ class TestDAQRun(unittest.TestCase):
             self.assertEquals('Still waiting for ' + required[0], str(e),
                               'Unexpected exception message "%s"' % str(e))
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testWaitForRequiredGood(self):
         comps = [(0, 'abc', 1, 'xxx', 1, 2),
                  (1, 'def', 2, 'yyy', 3, 4),
                  (2, 'ghi', 3, 'zzz', 5, 6)]
 
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -649,10 +648,10 @@ class TestDAQRun(unittest.TestCase):
         self.assertEquals(expId, dr.runSetID, 'Expected runset#%d, not #%d' %
                           (expId, dr.runSetID))
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testFillCompDict(self):
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -689,10 +688,10 @@ class TestDAQRun(unittest.TestCase):
                               'Expected mbeanPort#%d to be %d, not %d' %
                               (i, expComps[i][5], dr.mbeanPortOf[key]))
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testRunsetConfig(self):
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -704,10 +703,10 @@ class TestDAQRun(unittest.TestCase):
         dr.runset_configure(cnc, 1, 'foo')
         self.failUnless(cnc.RSConfigFlag, 'Runset was not configured')
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testRunsetStart(self):
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -726,10 +725,10 @@ class TestDAQRun(unittest.TestCase):
         dr.start_run(cnc)
         self.failUnless(cnc.RSStartFlag, 'Runset was not started')
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testRunsetStop(self):
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -745,10 +744,10 @@ class TestDAQRun(unittest.TestCase):
         dr.stop_run(cnc)
         self.failUnless(cnc.RSStopFlag, 'Runset was not started')
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testRunsetBreakGood(self):
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -778,10 +777,10 @@ class TestDAQRun(unittest.TestCase):
         if dr.runSetID is not None: self.fail('Runset ID should be unset')
         if dr.lastConfig is not None: self.fail('Last config should be unset')
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testRunsetBreakBad(self):
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -813,10 +812,10 @@ class TestDAQRun(unittest.TestCase):
         if dr.runSetID is not None: self.fail('Runset ID should be unset')
         if dr.lastConfig is not None: self.fail('Last config should be unset')
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testGetEventCounts(self):
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -856,10 +855,10 @@ class TestDAQRun(unittest.TestCase):
                               'Expected event count #%d to be %d, not %d' %
                               (i, expCnts[i], cnts[i]))
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testCheckAllNone(self):
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -872,10 +871,10 @@ class TestDAQRun(unittest.TestCase):
         rtnVal = dr.check_all()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testCheckAllMoniRate(self):
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -921,10 +920,10 @@ class TestDAQRun(unittest.TestCase):
         rtnVal = dr.check_all()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testCheckAllMoni(self):
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -961,10 +960,10 @@ class TestDAQRun(unittest.TestCase):
         rtnVal = dr.check_all()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testCheckAllWatchdogNone(self):
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -988,10 +987,10 @@ class TestDAQRun(unittest.TestCase):
                           'UnhealthyCount should be %d, not %d' %
                           (expCnt, DAQRun.unHealthyCount))
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testCheckAllWatchdogStart(self):
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -1016,10 +1015,10 @@ class TestDAQRun(unittest.TestCase):
                           'UnhealthyCount should be %d, not %d' %
                           (expCnt, DAQRun.unHealthyCount))
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testCheckAllWatchdogErr(self):
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -1045,10 +1044,10 @@ class TestDAQRun(unittest.TestCase):
                           'UnhealthyCount should be %d, not %d' %
                           (expCnt, DAQRun.unHealthyCount))
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testCheckAllWatchdogHealthy(self):
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -1075,10 +1074,10 @@ class TestDAQRun(unittest.TestCase):
                           'UnhealthyCount should be %d, not %d' %
                           (expCnt, DAQRun.unHealthyCount))
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testCheckAllWatchdogUnhealthy(self):
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -1104,10 +1103,10 @@ class TestDAQRun(unittest.TestCase):
                           'UnhealthyCount should be %d, not %d' %
                           (expCnt, DAQRun.unHealthyCount))
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testCheckAllWatchdogMax(self):
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -1133,12 +1132,12 @@ class TestDAQRun(unittest.TestCase):
                           'UnhealthyCount should be %d, not %d' %
                           (expCnt, DAQRun.unHealthyCount))
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testSetUpAllLoggers(self):
         runNum = 5432
 
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
         dr.createRunLogDirectory(runNum, TestDAQRun.LOG_DIR)
 
         logger = MockLogger('main')
@@ -1155,7 +1154,7 @@ class TestDAQRun(unittest.TestCase):
 
         dr.fill_component_dictionaries(cnc)
 
-        nextPort = 9002
+        nextPort = DAQPort.RUNCOMP_BASE
         logger.addExpectedExact('Setting up logging for %d components' %
                                len(expComps))
         for c in expComps:
@@ -1176,12 +1175,12 @@ class TestDAQRun(unittest.TestCase):
                     os.remove(path)
             os.rmdir(dr.getLogPath())
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testSetUpLoggers(self):
         runNum = 9753
 
-        dr = MostlyDAQRun(self.__getRunArgs(), False)
+        dr = MostlyDAQRun()
         dr.createRunLogDirectory(runNum, TestDAQRun.LOG_DIR)
 
         logger = MockLogger('main')
@@ -1201,7 +1200,7 @@ class TestDAQRun(unittest.TestCase):
         logger.addExpectedExact('Setting up logging for %d components' %
                                len(expComps))
 
-        nextPort = 9002
+        nextPort = DAQPort.RUNCOMP_BASE
         for i in range(0, len(expComps)):
             c = expComps[i]
 
@@ -1229,7 +1228,7 @@ class TestDAQRun(unittest.TestCase):
                           'Expected %d loggers, not %d' %
                           (len(expComps), len(logList)))
 
-        nextPort = 9002
+        nextPort = DAQPort.RUNCOMP_BASE
         for i in range(0, len(expComps)):
             c = expComps[i]
             l = logList[i]
@@ -1246,10 +1245,10 @@ class TestDAQRun(unittest.TestCase):
 
             nextPort += 1
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testRPCStopRunStopped(self):
-        dr = StubbedDAQRun(self.__getRunArgs(), False)
+        dr = StubbedDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -1259,10 +1258,10 @@ class TestDAQRun(unittest.TestCase):
         dr.runState = 'STOPPED'
         dr.rpc_stop_run()
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testRPCStopRunBadState(self):
-        dr = StubbedDAQRun(self.__getRunArgs(), False)
+        dr = StubbedDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -1275,10 +1274,10 @@ class TestDAQRun(unittest.TestCase):
         dr.runState = badState
         dr.rpc_stop_run()
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testRPCStopRunSuccess(self):
-        dr = StubbedDAQRun(self.__getRunArgs(), False)
+        dr = StubbedDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
@@ -1289,10 +1288,10 @@ class TestDAQRun(unittest.TestCase):
         self.assertEquals('STOPPING', dr.runState, 'Should be stopping, not ' +
                           dr.runState)
 
-        logger.checkEmpty()
+        logger.checkStatus(10)
 
     def testRunThread(self):
-        dr = StubbedDAQRun(self.__getRunArgs(), False)
+        dr = StubbedDAQRun()
 
         ebID = 67
         sbID = 92
@@ -1321,7 +1320,7 @@ class TestDAQRun(unittest.TestCase):
             print 'Skipping server tests in non-Darwin OS'
             return
 
-        dr = StubbedDAQRun(self.__getRunArgs(), False)
+        dr = StubbedDAQRun()
 
         ebID = 67
         sbID = 92
@@ -1350,7 +1349,7 @@ class TestDAQRun(unittest.TestCase):
         # this is a blatant attempt to increase the code coverage, because the
         # rpc_run_summary method is Anvil-centric and I3Live is coming soon
 
-        dr = StubbedDAQRun(self.__getRunArgs(), False)
+        dr = StubbedDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger

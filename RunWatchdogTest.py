@@ -173,7 +173,7 @@ class TestRunWatchdog(unittest.TestCase):
                           'Expected result %d, not %d' %
                           (RunWatchdog.NOT_RUNNING, result))
 
-        appender.checkEmpty()
+        appender.checkStatus(10)
 
     # ThresholdWatcher tests
 
@@ -825,7 +825,7 @@ class TestRunWatchdog(unittest.TestCase):
         self.failIf(wd.isDone(), 'Watchdog should not be done')
         self.failIf(wd.isHealthy(), 'Watchdog should not be healthy')
         self.failIf(wd.caughtError(), 'Watchdog should not have error')
-        appender.checkEmpty()
+        appender.checkStatus(10)
 
         self.__runThread(wd, appender)
 

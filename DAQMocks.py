@@ -5,6 +5,270 @@
 import datetime, os, re, select, socket, threading, time
 
 from CnCServer import CnCLogger, DAQClient
+from DAQConst import DAQPort
+from DAQLaunch import getExecJar, getJVMArgs
+import GetIP
+
+try:
+    from DAQLive import DAQLive
+except:
+    class DAQLive:
+        SERVICE_NAME = 'unimported'
+
+if os.environ.has_key("PDAQ_HOME"):
+    METADIR = os.environ["PDAQ_HOME"]
+else:
+    from locate_pdaq import find_pdaq_trunk
+    METADIR = find_pdaq_trunk()
+
+class UnimplementedException(Exception):
+    def __init__(self):
+        super(UnimplementedException, self).__init__('Unimplemented')
+
+class BaseChecker(object):
+    PAT_DAQLOG = re.compile(r'^([^\]]+)\s+\[([^\]]+)\]\s+(.*)$', re.MULTILINE)
+    PAT_LIVELOG = re.compile(r'^(\S+)\((\S+):(\S+)\)\s+(\d+)\s+\[([^\]]+)\]' +
+                             r'\s+(.*)$', re.MULTILINE)
+
+    def __init__(self):
+        pass
+
+    def check(self, checker, msg, debug, setError=True):
+        raise UnimplementedException()
+
+class BaseLiveChecker(BaseChecker):
+    def __init__(self, varName):
+        self.__varName = varName
+        super(BaseLiveChecker, self).__init__()
+
+    def __str__(self):
+        return '%s:%s=%s' % \
+            (self._getShortName(), self.__varName, self._getValue())
+
+    def _checkText(self, checker, msg, debug, setError):
+        raise UnimplementedException()
+
+    def _getShortName(self):
+        raise UnimplementedException()
+
+    def _getValue(self):
+        raise UnimplementedException()
+
+    def _getValueType(self):
+        raise UnimplementedException()
+
+    def check(self, checker, msg, debug, setError=True):
+        m = BaseChecker.PAT_LIVELOG.match(msg)
+        if not m:
+            if setError:
+                name = str(checker)
+                if debug:
+                    print '*** %s:LFMT: %s' % (name, msg)
+                checker.setError('Bad format for %s I3Live message "%s"' %
+                                 (name, msg))
+            return False
+
+        if m.group(1) != DAQLive.SERVICE_NAME:
+            if setError:
+                name = str(checker)
+                if debug:
+                    print '*** %s:SVC: %s (%s)' % \
+                        (name, DAQLive.SERVICE_NAME, self._getValue())
+                checker.setError(('Expected %s I3Live service "%s", not "%s"' +
+                                  ' in "%s"') %
+                                 (name, DAQLive.SERVICE_NAME, m.group(1), msg))
+            return False
+
+        if m.group(2) != self.__varName:
+            if setError:
+                name = str(checker)
+                if debug:
+                    print '*** %s:VAR: %s (%s)' % \
+                        (name, self.__varName, self._getValue())
+                    checker.setError(('Expected %s I3Live varName "%s",' +
+                                      ' not "%s" in "%s"') %
+                                     (name, self.__varName, m.group(2), msg))
+            return False
+
+        typeStr = self._getValueType()
+        if m.group(3) != typeStr:
+            if setError:
+                name = str(checker)
+                if debug:
+                    print '*** %s:TYPE: %s (%s)' % \
+                        (name, typeStr, self._getValue())
+                checker.setError(('Expected %s I3Live type "%s", not "%s"' +
+                                  ' in %s') % (name, typeStr, m.group(3), msg))
+            return False
+
+        # ignore priority
+        # ignore time
+
+        if not self._checkText(checker, m.group(6), debug, setError):
+            return False
+
+        return True
+
+class ExactChecker(BaseChecker):
+    def __init__(self, text):
+        self.__text = text
+        super(ExactChecker, self).__init__()
+
+    def __str__(self):
+        return 'EXACT:%s' % self.__text
+
+    def check(self, checker, msg, debug, setError=True):
+        if msg != self.__text:
+            if setError:
+                name = str(checker)
+                if debug:
+                    print '*** %s:XACT: %s' % (name, self.__text)
+                checker.setError(('Expected %s exact log message "%s",' +
+                                  ' not "%s"') % (name, self.__text, msg))
+            return False
+
+        return True
+
+class LiveChecker(BaseLiveChecker):
+    def __init__(self, varName, value):
+        self.__value = value
+        super(LiveChecker, self).__init__(varName)
+
+    def _checkText(self, checker, msg, debug, setError):
+        if msg != str(self.__value):
+            if setError:
+                name = str(checker)
+                if debug:
+                    print '*** %s:LIVE: %s' % (name, str(self.__value))
+                checker.setError('Expected %s live log message "%s", not "%s"' %
+                                 (name, str(self.__value), msg))
+            return False
+
+        return True
+
+    def _getShortName(self):
+        return 'LIVE'
+
+    def _getValue(self):
+        return self.__value
+
+    def _getValueType(self):
+        return type(self.__value).__name__
+
+class LiveRegexpChecker(BaseLiveChecker):
+    def __init__(self, varName, pattern):
+        self.__regexp = re.compile(pattern)
+        super(LiveRegexpChecker, self).__init__(varName)
+
+    def _checkText(self, checker, msg, debug, setError):
+        m = self.__regexp.match(msg)
+        if not m:
+            if setError:
+                name = str(checker)
+                if debug:
+                    print '*** %s:RLIV: %s' % (name, self.__regexp.pattern)
+                checker.setError(('Expected %s I3Live regexp message "%s",' +
+                                  ' not "%s"') %
+                                 (name, self.__regexp.pattern, msg))
+            return False
+
+        return True
+
+    def _getShortName(self):
+        return 'LIVREX'
+
+    def _getValue(self):
+        return self.__regexp.pattern
+
+    def _getValueType(self):
+        return 'str'
+
+class RegexpChecker(BaseChecker):
+    def __init__(self, pattern):
+        self.__regexp = re.compile(pattern)
+        super(RegexpChecker, self).__init__()
+
+    def __str__(self):
+        return 'REGEXP:%s' % self.__regexp.pattern
+
+    def check(self, checker, msg, debug, setError=True):
+        m = self.__regexp.match(msg)
+        if not m:
+            if setError:
+                name = str(checker)
+                if debug:
+                    print '*** %s:REXP: %s' % (name, self.__regexp.pattern)
+                checker.setError(('Expected %s regexp log message of "%s",' +
+                                  ' not "%s"') %
+                                 (name, self.__regexp.pattern, msg))
+            return False
+
+        return True
+
+class RegexpTextChecker(BaseChecker):
+    def __init__(self, pattern):
+        self.__regexp = re.compile(pattern)
+        super(RegexpTextChecker, self).__init__()
+
+    def __str__(self):
+        return 'RETEXT:%s' % self.__regexp.pattern
+
+    def check(self, checker, msg, debug, setError=True):
+        m = BaseChecker.PAT_DAQLOG.match(msg)
+        if not m:
+            if setError:
+                name = str(checker)
+                if debug:
+                    print '*** %s:RFMT: %s' % \
+                        (name, BaseChecker.PAT_DAQLOG.pattern)
+                checker.setError('Bad format for %s log message "%s"' %
+                                 (name, msg))
+            return False
+
+        m = self.__regexp.match(m.group(3))
+        if not m:
+            if setError:
+                name = str(checker)
+                if debug:
+                    print '*** %s:RTXT: %s' % (name, self.__regexp.pattern)
+                checker.setError(('Expected %s regexp text log message,' +
+                                  ' of "%s" not "%s"') %
+                                 (name, self.__regexp.pattern, msg))
+            return False
+
+        return True
+
+class TextChecker(BaseChecker):
+    def __init__(self, text):
+        self.__text = text
+        super(TextChecker, self).__init__()
+
+    def __str__(self):
+        return 'TEXT:%s' % self.__text
+
+    def check(self, checker, msg, debug, setError=True):
+        m = BaseChecker.PAT_DAQLOG.match(msg)
+        if not m:
+            if setError:
+                name = str(checker)
+                if debug:
+                    print '*** %s:TFMT: %s' % \
+                        (name, BaseChecker.PAT_DAQLOG.pattern)
+                checker.setError('Bad format for %s log message "%s"' %
+                                 (name, msg))
+            return False
+
+        if m.group(3).find(self.__text) == -1:
+            if setError:
+                name = str(checker)
+                if debug:
+                    print '*** %s:TEXT: %s' % (name, self.__text)
+                checker.setError(('Expected %s partial log message of "%s",' +
+                                  ' not "%s"') %
+                                 (name, self.__text, m.group(3)))
+            return False
+
+        return True
 
 class LogChecker(object):
     DEBUG = False
@@ -13,138 +277,102 @@ class LogChecker(object):
     TYPE_TEXT = 2
     TYPE_REGEXP = 3
     TYPE_RETEXT = 4
+    TYPE_LIVE = 5
 
-    PAT_DAQLOG = re.compile(r'^([^\]]+)\s+\[([^\]]+)\]\s+(.*)$', re.MULTILINE)
-
-    def __init__(self, prefix, name, debug):
+    def __init__(self, prefix, name, isLive=False, depth=5):
         self.__prefix = prefix
         self.__name = name
-        self.__debug = debug
+        self.__isLive = isLive
+        self.__depth = depth
 
         self.__expMsgs = []
 
     def __str__(self):
-        return '%s-%s(exp#%d)' % \
-            (self.__prefix, self.__name, len(self.__expMsgs))
+        return '%s-%s' % (self.__prefix, self.__name)
 
-    def addExpectedExact(self, msg):
-        self.__expMsgs.append((msg, LogChecker.TYPE_EXACT))
-
-    def addExpectedRegexp(self, msg):
-        pat = re.compile(msg)
-        self.__expMsgs.append((pat, LogChecker.TYPE_REGEXP))
-
-    def addExpectedText(self, msg):
-        self.__expMsgs.append((msg, LogChecker.TYPE_TEXT))
-
-    def addExpectedTextRegexp(self, msg):
-        pat = re.compile(msg)
-        self.__expMsgs.append((pat, LogChecker.TYPE_RETEXT))
-
-    def checkEmpty(self):
+    def __checkEmpty(self):
         if len(self.__expMsgs) != 0:
             fixed = []
             for m in self.__expMsgs:
-                (expMsg, matchType) = m
-                if matchType == LogChecker.TYPE_EXACT:
-                    fixed.append('EXACT:%s' % expMsg)
-                elif matchType == LogChecker.TYPE_TEXT:
-                    fixed.append('TEXT:%s' % expMsg)
-                elif matchType == LogChecker.TYPE_REGEXP:
-                    fixed.append('REGEXP:%s' % expMsg.pattern)
-                elif matchType == LogChecker.TYPE_RETEXT:
-                    fixed.append('RETEXT:%s' % expMsg.pattern)
-
+                fixed.append(str(m))
             raise Exception("Didn't receive %d expected %s log messages: %s" %
                             (len(fixed), self.__name, str(fixed)))
 
+    def _checkError(self):
+        pass
+
+    def addExpectedExact(self, msg):
+        self.__expMsgs.append(ExactChecker(msg))
+
+    def addExpectedLiveMoni(self, varName, value):
+        self.__expMsgs.append(LiveChecker(varName, value))
+
+    def addExpectedRegexp(self, msg):
+        self.__expMsgs.append(RegexpChecker(msg))
+
+    def addExpectedText(self, msg):
+        if self.__isLive:
+            self.__expMsgs.append(LiveChecker('log', str(msg)))
+        else:
+            self.__expMsgs.append(TextChecker(msg))
+
+    def addExpectedTextRegexp(self, msg):
+        if self.__isLive:
+            self.__expMsgs.append(LiveRegexpChecker('log', msg))
+        else:
+            self.__expMsgs.append(RegexpTextChecker(msg))
+
     def checkMsg(self, msg):
-        if self.__debug:
-            print '%s-%s: %s' % (self.__prefix, self.__name, msg)
+        if LogChecker.DEBUG:
+            print '%s: %s' % (str(self), msg)
 
         if len(self.__expMsgs) == 0:
-            if self.__debug:
-                print '%s-%s:UNEX' % (self.__prefix, self.__name)
-            self.setError('Unexpected %s log message: %s' %
-                            (self.__name, msg))
+            if LogChecker.DEBUG:
+                print '*** %s:UNEX' % str(self)
+            self.setError('Unexpected %s log message: %s' % (str(self), msg))
             return
 
-        (expMsg, matchType) = self.__expMsgs[0]
+        found = None
+        for i in range(self.__depth):
+            if i >= len(self.__expMsgs):
+                break
+            if self.__expMsgs[i].check(self, msg, LogChecker.DEBUG, False):
+                found = i
+                break
 
-        if matchType == LogChecker.TYPE_EXACT:
-            if msg != expMsg:
-                if self.__debug:
-                    print '%s-%s:XACT: %s' % (self.__prefix, self.__name,
-                                              expMsg)
-                self.setError('Expected %s exact log message "%s", not "%s"' %
-                              (self.__name, expMsg, msg))
-                return
+        if found is None:
+            print '----------'
+            print msg
+            print '----------'
+            for i in range(self.__depth):
+                if i >= len(self.__expMsgs):
+                    break
+                self.__expMsgs[i].check(self, msg, LogChecker.DEBUG, True)
+            return
 
-        elif matchType == LogChecker.TYPE_REGEXP:
-            m = expMsg.match(msg)
-            if not m:
-                if self.__debug:
-                    print '%s-%s:REXP: %s' % (self.__prefix, self.__name,
-                                              expMsg.pattern)
-                self.setError(('Expected %s regexp log message of "%s",' +
-                               ' not "%s"') %
-                              (self.__name, expMsg.pattern, msg))
-                return
+        del self.__expMsgs[found]
 
-        elif matchType == LogChecker.TYPE_TEXT or \
-                matchType == LogChecker.TYPE_RETEXT:
-            m = LogChecker.PAT_DAQLOG.match(msg)
-            if not m:
-                if self.__debug:
-                    print '%s-%s:FMT: %s' % (self.__prefix, self.__name,
-                                             expMsg)
-                self.setError('Bad format for %s log message "%s"' %
-                              (self.__name, msg))
-                return
-
-            txt = m.group(3)
-            if matchType == LogChecker.TYPE_TEXT and \
-                    txt.find(expMsg) == -1:
-                if self.__debug:
-                    print '%s-%s:TEXT: %s' % (self.__prefix, self.__name,
-                                              expMsg)
-                self.setError(('Expected %s partial log message of "%s",' +
-                               ' not "%s"') % (self.__name, expMsg, txt))
-                return
-
-            elif matchType == LogChecker.TYPE_RETEXT:
-                m = expMsg.match(txt)
-                if not m:
-                    if self.__debug:
-                        print '%s-%s:RTXT: %s' % (self.__prefix, self.__name,
-                                                  expMsg.pattern)
-                    self.setError(('Expected %s regexp text log message,' +
-                                   ' of "%s" not "%s"') %
-                                  (self.__name, expMsg.pattern, msg))
-                    return
-
-        else:
-            if self.__debug:
-                print '%s-%s:????: Unknown match type %s' % \
-                    (self.__prefix, self.__name, str(matchType))
-                self.setError('Unknown match type %s' % str(matchType))
-                return
-
-        del self.__expMsgs[0]
-
-    def isEmpty(self):
-        return len(self.__expMsgs) == 0
-
-    def waitForEmpty(self, reps):
+    def checkStatus(self, reps):
         count = 0
         while len(self.__expMsgs) > 0 and count < reps:
             time.sleep(.001)
             count += 1
+        self._checkError()
+        self.__checkEmpty()
+        return True
+
+    def isEmpty(self):
         return len(self.__expMsgs) == 0
+
+    def setCheckDepth(self, depth):
+        self.__depth = depth
+
+    def setError(self, msg):
+        raise UnimplementedException()
 
 class MockAppender(LogChecker):
     def __init__(self, name):
-        super(MockAppender, self).__init__('LOG', name, LogChecker.DEBUG)
+        super(MockAppender, self).__init__('LOG', name)
 
     def close(self):
         pass
@@ -152,12 +380,12 @@ class MockAppender(LogChecker):
     def setError(self, msg):
         raise Exception(msg)
 
-    def write(self, m):
+    def write(self, m, time=None):
         self.checkMsg(m)
 
 class MockCnCLogger(CnCLogger):
     def __init__(self, appender, quiet=False):
-        if appender is None: raise Exception('Appender cannot be None')
+        #if appender is None: raise Exception('Appender cannot be None')
         self.__appender = appender
 
         super(MockCnCLogger, self).__init__(appender, True)
@@ -239,7 +467,7 @@ class MockComponent(object):
     def isSource(self):
         return self.__isSrc
 
-    def logTo(self, logIP, logPort):
+    def logTo(self, logIP, logPort, liveIP, livePort):
         pass
 
     def monitor(self):
@@ -287,7 +515,7 @@ class MockDAQClient(DAQClient):
     def closeLog(self):
         pass
 
-    def configure(self, cfgName):
+    def configure(self, cfgName=None):
         self.state = 'ready'
         return super(MockDAQClient, self).configure(cfgName)
 
@@ -314,7 +542,7 @@ class MockDAQClient(DAQClient):
 
 class MockLogger(LogChecker):
     def __init__(self, name):
-        super(MockLogger, self).__init__('LOG', name, LogChecker.DEBUG)
+        super(MockLogger, self).__init__('LOG', name)
 
     def close(self):
         pass
@@ -333,6 +561,150 @@ class MockLogger(LogChecker):
     def trace(self, m): self.checkMsg(m)
 
     def warn(self, m): self.checkMsg(m)
+
+class MockParallelShell(object):
+    BINDIR = \
+        os.path.join(METADIR, 'target', 'pDAQ-1.0.0-SNAPSHOT-dist.dir', 'bin')
+
+    def __init__(self):
+        self.__exp = []
+
+    def __checkCmd(self, cmd):
+        if len(self.__exp) == 0:
+            raise Exception('Did not expect command "%s"' % cmd)
+
+        if cmd != self.__exp[0]:
+            raise Exception('Expected "%s", not "%s"' % (self.__exp[0], cmd))
+
+        del self.__exp[0]
+
+    def __isLocalhost(self, host):
+        return host == 'localhost' or host == '127.0.0.1'
+
+    def add(self, cmd):
+        self.__checkCmd(cmd)
+
+    def addExpectedJava(self, compName, compId, configDir, logPort, livePort,
+                        logLevel, verbose, eventCheck, host):
+        ipAddr = GetIP.getIP(host)
+        jarPath = os.path.join(MockParallelShell.BINDIR,
+                               getExecJar(compName))
+
+        if verbose:
+            redir = ''
+        else:
+            redir = ' </dev/null >/dev/null 2>&1'
+
+        cmd = 'java %s' % getJVMArgs(compName)
+
+        if eventCheck and compName == 'eventBuilder':
+            cmd += ' -Dicecube.daq.eventBuilder.validateEvents'
+        elif compName[-3:] == 'Hub':
+            cmd += ' -Dicecube.daq.stringhub.componentId=%s' % compId
+
+        cmd += ' -jar %s' % jarPath
+        cmd += ' -g %s' % configDir
+        cmd += ' -c %s:%d' % (ipAddr, DAQPort.CNCSERVER)
+
+        if logPort is not None:
+            cmd += ' -l %s:%d,%s' % (ipAddr, logPort, logLevel)
+        if livePort is not None:
+            cmd += ' -L %s:%d,%s' % (ipAddr, livePort, logLevel)
+        cmd += ' %s &' % redir
+
+        if self.__isLocalhost(host):
+            self.__exp.append(cmd)
+        else:
+            self.__exp.append(('ssh -n %s \'sh -c "%s"%s &\'') %
+                              (host, cmd, redir))
+
+    def addExpectedJavaKill(self, compName, killWith9, verbose, host):
+        if killWith9:
+            nineArg = '-9'
+        else:
+            nineArg = ''
+
+        user = os.environ['USER']
+        jar = getExecJar(compName)
+
+        if self.__isLocalhost(host):
+            sshCmd = ''
+            pkillOpt = ' -fu %s' % user
+        else:
+            sshCmd = 'ssh %s ' % host
+            pkillOpt = ' -f'
+
+        self.__exp.append('%spkill %s%s %s' % (sshCmd, nineArg, pkillOpt, jar))
+
+        if not killWith9:
+            self.__exp.append('sleep 2; %spkill -9%s %s' %
+                              (sshCmd, pkillOpt, jar))
+
+    def addExpectedPython(self, doDAQRun, dashDir, configDir, logDir,
+                          spadeDir, cfgName, copyDir, logPort, livePort):
+        if doDAQRun:
+            cmd = os.path.join(dashDir, 'DAQRun.py')
+            cmd += ' -r -f'
+            cmd += ' -c %s' % configDir
+            cmd += ' -l %s' % logDir
+            cmd += ' -s %s' % spadeDir
+            cmd += ' -u %s' % cfgName
+            if livePort is not None:
+                if logPort is not None:
+                    cmd += " -B"
+                else:
+                    cmd += " -L"
+            cmd += ' -a %s' % copyDir
+            self.__exp.append(cmd)
+
+            cmd = os.path.join(dashDir, 'DAQLive.py')
+            cmd += ' &'
+            self.__exp.append(cmd)
+
+        cmd = os.path.join(dashDir, 'CnCServer.py')
+        if logPort is not None:
+            cmd += ' -l localhost:%d' % logPort
+        if livePort is not None:
+            cmd += ' -L localhost:%d' % livePort
+        cmd += ' -d'
+        self.__exp.append(cmd)
+
+    def addExpectedPythonKill(self, doDAQRun, dashDir, killWith9):
+        if killWith9:
+            nineArg = '-9 '
+        else:
+            nineArg = ''
+
+        user = os.environ['USER']
+
+        if doDAQRun:
+            path = os.path.join(dashDir, 'DAQRun.py')
+            self.__exp.append('%s -k' % path)
+
+            self.__exp.append('pkill %s-fu %s DAQLive.py' % (nineArg, user))
+
+        path = os.path.join(dashDir, 'CnCServer.py')
+        self.__exp.append('%s -k' % path)
+
+    def check(self):
+        if len(self.__exp) > 0:
+            raise Exception('ParallelShell did not receive expected commands:' +
+                            ' %s' % str(self.__exp))
+
+    def getMetaPath(self, subdir):
+        return os.path.join(METADIR, subdir)
+
+    def showAll(self):
+        raise Exception('SHOWALL')
+
+    def start(self):
+        pass
+
+    def system(self, cmd):
+        self.__checkCmd(cmd)
+
+    def wait(self):
+        pass
 
 class MockRPCClient(object):
     def __init__(self, name, num, outLinks=None):
@@ -409,7 +781,7 @@ class MockXMLRPC(object):
     def getVersionInfo(self):
         return ''
 
-    def logTo(self, logIP, port, level=None):
+    def logTo(self, logIP, logPort, liveIP, livePort):
         pass
 
     def reset(self):
@@ -433,14 +805,11 @@ class SocketReader(LogChecker):
         self.__thread = None
         self.__serving = False
 
-        super(SocketReader, self).__init__('SOC', name, SocketReader.DEBUG)
+        isLive = (self.__port == DAQPort.I3LIVE)
+        super(SocketReader, self).__init__('SOC', name,
+                                           isLive=isLive)
 
-    def __listener(self):
-        """
-        Create listening, non-blocking UDP socket, read from it, and write to file;
-        close socket and end thread if signaled via self.__thread variable.
-        """
-                 
+    def __bind(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setblocking(0)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -449,7 +818,13 @@ class SocketReader(LogChecker):
         except:
             print 'Cannot bind SocketReader to port %d' % self.__port
             raise
+        return sock
 
+    def __listener(self, sock):
+        """
+        Create listening, non-blocking UDP socket, read from it, and write to file;
+        close socket and end thread if signaled via self.__thread variable.
+        """
         self.__serving = True
         try:
             pr = [sock]
@@ -471,15 +846,17 @@ class SocketReader(LogChecker):
             sock.close()
             self.__serving = False
 
-    def __win_listener(self):
-        """
-        Windows version of listener - no select().
-        """
+    def __win_bind(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         #sock.setblocking(1)
         #sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(("", self.__port))
+        return sock
 
+    def __win_listener(self, sock):
+        """
+        Windows version of listener - no select().
+        """
         self.__serving = True
         try:
             while self.__thread is not None:
@@ -489,11 +866,11 @@ class SocketReader(LogChecker):
             sock.close()
             self.__serving = False
 
-    def getError(self): return self.__errMsg
+    def _checkError(self):
+        if self.__errMsg is not None:
+            raise Exception(self.__errMsg)
 
     def getPort(self): return self.__port
-
-    def isError(self): return self.__errMsg is not None
 
     def serving(self):
         return self.__serving
@@ -514,9 +891,13 @@ class SocketReader(LogChecker):
             raise Exception('Socket reader %s is already running' % self.__name)
 
         if os.name == "nt":
-            self.__thread = threading.Thread(target=self.__win_listener)
+            sock = self.__win_bind()
+            listener = self.__win_listener
         else:
-            self.__thread = threading.Thread(target=self.__listener)
+            sock = self.__bind()
+            listener = self.__listener
+
+        self.__thread = threading.Thread(target=listener, args=(sock, ))
 
         self.__thread.start()
         while not self.__serving:
@@ -531,7 +912,8 @@ class SocketReaderFactory(object):
         self.__logList.append(log)
 
         if expectStartMsg:
-            log.addExpectedTextRegexp(r'^Start of log at \S+:\d+$')
+            log.addExpectedTextRegexp(r'^Start of log at (\S+:\d+|' +
+                                      r'log\(\S+:\d+\)\+live\(\S+:\d+\))$')
         log.startServing()
 
         return log
@@ -541,16 +923,22 @@ class SocketReaderFactory(object):
             l.stopServing()
 
         for l in self.__logList:
-            l.checkEmpty()
-            if l.isError():
-                raise Exception(l.getError())
+            l.checkStatus(0)
 
         del self.__logList[:]
 
 class SocketWriter(object):
     def __init__(self, node, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.connect((node, port))
+        try:
+            self.socket.connect((node, port))
+            self.__loc = (node, port)
+        except socket.error, err:
+            raise socket.error('Cannot connect to %s:%d: %s' %
+                               (node, port, str(err)))
+
+    def __str__(self):
+        return '%s@%d' % self.__loc
 
     def write(self, s):
         "Write message to remote logger"
