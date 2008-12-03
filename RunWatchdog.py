@@ -311,7 +311,7 @@ class RunWatchdog(object):
                     elif shortNameOf[c] == 'iceTopTrigger':
                         hubName = self.__findHub(shortNameOf)
                         if hubName is not None:
-                            cw.addInputValue(hubName, 'stringHit',
+                            cw.addInputValue(hubName, 'icetopHit',
                                              'RecordsReceived')
                         if self.__contains(shortNameOf, 'globalTrigger'):
                             cw.addOutputValue('globalTrigger', 'trigger',

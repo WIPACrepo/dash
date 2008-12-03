@@ -108,7 +108,7 @@ class TestRunWatchdog(unittest.TestCase):
                        ('globalTrigger', 'trigger', 'RecordsSent', 'o', 0),
                        ),
                   'iceTopTrigger' :
-                      (('stringHub', 'stringHit', 'RecordsReceived', 'i', 0),
+                      (('stringHub', 'icetopHit', 'RecordsReceived', 'i', 0),
                        ('globalTrigger', 'trigger', 'RecordsSent', 'o', 0),
                        ),
                   'amandaTrigger' :
