@@ -21,8 +21,21 @@ class BeanData(object):
         self.__value = val
         self.__increasing = increasing
 
+    def append(self, val):
+        if type(self.__value) == list:
+            self.__value.append(val)
+        else:
+            prev = self.__value
+            self.__value = [prev, val]
+
     def getValue(self):
         return self.__value
+
+    def setStatic(self):
+        self.__watchType = BeanData.TYPE_STATIC
+
+    def setValue(self, val):
+        self.__value = val
 
     def update(self):
         if self.__watchType != BeanData.TYPE_STATIC:
@@ -31,6 +44,12 @@ class BeanData(object):
                     self.__value += 1
                 else:
                     self.__value -= 1
+            elif type(self.__value) == list:
+                for i in range(len(self.__value)):
+                    if self.__increasing:
+                        self.__value[i] += 1
+                    else:
+                        self.__value[i] -= 1
             else:
                 print 'Not updating %s:%s:%s type %s' % \
                     (self.__remoteComp, self.__bean, self.__field,
@@ -59,7 +78,7 @@ class MockMBeanClient(object):
         k.sort()
         return k
 
-    def updateMBeanData(self):
+    def updateMBeanData(self, comp):
         for b in self.__mbeanDict:
             for f in self.__mbeanDict[b]:
                 self.__mbeanDict[b][f].update()
@@ -71,6 +90,7 @@ class MockRPCClient(object):
 class MockData(WatchData):
     def __init__(self, id, name, daqID, addr, port, rpcClient):
         self.__client = rpcClient
+        self.__comp = '%s#%d' % (name, daqID)
 
         super(MockData, self).__init__(id, name, daqID, addr, port)
 
@@ -78,7 +98,7 @@ class MockData(WatchData):
         return self.__client
 
     def updateMBeanData(self):
-        self.__client.mbean.updateMBeanData()
+        self.__client.mbean.updateMBeanData(self.__comp)
 
 class MockWatchdog(RunWatchdog):
     def __init__(self, daqLog, interval, IDs, shortNameOf, daqIDof,
@@ -125,7 +145,7 @@ class TestRunWatchdog(unittest.TestCase):
                       (('stringHub', 'backEnd', 'NumReadoutsReceived', 'i', 0),
                        ('globalTrigger', 'backEnd',
                         'NumTriggerRequestsReceived', 'i', 0),
-                       ('dispatch', 'backEnd', 'NumEventsSent', 's', 0),
+                       ('dispatch', 'backEnd', 'NumEventsSent', 'o', 0),
                        ('eventBuilder', 'backEnd', 'DiskAvailable',
                         't', 1024, True),
                        ('eventBuilder', 'backEnd', 'NumBadEvents',
@@ -142,7 +162,11 @@ class TestRunWatchdog(unittest.TestCase):
                        ),
                   }
 
-    def __buildBeans(self, masterList, compName):
+    def __buildBeans(self, masterList, comp):
+        pound = comp.find('#')
+        compName = comp[:pound]
+        compId = int(comp[pound+1:])
+
         if not masterList.has_key(compName):
             self.fail('Unknown component %s' % compName)
 
@@ -153,13 +177,17 @@ class TestRunWatchdog(unittest.TestCase):
             if not mbeans.has_key(t[1]):
                 mbeans[t[1]] = {}
 
-            if len(t) == 5:
-                mbeans[t[1]][t[2]] = BeanData(t[0], t[1], t[2], t[3], t[4])
-            elif len(t) == 6:
-                mbeans[t[1]][t[2]] = BeanData(t[0], t[1], t[2], t[3], t[4],
-                                              t[5])
+            if mbeans[t[1]].has_key(t[2]):
+                mbeans[t[1]][t[2]].append(t[4])
             else:
-                raise Exception('Bad bean tuple %s' % str(t))
+                if len(t) == 5:
+                    data = BeanData(t[0], t[1], t[2], t[3], t[4])
+                elif len(t) == 6:
+                    data = BeanData(t[0], t[1], t[2], t[3], t[4], t[5])
+                else:
+                    raise Exception('Bad bean tuple %s' % str(t))
+
+                mbeans[t[1]][t[2]] = data
 
         return mbeans
 
@@ -174,6 +202,12 @@ class TestRunWatchdog(unittest.TestCase):
                           (RunWatchdog.NOT_RUNNING, result))
 
         appender.checkStatus(10)
+
+    def __updateBean(self, mbeans, comp, beanName, fldName, val):
+        mbeans[beanName][fldName].setValue(val)
+
+    def __setStatic(self, mbeans, comp, beanName, fldName):
+        mbeans[beanName][fldName].setStatic()
 
     # ThresholdWatcher tests
 
@@ -442,7 +476,8 @@ class TestRunWatchdog(unittest.TestCase):
                        ),
                   }
 
-        mbeans = self.__buildBeans(master, compName)
+        comp = '%s#%d' % (compName, compId)
+        mbeans = self.__buildBeans(master, comp)
 
         client = MockRPCClient(mbeans)
 
@@ -467,7 +502,8 @@ class TestRunWatchdog(unittest.TestCase):
                        ),
                   }
 
-        mbeans = self.__buildBeans(master, compName)
+        comp = '%s#%d' % (compName, compId)
+        mbeans = self.__buildBeans(master, comp)
 
         client = MockRPCClient(mbeans)
 
@@ -510,7 +546,8 @@ class TestRunWatchdog(unittest.TestCase):
                        ),
                   }
 
-        mbeans = self.__buildBeans(master, compName)
+        comp = '%s#%d' % (compName, compId)
+        mbeans = self.__buildBeans(master, comp)
 
         client = MockRPCClient(mbeans)
 
@@ -553,7 +590,8 @@ class TestRunWatchdog(unittest.TestCase):
                        ),
                   }
 
-        mbeans = self.__buildBeans(master, compName)
+        comp = '%s#%d' % (compName, compId)
+        mbeans = self.__buildBeans(master, comp)
 
         client = MockRPCClient(mbeans)
 
@@ -596,7 +634,8 @@ class TestRunWatchdog(unittest.TestCase):
                        ),
                   }
 
-        mbeans = self.__buildBeans(master, compName)
+        comp = '%s#%d' % (compName, compId)
+        mbeans = self.__buildBeans(master, comp)
 
         client = MockRPCClient(mbeans)
 
@@ -618,9 +657,8 @@ class TestRunWatchdog(unittest.TestCase):
                        ),
                   }
 
-        mbeans = self.__buildBeans(master, compName)
-
-        #mbeans = {inBean : {inFld:inVal, }}
+        comp = '%s#%d' % (compName, compId)
+        mbeans = self.__buildBeans(master, comp)
 
         client = MockRPCClient(mbeans)
 
@@ -686,7 +724,8 @@ class TestRunWatchdog(unittest.TestCase):
                        )
                   }
 
-        mbeans = self.__buildBeans(master, compName)
+        comp = '%s#%d' % (compName, compId)
+        mbeans = self.__buildBeans(master, comp)
 
         client = MockRPCClient(mbeans)
 
@@ -742,6 +781,79 @@ class TestRunWatchdog(unittest.TestCase):
                               (expMsg, ul[idx]))
             idx += 1
 
+    def testCheckListChangingVal(self):
+        id = 5
+        compName = 'foo'
+        compId = 3
+
+        inBean = 'abean'
+        inFld = 'afld'
+        inVal = 1
+
+        master = {compName :
+                      (('xxx', inBean, inFld, 'i', inVal),
+                       ),
+                  }
+
+        comp = '%s#%d' % (compName, compId)
+        mbeans = self.__buildBeans(master, comp)
+
+        client = MockRPCClient(mbeans)
+
+        wd = MockData(id, compName, compId, None, None, client)
+        self.assertEquals(None, wd.checkList([]),
+                          'Expected empty checkValues() to return None')
+
+        inName = 'xxx'
+
+        wd.addInputValue(inName, inBean, inFld)
+
+        ul = wd.checkList(wd.inputFields)
+        self.failUnless(ul is None,
+                        'First check should return None, not %s' % str(ul))
+
+        for i in range(ValueWatcher.NUM_UNCHANGED * 2):
+            self.__updateBean(mbeans, comp, inBean, inFld, inVal + i + 1)
+            ul = wd.checkList(wd.inputFields)
+            self.failUnless(ul is None, 'Check #%d should return None' % i)
+
+    def testCheckListChangingList(self):
+        id = 5
+        compName = 'foo'
+        compId = 3
+
+        inBean = 'abean'
+        inFld = 'afld'
+        inVal = [123, 456]
+
+        master = {compName :
+                      (('xxx', inBean, inFld, 'i', inVal),
+                       ),
+                  }
+
+        comp = '%s#%d' % (compName, compId)
+        mbeans = self.__buildBeans(master, comp)
+
+        client = MockRPCClient(mbeans)
+
+        wd = MockData(id, compName, compId, None, None, client)
+        self.assertEquals(None, wd.checkList([]),
+                          'Expected empty checkValues() to return None')
+
+        inName = 'xxx'
+
+        wd.addInputValue(inName, inBean, inFld)
+
+        ul = wd.checkList(wd.inputFields)
+        self.failUnless(ul is None,
+                        'First check should return None, not %s' % str(ul))
+
+        for i in range(ValueWatcher.NUM_UNCHANGED * 2):
+            newVal = [inVal[0] + (i * 100) + 1, inVal[1] + (i * 10) + 1]
+            self.__updateBean(mbeans, comp, inBean, inFld, newVal)
+            ul = wd.checkList(wd.inputFields)
+            self.failUnless(ul is None, 'Check #%d should return None' % i)
+
     # RunWatchdog tests
 
     def testCreateWatchdogBadComp(self):
@@ -769,7 +881,8 @@ class TestRunWatchdog(unittest.TestCase):
         name = 'eventBuilder'
         compId = 83
 
-        mbeans = self.__buildBeans({name : []}, name)
+        comp = '%s#%d' % (name, compId)
+        mbeans = self.__buildBeans({name : []}, comp)
 
         idList = [id, ]
         compNameDict = {id:name}
@@ -802,7 +915,9 @@ class TestRunWatchdog(unittest.TestCase):
             compName = comp[:pound]
             compId = int(comp[pound+1:])
 
-            mbeans = self.__buildBeans(TestRunWatchdog.COMP_BEANS, compName)
+            mbeans = self.__buildBeans(TestRunWatchdog.COMP_BEANS, comp)
+            if compName == 'eventBuilder':
+                self.__setStatic(mbeans, 'dispatch', 'backEnd', 'NumEventsSent')
 
             client = MockRPCClient(mbeans)
 
@@ -836,6 +951,53 @@ class TestRunWatchdog(unittest.TestCase):
                                    r' components:.*')
 
         self.__runThread(wd, appender)
+
+    def testCheckWatchdog(self):
+        idList = []
+        compNameDict = {}
+        compIdDict = {}
+        addrDict = {}
+        portDict = {}
+        dataDict = {}
+
+        nextId = 1
+        for comp in ('stringHub#0', 'stringHub#10', 'inIceTrigger#0',
+                     'simpleTrigger#0', 'iceTopTrigger#0', 'amandaTrigger#0',
+                     'globalTrigger#0', 'eventBuilder#0',
+                     'secondaryBuilders#0'):
+            pound = comp.find('#')
+            compName = comp[:pound]
+            compId = int(comp[pound+1:])
+
+            mbeans = self.__buildBeans(TestRunWatchdog.COMP_BEANS, comp)
+
+            client = MockRPCClient(mbeans)
+
+            id = nextId
+            nextId += 1
+
+            idList.append(id)
+            compNameDict[id] = compName
+            compIdDict[id] = compId
+            addrDict[id] = 'localhost'
+            portDict[id] = 100 + id
+            dataDict[id] = MockData(id, compName, compId, None, None, client)
+
+        appender = MockAppender('log')
+
+        wd = MockWatchdog(DAQLog(appender), 60.0, idList, compNameDict,
+                          compIdDict, addrDict, portDict, dataDict)
+
+        self.failIf(wd.inProgress(), 'Watchdog should not be in progress')
+        self.failIf(wd.isDone(), 'Watchdog should not be done')
+        self.failIf(wd.isHealthy(), 'Watchdog should not be healthy')
+        self.failIf(wd.caughtError(), 'Watchdog should not have error')
+        appender.checkStatus(10)
+
+        for n in range(2):
+            for id in dataDict:
+                dataDict[id].updateMBeanData()
+            self.__runThread(wd, appender)
 
 if __name__ == '__main__':
     unittest.main()
