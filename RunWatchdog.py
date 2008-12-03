@@ -77,7 +77,10 @@ class ValueWatcher(object):
 
     def check(self, newValue):
         if self.__prevValue is None:
-            self.__prevValue = newValue
+            if type(newValue) == list:
+                self.__prevValue = newValue[:]
+            else:
+                self.__prevValue = newValue
         elif type(newValue) != type(self.__prevValue):
             raise Exception('Previous value for %s was %s, new value is %s' %
                             (str(self), str(type(self.__prevValue)),
