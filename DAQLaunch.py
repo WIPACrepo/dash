@@ -17,7 +17,7 @@ from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from GetIP import getIP
 
-SVN_ID = "$Id: DAQLaunch.py 3694 2008-12-04 19:51:37Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 3695 2008-12-04 20:00:24Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -219,7 +219,7 @@ def doKill(doDAQRun, dryRun, dashDir, verbose, clusterConfig, killWith9,
 
 def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
              configDir, logDir, spadeDir, copyDir, logPort, livePort,
-             eventCheck=False, parallel=None):
+             eventCheck=False, checkExists=True, parallel=None):
     "Launch components"
 
     # Start DAQRun
@@ -262,7 +262,7 @@ def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
         runCmd(cncCmd, parallel)
 
     startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
-                       livePort, verbose, eventCheck, checkExists=True,
+                       livePort, verbose, eventCheck, checkExists=checkExists,
                        parallel=parallel)
     if verbose and not dryRun: print "DONE with starting Java Processes."
 
@@ -270,7 +270,8 @@ def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
     clusterConfig.writeCacheFile(True)
 
 def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, copyDir,
-              logPort, livePort, eventCheck=False, parallel=None):
+              logPort, livePort, eventCheck=False, checkExists=True,
+              parallel=None):
     """
     Stop and restart pDAQ programs - can be used by DAQRun when cycling
     pDAQ in an attempt to wipe the slate clean after a failure
@@ -284,7 +285,7 @@ def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, copyDir,
            parallel)
     doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir, configDir,
              logDir, spadeDir, copyDir, logPort, livePort,
-             eventCheck=eventCheck, parallel=parallel)
+             eventCheck=eventCheck, checkExists=checkExists, parallel=parallel)
 
 if __name__ == "__main__":
     ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % get_version_info(SVN_ID)

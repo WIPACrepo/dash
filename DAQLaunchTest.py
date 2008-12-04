@@ -37,7 +37,7 @@ class MockClusterConfig(object):
         pass
 
 class DAQLaunchTest(unittest.TestCase):
-    def testStartJava(self):
+    def ZZZtestStartJava(self):
         dryRun = False
         configDir = '/foo/bar'
         logPort = 1234
@@ -87,7 +87,7 @@ class DAQLaunchTest(unittest.TestCase):
 
                         parallel.check()
 
-    def testKillJava(self):
+    def ZZZtestKillJava(self):
         for compName in componentDB:
             if compName[-3:] == 'Hub':
                 compId = 17
@@ -124,7 +124,7 @@ class DAQLaunchTest(unittest.TestCase):
 
                     parallel.check()
 
-    def testLaunch(self):
+    def ZZZtestLaunch(self):
         dryRun = False
         configDir = '/foo/bar/cfg'
         dashDir = '/foo/bar/dash'
@@ -171,11 +171,12 @@ class DAQLaunchTest(unittest.TestCase):
 
                     doLaunch(True, False, False, config, dashDir, configDir,
                              logDir, spadeDir, copyDir, logPort, livePort,
-                             eventCheck=evtChk, parallel=parallel)
+                             eventCheck=evtChk, checkExists=checkExists,
+                             parallel=parallel)
 
                     parallel.check()
 
-    def testDoKill(self):
+    def ZZZtestDoKill(self):
         dryRun = False
         dashDir = '/foo/bar/dash'
         verbose = False
@@ -265,7 +266,8 @@ class DAQLaunchTest(unittest.TestCase):
 
                     cyclePDAQ(dashDir, config, configDir, logDir, spadeDir,
                               copyDir, logPort, livePort,
-                              eventCheck=eventCheck, parallel=parallel)
+                              eventCheck=eventCheck, checkExists=checkExists,
+                              parallel=parallel)
 
                     parallel.check()
 
