@@ -17,7 +17,7 @@ from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from GetIP import getIP
 
-SVN_ID = "$Id: DAQLaunch.py 3678 2008-12-02 15:11:08Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 3693 2008-12-04 18:11:02Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -36,69 +36,57 @@ from ClusterConfig import *
 from ParallelShell import *
 
 class HostNotFoundForComponent   (Exception): pass
-class ExecJarNotFoundForComponent(Exception): pass
-class JVMArgsNotFoundForComponent(Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
 
-componentDB = { "eventbuilder"      : \
-                    { "ejar"     : "eventBuilder-prod-1.0.0-SNAPSHOT-comp.jar",
-                      "jvm_args" : "-Xmx1024m",
-                    },
-                "secondarybuilders" : \
-                    { "ejar"     : "secondaryBuilders-1.0.0-SNAPSHOT-comp.jar",
-                      "jvm_args" : "",
-                    },
-                "inicetrigger"      : \
-                    { "ejar"     : "trigger-1.0.0-SNAPSHOT-iitrig.jar",
-                      "jvm_args" : "-Xmx1600m",
-                    },
-                "simpletrigger"      : \
-                    { "ejar"     : "trigger-1.0.0-SNAPSHOT-simptrig.jar",
-                      "jvm_args" : "-Xmx4500m",
-                    },
-                "icetoptrigger"     : \
-                    { "ejar"     : "trigger-1.0.0-SNAPSHOT-ittrig.jar",
-                      "jvm_args" : "-Xmx1600m ",
-                    },
-                "globaltrigger"     : \
-                    { "ejar"     : "trigger-1.0.0-SNAPSHOT-gtrig.jar",
-                      "jvm_args" : "-Xmx1600m",
-                    },
-                "amandatrigger"     : \
-                    { "ejar"     : "trigger-1.0.0-SNAPSHOT-amtrig.jar",
-                      "jvm_args" : "-Xmx1600m",
-                    },
-                "stringhub"         : \
-                    { "ejar"     : "StringHub-1.0.0-SNAPSHOT-comp.jar",
-                      "jvm_args" : "-server -Xms640m -Xmx640m -Dicecube.daq.bindery.StreamBinder.prescale=1",
-                    },
-                "replayhub"        : \
-                    { "ejar"     : "StringHub-1.0.0-SNAPSHOT-replay.jar",
-                      "jvm_args" : "-Xmx350m",
-                    },
+class ComponentData(object):
+    RELEASE = "1.0.0-SNAPSHOT"
+
+    def __init__(self, name, type="comp", memory=1024, extraArgs=None):
+        self.__name = name
+        self.__type = type
+        self.__memory = memory
+        self.__extraArgs = extraArgs
+
+    def getJVMArgs(self):
+        jvmArgs = "-server -Xms%dm -Xmx%dm" % (self.__memory, self.__memory)
+
+        if self.__extraArgs is not None:
+            jvmArgs += " " + self.__extraArgs
+
+        return jvmArgs
+
+    def getJar(self):
+        return "%s-%s-%s.jar" % \
+            (self.__name, ComponentData.RELEASE, self.__type)
+
+class TriggerData(ComponentData):
+    def __init__(self, type, memory=1600):
+        super(TriggerData, self).__init__("trigger", type, memory)
+
+class HubData(ComponentData):
+    def __init__(self, type, memory):
+        extraArgs = "-Dicecube.daq.bindery.StreamBinder.prescale=1"
+        super(HubData, self).__init__("StringHub", type, memory, extraArgs)
+
+# note that the component name keys for componentDB should be lower-case
+componentDB = { "eventbuilder"      : ComponentData("eventBuilder-prod"),
+                "secondarybuilders" : ComponentData("secondaryBuilders"),
+                "inicetrigger"      : TriggerData("iitrig"),
+                "simpletrigger"     : TriggerData("simptrig"),
+                "icetoptrigger"     : TriggerData("ittrig"),
+                "globaltrigger"     : TriggerData("gtrig"),
+                "amandatrigger"     : TriggerData("amtrig"),
+                "stringhub"         : HubData("comp", 640),
+                "replayhub"         : HubData("replay", 350),
               }
 
-def getJVMArgs(compName):
+def getLaunchData(compName):
     key = compName.lower()
 
     if not componentDB.has_key(key):
         raise ComponentNotFoundInDatabase(compName)
 
-    if not componentDB[key].has_key("jvm_args"):
-        raise JVMArgsNotFoundForComponent(compName)
-
-    return componentDB[key]["jvm_args"]
-
-def getExecJar(compName):
-    key = compName.lower()
-
-    if not componentDB.has_key(key):
-        raise ComponentNotFoundInDatabase(compName)
-
-    if not componentDB[key].has_key("ejar"):
-        raise ExecJarNotFoundForComponent(compName)
-
-    return componentDB[key]["ejar"]
+    return componentDB[key]
 
 def runCmd(cmd, parallel):
     if parallel is None:
@@ -111,22 +99,23 @@ def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9, parallel=None):
         parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose)
     for node in clusterConfig.nodes:
         for comp in node.comps:
-            killPat = getExecJar(comp.compName)
+            data = getLaunchData(comp.compName)
+            jarName = data.getJar()
             if killWith9: niner = "-9"
             else:         niner = ""
             if node.hostName == "localhost": # Just kill it
-                cmd = "pkill %s -fu %s %s" % (niner, environ["USER"], killPat)
+                cmd = "pkill %s -fu %s %s" % (niner, environ["USER"], jarName)
                 if verbose: print cmd
                 parallel.add(cmd)
                 if not killWith9:
-                    cmd = "sleep 2; pkill -9 -fu %s %s" % (environ["USER"], killPat)
+                    cmd = "sleep 2; pkill -9 -fu %s %s" % (environ["USER"], jarName)
                     if verbose: print cmd
                     parallel.add(cmd)
             else:                            # Have to ssh to kill
-                cmd = "ssh %s pkill %s -f %s" % (node.hostName, niner, killPat)
+                cmd = "ssh %s pkill %s -f %s" % (node.hostName, niner, jarName)
                 parallel.add(cmd)
                 if not killWith9:
-                    cmd = "sleep 2; ssh %s pkill -9 -f %s" % (node.hostName, killPat)
+                    cmd = "sleep 2; ssh %s pkill -9 -f %s" % (node.hostName, jarName)
                     parallel.add(cmd)
 
     if not dryRun:
@@ -151,14 +140,16 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
     for node in clusterConfig.nodes:
         myIP = getIP(node.hostName)
         for comp in node.comps:
-            execJar = join(binDir, getExecJar(comp.compName))
+            data = getLaunchData(comp.compName)
+            execJar = join(binDir, data.getJar())
             if checkExists and not exists(execJar):
                 print "%s jar file does not exist: %s" % \
                     (comp.compName, execJar)
                 continue
 
             javaCmd = "java"
-            jvmArgs = getJVMArgs(comp.compName)
+            jvmArgs = data.getJVMArgs()
+
             switches = "-g %s" % configDir
             switches += " -c %s:%d" % (myIP, DAQPort.CNCSERVER)
             if logPort is not None:
@@ -167,7 +158,7 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
                 switches += " -L %s:%d,%s" % (myIP, livePort, comp.logLevel)
             compIO = quietStr
 
-            if comp.compName == "StringHub" or comp.compName == "replayHub":
+            if comp.compName.endswith("Hub"):
                 #javaCmd = "/usr/java/jdk1.5.0_07/bin/java"
                 jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % comp.compID
                 #switches += " -M 10"

@@ -6,7 +6,7 @@ import datetime, os, re, select, socket, threading, time
 
 from CnCServer import CnCLogger, DAQClient
 from DAQConst import DAQPort
-from DAQLaunch import getExecJar, getJVMArgs
+from DAQLaunch import getLaunchData
 import GetIP
 
 try:
@@ -586,20 +586,21 @@ class MockParallelShell(object):
 
     def addExpectedJava(self, compName, compId, configDir, logPort, livePort,
                         logLevel, verbose, eventCheck, host):
+        launchData = getLaunchData(compName)
+
         ipAddr = GetIP.getIP(host)
-        jarPath = os.path.join(MockParallelShell.BINDIR,
-                               getExecJar(compName))
+        jarPath = os.path.join(MockParallelShell.BINDIR, launchData.getJar())
 
         if verbose:
             redir = ''
         else:
             redir = ' </dev/null >/dev/null 2>&1'
 
-        cmd = 'java %s' % getJVMArgs(compName)
+        cmd = 'java %s' % launchData.getJVMArgs()
 
         if eventCheck and compName == 'eventBuilder':
             cmd += ' -Dicecube.daq.eventBuilder.validateEvents'
-        elif compName[-3:] == 'Hub':
+        elif compName.endswith('Hub'):
             cmd += ' -Dicecube.daq.stringhub.componentId=%s' % compId
 
         cmd += ' -jar %s' % jarPath
@@ -625,7 +626,7 @@ class MockParallelShell(object):
             nineArg = ''
 
         user = os.environ['USER']
-        jar = getExecJar(compName)
+        jar = getLaunchData(compName).getJar()
 
         if self.__isLocalhost(host):
             sshCmd = ''
