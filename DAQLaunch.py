@@ -17,7 +17,7 @@ from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from GetIP import getIP
 
-SVN_ID = "$Id: DAQLaunch.py 3693 2008-12-04 18:11:02Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 3694 2008-12-04 19:51:37Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -389,14 +389,23 @@ if __name__ == "__main__":
             numSets = None
 
         if numSets is not None and numSets > 0:
-            if numSets == 1:
-                plural = ''
-            else:
-                plural = 's'
-            print >>sys.stderr, 'Found %d active runset%s' % (numSets, plural)
-            print >>sys.stderr, \
-                'To force a restart, rerun with the --force option'
-            raise SystemExit
+            daqrpc = RPCClient("localhost", DAQPort.DAQRUN)
+            try:
+                state  = daqrpc.rpc_run_state()
+            except:
+                state = "DEAD"
+
+            deadStates = ("DEAD", "ERROR", "STOPPED")
+            if not state in deadStates:
+                if numSets == 1:
+                    plural = ''
+                else:
+                    plural = 's'
+                print >>sys.stderr, 'Found %d %s runset%s' % \
+                    (numSets, state.lower(), plural)
+                print >>sys.stderr, \
+                    'To force a restart, rerun with the --force option'
+                raise SystemExit
 
     if opt.verbose:
         print "Version: %(filename)s %(revision)s %(date)s %(time)s " \
