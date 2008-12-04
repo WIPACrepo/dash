@@ -1514,7 +1514,7 @@ class IntegrationTest(unittest.TestCase):
         self.__runTest(None, dr, cnc, None, appender, catchall, targetFlags,
                        False)
 
-    def ZZZtestDAQRunInMain(self):
+    def testDAQRunInMain(self):
         if sys.platform != 'darwin':
             print 'Skipping server tests in non-Darwin OS'
             return
@@ -1536,7 +1536,7 @@ class IntegrationTest(unittest.TestCase):
 
         dr.run_thread(None, pShell)
 
-    def ZZZtestCnCInMain(self):
+    def testCnCInMain(self):
         if sys.platform != 'darwin':
             print 'Skipping server tests in non-Darwin OS'
             return
@@ -1558,7 +1558,7 @@ class IntegrationTest(unittest.TestCase):
 
         cnc.run()
 
-    def ZZZtestLiveFinishInMain(self):
+    def testLiveFinishInMain(self):
         if not TEST_LIVE:
             print 'Skipping I3Live-related test'
             return
@@ -1584,7 +1584,7 @@ class IntegrationTest(unittest.TestCase):
         self.__runTest(live, dr, cnc, liveLog, appender, catchall, targetFlags,
                        True)
 
-    def ZZZtestAllLiveFinishInMain(self):
+    def testAllLiveFinishInMain(self):
         if not TEST_LIVE:
             print 'Skipping I3Live-related test'
             return
@@ -1613,7 +1613,7 @@ class IntegrationTest(unittest.TestCase):
         self.__runTest(live, dr, cnc, liveLog, appender, catchall, targetFlags,
                        False)
 
-    def ZZZtestBothFinishInMain(self):
+    def testBothFinishInMain(self):
         if not TEST_LIVE:
             print 'Skipping I3Live-related test'
             return
