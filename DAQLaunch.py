@@ -17,7 +17,7 @@ from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from GetIP import getIP
 
-SVN_ID = "$Id: DAQLaunch.py 3695 2008-12-04 20:00:24Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 3698 2008-12-04 21:33:33Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -288,14 +288,17 @@ def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, copyDir,
              eventCheck=eventCheck, checkExists=checkExists, parallel=parallel)
 
 if __name__ == "__main__":
+    LOGMODE_OLD = 1
+    LOGMODE_LIVE = 2
+    LOGMODE_BOTH = LOGMODE_OLD | LOGMODE_LIVE
+
     ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % get_version_info(SVN_ID)
     usage = "%prog [options]\nversion: " + ver_info
     p = optparse.OptionParser(usage=usage, version=ver_info)
 
-    p.add_option("-B", "--log-to-files-and-i3live", action="store_true",
-                 dest="bothMode",
+    p.add_option("-B", "--log-to-files-and-i3live", action="store_const",
+                  const=LOGMODE_BOTH, dest="logMode",
                  help="Send log messages to both I3Live and to local files")
-
     p.add_option("-c", "--config-name",  action="store", type="string",
                  dest="clusterConfigName",
                  help="Cluster configuration name, subset of deployed configuration.")
@@ -307,18 +310,22 @@ if __name__ == "__main__":
                  help="Kill pDAQ components, don't restart")
     p.add_option("-l", "--list-configs", action="store_true", dest="doList",
                  help="List available configs")
-    p.add_option("-L", "--log-to-i3live", action="store_true", dest="liveMode",
+    p.add_option("-L", "--log-to-i3live", action="store_const",
+                 const=LOGMODE_LIVE, dest="logMode",
                  help="Send all log messages to I3Live")
     p.add_option("-n", "--dry-run",      action="store_true",        dest="dryRun",
                  help="\"Dry run\" only, don't actually do anything")
+    p.add_option("-O", "--log-to-files", action="store_const",
+                 const=LOGMODE_OLD, dest="logMode",
+                 help="Send log messages to local files")
+
     p.add_option("-s", "--skip-kill",    action="store_true",        dest="skipKill",
                  help="Don't kill anything, just launch")
     p.add_option("-v", "--verbose",      action="store_true",        dest="verbose",
                  help="Log output for all components to terminal")
     p.add_option("-9", "--kill-kill",    action="store_true",        dest="killWith9",
                  help="just kill everything with extreme (-9) prejudice")
-    p.set_defaults(bothMode          = False,
-                   clusterConfigName = None,
+    p.set_defaults(clusterConfigName = None,
                    dryRun            = False,
                    verbose           = False,
                    doList            = False,
@@ -327,19 +334,15 @@ if __name__ == "__main__":
                    killOnly          = False,
                    eventCheck        = False,
                    force             = False,
-                   liveMode          = False)
+                   logMode           = LOGMODE_OLD)
     opt, args = p.parse_args()
 
-    if opt.bothMode and opt.liveMode:
-        print >>sys.stderr, 'ERROR: Cannot specify both -B and -L'
-        raise SystemExit
-
-    if opt.bothMode or not opt.liveMode:
+    if (opt.logMode & LOGMODE_OLD) == LOGMODE_OLD:
         logPort = DAQPort.CATCHALL
     else:
         logPort = None
 
-    if opt.bothMode or opt.liveMode:
+    if (opt.logMode & LOGMODE_LIVE) == LOGMODE_LIVE:
         livePort = DAQPort.I3LIVE
     else:
         livePort = None
