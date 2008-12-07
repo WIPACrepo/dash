@@ -93,6 +93,12 @@ class TestDAQServer(unittest.TestCase):
     def __createLog(self, name, port, expectStartMsg=True):
         return self.__logFactory.createLog(name, port, expectStartMsg)
 
+    def __getInternetAddress(self):
+        for addrData in socket.getaddrinfo(socket.gethostname(), None):
+            if addrData[0] == socket.AF_INET:
+                return addrData[4][0]
+        return None
+
     def __verifyRegArray(self, rtnArray, expId, logHost, logPort,
                          liveHost, livePort):
         numElem = 6
@@ -153,7 +159,7 @@ class TestDAQServer(unittest.TestCase):
 
         rtnArray = dc.rpc_register_component(name, num, host, port, mPort, [])
 
-        localAddr = socket.gethostbyaddr(socket.gethostname())[2][0]
+        localAddr = self.__getInternetAddress()
 
         self.__verifyRegArray(rtnArray, expId, localAddr, logPort,
                               localAddr, livePort)
@@ -202,7 +208,7 @@ class TestDAQServer(unittest.TestCase):
 
         rtnArray = dc.rpc_register_component(name, num, host, port, mPort, [])
 
-        localAddr = socket.gethostbyaddr(socket.gethostname())[2][0]
+        localAddr = self.__getInternetAddress()
 
         self.__verifyRegArray(rtnArray, expId, localAddr, logPort,
                               localAddr, livePort)

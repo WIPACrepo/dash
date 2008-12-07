@@ -18,7 +18,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3678 2008-12-02 15:11:08Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3705 2008-12-07 17:57:54Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -1338,10 +1338,14 @@ class DAQServer(DAQPool):
             self.server.register_function(self.rpc_show_components)
 
     def __getHostAddress(self, name):
+        "Only return IPv4 addresses -- IPv6 confuses some stuff"
         if name is None or name == '':
             name = 'localhost'
         if name == 'localhost' or name == '127.0.0.1':
-            name = socket.gethostbyaddr(socket.gethostname())[2][0]
+            for addrData in socket.getaddrinfo(socket.gethostname(), None):
+                if addrData[0] == socket.AF_INET:
+                    name = addrData[4][0]
+                    break
         return name
 
     def closeServer(self):
