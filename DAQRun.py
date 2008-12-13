@@ -39,7 +39,7 @@ import sys
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-SVN_ID  = "$Id: DAQRun.py 3678 2008-12-02 15:11:08Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3725 2008-12-13 21:24:31Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -1168,7 +1168,10 @@ class DAQRun(Rebootable.Rebootable):
             self.__appender.setLiveAppender(appender)
             if self.__logMode == DAQRun.LOG_TO_FILE:
                 self.__appender.setLogAppender(None)
+        elif (self.__logMode & DAQRun.LOG_TO_LIVE) == DAQRun.LOG_TO_LIVE:
+            self.__liveInfo = LiveInfo('localhost', DAQPort.I3LIVE)
         else:
+            print 'StartRun: bad logInfo %s' % str(logInfo)
             self.__liveInfo = None
 
         if self.runState != "STOPPED": return 0
