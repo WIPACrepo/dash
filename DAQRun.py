@@ -39,7 +39,7 @@ import sys
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-SVN_ID  = "$Id: DAQRun.py 3725 2008-12-13 21:24:31Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3726 2008-12-13 21:31:34Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -1052,6 +1052,13 @@ class DAQRun(Rebootable.Rebootable):
                 try:
                     (nev, nmoni, nsn, ntcal, duration) = \
                         self.runStats.stop(self)
+                except:
+                    (nev, nmoni, nsn, ntcal, duration) = (0, 0, 0, 0, 0)
+                    self.log.error("Could not get event count: %s" %
+                                   exc_string())
+                    hadError = True;
+
+                if not hadError:
                     if duration == 0:
                         rateStr = ""
                     else:
@@ -1060,9 +1067,6 @@ class DAQRun(Rebootable.Rebootable):
                                    "%s") % (nev, duration, rateStr))
                     self.log.info("%d moni events, %d SN events, %d tcals" %
                                   (nmoni, nsn, ntcal))
-                except:
-                    self.log.error("Could not get event count: %s" % exc_string())
-                    hadError = True;
 
                 self.moni = None
                 self.watchdog = None
