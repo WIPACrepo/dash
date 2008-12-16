@@ -37,7 +37,7 @@ class MockClusterConfig(object):
         pass
 
 class DAQLaunchTest(unittest.TestCase):
-    def ZZZtestStartJava(self):
+    def testStartJava(self):
         dryRun = False
         configDir = '/foo/bar'
         logPort = 1234
@@ -87,7 +87,7 @@ class DAQLaunchTest(unittest.TestCase):
 
                         parallel.check()
 
-    def ZZZtestKillJava(self):
+    def testKillJava(self):
         for compName in componentDB:
             if compName[-3:] == 'Hub':
                 compId = 17
@@ -124,7 +124,7 @@ class DAQLaunchTest(unittest.TestCase):
 
                     parallel.check()
 
-    def ZZZtestLaunch(self):
+    def testLaunch(self):
         dryRun = False
         configDir = '/foo/bar/cfg'
         dashDir = '/foo/bar/dash'
@@ -176,7 +176,7 @@ class DAQLaunchTest(unittest.TestCase):
 
                     parallel.check()
 
-    def ZZZtestDoKill(self):
+    def testDoKill(self):
         dryRun = False
         dashDir = '/foo/bar/dash'
         verbose = False
