@@ -13,7 +13,9 @@ def processList():
         raise SystemExit
     return output.split('\n')
 
-def findProcess(name, plist): # Iterate over list plist
+def findProcess(name, plist=None): # Iterate over list plist
+    if plist is None:
+        plist = processList()
     for p in plist:
         m = re.match(r'\s*(\d+)\s+.+?[pP]ython .+?%s' % name, p)
         if m:
