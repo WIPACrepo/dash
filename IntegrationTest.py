@@ -771,6 +771,10 @@ class StubbedDAQRun(DAQRun):
                          spadeDir):
         pass
 
+    def restartComponents(self, pShell):
+        super(StubbedDAQRun, self).restartComponents(pShell, checkExists=False,
+                                                     startMissing=False)
+
     def setFileAppender(self, appender):
         self.__fileAppender = appender
 
@@ -932,7 +936,9 @@ class IntegrationTest(unittest.TestCase):
     def __createParallelShell(self, logPort, livePort):
         pShell = MockParallelShell()
 
+        doLive = False
         doDAQRun = False
+        doCnC = True
         dryRun = False
         verbose = False
         killWith9 = False
@@ -943,7 +949,8 @@ class IntegrationTest(unittest.TestCase):
 
         logLevel = 'INFO'
 
-        pShell.addExpectedPythonKill(doDAQRun, dashDir, killWith9)
+        pShell.addExpectedPythonKill(doLive, doDAQRun, doCnC, dashDir,
+                                     killWith9)
 
         launchList = self.__compList[:]
         for i in range(len(launchList)):
@@ -956,7 +963,8 @@ class IntegrationTest(unittest.TestCase):
         for comp in launchList:
             pShell.addExpectedJavaKill(comp.getName(), killWith9, verbose, host)
 
-        pShell.addExpectedPython(doDAQRun, dashDir, IntegrationTest.CONFIG_DIR,
+        pShell.addExpectedPython(doLive, doDAQRun, doCnC, dashDir,
+                                 IntegrationTest.CONFIG_DIR,
                                  IntegrationTest.LOG_DIR,
                                  IntegrationTest.SPADE_DIR,
                                  IntegrationTest.CONFIG_NAME,

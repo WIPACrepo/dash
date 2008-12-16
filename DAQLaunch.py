@@ -16,8 +16,9 @@ from os.path import exists, isabs, join
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from GetIP import getIP
+from Process import findProcess, processList
 
-SVN_ID = "$Id: DAQLaunch.py 3728 2008-12-16 15:40:42Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 3732 2008-12-16 17:58:25Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -185,10 +186,19 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
         parallel.start()
         parallel.wait()
 
-def doKill(doDAQRun, dryRun, dashDir, verbose, clusterConfig, killWith9,
-           parallel=None):
+def doKill(doLive, doDAQRun, doCnC, dryRun, dashDir, verbose, clusterConfig,
+           killWith9, parallel=None):
     "Kill pDAQ python and java components in clusterConfig"
     if verbose: print "COMMANDS:"
+
+    if doLive:
+        # Kill DAQLive
+        daqLive = join(dashDir, 'DAQLive.py')
+        cmd = daqLive + ' -k'
+        if verbose: print cmd
+        if not dryRun:
+            runCmd(cmd, parallel)
+
     if doDAQRun:
         # Kill DAQRun
         daqRun = join(dashDir, 'DAQRun.py')
@@ -196,20 +206,14 @@ def doKill(doDAQRun, dryRun, dashDir, verbose, clusterConfig, killWith9,
         if verbose: print cmd
         if not dryRun:
             runCmd(cmd, parallel)
-        # Kill DAQLive
-        if killWith9: niner = "-9 "
-        else:         niner = ""
-        cmd = "pkill %s-fu %s DAQLive.py" % (niner, environ["USER"])
+
+    # Kill CnCServer
+    if doCnC:
+        cncServer = join(dashDir, 'CnCServer.py')
+        cmd = cncServer + ' -k'
         if verbose: print cmd
         if not dryRun:
             runCmd(cmd, parallel)
-
-    # Kill CnCServer
-    cncServer = join(dashDir, 'CnCServer.py')
-    cmd = cncServer + ' -k'
-    if verbose: print cmd
-    if not dryRun:
-        runCmd(cmd, parallel)
 
     killJavaProcesses(dryRun, clusterConfig, verbose, killWith9, parallel)
     if verbose and not dryRun: print "DONE with killing Java Processes."
@@ -217,10 +221,37 @@ def doKill(doDAQRun, dryRun, dashDir, verbose, clusterConfig, killWith9,
     # clear the active configuration
     clusterConfig.clearActiveConfig()
 
-def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
+def doLaunch(doLive, doDAQRun, doCnC, dryRun, verbose, clusterConfig, dashDir,
              configDir, logDir, spadeDir, copyDir, logPort, livePort,
-             eventCheck=False, checkExists=True, parallel=None):
+             eventCheck=False, checkExists=True, startMissing=True,
+             parallel=None):
     "Launch components"
+
+    # get a list of the running processes
+    if not startMissing:
+        procList = []
+    else:
+        procList = processList()
+
+    if startMissing:
+        # if DAQLive isn't running, start it
+        pids = list(findProcess("DAQLive.py", procList))
+        if len(pids) == 0:
+            doLive = True
+
+    # Start DAQLive
+    if doLive:
+        daqLive = join(dashDir, 'DAQLive.py')
+        cmd = "%s%s &" % (daqLive, verbose and " -v" or "")
+        if verbose: print cmd
+        if not dryRun:
+            runCmd(cmd, parallel)
+
+    if startMissing:
+        # if DAQRun isn't running, start it
+        pids = list(findProcess("DAQRun.py", procList))
+        if len(pids) == 0:
+            doDAQRun = True
 
     # Start DAQRun
     if doDAQRun:
@@ -242,24 +273,24 @@ def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
             sleep(5) # Fixme - this is a little kludgy, but CnCServer
                          # won't log correctly if DAQRun isn't started.
 
-        # Start DAQLive
-        daqLive = join(dashDir, 'DAQLive.py')
-        cmd = "%s%s &" % (daqLive, verbose and " -v" or "")
-        if verbose: print cmd
-        if not dryRun:
-            runCmd(cmd, parallel)
+    if startMissing:
+        # if CnCServer isn't running, start it
+        pids = list(findProcess("CnCServer.py", procList))
+        if len(pids) == 0:
+            doCnC = True
 
     # Start CnCServer
-    cncCmd = join(dashDir, 'CnCServer.py')
-    if logPort is not None:
-        cncCmd += ' -l localhost:%d' % logPort
-    if livePort is not None:
-        cncCmd += ' -L localhost:%d' % livePort
-    if verbose: cncCmd += ' &'
-    else: cncCmd += ' -d'
-    if verbose: print cmd
-    if not dryRun:
-        runCmd(cncCmd, parallel)
+    if doCnC:
+        cncCmd = join(dashDir, 'CnCServer.py')
+        if logPort is not None:
+            cncCmd += ' -l localhost:%d' % logPort
+        if livePort is not None:
+            cncCmd += ' -L localhost:%d' % livePort
+        if verbose: cncCmd += ' &'
+        else: cncCmd += ' -d'
+        if verbose: print cmd
+        if not dryRun:
+            runCmd(cncCmd, parallel)
 
     startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
                        livePort, verbose, eventCheck, checkExists=checkExists,
@@ -271,21 +302,24 @@ def doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir,
 
 def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, copyDir,
               logPort, livePort, eventCheck=False, checkExists=True,
-              parallel=None):
+              startMissing=True, parallel=None):
     """
     Stop and restart pDAQ programs - can be used by DAQRun when cycling
     pDAQ in an attempt to wipe the slate clean after a failure
     """
+    doCnC = True
     doDAQRun = False
+    doLive = False
     dryRun = False
     verbose = False
     killWith9 = False
 
-    doKill(doDAQRun, dryRun, dashDir, verbose, clusterConfig, killWith9,
-           parallel)
-    doLaunch(doDAQRun, dryRun, verbose, clusterConfig, dashDir, configDir,
-             logDir, spadeDir, copyDir, logPort, livePort,
-             eventCheck=eventCheck, checkExists=checkExists, parallel=parallel)
+    doKill(doLive, doDAQRun, doCnC, dryRun, dashDir, verbose,
+           clusterConfig, killWith9, parallel)
+    doLaunch(doLive, doDAQRun, doCnC, dryRun, verbose, clusterConfig, dashDir,
+             configDir, logDir, spadeDir, copyDir, logPort, livePort,
+             eventCheck=eventCheck, checkExists=checkExists,
+             startMissing=startMissing, parallel=parallel)
 
 if __name__ == "__main__":
     LOGMODE_OLD = 1
@@ -425,11 +459,12 @@ if __name__ == "__main__":
     if not opt.skipKill:
         try:
             activeConfig = ClusterConfig(metaDir, None, False, False, True)
-            doKill(True, opt.dryRun, dashDir, opt.verbose, activeConfig,
-                   opt.killWith9)
+            doKill(False, True, True, opt.dryRun, dashDir, opt.verbose,
+                   activeConfig, opt.killWith9)
         except ConfigNotSpecifiedException:
             if opt.killOnly: print >>sys.stderr, 'DAQ is not currently active'
     if not opt.killOnly:
-        doLaunch(True, opt.dryRun, opt.verbose, clusterConfig, dashDir,
-                 configDir, logDir, spadeDir, copyDir, logPort, livePort,
-                 eventCheck=opt.eventCheck)
+        doLaunch(False, True, True, opt.dryRun, opt.verbose, clusterConfig,
+                 dashDir, configDir, logDir, spadeDir, copyDir, logPort,
+                 livePort, eventCheck=opt.eventCheck, checkExists=True,
+                 startMissing=True)

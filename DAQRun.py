@@ -39,7 +39,7 @@ import sys
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-SVN_ID  = "$Id: DAQRun.py 3726 2008-12-13 21:31:34Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3732 2008-12-16 17:58:25Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -406,6 +406,7 @@ class DAQRun(Rebootable.Rebootable):
         self.prevRunStats     = None
         self.runStats         = RunStats()
         self.quiet            = runArgs.quiet
+        self.running          = False
 
         self.__liveInfo       = None
 
@@ -920,7 +921,7 @@ class DAQRun(Rebootable.Rebootable):
         self.prevRunStats.clone(self.runStats)
         self.runStats.clearAll()
 
-    def restartComponents(self, pShell):
+    def restartComponents(self, pShell, checkExists=True, startMissing=True):
         try:
             self.log.info("Doing complete rip-down and restart of pDAQ " +
                           "(everything but DAQRun)")
@@ -934,7 +935,8 @@ class DAQRun(Rebootable.Rebootable):
                 livePort = None
             cyclePDAQ(self.dashDir, self.clusterConfig, self.configDir,
                       self.logDir, self.spadeDir, self.copyDir,
-                      logPort, livePort, parallel=pShell)
+                      logPort, livePort, checkExists=checkExists,
+                      startMissing=startMissing, parallel=pShell)
         except:
             self.log.error("Couldn't cycle pDAQ components ('%s')!!!" %
                             exc_string())
@@ -1175,7 +1177,6 @@ class DAQRun(Rebootable.Rebootable):
         elif (self.__logMode & DAQRun.LOG_TO_LIVE) == DAQRun.LOG_TO_LIVE:
             self.__liveInfo = LiveInfo('localhost', DAQPort.I3LIVE)
         else:
-            print 'StartRun: bad logInfo %s' % str(logInfo)
             self.__liveInfo = None
 
         if self.runState != "STOPPED": return 0

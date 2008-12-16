@@ -641,8 +641,14 @@ class MockParallelShell(object):
             self.__exp.append('sleep 2; %spkill -9%s %s' %
                               (sshCmd, pkillOpt, jar))
 
-    def addExpectedPython(self, doDAQRun, dashDir, configDir, logDir,
-                          spadeDir, cfgName, copyDir, logPort, livePort):
+    def addExpectedPython(self, doLive, doDAQRun, doCnC, dashDir, configDir,
+                          logDir, spadeDir, cfgName, copyDir, logPort,
+                          livePort):
+        if doLive:
+            cmd = os.path.join(dashDir, 'DAQLive.py')
+            cmd += ' &'
+            self.__exp.append(cmd)
+
         if doDAQRun:
             cmd = os.path.join(dashDir, 'DAQRun.py')
             cmd += ' -r -f'
@@ -658,19 +664,17 @@ class MockParallelShell(object):
             cmd += ' -a %s' % copyDir
             self.__exp.append(cmd)
 
-            cmd = os.path.join(dashDir, 'DAQLive.py')
-            cmd += ' &'
+        if doCnC:
+            cmd = os.path.join(dashDir, 'CnCServer.py')
+            if logPort is not None:
+                cmd += ' -l localhost:%d' % logPort
+            if livePort is not None:
+                cmd += ' -L localhost:%d' % livePort
+            cmd += ' -d'
             self.__exp.append(cmd)
 
-        cmd = os.path.join(dashDir, 'CnCServer.py')
-        if logPort is not None:
-            cmd += ' -l localhost:%d' % logPort
-        if livePort is not None:
-            cmd += ' -L localhost:%d' % livePort
-        cmd += ' -d'
-        self.__exp.append(cmd)
-
-    def addExpectedPythonKill(self, doDAQRun, dashDir, killWith9):
+    def addExpectedPythonKill(self, doLive, doDAQRun, doCnC, dashDir,
+                              killWith9):
         if killWith9:
             nineArg = '-9 '
         else:
@@ -678,14 +682,17 @@ class MockParallelShell(object):
 
         user = os.environ['USER']
 
+        if doLive:
+            path = os.path.join(dashDir, 'DAQLive.py')
+            self.__exp.append('%s -k' % path)
+
         if doDAQRun:
             path = os.path.join(dashDir, 'DAQRun.py')
             self.__exp.append('%s -k' % path)
 
-            self.__exp.append('pkill %s-fu %s DAQLive.py' % (nineArg, user))
-
-        path = os.path.join(dashDir, 'CnCServer.py')
-        self.__exp.append('%s -k' % path)
+        if doCnC:
+            path = os.path.join(dashDir, 'CnCServer.py')
+            self.__exp.append('%s -k' % path)
 
     def check(self):
         if len(self.__exp) > 0:
