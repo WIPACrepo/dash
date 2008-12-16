@@ -3,7 +3,7 @@
 # Glue server which hooks pDAQ to IceCube Live
 
 import optparse, os, socket, sys, time
-import DAQRunIface
+import DAQRunIface, Process
 from DAQConst import DAQPort
 
 from exc_string import exc_string, set_exc_string_encoding
@@ -36,6 +36,7 @@ import SVNVersionInfo
 class LiveArgs(object):
     "Command-line argument handler for DAQLive"
     def __init__(self):
+        self.__kill = False
         self.__livePort = None
         self.__verbose = False
 
@@ -44,6 +45,11 @@ class LiveArgs(object):
             "%(release)s %(repo_rev)s" % SVNVersionInfo.get_version_info(SVN_ID)
         usage = "%prog [options]\nversion: " + ver_info
         p = optparse.OptionParser(usage=usage, version=ver_info)
+
+        p.add_option("-k", "--kill",
+                     action="store_true",
+                     dest="kill",
+                     help="Kill existing instance(s) of DAQLive")
 
         p.add_option("-v", "--verbose",
                      action="store_true",
@@ -58,10 +64,12 @@ class LiveArgs(object):
         return p
 
     def __process_options(self, opt):
+        self.__kill = opt.kill
         self.__livePort = opt.livePort
         self.__verbose = opt.verbose
 
     def getPort(self):   return self.__livePort
+    def isKill(self): return self.__kill
     def isVerbose(self): return self.__verbose
 
     def parse(self):
@@ -359,8 +367,25 @@ class DAQLive(Component):
         return "OK"
 
 if __name__ == "__main__":
+    import signal
+
     liveArgs = LiveArgs()
     liveArgs.parse()
+
+    pids = list(Process.findProcess(os.path.basename(sys.argv[0])))
+
+    if liveArgs.isKill():
+        pid = int(os.getpid())
+        for p in pids:
+            if pid != p:
+                os.kill(p, signal.SIGKILL)
+
+        raise SystemExit
+
+    if len(pids) > 1:
+        print "ERROR: More than one instance of %s is already running!" % \
+            basename(sys.argv[0])
+        raise SystemExit
 
     comp = DAQLive(liveArgs)
     try:
