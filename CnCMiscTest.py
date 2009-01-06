@@ -47,7 +47,7 @@ class TestCnCMisc(unittest.TestCase):
         connType = 'xyz'
         connPort = 987
 
-        conn = Connector(connType, False, connPort)
+        conn = Connector(connType, True, connPort)
 
         ctn = Connection(conn, comp)
 
