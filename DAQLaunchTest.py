@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import unittest
+import socket, sys, unittest
 
 from DAQConst import DAQPort
 from DAQLaunch import componentDB, cyclePDAQ, doKill, doLaunch, \
@@ -15,6 +15,8 @@ class MockComponent(object):
         self.logLevel = level
 
 class MockNode(object):
+    LIST = []
+
     def __init__(self, hostName):
         self.hostName = hostName
         self.comps = []
@@ -52,12 +54,7 @@ class DAQLaunchTest(unittest.TestCase):
             else:
                 compId = 0
 
-            for remote in (False, True):
-                if remote:
-                    host = 'icecube.wisc.edu'
-                else:
-                    host = 'localhost'
-
+            for host in MockNode.LIST:
                 node = MockNode(host)
                 node.addComp(compName, compId, logLevel)
 
@@ -99,12 +96,7 @@ class DAQLaunchTest(unittest.TestCase):
 
             logLevel = 'DEBUG'
 
-            for remote in (True, False):
-                if remote:
-                    host = 'icecube.wisc.edu'
-                else:
-                    host = 'localhost'
-
+            for host in MockNode.LIST:
                 node = MockNode(host)
                 node.addComp(compName, compId, logLevel)
 
@@ -145,12 +137,7 @@ class DAQLaunchTest(unittest.TestCase):
             doDAQRun = (targets & 2) == 2
             doLive = (targets & 4) == 4
 
-            for remote in (False, True):
-                if remote:
-                    host = 'icecube.wisc.edu'
-                else:
-                    host = 'localhost'
-
+            for host in MockNode.LIST:
                 node = MockNode(host)
                 node.addComp(compName, compId, logLevel)
 
@@ -201,12 +188,7 @@ class DAQLaunchTest(unittest.TestCase):
             doDAQRun = (targets & 2) == 2
             doLive = (targets & 4) == 4
 
-            for remote in (False, True):
-                if remote:
-                    host = 'icecube.wisc.edu'
-                else:
-                    host = 'localhost'
-
+            for host in MockNode.LIST:
                 node = MockNode(host)
                 node.addComp(compName, compId, logLevel)
 
@@ -249,12 +231,7 @@ class DAQLaunchTest(unittest.TestCase):
         doDAQRun = False
         doLive = False
 
-        for remote in (False, True):
-            if remote:
-                host = 'icecube.wisc.edu'
-            else:
-                host = 'localhost'
-
+        for host in MockNode.LIST:
             node = MockNode(host)
             node.addComp(compName, compId, logLevel)
 
@@ -293,4 +270,14 @@ class DAQLaunchTest(unittest.TestCase):
                     parallel.check()
 
 if __name__ == '__main__':
+    # make sure icecube.wisc.edu is valid
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    for rmtHost in ('localhost', 'icecube.wisc.edu'):
+        try:
+            s.connect((rmtHost, 56))
+            MockNode.LIST.append(rmtHost)
+        except:
+            print >>sys.stderr, "Warning: Remote host %s is not valid" % rmtHost
+
     unittest.main()
