@@ -18,7 +18,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3705 2008-12-07 17:57:54Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3782 2009-01-07 16:51:59Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -47,14 +47,19 @@ class Connector(object):
         port - IP port number (for input connections)
         """
         self.type = type
-        self.isInput = isInput
-        self.port = port
+        if isInput:
+            self.port = port
+        else:
+            self.port = None
 
     def __str__(self):
         "String description"
-        if self.isInput:
+        if self.port is not None:
             return '%d=>%s' % (self.port, self.type)
         return self.type + '=>'
+
+    def isInput(self):
+        return self.port is not None
 
 class Connection(object):
     """
@@ -74,9 +79,11 @@ class Connection(object):
 
     def __str__(self):
         "String description"
-        return '%s:%s#%d@%s:%d' % \
-            (self.conn.type, self.comp.name, self.comp.num, self.comp.host,
-             self.conn.port)
+        frontStr = '%s:%s#%d@%s' % \
+            (self.conn.type, self.comp.name, self.comp.num, self.comp.host)
+        if not self.conn.isInput():
+            return frontStr
+        return '%s:%d' % (frontStr, self.conn.port)
 
     def getMap(self):
         connDict = {}
@@ -109,7 +116,7 @@ class ConnTypeEntry(object):
 
     def add(self, conn, comp):
         "Add a connection and component to the appropriate list"
-        if conn.isInput:
+        if conn.isInput():
             self.inList.append([conn, comp])
         else:
             self.outList.append(comp)
@@ -813,11 +820,17 @@ class DAQClient(object):
 
     def __str__(self):
         "String description"
-        if self.mbeanPort <= 0:
-            extraStr = ''
+        if self.port <= 0:
+            hpStr = ''
         else:
-            extraStr = ' M#%d' % self.mbeanPort
+            hpStr = ' at %s:%d' % (self.host, self.port)
 
+        if self.mbeanPort <= 0:
+            mbeanStr = ''
+        else:
+            mbeanStr = ' M#%d' % self.mbeanPort
+
+        extraStr = ''
         if self.connectors and len(self.connectors) > 0:
             first = True
             for c in self.connectors:
@@ -828,8 +841,8 @@ class DAQClient(object):
                     extraStr += ' ' + str(c)
             extraStr += ']'
 
-        return "ID#%d %s#%d at %s:%d%s" % \
-            (self.id, self.name, self.num, self.host, self.port, extraStr)
+        return "ID#%d %s#%d%s%s%s" % \
+            (self.id, self.name, self.num, hpStr, mbeanStr, extraStr)
 
     def close(self):
         self.__log.close()
@@ -950,9 +963,17 @@ class DAQClient(object):
         return self.name == name and (num < 0 or self.num == num)
 
     def isSource(self):
-        "TODO: Move responsibility for this to DAQComponent"
-        return not self.name.endswith('Trigger') and \
-            self.name.find('Builder') < 0
+        "Is this component a source of data?"
+
+        # XXX This is a hack
+        if self.name.endswith('Hub'):
+            return True
+
+        for conn in self.connectors:
+            if conn.isInput():
+                return False
+
+        return True
 
     def list(self):
         state = self.getState()
@@ -1221,47 +1242,57 @@ class DAQPool(object):
     def setOrder(self, compList, connMap, logger):
         "set the order in which components are started/stopped"
 
-        # copy list of components
+        # build initial lists of source components
         #
-        allComps = []
-        allComps[0:] = compList[0:]
-
-        # build initial list of source components
-        #
+        allComps = {}
         curLevel = []
-        for c in allComps:
+        for c in compList:
+            # complain if component has already been added
+            #
+            if allComps.has_key(c):
+                print >>sys.stderr, 'Found multiple instances of %s' % str(c)
+                continue
+
             # clear order
             #
             c.setOrder(None)
+
+            # add component to the list
+            #
+            allComps[c] = 1
 
             # if component is a source, save it to the initial list
             #
             if c.isSource():
                 curLevel.append(c)
 
+        if len(curLevel) == 0:
+            raise Exception("No sources found")
+
         # walk through detector, setting order number for each component
         #
         level = 1
         while len(allComps) > 0 and len(curLevel) > 0:
-            tmp = []
+            tmp = {}
             for c in curLevel:
-                # remove current component from the temporary component list
+
+                # if we've already ordered this component, skip it
                 #
-                try:
-                    i = allComps.index(c)
-                    del allComps[i]
-                except:
-                    # if not found, it must have already been ordered
-                    #
+                if not allComps.has_key(c):
                     continue
+
+                del allComps[c]
 
                 c.setOrder(level)
 
-                if connMap.has_key(c):
+                if not connMap.has_key(c):
+                    print >>sys.stderr, 'No connection map entry for %s' % \
+                        str(c)
+                else:
                     for m in connMap[c]:
-                        tmp.append(m.comp)
+                        tmp[m.comp] = 1
 
-            curLevel = tmp
+            curLevel = tmp.keys()
             level += 1
 
         if len(allComps) > 0:

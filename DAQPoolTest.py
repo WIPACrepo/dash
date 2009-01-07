@@ -42,12 +42,12 @@ class TestDAQPool(unittest.TestCase):
 
         compList = []
 
-        comp = MockComponent('foo', 0, isSrc=True)
+        comp = MockComponent('fooHub', 0)
         comp.addOutput('aaa')
         compList.append(comp)
 
         comp = MockComponent('bar', 0)
-        comp.addInput('aaa')
+        comp.addInput('aaa', 1234)
         compList.append(comp)
 
         self.assertEqual(len(mgr.pool), 0)
@@ -83,13 +83,13 @@ class TestDAQPool(unittest.TestCase):
 
         compList = []
 
-        comp = MockComponent('foo', 0, isSrc=True)
+        comp = MockComponent('fooHub', 0)
         comp.addOutput('aaa')
-        comp.addInput('xxx')
+        comp.addInput('xxx', 123)
         compList.append(comp)
 
         comp = MockComponent('bar', 0)
-        comp.addInput('aaa')
+        comp.addInput('aaa', 456)
         compList.append(comp)
 
         self.assertEqual(len(mgr.pool), 0)
@@ -118,12 +118,12 @@ class TestDAQPool(unittest.TestCase):
 
         compList = []
 
-        comp = MockComponent('foo', 0, isSrc=True)
-        comp.addInput('xxx')
+        comp = MockComponent('fooHub', 0)
+        comp.addInput('xxx', 123)
         compList.append(comp)
 
         comp = MockComponent('bar', 0)
-        comp.addInput('xxx')
+        comp.addInput('xxx', 456)
         compList.append(comp)
 
         self.assertEqual(len(mgr.pool), 0)
@@ -152,14 +152,14 @@ class TestDAQPool(unittest.TestCase):
 
         compList = []
 
-        comp = MockComponent('foo', 0, isSrc=True)
-        comp.addInput('xxx')
-        comp.addInput('yyy')
+        comp = MockComponent('fooHub', 0)
+        comp.addInput('xxx', 123)
+        comp.addInput('yyy', 456)
         comp.addOutput('aaa')
         compList.append(comp)
 
         comp = MockComponent('bar', 0)
-        comp.addInput('aaa')
+        comp.addInput('aaa', 789)
         compList.append(comp)
 
         self.assertEqual(len(mgr.pool), 0)
@@ -188,12 +188,12 @@ class TestDAQPool(unittest.TestCase):
 
         compList = []
 
-        comp = MockComponent('foo', 0, isSrc=True)
+        comp = MockComponent('fooHub', 0)
         comp.addOutput('aaa')
         compList.append(comp)
 
         comp = MockComponent('bar', 0)
-        comp.addInput('aaa')
+        comp.addInput('aaa', 123)
         comp.addOutput('xxx')
         compList.append(comp)
 
@@ -223,7 +223,7 @@ class TestDAQPool(unittest.TestCase):
 
         compList = []
 
-        comp = MockComponent('foo', 0, isSrc=True)
+        comp = MockComponent('fooHub', 0)
         compList.append(comp)
 
         comp = MockComponent('bar', 0)
@@ -257,13 +257,13 @@ class TestDAQPool(unittest.TestCase):
 
         compList = []
 
-        comp = MockComponent('foo', 0, isSrc=True)
+        comp = MockComponent('fooHub', 0)
         comp.addOutput('aaa')
         comp.addOutput('xxx')
         compList.append(comp)
 
         comp = MockComponent('bar', 0)
-        comp.addInput('aaa')
+        comp.addInput('aaa', 123)
         comp.addOutput('xxx')
         compList.append(comp)
 
@@ -293,16 +293,16 @@ class TestDAQPool(unittest.TestCase):
 
         compList = []
 
-        comp = MockComponent('foo', 0, isSrc=True)
-        comp.addInput('xxx')
+        comp = MockComponent('fooHub', 0)
+        comp.addInput('xxx', 123)
         compList.append(comp)
 
         comp = MockComponent('bar', 0)
         comp.addOutput('xxx')
         compList.append(comp)
 
-        comp = MockComponent('fee', 0, isSrc=True)
-        comp.addInput('xxx')
+        comp = MockComponent('feeHub', 0)
+        comp.addInput('xxx', 456)
         compList.append(comp)
 
         comp = MockComponent('baz', 0)
@@ -341,16 +341,16 @@ class TestDAQPool(unittest.TestCase):
 
         compList = []
 
-        comp = MockComponent('foo', 0, isSrc=True)
+        comp = MockComponent('fooHub', 0)
         comp.addOutput('conn')
         compList.append(comp)
 
         comp = MockComponent('bar', 0)
-        comp.addInput('conn')
+        comp.addInput('conn', 123)
         compList.append(comp)
 
         comp = MockComponent('baz', 0)
-        comp.addInput('conn')
+        comp.addInput('conn', 456)
         compList.append(comp)
 
         self.assertEqual(len(mgr.pool), 0)
@@ -384,15 +384,15 @@ class TestDAQPool(unittest.TestCase):
     def testStartRun(self):
         mgr = DAQPool()
 
-        a = MockComponent('a', 0, isSrc=True)
+        a = MockComponent('aHub', 0)
         a.addOutput('ab')
 
         b = MockComponent('b', 0)
-        b.addInput('ab')
+        b.addInput('ab', 123)
         b.addOutput('bc')
 
         c = MockComponent('c', 0)
-        c.addInput('bc')
+        c.addInput('bc', 456)
 
         compList = [c, a, b]
 

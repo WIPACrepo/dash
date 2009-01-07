@@ -391,12 +391,21 @@ class MockCnCLogger(CnCLogger):
         super(MockCnCLogger, self).__init__(appender, True)
 
 class MockConnection(object):
-    def __init__(self, type, isInput):
+    def __init__(self, type, port=None):
+        "port is set for input connections, None for output connections"
         self.type = type
-        self.isInput = isInput
+        self.port = port
+
+    def __str__(self):
+        if self.port is not None:
+            return '%d=>%s' % (self.port, self.type)
+        return '=>' + self.type
+
+    def isInput(self):
+        return self.port is not None
 
 class MockComponent(object):
-    def __init__(self, name, num, host='localhost', isSrc=False):
+    def __init__(self, name, num, host='localhost'):
         self.name = name
         self.num = num
         self.host = host
@@ -406,24 +415,31 @@ class MockComponent(object):
 
         self.runNum = None
 
-        self.__isSrc = isSrc
+        self.__isSrc = name.endswith("Hub") or name == "amandaTrigger"
         self.__connected = False
         self.__configured = False
         self.__configWait = 0;
         self.__monitorState = '???'
 
     def __str__(self):
+        outStr = self.getName()
+        extra = []
+        if self.__isSrc:
+            extra.append('SRC')
         if self.__configured:
-            cfgStr = ' [Configured]'
-        else:
-            cfgStr = ''
-        return self.getName() + cfgStr
+            extra.append('CFG')
+        for conn in self.connectors:
+            extra.append(str(conn))
+            
+        if len(extra) > 0:
+            outStr += '[' + ','.join(extra) + ']'
+        return outStr
 
-    def addInput(self, type):
-        self.connectors.append(MockConnection(type, True))
+    def addInput(self, type, port):
+        self.connectors.append(MockConnection(type, port))
 
     def addOutput(self, type):
-        self.connectors.append(MockConnection(type, False))
+        self.connectors.append(MockConnection(type, None))
 
     def configure(self, configName=None):
         if not self.__connected:
@@ -823,9 +839,9 @@ class SocketReader(LogChecker):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             sock.bind(("", self.__port))
-        except:
-            print 'Cannot bind SocketReader to port %d' % self.__port
-            raise
+        except socket.error, e:
+            raise socket.error('Cannot bind SocketReader to port %d: %s' %
+                               (self.__port, str(e)))
         return sock
 
     def __listener(self, sock):

@@ -150,8 +150,7 @@ class ConnectionTest(unittest.TestCase):
 
         # copy node list
         #
-        tmpList = []
-        tmpList[0:] = nodeList[0:]
+        tmpList = nodeList[:]
 
         # validate all components in runset
         #
@@ -167,15 +166,14 @@ class ConnectionTest(unittest.TestCase):
 
             # copy connector list
             #
-            compConn = []
-            compConn[0:] = comp.connectors[0:]
+            compConn = comp.connectors[:]
 
             # remove all output connectors
             #
             for typ in node.outLinks:
                 conn = None
                 for c in compConn:
-                    if not c.isInput and c.type == typ:
+                    if not c.isInput() and c.type == typ:
                         conn = c
                         compConn.remove(c)
                         break
