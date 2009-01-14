@@ -18,7 +18,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3782 2009-01-07 16:51:59Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3820 2009-01-14 14:44:05Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -811,7 +811,7 @@ class DAQClient(object):
         self.id = DAQClient.ID
         DAQClient.ID += 1
 
-        self.__log = self.createCnCLogger(quiet)
+        self.__log = self.createCnCLogger(quiet=quiet)
 
         self.client = self.createClient(host, port)
 
@@ -882,7 +882,7 @@ class DAQClient(object):
         return RPCClient(host, port)
 
     def createCnCLogger(self, quiet):
-        return CnCLogger(quiet)
+        return CnCLogger(quiet=quiet)
 
     def forcedStop(self):
         "Force component to stop running"
@@ -1326,7 +1326,7 @@ class DAQServer(DAQPool):
 
         super(DAQServer, self).__init__()
 
-        self.__log = self.createCnCLogger(testOnly or quiet)
+        self.__log = self.createCnCLogger(quiet=(testOnly or quiet))
 
         if (logIP is not None and logPort is not None) or \
                 (liveIP is not None and livePort is not None):
