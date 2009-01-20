@@ -18,7 +18,7 @@ from DAQRPC import RPCClient
 from GetIP import getIP
 from Process import findProcess, processList
 
-SVN_ID = "$Id: DAQLaunch.py 3732 2008-12-16 17:58:25Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 3821 2009-01-20 16:14:31Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -368,7 +368,7 @@ if __name__ == "__main__":
                    killOnly          = False,
                    eventCheck        = False,
                    force             = False,
-                   logMode           = LOGMODE_OLD)
+                   logMode           = LOGMODE_BOTH)
     opt, args = p.parse_args()
 
     if (opt.logMode & LOGMODE_OLD) == LOGMODE_OLD:
