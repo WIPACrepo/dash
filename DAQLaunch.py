@@ -18,7 +18,7 @@ from DAQRPC import RPCClient
 from GetIP import getIP
 from Process import findProcess, processList
 
-SVN_ID = "$Id: DAQLaunch.py 3821 2009-01-20 16:14:31Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 3828 2009-01-23 16:19:17Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -457,14 +457,24 @@ if __name__ == "__main__":
             print
 
     if not opt.skipKill:
+        doLive = opt.killOnly
+        doRun = True
+        doCnC = True
+
         try:
             activeConfig = ClusterConfig(metaDir, None, False, False, True)
-            doKill(False, True, True, opt.dryRun, dashDir, opt.verbose,
+            doKill(doLive, doRun, doCnC, opt.dryRun, dashDir, opt.verbose,
                    activeConfig, opt.killWith9)
         except ConfigNotSpecifiedException:
             if opt.killOnly: print >>sys.stderr, 'DAQ is not currently active'
+
     if not opt.killOnly:
-        doLaunch(False, True, True, opt.dryRun, opt.verbose, clusterConfig,
+        # DAQLive will be started if it's not running
+        doLive = False
+        doRun = True
+        doCnC = True
+
+        doLaunch(doLive, doRun, doCnC, opt.dryRun, opt.verbose, clusterConfig,
                  dashDir, configDir, logDir, spadeDir, copyDir, logPort,
                  livePort, eventCheck=opt.eventCheck, checkExists=True,
                  startMissing=True)
