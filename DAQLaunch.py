@@ -18,7 +18,7 @@ from DAQRPC import RPCClient
 from GetIP import getIP
 from Process import findProcess, processList
 
-SVN_ID = "$Id: DAQLaunch.py 3828 2009-01-23 16:19:17Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 3829 2009-01-23 16:50:40Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -191,29 +191,18 @@ def doKill(doLive, doDAQRun, doCnC, dryRun, dashDir, verbose, clusterConfig,
     "Kill pDAQ python and java components in clusterConfig"
     if verbose: print "COMMANDS:"
 
-    if doLive:
-        # Kill DAQLive
-        daqLive = join(dashDir, 'DAQLive.py')
-        cmd = daqLive + ' -k'
-        if verbose: print cmd
-        if not dryRun:
-            runCmd(cmd, parallel)
+    batch = ((doLive, "DAQLive"),
+             (doDAQRun, "DAQRun"),
+             (doCnC, "CnCServer"))
 
-    if doDAQRun:
-        # Kill DAQRun
-        daqRun = join(dashDir, 'DAQRun.py')
-        cmd = daqRun + ' -k'
-        if verbose: print cmd
-        if not dryRun:
-            runCmd(cmd, parallel)
-
-    # Kill CnCServer
-    if doCnC:
-        cncServer = join(dashDir, 'CnCServer.py')
-        cmd = cncServer + ' -k'
-        if verbose: print cmd
-        if not dryRun:
-            runCmd(cmd, parallel)
+    for b in batch:
+        if b[0]:
+            # Kill this program
+            prog = join(dashDir, b[1] + '.py')
+            cmd = prog + ' -k'
+            if verbose: print cmd
+            if not dryRun:
+                runCmd(cmd, parallel)
 
     killJavaProcesses(dryRun, clusterConfig, verbose, killWith9, parallel)
     if verbose and not dryRun: print "DONE with killing Java Processes."
@@ -233,64 +222,56 @@ def doLaunch(doLive, doDAQRun, doCnC, dryRun, verbose, clusterConfig, dashDir,
     else:
         procList = processList()
 
-    if startMissing:
-        # if DAQLive isn't running, start it
-        pids = list(findProcess("DAQLive.py", procList))
-        if len(pids) == 0:
-            doLive = True
+    batch = ((doLive, "DAQLive"),
+             (doDAQRun, "DAQRun"),
+             (doCnC, "CnCServer"))
 
-    # Start DAQLive
-    if doLive:
-        daqLive = join(dashDir, 'DAQLive.py')
-        cmd = "%s%s &" % (daqLive, verbose and " -v" or "")
-        if verbose: print cmd
-        if not dryRun:
-            runCmd(cmd, parallel)
+    for b in batch:
+        doProg = b[0]
+        progBase = b[1]
+        progName = progBase + ".py"
 
-    if startMissing:
-        # if DAQRun isn't running, start it
-        pids = list(findProcess("DAQRun.py", procList))
-        if len(pids) == 0:
-            doDAQRun = True
+        if startMissing and not doProg:
+            pids = list(findProcess(procName, procList))
+            if len(pids) == 0:
+                doProg = True
 
-    # Start DAQRun
-    if doDAQRun:
-        daqRun  = join(dashDir, 'DAQRun.py')
-        options = "-r -f -c %s -l %s -s %s -u %s" % \
-            (configDir, logDir, spadeDir, clusterConfig.configName)
-        if livePort is not None:
-            if logPort is not None:
-                options += " -B"
+        if doProg:
+            path  = join(dashDir, progName)
+            if progBase == "DAQLive":
+                options = ""
+                if verbose:
+                    options += " -v"
+                options += " &"
+            elif progBase == "DAQRun":
+                options = " -r -f -c %s -l %s -s %s -u %s" % \
+                    (configDir, logDir, spadeDir, clusterConfig.configName)
+                if livePort is not None:
+                    if logPort is not None:
+                        options += " -B"
+                    else:
+                        options += " -L"
+                if copyDir: options += " -a %s" % copyDir
+                if verbose: options += " -n &"
+            elif progBase == "CnCServer":
+                options = ""
+                if logPort is not None:
+                    options += ' -l localhost:%d' % logPort
+                if livePort is not None:
+                    options += ' -L localhost:%d' % livePort
+                if verbose: options += ' &'
+                else: options += ' -d'
             else:
-                options += " -L"
-        if copyDir: options += " -a %s" % copyDir
-        if verbose: options += " -n &"
-        cmd = "%s %s" % (daqRun, options)
-        if verbose: print cmd
-        if not dryRun:
-            runCmd(cmd, parallel)
-        if verbose:
-            sleep(5) # Fixme - this is a little kludgy, but CnCServer
-                         # won't log correctly if DAQRun isn't started.
+                raise SystemExit("Cannot launch program \"%s\"" % progBase)
 
-    if startMissing:
-        # if CnCServer isn't running, start it
-        pids = list(findProcess("CnCServer.py", procList))
-        if len(pids) == 0:
-            doCnC = True
+            cmd = "%s%s" % (path, options)
+            if verbose: print cmd
+            if not dryRun:
+                runCmd(cmd, parallel)
 
-    # Start CnCServer
-    if doCnC:
-        cncCmd = join(dashDir, 'CnCServer.py')
-        if logPort is not None:
-            cncCmd += ' -l localhost:%d' % logPort
-        if livePort is not None:
-            cncCmd += ' -L localhost:%d' % livePort
-        if verbose: cncCmd += ' &'
-        else: cncCmd += ' -d'
-        if verbose: print cmd
-        if not dryRun:
-            runCmd(cncCmd, parallel)
+            if verbose and progBase == "DAQRun":
+                sleep(5) # Fixme - this is a little kludgy, but CnCServer
+                         # won't log correctly if DAQRun isn't launched.
 
     startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
                        livePort, verbose, eventCheck, checkExists=checkExists,
@@ -347,17 +328,17 @@ if __name__ == "__main__":
     p.add_option("-L", "--log-to-i3live", action="store_const",
                  const=LOGMODE_LIVE, dest="logMode",
                  help="Send all log messages to I3Live")
-    p.add_option("-n", "--dry-run",      action="store_true",        dest="dryRun",
+    p.add_option("-n", "--dry-run",      action="store_true", dest="dryRun",
                  help="\"Dry run\" only, don't actually do anything")
     p.add_option("-O", "--log-to-files", action="store_const",
                  const=LOGMODE_OLD, dest="logMode",
                  help="Send log messages to local files")
 
-    p.add_option("-s", "--skip-kill",    action="store_true",        dest="skipKill",
+    p.add_option("-s", "--skip-kill",    action="store_true", dest="skipKill",
                  help="Don't kill anything, just launch")
-    p.add_option("-v", "--verbose",      action="store_true",        dest="verbose",
+    p.add_option("-v", "--verbose",      action="store_true", dest="verbose",
                  help="Log output for all components to terminal")
-    p.add_option("-9", "--kill-kill",    action="store_true",        dest="killWith9",
+    p.add_option("-9", "--kill-kill",    action="store_true", dest="killWith9",
                  help="just kill everything with extreme (-9) prejudice")
     p.set_defaults(clusterConfigName = None,
                    dryRun            = False,
