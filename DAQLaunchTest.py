@@ -125,6 +125,7 @@ class DAQLaunchTest(unittest.TestCase):
         copyDir = '/foo/bar/copy'
         logPort = 1234
         verbose = False
+        quiet = True
         checkExists = False
 
         compName = 'eventBuilder'
@@ -166,10 +167,10 @@ class DAQLaunchTest(unittest.TestCase):
                         dryRun = False
 
                         doLaunch(doLive, doDAQRun, doCnC, dryRun, verbose,
-                                 config, dashDir, configDir, logDir, spadeDir,
-                                 copyDir, logPort, livePort, eventCheck=evtChk,
-                                 checkExists=checkExists, startMissing=False,
-                                 parallel=parallel)
+                                 quiet, config, dashDir, configDir, logDir,
+                                 spadeDir, copyDir, logPort, livePort,
+                                 eventCheck=evtChk, checkExists=checkExists,
+                                 startMissing=False, parallel=parallel)
 
                         parallel.check()
 
@@ -177,6 +178,7 @@ class DAQLaunchTest(unittest.TestCase):
         dryRun = False
         dashDir = '/foo/bar/dash'
         verbose = False
+        quiet = True
 
         compName = 'eventBuilder'
         compId = 0
@@ -206,7 +208,7 @@ class DAQLaunchTest(unittest.TestCase):
                                                  host)
 
                     doKill(doLive, doDAQRun, doCnC, dryRun, dashDir, verbose,
-                           config, killWith9, parallel)
+                           quiet, config, killWith9, parallel)
 
                     parallel.check()
 

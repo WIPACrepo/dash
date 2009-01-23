@@ -18,7 +18,7 @@ from DAQRPC import RPCClient
 from GetIP import getIP
 from Process import findProcess, processList
 
-SVN_ID = "$Id: DAQLaunch.py 3829 2009-01-23 16:50:40Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 3830 2009-01-23 16:52:53Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -186,10 +186,13 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
         parallel.start()
         parallel.wait()
 
-def doKill(doLive, doDAQRun, doCnC, dryRun, dashDir, verbose, clusterConfig,
-           killWith9, parallel=None):
+def doKill(doLive, doDAQRun, doCnC, dryRun, dashDir, verbose, quiet,
+           clusterConfig, killWith9, parallel=None):
     "Kill pDAQ python and java components in clusterConfig"
     if verbose: print "COMMANDS:"
+
+    killed = []
+    ignored = []
 
     batch = ((doLive, "DAQLive"),
              (doDAQRun, "DAQRun"),
@@ -203,15 +206,25 @@ def doKill(doLive, doDAQRun, doCnC, dryRun, dashDir, verbose, clusterConfig,
             if verbose: print cmd
             if not dryRun:
                 runCmd(cmd, parallel)
+                if not quiet: killed.append(b[1])
+        elif not dryRun and not quiet:
+            ignored.append(b[1])
 
     killJavaProcesses(dryRun, clusterConfig, verbose, killWith9, parallel)
     if verbose and not dryRun: print "DONE with killing Java Processes."
+    if not quiet:
+        print "Killed %s, ignored %s" % (", ".join(killed), ", ".join(ignored))
 
     # clear the active configuration
     clusterConfig.clearActiveConfig()
 
-def doLaunch(doLive, doDAQRun, doCnC, dryRun, verbose, clusterConfig, dashDir,
-             configDir, logDir, spadeDir, copyDir, logPort, livePort,
+def isRunning(procName, procList):
+    "Is this process running?"
+    pids = list(findProcess(procName, procList))
+    return len(pids) > 0
+
+def doLaunch(doLive, doDAQRun, doCnC, dryRun, verbose, quiet, clusterConfig,
+             dashDir, configDir, logDir, spadeDir, copyDir, logPort, livePort,
              eventCheck=False, checkExists=True, startMissing=True,
              parallel=None):
     "Launch components"
@@ -221,6 +234,9 @@ def doLaunch(doLive, doDAQRun, doCnC, dryRun, verbose, clusterConfig, dashDir,
         procList = []
     else:
         procList = processList()
+
+    launched = []
+    ignored = []
 
     batch = ((doLive, "DAQLive"),
              (doDAQRun, "DAQRun"),
@@ -232,9 +248,7 @@ def doLaunch(doLive, doDAQRun, doCnC, dryRun, verbose, clusterConfig, dashDir,
         progName = progBase + ".py"
 
         if startMissing and not doProg:
-            pids = list(findProcess(procName, procList))
-            if len(pids) == 0:
-                doProg = True
+            doProg |= not isRunning(progName, procList)
 
         if doProg:
             path  = join(dashDir, progName)
@@ -268,15 +282,22 @@ def doLaunch(doLive, doDAQRun, doCnC, dryRun, verbose, clusterConfig, dashDir,
             if verbose: print cmd
             if not dryRun:
                 runCmd(cmd, parallel)
+                if not quiet: launched.append(progBase)
 
             if verbose and progBase == "DAQRun":
                 sleep(5) # Fixme - this is a little kludgy, but CnCServer
                          # won't log correctly if DAQRun isn't launched.
 
+        elif not dryRun and not quiet:
+            ignored.append(progBase)
+
     startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
                        livePort, verbose, eventCheck, checkExists=checkExists,
                        parallel=parallel)
     if verbose and not dryRun: print "DONE with starting Java Processes."
+    if not quiet:
+        print "Launched %s, ignored %s" % (", ".join(launched),
+                                           ", ".join(ignored))
 
     # remember the active configuration
     clusterConfig.writeCacheFile(True)
@@ -293,12 +314,13 @@ def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, copyDir,
     doLive = False
     dryRun = False
     verbose = False
+    quiet = True
     killWith9 = False
 
-    doKill(doLive, doDAQRun, doCnC, dryRun, dashDir, verbose,
+    doKill(doLive, doDAQRun, doCnC, dryRun, dashDir, verbose, quiet,
            clusterConfig, killWith9, parallel)
-    doLaunch(doLive, doDAQRun, doCnC, dryRun, verbose, clusterConfig, dashDir,
-             configDir, logDir, spadeDir, copyDir, logPort, livePort,
+    doLaunch(doLive, doDAQRun, doCnC, dryRun, verbose, quiet, clusterConfig,
+             dashDir, configDir, logDir, spadeDir, copyDir, logPort, livePort,
              eventCheck=eventCheck, checkExists=checkExists,
              startMissing=startMissing, parallel=parallel)
 
@@ -334,6 +356,8 @@ if __name__ == "__main__":
                  const=LOGMODE_OLD, dest="logMode",
                  help="Send log messages to local files")
 
+    p.add_option("-q", "--quiet",        action="store_true", dest="quiet",
+                 help="Don't print actions")
     p.add_option("-s", "--skip-kill",    action="store_true", dest="skipKill",
                  help="Don't kill anything, just launch")
     p.add_option("-v", "--verbose",      action="store_true", dest="verbose",
@@ -349,8 +373,13 @@ if __name__ == "__main__":
                    killOnly          = False,
                    eventCheck        = False,
                    force             = False,
+                   quiet             = False,
                    logMode           = LOGMODE_BOTH)
     opt, args = p.parse_args()
+
+    if opt.quiet and opt.verbose:
+        print >>sys.stderr, "Cannot specify both -q(uiet) and -v(erbose)"
+        raise SystemExit
 
     if (opt.logMode & LOGMODE_OLD) == LOGMODE_OLD:
         logPort = DAQPort.CATCHALL
@@ -445,7 +474,7 @@ if __name__ == "__main__":
         try:
             activeConfig = ClusterConfig(metaDir, None, False, False, True)
             doKill(doLive, doRun, doCnC, opt.dryRun, dashDir, opt.verbose,
-                   activeConfig, opt.killWith9)
+                   opt.quiet,  activeConfig, opt.killWith9)
         except ConfigNotSpecifiedException:
             if opt.killOnly: print >>sys.stderr, 'DAQ is not currently active'
 
@@ -455,7 +484,7 @@ if __name__ == "__main__":
         doRun = True
         doCnC = True
 
-        doLaunch(doLive, doRun, doCnC, opt.dryRun, opt.verbose, clusterConfig,
-                 dashDir, configDir, logDir, spadeDir, copyDir, logPort,
-                 livePort, eventCheck=opt.eventCheck, checkExists=True,
+        doLaunch(doLive, doRun, doCnC, opt.dryRun, opt.verbose, opt.quiet,
+                 clusterConfig, dashDir, configDir, logDir, spadeDir, copyDir,
+                 logPort, livePort, eventCheck=opt.eventCheck, checkExists=True,
                  startMissing=True)
