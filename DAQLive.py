@@ -384,7 +384,7 @@ if __name__ == "__main__":
 
     if len(pids) > 1:
         print "ERROR: More than one instance of %s is already running!" % \
-            basename(sys.argv[0])
+            os.path.basename(sys.argv[0])
         raise SystemExit
 
     comp = DAQLive(liveArgs)
