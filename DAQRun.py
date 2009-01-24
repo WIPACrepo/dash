@@ -39,7 +39,7 @@ import sys
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-SVN_ID  = "$Id: DAQRun.py 3840 2009-01-24 16:38:46Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3843 2009-01-24 16:46:37Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -409,6 +409,7 @@ class DAQRun(Rebootable.Rebootable):
         self.running          = False
 
         self.__liveInfo       = None
+        self.__id = int(time.time())
 
         # After initialization, start run thread to handle state changes
         if startServer:
@@ -1123,8 +1124,8 @@ class DAQRun(Rebootable.Rebootable):
         return self.runState
 
     def rpc_ping(self):
-        "Returns 1 - use to see if object is reachable"
-        return 1
+        "Returns ID - use to see if object is reachable"
+        return self.__id
 
     def rpc_flash(self, subRunID, flashingDomsList):
         if self.runState != "RUNNING" or self.runSetID == None:
