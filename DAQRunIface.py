@@ -4,7 +4,7 @@
 # Object to interface w/ DAQ run script
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started November, 2006
-# $Id: DAQRunIface.py 3678 2008-12-02 15:11:08Z dglo $
+# $Id: DAQRunIface.py 3841 2009-01-24 16:42:48Z dglo $
 
 from DAQRPC import RPCClient
 from os.path import join, exists
@@ -56,32 +56,32 @@ class DAQRunIface(object):
 
         # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
         if environ.has_key("PDAQ_HOME"):
-            self.home = environ["PDAQ_HOME"]
+            self.__home = environ["PDAQ_HOME"]
         else:
             from locate_pdaq import find_pdaq_trunk
-            self.home = find_pdaq_trunk()
+            self.__home = find_pdaq_trunk()
 
-        self.rpc = RPCClient(daqhost, int(daqport))
+        self.__rpc = RPCClient(daqhost, int(daqport))
 
     def start(self, r, config, logInfo=()):
         "Tell DAQRun to start a run"
         config = sub('\.xml$', '', config)
-        self.rpc.rpc_start_run(r, 0, config, logInfo)
+        self.__rpc.rpc_start_run(r, 0, config, logInfo)
         return DAQRunIface.START_TRANSITION_SECONDS
     
     def stop(self):
         "Tell DAQRun to stop a run"
-        self.rpc.rpc_stop_run()
+        self.__rpc.rpc_stop_run()
         return DAQRunIface.STOP_TRANSITION_SECONDS
     
     def recover(self):
         "Tell DAQRun to recover from an error and go to STOPPED state"
-        self.rpc.rpc_recover()
+        self.__rpc.rpc_recover()
         return DAQRunIface.RECOVERY_TRANSITION_SECONDS
     
     def getState(self):
         "Get current DAQ state"
-        return self.rpc.rpc_run_state()
+        return self.__rpc.rpc_run_state()
 
     def flasher(self, subRunID, flashingDomsList):
         """
@@ -129,32 +129,33 @@ class DAQRunIface(object):
             flashingDomsList = l
 
         #print "Subrun %d: DOMs to flash: %s" % (subRunID, str(flashingDomsList))
-        return self.rpc.rpc_flash(subRunID, flashingDomsList)
+        return self.__rpc.rpc_flash(subRunID, flashingDomsList)
     
     def getSummary(self):
         "Get component summary from DAQRun"
-        return self.rpc.rpc_daq_summary_xml()
+        return self.__rpc.rpc_daq_summary_xml()
     
     def release(self):
         """
         Release DAQ component resources (run sets) back to CnC Server
         Use for "standalone" instances of DAQ (i.e. non-'Experiment Control')
         """
-        self.rpc.rpc_release_runsets()
+        self.__rpc.rpc_release_runsets()
         return DAQRunIface.RELEASE_TRANSITION_SECONDS
     
     def getDaqLabels(self):        
-        parser = DAQLabelParser(join(self.home, "dash", "config", "daqlabels.xml"))
+        parser = DAQLabelParser(join(self.__home, "dash", "config",
+                                     "daqlabels.xml"))
         return parser.dict, parser.defaultLabel
 
     def isValidConfig(self, configName):
         "Placeholder only until this is implemented"
-        configDir = join(self.home, "config")
+        configDir = join(self.__home, "config")
         return configExists(configDir, configName)
     
     def monitorRun(self):
         "Get run monitoring data"
-        return self.rpc.rpc_run_monitoring()
+        return self.__rpc.rpc_run_monitoring()
 
 if __name__ == "__main__":
     iface = DAQRunIface()
