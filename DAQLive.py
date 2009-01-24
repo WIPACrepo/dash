@@ -2,7 +2,7 @@
 #
 # Glue server which hooks pDAQ to IceCube Live
 
-import optparse, os, socket, sys, time
+import optparse, os, socket, sys, threading, time
 import DAQRunIface, Process
 from DAQConst import DAQPort
 
@@ -111,6 +111,20 @@ class LiveLog(object):
         if self.__level >= LOG_ERROR:
             self.__send(LOG_ERROR, msg + ': ' + exc_string())
 
+class LiveThread(threading.Thread):
+    def __init__(self, live):
+        self.__live = live
+
+        #threading.Thread.__init__(self)
+        super(LiveThread, self).__init__()
+
+        self.setName("LiveThread")
+
+    def run(self):
+        while True:
+            self.__live.checkID()
+            time.sleep(10)
+
 class DAQLive(Component):
     "Server which acts as the DAQ interface for IceCube Live"
     SERVICE_NAME = "pdaq"
@@ -139,6 +153,9 @@ class DAQLive(Component):
         self.__runState = None
         self.__runCallCount = 0
 
+        self.__thread = LiveThread(self)
+        self.__thread.start()
+
         self.__log.info('Started %s service on port %d' %
                         (self.SERVICE_NAME, self.__liveArgs.getPort()))
 
@@ -149,7 +166,12 @@ class DAQLive(Component):
         else:
             self.__log.info('Reconnecting to DAQRun')
 
-        self.__runIface = DAQRunIface.DAQRunIface('localhost', DAQPort.DAQRUN)
+        try:
+            self.__runIface = DAQRunIface.DAQRunIface('localhost',
+                                                      DAQPort.DAQRUN)
+        except socket.error:
+            self.__runIface = None
+            self.__log.info("DAQRun is not active")
 
     def __getNextRunNumber(self):
         "Get the next run number from $HOME/.last_pdaq_run"
@@ -176,6 +198,10 @@ class DAQLive(Component):
 
     def __getState(self, retry=True):
         "Get the current pDAQ state"
+        if self.__runIface is None:
+            if not self.__connectToDAQRun():
+                return None
+
         try:
             state = self.__runIface.getState()
         except socket.error:
@@ -189,10 +215,16 @@ class DAQLive(Component):
 
     def __reportMoni(self):
         "Report run monitoring quantities"
-        if self.moniClient:
-            moniData = self.__runIface.monitorRun()
-            for k in moniData.keys():
-                self.moniClient.sendMoni(k, moniData[k], Prio.SCP)
+        if self.moniClient is None:
+            return
+
+        if self.__runIface is None:
+            if not self.__connectToDAQRun():
+                return
+
+        moniData = self.__runIface.monitorRun()
+        for k in moniData.keys():
+            self.moniClient.sendMoni(k, moniData[k], Prio.SCP)
 
     def __waitForState(self, expState, badStates=('ERROR')):
         "Wait for pDAQ to reach the expected state"
@@ -219,11 +251,30 @@ class DAQLive(Component):
 
         return True
 
+    def checkID(self):
+        if self.__runIface is None:
+            self.__connectToDAQRun()
+            if self.__runIface is None:
+                return False
+
+        try:
+            ok = self.__runIface.checkID()
+        except socket.error:
+            ok = False
+
+        if not ok:
+            self.__log.info("DAQRun has been restarted")
+            self.__runIface = None
+
     def getLiveLog(self):
         return LiveLog(self, self.__liveArgs.isVerbose())
 
     def recovering(self, retry=True):
         "Try to recover (from an error state?)"
+        if self.__runIface is None:
+            if not self.__connectToDAQRun():
+                return
+
         self.__log.debug('Recovering pDAQ')
 
         try:
@@ -243,6 +294,10 @@ class DAQLive(Component):
 
     def release(self, retry=True):
         "This is only for debugging -- will never be called by I3Live"
+        if self.__runIface is None:
+            if not self.__connectToDAQRun():
+                return
+
         try:
             self.__runIface.release()
         except socket.error:
@@ -302,6 +357,10 @@ class DAQLive(Component):
 
         self.__runCallCount = 0
 
+        if self.__runIface is None:
+            if not self.__connectToDAQRun():
+                return
+
         # tell DAQRun to start a run
         try:
             if not self.moniClient:
@@ -332,6 +391,10 @@ class DAQLive(Component):
         "Stop current pDAQ run"
         self.__log.info('Stopping run %d' % self.__runNumber)
 
+        if self.__runIface is None:
+            if not self.__connectToDAQRun():
+                return
+
         try:
             self.__runIface.stop()
             runStopped = True
@@ -355,6 +418,10 @@ class DAQLive(Component):
         """
         Start new subrun, basically a passthru to give <domList> to DAQRunIface.
         """
+        if self.__runIface is None:
+            if not self.__connectToDAQRun():
+                return
+
         if len(domList) > 0:
             action = 'Starting'
         else:
