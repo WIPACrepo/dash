@@ -18,7 +18,7 @@ import sys
 import thread
 import threading
 
-SVN_ID  = "$Id: CnCServer.py 3820 2009-01-14 14:44:05Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 3845 2009-01-24 16:49:24Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -35,7 +35,6 @@ class Connector(object):
     """
     Component connector description
     type - connection type
-    isInput - True if this is an input connector
     port - IP port number (for input connections)
     """
 
