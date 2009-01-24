@@ -4,7 +4,7 @@
 # Object to interface w/ DAQ run script
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started November, 2006
-# $Id: DAQRunIface.py 3841 2009-01-24 16:42:48Z dglo $
+# $Id: DAQRunIface.py 3842 2009-01-24 16:45:11Z dglo $
 
 from DAQRPC import RPCClient
 from os.path import join, exists
@@ -62,6 +62,7 @@ class DAQRunIface(object):
             self.__home = find_pdaq_trunk()
 
         self.__rpc = RPCClient(daqhost, int(daqport))
+        self.__id = self.__rpc.rpc_ping()
 
     def start(self, r, config, logInfo=()):
         "Tell DAQRun to start a run"
@@ -156,6 +157,16 @@ class DAQRunIface(object):
     def monitorRun(self):
         "Get run monitoring data"
         return self.__rpc.rpc_run_monitoring()
+
+    def checkID(self):
+        if self.__id is None:
+            self.__id = self.__rpc.rpc_ping()
+            return True
+
+        newID = self.__rpc.rpc_ping()
+        unchanged = self.__id == newID
+        self.__id = newID
+        return unchanged
 
 if __name__ == "__main__":
     iface = DAQRunIface()
