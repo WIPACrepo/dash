@@ -39,6 +39,7 @@ class LiveArgs(object):
         self.__kill = False
         self.__livePort = None
         self.__verbose = False
+        self.__startThread = True
 
     def __build_parser(self):
         ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s " \
@@ -71,6 +72,11 @@ class LiveArgs(object):
     def getPort(self):   return self.__livePort
     def isKill(self): return self.__kill
     def isVerbose(self): return self.__verbose
+    def startThread(self): return self.__startThread
+
+    def ignoreRunThread(self):
+        "This is meant for the unit tests"
+        self.__startThread = False
 
     def parse(self):
         p = self.__build_parser()
@@ -153,8 +159,8 @@ class DAQLive(Component):
         self.__runState = None
         self.__runCallCount = 0
 
-        self.__thread = LiveThread(self)
-        self.__thread.start()
+        if liveArgs.startThread():
+            LiveThread(self).start()
 
         self.__log.info('Started %s service on port %d' %
                         (self.SERVICE_NAME, self.__liveArgs.getPort()))
