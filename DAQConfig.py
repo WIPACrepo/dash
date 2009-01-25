@@ -26,7 +26,7 @@ class DAQConfigDirNotFound       (Exception): pass
 class noRunConfigFound           (Exception): pass
 class noDOMConfigFound           (Exception):
     def __init__(self, configName):
-        super(noDOMConfigFound, self).__init__()
+        Exception.__init__(self, configName)
 
         self.configName = configName
 

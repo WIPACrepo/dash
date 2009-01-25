@@ -165,5 +165,12 @@ class DAQConfigTest(unittest.TestCase):
             except:
                 self.fail('Expected component "%s" was not returned' % exp)
 
+    def testRaise(self):
+        try:
+            raise DAQConfig.noDOMConfigFound("foo")
+        except DAQConfig.noDOMConfigFound, e:
+            self.assertEquals(str(e), "foo", "expected \"foo\" not \"%s\"" %
+                              str(e))
+
 if __name__ == '__main__':
     unittest.main()
