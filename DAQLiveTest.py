@@ -43,10 +43,16 @@ class MockLive(DAQLive):
         finally:
             sys.argv = oldArgv
 
+        # don't check for DAQRun
+        #
+        args.ignoreRunThread()
+
         return args
 
 class MockRun(object):
-    def __init__(self):
+    def __init__(self, id):
+        self.__id = id
+
         self.__state = 'IDLE'
 
         self.__evtCounts = {}
@@ -57,6 +63,7 @@ class MockRun(object):
         self.__rpc.register_function(self.__getState, 'rpc_run_state')
         self.__rpc.register_function(self.__startRun, 'rpc_start_run')
         self.__rpc.register_function(self.__stopRun, 'rpc_stop_run')
+        self.__rpc.register_function(self.__ping, 'rpc_ping')
         thread.start_new_thread(self.__rpc.serve_forever, ())
 
     def __getState(self):
@@ -64,6 +71,9 @@ class MockRun(object):
 
     def __monitor(self):
         return self.__evtCounts
+
+    def __ping(self):
+        return self.__id
 
     def __recover(self):
         self.__state = 'STOPPED'
@@ -112,6 +122,8 @@ class TestDAQLive(unittest.TestCase):
         log.addExpectedText('Connecting to DAQRun')
         log.addExpectedText('Started pdaq service on port %d' % port)
 
+        self.__run = MockRun(1)
+
         self.__live = MockLive(port)
 
         self.assertRaises(Exception, self.__live.starting, {})
@@ -130,9 +142,9 @@ class TestDAQLive(unittest.TestCase):
         log.addExpectedText('Connecting to DAQRun')
         log.addExpectedText('Started pdaq service on port %d' % port)
 
-        self.__live = MockLive(port)
+        self.__run = MockRun(2)
 
-        self.__run = MockRun()
+        self.__live = MockLive(port)
 
         runConfig = 'xxxCfg'
         runNum = 543
@@ -155,9 +167,9 @@ class TestDAQLive(unittest.TestCase):
         log.addExpectedText('Connecting to DAQRun')
         log.addExpectedText('Started pdaq service on port %d' % port)
 
-        self.__live = MockLive(port)
+        self.__run = MockRun(3)
 
-        self.__run = MockRun()
+        self.__live = MockLive(port)
 
         runNum = 0
 
@@ -190,9 +202,9 @@ class TestDAQLive(unittest.TestCase):
         log.addExpectedText('Connecting to DAQRun')
         log.addExpectedText('Started pdaq service on port %d' % port)
 
-        self.__live = MockLive(port)
+        self.__run = MockRun(4)
 
-        self.__run = MockRun()
+        self.__live = MockLive(port)
 
         log.addExpectedText('Recovering pDAQ')
         log.addExpectedText('Recovered DAQ')

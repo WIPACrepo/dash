@@ -1576,8 +1576,6 @@ class IntegrationTest(unittest.TestCase):
         targetFlags = MoniLogTarget(MoniLogTarget.MONI_TO_FILE |
                                     MoniLogTarget.LOG_TO_LIVE)
 
-        (live, liveLog) = self.__createLiveObjects(livePort)
-
         (dr, cnc, appender, catchall, pShell) = \
             self.__createRunObjects(targetFlags, True)
 
@@ -1588,6 +1586,8 @@ class IntegrationTest(unittest.TestCase):
         thread.start_new_thread(cnc.run, ())
         thread.start_new_thread(dr.run_thread, (None, pShell))
         thread.start_new_thread(dr.server.serve_forever, ())
+
+        (live, liveLog) = self.__createLiveObjects(livePort)
 
         self.__runTest(live, dr, cnc, liveLog, appender, catchall, targetFlags,
                        True)
@@ -1602,21 +1602,21 @@ class IntegrationTest(unittest.TestCase):
         targetFlags = MoniLogTarget(MoniLogTarget.MONI_TO_LIVE |
                                     MoniLogTarget.LOG_TO_LIVE)
 
-        (live, liveLog) = self.__createLiveObjects(livePort)
-
         (dr, cnc, appender, catchall, pShell) = \
             self.__createRunObjects(targetFlags)
+
+        thread.start_new_thread(dr.run_thread, (None, pShell))
+        thread.start_new_thread(dr.server.serve_forever, ())
+
+        (live, liveLog) = self.__createLiveObjects(livePort)
+
+        thread.start_new_thread(cnc.run, ())
 
         liveLog.addExpectedText("I'm server %s running on port %d" %
                                  (cnc.name, DAQPort.CNCSERVER))
         liveLog.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
-        thread.start_new_thread(cnc.run, ())
-        thread.start_new_thread(dr.run_thread, (None, pShell))
-
         liveLog.checkStatus(100)
-
-        thread.start_new_thread(dr.server.serve_forever, ())
 
         self.__runTest(live, dr, cnc, liveLog, appender, catchall, targetFlags,
                        False)
@@ -1633,10 +1633,13 @@ class IntegrationTest(unittest.TestCase):
                                     MoniLogTarget.MONI_TO_LIVE |
                                     MoniLogTarget.LOG_TO_LIVE)
 
-        (live, liveLog) = self.__createLiveObjects(livePort)
-
         (dr, cnc, appender, catchall, pShell) = \
             self.__createRunObjects(targetFlags)
+
+        thread.start_new_thread(dr.run_thread, (None, pShell))
+        thread.start_new_thread(dr.server.serve_forever, ())
+
+        (live, liveLog) = self.__createLiveObjects(livePort)
 
         msg = "I'm server %s running on port %d" % (cnc.name, DAQPort.CNCSERVER)
         catchall.addExpectedText(msg)
@@ -1647,8 +1650,6 @@ class IntegrationTest(unittest.TestCase):
         liveLog.addExpectedTextRegexp(patStr)
 
         thread.start_new_thread(cnc.run, ())
-        thread.start_new_thread(dr.run_thread, (None, pShell))
-        thread.start_new_thread(dr.server.serve_forever, ())
 
         #from DAQMocks import LogChecker; LogChecker.DEBUG = True
         self.__runTest(live, dr, cnc, liveLog, appender, catchall, targetFlags,
