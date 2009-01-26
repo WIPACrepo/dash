@@ -120,6 +120,7 @@ class LiveLog(object):
 class LiveThread(threading.Thread):
     def __init__(self, live):
         self.__live = live
+        self.__running = True
 
         #threading.Thread.__init__(self)
         super(LiveThread, self).__init__()
@@ -127,9 +128,12 @@ class LiveThread(threading.Thread):
         self.setName("LiveThread")
 
     def run(self):
-        while True:
+        while self.__running:
             self.__live.checkID()
             time.sleep(10)
+
+    def stop(self):
+        self.__running = False
 
 class DAQLive(Component):
     "Server which acts as the DAQ interface for IceCube Live"
@@ -146,7 +150,7 @@ class DAQLive(Component):
                            synchronous=True, lightSensitive=True,
                            makesLight=True)
 
-        self.__log = self.getLiveLog()
+        self.__log = self.__getLiveLog()
 
         self.__runIface = None
 
@@ -159,8 +163,11 @@ class DAQLive(Component):
         self.__runState = None
         self.__runCallCount = 0
 
-        if liveArgs.startThread():
-            LiveThread(self).start()
+        if not liveArgs.startThread():
+            self.__thread = None
+        else:
+            self.__thread = LiveThread(self)
+            self.__thread.start()
 
         self.__log.info('Started %s service on port %d' %
                         (self.SERVICE_NAME, self.__liveArgs.getPort()))
@@ -178,6 +185,9 @@ class DAQLive(Component):
         except socket.error:
             self.__runIface = None
             self.__log.info("DAQRun is not active")
+
+    def __getLiveLog(self):
+        return LiveLog(self, self.__liveArgs.isVerbose())
 
     def __getNextRunNumber(self):
         "Get the next run number from $HOME/.last_pdaq_run"
@@ -272,8 +282,9 @@ class DAQLive(Component):
             self.__log.info("DAQRun has been restarted")
             self.__runIface = None
 
-    def getLiveLog(self):
-        return LiveLog(self, self.__liveArgs.isVerbose())
+    def close(self):
+        self.__thread.stop()
+        super(DAQLive, self).close()
 
     def recovering(self, retry=True):
         "Try to recover (from an error state?)"
