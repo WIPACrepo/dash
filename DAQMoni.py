@@ -173,9 +173,9 @@ class DAQMoni(object):
                 else:
                     fname = DAQMoni.fileName(moniPath, shortNameOf[c],
                                              daqIDof[c])
-                    self.__log.error(("Creating moni output file %s (remote" +
-                                      " is %s:%d)") %
-                                     (fname, rpcAddrOf[c], mbeanPortOf[c]))
+                    self.__log.info(("Creating moni output file %s (remote" +
+                                     " is %s:%d)") %
+                                    (fname, rpcAddrOf[c], mbeanPortOf[c]))
                     try:
                         if moniType == DAQMoni.TYPE_FILE:
                             md = self.createFileData(shortNameOf[c], daqIDof[c],
