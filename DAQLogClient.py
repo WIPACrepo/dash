@@ -8,6 +8,7 @@
 
 import datetime, socket, sys
 from DAQConst import DAQPort
+from exc_string import exc_string
 
 try:
     from live.transport.Queue import Prio
@@ -192,7 +193,10 @@ class LiveSocketAppender(LogSocketAppender):
         if type(msg) == unicode:
             msg = str(msg)
         if not msg.startswith('Start of log at '):
-            fd.send(self.__fmt.format('log', time, msg, self.__prio))
+            try:
+                fd.send(self.__fmt.format('log', time, msg, self.__prio))
+            except socket.error, err:
+                print >>sys.stderr, "%s (Cannot send: %s)" % (msg, exc_string())
 
 class BothSocketAppender(object):
     def __init__(self, logHost, logPort, liveHost, livePort,
