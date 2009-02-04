@@ -39,7 +39,7 @@ import sys
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-SVN_ID  = "$Id: DAQRun.py 3843 2009-01-24 16:46:37Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3906 2009-02-04 10:07:36Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -350,7 +350,7 @@ class DAQRun(Rebootable.Rebootable):
         self.setPort(runArgs.port)
 
         self.__appender = BothSocketAppender(None, None, None, None)
-        self.log              = DAQLog(self.__appender)
+        self.log              = DAQLog(self.__appender, DAQLog.WARN)
 
         if runArgs.bothMode:
             self.__logMode = DAQRun.LOG_TO_BOTH
@@ -645,13 +645,13 @@ class DAQRun(Rebootable.Rebootable):
                          self.__liveInfo is not None):
             self.__appender.setLogAppender(self.createFileAppender())
 
-        self.log.info(("Version info: %(filename)s %(revision)s %(date)s" +
-                       " %(time)s %(author)s %(release)s %(repo_rev)s") %
-                      self.versionInfo)
-        self.log.info("Starting run %d..." % runNum)
-        self.log.info("Run configuration: %s" % configName)
-        self.log.info("Cluster configuration: %s" %
-                      self.clusterConfig.configName)
+        self.log.error(("Version info: %(filename)s %(revision)s %(date)s" +
+                        " %(time)s %(author)s %(release)s %(repo_rev)s") %
+                       self.versionInfo)
+        self.log.error("Starting run %d..." % runNum)
+        self.log.error("Run configuration: %s" % configName)
+        self.log.error("Cluster configuration: %s" %
+                       self.clusterConfig.configName)
 
         if self.__logMode == DAQRun.LOG_TO_FILE:
             self.__configureCnCLogging(cncrpc, self.ip, DAQPort.CNC2RUNLOG,
@@ -800,7 +800,7 @@ class DAQRun(Rebootable.Rebootable):
                       (self.runStats.runNum, self.runSetID))
 
     def stop_run(self, cncrpc):
-        self.log.info("Stopping run %d" % self.runStats.runNum)
+        self.log.error("Stopping run %d" % self.runStats.runNum)
         cncrpc.rpccall("rpc_runset_stop_run", self.runSetID)
 
     def break_existing_runset(self, cncrpc):
@@ -924,8 +924,8 @@ class DAQRun(Rebootable.Rebootable):
 
     def restartComponents(self, pShell, checkExists=True, startMissing=True):
         try:
-            self.log.info("Doing complete rip-down and restart of pDAQ " +
-                          "(everything but DAQRun)")
+            self.log.error("Doing complete rip-down and restart of pDAQ " +
+                           "(everything but DAQRun)")
             if self.__isLogToFile():
                 logPort = DAQPort.CATCHALL
             else:
