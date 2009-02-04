@@ -264,7 +264,16 @@ class DAQLive(Component):
                 self.__log.error('Waiting for state %s, but stuck at %s' %
                                  (expState, str(state)))
                 return False
+            elif n % 10 == 0:
+                self.__log.error(("Waiting for state %s for %d seconds," +
+                                  " (currently %s)") %
+                                 (expState, n, str(state)))
 
+        if n == 0:
+            self.__log.error("DAQ state is %s" % str(state))
+        else:
+            self.__log.error("DAQ state is %s after %d seconds" %
+                             (str(state), n))
         return True
 
     def checkID(self):
@@ -292,8 +301,6 @@ class DAQLive(Component):
             if not self.__connectToDAQRun():
                 return
 
-        self.__log.debug('Recovering pDAQ')
-
         try:
             self.__runIface.recover()
             recoveryStarted = True
@@ -306,8 +313,9 @@ class DAQLive(Component):
                 self.__log.errorException('Could not recover pDAQ')
 
         if recoveryStarted:
+            self.__log.error('Recovering pDAQ')
             if self.__waitForState('STOPPED'):
-                self.__log.debug('Recovered DAQ')
+                self.__log.debug('Recovered pDAQ')
 
     def release(self, retry=True):
         "This is only for debugging -- will never be called by I3Live"
