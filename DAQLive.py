@@ -292,7 +292,8 @@ class DAQLive(Component):
             self.__runIface = None
 
     def close(self):
-        self.__thread.stop()
+        if self.__thread is not None:
+            self.__thread.stop()
         super(DAQLive, self).close()
 
     def recovering(self, retry=True):
