@@ -39,7 +39,7 @@ import sys
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-SVN_ID  = "$Id: DAQRun.py 3906 2009-02-04 10:07:36Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3936 2009-02-25 21:07:55Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -340,6 +340,9 @@ class DAQRun(Rebootable.Rebootable):
     LOG_TO_LIVE    = 2
     LOG_TO_BOTH    = 3
 
+    # Logging level
+    LOGLEVEL = DAQLog.WARN
+
     def __init__(self, runArgs, startServer=True):
 
         # Can change reboot thread delay here if desired:
@@ -350,7 +353,7 @@ class DAQRun(Rebootable.Rebootable):
         self.setPort(runArgs.port)
 
         self.__appender = BothSocketAppender(None, None, None, None)
-        self.log              = DAQLog(self.__appender, DAQLog.WARN)
+        self.log              = DAQLog(self.__appender, DAQRun.LOGLEVEL)
 
         if runArgs.bothMode:
             self.__logMode = DAQRun.LOG_TO_BOTH
@@ -721,14 +724,14 @@ class DAQRun(Rebootable.Rebootable):
         "build CnC run set"
 
         # Wait for required components
-        self.log.info(("Starting run %d (waiting for required %d components" +
+        self.log.error(("Starting run %d (waiting for required %d components" +
                        " to register w/ CnCServer)") %
                       (self.runStats.runNum, len(requiredComps)))
         self.waitForRequiredComponents(cncrpc, requiredComps, DAQRun.COMP_TOUT)
         # Throws RequiredComponentsNotAvailableException
 
         self.runSetID = cncrpc.rpccall("rpc_runset_make", requiredComps)
-        self.log.info("Created Run Set #%d" % self.runSetID)
+        self.log.error("Created Run Set #%d" % self.runSetID)
 
     def fill_component_dictionaries(self, cncrpc):
         """
@@ -796,8 +799,8 @@ class DAQRun(Rebootable.Rebootable):
 
     def start_run(self, cncrpc):
         cncrpc.rpccall("rpc_runset_start_run", self.runSetID, self.runStats.runNum)
-        self.log.info("Started run %d on run set %d" %
-                      (self.runStats.runNum, self.runSetID))
+        self.log.error("Started run %d on run set %d" %
+                       (self.runStats.runNum, self.runSetID))
 
     def stop_run(self, cncrpc):
         self.log.error("Stopping run %d" % self.runStats.runNum)
@@ -884,13 +887,13 @@ class DAQRun(Rebootable.Rebootable):
                     rateStr = " (%2.2f Hz)" % rate
                 except (RateCalc.InsufficientEntriesException, RateCalc.ZeroTimeDeltaException):
                     rateStr = ""
-                self.log.info(("\t%s physics events%s, %s moni events," +
-                               " %s SN events, %s tcals")  %
-                              (self.runStats.physicsEvents,
-                               rateStr,
-                               self.runStats.moniEvents,
-                               self.runStats.snEvents,
-                               self.runStats.tcalEvents))
+                self.log.error(("\t%s physics events%s, %s moni events," +
+                                " %s SN events, %s tcals")  %
+                               (self.runStats.physicsEvents,
+                                rateStr,
+                                self.runStats.moniEvents,
+                                self.runStats.snEvents,
+                                self.runStats.tcalEvents))
 
         except Exception:
             self.log.error("Exception in monitoring: %s" % exc_string())
@@ -1035,10 +1038,10 @@ class DAQRun(Rebootable.Rebootable):
                 hadError = False
                 if self.runState == "RECOVERING":
                     if self.runStats.runNum is None:
-                        self.log.info("Recovering from failed initial state")
+                        self.log.error("Recovering from failed initial state")
                     else:
-                        self.log.info("Recovering from failed run %d..." %
-                                      self.runStats.runNum)
+                        self.log.error("Recovering from failed run %d..." %
+                                       self.runStats.runNum)
                     # "Forget" configuration so new run set will be made next time:
                     self.lastConfig = None
                     hadError = True
@@ -1066,10 +1069,10 @@ class DAQRun(Rebootable.Rebootable):
                         rateStr = ""
                     else:
                         rateStr = " (%2.2f Hz)" % (float(nev) / float(duration))
-                    self.log.info(("%d physics events collected in %d seconds" +
-                                   "%s") % (nev, duration, rateStr))
-                    self.log.info("%d moni events, %d SN events, %d tcals" %
-                                  (nmoni, nsn, ntcal))
+                    self.log.error(("%d physics events collected in %d " +
+                                    "seconds%s") % (nev, duration, rateStr))
+                    self.log.error("%d moni events, %d SN events, %d tcals" %
+                                   (nmoni, nsn, ntcal))
 
                 self.moni = None
                 self.watchdog = None
@@ -1145,11 +1148,11 @@ class DAQRun(Rebootable.Rebootable):
                 self.log.error("Subrun %d: invalid argument list ('%s')" %
                                (subRunID, i))
                 return 0
-            self.log.info("Subrun %d: flashing DOMs (%s)" %
-                            (subRunID, str(flashingDomsList)))
+            self.log.error("Subrun %d: flashing DOMs (%s)" %
+                           (subRunID, str(flashingDomsList)))
         else:
-            self.log.info("Subrun %d: Got command to stop flashers" %
-                            subRunID)
+            self.log.error("Subrun %d: Got command to stop flashers" %
+                           subRunID)
         try:
             self.cnc.rpccall("rpc_runset_subrun", self.runSetID, subRunID, flashingDomsList)
         except Fault:
