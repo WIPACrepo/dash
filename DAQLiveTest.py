@@ -150,6 +150,7 @@ class TestDAQLive(unittest.TestCase):
         runNum = 543
         
         log.addExpectedText('Starting run %d - %s'% (runNum, runConfig))
+        log.addExpectedText("DAQ state is RUNNING")
         log.addExpectedText('Started run %d'% runNum)
 
         args = {'runConfig':runConfig, 'runNumber':runNum}
@@ -174,6 +175,7 @@ class TestDAQLive(unittest.TestCase):
         runNum = 0
 
         log.addExpectedText('Stopping run %d'% runNum)
+        log.addExpectedText("DAQ state is STOPPED")
         log.addExpectedText('Stopped run %d'% runNum)
 
         numPhysics = 5
@@ -207,7 +209,8 @@ class TestDAQLive(unittest.TestCase):
         self.__live = MockLive(port)
 
         log.addExpectedText('Recovering pDAQ')
-        log.addExpectedText('Recovered DAQ')
+        log.addExpectedText('DAQ state is STOPPED')
+        log.addExpectedText('Recovered pDAQ')
 
         self.__live.recovering()
 

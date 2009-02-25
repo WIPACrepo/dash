@@ -313,6 +313,8 @@ class TestDAQRun(unittest.TestCase):
 
     def __finishRunThreadTest(self, dr, cnc, appender, catchall, ebID, sbID,
                               comps):
+        LOG_INFO = False
+
         time.sleep(0.4)
         self.assertEquals('STOPPED', dr.runState, 'Should be stopped, not ' +
                           dr.runState)
@@ -321,17 +323,18 @@ class TestDAQRun(unittest.TestCase):
         runNum = 654
         configName = 'sim5str'
 
-        catchall.addExpectedText('Loaded global configuration "%s"' %
-                                 configName)
-        catchall.addExpectedText('Configuration includes detector in-ice')
-        catchall.addExpectedText('Configuration includes detector icetop')
+        if LOG_INFO:
+            catchall.addExpectedText('Loaded global configuration "%s"' %
+                                     configName)
+            catchall.addExpectedText('Configuration includes detector in-ice')
+            catchall.addExpectedText('Configuration includes detector icetop')
 
-        compSrt = comps[:]
-        compSrt.sort(self.__sortCompTuple)
+            compSrt = comps[:]
+            compSrt.sort(self.__sortCompTuple)
 
-        for c in compSrt:
-            catchall.addExpectedText('Component list will require %s#%d' %
-                                     (c[1], c[2]))
+            for c in compSrt:
+                catchall.addExpectedText('Component list will require %s#%d' %
+                                         (c[1], c[2]))
 
         catchall.addExpectedText(('Starting run %d (waiting for required %d' +
                                   ' components to register w/ CnCServer)') %
@@ -345,16 +348,19 @@ class TestDAQRun(unittest.TestCase):
         appender.addExpectedExact('Run configuration: %s' % configName)
         appender.addExpectedExact('Cluster configuration: %s' %
                                 TestDAQRun.CLUSTER_CONFIG)
-        appender.addExpectedExact('Created logger for CnCServer')
-        appender.addExpectedExact('Setting up logging for %d components' %
-                                len(comps))
+        if LOG_INFO:
+            appender.addExpectedExact('Created logger for CnCServer')
+            appender.addExpectedExact('Setting up logging for %d components' %
+                                      len(comps))
 
-        nextPort = DAQPort.RUNCOMP_BASE
-        for c in compSrt:
-            appender.addExpectedExact('%s(%d %s:%d) -> %s:%d' %
-                                    (c[1], c[0], c[3], c[4], dr.ip, nextPort))
-            nextPort += 1
-        appender.addExpectedExact('Configuring run set...')
+            nextPort = DAQPort.RUNCOMP_BASE
+            for c in compSrt:
+                appender.addExpectedExact('%s(%d %s:%d) -> %s:%d' %
+                                          (c[1], c[0], c[3], c[4], dr.ip,
+                                           nextPort))
+                nextPort += 1
+            appender.addExpectedExact('Configuring run set...')
+
         appender.addExpectedExact('Started run %d on run set %d' %
                                 (runNum, setId))
 
@@ -412,13 +418,14 @@ class TestDAQRun(unittest.TestCase):
                                 numEvts)
         appender.addExpectedExact('%d moni events, %d SN events, %d tcals' %
                                 (numMoni, numSN, numTCal))
-        appender.addExpectedExact('Stopping component logging')
-        appender.addExpectedExact('RPC Call stats:\n%s' % cnc.showStats())
-        appender.addExpectedExact('Run terminated SUCCESSFULLY.')
-        appender.addExpectedExact(('Queueing data for SPADE (spadeDir=%s,' +
-                                 ' logDir=%s, runNum=%s)...') %
-                                (TestDAQRun.SPADE_DIR, TestDAQRun.LOG_DIR,
-                                 runNum))
+        if LOG_INFO:
+            appender.addExpectedExact('Stopping component logging')
+            appender.addExpectedExact('RPC Call stats:\n%s' % cnc.showStats())
+            appender.addExpectedExact('Run terminated SUCCESSFULLY.')
+            appender.addExpectedExact(('Queueing data for SPADE (spadeDir=%s,' +
+                                       ' logDir=%s, runNum=%s)...') %
+                                      (TestDAQRun.SPADE_DIR, TestDAQRun.LOG_DIR,
+                                       runNum))
 
         dr.rpc_stop_run()
 
@@ -451,7 +458,8 @@ class TestDAQRun(unittest.TestCase):
         appender.checkStatus(10)
         catchall.checkStatus(10)
 
-        catchall.addExpectedText('Breaking run set...')
+        if LOG_INFO:
+            catchall.addExpectedText('Breaking run set...')
 
         dr.rpc_release_runsets()
         self.failUnless(cnc.RSBreakFlag, 'Runset should have been broken')

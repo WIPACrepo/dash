@@ -884,6 +884,7 @@ class IntegrationTest(unittest.TestCase):
     COPY_DIR = '/tmp'
     SPADE_DIR = '/tmp'
     LOG_DIR = None
+    LIVEMONI_ENABLED = False
 
     def __createComponents(self):
         comps = [('stringHub', 1001, 9111, 9211),
@@ -1076,6 +1077,8 @@ class IntegrationTest(unittest.TestCase):
     def __testBody(self, live, dr, cnc, liveLog, appender, catchall,
                    targetFlags, liveRunOnly):
 
+        RUNLOG_INFO = False
+
         if liveLog: liveLog.checkStatus(10)
         if catchall: catchall.checkStatus(10)
         if appender: appender.checkStatus(10)
@@ -1098,20 +1101,21 @@ class IntegrationTest(unittest.TestCase):
             liveLog.addExpectedText('Starting run %d - %s' %
                                     (runNum, configName))
 
-        msg = 'Loaded global configuration "%s"' % configName
-        if catchall and not liveRunOnly: catchall.addExpectedText(msg)
-        if liveLog: liveLog.addExpectedText(msg)
-
-        for n in ('in-ice', 'icetop'):
-            msg = 'Configuration includes detector %s' % n
+        if RUNLOG_INFO:
+            msg = 'Loaded global configuration "%s"' % configName
             if catchall and not liveRunOnly: catchall.addExpectedText(msg)
             if liveLog: liveLog.addExpectedText(msg)
 
-        for c in self.__compList:
-            msg = 'Component list will require %s#%d' % \
-                (c.getName(), c.getNumber())
-            if catchall and not liveRunOnly: catchall.addExpectedText(msg)
-            if liveLog: liveLog.addExpectedText(msg)
+            for n in ('in-ice', 'icetop'):
+                msg = 'Configuration includes detector %s' % n
+                if catchall and not liveRunOnly: catchall.addExpectedText(msg)
+                if liveLog: liveLog.addExpectedText(msg)
+
+            for c in self.__compList:
+                msg = 'Component list will require %s#%d' % \
+                    (c.getName(), c.getNumber())
+                if catchall and not liveRunOnly: catchall.addExpectedText(msg)
+                if liveLog: liveLog.addExpectedText(msg)
 
         msg = ('Starting run %d (waiting for required %d components to' +
                ' register w/ CnCServer)') % (runNum, len(self.__compList))
@@ -1121,6 +1125,10 @@ class IntegrationTest(unittest.TestCase):
         msg = 'Built runset with the following components:'
         if catchall: catchall.addExpectedText(msg)
         if liveLog and not liveRunOnly: liveLog.addExpectedText(msg)
+
+        if liveLog:
+            liveLog.addExpectedText("Waiting for state RUNNING for 10 seconds" +
+                                    ", (currently STARTING)")
 
         msg = 'Created Run Set #%d' % setId
         if catchall and not liveRunOnly: catchall.addExpectedText(msg)
@@ -1132,14 +1140,16 @@ class IntegrationTest(unittest.TestCase):
                    'Starting run %d...' % runNum,
                    'Run configuration: %s' % configName,
                    'Cluster configuration: %s' %
-                   IntegrationTest.CLUSTER_CONFIG,
-                   'Created logger for CnCServer', 
+                   IntegrationTest.CLUSTER_CONFIG
                    )
+        if RUNLOG_INFO:
+            msgList.append('Created logger for CnCServer')
+
         for msg in msgList:
             if appender and not liveRunOnly: appender.addExpectedExact(msg)
             if liveLog: liveLog.addExpectedText(msg)
 
-        if appender and not liveRunOnly:
+        if appender and not liveRunOnly and RUNLOG_INFO:
             msg = 'Setting up logging for %d components' % len(self.__compList)
             appender.addExpectedExact(msg)
             if liveLog: liveLog.addExpectedText(msg)
@@ -1158,19 +1168,22 @@ class IntegrationTest(unittest.TestCase):
                                                r' \S+ \S+ \S+ \d+\S+') %
                                               c.getName())
 
-        msg = 'Configuring run set...'
-        if appender and not liveRunOnly: appender.addExpectedExact(msg)
-        if liveLog: liveLog.addExpectedText(msg)
+        if RUNLOG_INFO:
+            msg = 'Configuring run set...'
+            if appender and not liveRunOnly: appender.addExpectedExact(msg)
+            if liveLog: liveLog.addExpectedText(msg)
 
-        if targetFlags.moniToFile():
-            runDir = os.path.join(IntegrationTest.LOG_DIR,
-                                  DAQRun.logDirName(runNum))
-            for c in self.__compList:
-                msg = ('Creating moni output file %s/%s-%d.moni' +
-                       ' (remote is localhost:%d)') % \
-                       (runDir, c.getName(), c.getNumber(), c.getMBeanPort())
-                if appender and not liveRunOnly: appender.addExpectedExact(msg)
-                if liveLog: liveLog.addExpectedText(msg)
+            if targetFlags.moniToFile():
+                runDir = os.path.join(IntegrationTest.LOG_DIR,
+                                      DAQRun.logDirName(runNum))
+                for c in self.__compList:
+                    msg = ('Creating moni output file %s/%s-%d.moni' +
+                           ' (remote is localhost:%d)') % \
+                           (runDir, c.getName(), c.getNumber(),
+                            c.getMBeanPort())
+                    if appender and not liveRunOnly:
+                        appender.addExpectedExact(msg)
+                    if liveLog: liveLog.addExpectedText(msg)
 
         if liveLog:
             for c in self.__compList:
@@ -1180,7 +1193,10 @@ class IntegrationTest(unittest.TestCase):
         if appender and not liveRunOnly: appender.addExpectedExact(msg)
         if liveLog: liveLog.addExpectedText(msg)
 
-        if liveLog: liveLog.addExpectedText('Started run %d' % runNum)
+        if liveLog:
+            liveLog.addExpectedTextRegexp(r"DAQ state is RUNNING after \d+" +
+                                          " seconds")
+            liveLog.addExpectedText('Started run %d' % runNum)
 
         msg = '0 physics events (0.00 Hz), 0 moni events, 0 SN events, 0 tcals'
         if appender and not liveRunOnly: appender.addExpectedExact('\t' + msg)
@@ -1371,24 +1387,26 @@ class IntegrationTest(unittest.TestCase):
         if appender and not liveRunOnly: appender.addExpectedExact(msg)
         if liveLog: liveLog.addExpectedText(msg)
 
-        msg = 'Stopping component logging'
-        if appender and not liveRunOnly: appender.addExpectedExact(msg)
-        if liveLog: liveLog.addExpectedText(msg)
-
-        patStr = 'RPC Call stats:.*'
-        if appender and not liveRunOnly: appender.addExpectedRegexp(patStr)
-        if liveLog: liveLog.addExpectedTextRegexp(patStr)
-
-        msg = 'Run terminated SUCCESSFULLY.'
-        if appender and not liveRunOnly: appender.addExpectedExact(msg)
-        if liveLog: liveLog.addExpectedText(msg)
-
-        if targetFlags.moniToFile():
-            msg = ('Queueing data for SPADE (spadeDir=%s, logDir=%s,' +
-                   ' runNum=%s)...') % \
-                   (IntegrationTest.SPADE_DIR, IntegrationTest.LOG_DIR, runNum)
+        if RUNLOG_INFO:
+            msg = 'Stopping component logging'
             if appender and not liveRunOnly: appender.addExpectedExact(msg)
             if liveLog: liveLog.addExpectedText(msg)
+
+            patStr = 'RPC Call stats:.*'
+            if appender and not liveRunOnly: appender.addExpectedRegexp(patStr)
+            if liveLog: liveLog.addExpectedTextRegexp(patStr)
+
+            msg = 'Run terminated SUCCESSFULLY.'
+            if appender and not liveRunOnly: appender.addExpectedExact(msg)
+            if liveLog: liveLog.addExpectedText(msg)
+
+            if targetFlags.moniToFile():
+                msg = ('Queueing data for SPADE (spadeDir=%s, logDir=%s,' +
+                       ' runNum=%s)...') % \
+                       (IntegrationTest.SPADE_DIR, IntegrationTest.LOG_DIR,
+                        runNum)
+                if appender and not liveRunOnly: appender.addExpectedExact(msg)
+                if liveLog: liveLog.addExpectedText(msg)
 
         msg = "Doing complete rip-down and restart of pDAQ" + \
             " (everything but DAQRun)"
@@ -1396,6 +1414,8 @@ class IntegrationTest(unittest.TestCase):
         if liveLog: liveLog.addExpectedText(msg)
 
         if liveLog:
+            liveLog.addExpectedTextRegexp(r"DAQ state is STOPPED after \d+" +
+                                          " seconds")
             liveLog.addExpectedText('Stopped run %d' % runNum)
 
             liveLog.addExpectedLiveMoni('tcalEvents', numTCal)
@@ -1439,11 +1459,13 @@ class IntegrationTest(unittest.TestCase):
         if catchall: catchall.checkStatus(10)
         if liveLog: liveLog.checkStatus(10)
 
-        msg = 'Breaking run set...'
-        if liveLog and not liveRunOnly: liveLog.addExpectedText(msg)
-        if catchall:
-            catchall.addExpectedText(msg)
+        if RUNLOG_INFO:
+            msg = 'Breaking run set...'
+            if liveLog and not liveRunOnly: liveLog.addExpectedText(msg)
+            if catchall:
+                catchall.addExpectedText(msg)
 
+        if catchall:
             endMsg = 'End of log'
             for key in MostlyCnCServer.APPENDERS:
                 if key != 'server':
@@ -1593,13 +1615,19 @@ class IntegrationTest(unittest.TestCase):
                        True)
 
     def testAllLiveFinishInMain(self):
+        from DAQMocks import LogChecker; LogChecker.DEBUG = True
         if not TEST_LIVE:
             print 'Skipping I3Live-related test'
             return
 
         livePort = 9751
 
-        targetFlags = MoniLogTarget(MoniLogTarget.MONI_TO_LIVE |
+        if IntegrationTest.LIVEMONI_ENABLED:
+            liveMoniFlag = MoniLogTarget.MONI_TO_LIVE
+        else:
+            liveMoniFlag = 0
+
+        targetFlags = MoniLogTarget(liveMoniFlag |
                                     MoniLogTarget.LOG_TO_LIVE)
 
         (dr, cnc, appender, catchall, pShell) = \
@@ -1610,11 +1638,11 @@ class IntegrationTest(unittest.TestCase):
 
         (live, liveLog) = self.__createLiveObjects(livePort)
 
-        thread.start_new_thread(cnc.run, ())
-
         liveLog.addExpectedText("I'm server %s running on port %d" %
                                  (cnc.name, DAQPort.CNCSERVER))
         liveLog.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
+
+        thread.start_new_thread(cnc.run, ())
 
         liveLog.checkStatus(100)
 
@@ -1628,9 +1656,14 @@ class IntegrationTest(unittest.TestCase):
 
         livePort = 9751
 
+        if IntegrationTest.LIVEMONI_ENABLED:
+            liveMoniFlag = MoniLogTarget.MONI_TO_LIVE
+        else:
+            liveMoniFlag = 0
+
         targetFlags = MoniLogTarget(MoniLogTarget.MONI_TO_FILE |
                                     MoniLogTarget.LOG_TO_FILE |
-                                    MoniLogTarget.MONI_TO_LIVE |
+                                    liveMoniFlag |
                                     MoniLogTarget.LOG_TO_LIVE)
 
         (dr, cnc, appender, catchall, pShell) = \
