@@ -18,7 +18,7 @@ from DAQRPC import RPCClient
 from GetIP import getIP
 from Process import findProcess, processList
 
-SVN_ID = "$Id: DAQLaunch.py 3830 2009-01-23 16:52:53Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 3938 2009-02-26 16:45:45Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -186,6 +186,18 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
         parallel.start()
         parallel.wait()
 
+def reportAction(action, actionList, ignored):
+    "Report which Python daemons were launched/killed and which were ignored"
+
+    if len(actionList) > 0:
+        if len(ignored) > 0:
+            print "%s %s, ignored %s" % (action, ", ".join(actionList),
+                                         ", ".join(ignored))
+        else:
+            print "%s %s" % (action, ", ".join(actionList))
+    elif len(ignored) > 0:
+        print "Ignored %s" % ", ".join(ignored)
+
 def doKill(doLive, doDAQRun, doCnC, dryRun, dashDir, verbose, quiet,
            clusterConfig, killWith9, parallel=None):
     "Kill pDAQ python and java components in clusterConfig"
@@ -213,7 +225,7 @@ def doKill(doLive, doDAQRun, doCnC, dryRun, dashDir, verbose, quiet,
     killJavaProcesses(dryRun, clusterConfig, verbose, killWith9, parallel)
     if verbose and not dryRun: print "DONE with killing Java Processes."
     if not quiet:
-        print "Killed %s, ignored %s" % (", ".join(killed), ", ".join(ignored))
+        reportAction("Killed", killed, ignored)
 
     # clear the active configuration
     clusterConfig.clearActiveConfig()
@@ -296,8 +308,7 @@ def doLaunch(doLive, doDAQRun, doCnC, dryRun, verbose, quiet, clusterConfig,
                        parallel=parallel)
     if verbose and not dryRun: print "DONE with starting Java Processes."
     if not quiet:
-        print "Launched %s, ignored %s" % (", ".join(launched),
-                                           ", ".join(ignored))
+        reportAction("Launched", launched, ignored)
 
     # remember the active configuration
     clusterConfig.writeCacheFile(True)
