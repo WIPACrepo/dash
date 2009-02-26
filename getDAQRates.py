@@ -105,7 +105,7 @@ class Component(object):
             if compName == 'stringHub':
                 if compNum % 100 == 0:
                     compName = 'amandaHub'
-                elif compNum % 100 > 80:
+                elif compNum % 1000 >= 200:
                     compName = 'icetopHub'
 
         self.name = compName
