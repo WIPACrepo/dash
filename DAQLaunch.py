@@ -18,7 +18,7 @@ from DAQRPC import RPCClient
 from GetIP import getIP
 from Process import findProcess, processList
 
-SVN_ID = "$Id: DAQLaunch.py 3938 2009-02-26 16:45:45Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 3948 2009-03-04 23:35:35Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -61,7 +61,7 @@ class ComponentData(object):
             (self.__name, ComponentData.RELEASE, self.__type)
 
 class TriggerData(ComponentData):
-    def __init__(self, type, memory=1600):
+    def __init__(self, type, memory):
         super(TriggerData, self).__init__("trigger", type, memory)
 
 class HubData(ComponentData):
@@ -72,11 +72,11 @@ class HubData(ComponentData):
 # note that the component name keys for componentDB should be lower-case
 componentDB = { "eventbuilder"      : ComponentData("eventBuilder-prod"),
                 "secondarybuilders" : ComponentData("secondaryBuilders"),
-                "inicetrigger"      : TriggerData("iitrig"),
-                "simpletrigger"     : TriggerData("simptrig"),
-                "icetoptrigger"     : TriggerData("ittrig"),
-                "globaltrigger"     : TriggerData("gtrig"),
-                "amandatrigger"     : TriggerData("amtrig"),
+                "inicetrigger"      : TriggerData("iitrig", 3400),
+                "simpletrigger"     : TriggerData("simptrig", 500),
+                "icetoptrigger"     : TriggerData("ittrig", 1000),
+                "globaltrigger"     : TriggerData("gtrig", 500),
+                "amandatrigger"     : TriggerData("amtrig", 1600),
                 "stringhub"         : HubData("comp", 640),
                 "replayhub"         : HubData("replay", 350),
               }
