@@ -240,7 +240,7 @@ class DAQLive(Component):
 
         moniData = self.__runIface.monitorRun()
         for k in moniData.keys():
-            self.moniClient.sendMoni(k, moniData[k], Prio.SCP)
+            self.moniClient.sendMoni(k, moniData[k], Prio.ITS)
 
     def __waitForState(self, expState, badStates=('ERROR')):
         "Wait for pDAQ to reach the expected state"
