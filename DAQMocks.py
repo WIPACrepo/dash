@@ -580,7 +580,7 @@ class MockLogger(LogChecker):
 
 class MockParallelShell(object):
     BINDIR = \
-        os.path.join(METADIR, 'target', 'pDAQ-1.0.0-SNAPSHOT-dist.dir', 'bin')
+        os.path.join(METADIR, 'target', 'pDAQ-1.0.0-SNAPSHOT-dist', 'bin')
 
     def __init__(self):
         self.__exp = []

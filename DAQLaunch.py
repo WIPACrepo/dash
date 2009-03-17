@@ -18,7 +18,7 @@ from DAQRPC import RPCClient
 from GetIP import getIP
 from Process import findProcess, processList
 
-SVN_ID = "$Id: DAQLaunch.py 3968 2009-03-16 17:36:20Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 3972 2009-03-17 19:07:04Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -131,7 +131,7 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
 
     # The dir where all the "executable" jar files are
     binDir = join(metaDir, 'target', 'pDAQ-1.0.0-SNAPSHOT-dist', 'bin')
-    if not os.path.isdir(binDir):
+    if checkExists and not os.path.isdir(binDir):
         binDir = join(metaDir, 'target', 'pDAQ-1.0.0-SNAPSHOT-dist.dir', 'bin')
         if not os.path.isdir(binDir):
             raise SystemExit("Cannot find jar file directory")
