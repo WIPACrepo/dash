@@ -20,18 +20,9 @@ Warning: Can't import IceCube Live code. Probably DAQLive isn't installed.
 DAQ should work ok, but IceCube Live won't be able to control it."""
     raise SystemExit
 
-SVN_ID  = "$Id: DAQLive.py 3084 2008-05-27 21:44:21Z dglo $"
-
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if os.environ.has_key("PDAQ_HOME"):
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
-
-# add meta-project python dir to Python library search path
-sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 import SVNVersionInfo
+
+SVN_ID  = "$Id: DAQLive.py 3084 2008-05-27 21:44:21Z dglo $"
 
 class LiveArgs(object):
     "Command-line argument handler for DAQLive"

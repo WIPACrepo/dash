@@ -39,7 +39,10 @@ import sys
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-SVN_ID  = "$Id: DAQRun.py 3936 2009-02-25 21:07:55Z dglo $"
+from ClusterConfig import *
+from SVNVersionInfo import get_version_info
+
+SVN_ID  = "$Id: DAQRun.py 3973 2009-03-17 20:38:52Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -47,13 +50,6 @@ if os.environ.has_key("PDAQ_HOME"):
 else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
-
-# add 'cluster-config' and meta-project python dir to Python library
-# search path
-sys.path.append(join(metaDir, 'cluster-config'))
-from ClusterConfig import *
-sys.path.append(join(metaDir, 'src', 'main', 'python'))
-from SVNVersionInfo import get_version_info
 
 class RequiredComponentsNotAvailableException(Exception): pass
 class IncorrectDAQState                      (Exception): pass

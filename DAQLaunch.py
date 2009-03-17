@@ -18,7 +18,11 @@ from DAQRPC import RPCClient
 from GetIP import getIP
 from Process import findProcess, processList
 
-SVN_ID = "$Id: DAQLaunch.py 3972 2009-03-17 19:07:04Z dglo $"
+from SVNVersionInfo import get_version_info
+from ClusterConfig import *
+from ParallelShell import *
+
+SVN_ID = "$Id: DAQLaunch.py 3973 2009-03-17 20:38:52Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -26,15 +30,6 @@ if environ.has_key("PDAQ_HOME"):
 else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
-
-# add 'cluster-config' and meta-project python dir to Python library
-# search path
-sys.path.append(join(metaDir, 'cluster-config'))
-sys.path.append(join(metaDir, 'src', 'main', 'python'))
-
-from SVNVersionInfo import get_version_info
-from ClusterConfig import *
-from ParallelShell import *
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
