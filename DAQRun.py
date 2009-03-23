@@ -42,7 +42,7 @@ set_exc_string_encoding("ascii")
 from ClusterConfig import *
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 3978 2009-03-23 15:13:16Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3979 2009-03-23 16:26:04Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -348,7 +348,8 @@ class DAQRun(Rebootable.Rebootable):
 
         self.setPort(runArgs.port)
 
-        self.__appender = BothSocketAppender(None, None, None, None)
+        self.__appender = BothSocketAppender(None, None, None, None,
+                                             priority=Prio.ITS)
         self.log              = DAQLog(self.__appender, DAQRun.LOGLEVEL)
 
         if runArgs.bothMode:
