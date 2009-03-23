@@ -42,7 +42,7 @@ set_exc_string_encoding("ascii")
 from ClusterConfig import *
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 3973 2009-03-17 20:38:52Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 3978 2009-03-23 15:13:16Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -1084,7 +1084,7 @@ class DAQRun(Rebootable.Rebootable):
                 if hadError:
                     self.log.error("Run terminated WITH ERROR.")
                 else:
-                    self.log.info("Run terminated SUCCESSFULLY.")
+                    self.log.error("Run terminated SUCCESSFULLY.")
 
                 if self.__isLogToFile() and logDirCreated:
                     catchAllLogger.stopServing()
