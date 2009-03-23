@@ -1396,10 +1396,11 @@ class IntegrationTest(unittest.TestCase):
             if appender and not liveRunOnly: appender.addExpectedRegexp(patStr)
             if liveLog: liveLog.addExpectedTextRegexp(patStr)
 
-            msg = 'Run terminated SUCCESSFULLY.'
-            if appender and not liveRunOnly: appender.addExpectedExact(msg)
-            if liveLog: liveLog.addExpectedText(msg)
+        msg = 'Run terminated SUCCESSFULLY.'
+        if appender and not liveRunOnly: appender.addExpectedExact(msg)
+        if liveLog: liveLog.addExpectedText(msg)
 
+        if RUNLOG_INFO:
             if targetFlags.moniToFile():
                 msg = ('Queueing data for SPADE (spadeDir=%s, logDir=%s,' +
                        ' runNum=%s)...') % \

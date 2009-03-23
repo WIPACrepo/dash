@@ -421,7 +421,8 @@ class TestDAQRun(unittest.TestCase):
         if LOG_INFO:
             appender.addExpectedExact('Stopping component logging')
             appender.addExpectedExact('RPC Call stats:\n%s' % cnc.showStats())
-            appender.addExpectedExact('Run terminated SUCCESSFULLY.')
+        appender.addExpectedExact('Run terminated SUCCESSFULLY.')
+        if LOG_INFO:
             appender.addExpectedExact(('Queueing data for SPADE (spadeDir=%s,' +
                                        ' logDir=%s, runNum=%s)...') %
                                       (TestDAQRun.SPADE_DIR, TestDAQRun.LOG_DIR,
