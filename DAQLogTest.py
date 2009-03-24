@@ -53,19 +53,24 @@ class TestDAQLog(unittest.TestCase):
 
         self.sockLog = LogSocketServer(port, cname, logPath, True)
         self.sockLog.startServing()
+        for i in range(5):
+            if self.sockLog.isServing():
+                break
+            time.sleep(0.1)
         self.failUnless(os.path.exists(logPath), 'Log file was not created')
+        self.failUnless(self.sockLog.isServing(), 'Log server was not started')
 
-        time = datetime.datetime.now()
+        now = datetime.datetime.now()
         msg = 'Test 1 2 3'
 
         client = SocketWriter('localhost', port)
-        client.write_ts(msg, time)
+        client.write_ts(msg, now)
 
         client.close()
 
         self.sockLog.stopServing()
 
-        self.checkLog(logPath, ('%s - - [%s] %s' % (cname, str(time), msg), ))
+        self.checkLog(logPath, ('%s - - [%s] %s' % (cname, str(now), msg), ))
 
 if __name__ == '__main__':
     unittest.main()

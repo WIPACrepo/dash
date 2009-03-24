@@ -80,6 +80,9 @@ class LogSocketServer(object):
         if self.__logpath: self.__outfile.close()
         self.__serving = False
 
+    def isServing(self):
+        return self.__serving
+
     def startServing(self):
         "Creates listener thread, prepares file for output, and returns"
         if self.__logpath:
