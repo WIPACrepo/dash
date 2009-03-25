@@ -24,7 +24,12 @@ class deployComponent:
         self.compName = compName;
         self.compID   = compID;
         self.logLevel = logLevel
-        
+
+    def __str__(self):
+        if self.compID == 0 and not self.compName.lower().endswith("hub"):
+            return "%s@%s" % (self.compName, self.logLevel)
+        return "%s#%d@%s" % (self.compName, self.compID, self.logLevel)
+
 class deployNode:
     "Record-keeping class for host targets"
     def __init__(self, locName, hostName):
