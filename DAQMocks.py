@@ -586,13 +586,24 @@ class MockParallelShell(object):
         self.__exp = []
 
     def __checkCmd(self, cmd):
-        if len(self.__exp) == 0:
+        expLen = len(self.__exp)
+        if expLen == 0:
             raise Exception('Did not expect command "%s"' % cmd)
 
-        if cmd != self.__exp[0]:
+        top10 = 10
+        if expLen < top10:
+            top10 = expLen
+
+        found = None
+        for i in range(top10):
+            if cmd == self.__exp[i]:
+                found = i
+                break
+
+        if found is None:
             raise Exception('Expected "%s", not "%s"' % (self.__exp[0], cmd))
 
-        del self.__exp[0]
+        del self.__exp[found]
 
     def __isLocalhost(self, host):
         return host == 'localhost' or host == '127.0.0.1'
