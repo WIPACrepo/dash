@@ -892,7 +892,7 @@ class IntegrationTest(unittest.TestCase):
                  ('stringHub', 1003, 9113, 9213),
                  ('stringHub', 1004, 9114, 9214),
                  ('stringHub', 1005, 9115, 9215),
-                 ('stringHub', 1081, 9116, 9216),
+                 ('stringHub', 1201, 9116, 9216),
                  ('inIceTrigger', 0, 9117, 9217),
                  ('globalTrigger', 0, 9118, 9218),
                  ('eventBuilder', 0, 9119, 9219),

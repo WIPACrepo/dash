@@ -126,8 +126,8 @@ class DAQConfigTest(unittest.TestCase):
                     'stringHub#68', 'stringHub#69', 'stringHub#70',
                     'stringHub#71', 'stringHub#72', 'stringHub#73',
                     'stringHub#74', 'stringHub#75', 'stringHub#76',
-                    'stringHub#77', 'stringHub#78', 'stringHub#81',
-                    'stringHub#82', 'stringHub#83', 'stringHub#84'):
+                    'stringHub#77', 'stringHub#78', 'stringHub#201',
+                    'stringHub#202', 'stringHub#203'):
             try:
                 comps.index(exp)
             except:
