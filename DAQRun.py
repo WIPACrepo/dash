@@ -42,7 +42,7 @@ set_exc_string_encoding("ascii")
 from ClusterConfig import *
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 3979 2009-03-23 16:26:04Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4015 2009-03-31 19:13:12Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -338,6 +338,8 @@ class DAQRun(Rebootable.Rebootable):
 
     # Logging level
     LOGLEVEL = DAQLog.WARN
+    # I3Live priority
+    LOGPRIO = Prio.ITS
 
     def __init__(self, runArgs, startServer=True):
 
@@ -349,7 +351,7 @@ class DAQRun(Rebootable.Rebootable):
         self.setPort(runArgs.port)
 
         self.__appender = BothSocketAppender(None, None, None, None,
-                                             priority=Prio.ITS)
+                                             priority=DAQRun.LOGPRIO)
         self.log              = DAQLog(self.__appender, DAQRun.LOGLEVEL)
 
         if runArgs.bothMode:
@@ -368,7 +370,7 @@ class DAQRun(Rebootable.Rebootable):
         if self.__logMode == DAQRun.LOG_TO_LIVE or \
                 self.__logMode == DAQRun.LOG_TO_BOTH:
             appender = LiveSocketAppender('localhost', DAQPort.I3LIVE,
-                                          priority=Prio.EMAIL)
+                                          priority=DAQRun.LOGPRIO)
             self.__appender.setLiveAppender(appender)
         else:
             self.__appender.setLiveAppender(None)
@@ -1171,7 +1173,7 @@ class DAQRun(Rebootable.Rebootable):
         if logInfo is not None and len(logInfo) == 2:
             self.__liveInfo = LiveInfo(logInfo[0], logInfo[1])
             appender = LiveSocketAppender(logInfo[0], logInfo[1],
-                                          priority=Prio.EMAIL)
+                                          priority=DAQRun.LOGPRIO)
             self.__appender.setLiveAppender(appender)
             if self.__logMode == DAQRun.LOG_TO_FILE:
                 self.__appender.setLogAppender(None)
