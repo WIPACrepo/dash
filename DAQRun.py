@@ -40,9 +40,19 @@ from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
 from ClusterConfig import *
+
+# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+if environ.has_key("PDAQ_HOME"):
+    metaDir = environ["PDAQ_HOME"]
+else:
+    from locate_pdaq import find_pdaq_trunk
+    metaDir = find_pdaq_trunk()
+
+# add meta-project python dir to Python library search path
+sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4015 2009-03-31 19:13:12Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4024 2009-04-03 21:03:29Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
