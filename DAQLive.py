@@ -21,8 +21,8 @@ DAQ should work ok, but IceCube Live won't be able to control it."""
     raise SystemExit
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if environ.has_key("PDAQ_HOME"):
-    metaDir = environ["PDAQ_HOME"]
+if os.environ.has_key("PDAQ_HOME"):
+    metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
