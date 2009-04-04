@@ -19,17 +19,17 @@ import thread
 import threading
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if environ.has_key("PDAQ_HOME"):
-    metaDir = environ["PDAQ_HOME"]
+if os.environ.has_key("PDAQ_HOME"):
+    metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
 # add meta-project python dir to Python library search path
-sys.path.append(join(metaDir, 'src', 'main', 'python'))
+sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4024 2009-04-03 21:03:29Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4028 2009-04-04 01:00:45Z ksb $"
 
 class Connector(object):
     """

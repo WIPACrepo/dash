@@ -28,7 +28,7 @@ else:
     metaDir = find_pdaq_trunk()
 
 # add meta-project python dir to Python library search path
-sys.path.append(join(metaDir, 'src', 'main', 'python'))
+sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 import SVNVersionInfo
 
 SVN_ID  = "$Id: DAQLive.py 3084 2008-05-27 21:44:21Z dglo $"
