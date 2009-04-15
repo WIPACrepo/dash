@@ -2,6 +2,8 @@
 #
 # Use nicknames.txt file to create a default-dom-geometry file and print the
 # result to sys.stdout
+#
+# URL: http://icecube.wisc.edu/~testdaq/database_files/nicknames.txt
 
 from DefaultDomGeometry import DefaultDomGeometryReader, NicknameReader
 
