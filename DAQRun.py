@@ -52,7 +52,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4095 2009-04-21 12:50:11Z kael $"
+SVN_ID  = "$Id: DAQRun.py 4098 2009-04-21 20:35:52Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -1326,6 +1326,8 @@ class DAQRun(Rebootable.Rebootable):
         monDict = {}
 
         if self.runStats.runNum and self.runState == "RUNNING":
+            self.runStats.updateEventCounts(self, True)
+
             monDict["physicsEvents"] = self.runStats.physicsEvents
             monDict["moniEvents"] = self.runStats.moniEvents
             monDict["snEvents"] = self.runStats.snEvents
