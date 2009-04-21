@@ -32,7 +32,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 4024 2009-04-03 21:03:29Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 4095 2009-04-21 12:50:11Z kael $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -54,7 +54,7 @@ class ComponentData(object):
         self.__extraArgs = extraArgs
 
     def getJVMArgs(self):
-        jvmArgs = "-server -Xms%dm -Xmx%dm" % (self.__memory, self.__memory)
+        jvmArgs = "-server -Xms%dm -Xmx%dm" % (self.__memory/2, self.__memory)
 
         if self.__extraArgs is not None:
             jvmArgs += " " + self.__extraArgs
@@ -67,7 +67,7 @@ class ComponentData(object):
 
 class TriggerData(ComponentData):
     def __init__(self, type, memory):
-        super(TriggerData, self).__init__("trigger", type, memory)
+        super(TriggerData, self).__init__("trigger", type, memory, extraArgs="-Xcompressedrefs")
 
 class HubData(ComponentData):
     def __init__(self, type, memory):
@@ -75,14 +75,14 @@ class HubData(ComponentData):
         super(HubData, self).__init__("StringHub", type, memory, extraArgs)
 
 # note that the component name keys for componentDB should be lower-case
-componentDB = { "eventbuilder"      : ComponentData("eventBuilder-prod"),
-                "secondarybuilders" : ComponentData("secondaryBuilders"),
-                "inicetrigger"      : TriggerData("iitrig", 3400),
+componentDB = { "eventbuilder"      : ComponentData("eventBuilder-prod", memory=1200, extraArgs="-Xcompressedrefs -Xlp"),
+                "secondarybuilders" : ComponentData("secondaryBuilders", memory=1200, extraArgs="-Xcompressedrefs"),
+                "inicetrigger"      : TriggerData("iitrig", 2000),
                 "simpletrigger"     : TriggerData("simptrig", 500),
-                "icetoptrigger"     : TriggerData("ittrig", 1000),
-                "globaltrigger"     : TriggerData("gtrig", 500),
-                "amandatrigger"     : TriggerData("amtrig", 1600),
-                "stringhub"         : HubData("comp", 640),
+                "icetoptrigger"     : TriggerData("ittrig", 512),
+                "globaltrigger"     : TriggerData("gtrig", 512),
+                "amandatrigger"     : TriggerData("amtrig", 256),
+                "stringhub"         : HubData("comp", 512),
                 "replayhub"         : HubData("replay", 350),
               }
 
@@ -169,14 +169,10 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
             compIO = quietStr
 
             if comp.compName.endswith("Hub"):
-                #javaCmd = "/usr/java/jdk1.5.0_07/bin/java"
                 jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % comp.compID
-                #switches += " -M 10"
-
+                
             if eventCheck and comp.compName == "eventBuilder":
                 jvmArgs += " -Dicecube.daq.eventBuilder.validateEvents"
-
-            #compIO = " </dev/null >/tmp/%s.%d 2>&1" % (comp.compName, comp.compID)
 
             if node.hostName == "localhost": # Just run it
                 cmd = "%s %s -jar %s %s %s &" % \

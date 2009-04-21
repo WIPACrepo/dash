@@ -52,7 +52,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4028 2009-04-04 01:00:45Z ksb $"
+SVN_ID  = "$Id: DAQRun.py 4095 2009-04-21 12:50:11Z kael $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -337,7 +337,7 @@ def linkOrCopy(src, dest):
 
 class DAQRun(Rebootable.Rebootable):
     "Serve requests to start/stop DAQ runs (exp control iface)"
-    MONI_PERIOD    = 60
+    MONI_PERIOD    = 100
     WATCH_PERIOD   = 10
     COMP_TOUT      = 60
 
