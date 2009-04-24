@@ -3,6 +3,7 @@
 # Manage pDAQ runs via IceCube Live
 
 import optparse, os, re, sys, threading, time
+from DAQConst import DAQPort
 
 class FlashFileException(Exception): pass
 class LaunchException(Exception): pass
@@ -125,7 +126,8 @@ class LiveState(object):
         return sum
 
     def __parseLine(self, parseState, line):
-        if len(line) == 0 or line.find("controlled by LiveControl") > 0:
+        if len(line) == 0 or line.find("controlled by LiveControl") > 0 or \
+                line == "(None)":
             return LiveState.PARSE_NORMAL
 
         if line.startswith("Flashing DOMs"):
@@ -317,6 +319,26 @@ class LiveRun(object):
         "Exit if the specified path does not exist"
         if not os.path.exists(path):
             raise SystemExit("%s '%s' does not exist" % (name, path))
+
+    def __controlPDAQ(self):
+        "Connect I3Live to pDAQ"
+        cmd = "%s control pdaq localhost:%s" % \
+            (self.__liveCmdProg, DAQPort.DAQLIVE)
+        if self.__showCmd: print cmd
+        (fi, foe) = os.popen4(cmd)
+        fi.close()
+
+        controlled = False
+        for line in foe:
+            line = line.rstrip()
+            if self.__showCmdOutput: print '+ ' + line
+            if line == "Service pdaq is now being controlled":
+                controlled = True
+            else:
+                print >>sys.stderr, "Control: %s" % line
+        foe.close()
+
+        return controlled
 
     def __flashPath(self, flashFile):
         "Find a flasher file or raise FlashFileException"
@@ -552,6 +574,10 @@ class LiveRun(object):
             flashName=None, flashTimes=None, flashPause=60):
         "Manage a set of runs using IceCube Live"
         self.__state.check()
+        if self.__state.svcState("pdaq") == RunState.UNKNOWN:
+            if not self.__controlPDAQ():
+                raise RunException("Could not tell I3Live to control pdaq")
+            self.__state.check()
         if self.__state.runState() != RunState.STOPPED:
             raise RunException("I3Live state should be %s, not %s" %
                                (RunState.STOPPED, self.__state.runState()))
