@@ -4,6 +4,8 @@
 # DAQ Constant values
 
 class DAQPort(object):
+    "DAQLive port"
+    DAQLIVE      = 6659
     "IceCube Live logging/monitoring port"
     I3LIVE       = 6666
     "CnCServer XML-RPC port"

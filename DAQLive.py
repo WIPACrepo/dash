@@ -59,7 +59,7 @@ class LiveArgs(object):
 
         p.add_option("-P", "--live-port",
                      action="store",      type="int",
-                     dest="livePort",     default=6659,
+                     dest="livePort",     default=DAQPort.DAQLIVE,
                      help="Listening port for Icecube Live commands")
 
         return p
