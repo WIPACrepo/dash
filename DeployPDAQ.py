@@ -22,7 +22,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 4024 2009-04-03 21:03:29Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 4107 2009-04-27 18:10:01Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -51,8 +51,10 @@ def main():
     p = optparse.OptionParser(usage=usage, version=ver_info)
     p.add_option("-c", "--config-name",  action="store", type="string", dest="configName",
                  help="REQUIRED: Configuration name")
-    p.add_option("", "--delete",       action="store_true",           dest="delete",
+    p.add_option("", "--delete",         action="store_true",           dest="delete",
                  help="Run rsync's with --delete")
+    p.add_option("", "--no-delete",      action="store_false",          dest="delete",
+                 help="Run rsync's without --delete")
     p.add_option("-l", "--list-configs", action="store_true",           dest="doList",
                  help="List available configs")
     p.add_option("-n", "--dry-run",      action="store_true",           dest="dryRun",
@@ -76,7 +78,7 @@ def main():
                    doSerial   = False,
                    verbose    = False,
                    quiet      = False,
-                   delete     = False,
+                   delete     = True,
                    dryRun     = False,
                    undeploy   = False,
                    deepDryRun = False,
