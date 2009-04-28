@@ -15,34 +15,34 @@ class RunDataException(Exception): pass
 class RunData(object):
     "Description of a pDAQ run"
 
-    # NOTE: this is a simple mapping of cluster configuration names to
-    #       the corresponding run configuration names.  The test runs
+    # NOTE: this is a simple mapping of run configuration names to
+    #       the corresponding cluster configuration names.  The test runs
     #       are described in RUN_LIST below
     #
-    CFG_DICT = {
-        "spts64-real-21-29" : "spts64-dirtydozen-hlc-006",
-        "spts64-sim4strAMANDA" : "sim4strAMANDA-25Hz",
-        "spts64-sim18str" : "sim18str-noise25Hz-002",
-        "spts64-simIC22str" : "sim22str-with-phys-trig-001",
-        "spts64-simIC22strAMANDA" : "sim22strAMANDA-doublespsfeb12rates",
-        "spts64-simIC40str" : "sim40str-25Hz-reduced-trigger",
-        "spts64-simIC80str" : "sim80str-25Hz",
+    CFG2CLUSTER = {
+        "spts64-dirtydozen-hlc-006" : "spts64-real-21-29",
+        "sim4strAMANDA-25Hz" : "spts64-sim4strAMANDA",
+        "sim18str-noise25Hz-002" : "spts64-sim18str",
+        "sim22str-with-phys-trig-001" : "spts64-simIC22str",
+        "sim22strAMANDA-doublespsfeb12rates" : "spts64-simIC22strAMANDA",
+        "sim40str-25Hz-reduced-trigger" : "spts64-simIC40str",
+        "sim80str-25Hz" : "spts64-simIC80str",
         }
 
-    def __init__(self, clusterCfg, duration, numRuns=1, flashName=None,
+    def __init__(self, runCfg, duration, numRuns=1, flashName=None,
                  flashTimes=None, flashPause=60):
-        self.__clusterCfg = clusterCfg
+        self.__runCfg = runCfg
         self.__duration = duration
         self.__numRuns = numRuns
         self.__flashName = flashName
         self.__flashTimes = flashTimes
         self.__flashPause = flashPause
 
-        if not RunData.CFG_DICT.has_key(self.__clusterCfg):
-            raise RunDataException("Unknown run config for '%s'" %
-                                   self.__clusterCfg)
+        if not RunData.CFG2CLUSTER.has_key(self.__runCfg):
+            raise RunDataException("Unknown cluster config for '%s'" %
+                                   self.__runCfg)
 
-    def clusterConfig(self): return self.__clusterCfg
+    def clusterConfig(self): return RunData.CFG2CLUSTER[self.__runCfg]
 
     def run(self, liveRun, quick):
         if quick and self.__duration > 1200:
@@ -50,24 +50,25 @@ class RunData(object):
         else:
             duration = self.__duration
 
-        liveRun.run(self.__clusterCfg, RunData.CFG_DICT[self.__clusterCfg],
+        liveRun.run(RunData.CFG2CLUSTER[self.__runCfg], self.__runCfg,
                     duration, self.__numRuns, self.__flashName,
                     self.__flashTimes, self.__flashPause)
 
 # configurations to run
 #
-RUN_LIST = (RunData("spts64-real-21-29", FOUR_HR),
-            RunData("spts64-real-21-29", 0, 1, "flash-21", (60, 45, 120)),
-            RunData("spts64-sim4strAMANDA", 300),
-            ###RunData("spts64-sim18str", FOUR_HR),
-            ###RunData("spts64-sim18str", EIGHT_HR),
-            ###RunData("spts64-simIC22str", FOUR_HR),
-            ###RunData("spts64-simIC22str", EIGHT_HR),
-            ###RunData("spts64-simIC22strAMANDA", FOUR_HR),
-            RunData("spts64-simIC40str", FOUR_HR),
-            RunData("spts64-simIC40str", EIGHT_HR),
-            ###RunData("spts64-simIC80str", FOUR_HR),
-            ###RunData("spts64-simIC80str", EIGHT_HR),
+RUN_LIST = (RunData("spts64-dirtydozen-hlc-006", FOUR_HR),
+            RunData("spts64-dirtydozen-hlc-006", 0, 1,
+                    "flash-21", (60, 45, 120)),
+            RunData("sim4strAMANDA-25Hz", 300),
+            ###RunData("sim18str-noise25Hz-002", FOUR_HR),
+            ###RunData("sim18str-noise25Hz-002", EIGHT_HR),
+            ###RunData("sim22str-with-phys-trig-001", FOUR_HR),
+            ###RunData("sim22str-with-phys-trig-001", EIGHT_HR),
+            ###RunData("sim22strAMANDA-doublespsfeb12rates", FOUR_HR),
+            RunData("sim40str-25Hz-reduced-trigger", FOUR_HR),
+            RunData("sim40str-25Hz-reduced-trigger", EIGHT_HR),
+            ###RunData("sim80str-25Hz", FOUR_HR),
+            ###RunData("sim80str-25Hz", EIGHT_HR),
             )
 
 class Deploy(object):
