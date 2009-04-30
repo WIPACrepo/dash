@@ -407,11 +407,12 @@ class TestDAQRun(unittest.TestCase):
         numSN = 51
         numTCal = 93
 
-        moni = dr.moni
-        moni.addEntry(ebID, 'backEnd', 'NumEventsSent', str(numEvts))
-        moni.addEntry(sbID, 'moniBuilder', 'TotalDispatchedData', str(numMoni))
-        moni.addEntry(sbID, 'snBuilder', 'TotalDispatchedData', str(numSN))
-        moni.addEntry(sbID, 'tcalBuilder', 'TotalDispatchedData', str(numTCal))
+        dr.moni.addEntry(ebID, 'backEnd', 'NumEventsSent', str(numEvts))
+        dr.moni.addEntry(sbID, 'moniBuilder', 'TotalDispatchedData',
+                         str(numMoni))
+        dr.moni.addEntry(sbID, 'snBuilder', 'TotalDispatchedData', str(numSN))
+        dr.moni.addEntry(sbID, 'tcalBuilder', 'TotalDispatchedData',
+                         str(numTCal))
 
         appender.addExpectedExact('Stopping run %d' % runNum)
         appender.addExpectedExact('%d physics events collected in 0 seconds' %
@@ -829,18 +830,17 @@ class TestDAQRun(unittest.TestCase):
         logger = MockLogger('main')
         dr.log = logger
 
-        moni = MockMoni()
-        dr.moni = moni
-
         numEvts = 17
         numMoni = 222
         numSN = 51
         numTCal = 93
 
-        moni.addEntry(5, 'backEnd', 'NumEventsSent', str(numEvts))
-        moni.addEntry(17, 'moniBuilder', 'TotalDispatchedData', str(numMoni))
-        moni.addEntry(17, 'snBuilder', 'TotalDispatchedData', str(numSN))
-        moni.addEntry(17, 'tcalBuilder', 'TotalDispatchedData', str(numTCal))
+        dr.moni = MockMoni()
+
+        dr.moni.addEntry(5, 'backEnd', 'NumEventsSent', str(numEvts))
+        dr.moni.addEntry(17, 'moniBuilder', 'TotalDispatchedData', str(numMoni))
+        dr.moni.addEntry(17, 'snBuilder', 'TotalDispatchedData', str(numSN))
+        dr.moni.addEntry(17, 'tcalBuilder', 'TotalDispatchedData', str(numTCal))
 
         expId = 99
         expComps = [(5, 'eventBuilder', 0, 'x', 1234, 5678),
@@ -872,11 +872,6 @@ class TestDAQRun(unittest.TestCase):
         logger = MockLogger('main')
         dr.log = logger
 
-        moni = MockMoni()
-        dr.moni = moni
-
-        #MockCnCRPC()
-
         rtnVal = dr.check_all()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
@@ -888,19 +883,18 @@ class TestDAQRun(unittest.TestCase):
         logger = MockLogger('main')
         dr.log = logger
 
-        moni = MockMoni()
-        dr.moni = moni
-
         numEvts = 1000
         numMoni = 222
         numSN = 51
         numTCal = 93
 
-        moni.isTime = True
-        moni.addEntry(5, 'backEnd', 'NumEventsSent', str(numEvts))
-        moni.addEntry(17, 'moniBuilder', 'TotalDispatchedData', str(numMoni))
-        moni.addEntry(17, 'snBuilder', 'TotalDispatchedData', str(numSN))
-        moni.addEntry(17, 'tcalBuilder', 'TotalDispatchedData', str(numTCal))
+        dr.moni = MockMoni()
+
+        dr.moni.isTime = True
+        dr.moni.addEntry(5, 'backEnd', 'NumEventsSent', str(numEvts))
+        dr.moni.addEntry(17, 'moniBuilder', 'TotalDispatchedData', str(numMoni))
+        dr.moni.addEntry(17, 'snBuilder', 'TotalDispatchedData', str(numSN))
+        dr.moni.addEntry(17, 'tcalBuilder', 'TotalDispatchedData', str(numTCal))
 
         expId = 99
         expComps = [(5, 'eventBuilder', 0, 'x', 1234, 5678),
@@ -937,19 +931,18 @@ class TestDAQRun(unittest.TestCase):
         logger = MockLogger('main')
         dr.log = logger
 
-        moni = MockMoni()
-        dr.moni = moni
-
         numEvts = 17
         numMoni = 222
         numSN = 51
         numTCal = 93
 
-        moni.isTime = True
-        moni.addEntry(5, 'backEnd', 'NumEventsSent', str(numEvts))
-        moni.addEntry(17, 'moniBuilder', 'TotalDispatchedData', str(numMoni))
-        moni.addEntry(17, 'snBuilder', 'TotalDispatchedData', str(numSN))
-        moni.addEntry(17, 'tcalBuilder', 'TotalDispatchedData', str(numTCal))
+        dr.moni = MockMoni()
+
+        dr.moni.isTime = True
+        dr.moni.addEntry(5, 'backEnd', 'NumEventsSent', str(numEvts))
+        dr.moni.addEntry(17, 'moniBuilder', 'TotalDispatchedData', str(numMoni))
+        dr.moni.addEntry(17, 'snBuilder', 'TotalDispatchedData', str(numSN))
+        dr.moni.addEntry(17, 'tcalBuilder', 'TotalDispatchedData', str(numTCal))
 
         expId = 99
         expComps = [(5, 'eventBuilder', 0, 'x', 1234, 5678),
@@ -977,11 +970,7 @@ class TestDAQRun(unittest.TestCase):
         logger = MockLogger('main')
         dr.log = logger
 
-        moni = MockMoni()
-        dr.moni = moni
-
-        dog = MockWatchdog()
-        dr.watchdog = dog
+        dr.watchdog = MockWatchdog()
 
         DAQRun.unHealthyCount = 0
 
@@ -990,8 +979,10 @@ class TestDAQRun(unittest.TestCase):
         rtnVal = dr.check_all()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
-        self.failIf(dog.threadCleared, 'Should not have cleared thread')
-        self.failIf(dog.watchStarted, 'Should not have started watchdog')
+        self.failIf(dr.watchdog.threadCleared,
+                    'Should not have cleared thread')
+        self.failIf(dr.watchdog.watchStarted,
+                    'Should not have started watchdog')
         self.assertEquals(expCnt, DAQRun.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
                           (expCnt, DAQRun.unHealthyCount))
@@ -1004,13 +995,9 @@ class TestDAQRun(unittest.TestCase):
         logger = MockLogger('main')
         dr.log = logger
 
-        moni = MockMoni()
-        dr.moni = moni
+        dr.watchdog = MockWatchdog()
 
-        dog = MockWatchdog()
-        dr.watchdog = dog
-
-        dog.isTime = True
+        dr.watchdog.isTime = True
         DAQRun.unHealthyCount = 0
 
         expCnt = 0
@@ -1018,8 +1005,9 @@ class TestDAQRun(unittest.TestCase):
         rtnVal = dr.check_all()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
-        self.failIf(dog.threadCleared, 'Should not have cleared thread')
-        self.failUnless(dog.watchStarted, 'Should have started watchdog')
+        self.failIf(dr.watchdog.threadCleared, 'Should not have cleared thread')
+        self.failUnless(dr.watchdog.watchStarted,
+                        'Should have started watchdog')
         self.assertEquals(expCnt, DAQRun.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
                           (expCnt, DAQRun.unHealthyCount))
@@ -1032,14 +1020,10 @@ class TestDAQRun(unittest.TestCase):
         logger = MockLogger('main')
         dr.log = logger
 
-        moni = MockMoni()
-        dr.moni = moni
+        dr.watchdog = MockWatchdog()
 
-        dog = MockWatchdog()
-        dr.watchdog = dog
-
-        dog.inProg = True
-        dog.caughtErr = True
+        dr.watchdog.inProg = True
+        dr.watchdog.caughtErr = True
         DAQRun.unHealthyCount = 0
 
         expCnt = 0
@@ -1047,8 +1031,9 @@ class TestDAQRun(unittest.TestCase):
         rtnVal = dr.check_all()
         self.failIf(rtnVal, 'Expected call to succeed')
 
-        self.failUnless(dog.threadCleared, 'Should have cleared thread')
-        self.failIf(dog.watchStarted, 'Should not have started watchdog')
+        self.failUnless(dr.watchdog.threadCleared, 'Should have cleared thread')
+        self.failIf(dr.watchdog.watchStarted,
+                    'Should not have started watchdog')
         self.assertEquals(expCnt, DAQRun.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
                           (expCnt, DAQRun.unHealthyCount))
@@ -1061,15 +1046,11 @@ class TestDAQRun(unittest.TestCase):
         logger = MockLogger('main')
         dr.log = logger
 
-        moni = MockMoni()
-        dr.moni = moni
+        dr.watchdog = MockWatchdog()
 
-        dog = MockWatchdog()
-        dr.watchdog = dog
-
-        dog.inProg = True
-        dog.done = True
-        dog.healthy = True
+        dr.watchdog.inProg = True
+        dr.watchdog.done = True
+        dr.watchdog.healthy = True
         DAQRun.unHealthyCount = 1
 
         expCnt = 0
@@ -1077,8 +1058,9 @@ class TestDAQRun(unittest.TestCase):
         rtnVal = dr.check_all()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
-        self.failUnless(dog.threadCleared, 'Should have cleared thread')
-        self.failIf(dog.watchStarted, 'Should not have started watchdog')
+        self.failUnless(dr.watchdog.threadCleared, 'Should have cleared thread')
+        self.failIf(dr.watchdog.watchStarted,
+                    'Should not have started watchdog')
         self.assertEquals(expCnt, DAQRun.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
                           (expCnt, DAQRun.unHealthyCount))
@@ -1091,14 +1073,10 @@ class TestDAQRun(unittest.TestCase):
         logger = MockLogger('main')
         dr.log = logger
 
-        moni = MockMoni()
-        dr.moni = moni
+        dr.watchdog = MockWatchdog()
 
-        dog = MockWatchdog()
-        dr.watchdog = dog
-
-        dog.inProg = True
-        dog.done = True
+        dr.watchdog.inProg = True
+        dr.watchdog.done = True
         DAQRun.unHealthyCount = 0
 
         expCnt = 1
@@ -1106,8 +1084,9 @@ class TestDAQRun(unittest.TestCase):
         rtnVal = dr.check_all()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
-        self.failUnless(dog.threadCleared, 'Should have cleared thread')
-        self.failIf(dog.watchStarted, 'Should not have started watchdog')
+        self.failUnless(dr.watchdog.threadCleared, 'Should have cleared thread')
+        self.failIf(dr.watchdog.watchStarted,
+                    'Should not have started watchdog')
         self.assertEquals(expCnt, DAQRun.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
                           (expCnt, DAQRun.unHealthyCount))
@@ -1120,14 +1099,10 @@ class TestDAQRun(unittest.TestCase):
         logger = MockLogger('main')
         dr.log = logger
 
-        moni = MockMoni()
-        dr.moni = moni
+        dr.watchdog = MockWatchdog()
 
-        dog = MockWatchdog()
-        dr.watchdog = dog
-
-        dog.inProg = True
-        dog.done = True
+        dr.watchdog.inProg = True
+        dr.watchdog.done = True
         DAQRun.unHealthyCount = DAQRun.MAX_UNHEALTHY_COUNT
 
         expCnt = 0
@@ -1135,8 +1110,9 @@ class TestDAQRun(unittest.TestCase):
         rtnVal = dr.check_all()
         self.failIf(rtnVal, 'Expected call to succeed')
 
-        self.failUnless(dog.threadCleared, 'Should have cleared thread')
-        self.failIf(dog.watchStarted, 'Should not have started watchdog')
+        self.failUnless(dr.watchdog.threadCleared, 'Should have cleared thread')
+        self.failIf(dr.watchdog.watchStarted,
+                    'Should not have started watchdog')
         self.assertEquals(expCnt, DAQRun.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
                           (expCnt, DAQRun.unHealthyCount))
