@@ -20,7 +20,7 @@ except SystemExit:
         SERVICE_NAME = 'dead'
 
 from DAQMocks \
-    import MockAppender, MockCnCLogger, MockParallelShell, \
+    import MockAppender, MockCnCLogger, MockIntervalTimer, MockParallelShell, \
     SocketReaderFactory, SocketWriter
 
 class BeanData(object):
@@ -257,15 +257,14 @@ class MockMoniBoth(MockMoniFile):
             self.__moni.send('%s*%s+%s' % (str(self), b, key), now, attrs[key])
 
 class MockMoni(DAQMoni):
-    def __init__(self, log, moniPath, interval, IDs, names, daqIDs, addrs,
-                 mbeanPorts, moniType):
+    def __init__(self, log, moniPath, IDs, names, daqIDs, addrs, mbeanPorts,
+                 moniType):
 
         self.__moniFlag = False
         self.__didMoni = False
 
-        super(MockMoni, self).__init__(log, moniPath, interval, IDs, names,
-                                       daqIDs, addrs, mbeanPorts, moniType,
-                                       quiet=True)
+        super(MockMoni, self).__init__(log, moniPath, IDs, names, daqIDs,
+                                       addrs, mbeanPorts, moniType, quiet=True)
 
     def createFileData(self, name, daqId, addr, port, fname):
         return MockMoniFile(name, daqId, addr, port)
@@ -279,10 +278,6 @@ class MockMoni(DAQMoni):
     def doMoni(self):
         super(MockMoni, self).doMoni()
         self.__didMoni = True
-
-    def setMoniFlag(self):
-        self.__moniFlag = True
-        self.__didMoni = False
 
     def timeToMoni(self):
         "Override this so we can control when monitoring runs"
@@ -637,6 +632,8 @@ class StubbedDAQRun(DAQRun):
 
     def __init__(self, extraArgs=None, startServer=False):
         self.__moni = None
+        self.__moniTimer = None
+        self.__rate = None
         self.__watchdog = None
 
         self.__fileAppender = None
@@ -725,7 +722,7 @@ class StubbedDAQRun(DAQRun):
         self.setLogPath(runNum, logDir)
 
     def forceMonitoring(self):
-        self.__moni.setMoniFlag()
+        self.__moniTimer.trigger()
 
         numTries = 0
         while not self.__moni.didMoni() and numTries < 100:
@@ -739,6 +736,19 @@ class StubbedDAQRun(DAQRun):
         while self.__moni.isActive() and numTries < 100:
             time.sleep(0.1)
             numTries += 1
+
+    def forceRate(self):
+        self.__rate.trigger()
+
+        numTries = 0
+        while not self.__rate.gotTime() and numTries < 100:
+            time.sleep(0.1)
+            numTries += 1
+
+        if not self.__rate.gotTime():
+            raise Exception('Rate timer did not run')
+
+        self.__rate.reset()
 
     def forceWatchdog(self):
         self.__watchdog.setWatchFlag()
@@ -778,14 +788,31 @@ class StubbedDAQRun(DAQRun):
     def setFileAppender(self, appender):
         self.__fileAppender = appender
 
-    def setup_monitoring(self, log, moniPath, interval, compIDs, shortNames,
-                         daqIDs, rpcAddrs, mbeanPorts, moniType):
+    def setup_monitoring(self, log, moniPath, compIDs, shortNames, daqIDs,
+                         rpcAddrs, mbeanPorts, moniType):
         if self.__moni is not None:
             raise Exception('DAQMoni already exists')
 
-        self.__moni = MockMoni(log, moniPath, interval, compIDs, shortNames,
-                               daqIDs, rpcAddrs, mbeanPorts, moniType)
+        self.__moni = MockMoni(log, moniPath, compIDs, shortNames, daqIDs,
+                               rpcAddrs, mbeanPorts, moniType)
         return self.__moni
+
+    def setup_timer(self, interval):
+        if interval == DAQRun.RATE_PERIOD:
+            if self.__rate is not None:
+                raise Exception('Rate timer already exists')
+
+            self.__rate = MockIntervalTimer(interval)
+            return self.__rate
+
+        if interval == DAQRun.MONI_PERIOD:
+            if self.__moniTimer is not None:
+                raise Exception('Rate timer already exists')
+
+            self.__moniTimer = MockIntervalTimer(interval)
+            return self.__moniTimer
+
+        raise Exception("Unknown timer interval %d" % interval)
 
     def setup_watchdog(self, log, interval, compIDs, shortNames, daqIDs,
                        rpcAddrs, mbeanPorts):
@@ -1221,6 +1248,7 @@ class IntegrationTest(unittest.TestCase):
                           dr.runState)
 
         dr.forceMonitoring()
+        dr.forceRate()
         dr.forceWatchdog()
 
         if liveLog: liveLog.checkStatus(10)

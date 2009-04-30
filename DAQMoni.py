@@ -157,12 +157,10 @@ class DAQMoni(object):
     TYPE_LIVE = 2
     TYPE_BOTH = 3
 
-    def __init__(self, daqLog, moniPath, interval, IDs, shortNameOf, daqIDof,
-                 rpcAddrOf, mbeanPortOf, moniType, quiet=False):
+    def __init__(self, daqLog, moniPath, IDs, shortNameOf, daqIDof, rpcAddrOf,
+                 mbeanPortOf, moniType, quiet=False):
         self.__log         = daqLog
-        self.__interval    = interval
         self.__quiet       = quiet
-        self.__tlast       = None
         self.__moniList    = {}
         self.__threadList  = {}
         for c in IDs:
@@ -214,18 +212,12 @@ class DAQMoni(object):
             raise BeanFieldNotFoundException("Component %d not found" % ID)
         return self.__moniList[ID].getBeanField(ID, beanName, beanField)
 
-    def timeToMoni(self):
-        if not self.__tlast: return True
-        now = datetime.datetime.now()
-        dt  = now - self.__tlast
-        if dt.seconds+dt.microseconds*1.E-6 > self.__interval: return True
-        return False
-
     def doMoni(self):
-        now = datetime.datetime.now()
-        self.__tlast = now
+        now = None
         for c in self.__threadList.keys():
             if self.__threadList[c].done:
+                if now is None:
+                    now = datetime.datetime.now()
                 self.__threadList[c] = self.__threadList[c].getNewThread(now)
                 self.__threadList[c].start()
 

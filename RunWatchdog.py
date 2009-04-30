@@ -9,6 +9,7 @@
 # Started December, 2006
 
 from DAQRPC import RPCClient
+from IntervalTimer import IntervalTimer
 import datetime, threading
 
 from exc_string import exc_string, set_exc_string_encoding
@@ -253,7 +254,7 @@ class WatchThread(threading.Thread):
             self.__log.error("Exception in run watchdog: %s" % exc_string())
             self.error = True
 
-class RunWatchdog(object):
+class RunWatchdog(IntervalTimer):
     IN_PROGRESS = 1
     NOT_RUNNING = 0
     CAUGHT_ERROR = -1
@@ -264,13 +265,13 @@ class RunWatchdog(object):
     def __init__(self, daqLog, interval, IDs, shortNameOf, daqIDof, rpcAddrOf,
                  mbeanPortOf, quiet=False):
         self.__log            = daqLog
-        self.__interval       = interval
-        self.__tlast          = None
         self.__stringHubs     = []
         self.__soloComps      = []
         self.__thread         = None
         self.__quiet          = quiet
         self.__unHealthyCount = 0
+
+        super(RunWatchdog, self).__init__(interval)
 
         iniceTrigger  = None
         simpleTrigger  = None
@@ -525,14 +526,10 @@ class RunWatchdog(object):
         return healthy
 
     def startWatch(self):
-        self.__tlast = datetime.datetime.now()
+        self.reset()
         self.__thread = WatchThread(self, self.__log)
         self.__thread.start()
 
     def timeToWatch(self):
         if self.inProgress(): return False
-        if not self.__tlast: return True
-        now = datetime.datetime.now()
-        dt  = now - self.__tlast
-        if dt.seconds+dt.microseconds*1.E-6 > self.__interval: return True
-        return False
+        return self.isTime()

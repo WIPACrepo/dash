@@ -24,6 +24,7 @@ from shutil import move, copyfile
 from GetIP import getIP
 from re import search
 from xmlrpclib import Fault
+from IntervalTimer import IntervalTimer
 import Rebootable
 import DAQConfig
 import datetime
@@ -52,7 +53,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4098 2009-04-21 20:35:52Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4115 2009-04-30 21:55:05Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -338,6 +339,7 @@ def linkOrCopy(src, dest):
 class DAQRun(Rebootable.Rebootable):
     "Serve requests to start/stop DAQ runs (exp control iface)"
     MONI_PERIOD    = 100
+    RATE_PERIOD    = 60
     WATCH_PERIOD   = 10
     COMP_TOUT      = 60
 
@@ -412,6 +414,7 @@ class DAQRun(Rebootable.Rebootable):
         self.compPorts        = {} # Indexed by name
         self.cnc              = None
         self.moni             = None
+        self.moniTimer        = None
         self.watchdog         = None
         self.lastConfig       = None
         self.restartOnError   = runArgs.doRelaunch
@@ -419,6 +422,7 @@ class DAQRun(Rebootable.Rebootable):
         self.runStats         = RunStats()
         self.quiet            = runArgs.quiet
         self.running          = False
+        self.rateTimer        = self.setup_timer(DAQRun.RATE_PERIOD)
 
         self.__liveInfo       = None
         self.__id = int(time.time())
@@ -789,17 +793,20 @@ class DAQRun(Rebootable.Rebootable):
             raise Exception('Unknown log mode %s (info=%s)' %
                             (self.__logMode, str(self.__liveInfo)))
 
-    def setup_monitoring(self, log, moniPath, interval, compIDs, shortNames,
-                         daqIDs, rpcAddrs, mbeanPorts, moniType):
+    def setup_monitoring(self, log, moniPath, compIDs, shortNames, daqIDs,
+                         rpcAddrs, mbeanPorts, moniType):
         "Set up monitoring"
-        return DAQMoni(log, moniPath, interval, compIDs, shortNames, daqIDs,
-                       rpcAddrs, mbeanPorts, moniType)
+        return DAQMoni(log, moniPath, compIDs, shortNames, daqIDs, rpcAddrs,
+                       mbeanPorts, moniType)
 
     def setup_watchdog(self, log, interval, compIDs, shortNames, daqIDs,
                        rpcAddrs, mbeanPorts):
         "Set up run watchdog"
         return RunWatchdog(log, interval, compIDs, shortNames, daqIDs,
                            rpcAddrs, mbeanPorts)
+
+    def setup_timer(self, interval):
+        return IntervalTimer(interval)
 
     def runset_configure(self, rpc, runSetID, configName):
         "Configure the run set"
@@ -879,34 +886,36 @@ class DAQRun(Rebootable.Rebootable):
     MAX_UNHEALTHY_COUNT = 3
 
     def check_all(self):
-        try:
-            if self.moni and self.moni.timeToMoni():
+        checkRate = False
+        if self.moni and self.moniTimer and self.moniTimer.isTime():
+            self.moniTimer.reset()
+            try:
                 self.moni.doMoni()
-                # Updated in rpc_daq_summary_xml as well:
-                self.runStats.updateEventCounts(self, True)
-                try:
-                    rate = self.runStats.physicsRate.rate()
-                    # This occurred in issue 2034 and is dealt with:
-                    # debug code can be removed at will
-                    if rate < 0:
-                        self.log.warn("WARNING: rate < 0")
-                        for entry in self.runStats.physicsRate.entries:
-                            self.log.warn(str(entry))
-                    #
-                    rateStr = " (%2.2f Hz)" % rate
-                except (RateCalc.InsufficientEntriesException, RateCalc.ZeroTimeDeltaException):
-                    rateStr = ""
-                self.log.error(("\t%s physics events%s, %s moni events," +
-                                " %s SN events, %s tcals")  %
-                               (self.runStats.physicsEvents,
-                                rateStr,
-                                self.runStats.moniEvents,
-                                self.runStats.snEvents,
-                                self.runStats.tcalEvents))
+            except Exception:
+                self.log.error("Exception in monitoring: %s" % exc_string())
 
-        except Exception:
-            self.log.error("Exception in monitoring: %s" % exc_string())
-            return False
+        if self.rateTimer.isTime():
+            self.rateTimer.reset()
+            self.runStats.updateEventCounts(self, True)
+            try:
+                rate = self.runStats.physicsRate.rate()
+                # This occurred in issue 2034 and is dealt with:
+                # debug code can be removed at will
+                if rate < 0:
+                    self.log.warn("WARNING: rate < 0")
+                    for entry in self.runStats.physicsRate.entries:
+                        self.log.warn(str(entry))
+                #
+                rateStr = " (%2.2f Hz)" % rate
+            except (RateCalc.InsufficientEntriesException, RateCalc.ZeroTimeDeltaException):
+                rateStr = ""
+            self.log.error(("\t%s physics events%s, %s moni events," +
+                            " %s SN events, %s tcals")  %
+                           (self.runStats.physicsEvents,
+                            rateStr,
+                            self.runStats.moniEvents,
+                            self.runStats.snEvents,
+                            self.runStats.tcalEvents))
 
         if self.watchdog:
             if self.watchdog.inProgress():
@@ -1022,10 +1031,10 @@ class DAQRun(Rebootable.Rebootable):
                                         str(self.__logMode))
                     self.moni = \
                         self.setup_monitoring(self.log, self.__logpath,
-                                              DAQRun.MONI_PERIOD,
                                               self.setCompIDs, self.shortNameOf,
                                               self.daqIDof, self.rpcAddrOf,
                                               self.mbeanPortOf, moniType)
+                    self.moniTimer = self.setup_timer(DAQRun.MONI_PERIOD)
                     self.watchdog = \
                         self.setup_watchdog(self.log, DAQRun.WATCH_PERIOD,
                                             self.setCompIDs, self.shortNameOf,
@@ -1084,6 +1093,7 @@ class DAQRun(Rebootable.Rebootable):
                                    (nmoni, nsn, ntcal))
 
                 self.moni = None
+                self.moniTimer = None
                 self.watchdog = None
 
                 try:      self.stopAllComponentLoggers()

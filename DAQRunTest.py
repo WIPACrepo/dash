@@ -5,12 +5,12 @@ import tempfile, thread, time, unittest
 from DAQRun import DAQRun, RunArgs
 from DAQConst import DAQPort
 
-from DAQMocks import MockAppender, MockLogger, SocketReaderFactory
+from DAQMocks import MockAppender, MockIntervalTimer, MockLogger, \
+    SocketReaderFactory
 
 class MockMoni(object):
     def __init__(self):
         self.entries = {}
-        self.isTime = False
 
     def addEntry(self, cid, section, field, val):
         if not self.entries.has_key(cid):
@@ -35,9 +35,6 @@ class MockMoni(object):
                             (cid, section, field))
 
         return self.entries[cid][key]
-
-    def timeToMoni(self):
-        return self.isTime
 
 class MockWatchdog(object):
     def __init__(self):
@@ -247,6 +244,9 @@ class MostlyDAQRun(DAQRun):
 
         return self.__mockAppender
 
+    def setup_timer(self, interval):
+        return MockIntervalTimer(interval)
+
 class StubbedDAQRun(MostlyDAQRun):
     __logServer = None
 
@@ -287,8 +287,8 @@ class StubbedDAQRun(MostlyDAQRun):
         cls.__logServer = logger
     setLogSocketServer = classmethod(setLogSocketServer)
 
-    def setup_monitoring(self, log, moniPath, interval, compIDs, shortNames,
-                         daqIDs, rpcAddrs, mbeanPorts, moniType):
+    def setup_monitoring(self, log, moniPath, compIDs, shortNames, daqIDs,
+                         rpcAddrs, mbeanPorts, moniType):
         return MockMoni()
 
     def setup_watchdog(self, log, interval, compIDs, shortNames, daqIDs,
@@ -896,6 +896,8 @@ class TestDAQRun(unittest.TestCase):
         dr.moni.addEntry(17, 'snBuilder', 'TotalDispatchedData', str(numSN))
         dr.moni.addEntry(17, 'tcalBuilder', 'TotalDispatchedData', str(numTCal))
 
+        dr.rateTimer.trigger()
+
         expId = 99
         expComps = [(5, 'eventBuilder', 0, 'x', 1234, 5678),
                     (17, 'secondaryBuilders', 0, 'x', 4321, 8765)]
@@ -943,6 +945,8 @@ class TestDAQRun(unittest.TestCase):
         dr.moni.addEntry(17, 'moniBuilder', 'TotalDispatchedData', str(numMoni))
         dr.moni.addEntry(17, 'snBuilder', 'TotalDispatchedData', str(numSN))
         dr.moni.addEntry(17, 'tcalBuilder', 'TotalDispatchedData', str(numTCal))
+
+        dr.rateTimer.trigger()
 
         expId = 99
         expComps = [(5, 'eventBuilder', 0, 'x', 1234, 5678),

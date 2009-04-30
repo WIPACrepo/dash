@@ -556,6 +556,26 @@ class MockDAQClient(DAQClient):
         self.state = 'running'
         return super(MockDAQClient, self).startRun(runNum)
 
+class MockIntervalTimer(object):
+    def __init__(self, interval):
+        self.__isTime = False
+        self.__gotTime = False
+
+    def gotTime(self):
+        return self.__gotTime
+
+    def isTime(self):
+        self.__gotTime = True
+        return self.__isTime
+
+    def reset(self):
+        self.__isTime = False
+        self.__gotTime = False
+
+    def trigger(self):
+        self.__isTime = True
+        self.__gotTime = False
+
 class MockLogger(LogChecker):
     def __init__(self, name):
         super(MockLogger, self).__init__('LOG', name)

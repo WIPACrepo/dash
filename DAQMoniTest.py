@@ -68,11 +68,10 @@ class MockMoni(DAQMoni):
     __MOCK = None
     __CLIENT = {}
 
-    def __init__(self, log, moniPath, interval, IDs, names, daqIDs, addrs,
-                 mbeanPorts):
-        super(MockMoni, self).__init__(log, moniPath, interval, IDs, names,
-                                       daqIDs, addrs, mbeanPorts,
-                                       DAQMoni.TYPE_FILE, quiet=True)
+    def __init__(self, log, moniPath, IDs, names, daqIDs, addrs, mbeanPorts):
+        super(MockMoni, self).__init__(log, moniPath, IDs, names, daqIDs,
+                                       addrs, mbeanPorts, DAQMoni.TYPE_FILE,
+                                       quiet=True)
 
     def clear(cls):
         cls.__MOCK = None
@@ -221,7 +220,7 @@ class TestDAQMoni(unittest.TestCase):
 
         compId = 1
 
-        MockMoni(DAQLog(appender), moniPath, None, (compId, ),
+        MockMoni(DAQLog(appender), moniPath, (compId, ),
                  {compId:name, }, {compId:daqId, }, {compId:addr, },
                  {compId:port, })
 
@@ -249,7 +248,7 @@ class TestDAQMoni(unittest.TestCase):
 
         compId = 1
 
-        moni = MockMoni(DAQLog(appender), moniPath, None, (compId, ),
+        moni = MockMoni(DAQLog(appender), moniPath, (compId, ),
                         {compId:name, }, {compId:daqId, }, {compId:addr, },
                         {compId:port, })
 
@@ -316,7 +315,7 @@ class TestDAQMoni(unittest.TestCase):
 
         compId = 1
 
-        moni = MockMoni(DAQLog(appender), moniPath, None, (compId, ),
+        moni = MockMoni(DAQLog(appender), moniPath, (compId, ),
                         {compId:name, }, {compId:daqId, }, {compId:addr, },
                         {compId:port, })
 
