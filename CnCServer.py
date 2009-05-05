@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4028 2009-04-04 01:00:45Z ksb $"
+SVN_ID  = "$Id: CnCServer.py 4123 2009-05-05 22:09:54Z dglo $"
 
 class Connector(object):
     """
@@ -1680,9 +1680,6 @@ class CnCServer(DAQServer):
         new = True
         lastCount = 0
         while True:
-            if new:
-                print "%d bins" % len(self.pool)
-
             try:
                 count = self.monitorClients()
             except Exception:
@@ -1690,6 +1687,9 @@ class CnCServer(DAQServer):
                 count = lastCount
 
             new = (lastCount != count)
+            if new:
+                print "%d bins, %d comps" % (len(self.pool), count)
+
             lastCount = count
             sleep(1)
 
