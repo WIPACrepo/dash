@@ -5,6 +5,7 @@
 import optparse, os, socket, sys, threading, time
 import DAQRunIface, Process
 from DAQConst import DAQPort
+from IntervalTimer import IntervalTimer
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -142,6 +143,9 @@ class DAQLive(Component):
     "Maximum number of loops to wait inside __waitForState()"
     MAX_WAIT = 120
 
+    "Frequency of monitoring uploads"
+    MONI_PERIOD = 60
+
     def __init__(self, liveArgs):
         "Initialize DAQLive"
         self.__liveArgs = liveArgs
@@ -162,6 +166,8 @@ class DAQLive(Component):
         self.__runNumber = 0
         self.__runState = None
         self.__runCallCount = 0
+
+        self.__moniTimer = IntervalTimer(DAQLive.MONI_PERIOD)
 
         if not liveArgs.startThread():
             self.__thread = None
@@ -353,10 +359,9 @@ class DAQLive(Component):
             self.__runState = state
 
         if self.__runState == "RUNNING":
-            self.__runCallCount += 1
-            if self.__runCallCount >= 200:
+            if self.__moniTimer.isTime():
+                self.__moniTimer.reset()
                 self.__reportMoni()
-                self.__runCallCount = 0
 
     def starting(self, stateArgs=None, retry=True):
         """
