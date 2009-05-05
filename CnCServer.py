@@ -6,6 +6,8 @@ from DAQLogClient \
 from DAQRPC import RPCClient, RPCServer
 from Process import processList, findProcess
 from time import time, sleep
+from datetime import datetime
+from SocketServer import ThreadingMixIn
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -29,7 +31,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4123 2009-05-05 22:09:54Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4124 2009-05-05 22:11:16Z dglo $"
 
 class Connector(object):
     """
@@ -1310,6 +1312,9 @@ class DAQPool(object):
             if failStr:
                 raise ValueError(failStr)
 
+class ThreadedRPCServer(ThreadingMixIn, RPCServer):
+    pass
+
 class DAQServer(DAQPool):
     "Configuration server"
 
@@ -1336,7 +1341,7 @@ class DAQServer(DAQPool):
         else:
             while True:
                 try:
-                    self.server = RPCServer(DAQPort.CNCSERVER)
+                    self.server = ThreadedRPCServer(DAQPort.CNCSERVER)
                     break
                 except socket.error, e:
                     self.__log.error("Couldn't create server socket: %s" % e)
@@ -1453,8 +1458,6 @@ class DAQServer(DAQPool):
         client = self.createClient(name, num, host, port, mbeanPort,
                                    connectors)
         self.__log.info("Got registration for %s" % str(client))
-
-        sleep(0.1)
 
         self.add(client)
 
