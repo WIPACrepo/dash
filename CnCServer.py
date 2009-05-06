@@ -6,7 +6,6 @@ from DAQLogClient \
 from DAQRPC import RPCClient, RPCServer
 from Process import processList, findProcess
 from time import time, sleep
-from datetime import datetime
 from SocketServer import ThreadingMixIn
 
 from exc_string import exc_string, set_exc_string_encoding
@@ -31,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4124 2009-05-05 22:11:16Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4127 2009-05-06 21:36:34Z dglo $"
 
 class Connector(object):
     """
