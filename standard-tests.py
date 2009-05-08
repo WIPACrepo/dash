@@ -80,6 +80,7 @@ class Deploy(object):
     NODE_PAT = re.compile(r"^\s\s+(\S+)\(\S+\)\s+" + COMP_SUBPAT + r"\s*$")
     COMP_PAT = re.compile(r"^\s\s+" + COMP_SUBPAT + r"\s*$")
     VERS_PAT = re.compile(r"^VERSION:\s+(\S+)\s*$")
+    CMD_PAT = re.compile(r"^\s\s+.*rsync\s+.*$")
 
     def __init__(self, showCmd, showCmdOutput):
         self.__showCmd = showCmd
@@ -113,6 +114,8 @@ class Deploy(object):
         fi.close()
 
         inNodes = False
+        inCmds = False
+
         for line in foe:
             line = line.rstrip()
             if self.__showCmdOutput: print '+ ' + line
@@ -140,6 +143,16 @@ class Deploy(object):
                     continue
 
                 inNodes = False
+
+            if line == "COMMANDS:":
+                inCmds = True
+                continue
+
+            if inCmds:
+                m = Deploy.CMD_PAT.match(line)
+                if m:
+                    continue
+                inCmds = False
 
             m = Deploy.CFG_PAT.match(line)
             if m:
