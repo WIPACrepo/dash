@@ -655,12 +655,11 @@ class LiveRun(object):
 
         # print run info
         #
-        if not self.__showCmd:
-            if flashThread is not None:
-                print "Started flasher run %d (%d secs) %s" % \
-                    (runNum, duration, runCfg)
-            else:
-                print "Started run %d (%d secs) %s" % (runNum, duration, runCfg)
+        if flashThread is not None:
+            print "Started flasher run %d (%d secs) %s" % \
+                (runNum, duration, runCfg)
+        else:
+            print "Started run %d (%d secs) %s" % (runNum, duration, runCfg)
 
         # start flashing
         #
