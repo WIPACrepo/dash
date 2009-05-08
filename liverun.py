@@ -540,8 +540,9 @@ class LiveRun(object):
 
             if self.__state.runState() != curState and \
                     self.__state.runState() != RunState.RECOVERING:
-                raise RunException("I3Live state should not be %s" %
-                                   self.__state.runState())
+                raise RunException(("I3Live state should be %s or" +
+                                    " RECOVERING, not %s") %
+                                   (curState, self.__state.runState()))
 
             time.sleep(waitSecs)
 
