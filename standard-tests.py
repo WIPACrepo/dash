@@ -189,5 +189,10 @@ if __name__ == "__main__":
         deploy.showHome()
     if opt.run:
         liveRun = LiveRun(opt.showCmd, opt.showCmdOutput, False, False)
+
+        # always kill running components in case they're from a previous release
+        #
+        liveRun.unlaunch()
+
         for data in RUN_LIST:
             data.run(liveRun, opt.quick)
