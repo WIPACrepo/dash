@@ -53,7 +53,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4115 2009-04-30 21:55:05Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4129 2009-05-08 19:26:22Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -827,12 +827,18 @@ class DAQRun(Rebootable.Rebootable):
         See if runSetID is defined - if so, we have a runset to release
         """
         if self.runSetID:
-            self.log.info("Breaking run set...")
-            try:
-                cncrpc.rpccall("rpc_runset_break", self.runSetID)
-            except Exception:
-                self.log.error("WARNING: failed to break run set - " +
-                               exc_string())
+            active = cncrpc.rpccall("rpc_runset_listIDs")
+            if active.count(self.runSetID) > 0:
+                #
+                # CnCServer still knows about this runset, destroy it there
+                #
+                self.log.info("Breaking run set...")
+                try:
+                    cncrpc.rpccall("rpc_runset_break", self.runSetID)
+                except Exception:
+                    self.log.error("WARNING: failed to break run set - " +
+                                   exc_string())
+
             self.setCompIDs = []
             self.shortNameOf.clear()
             self.daqIDof.clear()
