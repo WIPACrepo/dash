@@ -2,7 +2,7 @@
 #
 # Run standard pDAQ tests
 
-import optparse, os, socket, stat
+import optparse, os, re, socket, stat, sys
 from liverun import LiveRun
 
 # times in seconds
@@ -74,6 +74,13 @@ RUN_LIST = (RunData("spts64-dirtydozen-hlc-006", FOUR_HR),
 class Deploy(object):
     DEPLOY_CLEAN = False
 
+    COMP_SUBPAT = r"(\S+):(\d+)\s*(\[(\S+)\])?"
+
+    CFG_PAT = re.compile(r"^CONFIG:\s+(\S+)\s*$")
+    NODE_PAT = re.compile(r"^\s\s+(\S+)\(\S+\)\s+" + COMP_SUBPAT + r"\s*$")
+    COMP_PAT = re.compile(r"^\s\s+" + COMP_SUBPAT + r"\s*$")
+    VERS_PAT = re.compile(r"^VERSION:\s+(\S+)\s*$")
+
     def __init__(self, showCmd, showCmdOutput):
         self.__showCmd = showCmd
         self.__showCmdOutput = showCmdOutput
@@ -98,26 +105,67 @@ class Deploy(object):
 
         return os.readlink(homePath)
 
-    def __runCmd(self, cmd):
-            if self.__showCmd: print cmd
+    def __runDeploy(self, clusterCfg, arg):
+        cmd = "%s -c %s %s" % (self.__deploy, clusterCfg, arg)
+        if self.__showCmd: print cmd
 
-            (fi, foe) = os.popen4(cmd)
-            fi.close()
+        (fi, foe) = os.popen4(cmd)
+        fi.close()
 
-            for line in foe:
-                line = line.rstrip()
-                if self.__showCmdOutput: print '+ ' + line
-            foe.close()
+        inNodes = False
+        for line in foe:
+            line = line.rstrip()
+            if self.__showCmdOutput: print '+ ' + line
+
+            if line == "NODES:":
+                inNodes = True
+                continue
+
+            if inNodes:
+                if len(line) == 0: continue
+
+                m = Deploy.NODE_PAT.match(line)
+                if m:
+                    #host = m.group(1)
+                    #compName = m.group(2)
+                    #compId = int(m.group(3))
+                    #strType = m.group(5)
+                    continue
+
+                m = Deploy.COMP_PAT.match(line)
+                if m:
+                    #compName = m.group(1)
+                    #compId = int(m.group(2))
+                    #strType = m.group(4)
+                    continue
+
+                inNodes = False
+
+            m = Deploy.CFG_PAT.match(line)
+            if m:
+                if clusterCfg != m.group(1):
+                    raise SystemExit("Expected to deploy %s, not %s" %
+                                     (clusterCfg, m.group(1)))
+                continue
+
+            m = Deploy.VERS_PAT.match(line)
+            if m:
+                #version = m.group(1)
+                continue
+
+            if line.startswith("ERROR: "):
+                raise SystemExit("Deploy error: " + line[7:])
+
+            print >>sys.stderr, "Deploy: %s" % line
+        foe.close()
 
     def deploy(self, clusterConfig):
         "Deploy to the specified cluster"
         if not self.__showCmd: print "Deploying %s" % clusterConfig
         if Deploy.DEPLOY_CLEAN:
-            cmd = "%s --undeploy -c %s" % (self.__deploy, clusterConfig)
-            self.__runCmd(cmd)
+            self.__runDeploy(clusterConfig, "--undeploy")
 
-        cmd = "%s -c %s --delete" % (self.__deploy, clusterConfig)
-        self.__runCmd(cmd)
+        self.__runDeploy(clusterConfig, "--delete")
 
     def getUniqueClusterConfigs(self, runList):
         "Return a list of the unique elements"
