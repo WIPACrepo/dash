@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4127 2009-05-06 21:36:34Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4150 2009-05-15 02:14:22Z dglo $"
 
 class Connector(object):
     """
@@ -1340,7 +1340,11 @@ class DAQServer(DAQPool):
         else:
             while True:
                 try:
-                    self.server = ThreadedRPCServer(DAQPort.CNCSERVER)
+                    # CnCServer needs to be made thread-safe
+                    # before we can thread the XML-RPC server
+                    #
+                    #self.server = ThreadedRPCServer(DAQPort.CNCSERVER)
+                    self.server = RPCServer(DAQPort.CNCSERVER)
                     break
                 except socket.error, e:
                     self.__log.error("Couldn't create server socket: %s" % e)
