@@ -2,7 +2,7 @@
 #
 # Manage pDAQ runs via IceCube Live
 
-import optparse, os, re, sys, threading, time
+import optparse, os, re, socket, stat, sys, threading, time
 from DAQConst import DAQPort
 
 class FlashFileException(Exception): pass
@@ -10,6 +10,22 @@ class LaunchException(Exception): pass
 class LightModeException(Exception): pass
 class RunException(Exception): pass
 class StateException(Exception): pass
+
+class DatabaseType(object):
+    TEST = "test"
+    PROD = "production"
+    NONE = "none"
+
+    def guessType(cls):
+        # Use hostname to determine if we're running tests
+        #
+        hostName = socket.gethostname()
+        if hostName.startswith("spts64-"):
+            return cls.TEST
+        if hostName.startswith("sps-"):
+            return cls.PROD
+        return cls.NONE
+    guessType = classmethod(guessType)
 
 class AbstractState(object):
     def get(cls, stateName):
@@ -285,8 +301,9 @@ class FlasherThread(threading.Thread):
 class LiveRun(object):
     "Manage one or more pDAQ runs through IceCube Live"
 
-    def __init__(self, showCmd=False, showCmdOutput=False,
+    def __init__(self, dbType, showCmd=False, showCmdOutput=False,
                  showCheck=False, showCheckOutput=False):
+        self.__dbType = dbType
         self.__showCmd = showCmd
         self.__showCmdOutput = showCmdOutput
 
@@ -438,20 +455,34 @@ class LiveRun(object):
 
         return True
 
-    def __startRun(self, runCfg, duration, numRuns=1):
+    def __startRun(self, runCfg, duration, numRuns=1, ignoreDB=False):
         "Tell I3Live to start a run"
-        cmd = "%s start -d %s -n %d -l %d daq" % \
-            (self.__liveCmdProg, runCfg, numRuns, duration)
+        if ignoreDB or self.__dbType == DatabaseType.NONE:
+            iArg = "-i"
+        else:
+            iArg = ""
+        cmd = "%s start -d %s -n %d -l %d %s daq" % \
+            (self.__liveCmdProg, runCfg, numRuns, duration, iArg)
         if not self.__runBasicCommand("StartRun", cmd):
             return False
 
-        return self.__waitForState(RunState.STARTING, RunState.RUNNING, 18, 6)
+        if not self.__waitForState(RunState.STOPPED, RunState.STARTING, 10, 6):
+            raise RunException("Run %d did not start" % runNum)
+        return self.__waitForState(RunState.STARTING, RunState.RUNNING, 18, 0)
 
     def __updateDB(self, runCfg):
+        if self.__dbType == DatabaseType.NONE:
+            return
+
         runCfgPath = os.path.join(self.__configDir, runCfg + ".xml")
         self.__checkExists("Run configuration", runCfgPath)
 
-        cmd = "%s %s" % (self.__updateDBProg, runCfgPath)
+        if self.__dbType == DatabaseType.TEST:
+            arg = "-D I3OmDb_test"
+        else:
+            arg = ""
+
+        cmd = "%s %s %s" % (self.__updateDBProg, arg, runCfgPath)
         if self.__showCmd: print cmd
         (fi, foe) = os.popen4(cmd)
         fi.close()
@@ -572,7 +603,8 @@ class LiveRun(object):
         foe.close()
 
     def run(self, clusterCfg, runCfg, duration, numRuns=1,
-            flashName=None, flashTimes=None, flashPause=60):
+            flashName=None, flashTimes=None, flashPause=60,
+            ignoreDB=False):
         "Manage a set of runs using IceCube Live"
         self.__state.check()
         if self.__state.svcState("pdaq") == RunState.UNKNOWN:
@@ -642,7 +674,7 @@ class LiveRun(object):
 
         # start the run
         #
-        if not self.__startRun(runCfg, duration, numRuns):
+        if not self.__startRun(runCfg, duration, numRuns, ignoreDB):
             raise RunException("Could not start run #%d: %s" % (runNum, runCfg))
 
         # make sure we've got the correct run number
@@ -655,11 +687,13 @@ class LiveRun(object):
 
         # print run info
         #
-        if flashThread is not None:
-            print "Started flasher run %d (%d secs) %s" % \
-                (runNum, duration, runCfg)
+        if flashThread is None:
+            runType = "run"
         else:
-            print "Started run %d (%d secs) %s" % (runNum, duration, runCfg)
+            runType = "flasher run"
+
+        print "Started %s %d (%d secs) %s" % \
+            (runType, runNum, duration, runCfg)
 
         # start flashing
         #
@@ -703,6 +737,6 @@ class LiveRun(object):
             raise LaunchException("Could not unlaunch: %s" % failLive)
 
 if __name__ == "__main__":
-    run = LiveRun(True, True, False, False)
+    run = LiveRun(DatabaseType.guessType(), True, True, False, False)
     run.run("spts64-real-21-29", "spts64-dirtydozen-hlc-006", 60, 1,
-            "flash-21.xml", (30, 30, 20, 15), 30)
+            "flash-21.xml", (30, 30, 20, 15), 30, False)
