@@ -3,7 +3,7 @@
 # Run standard pDAQ tests
 
 import optparse, os, re, socket, stat, sys
-from liverun import LiveRun
+from liverun import DatabaseType, LiveRun
 
 # times in seconds
 #
@@ -52,7 +52,7 @@ class RunData(object):
 
         liveRun.run(RunData.CFG2CLUSTER[self.__runCfg], self.__runCfg,
                     duration, self.__numRuns, self.__flashName,
-                    self.__flashTimes, self.__flashPause)
+                    self.__flashTimes, self.__flashPause, False)
 
 # configurations to run
 #
@@ -198,7 +198,6 @@ class Deploy(object):
         print "== PDAQ_HOME points to %s" % self.__pdaqHome
         print "==============================================================="
 
-
 if __name__ == "__main__":
     op = optparse.OptionParser()
     op.add_option("-d", "--deploy", action="store_true", dest="deploy",
@@ -230,7 +229,8 @@ if __name__ == "__main__":
         elif hostName.startswith("spts64-expcont"):
             opt.run = True
         else:
-            raise SystemExit("Please specify --deploy or --run")
+            raise SystemExit("Please specify --deploy or --run" +
+                             " (unrecognized host %s)" % hostName)
 
     # Make sure expected environment variables are set
     #
@@ -249,7 +249,8 @@ if __name__ == "__main__":
             deploy.deploy(cfg)
         deploy.showHome()
     if opt.run:
-        liveRun = LiveRun(opt.showCmd, opt.showCmdOutput, False, False)
+        liveRun = LiveRun(DatabaseType.guessType(), opt.showCmd,
+                          opt.showCmdOutput, False, False)
 
         # always kill running components in case they're from a previous release
         #
