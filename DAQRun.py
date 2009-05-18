@@ -25,7 +25,6 @@ from GetIP import getIP
 from re import search
 from xmlrpclib import Fault
 from IntervalTimer import IntervalTimer
-import Rebootable
 import DAQConfig
 import datetime
 import optparse
@@ -53,7 +52,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4129 2009-05-08 19:26:22Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4159 2009-05-18 23:37:49Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -336,7 +335,7 @@ def linkOrCopy(src, dest):
         else:
             raise
 
-class DAQRun(Rebootable.Rebootable):
+class DAQRun(object):
     "Serve requests to start/stop DAQ runs (exp control iface)"
     MONI_PERIOD    = 100
     RATE_PERIOD    = 60
@@ -354,9 +353,6 @@ class DAQRun(Rebootable.Rebootable):
     LOGPRIO = Prio.ITS
 
     def __init__(self, runArgs, startServer=True):
-
-        # Can change reboot thread delay here if desired:
-        Rebootable.Rebootable.__init__(self)
 
         self.runState         = "STOPPED"
 
@@ -451,7 +447,6 @@ class DAQRun(Rebootable.Rebootable):
         self.server.register_function(self.rpc_run_state)
         self.server.register_function(self.rpc_daq_status)
         self.server.register_function(self.rpc_recover)
-        self.server.register_function(self.rpc_daq_reboot)
         self.server.register_function(self.rpc_release_runsets)
         self.server.register_function(self.rpc_daq_summary_xml)
         self.server.register_function(self.rpc_flash)
@@ -1235,13 +1230,6 @@ class DAQRun(Rebootable.Rebootable):
         "Start the recovery from error state"
         self.runState = "RECOVERING"
         return 1
-
-    def rpc_daq_reboot(self):
-        "Signal DAQ to restart all components"
-        self.log.fatal("YIKES!!! GOT REBOOT SIGNAL FROM EXPCONT!")
-        self.server.server_close()
-        self.do_reboot()
-        raise Exception("REBOOT_FAULT")
 
     def rpc_release_runsets(self):
         "Tell DAQ in STOPPED state to release any runsets it may be holding"
