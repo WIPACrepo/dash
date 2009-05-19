@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import datetime, os, sys
-import tempfile, thread, time, unittest
+import tempfile, threading, time, unittest
 from DAQRun import DAQRun, RunArgs
 from DAQConst import DAQPort
 
@@ -1314,7 +1314,7 @@ class TestDAQRun(unittest.TestCase):
 
         (logger, catchall) = self.__createLoggers(dr)
 
-        thread.start_new_thread(dr.run_thread, (cnc, ))
+        threading.Thread(target=dr.run_thread, args=(cnc, )).start()
         self.__finishRunThreadTest(dr, cnc, logger, catchall, ebID, sbID, comps)
 
     def testRunThreadInverted(self):
@@ -1343,8 +1343,9 @@ class TestDAQRun(unittest.TestCase):
 
         (logger, catchall) = self.__createLoggers(dr)
 
-        thread.start_new_thread(self.__finishRunThreadTest,
-                                (dr, cnc, logger, catchall, ebID, sbID, comps))
+        threading.Thread(target=self.__finishRunThreadTest,
+                         args=(dr, cnc, logger, catchall, ebID, sbID,
+                               comps)).start()
         dr.run_thread(cnc)
 
     def testRunSummaryFauxTest(self):

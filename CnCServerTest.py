@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, thread, unittest, xmlrpclib
+import sys, threading, unittest, xmlrpclib
 
 from CnCServer import CnCServer, DAQClient
 from DAQConst import DAQPort
@@ -70,10 +70,10 @@ class RealComponent(object):
         self.__cmd.register_function(self.__resetLogging, 'xmlrpc.resetLogging')
         self.__cmd.register_function(self.__startRun, 'xmlrpc.startRun')
         self.__cmd.register_function(self.__stopRun, 'xmlrpc.stopRun')
-        thread.start_new_thread(self.__cmd.serve_forever, ())
+        threading.Thread(target=self.__cmd.serve_forever, args=()).start()
 
         self.__mbean = RPCServer(mbeanPort)
-        thread.start_new_thread(self.__mbean.serve_forever, ())
+        threading.Thread(target=self.__mbean.serve_forever, args=()).start()
 
         self.__cnc = xmlrpclib.ServerProxy('http://localhost:%d' %
                                            DAQPort.CNCSERVER, verbose=verbose)
@@ -207,7 +207,7 @@ class TestCnCServer(unittest.TestCase):
         catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
         self.cnc = MostlyCnCServer(logPort=catchall.getPort())
-        thread.start_new_thread(self.cnc.run, ())
+        threading.Thread(target=self.cnc.run, args=()).start()
 
         catchall.checkStatus(100)
 

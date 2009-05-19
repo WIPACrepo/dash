@@ -31,7 +31,7 @@ import optparse
 import RateCalc
 import Daemon
 import socket
-import thread
+import threading
 import time
 import os
 import sys
@@ -52,7 +52,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4159 2009-05-18 23:37:49Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4161 2009-05-19 01:41:26Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -425,7 +425,8 @@ class DAQRun(object):
 
         # After initialization, start run thread to handle state changes
         if startServer:
-            self.runThread = thread.start_new_thread(self.run_thread, ())
+            self.runThread = threading.Thread(target=self.run_thread, args=())
+            self.runThread.start()
 
     def __isLogToFile(self):
         return (self.__logMode & DAQRun.LOG_TO_FILE) == DAQRun.LOG_TO_FILE

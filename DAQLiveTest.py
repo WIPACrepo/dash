@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, thread, unittest
+import sys, threading, unittest
 from DAQConst import DAQPort
 from DAQRPC import RPCServer
 
@@ -64,7 +64,7 @@ class MockRun(object):
         self.__rpc.register_function(self.__startRun, 'rpc_start_run')
         self.__rpc.register_function(self.__stopRun, 'rpc_stop_run')
         self.__rpc.register_function(self.__ping, 'rpc_ping')
-        thread.start_new_thread(self.__rpc.serve_forever, ())
+        threading.Thread(target=self.__rpc.serve_forever, args=()).start()
 
     def __getState(self):
         return self.__state

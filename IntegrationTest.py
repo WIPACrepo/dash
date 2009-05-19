@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import StringIO, datetime, os, re, sys
-import tempfile, thread, time, unittest, xmlrpclib
+import tempfile, threading, time, unittest, xmlrpclib
 
 from CnCServer import CnCServer, DAQClient, RunSet
 from DAQConst import DAQPort
@@ -408,7 +408,7 @@ class RealComponent(object):
         self.__cmd.register_function(self.__startRun, 'xmlrpc.startRun')
         self.__cmd.register_function(self.__startSubrun, 'xmlrpc.startSubrun')
         self.__cmd.register_function(self.__stopRun, 'xmlrpc.stopRun')
-        thread.start_new_thread(self.__cmd.serve_forever, ())
+        threading.Thread(target=self.__cmd.serve_forever, args=()).start()
 
         self.__mbean = RPCServer(mbeanPort)
         self.__mbean.register_function(self.__getAttributes,
@@ -416,7 +416,7 @@ class RealComponent(object):
         self.__mbean.register_function(self.__getMBeanValue, 'mbean.get')
         self.__mbean.register_function(self.__listGetters, 'mbean.listGetters')
         self.__mbean.register_function(self.__listMBeans, 'mbean.listMBeans')
-        thread.start_new_thread(self.__mbean.serve_forever, ())
+        threading.Thread(target=self.__mbean.serve_forever, args=()).start()
 
         self.__cnc = xmlrpclib.ServerProxy('http://localhost:%d' %
                                            DAQPort.CNCSERVER, verbose=verbose)
@@ -1567,8 +1567,8 @@ class IntegrationTest(unittest.TestCase):
                                  (cnc.name, DAQPort.CNCSERVER))
         catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
-        thread.start_new_thread(cnc.run, ())
-        thread.start_new_thread(dr.run_thread, (None, pShell))
+        threading.Thread(target=cnc.run, args=()).start()
+        threading.Thread(target=dr.run_thread, args=(None, pShell)).start()
 
         self.__runTest(None, dr, cnc, None, appender, catchall, targetFlags,
                        False)
@@ -1588,10 +1588,10 @@ class IntegrationTest(unittest.TestCase):
                                   (cnc.name, DAQPort.CNCSERVER))
         catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
-        thread.start_new_thread(cnc.run, ())
-        thread.start_new_thread(self.__runTest,
-                                (None, dr, cnc, None, appender, catchall,
-                                 targetFlags, False))
+        threading.Thread(target=cnc.run, args=()).start()
+        threading.Thread(target=self.__runTest,
+                         args=(None, dr, cnc, None, appender, catchall,
+                               targetFlags, False)).start()
 
         dr.run_thread(None, pShell)
 
@@ -1610,10 +1610,10 @@ class IntegrationTest(unittest.TestCase):
                                  (cnc.name, DAQPort.CNCSERVER))
         catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
-        thread.start_new_thread(dr.run_thread, (None, pShell))
-        thread.start_new_thread(self.__runTest,
-                                (None, dr, cnc, None, appender, catchall,
-                                 targetFlags, False))
+        threading.Thread(target=dr.run_thread, args=(None, pShell)).start()
+        threading.Thread(target=self.__runTest,
+                         args=(None, dr, cnc, None, appender, catchall,
+                               targetFlags, False)).start()
 
         cnc.run()
 
@@ -1634,9 +1634,9 @@ class IntegrationTest(unittest.TestCase):
                                  (cnc.name, DAQPort.CNCSERVER))
         catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
-        thread.start_new_thread(cnc.run, ())
-        thread.start_new_thread(dr.run_thread, (None, pShell))
-        thread.start_new_thread(dr.server.serve_forever, ())
+        threading.Thread(target=cnc.run, args=()).start()
+        threading.Thread(target=dr.run_thread, args=(None, pShell)).start()
+        threading.Thread(target=dr.server.serve_forever, args=()).start()
 
         (live, liveLog) = self.__createLiveObjects(livePort)
 
@@ -1662,8 +1662,8 @@ class IntegrationTest(unittest.TestCase):
         (dr, cnc, appender, catchall, pShell) = \
             self.__createRunObjects(targetFlags)
 
-        thread.start_new_thread(dr.run_thread, (None, pShell))
-        thread.start_new_thread(dr.server.serve_forever, ())
+        threading.Thread(target=dr.run_thread, args=(None, pShell)).start()
+        threading.Thread(target=dr.server.serve_forever, args=()).start()
 
         (live, liveLog) = self.__createLiveObjects(livePort)
 
@@ -1671,7 +1671,7 @@ class IntegrationTest(unittest.TestCase):
                                  (cnc.name, DAQPort.CNCSERVER))
         liveLog.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
-        thread.start_new_thread(cnc.run, ())
+        threading.Thread(target=cnc.run, args=()).start()
 
         liveLog.checkStatus(100)
 
@@ -1698,8 +1698,8 @@ class IntegrationTest(unittest.TestCase):
         (dr, cnc, appender, catchall, pShell) = \
             self.__createRunObjects(targetFlags)
 
-        thread.start_new_thread(dr.run_thread, (None, pShell))
-        thread.start_new_thread(dr.server.serve_forever, ())
+        threading.Thread(target=dr.run_thread, args=(None, pShell)).start()
+        threading.Thread(target=dr.server.serve_forever, args=()).start()
 
         (live, liveLog) = self.__createLiveObjects(livePort)
 
@@ -1711,7 +1711,7 @@ class IntegrationTest(unittest.TestCase):
         catchall.addExpectedTextRegexp(patStr)
         liveLog.addExpectedTextRegexp(patStr)
 
-        thread.start_new_thread(cnc.run, ())
+        threading.Thread(target=cnc.run, args=()).start()
 
         #from DAQMocks import LogChecker; LogChecker.DEBUG = True
         self.__runTest(live, dr, cnc, liveLog, appender, catchall, targetFlags,
