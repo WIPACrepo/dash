@@ -16,7 +16,6 @@ import optparse
 import os
 import socket
 import sys
-import thread
 import threading
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
@@ -30,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4150 2009-05-15 02:14:22Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4168 2009-05-19 06:02:18Z dglo $"
 
 class Connector(object):
     """
@@ -1675,7 +1674,7 @@ class DAQServer(DAQPool):
         self.__log.info(("%(filename)s %(revision)s %(date)s %(time)s" +
                          " %(author)s %(release)s %(repo_rev)s") %
                         self.versionInfo)
-        thread.start_new_thread(handler, ())
+        threading.Thread(target=handler, args=()).start()
         self.server.serve_forever()
 
 class CnCServer(DAQServer):
