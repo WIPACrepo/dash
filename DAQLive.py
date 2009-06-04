@@ -248,7 +248,7 @@ class DAQLive(Component):
         for k in moniData.keys():
             self.moniClient.sendMoni(k, moniData[k], Prio.ITS)
 
-    def __waitForState(self, expState, badStates=('ERROR')):
+    def __waitForState(self, expState, badStates=('ERROR', )):
         "Wait for pDAQ to reach the expected state"
         n = 0
         while True:
