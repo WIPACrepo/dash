@@ -306,29 +306,30 @@ class DAQLive(Component):
         "Try to recover (from an error state?)"
         if self.__runIface is None:
             if not self.__connectToDAQRun():
-                return
+                raise Exception("Could not connect to pDAQ")
 
         try:
             self.__runIface.recover()
-            recoveryStarted = True
         except socket.error:
-            recoveryStarted = False
             if retry:
                 self.__connectToDAQRun()
                 self.recovering(retry=False)
-            else:
-                self.__log.errorException('Could not recover pDAQ')
+                return
 
-        if recoveryStarted:
-            self.__log.error('Recovering pDAQ')
-            if self.__waitForState('STOPPED'):
-                self.__log.debug('Recovered pDAQ')
+            msg = 'Could not recover pDAQ'
+            self.__log.errorException(msg)
+            raise Exception(msg)
+
+        self.__log.error('Recovering pDAQ')
+        if not self.__waitForState('STOPPED'):
+            raise Exception("Failed to recover pDAQ")
+        self.__log.debug('Recovered pDAQ')
 
     def release(self, retry=True):
         "This is only for debugging -- will never be called by I3Live"
         if self.__runIface is None:
             if not self.__connectToDAQRun():
-                return
+                raise Exception("Could not connect to pDAQ")
 
         try:
             self.__runIface.release()
@@ -336,8 +337,11 @@ class DAQLive(Component):
             if retry:
                 self.__connectToDAQRun()
                 self.release(retry=False)
-            else:
-                self.__log.errorException('Could not release pDAQ runset')
+                return
+
+            msg = 'Could not release pDAQ runset'
+            self.__log.errorException(msg)
+            raise Exception(msg)
 
     def runChange(self, stateArgs=None):
         "Stop current pDAQ run and start a new run"
@@ -358,10 +362,12 @@ class DAQLive(Component):
                              (state, str(self.__runState)))
             self.__runState = state
 
-        if self.__runState == "RUNNING":
-            if self.__moniTimer.isTime():
-                self.__moniTimer.reset()
-                self.__reportMoni()
+        if self.__runState != "RUNNING":
+            raise Exception("pDAQ state is %s" % state)
+
+        if self.__moniTimer.isTime():
+            self.__moniTimer.reset()
+            self.__reportMoni()
 
     def starting(self, stateArgs=None, retry=True):
         """
@@ -390,7 +396,7 @@ class DAQLive(Component):
 
         if self.__runIface is None:
             if not self.__connectToDAQRun():
-                return
+                raise Exception("Could not connect to pDAQ")
 
         # tell DAQRun to start a run
         try:
@@ -399,24 +405,26 @@ class DAQLive(Component):
             else:
                 logInfo = self.moniClient.getHostPortTuple()
             self.__runIface.start(runNumber, self.__runConfig, logInfo)
-            runStarted = True
         except socket.error:
-            runStarted = False
             if retry:
                 self.__connectToDAQRun()
                 self.starting(stateArgs, False)
-            else:
-                self.__log.errorException('Could not start pDAQ')
+                return
 
-        if runStarted:
-            # wait for DAQRun to indicate that the run has started
-            if self.__waitForState('RUNNING',
+            msg = 'Could not start pDAQ'
+            self.__log.errorException(msg)
+            raise Exception(msg)
+
+        # wait for DAQRun to indicate that the run has started
+        if not self.__waitForState('RUNNING',
                                    ('ERROR', 'STOPPED', 'RECOVERING')):
-                self.__runNumber = runNumber
-                self.__log.info('Started run %d' % self.__runNumber)
-            else:
-                self.__waitForState('STOPPED')
-                self.__log.info('Failed to start run %d' % self.__runNumber)
+            self.__waitForState('STOPPED')
+            msg = 'Failed to start run %d' % self.__runNumber
+            self.__log.info(msg)
+            raise Exception(msg)
+
+        self.__runNumber = runNumber
+        self.__log.info('Started run %d' % self.__runNumber)
 
     def stopping(self, retry=True):
         "Stop current pDAQ run"
@@ -424,24 +432,23 @@ class DAQLive(Component):
 
         if self.__runIface is None:
             if not self.__connectToDAQRun():
-                return
+                raise Exception("Could not connect to pDAQ")
 
         try:
             self.__runIface.stop()
-            runStopped = True
         except socket.error:
-            runStopped = False
             if retry:
                 self.__connectToDAQRun()
                 self.stopping(retry=False)
-            else:
-                self.__log.errorException('Could not stop pDAQ run %d' %
-                                          self.__runNumber)
+                return
 
-        if runStopped:
-            # wait for DAQRun to indicate that the run has stopped
-            if self.__waitForState('STOPPED'):
-                self.__log.info('Stopped run %d' % self.__runNumber)
+            msg = 'Could not stop pDAQ run %d' % self.__runNumber
+            self.__log.errorException(msg)
+            raise Exception(msg)
+
+        # wait for DAQRun to indicate that the run has stopped
+        if self.__waitForState('STOPPED'):
+            self.__log.info('Stopped run %d' % self.__runNumber)
 
         self.__reportMoni()
 
@@ -451,7 +458,7 @@ class DAQLive(Component):
         """
         if self.__runIface is None:
             if not self.__connectToDAQRun():
-                return
+                raise Exception("Could not connect to pDAQ")
 
         if len(domList) > 0:
             action = 'Starting'
