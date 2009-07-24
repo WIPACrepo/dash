@@ -21,6 +21,7 @@ class Dom(object):
         self.id = None
         self.name = None
         self.prod = None
+        self.chanId = None
 
         self.x = None
         self.y = None
@@ -66,8 +67,7 @@ class Dom(object):
         return 0
 
     def __str__(self):
-        return "%d-%d: %s(%s)%s" % \
-            (self.string, self.pos, self.id, self.name, self.prod)
+        return '%s[%s] %02d-%02d' % (self.id, self.name, self.string, self.pos)
 
     def finish(self):
         if self.pos is None:
@@ -87,9 +87,6 @@ class Dom(object):
         if self.name is None:
             raise ProcessError('DOM %s is missing ID in string %s' % self.id)
 
-    def __str__(self):
-        return '%s[%s] %02d-%02d' % (self.id, self.name, self.string, self.pos)
-
     def getDesc(self):
         if self.desc is None:
             return "-"
@@ -108,6 +105,7 @@ class Dom(object):
             self.desc = desc
 
     def setId(self, id): self.id = id
+    def setChannelId(self, chanId): self.chanId = chanId
     def setName(self, name): self.name = name
     def setOriginalOrder(self, num): self.origOrder = num
     def setPos(self, pos): self.pos = pos
@@ -178,6 +176,8 @@ class DefaultDomGeometry(object):
                         print '        <position>%d</position>' % dom.pos
                     else:
                         print '        <position>%02d</position>' % dom.pos
+                if dom.chanId is not None:
+                    print '        <channelId>%s</channelId>' % dom.chanId
                 if dom.id is not None:
                     print '        <mainBoardId>%s</mainBoardId>' % dom.id
                 if dom.name is not None:
@@ -276,9 +276,17 @@ class DefaultDomGeometry(object):
             baseNum = s % 1000
             domList = self.__stringToDom[s][:]
 
-            idx = 0
-            while idx < len(domList):
-                dom = domList[idx]
+            for dom in domList:
+                if dom.pos < 1 or dom.pos > 64:
+                    print >>sys.stderr, "Bad position %d for %s" % \
+                        (dom.pos, dom)
+                else:
+                    if baseNum < 200:
+                        pos = dom.pos - 1
+                    elif dom.origOrder is not None:
+                        pos = dom.origOrder
+                    dom.chanId = (baseNum * 64) + pos
+
                 if (baseNum <= 80 and dom.pos <= 60) or \
                         (baseNum > 200 and dom.pos > 60) or \
                         (not rewriteOldIcetop and baseNum > 80 and \
@@ -307,8 +315,6 @@ class DefaultDomGeometry(object):
 
                         self.addString(it, errorOnMulti=False)
                         self.addDom(it, dom)
-
-                idx += 1
 
 class XMLParser(object):
     def getChildNode(cls, node, childName, hasAttr=False, hasKids=True):
@@ -425,6 +431,8 @@ class DefaultDomGeometryReader(XMLParser):
                     dom.setPos(int(self.getChildText(kid)))
                 elif kid.nodeName == 'mainBoardId':
                     dom.setId(self.getChildText(kid))
+                elif kid.nodeName == 'channelId':
+                    dom.setChannelId(int(self.getChildText(kid)))
                 elif kid.nodeName == 'name':
                     dom.setName(self.getChildText(kid))
                 elif kid.nodeName == 'productionId':
@@ -437,7 +445,7 @@ class DefaultDomGeometryReader(XMLParser):
                     dom.setZ(float(self.getChildText(kid)))
                 else:
                     raise ProcessError('Unexpected %s child <%s>' %
-                                       (node.nodeName, kid.nodeName))
+                                       (domNode.nodeName, kid.nodeName))
                 continue
 
             raise ProcessError('Found unknown %s node <%s>' %
