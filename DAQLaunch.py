@@ -32,7 +32,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 4095 2009-04-21 12:50:11Z kael $"
+SVN_ID = "$Id: DAQLaunch.py 4505 2009-08-08 04:53:48Z kael $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -75,7 +75,7 @@ class HubData(ComponentData):
         super(HubData, self).__init__("StringHub", type, memory, extraArgs)
 
 # note that the component name keys for componentDB should be lower-case
-componentDB = { "eventbuilder"      : ComponentData("eventBuilder-prod", memory=1200, extraArgs="-Xcompressedrefs -Xlp"),
+componentDB = { "eventbuilder"      : ComponentData("eventBuilder-prod", memory=1200, extraArgs="-Xcompressedrefs"),
                 "secondarybuilders" : ComponentData("secondaryBuilders", memory=1200, extraArgs="-Xcompressedrefs"),
                 "inicetrigger"      : TriggerData("iitrig", 2000),
                 "simpletrigger"     : TriggerData("simptrig", 500),
@@ -157,7 +157,7 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
                     (comp.compName, execJar)
                 continue
 
-            javaCmd = "java"
+            javaCmd = "/opt/ibm/java-x86_64-60/jre/bin/java"
             jvmArgs = data.getJVMArgs()
 
             switches = "-g %s" % configDir
@@ -170,6 +170,7 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
 
             if comp.compName.endswith("Hub"):
                 jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % comp.compID
+                javaCmd = "java"
                 
             if eventCheck and comp.compName == "eventBuilder":
                 jvmArgs += " -Dicecube.daq.eventBuilder.validateEvents"
