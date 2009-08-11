@@ -80,9 +80,11 @@ if __name__ == "__main__":
         print "Must supply run number argument"
         raise SystemExit
     runNum = int(argv[1])
-    logging.basicConfig(level=logging.DEBUG,)
-    logging.debug(runNum)
-    queue_for_spade(logging,
+    logging.basicConfig()
+
+    logger = logging.getLogger("spadeQueue")
+    logger.setLevel(logging.DEBUG)
+    queue_for_spade(logger,
                     "/mnt/data/pdaqlocal/viaTDRSS",
                     None,
                     "/mnt/data/pdaq/log",
