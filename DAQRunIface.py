@@ -4,10 +4,8 @@
 # Object to interface w/ DAQ run script
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started November, 2006
-# $Id: DAQRunIface.py 2151 2007-10-17 19:39:49Z ksb $
+# $Id: DAQRunIface.py 3842 2009-01-24 16:45:11Z dglo $
 
-from time import sleep, time
-from datetime import datetime, timedelta
 from DAQRPC import RPCClient
 from os.path import join, exists
 from os import environ
@@ -16,20 +14,20 @@ from DAQConfig import configExists
 from re import sub
 from types import DictType
 
-class LabelConfigFileNotFoundException(Exception): pass
-class MalformedLabelConfigException   (Exception): pass
-class MalformedFlasherInput           (Exception): pass
+class LabelConfigFileNotFound(Exception): pass
+class MalformedLabelConfig   (Exception): pass
+class MalformedFlasherInput  (Exception): pass
 
 def getElementSingleTagName(root, name):
     "Fetch a single element tag name of form <tagName>yowsa!</tagName>"
     elems = root.getElementsByTagName(name)
     if len(elems) != 1:
-        raise MalformedLabelConfigException("Expected exactly one %s" % name)
+        raise MalformedLabelConfig("Expected exactly one %s" % name)
     if len(elems[0].childNodes) != 1:
-        raise MalformedLabelConfigException("Expected exactly one child node of %s" %name)
+        raise MalformedLabelConfig("Expected exactly one child node of %s" %name)
     return elems[0].childNodes[0].data
 
-class DAQLabelParser:
+class DAQLabelParser(object):
     def __init__(self, configFile):
         if not exists(configFile): raise LabelConfigFileNotFound(configFile)
         self.configFile   = configFile
@@ -37,7 +35,7 @@ class DAQLabelParser:
         self.defaultLabel = None
         parsed = minidom.parse(self.configFile)
         daqLabels = parsed.getElementsByTagName("daqLabels")
-        if len(daqLabels) != 1: raise MalformedLabelConfigException(self.configFile)
+        if len(daqLabels) != 1: raise MalformedLabelConfig(self.configFile)
         runs = daqLabels[0].getElementsByTagName("run")
         self.defaultLabel = getElementSingleTagName(daqLabels[0], "defaultLabel")
         for run in runs:
@@ -58,32 +56,33 @@ class DAQRunIface(object):
 
         # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
         if environ.has_key("PDAQ_HOME"):
-            self.home = environ["PDAQ_HOME"]
+            self.__home = environ["PDAQ_HOME"]
         else:
             from locate_pdaq import find_pdaq_trunk
-            self.home = find_pdaq_trunk()
-        
-        self.rpc = RPCClient(daqhost, int(daqport))
+            self.__home = find_pdaq_trunk()
 
-    def start(self, r, config):
+        self.__rpc = RPCClient(daqhost, int(daqport))
+        self.__id = self.__rpc.rpc_ping()
+
+    def start(self, r, config, logInfo=()):
         "Tell DAQRun to start a run"
         config = sub('\.xml$', '', config)
-        self.rpc.rpc_start_run(r, 0, config)
+        self.__rpc.rpc_start_run(r, 0, config, logInfo)
         return DAQRunIface.START_TRANSITION_SECONDS
     
     def stop(self):
         "Tell DAQRun to stop a run"
-        self.rpc.rpc_stop_run()
+        self.__rpc.rpc_stop_run()
         return DAQRunIface.STOP_TRANSITION_SECONDS
     
     def recover(self):
         "Tell DAQRun to recover from an error and go to STOPPED state"
-        self.rpc.rpc_recover()
+        self.__rpc.rpc_recover()
         return DAQRunIface.RECOVERY_TRANSITION_SECONDS
     
     def getState(self):
         "Get current DAQ state"
-        return self.rpc.rpc_run_state()
+        return self.__rpc.rpc_run_state()
 
     def flasher(self, subRunID, flashingDomsList):
         """
@@ -131,29 +130,44 @@ class DAQRunIface(object):
             flashingDomsList = l
 
         #print "Subrun %d: DOMs to flash: %s" % (subRunID, str(flashingDomsList))
-        return self.rpc.rpc_flash(subRunID, flashingDomsList)
+        return self.__rpc.rpc_flash(subRunID, flashingDomsList)
     
     def getSummary(self):
         "Get component summary from DAQRun"
-        return self.rpc.rpc_daq_summary_xml()
+        return self.__rpc.rpc_daq_summary_xml()
     
     def release(self):
         """
         Release DAQ component resources (run sets) back to CnC Server
         Use for "standalone" instances of DAQ (i.e. non-'Experiment Control')
         """
-        self.rpc.rpc_release_runsets()
+        self.__rpc.rpc_release_runsets()
         return DAQRunIface.RELEASE_TRANSITION_SECONDS
     
     def getDaqLabels(self):        
-        parser = DAQLabelParser(join(self.home, "dash", "config", "daqlabels.xml"))
+        parser = DAQLabelParser(join(self.__home, "dash", "config",
+                                     "daqlabels.xml"))
         return parser.dict, parser.defaultLabel
 
     def isValidConfig(self, configName):
         "Placeholder only until this is implemented"
-        configDir = join(self.home, "config")
+        configDir = join(self.__home, "config")
         return configExists(configDir, configName)
     
+    def monitorRun(self):
+        "Get run monitoring data"
+        return self.__rpc.rpc_run_monitoring()
+
+    def checkID(self):
+        if self.__id is None:
+            self.__id = self.__rpc.rpc_ping()
+            return True
+
+        newID = self.__rpc.rpc_ping()
+        unchanged = self.__id == newID
+        self.__id = newID
+        return unchanged
+
 if __name__ == "__main__":
     iface = DAQRunIface()
     print iface.getDaqLabels()

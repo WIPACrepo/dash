@@ -12,6 +12,7 @@ import xmlrpclib
 import socket
 import datetime
 import math
+import select
 
 class RPCClient(xmlrpclib.ServerProxy):
 
@@ -20,7 +21,7 @@ class RPCClient(xmlrpclib.ServerProxy):
 
     "Generic class for accessing methods on remote objects"
     "WARNING: instantiating RPCClient sets socket default timeout duration!"
-    def __init__(self, servername, portnum, verbose=0):
+    def __init__(self, servername, portnum, verbose=0, timeout=TIMEOUT_SECS):
         
         self.servername = servername
         self.portnum    = portnum
@@ -28,7 +29,7 @@ class RPCClient(xmlrpclib.ServerProxy):
         # !!!!!! Warning - this is ugly !!!!!!!
         # !!!! but no other way in XMLRPC? !!!!
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        socket.setdefaulttimeout(self.TIMEOUT_SECS)
+        socket.setdefaulttimeout(timeout)
         xmlrpclib.ServerProxy.__init__(self,
                                        "http://%s:%s" % (self.servername, self.portnum), verbose=verbose)
         self.statDict = { }
@@ -63,7 +64,7 @@ class RPCClient(xmlrpclib.ServerProxy):
         try:
             result = eval(code)
             self.statDict[method].tally(datetime.datetime.now()-tstart)
-        except Exception, e:
+        except Exception:
             self.statDict[method].tally(datetime.datetime.now()-tstart)
             raise
         
@@ -72,18 +73,35 @@ class RPCClient(xmlrpclib.ServerProxy):
 class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
     "Generic class for serving methods to remote objects"
     # also inherited: register_function
-    allow_reuse_address = True
-    def __init__(self, portnum, servername="localhost", documentation="DAQ Server"):
+    def __init__(self, portnum, servername="localhost", documentation="DAQ Server", timeout=60):
         self.servername = servername
         self.portnum    = portnum
+
+        self.__running = False
+        self.__timeout = timeout
+
+        self.allow_reuse_address = True
         DocXMLRPCServer.DocXMLRPCServer.__init__(self, ('', portnum), logRequests=False)
         self.set_server_title("Server Methods")
         self.set_server_name("DAQ server at %s:%s" % (servername, portnum))
         self.set_server_documentation(documentation)
-        # Avoid "Address in use" errors:
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-class RPCStat:
+    def server_close(self):
+        self.__running = False
+        DocXMLRPCServer.DocXMLRPCServer.server_close(self)
+
+    def serve_forever(self):
+        """Handle one request at a time until doomsday."""
+        self.__running = True
+        while self.__running:
+            try:
+                r,w,e = select.select([self.fileno()], [], [], self.__timeout)
+            except select.error:
+                break
+            if r:
+                self.handle_request()
+
+class RPCStat(object):
     "Class for accumulating statistics about an RPC call"
     def __init__(self):
         self.n     = 0
@@ -110,14 +128,14 @@ class RPCStat:
         xavg2 = avg*avg
         try:
             rms = math.sqrt(x2avg - xavg2)
-        except Exception, e:
+        except Exception:
             rms = None
         return (self.n, self.min, self.max, avg, rms)
     
     def report(self):
         l = self.summaries()
         if l == None: return "No entries."
-        (n, min, max, avg, rms) = l
+        (n, Xmin, Xmax, avg, rms) = l
         return "%d entries, min=%.4f max=%.4f, avg=%.4f, rms=%.4f" % (self.n,
                                                                       self.min,
                                                                       self.max,
@@ -125,8 +143,9 @@ class RPCStat:
                                                                       rms)
 
 if __name__ == "__main__":
-    cl = RPCClient("localhost", 8080)
-    for i in xrange(0,10):
+    from DAQConst import DAQPort
+    cl = RPCClient("localhost", DAQPort.CNCSERVER)
+    for i in xrange(0, 10):
         cl.rpccall("rpc_ping")
     print cl.showStats()
 

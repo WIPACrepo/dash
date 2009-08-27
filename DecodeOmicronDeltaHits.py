@@ -6,7 +6,7 @@ John Jacobsen, NPX Designs, Inc., john@mail.npxdesigns.com
 Started: Thu Feb  7 05:26:15 2008
 """
 
-import optparse, struct
+import optparse
 from icecube.daq.util import nextHit
 
 def decode_hits(f):

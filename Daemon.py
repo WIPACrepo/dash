@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import os
-import sys
 
 if os.name == 'nt':
 	# We are running on WinXP or 2000 or NT or something like that

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<runConfig>
+    <domConfigList>SPS-5str-sim-domlist</domConfigList>
+    <triggerConfig>IniceGlobalTest</triggerConfig>
+    <runComponent name="inIceTrigger"/>
+    <runComponent name="globalTrigger"/>
+    <runComponent name="eventBuilder"/>
+    <runComponent name="secondaryBuilders"/>
+</runConfig>

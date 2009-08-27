@@ -7,6 +7,7 @@ Started November, 2006
 """
 
 from DAQRunIface import DAQRunIface
+from DAQConst import DAQPort
 from os.path import join, exists
 from os import environ
 from datetime import *
@@ -26,8 +27,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-
-SVN_ID = "$Id: ExpControlSkel.py 2312 2007-11-26 23:03:57Z ksb $"
+SVN_ID = "$Id: ExpControlSkel.py 4024 2009-04-03 21:03:29Z dglo $"
 
 class DOMArgumentException(Exception): pass
 
@@ -54,7 +54,7 @@ def getLastRunNum(runFile):
 def showXML(daqruniface):
     try:
         print daqruniface.getSummary()
-    except KeyboardInterrupt, k: raise
+    except KeyboardInterrupt: raise
     except Exception, e:
         print "getSummary failed: %s" % e
 
@@ -121,9 +121,9 @@ class SubRun:
         self.domlist.append(d)
         
     def __str__(self):
-        type = "FLASHER"
-        if self.type == SubRun.DELAY: type = "DELAY"
-        s = "SubRun ID=%d TYPE=%s DURATION=%d\n" % (self.id, type, self.duration)
+        typ = "FLASHER"
+        if self.type == SubRun.DELAY: typ = "DELAY"
+        s = "SubRun ID=%d TYPE=%s DURATION=%d\n" % (self.id, typ, self.duration)
         if self.type == SubRun.FLASH:
             for m in self.domlist:
                 s += "%s\n" % m
@@ -139,24 +139,24 @@ class SubRun:
 class SubRunSet:
     def __init__(self, fileName):
         self.subruns = []
-        id = 0
+        num = 0
         sr = None
         for l in open(fileName).readlines():
             # Look for bare "delay lines"
             m = search(r'delay (\d+)', l)
             if m:
                 t = int(m.group(1))
-                self.subruns.append(SubRun(SubRun.DELAY, t, id))
-                id += 1
+                self.subruns.append(SubRun(SubRun.DELAY, t, num))
+                num += 1
                 sr = None
                 continue
             
             m = search(r'flash (\d+)', l)
             if m:
                 t = int(m.group(1))
-                sr = SubRun(SubRun.FLASH, t, id)
+                sr = SubRun(SubRun.FLASH, t, num)
                 self.subruns.append(sr)
-                id += 1
+                num += 1
             m6 = search('^\s*(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
             m7 = search('^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
             if m7 and sr:
@@ -208,7 +208,7 @@ def main():
     p.add_option("-x", "--show-status-xml",  action="store_true",           dest="showXML")
     p.set_defaults(nodeName    = "localhost",
                    numRuns     = 10000000,
-                   portNum     = 9000,
+                   portNum     = DAQPort.DAQRUN,
                    duration    = 300,
                    flasherRun  = None,
                    showXML     = False,
@@ -238,7 +238,6 @@ def main():
         print "Run configuration %s does not exist or is not valid!" % opt.configName
         raise SystemExit
 
-    subRunNumber = 0
     sleeptime    = 0.4
     xmlIval      = 5
     state        = None

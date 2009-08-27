@@ -1,197 +1,236 @@
 #!/usr/bin/env python
 
-import unittest
+import socket, unittest
 from CnCServer import DAQClient, DAQServer
-from DAQLog import SocketLogger
 
-class MockXMLRPC:
-    def __init__(self):
-        pass
+from DAQMocks import MockAppender, MockCnCLogger, \
+    SocketReaderFactory, SocketWriter
 
-    def configure(self, id, name=None):
-        pass
-
-    def connect(self, id, name=None):
-        return 'OK'
-
-    def getState(self, id):
-        pass
-
-    def logTo(self, id, logIP, port):
-        pass
-
-    def reset(self, id):
-        pass
-
-    def resetLogging(self, id):
-        pass
-
-    def startRun(self, id, runNum):
-        pass
-
-    def stopRun(self, id):
-        pass
-
-class MockRPCClient:
-    def __init__(self, host, port):
-        self.xmlrpc = MockXMLRPC()
-
-class MockLogger(object):
-    def __init__(self, host, port):
-        pass
-
-    def write_ts(self, s):
-        pass
-
-class MockClient(DAQClient):
+class TinyClient(object):
     def __init__(self, name, num, host, port, mbeanPort, connectors):
+        self.name = name
+        self.num = num
+        self.connectors = connectors
 
-        self.state = 'idle'
+        self.id = DAQClient.ID
+        DAQClient.ID += 1
 
-        super(MockClient, self).__init__(name, num, host, port, mbeanPort,
-                                         connectors)
+        self.__host = host
+        self.__port = port
+        self.__mbeanPort = mbeanPort
 
-    def configure(self, cfgName):
-        self.state = 'ready'
-        return super(MockClient, self).configure(cfgName)
+        self.__state = 'idle'
+        self.__order = None
 
-    def connect(self, map=None):
-        self.state = 'connected'
-        return super(MockClient, self).connect(map)
+    def __str__(self):
+        if self.__mbeanPort == 0:
+            mStr = ''
+        else:
+            mStr = ' M#%d' % self.__mbeanPort
+        return 'ID#%d %s#%d at %s:%d%s' % \
+            (self.id, self.name, self.num, self.__host, self.__port, mStr)
 
-    def createClient(self, host, port):
-        return MockRPCClient(host, port)
+    def configure(self, cfgName=None):
+        self.__state = 'ready'
 
-    def createLogger(self, host, port):
-        return MockLogger(host, port)
+    def connect(self, connList=None):
+        self.__state = 'connected'
+
+    def getName(self):
+        return self.name
+
+    def getOrder(self):
+        return self.__order
 
     def getState(self):
-        return self.state
+        return self.__state
+
+    def isComponent(self, name, num=-1):
+        return self.name == name and (num < 0 or self.num == num)
+
+    def isSource(self):
+        return True
+
+    def logTo(self, logIP, logPort, liveIP, livePort):
+        if liveIP is not None and livePort is not None:
+            raise Exception('Cannot log to I3Live')
+
+        self.__log = SocketWriter(logIP, logPort)
+        self.__log.write_ts('Start of log at %s:%d' % (logIP, logPort))
+        self.__log.write_ts('Version info: unknown unknown unknown unknown' +
+                            ' unknown BRANCH 0:0')
 
     def reset(self):
-        self.state = 'idle'
-        return super(MockClient, self).reset()
+        self.__state = 'idle'
+
+    def resetLogging(self):
+        pass
+
+    def setOrder(self, orderNum):
+        self.__order = orderNum
 
     def startRun(self, runNum):
-        self.state = 'running'
-        return super(MockClient, self).startRun(runNum)
+        self.__state = 'running'
+
+    def stopRun(self):
+        self.__state = 'ready'
 
 class MockServer(DAQServer):
-    def __init__(self):
-        super(MockServer, self).__init__(testOnly=True)
+    APPENDER = MockAppender('server')
+
+    def __init__(self, logPort, livePort):
+        super(MockServer, self).__init__(logIP='localhost', logPort=logPort,
+                                         liveIP='localhost', livePort=livePort,
+                                         testOnly=True)
 
     def createClient(self, name, num, host, port, mbeanPort, connectors):
-        return MockClient(name, num, host, port, mbeanPort, connectors)
+        return TinyClient(name, num, host, port, mbeanPort, connectors)
+
+    def createCnCLogger(self, quiet):
+        return MockCnCLogger(MockServer.APPENDER, quiet)
 
 class TestDAQServer(unittest.TestCase):
+    def __createLog(self, name, port, expectStartMsg=True):
+        return self.__logFactory.createLog(name, port, expectStartMsg)
+
+    def __getInternetAddress(self):
+        for addrData in socket.getaddrinfo(socket.gethostname(), None):
+            if addrData[0] == socket.AF_INET:
+                return addrData[4][0]
+        return None
+
+    def __verifyRegArray(self, rtnArray, expId, logHost, logPort,
+                         liveHost, livePort):
+        numElem = 6
+        self.assertEquals(numElem, len(rtnArray),
+                          'Expected %d-element array, not %d elements' %
+                          (numElem, len(rtnArray)))
+        self.assertEquals(expId, rtnArray[0],
+                          'Registration should return client ID#%d, not %d' %
+                          (expId, rtnArray[0]))
+        self.assertEquals(logHost, rtnArray[1],
+                          'Registration should return host %s, not %s' %
+                          (logHost, rtnArray[1]))
+        self.assertEquals(logPort, rtnArray[2],
+                          'Registration should return port#%d, not %d' %
+                          (logPort, rtnArray[2]))
+        self.assertEquals(liveHost, rtnArray[3],
+                          'Registration should return livehost %s, not %s' %
+                          (liveHost, rtnArray[3]))
+        self.assertEquals(livePort, rtnArray[4],
+                          'Registration should return liveport#%d, not %d' %
+                          (livePort, rtnArray[4]))
+
+    def setUp(self):
+        self.__logFactory = SocketReaderFactory()
+
+    def tearDown(self):
+        self.__logFactory.tearDown()
+
+        MockServer.APPENDER.checkStatus(10)
+
     def testRegister(self):
-        dc = MockServer()
+        logHost = 'localhost'
+        logPort = 11853
+
+        logger = self.__createLog('file', logPort)
+
+        liveHost = 'localhost'
+        livePort = 35811
+
+        liver = self.__createLog('live', livePort, False)
+
+        dc = MockServer(logPort, livePort)
 
         self.assertEqual(dc.rpc_show_components(), [])
 
-        compName = 'foo'
-        compNum = 0
-        compHost = 'localhost'
-        compPort = 666
-        compMBean = 0
-        rtnArray = dc.rpc_register_component(compName, compNum, compHost,
-                                             compPort, 0, [])
+        name = 'foo'
+        num = 0
+        host = 'localhost'
+        port = 666
+        mPort = 667
+
+        expId = DAQClient.ID
+
+        logger.addExpectedText('Got registration for ID#%d %s#%d at %s:%d' %
+                               (expId, name, num, host, port))
+        liver.addExpectedText('Got registration for ID#%d %s#%d at %s:%d' %
+                              (expId, name, num, host, port))
+
+        rtnArray = dc.rpc_register_component(name, num, host, port, mPort, [])
+
+        localAddr = self.__getInternetAddress()
+
+        self.__verifyRegArray(rtnArray, expId, localAddr, logPort,
+                              localAddr, livePort)
 
         self.assertEqual(dc.rpc_get_num_components(), 1)
 
-        fooStr = 'ID#' + str(DAQClient.ID - 1) + ' ' + compName + '#' + \
-            str(compNum) + ' at ' + compHost + ':' + str(compPort) + ' ' + \
-            'idle'
+        fooStr = 'ID#%d %s#%d at %s:%d M#%d %s' % \
+            (DAQClient.ID - 1, name, num, host, port, mPort, 'idle')
         self.assertEqual(dc.rpc_show_components(), [fooStr])
 
-        self.assertEqual(len(rtnArray), 4)
-        self.assertEqual(rtnArray[0], DAQClient.ID - 1)
-        self.assertEqual(rtnArray[1], '')
-        self.assertEqual(rtnArray[2], 0)
+        logger.checkStatus(100)
+        liver.checkStatus(100)
 
     def testRegisterWithLog(self):
-        dc = MockServer()
+        oldPort = 12345
+        
+        oldLog = self.__createLog('old', oldPort)
+
+        dc = MockServer(oldPort, None)
+
+        oldLog.checkStatus(100)
 
         logHost = 'localhost'
-        logPort = 123
+        logPort = 23456
 
-        self.failUnless(dc.socketlog is None, 'socketlog is None')
+        logger = self.__createLog('file', logPort)
 
-        dc.rpc_log_to(logHost, logPort)
-        self.failIf(dc.socketlog is None, 'socketlog is None')
-        self.assertEqual(dc.logIP, logHost)
-        self.assertEqual(dc.logPort, logPort)
+        liveHost = ''
+        livePort = 0
 
-        rtnArray = dc.rpc_register_component('foo', 0, 'localhost', 666, 0, [])
+        dc.rpc_log_to(logHost, logPort, liveHost, livePort)
 
-        self.assertEqual(len(rtnArray), 4)
-        self.assertEqual(rtnArray[0], DAQClient.ID - 1)
-        self.assertEqual(rtnArray[1], logHost)
-        self.assertEqual(rtnArray[2], logPort)
+        logger.checkStatus(100)
+
+        name = 'foo'
+        num = 0
+        host = 'localhost'
+        port = 666
+        mPort = 667
+
+        expId = DAQClient.ID
+
+        logger.addExpectedText(('Got registration for ID#%d %s#%d at %s:%d' +
+                                ' M#%d') %
+                               (expId, name, num, host, port, mPort))
+
+        rtnArray = dc.rpc_register_component(name, num, host, port, mPort, [])
+
+        localAddr = self.__getInternetAddress()
+
+        self.__verifyRegArray(rtnArray, expId, localAddr, logPort,
+                              localAddr, livePort)
+
+        logger.checkStatus(100)
+
+        logger.addExpectedText('End of log')
+        oldLog.addExpectedText('Reset log to localhost:%d' % oldPort)
 
         dc.rpc_close_log()
-        self.failIf(dc.socketlog is not None, 'socketlog is not None')
-        self.assertEqual(dc.logIP, None)
-        self.assertEqual(dc.logPort, None)
 
-    def testLogFallback(self):
-        dc = MockServer()
-
-        logHost = 'localhost'
-        logPort = 12345
-
-        logObj = SocketLogger(logPort, 'log', None)
-        logObj.startServing()
-
-        try:
-            self.failIf(dc.socketlog is not None, 'socketlog is not None')
-
-            dc.rpc_log_to(logHost, logPort)
-            self.failIf(dc.socketlog is None, 'socketlog is None')
-            self.assertEqual(dc.logIP, logHost)
-            self.assertEqual(dc.logPort, logPort)
-            self.assertEqual(dc.prevIP, logHost)
-            self.assertEqual(dc.prevPort, logPort)
-            dc.rpc_close_log()
-
-            self.failIf(dc.socketlog is not None, 'socketlog is not None')
-            self.failIf(dc.logIP is not None, 'logIP is not None')
-            self.failIf(dc.logPort is not None, 'logPort is not None')
-            self.assertEqual(dc.prevIP, logHost)
-            self.assertEqual(dc.prevPort, logPort)
-
-            newHost = 'localhost'
-            newPort = 456778
-
-            newObj = SocketLogger(newPort, 'new', None)
-            newObj.startServing()
-
-            try:
-                dc.rpc_log_to(newHost, newPort)
-                self.failIf(dc.socketlog is None, 'socketlog is None')
-                self.assertEqual(dc.logIP, newHost)
-                self.assertEqual(dc.logPort, newPort)
-                self.assertEqual(dc.prevIP, logHost)
-                self.assertEqual(dc.prevPort, logPort)
-
-                dc.rpc_close_log()
-                self.failIf(dc.socketlog is None, 'socketlog is None')
-                self.assertEqual(dc.logIP, logHost)
-                self.assertEqual(dc.logPort, logPort)
-                self.assertEqual(dc.prevIP, logHost)
-                self.assertEqual(dc.prevPort, logPort)
-            finally:
-                newObj.stopServing()
-
-            dc.rpc_close_log()
-            self.failIf(dc.socketlog is not None, 'socketlog is not None')
-            self.assertEqual(dc.logIP, None)
-            self.assertEqual(dc.logPort, None)
-        finally:
-            logObj.stopServing()
+        logger.checkStatus(100)
+        oldLog.checkStatus(100)
 
     def testNoRunset(self):
-        dc = MockServer()
+        logPort = 11545
+
+        logger = self.__createLog('main', logPort)
+
+        dc = MockServer(logPort, None)
+
+        logger.checkStatus(100)
 
         self.assertRaises(ValueError, dc.rpc_runset_break, 1)
         self.assertRaises(ValueError, dc.rpc_runset_configure, 1)
@@ -201,28 +240,67 @@ class TestDAQServer(unittest.TestCase):
         self.assertRaises(ValueError, dc.rpc_runset_status, 1)
         self.assertRaises(ValueError, dc.rpc_runset_stop_run, 1)
 
+        logger.checkStatus(100)
+
     def testRunset(self):
-        dc = MockServer()
+        logPort = 21765
+
+        logger = self.__createLog('main', logPort)
+
+        dc = MockServer(logPort, None)
+
+        logger.checkStatus(100)
 
         self.assertEqual(dc.rpc_get_num_components(), 0)
         self.assertEqual(dc.rpc_num_sets(), 0)
         self.assertEqual(dc.rpc_show_components(), [])
 
-        rtnArray = dc.rpc_register_component('foo', 0, 'localhost', 666, 0, [])
+        id = DAQClient.ID
+        name = 'foo'
+        num = 99
+        host = 'localhost'
+        port = 666
+        mPort = 0
+
+        clientHost = 'localhost'
+        clientPort = 21567
+
+        clientLogger = self.__createLog('client', clientPort)
+
+        compName = 'ID#%d %s#%d at %s:%d' % (id, name, num, host, port)
+
+        logger.addExpectedText('Got registration for %s' % compName)
+
+        dc.rpc_register_component(name, num, host, port, mPort, [])
+
+        logger.checkStatus(100)
 
         self.assertEqual(dc.rpc_get_num_components(), 1)
         self.assertEqual(dc.rpc_num_sets(), 0)
 
-        setId = dc.rpc_runset_make(['foo'])
+        logger.addExpectedText('Built runset with the following components:')
+
+        setId = dc.rpc_runset_make([name])
+
+        logger.checkStatus(100)
 
         self.assertEqual(dc.rpc_get_num_components(), 0)
         self.assertEqual(dc.rpc_num_sets(), 1)
 
+        logger.addExpectedText('%s connected' % compName)
+
         self.assertEqual(dc.rpc_runset_status(setId), 'OK')
 
-        self.assertEqual(dc.rpc_runset_log_to(setId, 'abc',
-                                              [['foo', 0, 777, 'fatal'], ]),
-                         'OK')
+        logger.checkStatus(100)
+
+        clientLogger.addExpectedTextRegexp(r'Version info: unknown unknown' +
+                                           ' unknown unknown unknown \S+ \S+')
+
+        self.assertEqual(dc.rpc_runset_log_to(setId, clientHost,
+                                              [[name, num, clientPort, 'fatal'],
+                                               ]), 'OK')
+
+        clientLogger.checkStatus(100)
 
         self.assertEqual(dc.rpc_runset_configure(setId), 'OK')
 
@@ -239,6 +317,9 @@ class TestDAQServer(unittest.TestCase):
 
         self.assertEqual(dc.rpc_get_num_components(), 1)
         self.assertEqual(dc.rpc_num_sets(), 0)
+
+        logger.checkStatus(10)
+        clientLogger.checkStatus(10)
 
 if __name__ == '__main__':
     unittest.main()

@@ -4,7 +4,7 @@
 # John Jacobsen, NPX Designs, Inc., john@mail.npxdesigns.com
 # Started: Sat Jan 19 07:43:50 2008
 
-import unittest, optparse, xml.dom.minidom, os, os.path, tarfile, re
+import optparse, xml.dom.minidom, os, tarfile, re
 
 def getField(xml, name):
     """
@@ -97,7 +97,7 @@ class PnFInfo:
     Storage/parsing class for PnF information
     """
     def __init__(self, xml):
-        reading = getSubTag(xml, "reading")
+        #reading = getSubTag(xml, "reading")
         self.readEvent = getField(getSubTag(xml, "reading"), "event")
         processing = getSubTag(xml, "processing")
         try: 
@@ -126,9 +126,9 @@ class PnFInfo:
 class DetectorSummary:
     def __init__(self, filename):
         parsed = xml.dom.minidom.parse(filename)
-        summary   = getSubTag(parsed, "detector-summary") 
+        #summary   = getSubTag(parsed, "detector-summary") 
         status    = getSubTag(parsed, "status")
-        twr       = getSubTag(parsed, "twr")
+        #twr       = getSubTag(parsed, "twr")
         daq       = getSubTag(parsed, "daq")
         pnf       = getSubTag(parsed, "pnf")
         self.date = getField(status, "date")
@@ -302,10 +302,10 @@ class WebDisplay:
 """
         prevRun = None
         prevDay = None
-        for sum in self.summaries:
-            r += sum.rowHTML(prevDay, prevRun)
-            prevRun = sum.latestDAQRun
-            prevDay = sum.day
+        for s in self.summaries:
+            r += s.rowHTML(prevDay, prevRun)
+            prevRun = s.latestDAQRun
+            prevDay = s.day
         r += """
 </TABLE>
 </BODY>

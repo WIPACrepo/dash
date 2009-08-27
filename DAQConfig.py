@@ -7,16 +7,13 @@
 #
 # Class to parse XML configuration information for IceCube runs
 
-import re
-import optparse
-from os import environ, listdir
-from os.path import exists, join
+import optparse, os, re
 from xml.dom import minidom
 from exc_string import exc_string
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if environ.has_key("PDAQ_HOME"):
-    metaDir = environ["PDAQ_HOME"]
+if os.environ.has_key("PDAQ_HOME"):
+    metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
@@ -26,20 +23,22 @@ class DAQConfigDirNotFound       (Exception): pass
 class noRunConfigFound           (Exception): pass
 class noDOMConfigFound           (Exception):
     def __init__(self, configName):
+        Exception.__init__(self, configName)
+
         self.configName = configName
 
     def __str__(self):
         return self.configName
 
-class noDeployedStringsListFound (Exception): pass
+class noDeployedDOMsListFound    (Exception): pass
 class noComponentsFound          (Exception): pass
 class triggerException           (Exception): pass
 class DOMNotInConfigException    (Exception): pass
 
 def showList(configDir):
-    if not exists(configDir):
+    if not os.path.exists(configDir):
         raise DAQConfigDirNotFound("Could not find config dir %s" % configDir)
-    l = listdir(configDir)
+    l = os.listdir(configDir)
 
     cfgs = []
     for f in l:
@@ -60,14 +59,14 @@ def xmlOf(name):
     return name
 
 def configExists(configDir, configName):
-    if not exists(configDir): return False
-    configFile = xmlOf(join(configDir, configName))
-    if not exists(configFile): return False
+    if not os.path.exists(configDir): return False
+    configFile = xmlOf(os.path.join(configDir, configName))
+    if not os.path.exists(configFile): return False
     return True
 
 def checkForValidConfig(configDir, configName):
     try:
-        dc = DAQConfig(configName, configDir)
+        DAQConfig(configName, configDir)
         print "%s/%s is ok." % (configDir, configName)
         return True
     except Exception, e:
@@ -79,12 +78,14 @@ class DOMData(object):
     """
     DOM Geometry data
     """
-    def __init__(self, name, string, pos, kind, comp):
+    def __init__(self, name, string, pos):
         self.name = name
         self.string = string
         self.pos = pos
-        self.kind = kind
-        self.comp = comp
+
+        if(re.search(r'AMANDA_', name)): self.kind = "amanda"
+        elif(pos > 60):                  self.kind = "icetop"
+        else:                            self.kind = "in-ice"
 
 class DefaultDOMGeometry(object):
 
@@ -95,15 +96,15 @@ class DefaultDOMGeometry(object):
         Convert the default-dom-geometry.xml file to a dictionary
         of DOMData objects
         """
-        deployedDOMsXML = xmlOf(join(configDir, self.DEPLOYEDDOMS))
-        if not exists(deployedDOMsXML):
+        deployedDOMsXML = xmlOf(os.path.join(configDir, self.DEPLOYEDDOMS))
+        if not os.path.exists(deployedDOMsXML):
             raise noDeployedDOMsListFound("no deployed DOMs list found!")
         deployedDOMsParsed = minidom.parse(deployedDOMsXML)
 
         deployedStrings = deployedDOMsParsed.getElementsByTagName("string")
         if len(deployedStrings) < 1:
-            raise noDeployedStringsListFound("No string list in %s!" %
-                                             DefaultDOMGeomety.DEPLOYEDDOMS)
+            raise noDeployedDOMsListFound("No string list in %s!" %
+                                          DefaultDOMGeometry.DEPLOYEDDOMS)
 
         self.domDict  = {}
 
@@ -118,25 +119,19 @@ class DefaultDOMGeometry(object):
                 name        = nameTag[0].childNodes[0].data
                 positionTag = dom.getElementsByTagName("position")
                 position    = int(positionTag[0].childNodes[0].data)
-                kind        = "in-ice"
-                if(position > 60): kind = "icetop"
-                if(re.search(r'AMANDA_', name)): kind = "amanda"
-                comp        = \
-                    self.lookUpHubIDbyStringAndPosition(stringNum, position)
-                # print "%20s %25s %2d %2d %s %s" % \
-                # (domID, name, stringNum, position, kind, str(comp))
+                # print "%20s %25s %2d %2d %s" % \
+                # (domID, name, stringNum, position, kind)
 
-                self.domDict[domID] = \
-                    DOMData(name, stringNum, position, kind, comp)
+                self.domDict[domID] = DOMData(name, stringNum, position)
 
         # clean up DOM
         deployedDOMsParsed.unlink()
 
-    def getComponent(self, domID):
+    def getHubID(self, domID):
         """
-        Get the component name associated with the DOM mainboard ID
+        Get the stringhub id associated with the DOM mainboard ID
         """
-        return self.domDict[domID].comp
+        return self.domDict[domID].string
 
     def getKind(self, domID):
         """
@@ -153,7 +148,7 @@ class DefaultDOMGeometry(object):
         for d in domlist:
             if self.domDict.has_key(d) and self.domDict[d].name == name:
                 return str(d) # Convert from unicode to ASCII
-        raise DOMNotInConfigException()
+        raise DOMNotInConfigException("Cannot find DOM named \"%s\"" % name)
 
     def getIDbyStringPos(self, domlist, string, pos):
         """
@@ -165,27 +160,8 @@ class DefaultDOMGeometry(object):
                     string == self.domDict[d].string and \
                     pos == self.domDict[d].pos:
                 return str(d)
-        raise DOMNotInConfigException()
-
-    def lookUpHubIDbyStringAndPosition(stringNum, position):
-        # This is a somewhat kludgy approach but we let the L2 make the call
-        # and file a mantis issue to clean this up later...
-        # ithub01: 46, 55, 56, 65, 72, 73, 77, 78
-        # ithub02: 38, 39, 48, 58, 64, 66, 71, 74
-        # ithub03: 30, 40, 47, 49, 50, 57, 59, 67
-        # ithub04: 21, 29
-        if position <= 60: return stringNum
-        if stringNum in [46, 55, 56, 65, 72, 73, 77, 78]: return 81
-        if stringNum in [38, 39, 48, 58, 64, 66, 71, 74]: return 82
-        if stringNum in [30, 40, 47, 49, 50, 57, 59, 67]: return 83
-        if stringNum in [21, 29]: return 84
-        if stringNum in [62, 54, 63, 45, 75, 76, 69, 70]: return 85
-        if stringNum in [60, 68, 61, 44, 52, 53]: return 86
-
-        if stringNum == 0: return 0
-        return stringNum
-    lookUpHubIDbyStringAndPosition = \
-        staticmethod(lookUpHubIDbyStringAndPosition)
+        raise DOMNotInConfigException("Cannot find string %d pos %d" %
+                                      (string, pos))
 
 class DAQConfig(object):
 
@@ -198,13 +174,30 @@ class DAQConfig(object):
         # Optimize by looking up pre-parsed configurations:
         if DAQConfig.persister.has_key(configName):
             self.__dict__ = DAQConfig.persister[configName]
-            return
 
-        if not exists(configDir):
+            tmpFile = xmlOf(os.path.join(configDir, configName))
+
+            try:
+                cfgStat = os.stat(tmpFile)
+            except OSError:
+                raise DAQConfigNotFound(tmpFile)
+
+            if self.__modTime == cfgStat.st_mtime:
+                return
+
+            # if we made it to here, the config file must have been modified
+
+        if not os.path.exists(configDir):
             raise DAQConfigDirNotFound("Could not find config dir %s" %
                                        configDir)
-        self.configFile = xmlOf(join(configDir, configName))
-        if not exists(self.configFile): raise DAQConfigNotFound(self.configFile)
+        self.configFile = xmlOf(os.path.join(configDir, configName))
+
+        try:
+            cfgStat = os.stat(self.configFile)
+        except OSError:
+            raise DAQConfigNotFound(self.configFile)
+
+        self.__modTime = cfgStat.st_mtime
 
         # Parse the runconfig
         parsed = minidom.parse(self.configFile)
@@ -235,8 +228,8 @@ class DAQConfig(object):
                 # print "Parsing %s" % domConfigName
 
                 domConfigXML = \
-                    xmlOf(join(configDir, "domconfigs", domConfigName))
-                if not exists(domConfigXML):
+                    xmlOf(os.path.join(configDir, "domconfigs", domConfigName))
+                if not os.path.exists(domConfigXML):
                     raise noDOMConfigFound("DOMConfig not found: %s" %
                                            domConfigName)
 
@@ -249,7 +242,7 @@ class DAQConfig(object):
             kindInConfigDict  = {}
 
             for domID in self.domlist:
-                hubID  = DAQConfig.DeployedDOMs.getComponent(domID)
+                hubID  = DAQConfig.DeployedDOMs.getHubID(domID)
                 kind   = DAQConfig.DeployedDOMs.getKind(domID)
                 # print "Got DOM %s hub %s kind %s" % (domID, hubID, kind)
                 hubIDInConfigDict[hubID] = True
@@ -262,7 +255,6 @@ class DAQConfig(object):
 
         elif len(hubFileList) == 1:
             # WARNING: not currently building the 'kind' list
-            hubFile = hubFileList[0]
             for hubNode in hubFileList[0].getElementsByTagName("hub"):
                 idStr = hubNode.getAttribute("id")
                 hubIDList.append(int(idStr))
@@ -286,8 +278,8 @@ class DAQConfig(object):
         if len(triggerConfigs) == 0: raise triggerException("no triggers found")
         for trig in triggerConfigs:
             trigName = trig.childNodes[0].data
-            trigXML = xmlOf(join(configDir, "trigger", trigName))
-            if not exists(trigXML):
+            trigXML = xmlOf(os.path.join(configDir, "trigger", trigName))
+            if not os.path.exists(trigXML):
                 raise triggerException("trigger config file not found: %s" %
                                        trigXML)
 
@@ -353,7 +345,7 @@ if __name__ == "__main__":
                    toCheck = None)
     opt, args = p.parse_args()
 
-    configDir  = join(metaDir, "config")
+    configDir  = os.path.join(metaDir, "config")
 
     if(opt.doList):
         showList(configDir)

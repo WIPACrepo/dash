@@ -3,6 +3,7 @@
 import optparse, sys
 from os import environ
 from os.path import join
+from DAQConst import DAQPort
 from DAQRPC import RPCClient
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
@@ -16,7 +17,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQStatus.py 2978 2008-05-06 01:13:07Z ksb $"
+SVN_ID  = "$Id: DAQStatus.py 4024 2009-04-03 21:03:29Z dglo $"
 
 LINE_LENGTH = 78
 
@@ -94,14 +95,14 @@ def dumpComp(comp, numList, indent):
                 front = ' '*len(front)
                 frontCleared = True
 
-def listTerse(list, indent=''):
-    list.sort(cmpComp)
+def listTerse(compList, indent=''):
+    compList.sort(cmpComp)
 
     prevState = None
     prevComp = None
 
     numList = []
-    for c in list:
+    for c in compList:
         compChanged = cmp(prevComp, c[1]) != 0
         stateChanged = cmp(prevState, c[6]) != 0
         if compChanged or stateChanged:
@@ -114,10 +115,10 @@ def listTerse(list, indent=''):
         numList.append(c[2])
     dumpComp(prevComp, numList, indent)
 
-def listVerbose(list, indent=''):
-    list.sort(cmpComp)
+def listVerbose(compList, indent=''):
+    compList.sort(cmpComp)
 
-    for c in list:
+    for c in compList:
         print '%s  #%d %s#%d at %s:%d M#%d %s' % \
             (indent, c[0], c[1], c[2], c[3], c[4], c[5], c[6])
 
@@ -132,12 +133,7 @@ if __name__ == "__main__":
 
     opt, args = p.parse_args()
 
-    cncserver = "localhost"
-    cncport   = 8080
-    daqserver = "localhost"
-    daqport   = 9000
-
-    cncrpc = RPCClient(cncserver, cncport)
+    cncrpc = RPCClient("localhost", DAQPort.CNCSERVER)
 
     try:
         nc = cncrpc.rpc_get_num_components()
@@ -150,7 +146,7 @@ if __name__ == "__main__":
         ns = 0
         ids = []
 
-    print "CNC %s:%d" % (cncserver, cncport)
+    print "CNC %s:%d" % ("localhost", DAQPort.CNCSERVER)
 
     print "-----------------------"
     print "%d unused components" % nc
@@ -161,15 +157,15 @@ if __name__ == "__main__":
 
     print "-----------------------"
     print "%d run sets" % ns
-    for id in ids:
-        ls = cncrpc.rpc_runset_list(id)
-        print '\tRunSet#%d' % id
+    for runid in ids:
+        ls = cncrpc.rpc_runset_list(runid)
+        print '\tRunSet#%d' % runid
         if opt.verbose:
             listVerbose(ls, '\t')
         else:
             listTerse(ls, '\t')
 
-    daqrpc = RPCClient(daqserver, daqport)
+    daqrpc = RPCClient("localhost", DAQPort.DAQRUN)
     try:
         state  = daqrpc.rpc_run_state()
     except:

@@ -5,7 +5,7 @@ import datetime
 from sys import argv
 from os import popen, listdir, chdir, link, unlink, stat, chmod
 from time import sleep
-from os.path import basename, join, exists
+from os.path import basename, exists
 from re import search
 
 def checkForRunningProcesses(progname):
@@ -36,7 +36,7 @@ def main():
                 if isTargetFile(f): 
                     matchingFiles.append(f)
                 
-            matchingFiles.sort(lambda x, y: (cmp(stat(x)[8],stat(y)[8])))
+            matchingFiles.sort(lambda x, y: (cmp(stat(x)[8], stat(y)[8])))
             
             # Make list for tarball - restrict total number of files
             filesToTar = []
@@ -91,7 +91,7 @@ def main():
                 print "Removing %s..." % toAdd
                 unlink(toAdd)
                 
-        except KeyboardInterrupt, k: break
+        except KeyboardInterrupt: break
         #except: pass
 
 if __name__ == "__main__": main()

@@ -199,9 +199,9 @@ def createConfig(cursor, mbid, **kwargs):
     txt += "<span>          %d </span>\n" % lc_span
     txt += "<preTrigger>  %4d </preTrigger>\n" % lc_pre_trigger
     txt += "<postTrigger> %4d </postTrigger>\n" % lc_post_trigger
-    for dir in ("up", "down"):
+    for d in ("up", "down"):
         for dist in range(4):
-            txt += '<cableLength dir="%s" dist="%d"> %4d </cableLength>\n' % (dir, dist+1, clen[dir][dist])
+            txt += '<cableLength dir="%s" dist="%d"> %4d </cableLength>\n' % (d, dist+1, clen[d][dist])
     txt += "</localCoincidence>\n"
     txt += '<supernovaMode enabled="true">\n'
     txt += "<deadtime> %d </deadtime>\n" % sn_deadtime
@@ -263,7 +263,7 @@ if __name__ == '__main__':
     # Extract the engineering format
     vec = opts.engFmt.split(",")
     if len(vec) != 5:
-	print >> sys.error, "ERROR: engineering format spec is --E ATWD0,ATWD1,ATWD2,ATWD3,FADC"
+	print >> sys.stderr, "ERROR: engineering format spec is --E ATWD0,ATWD1,ATWD2,ATWD3,FADC"
 	sys.exit(1)
     engFmt = (tuple([ int(x) for x in vec[0:4] ]), int(vec[4]))
         

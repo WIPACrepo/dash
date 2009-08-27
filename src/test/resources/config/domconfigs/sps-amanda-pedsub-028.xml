@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<domConfigList>
+  <domConfig mbid='1e5b72775d19' name='AMANDA_SYNC_DOM'>
+<pedestalSubtract> true </pedestalSubtract>
+    <format>
+      <engineeringFormat>
+        <fadcSamples> 0 </fadcSamples>
+        <atwd ch="0">
+          <samples> 0 </samples>
+        </atwd>
+        <atwd ch="1">
+          <samples> 0 </samples>
+        </atwd>
+        <atwd ch="2">
+          <samples> 32 </samples>
+        </atwd>
+        <atwd ch="3">
+          <samples> 0 </samples>
+        </atwd>
+      </engineeringFormat>
+    </format>
+    <triggerMode> spe </triggerMode>
+    <atwd0TriggerBias> 850 </atwd0TriggerBias>
+    <atwd1TriggerBias> 850 </atwd1TriggerBias>
+    <atwd0RampRate> 350 </atwd0RampRate>
+    <atwd1RampRate> 350 </atwd1RampRate>
+    <atwd0RampTop> 2300 </atwd0RampTop>
+    <atwd1RampTop> 2300 </atwd1RampTop>
+    <atwdAnalogRef> 2250 </atwdAnalogRef>
+    <frontEndPedestal> 2130 </frontEndPedestal>
+    <mpeTriggerDiscriminator> 650 </mpeTriggerDiscriminator>
+    <speTriggerDiscriminator> 1023 </speTriggerDiscriminator>
+    <fastAdcRef> 800 </fastAdcRef>
+    <internalPulser> 0 </internalPulser>
+    <ledBrightness> 1023 </ledBrightness>
+    <frontEndAmpLowerClamp> 0 </frontEndAmpLowerClamp>
+    <flasherDelay> 0 </flasherDelay>
+    <muxBias> 500 </muxBias>
+    <pmtHighVoltage> 0 </pmtHighVoltage>
+    <analogMux> off </analogMux>
+    <pulserMode> beacon </pulserMode>
+    <pulserRate> 5 </pulserRate>
+    <localCoincidence>
+      <type> hard </type>
+      <mode> none </mode>
+      <txMode> both </txMode>
+      <source> spe </source>
+      <span> 1 </span>
+      <preTrigger> 1000 </preTrigger>
+      <postTrigger> 1000 </postTrigger>
+      <cableLength dir="down" dist="1"> 650 </cableLength>
+      <cableLength dir="up" dist="1"> 550 </cableLength>
+      <cableLength dir="down" dist="2"> 1350 </cableLength>
+      <cableLength dir="up" dist="2"> 1350 </cableLength>
+      <cableLength dir="down" dist="3"> 1950 </cableLength>
+      <cableLength dir="up" dist="3"> 1975 </cableLength>
+      <cableLength dir="down" dist="4"> 2725 </cableLength>
+      <cableLength dir="up" dist="4"> 2725 </cableLength>
+    </localCoincidence>
+    <supernovaMode enabled="true">
+      <deadtime> 204800 </deadtime>
+      <disc> spe </disc>
+    </supernovaMode>
+    <scalerDeadtime> 51200 </scalerDeadtime>
+  </domConfig>
+
+  <domConfig mbid='1d165fc478ca' name='AMANDA_TRIG_DOM'>
+<pedestalSubtract> true </pedestalSubtract>
+    <format>
+      <engineeringFormat>
+        <fadcSamples> 0 </fadcSamples>
+        <atwd ch="0">
+          <samples> 0 </samples>
+        </atwd>
+        <atwd ch="1">
+          <samples> 0 </samples>
+        </atwd>
+        <atwd ch="2">
+          <samples> 32 </samples>
+        </atwd>
+        <atwd ch="3">
+          <samples> 0 </samples>
+        </atwd>
+      </engineeringFormat>
+    </format>
+    <triggerMode> spe </triggerMode>
+    <atwd0TriggerBias> 850 </atwd0TriggerBias>
+    <atwd1TriggerBias> 850 </atwd1TriggerBias>
+    <atwd0RampRate> 350 </atwd0RampRate>
+    <atwd1RampRate> 350 </atwd1RampRate>
+    <atwd0RampTop> 2300 </atwd0RampTop>
+    <atwd1RampTop> 2300 </atwd1RampTop>
+    <atwdAnalogRef> 2250 </atwdAnalogRef>
+    <frontEndPedestal> 2130 </frontEndPedestal>
+    <mpeTriggerDiscriminator> 1000 </mpeTriggerDiscriminator>
+    <speTriggerDiscriminator> 650 </speTriggerDiscriminator>
+    <fastAdcRef> 800 </fastAdcRef>
+    <internalPulser> 0 </internalPulser>
+    <ledBrightness> 1023 </ledBrightness>
+    <frontEndAmpLowerClamp> 0 </frontEndAmpLowerClamp>
+    <flasherDelay> 0 </flasherDelay>
+    <muxBias> 500 </muxBias>
+    <pmtHighVoltage> 0 </pmtHighVoltage>
+    <analogMux> off </analogMux>
+    <pulserMode> beacon </pulserMode>
+    <pulserRate> 5 </pulserRate>
+    <localCoincidence>
+      <type> hard </type>
+      <mode> none </mode>
+      <txMode> both </txMode>
+      <source> spe </source>
+      <span> 2 </span>
+      <preTrigger> 1000 </preTrigger>
+      <postTrigger> 1000 </postTrigger>
+      <cableLength dir="down" dist="1"> 650 </cableLength>
+      <cableLength dir="up" dist="1"> 550 </cableLength>
+      <cableLength dir="down" dist="2"> 1350 </cableLength>
+      <cableLength dir="up" dist="2"> 1350 </cableLength>
+      <cableLength dir="down" dist="3"> 1950 </cableLength>
+      <cableLength dir="up" dist="3"> 1975 </cableLength>
+      <cableLength dir="down" dist="4"> 2725 </cableLength>
+      <cableLength dir="up" dist="4"> 2725 </cableLength>
+    </localCoincidence>
+    <supernovaMode enabled="true">
+      <deadtime> 204800 </deadtime>
+      <disc> spe </disc>
+    </supernovaMode>
+    <scalerDeadtime> 51200 </scalerDeadtime>
+  </domConfig>
+
+</domConfigList>

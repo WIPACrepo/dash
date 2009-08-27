@@ -105,7 +105,7 @@ class Component(object):
             if compName == 'stringHub':
                 if compNum % 100 == 0:
                     compName = 'amandaHub'
-                elif compNum % 100 > 80:
+                elif compNum % 1000 >= 200:
                     compName = 'icetopHub'
 
         self.name = compName
@@ -182,7 +182,7 @@ def fixValue(valStr):
         subStr = valStr[idx+1:nxt]
         try:
             tot += long(subStr)
-        except ValueError, ex:
+        except ValueError:
             print >>sys.stderr, \
                 "Couldn't get integer value for '%s' ('%s' idx %d nxt %d)" % \
                 (subStr, valStr, idx, nxt)

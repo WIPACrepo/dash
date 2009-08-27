@@ -12,21 +12,17 @@ Started November, 2007
 
 """
 
-import optparse, signal, sys, threading, time, select, popen2, os, os.path
-
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if os.environ.has_key("PDAQ_HOME"):
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
-
-# add 'cluster-config' to Python library search path
-#
-sys.path.append(os.path.join(metaDir, 'cluster-config'))
+import datetime, optparse, os, popen2, re, select, signal, sys, threading, time
 
 from ClusterConfig import *
 from ParallelShell import *
+
+# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+if environ.has_key("PDAQ_HOME"):
+    metaDir = environ["PDAQ_HOME"]
+else:
+    from locate_pdaq import find_pdaq_trunk
+    metaDir = find_pdaq_trunk()
 
 def hasNonZero(l):
     if not l: raise RuntimeError("List is empty!")
@@ -63,7 +59,7 @@ class ThreadableProcess:
         self.fd  = self.pop.fromchild
         fileno   = self.fd.fileno()
         while not self.doStop:
-            ready = select.select([fileno],[],[], 1)
+            ready = select.select([fileno], [], [], 1)
             if len(ready[0]) < 1: continue # Pick up stop signal
             self.lock.acquire()
             buf = os.read(fileno, 4096)
@@ -114,7 +110,7 @@ class DOM:
     """
     Small class to represent DOM states
     """
-    def __init__(self,cwd, lines=None):
+    def __init__(self, cwd, lines=None):
         self.cwd        = cwd
         self.lines      = []
         if lines:
@@ -156,8 +152,8 @@ class DOMCounter:
         self.data    = s
         self.domDict = {}
 
-        list = re.findall('(\d\d\w): (.+)', self.data)
-        for line in list:
+        domList = re.findall('(\d\d\w): (.+)', self.data)
+        for line in domList:
             cwd = line[0]
             dat = line[1]
             if not self.domDict.has_key(cwd):
@@ -336,7 +332,8 @@ def testProcs():
     
 def main():
 
-    p = optparse.OptionParser(usage="usage: %prog [options] <releasefile>")
+    usage = "usage: %prog [options] <releasefile>"
+    p = optparse.OptionParser(usage=usage)
     p.add_option("-c", "--config-name",  action="store", type="string",
                  dest="clusterConfigName",
                  help="Cluster configuration name, subset of deployed configuration.")

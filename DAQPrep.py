@@ -5,8 +5,11 @@
 # Started: Fri Jun  1 15:57:10 2007
 
 import sys, optparse, re
-from os import environ, getcwd, listdir, system
-from os.path import abspath, isabs, join
+from os import environ
+from os.path import join
+
+from ClusterConfig import *
+from ParallelShell import *
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -15,17 +18,10 @@ else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
-# add 'cluster-config' to Python library search path
-#
-sys.path.append(join(metaDir, 'cluster-config'))
-
-from ClusterConfig import *
-from ParallelShell import *
-
 def main():
     "Main program"
     usage = "%prog [options]"
-    p = optparse.OptionParser()
+    p = optparse.OptionParser(usage=usage)
     p.add_option("-c", "--config-name",  action="store", type="string", dest="clusterConfigName",
                  help="REQUIRED: Configuration name")
     p.add_option("-n", "--dry-run",      action="store_true",           dest="dryRun",

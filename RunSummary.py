@@ -16,7 +16,6 @@ from os.path import exists, isdir, abspath, basename, join
 from shutil import copy
 from re import *
 from exc_string import *
-from tarfile import TarFile
 
 class BadSnippetFormatException(Exception): pass
 class BadDayTimeException(Exception):       pass
@@ -218,10 +217,10 @@ def hhmmss(t):
     if t is None: return ""
     return "%02d:%02d:%02d" % (t.hour, t.minute, t.second)
 
-def dashTime(str):
+def dashTime(dateStr):
     "Get datetime object from string in form 'yyyy-mm-dd hh:mm:ss.uuuuuu'"
-    if not str: return None
-    match = search(r'(\d\d\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)\.(\d\d\d\d\d\d)', str)
+    if not dateStr: return None
+    match = search(r'(\d\d\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)\.(\d\d\d\d\d\d)', dateStr)
     if not match: return None
     return datetime.datetime(int(match.group(1)),
                              int(match.group(2)),
@@ -309,7 +308,7 @@ def toSeconds(t):
     if t == None: return None
     return t.days*86400 + t.seconds
 
-def makeRunReport(snippetFile, dashFile, release, infoPat, runInfo, configName,
+def makeRunReport(snippetFile, dashFile, release, runInfo, configName,
                       status, nEvents, cumEvents, lastTimeStr, absRunDir, relRunDir):
     """
     Calculate start and stop times, duration and rate.  Make HTML summary line
@@ -414,7 +413,7 @@ def makeSummaryHtml(logLink, runNum, release, configName, status, nEvents, cumEv
 
 infoPat = r'(\d+)_(\d\d\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)_(\d+)'
 
-def cmp(a, b):
+def infocmp(a, b):
     amatch = search(infoPat, a)
     bmatch = search(infoPat, b)
     if not amatch: return 0
@@ -450,7 +449,7 @@ def processInclusionDir(dir):
                                         int(p.group(5)),
                                         int(p.group(6))))
                 if tarFile and not exists(tarFile): # !
-                    tf = TarFile(tarFile, "w")
+                    tf = tarfile.TarFile(tarFile, "w")
                     tf.add(join(dir, dirfile), dirfile, True)
                     tf.close()
         
@@ -501,7 +500,9 @@ def createTopHTML(runDir, liveTime24hr=None, liveTime7days=None, refresh=15):
         <p>You will be redirected in %d seconds.</p><p>Please update your bookmarks!</p></strong>    
         <br>""" % refresh
     else:
+        refreshHTML = ""
         title = "IceCube DAQ Run Summaries"
+        refreshNotice = ""
     if liveTime24hr != None and liveTime7days != None:
         lt = """
 <table>
@@ -613,8 +614,8 @@ def getSortedRunReportDirs(outputDir):
     return [join(outputDir, x) for x in rundirs]
 
 def getRunRecs(sortedDirs):
-    for dir in sortedDirs:
-        sf = join(dir, ".snippet")
+    for d in sortedDirs:
+        sf = join(d, ".snippet")
         if exists(sf):
             try:
                 rec = SnippetRunRec(sf)
@@ -644,7 +645,7 @@ def getLiveTimes(runDirs):
             lastLess7d  = lastTime - datetime.timedelta(7) # 1 week earlier
         try:
             runStart = datetimeFromDayTime(rec.startDay, rec.startTime)
-        except TypeError, t: # Skip runs with missing start times
+        except TypeError: # Skip runs with missing start times
             continue
         
         if runStop <= lastLess24h:
@@ -762,9 +763,8 @@ def main():
     if opt.inclusionDir:
         processInclusionDir(opt.inclusionDir)
         tarlist += recursiveGetTarFiles(opt.inclusionDir)
-    tarlist.sort(cmp)
+    tarlist.sort(infocmp)
 
-    maxFirstFileRuns = 100
     for f in tarlist:
         prefix = 'SPS-pDAQ-run-'
         if search(r'.done$', f): continue # Skip SPADE .done semaphores
@@ -774,7 +774,7 @@ def main():
             runInfoString = match.group(1)
             match = search(infoPat, runInfoString)
             if not match: continue
-            runNum = int(match.group(1))
+            #runNum = int(match.group(1))
             outDir = runDir + "/" + runInfoString
             makeDirOrExit(outDir)
             tarFile     = f
@@ -884,7 +884,7 @@ def main():
                         lines = []
                         for l in dc:
                             s = search('\[(.+?)\]\s+(\d+) physics events \(.+? Hz\)\,', l)
-                            if s: lines.append((s.group(1),s.group(2)))
+                            if s: lines.append((s.group(1), s.group(2)))
                         if len(lines) > 0:
                             lastTimeStr = lines[-1][0]
                             cumEvents   = int(lines[-1][1])
@@ -904,7 +904,7 @@ def main():
                 if status == None: status = "INCOMPLETE"
 
                 # Make HTML snippet for run summaries
-                makeRunReport(snippetFile, dashFile, release, infoPat, runInfoString, 
+                makeRunReport(snippetFile, dashFile, release, runInfoString, 
                               configName, status, nEvents, cumEvents, lastTimeStr,
                               runDir+"/"+linkDir, linkDir)
 
