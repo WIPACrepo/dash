@@ -25,6 +25,28 @@ from ParallelShell import *
 #
 RELEASE = "1.0.0-SNAPSHOT"
 
+# System java path
+#
+SYSTEM_JAVA = "java"
+SYSTEM_JAVA_ARGS = ""
+
+# IBM java path and arguments
+#
+IBM_JAVA = "/opt/ibm/java-x86_64-60/jre/bin/java"
+IBM_JAVA_ARGS = "-Xcompressedrefs"
+
+# The "fallback" Java binary, used on all non-SPS and non-SPTS systems
+#
+FALLBACK_JAVA = SYSTEM_JAVA
+
+# the default SPS/SPTS Java binary for all components except the hubs
+#
+COMPONENT_JAVA = IBM_JAVA
+
+# the default SPS/SPTS Java binary for hubs
+#
+STRINGHUB_JAVA = SYSTEM_JAVA
+
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
     metaDir = environ["PDAQ_HOME"]
@@ -36,7 +58,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 4571 2009-08-28 21:16:35Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 4572 2009-08-28 21:18:10Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -49,7 +71,11 @@ class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
 
 class ComponentData(object):
-    def __init__(self, name, type="comp", memory=1024, extraArgs=None):
+    WARNED = {}
+
+    def __init__(self, name, type="comp", memory=1024, java=COMPONENT_JAVA,
+                 extraArgs=None):
+        self.__java = java
         self.__name = name
         self.__type = type
         self.__memory = memory
@@ -66,22 +92,35 @@ class ComponentData(object):
     def getJar(self):
         return "%s-%s-%s.jar" % (self.__name, RELEASE, self.__type)
 
+    def getJavaBinary(self, nodeName):
+        if nodeName.startswith("sps-") or nodeName.startswith("spts-") or \
+                nodeName.startswith("spts64-"):
+            return self.__java
+
+        if nodeName != "localhost" and \
+                not ComponentData.WARNED.has_key(nodeName):
+            print >>sys.stderr, "Defaulting to \"%s\" on %s" % \
+                (FALLBACK_JAVA, nodeName)
+            ComponentData.WARNED[nodeName] = True
+
+        return FALLBACK_JAVA
+
 class TriggerData(ComponentData):
     def __init__(self, type, memory):
-        super(TriggerData, self).__init__("trigger", type, memory, extraArgs="-Xcompressedrefs")
+        super(TriggerData, self).__init__("trigger", type, memory)
 
 class HubData(ComponentData):
     def __init__(self, type, memory):
+        java = STRINGHUB_JAVA
         extraArgs = "-Dicecube.daq.bindery.StreamBinder.prescale=1"
-        super(HubData, self).__init__("StringHub", type, memory, extraArgs)
+        super(HubData, self).__init__("StringHub", type, memory, java=java,
+                                      extraArgs=extraArgs)
 
 # note that the component name keys for componentDB should be lower-case
 componentDB = { "eventbuilder"      :
-                    ComponentData("eventBuilder-prod", memory=1200,
-                                  extraArgs="-Xcompressedrefs"),
+                    ComponentData("eventBuilder-prod", memory=1200),
                 "secondarybuilders" :
-                    ComponentData("secondaryBuilders", memory=1200,
-                                  extraArgs="-Xcompressedrefs"),
+                    ComponentData("secondaryBuilders", memory=1200),
                 "inicetrigger"      : TriggerData("iitrig", 2000),
                 "simpletrigger"     : TriggerData("simptrig", 500),
                 "icetoptrigger"     : TriggerData("ittrig", 512),
@@ -164,8 +203,13 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
                     (comp.compName, execJar)
                 continue
 
-            javaCmd = "/opt/ibm/java-x86_64-60/jre/bin/java"
+            javaCmd = data.getJavaBinary(node.hostName)
             jvmArgs = data.getJVMArgs()
+
+            if javaCmd == SYSTEM_JAVA and SYSTEM_JAVA_ARGS != "":
+                jvmArgs += " " + SYSTEM_JAVA_ARGS
+            if javaCmd == IBM_JAVA and IBM_JAVA_ARGS != "":
+                jvmArgs += " " + IBM_JAVA_ARGS
 
             switches = "-g %s" % configDir
             switches += " -c %s:%d" % (myIP, DAQPort.CNCSERVER)
@@ -178,7 +222,6 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
             if comp.compName.endswith("Hub"):
                 jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % \
                     comp.compID
-                javaCmd = "java"
                 
             if eventCheck and comp.compName == "eventBuilder":
                 jvmArgs += " -Dicecube.daq.eventBuilder.validateEvents"
