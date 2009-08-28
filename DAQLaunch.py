@@ -21,6 +21,10 @@ from Process import findProcess, processList
 from ClusterConfig import *
 from ParallelShell import *
 
+# the pDAQ release name
+#
+RELEASE = "1.0.0-SNAPSHOT"
+
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
     metaDir = environ["PDAQ_HOME"]
@@ -32,7 +36,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 4570 2009-08-28 21:08:53Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 4571 2009-08-28 21:16:35Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -45,8 +49,6 @@ class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
 
 class ComponentData(object):
-    RELEASE = "1.0.0-SNAPSHOT"
-
     def __init__(self, name, type="comp", memory=1024, extraArgs=None):
         self.__name = name
         self.__type = type
@@ -62,8 +64,7 @@ class ComponentData(object):
         return jvmArgs
 
     def getJar(self):
-        return "%s-%s-%s.jar" % \
-            (self.__name, ComponentData.RELEASE, self.__type)
+        return "%s-%s-%s.jar" % (self.__name, RELEASE, self.__type)
 
 class TriggerData(ComponentData):
     def __init__(self, type, memory):
@@ -141,9 +142,9 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
         parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose)
 
     # The dir where all the "executable" jar files are
-    binDir = join(metaDir, 'target', 'pDAQ-1.0.0-SNAPSHOT-dist', 'bin')
+    binDir = join(metaDir, 'target', 'pDAQ-%s-dist' % RELEASE, 'bin')
     if checkExists and not os.path.isdir(binDir):
-        binDir = join(metaDir, 'target', 'pDAQ-1.0.0-SNAPSHOT-dist.dir', 'bin')
+        binDir = join(metaDir, 'target', 'pDAQ-%s-dist.dir' % RELEASE, 'bin')
         if not os.path.isdir(binDir):
             raise SystemExit("Cannot find jar file directory")
 
