@@ -643,7 +643,8 @@ class MockParallelShell(object):
         else:
             redir = ' </dev/null >/dev/null 2>&1'
 
-        cmd = 'java %s' % launchData.getJVMArgs()
+        cmd = '%s %s' % (launchData.getJavaBinary(host),
+                         launchData.getJVMArgs())
 
         if eventCheck and compName == 'eventBuilder':
             cmd += ' -Dicecube.daq.eventBuilder.validateEvents'
