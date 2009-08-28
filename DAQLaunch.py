@@ -32,7 +32,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 4505 2009-08-08 04:53:48Z kael $"
+SVN_ID = "$Id: DAQLaunch.py 4570 2009-08-28 21:08:53Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -75,8 +75,12 @@ class HubData(ComponentData):
         super(HubData, self).__init__("StringHub", type, memory, extraArgs)
 
 # note that the component name keys for componentDB should be lower-case
-componentDB = { "eventbuilder"      : ComponentData("eventBuilder-prod", memory=1200, extraArgs="-Xcompressedrefs"),
-                "secondarybuilders" : ComponentData("secondaryBuilders", memory=1200, extraArgs="-Xcompressedrefs"),
+componentDB = { "eventbuilder"      :
+                    ComponentData("eventBuilder-prod", memory=1200,
+                                  extraArgs="-Xcompressedrefs"),
+                "secondarybuilders" :
+                    ComponentData("secondaryBuilders", memory=1200,
+                                  extraArgs="-Xcompressedrefs"),
                 "inicetrigger"      : TriggerData("iitrig", 2000),
                 "simpletrigger"     : TriggerData("simptrig", 500),
                 "icetoptrigger"     : TriggerData("ittrig", 512),
@@ -114,14 +118,16 @@ def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9, parallel=None):
                 if verbose: print cmd
                 parallel.add(cmd)
                 if not killWith9:
-                    cmd = "sleep 2; pkill -9 -fu %s %s" % (environ["USER"], jarName)
+                    cmd = "sleep 2; pkill -9 -fu %s %s" % \
+                        (environ["USER"], jarName)
                     if verbose: print cmd
                     parallel.add(cmd)
             else:                            # Have to ssh to kill
                 cmd = "ssh %s pkill %s -f %s" % (node.hostName, niner, jarName)
                 parallel.add(cmd)
                 if not killWith9:
-                    cmd = "sleep 2; ssh %s pkill -9 -f %s" % (node.hostName, jarName)
+                    cmd = "sleep 2; ssh %s pkill -9 -f %s" % \
+                        (node.hostName, jarName)
                     parallel.add(cmd)
 
     if not dryRun:
@@ -169,7 +175,8 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
             compIO = quietStr
 
             if comp.compName.endswith("Hub"):
-                jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % comp.compID
+                jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % \
+                    comp.compID
                 javaCmd = "java"
                 
             if eventCheck and comp.compName == "eventBuilder":
@@ -436,7 +443,8 @@ if __name__ == "__main__":
                 mkdir(logDir)
             except OSError, (errno, strerror):
                 if opt.verbose:
-                    print "Problem making log dir: '%s' (%s)" % (logDir, strerror)
+                    print "Problem making log dir: '%s' (%s)" % \
+                        (logDir, strerror)
                     print "Using fallback for logDir: %s" % (logDirFallBack)
                 logDir = logDirFallBack
                 if not exists(logDir): mkdir(logDir)
