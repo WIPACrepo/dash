@@ -406,12 +406,12 @@ class MockConnection(object):
 
 class MockComponent(object):
     def __init__(self, name, num, host='localhost'):
-        self.name = name
-        self.num = num
-        self.host = host
+        self.__name = name
+        self.__num = num
+        self.__host = host
 
-        self.connectors = []
-        self.cmdOrder = None
+        self.__connectors = []
+        self.__cmdOrder = None
 
         self.runNum = None
 
@@ -422,13 +422,13 @@ class MockComponent(object):
         self.__monitorState = '???'
 
     def __str__(self):
-        outStr = self.getName()
+        outStr = self.fullName()
         extra = []
         if self.__isSrc:
             extra.append('SRC')
         if self.__configured:
             extra.append('CFG')
-        for conn in self.connectors:
+        for conn in self.__connectors:
             extra.append(str(conn))
             
         if len(extra) > 0:
@@ -436,10 +436,10 @@ class MockComponent(object):
         return outStr
 
     def addInput(self, type, port):
-        self.connectors.append(MockConnection(type, port))
+        self.__connectors.append(MockConnection(type, port))
 
     def addOutput(self, type):
-        self.connectors.append(MockConnection(type, None))
+        self.__connectors.append(MockConnection(type, None))
 
     def configure(self, configName=None):
         if not self.__connected:
@@ -451,31 +451,22 @@ class MockComponent(object):
         self.__connected = True
         return 'OK'
 
+    def connectors(self):
+        return self.__connectors[:]
+
+    def fullName(self):
+        if self.__num == 0 and self.__name[-3:].lower() != 'hub':
+            return self.__name
+        return '%s#%d' % (self.__name, self.__num)
+
     def getConfigureWait(self):
         return self.__configWait
 
-    def getName(self):
-        if self.num == 0 and self.name[-3:].lower() != 'hub':
-            return self.name
-        return '%s#%d' % (self.name, self.num)
-
-    def getOrder(self):
-        return self.cmdOrder
-
-    def getState(self):
-        if not self.__connected:
-            return 'idle'
-        if not self.__configured or self.__configWait > 0:
-            if self.__configured and self.__configWait > 0:
-                self.__configWait -= 1
-            return 'connected'
-        if not self.runNum:
-            return 'ready'
-
-        return 'running'
+    def host(self):
+        return self.__host
 
     def isComponent(self, name, num):
-        return self.name == name
+        return self.__name == name
 
     def isConfigured(self):
         return self.__configured
@@ -489,6 +480,15 @@ class MockComponent(object):
     def monitor(self):
         return self.__monitorState
 
+    def name(self):
+        return self.__name
+
+    def num(self):
+        return self.__num
+
+    def order(self):
+        return self.__cmdOrder
+
     def reset(self):
         self.__connected = False
         self.__configured = False
@@ -498,17 +498,29 @@ class MockComponent(object):
         self.__configWait = waitNum
 
     def setOrder(self, num):
-        self.cmdOrder = num
+        self.__cmdOrder = num
 
     def startRun(self, runNum):
         if not self.__configured:
-            raise Exception(self.name + ' has not been configured')
+            raise Exception(self.__name + ' has not been configured')
 
         self.runNum = runNum
 
+    def state(self):
+        if not self.__connected:
+            return 'idle'
+        if not self.__configured or self.__configWait > 0:
+            if self.__configured and self.__configWait > 0:
+                self.__configWait -= 1
+            return 'connected'
+        if not self.runNum:
+            return 'ready'
+
+        return 'running'
+
     def stopRun(self):
         if self.runNum is None:
-            raise Exception(self.name + ' is not running')
+            raise Exception(self.__name + ' is not running')
 
         self.runNum = None
 
@@ -519,7 +531,7 @@ class MockDAQClient(DAQClient):
         self.__appender = appender
 
         self.outLinks = outLinks
-        self.state = 'idle'
+        self.__state = 'idle'
 
         super(MockDAQClient, self).__init__(name, num, host, port, mbeanPort,
                                             connectors, True)
@@ -532,29 +544,29 @@ class MockDAQClient(DAQClient):
         pass
 
     def configure(self, cfgName=None):
-        self.state = 'ready'
+        self.__state = 'ready'
         return super(MockDAQClient, self).configure(cfgName)
 
     def connect(self, links=None):
-        self.state = 'connected'
+        self.__state = 'connected'
         return super(MockDAQClient, self).connect(links)
 
     def createClient(self, host, port):
-        return MockRPCClient(self.name, self.num, self.outLinks)
+        return MockRPCClient(self.name(), self.num(), self.outLinks)
 
     def createCnCLogger(self, quiet):
         return MockCnCLogger(self.__appender, quiet)
 
-    def getState(self):
-        return self.state
-
     def reset(self):
-        self.state = 'idle'
+        self.__state = 'idle'
         return super(MockDAQClient, self).reset()
 
     def startRun(self, runNum):
-        self.state = 'running'
+        self.__state = 'running'
         return super(MockDAQClient, self).startRun(runNum)
+
+    def state(self):
+        return self.__state
 
 class MockIntervalTimer(object):
     def __init__(self, interval):

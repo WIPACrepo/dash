@@ -577,10 +577,11 @@ class RealComponent(object):
         self.__cmd.server_close()
         self.__mbean.server_close()
 
+    def fullName(self): return self.__name
+
     def getCommandPort(self): return self.__cmd.portnum
     def getId(self): return 999
     def getMBeanPort(self): return self.__mbean.portnum
-    def getName(self): return self.__name
     def getNumber(self): return self.__num
 
     def getState(self):
@@ -983,13 +984,13 @@ class IntegrationTest(unittest.TestCase):
         launchList = self.__compList[:]
         for i in range(len(launchList)):
             comp = launchList[i]
-            if comp.getName() == 'stringHub' and comp.getNumber() == 1081:
+            if comp.fullName() == 'stringHub' and comp.getNumber() == 1081:
                 del launchList[i]
                 break
         launchList.sort(RealComponent.sortForLaunch)
 
         for comp in launchList:
-            pShell.addExpectedJavaKill(comp.getName(), killWith9, verbose, host)
+            pShell.addExpectedJavaKill(comp.fullName(), killWith9, verbose, host)
 
         pShell.addExpectedPython(doLive, doDAQRun, doCnC, dashDir,
                                  IntegrationTest.CONFIG_DIR,
@@ -998,7 +999,7 @@ class IntegrationTest(unittest.TestCase):
                                  IntegrationTest.CONFIG_NAME,
                                  IntegrationTest.COPY_DIR, logPort, livePort)
         for comp in launchList:
-            pShell.addExpectedJava(comp.getName(), comp.getNumber(),
+            pShell.addExpectedJava(comp.fullName(), comp.getNumber(),
                                    IntegrationTest.CONFIG_DIR, logPort,
                                    livePort, logLevel, verbose, False, host)
 
@@ -1087,7 +1088,7 @@ class IntegrationTest(unittest.TestCase):
                                                comp.getCommandPort(),
                                                comp.getMBeanPort()))
                 liveLog.addExpectedText('Hello from %s' % str(comp))
-            comp.register(self.__getConnectionList(comp.getName()))
+            comp.register(self.__getConnectionList(comp.fullName()))
 
     def __runTest(self, live, dr, cnc, liveLog, appender, catchall,
                    targetFlags, liveRunOnly):
@@ -1140,7 +1141,7 @@ class IntegrationTest(unittest.TestCase):
 
             for c in self.__compList:
                 msg = 'Component list will require %s#%d' % \
-                    (c.getName(), c.getNumber())
+                    (c.fullName(), c.getNumber())
                 if catchall and not liveRunOnly: catchall.addExpectedText(msg)
                 if liveLog: liveLog.addExpectedText(msg)
 
@@ -1184,7 +1185,7 @@ class IntegrationTest(unittest.TestCase):
             nextPort = DAQPort.RUNCOMP_BASE
             for c in self.__compList:
                 patStr = r'%s\(\d+ \S+:%d\) -> %s:%d' % \
-                    (c.getName(), c.getCommandPort(), dr.ip, nextPort)
+                    (c.fullName(), c.getCommandPort(), dr.ip, nextPort)
                 appender.addExpectedRegexp(patStr)
                 if liveLog: liveLog.addExpectedTextRegexp(patStr)
                 nextPort += 1
@@ -1193,7 +1194,7 @@ class IntegrationTest(unittest.TestCase):
                 liveLog.addExpectedText('Hello from %s' % str(c))
                 liveLog.addExpectedTextRegexp((r'Version info: %s \S+ \S+' +
                                                r' \S+ \S+ \S+ \d+\S+') %
-                                              c.getName())
+                                              c.fullName())
 
         if RUNLOG_INFO:
             msg = 'Configuring run set...'
@@ -1206,7 +1207,7 @@ class IntegrationTest(unittest.TestCase):
                 for c in self.__compList:
                     msg = ('Creating moni output file %s/%s-%d.moni' +
                            ' (remote is localhost:%d)') % \
-                           (runDir, c.getName(), c.getNumber(),
+                           (runDir, c.fullName(), c.getNumber(),
                             c.getMBeanPort())
                     if appender and not liveRunOnly:
                         appender.addExpectedExact(msg)
@@ -1301,20 +1302,20 @@ class IntegrationTest(unittest.TestCase):
             if not appender or liveRunOnly:
                 clog = None
             else:
-                clog = StubbedDAQRun.getComponentLog(c.getName(), c.getNumber())
+                clog = StubbedDAQRun.getComponentLog(c.fullName(), c.getNumber())
                 if clog is None:
                     raise Exception('No log for %s#%d' %
-                                    (c.getName(), c.getNumber()))
+                                    (c.fullName(), c.getNumber()))
 
-            if c.getName() == 'eventBuilder':
+            if c.fullName() == 'eventBuilder':
                 msg = 'Prep subrun %d' % subRunId
                 if clog: clog.addExpectedExact(msg)
                 if liveLog: liveLog.addExpectedText(msg)
-            if c.getName() == 'stringHub':
+            if c.fullName() == 'stringHub':
                 msg = 'Start subrun %s' % str(rpcFlashList)
                 if clog: clog.addExpectedExact(msg)
                 if liveLog: liveLog.addExpectedText(msg)
-            if c.getName() == 'eventBuilder':
+            if c.fullName() == 'eventBuilder':
                 patStr = 'Commit subrun %d: \d+L' % subRunId
                 if clog: clog.addExpectedRegexp(patStr)
                 if liveLog: liveLog.addExpectedTextRegexp(patStr)
@@ -1341,20 +1342,20 @@ class IntegrationTest(unittest.TestCase):
             if not appender or liveRunOnly:
                 clog = None
             else:
-                clog = StubbedDAQRun.getComponentLog(c.getName(), c.getNumber())
+                clog = StubbedDAQRun.getComponentLog(c.fullName(), c.getNumber())
                 if clog is None:
                     raise Exception('No log for %s#%d' %
-                                    (c.getName(), c.getNumber()))
+                                    (c.fullName(), c.getNumber()))
 
-            if c.getName() == 'eventBuilder':
+            if c.fullName() == 'eventBuilder':
                 msg = 'Prep subrun %d' % subRunId
                 if clog: clog.addExpectedExact(msg)
                 if liveLog: liveLog.addExpectedText(msg)
-            if c.getName() == 'stringHub':
+            if c.fullName() == 'stringHub':
                 msg = 'Start subrun %s' % str([])
                 if clog: clog.addExpectedExact(msg)
                 if liveLog: liveLog.addExpectedText(msg)
-            if c.getName() == 'eventBuilder':
+            if c.fullName() == 'eventBuilder':
                 patStr = 'Commit subrun %d: \d+L' % subRunId
                 if clog: clog.addExpectedRegexp(patStr)
                 if liveLog: liveLog.addExpectedTextRegexp(patStr)
@@ -1376,9 +1377,9 @@ class IntegrationTest(unittest.TestCase):
         numTCal = 93
 
         for c in self.__compList:
-            if c.getName() == 'eventBuilder':
+            if c.fullName() == 'eventBuilder':
                 c.setMBean('backEnd', 'NumEventsSent', numEvts)
-            elif c.getName() == 'secondaryBuilders':
+            elif c.fullName() == 'secondaryBuilders':
                 c.setMBean('moniBuilder', 'TotalDispatchedData', numMoni)
                 c.setMBean('snBuilder', 'TotalDispatchedData', numSN)
                 c.setMBean('tcalBuilder', 'TotalDispatchedData', numTCal)
@@ -1391,12 +1392,12 @@ class IntegrationTest(unittest.TestCase):
             if not appender or liveRunOnly:
                 clog = None
             else:
-                clog = StubbedDAQRun.getComponentLog(c.getName(), c.getNumber())
+                clog = StubbedDAQRun.getComponentLog(c.fullName(), c.getNumber())
                 if clog is None:
                     raise Exception('No log for %s#%d' %
-                                    (c.getName(), c.getNumber()))
+                                    (c.fullName(), c.getNumber()))
 
-            msg = 'Stop %s#%d' % (c.getName(), c.getNumber())
+            msg = 'Stop %s#%d' % (c.fullName(), c.getNumber())
             if clog: clog.addExpectedExact(msg)
             if liveLog: liveLog.addExpectedText(msg)
 
@@ -1564,7 +1565,7 @@ class IntegrationTest(unittest.TestCase):
             self.__createRunObjects(targetFlags)
 
         catchall.addExpectedText("I'm server %s running on port %d" %
-                                 (cnc.name, DAQPort.CNCSERVER))
+                                 (cnc.name(), DAQPort.CNCSERVER))
         catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
         threading.Thread(target=cnc.run, args=()).start()
@@ -1585,7 +1586,7 @@ class IntegrationTest(unittest.TestCase):
             self.__createRunObjects(targetFlags)
 
         catchall.addExpectedText("I'm server %s running on port %d" %
-                                  (cnc.name, DAQPort.CNCSERVER))
+                                  (cnc.name(), DAQPort.CNCSERVER))
         catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
         threading.Thread(target=cnc.run, args=()).start()
@@ -1607,7 +1608,7 @@ class IntegrationTest(unittest.TestCase):
             self.__createRunObjects(targetFlags)
 
         catchall.addExpectedText("I'm server %s running on port %d" %
-                                 (cnc.name, DAQPort.CNCSERVER))
+                                 (cnc.name(), DAQPort.CNCSERVER))
         catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
         threading.Thread(target=dr.run_thread, args=(None, pShell)).start()
@@ -1631,7 +1632,7 @@ class IntegrationTest(unittest.TestCase):
             self.__createRunObjects(targetFlags, True)
 
         catchall.addExpectedText("I'm server %s running on port %d" %
-                                 (cnc.name, DAQPort.CNCSERVER))
+                                 (cnc.name(), DAQPort.CNCSERVER))
         catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
         threading.Thread(target=cnc.run, args=()).start()
@@ -1668,7 +1669,7 @@ class IntegrationTest(unittest.TestCase):
         (live, liveLog) = self.__createLiveObjects(livePort)
 
         liveLog.addExpectedText("I'm server %s running on port %d" %
-                                 (cnc.name, DAQPort.CNCSERVER))
+                                 (cnc.name(), DAQPort.CNCSERVER))
         liveLog.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
         threading.Thread(target=cnc.run, args=()).start()
@@ -1703,7 +1704,7 @@ class IntegrationTest(unittest.TestCase):
 
         (live, liveLog) = self.__createLiveObjects(livePort)
 
-        msg = "I'm server %s running on port %d" % (cnc.name, DAQPort.CNCSERVER)
+        msg = "I'm server %s running on port %d" % (cnc.name(), DAQPort.CNCSERVER)
         catchall.addExpectedText(msg)
         liveLog.addExpectedText(msg)
 

@@ -38,13 +38,13 @@ class TestRunSet(unittest.TestCase):
             num += 1
 
         runset = RunSet(compList, logger)
-        self.assertEqual(str(runset), 'RunSet #' + str(runset.id))
+        self.assertEqual(str(runset), 'RunSet #%d' % runset.id())
 
         self.checkStatus(runset, compList, 'idle')
 
         logList = []
         for c in compList:
-            logList.append([c.name, c.num, 666, 'info'])
+            logList.append([c.name(), c.num(), 666, 'info'])
         runset.configureLogging('localhost', logList)
 
         if len(compList) > 0:
@@ -62,19 +62,19 @@ class TestRunSet(unittest.TestCase):
             for c in compList:
                 if c.getConfigureWait() > i:
                     if cfgWaitStr is None:
-                        cfgWaitStr = c.getName()
+                        cfgWaitStr = c.fullName()
                     else:
-                        cfgWaitStr += ', ' + c.getName()
+                        cfgWaitStr += ', ' + c.fullName()
 
             if cfgWaitStr is None:
                 break
 
             logger.addExpectedExact('RunSet #%d: Waiting for configuring: %s' %
-                                    (runset.id, cfgWaitStr))
+                                    (runset.id(), cfgWaitStr))
             i += 1
 
         runset.configure('xxx')
-        self.assertEqual(str(runset), 'RunSet #' + str(runset.id))
+        self.assertEqual(str(runset), 'RunSet #%d' % runset.id())
 
         if len(compList) > 0:
             self.failUnless(self.isCompListConfigured(compList),
@@ -87,8 +87,8 @@ class TestRunSet(unittest.TestCase):
         self.assertRaises(ValueError, runset.stopRun)
 
         runset.startRun(runNum)
-        self.assertEqual(str(runset), 'RunSet #' + str(runset.id) +
-                         ' run#' + str(runNum))
+        self.assertEqual(str(runset), 'RunSet #%d run#%d' %
+                         (runset.id(), runNum))
 
         if len(compList) > 0:
             self.failUnless(self.isCompListConfigured(compList),
@@ -99,7 +99,7 @@ class TestRunSet(unittest.TestCase):
         self.checkStatus(runset, compList, 'running')
 
         runset.stopRun()
-        self.assertEqual(str(runset), 'RunSet #' + str(runset.id))
+        self.assertEqual(str(runset), 'RunSet #%d' % runset.id())
 
         if len(compList) > 0:
             self.failUnless(self.isCompListConfigured(compList),
@@ -110,7 +110,7 @@ class TestRunSet(unittest.TestCase):
         self.checkStatus(runset, compList, 'ready')
 
         runset.reset()
-        self.assertEqual(str(runset), 'RunSet #' + str(runset.id))
+        self.assertEqual(str(runset), 'RunSet #%d' % runset.id())
 
         if len(compList) > 0:
             self.failIf(self.isCompListConfigured(compList),

@@ -1,18 +1,18 @@
 #!/usr/bin/env python
 
 import socket, unittest
-from CnCServer import DAQClient, DAQServer
+from CnCServer import DAQClient, CnCServer
 
 from DAQMocks import MockAppender, MockCnCLogger, \
     SocketReaderFactory, SocketWriter
 
 class TinyClient(object):
     def __init__(self, name, num, host, port, mbeanPort, connectors):
-        self.name = name
-        self.num = num
-        self.connectors = connectors
+        self.__name = name
+        self.__num = num
+        self.__connectors = connectors
 
-        self.id = DAQClient.ID
+        self.__id = DAQClient.ID
         DAQClient.ID += 1
 
         self.__host = host
@@ -28,7 +28,7 @@ class TinyClient(object):
         else:
             mStr = ' M#%d' % self.__mbeanPort
         return 'ID#%d %s#%d at %s:%d%s' % \
-            (self.id, self.name, self.num, self.__host, self.__port, mStr)
+            (self.__id, self.__name, self.__num, self.__host, self.__port, mStr)
 
     def configure(self, cfgName=None):
         self.__state = 'ready'
@@ -36,17 +36,17 @@ class TinyClient(object):
     def connect(self, connList=None):
         self.__state = 'connected'
 
-    def getName(self):
-        return self.name
+    def connectors(self):
+        return self.__connectors[:]
 
-    def getOrder(self):
-        return self.__order
+    def fullName(self):
+        return self.__name
 
-    def getState(self):
-        return self.__state
+    def id(self):
+        return self.__id
 
     def isComponent(self, name, num=-1):
-        return self.name == name and (num < 0 or self.num == num)
+        return self.__name == name and (num < 0 or self.__num == num)
 
     def isSource(self):
         return True
@@ -60,6 +60,12 @@ class TinyClient(object):
         self.__log.write_ts('Version info: unknown unknown unknown unknown' +
                             ' unknown BRANCH 0:0')
 
+    def name(self):
+        return self.__name
+
+    def order(self):
+        return self.__order
+
     def reset(self):
         self.__state = 'idle'
 
@@ -72,10 +78,13 @@ class TinyClient(object):
     def startRun(self, runNum):
         self.__state = 'running'
 
+    def state(self):
+        return self.__state
+
     def stopRun(self):
         self.__state = 'ready'
 
-class MockServer(DAQServer):
+class MockServer(CnCServer):
     APPENDER = MockAppender('server')
 
     def __init__(self, logPort, livePort):
