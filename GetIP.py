@@ -11,7 +11,16 @@ def getIP(remoteHost='1.2.3.4'):
     from *that* host's perspective.  This is needed at times when run
     on multi-homed hosts.  -ksb
     """
+
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    # Check that we can find the remoteHost's address
+    try:
+        socket.getaddrinfo(remoteHost, 56)
+    except socket.gaierror:
+        # problem - use a dummy value
+        remoteHost = '1.2.3.4'
+
     s.connect((remoteHost, 56))
     return s.getsockname()[0]
         
