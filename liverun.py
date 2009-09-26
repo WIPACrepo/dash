@@ -729,7 +729,7 @@ class LiveRun(object):
 
             if line.startswith("Found "):
                 failLine = line
-            elif not line.find("To force a restart"):
+            elif line.find("To force a restart") < 0:
                 print >>sys.stderr, "Unlaunch: %s" % line
         foe.close()
 
