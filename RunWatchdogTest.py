@@ -873,7 +873,7 @@ class TestRunWatchdog(unittest.TestCase):
                                   ' component #%d type %s#%d' %
                                   (id, name, compId))
 
-        wd = MockWatchdog(DAQLog(appender), None, idList, compNameDict,
+        wd = MockWatchdog(DAQLog(appender), 60.0, idList, compNameDict,
                           compIdDict, addrDict, portDict, dataDict)
 
     def testCreateWatchdogBadBean(self):
@@ -895,7 +895,7 @@ class TestRunWatchdog(unittest.TestCase):
         appender.addExpectedRegexp(r"Couldn't create watcher for component" +
                                    r' #%d type %s#%d: .*' % (id, name, compId))
 
-        wd = MockWatchdog(DAQLog(appender), None, idList, compNameDict,
+        wd = MockWatchdog(DAQLog(appender), 60.0, idList, compNameDict,
                           compIdDict, addrDict, portDict, dataDict)
 
     def testCreateWatchdog(self):
