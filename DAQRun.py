@@ -16,7 +16,7 @@ from DAQMoni import DAQMoni
 from RunWatchdog import RunWatchdog
 from DAQRPC import RPCClient, RPCServer
 from os.path import exists, abspath, join, basename, isdir
-from os import listdir
+from os import listdir, mkdir
 from Process import processList, findProcess
 from DAQLaunch import cyclePDAQ
 from tarfile import TarFile
@@ -52,7 +52,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4161 2009-05-19 01:41:26Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4629 2009-09-30 20:12:00Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -714,18 +714,27 @@ class DAQRun(object):
             self.log.error("FAILED to queue data for SPADE: %s" % exc_string())
 
     def move_spade_files(self, copyDir, basePrefix, logTopLevel, runDir, spadeDir):
+        runPath = "%s/%s" % (logTopLevel, runDir)
+        if not exists(runPath):
+            mkdir(runPath, 0755)
+            
         tarBall = "%s/%s.dat.tar" % (spadeDir, basePrefix)
         semFile = "%s/%s.sem"     % (spadeDir, basePrefix)
         self.log.info("Target files are:\n%s\n%s" % (tarBall, semFile))
-        move("%s/catchall.log" % logTopLevel, "%s/%s" % (logTopLevel, runDir))
+
         tarObj = TarFile(tarBall, "w")
-        tarObj.add("%s/%s" % (logTopLevel, runDir), runDir, True)
+
+        if isdir(runPath):
+            move("%s/catchall.log" % logTopLevel, runPath)
+            tarObj.add(runPath, runDir, True)
+
         # self.recursivelyAddToTar(tarObj, logTopLevel, runDir)
         tarObj.close()
         if copyDir:
             copyFile = "%s/%s.dat.tar" % (copyDir, basePrefix)
             self.log.info("Link or copy %s->%s" % (tarBall, copyFile))
             linkOrCopy(tarBall, copyFile)
+
         fd = open(semFile, "w")
         fd.close()
 
