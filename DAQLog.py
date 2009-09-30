@@ -102,6 +102,7 @@ class LogSocketServer(object):
             thread = self.__thread
             self.__thread = None
             thread.join()
+        self.__outfile.close()
 
 if __name__ == "__main__":
 
