@@ -52,7 +52,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4629 2009-09-30 20:12:00Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4631 2009-10-01 02:51:27Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -335,6 +335,45 @@ def linkOrCopy(src, dest):
         else:
             raise
 
+class RateThread(threading.Thread):
+    "A thread which reports the current event rates"
+    def __init__(self, runStats, daqRun, log):
+        self.__runStats = runStats
+        self.__daqRun = daqRun
+        self.__log = log
+        self.__done = False
+
+        threading.Thread.__init__(self)
+
+        self.setName("DAQRun:RateThread")
+
+    def done(self):
+        return self.__done
+
+    def run(self):
+        self.__runStats.updateEventCounts(self.__daqRun, True)
+        try:
+            rate = self.__runStats.physicsRate.rate()
+            # This occurred in issue 2034 and is dealt with:
+            # debug code can be removed at will
+            if rate < 0:
+                self.__log.warn("WARNING: rate < 0")
+                for entry in self.__runStats.physicsRate.entries:
+                    self.__log.warn(str(entry))
+            #
+            rateStr = " (%2.2f Hz)" % rate
+        except (RateCalc.InsufficientEntriesException,
+                RateCalc.ZeroTimeDeltaException):
+            rateStr = ""
+        self.__log.error(("\t%s physics events%s, %s moni events," +
+                        " %s SN events, %s tcals")  %
+                       (self.__runStats.physicsEvents,
+                        rateStr,
+                        self.__runStats.moniEvents,
+                        self.__runStats.snEvents,
+                        self.__runStats.tcalEvents))
+        self.__done = True
+
 class DAQRun(object):
     "Serve requests to start/stop DAQ runs (exp control iface)"
     MONI_PERIOD    = 100
@@ -418,7 +457,10 @@ class DAQRun(object):
         self.runStats         = RunStats()
         self.quiet            = runArgs.quiet
         self.running          = False
+
         self.rateTimer        = self.setup_timer(DAQRun.RATE_PERIOD)
+        self.rateThread       = None
+        self.badRateCount     = 0
 
         self.__liveInfo       = None
         self.__id = int(time.time())
@@ -897,7 +939,6 @@ class DAQRun(object):
     MAX_UNHEALTHY_COUNT = 3
 
     def check_all(self):
-        checkRate = False
         if self.moni and self.moniTimer and self.moniTimer.isTime():
             self.moniTimer.reset()
             try:
@@ -907,26 +948,20 @@ class DAQRun(object):
 
         if self.rateTimer.isTime():
             self.rateTimer.reset()
-            self.runStats.updateEventCounts(self, True)
-            try:
-                rate = self.runStats.physicsRate.rate()
-                # This occurred in issue 2034 and is dealt with:
-                # debug code can be removed at will
-                if rate < 0:
-                    self.log.warn("WARNING: rate < 0")
-                    for entry in self.runStats.physicsRate.entries:
-                        self.log.warn(str(entry))
-                #
-                rateStr = " (%2.2f Hz)" % rate
-            except (RateCalc.InsufficientEntriesException, RateCalc.ZeroTimeDeltaException):
-                rateStr = ""
-            self.log.error(("\t%s physics events%s, %s moni events," +
-                            " %s SN events, %s tcals")  %
-                           (self.runStats.physicsEvents,
-                            rateStr,
-                            self.runStats.moniEvents,
-                            self.runStats.snEvents,
-                            self.runStats.tcalEvents))
+            if self.rateThread is not None and not self.rateThread.done():
+                self.badRateCount += 1
+                if self.badRateCount <= 3:
+                    self.log.error("WARNING: Rate thread is hanging (#%d)" %
+                                   self.badRateCount)
+                else:
+                    self.log.error("ERROR: Rate calculation seems to be" +
+                                   " stuck, stopping run")
+                    self.runState = "ERROR"
+            else:
+                self.badRateCount = 0
+
+                self.rateThread = RateThread(self.runStats, self, self.log)
+                self.rateThread.start()
 
         if self.watchdog:
             if self.watchdog.inProgress():
@@ -1071,7 +1106,8 @@ class DAQRun(object):
                     else:
                         self.log.error("Recovering from failed run %d..." %
                                        self.runStats.runNum)
-                    # "Forget" configuration so new run set will be made next time:
+                    # "Forget" configuration so new run set
+                    # will be made next time:
                     self.lastConfig = None
                     hadError = True
                 else:
@@ -1122,8 +1158,9 @@ class DAQRun(object):
 
                 if self.__isLogToFile() and logDirCreated:
                     catchAllLogger.stopServing()
-                    self.queue_for_spade(self.spadeDir, self.copyDir, self.logDir,
-                                         self.runStats.runNum, datetime.datetime.now(), duration)
+                    self.queue_for_spade(self.spadeDir, self.copyDir,
+                                         self.logDir, self.runStats.runNum,
+                                         datetime.datetime.now(), duration)
                     catchAllLogger.startServing()
 
                 if forceRestart or (hadError and self.restartOnError):
