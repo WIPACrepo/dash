@@ -4,7 +4,7 @@ import unittest
 from DAQLogClient import DAQLog
 from RunWatchdog import RunWatchdog, ThresholdWatcher, ValueWatcher, WatchData
 
-from DAQMocks import MockAppender
+from DAQMocks import MockAppender, MockRunComponent
 
 class BeanData(object):
     TYPE_INPUT = 'i'
@@ -101,13 +101,10 @@ class MockData(WatchData):
         self.__client.mbean.updateMBeanData(self.__comp)
 
 class MockWatchdog(RunWatchdog):
-    def __init__(self, daqLog, interval, IDs, shortNameOf, daqIDof,
-                 rpcAddrOf, mbeanPortOf, dataDict):
+    def __init__(self, daqLog, interval, comps, dataDict):
         self.__dataDict = dataDict
 
-        super(MockWatchdog, self).__init__(daqLog, interval, IDs, shortNameOf,
-                                           daqIDof, rpcAddrOf, mbeanPortOf,
-                                           True)
+        super(MockWatchdog, self).__init__(daqLog, interval, comps, True)
 
     def createData(self, id, name, daqID, rpcAddr, mbeanPort):
         return self.__dataDict[id]
@@ -860,12 +857,10 @@ class TestRunWatchdog(unittest.TestCase):
         id = 43
         name = 'foo'
         compId = 83
+        addr = 'xxx'
+        port = 543
 
-        idList = [id, ]
-        compNameDict = {id:name}
-        compIdDict = {id:compId}
-        addrDict = {id:'xxx'}
-        portDict = {id:543}
+        compDict = {id:MockRunComponent(name, compId, addr, port, None), }
         dataDict = {id:None}
 
         appender = MockAppender('log')
@@ -873,37 +868,29 @@ class TestRunWatchdog(unittest.TestCase):
                                   ' component #%d type %s#%d' %
                                   (id, name, compId))
 
-        wd = MockWatchdog(DAQLog(appender), 60.0, idList, compNameDict,
-                          compIdDict, addrDict, portDict, dataDict)
+        wd = MockWatchdog(DAQLog(appender), 60.0, compDict, dataDict)
 
     def testCreateWatchdogBadBean(self):
         id = 43
         name = 'eventBuilder'
         compId = 83
+        addr = 'xxx'
+        port = 543
 
         comp = '%s#%d' % (name, compId)
         mbeans = self.__buildBeans({name : []}, comp)
 
-        idList = [id, ]
-        compNameDict = {id:name}
-        compIdDict = {id:compId}
-        addrDict = {id:'xxx'}
-        portDict = {id:543}
+        compDict = {id:MockRunComponent(name, compId, addr, port, None), }
         dataDict = {id:None}
 
         appender = MockAppender('log')
         appender.addExpectedRegexp(r"Couldn't create watcher for component" +
                                    r' #%d type %s#%d: .*' % (id, name, compId))
 
-        wd = MockWatchdog(DAQLog(appender), 60.0, idList, compNameDict,
-                          compIdDict, addrDict, portDict, dataDict)
+        wd = MockWatchdog(DAQLog(appender), 60.0, compDict, dataDict)
 
     def testCreateWatchdog(self):
-        idList = []
-        compNameDict = {}
-        compIdDict = {}
-        addrDict = {}
-        portDict = {}
+        compDict = {}
         dataDict = {}
 
         nextId = 1
@@ -924,17 +911,13 @@ class TestRunWatchdog(unittest.TestCase):
             id = nextId
             nextId += 1
 
-            idList.append(id)
-            compNameDict[id] = compName
-            compIdDict[id] = compId
-            addrDict[id] = 'localhost'
-            portDict[id] = 100 + id
+            compDict[id] = \
+                MockRunComponent(compName, compId, 'localhost', None, 100 + id)
             dataDict[id] = MockData(id, compName, compId, None, None, client)
 
         appender = MockAppender('log')
 
-        wd = MockWatchdog(DAQLog(appender), 60.0, idList, compNameDict,
-                          compIdDict, addrDict, portDict, dataDict)
+        wd = MockWatchdog(DAQLog(appender), 60.0, compDict, dataDict)
 
         self.failIf(wd.inProgress(), 'Watchdog should not be in progress')
         self.failIf(wd.isDone(), 'Watchdog should not be done')
@@ -953,11 +936,7 @@ class TestRunWatchdog(unittest.TestCase):
         self.__runThread(wd, appender)
 
     def testCheckWatchdog(self):
-        idList = []
-        compNameDict = {}
-        compIdDict = {}
-        addrDict = {}
-        portDict = {}
+        compDict = {}
         dataDict = {}
 
         nextId = 1
@@ -976,17 +955,13 @@ class TestRunWatchdog(unittest.TestCase):
             id = nextId
             nextId += 1
 
-            idList.append(id)
-            compNameDict[id] = compName
-            compIdDict[id] = compId
-            addrDict[id] = 'localhost'
-            portDict[id] = 100 + id
+            compDict[id] = \
+                MockRunComponent(compName, compId, 'localhost', None, 100 + id)
             dataDict[id] = MockData(id, compName, compId, None, None, client)
 
         appender = MockAppender('log')
 
-        wd = MockWatchdog(DAQLog(appender), 60.0, idList, compNameDict,
-                          compIdDict, addrDict, portDict, dataDict)
+        wd = MockWatchdog(DAQLog(appender), 60.0, compDict, dataDict)
 
         self.failIf(wd.inProgress(), 'Watchdog should not be in progress')
         self.failIf(wd.isDone(), 'Watchdog should not be done')

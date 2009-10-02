@@ -52,7 +52,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4631 2009-10-01 02:51:27Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4633 2009-10-02 19:16:25Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -374,6 +374,36 @@ class RateThread(threading.Thread):
                         self.__runStats.tcalEvents))
         self.__done = True
 
+class Component(object):
+    def __init__(self, name, id, inetAddr, rpcPort, mbeanPort):
+        self.__name = name
+        self.__id = id
+        self.__inetAddr = inetAddr
+        self.__rpcPort = rpcPort
+        self.__mbeanPort = mbeanPort
+        self.__logger = None
+        self.__logPort = None
+
+    def __str__(self):
+        return "%s#%s" % (str(self.__name), str(self.__id))
+
+    def clearLogInfo(self):
+        self.__logger = None
+        self.__logPort = None
+
+    def id(self): return self.__id
+    def inetAddress(self): return self.__inetAddr
+    def isHub(self): return self.__name.endswith("Hub")
+    def logPort(self): return self.__logPort
+    def logger(self): return self.__logger
+    def mbeanPort(self): return self.__mbeanPort
+    def name(self): return self.__name
+    def rpcPort(self): return self.__rpcPort
+
+    def setLogInfo(self, logger, logPort):
+        self.__logger = logger
+        self.__logPort = logPort
+
 class DAQRun(object):
     "Serve requests to start/stop DAQ runs (exp control iface)"
     MONI_PERIOD    = 100
@@ -434,16 +464,8 @@ class DAQRun(object):
         self.requiredComps    = []
         self.versionInfo      = get_version_info(SVN_ID)
 
-        # setCompID is the ID returned by CnCServer
-        # daqID is e.g. 21 for string 21
-        self.setCompIDs       = []
-        self.shortNameOf      = {} # indexed by setCompID
-        self.daqIDof          = {} # "                  "
-        self.rpcAddrOf        = {} # "                  "
-        self.rpcPortOf        = {} # "                  "
-        self.mbeanPortOf      = {} # "                  "
-        self.loggerOf         = {} # "                  "
-        self.logPortOf        = {} # "                  "
+        # component key is the ID returned by CnCServer
+        self.components       = {}
 
         self.ip               = getIP()
         self.compPorts        = {} # Indexed by name
@@ -658,34 +680,36 @@ class DAQRun(object):
     def setUpAllComponentLoggers(self):
         "Sets up loggers for remote components (other than CnCServer)"
         self.log.info("Setting up logging for %d components" %
-                      len(self.setCompIDs))
-        for ic in range(0, len(self.setCompIDs)):
-            compID = self.setCompIDs[ic]
-            self.logPortOf[compID] = DAQPort.RUNCOMP_BASE + ic
+                      len(self.components))
+
+        keys = self.components.keys()
+        keys.sort()
+
+        for id in keys:
+            comp = self.components[id]
+            logPort = DAQPort.RUNCOMP_BASE + id
             logFile  = "%s/%s-%d.log" % \
-                (self.__logpath, self.shortNameOf[compID],
-                 self.daqIDof[compID])
-            self.loggerOf[compID] = \
-                self.createLogSocketServer(self.logPortOf[compID],
-                                           self.shortNameOf[compID], logFile)
+                (self.__logpath, comp.name(), comp.id())
+            logger = \
+                self.createLogSocketServer(logPort, comp.name(), logFile)
+            comp.setLogInfo(logger, logPort)
             self.log.info("%s(%d %s:%d) -> %s:%d" %
-                          (self.shortNameOf[compID], compID,
-                           self.rpcAddrOf[compID], self.rpcPortOf[compID],
-                           self.ip, self.logPortOf[compID]))
+                          (comp.name(), id, comp.inetAddress(), comp.rpcPort(),
+                           self.ip, logPort))
 
     def stopAllComponentLoggers(self):
         "Stops loggers for remote components"
         if self.runSetID:
             self.log.info("Stopping component logging")
-            for compID in self.setCompIDs:
-                if self.loggerOf[compID]:
-                    self.loggerOf[compID].stopServing()
-                    self.loggerOf[compID] = None
+            for comp in self.components.itervalues():
+                if comp.logger():
+                    comp.logger().stopServing()
+                    comp.clearLogInfo()
 
     def createRunsetLoggerNameList(self):
         "Create a list of arguments in the form of (shortname, daqID, logport)"
-        for r in self.setCompIDs:
-            yield [self.shortNameOf[r], self.daqIDof[r], self.logPortOf[r]]
+        for comp in self.components.itervalues():
+            yield [comp.name(), comp.id(), comp.logPort()]
 
     def isRequiredComponent(shortName, daqID, compList):
         "XXX - this seems to be unused"
@@ -800,19 +824,13 @@ class DAQRun(object):
         """
 
         # clear old components
-        del self.setCompIDs[:]
+        self.components.clear()
 
         # extract remote component data
         compList = cncrpc.rpccall("rpc_runset_list", self.runSetID)
         for comp in compList:
-            self.setCompIDs.append(comp[0])
-            self.shortNameOf[ comp[0] ] = comp[1]
-            self.daqIDof    [ comp[0] ] = comp[2]
-            self.rpcAddrOf  [ comp[0] ] = comp[3]
-            self.rpcPortOf  [ comp[0] ] = comp[4]
-            self.mbeanPortOf[ comp[0] ] = comp[5]
-            self.loggerOf   [ comp[0] ] = None
-            self.logPortOf  [ comp[0] ] = None
+            self.components[comp[0]] = \
+                Component(comp[1], comp[2], comp[3], comp[4], comp[5])
 
     def setup_component_loggers(self, cncrpc, ip, runset):
         "Tell components where to log to"
@@ -840,17 +858,13 @@ class DAQRun(object):
             raise Exception('Unknown log mode %s (info=%s)' %
                             (self.__logMode, str(self.__liveInfo)))
 
-    def setup_monitoring(self, log, moniPath, compIDs, shortNames, daqIDs,
-                         rpcAddrs, mbeanPorts, moniType):
+    def setup_monitoring(self, log, moniPath, comps, moniType):
         "Set up monitoring"
-        return DAQMoni(log, moniPath, compIDs, shortNames, daqIDs, rpcAddrs,
-                       mbeanPorts, moniType)
+        return DAQMoni(log, moniPath, comps, moniType)
 
-    def setup_watchdog(self, log, interval, compIDs, shortNames, daqIDs,
-                       rpcAddrs, mbeanPorts):
+    def setup_watchdog(self, log, interval, comps):
         "Set up run watchdog"
-        return RunWatchdog(log, interval, compIDs, shortNames, daqIDs,
-                           rpcAddrs, mbeanPorts)
+        return RunWatchdog(log, interval, comps)
 
     def setup_timer(self, interval):
         return IntervalTimer(interval)
@@ -886,14 +900,7 @@ class DAQRun(object):
                     self.log.error("WARNING: failed to break run set - " +
                                    exc_string())
 
-            self.setCompIDs = []
-            self.shortNameOf.clear()
-            self.daqIDof.clear()
-            self.rpcAddrOf.clear()
-            self.rpcPortOf.clear()
-            self.mbeanPortOf.clear()
-            self.loggerOf.clear()
-            self.logPortOf.clear()
+            self.components.clear()
 
             self.runSetID   = None
             self.lastConfig = None
@@ -903,34 +910,41 @@ class DAQRun(object):
         nmoni = 0
         nsn   = 0
         ntcal = 0
-        for cid in self.setCompIDs:
-            if self.shortNameOf[cid] == "eventBuilder" and self.daqIDof[cid] == 0:
-                nev = int(self.moni.getSingleBeanField(cid, "backEnd", "NumEventsSent"))
-            if self.shortNameOf[cid] == "secondaryBuilders" and self.daqIDof[cid] == 0:
-                nmoni = int(self.moni.getSingleBeanField(cid, "moniBuilder", "TotalDispatchedData"))
-            if self.shortNameOf[cid] == "secondaryBuilders" and self.daqIDof[cid] == 0:
-                nsn = int(self.moni.getSingleBeanField(cid, "snBuilder", "TotalDispatchedData"))
-            if self.shortNameOf[cid] == "secondaryBuilders" and self.daqIDof[cid] == 0:
-                ntcal = int(self.moni.getSingleBeanField(cid, "tcalBuilder", "TotalDispatchedData"))
+        for cid, comp in self.components.iteritems():
+            if comp.name() == "eventBuilder" and comp.id() == 0:
+                nev = int(self.moni.getSingleBeanField(cid, "backEnd",
+                                                       "NumEventsSent"))
+            if comp.name() == "secondaryBuilders" and comp.id() == 0:
+                nmoni = int(self.moni.getSingleBeanField(cid, "moniBuilder",
+                                                         "TotalDispatchedData"))
+            if comp.name() == "secondaryBuilders" and comp.id() == 0:
+                nsn = int(self.moni.getSingleBeanField(cid, "snBuilder",
+                                                       "TotalDispatchedData"))
+            if comp.name() == "secondaryBuilders" and comp.id() == 0:
+                ntcal = int(self.moni.getSingleBeanField(cid, "tcalBuilder",
+                                                         "TotalDispatchedData"))
 
         return (nev, nmoni, nsn, ntcal)
 
     def getEBSubRunNumber(self):
-        for cid in self.setCompIDs:
-            if self.shortNameOf[cid] == "eventBuilder" and self.daqIDof[cid] == 0:
-                return int(self.moni.getSingleBeanField(cid, "backEnd", "SubrunNumber"))
+        for cid, comp in self.components.iteritems():
+            if comp.name() == "eventBuilder" and comp.id() == 0:
+                return int(self.moni.getSingleBeanField(cid, "backEnd",
+                                                        "SubrunNumber"))
         return 0
 
     def getEBDiskUsage(self):
-        for cid in self.setCompIDs:
-            if self.shortNameOf[cid] == "eventBuilder" and self.daqIDof[cid] == 0:
-                return [int(self.moni.getSingleBeanField(cid, "backEnd", "DiskAvailable")),
-                        int(self.moni.getSingleBeanField(cid, "backEnd", "DiskSize"))]
+        for cid, comp in self.components.iteritems():
+            if comp.name() == "eventBuilder" and comp.id() == 0:
+                return [int(self.moni.getSingleBeanField(cid, "backEnd",
+                                                         "DiskAvailable")),
+                        int(self.moni.getSingleBeanField(cid, "backEnd",
+                                                         "DiskSize"))]
         return [0, 0]
 
     def getSBDiskUsage(self):
-        for cid in self.setCompIDs:
-            if self.shortNameOf[cid] == "secondaryBuilders" and self.daqIDof[cid] == 0:
+        for cid, comp in self.components.iteritems():
+            if comp.name() == "secondaryBuilders" and comp.id() == 0:
                 return [int(self.moni.getSingleBeanField(cid, "tcalBuilder", "DiskAvailable")),
                         int(self.moni.getSingleBeanField(cid, "tcalBuilder", "DiskSize"))]
         return [0, 0]
@@ -1077,15 +1091,11 @@ class DAQRun(object):
                                         str(self.__logMode))
                     self.moni = \
                         self.setup_monitoring(self.log, self.__logpath,
-                                              self.setCompIDs, self.shortNameOf,
-                                              self.daqIDof, self.rpcAddrOf,
-                                              self.mbeanPortOf, moniType)
+                                              self.components, moniType)
                     self.moniTimer = self.setup_timer(DAQRun.MONI_PERIOD)
                     self.watchdog = \
                         self.setup_watchdog(self.log, DAQRun.WATCH_PERIOD,
-                                            self.setCompIDs, self.shortNameOf,
-                                            self.daqIDof, self.rpcAddrOf,
-                                            self.mbeanPortOf)
+                                            self.components)
 
                     self.lastConfig = self.configName
                     self.runStats.start()

@@ -4,7 +4,7 @@ import StringIO, time, unittest
 from DAQLogClient import DAQLog
 from DAQMoni import BeanFieldNotFoundException, DAQMoni, FileMoniData
 
-from DAQMocks import MockAppender
+from DAQMocks import MockAppender, MockRunComponent
 
 class MockMBeanClient(object):
     def __init__(self, mbeanDict):
@@ -68,9 +68,8 @@ class MockMoni(DAQMoni):
     __MOCK = None
     __CLIENT = {}
 
-    def __init__(self, log, moniPath, IDs, names, daqIDs, addrs, mbeanPorts):
-        super(MockMoni, self).__init__(log, moniPath, IDs, names, daqIDs,
-                                       addrs, mbeanPorts, DAQMoni.TYPE_FILE,
+    def __init__(self, log, moniPath, comps):
+        super(MockMoni, self).__init__(log, moniPath, comps, DAQMoni.TYPE_FILE,
                                        quiet=True)
 
     def clear(cls):
@@ -220,9 +219,8 @@ class TestDAQMoni(unittest.TestCase):
 
         compId = 1
 
-        MockMoni(DAQLog(appender), moniPath, (compId, ),
-                 {compId:name, }, {compId:daqId, }, {compId:addr, },
-                 {compId:port, })
+        MockMoni(DAQLog(appender), moniPath,
+                 {compId:MockRunComponent(name, daqId, addr, None, port), })
 
         appender.checkStatus(10)
 
@@ -248,9 +246,9 @@ class TestDAQMoni(unittest.TestCase):
 
         compId = 1
 
-        moni = MockMoni(DAQLog(appender), moniPath, (compId, ),
-                        {compId:name, }, {compId:daqId, }, {compId:addr, },
-                        {compId:port, })
+        moni = MockMoni(DAQLog(appender), moniPath,
+                        {compId:MockRunComponent(name, daqId, addr, None,
+                                                 port), })
 
         appender.checkStatus(10)
 
@@ -315,9 +313,9 @@ class TestDAQMoni(unittest.TestCase):
 
         compId = 1
 
-        moni = MockMoni(DAQLog(appender), moniPath, (compId, ),
-                        {compId:name, }, {compId:daqId, }, {compId:addr, },
-                        {compId:port, })
+        moni = MockMoni(DAQLog(appender), moniPath,
+                        {compId:MockRunComponent(name, daqId, addr, None,
+                                                 port), })
 
         appender.checkStatus(10)
 

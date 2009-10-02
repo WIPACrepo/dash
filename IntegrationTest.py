@@ -257,14 +257,13 @@ class MockMoniBoth(MockMoniFile):
             self.__moni.send('%s*%s+%s' % (str(self), b, key), now, attrs[key])
 
 class MockMoni(DAQMoni):
-    def __init__(self, log, moniPath, IDs, names, daqIDs, addrs, mbeanPorts,
-                 moniType):
+    def __init__(self, log, moniPath, comps, moniType):
 
         self.__moniFlag = False
         self.__didMoni = False
 
-        super(MockMoni, self).__init__(log, moniPath, IDs, names, daqIDs,
-                                       addrs, mbeanPorts, moniType, quiet=True)
+        super(MockMoni, self).__init__(log, moniPath, comps, moniType,
+                                       quiet=True)
 
     def createFileData(self, name, daqId, addr, port, fname):
         return MockMoniFile(name, daqId, addr, port)
@@ -286,14 +285,11 @@ class MockMoni(DAQMoni):
         return val
 
 class MockWatchdog(RunWatchdog):
-    def __init__(self, daqLog, interval, IDs, shortNameOf, daqIDof,
-                 rpcAddrOf, mbeanPortOf):
+    def __init__(self, daqLog, interval, comps):
         self.__watchFlag = False
         self.__didWatch = False
 
-        super(MockWatchdog, self).__init__(daqLog, interval, IDs, shortNameOf,
-                                           daqIDof, rpcAddrOf, mbeanPortOf,
-                                           True)
+        super(MockWatchdog, self).__init__(daqLog, interval, comps, True)
 
     def didWatch(self):
         return self.__didWatch
@@ -789,13 +785,11 @@ class StubbedDAQRun(DAQRun):
     def setFileAppender(self, appender):
         self.__fileAppender = appender
 
-    def setup_monitoring(self, log, moniPath, compIDs, shortNames, daqIDs,
-                         rpcAddrs, mbeanPorts, moniType):
+    def setup_monitoring(self, log, moniPath, comps, moniType):
         if self.__moni is not None:
             raise Exception('DAQMoni already exists')
 
-        self.__moni = MockMoni(log, moniPath, compIDs, shortNames, daqIDs,
-                               rpcAddrs, mbeanPorts, moniType)
+        self.__moni = MockMoni(log, moniPath, comps, moniType)
         return self.__moni
 
     def setup_timer(self, interval):
@@ -815,13 +809,11 @@ class StubbedDAQRun(DAQRun):
 
         raise Exception("Unknown timer interval %d" % interval)
 
-    def setup_watchdog(self, log, interval, compIDs, shortNames, daqIDs,
-                       rpcAddrs, mbeanPorts):
+    def setup_watchdog(self, log, interval, comps):
         if self.__watchdog is not None:
             raise Exception('Watchdog already exists')
 
-        self.__watchdog = MockWatchdog(log, interval, compIDs, shortNames,
-                                       daqIDs, rpcAddrs, mbeanPorts)
+        self.__watchdog = MockWatchdog(log, interval, comps)
         return self.__watchdog
 
 class MostlyLive(DAQLive):
@@ -1182,13 +1174,12 @@ class IntegrationTest(unittest.TestCase):
             appender.addExpectedExact(msg)
             if liveLog: liveLog.addExpectedText(msg)
 
-            nextPort = DAQPort.RUNCOMP_BASE
             for c in self.__compList:
+                logPort = DAQPort.RUNCOMP_BASE + c.getCommandPort()
                 patStr = r'%s\(\d+ \S+:%d\) -> %s:%d' % \
-                    (c.fullName(), c.getCommandPort(), dr.ip, nextPort)
+                    (c.fullName(), c.getCommandPort(), dr.ip, logPort)
                 appender.addExpectedRegexp(patStr)
                 if liveLog: liveLog.addExpectedTextRegexp(patStr)
-                nextPort += 1
         if liveLog:
             for c in self.__compList:
                 liveLog.addExpectedText('Hello from %s' % str(c))

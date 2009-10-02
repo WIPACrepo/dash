@@ -778,6 +778,24 @@ class MockRPCClient(object):
     def __init__(self, name, num, outLinks=None):
         self.xmlrpc = MockXMLRPC(name, num, outLinks)
 
+class MockRunComponent(object):
+    def __init__(self, name, id, inetAddr, rpcPort, mbeanPort):
+        self.__name = name
+        self.__id = id
+        self.__inetAddr = inetAddr
+        self.__rpcPort = rpcPort
+        self.__mbeanPort = mbeanPort
+
+    def __str__(self):
+        return "%s#%s" % (str(self.__name), str(self.__id))
+
+    def id(self): return self.__id
+    def inetAddress(self): return self.__inetAddr
+    def isHub(self): return self.__name.endswith("Hub")
+    def mbeanPort(self): return self.__mbeanPort
+    def name(self): return self.__name
+    def rpcPort(self): return self.__rpcPort
+
 class MockXMLRPC(object):
     LOUD = False
 

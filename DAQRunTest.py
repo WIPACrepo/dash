@@ -294,12 +294,10 @@ class StubbedDAQRun(MostlyDAQRun):
         cls.__logServer = logger
     setLogSocketServer = classmethod(setLogSocketServer)
 
-    def setup_monitoring(self, log, moniPath, compIDs, shortNames, daqIDs,
-                         rpcAddrs, mbeanPorts, moniType):
+    def setup_monitoring(self, log, moniPath, comps, moniType):
         return MockMoni()
 
-    def setup_watchdog(self, log, interval, compIDs, shortNames, daqIDs,
-                       rpcAddrs, mbeanPorts):
+    def setup_watchdog(self, log, interval, comps):
         return MockWatchdog()
 
 class TestDAQRun(unittest.TestCase):
@@ -360,12 +358,11 @@ class TestDAQRun(unittest.TestCase):
             appender.addExpectedExact('Setting up logging for %d components' %
                                       len(comps))
 
-            nextPort = DAQPort.RUNCOMP_BASE
             for c in compSrt:
+                logPort = DAQPort.RUNCOMP_BASE + c[0]
                 appender.addExpectedExact('%s(%d %s:%d) -> %s:%d' %
                                           (c[1], c[0], c[3], c[4], dr.ip,
-                                           nextPort))
-                nextPort += 1
+                                           logPort))
             appender.addExpectedExact('Configuring run set...')
 
         appender.addExpectedExact('Started run %d on run set %d' %
@@ -684,26 +681,24 @@ class TestDAQRun(unittest.TestCase):
 
         dr.fill_component_dictionaries(cnc)
 
-        for i in range(0, len(expComps)):
-            key = dr.setCompIDs[i]
-            self.assertEquals(expComps[i][0], key,
-                              'Expected comp#%d to be %s, not %s' %
-                              (i, expComps[i][0], key))
-            self.assertEquals(expComps[i][1], dr.shortNameOf[key],
-                              'Expected shortName#%d to be %s, not %s' %
-                              (i, expComps[i][1], dr.shortNameOf[key]))
-            self.assertEquals(expComps[i][2], dr.daqIDof[key],
-                              'Expected daqID#%d to be %d, not %d' %
-                              (i, expComps[i][2], dr.daqIDof[key]))
-            self.assertEquals(expComps[i][3], dr.rpcAddrOf[key],
-                              'Expected rpcAddr#%d to be %s, not %s' %
-                              (i, expComps[i][3], dr.rpcAddrOf[key]))
-            self.assertEquals(expComps[i][4], dr.rpcPortOf[key],
-                              'Expected rpcPort#%d to be %d, not %d' %
-                              (i, expComps[i][4], dr.rpcPortOf[key]))
-            self.assertEquals(expComps[i][5], dr.mbeanPortOf[key],
-                              'Expected mbeanPort#%d to be %d, not %d' %
-                              (i, expComps[i][5], dr.mbeanPortOf[key]))
+        for key, comp in dr.components.iteritems():
+            for i in range(0, len(expComps)):
+                if key == expComps[i][0]:
+                    self.assertEquals(expComps[i][1], comp.name(),
+                                      'Expected shortName#%d to be %s, not %s' %
+                                      (i, expComps[i][1], comp.name()))
+                    self.assertEquals(expComps[i][2], comp.id(),
+                                      'Expected daqID#%d to be %d, not %d' %
+                                      (i, expComps[i][2], comp.id()))
+                    self.assertEquals(expComps[i][3], comp.inetAddress(),
+                                      'Expected inetAddr#%d to be %s, not %s' %
+                                      (i, expComps[i][3], comp.inetAddress()))
+                    self.assertEquals(expComps[i][4], comp.rpcPort(),
+                                      'Expected rpcPort#%d to be %d, not %d' %
+                                      (i, expComps[i][4], comp.rpcPort()))
+                    self.assertEquals(expComps[i][5], comp.mbeanPort(),
+                                      'Expected mbeanPort#%d to be %d, not %d' %
+                                      (i, expComps[i][5], comp.mbeanPort()))
 
         logger.checkStatus(10)
 
@@ -782,18 +777,8 @@ class TestDAQRun(unittest.TestCase):
 
         dr.break_existing_runset(cnc)
         #self.failUnless(cnc.RSBreakFlag, 'Runset was not broken')
-        self.assertEquals(0, len(dr.setCompIDs),
+        self.assertEquals(0, len(dr.components),
                           'Should not have any components')
-        self.assertEquals(0, len(dr.shortNameOf),
-                          'Should not have any short names')
-        self.assertEquals(0, len(dr.daqIDof),
-                          'Should not have any DAQ IDs')
-        self.assertEquals(0, len(dr.rpcAddrOf),
-                          'Should not have any RPC addresses')
-        self.assertEquals(0, len(dr.rpcPortOf),
-                          'Should not have any RPC ports')
-        self.assertEquals(0, len(dr.mbeanPortOf),
-                          'Should not have any MBean ports')
         if dr.runSetID is not None: self.fail('Runset ID should be unset')
         if dr.lastConfig is not None: self.fail('Last config should be unset')
 
@@ -820,18 +805,8 @@ class TestDAQRun(unittest.TestCase):
 
         dr.break_existing_runset(cnc)
         self.failIf(cnc.RSBreakFlag, 'Runset was broken')
-        self.assertEquals(0, len(dr.setCompIDs),
+        self.assertEquals(0, len(dr.components),
                           'Should not have any components')
-        self.assertEquals(0, len(dr.shortNameOf),
-                          'Should not have any short names')
-        self.assertEquals(0, len(dr.daqIDof),
-                          'Should not have any DAQ IDs')
-        self.assertEquals(0, len(dr.rpcAddrOf),
-                          'Should not have any RPC addresses')
-        self.assertEquals(0, len(dr.rpcPortOf),
-                          'Should not have any RPC ports')
-        self.assertEquals(0, len(dr.mbeanPortOf),
-                          'Should not have any MBean ports')
         if dr.runSetID is not None: self.fail('Runset ID should be unset')
         if dr.lastConfig is not None: self.fail('Last config should be unset')
 
@@ -1156,20 +1131,19 @@ class TestDAQRun(unittest.TestCase):
 
         dr.fill_component_dictionaries(cnc)
 
-        nextPort = DAQPort.RUNCOMP_BASE
         logger.addExpectedExact('Setting up logging for %d components' %
                                len(expComps))
         for c in expComps:
+            logPort = DAQPort.RUNCOMP_BASE + c[0]
             logger.addExpectedExact('%s(%d %s:%d) -> %s:%d' %
-                                   (c[1], c[0], c[3], c[4], dr.ip, nextPort))
-            nextPort += 1
+                                   (c[1], c[0], c[3], c[4], dr.ip, logPort))
 
         try:
             dr.setUpAllComponentLoggers()
         finally:
-            for k in dr.loggerOf.keys():
-                if dr.loggerOf[k] is not None:
-                    dr.loggerOf[k].stopServing()
+            for comp in dr.components.values():
+                if comp.logger() is not None:
+                    comp.logger().stopServing()
             for c in expComps:
                 path = os.path.join(dr.getLogPath(),
                                     '%s-%d.log' % (c[1], c[2]))
@@ -1202,20 +1176,17 @@ class TestDAQRun(unittest.TestCase):
         logger.addExpectedExact('Setting up logging for %d components' %
                                len(expComps))
 
-        nextPort = DAQPort.RUNCOMP_BASE
-        for i in range(0, len(expComps)):
-            c = expComps[i]
-
+        for c in expComps:
+            logPort = DAQPort.RUNCOMP_BASE + c[0]
             logger.addExpectedExact('%s(%d %s:%d) -> %s:%d' %
-                                   (c[1], c[0], c[3], c[4], dr.ip, nextPort))
-            nextPort += 1
+                                   (c[1], c[0], c[3], c[4], dr.ip, logPort))
 
         try:
             dr.setup_component_loggers(cnc, 'xxx', expId)
         finally:
-            for k in dr.loggerOf.keys():
-                if dr.loggerOf[k] is not None:
-                    dr.loggerOf[k].stopServing()
+            for comp in dr.components.values():
+                if comp.logger() is not None:
+                    comp.logger().stopServing()
             for c in expComps:
                 path = os.path.join(dr.getLogPath(),
                                     '%s-%d.log' % (c[1], c[2]))
@@ -1230,10 +1201,11 @@ class TestDAQRun(unittest.TestCase):
                           'Expected %d loggers, not %d' %
                           (len(expComps), len(logList)))
 
-        nextPort = DAQPort.RUNCOMP_BASE
         for i in range(0, len(expComps)):
             c = expComps[i]
             l = logList[i]
+
+            logPort = DAQPort.RUNCOMP_BASE + c[0]
 
             self.assertEquals(c[1], l[0],
                               'Expected short name #%d "%s", not "%s"' %
@@ -1241,11 +1213,9 @@ class TestDAQRun(unittest.TestCase):
             self.assertEquals(c[2], l[1],
                               'Expected DAQ ID #%d %d, not %d' %
                               (i, c[2], l[1]))
-            self.assertEquals(nextPort, l[2],
+            self.assertEquals(logPort, l[2],
                               'Expected log port #%d %d, not %d' %
-                              (i, nextPort, l[2]))
-
-            nextPort += 1
+                              (i, logPort, l[2]))
 
         logger.checkStatus(10)
 

@@ -262,8 +262,7 @@ class RunWatchdog(IntervalTimer):
 
     MAX_UNHEALTHY_COUNT = 3
 
-    def __init__(self, daqLog, interval, IDs, shortNameOf, daqIDof, rpcAddrOf,
-                 mbeanPortOf, quiet=False):
+    def __init__(self, daqLog, interval, components, quiet=False):
         self.__log            = daqLog
         self.__stringHubs     = []
         self.__soloComps      = []
@@ -280,84 +279,84 @@ class RunWatchdog(IntervalTimer):
         globalTrigger   = None
         eventBuilder   = None
         secondaryBuilders   = None
-        for c in IDs:
-            if mbeanPortOf[c] > 0:
+        for c, comp in components.iteritems():
+            if comp.mbeanPort() > 0:
                 try:
-                    cw = self.createData(c, shortNameOf[c], daqIDof[c],
-                                         rpcAddrOf[c], mbeanPortOf[c])
-                    if shortNameOf[c] == 'stringHub' or \
-                            shortNameOf[c] == 'replayHub':
+                    cw = self.createData(c, comp.name(), comp.id(),
+                                         comp.inetAddress(), comp.mbeanPort())
+                    if comp.name() == 'stringHub' or \
+                            comp.name() == 'replayHub':
                         cw.addInputValue('dom', 'sender', 'NumHitsReceived')
-                        if self.__contains(shortNameOf, 'eventBuilder'):
+                        if self.__contains(components, 'eventBuilder'):
                             cw.addInputValue('eventBuilder', 'sender',
                                              'NumReadoutRequestsReceived')
                             cw.addOutputValue('eventBuilder', 'sender',
                                               'NumReadoutsSent')
                         self.__stringHubs.append(cw)
-                    elif shortNameOf[c] == 'inIceTrigger':
-                        hubName = self.__findHub(shortNameOf)
-                        if hubName is not None:
-                            cw.addInputValue(hubName, 'stringHit',
+                    elif comp.name() == 'inIceTrigger':
+                        hub = self.__findAnyHub(components)
+                        if hub is not None:
+                            cw.addInputValue(hub.name(), 'stringHit',
                                              'RecordsReceived')
-                        if self.__contains(shortNameOf, 'globalTrigger'):
+                        if self.__contains(components, 'globalTrigger'):
                             cw.addOutputValue('globalTrigger', 'trigger',
                                               'RecordsSent')
                         iniceTrigger = cw
-                    elif shortNameOf[c] == 'simpleTrigger':
-                        hubName = self.__findHub(shortNameOf)
-                        if hubName is not None:
-                            cw.addInputValue(hubName, 'stringHit',
+                    elif comp.name() == 'simpleTrigger':
+                        hub = self.__findAnyHub(components)
+                        if hub is not None:
+                            cw.addInputValue(hub.name(), 'stringHit',
                                              'RecordsReceived')
-                        if self.__contains(shortNameOf, 'globalTrigger'):
+                        if self.__contains(components, 'globalTrigger'):
                             cw.addOutputValue('globalTrigger', 'trigger',
                                               'RecordsSent')
                         iniceTrigger = cw
-                    elif shortNameOf[c] == 'iceTopTrigger':
-                        hubName = self.__findHub(shortNameOf)
-                        if hubName is not None:
-                            cw.addInputValue(hubName, 'icetopHit',
+                    elif comp.name() == 'iceTopTrigger':
+                        hub = self.__findAnyHub(components)
+                        if hub is not None:
+                            cw.addInputValue(hub.name(), 'icetopHit',
                                              'RecordsReceived')
-                        if self.__contains(shortNameOf, 'globalTrigger'):
+                        if self.__contains(components, 'globalTrigger'):
                             cw.addOutputValue('globalTrigger', 'trigger',
                                               'RecordsSent')
                         icetopTrigger = cw
-                    elif shortNameOf[c] == 'amandaTrigger':
-                        if self.__contains(shortNameOf, 'globalTrigger'):
+                    elif comp.name() == 'amandaTrigger':
+                        if self.__contains(components, 'globalTrigger'):
                             cw.addOutputValue('globalTrigger', 'trigger',
                                               'RecordsSent')
                         amandaTrigger = cw
-                    elif shortNameOf[c] == 'globalTrigger':
-                        if self.__contains(shortNameOf, 'inIceTrigger'):
+                    elif comp.name() == 'globalTrigger':
+                        if self.__contains(components, 'inIceTrigger'):
                             cw.addInputValue('inIceTrigger', 'trigger',
                                              'RecordsReceived')
-                        if self.__contains(shortNameOf, 'simpleTrigger'):
+                        if self.__contains(components, 'simpleTrigger'):
                             cw.addInputValue('simpleTrigger', 'trigger',
                                              'RecordsReceived')
-                        if self.__contains(shortNameOf, 'iceTopTrigger'):
+                        if self.__contains(components, 'iceTopTrigger'):
                             cw.addInputValue('iceTopTrigger', 'trigger',
                                              'RecordsReceived')
-                        if self.__contains(shortNameOf, 'amandaTrigger'):
+                        if self.__contains(components, 'amandaTrigger'):
                             cw.addInputValue('amandaTrigger', 'trigger',
                                              'RecordsReceived')
-                        if self.__contains(shortNameOf, 'eventBuilder'):
+                        if self.__contains(components, 'eventBuilder'):
                             cw.addOutputValue('eventBuilder', 'glblTrig',
                                               'RecordsSent')
                         globalTrigger = cw
-                    elif shortNameOf[c] == 'eventBuilder':
-                        hubName = self.__findHub(shortNameOf)
-                        if hubName is not None:
-                            cw.addInputValue(hubName, 'backEnd',
-                                             'NumReadoutsReceived');
-                        if self.__contains(shortNameOf, 'globalTrigger'):
+                    elif comp.name() == 'eventBuilder':
+                        hub = self.__findAnyHub(components)
+                        if hub is not None:
+                            cw.addInputValue(hub.name(), 'backEnd',
+                                             'NumReadoutsReceived')
+                        if self.__contains(components, 'globalTrigger'):
                             cw.addInputValue('globalTrigger', 'backEnd',
-                                             'NumTriggerRequestsReceived');
+                                             'NumTriggerRequestsReceived')
                         cw.addOutputValue('dispatch', 'backEnd',
-                                          'NumEventsSent');
+                                          'NumEventsSent')
                         cw.addThresholdValue('backEnd', 'DiskAvailable', 1024)
                         cw.addThresholdValue('backEnd', 'NumBadEvents', 0,
                                              False)
                         eventBuilder = cw
-                    elif shortNameOf[c] == 'secondaryBuilders':
+                    elif comp.name() == 'secondaryBuilders':
                         cw.addThresholdValue('snBuilder', 'DiskAvailable', 1024)
                         cw.addOutputValue('dispatch', 'moniBuilder',
                                           'TotalDispatchedData')
@@ -370,11 +369,11 @@ class RunWatchdog(IntervalTimer):
                     else:
                         self.__log.error("Couldn't create watcher for" +
                                          ' unknown component #%d type %s#%d' %
-                                         (c, shortNameOf[c], daqIDof[c]))
+                                         (c, comp.name(), comp.id()))
                 except Exception:
                     self.__log.error("Couldn't create watcher for component" +
                                      ' #%d type %s#%d: %s' %
-                                     (c, shortNameOf[c], daqIDof[c],
+                                     (c, comp.name(), comp.id(),
                                       exc_string()))
 
         # soloComps is filled here so we can determine the order
@@ -427,17 +426,17 @@ class RunWatchdog(IntervalTimer):
                 except Exception:
                     self.__log.error(str(comp) + ' thresholds: ' + exc_string())
 
-    def __contains(self, nameDict, compName):
-        for n in nameDict.values():
-            if n == compName:
+    def __contains(self, comps, compName):
+        for c in comps.values():
+            if c.name() == compName:
                 return True
 
         return False
 
-    def __findHub(self, nameDict):
-        for n in nameDict.values():
-            if n == 'stringHub' or n == 'replayHub':
-                return n
+    def __findAnyHub(self, comps):
+        for comp in comps.values():
+            if comp.isHub():
+                return comp
 
         return None
 
@@ -480,8 +479,8 @@ class RunWatchdog(IntervalTimer):
     def clearThread(self):
         self.__thread = None
 
-    def createData(self, id, name, daqID, rpcAddr, mbeanPort):
-        return WatchData(id, name, daqID, rpcAddr, mbeanPort)
+    def createData(self, id, name, daqID, inetAddr, mbeanPort):
+        return WatchData(id, name, daqID, inetAddr, mbeanPort)
 
     def inProgress(self):
         return self.__thread is not None

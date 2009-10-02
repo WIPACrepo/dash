@@ -157,32 +157,33 @@ class DAQMoni(object):
     TYPE_LIVE = 2
     TYPE_BOTH = 3
 
-    def __init__(self, daqLog, moniPath, IDs, shortNameOf, daqIDof, rpcAddrOf,
-                 mbeanPortOf, moniType, quiet=False):
+    def __init__(self, daqLog, moniPath, components, moniType, quiet=False):
         self.__log         = daqLog
         self.__quiet       = quiet
         self.__moniList    = {}
         self.__threadList  = {}
-        for c in IDs:
-            if mbeanPortOf[c] > 0:
+        for c, comp in components.iteritems():
+            if comp.mbeanPort() > 0:
                 if moniType == DAQMoni.TYPE_LIVE:
-                    md = self.createLiveData(shortNameOf[c], daqIDof[c],
-                                             rpcAddrOf[c], mbeanPortOf[c])
+                    md = self.createLiveData(comp.name(), comp.id(),
+                                             comp.inetAddress(),
+                                             comp.mbeanPort())
                 else:
-                    fname = DAQMoni.fileName(moniPath, shortNameOf[c],
-                                             daqIDof[c])
+                    fname = DAQMoni.fileName(moniPath, comp.name(),
+                                             comp.id())
                     self.__log.info(("Creating moni output file %s (remote" +
                                      " is %s:%d)") %
-                                    (fname, rpcAddrOf[c], mbeanPortOf[c]))
+                                    (fname, comp.inetAddress(),
+                                     comp.mbeanPort()))
                     try:
                         if moniType == DAQMoni.TYPE_FILE:
-                            md = self.createFileData(shortNameOf[c], daqIDof[c],
-                                                     rpcAddrOf[c],
-                                                     mbeanPortOf[c], fname)
+                            md = self.createFileData(comp.name(), comp.id(),
+                                                     comp.inetAddress(),
+                                                     comp.mbeanPort(), fname)
                         else:
-                            md = self.createBothData(shortNameOf[c], daqIDof[c],
-                                                     rpcAddrOf[c],
-                                                     mbeanPortOf[c], fname)
+                            md = self.createBothData(comp.name(), comp.id(),
+                                                     comp.inetAddress(),
+                                                     comp.mbeanPort(), fname)
                     except Exception:
                         self.__log.error(("Couldn't create monitoring output" +
                                           ' (%s) for component %d!: %s') %
