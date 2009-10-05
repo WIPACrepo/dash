@@ -6,7 +6,7 @@ import datetime, os, re, select, socket, threading, time
 
 from CnCServer import CnCLogger, DAQClient
 from DAQConst import DAQPort
-from DAQLaunch import getLaunchData
+from DAQLaunch import RELEASE, getCompJar
 import GetIP
 
 try:
@@ -20,6 +20,7 @@ if os.environ.has_key("PDAQ_HOME"):
 else:
     from locate_pdaq import find_pdaq_trunk
     METADIR = find_pdaq_trunk()
+
 
 class UnimplementedException(Exception):
     def __init__(self):
@@ -524,6 +525,14 @@ class MockComponent(object):
 
         self.runNum = None
 
+class MockDeployComponent(object):
+    def __init__(self, name, id, level, jvm, jvmArgs):
+        self.compName = name
+        self.compID = id
+        self.logLevel = level
+        self.jvm = jvm
+        self.jvmArgs = jvmArgs
+
 class MockDAQClient(DAQClient):
     def __init__(self, name, num, host, port, mbeanPort, connectors,
                  appender, outLinks=None):
@@ -611,8 +620,7 @@ class MockLogger(LogChecker):
     def warn(self, m): self.checkMsg(m)
 
 class MockParallelShell(object):
-    BINDIR = \
-        os.path.join(METADIR, 'target', 'pDAQ-1.0.0-SNAPSHOT-dist', 'bin')
+    BINDIR = os.path.join(METADIR, 'target', 'pDAQ-%s-dist' % RELEASE, 'bin')
 
     def __init__(self):
         self.__exp = []
@@ -643,34 +651,31 @@ class MockParallelShell(object):
     def add(self, cmd):
         self.__checkCmd(cmd)
 
-    def addExpectedJava(self, compName, compId, configDir, logPort, livePort,
-                        logLevel, verbose, eventCheck, host):
-        launchData = getLaunchData(compName)
+    def addExpectedJava(self, comp, configDir, logPort, livePort,
+                        verbose, eventCheck, host):
 
         ipAddr = GetIP.getIP(host)
-        jarPath = os.path.join(MockParallelShell.BINDIR, launchData.getJar())
+        jarPath = os.path.join(MockParallelShell.BINDIR,
+                               getCompJar(comp.compName))
 
         if verbose:
             redir = ''
         else:
             redir = ' </dev/null >/dev/null 2>&1'
 
-        cmd = '%s %s' % (launchData.getJavaBinary(host),
-                         launchData.getJVMArgs())
+        cmd = '%s %s' % (comp.jvm, comp.jvmArgs)
 
-        if eventCheck and compName == 'eventBuilder':
+        if eventCheck and comp.compName == 'eventBuilder':
             cmd += ' -Dicecube.daq.eventBuilder.validateEvents'
-        elif compName.endswith('Hub'):
-            cmd += ' -Dicecube.daq.stringhub.componentId=%s' % compId
 
         cmd += ' -jar %s' % jarPath
         cmd += ' -g %s' % configDir
         cmd += ' -c %s:%d' % (ipAddr, DAQPort.CNCSERVER)
 
         if logPort is not None:
-            cmd += ' -l %s:%d,%s' % (ipAddr, logPort, logLevel)
+            cmd += ' -l %s:%d,%s' % (ipAddr, logPort, comp.logLevel)
         if livePort is not None:
-            cmd += ' -L %s:%d,%s' % (ipAddr, livePort, logLevel)
+            cmd += ' -L %s:%d,%s' % (ipAddr, livePort, comp.logLevel)
         cmd += ' %s &' % redir
 
         if self.__isLocalhost(host):
@@ -686,7 +691,7 @@ class MockParallelShell(object):
             nineArg = ''
 
         user = os.environ['USER']
-        jar = getLaunchData(compName).getJar()
+        jar = getCompJar(compName)
 
         if self.__isLocalhost(host):
             sshCmd = ''

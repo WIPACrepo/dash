@@ -3,16 +3,10 @@
 import socket, sys, unittest
 
 from DAQConst import DAQPort
-from DAQLaunch import componentDB, cyclePDAQ, doKill, doLaunch, \
+from DAQLaunch import compNameJarPartsMap, cyclePDAQ, doKill, doLaunch, \
     killJavaProcesses, startJavaProcesses
 
-from DAQMocks import MockParallelShell
-
-class MockComponent(object):
-    def __init__(self, name, id, level):
-        self.compName = name
-        self.compID = id
-        self.logLevel = level
+from DAQMocks import MockParallelShell, MockDeployComponent
 
 class MockNode(object):
     LIST = []
@@ -21,8 +15,10 @@ class MockNode(object):
         self.hostName = hostName
         self.comps = []
 
-    def addComp(self, compName, compId, logLevel):
-        self.comps.append(MockComponent(compName, compId, logLevel))
+    def addComp(self, compName, compId, logLevel, jvm, jvmArgs):
+        comp = MockDeployComponent(compName, compId, logLevel, jvm, jvmArgs)
+        self.comps.append(comp)
+        return comp
 
 class MockClusterConfig(object):
     def __init__(self, name):
@@ -43,20 +39,22 @@ class DAQLaunchTest(unittest.TestCase):
         dryRun = False
         configDir = '/foo/bar'
         logPort = 1234
+        jvm = "java"
+        jvmArgs = "-server"
         verbose = False
         checkExists = False
 
         logLevel = 'DEBUG'
 
-        for compName in componentDB:
-            if compName[-3:] == 'Hub':
+        for compName in compNameJarPartsMap:
+            if compName[-3:] == 'hub':
                 compId = 17
             else:
                 compId = 0
 
             for host in MockNode.LIST:
                 node = MockNode(host)
-                node.addComp(compName, compId, logLevel)
+                comp = node.addComp(compName, compId, logLevel, jvm, jvmArgs)
 
                 cfgName = 'mockCfg'
 
@@ -72,9 +70,9 @@ class DAQLaunchTest(unittest.TestCase):
                     for eventCheck in (True, False):
                         parallel = MockParallelShell()
 
-                        parallel.addExpectedJava(compName, compId, configDir,
-                                                 logPort, livePort, logLevel,
-                                                 verbose, eventCheck, host)
+                        parallel.addExpectedJava(comp, configDir, logPort,
+                                                 livePort, verbose, eventCheck,
+                                                 host)
 
                         startJavaProcesses(dryRun, config, configDir, None,
                                            logPort, livePort, verbose,
@@ -85,20 +83,22 @@ class DAQLaunchTest(unittest.TestCase):
                         parallel.check()
 
     def testKillJava(self):
-        for compName in componentDB:
-            if compName[-3:] == 'Hub':
+        for compName in compNameJarPartsMap:
+            if compName[-3:] == 'hub':
                 compId = 17
             else:
                 compId = 0
 
             dryRun = False
             verbose = False
+            jvm = "java"
+            jvmArgs = "-server"
 
             logLevel = 'DEBUG'
 
             for host in MockNode.LIST:
                 node = MockNode(host)
-                node.addComp(compName, compId, logLevel)
+                node.addComp(compName, compId, logLevel, jvm, jvmArgs)
 
                 cfgName = 'mockCfg'
 
@@ -130,6 +130,8 @@ class DAQLaunchTest(unittest.TestCase):
 
         compName = 'eventBuilder'
         compId = 0
+        jvm = "java"
+        jvmArgs = "-server"
         logLevel = 'DEBUG'
 
         # if there are N targets, range is 2^N
@@ -140,7 +142,7 @@ class DAQLaunchTest(unittest.TestCase):
 
             for host in MockNode.LIST:
                 node = MockNode(host)
-                node.addComp(compName, compId, logLevel)
+                comp = node.addComp(compName, compId, logLevel, jvm, jvmArgs)
 
                 cfgName = 'mockCfg'
 
@@ -160,9 +162,9 @@ class DAQLaunchTest(unittest.TestCase):
                                                    dashDir, configDir, logDir,
                                                    spadeDir, cfgName, copyDir,
                                                    logPort, livePort)
-                        parallel.addExpectedJava(compName, compId, configDir,
-                                                 logPort, livePort, logLevel,
-                                                 verbose, evtChk, host)
+                        parallel.addExpectedJava(comp, configDir, logPort,
+                                                 livePort, verbose, evtChk,
+                                                 host)
 
                         dryRun = False
 
@@ -182,6 +184,8 @@ class DAQLaunchTest(unittest.TestCase):
 
         compName = 'eventBuilder'
         compId = 0
+        jvm = "java"
+        jvmArgs = "-server"
         logLevel = 'DEBUG'
 
         # if there are N targets, range is 2^N
@@ -192,7 +196,7 @@ class DAQLaunchTest(unittest.TestCase):
 
             for host in MockNode.LIST:
                 node = MockNode(host)
-                node.addComp(compName, compId, logLevel)
+                node.addComp(compName, compId, logLevel, jvm, jvmArgs)
 
                 cfgName = 'mockCfg'
 
@@ -223,6 +227,8 @@ class DAQLaunchTest(unittest.TestCase):
 
         compName = 'eventBuilder'
         compId = 0
+        jvm = "java"
+        jvmArgs = "-server"
         logLevel = 'DEBUG'
 
         dryRun = False
@@ -235,7 +241,7 @@ class DAQLaunchTest(unittest.TestCase):
 
         for host in MockNode.LIST:
             node = MockNode(host)
-            node.addComp(compName, compId, logLevel)
+            comp = node.addComp(compName, compId, logLevel, jvm, jvmArgs)
 
             cfgName = 'mockCfg'
 
@@ -260,8 +266,7 @@ class DAQLaunchTest(unittest.TestCase):
                                                dashDir, configDir, logDir,
                                                spadeDir, cfgName, copyDir,
                                                logPort, livePort)
-                    parallel.addExpectedJava(compName, compId, configDir,
-                                             logPort, livePort, logLevel,
+                    parallel.addExpectedJava(comp, configDir, logPort, livePort,
                                              verbose, eventCheck, host)
 
                     cyclePDAQ(dashDir, config, configDir, logDir, spadeDir,

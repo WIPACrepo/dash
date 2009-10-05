@@ -21,7 +21,7 @@ except SystemExit:
 
 from DAQMocks \
     import MockAppender, MockCnCLogger, MockIntervalTimer, MockParallelShell, \
-    SocketReaderFactory, SocketWriter
+    MockDeployComponent, SocketReaderFactory, SocketWriter
 
 class BeanData(object):
     DAQ_BEANS = {'stringHub' :
@@ -373,10 +373,12 @@ class RealComponent(object):
                    'secondaryBuilders' : 32,
                    }
 
-    def __init__(self, name, num, cmdPort, mbeanPort, verbose=False):
+    def __init__(self, name, num, cmdPort, mbeanPort, jvm, jvmArgs, verbose=False):
         self.__id = None
         self.__name = name
         self.__num = num
+        self.__jvm = jvm
+        self.__jvmArgs = jvmArgs
 
         self.__state = 'FOO'
 
@@ -574,6 +576,8 @@ class RealComponent(object):
         self.__mbean.server_close()
 
     def fullName(self): return self.__name
+    def jvm(self): return self.__jvm
+    def jvmArgs(self): return self.__jvmArgs
 
     def getCommandPort(self): return self.__cmd.portnum
     def getId(self): return 999
@@ -905,6 +909,8 @@ class IntegrationTest(unittest.TestCase):
     SPADE_DIR = '/tmp'
     LOG_DIR = None
     LIVEMONI_ENABLED = False
+    JVM = 'java'
+    JVM_ARGS = '-server'
 
     def __createComponents(self):
         comps = [('stringHub', 1001, 9111, 9211),
@@ -921,7 +927,8 @@ class IntegrationTest(unittest.TestCase):
         verbose = False
 
         for c in comps:
-            comp = RealComponent(c[0], c[1], c[2], c[3], verbose)
+            comp = RealComponent(c[0], c[1], c[2], c[3], IntegrationTest.JVM,
+                                 IntegrationTest.JVM_ARGS, verbose)
 
             if self.__compList is None:
                 self.__compList = []
@@ -991,9 +998,10 @@ class IntegrationTest(unittest.TestCase):
                                  IntegrationTest.CONFIG_NAME,
                                  IntegrationTest.COPY_DIR, logPort, livePort)
         for comp in launchList:
-            pShell.addExpectedJava(comp.fullName(), comp.getNumber(),
-                                   IntegrationTest.CONFIG_DIR, logPort,
-                                   livePort, logLevel, verbose, False, host)
+            deployComp = MockDeployComponent(comp.fullName(), comp.getNumber(),
+                                             logLevel, comp.jvm(), comp.jvmArgs())
+            pShell.addExpectedJava(deployComp, IntegrationTest.CONFIG_DIR,
+                                   logPort, livePort, verbose, False, host)
 
         return pShell
 

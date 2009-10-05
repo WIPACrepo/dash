@@ -25,28 +25,6 @@ from ParallelShell import *
 #
 RELEASE = "1.0.0-SNAPSHOT"
 
-# System java path
-#
-SYSTEM_JAVA = "java"
-SYSTEM_JAVA_ARGS = ""
-
-# IBM java path and arguments
-#
-IBM_JAVA = "/opt/ibm/java-x86_64-60/jre/bin/java"
-IBM_JAVA_ARGS = "-Xcompressedrefs"
-
-# The "fallback" Java binary, used on all non-SPS and non-SPTS systems
-#
-FALLBACK_JAVA = SYSTEM_JAVA
-
-# the default SPS/SPTS Java binary for all components except the hubs
-#
-COMPONENT_JAVA = IBM_JAVA
-
-# the default SPS/SPTS Java binary for hubs
-#
-STRINGHUB_JAVA = SYSTEM_JAVA
-
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
     metaDir = environ["PDAQ_HOME"]
@@ -58,78 +36,35 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 4606 2009-09-25 23:15:00Z ksb $"
+SVN_ID = "$Id: DAQLaunch.py 4643 2009-10-05 20:31:34Z ksb $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
 
-class ComponentData(object):
-    WARNED = {}
+# Component Name -> JarParts mapping.  For constructing the name of
+# the proper jar file used for running the component, based on the
+# lower-case name of the component.
+compNameJarPartsMap = {
+    "eventbuilder"      : ("eventBuilder-prod", "comp"    ),
+    "secondarybuilders" : ("secondaryBuilders", "comp"    ),
+    "inicetrigger"      : ("trigger",           "iitrig"  ),
+    "simpletrigger"     : ("trigger",           "simptrig"),
+    "icetoptrigger"     : ("trigger",           "ittrig"  ),
+    "globaltrigger"     : ("trigger",           "gtrig"   ),
+    "amandatrigger"     : ("trigger",           "amtrig"  ),
+    "stringhub"         : ("StringHub",         "comp"    ),
+    "replayhub"         : ("StringHub",         "replay"  ),
+    }
 
-    def __init__(self, name, type="comp", memory=1024, java=COMPONENT_JAVA,
-                 extraArgs=None):
-        self.__java = java
-        self.__name = name
-        self.__type = type
-        self.__memory = memory
-        self.__extraArgs = extraArgs
+def getCompJar(compName):
+    """ Return the name of the executable jar file for the named
+    component.  """
 
-    def getJVMArgs(self):
-        jvmArgs = "-server -Xms%dm -Xmx%dm" % (self.__memory/2, self.__memory)
-
-        if self.__extraArgs is not None:
-            jvmArgs += " " + self.__extraArgs
-
-        return jvmArgs
-
-    def getJar(self):
-        return "%s-%s-%s.jar" % (self.__name, RELEASE, self.__type)
-
-    def getJavaBinary(self, nodeName):
-        if nodeName.startswith("sps-") or nodeName.startswith("spts-") or \
-                nodeName.startswith("spts64-"):
-            return self.__java
-
-        if nodeName != "localhost" and \
-                not ComponentData.WARNED.has_key(nodeName):
-            print >>sys.stderr, "Defaulting to \"%s\" on %s" % \
-                (FALLBACK_JAVA, nodeName)
-            ComponentData.WARNED[nodeName] = True
-
-        return FALLBACK_JAVA
-
-class TriggerData(ComponentData):
-    def __init__(self, type, memory):
-        super(TriggerData, self).__init__("trigger", type, memory)
-
-class HubData(ComponentData):
-    def __init__(self, type, memory):
-        java = STRINGHUB_JAVA
-        extraArgs = "-Dicecube.daq.bindery.StreamBinder.prescale=1"
-        super(HubData, self).__init__("StringHub", type, memory, java=java,
-                                      extraArgs=extraArgs)
-
-# note that the component name keys for componentDB should be lower-case
-componentDB = { "eventbuilder"      :
-                    ComponentData("eventBuilder-prod", memory=1200),
-                "secondarybuilders" :
-                    ComponentData("secondaryBuilders", memory=1200),
-                "inicetrigger"      : TriggerData("iitrig", 2000),
-                "simpletrigger"     : TriggerData("simptrig", 500),
-                "icetoptrigger"     : TriggerData("ittrig", 512),
-                "globaltrigger"     : TriggerData("gtrig", 512),
-                "amandatrigger"     : TriggerData("amtrig", 256),
-                "stringhub"         : HubData("comp", 512),
-                "replayhub"         : HubData("replay", 350),
-              }
-
-def getLaunchData(compName):
-    key = compName.lower()
-
-    if not componentDB.has_key(key):
+    jarParts = compNameJarPartsMap.get(compName.lower(), None)
+    if not jarParts:
         raise ComponentNotFoundInDatabase(compName)
 
-    return componentDB[key]
+    return "%s-%s-%s.jar" % (jarParts[0], RELEASE, jarParts[1])
 
 def runCmd(cmd, parallel):
     if parallel is None:
@@ -142,8 +77,7 @@ def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9, parallel=None):
         parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose)
     for node in clusterConfig.nodes:
         for comp in node.comps:
-            data = getLaunchData(comp.compName)
-            jarName = data.getJar()
+            jarName = getCompJar(comp.compName)
             if killWith9: niner = "-9"
             else:         niner = ""
             if node.hostName == "localhost": # Just kill it
@@ -189,20 +123,14 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
     for node in clusterConfig.nodes:
         myIP = getIP(node.hostName)
         for comp in node.comps:
-            data = getLaunchData(comp.compName)
-            execJar = join(binDir, data.getJar())
+            execJar = join(binDir, getCompJar(comp.compName))
             if checkExists and not exists(execJar):
                 print "%s jar file does not exist: %s" % \
                     (comp.compName, execJar)
                 continue
 
-            javaCmd = data.getJavaBinary(node.hostName)
-            jvmArgs = data.getJVMArgs()
-
-            if javaCmd == SYSTEM_JAVA and SYSTEM_JAVA_ARGS != "":
-                jvmArgs += " " + SYSTEM_JAVA_ARGS
-            if javaCmd == IBM_JAVA and IBM_JAVA_ARGS != "":
-                jvmArgs += " " + IBM_JAVA_ARGS
+            javaCmd = comp.jvm
+            jvmArgs = comp.jvmArgs
 
             switches = "-g %s" % configDir
             switches += " -c %s:%d" % (myIP, DAQPort.CNCSERVER)
@@ -212,10 +140,6 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
                 switches += " -L %s:%d,%s" % (myIP, livePort, comp.logLevel)
             compIO = quietStr
 
-            if comp.compName.endswith("Hub"):
-                jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % \
-                    comp.compID
-                
             if eventCheck and comp.compName == "eventBuilder":
                 jvmArgs += " -Dicecube.daq.eventBuilder.validateEvents"
 
