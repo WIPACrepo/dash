@@ -379,6 +379,8 @@ class RealComponent(object):
         self.__num = num
         self.__jvm = jvm
         self.__jvmArgs = jvmArgs
+        if name.endswith('Hub'):
+            self.__jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % num
 
         self.__state = 'FOO'
 
@@ -913,26 +915,28 @@ class IntegrationTest(unittest.TestCase):
     SPADE_DIR = '/tmp'
     LOG_DIR = None
     LIVEMONI_ENABLED = False
-    JVM = 'java'
-    JVM_ARGS = '-server'
 
     def __createComponents(self):
-        comps = [('stringHub', 1001, 9111, 9211),
-                 ('stringHub', 1002, 9112, 9212),
-                 ('stringHub', 1003, 9113, 9213),
-                 ('stringHub', 1004, 9114, 9214),
-                 ('stringHub', 1005, 9115, 9215),
-                 ('stringHub', 1201, 9116, 9216),
-                 ('inIceTrigger', 0, 9117, 9217),
-                 ('globalTrigger', 0, 9118, 9218),
-                 ('eventBuilder', 0, 9119, 9219),
-                 ('secondaryBuilders', 0, 9120, 9220),]
+        # Note that these values needs to correspond to the config in
+        # 'sim-localhost'
+        jvm = 'java'
+        jvmArgs = '-server -Xms256m -Xmx512m'
+        hubJvmArgs = jvmArgs + ' -Dicecube.daq.bindery.StreamBinder.prescale=1'
+        comps = [('stringHub', 1001, 9111, 9211, jvm, hubJvmArgs),
+                 ('stringHub', 1002, 9112, 9212, jvm, hubJvmArgs),
+                 ('stringHub', 1003, 9113, 9213, jvm, hubJvmArgs),
+                 ('stringHub', 1004, 9114, 9214, jvm, hubJvmArgs),
+                 ('stringHub', 1005, 9115, 9215, jvm, hubJvmArgs),
+                 ('stringHub', 1201, 9116, 9216, jvm, hubJvmArgs),
+                 ('inIceTrigger', 0, 9117, 9217, jvm, jvmArgs),
+                 ('globalTrigger', 0, 9118, 9218, jvm, jvmArgs),
+                 ('eventBuilder', 0, 9119, 9219, jvm, jvmArgs),
+                 ('secondaryBuilders', 0, 9120, 9220, jvm, jvmArgs),]
 
         verbose = False
 
         for c in comps:
-            comp = RealComponent(c[0], c[1], c[2], c[3], IntegrationTest.JVM,
-                                 IntegrationTest.JVM_ARGS, verbose)
+            comp = RealComponent(c[0], c[1], c[2], c[3], c[4], c[5], verbose)
 
             if self.__compList is None:
                 self.__compList = []

@@ -630,18 +630,15 @@ class MockParallelShell(object):
         if expLen == 0:
             raise Exception('Did not expect command "%s"' % cmd)
 
-        top10 = 10
-        if expLen < top10:
-            top10 = expLen
-
         found = None
-        for i in range(top10):
+        for i in range(expLen):
             if cmd == self.__exp[i]:
                 found = i
                 break
 
         if found is None:
-            raise Exception('Expected "%s", not "%s"' % (self.__exp[0], cmd))
+            raise Exception('Command not found in expected command list: ' \
+                                'cmd="%s"' % (cmd))
 
         del self.__exp[found]
 
