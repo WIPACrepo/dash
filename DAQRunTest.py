@@ -964,7 +964,7 @@ class TestDAQRun(unittest.TestCase):
 
         dr.watchdog = MockWatchdog()
 
-        DAQRun.unHealthyCount = 0
+        dr.unHealthyCount = 0
 
         expCnt = 0
 
@@ -975,9 +975,9 @@ class TestDAQRun(unittest.TestCase):
                     'Should not have cleared thread')
         self.failIf(dr.watchdog.watchStarted,
                     'Should not have started watchdog')
-        self.assertEquals(expCnt, DAQRun.unHealthyCount,
+        self.assertEquals(expCnt, dr.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
-                          (expCnt, DAQRun.unHealthyCount))
+                          (expCnt, dr.unHealthyCount))
 
         logger.checkStatus(10)
 
@@ -990,7 +990,7 @@ class TestDAQRun(unittest.TestCase):
         dr.watchdog = MockWatchdog()
 
         dr.watchdog.isTime = True
-        DAQRun.unHealthyCount = 0
+        dr.unHealthyCount = 0
 
         expCnt = 0
 
@@ -1000,9 +1000,9 @@ class TestDAQRun(unittest.TestCase):
         self.failIf(dr.watchdog.threadCleared, 'Should not have cleared thread')
         self.failUnless(dr.watchdog.watchStarted,
                         'Should have started watchdog')
-        self.assertEquals(expCnt, DAQRun.unHealthyCount,
+        self.assertEquals(expCnt, dr.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
-                          (expCnt, DAQRun.unHealthyCount))
+                          (expCnt, dr.unHealthyCount))
 
         logger.checkStatus(10)
 
@@ -1016,7 +1016,7 @@ class TestDAQRun(unittest.TestCase):
 
         dr.watchdog.inProg = True
         dr.watchdog.caughtErr = True
-        DAQRun.unHealthyCount = 0
+        dr.unHealthyCount = 0
 
         expCnt = 0
 
@@ -1026,9 +1026,9 @@ class TestDAQRun(unittest.TestCase):
         self.failUnless(dr.watchdog.threadCleared, 'Should have cleared thread')
         self.failIf(dr.watchdog.watchStarted,
                     'Should not have started watchdog')
-        self.assertEquals(expCnt, DAQRun.unHealthyCount,
+        self.assertEquals(expCnt, dr.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
-                          (expCnt, DAQRun.unHealthyCount))
+                          (expCnt, dr.unHealthyCount))
 
         logger.checkStatus(10)
 
@@ -1043,7 +1043,7 @@ class TestDAQRun(unittest.TestCase):
         dr.watchdog.inProg = True
         dr.watchdog.done = True
         dr.watchdog.healthy = True
-        DAQRun.unHealthyCount = 1
+        dr.unHealthyCount = 1
 
         expCnt = 0
 
@@ -1053,9 +1053,9 @@ class TestDAQRun(unittest.TestCase):
         self.failUnless(dr.watchdog.threadCleared, 'Should have cleared thread')
         self.failIf(dr.watchdog.watchStarted,
                     'Should not have started watchdog')
-        self.assertEquals(expCnt, DAQRun.unHealthyCount,
+        self.assertEquals(expCnt, dr.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
-                          (expCnt, DAQRun.unHealthyCount))
+                          (expCnt, dr.unHealthyCount))
 
         logger.checkStatus(10)
 
@@ -1069,7 +1069,7 @@ class TestDAQRun(unittest.TestCase):
 
         dr.watchdog.inProg = True
         dr.watchdog.done = True
-        DAQRun.unHealthyCount = 0
+        dr.unHealthyCount = 0
 
         expCnt = 1
 
@@ -1079,9 +1079,9 @@ class TestDAQRun(unittest.TestCase):
         self.failUnless(dr.watchdog.threadCleared, 'Should have cleared thread')
         self.failIf(dr.watchdog.watchStarted,
                     'Should not have started watchdog')
-        self.assertEquals(expCnt, DAQRun.unHealthyCount,
+        self.assertEquals(expCnt, dr.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
-                          (expCnt, DAQRun.unHealthyCount))
+                          (expCnt, dr.unHealthyCount))
 
         logger.checkStatus(10)
 
@@ -1095,7 +1095,7 @@ class TestDAQRun(unittest.TestCase):
 
         dr.watchdog.inProg = True
         dr.watchdog.done = True
-        DAQRun.unHealthyCount = DAQRun.MAX_UNHEALTHY_COUNT
+        dr.unHealthyCount = DAQRun.MAX_UNHEALTHY_COUNT
 
         expCnt = 0
 
@@ -1105,9 +1105,9 @@ class TestDAQRun(unittest.TestCase):
         self.failUnless(dr.watchdog.threadCleared, 'Should have cleared thread')
         self.failIf(dr.watchdog.watchStarted,
                     'Should not have started watchdog')
-        self.assertEquals(expCnt, DAQRun.unHealthyCount,
+        self.assertEquals(expCnt, dr.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
-                          (expCnt, DAQRun.unHealthyCount))
+                          (expCnt, dr.unHealthyCount))
 
         logger.checkStatus(10)
 

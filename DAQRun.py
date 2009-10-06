@@ -52,7 +52,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4633 2009-10-02 19:16:25Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4645 2009-10-06 19:50:29Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -421,6 +421,9 @@ class DAQRun(object):
     # I3Live priority
     LOGPRIO = Prio.ITS
 
+    # number of sequential watchdog complaints to indicate a run is unhealthy
+    MAX_UNHEALTHY_COUNT = 3
+
     def __init__(self, runArgs, startServer=True):
 
         self.runState         = "STOPPED"
@@ -473,6 +476,7 @@ class DAQRun(object):
         self.moni             = None
         self.moniTimer        = None
         self.watchdog         = None
+        self.unHealthyCount   = 0
         self.lastConfig       = None
         self.restartOnError   = runArgs.doRelaunch
         self.prevRunStats     = None
@@ -949,9 +953,6 @@ class DAQRun(object):
                         int(self.moni.getSingleBeanField(cid, "tcalBuilder", "DiskSize"))]
         return [0, 0]
 
-    unHealthyCount      = 0
-    MAX_UNHEALTHY_COUNT = 3
-
     def check_all(self):
         if self.moni and self.moniTimer and self.moniTimer.isTime():
             self.moniTimer.reset()
@@ -987,11 +988,11 @@ class DAQRun(object):
                     healthy = self.watchdog.isHealthy()
                     self.watchdog.clearThread()
                     if healthy:
-                        DAQRun.unHealthyCount = 0
+                        self.unHealthyCount = 0
                     else:
-                        DAQRun.unHealthyCount += 1
-                        if DAQRun.unHealthyCount >= DAQRun.MAX_UNHEALTHY_COUNT:
-                            DAQRun.unHealthyCount = 0
+                        self.unHealthyCount += 1
+                        if self.unHealthyCount >= DAQRun.MAX_UNHEALTHY_COUNT:
+                            self.unHealthyCount = 0
                             return False
             elif self.watchdog.timeToWatch():
                 self.watchdog.startWatch()
