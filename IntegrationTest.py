@@ -749,7 +749,11 @@ class StubbedDAQRun(DAQRun):
         if not self.__rate.gotTime():
             raise Exception('Rate timer did not run')
 
-        self.__rate.reset()
+        numTries = 0
+        while self.rateThread is not None and not self.rateThread.done() and \
+                numTries < 100:
+            time.sleep(0.1)
+            numTries += 1
 
     def forceWatchdog(self):
         self.__watchdog.setWatchFlag()
