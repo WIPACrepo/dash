@@ -6,7 +6,7 @@ import tempfile, threading, time, unittest, xmlrpclib
 from CnCServer import CnCServer, DAQClient, RunSet
 from DAQConst import DAQPort
 from DAQLogClient import LiveMonitor, Prio
-from DAQMoni import DAQMoni, FileMoniData
+from DAQMoni import DAQMoni, FileMoniData, MoniData
 from DAQRPC import RPCServer
 from DAQRun import DAQRun, RunArgs
 from RunWatchdog import RunWatchdog
@@ -252,6 +252,8 @@ class MockMoniBoth(MockMoniFile):
 
     def _report(self, now, b, attrs):
         super(MockMoniBoth, self)._report(now, b, attrs)
+
+        if not MoniData.SEND_LIVE_MONI: return
 
         for key in attrs:
             self.__moni.send('%s*%s+%s' % (str(self), b, key), now, attrs[key])

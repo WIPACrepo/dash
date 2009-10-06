@@ -261,9 +261,6 @@ class LiveMonitor(object):
             self.__sock = None
 
     def send(self, varName, time, data):
-        # XXX - disable I3Live monitoring for now
-        return
-
         if self.__sock is None:
             raise Exception('LiveMonitor has been closed')
 

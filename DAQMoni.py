@@ -16,6 +16,9 @@ set_exc_string_encoding("ascii")
 class BeanFieldNotFoundException(Exception): pass
 
 class MoniData(object):
+    # XXX - disable I3Live monitoring for now
+    SEND_LIVE_MONI = False
+
     def __init__(self, name, daqID, addr, port):
         self.__name = name
         self.__daqID = daqID
@@ -66,6 +69,8 @@ class FileMoniData(MoniData):
         super(FileMoniData, self).__init__(name, daqID, addr, port)
 
     def _report(self, now, beanName, attrs):
+        if not MoniData.SEND_LIVE_MONI: return
+
         print >>self.__fd, '%s: %s:' % (beanName, now)
         for key in attrs:
             print >>self.__fd, '\t%s: %s' % \
@@ -109,6 +114,8 @@ class LiveMoniData(MoniData):
         self.__moni = LiveMonitor()
 
     def _report(self, now, beanName, attrs):
+        if not MoniData.SEND_LIVE_MONI: return
+
         for key in attrs:
             self.__moni.send('%s*%s+%s' %
                              (str(self), beanName, key), now, attrs[key])
