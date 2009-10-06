@@ -52,7 +52,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4646 2009-10-06 19:53:15Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4648 2009-10-06 20:09:15Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -406,17 +406,26 @@ class Component(object):
 
 class DAQRun(object):
     "Serve requests to start/stop DAQ runs (exp control iface)"
-    MONI_PERIOD    = 100
-    RATE_PERIOD    = 60
-    WATCH_PERIOD   = 10
+
+    # monitoring timer
+    MONI_NAME        = "moniTimer"
+    MONI_PERIOD      = 100
+
+    # event rate report timer
+    RATE_NAME        = "rateTimer"
+    RATE_PERIOD      = 60
+
+    # watchdog timer
+    WATCH_NAME       = "watchTimer"
+    WATCH_PERIOD     = 10
 
     # max time to wait for components to register
     REGISTRATION_TIMEOUT = 60
 
     # note that these are bitmapped
-    LOG_TO_FILE    = 1
-    LOG_TO_LIVE    = 2
-    LOG_TO_BOTH    = 3
+    LOG_TO_FILE = 1
+    LOG_TO_LIVE = 2
+    LOG_TO_BOTH = 3
 
     # Logging level
     LOGLEVEL = DAQLog.WARN
@@ -475,10 +484,6 @@ class DAQRun(object):
         self.ip               = getIP()
         self.compPorts        = {} # Indexed by name
         self.cnc              = None
-        self.moni             = None
-        self.moniTimer        = None
-        self.watchdog         = None
-        self.unHealthyCount   = 0
         self.lastConfig       = None
         self.restartOnError   = runArgs.doRelaunch
         self.prevRunStats     = None
@@ -486,7 +491,14 @@ class DAQRun(object):
         self.quiet            = runArgs.quiet
         self.running          = False
 
-        self.rateTimer        = self.setup_timer(DAQRun.RATE_PERIOD)
+        self.moni             = None
+        self.moniTimer        = None
+
+        self.watchdog         = None
+        self.unHealthyCount   = 0
+
+        self.rateTimer        = self.setup_timer(DAQRun.RATE_NAME,
+                                                 DAQRun.RATE_PERIOD)
         self.rateThread       = None
         self.badRateCount     = 0
 
@@ -873,7 +885,8 @@ class DAQRun(object):
         "Set up run watchdog"
         return RunWatchdog(log, interval, comps)
 
-    def setup_timer(self, interval):
+    def setup_timer(self, name, interval):
+        "Indirectly create IntervalTimer to make unit testing easier"
         return IntervalTimer(interval)
 
     def runset_configure(self, rpc, runSetID, configName):
@@ -964,7 +977,7 @@ class DAQRun(object):
             except Exception:
                 self.log.error("Exception in monitoring: %s" % exc_string())
 
-        if self.rateTimer.isTime():
+        if self.rateTimer and self.rateTimer.isTime():
             self.rateTimer.reset()
             if self.rateThread is not None and not self.rateThread.done():
                 self.badRateCount += 1
@@ -1096,7 +1109,8 @@ class DAQRun(object):
                     self.moni = \
                         self.setup_monitoring(self.log, self.__logpath,
                                               self.components, moniType)
-                    self.moniTimer = self.setup_timer(DAQRun.MONI_PERIOD)
+                    self.moniTimer = self.setup_timer(DAQRun.MONI_NAME,
+                                                      DAQRun.MONI_PERIOD)
                     self.watchdog = \
                         self.setup_watchdog(self.log, DAQRun.WATCH_PERIOD,
                                             self.components)
@@ -1155,7 +1169,11 @@ class DAQRun(object):
 
                 self.moni = None
                 self.moniTimer = None
+
                 self.watchdog = None
+                self.unHealthyCount = 0
+
+                self.rateTimer = None
 
                 try:      self.stopAllComponentLoggers()
                 except:   hadError = True; self.log.error(exc_string())

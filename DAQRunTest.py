@@ -251,7 +251,7 @@ class MostlyDAQRun(DAQRun):
 
         return self.__mockAppender
 
-    def setup_timer(self, interval):
+    def setup_timer(self, name, interval):
         return MockIntervalTimer(interval)
 
 class StubbedDAQRun(MostlyDAQRun):

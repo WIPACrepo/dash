@@ -796,22 +796,22 @@ class StubbedDAQRun(DAQRun):
         self.__moni = MockMoni(log, moniPath, comps, moniType)
         return self.__moni
 
-    def setup_timer(self, interval):
-        if interval == DAQRun.RATE_PERIOD:
+    def setup_timer(self, name, interval):
+        if name == DAQRun.RATE_NAME:
             if self.__rate is not None:
                 raise Exception('Rate timer already exists')
 
             self.__rate = MockIntervalTimer(interval)
             return self.__rate
 
-        if interval == DAQRun.MONI_PERIOD:
+        if name == DAQRun.MONI_NAME:
             if self.__moniTimer is not None:
                 raise Exception('Rate timer already exists')
 
             self.__moniTimer = MockIntervalTimer(interval)
             return self.__moniTimer
 
-        raise Exception("Unknown timer interval %d" % interval)
+        raise Exception("Unknown timer %s (interval %d)" % (name, interval))
 
     def setup_watchdog(self, log, interval, comps):
         if self.__watchdog is not None:
