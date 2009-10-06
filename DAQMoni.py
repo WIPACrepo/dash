@@ -30,7 +30,7 @@ class MoniData(object):
     def __str__(self):
         return '%s-%d' % (self.__name, self.__daqID)
 
-    def _report(self, now, b, attrs):
+    def _report(self, now, beanName, attrs):
         raise Exception('Unimplemented')
 
     def getBeanField(self, ID, bean, fld):
@@ -65,8 +65,8 @@ class FileMoniData(MoniData):
 
         super(FileMoniData, self).__init__(name, daqID, addr, port)
 
-    def _report(self, now, b, attrs):
-        print >>self.__fd, '%s: %s:' % (b, now)
+    def _report(self, now, beanName, attrs):
+        print >>self.__fd, '%s: %s:' % (beanName, now)
         for key in attrs:
             print >>self.__fd, '\t%s: %s' % \
                 (key, str(FileMoniData.unFixValue(attrs[key])))
@@ -108,9 +108,10 @@ class LiveMoniData(MoniData):
 
         self.__moni = LiveMonitor()
 
-    def _report(self, now, b, attrs):
+    def _report(self, now, beanName, attrs):
         for key in attrs:
-            self.__moni.send('%s*%s+%s' % (str(self), b, key), now, attrs[key])
+            self.__moni.send('%s*%s+%s' %
+                             (str(self), beanName, key), now, attrs[key])
 
 class BothMoniData(FileMoniData):
     def __init__(self, name, daqID, addr, port, fname):
@@ -118,11 +119,12 @@ class BothMoniData(FileMoniData):
 
         self.__moni = LiveMonitor()
 
-    def _report(self, now, b, attrs):
-        super(BothMoniData, self)._report(now, b, attrs)
+    def _report(self, now, beanName, attrs):
+        super(BothMoniData, self)._report(now, beanName, attrs)
 
         for key in attrs:
-            self.__moni.send('%s*%s+%s' % (str(self), b, key), now, attrs[key])
+            self.__moni.send('%s*%s+%s' %
+                             (str(self), beanName, key), now, attrs[key])
 
 class MoniThread(threading.Thread):
     def __init__(self, moniData, log, quiet):
