@@ -608,7 +608,7 @@ class TestDAQRun(unittest.TestCase):
         dr.runStats.runNum = expRunNum
         dr.runSetID = expId
 
-        DAQRun.COMP_TOUT = 0
+        DAQRun.REGISTRATION_TIMEOUT = 0
 
         required = []
         for c in comps:
@@ -644,7 +644,7 @@ class TestDAQRun(unittest.TestCase):
 
         dr.runStats.runNum = expRunNum
 
-        DAQRun.COMP_TOUT = 0
+        DAQRun.REGISTRATION_TIMEOUT = 0
 
         expId = cnc.nextRunsetId
 

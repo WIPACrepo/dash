@@ -52,7 +52,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4645 2009-10-06 19:50:29Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4646 2009-10-06 19:53:15Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -409,7 +409,9 @@ class DAQRun(object):
     MONI_PERIOD    = 100
     RATE_PERIOD    = 60
     WATCH_PERIOD   = 10
-    COMP_TOUT      = 60
+
+    # max time to wait for components to register
+    REGISTRATION_TIMEOUT = 60
 
     # note that these are bitmapped
     LOG_TO_FILE    = 1
@@ -815,7 +817,8 @@ class DAQRun(object):
         self.log.error(("Starting run %d (waiting for required %d components" +
                        " to register w/ CnCServer)") %
                       (self.runStats.runNum, len(requiredComps)))
-        self.waitForRequiredComponents(cncrpc, requiredComps, DAQRun.COMP_TOUT)
+        self.waitForRequiredComponents(cncrpc, requiredComps,
+                                       DAQRun.REGISTRATION_TIMEOUT)
         # Throws RequiredComponentsNotAvailableException
 
         self.runSetID = cncrpc.rpccall("rpc_runset_make", requiredComps)
