@@ -11,6 +11,7 @@ from DAQConst import DAQPort
 from exc_string import exc_string
 
 try:
+    from live.control.LiveMoni import MoniClient
     from live.transport.Queue import Prio
 except ImportError:
     # create a bogus Prio class
@@ -243,32 +244,17 @@ class BothSocketAppender(object):
 class LiveMonitor(object):
     "Send I3Live monitoring data"
     def __init__(self, node='localhost', port=DAQPort.I3LIVE, service='pdaq'):
-        self.__svc = service
-
-        self.__loc = '%s:%d' % (node, port)
-
-        self.__sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.__sock.connect((node, port))
-
-        self.__fmt = LiveFormatter()
-
-    def _getTime(self):
-        return datetime.datetime.utcnow()
+        self.__client = MoniClient(service, node, port)
 
     def close(self):
-        if self.__sock is not None:
-            self.__sock.close()
-            self.__sock = None
+        if self.__client is not None:
+            self.__client.close()
+            self.__client = None
 
     def send(self, varName, time, data):
-        if self.__sock is None:
+        if self.__client is None:
             raise Exception('LiveMonitor has been closed')
 
-        if type(data) == unicode:
-            data = str(data)
-
-        try:
-            msg = self.__fmt.format(varName, time, data)
-            self.__sock.send(msg)
-        except socket.error, se:
-            raise socket.error('LogSocket %s: %s' % (self.__loc, str(se)))
+        if not self.__client.sendMoni(varName, data, Prio.ITS, time):
+            raise socket.error('LiveMonitor %s: cannot send %s data' %
+                               (str(self.__client), varName))
