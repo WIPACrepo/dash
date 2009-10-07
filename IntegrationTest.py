@@ -375,7 +375,8 @@ class RealComponent(object):
                    'secondaryBuilders' : 32,
                    }
 
-    def __init__(self, name, num, cmdPort, mbeanPort, jvm, jvmArgs, verbose=False):
+    def __init__(self, name, num, cmdPort, mbeanPort, jvm, jvmArgs,
+                 verbose=False):
         self.__id = None
         self.__name = name
         self.__num = num
@@ -818,6 +819,9 @@ class StubbedDAQRun(DAQRun):
 
             self.__moniTimer = MockIntervalTimer(interval)
             return self.__moniTimer
+
+        if name == DAQRun.ACTIVE_NAME or name == DAQRun.ACTIVERPT_NAME:
+            return MockIntervalTimer(interval)
 
         raise Exception("Unknown timer %s (interval %d)" % (name, interval))
 

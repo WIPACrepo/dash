@@ -10,8 +10,8 @@
 from DAQConst import DAQPort
 from DAQLog import LogSocketServer
 from DAQLogClient \
-    import BothSocketAppender, DAQLog, FileAppender, LiveSocketAppender, \
-    LogSocketAppender, Prio
+    import BothSocketAppender, DAQLog, FileAppender, LiveMonitor, \
+    LiveSocketAppender, LogSocketAppender, Prio
 from DAQMoni import DAQMoni
 from RunWatchdog import RunWatchdog
 from DAQRPC import RPCClient, RPCServer
@@ -41,6 +41,13 @@ set_exc_string_encoding("ascii")
 
 from ClusterConfig import *
 
+try:
+    from live.control.LiveMoni import MoniClient
+    from live.transport.Queue import Prio
+    USE_LIVE = True
+except ImportError:
+    USE_LIVE = False
+
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
     metaDir = os.environ["PDAQ_HOME"]
@@ -52,7 +59,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4648 2009-10-06 20:09:15Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4654 2009-10-07 12:29:18Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -374,6 +381,51 @@ class RateThread(threading.Thread):
                         self.__runStats.tcalEvents))
         self.__done = True
 
+class ActiveDOMThread(threading.Thread):
+    "A thread which reports the active DOM counts"
+    def __init__(self, moni, activeMoni, comps, log, sendDetails):
+        self.__moni = moni
+        self.__activeMonitor = activeMoni
+        self.__comps = comps
+        self.__log = log
+        self.__sendDetails = sendDetails
+        self.__done = False
+
+        threading.Thread.__init__(self)
+
+        self.setName("DAQRun:ActiveDOMThread")
+
+    def done(self):
+        return self.__done
+
+    def run(self):
+        total = 0
+        hubDOMs = {}
+
+        for cid, comp in self.__comps.iteritems():
+            if comp.name() == "stringHub":
+                nStr = self.__moni.getSingleBeanField(cid, "stringhub",
+                                                      "NumberOfActiveChannels")
+                num = int(nStr)
+                total += num
+                if self.__sendDetails:
+                    hubDOMs[str(comp.id())] = num
+
+        now = datetime.datetime.now()
+
+        self.__activeMonitor.sendMoni("activeDOMs", total, Prio.ITS)
+
+        if self.__sendDetails:
+            alertDict = { 'condition' : 'alert',
+                          'notify'    : '',
+                          'pages'     : False,
+                          'vars'      : { 'activeStringDOMs' : hubDOMs },
+                          }
+            if not self.__activeMonitor.sendMoni('alert', alertDict, Prio.ITS):
+                self.__log.error("Failed to send active DOM report")
+
+        self.__done = True
+
 class Component(object):
     def __init__(self, name, id, inetAddr, rpcPort, mbeanPort):
         self.__name = name
@@ -407,6 +459,14 @@ class Component(object):
 class DAQRun(object):
     "Serve requests to start/stop DAQ runs (exp control iface)"
 
+    # active DOM total timer
+    ACTIVE_NAME      = "activeTimer"
+    ACTIVE_PERIOD    = 60
+
+    # active DOM periodic report timer
+    ACTIVERPT_NAME   = "activeRptTimer"
+    ACTIVERPT_PERIOD = 600
+
     # monitoring timer
     MONI_NAME        = "moniTimer"
     MONI_PERIOD      = 100
@@ -434,6 +494,9 @@ class DAQRun(object):
 
     # number of sequential watchdog complaints to indicate a run is unhealthy
     MAX_UNHEALTHY_COUNT = 3
+
+    # set to True after "could not import IceCube Live" warning is printed
+    LIVE_WARNING = False
 
     def __init__(self, runArgs, startServer=True):
 
@@ -501,6 +564,22 @@ class DAQRun(object):
                                                  DAQRun.RATE_PERIOD)
         self.rateThread       = None
         self.badRateCount     = 0
+
+        self.__activeDOMTimer    = self.setup_timer(DAQRun.ACTIVE_NAME,
+                                                    DAQRun.ACTIVE_PERIOD)
+        if not USE_LIVE:
+            self.__activeMonitor = None
+            self.__activeDOMDetail = None
+            if not DAQRun.LIVE_WARNING:
+                print >>sys.stderr, "Cannot import IceCube Live code, so" + \
+                    " per-string active DOM stats wil not be reported"
+                DAQRun.LIVE_WARNING = True
+        else:
+            self.__activeDOMDetail = self.setup_timer(DAQRun.ACTIVERPT_NAME,
+                                                      DAQRun.ACTIVERPT_PERIOD)
+            self.__activeMonitor = MoniClient("pdaq", "localhost",
+                                              DAQPort.I3LIVE)
+        self.__activeDOMThread   = None
 
         self.__liveInfo       = None
         self.__id = int(time.time())
@@ -977,6 +1056,34 @@ class DAQRun(object):
             except Exception:
                 self.log.error("Exception in monitoring: %s" % exc_string())
 
+        if self.__activeDOMTimer and self.__activeDOMTimer.isTime():
+            self.__activeDOMTimer.reset()
+            if self.__activeMonitor is not None and \
+                    self.__activeDOMThread is not None and \
+                    not self.__activeDOMThread.done():
+                self.badActiveDOMCount += 1
+                if self.badActiveDOMCount <= 3:
+                    self.log.error(("WARNING: Active DOM thread" +
+                                    " is hanging (#%d)") %
+                                   self.badActiveDOMCount)
+                else:
+                    self.log.error("ERROR: Active DOM calculation seems to be" +
+                                   " stuck, stopping run")
+                    self.runState = "ERROR"
+            else:
+                self.badActiveDOMCount = 0
+
+                sendDetails = False
+                if self.__activeDOMDetail is not None and \
+                        self.__activeDOMDetail.isTime():
+                    sendDetails = True
+                    self.__activeDOMDetail.reset()
+
+                self.__activeDOMThread = \
+                    ActiveDOMThread(self.moni, self.__activeMonitor,
+                                    self.components, self.log, sendDetails)
+                self.__activeDOMThread.start()
+
         if self.rateTimer and self.rateTimer.isTime():
             self.rateTimer.reset()
             if self.rateThread is not None and not self.rateThread.done():
@@ -1174,6 +1281,8 @@ class DAQRun(object):
                 self.unHealthyCount = 0
 
                 self.rateTimer = None
+
+                self.__activeDOMTimer = None
 
                 try:      self.stopAllComponentLoggers()
                 except:   hadError = True; self.log.error(exc_string())
