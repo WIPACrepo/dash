@@ -69,8 +69,6 @@ class FileMoniData(MoniData):
         super(FileMoniData, self).__init__(name, daqID, addr, port)
 
     def _report(self, now, beanName, attrs):
-        if not MoniData.SEND_LIVE_MONI: return
-
         print >>self.__fd, '%s: %s:' % (beanName, now)
         for key in attrs:
             print >>self.__fd, '\t%s: %s' % \
@@ -128,6 +126,8 @@ class BothMoniData(FileMoniData):
 
     def _report(self, now, beanName, attrs):
         super(BothMoniData, self)._report(now, beanName, attrs)
+
+        if not MoniData.SEND_LIVE_MONI: return
 
         for key in attrs:
             self.__moni.send('%s*%s+%s' %
