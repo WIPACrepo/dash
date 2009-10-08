@@ -17,14 +17,15 @@ class ConfigNotFoundException(Exception): pass
 class MalformedDeployConfigException(Exception): pass
 
 CLUSTER_CONGIF_DEFAULTS = "cluster-config-defaults.xml"
+DEFAULT_CLUSTER_NAME = "localhost"
 GLOBAL_DEFAULT_LOG_LEVEL = "INFO"
 HUB_COMP_NAME = "StringHub"
 
 class deployComponent:
     "Record-keeping class for deployed components"
     def __init__(self, compName, compID, logLevel, jvm, jvmArgs):
-        self.compName = compName;
-        self.compID   = compID;
+        self.compName = compName
+        self.compID   = compID
         self.logLevel = logLevel
         self.jvm      = jvm
         self.jvmArgs  = jvmArgs
@@ -37,24 +38,27 @@ class deployComponent:
 class deployNode:
     "Record-keeping class for host targets"
     def __init__(self, locName, hostName):
-        self.locName  = locName;
-        self.hostName = hostName;
+        self.locName  = locName
+        self.hostName = hostName
         self.comps    = []
 
     def addComp(self, comp): self.comps.append(comp)
 
 class deployConfig(object):
-    "Class for parsing and storing pDAQ cluster configurations stored in XML files"
+    """ Class for parsing and storing pDAQ cluster configurations
+    stored in XML files """
     def __init__(self, configDir, configName):
         self.nodes = []
         
-        self.configFile, icecubeNode = self.openAndParseConfig(configDir, configName)
+        self.configFile, icecubeNode = \
+            self.openAndParseConfig(configDir, configName)
 
         # Get "remarks" string if available
         self.remarks = self.getValue(icecubeNode, "remarks")
         
         cluster = icecubeNode.getElementsByTagName("cluster")
-        if len(cluster) != 1: raise MalformedDeployConfigException(self.configFile)
+        if len(cluster) != 1:
+            raise MalformedDeployConfigException(self.configFile)
         self.clusterName = self.getValue(cluster[0], "name")
 
         # Get location of SPADE output
@@ -67,15 +71,16 @@ class deployConfig(object):
         self.defaultLogLevel = self.getValue(cluster[0], "defaultLogLevel",
                                              GLOBAL_DEFAULT_LOG_LEVEL)
         
-        # Get default java info as a dictionary
-        self.defaultJavaInfo = self.getJavaInfo(cluster[0], configDir,
-                                                CLUSTER_CONGIF_DEFAULTS)
+        # Get default java info as a dict of modules and fallback defaults
+        self.defaultJava, self.fallBackJava = \
+            self.getDefaultJavaInfo(configDir, self.clusterName)
 
         locations = cluster[0].getElementsByTagName("location")
         for nodeXML in locations:
             name = self.getValue(nodeXML, "name")
             if name is None:
-                raise MalformedDeployConfigException("<location> is missing 'name' attribute")
+                raise MalformedDeployConfigException(\
+                    "<location> is missing 'name' attribute")
 
             # Get address
             if nodeXML.attributes.has_key("host"):
@@ -92,29 +97,43 @@ class deployConfig(object):
             for compXML in modules:
                 compName = self.getValue(compXML, "name")
                 if compName is None:
-                    raise MalformedDeployConfigException("Found module without 'name'")
+                    raise MalformedDeployConfigException(\
+                        "Found module without 'name'")
 
                 idStr = self.getValue(compXML, "id", "0")
                 try:
                     compID = int(idStr)
                 except:
-                    raise MalformedDeployConfigException("Bad id '%s' for module '%d'" %
-                                                         (idStr, compName))
+                    raise MalformedDeployConfigException(\
+                        "Bad id '%s' for module '%d'" % (idStr, compName))
 
                 logLevel = self.getValue(compXML, "logLevel",
                                          self.defaultLogLevel)
 
-                moduleJavaInfo = self.getJavaInfo(compXML, inModule=True)
+                # Get the jvm/jvmArgs from the default cluster config
+                jvm     = self.defaultJava.get(compName,
+                                               self.fallBackJava).get('jvm')
+                jvmArgs = self.defaultJava.get(compName,
+                                               self.fallBackJava).get('jvmArgs')
 
+                # Override if module has a jvm a/o jvmArgs defined
+                modJvm = self.getElementSingleTagName(compXML, 'jvm',
+                                                      deep=False,
+                                                      enforce=False)
+                if modJvm: jvm = modJvm
+
+                modJvmArgs = self.getElementSingleTagName(compXML, 'jvmArgs',
+                                                          deep=False,
+                                                          enforce=False)
+                if modJvmArgs: jvmArgs = modJvmArgs
+
+                # Hubs need special ID arg
                 if compName == HUB_COMP_NAME:
-                    jvm = moduleJavaInfo.get('jvm', self.defaultJavaInfo['hubJvm'])
-                    jvmArgs = moduleJavaInfo.get('jvmArgs', self.defaultJavaInfo['hubJvmArgs'])
-                    jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % compID
-                else:
-                    jvm = moduleJavaInfo.get('jvm', self.defaultJavaInfo['jvm'])
-                    jvmArgs = moduleJavaInfo.get('jvmArgs', self.defaultJavaInfo['jvmArgs'])
+                    jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % \
+                        compID
 
-                thisNode.addComp(deployComponent(compName, compID, logLevel, jvm, jvmArgs))
+                thisNode.addComp(deployComponent(compName, compID, logLevel,
+                                                 jvm, jvmArgs))
                                        
                                        
     def getElementSingleTagName(root, name, deep=True, enforce=True):
@@ -136,9 +155,11 @@ class deployConfig(object):
 
         if enforce:
             if len(elems) != 1:
-                raise MalformedDeployConfigException("Expected exactly one %s" % name)
+                raise MalformedDeployConfigException(\
+                    "Expected exactly one %s" % name)
             if len(elems[0].childNodes) != 1:
-                raise MalformedDeployConfigException("Expected exactly one child node of %s" %name)
+                raise MalformedDeployConfigException(\
+                    "Expected exactly one child node of %s" %name)
         elif len(elems) == 0:
             return None
         return elems[0].childNodes[0].data.strip()
@@ -155,63 +176,73 @@ class deployConfig(object):
                         hublist.append(node.hostName)
         return hublist
 
-    def getJavaInfo(self, node, configDir=None, defaultConfig=None, inModule=False):
-        """ Return a dict of the values for jvm and jvmArgs.  Used
-        both for defaultJava element at top of the cluster config and
-        the optional java element in each module.  If not in a module,
-        then look for defaultJava element and if not found in the
-        current config then consult the provided defaultConfig in
-        configDir if provided.
+    def getDefaultJavaInfo(self, configDir, clusterName):
+        """ Get the default set of java information from the
+        cluster-config default file for clusterName.
 
-        Returns a dict with at least the following keys: 'jvm',
-        'jvmArgs' and also 'hubJvm', 'hubJvmArgs' if inModule is True
-        and the hubs sub-element is found in the xml.  Raises
-        MalformedDeployConfigException on problem with reading config
-        xml."""
+        Return a tuple of dictionaties: a nested dictionary populated
+        with jvm & jvmArgs (i.e. d['eventBuilder']['jvm']) and
+        fallback dict with just 'jvm' and 'jvmArgs' keys.  The latter
+        is what was in the "default" module for the cluster and the
+        former has such a dict for each named module. """
 
-        ret = {}
-        javaElementName = "defaultJava"
+        defJavaDict = {}
+        fbJavaDict = {}
 
-        # If we're in a module, then look for "java" element
-        if inModule:
-            javaElementName = "java"
+        # Parse the default cluster config file
+        configFile, icecubeNode = \
+            self.openAndParseConfig(configDir, CLUSTER_CONGIF_DEFAULTS)
 
-        javaNodes = node.getElementsByTagName(javaElementName)
+        # Get the proper cluster node, using 'localhost' as fallback
+        clusterNodes = icecubeNode.getElementsByTagName("cluster")
+        if len(clusterNodes) < 1:
+            raise MalformedDeployConfigException(\
+                "No cluster elements in cluster config defaults while "
+                "looking for default java info.  configFile='%s'" %
+                configFile)
+        clusterNode = defaultClusterNode = None
+        for node in clusterNodes:
+            if clusterNode is None and \
+                    node.getAttribute("name") == clusterName:
+                clusterNode = node
+            if defaultClusterNode is None and \
+                    node.getAttribute("name") == DEFAULT_CLUSTER_NAME:
+                defaultClusterNode = node
+            if None not in (clusterNode, defaultClusterNode):
+                break
+        if defaultClusterNode is None:
+            raise MalformedDeployConfigException(\
+                "Missing '%s' cluster config in '%s'" % \
+                    (DEFAULT_CLUSTER_NAME, CLUSTER_CONGIF_DEFAULTS))
+        if clusterNode is None:
+            clusterNode = defaultClusterNode
+            print "Warning: No '%s' cluster in '%s'.  Using cluster '%s'." % \
+                (clusterName, CLUSTER_CONGIF_DEFAULTS, DEFAULT_CLUSTER_NAME)
 
-        if len(javaNodes) >= 1:
-            val = self.getElementSingleTagName(javaNodes[0], 'jvm', deep=False,
-                                               enforce = not inModule)
-            if val:
-                ret['jvm'] = val
+        # Get list of module nodes
+        moduleNodes = clusterNode.getElementsByTagName("module")
+        for node in moduleNodes:
+            name = node.getAttribute("name")
+            if name:
+                if name == "default":
+                    fbJavaDict['jvm'] = \
+                        self.getElementSingleTagName(node, 'jvm')
+                    fbJavaDict['jvmArgs'] = \
+                        self.getElementSingleTagName(node, 'jvmArgs')
+                else:
+                    defJavaDict[name] = {}
+                    defJavaDict[name]['jvm'] = \
+                        self.getElementSingleTagName(node, 'jvm')
+                    defJavaDict[name]['jvmArgs'] = \
+                        self.getElementSingleTagName(node, 'jvmArgs')
+            else:
+                raise MalformedDeployConfigException(\
+                    "Unnamed module found in cluster '%s' in cluster config "
+                    "defaults while looking for default java info. "
+                    "configFile='%s'" % (clusterName, configFile))
 
-            val = self.getElementSingleTagName(javaNodes[0], 'jvmArgs',
-                                               deep=False,
-                                               enforce = not inModule)
-            if val:
-                ret['jvmArgs'] = val
+        return defJavaDict, fbJavaDict
 
-            if not inModule:
-                hubNodes = javaNodes[0].getElementsByTagName("hubs")
-                if len(hubNodes) >= 1:
-                    val = self.getElementSingleTagName(hubNodes[0], 'jvm',
-                                                       enforce=False)
-                    if val:
-                        ret['hubJvm'] = val
-
-                    val = self.getElementSingleTagName(hubNodes[0], 'jvmArgs',
-                                                       enforce=False)
-                    if val:
-                        ret['hubJvmArgs'] = val
-            
-        elif not inModule:  # Look in default cluster config file
-            defConfigFile, icecubeNode = self.openAndParseConfig(configDir, defaultConfig)
-            cluster = icecubeNode.getElementsByTagName("cluster")
-            if len(cluster) != 1: raise MalformedDeployConfigException(self.configFile)
-            ret = self.getJavaInfo(cluster[0]) # recurse without default config file.
-
-        return ret
-
-        
     def getValue(self, node, name, defaultVal=None):
         if node.attributes is not None and node.attributes.has_key(name):
             return node.attributes[name].value
@@ -225,12 +256,12 @@ class deployConfig(object):
         """ Open the given configName'd file in the configDir dir
         returning name of the file parsed and the top-level icecube
         element node. """
-        configFile = self.xmlOf(join(configDir,configName))
+        configFile = self.xmlOf(join(configDir, configName))
         if not exists(configFile): raise ConfigNotFoundException(configName)
         try:
             parsed = minidom.parse(configFile)
         except:
-            import sys,traceback
+            import sys, traceback
             traceback.print_exc(file=sys.stdout)
             raise MalformedDeployConfigException(configFile)
         icecube = parsed.getElementsByTagName("icecube")

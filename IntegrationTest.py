@@ -923,21 +923,25 @@ class IntegrationTest(unittest.TestCase):
     LIVEMONI_ENABLED = False
 
     def __createComponents(self):
-        # Note that these values needs to correspond to the config in
-        # 'sim-localhost'
+        # Note that these jvm/jvmArg values needs to correspond to
+        # what would be used by the config in 'sim-localhost'
         jvm = 'java'
-        jvmArgs = '-server -Xms256m -Xmx512m'
-        hubJvmArgs = jvmArgs + ' -Dicecube.daq.bindery.StreamBinder.prescale=1'
+        hubJvmArgs = '-server -Xms256m -Xmx512m ' \
+            '-Dicecube.daq.bindery.StreamBinder.prescale=1'
         comps = [('stringHub', 1001, 9111, 9211, jvm, hubJvmArgs),
                  ('stringHub', 1002, 9112, 9212, jvm, hubJvmArgs),
                  ('stringHub', 1003, 9113, 9213, jvm, hubJvmArgs),
                  ('stringHub', 1004, 9114, 9214, jvm, hubJvmArgs),
                  ('stringHub', 1005, 9115, 9215, jvm, hubJvmArgs),
                  ('stringHub', 1201, 9116, 9216, jvm, hubJvmArgs),
-                 ('inIceTrigger', 0, 9117, 9217, jvm, jvmArgs),
-                 ('globalTrigger', 0, 9118, 9218, jvm, jvmArgs),
-                 ('eventBuilder', 0, 9119, 9219, jvm, jvmArgs),
-                 ('secondaryBuilders', 0, 9120, 9220, jvm, jvmArgs),]
+                 ('inIceTrigger', 0, 9117, 9217, jvm,
+                  '-server -Xms1000m -Xmx2000m'),
+                 ('globalTrigger', 0, 9118, 9218, jvm,
+                  '-server -Xms256m -Xmx512m'),
+                 ('eventBuilder', 0, 9119, 9219, jvm,
+                  '-server -Xms600m -Xmx1200m'),
+                 ('secondaryBuilders', 0, 9120, 9220, jvm,
+                  '-server -Xms600m -Xmx1200m'),]
 
         verbose = False
 
