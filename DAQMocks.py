@@ -2,7 +2,7 @@
 #
 # Classes used for pDAQ unit testing
 
-import datetime, os, re, select, socket, threading, time
+import datetime, os, re, select, socket, sys, threading, time
 
 from CnCServer import CnCLogger, DAQClient
 from DAQConst import DAQPort
@@ -328,13 +328,17 @@ class LogChecker(object):
                 break
 
         if found is None:
-            print '----------'
+            print >>sys.stderr, '--- Missing %s log msg ---' % str(self)
             print msg
-            print '----------'
-            for i in range(len(self.__expMsgs)):
-                if i >= self.__depth:
-                    break
-                self.__expMsgs[i].check(self, msg, LogChecker.DEBUG, True)
+            if len(self.__expMsgs) > 0:
+                print >>sys.stderr, '--- Expected %s messages ---' % str(self)
+                for i in range(len(self.__expMsgs)):
+                    if i >= self.__depth:
+                        break
+                    print "--- %s" % str(self.__expMsgs[i])
+                    self.__expMsgs[i].check(self, msg, LogChecker.DEBUG, True)
+            print >>sys.stderr, '----------------------------'
+            self.setError('Missing %s log message: %s' % (str(self), msg))
             return False
 
         del self.__expMsgs[found]
