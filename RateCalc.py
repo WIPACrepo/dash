@@ -7,8 +7,9 @@
 import datetime
 import time
 
-class InsufficientEntriesException(Exception): pass
-class ZeroTimeDeltaException      (Exception): pass
+class RateException(Exception): pass
+class InsufficientEntriesException(RateException): pass
+class ZeroTimeDeltaException(RateException): pass
 
 class RateCalcEntry(object):
     def __init__(self, time, n):

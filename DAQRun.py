@@ -25,10 +25,10 @@ from GetIP import getIP
 from re import search
 from xmlrpclib import Fault
 from IntervalTimer import IntervalTimer
+from RateCalc import RateCalc, RateException
 import DAQConfig
 import datetime
 import optparse
-import RateCalc
 import Daemon
 import socket
 import threading
@@ -59,7 +59,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4654 2009-10-07 12:29:18Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4668 2009-10-12 19:20:52Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -264,7 +264,7 @@ class RunStats(object):
         self.EBDiskSize      = EBDiskSize
         self.SBDiskAvailable = SBDiskAvailable
         self.SBDiskSize      = SBDiskSize
-        self.physicsRate     = RateCalc.RateCalc(300.) # Calculates rate over latest 5min interval
+        self.physicsRate     = RateCalc(300.) # Calculates rate over latest 5min interval
 
     def clear(self):
         "Clear run-related statistics"
@@ -369,8 +369,7 @@ class RateThread(threading.Thread):
                     self.__log.warn(str(entry))
             #
             rateStr = " (%2.2f Hz)" % rate
-        except (RateCalc.InsufficientEntriesException,
-                RateCalc.ZeroTimeDeltaException):
+        except (RateException):
             rateStr = ""
         self.__log.error(("\t%s physics events%s, %s moni events," +
                         " %s SN events, %s tcals")  %
