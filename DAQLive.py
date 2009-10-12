@@ -245,8 +245,22 @@ class DAQLive(Component):
                 return
 
         moniData = self.__runIface.monitorRun()
-        for k in moniData.keys():
-            self.moniClient.sendMoni(k, moniData[k], Prio.ITS)
+        if False:
+            # send entire dictionary using JSON
+            self.moniClient.sendMoni("eventRates", moniData, Prio.ITS)
+        else:
+            # send discrete messages for each type of event
+            self.moniClient.sendMoni("physicsEvents", moniData["physicsEvents"],
+                                     Prio.ITS, moniData["eventPayloadTime"])
+            self.moniClient.sendMoni("walltimeEvents",
+                                     moniData["physicsEvents"],
+                                     Prio.ITS, moniData["eventTime"])
+            self.moniClient.sendMoni("moniEvents", moniData["moniEvents"],
+                                     Prio.ITS, moniData["moniTime"])
+            self.moniClient.sendMoni("snEvents", moniData["snEvents"],
+                                     Prio.ITS, moniData["snTime"])
+            self.moniClient.sendMoni("tcalEvents", moniData["tcalEvents"],
+                                     Prio.ITS, moniData["tcalTime"])
 
     def __waitForState(self, expState, badStates=('ERROR', )):
         "Wait for pDAQ to reach the expected state"

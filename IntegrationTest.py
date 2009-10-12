@@ -59,6 +59,10 @@ class BeanData(object):
                       ('dispatch', 'backEnd', 'NumEventsSent', 's', 0),
                       ('eventBuilder', 'backEnd', 'DiskAvailable',
                        't', 1024, True),
+                      ('eventBuilder', 'backEnd', 'EventData',
+                       'o', [0, 0]),
+                      ('eventBuilder', 'backEnd', 'FirstEventTime',
+                       'o', 0, True),
                       ('eventBuilder', 'backEnd', 'NumBadEvents',
                        't', 0, False),
                       ),
@@ -646,6 +650,8 @@ class StubbedDAQRun(DAQRun):
         self.__mockAppender = None
         self.__logServer = None
 
+        self.__countTime = None
+
         self.liveLog = None
         self.catchAllLog = None
 
@@ -781,6 +787,9 @@ class StubbedDAQRun(DAQRun):
         return None
     getComponentLog = classmethod(getComponentLog)
 
+    def getCountTime(self):
+        return self.__countTime
+
     def getWatchCount(self):
         if self.__watchdog is None:
             return -1
@@ -794,6 +803,9 @@ class StubbedDAQRun(DAQRun):
     def restartComponents(self, pShell):
         super(StubbedDAQRun, self).restartComponents(pShell, checkExists=False,
                                                      startMissing=False)
+
+    def setCountTime(self, countTime):
+        self.__countTime = countTime
 
     def setFileAppender(self, appender):
         self.__fileAppender = appender
@@ -1238,12 +1250,24 @@ class IntegrationTest(unittest.TestCase):
         if appender and not liveRunOnly: appender.addExpectedExact(msg)
         if liveLog: liveLog.addExpectedText(msg)
 
+        countStart = str(datetime.datetime.now())
+        dr.setCountTime(countStart)
         if liveLog:
             liveLog.addExpectedTextRegexp(r"DAQ state is RUNNING after \d+" +
                                           " seconds")
             liveLog.addExpectedText('Started run %d' % runNum)
 
-        msg = '0 physics events (0.00 Hz), 0 moni events, 0 SN events, 0 tcals'
+        startEvts = 2
+        startEvtTime = 1001
+
+        for c in self.__compList:
+            if c.fullName() == 'eventBuilder':
+                c.setMBean('backEnd', 'NumEventsSent', startEvts)
+                c.setMBean('backEnd', 'EventData', [startEvts, startEvtTime])
+                c.setMBean('backEnd', 'FirstEventTime', startEvtTime - 1)
+
+        msg = '%s physics events, 0 moni events, 0 SN events, 0 tcals' % \
+            startEvts
         if appender and not liveRunOnly: appender.addExpectedExact('\t' + msg)
         if liveLog: liveLog.addExpectedText(msg)
 
@@ -1392,10 +1416,12 @@ class IntegrationTest(unittest.TestCase):
         numMoni = 222
         numSN = 51
         numTCal = 93
+        lastEvtTime = startEvtTime + numEvts
 
         for c in self.__compList:
             if c.fullName() == 'eventBuilder':
                 c.setMBean('backEnd', 'NumEventsSent', numEvts)
+                c.setMBean('backEnd', 'EventData', [numEvts, lastEvtTime])
             elif c.fullName() == 'secondaryBuilders':
                 c.setMBean('moniBuilder', 'TotalDispatchedData', numMoni)
                 c.setMBean('snBuilder', 'TotalDispatchedData', numSN)
@@ -1460,6 +1486,8 @@ class IntegrationTest(unittest.TestCase):
         if appender and not liveRunOnly: appender.addExpectedExact(msg)
         if liveLog: liveLog.addExpectedText(msg)
 
+        countTime = str(datetime.datetime.now())
+        dr.setCountTime(countTime)
         if liveLog:
             liveLog.addExpectedTextRegexp(r"DAQ state is STOPPED after \d+" +
                                           " seconds")
@@ -1469,6 +1497,7 @@ class IntegrationTest(unittest.TestCase):
             liveLog.addExpectedLiveMoni('moniEvents', numMoni)
             liveLog.addExpectedLiveMoni('snEvents', numSN)
             liveLog.addExpectedLiveMoni('physicsEvents', numEvts)
+            liveLog.addExpectedLiveMoni('walltimeEvents', numEvts)
 
         if live is not None:
             live.stopping()

@@ -2,7 +2,7 @@
 
 import datetime, os, sys
 import tempfile, threading, time, unittest
-from DAQRun import DAQRun, RunArgs
+from DAQRun import DAQRun, PayloadTime, RunArgs
 from DAQConst import DAQPort
 
 from DAQMocks import MockAppender, MockIntervalTimer, MockLogger, \
@@ -407,11 +407,15 @@ class TestDAQRun(unittest.TestCase):
         catchall.checkStatus(10)
 
         numEvts = 17
+        evtTime = 639
         numMoni = 222
         numSN = 51
         numTCal = 93
 
         dr.moni.addEntry(ebID, 'backEnd', 'NumEventsSent', str(numEvts))
+        dr.moni.addEntry(5, 'backEnd', 'FirstEventTime', str(evtTime))
+        dr.moni.addEntry(ebID, 'backEnd', 'EventData',
+                         (str(numEvts), str(evtTime)))
         dr.moni.addEntry(sbID, 'moniBuilder', 'TotalDispatchedData',
                          str(numMoni))
         dr.moni.addEntry(sbID, 'snBuilder', 'TotalDispatchedData', str(numSN))
@@ -819,6 +823,7 @@ class TestDAQRun(unittest.TestCase):
         dr.log = logger
 
         numEvts = 17
+        evtTime = 639
         numMoni = 222
         numSN = 51
         numTCal = 93
@@ -826,6 +831,9 @@ class TestDAQRun(unittest.TestCase):
         dr.moni = MockMoni()
 
         dr.moni.addEntry(5, 'backEnd', 'NumEventsSent', str(numEvts))
+        dr.moni.addEntry(5, 'backEnd', 'FirstEventTime', str(evtTime))
+        dr.moni.addEntry(5, 'backEnd', 'EventData',
+                         (str(numEvts), str(evtTime)))
         dr.moni.addEntry(17, 'moniBuilder', 'TotalDispatchedData', str(numMoni))
         dr.moni.addEntry(17, 'snBuilder', 'TotalDispatchedData', str(numSN))
         dr.moni.addEntry(17, 'tcalBuilder', 'TotalDispatchedData', str(numTCal))
@@ -841,13 +849,21 @@ class TestDAQRun(unittest.TestCase):
 
         dr.fill_component_dictionaries(cnc)
 
-        expCnts = (numEvts, numMoni, numSN, numTCal)
+        evtTime = None
+        evtPayTime = None
+        moniTime = None
+        snTime = None
+        tcalTime = None
 
-        cnts = dr.getEventCounts()
+        expCnts = (numEvts, evtTime, evtPayTime, numMoni, moniTime,
+                   numSN, snTime, numTCal, tcalTime)
+
+        cnts = dr.getEventData()
         self.assertEquals(len(expCnts), len(cnts),
                           'Expected %d event counts, not %d' %
                           (len(expCnts), len(cnts)))
         for i in range(0, len(expCnts)):
+            if expCnts[i] is None: continue
             self.assertEquals(expCnts[i], cnts[i],
                               'Expected event count #%d to be %d, not %d' %
                               (i, expCnts[i], cnts[i]))
@@ -871,7 +887,13 @@ class TestDAQRun(unittest.TestCase):
         logger = MockLogger('main')
         dr.log = logger
 
+        firstTime = long(time.time())
+
+        maxRate = 300
+        secInc = 2
+
         numEvts = 1000
+        evtTime = firstTime + (maxRate * secInc)
         numMoni = 222
         numSN = 51
         numTCal = 93
@@ -880,11 +902,15 @@ class TestDAQRun(unittest.TestCase):
 
         dr.moni.isTime = True
         dr.moni.addEntry(5, 'backEnd', 'NumEventsSent', str(numEvts))
-        dr.moni.addEntry(17, 'moniBuilder', 'TotalDispatchedData', str(numMoni))
-        dr.moni.addEntry(17, 'snBuilder', 'TotalDispatchedData', str(numSN))
-        dr.moni.addEntry(17, 'tcalBuilder', 'TotalDispatchedData', str(numTCal))
-
-        dr.rateTimer.trigger()
+        dr.moni.addEntry(5, 'backEnd', 'FirstEventTime', str(evtTime))
+        dr.moni.addEntry(5, 'backEnd', 'EventData',
+                         (str(numEvts), str(evtTime)))
+        dr.moni.addEntry(17, 'moniBuilder', 'TotalDispatchedData',
+                         str(numMoni))
+        dr.moni.addEntry(17, 'snBuilder', 'TotalDispatchedData',
+                         str(numSN))
+        dr.moni.addEntry(17, 'tcalBuilder', 'TotalDispatchedData',
+                         str(numTCal))
 
         expId = 99
         expComps = [(5, 'eventBuilder', 0, 'x', 1234, 5678),
@@ -895,20 +921,28 @@ class TestDAQRun(unittest.TestCase):
 
         dr.runSetID = expId
 
-        dt = datetime.datetime.now()
-
-        maxRate = 300
         for i in range(0, maxRate):
             secs = maxRate - i
-            evts = (maxRate - i) * 2
-            dr.runStats.addRate(dt - datetime.timedelta(seconds=secs),
-                                numEvts - evts)
+            evts = (maxRate - i) * secInc
+            evtDT = PayloadTime.toDateTime(evtTime - secs)
+            dr.runStats.addRate(evtDT, numEvts - evts)
 
         dr.fill_component_dictionaries(cnc)
 
-        logger.addExpectedExact(('\t%d physics events (2.00 Hz), %d moni' +
-                                ' events, %d SN events, %d tcals') %
-                               (numEvts, numMoni, numSN, numTCal))
+        expMsg = ('\t%d physics events, %d moni events,' +
+                  ' %d SN events, %d tcals') % \
+                  (numEvts, numMoni, numSN, numTCal)
+
+        logger.addExpectedExact(expMsg)
+
+        dr.rateTimer.trigger()
+
+        numTries = 0
+        while dr.rateThread is not None and \
+                not dr.rateThread.done() and \
+                numTries < 100:
+            time.sleep(0.1)
+            numTries += 1
 
         rtnVal = dr.check_all()
         self.failUnless(rtnVal, 'Expected call to succeed')
@@ -921,7 +955,13 @@ class TestDAQRun(unittest.TestCase):
         logger = MockLogger('main')
         dr.log = logger
 
+        firstTime = long(time.time())
+
+        maxRate = 300
+        secInc = 2
+
         numEvts = 17
+        evtTime = firstTime + (maxRate * secInc)
         numMoni = 222
         numSN = 51
         numTCal = 93
@@ -930,11 +970,15 @@ class TestDAQRun(unittest.TestCase):
 
         dr.moni.isTime = True
         dr.moni.addEntry(5, 'backEnd', 'NumEventsSent', str(numEvts))
-        dr.moni.addEntry(17, 'moniBuilder', 'TotalDispatchedData', str(numMoni))
-        dr.moni.addEntry(17, 'snBuilder', 'TotalDispatchedData', str(numSN))
-        dr.moni.addEntry(17, 'tcalBuilder', 'TotalDispatchedData', str(numTCal))
-
-        dr.rateTimer.trigger()
+        dr.moni.addEntry(5, 'backEnd', 'FirstEventTime', str(evtTime))
+        dr.moni.addEntry(5, 'backEnd', 'EventData',
+                         (str(numEvts), str(evtTime)))
+        dr.moni.addEntry(17, 'moniBuilder', 'TotalDispatchedData',
+                         str(numMoni))
+        dr.moni.addEntry(17, 'snBuilder', 'TotalDispatchedData',
+                         str(numSN))
+        dr.moni.addEntry(17, 'tcalBuilder', 'TotalDispatchedData',
+                         str(numTCal))
 
         expId = 99
         expComps = [(5, 'eventBuilder', 0, 'x', 1234, 5678),
@@ -947,9 +991,18 @@ class TestDAQRun(unittest.TestCase):
 
         dr.fill_component_dictionaries(cnc)
 
-        logger.addExpectedExact(('\t%d physics events, %d moni events' +
-                                ', %d SN events, %d tcals') %
-                               (numEvts, numMoni, numSN, numTCal))
+        dr.rateTimer.trigger()
+
+        numTries = 0
+        while dr.rateThread is not None and \
+                not dr.rateThread.done() and \
+                numTries < 100:
+            time.sleep(0.1)
+            numTries += 1
+
+        logger.addExpectedExact(('\t%d physics events, %d moni' +
+                                 ' events, %d SN events, %d tcals') %
+                                (numEvts, numMoni, numSN, numTCal))
 
         rtnVal = dr.check_all()
         self.failUnless(rtnVal, 'Expected call to succeed')
@@ -1319,8 +1372,9 @@ class TestDAQRun(unittest.TestCase):
         dr.run_thread(cnc)
 
     def testRunSummaryFauxTest(self):
-        # this is a blatant attempt to increase the code coverage, because the
-        # rpc_run_summary method is Anvil-centric and I3Live is coming soon
+        # this is a blatant attempt to increase the code coverage,
+        # because the rpc_run_summary method is Anvil-centric and
+        # I3Live is coming soon
 
         dr = StubbedDAQRun()
 

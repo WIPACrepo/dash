@@ -51,7 +51,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4673 2009-10-12 21:00:54Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4674 2009-10-12 22:27:58Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -241,15 +241,54 @@ class RunArgs(object):
         opt, args = p.parse_args()
         self.__process_options(opt)
 
+class PayloadTime(object):
+    # number of seconds in 11 months
+    ELEVEN_MONTHS = 60 * 60 * 24 * (365 - 31)
+
+    # offset from epoch to start of year
+    TIME_OFFSET = None
+
+    # previous payload time
+    PREV_TIME = None
+
+    def toDateTime(cls, payTime):
+        if payTime is None:
+            return None
+
+        # recompute start-of-year offset?
+        recompute = (PayloadTime.PREV_TIME is None or
+                     abs(payTime - PayloadTime.PREV_TIME) >
+                     PayloadTime.ELEVEN_MONTHS)
+
+        if recompute:
+            now = time.gmtime()
+            jan1 = time.struct_time((now.tm_year, 1, 1, 0, 0, 0, 0, 0, -1))
+            PayloadTime.TIME_OFFSET = time.mktime(jan1)
+
+        PayloadTime.PREV_TIME = payTime
+
+        curTime = PayloadTime.TIME_OFFSET + (payTime / 10000000000.0)
+        ts = time.gmtime(curTime)
+
+        return datetime.datetime(ts.tm_year, ts.tm_mon, ts.tm_mday, ts.tm_hour,
+                                 ts.tm_min, ts.tm_sec,
+                                 int((curTime * 1000000) % 1000000))
+
+    toDateTime = classmethod(toDateTime)
+
 class RunStats(object):
     def __init__(self):
         self.__runNum = None
-        self.__startTime = None
-        self.__stopTime = None
+        self.__startPayTime = None
         self.__numEvts = None
+        self.__evtTime = None
+        self.__evtPayTime = None
         self.__numMoni = None
+        self.__moniTime = None
         self.__numSN = None
+        self.__snTime = None
         self.__numTcal = None
+        self.__tcalTime = None
 
         # Calculates rate over latest 5min interval
         self.__physicsRate = RateCalc(300.)
@@ -258,20 +297,28 @@ class RunStats(object):
         self.__physicsRate.add(dateTime, numEvts)
 
     def cachedData(self):
-        return (self.__numEvts, self.__numMoni, self.__numSN, self.__numTcal)
+        evtDT = PayloadTime.toDateTime(self.__evtPayTime)
+        return (self.__numEvts, self.__evtTime, evtDT,
+                self.__numMoni, self.__moniTime,
+                self.__numSN, self.__snTime,
+                self.__numTcal, self.__tcalTime)
 
     def clear(self):
         "Clear run-related statistics"
-        self.__startTime = None
-        self.__stopTime = None
+        self.__startPayTime = None
         self.__numEvts = 0
+        self.__evtTime = None
+        self.__evtPayTime = None
         self.__numMoni = 0
+        self.__moniTime = None
         self.__numSN = 0
+        self.__snTime = None
         self.__numTcal = 0
+        self.__tcalTime = None
         self.__physicsRate.reset()
 
     def currentData(self):
-        return (self.__runNum, self.__startTime, self.__numEvts,
+        return (self.__runNum, self.__evtTime, self.__numEvts,
                 self.__numMoni, self.__numSN, self.__numTcal)
 
     def getDiskUsage(self, daqRun):
@@ -279,14 +326,6 @@ class RunStats(object):
         (ebDiskAvail, ebDiskSize) = daqRun.getEBDiskUsage()
         (sbDiskAvail, sbDiskSize) = daqRun.getSBDiskUsage()
         return (ebDiskAvail, ebDiskSize, sbDiskAvail, sbDiskSize)
-
-    def getDuration(self):
-        "Compute the run duration (in seconds)"
-        if self.__startTime is None or self.__stopTime is None:
-            return 0
-
-        durDelta = self.__stopTime - self.__startTime
-        return durDelta.days * 86400 + durDelta.seconds
 
     def getRunNumber(self):
         return self.__runNum
@@ -305,34 +344,44 @@ class RunStats(object):
 
     def start(self):
         "Initialize statistics for the current run"
-        self.__startTime = datetime.datetime.now()
-        self.__physicsRate.add(self.__startTime, 0) # Run starts w/ 0 events
+        pass
 
     def stop(self, daqRun):
         "Gather and return end-of-run statistics"
-        # TODO: define stop time more carefully?
-        self.__stopTime = datetime.datetime.now()
-        duration = self.getDuration()
-
         # get final event counts
         self.updateEventCounts(daqRun)
 
-        return (self.__numEvts, self.__numMoni, self.__numSN,
-                self.__numTcal, duration)
+        if self.__startPayTime is None or self.__evtPayTime is None:
+            duration = 0
+        else:
+            duration = (self.__evtPayTime - self.__startPayTime) / 10000000000
+
+        return (self.__numEvts, self.__numMoni, self.__numSN, self.__numTcal,
+                duration)
 
     def summaryData(self):
-        return (self.__runNum, self.__startTime, self.__stopTime,
-                self.__numEvts, self.__numMoni, self.__numSN, self.__numTcal)
+        return (self.__runNum, PayloadTime.toDateTime(self.__startPayTime),
+                self.__evtTime, self.__numEvts, self.__numMoni, self.__numSN,
+                self.__numTcal)
 
     def updateEventCounts(self, daqRun, addRate=False):
         "Gather run statistics"
-        (self.__numEvts, self.__numMoni, self.__numSN,
-         self.__numTcal) = daqRun.getEventCounts()
+        evtData = daqRun.getEventData()
+
+        (self.__numEvts, self.__evtTime, self.__evtPayTime,
+         self.__numMoni, self.__moniTime,
+         self.__numSN, self.__snTime,
+         self.__numTcal, self.__tcalTime) = evtData
 
         if addRate:
-            self.__physicsRate.add(datetime.datetime.now(), self.__numEvts)
+            if self.__startPayTime is None:
+                self.__startPayTime = daqRun.getFirstEventTime()
+                startDT = PayloadTime.toDateTime(self.__startPayTime)
+                self.__physicsRate.add(startDT, 1)
+            self.__physicsRate.add(PayloadTime.toDateTime(self.__evtPayTime),
+                                   self.__numEvts)
 
-        return (self.__numEvts, self.__numMoni, self.__numSN, self.__numTcal)
+        return evtData
 
 def linkOrCopy(src, dest):
     try:
@@ -359,8 +408,9 @@ class RateThread(threading.Thread):
         return self.__done
 
     def run(self):
-        (numEvts, numMoni, numSN, numTcal) = \
-            self.__runStats.updateEventCounts(self.__daqRun, True)
+        (numEvts, evtTime, payTime, numMoni, moniTime, numSN, snTime, numTcal,
+         tcalTime) = self.__runStats.updateEventCounts(self.__daqRun, True)
+
         try:
             rate = self.__runStats.rate()
             # This occurred in issue 2034 and is dealt with:
@@ -997,26 +1047,43 @@ class DAQRun(object):
             self.runSetID   = None
             self.lastConfig = None
 
-    def getEventCounts(self):
-        nev   = 0
-        nmoni = 0
-        nsn   = 0
-        ntcal = 0
+    def getCountTime(self):
+        return datetime.datetime.utcnow()
+
+    def getEventData(self):
+        nEvts = 0
+        evtTime = -1
+        payloadTime = -1
+        nMoni = 0
+        moniTime = -1
+        nSN = 0
+        snTime = -1
+        nTCal = 0
+        tcalTime = -1
+
         for cid, comp in self.components.iteritems():
             if comp.name() == "eventBuilder" and comp.id() == 0:
-                nev = int(self.moni.getSingleBeanField(cid, "backEnd",
-                                                       "NumEventsSent"))
+                evtData = self.moni.getSingleBeanField(cid, "backEnd",
+                                                       "EventData")
+                if type(evtData) == list or type(evtData) == tuple:
+                    nEvts = int(evtData[0])
+                    evtTime = self.getCountTime()
+                    payloadTime = long(evtData[1])
             if comp.name() == "secondaryBuilders" and comp.id() == 0:
-                nmoni = int(self.moni.getSingleBeanField(cid, "moniBuilder",
+                nMoni = int(self.moni.getSingleBeanField(cid, "moniBuilder",
                                                          "TotalDispatchedData"))
+                moniTime = self.getCountTime()
             if comp.name() == "secondaryBuilders" and comp.id() == 0:
-                nsn = int(self.moni.getSingleBeanField(cid, "snBuilder",
+                nSN = int(self.moni.getSingleBeanField(cid, "snBuilder",
                                                        "TotalDispatchedData"))
+                snTime = self.getCountTime()
             if comp.name() == "secondaryBuilders" and comp.id() == 0:
-                ntcal = int(self.moni.getSingleBeanField(cid, "tcalBuilder",
+                nTCal = int(self.moni.getSingleBeanField(cid, "tcalBuilder",
                                                          "TotalDispatchedData"))
+                tcalTime = self.getCountTime()
 
-        return (nev, nmoni, nsn, ntcal)
+        return (nEvts, evtTime, payloadTime, nMoni, moniTime, nSN, snTime,
+                nTCal, tcalTime)
 
     def getEBSubRunNumber(self):
         for cid, comp in self.components.iteritems():
@@ -1033,6 +1100,14 @@ class DAQRun(object):
                         int(self.moni.getSingleBeanField(cid, "backEnd",
                                                          "DiskSize"))]
         return [0, 0]
+
+    def getFirstEventTime(self):
+        firstTime = -1
+        for cid, comp in self.components.iteritems():
+            if comp.name() == "eventBuilder" and comp.id() == 0:
+                firstTime = int(self.moni.getSingleBeanField(cid, "backEnd",
+                                                             "FirstEventTime"))
+        return firstTime
 
     def getSBDiskUsage(self):
         for cid, comp in self.components.iteritems():
@@ -1434,13 +1509,17 @@ class DAQRun(object):
     seqMap = staticmethod(seqMap)
 
     def rpc_daq_summary_xml(self):
-        "Return DAQ status overview XML for Experiment Control"
+        """
+        XXX - this code was only used by anvil and could be removed
+
+        Return DAQ status overview XML for Experiment Control
+        """
 
         # Get summary for current run, if available
         currentRun   = ""
         prevRun      = ""
         if self.prevRunStats:
-            (runNum, startTime, stopTime, numEvts, numMoni, numSN, numTcal) = \
+            (runNum, startTime, evtTime, numEvts, numMoni, numSN, numTcal) = \
                 self.prevRunStats.summaryData()
             prevRun = """<run ordering="previous">
       <number>%s</number>
@@ -1451,7 +1530,7 @@ class DAQRun(object):
       <events><stream>sn</stream>     <count>%s</count></events>
       <events><stream>tcal</stream>   <count>%s</count></events>
    </run>
-""" % (runNum, startTime, stopTime, numEvts, numMoni, numSN, numTcal)
+""" % (runNum, startTime, evtTime, numEvts, numMoni, numSN, numTcal)
 
         if self.runState == "RUNNING" and self.runStats.hasRunNumber():
             try:
@@ -1463,9 +1542,8 @@ class DAQRun(object):
                 self.log.error("Failed to update disk usage quantities "+
                                "for summary XML (%s)!" % exc_string())
 
-            (runNum, startTime, numEvts, numMoni, numSN, numTcal) = \
-                self.runStats.currentData()
-
+            (runNum, numEvts, startTime, numMoni, numSN, numTcal) = \
+             self.runStats.currentData()
             currentRun = """\
    <run ordering="current">
       <number>%s</number>
@@ -1483,7 +1561,7 @@ class DAQRun(object):
       <available>%s</available><capacity>%s</capacity><units>MB</units>
       <name>Secondary builders dispatch cache</name>
    </resource>
-""" % (runNum, str(startTime), numEvts, numMoni, numSN, numTcal,
+""" % (runNum, startTime, numEvts, numMoni, numSN, numTcal,
        ebDiskAvail, ebDiskSize, sbDiskAvail, sbDiskSize)
 
         # Add subrun counts
@@ -1512,16 +1590,21 @@ class DAQRun(object):
         monDict = {}
 
         if self.runStats.hasRunNumber() and self.runState == "RUNNING":
-            (numEvts, numMoni, numSN, numTcal) = \
-                self.runStats.updateEventCounts(self, True)
-
+            (numEvts, evtTime, payTime, numMoni, moniTime, numSN, snTime,
+             numTcal, tcalTime) = self.runStats.updateEventCounts(self, True)
         elif self.prevRunStats.hasRunNumber() and self.runState == "STOPPED":
-            (numEvts, numMoni, numSN, numTcal) = self.prevRunStats.cachedData()
+            (numEvts, evtTime, payTime, numMoni, moniTime, numSN, snTime,
+             numTcal, tcalTime) = self.prevRunStats.cachedData()
 
         monDict["physicsEvents"] = numEvts
+        monDict["eventTime"] = evtTime
+        monDict["eventPayloadTime"] = payTime
         monDict["moniEvents"] = numMoni
+        monDict["moniTime" ] = moniTime
         monDict["snEvents"] = numSN
+        monDict["snTime" ] = snTime
         monDict["tcalEvents"] = numTcal
+        monDict["tcalTime" ] = tcalTime
 
         return monDict
 
