@@ -9,8 +9,7 @@
 
 from DAQConst import DAQPort
 from DAQLog import LogSocketServer
-from DAQLogClient \
-    import BothSocketAppender, DAQLog, FileAppender, LiveMonitor, \
+from DAQLogClient import BothSocketAppender, DAQLog, FileAppender, \
     LiveSocketAppender, LogSocketAppender, MoniClient, Prio
 from DAQMoni import DAQMoni
 from RunWatchdog import RunWatchdog
@@ -52,7 +51,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4671 2009-10-12 19:32:42Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4672 2009-10-12 19:38:06Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
