@@ -36,7 +36,7 @@ class RateCalc(object):
         """
         Add new entry to list, but don't let list exceed self.maxentries
         """
-        if len(self.entries) >= self.maxentries:
+        while len(self.entries) >= self.maxentries:
             self.entries.pop(0)
         self.entries.append(RateCalcEntry(time, count))
         
