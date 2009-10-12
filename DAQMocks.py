@@ -320,8 +320,8 @@ class LogChecker(object):
             return False
 
         found = None
-        for i in range(self.__depth):
-            if i >= len(self.__expMsgs):
+        for i in range(len(self.__expMsgs)):
+            if i >= self.__depth:
                 break
             if self.__expMsgs[i].check(self, msg, LogChecker.DEBUG, False):
                 found = i
@@ -331,8 +331,8 @@ class LogChecker(object):
             print '----------'
             print msg
             print '----------'
-            for i in range(self.__depth):
-                if i >= len(self.__expMsgs):
+            for i in range(len(self.__expMsgs)):
+                if i >= self.__depth:
                     break
                 self.__expMsgs[i].check(self, msg, LogChecker.DEBUG, True)
             return False
