@@ -62,6 +62,28 @@ class MoniData(object):
             if len(attrs) > 0:
                 self._report(now, b, attrs)
 
+    def monitorBean(self, now, bean):
+        if bean not in self.__beanList:
+            msg = "Bean %s not in list of %s-%d beans" % \
+                (bean, self.__name, self.__daqID)
+            raise BeanFieldNotFoundException(msg)
+
+        attrs = self.__client.mbean.getAttributes(bean, self.__beanFields[bean])
+
+        # report monitoring data
+        if len(attrs) > 0:
+            self._report(now, bean, attrs)
+
+    def monitorField(self, now, bean, fld):
+        if bean not in self.__beanList:
+            msg = "Bean %s not in list of %s-%d beans" % \
+                (bean, self.__name, self.__daqID)
+            raise BeanFieldNotFoundException(msg)
+
+        val = self.__client.mbean.get(bean, fld)
+
+        self._report(now, bean, { fld:val, })
+
 class FileMoniData(MoniData):
     def __init__(self, name, daqID, addr, port, fname):
         self.__fd = self.openFile(fname)
@@ -248,12 +270,31 @@ if __name__ == "__main__":
                 print "No colon"
                 usage = True
             else:
-                host = sys.argv[i][:colon]
                 port = sys.argv[i][colon+1:]
+                host = sys.argv[i][:colon]
 
-                moni = MoniData('unknown', 0, None, host, port)
-                moni.monitor('snapshot')
+                beanName = None
+                fldName = None
+
+                colon = port.find(':')
+                if colon > 0:
+                    beanName = port[colon+1:]
+                    port = port[:colon]
+                    
+                    colon = beanName.find(':')
+                    if colon > 0:
+                        fldName = beanName[colon+1:]
+                        beanName = beanName[:colon]
+
+                moni = FileMoniData('unknown', 0, host, port, None)
+                if beanName is None:
+                    moni.monitor('snapshot')
+                elif fldName is None:
+                    moni.monitorBean('snapshot', beanName)
+                else:
+                    moni.monitorField('snapshot', beanName, fldName)
     if usage:
-        print "Usage: DAQMoni.py host:beanPort [host:beanPort ...]"
+        print "Usage: DAQMoni.py host:beanPort[:beanName[:fldName]]" + \
+            " [host:beanPort[:beanName[:fldName]] ...]"
         raise SystemExit
 
