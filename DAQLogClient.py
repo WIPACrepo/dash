@@ -15,11 +15,21 @@ try:
     from live.transport.Queue import Prio
 except ImportError:
     # create a bogus Prio class
-    class Prio:
+    class Prio(object):
         ITS   = 123
         EMAIL = 444
         SCP   = 555
         DEBUG = 666
+    # and a bogus MoniClient class
+    class MoniClient(object):
+        def __init__(self, service, host, port, logger=None):
+            pass
+        def __str__(self):
+            """
+            The returned string should start with "BOGUS"
+            so DAQRun can detect problems
+            """
+            return "BOGUS"
 
 class BaseAppender(object):
     def __init__(self, name):
