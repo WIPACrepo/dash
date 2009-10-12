@@ -69,7 +69,14 @@ class BaseLiveChecker(BaseChecker):
                                  (name, msg))
             return False
 
-        if m.group(1) != DAQLive.SERVICE_NAME:
+        svcName = m.group(1)
+        varName = m.group(2)
+        varType = m.group(3)
+        msgPrio = m.group(4)
+        msgTime = m.group(5)
+        msgText = m.group(6)
+
+        if svcName != DAQLive.SERVICE_NAME:
             if setError:
                 name = str(checker)
                 if debug:
@@ -77,10 +84,10 @@ class BaseLiveChecker(BaseChecker):
                         (name, DAQLive.SERVICE_NAME, self._getValue())
                 checker.setError(('Expected %s I3Live service "%s", not "%s"' +
                                   ' in "%s"') %
-                                 (name, DAQLive.SERVICE_NAME, m.group(1), msg))
+                                 (name, DAQLive.SERVICE_NAME, svcName, msg))
             return False
 
-        if m.group(2) != self.__varName:
+        if varName != self.__varName:
             if setError:
                 name = str(checker)
                 if debug:
@@ -88,24 +95,24 @@ class BaseLiveChecker(BaseChecker):
                         (name, self.__varName, self._getValue())
                     checker.setError(('Expected %s I3Live varName "%s",' +
                                       ' not "%s" in "%s"') %
-                                     (name, self.__varName, m.group(2), msg))
+                                     (name, self.__varName, varName, msg))
             return False
 
         typeStr = self._getValueType()
-        if m.group(3) != typeStr:
+        if varType != typeStr:
             if setError:
                 name = str(checker)
                 if debug:
                     print '*** %s:TYPE: %s (%s)' % \
                         (name, typeStr, self._getValue())
                 checker.setError(('Expected %s I3Live type "%s", not "%s"' +
-                                  ' in %s') % (name, typeStr, m.group(3), msg))
+                                  ' in %s') % (name, typeStr, varType, msg))
             return False
 
         # ignore priority
         # ignore time
 
-        if not self._checkText(checker, m.group(6), debug, setError):
+        if not self._checkText(checker, msgText, debug, setError):
             return False
 
         return True
