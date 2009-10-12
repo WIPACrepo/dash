@@ -52,7 +52,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4670 2009-10-12 19:30:15Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4671 2009-10-12 19:32:42Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -408,12 +408,8 @@ class ActiveDOMThread(threading.Thread):
         self.__activeMonitor.sendMoni("activeDOMs", total, Prio.ITS)
 
         if self.__sendDetails:
-            alertDict = { 'condition' : 'alert',
-                          'notify'    : '',
-                          'pages'     : False,
-                          'vars'      : { 'activeStringDOMs' : hubDOMs },
-                          }
-            if not self.__activeMonitor.sendMoni('alert', alertDict, Prio.ITS):
+            if not self.__activeMonitor.sendMoni("activeStringDOMs", hubDOMs,
+                                                 Prio.ITS):
                 self.__log.error("Failed to send active DOM report")
 
         self.__done = True
