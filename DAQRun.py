@@ -11,7 +11,7 @@ from DAQConst import DAQPort
 from DAQLog import LogSocketServer
 from DAQLogClient \
     import BothSocketAppender, DAQLog, FileAppender, LiveMonitor, \
-    LiveSocketAppender, LogSocketAppender, Prio
+    LiveSocketAppender, LogSocketAppender, MoniClient, Prio
 from DAQMoni import DAQMoni
 from RunWatchdog import RunWatchdog
 from DAQRPC import RPCClient, RPCServer
@@ -41,13 +41,6 @@ set_exc_string_encoding("ascii")
 
 from ClusterConfig import *
 
-try:
-    from live.control.LiveMoni import MoniClient
-    from live.transport.Queue import Prio
-    USE_LIVE = True
-except ImportError:
-    USE_LIVE = False
-
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
     metaDir = os.environ["PDAQ_HOME"]
@@ -59,7 +52,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4668 2009-10-12 19:20:52Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4670 2009-10-12 19:30:15Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -566,7 +559,8 @@ class DAQRun(object):
 
         self.__activeDOMTimer    = self.setup_timer(DAQRun.ACTIVE_NAME,
                                                     DAQRun.ACTIVE_PERIOD)
-        if not USE_LIVE:
+        self.__activeMonitor = MoniClient("pdaq", "localhost", DAQPort.I3LIVE)
+        if str(self.__activeMonitor).startswith("BOGUS"):
             self.__activeMonitor = None
             self.__activeDOMDetail = None
             if not DAQRun.LIVE_WARNING:
@@ -576,8 +570,6 @@ class DAQRun(object):
         else:
             self.__activeDOMDetail = self.setup_timer(DAQRun.ACTIVERPT_NAME,
                                                       DAQRun.ACTIVERPT_PERIOD)
-            self.__activeMonitor = MoniClient("pdaq", "localhost",
-                                              DAQPort.I3LIVE)
         self.__activeDOMThread   = None
 
         self.__liveInfo       = None
