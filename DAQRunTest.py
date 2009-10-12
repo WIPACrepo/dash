@@ -605,7 +605,7 @@ class TestDAQRun(unittest.TestCase):
         expRunNum = 100
         expId = 123
 
-        dr.runStats.runNum = expRunNum
+        dr.runStats.setRunNumber(expRunNum)
         dr.runSetID = expId
 
         DAQRun.REGISTRATION_TIMEOUT = 0
@@ -616,7 +616,7 @@ class TestDAQRun(unittest.TestCase):
 
         logger.addExpectedExact(('Starting run %d (waiting for required %d' +
                                  ' components to register w/ CnCServer)') %
-                                (dr.runStats.runNum, len(required)))
+                                (dr.runStats.getRunNumber(), len(required)))
 
         try:
             dr.build_run_set(cnc, required)
@@ -642,7 +642,7 @@ class TestDAQRun(unittest.TestCase):
 
         expRunNum = 100
 
-        dr.runStats.runNum = expRunNum
+        dr.runStats.setRunNumber(expRunNum)
 
         DAQRun.REGISTRATION_TIMEOUT = 0
 
@@ -655,7 +655,7 @@ class TestDAQRun(unittest.TestCase):
 
         logger.addExpectedExact(('Starting run %d (waiting for required %d' +
                                  ' components to register w/ CnCServer)') %
-                                (dr.runStats.runNum, len(required)))
+                                (dr.runStats.getRunNumber(), len(required)))
         logger.addExpectedExact('Created Run Set #%d' % expId)
 
         dr.build_run_set(cnc, required)
@@ -728,7 +728,7 @@ class TestDAQRun(unittest.TestCase):
         expRunNum = 100
         expId = 123
 
-        dr.runStats.runNum = expRunNum
+        dr.runStats.setRunNumber(expRunNum)
         dr.runSetID = expId
 
         logger.addExpectedExact('Started run %d on run set %d' %
@@ -749,7 +749,7 @@ class TestDAQRun(unittest.TestCase):
 
         expRunNum = 100
 
-        dr.runStats.runNum = expRunNum
+        dr.runStats.setRunNumber(expRunNum)
 
         logger.addExpectedExact('Stopping run %d' % expRunNum)
 
@@ -901,8 +901,8 @@ class TestDAQRun(unittest.TestCase):
         for i in range(0, maxRate):
             secs = maxRate - i
             evts = (maxRate - i) * 2
-            dr.runStats.physicsRate.add(dt - datetime.timedelta(seconds=secs),
-                                        numEvts - evts)
+            dr.runStats.addRate(dt - datetime.timedelta(seconds=secs),
+                                numEvts - evts)
 
         dr.fill_component_dictionaries(cnc)
 
@@ -1328,7 +1328,7 @@ class TestDAQRun(unittest.TestCase):
         dr.log = logger
 
         dr.runState = "RUNNING"
-        dr.runStats.runNum = 15
+        dr.runStats.setRunNumber(15)
         dr.prevRunStats = dr.runStats
 
         dr.rpc_daq_summary_xml()

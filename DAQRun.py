@@ -51,7 +51,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4672 2009-10-12 19:38:06Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4673 2009-10-12 21:00:54Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -242,88 +242,97 @@ class RunArgs(object):
         self.__process_options(opt)
 
 class RunStats(object):
-    def __init__(self, runNum=None, startTime=None, stopTime=None, physicsEvents=None,
-                 moniEvents=None, snEvents=None, tcalEvents=None, EBDiskAvailable=None,
-                 EBDiskSize=None, SBDiskAvailable=None, SBDiskSize=None):
-        self.runNum          = runNum
-        self.startTime       = startTime
-        self.stopTime        = stopTime
-        self.physicsEvents   = physicsEvents
-        self.moniEvents      = moniEvents
-        self.snEvents        = snEvents
-        self.tcalEvents      = tcalEvents
-        self.EBDiskAvailable = EBDiskAvailable
-        self.EBDiskSize      = EBDiskSize
-        self.SBDiskAvailable = SBDiskAvailable
-        self.SBDiskSize      = SBDiskSize
-        self.physicsRate     = RateCalc(300.) # Calculates rate over latest 5min interval
+    def __init__(self):
+        self.__runNum = None
+        self.__startTime = None
+        self.__stopTime = None
+        self.__numEvts = None
+        self.__numMoni = None
+        self.__numSN = None
+        self.__numTcal = None
+
+        # Calculates rate over latest 5min interval
+        self.__physicsRate = RateCalc(300.)
+
+    def addRate(self, dateTime, numEvts):
+        self.__physicsRate.add(dateTime, numEvts)
+
+    def cachedData(self):
+        return (self.__numEvts, self.__numMoni, self.__numSN, self.__numTcal)
 
     def clear(self):
         "Clear run-related statistics"
-        self.startTime       = None
-        self.stopTime        = None
-        self.physicsEvents   = 0
-        self.moniEvents      = 0
-        self.snEvents        = 0
-        self.tcalEvents      = 0
-        self.EBDiskAvailable = 0
-        self.EBDiskSize      = 0
-        self.SBDiskAvailable = 0
-        self.SBDiskSize      = 0
-        self.physicsRate.reset()
+        self.__startTime = None
+        self.__stopTime = None
+        self.__numEvts = 0
+        self.__numMoni = 0
+        self.__numSN = 0
+        self.__numTcal = 0
+        self.__physicsRate.reset()
 
-    def clearAll(self):
-        "Clear run number and run-related statistics"
-        self.runNum  = None
-        self.clear()
+    def currentData(self):
+        return (self.__runNum, self.__startTime, self.__numEvts,
+                self.__numMoni, self.__numSN, self.__numTcal)
 
-    def clone(self, other):
-        "Copy run data to another instance of this object"
-        self.runNum          = other.runNum
-        self.startTime       = other.startTime
-        self.stopTime        = other.stopTime
-        self.physicsEvents   = other.physicsEvents
-        self.moniEvents      = other.moniEvents
-        self.snEvents        = other.snEvents
-        self.tcalEvents      = other.tcalEvents
+    def getDiskUsage(self, daqRun):
+        "Gather disk usage for builder machines"
+        (ebDiskAvail, ebDiskSize) = daqRun.getEBDiskUsage()
+        (sbDiskAvail, sbDiskSize) = daqRun.getSBDiskUsage()
+        return (ebDiskAvail, ebDiskSize, sbDiskAvail, sbDiskSize)
 
     def getDuration(self):
         "Compute the run duration (in seconds)"
-        if self.startTime is None or self.stopTime is None:
+        if self.__startTime is None or self.__stopTime is None:
             return 0
 
-        durDelta = self.stopTime - self.startTime
+        durDelta = self.__stopTime - self.__startTime
         return durDelta.days * 86400 + durDelta.seconds
+
+    def getRunNumber(self):
+        return self.__runNum
+
+    def hasRunNumber(self):
+        return self.__runNum is not None
+
+    def rate(self):
+        return self.__physicsRate.rate()
+
+    def rateEntries(self):
+        return self.__physicsRate.entries()
+
+    def setRunNumber(self, runNum):
+        self.__runNum = runNum
 
     def start(self):
         "Initialize statistics for the current run"
-        self.startTime = datetime.datetime.now()
-        self.physicsRate.add(self.startTime, 0) # Run starts w/ 0 events
+        self.__startTime = datetime.datetime.now()
+        self.__physicsRate.add(self.__startTime, 0) # Run starts w/ 0 events
 
     def stop(self, daqRun):
         "Gather and return end-of-run statistics"
         # TODO: define stop time more carefully?
-        self.stopTime = datetime.datetime.now()
+        self.__stopTime = datetime.datetime.now()
         duration = self.getDuration()
 
         # get final event counts
         self.updateEventCounts(daqRun)
 
-        return (self.physicsEvents, self.moniEvents, self.snEvents,
-                self.tcalEvents, duration)
+        return (self.__numEvts, self.__numMoni, self.__numSN,
+                self.__numTcal, duration)
 
-    def updateDiskUsage(self, daqRun):
-        "Gather disk usage for builder machines"
-        self.EBDiskAvailable, self.EBDiskSize = daqRun.getEBDiskUsage()
-        self.SBDiskAvailable, self.SBDiskSize = daqRun.getSBDiskUsage()
+    def summaryData(self):
+        return (self.__runNum, self.__startTime, self.__stopTime,
+                self.__numEvts, self.__numMoni, self.__numSN, self.__numTcal)
 
     def updateEventCounts(self, daqRun, addRate=False):
         "Gather run statistics"
-        (self.physicsEvents, self.moniEvents, self.snEvents,
-         self.tcalEvents) = daqRun.getEventCounts()
+        (self.__numEvts, self.__numMoni, self.__numSN,
+         self.__numTcal) = daqRun.getEventCounts()
 
         if addRate:
-            self.physicsRate.add(datetime.datetime.now(), self.physicsEvents)
+            self.__physicsRate.add(datetime.datetime.now(), self.__numEvts)
+
+        return (self.__numEvts, self.__numMoni, self.__numSN, self.__numTcal)
 
 def linkOrCopy(src, dest):
     try:
@@ -350,26 +359,23 @@ class RateThread(threading.Thread):
         return self.__done
 
     def run(self):
-        self.__runStats.updateEventCounts(self.__daqRun, True)
+        (numEvts, numMoni, numSN, numTcal) = \
+            self.__runStats.updateEventCounts(self.__daqRun, True)
         try:
-            rate = self.__runStats.physicsRate.rate()
+            rate = self.__runStats.rate()
             # This occurred in issue 2034 and is dealt with:
             # debug code can be removed at will
             if rate < 0:
                 self.__log.warn("WARNING: rate < 0")
-                for entry in self.__runStats.physicsRate.entries:
+                for entry in self.__runStats.rateEntries():
                     self.__log.warn(str(entry))
             #
             rateStr = " (%2.2f Hz)" % rate
         except (RateException):
             rateStr = ""
         self.__log.error(("\t%s physics events%s, %s moni events," +
-                        " %s SN events, %s tcals")  %
-                       (self.__runStats.physicsEvents,
-                        rateStr,
-                        self.__runStats.moniEvents,
-                        self.__runStats.snEvents,
-                        self.__runStats.tcalEvents))
+                          " %s SN events, %s tcals")  %
+                         (numEvts, rateStr, numMoni, numSN, numTcal))
         self.__done = True
 
 class ActiveDOMThread(threading.Thread):
@@ -893,7 +899,7 @@ class DAQRun(object):
         # Wait for required components
         self.log.error(("Starting run %d (waiting for required %d components" +
                        " to register w/ CnCServer)") %
-                      (self.runStats.runNum, len(requiredComps)))
+                      (self.runStats.getRunNumber(), len(requiredComps)))
         self.waitForRequiredComponents(cncrpc, requiredComps,
                                        DAQRun.REGISTRATION_TIMEOUT)
         # Throws RequiredComponentsNotAvailableException
@@ -960,12 +966,13 @@ class DAQRun(object):
         rpc.rpccall("rpc_runset_configure", runSetID, configName)
 
     def start_run(self, cncrpc):
-        cncrpc.rpccall("rpc_runset_start_run", self.runSetID, self.runStats.runNum)
+        cncrpc.rpccall("rpc_runset_start_run", self.runSetID,
+                       self.runStats.getRunNumber())
         self.log.error("Started run %d on run set %d" %
-                       (self.runStats.runNum, self.runSetID))
+                       (self.runStats.getRunNumber(), self.runSetID))
 
     def stop_run(self, cncrpc):
-        self.log.error("Stopping run %d" % self.runStats.runNum)
+        self.log.error("Stopping run %d" % self.runStats.getRunNumber())
         cncrpc.rpccall("rpc_runset_stop_run", self.runSetID)
 
     def break_existing_runset(self, cncrpc):
@@ -1108,11 +1115,6 @@ class DAQRun(object):
 
         return True
 
-    def saveAndResetRunStats(self):
-        if self.prevRunStats == None: self.prevRunStats = RunStats()
-        self.prevRunStats.clone(self.runStats)
-        self.runStats.clearAll()
-
     def restartComponents(self, pShell, checkExists=True, startMissing=True):
         try:
             self.log.error("Doing complete rip-down and restart of pDAQ " +
@@ -1174,12 +1176,12 @@ class DAQRun(object):
                         self.__logpath = None
                         logDirCreated = False
                     else:
-                        self.createRunLogDirectory(self.runStats.runNum,
+                        self.createRunLogDirectory(self.runStats.getRunNumber(),
                                                    self.logDir)
                         logDirCreated = True
 
                     self.setup_run_logging(self.cnc, self.logDir,
-                                           self.runStats.runNum,
+                                           self.runStats.getRunNumber(),
                                            self.configName)
                     self.setup_component_loggers(self.cnc, self.ip,
                                                  self.runSetID)
@@ -1222,11 +1224,11 @@ class DAQRun(object):
             elif self.runState == "STOPPING" or self.runState == "RECOVERING":
                 hadError = False
                 if self.runState == "RECOVERING":
-                    if self.runStats.runNum is None:
+                    if not self.runStats.hasRunNumber():
                         self.log.error("Recovering from failed initial state")
                     else:
                         self.log.error("Recovering from failed run %d..." %
-                                       self.runStats.runNum)
+                                       self.runStats.getRunNumber())
                     # "Forget" configuration so new run set
                     # will be made next time:
                     self.lastConfig = None
@@ -1286,7 +1288,8 @@ class DAQRun(object):
                 if self.__isLogToFile() and logDirCreated:
                     catchAllLogger.stopServing()
                     self.queue_for_spade(self.spadeDir, self.copyDir,
-                                         self.logDir, self.runStats.runNum,
+                                         self.logDir,
+                                         self.runStats.getRunNumber(),
                                          datetime.datetime.now(), duration)
                     catchAllLogger.startServing()
 
@@ -1299,7 +1302,9 @@ class DAQRun(object):
                     if not self.__isLogToLive():
                         self.__appender.setLiveAppender(None)
 
-                self.saveAndResetRunStats()
+                self.prevRunStats = self.runStats
+                self.runStats = RunStats()
+
                 self.runState = "STOPPED"
 
             elif self.runState == "RUNNING":
@@ -1362,8 +1367,8 @@ class DAQRun(object):
         configName              - ASCII configuration name
         logInfo                 - tuple containing (host name/IP, log port)
         """
-        self.runStats.runNum = runNumber
-        self.configName      = configName
+        self.runStats.setRunNumber(runNumber)
+        self.configName = configName
 
         if logInfo is not None and len(logInfo) == 2:
             self.__liveInfo = LiveInfo(logInfo[0], logInfo[1])
@@ -1435,6 +1440,8 @@ class DAQRun(object):
         currentRun   = ""
         prevRun      = ""
         if self.prevRunStats:
+            (runNum, startTime, stopTime, numEvts, numMoni, numSN, numTcal) = \
+                self.prevRunStats.summaryData()
             prevRun = """<run ordering="previous">
       <number>%s</number>
       <start-time>%s</start-time>
@@ -1444,16 +1451,20 @@ class DAQRun(object):
       <events><stream>sn</stream>     <count>%s</count></events>
       <events><stream>tcal</stream>   <count>%s</count></events>
    </run>
-""" % (self.prevRunStats.runNum, str(self.prevRunStats.startTime), str(self.prevRunStats.stopTime),
-       self.prevRunStats.physicsEvents, self.prevRunStats.moniEvents,
-       self.prevRunStats.snEvents,      self.prevRunStats.tcalEvents)
+""" % (runNum, startTime, stopTime, numEvts, numMoni, numSN, numTcal)
 
-        if self.runState == "RUNNING" and self.runStats.runNum:
+        if self.runState == "RUNNING" and self.runStats.hasRunNumber():
             try:
-                self.runStats.updateDiskUsage(self)
+                (ebDiskAvail, ebDiskSize, sbDiskAvail, sbDiskSize) = \
+                    self.runStats.getDiskUsage(self)
             except:
+                (ebDiskAvail, ebDiskSize, sbDiskAvail, sbDiskSize) = \
+                    (0, 0, 0, 0)
                 self.log.error("Failed to update disk usage quantities "+
                                "for summary XML (%s)!" % exc_string())
+
+            (runNum, startTime, numEvts, numMoni, numSN, numTcal) = \
+                self.runStats.currentData()
 
             currentRun = """\
    <run ordering="current">
@@ -1472,11 +1483,8 @@ class DAQRun(object):
       <available>%s</available><capacity>%s</capacity><units>MB</units>
       <name>Secondary builders dispatch cache</name>
    </resource>
-""" % (self.runStats.runNum, str(self.runStats.startTime),
-                        self.runStats.physicsEvents, self.runStats.moniEvents,
-                        self.runStats.snEvents, self.runStats.tcalEvents,
-                        self.runStats.EBDiskAvailable, self.runStats.EBDiskSize,
-                        self.runStats.SBDiskAvailable, self.runStats.SBDiskSize)
+""" % (runNum, str(startTime), numEvts, numMoni, numSN, numTcal,
+       ebDiskAvail, ebDiskSize, sbDiskAvail, sbDiskSize)
 
         # Add subrun counts
         subRunCounts = ""
@@ -1503,18 +1511,17 @@ class DAQRun(object):
 
         monDict = {}
 
-        if self.runStats.runNum and self.runState == "RUNNING":
-            self.runStats.updateEventCounts(self, True)
+        if self.runStats.hasRunNumber() and self.runState == "RUNNING":
+            (numEvts, numMoni, numSN, numTcal) = \
+                self.runStats.updateEventCounts(self, True)
 
-            monDict["physicsEvents"] = self.runStats.physicsEvents
-            monDict["moniEvents"] = self.runStats.moniEvents
-            monDict["snEvents"] = self.runStats.snEvents
-            monDict["tcalEvents"] = self.runStats.tcalEvents
-        elif self.prevRunStats.runNum and self.runState == "STOPPED":
-            monDict["physicsEvents"] = self.prevRunStats.physicsEvents
-            monDict["moniEvents"] = self.prevRunStats.moniEvents
-            monDict["snEvents"] = self.prevRunStats.snEvents
-            monDict["tcalEvents"] = self.prevRunStats.tcalEvents
+        elif self.prevRunStats.hasRunNumber() and self.runState == "STOPPED":
+            (numEvts, numMoni, numSN, numTcal) = self.prevRunStats.cachedData()
+
+        monDict["physicsEvents"] = numEvts
+        monDict["moniEvents"] = numMoni
+        monDict["snEvents"] = numSN
+        monDict["tcalEvents"] = numTcal
 
         return monDict
 
