@@ -21,7 +21,7 @@ DEFAULT_CLUSTER_NAME = "localhost"
 GLOBAL_DEFAULT_LOG_LEVEL = "INFO"
 HUB_COMP_NAME = "StringHub"
 
-class deployComponent:
+class deployComponent(object):
     "Record-keeping class for deployed components"
     def __init__(self, compName, compID, logLevel, jvm, jvmArgs):
         self.compName = compName
@@ -35,7 +35,7 @@ class deployComponent:
             return "%s@%s" % (self.compName, self.logLevel)
         return "%s#%d@%s" % (self.compName, self.compID, self.logLevel)
 
-class deployNode:
+class deployNode(object):
     "Record-keeping class for host targets"
     def __init__(self, locName, hostName):
         self.locName  = locName
