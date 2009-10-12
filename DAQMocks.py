@@ -310,7 +310,7 @@ class LogChecker(object):
             if LogChecker.DEBUG:
                 print '*** %s:UNEX' % str(self)
             self.setError('Unexpected %s log message: %s' % (str(self), msg))
-            return
+            return False
 
         found = None
         for i in range(self.__depth):
@@ -328,9 +328,11 @@ class LogChecker(object):
                 if i >= len(self.__expMsgs):
                     break
                 self.__expMsgs[i].check(self, msg, LogChecker.DEBUG, True)
-            return
+            return False
 
         del self.__expMsgs[found]
+
+        return True
 
     def addExpectedExact(self, msg):
         self.__expMsgs.append(ExactChecker(msg))
@@ -927,9 +929,10 @@ class SocketReader(LogChecker):
                 while 1: # Slurp up waiting packets, return to select if EAGAIN
                     try:
                         data = sock.recv(8192, socket.MSG_DONTWAIT)
-                        self._checkMsg(data)
                     except Exception:
                         break # Go back to select so we don't busy-wait
+                    if not self._checkMsg(data):
+                        break
         finally:
             sock.close()
             self.__serving = False
