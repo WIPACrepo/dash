@@ -302,28 +302,7 @@ class LogChecker(object):
     def _checkError(self):
         pass
 
-    def addExpectedExact(self, msg):
-        self.__expMsgs.append(ExactChecker(msg))
-
-    def addExpectedLiveMoni(self, varName, value):
-        self.__expMsgs.append(LiveChecker(varName, value))
-
-    def addExpectedRegexp(self, msg):
-        self.__expMsgs.append(RegexpChecker(msg))
-
-    def addExpectedText(self, msg):
-        if self.__isLive:
-            self.__expMsgs.append(LiveChecker('log', str(msg)))
-        else:
-            self.__expMsgs.append(TextChecker(msg))
-
-    def addExpectedTextRegexp(self, msg):
-        if self.__isLive:
-            self.__expMsgs.append(LiveRegexpChecker('log', msg))
-        else:
-            self.__expMsgs.append(RegexpTextChecker(msg))
-
-    def checkMsg(self, msg):
+    def _checkMsg(self, msg):
         if LogChecker.DEBUG:
             print '%s: %s' % (str(self), msg)
 
@@ -352,6 +331,27 @@ class LogChecker(object):
             return
 
         del self.__expMsgs[found]
+
+    def addExpectedExact(self, msg):
+        self.__expMsgs.append(ExactChecker(msg))
+
+    def addExpectedLiveMoni(self, varName, value):
+        self.__expMsgs.append(LiveChecker(varName, value))
+
+    def addExpectedRegexp(self, msg):
+        self.__expMsgs.append(RegexpChecker(msg))
+
+    def addExpectedText(self, msg):
+        if self.__isLive:
+            self.__expMsgs.append(LiveChecker('log', str(msg)))
+        else:
+            self.__expMsgs.append(TextChecker(msg))
+
+    def addExpectedTextRegexp(self, msg):
+        if self.__isLive:
+            self.__expMsgs.append(LiveRegexpChecker('log', msg))
+        else:
+            self.__expMsgs.append(RegexpTextChecker(msg))
 
     def checkStatus(self, reps):
         count = 0
@@ -382,7 +382,7 @@ class MockAppender(LogChecker):
         raise Exception(msg)
 
     def write(self, m, time=None):
-        self.checkMsg(m)
+        self._checkMsg(m)
 
 class MockCnCLogger(CnCLogger):
     def __init__(self, appender, quiet=False):
@@ -604,20 +604,20 @@ class MockLogger(LogChecker):
     def close(self):
         pass
 
-    def debug(self, m): self.checkMsg(m)
+    def debug(self, m): self._checkMsg(m)
 
-    def error(self, m): self.checkMsg(m)
+    def error(self, m): self._checkMsg(m)
 
-    def fatal(self, m): self.checkMsg(m)
+    def fatal(self, m): self._checkMsg(m)
 
-    def info(self, m): self.checkMsg(m)
+    def info(self, m): self._checkMsg(m)
 
     def setError(self, msg):
         raise Exception(msg)
 
-    def trace(self, m): self.checkMsg(m)
+    def trace(self, m): self._checkMsg(m)
 
-    def warn(self, m): self.checkMsg(m)
+    def warn(self, m): self._checkMsg(m)
 
 class MockParallelShell(object):
     BINDIR = os.path.join(METADIR, 'target', 'pDAQ-%s-dist' % RELEASE, 'bin')
@@ -927,7 +927,7 @@ class SocketReader(LogChecker):
                 while 1: # Slurp up waiting packets, return to select if EAGAIN
                     try:
                         data = sock.recv(8192, socket.MSG_DONTWAIT)
-                        self.checkMsg(data)
+                        self._checkMsg(data)
                     except Exception:
                         break # Go back to select so we don't busy-wait
         finally:
@@ -949,7 +949,7 @@ class SocketReader(LogChecker):
         try:
             while self.__thread is not None:
                 data = sock.recv(8192)
-                self.checkMsg(data)
+                self._checkMsg(data)
         finally:
             sock.close()
             self.__serving = False
