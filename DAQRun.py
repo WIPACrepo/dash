@@ -51,7 +51,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4674 2009-10-12 22:27:58Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4679 2009-10-13 20:01:41Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -296,13 +296,6 @@ class RunStats(object):
     def addRate(self, dateTime, numEvts):
         self.__physicsRate.add(dateTime, numEvts)
 
-    def cachedData(self):
-        evtDT = PayloadTime.toDateTime(self.__evtPayTime)
-        return (self.__numEvts, self.__evtTime, evtDT,
-                self.__numMoni, self.__moniTime,
-                self.__numSN, self.__snTime,
-                self.__numTcal, self.__tcalTime)
-
     def clear(self):
         "Clear run-related statistics"
         self.__startPayTime = None
@@ -332,6 +325,13 @@ class RunStats(object):
 
     def hasRunNumber(self):
         return self.__runNum is not None
+
+    def monitorData(self):
+        evtDT = PayloadTime.toDateTime(self.__evtPayTime)
+        return (self.__numEvts, self.__evtTime, evtDT,
+                self.__numMoni, self.__moniTime,
+                self.__numSN, self.__snTime,
+                self.__numTcal, self.__tcalTime)
 
     def rate(self):
         return self.__physicsRate.rate()
@@ -408,8 +408,7 @@ class RateThread(threading.Thread):
         return self.__done
 
     def run(self):
-        (numEvts, evtTime, payTime, numMoni, moniTime, numSN, snTime, numTcal,
-         tcalTime) = self.__runStats.updateEventCounts(self.__daqRun, True)
+        self.__runStats.updateEventCounts(self.__daqRun, True)
 
         try:
             rate = self.__runStats.rate()
@@ -423,6 +422,10 @@ class RateThread(threading.Thread):
             rateStr = " (%2.2f Hz)" % rate
         except (RateException):
             rateStr = ""
+
+        (runNum, evtTime, numEvts, numMoni, numSN, numTcal) = \
+            self.__runStats.currentData()
+
         self.__log.error(("\t%s physics events%s, %s moni events," +
                           " %s SN events, %s tcals")  %
                          (numEvts, rateStr, numMoni, numSN, numTcal))
@@ -1542,7 +1545,7 @@ class DAQRun(object):
                 self.log.error("Failed to update disk usage quantities "+
                                "for summary XML (%s)!" % exc_string())
 
-            (runNum, numEvts, startTime, numMoni, numSN, numTcal) = \
+            (runNum, evtTime, numEvts, numMoni, numSN, numTcal) = \
              self.runStats.currentData()
             currentRun = """\
    <run ordering="current">
@@ -1590,21 +1593,22 @@ class DAQRun(object):
         monDict = {}
 
         if self.runStats.hasRunNumber() and self.runState == "RUNNING":
+            self.runStats.updateEventCounts(self, True)
             (numEvts, evtTime, payTime, numMoni, moniTime, numSN, snTime,
-             numTcal, tcalTime) = self.runStats.updateEventCounts(self, True)
+             numTcal, tcalTime) = self.runStats.monitorData()
         elif self.prevRunStats.hasRunNumber() and self.runState == "STOPPED":
             (numEvts, evtTime, payTime, numMoni, moniTime, numSN, snTime,
-             numTcal, tcalTime) = self.prevRunStats.cachedData()
+             numTcal, tcalTime) = self.prevRunStats.monitorData()
 
         monDict["physicsEvents"] = numEvts
-        monDict["eventTime"] = evtTime
-        monDict["eventPayloadTime"] = payTime
+        monDict["eventTime"] = str(evtTime)
+        monDict["eventPayloadTime"] = str(payTime)
         monDict["moniEvents"] = numMoni
-        monDict["moniTime" ] = moniTime
+        monDict["moniTime" ] = str(moniTime)
         monDict["snEvents"] = numSN
-        monDict["snTime" ] = snTime
+        monDict["snTime" ] = str(snTime)
         monDict["tcalEvents"] = numTcal
-        monDict["tcalTime" ] = tcalTime
+        monDict["tcalTime" ] = str(tcalTime)
 
         return monDict
 

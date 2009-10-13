@@ -1250,7 +1250,7 @@ class IntegrationTest(unittest.TestCase):
         if appender and not liveRunOnly: appender.addExpectedExact(msg)
         if liveLog: liveLog.addExpectedText(msg)
 
-        countStart = str(datetime.datetime.now())
+        countStart = datetime.datetime.utcnow()
         dr.setCountTime(countStart)
         if liveLog:
             liveLog.addExpectedTextRegexp(r"DAQ state is RUNNING after \d+" +
@@ -1486,7 +1486,7 @@ class IntegrationTest(unittest.TestCase):
         if appender and not liveRunOnly: appender.addExpectedExact(msg)
         if liveLog: liveLog.addExpectedText(msg)
 
-        countTime = str(datetime.datetime.now())
+        countTime = datetime.datetime.utcnow()
         dr.setCountTime(countTime)
         if liveLog:
             liveLog.addExpectedTextRegexp(r"DAQ state is STOPPED after \d+" +
