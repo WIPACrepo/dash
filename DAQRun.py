@@ -51,7 +51,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4684 2009-10-14 18:45:44Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4685 2009-10-14 18:47:34Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -600,13 +600,11 @@ class DAQRun(object):
         self.watchdog         = None
         self.unHealthyCount   = 0
 
-        self.rateTimer        = self.setup_timer(DAQRun.RATE_NAME,
-                                                 DAQRun.RATE_PERIOD)
+        self.rateTimer        = None
         self.rateThread       = None
         self.badRateCount     = 0
 
-        self.__activeDOMTimer    = self.setup_timer(DAQRun.ACTIVE_NAME,
-                                                    DAQRun.ACTIVE_PERIOD)
+        self.__activeDOMTimer = None
         self.__activeMonitor = MoniClient("pdaq", "localhost", DAQPort.I3LIVE)
         if str(self.__activeMonitor).startswith("BOGUS"):
             self.__activeMonitor = None
@@ -1113,6 +1111,30 @@ class DAQRun(object):
                         int(self.moni.getSingleBeanField(cid, "tcalBuilder", "DiskSize"))]
         return [0, 0]
 
+    def setup_timers(self):
+        if self.__logMode == DAQRun.LOG_TO_FILE:
+            moniType = DAQMoni.TYPE_FILE
+        elif self.__logMode == DAQRun.LOG_TO_LIVE:
+            moniType = DAQMoni.TYPE_LIVE
+        elif self.__logMode == DAQRun.LOG_TO_BOTH:
+            moniType = DAQMoni.TYPE_BOTH
+        else:
+            raise Exception('Unknown log mode %s' % str(self.__logMode))
+
+        self.moni = self.setup_monitoring(self.log, self.__logpath,
+                                          self.components, moniType)
+        self.__moniTimer = self.setup_timer(DAQRun.MONI_NAME,
+                                            DAQRun.MONI_PERIOD)
+
+        self.__activeDOMTimer = self.setup_timer(DAQRun.ACTIVE_NAME,
+                                                 DAQRun.ACTIVE_PERIOD)
+
+        self.rateTimer = self.setup_timer(DAQRun.RATE_NAME,
+                                          DAQRun.RATE_PERIOD)
+
+        self.watchdog = self.setup_watchdog(self.log, DAQRun.WATCH_PERIOD,
+                                            self.components)
+
     def check_timers(self):
         if self.moni and self.__moniTimer and self.__moniTimer.isTime():
             self.__moniTimer.reset()
@@ -1262,25 +1284,9 @@ class DAQRun(object):
                         self.runset_configure(self.cnc, self.runSetID,
                                               self.configName)
 
-                    # The next 2 setups were postponed until after configure
-                    # to allow the late-binding of the StringHub/datacollector MBeans
-                    if self.__logMode == DAQRun.LOG_TO_FILE:
-                        moniType = DAQMoni.TYPE_FILE
-                    elif self.__logMode == DAQRun.LOG_TO_LIVE:
-                        moniType = DAQMoni.TYPE_LIVE
-                    elif self.__logMode == DAQRun.LOG_TO_BOTH:
-                        moniType = DAQMoni.TYPE_BOTH
-                    else:
-                        raise Exception('Unknown log mode %s' %
-                                        str(self.__logMode))
-                    self.moni = \
-                        self.setup_monitoring(self.log, self.__logpath,
-                                              self.components, moniType)
-                    self.__moniTimer = self.setup_timer(DAQRun.MONI_NAME,
-                                                        DAQRun.MONI_PERIOD)
-                    self.watchdog = \
-                        self.setup_watchdog(self.log, DAQRun.WATCH_PERIOD,
-                                            self.components)
+                    # Set up timers after configure to allow the late
+                    # binding of the StringHub/datacollector MBeans
+                    self.setup_timers()
 
                     self.lastConfig = self.configName
                     self.runStats.start()

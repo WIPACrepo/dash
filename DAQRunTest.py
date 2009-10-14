@@ -887,6 +887,12 @@ class TestDAQRun(unittest.TestCase):
         logger = MockLogger('main')
         dr.log = logger
 
+        runNum = 1234
+
+        dr.setLogPath(runNum, TestDAQRun.LOG_DIR)
+
+        dr.setup_timers()
+
         firstTime = long(time.time())
 
         maxRate = 300
@@ -954,6 +960,12 @@ class TestDAQRun(unittest.TestCase):
 
         logger = MockLogger('main')
         dr.log = logger
+
+        runNum = 1234
+
+        dr.setLogPath(runNum, TestDAQRun.LOG_DIR)
+
+        dr.setup_timers()
 
         firstTime = long(time.time())
 
