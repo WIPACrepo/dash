@@ -24,7 +24,7 @@ from GetIP import getIP
 from re import search
 from xmlrpclib import Fault
 from IntervalTimer import IntervalTimer
-from RateCalc import RateCalc, RateException
+from RateCalc import RateCalc
 import DAQConfig
 import datetime
 import optparse
@@ -51,7 +51,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4679 2009-10-13 20:01:41Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4682 2009-10-14 17:50:46Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -410,18 +410,12 @@ class RateThread(threading.Thread):
     def run(self):
         self.__runStats.updateEventCounts(self.__daqRun, True)
 
-        try:
-            rate = self.__runStats.rate()
-            # This occurred in issue 2034 and is dealt with:
-            # debug code can be removed at will
-            if rate < 0:
-                self.__log.warn("WARNING: rate < 0")
-                for entry in self.__runStats.rateEntries():
-                    self.__log.warn(str(entry))
-            #
-            rateStr = " (%2.2f Hz)" % rate
-        except (RateException):
+        rateStr = ""
+        rate = self.__runStats.rate()
+        if rate == 0.0:
             rateStr = ""
+        else:
+            rateStr = " (%2.2f Hz)" % rate
 
         (runNum, evtTime, numEvts, numMoni, numSN, numTcal) = \
             self.__runStats.currentData()
