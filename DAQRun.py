@@ -51,7 +51,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4683 2009-10-14 17:52:52Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4684 2009-10-14 18:45:44Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -595,7 +595,7 @@ class DAQRun(object):
         self.running          = False
 
         self.moni             = None
-        self.moniTimer        = None
+        self.__moniTimer      = None
 
         self.watchdog         = None
         self.unHealthyCount   = 0
@@ -1113,9 +1113,9 @@ class DAQRun(object):
                         int(self.moni.getSingleBeanField(cid, "tcalBuilder", "DiskSize"))]
         return [0, 0]
 
-    def check_all(self):
-        if self.moni and self.moniTimer and self.moniTimer.isTime():
-            self.moniTimer.reset()
+    def check_timers(self):
+        if self.moni and self.__moniTimer and self.__moniTimer.isTime():
+            self.__moniTimer.reset()
             try:
                 self.moni.doMoni()
             except Exception:
@@ -1276,8 +1276,8 @@ class DAQRun(object):
                     self.moni = \
                         self.setup_monitoring(self.log, self.__logpath,
                                               self.components, moniType)
-                    self.moniTimer = self.setup_timer(DAQRun.MONI_NAME,
-                                                      DAQRun.MONI_PERIOD)
+                    self.__moniTimer = self.setup_timer(DAQRun.MONI_NAME,
+                                                        DAQRun.MONI_PERIOD)
                     self.watchdog = \
                         self.setup_watchdog(self.log, DAQRun.WATCH_PERIOD,
                                             self.components)
@@ -1335,7 +1335,7 @@ class DAQRun(object):
                                    (nmoni, nsn, ntcal))
 
                 self.moni = None
-                self.moniTimer = None
+                self.__moniTimer = None
 
                 self.watchdog = None
                 self.unHealthyCount = 0
@@ -1380,8 +1380,9 @@ class DAQRun(object):
                 self.runState = "STOPPED"
 
             elif self.runState == "RUNNING":
-                if not self.check_all():
-                    self.log.error("Caught error in system, going to ERROR state...")
+                if not self.check_timers():
+                    self.log.error("Caught error in system," +
+                                   " going to ERROR state...")
                     self.runState = "ERROR"
                 else:
                     time.sleep(0.25)

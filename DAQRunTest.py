@@ -870,18 +870,18 @@ class TestDAQRun(unittest.TestCase):
 
         logger.checkStatus(10)
 
-    def testCheckAllNone(self):
+    def testCheckNone(self):
         dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
 
-        rtnVal = dr.check_all()
+        rtnVal = dr.check_timers()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
         logger.checkStatus(10)
 
-    def testCheckAllMoniRate(self):
+    def testCheckMoniRate(self):
         dr = MostlyDAQRun()
 
         logger = MockLogger('main')
@@ -944,12 +944,12 @@ class TestDAQRun(unittest.TestCase):
             time.sleep(0.1)
             numTries += 1
 
-        rtnVal = dr.check_all()
+        rtnVal = dr.check_timers()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
         logger.checkStatus(10)
 
-    def testCheckAllMoni(self):
+    def testCheckMoni(self):
         dr = MostlyDAQRun()
 
         logger = MockLogger('main')
@@ -1004,12 +1004,12 @@ class TestDAQRun(unittest.TestCase):
                                  ' events, %d SN events, %d tcals') %
                                 (numEvts, numMoni, numSN, numTCal))
 
-        rtnVal = dr.check_all()
+        rtnVal = dr.check_timers()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
         logger.checkStatus(10)
 
-    def testCheckAllWatchdogNone(self):
+    def testCheckWatchdogNone(self):
         dr = MostlyDAQRun()
 
         logger = MockLogger('main')
@@ -1021,7 +1021,7 @@ class TestDAQRun(unittest.TestCase):
 
         expCnt = 0
 
-        rtnVal = dr.check_all()
+        rtnVal = dr.check_timers()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
         self.failIf(dr.watchdog.threadCleared,
@@ -1034,7 +1034,7 @@ class TestDAQRun(unittest.TestCase):
 
         logger.checkStatus(10)
 
-    def testCheckAllWatchdogStart(self):
+    def testCheckWatchdogStart(self):
         dr = MostlyDAQRun()
 
         logger = MockLogger('main')
@@ -1047,7 +1047,7 @@ class TestDAQRun(unittest.TestCase):
 
         expCnt = 0
 
-        rtnVal = dr.check_all()
+        rtnVal = dr.check_timers()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
         self.failIf(dr.watchdog.threadCleared, 'Should not have cleared thread')
@@ -1059,7 +1059,7 @@ class TestDAQRun(unittest.TestCase):
 
         logger.checkStatus(10)
 
-    def testCheckAllWatchdogErr(self):
+    def testCheckWatchdogErr(self):
         dr = MostlyDAQRun()
 
         logger = MockLogger('main')
@@ -1073,7 +1073,7 @@ class TestDAQRun(unittest.TestCase):
 
         expCnt = 0
 
-        rtnVal = dr.check_all()
+        rtnVal = dr.check_timers()
         self.failIf(rtnVal, 'Expected call to succeed')
 
         self.failUnless(dr.watchdog.threadCleared, 'Should have cleared thread')
@@ -1085,7 +1085,7 @@ class TestDAQRun(unittest.TestCase):
 
         logger.checkStatus(10)
 
-    def testCheckAllWatchdogHealthy(self):
+    def testCheckWatchdogHealthy(self):
         dr = MostlyDAQRun()
 
         logger = MockLogger('main')
@@ -1100,7 +1100,7 @@ class TestDAQRun(unittest.TestCase):
 
         expCnt = 0
 
-        rtnVal = dr.check_all()
+        rtnVal = dr.check_timers()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
         self.failUnless(dr.watchdog.threadCleared, 'Should have cleared thread')
@@ -1112,7 +1112,7 @@ class TestDAQRun(unittest.TestCase):
 
         logger.checkStatus(10)
 
-    def testCheckAllWatchdogUnhealthy(self):
+    def testCheckWatchdogUnhealthy(self):
         dr = MostlyDAQRun()
 
         logger = MockLogger('main')
@@ -1126,7 +1126,7 @@ class TestDAQRun(unittest.TestCase):
 
         expCnt = 1
 
-        rtnVal = dr.check_all()
+        rtnVal = dr.check_timers()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
         self.failUnless(dr.watchdog.threadCleared, 'Should have cleared thread')
@@ -1138,7 +1138,7 @@ class TestDAQRun(unittest.TestCase):
 
         logger.checkStatus(10)
 
-    def testCheckAllWatchdogMax(self):
+    def testCheckWatchdogMax(self):
         dr = MostlyDAQRun()
 
         logger = MockLogger('main')
@@ -1152,7 +1152,7 @@ class TestDAQRun(unittest.TestCase):
 
         expCnt = 0
 
-        rtnVal = dr.check_all()
+        rtnVal = dr.check_timers()
         self.failIf(rtnVal, 'Expected call to succeed')
 
         self.failUnless(dr.watchdog.threadCleared, 'Should have cleared thread')
