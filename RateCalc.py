@@ -14,6 +14,8 @@ class ZeroTimeDeltaException(RateException): pass
 class RateCalcEntry(object):
     def __init__(self, time, n):
         self.time = time; self.n = n
+    def __repr__(self):
+        return "RateCalcEntry[%s -> %s]" % (str(self.time), str(self.n))
     def __str__(self): return "%s: %s" % (self.time, self.n)
     
 def dt(t0, t1): # Calculate absolute time delta in seconds from datetime objects
@@ -30,6 +32,10 @@ class RateCalc(object):
         self.maxentries = maxentries
         self.entries    = []
 
+    def __str__(self):
+        return "RateCalc[intvl %d max %d %s]" % \
+            (self.interval, self.maxentries, str(self.entries))
+
     def reset(self): self.entries = []
     
     def add(self, time, count):
@@ -42,8 +48,8 @@ class RateCalc(object):
         
     def rate(self):
         """
-        Get latest rate value.  Raise exceptions if time difference is zero or not
-        enough entries
+        Get latest rate value.  Raise exceptions if time difference
+        is zero or not enough entries
         """
         # Find the desired bin by walking back in time.  This is a bit crude but
         # we don't need to worry about performance for the target application
