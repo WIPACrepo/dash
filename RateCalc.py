@@ -7,10 +7,6 @@
 import datetime
 import time
 
-class RateException(Exception): pass
-class InsufficientEntriesException(RateException): pass
-class ZeroTimeDeltaException(RateException): pass
-
 class RateCalcEntry(object):
     def __init__(self, time, n):
         self.time = time; self.n = n
@@ -54,16 +50,17 @@ class RateCalc(object):
         # Find the desired bin by walking back in time.  This is a bit crude but
         # we don't need to worry about performance for the target application
         # (DAQRun rate calculation)
-        recent = self.entries[-1]
-        entry  = None
+        latest = None
         dtsec  = 0
-        for bin in range(-1, -1-len(self.entries), -1):
+        for bin in range(len(self.entries) - 1, -1, -1):
             entry = self.entries[bin]
-            dtsec = dt(entry.time, recent.time)
-            if dtsec > self.interval: break
-        if entry is None: raise InsufficientEntriesException()
-        if dtsec == 0: raise ZeroTimeDeltaException()
-        return (recent.n - entry.n)/dtsec
+            if latest is None:
+                latest = entry
+            else:
+                dtsec = dt(entry.time, latest.time)
+                if dtsec > self.interval: break
+        if latest is None or dtsec == 0: return 0.0
+        return float(latest.n - entry.n)/float(dtsec)
     
 def main():
     """
@@ -72,12 +69,13 @@ def main():
     desired
     """
     rc = RateCalc(interval=5)
+    print rc.rate()
+
     count = 0
-    rc.add(datetime.datetime.now(), count)
     for i in range(0, 10):
         time.sleep(1)
-        count += 1
         rc.add(datetime.datetime.now(), count)
+        count += 1
         print rc.rate()
 
     count += 1000
