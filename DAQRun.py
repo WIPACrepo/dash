@@ -51,7 +51,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4682 2009-10-14 17:50:46Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4683 2009-10-14 17:52:52Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -373,7 +373,7 @@ class RunStats(object):
          self.__numSN, self.__snTime,
          self.__numTcal, self.__tcalTime) = evtData
 
-        if addRate:
+        if addRate and self.__numEvts > 0:
             if self.__startPayTime is None:
                 self.__startPayTime = daqRun.getFirstEventTime()
                 startDT = PayloadTime.toDateTime(self.__startPayTime)
