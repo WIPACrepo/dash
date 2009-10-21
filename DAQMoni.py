@@ -255,7 +255,7 @@ class DAQMoni(object):
 
     def isActive(self):
         for c in self.__threadList.keys():
-            if self.__threadList[c].done:
+            if not self.__threadList[c].done:
                 return True
         return False
 
