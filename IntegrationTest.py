@@ -749,6 +749,9 @@ class StubbedDAQRun(DAQRun):
             time.sleep(0.1)
             numTries += 1
 
+        if self.__moni.isActive():
+            raise Exception('Monitoring is still active')
+
     def forceRate(self):
         self.__rate.trigger()
 
@@ -765,6 +768,9 @@ class StubbedDAQRun(DAQRun):
                 numTries < 100:
             time.sleep(0.1)
             numTries += 1
+
+        if self.rateThread is not None and not self.rateThread.done():
+            raise Exception('RateThread is still running')
 
     def forceWatchdog(self):
         self.__watchdog.setWatchFlag()
