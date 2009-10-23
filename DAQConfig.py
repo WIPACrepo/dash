@@ -18,10 +18,12 @@ else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
-class DAQConfigNotFound          (Exception): pass
-class DAQConfigDirNotFound       (Exception): pass
-class noRunConfigFound           (Exception): pass
-class noDOMConfigFound           (Exception):
+class DAQConfigException      (Exception)         : pass
+class DAQConfigNotFound       (DAQConfigException): pass
+class DAQConfigDirNotFound    (DAQConfigException): pass
+class multipleStringNumbers   (DAQConfigException): pass
+class noRunConfigFound        (DAQConfigException): pass
+class noDOMConfigFound        (DAQConfigException):
     def __init__(self, configName):
         Exception.__init__(self, configName)
 
@@ -30,10 +32,10 @@ class noDOMConfigFound           (Exception):
     def __str__(self):
         return self.configName
 
-class noDeployedDOMsListFound    (Exception): pass
-class noComponentsFound          (Exception): pass
-class triggerException           (Exception): pass
-class DOMNotInConfigException    (Exception): pass
+class noDeployedDOMsListFound (DAQConfigException): pass
+class noComponentsFound       (DAQConfigException): pass
+class triggerException        (DAQConfigException): pass
+class DOMNotInConfigException (DAQConfigException): pass
 
 def showList(configDir):
     if not os.path.exists(configDir):
@@ -110,6 +112,8 @@ class DefaultDOMGeometry(object):
 
         for string in deployedStrings:
             stringNumTag = string.getElementsByTagName("number")
+            if len(stringNumTag) != 1:
+                raise multipleStringNumbers("Found multiple string numbers")
             stringNum    = int(stringNumTag[0].childNodes[0].data)
             domlist = string.getElementsByTagName("dom")
             for dom in domlist:
@@ -175,32 +179,26 @@ class DAQConfig(object):
 
     def __init__(self, configName="default",
                  configDir="/usr/local/icecube/config"):
-        # Optimize by looking up pre-parsed configurations:
-        if DAQConfig.persister.has_key(configName):
-            self.__dict__ = DAQConfig.persister[configName]
-
-            tmpFile = xmlOf(os.path.join(configDir, configName))
-
-            try:
-                cfgStat = os.stat(tmpFile)
-            except OSError:
-                raise DAQConfigNotFound(tmpFile)
-
-            if self.__modTime == cfgStat.st_mtime:
-                return
-
-            # if we made it to here, the config file must have been modified
 
         if not os.path.exists(configDir):
             raise DAQConfigDirNotFound("Could not find config dir %s" %
                                        configDir)
-        self.configFile = xmlOf(os.path.join(configDir, configName))
+        tmpFile = xmlOf(os.path.join(configDir, configName))
 
         try:
-            cfgStat = os.stat(self.configFile)
+            cfgStat = os.stat(tmpFile)
         except OSError:
-            raise DAQConfigNotFound(self.configFile)
+            raise DAQConfigNotFound(tmpFile)
 
+        # Optimize by looking up pre-parsed configurations:
+        if DAQConfig.persister.has_key(tmpFile):
+            self.__dict__ = DAQConfig.persister[tmpFile]
+
+            if self.__modTime == cfgStat.st_mtime:
+                # file has not been modified; use old values
+                return
+
+        self.configFile = tmpFile
         self.__modTime = cfgStat.st_mtime
 
         # Parse the runconfig
@@ -275,7 +273,7 @@ class DAQConfig(object):
         for hubID in hubIDList:
             self.compList.append('%s#%d' % (hubType, hubID))
 
-        DAQConfig.persister             [ configName ] = self.__dict__
+        DAQConfig.persister[self.configFile] = self.__dict__
 
     def checkTriggerConfigFile(self, config, configDir):
         triggerConfigs = config.getElementsByTagName("triggerConfig")
