@@ -143,6 +143,9 @@ class DAQLive(Component):
     "Maximum number of loops to wait inside __waitForState()"
     MAX_WAIT = 120
 
+    "Set to False to avoid logging of 'Waiting for state' messages"
+    STATE_WARNING = True
+
     "Frequency of monitoring uploads"
     MONI_PERIOD = 60
 
@@ -284,7 +287,7 @@ class DAQLive(Component):
                 self.__log.error('Waiting for state %s, but stuck at %s' %
                                  (expState, str(state)))
                 return False
-            elif n % 10 == 0:
+            elif n % 10 == 0 and DAQLive.STATE_WARNING:
                 self.__log.error(("Waiting for state %s for %d seconds," +
                                   " (currently %s)") %
                                  (expState, n, str(state)))
