@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4579 2009-08-31 23:01:45Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4706 2009-10-26 20:13:26Z dglo $"
 
 class Connector(object):
     """
@@ -581,7 +581,7 @@ class RunSet(object):
 
         shThreads = []
         for c in self.__set:
-            if c.isComponent("stringHub"):
+            if c.isSource():
                 thread = SubrunThread(c, data)
                 thread.start()
                 shThreads.append(thread)
