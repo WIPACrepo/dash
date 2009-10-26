@@ -1709,7 +1709,7 @@ class IntegrationTest(unittest.TestCase):
                        True)
 
     def testZAllLiveFinishInMain(self):
-        from DAQMocks import LogChecker; LogChecker.DEBUG = True
+        #from DAQMocks import LogChecker; LogChecker.DEBUG = True
         if not TEST_LIVE:
             print 'Skipping I3Live-related test'
             return
