@@ -1708,8 +1708,8 @@ class IntegrationTest(unittest.TestCase):
         self.__runTest(live, dr, cnc, liveLog, appender, catchall, targetFlags,
                        True)
 
-    def testAllLiveFinishInMain(self):
-        #from DAQMocks import LogChecker; LogChecker.DEBUG = True
+    def testZAllLiveFinishInMain(self):
+        from DAQMocks import LogChecker; LogChecker.DEBUG = True
         if not TEST_LIVE:
             print 'Skipping I3Live-related test'
             return
@@ -1743,7 +1743,7 @@ class IntegrationTest(unittest.TestCase):
         self.__runTest(live, dr, cnc, liveLog, appender, catchall, targetFlags,
                        False)
 
-    def testBothFinishInMain(self):
+    def testZBothFinishInMain(self):
         if not TEST_LIVE:
             print 'Skipping I3Live-related test'
             return
