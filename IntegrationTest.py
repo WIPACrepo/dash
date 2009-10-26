@@ -361,7 +361,9 @@ class MostlyCnCServer(CnCServer):
     def createCnCLogger(self, quiet):
         key = 'server'
         if not MostlyCnCServer.APPENDERS.has_key(key):
-            MostlyCnCServer.APPENDERS[key] = MockAppender('Mock-%s' % key)
+            MostlyCnCServer.APPENDERS[key] = \
+                MockAppender('Mock-%s' % key,
+                             depth=IntegrationTest.NUM_COMPONENTS)
 
         return MockCnCLogger(MostlyCnCServer.APPENDERS[key], quiet)
 
@@ -701,7 +703,8 @@ class StubbedDAQRun(DAQRun):
 
     def createInitialAppender(self):
         if self.__mockAppender is None:
-            self.__mockAppender = MockAppender('runlog')
+            self.__mockAppender = MockAppender('runlog',
+                                               IntegrationTest.NUM_COMPONENTS)
 
         return self.__mockAppender
 
@@ -716,7 +719,8 @@ class StubbedDAQRun(DAQRun):
         isServer = (name == 'catchall' or name == 'cncserver')
 
         expStartMsg = True
-        log = cls.LOGFACTORY.createLog(name, logPort, expStartMsg)
+        log = cls.LOGFACTORY.createLog(name, logPort, expStartMsg,
+                                       depth=IntegrationTest.NUM_COMPONENTS)
         cls.LOGDICT[name] = log
 
         if not isServer:
@@ -940,6 +944,8 @@ class IntegrationTest(unittest.TestCase):
     LOG_DIR = None
     LIVEMONI_ENABLED = False
 
+    NUM_COMPONENTS = 10
+
     def __createComponents(self):
         # Note that these jvm/jvmArg values needs to correspond to
         # what would be used by the config in 'sim-localhost'
@@ -961,6 +967,10 @@ class IntegrationTest(unittest.TestCase):
                  ('secondaryBuilders', 0, 9120, 9220, jvm,
                   '-server -Xms600m -Xmx1200m'),]
 
+        if len(comps) != IntegrationTest.NUM_COMPONENTS:
+            raise Exception("Expected %d components, not %d" %
+                            (IntegrationTest.NUM_COMPONENTS, len(comps)))
+
         verbose = False
 
         for c in comps:
@@ -973,7 +983,9 @@ class IntegrationTest(unittest.TestCase):
         self.__compList.sort()
 
     def __createLiveObjects(self, livePort):
-        log = self.__logFactory.createLog('liveMoni', DAQPort.I3LIVE, False)
+        numComps = IntegrationTest.NUM_COMPONENTS * 2
+        log = self.__logFactory.createLog('liveMoni', DAQPort.I3LIVE, False,
+                                          depth=numComps)
 
         log.addExpectedText('Connecting to DAQRun')
         log.addExpectedText('Started %s service on port %d' %
@@ -988,7 +1000,7 @@ class IntegrationTest(unittest.TestCase):
             appender = None
             catchall = None
         else:
-            appender = MockAppender('main')
+            appender = MockAppender('main', IntegrationTest.NUM_COMPONENTS)
             catchall = \
                 StubbedDAQRun.createLogSocketServer(DAQPort.CATCHALL,
                                                     'catchall', 'catchall')
