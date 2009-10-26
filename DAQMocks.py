@@ -287,11 +287,14 @@ class LogChecker(object):
     TYPE_RETEXT = 4
     TYPE_LIVE = 5
 
-    def __init__(self, prefix, name, isLive=False, depth=5):
+    def __init__(self, prefix, name, isLive=False, depth=None):
         self.__prefix = prefix
         self.__name = name
         self.__isLive = isLive
-        self.__depth = depth
+        if depth is None:
+            self.__depth = 5
+        else:
+            self.__depth = depth
 
         self.__expMsgs = []
 
@@ -385,8 +388,8 @@ class LogChecker(object):
         raise UnimplementedException()
 
 class MockAppender(LogChecker):
-    def __init__(self, name):
-        super(MockAppender, self).__init__('LOG', name)
+    def __init__(self, name, depth=None):
+        super(MockAppender, self).__init__('LOG', name, depth=depth)
 
     def close(self):
         pass
@@ -898,7 +901,7 @@ class MockXMLRPC(object):
         pass
 
 class SocketReader(LogChecker):
-    def __init__(self, name, port):
+    def __init__(self, name, port, depth=None):
         self.__port = port
 
         self.__errMsg = None
@@ -908,7 +911,7 @@ class SocketReader(LogChecker):
 
         isLive = (self.__port == DAQPort.I3LIVE)
         super(SocketReader, self).__init__('SOC', name,
-                                           isLive=isLive)
+                                           isLive=isLive, depth=depth)
 
     def __bind(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -1009,8 +1012,8 @@ class SocketReaderFactory(object):
     def __init__(self):
         self.__logList = []
 
-    def createLog(self, name, port, expectStartMsg=True):
-        log = SocketReader(name, port)
+    def createLog(self, name, port, expectStartMsg=True, depth=None):
+        log = SocketReader(name, port, depth)
         self.__logList.append(log)
 
         if expectStartMsg:
