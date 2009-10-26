@@ -1202,10 +1202,6 @@ class IntegrationTest(unittest.TestCase):
         if catchall: catchall.addExpectedText(msg)
         if liveLog and not liveRunOnly: liveLog.addExpectedText(msg)
 
-        if liveLog:
-            liveLog.addExpectedText("Waiting for state RUNNING for 10 seconds" +
-                                    ", (currently STARTING)")
-
         msg = 'Created Run Set #%d' % setId
         if catchall and not liveRunOnly: catchall.addExpectedText(msg)
         if liveLog: liveLog.addExpectedText(msg)
@@ -1584,6 +1580,10 @@ class IntegrationTest(unittest.TestCase):
         StubbedDAQRun.LOGFACTORY = self.__logFactory
 
         IntegrationTest.LOG_DIR = tempfile.mkdtemp()
+
+        # registration timeout messages can mess up log checker
+        DAQRun.REGISTRATION_TIMEOUT = 60
+        DAQLive.STATE_WARNING = False
 
         self.__live = None
         self.__run = None
