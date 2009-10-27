@@ -482,7 +482,7 @@ class MockComponent(object):
     def host(self):
         return self.__host
 
-    def isComponent(self, name, num):
+    def isComponent(self, name, num=-1):
         return self.__name == name
 
     def isConfigured(self):
