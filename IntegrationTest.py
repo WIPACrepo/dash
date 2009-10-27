@@ -396,6 +396,9 @@ class RealComponent(object):
         self.__logger = None
         self.__liver = None
 
+        self.__compList = None
+        self.__connections = None
+
         self.__mbeanData = None
 
         self.__version = {'filename':name, 'revision':'1', 'date':'date',
@@ -461,6 +464,19 @@ class RealComponent(object):
         return 'CFG'
 
     def __connect(self, *args):
+        if self.__compList is None:
+            raise Exception("No component list for %s" % str(self))
+
+        tmpDict = {}
+        for connList in args:
+            for cd in connList:
+                for c in self.__compList:
+                    if c.isComponent(cd["compName"], cd["compNum"]):
+                        tmpDict[c] = 1
+                        break
+
+        self.__connections = tmpDict.keys()
+
         self.__state = 'connected'
         return 'CONN'
 
@@ -557,6 +573,14 @@ class RealComponent(object):
     def __startRun(self, runNum):
         self.__log('Start #%d on %s' % (runNum, str(self)))
 
+        if self.__connections is None:
+            print >>sys.stderr, "Component %s has no connections" % str(self)
+        elif self.__name != "eventBuilder":
+            for c in self.__connections:
+                if c.getState() != 'running':
+                    print >>sys.stderr, ("Comp %s is running before %s" %
+                                         (str(c), str(self)))
+
         self.__state = 'running'
         return 'RUN#%d' % runNum
 
@@ -566,6 +590,14 @@ class RealComponent(object):
 
     def __stopRun(self):
         self.__log('Stop %s' % str(self))
+
+        if self.__connections is None:
+            print >>sys.stderr, "Component %s has no connections" % str(self)
+        elif self.__name != "eventBuilder":
+            for c in self.__connections:
+                if c.getState() == 'stopped':
+                    print >>sys.stderr, ("Comp %s is stopped before %s" %
+                                         (str(c), str(self)))
 
         self.__state = 'stopped'
         return 'STOP'
@@ -587,6 +619,10 @@ class RealComponent(object):
         self.__mbean.server_close()
 
     def fullName(self): return self.__name
+
+    def isComponent(self, name, num=-1):
+        return self.__name == name and (num < 0 or self.__num == num)
+
     def jvm(self): return self.__jvm
     def jvmArgs(self): return self.__jvmArgs
 
@@ -614,6 +650,9 @@ class RealComponent(object):
         self.__id = reg[0]
 
         self.__logTo(reg[1], reg[2], reg[3], reg[4])
+
+    def setComponentList(self, compList):
+        self.__compList = compList
 
     def setMBean(self, bean, fld, val):
         if self.__mbeanData is None:
@@ -979,6 +1018,7 @@ class IntegrationTest(unittest.TestCase):
             if self.__compList is None:
                 self.__compList = []
             self.__compList.append(comp)
+            comp.setComponentList(self.__compList)
 
         self.__compList.sort()
 
