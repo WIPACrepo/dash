@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4708 2009-10-27 03:43:20Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4711 2009-10-27 18:25:36Z dglo $"
 
 class Connector(object):
     """
@@ -194,6 +194,154 @@ class SubrunThread(threading.Thread):
     def time(self):
         return self.__time
 
+class RunSetThreadGroup(object):
+    def __init__(self):
+        "Create a runset thread group"
+        self.__list = []
+
+    def reportErrors(self, logger, method):
+        numAlive = 0
+        numErrors = 0
+        for t in self.__list:
+            if t.isAlive():
+                numAlive += 1
+            if t.isError():
+                numErrors += 1
+        if numAlive > 0:
+            if numAlive == 1:
+                plural = ""
+            else:
+                plural = "s"
+            logger.error(("Thread group contains %d running thread%s" +
+                          " after %s") % (numAlive, plural, method))
+        if numErrors > 0:
+            if numErrors == 1:
+                plural = ""
+            else:
+                plural = "s"
+            logger.error("Thread group encountered %d error%s during %s" %
+                         (numErrors, plural, method))
+
+    def start(self, thread):
+        "Start a thread after adding it to the group"
+        self.__list.append(thread)
+        thread.start()
+
+    def wait(self, reps=4, waitSecs=0.5):
+        """
+        Wait for all the threads to finish
+        reps - number of times to loop before deciding threads are hung
+        waitSecs - number of seconds to wait (as a float)
+        NOTE:
+        if all threads are hung, max wait time is (#threads * waitSecs * reps)
+        """
+        alive = True
+        for i in range(reps):
+            alive = False
+            for t in self.__list:
+                if t.isAlive():
+                    t.join(waitSecs)
+                    alive |= t.isAlive()
+            if not alive:
+                break
+
+class RunSetThread(threading.Thread):
+    "Thread used to communicate with a component in a run set"
+
+    "thread will configure the component"
+    CONFIG_COMP = "CONFIG_COMP"
+    "thread will configure the component's logging"
+    CONFIG_LOGGING = "CONFIG_LOGGING"
+    "thread will force the running component to stop"
+    FORCED_STOP = "FORCED_STOP"
+    "thread will reset the component"
+    RESET_COMP = "RESET_COMP"
+    "thread will reset the component's logging"
+    RESET_LOGGING = "RESET_LOGGING"
+    "thread will start the component running"
+    START_RUN = "START_RUN"
+    "thread will stop the running component"
+    STOP_RUN = "STOP_RUN"
+
+    def __init__(self, comp, log, operation, data):
+        """
+        Initialize a run set thread
+        comp - component
+        log - object used to log errors
+        operation - RunSetThread operation
+        data - tuple holding all data needed for the operation
+        """
+        self.__comp = comp
+        self.__log = log
+        self.__operation = operation
+        self.__data = data
+
+        self.__error = False
+
+        threading.Thread.__init__(self)
+
+        self.setName("CnCServer:RunSet*%s" % str(self.__comp))
+
+    def __configComponent(self):
+        "Configure the component"
+        self.__comp.configure(self.__data[0])
+
+    def __configLogging(self):
+        "Configure logging for the component"
+        self.__comp.logTo(self.__data[0], self.__data[1], self.__data[2],
+                          self.__data[3])
+
+    def __forcedStop(self):
+        "Force the running component to stop"
+        self.__comp.forcedStop()
+
+    def __resetComponent(self):
+        "Reset the component"
+        self.__comp.reset()
+
+    def __resetLogging(self):
+        "Reset logging for the component"
+        self.__comp.resetLogging()
+
+    def __startRun(self):
+        "Start the component running"
+        self.__comp.startRun(self.__data[0])
+
+    def __stopRun(self):
+        "Stop the running component"
+        self.__comp.stopRun()
+
+    def __runOperation(self):
+        "Execute the requested operation"
+        if self.__operation == RunSetThread.CONFIG_COMP:
+            self.__configComponent()
+        elif self.__operation == RunSetThread.CONFIG_LOGGING:
+            self.__configLogging()
+        elif self.__operation == RunSetThread.FORCED_STOP:
+            self.__forcedStop()
+        elif self.__operation == RunSetThread.RESET_COMP:
+            self.__resetComponent()
+        elif self.__operation == RunSetThread.RESET_LOGGING:
+            self.__resetLogging()
+        elif self.__operation == RunSetThread.START_RUN:
+            self.__startRun()
+        elif self.__operation == RunSetThread.STOP_RUN:
+            self.__stopRun()
+        else:
+            raise Exception("Unknown operation %s" % str(self.__operation))
+
+    def isError(self): return self.__error
+
+    def run(self):
+        "Main method for thread"
+        try:
+            self.__runOperation()
+        except:
+            self.__log.error("%s(%s): %s" % (str(self.__operation),
+                                             str(self.__comp),
+                                             exc_string()))
+            self.__error = True
+
 class RunSet(object):
     "A set of components to be used in one or more runs"
 
@@ -245,8 +393,13 @@ class RunSet(object):
         "Configure all components in the runset"
         self.__state = 'configuring'
 
+        tGroup = RunSetThreadGroup()
         for c in self.__set:
-            c.configure(globalConfigName)
+            tGroup.start(RunSetThread(c, self.__logger,
+                                      RunSetThread.CONFIG_COMP,
+                                      (globalConfigName, )))
+        tGroup.wait()
+        tGroup.reportErrors(self.__logger, "configure")
 
         waitLoop = 0
         while True:
@@ -278,30 +431,49 @@ class RunSet(object):
 
     def configureBothLogging(self, liveIP, livePort, pdaqIP, pdaqList):
         "Configure I3Live and pDAQ logging for all components in the runset"
+        tGroup = RunSetThreadGroup()
         for c in self.__set:
             for i in range(0, len(pdaqList)):
                 logData = pdaqList[i]
                 if c.isComponent(logData[0], logData[1]):
-                    c.logTo(pdaqIP, logData[2], liveIP, livePort)
+                    tGroup.start(RunSetThread(c, self.__logger,
+                                              RunSetThread.CONFIG_LOGGING,
+                                              (pdaqIP, logData[2],
+                                               liveIP, livePort)))
                     del pdaqList[i]
                     break
+
+        tGroup.wait()
+        tGroup.reportErrors(self.__logger, "configureBothLogging")
 
         return pdaqList
 
     def configureLiveLogging(self, logIP, logPort):
         "Configure I3Live logging for all components in the runset"
+        tGroup = RunSetThreadGroup()
         for c in self.__set:
-            c.logTo(None, None, logIP, logPort)
+            tGroup.start(RunSetThread(c, self.__logger,
+                                      RunSetThread.CONFIG_LOGGING,
+                                      (None, None, logIP, logPort)))
+
+        tGroup.wait()
+        tGroup.reportErrors(self.__logger, "configureLiveLogging")
 
     def configureLogging(self, logIP, logList):
         "Configure logging for specified components in the runset"
+        tGroup = RunSetThreadGroup()
         for c in self.__set:
             for i in range(0, len(logList)):
                 logData = logList[i]
                 if c.isComponent(logData[0], logData[1]):
-                    c.logTo(logIP, logData[2], None, None)
+                    tGroup.start(RunSetThread(c, self.__logger,
+                                              RunSetThread.CONFIG_LOGGING,
+                                              (logIP, logData[2], None, None)))
                     del logList[i]
                     break
+
+        tGroup.wait()
+        tGroup.reportErrors(self.__logger, "configureLogging")
 
         return logList
 
@@ -368,8 +540,12 @@ class RunSet(object):
         "Reset all components in the runset back to the idle state"
         self.__state = 'resetting'
 
+        tGroup = RunSetThreadGroup()
         for c in self.__set:
-            c.reset()
+            tGroup.start(RunSetThread(c, self.__logger,
+                                      RunSetThread.RESET_COMP, ()))
+        tGroup.wait()
+        tGroup.reportErrors(self.__logger, "reset")
 
         try:
             self.waitForStateChange(60)
@@ -388,8 +564,12 @@ class RunSet(object):
 
     def resetLogging(self):
         "Reset logging for all components in the runset"
+        tGroup = RunSetThreadGroup()
         for c in self.__set:
-            c.resetLogging()
+            tGroup.start(RunSetThread(c, self.__logger,
+                                      RunSetThread.RESET_LOGGING, ()))
+        tGroup.wait()
+        tGroup.reportErrors(self.__logger, "resetLogging")
 
     def returnComponents(self, pool):
         badList = self.reset()
@@ -427,9 +607,17 @@ class RunSet(object):
         if not self.__configured:
             raise ValueError("RunSet #%d is not configured" % self.__id)
 
+        srcSet = []
+        otherSet = []
+
         failStr = None
         for c in self.__set:
-            if c.order() is None:
+            if c.order() is not None:
+                if c.isSource():
+                    srcSet.append(c)
+                else:
+                    otherSet.append(c)
+            else:
                 if not failStr:
                     failStr = 'No order set for ' + str(c)
                 else:
@@ -437,16 +625,24 @@ class RunSet(object):
         if failStr:
             raise ValueError(failStr)
 
-        # start back to front
-        #
-        self.__set.sort(self.sortCmp)
-
         self.__state = 'starting'
-
         self.__runNumber = runNum
-        for c in self.__set:
+
+        # start non-sources in order (back to front)
+        #
+        otherSet.sort(self.sortCmp)
+        for c in otherSet:
             c.startRun(runNum)
 
+        # start sources in parallel
+        #
+        tGroup = RunSetThreadGroup()
+        for c in srcSet:
+            tGroup.start(RunSetThread(c, self.__logger,
+                                      RunSetThread.START_RUN, (runNum, )))
+        tGroup.wait()
+        tGroup.reportErrors(self.__logger, "startRun")
+        
         self.waitForStateChange(30)
 
         self.__state = 'running'
@@ -472,20 +668,27 @@ class RunSet(object):
         if self.__runNumber is None:
             raise ValueError("RunSet #%d is not running" % self.__id)
 
+        srcSet = []
+        otherSet = []
+
+        for c in self.__set:
+            if c.isSource():
+                srcSet.append(c)
+            else:
+                otherSet.append(c)
+
         # stop from front to back
         #
-        #self.__set.sort(lambda x, y: x.order()-y.order())
-        #self.__set.sort(self.sortCmp)
-        self.__set.sort(lambda x, y: self.sortCmp(y, x))
-
-        waitList = self.__set[:]
+        otherSet.sort(lambda x, y: self.sortCmp(y, x))
 
         for i in range(0, 2):
             if i == 0:
                 self.__state = 'stopping'
+                srcOp = RunSetThread.STOP_RUN
                 timeoutSecs = int(RunSet.TIMEOUT_SECS * .75)
             else:
                 self.__state = 'forcingStop'
+                srcOp = RunSetThread.FORCED_STOP
                 timeoutSecs = int(RunSet.TIMEOUT_SECS * .25)
 
             if i == 1:
@@ -493,13 +696,25 @@ class RunSet(object):
                                     (str(self), len(waitList),
                                      self.listComponentsCommaSep(waitList)))
 
-            for c in waitList:
+            # stop sources in parallel
+            #
+            tGroup = RunSetThreadGroup()
+            for c in srcSet:
+                tGroup.start(RunSetThread(c, self.__logger, srcOp, ()))
+            tGroup.wait()
+            tGroup.reportErrors(self.__logger, self.__state)
+
+            # stop non-sources in order
+            #
+            for c in otherSet:
                 if i == 0:
                     c.stopRun()
                 else:
                     c.forcedStop()
 
             connDict = {}
+
+            waitList = srcSet + otherSet
 
             endSecs = time() + timeoutSecs
             while len(waitList) > 0 and time() < endSecs:
