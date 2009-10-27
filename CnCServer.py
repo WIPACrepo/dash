@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4706 2009-10-26 20:13:26Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4708 2009-10-27 03:43:20Z dglo $"
 
 class Connector(object):
     """
@@ -1350,7 +1350,10 @@ class DAQPool(object):
                             str(c)
                 else:
                     for m in connMap[c]:
-                        tmp[m.comp] = 1
+                        # XXX hack -- ignore source->eventBuilder links
+                        if not c.isSource() or \
+                                not m.comp.isComponent("eventBuilder"):
+                            tmp[m.comp] = 1
 
             curLevel = tmp.keys()
             level += 1
