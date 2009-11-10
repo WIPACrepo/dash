@@ -51,7 +51,7 @@ class RateCalc(object):
         # we don't need to worry about performance for the target application
         # (DAQRun rate calculation)
         latest = None
-        dtsec  = 0
+        dtsec  = 0.0
         for bin in range(len(self.entries) - 1, -1, -1):
             entry = self.entries[bin]
             if latest is None:
@@ -59,7 +59,7 @@ class RateCalc(object):
             else:
                 dtsec = dt(entry.time, latest.time)
                 if dtsec > self.interval: break
-        if latest is None or dtsec == 0: return 0.0
+        if latest is None or dtsec == 0.0: return 0.0
         return float(latest.n - entry.n)/float(dtsec)
     
 def main():
