@@ -151,6 +151,9 @@ class LiveState(object):
 
         if line.find(": ") > 0:
             (front, back) = line.split(": ", 1)
+            front = front.strip()
+            back = back.strip()
+
             if front == "DAQ thread":
                 self.__threadState = back
                 return LiveState.PARSE_NORMAL
@@ -165,6 +168,27 @@ class LiveState(object):
                     return LiveState.PARSE_NORMAL
             elif front == "Light mode":
                 self.__lightMode = LightMode.get(back)
+                return LiveState.PARSE_NORMAL
+            elif front == "run":
+                self.__runNum = int(back)
+                return LiveState.PARSE_NORMAL
+            elif front == "subrun":
+                self.__subrunNum = int(back)
+                return LiveState.PARSE_NORMAL
+            elif front == "config":
+                self.__config = back
+                return LiveState.PARSE_NORMAL
+            elif front == "tstart" or front == "tstop":
+                # ignore start/stop times
+                return LiveState.PARSE_NORMAL
+            elif front == "physicsEvents" or \
+                    front == "physicsEventsTime" or \
+                    front == "walltimeEvents" or \
+                    front =="walltimeEventsTime"  or \
+                    front == "tcalEvents" or \
+                    front == "moniEvents" or \
+                    front == "snEvents":
+                # ignore rates
                 return LiveState.PARSE_NORMAL
 
         if parseState == LiveState.PARSE_FLASH:
