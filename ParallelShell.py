@@ -76,6 +76,8 @@ class PCmd(object):
 
     def start(self):
         """ Start this command. """
+        self.tstart = datetime.datetime.now()
+
         # If not tracing, send both stdout and stderr to /dev/null
         if not self.trace:
             # Handle the case where the command ends in an '&' (silly
@@ -98,7 +100,6 @@ class PCmd(object):
         # If not running in parallel, then wait for this command (at
         # least the shell) to return
         if not self.parallel: self.wait()
-        self.tstart = datetime.datetime.now()
         
     def wait(self):
         """ Wait for the this command to return. """

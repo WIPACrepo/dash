@@ -22,7 +22,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 4107 2009-04-27 18:10:01Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 4734 2009-11-17 23:17:11Z ksb $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -66,7 +66,7 @@ def main():
     p.add_option("-q", "--quiet",        action="store_true",           dest="quiet",
                  help="Run quietly")
     p.add_option("-s", "--serial",       action="store_true",           dest="doSerial",
-                 help="Run rsyncs serially (overrides parallel)")
+                 help="Run rsyncs serially (overrides parallel and unsets timeout)")
     p.add_option("-t", "--timeout",      action="store", type="int",    dest="timeout",
                  help="Number of seconds before rsync is terminated")
     p.add_option("-v", "--verbose",      action="store_true",           dest="verbose",
@@ -92,8 +92,10 @@ def main():
         opt.verbose = True
         opt.quiet = False
 
-    # Serial overrides parallel
-    if opt.doSerial: opt.doParallel = False
+    # Serial overrides parallel and unsets timout
+    if opt.doSerial:
+        opt.doParallel = False
+        opt.timeout = None
 
     # dry-run implies we want to see what is happening
     if opt.dryRun:   opt.quiet = False
