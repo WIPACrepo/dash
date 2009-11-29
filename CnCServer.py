@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4711 2009-10-27 18:25:36Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4745 2009-11-29 13:06:33Z dglo $"
 
 class Connector(object):
     """
@@ -1633,12 +1633,11 @@ class CnCServer(DAQPool):
             self.__server.register_function(self.rpc_get_num_components)
             self.__server.register_function(self.rpc_list_components)
             self.__server.register_function(self.rpc_log_to)
-            self.__server.register_function(self.rpc_log_to_default)
             self.__server.register_function(self.rpc_num_sets)
             self.__server.register_function(self.rpc_ping)
             self.__server.register_function(self.rpc_register_component)
-            self.__server.register_function(self.rpc_runset_break)
             self.__server.register_function(self.rpc_runset_bothlog_to)
+            self.__server.register_function(self.rpc_runset_break)
             self.__server.register_function(self.rpc_runset_configure)
             self.__server.register_function(self.rpc_runset_events)
             self.__server.register_function(self.rpc_runset_list)
@@ -1732,11 +1731,6 @@ class CnCServer(DAQPool):
         if livePort is not None and livePort == 0:
             livePort = None
         self.__log.openLog(logHost, logPort, liveHost, livePort)
-        return 1
-
-    def rpc_log_to_default(self):
-        "reset logging to the default logger"
-        self.__log.resetLog()
         return 1
 
     def rpc_num_sets(self):
