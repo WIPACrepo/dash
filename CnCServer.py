@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4746 2009-11-29 13:20:15Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4747 2009-11-29 13:24:50Z dglo $"
 
 class Connector(object):
     """
@@ -401,8 +401,7 @@ class RunSet(object):
         tGroup.wait()
         tGroup.reportErrors(self.__logger, "configure")
 
-        waitLoop = 0
-        while True:
+        for i in range(60):
             waitList = []
             for c in self.__set:
                 stateStr = c.state()
@@ -416,9 +415,6 @@ class RunSet(object):
                                 self.listComponentsCommaSep(waitList)))
 
             sleep(1)
-            waitLoop += 1
-            if waitLoop > 60:
-                break
 
         self.waitForStateChange(30)
 
