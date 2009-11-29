@@ -254,13 +254,29 @@ class TestCnCServer(unittest.TestCase):
 
         catchall.checkStatus(100)
 
-        catchall.addExpectedText('ID#%d %s#%d at %s:%d M#%s %s' % \
-                                     (compId, compName, compNum, host, cmdPort,
-                                      mbeanPort, 'connected'))
+        rs = self.cnc.rpc_runset_list(setId)
+        for c in rs:
+            if compId != rs[0][0]:
+                continue
 
-        self.assertEqual(self.cnc.rpc_runset_status(setId), 'OK')
-
-        catchall.checkStatus(100)
+            self.assertEquals(compName, c[1],
+                              "Component#%d name should be \"%s\", not \"%s\"" %
+                              (compId, compName, c[1]))
+            self.assertEquals(compNum, c[2],
+                              "Component#%d \"%s\" number should be %d, not %d" %
+                              (compId, compName, compNum, c[2]))
+            self.assertEquals(host, c[3],
+                              ("Component#%d \"%s#%d\" host should be" +
+                               " \"%s\", not \"%s\"") %
+                              (compId, compName, compNum, host, c[3]))
+            self.assertEquals(cmdPort, c[4],
+                              ("Component#%d \"%s#%d\" rpcPort should be" +
+                               " \"%s\", not \"%s\"") %
+                              (compId, compName, compNum, cmdPort, c[4]))
+            self.assertEquals(mbeanPort, c[5],
+                              ("Component#%d \"%s#%d\" mbeanPort should be" +
+                               " \"%s\", not \"%s\"") %
+                              (compId, compName, compNum, mbeanPort, c[5]))
 
         runPort = 18998
 

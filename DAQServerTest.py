@@ -254,7 +254,6 @@ class TestDAQServer(unittest.TestCase):
         self.assertRaises(ValueError, dc.rpc_runset_configure, 1, 'xxx')
         self.assertRaises(ValueError, dc.rpc_runset_log_to, 1, 'xxx', [])
         self.assertRaises(ValueError, dc.rpc_runset_start_run, 1, 1)
-        self.assertRaises(ValueError, dc.rpc_runset_status, 1)
         self.assertRaises(ValueError, dc.rpc_runset_stop_run, 1)
 
         logger.checkStatus(100)
@@ -304,9 +303,17 @@ class TestDAQServer(unittest.TestCase):
         self.assertEqual(dc.rpc_get_num_components(), 0)
         self.assertEqual(dc.rpc_num_sets(), 1)
 
-        logger.addExpectedText('%s connected' % compName)
+        rs = dc.rpc_runset_list(setId)
+        self.assertEqual(len(rs), 1)
 
-        self.assertEqual(dc.rpc_runset_status(setId), 'OK')
+        rsc = rs[0]
+        self.assertEqual(id, rsc[0])
+        self.assertEqual(name, rsc[1])
+        self.assertEqual(num, rsc[2])
+        self.assertEqual(host, rsc[3])
+        self.assertEqual(port, rsc[4])
+        self.assertEqual(mPort, rsc[5])
+        self.assertEqual("connected", rsc[6])
 
         logger.checkStatus(100)
 

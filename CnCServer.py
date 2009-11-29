@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4751 2009-11-29 15:05:24Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4754 2009-11-29 23:29:15Z dglo $"
 
 class Connector(object):
     """
@@ -1680,7 +1680,6 @@ class CnCServer(DAQPool):
             self.__server.register_function(self.rpc_runset_log_to_default)
             self.__server.register_function(self.rpc_runset_make)
             self.__server.register_function(self.rpc_runset_start_run)
-            self.__server.register_function(self.rpc_runset_status)
             self.__server.register_function(self.rpc_runset_stop_run)
             self.__server.register_function(self.rpc_runset_subrun)
 
@@ -1936,19 +1935,6 @@ class CnCServer(DAQPool):
             raise ValueError('Could not find runset#%d' % id)
 
         runSet.startRun(runNum)
-
-        return "OK"
-
-    def rpc_runset_status(self, id):
-        "get run status for the specified runset"
-        runSet = self.findRunset(id)
-
-        if not runSet:
-            raise ValueError('Could not find runset#%d' % id)
-
-        setStat = runSet.status()
-        for c in setStat.keys():
-            self.__log.info(str(c) + ' ' + str(c.state()))
 
         return "OK"
 
