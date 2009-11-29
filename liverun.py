@@ -579,7 +579,7 @@ class LiveRun(object):
 
             if self.__state.runState() != prevState:
                 swTime = int(time.time() - startTime)
-                print "Switched from %s to %s in %s secs" % \
+                print "  Switched from %s to %s in %s secs" % \
                     (prevState, self.__state.runState(), swTime)
 
                 prevState = self.__state.runState()
@@ -705,7 +705,7 @@ class LiveRun(object):
         #
         if self.__state.runNumber() != runNum:
             print >>sys.stderr, \
-                "Expected run number %d, but actual number is %d" % \
+                "  Expected run number %d, but actual number is %d" % \
                 (runNum, self.__state.runNumber())
             runNum = self.__state.runNumber()
 
