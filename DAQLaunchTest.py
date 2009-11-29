@@ -15,6 +15,9 @@ class MockNode(object):
         self.hostName = hostName
         self.comps = []
 
+    def __str__(self):
+        return "%s[%s]" % (str(self.hostName), str(self.comps))
+
     def addComp(self, compName, compId, logLevel, jvm, jvmArgs):
         comp = MockDeployComponent(compName, compId, logLevel, jvm, jvmArgs)
         self.comps.append(comp)
