@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4749 2009-11-29 13:55:35Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4750 2009-11-29 14:20:39Z dglo $"
 
 class Connector(object):
     """
@@ -411,7 +411,10 @@ class RunSet(object):
         for i in range(60):
             waitList = []
             for c in self.__set:
-                stateStr = c.state()
+                try:
+                    stateStr = c.state()
+                except:
+                    stateStr = DAQClient.STATE_DEAD
                 if stateStr != 'configuring' and stateStr != 'ready':
                     waitList.append(c)
 
@@ -518,7 +521,10 @@ class RunSet(object):
         slst = []
 
         for c in self.__set:
-            stateStr = c.state()
+            try:
+                stateStr = c.state()
+            except:
+                stateStr = DAQClient.STATE_DEAD
             if stateStr != self.__state:
                 slst.append(c.fullName() + ':' + stateStr)
 
@@ -662,7 +668,10 @@ class RunSet(object):
         """
         setStat = {}
         for c in self.__set:
-            setStat[c] = c.state()
+            try:
+                setStat[c] = c.state()
+            except:
+                setStat[c] = DAQClient.STATE_DEAD
 
         return setStat
 
@@ -723,7 +732,10 @@ class RunSet(object):
             while len(waitList) > 0 and time() < endSecs:
                 newList = waitList[:]
                 for c in waitList:
-                    stateStr = c.state()
+                    try:
+                        stateStr = c.state()
+                    except:
+                        stateStr = DAQClient.STATE_DEAD
                     if stateStr != self.__state:
                         newList.remove(c)
                         if c in connDict:
@@ -840,7 +852,10 @@ class RunSet(object):
         while len(waitList) > 0 and time() < endSecs:
             newList = waitList[:]
             for c in waitList:
-                stateStr = c.state()
+                try:
+                    stateStr = c.state()
+                except:
+                    stateStr = DAQClient.STATE_DEAD
                 if stateStr != self.__state:
                     newList.remove(c)
 
@@ -1384,10 +1399,13 @@ class DAQPool(object):
 
             errMsg = None
             for c in chkList:
-                state = c.state()
-                if state == 'connected':
+                try:
+                    stateStr = c.state()
+                except:
+                    stateStr = DAQClient.STATE_DEAD
+                if stateStr == 'connected':
                     chkList.remove(c)
-                elif state != 'connecting':
+                elif stateStr != 'connecting':
                     if not errMsg:
                         errMsg = 'Connect failed for %s (%s)' % \
                             (c.fullName(), rtnVal)
