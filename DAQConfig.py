@@ -33,6 +33,7 @@ class noDOMConfigFound        (DAQConfigException):
         return self.configName
 
 class noDeployedDOMsListFound (DAQConfigException): pass
+class badDeployedDOMsListFound(DAQConfigException): pass
 class noComponentsFound       (DAQConfigException): pass
 class triggerException        (DAQConfigException): pass
 class DOMNotInConfigException (DAQConfigException): pass
@@ -101,7 +102,11 @@ class DefaultDOMGeometry(object):
         deployedDOMsXML = xmlOf(os.path.join(configDir, self.DEPLOYEDDOMS))
         if not os.path.exists(deployedDOMsXML):
             raise noDeployedDOMsListFound("no deployed DOMs list found!")
-        deployedDOMsParsed = minidom.parse(deployedDOMsXML)
+
+        try:
+            deployedDOMsParsed = minidom.parse(deployedDOMsXML)
+        except:
+            raise badDeployedDOMSListFound("Cannot parse %s" % deployedDOMsXML)
 
         deployedStrings = deployedDOMsParsed.getElementsByTagName("string")
         if len(deployedStrings) < 1:
@@ -202,7 +207,11 @@ class DAQConfig(object):
         self.__modTime = cfgStat.st_mtime
 
         # Parse the runconfig
-        parsed = minidom.parse(self.configFile)
+        try:
+            parsed = minidom.parse(self.configFile)
+        except:
+            raise DAQConfigException("Cannot parse %s" % self.configFile)
+
         configs = parsed.getElementsByTagName("runConfig")
         if len(configs) < 1: raise noRunConfigFound("No runconfig field found!")
 
@@ -235,7 +244,11 @@ class DAQConfig(object):
                     raise noDOMConfigFound("DOMConfig not found: %s" %
                                            domConfigName)
 
-                domConfigParsed = minidom.parse(domConfigXML)
+                try:
+                    domConfigParsed = minidom.parse(domConfigXML)
+                except:
+                    raise noDOMConfigFound("Cannot parse %s" % domConfigXML)
+
                 for dom in domConfigParsed.getElementsByTagName("domConfig"):
                     self.domlist.append(dom.getAttribute("mbid"))
                 domConfigParsed.unlink()
