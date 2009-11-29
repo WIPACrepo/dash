@@ -518,46 +518,6 @@ class TestDAQRun(unittest.TestCase):
         os.rmdir(TestDAQRun.LOG_DIR)
         TestDAQRun.LOG_DIR = None
 
-    def testParseCompName(self):
-        lst = (('ID#1 foo#0 at localhost:12345 ',
-                (1, 'foo', 0, 'localhost', 12345)),
-               ('ID#22 bar#11 at 192.168.1.10:54321',
-                (22, 'bar', 11, '192.168.1.10', 54321)),
-               ('bad', ()))
-
-        for l in lst:
-            t = DAQRun.parseComponentName(l[0])
-            self.assertEqual(len(l[1]), len(t),
-                             'Expected %d-element tuple, but got %d elements' %
-                             (len(l[1]), len(t)))
-            for n in range(0, len(t)):
-                self.assertEquals(l[1][n], t[n],
-                                  'Expected element#%d to be "%s", not "%s"' %
-                                  (n, str(l[1][n]), str(t[n])))
-
-    def testGetNameList(self):
-        lst = (('ID#1 foo#0 at localhost:12345 ',
-                (1, 'foo', 0, 'localhost', 12345)),
-               ('ID#22 bar#11 at 192.168.1.10:54321',
-                (22, 'bar', 11, '192.168.1.10', 54321)),
-               ('bad', ()))
-
-        names = []
-        vals = []
-        for l in lst:
-            names.append(l[0])
-            if len(l[1]) > 0:
-                vals.append('%s#%d' % (l[1][1], l[1][2]))
-
-        nlst = list(DAQRun.getNameList(names))
-        self.assertEqual(len(vals), len(nlst),
-                         'Expected %d-element list, but got %d elements' %
-                         (len(vals), len(nlst)))
-        for n in range(0, len(nlst)):
-            self.assertEquals(vals[n], nlst[n],
-                              'Expected element#%d to be "%s", not "%s"' %
-                              (n, str(vals[n]), str(nlst[n])))
-
     def testFindMissing(self):
         required = ['abc#1', 'def#2', 'ghi#3']
 

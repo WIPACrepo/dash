@@ -51,7 +51,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4751 2009-11-29 15:05:24Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4752 2009-11-29 15:11:13Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -685,26 +685,6 @@ class DAQRun(object):
             l.append(args)
         return (l, not_found)
     validateFlashingDoms = staticmethod(validateFlashingDoms)
-
-    def parseComponentName(componentString):
-        "Find component name in string returned by CnCServer"
-        match = search(r'ID#(\d+) (\S+?)#(\d+) at (\S+?):(\d+)', componentString)
-        if not match: return ()
-        setCompID = int(match.group(1))
-        shortName = match.group(2)
-        daqID     = int(match.group(3))
-        compIP    = match.group(4)
-        compPort  = int(match.group(5))
-        return (setCompID, shortName, daqID, compIP, compPort)
-    parseComponentName = staticmethod(parseComponentName)
-
-    def getNameList(l):
-        "Build list of parsed names from CnCServer"
-        for x in l:
-            parsed = DAQRun.parseComponentName(x)
-            if len(parsed) > 0:
-                yield "%s#%d" % (parsed[1], parsed[2])
-    getNameList = staticmethod(getNameList)
 
     def findMissing(target, reference):
         """
