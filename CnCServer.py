@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4748 2009-11-29 13:45:38Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4749 2009-11-29 13:55:35Z dglo $"
 
 class Connector(object):
     """
@@ -188,7 +188,14 @@ class SubrunThread(threading.Thread):
     def run(self):
         tStr = self.__comp.startSubrun(self.__data)
         if tStr is not None:
-            self.__time = long(tStr)
+            try:
+                self.__time = long(tStr)
+            except ValueError:
+                self.__logger.error(("Component %s startSubrun returned bad" +
+                                     " value \"%s\"") %
+                                    (str(self.__comp), tStr))
+                self.__time = 0
+
         self.__done = True
 
     def time(self):
