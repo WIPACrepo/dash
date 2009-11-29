@@ -36,7 +36,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 4643 2009-10-05 20:31:34Z ksb $"
+SVN_ID = "$Id: DAQLaunch.py 4739 2009-11-29 12:29:07Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -465,7 +465,7 @@ if __name__ == "__main__":
             if opt.killOnly: print >>sys.stderr, 'DAQ is not currently active'
         except ConfigNotFoundException, ex:
             raise SystemExit('Cannot find active configuration ' +
-                             '"%s" to kill it' % ex.message)
+                             '"%s" to kill it' % str(ex))
 
     if not opt.killOnly:
         # DAQLive will be started if it's not running
