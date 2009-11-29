@@ -432,6 +432,7 @@ class MockComponent(object):
 
         self.runNum = None
 
+        self.__isBldr = name.endswith("Builder")
         self.__isSrc = name.endswith("Hub") or name == "amandaTrigger"
         self.__connected = False
         self.__configured = False
@@ -481,6 +482,9 @@ class MockComponent(object):
 
     def host(self):
         return self.__host
+
+    def isBuilder(self):
+        return self.__isBldr
 
     def isComponent(self, name, num=-1):
         return self.__name == name

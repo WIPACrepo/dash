@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4745 2009-11-29 13:06:33Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4746 2009-11-29 13:20:15Z dglo $"
 
 class Connector(object):
     """
@@ -492,7 +492,7 @@ class RunSet(object):
     def events(self, subrunNumber):
         "Get the number of events in the specified subrun"
         for c in self.__set:
-            if c.isComponent("eventBuilder"):
+            if c.isBuilder():
                 return c.events(subrunNumber)
 
         raise ValueError('RunSet #%d does not contain an event builder' %
@@ -791,7 +791,7 @@ class RunSet(object):
             raise ValueError("RunSet #%d is not running" % self.__id)
 
         for c in self.__set:
-            if c.isComponent("eventBuilder"):
+            if c.isBuilder():
                 c.prepareSubrun(id)
 
         shThreads = []
@@ -822,7 +822,7 @@ class RunSet(object):
                              self.listComponentsCommaSep(badComps))
 
         for c in self.__set:
-            if c.isComponent("eventBuilder"):
+            if c.isBuilder():
                 c.commitSubrun(id, repr(latestTime))
 
     def waitForStateChange(self, timeoutSecs=TIMEOUT_SECS):
@@ -1186,6 +1186,10 @@ class DAQClient(object):
 
     def id(self):
         return self.__id
+
+    def isBuilder(self):
+        "Is this an eventBuilder (or debugging fooBuilder)?"
+        return self.__name.endswith("Builder")
 
     def isComponent(self, name, num=-1):
         "Does this component have the specified name and number?"
@@ -1566,8 +1570,7 @@ class DAQPool(object):
                 else:
                     for m in connMap[c]:
                         # XXX hack -- ignore source->eventBuilder links
-                        if not c.isSource() or \
-                                not m.comp.isComponent("eventBuilder"):
+                        if not c.isSource() or not m.comp.isBuilder():
                             tmp[m.comp] = 1
 
             curLevel = tmp.keys()
