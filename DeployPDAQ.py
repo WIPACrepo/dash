@@ -22,7 +22,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 4734 2009-11-17 23:17:11Z ksb $"
+SVN_ID = "$Id: DeployPDAQ.py 4753 2009-11-29 15:20:42Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -176,7 +176,7 @@ def main():
         parallel.add(rsynccmd)
 
     parallel.start()
-    if opt.doParallel:
+    if parallel.isParallel():
         parallel.wait()
 
     if traceLevel <= 0 and not opt.dryRun:

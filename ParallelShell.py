@@ -219,6 +219,9 @@ class ParallelShell(object):
     def system(self, cmd):
         return os.system(cmd)
 
+    def isParallel(self):
+        return self.parallel
+
 def main():
     p = ParallelShell(timeout=5)
     jobs = []

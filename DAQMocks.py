@@ -642,8 +642,9 @@ class MockLogger(LogChecker):
 class MockParallelShell(object):
     BINDIR = os.path.join(METADIR, 'target', 'pDAQ-%s-dist' % RELEASE, 'bin')
 
-    def __init__(self):
+    def __init__(self, isParallel=True):
         self.__exp = []
+        self.__isParallel = isParallel
 
     def __addExpected(self, cmd):
         self.__exp.append(cmd)
@@ -702,7 +703,7 @@ class MockParallelShell(object):
             self.__addExpected(cmd)
         else:
             self.__addExpected(('ssh -n %s \'sh -c "%s"%s &\'') %
-                              (host, cmd, redir))
+                               (host, cmd, redir))
 
     def addExpectedJavaKill(self, compName, killWith9, verbose, host):
         if killWith9:
@@ -720,11 +721,12 @@ class MockParallelShell(object):
             sshCmd = 'ssh %s ' % host
             pkillOpt = ' -f'
 
-        self.__addExpected('%spkill %s%s %s' % (sshCmd, nineArg, pkillOpt, jar))
+        self.__addExpected('%spkill %s%s %s' %
+                           (sshCmd, nineArg, pkillOpt, jar))
 
         if not killWith9:
             self.__addExpected('sleep 2; %spkill -9%s %s' %
-                              (sshCmd, pkillOpt, jar))
+                               (sshCmd, pkillOpt, jar))
 
     def addExpectedPython(self, doLive, doDAQRun, doCnC, dashDir, configDir,
                           logDir, spadeDir, cfgName, copyDir, logPort,
@@ -786,6 +788,9 @@ class MockParallelShell(object):
 
     def getMetaPath(self, subdir):
         return os.path.join(METADIR, subdir)
+
+    def isParallel(self):
+        return self.__isParallel
 
     def showAll(self):
         raise Exception('SHOWALL')
