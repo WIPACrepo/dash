@@ -216,7 +216,7 @@ class ParallelShell(object):
                 ret.append(0)
         return ret
 
-    def system(cmd):
+    def system(self, cmd):
         return os.system(cmd)
 
 def main():
