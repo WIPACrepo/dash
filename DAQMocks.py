@@ -641,6 +641,9 @@ class MockParallelShell(object):
     def __init__(self):
         self.__exp = []
 
+    def __addExpected(self, cmd):
+        self.__exp.append(cmd)
+
     def __checkCmd(self, cmd):
         expLen = len(self.__exp)
         if expLen == 0:
@@ -692,9 +695,9 @@ class MockParallelShell(object):
         cmd += ' %s &' % redir
 
         if self.__isLocalhost(host):
-            self.__exp.append(cmd)
+            self.__addExpected(cmd)
         else:
-            self.__exp.append(('ssh -n %s \'sh -c "%s"%s &\'') %
+            self.__addExpected(('ssh -n %s \'sh -c "%s"%s &\'') %
                               (host, cmd, redir))
 
     def addExpectedJavaKill(self, compName, killWith9, verbose, host):
@@ -713,10 +716,10 @@ class MockParallelShell(object):
             sshCmd = 'ssh %s ' % host
             pkillOpt = ' -f'
 
-        self.__exp.append('%spkill %s%s %s' % (sshCmd, nineArg, pkillOpt, jar))
+        self.__addExpected('%spkill %s%s %s' % (sshCmd, nineArg, pkillOpt, jar))
 
         if not killWith9:
-            self.__exp.append('sleep 2; %spkill -9%s %s' %
+            self.__addExpected('sleep 2; %spkill -9%s %s' %
                               (sshCmd, pkillOpt, jar))
 
     def addExpectedPython(self, doLive, doDAQRun, doCnC, dashDir, configDir,
@@ -725,7 +728,7 @@ class MockParallelShell(object):
         if doLive:
             cmd = os.path.join(dashDir, 'DAQLive.py')
             cmd += ' &'
-            self.__exp.append(cmd)
+            self.__addExpected(cmd)
 
         if doDAQRun:
             cmd = os.path.join(dashDir, 'DAQRun.py')
@@ -740,7 +743,7 @@ class MockParallelShell(object):
                 else:
                     cmd += " -L"
             cmd += ' -a %s' % copyDir
-            self.__exp.append(cmd)
+            self.__addExpected(cmd)
 
         if doCnC:
             cmd = os.path.join(dashDir, 'CnCServer.py')
@@ -749,7 +752,7 @@ class MockParallelShell(object):
             if livePort is not None:
                 cmd += ' -L localhost:%d' % livePort
             cmd += ' -d'
-            self.__exp.append(cmd)
+            self.__addExpected(cmd)
 
     def addExpectedPythonKill(self, doLive, doDAQRun, doCnC, dashDir,
                               killWith9):
@@ -762,15 +765,15 @@ class MockParallelShell(object):
 
         if doLive:
             path = os.path.join(dashDir, 'DAQLive.py')
-            self.__exp.append('%s -k' % path)
+            self.__addExpected('%s -k' % path)
 
         if doDAQRun:
             path = os.path.join(dashDir, 'DAQRun.py')
-            self.__exp.append('%s -k' % path)
+            self.__addExpected('%s -k' % path)
 
         if doCnC:
             path = os.path.join(dashDir, 'CnCServer.py')
-            self.__exp.append('%s -k' % path)
+            self.__addExpected('%s -k' % path)
 
     def check(self):
         if len(self.__exp) > 0:
