@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4747 2009-11-29 13:24:50Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4748 2009-11-29 13:45:38Z dglo $"
 
 class Connector(object):
     """
@@ -1368,8 +1368,14 @@ class DAQPool(object):
             else:
                 rtnVal = c.connect(connMap[c])
 
+        # wait for components to switch status to 'connected'
+        #
         chkList = compList[:]
-        while len(chkList) > 0:
+        for i in range(10):
+            if len(chkList) == 0:
+                break
+
+            errMsg = None
             for c in chkList:
                 state = c.state()
                 if state == 'connected':
@@ -1381,6 +1387,9 @@ class DAQPool(object):
                     else:
                         errMsg += ', %s (%s)' % (c.fullName(), rtnVal)
             sleep(1)
+
+        if errMsg is None and len(chkList) != 0:
+            errMsg = "Could not connect %s" % str(chkList)
 
         if errMsg:
             raise ValueError(errMsg)
