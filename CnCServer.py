@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4750 2009-11-29 14:20:39Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4751 2009-11-29 15:05:24Z dglo $"
 
 class Connector(object):
     """
@@ -1683,7 +1683,6 @@ class CnCServer(DAQPool):
             self.__server.register_function(self.rpc_runset_status)
             self.__server.register_function(self.rpc_runset_stop_run)
             self.__server.register_function(self.rpc_runset_subrun)
-            self.__server.register_function(self.rpc_show_components)
 
     def __getHostAddress(self, name):
         "Only return IPv4 addresses -- IPv6 confuses some stuff"
@@ -1977,18 +1976,6 @@ class CnCServer(DAQPool):
         runSet.subrun(subrunId, subrunData)
 
         return "OK"
-
-    def rpc_show_components(self):
-        "show unused components and their current states"
-        s = []
-        for c in self.components():
-            try:
-                state = c.state()
-            except Exception:
-                state = DAQClient.STATE_DEAD
-
-            s.append(str(c) + ' ' + str(state))
-        return s
 
     def run(self):
         "Server loop"

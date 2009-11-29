@@ -116,6 +116,18 @@ class MockCnCRPC(object):
     def _doSubrun(self, runSetId, subRunId, domList):
         pass
 
+    def __listComponents(self):
+        if self.compList is None:
+            raise Exception('List of components has not been set')
+
+        showList = []
+        for c in self.compList:
+            showComp = list(c[:])
+            showComp.append("xxx")
+            showList.append(showComp)
+
+        return showList
+
     def __listRunset(self, id):
         if self.runsetId is None:
             return ()
@@ -127,18 +139,6 @@ class MockCnCRPC(object):
         if self.runsetId is None:
             return []
         return [self.runsetId, ]
-
-    def __showComponents(self):
-        if self.compList is None:
-            raise Exception('List of components has not been set')
-
-        showList = []
-
-        for c in self.compList:
-            showList.append('ID#%d %s#%d at %s:%d' %
-                            (c[0], c[1], c[2], c[3], c[4]))
-
-        return showList
 
     def getRunsetLoggers(self):
         return self.runsetLoggers
@@ -153,8 +153,8 @@ class MockCnCRPC(object):
         self.RSFlashFlag = False
 
     def rpccall(self, name, *args):
-        if name == 'rpc_show_components':
-            return self.__showComponents()
+        if name == 'rpc_list_components':
+            return self.__listComponents()
         if name == 'rpc_log_to':
             self.LogToFlag = True
             return

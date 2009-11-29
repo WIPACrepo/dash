@@ -51,6 +51,15 @@ class TinyClient(object):
     def isSource(self):
         return True
 
+    def list(self):
+        return [self.__id,
+                self.__name,
+                self.__num,
+                self.__host,
+                self.__port,
+                self.__mbeanPort,
+                self.__state]
+
     def logTo(self, logIP, logPort, liveIP, livePort):
         if liveIP is not None and livePort is not None:
             raise Exception('Cannot log to I3Live')
@@ -151,7 +160,7 @@ class TestDAQServer(unittest.TestCase):
 
         dc = MockServer(logPort, livePort)
 
-        self.assertEqual(dc.rpc_show_components(), [])
+        self.assertEqual(dc.rpc_list_components(), [])
 
         name = 'foo'
         num = 0
@@ -175,9 +184,8 @@ class TestDAQServer(unittest.TestCase):
 
         self.assertEqual(dc.rpc_get_num_components(), 1)
 
-        fooStr = 'ID#%d %s#%d at %s:%d M#%d %s' % \
-            (DAQClient.ID - 1, name, num, host, port, mPort, 'idle')
-        self.assertEqual(dc.rpc_show_components(), [fooStr])
+        fooList = [DAQClient.ID - 1, name, num, host, port, mPort, 'idle']
+        self.assertEqual(dc.rpc_list_components(), [fooList, ])
 
         logger.checkStatus(100)
         liver.checkStatus(100)
@@ -262,7 +270,7 @@ class TestDAQServer(unittest.TestCase):
 
         self.assertEqual(dc.rpc_get_num_components(), 0)
         self.assertEqual(dc.rpc_num_sets(), 0)
-        self.assertEqual(dc.rpc_show_components(), [])
+        self.assertEqual(dc.rpc_list_components(), [])
 
         id = DAQClient.ID
         name = 'foo'

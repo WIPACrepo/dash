@@ -51,7 +51,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4685 2009-10-14 18:47:34Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4751 2009-11-29 15:05:24Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -723,10 +723,13 @@ class DAQRun(object):
         """
         tstart = datetime.datetime.now()
         while True:
-            remoteList = cncrpc.rpccall("rpc_show_components")
-            remoteNames = list(DAQRun.getNameList(remoteList))
-            waitList = DAQRun.findMissing(requiredList, remoteNames)
-            if waitList == []: return remoteList
+            compList = cncrpc.rpccall("rpc_list_components")
+            nameList = []
+            for c in compList:
+                nameList.append("%s#%d" % (c[1], c[2]))
+            waitList = DAQRun.findMissing(requiredList, nameList)
+            if waitList == []:
+                return requiredList
 
             if datetime.datetime.now()-tstart >= datetime.timedelta(seconds=timeOutSecs):
                 raise RequiredComponentsNotAvailableException("Still waiting for "+
