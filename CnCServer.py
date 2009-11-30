@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4760 2009-11-30 17:27:21Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4763 2009-11-30 18:08:56Z dglo $"
 
 class Connector(object):
     """
@@ -169,9 +169,10 @@ class ConnTypeEntry(object):
 class SubrunThread(threading.Thread):
     "A thread which starts the subrun in an individual stringHub"
 
-    def __init__(self, comp, data):
+    def __init__(self, comp, data, logger):
         self.__comp = comp
         self.__data = data
+        self.__logger = logger
         self.__time = None
         self.__done = False
 
@@ -821,7 +822,7 @@ class RunSet(object):
         shThreads = []
         for c in self.__set:
             if c.isSource():
-                thread = SubrunThread(c, data)
+                thread = SubrunThread(c, data, self.__logger)
                 thread.start()
                 shThreads.append(thread)
 
