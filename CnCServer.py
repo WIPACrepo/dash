@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4756 2009-11-30 04:41:49Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4757 2009-11-30 04:43:31Z dglo $"
 
 class Connector(object):
     """
@@ -666,6 +666,7 @@ class RunSet(object):
 
         badList = self.listBadState()
         if len(badList) > 0:
+            self.__state = 'error'
             raise ValueError('Could not start runset#%d run#%d components: %s' %
                              (self.__id, runNum, str(badList)))
 
