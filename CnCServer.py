@@ -30,7 +30,9 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4764 2009-11-30 18:17:29Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4765 2009-11-30 18:19:12Z dglo $"
+
+class CnCServerException(Exception): pass
 
 class Connector(object):
     """
