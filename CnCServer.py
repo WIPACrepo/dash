@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4765 2009-11-30 18:19:12Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4766 2009-11-30 18:22:47Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -1595,7 +1595,8 @@ class DAQPool(object):
         # walk through detector, setting order number for each component
         #
         level = 1
-        while len(allComps) > 0 and len(curLevel) > 0:
+        while len(allComps) > 0 and len(curLevel) > 0 and
+                level < len(compList) + 2:
             tmp = {}
             for c in curLevel:
 
