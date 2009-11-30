@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from DAQConst import DAQPort
+from DAQLog import LogSocketServer
 from DAQLogClient \
     import BothSocketAppender, DAQLog, LiveSocketAppender, LogSocketAppender
 from DAQRPC import RPCClient, RPCServer
@@ -29,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4763 2009-11-30 18:08:56Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4764 2009-11-30 18:17:29Z dglo $"
 
 class Connector(object):
     """
@@ -1657,6 +1658,10 @@ class CnCServer(DAQPool):
         if (logIP is not None and logPort is not None) or \
                 (liveIP is not None and livePort is not None):
             self.__log.openLog(logIP, logPort, liveIP, livePort)
+            self.__logServer = None
+        else:
+            self.__logServer = LogSocketServer(8081, "CnCServer", None, True)
+            self.__logServer.startServing()
 
         if testOnly:
             self.__server = None
@@ -1709,6 +1714,9 @@ class CnCServer(DAQPool):
     def closeServer(self):
         self.__server.server_close()
         self.__log.closeFinal()
+        if self.__logServer is not None:
+            self.__logServer.stopServing()
+            self.__logServer = None
         for c in self.components():
             c.close()
 
@@ -1834,8 +1842,11 @@ class CnCServer(DAQPool):
 
         logPort = self.__log.logPort()
         if logPort is None:
-            logIP = ""
-            logPort = 0
+            if self.__logServer is not None:
+                logPort = self.__logServer.port()
+            else:
+                logIP = ""
+                logPort = 0
 
         liveIP = self.__getHostAddress(self.__log.liveHost())
 
