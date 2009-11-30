@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4757 2009-11-30 04:43:31Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4758 2009-11-30 05:05:27Z dglo $"
 
 class Connector(object):
     """
@@ -1430,7 +1430,7 @@ class DAQPool(object):
 
         self.setOrder(compList, connMap, logger)
 
-        return None
+        return RunSet(compList, logger)
 
     def add(self, comp):
         "Add the component to the config server's pool"
@@ -1490,17 +1490,19 @@ class DAQPool(object):
             try:
                 # __buildRunset fills 'compList' with the specified components
                 #
-                self.__buildRunset(nameList, compList, logger)
-                runSet = RunSet(compList, logger)
-                self.__sets.append(runSet)
-                setAdded = True
+                runSet = self.__buildRunset(nameList, compList, logger)
             except Exception:
                 runSet = None
                 raise
+            self.__sets.append(runSet)
+            setAdded = True
         finally:
             if not setAdded:
                 for c in compList:
-                    c.reset()
+                    try:
+                        c.reset()
+                    except:
+                        pass
                     self.add(c)
                 runSet = None
 
