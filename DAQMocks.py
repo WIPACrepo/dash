@@ -438,12 +438,15 @@ class MockComponent(object):
         self.__configured = False
         self.__configWait = 0;
         self.__monitorState = '???'
+        self.__isBadHub = False
 
     def __str__(self):
         outStr = self.fullName()
         extra = []
         if self.__isSrc:
             extra.append('SRC')
+        if self.__isBldr:
+            extra.append('BLD')
         if self.__configured:
             extra.append('CFG')
         for conn in self.__connectors:
@@ -458,6 +461,9 @@ class MockComponent(object):
 
     def addOutput(self, type):
         self.__connectors.append(MockConnection(type, None))
+
+    def commitSubrun(self, id, startTime):
+        pass
 
     def configure(self, configName=None):
         if not self.__connected:
@@ -510,10 +516,16 @@ class MockComponent(object):
     def order(self):
         return self.__cmdOrder
 
+    def prepareSubrun(self, id):
+        pass
+
     def reset(self):
         self.__connected = False
         self.__configured = False
         self.runNum = None
+
+    def setBadHub(self):
+        self.__isBadHub = True
 
     def setConfigureWait(self, waitNum):
         self.__configWait = waitNum
@@ -526,6 +538,11 @@ class MockComponent(object):
             raise Exception(self.__name + ' has not been configured')
 
         self.runNum = runNum
+
+    def startSubrun(self, data):
+        if self.__isBadHub:
+            return None
+        return 100
 
     def state(self):
         if not self.__connected:

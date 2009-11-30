@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4754 2009-11-29 23:29:15Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4755 2009-11-30 04:37:18Z dglo $"
 
 class Connector(object):
     """
@@ -179,11 +179,17 @@ class SubrunThread(threading.Thread):
 
         self.setName(str(comp) + ":subrun")
 
+    def comp(self):
+        return self.__comp
+
     def done(self):
         return self.__done
 
     def finished(self):
         return self.__time is not None
+
+    def fullName(self):
+        return self.__comp.fullName()
 
     def run(self):
         tStr = self.__comp.startSubrun(self.__data)
@@ -824,7 +830,7 @@ class RunSet(object):
             for thread in shThreads:
                 if thread.done():
                     if not thread.finished():
-                        badComps.append(thread.comp)
+                        badComps.append(thread.comp())
                     elif latestTime is None or thread.time() > latestTime:
                         latestTime = thread.time()
                     shThreads.remove(thread)
