@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4766 2009-11-30 18:22:47Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4768 2009-11-30 18:27:25Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -1229,7 +1229,8 @@ class DAQClient(object):
     def isSource(self):
         "Is this component a source of data?"
 
-        # XXX This is a hack
+        # XXX Hack for stringHubs which are sources but which confuse
+        #     things by also reading requests from the eventBuilder
         if self.__name.endswith('Hub'):
             return True
 
