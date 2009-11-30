@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4758 2009-11-30 05:05:27Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4759 2009-11-30 05:07:14Z dglo $"
 
 class Connector(object):
     """
@@ -1786,8 +1786,41 @@ class CnCServer(DAQPool):
     def rpc_register_component(self, name, num, host, port, mbeanPort,
                                connArray):
         "register a component with the server"
+
+        if type(name) != str or len(name) == 0:
+            raise CnCServerException("Bad component name (should be a string)")
+        if type(num) != int:
+            raise CnCServerException("Bad component number" +
+                                     " (should be an integer)")
+
         connectors = []
-        for d in connArray:
+        for n in range(len(connArray)):
+            d = connArray[n]
+            if type(d) != tuple and type(d) != list:
+                errMsg = "Bad %s#%d connector#%d \"%s\"%s" % \
+                    (name, num, n, str(d), str(type(d)))
+                self.__log.info(errMsg)
+                raise CnCServerException(errMsg)
+            if len(d) != 3:
+                errMsg = ("Bad %s#%d connector#%d %s (should have 3" +
+                          " elements)") % (name, num, n, str(d))
+                self.__log.info(errMsg)
+                raise CnCServerException(errMsg)
+            if type(d[0]) != str or len(d[0]) == 0:
+                errMsg = ("Bad %s#%d connector#%d %s (first element should" +
+                          " be name)") % (name, num, n, str(d))
+                self.__log.info(errMsg)
+                raise CnCServerException(errMsg)
+            if type(d[1]) != bool:
+                errMsg = ("Bad %s#%d connector#%d %s (second element should" +
+                          " be bool)") % (name, num, n, str(d))
+                self.__log.info(errMsg)
+                raise CnCServerException(errMsg)
+            if type(d[2]) != int:
+                errMsg = ("Bad %s#%d connector#%d %s (third element should" +
+                          " be int)") % (name, num, n, str(d))
+                self.__log.info(errMsg)
+                raise CnCServerException(errMsg)
             connectors.append(Connector(d[0], d[1], d[2]))
 
         client = self.createClient(name, num, host, port, mbeanPort,
