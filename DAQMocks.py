@@ -524,6 +524,9 @@ class MockComponent(object):
         self.__configured = False
         self.runNum = None
 
+    def resetLogging(self):
+        pass
+
     def setBadHub(self):
         self.__isBadHub = True
 

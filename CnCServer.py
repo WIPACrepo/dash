@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4755 2009-11-30 04:37:18Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4756 2009-11-30 04:41:49Z dglo $"
 
 class Connector(object):
     """
@@ -588,6 +588,8 @@ class RunSet(object):
 
     def returnComponents(self, pool):
         badList = self.reset()
+        if len(badList) == 0:
+            self.resetLogging()
 
         # transfer components back to pool
         #
