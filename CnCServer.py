@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4759 2009-11-30 05:07:14Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4760 2009-11-30 17:27:21Z dglo $"
 
 class Connector(object):
     """
@@ -1833,12 +1833,14 @@ class CnCServer(DAQPool):
 
         logPort = self.__log.logPort()
         if logPort is None:
+            logIP = ""
             logPort = 0
 
         liveIP = self.__getHostAddress(self.__log.liveHost())
 
         livePort = self.__log.livePort()
         if livePort is None:
+            liveIP = ""
             livePort = 0
 
         return [client.id(), logIP, logPort, liveIP, livePort, self.__id]

@@ -228,7 +228,7 @@ class TestDAQServer(unittest.TestCase):
         localAddr = self.__getInternetAddress()
 
         self.__verifyRegArray(rtnArray, expId, localAddr, logPort,
-                              localAddr, livePort)
+                              "", livePort)
 
         logger.checkStatus(100)
 
