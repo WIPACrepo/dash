@@ -664,6 +664,8 @@ class MockParallelShell(object):
 
     def __init__(self, isParallel=True):
         self.__exp = []
+        self.__rtnCodes = []
+        self.__results = []
         self.__isParallel = isParallel
 
     def __addExpected(self, cmd):
@@ -801,6 +803,31 @@ class MockParallelShell(object):
             path = os.path.join(dashDir, 'CnCServer.py')
             self.__addExpected('%s -k' % path)
 
+    def addExpectedRsync(self, dir, subdirs, delete, dryRun, remoteHost,
+                         rtnCode, result=""):
+        if not delete:
+            dOpt = ""
+        else:
+            dOpt = " --delete"
+
+        if not dryRun:
+            drOpt = ""
+        else:
+            drOpt = " --dry-run"
+
+        group = "{" + ",".join(subdirs) + "}"
+
+        cmd = "nice rsync -azLC%s%s %s %s:%s" % \
+            (dOpt, drOpt, os.path.join(dir, group), remoteHost, dir)
+        self.__addExpected(cmd)
+        self.__rtnCodes.append(rtnCode)
+        self.__results.append(result)
+
+    def addExpectedUndeploy(self, homeDir, pdaqDir, remoteHost):
+        cmd = "ssh %s \"\\rm -rf %s %s\"" % \
+            (remoteHost, os.path.join(homeDir, ".m2"), pdaqDir)
+        self.__addExpected(cmd)
+
     def check(self):
         if len(self.__exp) > 0:
             raise Exception('ParallelShell did not receive expected commands:' +
@@ -808,6 +835,16 @@ class MockParallelShell(object):
 
     def getMetaPath(self, subdir):
         return os.path.join(METADIR, subdir)
+
+    def getResult(self, idx):
+        if idx < 0 or idx >= len(self.__results):
+            raise Exception("Cannot return result %d (only %d available)" %
+                            (idx, len(self.__results)))
+
+        return self.__results[idx]
+                          
+    def getReturnCodes(self):
+        return self.__rtnCodes
 
     def isParallel(self):
         return self.__isParallel

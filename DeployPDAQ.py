@@ -11,6 +11,9 @@ from ParallelShell import ParallelShell
 from os import environ, getcwd, listdir, system
 from os.path import abspath, isdir, join, split
 
+# pdaq subdirectories to be deployed
+SUBDIRS = ("target", "cluster-config", "config", "dash", "src")
+
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
     metaDir = environ["PDAQ_HOME"]
@@ -22,14 +25,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 4753 2009-11-29 15:20:42Z dglo $"
-
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if environ.has_key("PDAQ_HOME"):
-    metaDir = environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
+SVN_ID = "$Id: DeployPDAQ.py 4762 2009-11-30 17:58:36Z dglo $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -106,17 +102,6 @@ def main():
     if opt.verbose:               traceLevel = 1
     if opt.quiet and opt.verbose: traceLevel = 0
 
-    rsyncCmdStub = "nice rsync -azLC%s%s" % (opt.delete and ' --delete' or '',
-                                       opt.deepDryRun and ' --dry-run' or '')
-
-    # The 'SRC' arg for the rsync command.  The sh "{}" syntax is used
-    # here so that only one rsync is required for each node. (Running
-    # multiple rsync's in parallel appeared to give rise to race
-    # conditions and errors.)
-    rsyncDeploySrc = abspath(join(metaDir, '{target,cluster-config,config,dash,src}'))
-
-    targetDir        = abspath(join(metaDir, 'target'))
-
     try:
         config = ClusterConfig(metaDir, opt.configName, opt.doList, False)
     except ConfigNotSpecifiedException:
@@ -142,44 +127,59 @@ def main():
         if traceLevel >= 0:
             print "VERSION: %s" % ver
 
-    m2  = join(environ["HOME"], '.m2')
-
     parallel = ParallelShell(parallel=opt.doParallel, dryRun=opt.dryRun,
                              verbose=(traceLevel > 0 or opt.dryRun),
                              trace=(traceLevel > 0), timeout=opt.timeout)
 
-    done = False
+    deploy(config, parallel, environ["HOME"], metaDir, SUBDIRS, opt.delete,
+           opt.dryRun, opt.deepDryRun, opt.undeploy, traceLevel)
+
+def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
+           deepDryRun, undeploy, traceLevel):
+    m2  = join(homeDir, '.m2')
+
+    rsyncCmdStub = "nice rsync -azLC%s%s" % (delete and ' --delete' or '',
+                                       deepDryRun and ' --dry-run' or '')
+
+    # The 'SRC' arg for the rsync command.  The sh "{}" syntax is used
+    # here so that only one rsync is required for each node. (Running
+    # multiple rsync's in parallel appeared to give rise to race
+    # conditions and errors.)
+    rsyncDeploySrc = abspath(join(pdaqDir, "{" + ",".join(subdirs) + "}"))
 
     rsyncNodes = getUniqueHostNames(config)
 
+    # Check if targetDir (the result of a build) is present
+    targetDir        = abspath(join(pdaqDir, 'target'))
+    if not undeploy and not isdir(targetDir):
+        print >>sys.stderr, \
+            "ERROR: Target dir (%s) does not exist." % (targetDir)
+        print >>sys.stderr, \
+            "ERROR: Did you run 'mvn clean install assembly:assembly'?"
+        raise SystemExit
+
+    done = False
     for nodeName in rsyncNodes:
 
-        # Check if targetDir (the result of a build) is present
-        if not opt.undeploy and not isdir(targetDir):
-            print >>sys.stderr, "ERROR: Target dir (%s) does not exist." % (targetDir)
-            print >>sys.stderr, "ERROR: Did you run 'mvn clean install assembly:assembly'?"
-            raise SystemExit
-        
         # Ignore localhost - already "deployed"
         if nodeName == "localhost": continue
         if not done and traceLevel >= 0:
             print "COMMANDS:"
             done = True
 
-        if opt.undeploy:
-            cmd = 'ssh %s "\\rm -rf %s %s"' % (nodeName, m2, metaDir)
-            parallel.add(cmd)
-            continue
-
-        rsynccmd = "%s %s %s:%s" % (rsyncCmdStub, rsyncDeploySrc, nodeName, metaDir)
-        if traceLevel >= 0: print "  "+rsynccmd
-        parallel.add(rsynccmd)
+        if undeploy:
+            cmd = 'ssh %s "\\rm -rf %s %s"' % (nodeName, m2, pdaqDir)
+        else:
+            cmd = "%s %s %s:%s" % (rsyncCmdStub, rsyncDeploySrc, nodeName,
+                                   pdaqDir)
+        if traceLevel >= 0: print "  "+cmd
+        parallel.add(cmd)
 
     parallel.start()
     if parallel.isParallel():
         parallel.wait()
 
-    if traceLevel <= 0 and not opt.dryRun:
+    if traceLevel <= 0 and not dryRun:
         needSeparator = True
         rtnCodes = parallel.getReturnCodes()
         for i in range(len(rtnCodes)):

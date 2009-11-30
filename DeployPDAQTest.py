@@ -1,0 +1,118 @@
+#!/usr/bin/env python
+
+import os, socket, sys, tempfile, unittest
+
+from DAQMocks import MockParallelShell, MockDeployComponent
+import DeployPDAQ
+
+class MockNode(object):
+    def __init__(self, hostName):
+        self.hostName = hostName
+
+class MockClusterConfig(object):
+    def __init__(self, hosts):
+        self.nodes = []
+        for n in hosts:
+            self.nodes.append(MockNode(n))
+
+class DeployPDAQTest(unittest.TestCase):
+    def __checkDeploy(self, hosts, subdirs, delete, dryRun, deepDryRun,
+                      undeploy):
+        topDir = tempfile.mkdtemp()
+        os.mkdir(os.path.join(topDir, "target"))
+
+        homeDir = os.path.join(topDir, "home")
+        os.mkdir(homeDir)
+
+        config = MockClusterConfig(hosts)
+
+        parallel = MockParallelShell()
+        if undeploy:
+            for h in hosts:
+                parallel.addExpectedUndeploy(homeDir, topDir, h)
+        else:
+            for h in hosts:
+                parallel.addExpectedRsync(topDir, subdirs, delete, deepDryRun,
+                                          h, 0)
+
+        traceLevel = -1
+
+        DeployPDAQ.deploy(config, parallel, homeDir, topDir, subdirs, delete,
+                          dryRun, deepDryRun, undeploy, traceLevel)
+
+        parallel.check()
+
+    def testDeployMin(self):
+        delete = False
+        dryRun = False
+        deepDryRun = False
+        undeploy = False
+
+        hosts = ("foo", "bar")
+
+        subdirs = ("ABC", "DEF")
+
+        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy)
+
+    def testDeployDelete(self):
+        delete = True
+        dryRun = False
+        deepDryRun = False
+        undeploy = False
+
+        hosts = ("foo", "bar")
+
+        subdirs = ("ABC", "DEF")
+
+        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy)
+
+    def testDeployDeepDryRun(self):
+        delete = False
+        dryRun = False
+        deepDryRun = True
+        undeploy = False
+
+        hosts = ("foo", "bar")
+
+        subdirs = ("ABC", "DEF")
+
+        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy)
+
+    def testDeployDD(self):
+        delete = True
+        dryRun = False
+        deepDryRun = True
+        undeploy = False
+
+        hosts = ("foo", "bar")
+
+        subdirs = ("ABC", "DEF")
+
+        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy)
+
+    def testDeployDryRun(self):
+        delete = False
+        dryRun = True
+        deepDryRun = False
+        undeploy = False
+
+        hosts = ("foo", "bar")
+
+        subdirs = ("ABC", "DEF")
+
+        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy)
+
+    def testDeployUndeploy(self):
+        delete = False
+        dryRun = True
+        deepDryRun = False
+        undeploy = True
+
+        hosts = ("foo", "bar")
+
+        subdirs = ("ABC", "DEF")
+
+        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy)
+
+if __name__ == '__main__':
+    unittest.main()
