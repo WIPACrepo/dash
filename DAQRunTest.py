@@ -122,10 +122,13 @@ class MockCnCRPC(object):
 
         showList = []
         for c in self.compList:
-            showComp = list(c[:])
-            showComp.append("xxx")
-            showList.append(showComp)
-
+            showList.append({ "id" : c[0],
+                              "compName" : c[1],
+                              "compNum" : c[2],
+                              "host" : c[3],
+                              "rpcPort" : c[4],
+                              "mbeanPort" : c[5],
+                              "state" : "xxx"})
         return showList
 
     def __listRunset(self, id):
@@ -133,7 +136,17 @@ class MockCnCRPC(object):
             return ()
         if id != self.runsetId:
             raise Exception('Expected runset#%d, not #%d' % (self.runsetId, id))
-        return self.runsetComps
+
+        showList = []
+        for c in self.runsetComps:
+            showList.append({ "id" : c[0],
+                              "compName" : c[1],
+                              "compNum" : c[2],
+                              "host" : c[3],
+                              "rpcPort" : c[4],
+                              "mbeanPort" : c[5],
+                              "state" : "xxx"})
+        return showList
 
     def __listRunsetIDs(self):
         if self.runsetId is None:

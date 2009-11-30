@@ -229,22 +229,23 @@ class TestCnCServer(unittest.TestCase):
         s = self.cnc.rpc_list_components()
         self.assertEquals(1, len(s),
                           'Expected 1 listed component, not %d' % len(s))
-        self.assertEquals(compName, s[0][1],
-                          'Expected component %s, not %s' % (compName, s[0][1]))
-        self.assertEquals(compNum, s[0][2],
+        self.assertEquals(compName, s[0]["compName"],
+                          'Expected component %s, not %s' %
+                          (compName, s[0]["compName"]))
+        self.assertEquals(compNum, s[0]["compNum"],
                           'Expected %s #%d, not #%d' %
-                          (compName, compNum, s[0][2]))
-        self.assertEquals(host, s[0][3],
+                          (compName, compNum, s[0]["compNum"]))
+        self.assertEquals(host, s[0]["host"],
                           'Expected %s#%d host %s, not %s' %
-                          (compName, compNum, host, s[0][3]))
-        self.assertEquals(cmdPort, s[0][4],
+                          (compName, compNum, host, s[0]["host"]))
+        self.assertEquals(cmdPort, s[0]["rpcPort"],
                           'Expected %s#%d cmdPort %d, not %d' %
-                          (compName, compNum, cmdPort, s[0][4]))
-        self.assertEquals(mbeanPort, s[0][5],
+                          (compName, compNum, cmdPort, s[0]["rpcPort"]))
+        self.assertEquals(mbeanPort, s[0]["mbeanPort"],
                           'Expected %s#%d mbeanPort %d, not %d' %
-                          (compName, compNum, mbeanPort, s[0][5]))
+                          (compName, compNum, mbeanPort, s[0]["mbeanPort"]))
 
-        compId = s[0][0]
+        compId = s[0]["id"]
 
         catchall.addExpectedText('Built runset with the following components:')
 
@@ -256,27 +257,30 @@ class TestCnCServer(unittest.TestCase):
 
         rs = self.cnc.rpc_runset_list(setId)
         for c in rs:
-            if compId != rs[0][0]:
+            if compId != rs[0]["id"]:
                 continue
 
-            self.assertEquals(compName, c[1],
+            self.assertEquals(compName, c["compName"],
                               "Component#%d name should be \"%s\", not \"%s\"" %
-                              (compId, compName, c[1]))
-            self.assertEquals(compNum, c[2],
+                              (compId, compName, c["compName"]))
+            self.assertEquals(compNum, c["compNum"],
                               "Component#%d \"%s\" number should be %d, not %d" %
-                              (compId, compName, compNum, c[2]))
-            self.assertEquals(host, c[3],
+                              (compId, compName, compNum, c["compNum"]))
+            self.assertEquals(host, c["host"],
                               ("Component#%d \"%s#%d\" host should be" +
                                " \"%s\", not \"%s\"") %
-                              (compId, compName, compNum, host, c[3]))
-            self.assertEquals(cmdPort, c[4],
+                              (compId, compName, compNum, host, c["host"]))
+            self.assertEquals(cmdPort, c["rpcPort"],
                               ("Component#%d \"%s#%d\" rpcPort should be" +
                                " \"%s\", not \"%s\"") %
-                              (compId, compName, compNum, cmdPort, c[4]))
-            self.assertEquals(mbeanPort, c[5],
+                              (compId, compName, compNum, cmdPort, c["rpcPort"]))
+            self.assertEquals(mbeanPort, c["mbeanPort"],
                               ("Component#%d \"%s#%d\" mbeanPort should be" +
                                " \"%s\", not \"%s\"") %
-                              (compId, compName, compNum, mbeanPort, c[5]))
+                              (compId, compName, compNum, mbeanPort,
+                               c["mbeanPort"]))
+
+        catchall.checkStatus(100)
 
         runPort = 18998
 

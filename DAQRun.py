@@ -51,7 +51,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4752 2009-11-29 15:11:13Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4771 2009-11-30 18:36:15Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -706,7 +706,7 @@ class DAQRun(object):
             compList = cncrpc.rpccall("rpc_list_components")
             nameList = []
             for c in compList:
-                nameList.append("%s#%d" % (c[1], c[2]))
+                nameList.append("%s#%d" % (c["compName"], c["compNum"]))
             waitList = DAQRun.findMissing(requiredList, nameList)
             if waitList == []:
                 return requiredList
@@ -947,8 +947,9 @@ class DAQRun(object):
         # extract remote component data
         compList = cncrpc.rpccall("rpc_runset_list", self.runSetID)
         for comp in compList:
-            self.components[comp[0]] = \
-                Component(comp[1], comp[2], comp[3], comp[4], comp[5])
+            self.components[comp["id"]] = \
+                Component(comp["compName"], comp["compNum"], comp["host"],
+                          comp["rpcPort"], comp["mbeanPort"])
 
     def setup_component_loggers(self, cncrpc, ip, runset):
         "Tell components where to log to"

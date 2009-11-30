@@ -51,15 +51,6 @@ class TinyClient(object):
     def isSource(self):
         return True
 
-    def list(self):
-        return [self.__id,
-                self.__name,
-                self.__num,
-                self.__host,
-                self.__port,
-                self.__mbeanPort,
-                self.__state]
-
     def logTo(self, logIP, logPort, liveIP, livePort):
         if liveIP is not None and livePort is not None:
             raise Exception('Cannot log to I3Live')
@@ -68,6 +59,15 @@ class TinyClient(object):
         self.__log.write_ts('Start of log at %s:%d' % (logIP, logPort))
         self.__log.write_ts('Version info: unknown unknown unknown unknown' +
                             ' unknown BRANCH 0:0')
+
+    def map(self):
+        return { "id" : self.__id,
+                 "compName" : self.__name,
+                 "compNum" : self.__num,
+                 "host" : self.__host,
+                 "rpcPort" : self.__port,
+                 "mbeanPort" : self.__mbeanPort,
+                 "state" : self.__state}
 
     def name(self):
         return self.__name
@@ -123,21 +123,21 @@ class TestDAQServer(unittest.TestCase):
         self.assertEquals(numElem, len(rtnArray),
                           'Expected %d-element array, not %d elements' %
                           (numElem, len(rtnArray)))
-        self.assertEquals(expId, rtnArray[0],
+        self.assertEquals(expId, rtnArray["id"],
                           'Registration should return client ID#%d, not %d' %
-                          (expId, rtnArray[0]))
-        self.assertEquals(logHost, rtnArray[1],
+                          (expId, rtnArray["id"]))
+        self.assertEquals(logHost, rtnArray["logIP"],
                           'Registration should return host %s, not %s' %
-                          (logHost, rtnArray[1]))
-        self.assertEquals(logPort, rtnArray[2],
+                          (logHost, rtnArray["logIP"]))
+        self.assertEquals(logPort, rtnArray["logPort"],
                           'Registration should return port#%d, not %d' %
-                          (logPort, rtnArray[2]))
-        self.assertEquals(liveHost, rtnArray[3],
+                          (logPort, rtnArray["logPort"]))
+        self.assertEquals(liveHost, rtnArray["liveIP"],
                           'Registration should return livehost %s, not %s' %
-                          (liveHost, rtnArray[3]))
-        self.assertEquals(livePort, rtnArray[4],
+                          (liveHost, rtnArray["liveIP"]))
+        self.assertEquals(livePort, rtnArray["livePort"],
                           'Registration should return liveport#%d, not %d' %
-                          (livePort, rtnArray[4]))
+                          (livePort, rtnArray["livePort"]))
 
     def setUp(self):
         self.__logFactory = SocketReaderFactory()
@@ -184,8 +184,16 @@ class TestDAQServer(unittest.TestCase):
 
         self.assertEqual(dc.rpc_get_num_components(), 1)
 
-        fooList = [DAQClient.ID - 1, name, num, host, port, mPort, 'idle']
-        self.assertEqual(dc.rpc_list_components(), [fooList, ])
+        fooStr = 'ID#%d %s#%d at %s:%d M#%d %s' % \
+            (DAQClient.ID - 1, name, num, host, port, mPort, 'idle')
+        fooDict = { "id" : DAQClient.ID - 1,
+                    "compName" : name,
+                    "compNum" : num,
+                    "host" : host,
+                    "rpcPort" : port,
+                    "mbeanPort" : mPort,
+                    "state" : "idle"}
+        self.assertEqual(dc.rpc_list_components(), [fooDict, ])
 
         logger.checkStatus(100)
         liver.checkStatus(100)
@@ -252,6 +260,7 @@ class TestDAQServer(unittest.TestCase):
         self.assertRaises(ValueError, dc.rpc_runset_break, 1)
         self.assertRaises(ValueError, dc.rpc_runset_configure, 1)
         self.assertRaises(ValueError, dc.rpc_runset_configure, 1, 'xxx')
+        self.assertRaises(ValueError, dc.rpc_runset_list, 1)
         self.assertRaises(ValueError, dc.rpc_runset_log_to, 1, 'xxx', [])
         self.assertRaises(ValueError, dc.rpc_runset_start_run, 1, 1)
         self.assertRaises(ValueError, dc.rpc_runset_stop_run, 1)
@@ -307,13 +316,13 @@ class TestDAQServer(unittest.TestCase):
         self.assertEqual(len(rs), 1)
 
         rsc = rs[0]
-        self.assertEqual(id, rsc[0])
-        self.assertEqual(name, rsc[1])
-        self.assertEqual(num, rsc[2])
-        self.assertEqual(host, rsc[3])
-        self.assertEqual(port, rsc[4])
-        self.assertEqual(mPort, rsc[5])
-        self.assertEqual("connected", rsc[6])
+        self.assertEqual(id, rsc["id"])
+        self.assertEqual(name, rsc["compName"])
+        self.assertEqual(num, rsc["compNum"])
+        self.assertEqual(host, rsc["host"])
+        self.assertEqual(port, rsc["rpcPort"])
+        self.assertEqual(mPort, rsc["mbeanPort"])
+        self.assertEqual("connected", rsc["state"])
 
         logger.checkStatus(100)
 

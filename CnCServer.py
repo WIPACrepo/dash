@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4769 2009-11-30 18:28:21Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4771 2009-11-30 18:36:15Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -519,13 +519,6 @@ class RunSet(object):
 
     def isRunning(self):
         return self.__state is not None and self.__state == 'running'
-
-    def list(self):
-        slst = []
-        for c in self.__set:
-            slst.append(c.list())
-
-        return slst
 
     def listBadState(self):
         slst = []
@@ -1197,13 +1190,13 @@ class DAQClient(object):
 
         csStr = None
         for cs in connStates:
-            if cs[1] == 'idle':
+            if cs["state"] == 'idle':
                 continue
             if not csStr:
                 csStr = '['
             else:
                 csStr += ', '
-            csStr += '%s:%s' % (cs[0], cs[1])
+            csStr += '%s:%s' % (cs["type"], cs["state"])
 
         if not csStr:
             csStr = ''
@@ -1240,10 +1233,6 @@ class DAQClient(object):
 
         return True
 
-    def list(self):
-        return [ self.__id, self.__name, self.__num, self.__host, self.__port,
-                 self.__mbeanPort, self.state() ]
-
     def logTo(self, logIP, logPort, liveIP, livePort):
         "Send log messages to the specified host and port"
         self.__log.openLog(logIP, logPort, liveIP, livePort)
@@ -1262,6 +1251,14 @@ class DAQClient(object):
         self.__log.debug(("Version info: %(filename)s %(revision)s" +
                           " %(date)s %(time)s %(author)s %(release)s" +
                           " %(repo_rev)s") % get_version_info(infoStr))
+
+    def map(self):
+        return { "id" : self.__id,
+                 "compName" : self.__name,
+                 "compNum" : self.__num,
+                 "host" : self.__host,
+                 "rpcPort" : self.__port,
+                 "mbeanPort" : self.__mbeanPort }
 
     def monitor(self):
         "Return the monitoring value"
@@ -1766,12 +1763,14 @@ class CnCServer(DAQPool):
         "list unused components"
         s = []
         for c in self.components():
+            cDict = c.map()
             try:
                 state = c.state()
             except Exception:
                 state = DAQClient.STATE_DEAD
 
-            s.append(c.list())
+            cDict["state"] = state
+            s.append(cDict)
 
         return s
 
@@ -1859,7 +1858,12 @@ class CnCServer(DAQPool):
             liveIP = ""
             livePort = 0
 
-        return [client.id(), logIP, logPort, liveIP, livePort, self.__id]
+        return { "id" : client.id(),
+                 "logIP" : logIP,
+                 "logPort" : logPort,
+                 "liveIP" : liveIP,
+                 "livePort" : livePort,
+                 "serverId" : self.__id }
 
     def rpc_runset_bothlog_to(self, id, liveIP, livePort, pdaqIP, pdaqList):
         "configure I3Live logging for the specified runset"
@@ -1929,7 +1933,18 @@ class CnCServer(DAQPool):
         if not runSet:
             raise ValueError('Could not find runset#%d' % id)
 
-        return runSet.list()
+        slst = []
+        for c in runSet.components():
+            cDict = c.map()
+            try:
+                state = c.state()
+            except Exception:
+                state = DAQClient.STATE_DEAD
+            cDict["state"] = state
+
+            slst.append(cDict)
+
+        return slst
 
     def rpc_runset_livelog_to(self, id, logIP, logPort):
         "configure I3Live logging for the specified runset"

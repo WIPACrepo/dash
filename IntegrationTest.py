@@ -638,18 +638,18 @@ class RealComponent(object):
         reg = self.__cnc.rpc_register_component(self.__name, self.__num,
                                                 'localhost', self.__cmd.portnum,
                                                 self.__mbean.portnum, connList)
-        if type(reg) != list:
-            raise Exception('Expected registration to return list, not %s' %
+        if type(reg) != dict:
+            raise Exception('Expected registration to return dict, not %s' %
                             str(type(reg)))
 
         numElems = 6
         if len(reg) != numElems:
             raise Exception(('Expected registration to return %d-element' +
-                             ' list, not %d') % (numElems, len(reg)))
+                             ' dictionary, not %d') % (numElems, len(reg)))
 
-        self.__id = reg[0]
+        self.__id = reg["id"]
 
-        self.__logTo(reg[1], reg[2], reg[3], reg[4])
+        self.__logTo(reg["logIP"], reg["logPort"], reg["liveIP"], reg["livePort"])
 
     def setComponentList(self, compList):
         self.__compList = compList
