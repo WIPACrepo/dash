@@ -1528,7 +1528,7 @@ class IntegrationTest(unittest.TestCase):
 
         if RUNLOG_INFO:
             if targetFlags.moniToFile():
-                msg = ('Queueing data for SPADE (spadeDir=%s, logDir=%s,' +
+                msg = ('Queued data for SPADE (spadeDir=%s, logDir=%s,' +
                        ' runNum=%s)...') % \
                        (IntegrationTest.SPADE_DIR, IntegrationTest.LOG_DIR,
                         runNum)

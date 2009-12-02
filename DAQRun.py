@@ -51,7 +51,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4775 2009-12-02 16:15:47Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4776 2009-12-02 17:55:45Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -896,8 +896,8 @@ class DAQRun(object):
         try:
             self.move_spade_files(copyDir, basePrefix, logTopLevel, runDir,
                                   spadeDir)
-            self.log.error("Queued data for SPADE (spadeDir=%s, logDir=%s)" %
-                           (spadeDir, logTopLevel))
+            self.log.info(("Queued data for SPADE (spadeDir=%s, logDir=%s,"
+                           " runNum=%s)...") % (spadeDir, logTopLevel, runNum))
         except Exception:
             self.log.error("FAILED to queue data for SPADE: %s" % exc_string())
 

@@ -445,7 +445,7 @@ class TestDAQRun(unittest.TestCase):
             appender.addExpectedExact('RPC Call stats:\n%s' % cnc.showStats())
         appender.addExpectedExact('Run terminated SUCCESSFULLY.')
         if LOG_INFO:
-            appender.addExpectedExact(('Queueing data for SPADE (spadeDir=%s,' +
+            appender.addExpectedExact(('Queued data for SPADE (spadeDir=%s,' +
                                        ' logDir=%s, runNum=%s)...') %
                                       (TestDAQRun.SPADE_DIR, TestDAQRun.LOG_DIR,
                                        runNum))
