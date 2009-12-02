@@ -83,9 +83,14 @@ class ValueWatcher(object):
             else:
                 self.__prevValue = newValue
         elif type(newValue) != type(self.__prevValue):
-            raise Exception('Previous value for %s was %s, new value is %s' %
-                            (str(self), str(type(self.__prevValue)),
-                             str(type(newValue))))
+            if type(self.__prevValue) != list or \
+                    type(newValue) != tuple or \
+                    len(newValue) != 0:
+                raise Exception(("Previous type for %s was %s (%s)," +
+                                 " new type is %s (%s)") %
+                                (str(self), str(type(self.__prevValue)),
+                                str(self.__prevValue),
+                                str(type(newValue)), str(newValue)))
         elif type(newValue) != list:
             if self.__compare(self.__prevValue, newValue):
                 self.__unchanged += 1

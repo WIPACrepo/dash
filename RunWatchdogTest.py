@@ -338,9 +338,11 @@ class TestRunWatchdog(unittest.TestCase):
             vw.check(val)
             self.fail('Expected check to fail')
         except Exception, e:
-            self.assertEquals('Previous value for %s was %s, new value is %s' %
-                              (str(vw), str(type(firstVal)), str(type(val))),
-                              str(e), 'Unexpected exception: ' + str(e))
+            self.assertEquals(('Previous type for %s was %s (%s),' +
+                               ' new type is %s (%s)') %
+                              (str(vw), str(type(firstVal)), str(firstVal),
+                               str(type(val)), str(val)), str(e),
+                              'Unexpected exception: ' + str(e))
 
     def testValWatchCheckDecrease(self):
         fComp = 'fooComp'
