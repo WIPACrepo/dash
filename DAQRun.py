@@ -51,7 +51,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4774 2009-12-02 16:13:09Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4775 2009-12-02 16:15:47Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -881,19 +881,23 @@ class DAQRun(object):
             (runNum, runTime.year, runTime.month, runTime.day, runTime.hour,
              runTime.minute, runTime.second, runDuration)
 
-    def queue_for_spade(self, spadeDir, copyDir, logTopLevel, runNum, runTime, runDuration):
+    def queue_for_spade(self, spadeDir, copyDir, logTopLevel, runNum, runTime,
+                        runDuration):
         """
         Put tarball of log and moni files in SPADE directory as well as
         semaphore file to indicate to SPADE to effect the transfer
         """
         if not spadeDir: return
-        if not exists(spadeDir): return
-        self.log.info(("Queueing data for SPADE (spadeDir=%s, logDir=%s," +
-                       " runNum=%d)...") % (spadeDir, logTopLevel, runNum))
+        if not exists(spadeDir):
+            self.log.error("SPADE directory %s does not exist" % spadeDir)
+            return
         runDir = DAQRun.logDirName(runNum)
         basePrefix = self.get_base_prefix(runNum, runTime, runDuration)
         try:
-            self.move_spade_files(copyDir, basePrefix, logTopLevel, runDir, spadeDir)
+            self.move_spade_files(copyDir, basePrefix, logTopLevel, runDir,
+                                  spadeDir)
+            self.log.error("Queued data for SPADE (spadeDir=%s, logDir=%s)" %
+                           (spadeDir, logTopLevel))
         except Exception:
             self.log.error("FAILED to queue data for SPADE: %s" % exc_string())
 
