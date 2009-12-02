@@ -51,7 +51,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4771 2009-11-30 18:36:15Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4773 2009-12-02 16:10:14Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -1331,6 +1331,7 @@ class DAQRun(object):
                 self.unHealthyCount = 0
 
                 self.rateTimer = None
+                self.badRateCount = 0
 
                 self.__activeDOMTimer = None
 
