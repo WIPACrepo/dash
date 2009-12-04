@@ -908,11 +908,11 @@ class TestDAQRun(unittest.TestCase):
 
         dr.fill_component_dictionaries(cnc)
 
-        expMsg = ('\t%d physics events, %d moni events,' +
+        expMsg = ('\t%d physics events.*, %d moni events,' +
                   ' %d SN events, %d tcals') % \
                   (numEvts, numMoni, numSN, numTCal)
 
-        logger.addExpectedExact(expMsg)
+        logger.addExpectedRegexp(expMsg)
 
         dr.rateTimer.trigger()
 
@@ -985,9 +985,9 @@ class TestDAQRun(unittest.TestCase):
             time.sleep(0.1)
             numTries += 1
 
-        logger.addExpectedExact(('\t%d physics events, %d moni' +
-                                 ' events, %d SN events, %d tcals') %
-                                (numEvts, numMoni, numSN, numTCal))
+        logger.addExpectedRegexp(('\t%d physics events.*, %d moni' +
+                                  ' events, %d SN events, %d tcals') %
+                                 (numEvts, numMoni, numSN, numTCal))
 
         rtnVal = dr.check_timers()
         self.failUnless(rtnVal, 'Expected call to succeed')
