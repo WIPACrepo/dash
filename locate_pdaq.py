@@ -14,4 +14,4 @@ def find_pdaq_trunk():
                 os.path.isdir(os.path.join(dir, 'dash')):
                     return dir
 
-    raise HostNotFoundException, 'Couldn\'t find pDAQ trunk'
+    raise HostNotFoundException("Couldn't find pDAQ trunk")

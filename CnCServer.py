@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4771 2009-11-30 18:36:15Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 4782 2009-12-04 15:50:49Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -1870,7 +1870,7 @@ class CnCServer(DAQPool):
         runSet = self.findRunset(id)
 
         if not runSet:
-            raise ValueError, 'Could not find runset#%d' % id
+            raise ValueError('Could not find runset#%d' % id)
 
         leftOver = runSet.configureBothLogging(liveIP, livePort,
                                                pdaqIP, pdaqList)
@@ -1951,7 +1951,7 @@ class CnCServer(DAQPool):
         runSet = self.findRunset(id)
 
         if not runSet:
-            raise ValueError, 'Could not find runset#%d' % id
+            raise ValueError('Could not find runset#%d' % id)
 
         runSet.configureLiveLogging(logIP, logPort)
 
