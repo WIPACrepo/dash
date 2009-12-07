@@ -39,7 +39,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 4787 2009-12-07 20:24:40Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 4788 2009-12-07 23:11:51Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -440,7 +440,7 @@ if __name__ == "__main__":
                                                           opt.clusterDesc)
         if opt.doList: raise SystemExit
 
-        if opt.verbose or True:
+        if opt.verbose:
             print "Version: %(filename)s %(revision)s %(date)s %(time)s " \
                 "%(author)s %(release)s %(repo_rev)s" % get_version_info(SVN_ID)
             print "CONFIG: %s" % clusterConfig.configName
