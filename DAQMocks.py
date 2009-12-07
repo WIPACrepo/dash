@@ -725,7 +725,7 @@ class MockParallelShell(object):
 
         if comp.isHub():
             cmd += " -Dicecube.daq.stringhub.componentId=%d" % comp.id()
-        if eventCheck and comp.name() == 'eventBuilder':
+        if eventCheck and comp.isBuilder():
             cmd += ' -Dicecube.daq.eventBuilder.validateEvents'
 
         cmd += ' -jar %s' % jarPath
