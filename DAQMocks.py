@@ -567,11 +567,22 @@ class MockComponent(object):
 
 class MockDeployComponent(object):
     def __init__(self, name, id, level, jvm, jvmArgs):
-        self.compName = name
-        self.compID = id
-        self.logLevel = level
-        self.jvm = jvm
-        self.jvmArgs = jvmArgs
+        self.__name = name
+        self.__id = id
+        self.__logLevel = level
+        self.__jvm = jvm
+        self.__jvmArgs = jvmArgs
+
+    def __str__(self):
+        if self.__id == 0:
+            return self.__name
+        return "%s#%d" % (self.__name, self.__id)
+
+    def id(self): return self.__id
+    def jvm(self): return self.__jvm
+    def jvmArgs(self): return self.__jvmArgs
+    def logLevel(self): return self.__logLevel
+    def name(self): return self.__name
 
 class MockDAQClient(DAQClient):
     def __init__(self, name, num, host, port, mbeanPort, connectors,
@@ -699,16 +710,16 @@ class MockParallelShell(object):
 
         ipAddr = GetIP.getIP(host)
         jarPath = os.path.join(MockParallelShell.BINDIR,
-                               getCompJar(comp.compName))
+                               getCompJar(comp.name()))
 
         if verbose:
             redir = ''
         else:
             redir = ' </dev/null >/dev/null 2>&1'
 
-        cmd = '%s %s' % (comp.jvm, comp.jvmArgs)
+        cmd = '%s %s' % (comp.jvm(), comp.jvmArgs())
 
-        if eventCheck and comp.compName == 'eventBuilder':
+        if eventCheck and comp.name() == 'eventBuilder':
             cmd += ' -Dicecube.daq.eventBuilder.validateEvents'
 
         cmd += ' -jar %s' % jarPath
@@ -716,9 +727,9 @@ class MockParallelShell(object):
         cmd += ' -c %s:%d' % (ipAddr, DAQPort.CNCSERVER)
 
         if logPort is not None:
-            cmd += ' -l %s:%d,%s' % (ipAddr, logPort, comp.logLevel)
+            cmd += ' -l %s:%d,%s' % (ipAddr, logPort, comp.logLevel())
         if livePort is not None:
-            cmd += ' -L %s:%d,%s' % (ipAddr, livePort, comp.logLevel)
+            cmd += ' -L %s:%d,%s' % (ipAddr, livePort, comp.logLevel())
         cmd += ' %s &' % redir
 
         if self.__isLocalhost(host):

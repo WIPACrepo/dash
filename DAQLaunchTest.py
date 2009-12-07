@@ -12,27 +12,32 @@ class MockNode(object):
     LIST = []
 
     def __init__(self, hostName):
-        self.hostName = hostName
-        self.comps = []
+        self.__hostName = hostName
+        self.__comps = []
 
     def __str__(self):
-        return "%s[%s]" % (str(self.hostName), str(self.comps))
+        return "%s[%s]" % (str(self.__hostName), str(self.__comps))
 
     def addComp(self, compName, compId, logLevel, jvm, jvmArgs):
         comp = MockDeployComponent(compName, compId, logLevel, jvm, jvmArgs)
-        self.comps.append(comp)
+        self.__comps.append(comp)
         return comp
+
+    def components(self): return self.__comps
+    def hostName(self): return self.__hostName
 
 class MockClusterConfig(object):
     def __init__(self, name):
         self.configName = name
-        self.nodes = []
+        self.__nodes = []
 
     def addNode(self, node):
-        self.nodes.append(node)
+        self.__nodes.append(node)
 
     def clearActiveConfig(self):
         pass
+
+    def nodes(self): return self.__nodes[:]
 
     def writeCacheFile(self, writeActive):
         pass

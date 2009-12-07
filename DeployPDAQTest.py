@@ -7,13 +7,19 @@ import DeployPDAQ
 
 class MockNode(object):
     def __init__(self, hostName):
-        self.hostName = hostName
+        self.__hostName = hostName
+
+    def hostName(self):
+        return self.__hostName
 
 class MockClusterConfig(object):
     def __init__(self, hosts):
-        self.nodes = []
+        self.__nodes = []
         for n in hosts:
-            self.nodes.append(MockNode(n))
+            self.__nodes.append(MockNode(n))
+
+    def nodes(self):
+        return self.__nodes[:]
 
 class DeployPDAQTest(unittest.TestCase):
     def __checkDeploy(self, hosts, subdirs, delete, dryRun, deepDryRun,

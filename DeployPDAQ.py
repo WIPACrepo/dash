@@ -25,13 +25,13 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 4762 2009-11-30 17:58:36Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 4786 2009-12-07 18:38:37Z dglo $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
     retHash = {}
-    for node in config.nodes:
-        retHash[str(node.hostName)] = 1
+    for node in config.nodes():
+        retHash[str(node.hostName())] = 1
     return retHash.keys()
 
 def getHubType(compID):
@@ -112,12 +112,12 @@ def main():
     if traceLevel >= 0:
         print "CONFIG: %s" % config.configName
         print "NODES:"
-        for node in config.nodes:
-            print "  %s(%s)" % (node.hostName, node.locName),
-            for comp in node.comps:
-                print "%s:%d" % (comp.compName, comp.compID),
-                if comp.compName == "StringHub":
-                    print "[%s]" % getHubType(comp.compID)
+        for node in config.nodes():
+            print "  %s(%s)" % (node.hostName(), node.locName()),
+            for comp in node.components():
+                print "%s:%d" % (comp.name(), comp.id()),
+                if comp.name() == "StringHub":
+                    print "[%s]" % getHubType(comp.id())
                 print " ",
             print
 
