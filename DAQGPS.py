@@ -8,15 +8,8 @@ import sys, optparse
 from os import environ
 from os.path import join
 
-from ClusterConfig import *
-from ParallelShell import *
-
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if environ.has_key("PDAQ_HOME"):
-    metaDir = environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
+from DAQConfig import DAQConfig
+from ParallelShell import ParallelShell
 
 def main():
     "Main program"
@@ -35,7 +28,9 @@ def main():
     
     opt, args = p.parse_args()
 
-    config = ClusterConfig(metaDir, opt.clusterConfigName, opt.doList)
+    config = DAQConfig.getClusterConfiguration(opt.clusterConfigName,
+                                               opt.doList)
+    if opt.doList: raise SystemExit
 
     hublist = config.getHubNodes()
 

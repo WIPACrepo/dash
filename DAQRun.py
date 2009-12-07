@@ -18,6 +18,7 @@ from os.path import exists, abspath, join, basename, isdir
 from os import listdir, mkdir
 from Process import processList, findProcess
 from DAQLaunch import cyclePDAQ
+from DAQConfig import DAQConfig, DAQConfigNotFound, DOMNotInConfigException
 from tarfile import TarFile
 from shutil import move, copyfile
 from GetIP import getIP
@@ -25,7 +26,6 @@ from re import search
 from xmlrpclib import Fault
 from IntervalTimer import IntervalTimer
 from RateCalc import RateCalc
-import DAQConfig
 import datetime
 import optparse
 import Daemon
@@ -38,7 +38,6 @@ import sys
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-from ClusterConfig import *
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -51,7 +50,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4776 2009-12-02 17:55:45Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4787 2009-12-07 20:24:40Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -98,6 +97,11 @@ class RunArgs(object):
                      action="store",      type="string",
                      dest="configDir",
                      help="Directory where run configurations are stored")
+
+        p.add_option("-C", "--cluster-desc",
+                     action="store",      type="string",
+                     dest="clusterDesc",
+                     help="Cluster description name")
 
         p.add_option("-f", "--force-reconfig",
                      action="store_true",
@@ -150,6 +154,7 @@ class RunArgs(object):
                      help="Configuration to relaunch [if --relaunch]")
 
         p.set_defaults(kill              = False,
+                       clusterDesc       = None,
                        clusterConfigName = None,
                        nodaemon          = False,
                        quiet             = False,
@@ -191,10 +196,11 @@ class RunArgs(object):
         dashDir          = join(metaDir, 'dash')
 
         try:
-            clusterConfig = ClusterConfig(metaDir, opt.clusterConfigName, False,
-                                          False, True)
-        except ConfigNotSpecifiedException:
-            print "ERROR: No cluster configuration was found!"
+            clusterConfig = \
+                DAQConfig.getClusterConfiguration(opt.clusterConfigName,
+                                                  clusterDesc=opt.clusterDesc)
+        except DAQConfigNotFound:
+            print "ERROR: No configuration was found!"
             raise SystemExit
 
         if not exists(opt.configDir):
@@ -664,7 +670,7 @@ class DAQRun(object):
                     # Look by DOM name
                     try:
                         args[0] = config.getIDbyName(domid)
-                    except DAQConfig.DOMNotInConfigException:
+                    except DOMNotInConfigException, e:
                         not_found.append("DOM %s not found in config!" % domid)
                         continue
             # Look for (str, pos, f0, ..., f4)
@@ -677,7 +683,7 @@ class DAQRun(object):
                                                 (string, pos))
                 try:
                     args[0] = config.getIDbyStringPos(string, pos)
-                except DAQConfig.DOMNotInConfigException:
+                except DOMNotInConfigException, e:
                     not_found.append("DOM at %s-%s not found in config!" %
                                    (string, pos))
                     continue
@@ -707,7 +713,10 @@ class DAQRun(object):
             compList = cncrpc.rpccall("rpc_list_components")
             nameList = []
             for c in compList:
-                nameList.append("%s#%d" % (c["compName"], c["compNum"]))
+                if c["compNum"] == 0 and not c["compName"].endswith("Hub"):
+                    nameList.append(c["compName"])
+                else:
+                    nameList.append("%s#%d" % (c["compName"], c["compNum"]))
             waitList = DAQRun.findMissing(requiredList, nameList)
             if waitList == []:
                 return requiredList
@@ -744,7 +753,7 @@ class DAQRun(object):
 
     def getComponentsFromGlobalConfig(self, configName, configDir):
         "Get and set global configuration"
-        self.configuration = DAQConfig.DAQConfig(configName, configDir)
+        self.configuration = DAQConfig(configName, configDir)
         self.log.info("Loaded global configuration \"%s\"" % configName)
         requiredComps = []
         for comp in self.configuration.components():

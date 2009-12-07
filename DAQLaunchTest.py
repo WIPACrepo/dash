@@ -56,9 +56,12 @@ class DAQLaunchTest(unittest.TestCase):
 
         for compName in compNameJarPartsMap:
             if compName[-3:] == 'hub':
+                compName = compName[:-3] + "Hub"
                 compId = 17
             else:
                 compId = 0
+                if compName.endswith("builder"):
+                    compName = compName[:-7] + "Builder"
 
             for host in MockNode.LIST:
                 node = MockNode(host)

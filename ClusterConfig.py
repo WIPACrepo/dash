@@ -7,14 +7,25 @@
 #
 # February, 2007
 
+import sys
 from os import environ, listdir, remove
 from re import search
 from os.path import abspath, exists, join
 from xml.dom import minidom
 
-class ConfigNotSpecifiedException(Exception): pass
-class ConfigNotFoundException(Exception): pass
-class MalformedDeployConfigException(Exception): pass
+from CachedConfigName import CachedConfigName
+
+# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+if environ.has_key("PDAQ_HOME"):
+    metaDir = environ["PDAQ_HOME"]
+else:
+    from locate_pdaq import find_pdaq_trunk
+    metaDir = find_pdaq_trunk()
+
+class ClusterConfigException(Exception): pass
+class ConfigNotSpecifiedException(ClusterConfigException): pass
+class ConfigNotFoundException(ClusterConfigException): pass
+class MalformedDeployConfigException(ClusterConfigException): pass
 
 CLUSTER_CONGIF_DEFAULTS = "cluster-config-defaults.xml"
 DEFAULT_CLUSTER_NAME = "localhost"
@@ -30,12 +41,23 @@ class deployComponent(object):
         self.__jvm      = jvm
         self.__jvmArgs  = jvmArgs
 
+    def __cmp__(self, other):
+        val = cmp(self.__name, other.__name)
+        if val == 0:
+            val = cmp(self.__id, other.__id)
+        return val
+
     def __str__(self):
         if self.__id == 0 and not self.__name.lower().endswith("hub"):
             return "%s@%s" % (self.__name, self.__logLevel)
         return "%s#%d@%s" % (self.__name, self.__id, self.__logLevel)
 
     def id(self): return self.__id
+
+    def isHub(self):
+        "Is this a stringHub component?"
+        return self.__name.lower().find('hub') >= 0
+
     def jvm(self): return self.__jvm
     def jvmArgs(self): return self.__jvmArgs
     def logLevel(self): return self.__logLevel
@@ -48,6 +70,12 @@ class deployNode(object):
         self.__hostName = hostName
         self.__comps    = []
 
+    def __cmp__(self, other):
+        val = cmp(self.__hostName, other.__hostName)
+        if val == 0:
+            val = cmp(self.__locName, other.__locName)
+        return val
+
     def addComp(self, comp): self.__comps.append(comp)
 
     def components(self): return self.__comps[:]
@@ -57,9 +85,8 @@ class deployNode(object):
 class deployConfig(object):
     """ Class for parsing and storing pDAQ cluster configurations
     stored in XML files """
-    def __init__(self, configDir, configName):
+    def __init__(self):
         self.__nodes = []
-        self.loadConfig(configDir, configName)
 
     def defaultLogLevel(self): return self.__defaultLogLevel
 
@@ -130,7 +157,7 @@ class deployConfig(object):
 
         return defJavaDict, fbJavaDict
 
-    def getElementSingleTagName(root, name, deep=True, enforce=True):
+    def getElementSingleTagName(cls, root, name, deep=True, enforce=True):
         """ Fetch a single element tag name of form
         <tagName>yowsa!</tagName>.  If deep is False, then only look
         at immediate child nodes. If enforce is True, raise
@@ -157,37 +184,50 @@ class deployConfig(object):
         elif len(elems) == 0:
             return None
         return elems[0].childNodes[0].data.strip()
-    getElementSingleTagName = staticmethod(getElementSingleTagName)
+    getElementSingleTagName = classmethod(getElementSingleTagName)
 
     def getHubNodes(self):
         hublist = []
         for node in self.__nodes:
+            addHost = False
             for comp in node.components():
-                if comp.name() == HUB_COMP_NAME:
-                    try:
-                        hublist.index(node.hostName())
-                    except ValueError:
-                        hublist.append(node.hostName())
+                if comp.isHub():
+                    addHost = True
+                    break
+
+            if addHost:
+                try:
+                    hublist.index(node.hostName())
+                except ValueError:
+                    hublist.append(node.hostName())
         return hublist
 
-    def getValue(self, node, name, defaultVal=None):
+    def getValue(cls, node, name, defaultVal=None):
         if node.attributes is not None and node.attributes.has_key(name):
             return node.attributes[name].value
 
         try:
-            return self.getElementSingleTagName(node, name)
+            return cls.getElementSingleTagName(node, name)
         except:
             return defaultVal
+    getValue = classmethod(getValue)
 
     def loadConfig(self, configDir, configName):
         "Load the configuration data from the XML-formatted file"
-        self.configFile, icecubeNode = \
-            self.openAndParseConfig(configDir, configName)
+        self.configFile = self.xmlOf(join(configDir,configName))
+        if not exists(self.configFile): raise ConfigNotFoundException(configName)
+        try:
+            parsed = minidom.parse(self.configFile)
+        except:
+            raise MalformedDeployConfigException(self.configFile)
+        icecube = parsed.getElementsByTagName("icecube")
+        if len(icecube) != 1:
+            raise MalformedDeployConfigException(self.configFile)
 
         # Get "remarks" string if available
-        self.remarks = self.getValue(icecubeNode, "remarks")
+        self.remarks = self.getValue(icecube[0], "remarks")
         
-        cluster = icecubeNode.getElementsByTagName("cluster")
+        cluster = icecube[0].getElementsByTagName("cluster")
         if len(cluster) != 1:
             raise MalformedDeployConfigException(self.configFile)
         self.__clusterName = self.getValue(cluster[0], "name")
@@ -260,9 +300,9 @@ class deployConfig(object):
                 if modJvmArgs: jvmArgs = modJvmArgs
 
                 # Hubs need special ID arg
-                if compName == HUB_COMP_NAME:
-                    jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % \
-                        compID
+                #if compName == HUB_COMP_NAME:
+                #    jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % \
+                #        compID
 
                 thisNode.addComp(deployComponent(compName, compID, logLevel,
                                                  jvm, jvmArgs))
@@ -291,20 +331,18 @@ class deployConfig(object):
         if not name.endswith(".xml"): return name+".xml"
         return name
 
-class ClusterConfig(deployConfig):
+class ClusterConfig(deployConfig, CachedConfigName):
     def __init__(self, topDir, cmdlineConfig, showListAndExit=False,
                  useFallbackConfig=True, useActiveConfig=False):
+        super(ClusterConfig, self).__init__()
+        super(CachedConfigName, self).__init__()
+
         self.clusterConfigDir = abspath(join(topDir, 'cluster-config'))
 
-        # Choose configuration
-        if cmdlineConfig is not None:
-            configToUse = cmdlineConfig
-        else:
-            configToUse = self.readCacheFile(useActiveConfig)
-            if configToUse is None and useFallbackConfig:
-                configToUse = 'sim-localhost'
+        configToUse = self.getConfigToUse(cmdlineConfig, useFallbackConfig,
+                                          useActiveConfig)
 
-        configXMLDir = join(self.clusterConfigDir, 'src', 'main', 'xml')
+        configXMLDir = join(metaDir, 'cluster-config', 'src', 'main', 'xml')
 
         if showListAndExit:
             self.showConfigs(configXMLDir, configToUse)
@@ -314,32 +352,10 @@ class ClusterConfig(deployConfig):
             raise ConfigNotSpecifiedException
 
         self.configName = configToUse
+        # 'forward' compatibility with RunCluster
+        self.descName = None
 
-        super(ClusterConfig, self).__init__(configXMLDir, configToUse)
-
-    def clearActiveConfig(self):
-        "delete the active cluster name"
-        try:
-            remove(self.getCachedNamePath(True))
-        except:
-            pass
-
-    def getCachedNamePath(self, useActiveConfig):
-        "get the active or default cluster configuration"
-        if useActiveConfig:
-            return join(environ["HOME"], ".active")
-        return join(self.clusterConfigDir, ".config")
-
-    def readCacheFile(self, useActiveConfig):
-        "read the cached cluster name"
-        clusterFile = self.getCachedNamePath(useActiveConfig)
-        try:
-            f = open(clusterFile, "r")
-            ret = f.readline()
-            f.close()
-            return ret.rstrip('\r\n')
-        except:
-            return None
+        self.loadConfig(configXMLDir, configToUse)
 
     def showConfigs(self, configDir, configToUse):
         "Utility to show all available cluster configurations in configDir"
@@ -354,7 +370,8 @@ class ClusterConfig(deployConfig):
         remarks = {}
         for cname in cfgs:
             try:
-                config = deployConfig(configDir, cname)
+                config = deployConfig()
+                config.loadConfig(configDir, cname)
                 ok.append(cname)
                 remarks[cname] = config.remarks
             except Exception: pass
@@ -367,11 +384,3 @@ class ClusterConfig(deployConfig):
             print "%40s %3s " % (cname, sep),
             if remarks[cname]: print remarks[cname]
             else: print
-        
-
-    def writeCacheFile(self, writeActiveConfig=False):
-        "cache this config name"
-        cachedNamePath = self.getCachedNamePath(writeActiveConfig)
-        fd = open(cachedNamePath, 'w')
-        print >>fd, self.configName
-        fd.close()

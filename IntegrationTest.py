@@ -372,13 +372,13 @@ class MostlyCnCServer(CnCServer):
 
 class RealComponent(object):
     # Component order, used in the __getOrder() method
-    COMP_ORDER = { 'stringHub' : 50,
-                   'amandaTrigger' : 0,
-                   'iceTopTrigger' : 2,
-                   'inIceTrigger' : 4,
-                   'globalTrigger' : 10,
-                   'eventBuilder' : 30,
-                   'secondaryBuilders' : 32,
+    COMP_ORDER = { 'stringHub' : (50, 50),
+                   'amandaTrigger' : (0, 13),
+                   'iceTopTrigger' : (2, 12),
+                   'inIceTrigger' : (4, 11),
+                   'globalTrigger' : (10, 10),
+                   'eventBuilder' : (30, 2),
+                   'secondaryBuilders' : (32, 0),
                    }
 
     def __init__(self, name, num, cmdPort, mbeanPort, jvm, jvmArgs,
@@ -388,8 +388,6 @@ class RealComponent(object):
         self.__num = num
         self.__jvm = jvm
         self.__jvmArgs = jvmArgs
-        if name.endswith('Hub'):
-            self.__jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % num
 
         self.__state = 'FOO'
 
@@ -434,8 +432,8 @@ class RealComponent(object):
                                            DAQPort.CNCSERVER, verbose=verbose)
 
     def __cmp__(self, other):
-        selfOrder = RealComponent.__getOrder(self.__name)
-        otherOrder = RealComponent.__getOrder(other.__name)
+        selfOrder = RealComponent.__getLaunchOrder(self.__name)
+        otherOrder = RealComponent.__getLaunchOrder(other.__name)
 
         if selfOrder < otherOrder:
             return -1
@@ -489,16 +487,28 @@ class RealComponent(object):
             attrs[f] = self.__mbeanData[bean][f].getValue()
         return attrs
 
+    def __getLaunchOrder(cls, name):
+        if not cls.COMP_ORDER.has_key(name):
+            raise Exception('Unknown component type %s' % name)
+        return cls.COMP_ORDER[name][0]
+    __getLaunchOrder = classmethod(__getLaunchOrder)
+
     def __getMBeanValue(self, bean, fld):
         if self.__mbeanData is None:
             self.__mbeanData = BeanData.buildDAQBeans(self.__name)
 
         return self.__mbeanData[bean][fld].getValue()
 
+    def __getStartOrder(cls, name):
+        if not cls.COMP_ORDER.has_key(name):
+            raise Exception('Unknown component type %s' % name)
+        return cls.COMP_ORDER[name][1]
+    __getStartOrder = classmethod(__getStartOrder)
+
     def __getOrder(cls, name):
         if not cls.COMP_ORDER.has_key(name):
             raise Exception('Unknown component type %s' % name)
-        return cls.COMP_ORDER[name]
+        return cls.COMP_ORDER[name][0]
     __getOrder = classmethod(__getOrder)
 
     def __getState(self):
@@ -661,8 +671,8 @@ class RealComponent(object):
         self.__mbeanData[bean][fld].setValue(val)
 
     def sortForLaunch(y, x):
-        selfOrder = RealComponent.__getOrder(x.__name)
-        otherOrder = RealComponent.__getOrder(y.__name)
+        selfOrder = RealComponent.__getLaunchOrder(x.__name)
+        otherOrder = RealComponent.__getLaunchOrder(y.__name)
 
         if selfOrder < otherOrder:
             return -1
@@ -676,6 +686,23 @@ class RealComponent(object):
 
         return 0
     sortForLaunch = staticmethod(sortForLaunch)
+
+    def sortForStart(y, x):
+        selfOrder = RealComponent.__getStartOrder(x.__name)
+        otherOrder = RealComponent.__getStartOrder(y.__name)
+
+        if selfOrder < otherOrder:
+            return -1
+        elif selfOrder > otherOrder:
+            return 1
+
+        if x.__num < y.__num:
+            return 1
+        elif x.__num > y.__num:
+            return -1
+
+        return 0
+    sortForStart = staticmethod(sortForStart)
 
 class StubbedDAQRun(DAQRun):
     LOGFACTORY = None
@@ -1273,7 +1300,10 @@ class IntegrationTest(unittest.TestCase):
                 appender.addExpectedRegexp(patStr)
                 if liveLog: liveLog.addExpectedTextRegexp(patStr)
         if liveLog:
-            for c in self.__compList:
+            keys = self.__compList[:]
+            keys.sort(RealComponent.sortForStart)
+
+            for c in keys:
                 liveLog.addExpectedText('Hello from %s' % str(c))
                 liveLog.addExpectedTextRegexp((r'Version info: %s \S+ \S+' +
                                                r' \S+ \S+ \S+ \d+\S+') %
@@ -1723,6 +1753,7 @@ class IntegrationTest(unittest.TestCase):
         cnc.run()
 
     def testLiveFinishInMain(self):
+        #from DAQMocks import LogChecker; LogChecker.DEBUG = True
         if not TEST_LIVE:
             print 'Skipping I3Live-related test'
             return

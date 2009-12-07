@@ -13,12 +13,15 @@ from time import sleep
 from os import environ, mkdir, system
 from os.path import exists, isabs, join
 
+from ClusterConfig \
+    import ClusterConfig, ClusterConfigException, ConfigNotFoundException, \
+           ConfigNotSpecifiedException
+from DAQConfig import DAQConfig, DAQConfigNotFound
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from GetIP import getIP
 from Process import findProcess, processList
 
-from ClusterConfig import *
 from ParallelShell import *
 
 # the pDAQ release name
@@ -36,7 +39,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 4786 2009-12-07 18:38:37Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 4787 2009-12-07 20:24:40Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -141,7 +144,11 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
                 switches += " -L %s:%d,%s" % (myIP, livePort, comp.logLevel())
             compIO = quietStr
 
-            if eventCheck and comp.name() == "eventBuilder":
+            if comp.isHub():
+                jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % \
+                    comp.id()
+
+            if eventCheck and comp.isBuilder():
                 jvmArgs += " -Dicecube.daq.eventBuilder.validateEvents"
 
             if node.hostName() == "localhost": # Just run it
@@ -322,6 +329,9 @@ if __name__ == "__main__":
     p.add_option("-B", "--log-to-files-and-i3live", action="store_const",
                   const=LOGMODE_BOTH, dest="logMode",
                  help="Send log messages to both I3Live and to local files")
+    p.add_option("-C", "--cluster-desc",  action="store", type="string",
+                 dest="clusterDesc",
+                 help="Cluster description name.")
     p.add_option("-c", "--config-name",  action="store", type="string",
                  dest="clusterConfigName",
                  help="Cluster configuration name, subset of deployed configuration.")
@@ -382,37 +392,6 @@ if __name__ == "__main__":
     logDirFallBack = join(metaDir, 'log')
     dashDir   = join(metaDir, 'dash')
 
-    clusterConfig = ClusterConfig(metaDir, opt.clusterConfigName, opt.doList)
-
-    spadeDir  = clusterConfig.logDirForSpade
-    # Assume non-fully-qualified paths are relative to metaproject top dir:
-    if not isabs(spadeDir):
-        spadeDir = join(metaDir, spadeDir)
-
-    if not exists(spadeDir) and not opt.dryRun: mkdir(spadeDir)
-
-    copyDir   = clusterConfig.logDirCopies
-    # Assume non-fully-qualified paths are relative to metaproject top dir:
-    if copyDir:
-        if not isabs(copyDir):
-            copyDir = join(metaDir, copyDir)
-        if not exists(copyDir) and not opt.dryRun: mkdir(copyDir)
-
-    # Set up logDir
-    if not exists(logDir):
-        if not opt.dryRun:
-            try:
-                mkdir(logDir)
-            except OSError, (errno, strerror):
-                if opt.verbose:
-                    print "Problem making log dir: '%s' (%s)" % \
-                        (logDir, strerror)
-                    print "Using fallback for logDir: %s" % (logDirFallBack)
-                logDir = logDirFallBack
-                if not exists(logDir): mkdir(logDir)
-    else:
-        system('rm -f %s' % join(logDir, 'catchall.log'))
-
     if not opt.force:
         # connect to CnCServer
         cncrpc = RPCClient('localhost', DAQPort.CNCSERVER)
@@ -442,34 +421,73 @@ if __name__ == "__main__":
                     'To force a restart, rerun with the --force option'
                 raise SystemExit
 
-    if opt.verbose:
-        print "Version: %(filename)s %(revision)s %(date)s %(time)s " \
-              "%(author)s %(release)s %(repo_rev)s" % get_version_info(SVN_ID)
-        print "CONFIG: %s" % clusterConfig.configName
-        print "NODES:"
-        for node in clusterConfig.nodes():
-            print "  %s(%s)" % (node.hostName(), node.locName),
-            for comp in node.components():
-                print "%s-%d " % (comp.name(), comp.id()),
-            print
-
     if not opt.skipKill:
         doLive = opt.killOnly
         doRun = True
         doCnC = True
 
         try:
-            activeConfig = ClusterConfig(metaDir, None, False, False, True)
+            activeConfig = \
+                DAQConfig.getClusterConfiguration(None, False, True)
             doKill(doLive, doRun, doCnC, opt.dryRun, dashDir, opt.verbose,
-                   opt.quiet,  activeConfig, opt.killWith9)
-        except ConfigNotSpecifiedException:
+                   opt.quiet, activeConfig, opt.killWith9)
+        except ClusterConfigException:
             if opt.killOnly: print >>sys.stderr, 'DAQ is not currently active'
-        except ConfigNotFoundException, ex:
-            raise SystemExit('Cannot find active configuration ' +
-                             '"%s" to kill it' % str(ex))
 
     if not opt.killOnly:
-        # DAQLive will be started if it's not running
+        clusterConfig = DAQConfig.getClusterConfiguration(opt.clusterConfigName,
+                                                          opt.doList, False,
+                                                          opt.clusterDesc)
+        if opt.doList: raise SystemExit
+
+        if opt.verbose or True:
+            print "Version: %(filename)s %(revision)s %(date)s %(time)s " \
+                "%(author)s %(release)s %(repo_rev)s" % get_version_info(SVN_ID)
+            print "CONFIG: %s" % clusterConfig.configName
+
+            nodeList = clusterConfig.nodes()
+            nodeList.sort()
+
+            print "NODES:"
+            for node in nodeList:
+                print "  %s(%s)" % (node.hostName(), node.locName()),
+
+                compList = node.components()
+                compList.sort()
+
+                for comp in compList:
+                    print "%s#%d " % (comp.name(), comp.id()),
+                print
+
+        spadeDir  = clusterConfig.logDirForSpade()
+        # Assume non-fully-qualified paths are relative to metaproject top dir:
+        if not isabs(spadeDir):
+            spadeDir = join(metaDir, spadeDir)
+
+        if not exists(spadeDir) and not opt.dryRun: mkdir(spadeDir)
+
+        copyDir   = clusterConfig.logDirCopies()
+        # Assume non-fully-qualified paths are relative to metaproject top dir:
+        if copyDir:
+            if not isabs(copyDir):
+                copyDir = join(metaDir, copyDir)
+            if not exists(copyDir) and not opt.dryRun: mkdir(copyDir)
+
+        # Set up logDir
+        if not exists(logDir):
+            if not opt.dryRun:
+                try:
+                    mkdir(logDir)
+                except OSError, (errno, strerror):
+                    if opt.verbose:
+                        print "Problem making log dir: '%s' (%s)" % \
+                            (logDir, strerror)
+                        print "Using fallback for logDir: %s" % (logDirFallBack)
+                    logDir = logDirFallBack
+                    if not exists(logDir): mkdir(logDir)
+        else:
+            system('rm -f %s' % join(logDir, 'catchall.log'))
+
         doLive = False
         doRun = True
         doCnC = True

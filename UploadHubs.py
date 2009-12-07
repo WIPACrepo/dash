@@ -14,12 +14,11 @@ Started November, 2007
 
 import datetime, optparse, os, popen2, re, select, signal, sys, threading, time
 
-from ClusterConfig import *
-from ParallelShell import *
+from DAQConfig import DAQConfig
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if environ.has_key("PDAQ_HOME"):
-    metaDir = environ["PDAQ_HOME"]
+if os.environ.has_key("PDAQ_HOME"):
+    metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
@@ -366,7 +365,7 @@ def main():
         print usage
         raise SystemExit
 
-    clusterConfig = ClusterConfig(metaDir, opt.clusterConfigName)
+    clusterConfig = DAQConfig.getClusterConfiguration(opt.clusterConfigName)
 
     hublist = clusterConfig.getHubNodes()
 

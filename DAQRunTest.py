@@ -88,11 +88,12 @@ class MockCnCRPC(object):
         newSet = []
         for r in required:
             sep = r.find('#')
-            if sep < 0:
-                raise Exception('Found bad component "%s"' % r)
-
-            name = r[:sep]
-            id = int(r[sep+1:])
+            if sep > 0:
+                name = r[:sep]
+                id = int(r[sep+1:])
+            else:
+                name = r
+                id = 0
 
             found = False
             for c in self.compList:

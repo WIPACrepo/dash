@@ -57,8 +57,8 @@ class DAQConfigTest(unittest.TestCase):
                 pass # expect this to fail
 
         comps = cfg.components()
-        for exp in ('inIceTrigger#0', 'globalTrigger#0', 'eventBuilder#0',
-                    'secondaryBuilders#0',  'stringHub#1001', 'stringHub#1002',
+        for exp in ('inIceTrigger', 'globalTrigger', 'eventBuilder',
+                    'secondaryBuilders',  'stringHub#1001', 'stringHub#1002',
                     'stringHub#1003', 'stringHub#1004', 'stringHub#1005'):
             try:
                 comps.index(exp)
@@ -111,8 +111,8 @@ class DAQConfigTest(unittest.TestCase):
                 self.fail('Expected kind "%s" was not returned' % exp)
 
         comps = cfg.components()
-        for exp in ('inIceTrigger#0', 'iceTopTrigger#0', 'globalTrigger#0',
-                    'amandaTrigger#0', 'eventBuilder#0', 'secondaryBuilders#0',
+        for exp in ('inIceTrigger', 'iceTopTrigger', 'globalTrigger',
+                    'amandaTrigger', 'eventBuilder', 'secondaryBuilders',
                     'stringHub#0', 'stringHub#21', 'stringHub#29',
                     'stringHub#30', 'stringHub#38', 'stringHub#39',
                     'stringHub#40', 'stringHub#44', 'stringHub#45',
@@ -156,9 +156,9 @@ class DAQConfigTest(unittest.TestCase):
                           str(kinds))
 
         comps = cfg.components()
-        for exp in ('inIceTrigger#0', 'iceTopTrigger#0', 'globalTrigger#0',
-                    'eventBuilder#0',
-                    #'replayHub#0',
+        for exp in ('inIceTrigger', 'iceTopTrigger', 'globalTrigger',
+                    'eventBuilder',
+                    #'replayHub',
                     'replayHub#21', 'replayHub#29', 'replayHub#84'):
             try:
                 comps.index(exp)

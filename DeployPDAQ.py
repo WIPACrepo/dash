@@ -6,10 +6,11 @@
 # Deploy valid pDAQ cluster configurations to any cluster
 
 import optparse, sys
-from ClusterConfig import *
 from ParallelShell import ParallelShell
 from os import environ, getcwd, listdir, system
 from os.path import abspath, isdir, join, split
+
+from DAQConfig import DAQConfig, DAQConfigNotFound
 
 # pdaq subdirectories to be deployed
 SUBDIRS = ("target", "cluster-config", "config", "dash", "src")
@@ -25,7 +26,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 4786 2009-12-07 18:38:37Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 4787 2009-12-07 20:24:40Z dglo $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -45,6 +46,8 @@ def main():
                "%(release)s %(repo_rev)s" % get_version_info(SVN_ID)
     usage = "%prog [options]\nversion: " + ver_info
     p = optparse.OptionParser(usage=usage, version=ver_info)
+    p.add_option("-C", "--cluster-desc", action="store", type="string", dest="clusterDesc",
+                 help="Cluster description name")
     p.add_option("-c", "--config-name",  action="store", type="string", dest="configName",
                  help="REQUIRED: Configuration name")
     p.add_option("", "--delete",         action="store_true",           dest="delete",
@@ -78,7 +81,8 @@ def main():
                    dryRun     = False,
                    undeploy   = False,
                    deepDryRun = False,
-                   timeout    = 60)
+                   timeout    = 60,
+                   clusterDesc = None)
     opt, args = p.parse_args()
 
     ## Work through options implications ##
@@ -102,22 +106,37 @@ def main():
     if opt.verbose:               traceLevel = 1
     if opt.quiet and opt.verbose: traceLevel = 0
 
-    try:
-        config = ClusterConfig(metaDir, opt.configName, opt.doList, False)
-    except ConfigNotSpecifiedException:
+    if opt.configName is None:
         print >>sys.stderr, 'No configuration specified'
+        p.print_help()
+        raise SystemExit
+
+    try:
+        config = DAQConfig.getClusterConfiguration(opt.configName, opt.doList,
+                                                   clusterDesc=opt.clusterDesc)
+        if opt.doList: raise SystemExit
+    except DAQConfigNotFound:
+        print >>sys.stderr, 'Configuration "%s" not found' % configName
         p.print_help()
         raise SystemExit
 
     if traceLevel >= 0:
         print "CONFIG: %s" % config.configName
+
+        nodeList = config.nodes()
+        nodeList.sort()
+
         print "NODES:"
-        for node in config.nodes():
+        for node in nodeList:
             print "  %s(%s)" % (node.hostName(), node.locName()),
-            for comp in node.components():
-                print "%s:%d" % (comp.name(), comp.id()),
-                if comp.name() == "StringHub":
-                    print "[%s]" % getHubType(comp.id())
+
+            compList = node.components()
+            compList.sort()
+
+            for comp in compList:
+                print "%s#%d" % (comp.name(), comp.id()),
+                if comp.isHub():
+                    print "[%s]" % getHubType(comp.id()),
                 print " ",
             print
 

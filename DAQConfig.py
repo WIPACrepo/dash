@@ -10,6 +10,10 @@
 import optparse, os, re
 from xml.dom import minidom
 from exc_string import exc_string
+from CachedConfigName import CachedConfigName
+from ClusterConfig \
+    import ClusterConfig, ConfigNotFoundException, ConfigNotSpecifiedException
+from RunCluster import RunCluster
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -38,7 +42,7 @@ class noComponentsFound       (DAQConfigException): pass
 class triggerException        (DAQConfigException): pass
 class DOMNotInConfigException (DAQConfigException): pass
 
-def showList(configDir):
+def showList(configDir, configName=None):
     if not os.path.exists(configDir):
         raise DAQConfigDirNotFound("Could not find config dir %s" % configDir)
     l = os.listdir(configDir)
@@ -47,15 +51,15 @@ def showList(configDir):
     for f in l:
         match = re.search(r'^(.+?)\.xml$', f)
         if not match: continue
-        cfgs.append(match.group(1))
+        cfg = match.group(1)
+        if cfg == 'default-dom-geometry': continue
+        cfgs.append(cfg)
 
-    ok = []
+    cfgs.sort()
     for cname in cfgs:
-        if re.search(r'default-dom-geometry', cname): continue
-        ok.append(cname)
-
-    ok.sort()
-    for cname in ok: print "%60s" % cname
+        if cname == configName: arrow = '=> '
+        else: arrow = '   '
+        print "%3s%60s" % (arrow, cname)
 
 def xmlOf(name):
     if not re.search(r'^(.+?)\.xml$', name): return name+".xml"
@@ -176,6 +180,39 @@ class DefaultDOMGeometry(object):
         raise DOMNotInConfigException("Cannot find string %d pos %d" %
                                       (string, pos))
 
+class Component(object):
+    def __init__(self, name, id, logLevel):
+        self.__name = name
+        self.__id = id
+        self.__logLevel = logLevel
+
+    def __cmp__(self, other):
+        val = cmp(self.__name, other.__name)
+        if val == 0:
+            val = cmp(self.__id, other.__id)
+        return val
+
+    def __str__(self):
+        if self.__id == 0 and not self.isHub():
+            return self.__name
+        return '%s#%d' % (self.__name, self.__id)
+
+    def __repr__(self): return self.__str__()
+
+    def id(self): return self.__id
+
+    def isHub(self):
+        return self.__name.lower().find('hub') >= 0
+
+    def isRealHub(self):
+        return self.__name == 'StringHub' and self.__id < 1000
+
+    def logLevel(self): return self.__logLevel
+    def name(self): return self.__name
+
+    def setLogLevel(self, lvl):
+        self.__logLevel = lvl
+
 class DAQConfig(object):
 
     # Parse this only once, in case we cycle over multiple configs
@@ -183,7 +220,10 @@ class DAQConfig(object):
     persister      = {}
 
     def __init__(self, configName="default",
-                 configDir="/usr/local/icecube/config"):
+                 configDir=metaDir + "/config"):
+
+        if configName is None:
+            raise DAQConfigNotFound('No filename specified')
 
         if not os.path.exists(configDir):
             raise DAQConfigDirNotFound("Could not find config dir %s" %
@@ -235,6 +275,9 @@ class DAQConfig(object):
 
         elif len(domCfgList) > 0:
             for domConfig in domCfgList:
+                if len(domConfig.childNodes) == 0:
+                    continue
+
                 domConfigName = domConfig.childNodes[0].data
                 # print "Parsing %s" % domConfigName
 
@@ -281,37 +324,66 @@ class DAQConfig(object):
 
         self.checkTriggerConfigFile(configs[0], configDir)
 
-        self.compList = self.extractComponents(configs[0])
+        self.compList = []
 
         for hubID in hubIDList:
-            self.compList.append('%s#%d' % (hubType, hubID))
+            self.__addComponent(hubType, hubID)
+
+        self.__extractComponents(configs[0])
 
         DAQConfig.persister[self.configFile] = self.__dict__
 
-    def checkTriggerConfigFile(self, config, configDir):
-        triggerConfigs = config.getElementsByTagName("triggerConfig")
-        if len(triggerConfigs) == 0: raise triggerException("no triggers found")
-        for trig in triggerConfigs:
-            trigName = trig.childNodes[0].data
-            trigXML = xmlOf(os.path.join(configDir, "trigger", trigName))
-            if not os.path.exists(trigXML):
-                raise triggerException("trigger config file not found: %s" %
-                                       trigXML)
+    def __addComponent(self, compName, compId, logLevel=None):
+        comp = self.__findComponent(compName, compId)
+        if comp is None:
+            self.compList.append(Component(compName, compId, logLevel))
+        elif logLevel is not None:
+            if comp.logLevel() is None:
+                comp.setLogLevel(logLevel)
+            elif logLevel != comp.logLevel():
+                #print >>sys.stderr, '%s: Changing log level "%s" to "%s"' % \
+                #    (str(comp), comp.logLevel(), logLevel)
+                comp.setLogLevel(logLevel)
 
-    def extractComponents(self, config):
-        comps = []
+    def __extractComponents(self, config):
         compNodes = config.getElementsByTagName("runComponent")
         if len(compNodes) == 0: raise noComponentsFound("No components found")
         for node in compNodes:
+            if not node.attributes.has_key('name'):
+                continue
+
             nodeName = node.attributes['name'].value
             if not node.attributes.has_key('id'):
                 nodeId = 0
             else:
                 nodeId = int(node.attributes['id'].value)
+            if not node.attributes.has_key('logLevel'):
+                logLevel = None
+            else:
+                logLevel = node.attributes['logLevel'].value
 
-            comps.append('%s#%d' % (nodeName, nodeId))
+            self.__addComponent(nodeName, nodeId, logLevel)
 
-        return comps
+    def __findComponent(self, compName, compId):
+        if compName is not None:
+            for comp in self.compList:
+                if comp.name().lower() == compName.lower() and \
+                        comp.id() == compId:
+                    return comp
+        return None
+
+    def checkTriggerConfigFile(self, config, configDir):
+        triggerConfigs = config.getElementsByTagName("triggerConfig")
+        if len(triggerConfigs) == 0: raise triggerException("no triggers found")
+        for trig in triggerConfigs:
+            if len(trig.childNodes) == 0:
+                continue
+
+            trigName = trig.childNodes[0].data
+            trigXML = xmlOf(os.path.join(configDir, "trigger", trigName))
+            if not os.path.exists(trigXML):
+                raise triggerException("trigger config file not found: %s" %
+                                       trigXML)
 
     def kinds(self):
         """
@@ -321,9 +393,18 @@ class DAQConfig(object):
         return self.kindList
 
     def components(self):
-        """
-        Return list of components in parsed configuration.
-        """
+        "Return list of components (as strings) in parsed configuration."
+        compStr = []
+        for comp in self.compList:
+            compStr.append(str(comp))
+        return compStr
+
+    def getClusterConfig(self, clusterDesc=None, configDir=None):
+        "Get cluster->component mapping for the current configuration"
+        return RunCluster(self, clusterDesc, configDir)
+
+    def getComponentObjects(self):
+        "Return list of components objects in parsed configuration."
         return self.compList
 
     def hasDOM(self, domid):
@@ -350,6 +431,51 @@ class DAQConfig(object):
         return DAQConfig.DeployedDOMs.getIDbyStringPos(self.domlist, string,
                                                        pos)
 
+    def getClusterConfiguration(cls, configName, doList=False,
+                                useActiveConfig=False, clusterDesc=None,
+                                configDir=None):
+        """
+        Find and parse the cluster configuration from either the
+        run configuration directory or from the old cluster configuration
+        directory
+        """
+        ex = None
+
+        if configName is None:
+            configName = \
+                CachedConfigName().getConfigToUse(None, False, useActiveConfig)
+            if configName is None:
+                raise ConfigNotSpecifiedException("No configuration specified")
+
+        sepIndex = configName.find('@')
+        if sepIndex > 0:
+            clusterDesc = configName[sepIndex+1:]
+            configName = configName[:sepIndex]
+
+        if configDir is None:
+            configDir = os.path.join(metaDir, 'config')
+
+        if doList:
+            showList(configDir, configName)
+            return
+
+        try:
+            runCfg = DAQConfig(configName, configDir)
+            cfg = runCfg.getClusterConfig(clusterDesc)
+        except DAQConfigNotFound, nfe:
+            ex = nfe
+
+        if ex is not None:
+            try:
+                cfg = ClusterConfig(configDir, configName,
+                                    useFallbackConfig=False)
+            except ConfigNotFoundException, ex2:
+                raise ex
+
+        return cfg
+
+    getClusterConfiguration = classmethod(getClusterConfiguration)
+
 if __name__ == "__main__":
     p = optparse.OptionParser()
     p.add_option("-l", "--list-configs", action="store_true",
@@ -375,13 +501,22 @@ if __name__ == "__main__":
         args.append("sim5str")
 
     for configName in args:
+        print '-----------------------------------------------------------'
         print "Config %s" % configName
         dc = DAQConfig(configName, configDir)
-        print "Number of DOMs in configuration: %s" % dc.nDOMs()
-        for hubID in dc.hubIDs():
-            print "String/hubID %d is in configuration." % hubID
-        for kind in dc.kinds():
+        print "Number of DOMs in configuration: %s" % dc.ndoms
+
+        kinds = dc.kinds()
+        kinds.sort()
+        for kind in kinds:
             print "Configuration includes %s" % kind
-        for comp in dc.components():
+
+        comps = dc.components()
+        comps.sort()
+        for comp in comps:
             print "Configuration requires %s" % comp
 
+        objs = dc.getComponentObjects()
+        objs.sort()
+        for comp in objs:
+            print 'Comp %s log %s' % (str(comp), str(comp.logLevel()))

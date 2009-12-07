@@ -579,6 +579,8 @@ class MockDeployComponent(object):
         return "%s#%d" % (self.__name, self.__id)
 
     def id(self): return self.__id
+    def isBuilder(self): return self.__name.endswith("Builder")
+    def isHub(self): return self.__name.endswith("Hub")
     def jvm(self): return self.__jvm
     def jvmArgs(self): return self.__jvmArgs
     def logLevel(self): return self.__logLevel
@@ -680,6 +682,8 @@ class MockParallelShell(object):
         self.__isParallel = isParallel
 
     def __addExpected(self, cmd):
+        if cmd.find("/bin/StringHub") > 0 and cmd.find(".componentId=") < 0:
+            raise Exception("Missing componentId: %s" % cmd)
         self.__exp.append(cmd)
 
     def __checkCmd(self, cmd):
@@ -719,6 +723,8 @@ class MockParallelShell(object):
 
         cmd = '%s %s' % (comp.jvm(), comp.jvmArgs())
 
+        if comp.isHub():
+            cmd += " -Dicecube.daq.stringhub.componentId=%d" % comp.id()
         if eventCheck and comp.name() == 'eventBuilder':
             cmd += ' -Dicecube.daq.eventBuilder.validateEvents'
 
