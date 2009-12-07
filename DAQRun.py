@@ -50,7 +50,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4787 2009-12-07 20:24:40Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4790 2009-12-07 23:23:09Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -624,6 +624,7 @@ class DAQRun(object):
             self.__activeDOMDetail = self.setup_timer(DAQRun.ACTIVERPT_NAME,
                                                       DAQRun.ACTIVERPT_PERIOD)
         self.__activeDOMThread   = None
+        self.__badActiveDOMCount   = 0
 
         self.__liveInfo       = None
         self.__id = int(time.time())
@@ -1149,17 +1150,17 @@ class DAQRun(object):
             if self.__activeMonitor is not None and \
                     self.__activeDOMThread is not None and \
                     not self.__activeDOMThread.done():
-                self.badActiveDOMCount += 1
-                if self.badActiveDOMCount <= 3:
+                self.__badActiveDOMCount += 1
+                if self.__badActiveDOMCount <= 3:
                     self.log.error(("WARNING: Active DOM thread" +
                                     " is hanging (#%d)") %
-                                   self.badActiveDOMCount)
+                                   self.__badActiveDOMCount)
                 else:
                     self.log.error("ERROR: Active DOM calculation seems to be" +
                                    " stuck, stopping run")
                     self.runState = "ERROR"
             else:
-                self.badActiveDOMCount = 0
+                self.__badActiveDOMCount = 0
 
                 sendDetails = False
                 if self.__activeDOMDetail is not None and \
