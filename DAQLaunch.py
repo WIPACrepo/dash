@@ -16,7 +16,7 @@ from os.path import exists, isabs, join
 from ClusterConfig \
     import ClusterConfig, ClusterConfigException, ConfigNotFoundException, \
            ConfigNotSpecifiedException
-from DAQConfig import DAQConfig, DAQConfigNotFound
+from DAQConfig import DAQConfig
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from GetIP import getIP
@@ -39,7 +39,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 4788 2009-12-07 23:11:51Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 4796 2009-12-14 20:45:32Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
