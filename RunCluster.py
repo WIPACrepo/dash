@@ -117,7 +117,7 @@ class RunCluster(CachedConfigName):
         "Create a cluster->component mapping from a run configuration file"
         super(RunCluster, self).__init__()
 
-        self.configName = os.path.basename(cfg.configFile)
+        self.configName = os.path.basename(cfg.configFile())
         if self.configName.endswith('.xml'):
             self.configName = self.configName[:-4]
 
@@ -268,8 +268,8 @@ class RunCluster(CachedConfigName):
     def __copyConfigLogLevel(self, cfg, hostMap):
         "Copy any run configuration log levels to cluster components"
         compMap = {}
-        for obj in cfg.getComponentObjects():
-            compMap[str(obj).lower()] = obj
+        for comp in cfg.components():
+            compMap[comp.fullname().lower()] = obj
 
         for host in hostMap.keys():
             for hostKey in hostMap[host].keys():
@@ -282,7 +282,7 @@ class RunCluster(CachedConfigName):
     def __extractHubs(self, cfg):
         "build a list of hub components used by the run configuration"
         hubList = []
-        for comp in cfg.getComponentObjects():
+        for comp in cfg.components():
             if comp.isHub():
                 hubList.append(comp)
         return hubList
@@ -415,7 +415,7 @@ if __name__ == '__main__':
             # ignore
             continue
 
-        cfg = DAQConfig(name, configDir)
+        cfg = DAQConfig.load(name, configDir)
         try:
             runCluster = RunCluster(cfg, clusterDesc)
         except UnimplementedException, ue:
@@ -438,5 +438,7 @@ if __name__ == '__main__':
         for node in runCluster.nodes():
             print '  %s@%s logLevel %s' % \
                 (node.locName(), node.hostName(), node.defaultLogLevel())
-            for comp in node.components():
+            comps = node.components()
+            comps.sort()
+            for comp in comps:
                 print '    %s %s' % (str(comp), str(comp.logLevel()))

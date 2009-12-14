@@ -31,7 +31,7 @@ class RunClusterTest(unittest.TestCase):
 
     def __checkCluster(self, clusterName, cfgName, expNodes, spadeDir,
                        logCopyDir):
-        cfg = DAQConfig(cfgName, RunClusterTest.CONFIG_DIR)
+        cfg = DAQConfig.load(cfgName, RunClusterTest.CONFIG_DIR)
 
         cluster = RunCluster(cfg, clusterName, RunClusterTest.CONFIG_DIR)
 
@@ -65,7 +65,7 @@ class RunClusterTest(unittest.TestCase):
                          (cluster.logDirCopies(), logCopyDir))
 
     def testClusterFile(self):
-        cfg = DAQConfig("sim5str", RunClusterTest.CONFIG_DIR)
+        cfg = DAQConfig.load("sim5str", RunClusterTest.CONFIG_DIR)
 
         cluster = RunCluster(cfg, "localhost", RunClusterTest.CONFIG_DIR)
 

@@ -4,13 +4,13 @@
 # Object to interface w/ DAQ run script
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started November, 2006
-# $Id: DAQRunIface.py 3842 2009-01-24 16:45:11Z dglo $
+# $Id: DAQRunIface.py 4799 2009-12-14 21:17:26Z dglo $
 
 from DAQRPC import RPCClient
 from os.path import join, exists
 from os import environ
 from xml.dom import minidom
-from DAQConfig import configExists
+from DAQConfig import DAQConfig
 from re import sub
 from types import DictType
 
@@ -152,7 +152,7 @@ class DAQRunIface(object):
     def isValidConfig(self, configName):
         "Placeholder only until this is implemented"
         configDir = join(self.__home, "config")
-        return configExists(configDir, configName)
+        return DAQConfig.configExists(configName, configDir)
     
     def monitorRun(self):
         "Get run monitoring data"

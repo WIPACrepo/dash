@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import unittest
-import DAQConfig
-import os
+import os, unittest
+
+from DAQConfig import DAQConfig
 
 class DAQConfigTest(unittest.TestCase):
     def initPDAQHome(self):
@@ -40,40 +40,28 @@ class DAQConfigTest(unittest.TestCase):
 
     def testListsSim5(self):
         metaDir = self.initPDAQHome()
-        cfg = DAQConfig.DAQConfig("sim5str", metaDir + "/config")
+        cfg = DAQConfig.load("sim5str", metaDir + "/config")
 
-        kinds = cfg.kinds()
-        for exp in ('in-ice', 'icetop'):
-            try:
-                kinds.index(exp)
-            except:
-                self.fail('Expected kind "%s" was not returned' % exp)
-
-        for exp in ('amanda', ):
-            try:
-                kinds.index(exp)
-                self.fail('"kinds" should not contain %s' % exp)
-            except:
-                pass # expect this to fail
+        expected = ['eventBuilder', 'globalTrigger', 'inIceTrigger',
+                    'secondaryBuilders', 'stringHub#1001', 'stringHub#1002',
+                    'stringHub#1003', 'stringHub#1004', 'stringHub#1005',
+                    'stringHub#1201']
 
         comps = cfg.components()
-        for exp in ('inIceTrigger', 'globalTrigger', 'eventBuilder',
-                    'secondaryBuilders',  'stringHub#1001', 'stringHub#1002',
-                    'stringHub#1003', 'stringHub#1004', 'stringHub#1005'):
+
+        self.assertEqual(len(expected), len(comps),
+                         "Expected %d components (%s), not %d (%s)" %
+                         (len(expected), str(expected), len(comps), str(comps)))
+
+        for c in comps:
             try:
-                comps.index(exp)
+                expected.index(c.fullname())
             except:
-                self.fail('Expected component "%s" was not returned' % exp)
-        for exp in ('iceTopTrigger#0', 'amandaTrigger#0'):
-            try:
-                comps.index(exp)
-                self.fail('"components" should not contain %s' % exp)
-            except:
-                pass # expect this to fail
+                self.fail('Unexpected component "%s"' % c)
 
     def testLookupSim5(self):
         metaDir = self.initPDAQHome()
-        cfg = DAQConfig.DAQConfig("sim5str", metaDir + "/config")
+        cfg = DAQConfig.load("sim5str", metaDir + "/config")
 
         dataList = (('53494d550101', 'Nicholson_Baker', 1001, 1),
                     ('53494d550120', 'SIM0020', 1001, 20),
@@ -100,19 +88,11 @@ class DAQConfigTest(unittest.TestCase):
 
     def testListsSpsIC40IT6(self):
         metaDir = self.initPDAQHome()
-        cfg = DAQConfig.DAQConfig("sps-IC40-IT6-AM-Revert-IceTop-V029",
+        cfg = DAQConfig.load("sps-IC40-IT6-AM-Revert-IceTop-V029",
                                   metaDir + "/config")
 
-        kinds = cfg.kinds()
-        for exp in ('amanda', 'in-ice', 'icetop'):
-            try:
-                kinds.index(exp)
-            except:
-                self.fail('Expected kind "%s" was not returned' % exp)
-
-        comps = cfg.components()
-        for exp in ('inIceTrigger', 'iceTopTrigger', 'globalTrigger',
-                    'amandaTrigger', 'eventBuilder', 'secondaryBuilders',
+        expected = ['amandaTrigger', 'eventBuilder', 'globalTrigger',
+                    'iceTopTrigger', 'inIceTrigger', 'secondaryBuilders',
                     'stringHub#0', 'stringHub#21', 'stringHub#29',
                     'stringHub#30', 'stringHub#38', 'stringHub#39',
                     'stringHub#40', 'stringHub#44', 'stringHub#45',
@@ -127,15 +107,23 @@ class DAQConfigTest(unittest.TestCase):
                     'stringHub#71', 'stringHub#72', 'stringHub#73',
                     'stringHub#74', 'stringHub#75', 'stringHub#76',
                     'stringHub#77', 'stringHub#78', 'stringHub#201',
-                    'stringHub#202', 'stringHub#203'):
+                    'stringHub#202', 'stringHub#203', 'stringHub#206']
+
+        comps = cfg.components()
+
+        self.assertEqual(len(expected), len(comps),
+                         "Expected %d components (%s), not %d (%s)" %
+                         (len(expected), str(expected), len(comps), str(comps)))
+
+        for c in comps:
             try:
-                comps.index(exp)
+                expected.index(c.fullname())
             except:
-                self.fail('Expected component "%s" was not returned' % exp)
+                self.fail('Unexpected component "%s"' % c)
 
     def testLookupSpsIC40IT6(self):
         metaDir = self.initPDAQHome()
-        cfg = DAQConfig.DAQConfig("sps-IC40-IT6-AM-Revert-IceTop-V029",
+        cfg = DAQConfig.load("sps-IC40-IT6-AM-Revert-IceTop-V029",
                                   metaDir + "/config")
 
         dataList = (('737d355af587', 'Bat', 21, 1),
@@ -149,28 +137,30 @@ class DAQConfigTest(unittest.TestCase):
 
     def testReplay(self):
         metaDir = self.initPDAQHome()
-        cfg = DAQConfig.DAQConfig("replay-ic22-it4", metaDir + "/config")
+        cfg = DAQConfig.load("replay-ic22-it4", metaDir + "/config")
 
-        kinds = cfg.kinds()
-        self.assertEquals(len(kinds), 0, "Expected empty 'kinds' list, not " +
-                          str(kinds))
-
+        expected = ['eventBuilder', 'globalTrigger', 'iceTopTrigger',
+                    'inIceTrigger',
+                    'replayHub#21', 'replayHub#29', 'replayHub#30',
+                    'replayHub#38', 'replayHub#39', 'replayHub#40',
+                    'replayHub#46', 'replayHub#47', 'replayHub#48',
+                    'replayHub#49', 'replayHub#50', 'replayHub#56',
+                    'replayHub#57', 'replayHub#58', 'replayHub#59',
+                    'replayHub#65', 'replayHub#66', 'replayHub#67',
+                    'replayHub#72', 'replayHub#73', 'replayHub#74',
+                    'replayHub#78', 'replayHub#81', 'replayHub#82',
+                    'replayHub#83', 'replayHub#84']
         comps = cfg.components()
-        for exp in ('inIceTrigger', 'iceTopTrigger', 'globalTrigger',
-                    'eventBuilder',
-                    #'replayHub',
-                    'replayHub#21', 'replayHub#29', 'replayHub#84'):
-            try:
-                comps.index(exp)
-            except:
-                self.fail('Expected component "%s" was not returned' % exp)
 
-    def testRaise(self):
-        try:
-            raise DAQConfig.noDOMConfigFound("foo")
-        except DAQConfig.noDOMConfigFound, e:
-            self.assertEquals(str(e), "foo", "expected \"foo\" not \"%s\"" %
-                              str(e))
+        self.assertEqual(len(expected), len(comps),
+                         "Expected %d components (%s), not %d (%s)" %
+                         (len(expected), str(expected), len(comps), str(comps)))
+
+        for c in comps:
+            try:
+                expected.index(c.fullname())
+            except:
+                self.fail('Unexpected component "%s"' % c)
 
 if __name__ == '__main__':
     unittest.main()

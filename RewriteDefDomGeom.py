@@ -9,13 +9,10 @@ import sys
 from DefaultDomGeometry import DefaultDomGeometryReader
 
 if __name__ == "__main__":
-    # read in default-dom-geometry.xml
-    #defDomGeom = DefaultDomGeometryReader().read()
-
     if len(sys.argv) <= 1:
-        defDomGeom = DefaultDomGeometryReader().read()
+        defDomGeom = DefaultDomGeometryReader.parse()
     else:
-        defDomGeom = DefaultDomGeometryReader().read(sys.argv[1])
+        defDomGeom = DefaultDomGeometryReader.parse(sys.argv[1])
 
     # rewrite the 64-DOM strings to 60 DOM strings plus 32 DOM icetop hubs
     defDomGeom.rewrite()

@@ -50,7 +50,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4793 2009-12-08 18:27:15Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4799 2009-12-14 21:17:26Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -754,13 +754,11 @@ class DAQRun(object):
 
     def getComponentsFromGlobalConfig(self, configName, configDir):
         "Get and set global configuration"
-        self.configuration = DAQConfig(configName, configDir)
+        self.configuration = DAQConfig.load(configName, configDir)
         self.log.info("Loaded global configuration \"%s\"" % configName)
         requiredComps = []
         for comp in self.configuration.components():
-            requiredComps.append(comp)
-        for kind in self.configuration.kinds():
-            self.log.info("Configuration includes detector %s" % kind)
+            requiredComps.append(comp.fullname())
         for comp in requiredComps:
             self.log.info("Component list will require %s" % comp)
         return requiredComps
