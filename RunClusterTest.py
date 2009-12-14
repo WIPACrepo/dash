@@ -33,8 +33,7 @@ class RunClusterTest(unittest.TestCase):
                        logCopyDir):
         cfg = DAQConfig(cfgName, RunClusterTest.CONFIG_DIR)
 
-        cluster = cfg.getClusterConfig(clusterName,
-                                       configDir=RunClusterTest.CONFIG_DIR)
+        cluster = RunCluster(cfg, clusterName, RunClusterTest.CONFIG_DIR)
 
         self.assertEquals(cluster.configName, cfgName,
                           'Expected config name %s, not %s' %
@@ -68,8 +67,7 @@ class RunClusterTest(unittest.TestCase):
     def testClusterFile(self):
         cfg = DAQConfig("sim5str", RunClusterTest.CONFIG_DIR)
 
-        cluster = cfg.getClusterConfig("localhost",
-                                       configDir=RunClusterTest.CONFIG_DIR)
+        cluster = RunCluster(cfg, "localhost", RunClusterTest.CONFIG_DIR)
 
         cluster.clearActiveConfig()
 

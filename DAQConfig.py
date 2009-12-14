@@ -399,13 +399,9 @@ class DAQConfig(object):
             compStr.append(str(comp))
         return compStr
 
-    def getClusterConfig(self, clusterDesc=None, configDir=None):
-        "Get cluster->component mapping for the current configuration"
-        return RunCluster(self, clusterDesc, configDir)
-
     def getComponentObjects(self):
         "Return list of components objects in parsed configuration."
-        return self.compList
+        return self.compList[:]
 
     def hasDOM(self, domid):
         """
@@ -461,7 +457,7 @@ class DAQConfig(object):
 
         try:
             runCfg = DAQConfig(configName, configDir)
-            cfg = runCfg.getClusterConfig(clusterDesc)
+            cfg = RunCluster(runCfg, clusterDesc, configDir)
         except DAQConfigNotFound, nfe:
             ex = nfe
 
