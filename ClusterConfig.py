@@ -351,6 +351,7 @@ class ClusterConfig(deployConfig, CachedConfigName):
         if configToUse is None:
             raise ConfigNotSpecifiedException
 
+        # CachedConfigName expects self.configName
         self.configName = configToUse
         # 'forward' compatibility with RunCluster
         self.descName = None
