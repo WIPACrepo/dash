@@ -56,7 +56,7 @@ class TestCnCMisc(unittest.TestCase):
         self.assertEquals(expStr, str(ctn),
                           'Expected "%s", not "%s"' % (expStr, str(ctn)))
 
-        cMap = ctn.getMap()
+        cMap = ctn.map()
         self.checkConnectionMap(connType, cMap, 'type')
         self.checkConnectionMap(compName, cMap, 'compName')
         self.checkConnectionMap(compId, cMap, 'compNum')

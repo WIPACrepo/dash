@@ -90,12 +90,18 @@ class MockRun(object):
     def close(self):
         self.__rpc.server_close()
 
-    def setEventCounts(self, physics, moni, sn, tcal):
+    def setEventCounts(self, physics, payTime, wallTime, moni, moniTime,
+                       sn, snTime, tcal, tcalTime):
         self.__evtCounts.clear()
         self.__evtCounts["physicsEvents"] = physics
+        self.__evtCounts["eventPayloadTime"] = payTime
+        self.__evtCounts["eventTime"] = wallTime
         self.__evtCounts["moniEvents"] = moni
+        self.__evtCounts["moniTime"] = moniTime
         self.__evtCounts["snEvents"] = sn
+        self.__evtCounts["snTime"] = snTime
         self.__evtCounts["tcalEvents"] = tcal
+        self.__evtCounts["tcalTime"] = tcalTime
 
 class TestDAQLive(unittest.TestCase):
     def setUp(self):
@@ -179,16 +185,23 @@ class TestDAQLive(unittest.TestCase):
         log.addExpectedText('Stopped run %d'% runNum)
 
         numPhysics = 5
+        payloadTime = 1234
+        wallTime = 5432
         numMoni = 10
+        moniTime = 12345
         numSn = 15
+        snTime = 23456
         numTcal = 20
+        tcalTime = 34567
 
-        self.__run.setEventCounts(numPhysics, numMoni, numSn, numTcal)
+        self.__run.setEventCounts(numPhysics, payloadTime, wallTime, numMoni,
+                                  moniTime, numSn, snTime, numTcal, tcalTime)
 
         log.addExpectedLiveMoni('tcalEvents', numTcal)
         log.addExpectedLiveMoni('moniEvents', numMoni)
         log.addExpectedLiveMoni('snEvents', numSn)
         log.addExpectedLiveMoni('physicsEvents', numPhysics)
+        log.addExpectedLiveMoni('walltimeEvents', numPhysics)
 
         self.__live.stopping()
 

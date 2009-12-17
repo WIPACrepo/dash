@@ -131,12 +131,16 @@ class DefaultDOMGeometry(object):
         """
         Get the stringhub id associated with the DOM mainboard ID
         """
+        if not self.domDict.has_key(domID):
+            raise DOMNotInConfigException("Cannot find DOM %12s" % domID)
         return self.domDict[domID].string
 
     def getKind(self, domID):
         """
         Get the trigger kind associated with the DOM mainboard ID
         """
+        if not self.domDict.has_key(domID):
+            raise DOMNotInConfigException("Cannot find DOM %12s" % domID)
         return self.domDict[domID].kind
 
     def getIDbyName(self, domlist, name):

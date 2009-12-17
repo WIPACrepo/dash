@@ -26,6 +26,7 @@ class RunData(object):
         "sim22str-with-phys-trig-001" : "spts64-simIC22str",
         "sim22strAMANDA-doublespsfeb12rates" : "spts64-simIC22strAMANDA",
         "sim40str-25Hz-reduced-trigger" : "spts64-simIC40str",
+        "sim60str-mbt23" : "spts64-simIC60str",
         "sim80str-25Hz" : "spts64-simIC80str",
         }
 
@@ -65,8 +66,10 @@ RUN_LIST = (RunData("spts64-dirtydozen-hlc-006", FOUR_HR),
             ###RunData("sim22str-with-phys-trig-001", FOUR_HR),
             ###RunData("sim22str-with-phys-trig-001", EIGHT_HR),
             ###RunData("sim22strAMANDA-doublespsfeb12rates", FOUR_HR),
-            RunData("sim40str-25Hz-reduced-trigger", FOUR_HR),
-            RunData("sim40str-25Hz-reduced-trigger", EIGHT_HR),
+            #RunData("sim40str-25Hz-reduced-trigger", FOUR_HR),
+            #RunData("sim40str-25Hz-reduced-trigger", EIGHT_HR),
+            RunData("sim60str-mbt23", FOUR_HR),
+            RunData("sim60str-mbt23", EIGHT_HR),
             ###RunData("sim80str-25Hz", FOUR_HR),
             ###RunData("sim80str-25Hz", EIGHT_HR),
             )

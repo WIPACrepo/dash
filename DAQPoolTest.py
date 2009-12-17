@@ -25,17 +25,17 @@ class TestDAQPool(unittest.TestCase):
         comp = MockComponent('bar', 0)
         compList.append(comp)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         for c in compList:
             mgr.add(c)
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         for c in compList:
             mgr.remove(c)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
     def testBuildReturnSet(self):
         mgr = DAQPool()
@@ -50,31 +50,31 @@ class TestDAQPool(unittest.TestCase):
         comp.addInput('aaa', 1234)
         compList.append(comp)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         nameList = []
         for c in compList:
             mgr.add(c)
-            nameList.append(c.name)
+            nameList.append(c.name())
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         logger = MockLogger('main')
         runset = mgr.makeRunset(nameList, logger)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
-        found = mgr.findRunset(runset.id)
-        self.failIf(found is None, "Couldn't find runset #" + str(runset.id))
+        found = mgr.findRunset(runset.id())
+        self.failIf(found is None, "Couldn't find runset #%d" % runset.id())
 
         mgr.returnRunset(runset)
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         for c in compList:
             mgr.remove(c)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         logger.checkStatus(10)
 
@@ -92,24 +92,24 @@ class TestDAQPool(unittest.TestCase):
         comp.addInput('aaa', 456)
         compList.append(comp)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         nameList = []
         for c in compList:
             mgr.add(c)
-            nameList.append(c.name)
+            nameList.append(c.name())
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         logger = MockLogger('main')
         self.assertRaises(ValueError, mgr.makeRunset, nameList, logger)
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         for c in compList:
             mgr.remove(c)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         logger.checkStatus(10)
 
@@ -126,24 +126,24 @@ class TestDAQPool(unittest.TestCase):
         comp.addInput('xxx', 456)
         compList.append(comp)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         nameList = []
         for c in compList:
             mgr.add(c)
-            nameList.append(c.name)
+            nameList.append(c.name())
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         logger = MockLogger('main')
         self.assertRaises(ValueError, mgr.makeRunset, nameList, logger)
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         for c in compList:
             mgr.remove(c)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         logger.checkStatus(10)
 
@@ -162,24 +162,24 @@ class TestDAQPool(unittest.TestCase):
         comp.addInput('aaa', 789)
         compList.append(comp)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         nameList = []
         for c in compList:
             mgr.add(c)
-            nameList.append(c.name)
+            nameList.append(c.name())
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         logger = MockLogger('main')
         self.assertRaises(ValueError, mgr.makeRunset, nameList, logger)
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         for c in compList:
             mgr.remove(c)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         logger.checkStatus(10)
 
@@ -197,24 +197,24 @@ class TestDAQPool(unittest.TestCase):
         comp.addOutput('xxx')
         compList.append(comp)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         nameList = []
         for c in compList:
             mgr.add(c)
-            nameList.append(c.name)
+            nameList.append(c.name())
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         logger = MockLogger('main')
         self.assertRaises(ValueError, mgr.makeRunset, nameList, logger)
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         for c in compList:
             mgr.remove(c)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         logger.checkStatus(10)
 
@@ -231,24 +231,24 @@ class TestDAQPool(unittest.TestCase):
         comp.addOutput('yyy')
         compList.append(comp)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         nameList = []
         for c in compList:
             mgr.add(c)
-            nameList.append(c.name)
+            nameList.append(c.name())
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         logger = MockLogger('main')
         self.assertRaises(ValueError, mgr.makeRunset, nameList, logger)
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         for c in compList:
             mgr.remove(c)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         logger.checkStatus(10)
 
@@ -267,24 +267,24 @@ class TestDAQPool(unittest.TestCase):
         comp.addOutput('xxx')
         compList.append(comp)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         nameList = []
         for c in compList:
             mgr.add(c)
-            nameList.append(c.name)
+            nameList.append(c.name())
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         logger = MockLogger('main')
         self.assertRaises(ValueError, mgr.makeRunset, nameList, logger)
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         for c in compList:
             mgr.remove(c)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         logger.checkStatus(10)
 
@@ -309,14 +309,14 @@ class TestDAQPool(unittest.TestCase):
         comp.addOutput('xxx')
         compList.append(comp)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         nameList = []
         for c in compList:
             mgr.add(c)
-            nameList.append(c.name)
+            nameList.append(c.name())
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         logger = MockLogger('main')
         try:
@@ -327,12 +327,12 @@ class TestDAQPool(unittest.TestCase):
         except:
             self.fail('Unexpected exception')
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         for c in compList:
             mgr.remove(c)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         logger.checkStatus(10)
 
@@ -353,31 +353,31 @@ class TestDAQPool(unittest.TestCase):
         comp.addInput('conn', 456)
         compList.append(comp)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         nameList = []
         for c in compList:
             mgr.add(c)
-            nameList.append(c.name)
+            nameList.append(c.name())
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         logger = MockLogger('main')
         runset = mgr.makeRunset(nameList, logger)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
-        found = mgr.findRunset(runset.id)
-        self.failIf(found is None, "Couldn't find runset #" + str(runset.id))
+        found = mgr.findRunset(runset.id())
+        self.failIf(found is None, "Couldn't find runset #%d" % runset.id())
 
         mgr.returnRunset(runset)
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         for c in compList:
             mgr.remove(c)
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         logger.checkStatus(10)
 
@@ -396,41 +396,41 @@ class TestDAQPool(unittest.TestCase):
 
         compList = [c, a, b]
 
-        self.assertEqual(len(mgr.pool), 0)
+        self.assertEqual(mgr.numUnused(), 0)
 
         nameList = []
         for c in compList:
             mgr.add(c)
-            nameList.append(c.name)
+            nameList.append(c.name())
 
-        self.assertEqual(len(mgr.pool), len(compList))
+        self.assertEqual(mgr.numUnused(), len(compList))
 
         logger = MockLogger('main')
         runset = mgr.makeRunset(nameList, logger)
 
-        self.assertEqual(len(mgr.pool), 0)
-        self.assertEqual(len(runset.set), len(compList))
+        self.assertEqual(mgr.numUnused(), 0)
+        self.assertEqual(runset.size(), len(compList))
 
         runset.configure('abc')
 
         ordered = True
         prevName = None
-        for s in runset.set:
+        for c in runset.components():
             if not prevName:
-                prevName = s.name
-            elif prevName > s.name:
+                prevName = c.name()
+            elif prevName > c.name():
                 ordered = False
 
-        self.failIf(ordered, 'Runset sorted before startRun()')
+        self.failIf(ordered, 'Runset not sorted before startRun()')
 
         runset.startRun(1)
 
         ordered = True
         prevName = None
-        for s in runset.set:
+        for c in runset.components():
             if not prevName:
-                prevName = s.name
-            elif prevName < s.name:
+                prevName = c.name()
+            elif prevName < c.name():
                 ordered = False
 
         self.failUnless(ordered, 'Runset was not sorted by startRun()')
@@ -439,22 +439,22 @@ class TestDAQPool(unittest.TestCase):
 
         ordered = True
         prevName = None
-        for s in runset.set:
+        for c in runset.components():
             if not prevName:
-                prevName = s.name
-            elif prevName > s.name:
+                prevName = c.name()
+            elif prevName > c.name():
                 ordered = False
 
         self.failUnless(ordered, 'Runset was not reversed by stopRun()')
 
         mgr.returnRunset(runset)
 
-        self.assertEqual(runset.id, None)
-        self.assertEqual(runset.configured, False)
-        self.assertEqual(runset.runNumber, None)
+        self.assertEqual(runset.id(), None)
+        self.assertEqual(runset.configured(), False)
+        self.assertEqual(runset.runNumber(), None)
 
-        self.assertEqual(len(mgr.pool), len(compList))
-        self.assertEqual(len(runset.set), 0)
+        self.assertEqual(mgr.numUnused(), len(compList))
+        self.assertEqual(runset.size(), 0)
 
         logger.checkStatus(10)
 

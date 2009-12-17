@@ -21,6 +21,10 @@ from Process import findProcess, processList
 from ClusterConfig import *
 from ParallelShell import *
 
+# the pDAQ release name
+#
+RELEASE = "1.0.0-SNAPSHOT"
+
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
     metaDir = environ["PDAQ_HOME"]
@@ -32,67 +36,35 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 4505 2009-08-08 04:53:48Z kael $"
-
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if environ.has_key("PDAQ_HOME"):
-    metaDir = environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
+SVN_ID = "$Id: DAQLaunch.py 4643 2009-10-05 20:31:34Z ksb $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
 
-class ComponentData(object):
-    RELEASE = "1.0.0-SNAPSHOT"
+# Component Name -> JarParts mapping.  For constructing the name of
+# the proper jar file used for running the component, based on the
+# lower-case name of the component.
+compNameJarPartsMap = {
+    "eventbuilder"      : ("eventBuilder-prod", "comp"    ),
+    "secondarybuilders" : ("secondaryBuilders", "comp"    ),
+    "inicetrigger"      : ("trigger",           "iitrig"  ),
+    "simpletrigger"     : ("trigger",           "simptrig"),
+    "icetoptrigger"     : ("trigger",           "ittrig"  ),
+    "globaltrigger"     : ("trigger",           "gtrig"   ),
+    "amandatrigger"     : ("trigger",           "amtrig"  ),
+    "stringhub"         : ("StringHub",         "comp"    ),
+    "replayhub"         : ("StringHub",         "replay"  ),
+    }
 
-    def __init__(self, name, type="comp", memory=1024, extraArgs=None):
-        self.__name = name
-        self.__type = type
-        self.__memory = memory
-        self.__extraArgs = extraArgs
+def getCompJar(compName):
+    """ Return the name of the executable jar file for the named
+    component.  """
 
-    def getJVMArgs(self):
-        jvmArgs = "-server -Xms%dm -Xmx%dm" % (self.__memory/2, self.__memory)
-
-        if self.__extraArgs is not None:
-            jvmArgs += " " + self.__extraArgs
-
-        return jvmArgs
-
-    def getJar(self):
-        return "%s-%s-%s.jar" % \
-            (self.__name, ComponentData.RELEASE, self.__type)
-
-class TriggerData(ComponentData):
-    def __init__(self, type, memory):
-        super(TriggerData, self).__init__("trigger", type, memory, extraArgs="-Xcompressedrefs")
-
-class HubData(ComponentData):
-    def __init__(self, type, memory):
-        extraArgs = "-Dicecube.daq.bindery.StreamBinder.prescale=1"
-        super(HubData, self).__init__("StringHub", type, memory, extraArgs)
-
-# note that the component name keys for componentDB should be lower-case
-componentDB = { "eventbuilder"      : ComponentData("eventBuilder-prod", memory=1200, extraArgs="-Xcompressedrefs"),
-                "secondarybuilders" : ComponentData("secondaryBuilders", memory=1200, extraArgs="-Xcompressedrefs"),
-                "inicetrigger"      : TriggerData("iitrig", 2000),
-                "simpletrigger"     : TriggerData("simptrig", 500),
-                "icetoptrigger"     : TriggerData("ittrig", 512),
-                "globaltrigger"     : TriggerData("gtrig", 512),
-                "amandatrigger"     : TriggerData("amtrig", 256),
-                "stringhub"         : HubData("comp", 512),
-                "replayhub"         : HubData("replay", 350),
-              }
-
-def getLaunchData(compName):
-    key = compName.lower()
-
-    if not componentDB.has_key(key):
+    jarParts = compNameJarPartsMap.get(compName.lower(), None)
+    if not jarParts:
         raise ComponentNotFoundInDatabase(compName)
 
-    return componentDB[key]
+    return "%s-%s-%s.jar" % (jarParts[0], RELEASE, jarParts[1])
 
 def runCmd(cmd, parallel):
     if parallel is None:
@@ -105,8 +77,7 @@ def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9, parallel=None):
         parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose)
     for node in clusterConfig.nodes:
         for comp in node.comps:
-            data = getLaunchData(comp.compName)
-            jarName = data.getJar()
+            jarName = getCompJar(comp.compName)
             if killWith9: niner = "-9"
             else:         niner = ""
             if node.hostName == "localhost": # Just kill it
@@ -114,14 +85,16 @@ def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9, parallel=None):
                 if verbose: print cmd
                 parallel.add(cmd)
                 if not killWith9:
-                    cmd = "sleep 2; pkill -9 -fu %s %s" % (environ["USER"], jarName)
+                    cmd = "sleep 2; pkill -9 -fu %s %s" % \
+                        (environ["USER"], jarName)
                     if verbose: print cmd
                     parallel.add(cmd)
             else:                            # Have to ssh to kill
                 cmd = "ssh %s pkill %s -f %s" % (node.hostName, niner, jarName)
                 parallel.add(cmd)
                 if not killWith9:
-                    cmd = "sleep 2; ssh %s pkill -9 -f %s" % (node.hostName, jarName)
+                    cmd = "sleep 2; ssh %s pkill -9 -f %s" % \
+                        (node.hostName, jarName)
                     parallel.add(cmd)
 
     if not dryRun:
@@ -135,9 +108,9 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
         parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose)
 
     # The dir where all the "executable" jar files are
-    binDir = join(metaDir, 'target', 'pDAQ-1.0.0-SNAPSHOT-dist', 'bin')
+    binDir = join(metaDir, 'target', 'pDAQ-%s-dist' % RELEASE, 'bin')
     if checkExists and not os.path.isdir(binDir):
-        binDir = join(metaDir, 'target', 'pDAQ-1.0.0-SNAPSHOT-dist.dir', 'bin')
+        binDir = join(metaDir, 'target', 'pDAQ-%s-dist.dir' % RELEASE, 'bin')
         if not os.path.isdir(binDir):
             raise SystemExit("Cannot find jar file directory")
 
@@ -150,15 +123,14 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
     for node in clusterConfig.nodes:
         myIP = getIP(node.hostName)
         for comp in node.comps:
-            data = getLaunchData(comp.compName)
-            execJar = join(binDir, data.getJar())
+            execJar = join(binDir, getCompJar(comp.compName))
             if checkExists and not exists(execJar):
                 print "%s jar file does not exist: %s" % \
                     (comp.compName, execJar)
                 continue
 
-            javaCmd = "/opt/ibm/java-x86_64-60/jre/bin/java"
-            jvmArgs = data.getJVMArgs()
+            javaCmd = comp.jvm
+            jvmArgs = comp.jvmArgs
 
             switches = "-g %s" % configDir
             switches += " -c %s:%d" % (myIP, DAQPort.CNCSERVER)
@@ -168,10 +140,6 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
                 switches += " -L %s:%d,%s" % (myIP, livePort, comp.logLevel)
             compIO = quietStr
 
-            if comp.compName.endswith("Hub"):
-                jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % comp.compID
-                javaCmd = "java"
-                
             if eventCheck and comp.compName == "eventBuilder":
                 jvmArgs += " -Dicecube.daq.eventBuilder.validateEvents"
 
@@ -436,7 +404,8 @@ if __name__ == "__main__":
                 mkdir(logDir)
             except OSError, (errno, strerror):
                 if opt.verbose:
-                    print "Problem making log dir: '%s' (%s)" % (logDir, strerror)
+                    print "Problem making log dir: '%s' (%s)" % \
+                        (logDir, strerror)
                     print "Using fallback for logDir: %s" % (logDirFallBack)
                 logDir = logDirFallBack
                 if not exists(logDir): mkdir(logDir)

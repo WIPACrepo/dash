@@ -16,6 +16,9 @@ set_exc_string_encoding("ascii")
 class BeanFieldNotFoundException(Exception): pass
 
 class MoniData(object):
+    # XXX - disable I3Live monitoring for now
+    SEND_LIVE_MONI = False
+
     def __init__(self, name, daqID, addr, port):
         self.__name = name
         self.__daqID = daqID
@@ -30,7 +33,7 @@ class MoniData(object):
     def __str__(self):
         return '%s-%d' % (self.__name, self.__daqID)
 
-    def _report(self, now, b, attrs):
+    def _report(self, now, beanName, attrs):
         raise Exception('Unimplemented')
 
     def getBeanField(self, ID, bean, fld):
@@ -59,14 +62,36 @@ class MoniData(object):
             if len(attrs) > 0:
                 self._report(now, b, attrs)
 
+    def monitorBean(self, now, bean):
+        if bean not in self.__beanList:
+            msg = "Bean %s not in list of %s-%d beans" % \
+                (bean, self.__name, self.__daqID)
+            raise BeanFieldNotFoundException(msg)
+
+        attrs = self.__client.mbean.getAttributes(bean, self.__beanFields[bean])
+
+        # report monitoring data
+        if len(attrs) > 0:
+            self._report(now, bean, attrs)
+
+    def monitorField(self, now, bean, fld):
+        if bean not in self.__beanList:
+            msg = "Bean %s not in list of %s-%d beans" % \
+                (bean, self.__name, self.__daqID)
+            raise BeanFieldNotFoundException(msg)
+
+        val = self.__client.mbean.get(bean, fld)
+
+        self._report(now, bean, { fld:val, })
+
 class FileMoniData(MoniData):
     def __init__(self, name, daqID, addr, port, fname):
         self.__fd = self.openFile(fname)
 
         super(FileMoniData, self).__init__(name, daqID, addr, port)
 
-    def _report(self, now, b, attrs):
-        print >>self.__fd, '%s: %s:' % (b, now)
+    def _report(self, now, beanName, attrs):
+        print >>self.__fd, '%s: %s:' % (beanName, now)
         for key in attrs:
             print >>self.__fd, '\t%s: %s' % \
                 (key, str(FileMoniData.unFixValue(attrs[key])))
@@ -108,9 +133,12 @@ class LiveMoniData(MoniData):
 
         self.__moni = LiveMonitor()
 
-    def _report(self, now, b, attrs):
+    def _report(self, now, beanName, attrs):
+        if not MoniData.SEND_LIVE_MONI: return
+
         for key in attrs:
-            self.__moni.send('%s*%s+%s' % (str(self), b, key), now, attrs[key])
+            self.__moni.send('%s*%s+%s' %
+                             (str(self), beanName, key), now, attrs[key])
 
 class BothMoniData(FileMoniData):
     def __init__(self, name, daqID, addr, port, fname):
@@ -118,11 +146,14 @@ class BothMoniData(FileMoniData):
 
         self.__moni = LiveMonitor()
 
-    def _report(self, now, b, attrs):
-        super(BothMoniData, self)._report(now, b, attrs)
+    def _report(self, now, beanName, attrs):
+        super(BothMoniData, self)._report(now, beanName, attrs)
+
+        if not MoniData.SEND_LIVE_MONI: return
 
         for key in attrs:
-            self.__moni.send('%s*%s+%s' % (str(self), b, key), now, attrs[key])
+            self.__moni.send('%s*%s+%s' %
+                             (str(self), beanName, key), now, attrs[key])
 
 class MoniThread(threading.Thread):
     def __init__(self, moniData, log, quiet):
@@ -157,32 +188,33 @@ class DAQMoni(object):
     TYPE_LIVE = 2
     TYPE_BOTH = 3
 
-    def __init__(self, daqLog, moniPath, IDs, shortNameOf, daqIDof, rpcAddrOf,
-                 mbeanPortOf, moniType, quiet=False):
+    def __init__(self, daqLog, moniPath, components, moniType, quiet=False):
         self.__log         = daqLog
         self.__quiet       = quiet
         self.__moniList    = {}
         self.__threadList  = {}
-        for c in IDs:
-            if mbeanPortOf[c] > 0:
+        for c, comp in components.iteritems():
+            if comp.mbeanPort() > 0:
                 if moniType == DAQMoni.TYPE_LIVE:
-                    md = self.createLiveData(shortNameOf[c], daqIDof[c],
-                                             rpcAddrOf[c], mbeanPortOf[c])
+                    md = self.createLiveData(comp.name(), comp.id(),
+                                             comp.inetAddress(),
+                                             comp.mbeanPort())
                 else:
-                    fname = DAQMoni.fileName(moniPath, shortNameOf[c],
-                                             daqIDof[c])
+                    fname = DAQMoni.fileName(moniPath, comp.name(),
+                                             comp.id())
                     self.__log.info(("Creating moni output file %s (remote" +
                                      " is %s:%d)") %
-                                    (fname, rpcAddrOf[c], mbeanPortOf[c]))
+                                    (fname, comp.inetAddress(),
+                                     comp.mbeanPort()))
                     try:
                         if moniType == DAQMoni.TYPE_FILE:
-                            md = self.createFileData(shortNameOf[c], daqIDof[c],
-                                                     rpcAddrOf[c],
-                                                     mbeanPortOf[c], fname)
+                            md = self.createFileData(comp.name(), comp.id(),
+                                                     comp.inetAddress(),
+                                                     comp.mbeanPort(), fname)
                         else:
-                            md = self.createBothData(shortNameOf[c], daqIDof[c],
-                                                     rpcAddrOf[c],
-                                                     mbeanPortOf[c], fname)
+                            md = self.createBothData(comp.name(), comp.id(),
+                                                     comp.inetAddress(),
+                                                     comp.mbeanPort(), fname)
                     except Exception:
                         self.__log.error(("Couldn't create monitoring output" +
                                           ' (%s) for component %d!: %s') %
@@ -223,7 +255,7 @@ class DAQMoni(object):
 
     def isActive(self):
         for c in self.__threadList.keys():
-            if self.__threadList[c].done:
+            if not self.__threadList[c].done:
                 return True
         return False
 
@@ -238,12 +270,31 @@ if __name__ == "__main__":
                 print "No colon"
                 usage = True
             else:
-                host = sys.argv[i][:colon]
                 port = sys.argv[i][colon+1:]
+                host = sys.argv[i][:colon]
 
-                moni = MoniData('unknown', 0, None, host, port)
-                moni.monitor('snapshot')
+                beanName = None
+                fldName = None
+
+                colon = port.find(':')
+                if colon > 0:
+                    beanName = port[colon+1:]
+                    port = port[:colon]
+                    
+                    colon = beanName.find(':')
+                    if colon > 0:
+                        fldName = beanName[colon+1:]
+                        beanName = beanName[:colon]
+
+                moni = FileMoniData('unknown', 0, host, port, None)
+                if beanName is None:
+                    moni.monitor('snapshot')
+                elif fldName is None:
+                    moni.monitorBean('snapshot', beanName)
+                else:
+                    moni.monitorField('snapshot', beanName, fldName)
     if usage:
-        print "Usage: DAQMoni.py host:beanPort [host:beanPort ...]"
+        print "Usage: DAQMoni.py host:beanPort[:beanName[:fldName]]" + \
+            " [host:beanPort[:beanName[:fldName]] ...]"
         raise SystemExit
 

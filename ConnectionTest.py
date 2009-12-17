@@ -123,13 +123,11 @@ class ConnectionTest(unittest.TestCase):
             port -= 1
 
         if LOUD:
-            print '-- Pool has ' + str(len(pool.pool)) + ' comps'
-            for k in pool.pool.keys():
-                print '  ' + str(k)
-                for c in pool.pool[k]:
-                    print '    ' + str(c)
+            print '-- Pool has %s comps' % pool.numUnused()
+            for c in pool.components():
+                print '    %s' % str(c)
 
-        numComps = len(pool.pool)
+        numComps = pool.numUnused()
 
         nameList = []
         for node in nodeList:
@@ -141,12 +139,12 @@ class ConnectionTest(unittest.TestCase):
         chkId = ConnectionTest.EXP_ID
         ConnectionTest.EXP_ID += 1
 
-        self.assertEquals(len(pool.pool), 0)
-        self.assertEquals(len(pool.sets), 1)
-        self.assertEquals(pool.sets[0], runset)
+        self.assertEquals(pool.numUnused(), 0)
+        self.assertEquals(pool.numSets(), 1)
+        self.assertEquals(pool.runset(0), runset)
 
-        self.assertEquals(runset.id, chkId)
-        self.assertEquals(len(runset.set), len(nodeList))
+        self.assertEquals(runset.id(), chkId)
+        self.assertEquals(runset.size(), len(nodeList))
 
         # copy node list
         #
@@ -154,10 +152,10 @@ class ConnectionTest(unittest.TestCase):
 
         # validate all components in runset
         #
-        for comp in runset.set:
+        for comp in runset.components():
             node = None
             for t in tmpList:
-                if comp.name == t.name and comp.num == t.num:
+                if comp.name() == t.name and comp.num() == t.num:
                     node = t
                     tmpList.remove(t)
                     break
@@ -166,7 +164,7 @@ class ConnectionTest(unittest.TestCase):
 
             # copy connector list
             #
-            compConn = comp.connectors[:]
+            compConn = comp.connectors()
 
             # remove all output connectors
             #
@@ -210,8 +208,8 @@ class ConnectionTest(unittest.TestCase):
         for key in nodeLog:
             nodeLog[key].addExpectedExact('End of log')
         pool.returnRunset(runset)
-        self.assertEquals(len(pool.pool), numComps)
-        self.assertEquals(len(pool.sets), 0)
+        self.assertEquals(pool.numUnused(), numComps)
+        self.assertEquals(pool.numSets(), 0)
 
         logger.checkStatus(10)
 

@@ -2,16 +2,17 @@
 
 import os
 import re
+from subprocess import Popen, PIPE, STDOUT
 
 def processList():
     command = "ps axww"
-    (cmdin, cmdout) = os.popen4(command); cmdin.close()
-    output = cmdout.read()
-    result = cmdout.close()
+    p = Popen(command, shell=True, close_fds=True, stdout=PIPE, stderr=STDOUT)
+    output = p.stdout.readlines()
+    result = p.wait()
     if result:
         print "%(command)s failed: %(output)s" % locals()
         raise SystemExit
-    return output.split('\n')
+    return [s.strip() for s in output]
 
 def findProcess(name, plist=None): # Iterate over list plist
     if plist is None:

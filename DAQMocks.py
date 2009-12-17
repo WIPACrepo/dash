@@ -2,11 +2,11 @@
 #
 # Classes used for pDAQ unit testing
 
-import datetime, os, re, select, socket, threading, time
+import datetime, os, re, select, socket, sys, threading, time
 
 from CnCServer import CnCLogger, DAQClient
 from DAQConst import DAQPort
-from DAQLaunch import getLaunchData
+from DAQLaunch import RELEASE, getCompJar
 import GetIP
 
 try:
@@ -20,6 +20,7 @@ if os.environ.has_key("PDAQ_HOME"):
 else:
     from locate_pdaq import find_pdaq_trunk
     METADIR = find_pdaq_trunk()
+
 
 class UnimplementedException(Exception):
     def __init__(self):
@@ -68,7 +69,14 @@ class BaseLiveChecker(BaseChecker):
                                  (name, msg))
             return False
 
-        if m.group(1) != DAQLive.SERVICE_NAME:
+        svcName = m.group(1)
+        varName = m.group(2)
+        varType = m.group(3)
+        msgPrio = m.group(4)
+        msgTime = m.group(5)
+        msgText = m.group(6)
+
+        if svcName != DAQLive.SERVICE_NAME:
             if setError:
                 name = str(checker)
                 if debug:
@@ -76,10 +84,10 @@ class BaseLiveChecker(BaseChecker):
                         (name, DAQLive.SERVICE_NAME, self._getValue())
                 checker.setError(('Expected %s I3Live service "%s", not "%s"' +
                                   ' in "%s"') %
-                                 (name, DAQLive.SERVICE_NAME, m.group(1), msg))
+                                 (name, DAQLive.SERVICE_NAME, svcName, msg))
             return False
 
-        if m.group(2) != self.__varName:
+        if varName != self.__varName:
             if setError:
                 name = str(checker)
                 if debug:
@@ -87,24 +95,24 @@ class BaseLiveChecker(BaseChecker):
                         (name, self.__varName, self._getValue())
                     checker.setError(('Expected %s I3Live varName "%s",' +
                                       ' not "%s" in "%s"') %
-                                     (name, self.__varName, m.group(2), msg))
+                                     (name, self.__varName, varName, msg))
             return False
 
         typeStr = self._getValueType()
-        if m.group(3) != typeStr:
+        if varType != typeStr:
             if setError:
                 name = str(checker)
                 if debug:
                     print '*** %s:TYPE: %s (%s)' % \
                         (name, typeStr, self._getValue())
                 checker.setError(('Expected %s I3Live type "%s", not "%s"' +
-                                  ' in %s') % (name, typeStr, m.group(3), msg))
+                                  ' in %s') % (name, typeStr, varType, msg))
             return False
 
         # ignore priority
         # ignore time
 
-        if not self._checkText(checker, m.group(6), debug, setError):
+        if not self._checkText(checker, msgText, debug, setError):
             return False
 
         return True
@@ -301,6 +309,42 @@ class LogChecker(object):
     def _checkError(self):
         pass
 
+    def _checkMsg(self, msg):
+        if LogChecker.DEBUG:
+            print '%s: %s' % (str(self), msg)
+
+        if len(self.__expMsgs) == 0:
+            if LogChecker.DEBUG:
+                print '*** %s:UNEX' % str(self)
+            self.setError('Unexpected %s log message: %s' % (str(self), msg))
+            return False
+
+        found = None
+        for i in range(len(self.__expMsgs)):
+            if i >= self.__depth:
+                break
+            if self.__expMsgs[i].check(self, msg, LogChecker.DEBUG, False):
+                found = i
+                break
+
+        if found is None:
+            print >>sys.stderr, '--- Missing %s log msg ---' % str(self)
+            print msg
+            if len(self.__expMsgs) > 0:
+                print >>sys.stderr, '--- Expected %s messages ---' % str(self)
+                for i in range(len(self.__expMsgs)):
+                    if i >= self.__depth:
+                        break
+                    print "--- %s" % str(self.__expMsgs[i])
+                    self.__expMsgs[i].check(self, msg, LogChecker.DEBUG, True)
+            print >>sys.stderr, '----------------------------'
+            self.setError('Missing %s log message: %s' % (str(self), msg))
+            return False
+
+        del self.__expMsgs[found]
+
+        return True
+
     def addExpectedExact(self, msg):
         self.__expMsgs.append(ExactChecker(msg))
 
@@ -321,36 +365,6 @@ class LogChecker(object):
             self.__expMsgs.append(LiveRegexpChecker('log', msg))
         else:
             self.__expMsgs.append(RegexpTextChecker(msg))
-
-    def checkMsg(self, msg):
-        if LogChecker.DEBUG:
-            print '%s: %s' % (str(self), msg)
-
-        if len(self.__expMsgs) == 0:
-            if LogChecker.DEBUG:
-                print '*** %s:UNEX' % str(self)
-            self.setError('Unexpected %s log message: %s' % (str(self), msg))
-            return
-
-        found = None
-        for i in range(self.__depth):
-            if i >= len(self.__expMsgs):
-                break
-            if self.__expMsgs[i].check(self, msg, LogChecker.DEBUG, False):
-                found = i
-                break
-
-        if found is None:
-            print '----------'
-            print msg
-            print '----------'
-            for i in range(self.__depth):
-                if i >= len(self.__expMsgs):
-                    break
-                self.__expMsgs[i].check(self, msg, LogChecker.DEBUG, True)
-            return
-
-        del self.__expMsgs[found]
 
     def checkStatus(self, reps):
         count = 0
@@ -381,7 +395,7 @@ class MockAppender(LogChecker):
         raise Exception(msg)
 
     def write(self, m, time=None):
-        self.checkMsg(m)
+        self._checkMsg(m)
 
 class MockCnCLogger(CnCLogger):
     def __init__(self, appender, quiet=False):
@@ -406,12 +420,12 @@ class MockConnection(object):
 
 class MockComponent(object):
     def __init__(self, name, num, host='localhost'):
-        self.name = name
-        self.num = num
-        self.host = host
+        self.__name = name
+        self.__num = num
+        self.__host = host
 
-        self.connectors = []
-        self.cmdOrder = None
+        self.__connectors = []
+        self.__cmdOrder = None
 
         self.runNum = None
 
@@ -422,13 +436,13 @@ class MockComponent(object):
         self.__monitorState = '???'
 
     def __str__(self):
-        outStr = self.getName()
+        outStr = self.fullName()
         extra = []
         if self.__isSrc:
             extra.append('SRC')
         if self.__configured:
             extra.append('CFG')
-        for conn in self.connectors:
+        for conn in self.__connectors:
             extra.append(str(conn))
             
         if len(extra) > 0:
@@ -436,10 +450,10 @@ class MockComponent(object):
         return outStr
 
     def addInput(self, type, port):
-        self.connectors.append(MockConnection(type, port))
+        self.__connectors.append(MockConnection(type, port))
 
     def addOutput(self, type):
-        self.connectors.append(MockConnection(type, None))
+        self.__connectors.append(MockConnection(type, None))
 
     def configure(self, configName=None):
         if not self.__connected:
@@ -451,31 +465,22 @@ class MockComponent(object):
         self.__connected = True
         return 'OK'
 
+    def connectors(self):
+        return self.__connectors[:]
+
+    def fullName(self):
+        if self.__num == 0 and self.__name[-3:].lower() != 'hub':
+            return self.__name
+        return '%s#%d' % (self.__name, self.__num)
+
     def getConfigureWait(self):
         return self.__configWait
 
-    def getName(self):
-        if self.num == 0 and self.name[-3:].lower() != 'hub':
-            return self.name
-        return '%s#%d' % (self.name, self.num)
-
-    def getOrder(self):
-        return self.cmdOrder
-
-    def getState(self):
-        if not self.__connected:
-            return 'idle'
-        if not self.__configured or self.__configWait > 0:
-            if self.__configured and self.__configWait > 0:
-                self.__configWait -= 1
-            return 'connected'
-        if not self.runNum:
-            return 'ready'
-
-        return 'running'
+    def host(self):
+        return self.__host
 
     def isComponent(self, name, num):
-        return self.name == name
+        return self.__name == name
 
     def isConfigured(self):
         return self.__configured
@@ -489,6 +494,15 @@ class MockComponent(object):
     def monitor(self):
         return self.__monitorState
 
+    def name(self):
+        return self.__name
+
+    def num(self):
+        return self.__num
+
+    def order(self):
+        return self.__cmdOrder
+
     def reset(self):
         self.__connected = False
         self.__configured = False
@@ -498,19 +512,39 @@ class MockComponent(object):
         self.__configWait = waitNum
 
     def setOrder(self, num):
-        self.cmdOrder = num
+        self.__cmdOrder = num
 
     def startRun(self, runNum):
         if not self.__configured:
-            raise Exception(self.name + ' has not been configured')
+            raise Exception(self.__name + ' has not been configured')
 
         self.runNum = runNum
 
+    def state(self):
+        if not self.__connected:
+            return 'idle'
+        if not self.__configured or self.__configWait > 0:
+            if self.__configured and self.__configWait > 0:
+                self.__configWait -= 1
+            return 'connected'
+        if not self.runNum:
+            return 'ready'
+
+        return 'running'
+
     def stopRun(self):
         if self.runNum is None:
-            raise Exception(self.name + ' is not running')
+            raise Exception(self.__name + ' is not running')
 
         self.runNum = None
+
+class MockDeployComponent(object):
+    def __init__(self, name, id, level, jvm, jvmArgs):
+        self.compName = name
+        self.compID = id
+        self.logLevel = level
+        self.jvm = jvm
+        self.jvmArgs = jvmArgs
 
 class MockDAQClient(DAQClient):
     def __init__(self, name, num, host, port, mbeanPort, connectors,
@@ -519,7 +553,7 @@ class MockDAQClient(DAQClient):
         self.__appender = appender
 
         self.outLinks = outLinks
-        self.state = 'idle'
+        self.__state = 'idle'
 
         super(MockDAQClient, self).__init__(name, num, host, port, mbeanPort,
                                             connectors, True)
@@ -532,29 +566,29 @@ class MockDAQClient(DAQClient):
         pass
 
     def configure(self, cfgName=None):
-        self.state = 'ready'
+        self.__state = 'ready'
         return super(MockDAQClient, self).configure(cfgName)
 
     def connect(self, links=None):
-        self.state = 'connected'
+        self.__state = 'connected'
         return super(MockDAQClient, self).connect(links)
 
     def createClient(self, host, port):
-        return MockRPCClient(self.name, self.num, self.outLinks)
+        return MockRPCClient(self.name(), self.num(), self.outLinks)
 
     def createCnCLogger(self, quiet):
         return MockCnCLogger(self.__appender, quiet)
 
-    def getState(self):
-        return self.state
-
     def reset(self):
-        self.state = 'idle'
+        self.__state = 'idle'
         return super(MockDAQClient, self).reset()
 
     def startRun(self, runNum):
-        self.state = 'running'
+        self.__state = 'running'
         return super(MockDAQClient, self).startRun(runNum)
+
+    def state(self):
+        return self.__state
 
 class MockIntervalTimer(object):
     def __init__(self, interval):
@@ -583,24 +617,23 @@ class MockLogger(LogChecker):
     def close(self):
         pass
 
-    def debug(self, m): self.checkMsg(m)
+    def debug(self, m): self._checkMsg(m)
 
-    def error(self, m): self.checkMsg(m)
+    def error(self, m): self._checkMsg(m)
 
-    def fatal(self, m): self.checkMsg(m)
+    def fatal(self, m): self._checkMsg(m)
 
-    def info(self, m): self.checkMsg(m)
+    def info(self, m): self._checkMsg(m)
 
     def setError(self, msg):
         raise Exception(msg)
 
-    def trace(self, m): self.checkMsg(m)
+    def trace(self, m): self._checkMsg(m)
 
-    def warn(self, m): self.checkMsg(m)
+    def warn(self, m): self._checkMsg(m)
 
 class MockParallelShell(object):
-    BINDIR = \
-        os.path.join(METADIR, 'target', 'pDAQ-1.0.0-SNAPSHOT-dist', 'bin')
+    BINDIR = os.path.join(METADIR, 'target', 'pDAQ-%s-dist' % RELEASE, 'bin')
 
     def __init__(self):
         self.__exp = []
@@ -610,18 +643,15 @@ class MockParallelShell(object):
         if expLen == 0:
             raise Exception('Did not expect command "%s"' % cmd)
 
-        top10 = 10
-        if expLen < top10:
-            top10 = expLen
-
         found = None
-        for i in range(top10):
+        for i in range(expLen):
             if cmd == self.__exp[i]:
                 found = i
                 break
 
         if found is None:
-            raise Exception('Expected "%s", not "%s"' % (self.__exp[0], cmd))
+            raise Exception('Command not found in expected command list: ' \
+                                'cmd="%s"' % (cmd))
 
         del self.__exp[found]
 
@@ -631,33 +661,31 @@ class MockParallelShell(object):
     def add(self, cmd):
         self.__checkCmd(cmd)
 
-    def addExpectedJava(self, compName, compId, configDir, logPort, livePort,
-                        logLevel, verbose, eventCheck, host):
-        launchData = getLaunchData(compName)
+    def addExpectedJava(self, comp, configDir, logPort, livePort,
+                        verbose, eventCheck, host):
 
         ipAddr = GetIP.getIP(host)
-        jarPath = os.path.join(MockParallelShell.BINDIR, launchData.getJar())
+        jarPath = os.path.join(MockParallelShell.BINDIR,
+                               getCompJar(comp.compName))
 
         if verbose:
             redir = ''
         else:
             redir = ' </dev/null >/dev/null 2>&1'
 
-        cmd = 'java %s' % launchData.getJVMArgs()
+        cmd = '%s %s' % (comp.jvm, comp.jvmArgs)
 
-        if eventCheck and compName == 'eventBuilder':
+        if eventCheck and comp.compName == 'eventBuilder':
             cmd += ' -Dicecube.daq.eventBuilder.validateEvents'
-        elif compName.endswith('Hub'):
-            cmd += ' -Dicecube.daq.stringhub.componentId=%s' % compId
 
         cmd += ' -jar %s' % jarPath
         cmd += ' -g %s' % configDir
         cmd += ' -c %s:%d' % (ipAddr, DAQPort.CNCSERVER)
 
         if logPort is not None:
-            cmd += ' -l %s:%d,%s' % (ipAddr, logPort, logLevel)
+            cmd += ' -l %s:%d,%s' % (ipAddr, logPort, comp.logLevel)
         if livePort is not None:
-            cmd += ' -L %s:%d,%s' % (ipAddr, livePort, logLevel)
+            cmd += ' -L %s:%d,%s' % (ipAddr, livePort, comp.logLevel)
         cmd += ' %s &' % redir
 
         if self.__isLocalhost(host):
@@ -673,7 +701,7 @@ class MockParallelShell(object):
             nineArg = ''
 
         user = os.environ['USER']
-        jar = getLaunchData(compName).getJar()
+        jar = getCompJar(compName)
 
         if self.__isLocalhost(host):
             sshCmd = ''
@@ -764,6 +792,24 @@ class MockParallelShell(object):
 class MockRPCClient(object):
     def __init__(self, name, num, outLinks=None):
         self.xmlrpc = MockXMLRPC(name, num, outLinks)
+
+class MockRunComponent(object):
+    def __init__(self, name, id, inetAddr, rpcPort, mbeanPort):
+        self.__name = name
+        self.__id = id
+        self.__inetAddr = inetAddr
+        self.__rpcPort = rpcPort
+        self.__mbeanPort = mbeanPort
+
+    def __str__(self):
+        return "%s#%s" % (str(self.__name), str(self.__id))
+
+    def id(self): return self.__id
+    def inetAddress(self): return self.__inetAddr
+    def isHub(self): return self.__name.endswith("Hub")
+    def mbeanPort(self): return self.__mbeanPort
+    def name(self): return self.__name
+    def rpcPort(self): return self.__rpcPort
 
 class MockXMLRPC(object):
     LOUD = False
@@ -894,9 +940,10 @@ class SocketReader(LogChecker):
                 while 1: # Slurp up waiting packets, return to select if EAGAIN
                     try:
                         data = sock.recv(8192, socket.MSG_DONTWAIT)
-                        self.checkMsg(data)
                     except Exception:
                         break # Go back to select so we don't busy-wait
+                    if not self._checkMsg(data):
+                        break
         finally:
             sock.close()
             self.__serving = False
@@ -916,7 +963,7 @@ class SocketReader(LogChecker):
         try:
             while self.__thread is not None:
                 data = sock.recv(8192)
-                self.checkMsg(data)
+                self._checkMsg(data)
         finally:
             sock.close()
             self.__serving = False

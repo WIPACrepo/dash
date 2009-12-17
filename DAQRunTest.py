@@ -2,7 +2,7 @@
 
 import datetime, os, sys
 import tempfile, threading, time, unittest
-from DAQRun import DAQRun, RunArgs
+from DAQRun import DAQRun, PayloadTime, RunArgs
 from DAQConst import DAQPort
 
 from DAQMocks import MockAppender, MockIntervalTimer, MockLogger, \
@@ -251,7 +251,7 @@ class MostlyDAQRun(DAQRun):
 
         return self.__mockAppender
 
-    def setup_timer(self, interval):
+    def setup_timer(self, name, interval):
         return MockIntervalTimer(interval)
 
 class StubbedDAQRun(MostlyDAQRun):
@@ -294,12 +294,10 @@ class StubbedDAQRun(MostlyDAQRun):
         cls.__logServer = logger
     setLogSocketServer = classmethod(setLogSocketServer)
 
-    def setup_monitoring(self, log, moniPath, compIDs, shortNames, daqIDs,
-                         rpcAddrs, mbeanPorts, moniType):
+    def setup_monitoring(self, log, moniPath, comps, moniType):
         return MockMoni()
 
-    def setup_watchdog(self, log, interval, compIDs, shortNames, daqIDs,
-                       rpcAddrs, mbeanPorts):
+    def setup_watchdog(self, log, interval, comps):
         return MockWatchdog()
 
 class TestDAQRun(unittest.TestCase):
@@ -360,12 +358,11 @@ class TestDAQRun(unittest.TestCase):
             appender.addExpectedExact('Setting up logging for %d components' %
                                       len(comps))
 
-            nextPort = DAQPort.RUNCOMP_BASE
             for c in compSrt:
+                logPort = DAQPort.RUNCOMP_BASE + c[0]
                 appender.addExpectedExact('%s(%d %s:%d) -> %s:%d' %
                                           (c[1], c[0], c[3], c[4], dr.ip,
-                                           nextPort))
-                nextPort += 1
+                                           logPort))
             appender.addExpectedExact('Configuring run set...')
 
         appender.addExpectedExact('Started run %d on run set %d' %
@@ -410,11 +407,15 @@ class TestDAQRun(unittest.TestCase):
         catchall.checkStatus(10)
 
         numEvts = 17
+        evtTime = 639
         numMoni = 222
         numSN = 51
         numTCal = 93
 
         dr.moni.addEntry(ebID, 'backEnd', 'NumEventsSent', str(numEvts))
+        dr.moni.addEntry(5, 'backEnd', 'FirstEventTime', str(evtTime))
+        dr.moni.addEntry(ebID, 'backEnd', 'EventData',
+                         (str(numEvts), str(evtTime)))
         dr.moni.addEntry(sbID, 'moniBuilder', 'TotalDispatchedData',
                          str(numMoni))
         dr.moni.addEntry(sbID, 'snBuilder', 'TotalDispatchedData', str(numSN))
@@ -608,10 +609,10 @@ class TestDAQRun(unittest.TestCase):
         expRunNum = 100
         expId = 123
 
-        dr.runStats.runNum = expRunNum
+        dr.runStats.setRunNumber(expRunNum)
         dr.runSetID = expId
 
-        DAQRun.COMP_TOUT = 0
+        DAQRun.REGISTRATION_TIMEOUT = 0
 
         required = []
         for c in comps:
@@ -619,7 +620,7 @@ class TestDAQRun(unittest.TestCase):
 
         logger.addExpectedExact(('Starting run %d (waiting for required %d' +
                                  ' components to register w/ CnCServer)') %
-                                (dr.runStats.runNum, len(required)))
+                                (dr.runStats.getRunNumber(), len(required)))
 
         try:
             dr.build_run_set(cnc, required)
@@ -645,9 +646,9 @@ class TestDAQRun(unittest.TestCase):
 
         expRunNum = 100
 
-        dr.runStats.runNum = expRunNum
+        dr.runStats.setRunNumber(expRunNum)
 
-        DAQRun.COMP_TOUT = 0
+        DAQRun.REGISTRATION_TIMEOUT = 0
 
         expId = cnc.nextRunsetId
 
@@ -658,7 +659,7 @@ class TestDAQRun(unittest.TestCase):
 
         logger.addExpectedExact(('Starting run %d (waiting for required %d' +
                                  ' components to register w/ CnCServer)') %
-                                (dr.runStats.runNum, len(required)))
+                                (dr.runStats.getRunNumber(), len(required)))
         logger.addExpectedExact('Created Run Set #%d' % expId)
 
         dr.build_run_set(cnc, required)
@@ -684,26 +685,24 @@ class TestDAQRun(unittest.TestCase):
 
         dr.fill_component_dictionaries(cnc)
 
-        for i in range(0, len(expComps)):
-            key = dr.setCompIDs[i]
-            self.assertEquals(expComps[i][0], key,
-                              'Expected comp#%d to be %s, not %s' %
-                              (i, expComps[i][0], key))
-            self.assertEquals(expComps[i][1], dr.shortNameOf[key],
-                              'Expected shortName#%d to be %s, not %s' %
-                              (i, expComps[i][1], dr.shortNameOf[key]))
-            self.assertEquals(expComps[i][2], dr.daqIDof[key],
-                              'Expected daqID#%d to be %d, not %d' %
-                              (i, expComps[i][2], dr.daqIDof[key]))
-            self.assertEquals(expComps[i][3], dr.rpcAddrOf[key],
-                              'Expected rpcAddr#%d to be %s, not %s' %
-                              (i, expComps[i][3], dr.rpcAddrOf[key]))
-            self.assertEquals(expComps[i][4], dr.rpcPortOf[key],
-                              'Expected rpcPort#%d to be %d, not %d' %
-                              (i, expComps[i][4], dr.rpcPortOf[key]))
-            self.assertEquals(expComps[i][5], dr.mbeanPortOf[key],
-                              'Expected mbeanPort#%d to be %d, not %d' %
-                              (i, expComps[i][5], dr.mbeanPortOf[key]))
+        for key, comp in dr.components.iteritems():
+            for i in range(0, len(expComps)):
+                if key == expComps[i][0]:
+                    self.assertEquals(expComps[i][1], comp.name(),
+                                      'Expected shortName#%d to be %s, not %s' %
+                                      (i, expComps[i][1], comp.name()))
+                    self.assertEquals(expComps[i][2], comp.id(),
+                                      'Expected daqID#%d to be %d, not %d' %
+                                      (i, expComps[i][2], comp.id()))
+                    self.assertEquals(expComps[i][3], comp.inetAddress(),
+                                      'Expected inetAddr#%d to be %s, not %s' %
+                                      (i, expComps[i][3], comp.inetAddress()))
+                    self.assertEquals(expComps[i][4], comp.rpcPort(),
+                                      'Expected rpcPort#%d to be %d, not %d' %
+                                      (i, expComps[i][4], comp.rpcPort()))
+                    self.assertEquals(expComps[i][5], comp.mbeanPort(),
+                                      'Expected mbeanPort#%d to be %d, not %d' %
+                                      (i, expComps[i][5], comp.mbeanPort()))
 
         logger.checkStatus(10)
 
@@ -733,7 +732,7 @@ class TestDAQRun(unittest.TestCase):
         expRunNum = 100
         expId = 123
 
-        dr.runStats.runNum = expRunNum
+        dr.runStats.setRunNumber(expRunNum)
         dr.runSetID = expId
 
         logger.addExpectedExact('Started run %d on run set %d' %
@@ -754,7 +753,7 @@ class TestDAQRun(unittest.TestCase):
 
         expRunNum = 100
 
-        dr.runStats.runNum = expRunNum
+        dr.runStats.setRunNumber(expRunNum)
 
         logger.addExpectedExact('Stopping run %d' % expRunNum)
 
@@ -782,18 +781,8 @@ class TestDAQRun(unittest.TestCase):
 
         dr.break_existing_runset(cnc)
         #self.failUnless(cnc.RSBreakFlag, 'Runset was not broken')
-        self.assertEquals(0, len(dr.setCompIDs),
+        self.assertEquals(0, len(dr.components),
                           'Should not have any components')
-        self.assertEquals(0, len(dr.shortNameOf),
-                          'Should not have any short names')
-        self.assertEquals(0, len(dr.daqIDof),
-                          'Should not have any DAQ IDs')
-        self.assertEquals(0, len(dr.rpcAddrOf),
-                          'Should not have any RPC addresses')
-        self.assertEquals(0, len(dr.rpcPortOf),
-                          'Should not have any RPC ports')
-        self.assertEquals(0, len(dr.mbeanPortOf),
-                          'Should not have any MBean ports')
         if dr.runSetID is not None: self.fail('Runset ID should be unset')
         if dr.lastConfig is not None: self.fail('Last config should be unset')
 
@@ -820,18 +809,8 @@ class TestDAQRun(unittest.TestCase):
 
         dr.break_existing_runset(cnc)
         self.failIf(cnc.RSBreakFlag, 'Runset was broken')
-        self.assertEquals(0, len(dr.setCompIDs),
+        self.assertEquals(0, len(dr.components),
                           'Should not have any components')
-        self.assertEquals(0, len(dr.shortNameOf),
-                          'Should not have any short names')
-        self.assertEquals(0, len(dr.daqIDof),
-                          'Should not have any DAQ IDs')
-        self.assertEquals(0, len(dr.rpcAddrOf),
-                          'Should not have any RPC addresses')
-        self.assertEquals(0, len(dr.rpcPortOf),
-                          'Should not have any RPC ports')
-        self.assertEquals(0, len(dr.mbeanPortOf),
-                          'Should not have any MBean ports')
         if dr.runSetID is not None: self.fail('Runset ID should be unset')
         if dr.lastConfig is not None: self.fail('Last config should be unset')
 
@@ -844,6 +823,7 @@ class TestDAQRun(unittest.TestCase):
         dr.log = logger
 
         numEvts = 17
+        evtTime = 639
         numMoni = 222
         numSN = 51
         numTCal = 93
@@ -851,6 +831,9 @@ class TestDAQRun(unittest.TestCase):
         dr.moni = MockMoni()
 
         dr.moni.addEntry(5, 'backEnd', 'NumEventsSent', str(numEvts))
+        dr.moni.addEntry(5, 'backEnd', 'FirstEventTime', str(evtTime))
+        dr.moni.addEntry(5, 'backEnd', 'EventData',
+                         (str(numEvts), str(evtTime)))
         dr.moni.addEntry(17, 'moniBuilder', 'TotalDispatchedData', str(numMoni))
         dr.moni.addEntry(17, 'snBuilder', 'TotalDispatchedData', str(numSN))
         dr.moni.addEntry(17, 'tcalBuilder', 'TotalDispatchedData', str(numTCal))
@@ -866,87 +849,57 @@ class TestDAQRun(unittest.TestCase):
 
         dr.fill_component_dictionaries(cnc)
 
-        expCnts = (numEvts, numMoni, numSN, numTCal)
+        evtTime = None
+        evtPayTime = None
+        moniTime = None
+        snTime = None
+        tcalTime = None
 
-        cnts = dr.getEventCounts()
+        expCnts = (numEvts, evtTime, evtPayTime, numMoni, moniTime,
+                   numSN, snTime, numTCal, tcalTime)
+
+        cnts = dr.getEventData()
         self.assertEquals(len(expCnts), len(cnts),
                           'Expected %d event counts, not %d' %
                           (len(expCnts), len(cnts)))
         for i in range(0, len(expCnts)):
+            if expCnts[i] is None: continue
             self.assertEquals(expCnts[i], cnts[i],
                               'Expected event count #%d to be %d, not %d' %
                               (i, expCnts[i], cnts[i]))
 
         logger.checkStatus(10)
 
-    def testCheckAllNone(self):
+    def testCheckNone(self):
         dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
 
-        rtnVal = dr.check_all()
+        rtnVal = dr.check_timers()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
         logger.checkStatus(10)
 
-    def testCheckAllMoniRate(self):
+    def testCheckMoniRate(self):
         dr = MostlyDAQRun()
 
         logger = MockLogger('main')
         dr.log = logger
 
-        numEvts = 1000
-        numMoni = 222
-        numSN = 51
-        numTCal = 93
+        runNum = 1234
 
-        dr.moni = MockMoni()
+        dr.setLogPath(runNum, TestDAQRun.LOG_DIR)
 
-        dr.moni.isTime = True
-        dr.moni.addEntry(5, 'backEnd', 'NumEventsSent', str(numEvts))
-        dr.moni.addEntry(17, 'moniBuilder', 'TotalDispatchedData', str(numMoni))
-        dr.moni.addEntry(17, 'snBuilder', 'TotalDispatchedData', str(numSN))
-        dr.moni.addEntry(17, 'tcalBuilder', 'TotalDispatchedData', str(numTCal))
+        dr.setup_timers()
 
-        dr.rateTimer.trigger()
-
-        expId = 99
-        expComps = [(5, 'eventBuilder', 0, 'x', 1234, 5678),
-                    (17, 'secondaryBuilders', 0, 'x', 4321, 8765)]
-
-        cnc = MockCnCRPC()
-        cnc.setRunSet(expId, expComps)
-
-        dr.runSetID = expId
-
-        dt = datetime.datetime.now()
+        firstTime = long(time.time())
 
         maxRate = 300
-        for i in range(0, maxRate):
-            secs = maxRate - i
-            evts = (maxRate - i) * 2
-            dr.runStats.physicsRate.add(dt - datetime.timedelta(seconds=secs),
-                                        numEvts - evts)
+        secInc = 2
 
-        dr.fill_component_dictionaries(cnc)
-
-        logger.addExpectedExact(('\t%d physics events (2.00 Hz), %d moni' +
-                                ' events, %d SN events, %d tcals') %
-                               (numEvts, numMoni, numSN, numTCal))
-
-        rtnVal = dr.check_all()
-        self.failUnless(rtnVal, 'Expected call to succeed')
-
-        logger.checkStatus(10)
-
-    def testCheckAllMoni(self):
-        dr = MostlyDAQRun()
-
-        logger = MockLogger('main')
-        dr.log = logger
-
-        numEvts = 17
+        numEvts = 1000
+        evtTime = firstTime + (maxRate * secInc)
         numMoni = 222
         numSN = 51
         numTCal = 93
@@ -955,11 +908,89 @@ class TestDAQRun(unittest.TestCase):
 
         dr.moni.isTime = True
         dr.moni.addEntry(5, 'backEnd', 'NumEventsSent', str(numEvts))
-        dr.moni.addEntry(17, 'moniBuilder', 'TotalDispatchedData', str(numMoni))
-        dr.moni.addEntry(17, 'snBuilder', 'TotalDispatchedData', str(numSN))
-        dr.moni.addEntry(17, 'tcalBuilder', 'TotalDispatchedData', str(numTCal))
+        dr.moni.addEntry(5, 'backEnd', 'FirstEventTime', str(evtTime))
+        dr.moni.addEntry(5, 'backEnd', 'EventData',
+                         (str(numEvts), str(evtTime)))
+        dr.moni.addEntry(17, 'moniBuilder', 'TotalDispatchedData',
+                         str(numMoni))
+        dr.moni.addEntry(17, 'snBuilder', 'TotalDispatchedData',
+                         str(numSN))
+        dr.moni.addEntry(17, 'tcalBuilder', 'TotalDispatchedData',
+                         str(numTCal))
+
+        expId = 99
+        expComps = [(5, 'eventBuilder', 0, 'x', 1234, 5678),
+                    (17, 'secondaryBuilders', 0, 'x', 4321, 8765)]
+
+        cnc = MockCnCRPC()
+        cnc.setRunSet(expId, expComps)
+
+        dr.runSetID = expId
+
+        for i in range(0, maxRate):
+            secs = maxRate - i
+            evts = (maxRate - i) * secInc
+            evtDT = PayloadTime.toDateTime(evtTime - secs)
+            dr.runStats.addRate(evtDT, numEvts - evts)
+
+        dr.fill_component_dictionaries(cnc)
+
+        expMsg = ('\t%d physics events, %d moni events,' +
+                  ' %d SN events, %d tcals') % \
+                  (numEvts, numMoni, numSN, numTCal)
+
+        logger.addExpectedExact(expMsg)
 
         dr.rateTimer.trigger()
+
+        numTries = 0
+        while dr.rateThread is not None and \
+                not dr.rateThread.done() and \
+                numTries < 100:
+            time.sleep(0.1)
+            numTries += 1
+
+        rtnVal = dr.check_timers()
+        self.failUnless(rtnVal, 'Expected call to succeed')
+
+        logger.checkStatus(10)
+
+    def testCheckMoni(self):
+        dr = MostlyDAQRun()
+
+        logger = MockLogger('main')
+        dr.log = logger
+
+        runNum = 1234
+
+        dr.setLogPath(runNum, TestDAQRun.LOG_DIR)
+
+        dr.setup_timers()
+
+        firstTime = long(time.time())
+
+        maxRate = 300
+        secInc = 2
+
+        numEvts = 17
+        evtTime = firstTime + (maxRate * secInc)
+        numMoni = 222
+        numSN = 51
+        numTCal = 93
+
+        dr.moni = MockMoni()
+
+        dr.moni.isTime = True
+        dr.moni.addEntry(5, 'backEnd', 'NumEventsSent', str(numEvts))
+        dr.moni.addEntry(5, 'backEnd', 'FirstEventTime', str(evtTime))
+        dr.moni.addEntry(5, 'backEnd', 'EventData',
+                         (str(numEvts), str(evtTime)))
+        dr.moni.addEntry(17, 'moniBuilder', 'TotalDispatchedData',
+                         str(numMoni))
+        dr.moni.addEntry(17, 'snBuilder', 'TotalDispatchedData',
+                         str(numSN))
+        dr.moni.addEntry(17, 'tcalBuilder', 'TotalDispatchedData',
+                         str(numTCal))
 
         expId = 99
         expComps = [(5, 'eventBuilder', 0, 'x', 1234, 5678),
@@ -972,16 +1003,25 @@ class TestDAQRun(unittest.TestCase):
 
         dr.fill_component_dictionaries(cnc)
 
-        logger.addExpectedExact(('\t%d physics events, %d moni events' +
-                                ', %d SN events, %d tcals') %
-                               (numEvts, numMoni, numSN, numTCal))
+        dr.rateTimer.trigger()
 
-        rtnVal = dr.check_all()
+        numTries = 0
+        while dr.rateThread is not None and \
+                not dr.rateThread.done() and \
+                numTries < 100:
+            time.sleep(0.1)
+            numTries += 1
+
+        logger.addExpectedExact(('\t%d physics events, %d moni' +
+                                 ' events, %d SN events, %d tcals') %
+                                (numEvts, numMoni, numSN, numTCal))
+
+        rtnVal = dr.check_timers()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
         logger.checkStatus(10)
 
-    def testCheckAllWatchdogNone(self):
+    def testCheckWatchdogNone(self):
         dr = MostlyDAQRun()
 
         logger = MockLogger('main')
@@ -989,24 +1029,24 @@ class TestDAQRun(unittest.TestCase):
 
         dr.watchdog = MockWatchdog()
 
-        DAQRun.unHealthyCount = 0
+        dr.unHealthyCount = 0
 
         expCnt = 0
 
-        rtnVal = dr.check_all()
+        rtnVal = dr.check_timers()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
         self.failIf(dr.watchdog.threadCleared,
                     'Should not have cleared thread')
         self.failIf(dr.watchdog.watchStarted,
                     'Should not have started watchdog')
-        self.assertEquals(expCnt, DAQRun.unHealthyCount,
+        self.assertEquals(expCnt, dr.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
-                          (expCnt, DAQRun.unHealthyCount))
+                          (expCnt, dr.unHealthyCount))
 
         logger.checkStatus(10)
 
-    def testCheckAllWatchdogStart(self):
+    def testCheckWatchdogStart(self):
         dr = MostlyDAQRun()
 
         logger = MockLogger('main')
@@ -1015,23 +1055,23 @@ class TestDAQRun(unittest.TestCase):
         dr.watchdog = MockWatchdog()
 
         dr.watchdog.isTime = True
-        DAQRun.unHealthyCount = 0
+        dr.unHealthyCount = 0
 
         expCnt = 0
 
-        rtnVal = dr.check_all()
+        rtnVal = dr.check_timers()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
         self.failIf(dr.watchdog.threadCleared, 'Should not have cleared thread')
         self.failUnless(dr.watchdog.watchStarted,
                         'Should have started watchdog')
-        self.assertEquals(expCnt, DAQRun.unHealthyCount,
+        self.assertEquals(expCnt, dr.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
-                          (expCnt, DAQRun.unHealthyCount))
+                          (expCnt, dr.unHealthyCount))
 
         logger.checkStatus(10)
 
-    def testCheckAllWatchdogErr(self):
+    def testCheckWatchdogErr(self):
         dr = MostlyDAQRun()
 
         logger = MockLogger('main')
@@ -1041,23 +1081,23 @@ class TestDAQRun(unittest.TestCase):
 
         dr.watchdog.inProg = True
         dr.watchdog.caughtErr = True
-        DAQRun.unHealthyCount = 0
+        dr.unHealthyCount = 0
 
         expCnt = 0
 
-        rtnVal = dr.check_all()
+        rtnVal = dr.check_timers()
         self.failIf(rtnVal, 'Expected call to succeed')
 
         self.failUnless(dr.watchdog.threadCleared, 'Should have cleared thread')
         self.failIf(dr.watchdog.watchStarted,
                     'Should not have started watchdog')
-        self.assertEquals(expCnt, DAQRun.unHealthyCount,
+        self.assertEquals(expCnt, dr.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
-                          (expCnt, DAQRun.unHealthyCount))
+                          (expCnt, dr.unHealthyCount))
 
         logger.checkStatus(10)
 
-    def testCheckAllWatchdogHealthy(self):
+    def testCheckWatchdogHealthy(self):
         dr = MostlyDAQRun()
 
         logger = MockLogger('main')
@@ -1068,23 +1108,23 @@ class TestDAQRun(unittest.TestCase):
         dr.watchdog.inProg = True
         dr.watchdog.done = True
         dr.watchdog.healthy = True
-        DAQRun.unHealthyCount = 1
+        dr.unHealthyCount = 1
 
         expCnt = 0
 
-        rtnVal = dr.check_all()
+        rtnVal = dr.check_timers()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
         self.failUnless(dr.watchdog.threadCleared, 'Should have cleared thread')
         self.failIf(dr.watchdog.watchStarted,
                     'Should not have started watchdog')
-        self.assertEquals(expCnt, DAQRun.unHealthyCount,
+        self.assertEquals(expCnt, dr.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
-                          (expCnt, DAQRun.unHealthyCount))
+                          (expCnt, dr.unHealthyCount))
 
         logger.checkStatus(10)
 
-    def testCheckAllWatchdogUnhealthy(self):
+    def testCheckWatchdogUnhealthy(self):
         dr = MostlyDAQRun()
 
         logger = MockLogger('main')
@@ -1094,23 +1134,23 @@ class TestDAQRun(unittest.TestCase):
 
         dr.watchdog.inProg = True
         dr.watchdog.done = True
-        DAQRun.unHealthyCount = 0
+        dr.unHealthyCount = 0
 
         expCnt = 1
 
-        rtnVal = dr.check_all()
+        rtnVal = dr.check_timers()
         self.failUnless(rtnVal, 'Expected call to succeed')
 
         self.failUnless(dr.watchdog.threadCleared, 'Should have cleared thread')
         self.failIf(dr.watchdog.watchStarted,
                     'Should not have started watchdog')
-        self.assertEquals(expCnt, DAQRun.unHealthyCount,
+        self.assertEquals(expCnt, dr.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
-                          (expCnt, DAQRun.unHealthyCount))
+                          (expCnt, dr.unHealthyCount))
 
         logger.checkStatus(10)
 
-    def testCheckAllWatchdogMax(self):
+    def testCheckWatchdogMax(self):
         dr = MostlyDAQRun()
 
         logger = MockLogger('main')
@@ -1120,19 +1160,19 @@ class TestDAQRun(unittest.TestCase):
 
         dr.watchdog.inProg = True
         dr.watchdog.done = True
-        DAQRun.unHealthyCount = DAQRun.MAX_UNHEALTHY_COUNT
+        dr.unHealthyCount = DAQRun.MAX_UNHEALTHY_COUNT
 
         expCnt = 0
 
-        rtnVal = dr.check_all()
+        rtnVal = dr.check_timers()
         self.failIf(rtnVal, 'Expected call to succeed')
 
         self.failUnless(dr.watchdog.threadCleared, 'Should have cleared thread')
         self.failIf(dr.watchdog.watchStarted,
                     'Should not have started watchdog')
-        self.assertEquals(expCnt, DAQRun.unHealthyCount,
+        self.assertEquals(expCnt, dr.unHealthyCount,
                           'UnhealthyCount should be %d, not %d' %
-                          (expCnt, DAQRun.unHealthyCount))
+                          (expCnt, dr.unHealthyCount))
 
         logger.checkStatus(10)
 
@@ -1156,20 +1196,19 @@ class TestDAQRun(unittest.TestCase):
 
         dr.fill_component_dictionaries(cnc)
 
-        nextPort = DAQPort.RUNCOMP_BASE
         logger.addExpectedExact('Setting up logging for %d components' %
                                len(expComps))
         for c in expComps:
+            logPort = DAQPort.RUNCOMP_BASE + c[0]
             logger.addExpectedExact('%s(%d %s:%d) -> %s:%d' %
-                                   (c[1], c[0], c[3], c[4], dr.ip, nextPort))
-            nextPort += 1
+                                   (c[1], c[0], c[3], c[4], dr.ip, logPort))
 
         try:
             dr.setUpAllComponentLoggers()
         finally:
-            for k in dr.loggerOf.keys():
-                if dr.loggerOf[k] is not None:
-                    dr.loggerOf[k].stopServing()
+            for comp in dr.components.values():
+                if comp.logger() is not None:
+                    comp.logger().stopServing()
             for c in expComps:
                 path = os.path.join(dr.getLogPath(),
                                     '%s-%d.log' % (c[1], c[2]))
@@ -1202,20 +1241,17 @@ class TestDAQRun(unittest.TestCase):
         logger.addExpectedExact('Setting up logging for %d components' %
                                len(expComps))
 
-        nextPort = DAQPort.RUNCOMP_BASE
-        for i in range(0, len(expComps)):
-            c = expComps[i]
-
+        for c in expComps:
+            logPort = DAQPort.RUNCOMP_BASE + c[0]
             logger.addExpectedExact('%s(%d %s:%d) -> %s:%d' %
-                                   (c[1], c[0], c[3], c[4], dr.ip, nextPort))
-            nextPort += 1
+                                   (c[1], c[0], c[3], c[4], dr.ip, logPort))
 
         try:
             dr.setup_component_loggers(cnc, 'xxx', expId)
         finally:
-            for k in dr.loggerOf.keys():
-                if dr.loggerOf[k] is not None:
-                    dr.loggerOf[k].stopServing()
+            for comp in dr.components.values():
+                if comp.logger() is not None:
+                    comp.logger().stopServing()
             for c in expComps:
                 path = os.path.join(dr.getLogPath(),
                                     '%s-%d.log' % (c[1], c[2]))
@@ -1230,10 +1266,11 @@ class TestDAQRun(unittest.TestCase):
                           'Expected %d loggers, not %d' %
                           (len(expComps), len(logList)))
 
-        nextPort = DAQPort.RUNCOMP_BASE
         for i in range(0, len(expComps)):
             c = expComps[i]
             l = logList[i]
+
+            logPort = DAQPort.RUNCOMP_BASE + c[0]
 
             self.assertEquals(c[1], l[0],
                               'Expected short name #%d "%s", not "%s"' %
@@ -1241,11 +1278,9 @@ class TestDAQRun(unittest.TestCase):
             self.assertEquals(c[2], l[1],
                               'Expected DAQ ID #%d %d, not %d' %
                               (i, c[2], l[1]))
-            self.assertEquals(nextPort, l[2],
+            self.assertEquals(logPort, l[2],
                               'Expected log port #%d %d, not %d' %
-                              (i, nextPort, l[2]))
-
-            nextPort += 1
+                              (i, logPort, l[2]))
 
         logger.checkStatus(10)
 
@@ -1349,8 +1384,9 @@ class TestDAQRun(unittest.TestCase):
         dr.run_thread(cnc)
 
     def testRunSummaryFauxTest(self):
-        # this is a blatant attempt to increase the code coverage, because the
-        # rpc_run_summary method is Anvil-centric and I3Live is coming soon
+        # this is a blatant attempt to increase the code coverage,
+        # because the rpc_run_summary method is Anvil-centric and
+        # I3Live is coming soon
 
         dr = StubbedDAQRun()
 
@@ -1358,7 +1394,7 @@ class TestDAQRun(unittest.TestCase):
         dr.log = logger
 
         dr.runState = "RUNNING"
-        dr.runStats.runNum = 15
+        dr.runStats.setRunNumber(15)
         dr.prevRunStats = dr.runStats
 
         dr.rpc_daq_summary_xml()

@@ -9,14 +9,13 @@
 
 from DAQConst import DAQPort
 from DAQLog import LogSocketServer
-from DAQLogClient \
-    import BothSocketAppender, DAQLog, FileAppender, LiveSocketAppender, \
-    LogSocketAppender, Prio
+from DAQLogClient import BothSocketAppender, DAQLog, FileAppender, \
+    LiveSocketAppender, LogSocketAppender, MoniClient, Prio
 from DAQMoni import DAQMoni
 from RunWatchdog import RunWatchdog
 from DAQRPC import RPCClient, RPCServer
 from os.path import exists, abspath, join, basename, isdir
-from os import listdir
+from os import listdir, mkdir
 from Process import processList, findProcess
 from DAQLaunch import cyclePDAQ
 from tarfile import TarFile
@@ -25,10 +24,10 @@ from GetIP import getIP
 from re import search
 from xmlrpclib import Fault
 from IntervalTimer import IntervalTimer
+from RateCalc import RateCalc
 import DAQConfig
 import datetime
 import optparse
-import RateCalc
 import Daemon
 import socket
 import threading
@@ -52,7 +51,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4161 2009-05-19 01:41:26Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4685 2009-10-14 18:47:34Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -242,89 +241,147 @@ class RunArgs(object):
         opt, args = p.parse_args()
         self.__process_options(opt)
 
+class PayloadTime(object):
+    # number of seconds in 11 months
+    ELEVEN_MONTHS = 60 * 60 * 24 * (365 - 31)
+
+    # offset from epoch to start of year
+    TIME_OFFSET = None
+
+    # previous payload time
+    PREV_TIME = None
+
+    def toDateTime(cls, payTime):
+        if payTime is None:
+            return None
+
+        # recompute start-of-year offset?
+        recompute = (PayloadTime.PREV_TIME is None or
+                     abs(payTime - PayloadTime.PREV_TIME) >
+                     PayloadTime.ELEVEN_MONTHS)
+
+        if recompute:
+            now = time.gmtime()
+            jan1 = time.struct_time((now.tm_year, 1, 1, 0, 0, 0, 0, 0, -1))
+            PayloadTime.TIME_OFFSET = time.mktime(jan1)
+
+        PayloadTime.PREV_TIME = payTime
+
+        curTime = PayloadTime.TIME_OFFSET + (payTime / 10000000000.0)
+        ts = time.gmtime(curTime)
+
+        return datetime.datetime(ts.tm_year, ts.tm_mon, ts.tm_mday, ts.tm_hour,
+                                 ts.tm_min, ts.tm_sec,
+                                 int((curTime * 1000000) % 1000000))
+
+    toDateTime = classmethod(toDateTime)
+
 class RunStats(object):
-    def __init__(self, runNum=None, startTime=None, stopTime=None, physicsEvents=None,
-                 moniEvents=None, snEvents=None, tcalEvents=None, EBDiskAvailable=None,
-                 EBDiskSize=None, SBDiskAvailable=None, SBDiskSize=None):
-        self.runNum          = runNum
-        self.startTime       = startTime
-        self.stopTime        = stopTime
-        self.physicsEvents   = physicsEvents
-        self.moniEvents      = moniEvents
-        self.snEvents        = snEvents
-        self.tcalEvents      = tcalEvents
-        self.EBDiskAvailable = EBDiskAvailable
-        self.EBDiskSize      = EBDiskSize
-        self.SBDiskAvailable = SBDiskAvailable
-        self.SBDiskSize      = SBDiskSize
-        self.physicsRate     = RateCalc.RateCalc(300.) # Calculates rate over latest 5min interval
+    def __init__(self):
+        self.__runNum = None
+        self.__startPayTime = None
+        self.__numEvts = None
+        self.__evtTime = None
+        self.__evtPayTime = None
+        self.__numMoni = None
+        self.__moniTime = None
+        self.__numSN = None
+        self.__snTime = None
+        self.__numTcal = None
+        self.__tcalTime = None
+
+        # Calculates rate over latest 5min interval
+        self.__physicsRate = RateCalc(300.)
+
+    def addRate(self, dateTime, numEvts):
+        self.__physicsRate.add(dateTime, numEvts)
 
     def clear(self):
         "Clear run-related statistics"
-        self.startTime       = None
-        self.stopTime        = None
-        self.physicsEvents   = 0
-        self.moniEvents      = 0
-        self.snEvents        = 0
-        self.tcalEvents      = 0
-        self.EBDiskAvailable = 0
-        self.EBDiskSize      = 0
-        self.SBDiskAvailable = 0
-        self.SBDiskSize      = 0
-        self.physicsRate.reset()
+        self.__startPayTime = None
+        self.__numEvts = 0
+        self.__evtTime = None
+        self.__evtPayTime = None
+        self.__numMoni = 0
+        self.__moniTime = None
+        self.__numSN = 0
+        self.__snTime = None
+        self.__numTcal = 0
+        self.__tcalTime = None
+        self.__physicsRate.reset()
 
-    def clearAll(self):
-        "Clear run number and run-related statistics"
-        self.runNum  = None
-        self.clear()
+    def currentData(self):
+        return (self.__runNum, self.__evtTime, self.__numEvts,
+                self.__numMoni, self.__numSN, self.__numTcal)
 
-    def clone(self, other):
-        "Copy run data to another instance of this object"
-        self.runNum          = other.runNum
-        self.startTime       = other.startTime
-        self.stopTime        = other.stopTime
-        self.physicsEvents   = other.physicsEvents
-        self.moniEvents      = other.moniEvents
-        self.snEvents        = other.snEvents
-        self.tcalEvents      = other.tcalEvents
+    def getDiskUsage(self, daqRun):
+        "Gather disk usage for builder machines"
+        (ebDiskAvail, ebDiskSize) = daqRun.getEBDiskUsage()
+        (sbDiskAvail, sbDiskSize) = daqRun.getSBDiskUsage()
+        return (ebDiskAvail, ebDiskSize, sbDiskAvail, sbDiskSize)
 
-    def getDuration(self):
-        "Compute the run duration (in seconds)"
-        if self.startTime is None or self.stopTime is None:
-            return 0
+    def getRunNumber(self):
+        return self.__runNum
 
-        durDelta = self.stopTime - self.startTime
-        return durDelta.days * 86400 + durDelta.seconds
+    def hasRunNumber(self):
+        return self.__runNum is not None
+
+    def monitorData(self):
+        evtDT = PayloadTime.toDateTime(self.__evtPayTime)
+        return (self.__numEvts, self.__evtTime, evtDT,
+                self.__numMoni, self.__moniTime,
+                self.__numSN, self.__snTime,
+                self.__numTcal, self.__tcalTime)
+
+    def rate(self):
+        return self.__physicsRate.rate()
+
+    def rateEntries(self):
+        return self.__physicsRate.entries()
+
+    def setRunNumber(self, runNum):
+        self.__runNum = runNum
 
     def start(self):
         "Initialize statistics for the current run"
-        self.startTime = datetime.datetime.now()
-        self.physicsRate.add(self.startTime, 0) # Run starts w/ 0 events
+        pass
 
     def stop(self, daqRun):
         "Gather and return end-of-run statistics"
-        # TODO: define stop time more carefully?
-        self.stopTime = datetime.datetime.now()
-        duration = self.getDuration()
-
         # get final event counts
         self.updateEventCounts(daqRun)
 
-        return (self.physicsEvents, self.moniEvents, self.snEvents,
-                self.tcalEvents, duration)
+        if self.__startPayTime is None or self.__evtPayTime is None:
+            duration = 0
+        else:
+            duration = (self.__evtPayTime - self.__startPayTime) / 10000000000
 
-    def updateDiskUsage(self, daqRun):
-        "Gather disk usage for builder machines"
-        self.EBDiskAvailable, self.EBDiskSize = daqRun.getEBDiskUsage()
-        self.SBDiskAvailable, self.SBDiskSize = daqRun.getSBDiskUsage()
+        return (self.__numEvts, self.__numMoni, self.__numSN, self.__numTcal,
+                duration)
+
+    def summaryData(self):
+        return (self.__runNum, PayloadTime.toDateTime(self.__startPayTime),
+                self.__evtTime, self.__numEvts, self.__numMoni, self.__numSN,
+                self.__numTcal)
 
     def updateEventCounts(self, daqRun, addRate=False):
         "Gather run statistics"
-        (self.physicsEvents, self.moniEvents, self.snEvents,
-         self.tcalEvents) = daqRun.getEventCounts()
+        evtData = daqRun.getEventData()
 
-        if addRate:
-            self.physicsRate.add(datetime.datetime.now(), self.physicsEvents)
+        (self.__numEvts, self.__evtTime, self.__evtPayTime,
+         self.__numMoni, self.__moniTime,
+         self.__numSN, self.__snTime,
+         self.__numTcal, self.__tcalTime) = evtData
+
+        if addRate and self.__numEvts > 0:
+            if self.__startPayTime is None:
+                self.__startPayTime = daqRun.getFirstEventTime()
+                startDT = PayloadTime.toDateTime(self.__startPayTime)
+                self.__physicsRate.add(startDT, 1)
+            self.__physicsRate.add(PayloadTime.toDateTime(self.__evtPayTime),
+                                   self.__numEvts)
+
+        return evtData
 
 def linkOrCopy(src, dest):
     try:
@@ -335,22 +392,151 @@ def linkOrCopy(src, dest):
         else:
             raise
 
+class RateThread(threading.Thread):
+    "A thread which reports the current event rates"
+    def __init__(self, runStats, daqRun, log):
+        self.__runStats = runStats
+        self.__daqRun = daqRun
+        self.__log = log
+        self.__done = False
+
+        threading.Thread.__init__(self)
+
+        self.setName("DAQRun:RateThread")
+
+    def done(self):
+        return self.__done
+
+    def run(self):
+        self.__runStats.updateEventCounts(self.__daqRun, True)
+
+        rateStr = ""
+        rate = self.__runStats.rate()
+        if rate == 0.0:
+            rateStr = ""
+        else:
+            rateStr = " (%2.2f Hz)" % rate
+
+        (runNum, evtTime, numEvts, numMoni, numSN, numTcal) = \
+            self.__runStats.currentData()
+
+        self.__log.error(("\t%s physics events%s, %s moni events," +
+                          " %s SN events, %s tcals")  %
+                         (numEvts, rateStr, numMoni, numSN, numTcal))
+        self.__done = True
+
+class ActiveDOMThread(threading.Thread):
+    "A thread which reports the active DOM counts"
+    def __init__(self, moni, activeMoni, comps, log, sendDetails):
+        self.__moni = moni
+        self.__activeMonitor = activeMoni
+        self.__comps = comps
+        self.__log = log
+        self.__sendDetails = sendDetails
+        self.__done = False
+
+        threading.Thread.__init__(self)
+
+        self.setName("DAQRun:ActiveDOMThread")
+
+    def done(self):
+        return self.__done
+
+    def run(self):
+        total = 0
+        hubDOMs = {}
+
+        for cid, comp in self.__comps.iteritems():
+            if comp.name() == "stringHub":
+                nStr = self.__moni.getSingleBeanField(cid, "stringhub",
+                                                      "NumberOfActiveChannels")
+                num = int(nStr)
+                total += num
+                if self.__sendDetails:
+                    hubDOMs[str(comp.id())] = num
+
+        now = datetime.datetime.now()
+
+        self.__activeMonitor.sendMoni("activeDOMs", total, Prio.ITS)
+
+        if self.__sendDetails:
+            if not self.__activeMonitor.sendMoni("activeStringDOMs", hubDOMs,
+                                                 Prio.ITS):
+                self.__log.error("Failed to send active DOM report")
+
+        self.__done = True
+
+class Component(object):
+    def __init__(self, name, id, inetAddr, rpcPort, mbeanPort):
+        self.__name = name
+        self.__id = id
+        self.__inetAddr = inetAddr
+        self.__rpcPort = rpcPort
+        self.__mbeanPort = mbeanPort
+        self.__logger = None
+        self.__logPort = None
+
+    def __str__(self):
+        return "%s#%s" % (str(self.__name), str(self.__id))
+
+    def clearLogInfo(self):
+        self.__logger = None
+        self.__logPort = None
+
+    def id(self): return self.__id
+    def inetAddress(self): return self.__inetAddr
+    def isHub(self): return self.__name.endswith("Hub")
+    def logPort(self): return self.__logPort
+    def logger(self): return self.__logger
+    def mbeanPort(self): return self.__mbeanPort
+    def name(self): return self.__name
+    def rpcPort(self): return self.__rpcPort
+
+    def setLogInfo(self, logger, logPort):
+        self.__logger = logger
+        self.__logPort = logPort
+
 class DAQRun(object):
     "Serve requests to start/stop DAQ runs (exp control iface)"
-    MONI_PERIOD    = 100
-    RATE_PERIOD    = 60
-    WATCH_PERIOD   = 10
-    COMP_TOUT      = 60
+
+    # active DOM total timer
+    ACTIVE_NAME      = "activeTimer"
+    ACTIVE_PERIOD    = 60
+
+    # active DOM periodic report timer
+    ACTIVERPT_NAME   = "activeRptTimer"
+    ACTIVERPT_PERIOD = 600
+
+    # monitoring timer
+    MONI_NAME        = "moniTimer"
+    MONI_PERIOD      = 100
+
+    # event rate report timer
+    RATE_NAME        = "rateTimer"
+    RATE_PERIOD      = 60
+
+    # watchdog timer
+    WATCH_NAME       = "watchTimer"
+    WATCH_PERIOD     = 10
+
+    # max time to wait for components to register
+    REGISTRATION_TIMEOUT = 60
 
     # note that these are bitmapped
-    LOG_TO_FILE    = 1
-    LOG_TO_LIVE    = 2
-    LOG_TO_BOTH    = 3
+    LOG_TO_FILE = 1
+    LOG_TO_LIVE = 2
+    LOG_TO_BOTH = 3
 
     # Logging level
     LOGLEVEL = DAQLog.WARN
     # I3Live priority
     LOGPRIO = Prio.ITS
+
+    # number of sequential watchdog complaints to indicate a run is unhealthy
+    MAX_UNHEALTHY_COUNT = 3
+
+    # set to True after "could not import IceCube Live" warning is printed
+    LIVE_WARNING = False
 
     def __init__(self, runArgs, startServer=True):
 
@@ -395,30 +581,42 @@ class DAQRun(object):
         self.requiredComps    = []
         self.versionInfo      = get_version_info(SVN_ID)
 
-        # setCompID is the ID returned by CnCServer
-        # daqID is e.g. 21 for string 21
-        self.setCompIDs       = []
-        self.shortNameOf      = {} # indexed by setCompID
-        self.daqIDof          = {} # "                  "
-        self.rpcAddrOf        = {} # "                  "
-        self.rpcPortOf        = {} # "                  "
-        self.mbeanPortOf      = {} # "                  "
-        self.loggerOf         = {} # "                  "
-        self.logPortOf        = {} # "                  "
+        # component key is the ID returned by CnCServer
+        self.components       = {}
 
         self.ip               = getIP()
         self.compPorts        = {} # Indexed by name
         self.cnc              = None
-        self.moni             = None
-        self.moniTimer        = None
-        self.watchdog         = None
         self.lastConfig       = None
         self.restartOnError   = runArgs.doRelaunch
         self.prevRunStats     = None
         self.runStats         = RunStats()
         self.quiet            = runArgs.quiet
         self.running          = False
-        self.rateTimer        = self.setup_timer(DAQRun.RATE_PERIOD)
+
+        self.moni             = None
+        self.__moniTimer      = None
+
+        self.watchdog         = None
+        self.unHealthyCount   = 0
+
+        self.rateTimer        = None
+        self.rateThread       = None
+        self.badRateCount     = 0
+
+        self.__activeDOMTimer = None
+        self.__activeMonitor = MoniClient("pdaq", "localhost", DAQPort.I3LIVE)
+        if str(self.__activeMonitor).startswith("BOGUS"):
+            self.__activeMonitor = None
+            self.__activeDOMDetail = None
+            if not DAQRun.LIVE_WARNING:
+                print >>sys.stderr, "Cannot import IceCube Live code, so" + \
+                    " per-string active DOM stats wil not be reported"
+                DAQRun.LIVE_WARNING = True
+        else:
+            self.__activeDOMDetail = self.setup_timer(DAQRun.ACTIVERPT_NAME,
+                                                      DAQRun.ACTIVERPT_PERIOD)
+        self.__activeDOMThread   = None
 
         self.__liveInfo       = None
         self.__id = int(time.time())
@@ -616,34 +814,36 @@ class DAQRun(object):
     def setUpAllComponentLoggers(self):
         "Sets up loggers for remote components (other than CnCServer)"
         self.log.info("Setting up logging for %d components" %
-                      len(self.setCompIDs))
-        for ic in range(0, len(self.setCompIDs)):
-            compID = self.setCompIDs[ic]
-            self.logPortOf[compID] = DAQPort.RUNCOMP_BASE + ic
+                      len(self.components))
+
+        keys = self.components.keys()
+        keys.sort()
+
+        for id in keys:
+            comp = self.components[id]
+            logPort = DAQPort.RUNCOMP_BASE + id
             logFile  = "%s/%s-%d.log" % \
-                (self.__logpath, self.shortNameOf[compID],
-                 self.daqIDof[compID])
-            self.loggerOf[compID] = \
-                self.createLogSocketServer(self.logPortOf[compID],
-                                           self.shortNameOf[compID], logFile)
+                (self.__logpath, comp.name(), comp.id())
+            logger = \
+                self.createLogSocketServer(logPort, comp.name(), logFile)
+            comp.setLogInfo(logger, logPort)
             self.log.info("%s(%d %s:%d) -> %s:%d" %
-                          (self.shortNameOf[compID], compID,
-                           self.rpcAddrOf[compID], self.rpcPortOf[compID],
-                           self.ip, self.logPortOf[compID]))
+                          (comp.name(), id, comp.inetAddress(), comp.rpcPort(),
+                           self.ip, logPort))
 
     def stopAllComponentLoggers(self):
         "Stops loggers for remote components"
         if self.runSetID:
             self.log.info("Stopping component logging")
-            for compID in self.setCompIDs:
-                if self.loggerOf[compID]:
-                    self.loggerOf[compID].stopServing()
-                    self.loggerOf[compID] = None
+            for comp in self.components.itervalues():
+                if comp.logger():
+                    comp.logger().stopServing()
+                    comp.clearLogInfo()
 
     def createRunsetLoggerNameList(self):
         "Create a list of arguments in the form of (shortname, daqID, logport)"
-        for r in self.setCompIDs:
-            yield [self.shortNameOf[r], self.daqIDof[r], self.logPortOf[r]]
+        for comp in self.components.itervalues():
+            yield [comp.name(), comp.id(), comp.logPort()]
 
     def isRequiredComponent(shortName, daqID, compList):
         "XXX - this seems to be unused"
@@ -714,18 +914,27 @@ class DAQRun(object):
             self.log.error("FAILED to queue data for SPADE: %s" % exc_string())
 
     def move_spade_files(self, copyDir, basePrefix, logTopLevel, runDir, spadeDir):
+        runPath = "%s/%s" % (logTopLevel, runDir)
+        if not exists(runPath):
+            mkdir(runPath, 0755)
+            
         tarBall = "%s/%s.dat.tar" % (spadeDir, basePrefix)
         semFile = "%s/%s.sem"     % (spadeDir, basePrefix)
         self.log.info("Target files are:\n%s\n%s" % (tarBall, semFile))
-        move("%s/catchall.log" % logTopLevel, "%s/%s" % (logTopLevel, runDir))
+
         tarObj = TarFile(tarBall, "w")
-        tarObj.add("%s/%s" % (logTopLevel, runDir), runDir, True)
+
+        if isdir(runPath):
+            move("%s/catchall.log" % logTopLevel, runPath)
+            tarObj.add(runPath, runDir, True)
+
         # self.recursivelyAddToTar(tarObj, logTopLevel, runDir)
         tarObj.close()
         if copyDir:
             copyFile = "%s/%s.dat.tar" % (copyDir, basePrefix)
             self.log.info("Link or copy %s->%s" % (tarBall, copyFile))
             linkOrCopy(tarBall, copyFile)
+
         fd = open(semFile, "w")
         fd.close()
 
@@ -735,8 +944,9 @@ class DAQRun(object):
         # Wait for required components
         self.log.error(("Starting run %d (waiting for required %d components" +
                        " to register w/ CnCServer)") %
-                      (self.runStats.runNum, len(requiredComps)))
-        self.waitForRequiredComponents(cncrpc, requiredComps, DAQRun.COMP_TOUT)
+                      (self.runStats.getRunNumber(), len(requiredComps)))
+        self.waitForRequiredComponents(cncrpc, requiredComps,
+                                       DAQRun.REGISTRATION_TIMEOUT)
         # Throws RequiredComponentsNotAvailableException
 
         self.runSetID = cncrpc.rpccall("rpc_runset_make", requiredComps)
@@ -749,19 +959,13 @@ class DAQRun(object):
         """
 
         # clear old components
-        del self.setCompIDs[:]
+        self.components.clear()
 
         # extract remote component data
         compList = cncrpc.rpccall("rpc_runset_list", self.runSetID)
         for comp in compList:
-            self.setCompIDs.append(comp[0])
-            self.shortNameOf[ comp[0] ] = comp[1]
-            self.daqIDof    [ comp[0] ] = comp[2]
-            self.rpcAddrOf  [ comp[0] ] = comp[3]
-            self.rpcPortOf  [ comp[0] ] = comp[4]
-            self.mbeanPortOf[ comp[0] ] = comp[5]
-            self.loggerOf   [ comp[0] ] = None
-            self.logPortOf  [ comp[0] ] = None
+            self.components[comp[0]] = \
+                Component(comp[1], comp[2], comp[3], comp[4], comp[5])
 
     def setup_component_loggers(self, cncrpc, ip, runset):
         "Tell components where to log to"
@@ -789,19 +993,16 @@ class DAQRun(object):
             raise Exception('Unknown log mode %s (info=%s)' %
                             (self.__logMode, str(self.__liveInfo)))
 
-    def setup_monitoring(self, log, moniPath, compIDs, shortNames, daqIDs,
-                         rpcAddrs, mbeanPorts, moniType):
+    def setup_monitoring(self, log, moniPath, comps, moniType):
         "Set up monitoring"
-        return DAQMoni(log, moniPath, compIDs, shortNames, daqIDs, rpcAddrs,
-                       mbeanPorts, moniType)
+        return DAQMoni(log, moniPath, comps, moniType)
 
-    def setup_watchdog(self, log, interval, compIDs, shortNames, daqIDs,
-                       rpcAddrs, mbeanPorts):
+    def setup_watchdog(self, log, interval, comps):
         "Set up run watchdog"
-        return RunWatchdog(log, interval, compIDs, shortNames, daqIDs,
-                           rpcAddrs, mbeanPorts)
+        return RunWatchdog(log, interval, comps)
 
-    def setup_timer(self, interval):
+    def setup_timer(self, name, interval):
+        "Indirectly create IntervalTimer to make unit testing easier"
         return IntervalTimer(interval)
 
     def runset_configure(self, rpc, runSetID, configName):
@@ -810,12 +1011,13 @@ class DAQRun(object):
         rpc.rpccall("rpc_runset_configure", runSetID, configName)
 
     def start_run(self, cncrpc):
-        cncrpc.rpccall("rpc_runset_start_run", self.runSetID, self.runStats.runNum)
+        cncrpc.rpccall("rpc_runset_start_run", self.runSetID,
+                       self.runStats.getRunNumber())
         self.log.error("Started run %d on run set %d" %
-                       (self.runStats.runNum, self.runSetID))
+                       (self.runStats.getRunNumber(), self.runSetID))
 
     def stop_run(self, cncrpc):
-        self.log.error("Stopping run %d" % self.runStats.runNum)
+        self.log.error("Stopping run %d" % self.runStats.getRunNumber())
         cncrpc.rpccall("rpc_runset_stop_run", self.runSetID)
 
     def break_existing_runset(self, cncrpc):
@@ -835,89 +1037,156 @@ class DAQRun(object):
                     self.log.error("WARNING: failed to break run set - " +
                                    exc_string())
 
-            self.setCompIDs = []
-            self.shortNameOf.clear()
-            self.daqIDof.clear()
-            self.rpcAddrOf.clear()
-            self.rpcPortOf.clear()
-            self.mbeanPortOf.clear()
-            self.loggerOf.clear()
-            self.logPortOf.clear()
+            self.components.clear()
 
             self.runSetID   = None
             self.lastConfig = None
 
-    def getEventCounts(self):
-        nev   = 0
-        nmoni = 0
-        nsn   = 0
-        ntcal = 0
-        for cid in self.setCompIDs:
-            if self.shortNameOf[cid] == "eventBuilder" and self.daqIDof[cid] == 0:
-                nev = int(self.moni.getSingleBeanField(cid, "backEnd", "NumEventsSent"))
-            if self.shortNameOf[cid] == "secondaryBuilders" and self.daqIDof[cid] == 0:
-                nmoni = int(self.moni.getSingleBeanField(cid, "moniBuilder", "TotalDispatchedData"))
-            if self.shortNameOf[cid] == "secondaryBuilders" and self.daqIDof[cid] == 0:
-                nsn = int(self.moni.getSingleBeanField(cid, "snBuilder", "TotalDispatchedData"))
-            if self.shortNameOf[cid] == "secondaryBuilders" and self.daqIDof[cid] == 0:
-                ntcal = int(self.moni.getSingleBeanField(cid, "tcalBuilder", "TotalDispatchedData"))
+    def getCountTime(self):
+        return datetime.datetime.utcnow()
 
-        return (nev, nmoni, nsn, ntcal)
+    def getEventData(self):
+        nEvts = 0
+        evtTime = -1
+        payloadTime = -1
+        nMoni = 0
+        moniTime = -1
+        nSN = 0
+        snTime = -1
+        nTCal = 0
+        tcalTime = -1
+
+        for cid, comp in self.components.iteritems():
+            if comp.name() == "eventBuilder" and comp.id() == 0:
+                evtData = self.moni.getSingleBeanField(cid, "backEnd",
+                                                       "EventData")
+                if type(evtData) == list or type(evtData) == tuple:
+                    nEvts = int(evtData[0])
+                    evtTime = self.getCountTime()
+                    payloadTime = long(evtData[1])
+            if comp.name() == "secondaryBuilders" and comp.id() == 0:
+                nMoni = int(self.moni.getSingleBeanField(cid, "moniBuilder",
+                                                         "TotalDispatchedData"))
+                moniTime = self.getCountTime()
+            if comp.name() == "secondaryBuilders" and comp.id() == 0:
+                nSN = int(self.moni.getSingleBeanField(cid, "snBuilder",
+                                                       "TotalDispatchedData"))
+                snTime = self.getCountTime()
+            if comp.name() == "secondaryBuilders" and comp.id() == 0:
+                nTCal = int(self.moni.getSingleBeanField(cid, "tcalBuilder",
+                                                         "TotalDispatchedData"))
+                tcalTime = self.getCountTime()
+
+        return (nEvts, evtTime, payloadTime, nMoni, moniTime, nSN, snTime,
+                nTCal, tcalTime)
 
     def getEBSubRunNumber(self):
-        for cid in self.setCompIDs:
-            if self.shortNameOf[cid] == "eventBuilder" and self.daqIDof[cid] == 0:
-                return int(self.moni.getSingleBeanField(cid, "backEnd", "SubrunNumber"))
+        for cid, comp in self.components.iteritems():
+            if comp.name() == "eventBuilder" and comp.id() == 0:
+                return int(self.moni.getSingleBeanField(cid, "backEnd",
+                                                        "SubrunNumber"))
         return 0
 
     def getEBDiskUsage(self):
-        for cid in self.setCompIDs:
-            if self.shortNameOf[cid] == "eventBuilder" and self.daqIDof[cid] == 0:
-                return [int(self.moni.getSingleBeanField(cid, "backEnd", "DiskAvailable")),
-                        int(self.moni.getSingleBeanField(cid, "backEnd", "DiskSize"))]
+        for cid, comp in self.components.iteritems():
+            if comp.name() == "eventBuilder" and comp.id() == 0:
+                return [int(self.moni.getSingleBeanField(cid, "backEnd",
+                                                         "DiskAvailable")),
+                        int(self.moni.getSingleBeanField(cid, "backEnd",
+                                                         "DiskSize"))]
         return [0, 0]
 
+    def getFirstEventTime(self):
+        firstTime = -1
+        for cid, comp in self.components.iteritems():
+            if comp.name() == "eventBuilder" and comp.id() == 0:
+                firstTime = int(self.moni.getSingleBeanField(cid, "backEnd",
+                                                             "FirstEventTime"))
+        return firstTime
+
     def getSBDiskUsage(self):
-        for cid in self.setCompIDs:
-            if self.shortNameOf[cid] == "secondaryBuilders" and self.daqIDof[cid] == 0:
+        for cid, comp in self.components.iteritems():
+            if comp.name() == "secondaryBuilders" and comp.id() == 0:
                 return [int(self.moni.getSingleBeanField(cid, "tcalBuilder", "DiskAvailable")),
                         int(self.moni.getSingleBeanField(cid, "tcalBuilder", "DiskSize"))]
         return [0, 0]
 
-    unHealthyCount      = 0
-    MAX_UNHEALTHY_COUNT = 3
+    def setup_timers(self):
+        if self.__logMode == DAQRun.LOG_TO_FILE:
+            moniType = DAQMoni.TYPE_FILE
+        elif self.__logMode == DAQRun.LOG_TO_LIVE:
+            moniType = DAQMoni.TYPE_LIVE
+        elif self.__logMode == DAQRun.LOG_TO_BOTH:
+            moniType = DAQMoni.TYPE_BOTH
+        else:
+            raise Exception('Unknown log mode %s' % str(self.__logMode))
 
-    def check_all(self):
-        checkRate = False
-        if self.moni and self.moniTimer and self.moniTimer.isTime():
-            self.moniTimer.reset()
+        self.moni = self.setup_monitoring(self.log, self.__logpath,
+                                          self.components, moniType)
+        self.__moniTimer = self.setup_timer(DAQRun.MONI_NAME,
+                                            DAQRun.MONI_PERIOD)
+
+        self.__activeDOMTimer = self.setup_timer(DAQRun.ACTIVE_NAME,
+                                                 DAQRun.ACTIVE_PERIOD)
+
+        self.rateTimer = self.setup_timer(DAQRun.RATE_NAME,
+                                          DAQRun.RATE_PERIOD)
+
+        self.watchdog = self.setup_watchdog(self.log, DAQRun.WATCH_PERIOD,
+                                            self.components)
+
+    def check_timers(self):
+        if self.moni and self.__moniTimer and self.__moniTimer.isTime():
+            self.__moniTimer.reset()
             try:
                 self.moni.doMoni()
             except Exception:
                 self.log.error("Exception in monitoring: %s" % exc_string())
 
-        if self.rateTimer.isTime():
+        if self.__activeDOMTimer and self.__activeDOMTimer.isTime():
+            self.__activeDOMTimer.reset()
+            if self.__activeMonitor is not None and \
+                    self.__activeDOMThread is not None and \
+                    not self.__activeDOMThread.done():
+                self.badActiveDOMCount += 1
+                if self.badActiveDOMCount <= 3:
+                    self.log.error(("WARNING: Active DOM thread" +
+                                    " is hanging (#%d)") %
+                                   self.badActiveDOMCount)
+                else:
+                    self.log.error("ERROR: Active DOM calculation seems to be" +
+                                   " stuck, stopping run")
+                    self.runState = "ERROR"
+            else:
+                self.badActiveDOMCount = 0
+
+                sendDetails = False
+                if self.__activeDOMDetail is not None and \
+                        self.__activeDOMDetail.isTime():
+                    sendDetails = True
+                    self.__activeDOMDetail.reset()
+
+                self.__activeDOMThread = \
+                    ActiveDOMThread(self.moni, self.__activeMonitor,
+                                    self.components, self.log, sendDetails)
+                self.__activeDOMThread.start()
+
+        if self.rateTimer and self.rateTimer.isTime():
             self.rateTimer.reset()
-            self.runStats.updateEventCounts(self, True)
-            try:
-                rate = self.runStats.physicsRate.rate()
-                # This occurred in issue 2034 and is dealt with:
-                # debug code can be removed at will
-                if rate < 0:
-                    self.log.warn("WARNING: rate < 0")
-                    for entry in self.runStats.physicsRate.entries:
-                        self.log.warn(str(entry))
-                #
-                rateStr = " (%2.2f Hz)" % rate
-            except (RateCalc.InsufficientEntriesException, RateCalc.ZeroTimeDeltaException):
-                rateStr = ""
-            self.log.error(("\t%s physics events%s, %s moni events," +
-                            " %s SN events, %s tcals")  %
-                           (self.runStats.physicsEvents,
-                            rateStr,
-                            self.runStats.moniEvents,
-                            self.runStats.snEvents,
-                            self.runStats.tcalEvents))
+            if self.rateThread is not None and not self.rateThread.done():
+                self.badRateCount += 1
+                if self.badRateCount <= 3:
+                    self.log.error("WARNING: Rate thread is hanging (#%d)" %
+                                   self.badRateCount)
+                else:
+                    self.log.error("ERROR: Rate calculation seems to be" +
+                                   " stuck, stopping run")
+                    self.runState = "ERROR"
+            else:
+                self.badRateCount = 0
+
+                self.rateThread = RateThread(self.runStats, self, self.log)
+                self.rateThread.start()
 
         if self.watchdog:
             if self.watchdog.inProgress():
@@ -929,21 +1198,16 @@ class DAQRun(object):
                     healthy = self.watchdog.isHealthy()
                     self.watchdog.clearThread()
                     if healthy:
-                        DAQRun.unHealthyCount = 0
+                        self.unHealthyCount = 0
                     else:
-                        DAQRun.unHealthyCount += 1
-                        if DAQRun.unHealthyCount >= DAQRun.MAX_UNHEALTHY_COUNT:
-                            DAQRun.unHealthyCount = 0
+                        self.unHealthyCount += 1
+                        if self.unHealthyCount >= DAQRun.MAX_UNHEALTHY_COUNT:
+                            self.unHealthyCount = 0
                             return False
             elif self.watchdog.timeToWatch():
                 self.watchdog.startWatch()
 
         return True
-
-    def saveAndResetRunStats(self):
-        if self.prevRunStats == None: self.prevRunStats = RunStats()
-        self.prevRunStats.clone(self.runStats)
-        self.runStats.clearAll()
 
     def restartComponents(self, pShell, checkExists=True, startMissing=True):
         try:
@@ -1006,12 +1270,12 @@ class DAQRun(object):
                         self.__logpath = None
                         logDirCreated = False
                     else:
-                        self.createRunLogDirectory(self.runStats.runNum,
+                        self.createRunLogDirectory(self.runStats.getRunNumber(),
                                                    self.logDir)
                         logDirCreated = True
 
                     self.setup_run_logging(self.cnc, self.logDir,
-                                           self.runStats.runNum,
+                                           self.runStats.getRunNumber(),
                                            self.configName)
                     self.setup_component_loggers(self.cnc, self.ip,
                                                  self.runSetID)
@@ -1020,28 +1284,9 @@ class DAQRun(object):
                         self.runset_configure(self.cnc, self.runSetID,
                                               self.configName)
 
-                    # The next 2 setups were postponed until after configure
-                    # to allow the late-binding of the StringHub/datacollector MBeans
-                    if self.__logMode == DAQRun.LOG_TO_FILE:
-                        moniType = DAQMoni.TYPE_FILE
-                    elif self.__logMode == DAQRun.LOG_TO_LIVE:
-                        moniType = DAQMoni.TYPE_LIVE
-                    elif self.__logMode == DAQRun.LOG_TO_BOTH:
-                        moniType = DAQMoni.TYPE_BOTH
-                    else:
-                        raise Exception('Unknown log mode %s' %
-                                        str(self.__logMode))
-                    self.moni = \
-                        self.setup_monitoring(self.log, self.__logpath,
-                                              self.setCompIDs, self.shortNameOf,
-                                              self.daqIDof, self.rpcAddrOf,
-                                              self.mbeanPortOf, moniType)
-                    self.moniTimer = self.setup_timer(DAQRun.MONI_PERIOD)
-                    self.watchdog = \
-                        self.setup_watchdog(self.log, DAQRun.WATCH_PERIOD,
-                                            self.setCompIDs, self.shortNameOf,
-                                            self.daqIDof, self.rpcAddrOf,
-                                            self.mbeanPortOf)
+                    # Set up timers after configure to allow the late
+                    # binding of the StringHub/datacollector MBeans
+                    self.setup_timers()
 
                     self.lastConfig = self.configName
                     self.runStats.start()
@@ -1057,12 +1302,13 @@ class DAQRun(object):
             elif self.runState == "STOPPING" or self.runState == "RECOVERING":
                 hadError = False
                 if self.runState == "RECOVERING":
-                    if self.runStats.runNum is None:
+                    if not self.runStats.hasRunNumber():
                         self.log.error("Recovering from failed initial state")
                     else:
                         self.log.error("Recovering from failed run %d..." %
-                                       self.runStats.runNum)
-                    # "Forget" configuration so new run set will be made next time:
+                                       self.runStats.getRunNumber())
+                    # "Forget" configuration so new run set
+                    # will be made next time:
                     self.lastConfig = None
                     hadError = True
                 else:
@@ -1095,8 +1341,14 @@ class DAQRun(object):
                                    (nmoni, nsn, ntcal))
 
                 self.moni = None
-                self.moniTimer = None
+                self.__moniTimer = None
+
                 self.watchdog = None
+                self.unHealthyCount = 0
+
+                self.rateTimer = None
+
+                self.__activeDOMTimer = None
 
                 try:      self.stopAllComponentLoggers()
                 except:   hadError = True; self.log.error(exc_string())
@@ -1113,8 +1365,10 @@ class DAQRun(object):
 
                 if self.__isLogToFile() and logDirCreated:
                     catchAllLogger.stopServing()
-                    self.queue_for_spade(self.spadeDir, self.copyDir, self.logDir,
-                                         self.runStats.runNum, datetime.datetime.now(), duration)
+                    self.queue_for_spade(self.spadeDir, self.copyDir,
+                                         self.logDir,
+                                         self.runStats.getRunNumber(),
+                                         datetime.datetime.now(), duration)
                     catchAllLogger.startServing()
 
                 if forceRestart or (hadError and self.restartOnError):
@@ -1126,12 +1380,15 @@ class DAQRun(object):
                     if not self.__isLogToLive():
                         self.__appender.setLiveAppender(None)
 
-                self.saveAndResetRunStats()
+                self.prevRunStats = self.runStats
+                self.runStats = RunStats()
+
                 self.runState = "STOPPED"
 
             elif self.runState == "RUNNING":
-                if not self.check_all():
-                    self.log.error("Caught error in system, going to ERROR state...")
+                if not self.check_timers():
+                    self.log.error("Caught error in system," +
+                                   " going to ERROR state...")
                     self.runState = "ERROR"
                 else:
                     time.sleep(0.25)
@@ -1189,8 +1446,8 @@ class DAQRun(object):
         configName              - ASCII configuration name
         logInfo                 - tuple containing (host name/IP, log port)
         """
-        self.runStats.runNum = runNumber
-        self.configName      = configName
+        self.runStats.setRunNumber(runNumber)
+        self.configName = configName
 
         if logInfo is not None and len(logInfo) == 2:
             self.__liveInfo = LiveInfo(logInfo[0], logInfo[1])
@@ -1256,12 +1513,18 @@ class DAQRun(object):
     seqMap = staticmethod(seqMap)
 
     def rpc_daq_summary_xml(self):
-        "Return DAQ status overview XML for Experiment Control"
+        """
+        XXX - this code was only used by anvil and could be removed
+
+        Return DAQ status overview XML for Experiment Control
+        """
 
         # Get summary for current run, if available
         currentRun   = ""
         prevRun      = ""
         if self.prevRunStats:
+            (runNum, startTime, evtTime, numEvts, numMoni, numSN, numTcal) = \
+                self.prevRunStats.summaryData()
             prevRun = """<run ordering="previous">
       <number>%s</number>
       <start-time>%s</start-time>
@@ -1271,17 +1534,20 @@ class DAQRun(object):
       <events><stream>sn</stream>     <count>%s</count></events>
       <events><stream>tcal</stream>   <count>%s</count></events>
    </run>
-""" % (self.prevRunStats.runNum, str(self.prevRunStats.startTime), str(self.prevRunStats.stopTime),
-       self.prevRunStats.physicsEvents, self.prevRunStats.moniEvents,
-       self.prevRunStats.snEvents,      self.prevRunStats.tcalEvents)
+""" % (runNum, startTime, evtTime, numEvts, numMoni, numSN, numTcal)
 
-        if self.runState == "RUNNING" and self.runStats.runNum:
+        if self.runState == "RUNNING" and self.runStats.hasRunNumber():
             try:
-                self.runStats.updateDiskUsage(self)
+                (ebDiskAvail, ebDiskSize, sbDiskAvail, sbDiskSize) = \
+                    self.runStats.getDiskUsage(self)
             except:
+                (ebDiskAvail, ebDiskSize, sbDiskAvail, sbDiskSize) = \
+                    (0, 0, 0, 0)
                 self.log.error("Failed to update disk usage quantities "+
                                "for summary XML (%s)!" % exc_string())
 
+            (runNum, evtTime, numEvts, numMoni, numSN, numTcal) = \
+             self.runStats.currentData()
             currentRun = """\
    <run ordering="current">
       <number>%s</number>
@@ -1299,11 +1565,8 @@ class DAQRun(object):
       <available>%s</available><capacity>%s</capacity><units>MB</units>
       <name>Secondary builders dispatch cache</name>
    </resource>
-""" % (self.runStats.runNum, str(self.runStats.startTime),
-                        self.runStats.physicsEvents, self.runStats.moniEvents,
-                        self.runStats.snEvents, self.runStats.tcalEvents,
-                        self.runStats.EBDiskAvailable, self.runStats.EBDiskSize,
-                        self.runStats.SBDiskAvailable, self.runStats.SBDiskSize)
+""" % (runNum, startTime, numEvts, numMoni, numSN, numTcal,
+       ebDiskAvail, ebDiskSize, sbDiskAvail, sbDiskSize)
 
         # Add subrun counts
         subRunCounts = ""
@@ -1330,18 +1593,23 @@ class DAQRun(object):
 
         monDict = {}
 
-        if self.runStats.runNum and self.runState == "RUNNING":
+        if self.runStats.hasRunNumber() and self.runState == "RUNNING":
             self.runStats.updateEventCounts(self, True)
+            (numEvts, evtTime, payTime, numMoni, moniTime, numSN, snTime,
+             numTcal, tcalTime) = self.runStats.monitorData()
+        elif self.prevRunStats.hasRunNumber() and self.runState == "STOPPED":
+            (numEvts, evtTime, payTime, numMoni, moniTime, numSN, snTime,
+             numTcal, tcalTime) = self.prevRunStats.monitorData()
 
-            monDict["physicsEvents"] = self.runStats.physicsEvents
-            monDict["moniEvents"] = self.runStats.moniEvents
-            monDict["snEvents"] = self.runStats.snEvents
-            monDict["tcalEvents"] = self.runStats.tcalEvents
-        elif self.prevRunStats.runNum and self.runState == "STOPPED":
-            monDict["physicsEvents"] = self.prevRunStats.physicsEvents
-            monDict["moniEvents"] = self.prevRunStats.moniEvents
-            monDict["snEvents"] = self.prevRunStats.snEvents
-            monDict["tcalEvents"] = self.prevRunStats.tcalEvents
+        monDict["physicsEvents"] = numEvts
+        monDict["eventTime"] = str(evtTime)
+        monDict["eventPayloadTime"] = str(payTime)
+        monDict["moniEvents"] = numMoni
+        monDict["moniTime" ] = str(moniTime)
+        monDict["snEvents"] = numSN
+        monDict["snTime" ] = str(snTime)
+        monDict["tcalEvents"] = numTcal
+        monDict["tcalTime" ] = str(tcalTime)
 
         return monDict
 
