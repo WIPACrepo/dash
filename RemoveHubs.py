@@ -530,6 +530,10 @@ class DomConfig(object):
         """Get the list of strings whose DOMs are referenced in this file"""
         return self.__stringMap.keys()
 
+    def isCommentedOut(self):
+        """Is domconfig file commented-out?"""
+        return self.__commentOut
+
     def xml(self, indent):
         """Return the XML string for this DOM configuration file"""
         includeStringNumber = False
@@ -601,6 +605,19 @@ class RunConfig(object):
     def hasTriggerConfig(self):
         """Does this run configuration have a trigger configuration file?"""
         return self.__trigCfg is not None
+
+    def hubIds(self):
+        keys = self.__stringMap.keys()
+        keys.sort()
+
+        hubIds = []
+        for h in keys:
+            for dc in self.__stringMap[h]:
+                if not dc.isCommentedOut():
+                    hubIds.append(h)
+                    break
+
+        return hubIds
 
     def omit(self, hubIdList):
         """Create a new run configuration which omits the specified hubs"""
@@ -810,7 +827,92 @@ class RunConfigParser(XMLParser):
         return runCfg
     parse = classmethod(parse)
 
-def createFileName(fileName, hubIdList):
+class CCCException(Exception): pass
+
+class ClusterConfigCreator(object):
+    CLUSTER = { "sps" :
+                    { "spadeDir" : "/mnt/data/pdaqlocal",
+                      "copyDir" : "/mnt/data/pdaq/log-copies",
+                      "logLevel" : "INFO",
+                      }
+                }
+
+    def __init__(self, clusterName):
+        if not self.CLUSTER.has_key(clusterName):
+            raise CCCException("Unknown cluster name \"%s\"" % clusterName)
+
+        self.__clusterName = clusterName
+
+    def __writeLocation(self, fd, name, component, id=None):
+        host = self.__clusterName + "-" + name
+
+        if component is None:
+            print >>fd, "    <location name=\"%s\" host=\"%s\"/>" % \
+                (name, host)
+        else:
+            if id is None:
+                idStr = ""
+            else:
+                idStr = " id=\"%02d\"" % id
+
+            print >>fd, "    <location name=\"%s\" host=\"%s\">" % (name, host)
+            if type(component) != list:
+                print >>fd, "      <module name=\"%s\"%s/>" % (component, idStr)
+            else:
+                for c in component:
+                    print >>fd, "      <module name=\"%s\"%s/>" % (c, idStr)
+            print >>fd, "    </location>"
+
+    def write(self, fd, runCfg, cfgName=None):
+        if cfgName is None:
+            cfgStr = ""
+        else:
+            cfgStr = " configName=\"%s\"" % cfgName
+
+        print >>fd, "<icecube%s>" % cfgStr
+        print >>fd, "  <cluster name=\"%s\">" % self.__clusterName
+
+        print >>fd, "    <logDirForSpade>%s</logDirForSpade>" % \
+            self.CLUSTER[self.__clusterName]["spadeDir"]
+        print >>fd, "    <logDirCopies>%s</logDirCopies>" % \
+            self.CLUSTER[self.__clusterName]["copyDir"]
+        print >>fd, "    <defaultLogLevel>%s</defaultLogLevel>" % \
+            self.CLUSTER[self.__clusterName]["logLevel"]
+
+        needInIce = False
+        needIceTop = False
+
+        for id in runCfg.hubIds():
+            if id < 100:
+                hubName = "ichub%02d" % id
+                needInIce = True
+            else:
+                hubName = "ithub%02d" % (id - 200)
+                needIceTop = True
+
+            self.__writeLocation(fd, hubName, "StringHub", id)
+            print >>fd, ""
+
+        self.__writeLocation(fd, "2ndbuild", "SecondaryBuilders")
+        self.__writeLocation(fd, "evbuilder", "eventBuilder")
+
+        trigList = []
+        if needInIce: trigList.append("inIceTrigger")
+        if needIceTop: trigList.append("iceTopTrigger")
+        trigList.append("globalTrigger")
+        self.__writeLocation(fd, "trigger", trigList)
+        print >>fd, ""
+
+        self.__writeLocation(fd, "expcont", None)
+
+        print >>fd, "  </cluster>"
+        print >>fd, "</icecube>"
+
+def createClusterConfigName(fileName, hubIdList):
+    configDir = os.path.join(metaDir, "cluster-config", "src", "main", "xml")
+    return createConfigName(configDir, fileName, hubIdList)
+
+def createConfigName(configDir, fileName, hubIdList):
     """
     Create a new file name from the original name and the list of omitted hubs
     """
@@ -822,7 +924,14 @@ def createFileName(fileName, hubIdList):
     for h in hubIdList:
         noStr += "-no" + getHubName(h)
 
-    return os.path.join(metaDir, "config", baseName + noStr + ".xml")
+    return os.path.join(configDir, baseName + noStr + ".xml")
+
+def createRunConfigName(fileName, hubIdList):
+    """
+    Create a new file name from the original name and the list of omitted hubs
+    """
+    configDir = os.path.join(metaDir, "config")
+    return createConfigName(configDir, fileName, hubIdList)
 
 def findFile(baseName):
     """Check all possible locations for the run configuration file"""
@@ -881,9 +990,12 @@ def parseArgs():
     if not os.path.exists(cfgDir):
         print >>sys.stderr, "Cannot find configuration directory"
 
+    cluCfgName = None
     forceCreate = False
-    cfg = None
+    runCfgName = None
     hubIdList = []
+
+    needCluCfgName = False
 
     usage = False
     for a in sys.argv[1:]:
@@ -891,13 +1003,22 @@ def parseArgs():
             forceCreate = True
             continue
 
-        if cfg is None:
+        if a == "-C":
+            needCluCfgName = True
+            continue
+
+        if needCluCfgName:
+            cluCfgName = a
+            needCluCfgName = False
+            continue
+
+        if runCfgName is None:
             path = os.path.join(cfgDir, a)
             if not path.endswith(".xml"):
                 path += ".xml"
 
             if os.path.exists(path):
-                cfg = a
+                runCfgName = a
                 continue
 
         for s in a.split(","):
@@ -923,7 +1044,7 @@ def parseArgs():
                 usage = True
                 continue
 
-    if not usage and cfg is None:
+    if not usage and runCfgName is None:
         print >>sys.stderr, "No run configuration specified"
         usage = True
 
@@ -937,12 +1058,12 @@ def parseArgs():
         print >>sys.stderr, "  (Hub IDs can be \"6\", \"06\", \"6i\", \"6t\")"
         raise SystemExit()
 
-    return (forceCreate, cfg, hubIdList)
+    return (forceCreate, runCfgName, cluCfgName, hubIdList)
 
 if __name__ == "__main__":
-    (forceCreate, fileName, hubIdList) = parseArgs()
+    (forceCreate, runCfgName, cluCfgName, hubIdList) = parseArgs()
 
-    newPath = createFileName(fileName, hubIdList)
+    newPath = createRunConfigName(runCfgName, hubIdList)
     if os.path.exists(newPath):
         if forceCreate:
             print >>sys.stderr, "WARNING: Overwriting %s" % newPath
@@ -951,7 +1072,7 @@ if __name__ == "__main__":
             print >>sys.stderr, "Specify --force to overwrite this file"
             raise SystemExit()
 
-    runCfg = loadConfig(fileName)
+    runCfg = loadConfig(runCfgName)
     if runCfg is not None:
         newCfg = runCfg.omit(hubIdList)
         if newCfg is not None:
@@ -959,3 +1080,20 @@ if __name__ == "__main__":
             newCfg.write(fd)
             fd.close()
             print "Created %s" % newPath
+
+            if cluCfgName is not None:
+                cluPath = createClusterConfigName(cluCfgName, hubIdList)
+                if os.path.exists(cluPath):
+                    if forceCreate:
+                        print >>sys.stderr, "WARNING: Overwriting %s" % cluPath
+                    else:
+                        print >>sys.stderr, "WARNING: %s already exists" % \
+                            cluPath
+                        print >>sys.stderr, \
+                            "Specify --force to overwrite this file"
+                        raise SystemExit()
+
+                ccc = ClusterConfigCreator("sps")
+                fd = open(cluPath, "w")
+                ccc.write(fd, newCfg)
+                fd.close()
