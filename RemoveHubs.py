@@ -4,6 +4,7 @@
 
 import os, sys
 
+from CreateClusterConfig import ClusterConfigCreator
 from DAQConfig import DAQConfig
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
@@ -13,9 +14,31 @@ else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
-class XMLError(Exception): pass
-class ProcessError(XMLError): pass
-class BadFileError(XMLError): pass
+def createClusterConfigName(fileName, hubIdList):
+    configDir = os.path.join(metaDir, "cluster-config", "src", "main", "xml")
+    return createConfigName(configDir, fileName, hubIdList)
+
+def createConfigName(configDir, fileName, hubIdList):
+    """
+    Create a new file name from the original name and the list of omitted hubs
+    """
+    baseName = os.path.basename(fileName)
+    if baseName.endswith(".xml"):
+        baseName = baseName[:-4]
+
+    noStr = ""
+    for h in hubIdList:
+        noStr += "-no" + getHubName(h)
+
+    return os.path.join(configDir, baseName + noStr + ".xml")
+
+def getHubName(num):
+    """Get the standard representation for a hub number"""
+    if num > 0 and num < 100:
+        return "%02d" % num
+    if num > 200 and num < 220:
+        return "%02dt" % (num - 200)
+    return "?%d?" % num
 
 def parseArgs():
     """
@@ -29,9 +52,12 @@ def parseArgs():
     if not os.path.exists(cfgDir):
         print >>sys.stderr, "Cannot find configuration directory"
 
+    cluCfgName = None
     forceCreate = False
-    cfg = None
+    runCfgName = None
     hubIdList = []
+
+    needCluCfgName = False
 
     usage = False
     for a in sys.argv[1:]:
@@ -39,13 +65,22 @@ def parseArgs():
             forceCreate = True
             continue
 
-        if cfg is None:
+        if a == "-C":
+            needCluCfgName = True
+            continue
+
+        if needCluCfgName:
+            cluCfgName = a
+            needCluCfgName = False
+            continue
+
+        if runCfgName is None:
             path = os.path.join(cfgDir, a)
             if not path.endswith(".xml"):
                 path += ".xml"
 
             if os.path.exists(path):
-                cfg = a
+                runCfgName = a
                 continue
 
         for s in a.split(","):
@@ -71,7 +106,7 @@ def parseArgs():
                 usage = True
                 continue
 
-    if not usage and cfg is None:
+    if not usage and runCfgName is None:
         print >>sys.stderr, "No run configuration specified"
         usage = True
 
@@ -85,13 +120,13 @@ def parseArgs():
         print >>sys.stderr, "  (Hub IDs can be \"6\", \"06\", \"6i\", \"6t\")"
         raise SystemExit()
 
-    return (forceCreate, cfg, hubIdList)
+    return (forceCreate, runCfgName, cluCfgName, hubIdList)
 
 if __name__ == "__main__":
-    (forceCreate, fileName, hubIdList) = parseArgs()
+    (forceCreate, runCfgName, cluCfgName, hubIdList) = parseArgs()
 
     configDir = os.path.join(metaDir, "config")
-    newPath = DAQConfig.createOmitFileName(configDir, fileName, hubIdList)
+    newPath = DAQConfig.createOmitFileName(configDir, runCfgName, hubIdList)
     if os.path.exists(newPath):
         if forceCreate:
             print >>sys.stderr, "WARNING: Overwriting %s" % newPath
@@ -100,7 +135,7 @@ if __name__ == "__main__":
             print >>sys.stderr, "Specify --force to overwrite this file"
             raise SystemExit()
 
-    runCfg = DAQConfig.load(fileName)
+    runCfg = DAQConfig.load(runCfgName)
     if runCfg is not None:
         newCfg = runCfg.omit(hubIdList)
         if newCfg is not None:
@@ -108,3 +143,20 @@ if __name__ == "__main__":
             newCfg.write(fd)
             fd.close()
             print "Created %s" % newPath
+
+            if cluCfgName is not None:
+                cluPath = createClusterConfigName(cluCfgName, hubIdList)
+                if os.path.exists(cluPath):
+                    if forceCreate:
+                        print >>sys.stderr, "WARNING: Overwriting %s" % cluPath
+                    else:
+                        print >>sys.stderr, "WARNING: %s already exists" % \
+                            cluPath
+                        print >>sys.stderr, \
+                            "Specify --force to overwrite this file"
+                        raise SystemExit()
+
+                ccc = ClusterConfigCreator("sps")
+                fd = open(cluPath, "w")
+                ccc.write(fd, newCfg)
+                fd.close()
