@@ -160,3 +160,4 @@ if __name__ == "__main__":
                 fd = open(cluPath, "w")
                 ccc.write(fd, newCfg)
                 fd.close()
+                print "Created %s" % cluPath
