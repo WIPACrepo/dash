@@ -114,6 +114,10 @@ class DomConfig(object):
                 return d
         return None
 
+    def isCommentedOut(self):
+        """Is domconfig file commented-out?"""
+        return self.__commentOut
+
     def xml(self, indent):
         """Return the XML string for this DOM configuration file"""
         includeStringNumber = False
@@ -438,7 +442,8 @@ class DAQConfig(object):
         base = os.path.basename(self.__fileName)
         newCfg = DAQConfig(self.createOmitFileName(dir, base, hubIdList))
         for c in self.__comps:
-            newCfg.addComponent(c.name())
+            if not c.isHub():
+                newCfg.addComponent(c.name())
         newCfg.setTriggerConfig(self.__trigCfg)
         for dc in self.__domCfgList:
             if not omitMap.has_key(dc):
