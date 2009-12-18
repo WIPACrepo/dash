@@ -6,70 +6,95 @@ import sys
 
 from DAQConfig import DAQConfig
 
-def writeLocation(fd, name, host, component, id=None):
-    if id is None:
-        idStr = ""
-    else:
-        idStr = " id=\"%02d\"" % id
+class CCCException(Exception): pass
 
-    print >>fd, "    <location name=\"%s\" host=\"%s\">" % (name, host)
-    print >>fd, "      <module name=\"%s\"%s/>" % (component, idStr)
-    print >>fd, "    </location>"
+class ClusterConfigCreator(object):
+    CLUSTER = { "sps" :
+                    { "spadeDir" : "/mnt/data/pdaqlocal",
+                      "copyDir" : "/mnt/data/pdaq/log-copies",
+                      "logLevel" : "INFO",
+                      }
+                }
 
-def writeClusterConfig(fd, runCfg, spadeDir, copyDir, logLevel, cfgName=None,
-                       clusterName="sps"):
-    if cfgName is None:
-        cfgStr = ""
-    else:
-        cfgStr = " configName=\"%s\"" % cfgName
-    print >>fd, "<icecube%s>" % cfgStr
-    print >>fd, "  <cluster name=\"%s\">" % clusterName
+    def __init__(self, clusterName):
+        if not self.CLUSTER.has_key(clusterName):
+            raise CCCException("Unknown cluster name \"%s\"" % clusterName)
 
-    print >>fd, "    <logDirForSpade>%s</logDirForSpade>" % spadeDir
-    print >>fd, "    <logDirCopies>%s</logDirCopies>" % copyDir
-    print >>fd, "    <defaultLogLevel>%s</defaultLogLevel>" % logLevel
+        self.__clusterName = clusterName
 
-    needInIce = False
-    needIceTop = False
+    def __writeLocation(self, fd, name, component, id=None):
+        host = self.__clusterName + "-" + name
 
-    for c in runCfg.getCompObjects():
-        if not c.isHub(): continue
-
-        id = c.id()
-        if id < 100:
-            hubName = "ichub%02d" % id
-            needInIce = True
+        if component is None:
+            print >>fd, "    <location name=\"%s\" host=\"%s\"/>" % \
+                (name, host)
         else:
-            hubName = "ithub%02d" % (id - 200)
-            needIceTop = True
+            if id is None:
+                idStr = ""
+            else:
+                idStr = " id=\"%02d\"" % id
 
-        writeLocation(fd, hubName, "%s-%s" % (clusterName, hubName),
-                      "StringHub", id)
+            print >>fd, "    <location name=\"%s\" host=\"%s\">" % (name, host)
+            if type(component) != list:
+                print >>fd, "      <module name=\"%s\"%s/>" % (component, idStr)
+            else:
+                for c in component:
+                    print >>fd, "      <module name=\"%s\"%s/>" % (c, idStr)
+            print >>fd, "    </location>"
+
+    def write(self, fd, runCfg, cfgName=None):
+        if cfgName is None:
+            cfgStr = ""
+        else:
+            cfgStr = " configName=\"%s\"" % cfgName
+
+        print >>fd, "<icecube%s>" % cfgStr
+        print >>fd, "  <cluster name=\"%s\">" % self.__clusterName
+
+        print >>fd, "    <logDirForSpade>%s</logDirForSpade>" % \
+            self.CLUSTER[self.__clusterName]["spadeDir"]
+        print >>fd, "    <logDirCopies>%s</logDirCopies>" % \
+            self.CLUSTER[self.__clusterName]["copyDir"]
+        print >>fd, "    <defaultLogLevel>%s</defaultLogLevel>" % \
+            self.CLUSTER[self.__clusterName]["logLevel"]
+
+        needInIce = False
+        needIceTop = False
+
+        for c in runCfg.components():
+            if not c.isHub(): continue
+
+            id = c.id()
+            if id < 100:
+                hubName = "ichub%02d" % id
+                needInIce = True
+            else:
+                hubName = "ithub%02d" % (id - 200)
+                needIceTop = True
+
+            if id == 0:
+                raise Exception("Got 0 ID from %s<%s>" % (str(c), str(type(c))))
+
+            self.__writeLocation(fd, hubName, "StringHub", id)
+            print >>fd, ""
+
+        self.__writeLocation(fd, "2ndbuild", "SecondaryBuilders")
+        self.__writeLocation(fd, "evbuilder", "eventBuilder")
+
+        trigList = []
+        if needInIce: trigList.append("inIceTrigger")
+        if needIceTop: trigList.append("iceTopTrigger")
+        trigList.append("globalTrigger")
+        self.__writeLocation(fd, "trigger", trigList)
         print >>fd, ""
 
-    writeLocation(fd, "2ndbuild", clusterName + "-2ndbuild",
-                  "SecondaryBuilders")
-    writeLocation(fd, "evbuilder", clusterName + "-evbuilder", "eventBuilder")
+        self.__writeLocation(fd, "expcont", None)
 
-    print >>fd, "    <location name=\"trigger\" host=\"%s-trigger\">" % \
-        clusterName
-    if needInIce: print >>fd, "      <module name=\"inIceTrigger\"/>"
-    if needIceTop: print >>fd, "      <module name=\"iceTopTrigger\"/>"
-    print >>fd, "      <module name=\"globalTrigger\"/>"
-    print >>fd, "    </location>"
-    print >>fd, ""
-
-    print >>fd, "    <location name=\"expcont\" host=\"%s-expcont\"/>" % \
-        clusterName
-
-    print >>fd, "  </cluster>"
-    print >>fd, "</icecube>"
+        print >>fd, "  </cluster>"
+        print >>fd, "</icecube>"
 
 if __name__ == "__main__":
-    spadeDir = "/mnt/data/pdaqlocal"
-    copyDir = "/mnt/data/pdaq/log-copies"
-    logLevel = "INFO"
-
+    clusterName = "sps"
     cfgList = []
     usage = False
 
@@ -84,7 +109,8 @@ if __name__ == "__main__":
         print >>sys.stderr, "Usage: %s runConfig" % sys.argv[0]
         raise SystemExit
 
+    ccc = ClusterConfigCreator(clusterName)
     for cfgName in cfgList:
         runCfg = DAQConfig.load(cfgName)
 
-        writeClusterConfig(sys.stdout, runCfg, spadeDir, copyDir, logLevel)
+        ccc.write(sys.stdout, runCfg)
