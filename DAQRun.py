@@ -51,7 +51,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4829 2009-12-24 18:51:59Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4830 2009-12-24 18:53:28Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -368,18 +368,19 @@ class RunStats(object):
         "Gather run statistics"
         evtData = daqRun.getEventData()
 
-        (self.__numEvts, self.__evtTime, self.__evtPayTime,
-         self.__numMoni, self.__moniTime,
-         self.__numSN, self.__snTime,
-         self.__numTcal, self.__tcalTime) = evtData
+        if evtData is not None:
+            (self.__numEvts, self.__evtTime, self.__evtPayTime,
+             self.__numMoni, self.__moniTime,
+             self.__numSN, self.__snTime,
+             self.__numTcal, self.__tcalTime) = evtData
 
-        if addRate and self.__numEvts > 0:
-            if self.__startPayTime is None:
-                self.__startPayTime = daqRun.getFirstEventTime()
-                startDT = PayloadTime.toDateTime(self.__startPayTime)
-                self.__physicsRate.add(startDT, 1)
-            self.__physicsRate.add(PayloadTime.toDateTime(self.__evtPayTime),
-                                   self.__numEvts)
+            if addRate and self.__numEvts > 0:
+                if self.__startPayTime is None:
+                    self.__startPayTime = daqRun.getFirstEventTime()
+                    startDT = PayloadTime.toDateTime(self.__startPayTime)
+                    self.__physicsRate.add(startDT, 1)
+                self.__physicsRate.add(PayloadTime.toDateTime(self.__evtPayTime),
+                                       self.__numEvts)
 
         return evtData
 
@@ -1047,6 +1048,9 @@ class DAQRun(object):
         return datetime.datetime.utcnow()
 
     def getEventData(self):
+        if self.moni is None:
+            return None
+
         nEvts = 0
         evtTime = -1
         payloadTime = -1
@@ -1348,6 +1352,7 @@ class DAQRun(object):
                 self.unHealthyCount = 0
 
                 self.rateTimer = None
+                self.badRateCount = 0
 
                 self.__activeDOMTimer = None
 
