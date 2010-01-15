@@ -140,8 +140,14 @@ class DAQLive(Component):
     "Server which acts as the DAQ interface for IceCube Live"
     SERVICE_NAME = "pdaq"
 
-    "Maximum number of loops to wait inside __waitForState()"
+    "Default number of loops to wait inside __waitForState()"
     MAX_WAIT = 120
+
+    "Timeout while waiting for all components to start up"
+    STARTUP_TIMEOUT = 300
+
+    "Set to False to avoid logging of 'Waiting for state' messages"
+    STATE_WARNING = True
 
     "Frequency of monitoring uploads"
     MONI_PERIOD = 60
@@ -262,8 +268,12 @@ class DAQLive(Component):
             self.moniClient.sendMoni("tcalEvents", moniData["tcalEvents"],
                                      Prio.ITS, moniData["tcalTime"])
 
-    def __waitForState(self, expState, badStates=('ERROR', )):
+    def __waitForState(self, expState, badStates=('ERROR', ), timeout=None):
         "Wait for pDAQ to reach the expected state"
+
+        if timeout is None:
+            timeout = self.MAX_WAIT
+
         n = 0
         while True:
             state = self.__getState()
@@ -280,11 +290,11 @@ class DAQLive(Component):
                 break
             time.sleep(1)
             n += 1
-            if n > self.MAX_WAIT:
+            if n > timeout:
                 self.__log.error('Waiting for state %s, but stuck at %s' %
                                  (expState, str(state)))
                 return False
-            elif n % 10 == 0:
+            elif n % 10 == 0 and DAQLive.STATE_WARNING:
                 self.__log.error(("Waiting for state %s for %d seconds," +
                                   " (currently %s)") %
                                  (expState, n, str(state)))
@@ -431,7 +441,8 @@ class DAQLive(Component):
 
         # wait for DAQRun to indicate that the run has started
         if not self.__waitForState('RUNNING',
-                                   ('ERROR', 'STOPPED', 'RECOVERING')):
+                                   ('ERROR', 'STOPPED', 'RECOVERING'),
+                                   self.STARTUP_TIMEOUT):
             self.__waitForState('STOPPED')
             msg = 'Failed to start run %d' % self.__runNumber
             self.__log.info(msg)
