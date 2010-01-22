@@ -3,7 +3,7 @@
 import os, re, sys
 
 class ComponentLog(object):
-    VERSION_INFO = re.compile(r"^(|.*\s+)Version info: \S+ \d+" +
+    VERSION_INFO = re.compile(r"^(|.*\]\s+)(Version info: )?\S+ \d+" +
                               r" \d+-\d+-\d+ \d+:\d+:\d+\S* \S+" +
                               r" (\S+) (\S+)\s*$")
 
@@ -44,8 +44,420 @@ class ComponentLog(object):
         for msg in self.__logMsgs:
             print >>fd, "%s: %s" % (self.__fileName, msg)
 
+class CatchallLog(ComponentLog):
+    SRVR_PORT = re.compile(r"^(|.*\]\s+)I'm server CnCServer running" +
+                           r" on port (\d+)\s*$")
+    SHUTDOWN = re.compile(r"^(|.*\]\s+)ShutdownHook invoked for \S+\s*$")
+    MBEAN_AGENT = re.compile(r"^(|.*\]\s+)Started MBean agent: HTML port \d+," +
+                             r" XML-RPC port \d+\s*$")
+    RDR_PORT = re.compile(r"^(|.*\]\s+)\S+:\S+ listening on port \d+\s*$")
+    XMLRPC_PORT = re.compile(r"^(|.*\]\s+)XML-RPC on port \d+\s*$")
+    REG_COMP = re.compile(r"^(|.*\]\s+)Got registration for ID#(\d+)" +
+                          r" (\S+) at (\S+):(\d+) M#(\d+) \[[^\]]*\]\s*$")
+    START_RUN = re.compile(r"^(|.*\]\s+)Starting run (\d+) \(waiting for" +
+                           r" required (\d+) components to register" +
+                           r" w/ CnCServer\)\s*$")
+    LIST_COMP = re.compile(r"^(|.*\]\s+)ID#(\d+) (\S+) at (\S+):(\d+) M#(\d+)" +
+                           r" \[[^\]]*\]\s*$")
+    CREATED = re.compile(r"^(|.*\]\s+)Created Run Set #(\d+)\s*$")
+    RESET_LOG = re.compile(r"^(|.*\]\s+).*Reset log to log\(\S+:\d+\)" +
+                           r"\+live\(\S+:\d+\)\s*$")
+
+    STATE_INITIAL = 0
+    STATE_STARTING = 1
+    STATE_BUILDING = 2
+    STATE_BUILTLIST = 3
+    STATE_CREATED = 4
+
+    def __init__(self, fileName):
+        self.__port = None
+        super(CatchallLog, self).__init__(fileName)
+
+    def __stateString(cls, val):
+        if val == cls.STATE_INITIAL:
+            return "INITIAL"
+        elif val == cls.STATE_STARTING:
+            return "STARTING"
+        elif val == cls.STATE_BUILDING:
+            return "BUILDING"
+        elif val == cls.STATE_BUILTLIST:
+            return "BUILTLIST"
+        elif val == cls.STATE_CREATED:
+            return "CREATED"
+
+        return "??%d??" % val
+    __stateString = classmethod(__stateString)
+
+    def parse(self, path):
+        state = self.STATE_INITIAL
+
+        fd = open(path, "r")
+        for line in fd:
+            line = line.rstrip()
+
+            if state == self.STATE_INITIAL:
+                if self.checkInitialLogMessage(line) or \
+                        line.find("Resetting logging") >= 0 or \
+                        line.find("ShutdownHook: moving temp file for ") >= 0:
+                    continue
+
+                m = self.SRVR_PORT.match(line)
+                if m:
+                    self.__port = int(m.group(2))
+                    continue
+
+                m = self.SHUTDOWN.match(line)
+                if m:
+                    continue
+
+                if self.checkVersionInfoMessage(line):
+                    state = self.STATE_STARTING
+                    continue
+
+            elif state == self.STATE_STARTING:
+                if line.find("Logging has been reset") >= 0 or \
+                        line.find("Resetting logging") >= 0:
+                    continue
+
+                m = self.MBEAN_AGENT.match(line)
+                if m:
+                    continue
+
+                m = self.RDR_PORT.match(line)
+                if m:
+                    continue
+
+                m = self.XMLRPC_PORT.match(line)
+                if m:
+                    continue
+
+                m = self.REG_COMP.match(line)
+                if m:
+                    id = int(m.group(2))
+                    comp = m.group(3)
+                    addr = m.group(4)
+                    rpcPort = int(m.group(5))
+                    mbeanPort = int(m.group(6))
+                    continue
+
+                m = self.START_RUN.match(line)
+                if m:
+                    runNum = int(m.group(2))
+                    numComps = int(m.group(3))
+                    state = self.STATE_BUILDING
+                    continue
+
+            elif state == self.STATE_BUILDING:
+                if line.find("Logging has been reset") >= 0 or \
+                        line.find("Resetting logging") >= 0:
+                    continue
+
+                m = self.MBEAN_AGENT.match(line)
+                if m:
+                    continue
+
+                m = self.RDR_PORT.match(line)
+                if m:
+                    continue
+
+                m = self.XMLRPC_PORT.match(line)
+                if m:
+                    continue
+
+                m = self.REG_COMP.match(line)
+                if m:
+                    id = int(m.group(2))
+                    comp = m.group(3)
+                    addr = m.group(4)
+                    rpcPort = int(m.group(5))
+                    mbeanPort = int(m.group(6))
+                    continue
+
+                if line.find("Built runset with the following components:") >= 0:
+                    state = self.STATE_BUILTLIST
+                    continue
+
+            elif state == self.STATE_BUILTLIST:
+                m = self.LIST_COMP.match(line)
+                if m:
+                    id = int(m.group(2))
+                    comp = m.group(3)
+                    addr = m.group(4)
+                    rpcPort = int(m.group(5))
+                    mbeanPort = int(m.group(6))
+                    continue
+
+                m = self.CREATED.match(line)
+                if m:
+                    runsetNum = int(m.group(2))
+                    state = self.STATE_CREATED
+                    continue
+
+            elif state == self.STATE_CREATED:
+                if line.find("Logging has been reset") >= 0 or \
+                        line.find("Resetting logging") >= 0:
+                    continue
+
+                m = self.RESET_LOG.match(line)
+                if m:
+                    continue
+
+            self.logError("State %s: %s" % (self.__stateString(state), line))
+
+    def report(self, fd, verbose):
+        pass
+
+class CnCServerLog(ComponentLog):
+    WAITCFG = re.compile(r"^(|.*\]\s+)RunSet #(\d+): Waiting for (\S+)" +
+                         r" (.*)\s*$")
+    WAITSTOP = re.compile(r"^(|.*\]\s+)RunSet #(\d+) run#(\d+): Waiting for (\S+)" +
+                          r" (.*)\s*$")
+
+    STATE_INITIAL = 0
+
+    def __init__(self, fileName):
+        super(CnCServerLog, self).__init__(fileName)
+
+    def __stateString(cls, val):
+        if val == cls.STATE_INITIAL:
+            return "INITIAL"
+
+        return "??%d??" % val
+    __stateString = classmethod(__stateString)
+
+    def parse(self, path):
+        state = self.STATE_INITIAL
+
+        fd = open(path, "r")
+        for line in fd:
+            line = line.rstrip()
+
+            if state == self.STATE_INITIAL:
+                if self.checkInitialLogMessage(line):
+                    continue
+
+                m = self.WAITCFG.match(line)
+                if m:
+                    runsetId = int(m.group(2))
+                    waitState = m.group(3)
+                    continue
+
+                m = self.WAITSTOP.match(line)
+                if m:
+                    runsetId = int(m.group(2))
+                    run = int(m.group(3))
+                    waitState = m.group(4)
+                    continue
+
+            self.logError("State %s: %s" % (self.__stateString(state), line))
+
+    def report(self, fd, verbose):
+        pass
+
+class DashLog(ComponentLog):
+    START_RUN = re.compile(r"^(|.*\]\s+)Starting run (\d+)\.\.\.\s*$")
+    RUN_CFG = re.compile(r"^(|.*\]\s+)Run configuration: (\S+)\s*$")
+    CLU_CFG = re.compile(r"^(|.*\]\s+)Cluster configuration: (\S+)\s*$")
+    STARTED = re.compile(r"^(|.*\]\s+)Started run (\d+) on run set (\d+)\s*$")
+    RATELINE = re.compile(r"^(|.*\]\s+)(\d+) physics events" +
+                          r"( \((\d+\.\d+) Hz\))?, (\d+) moni events," +
+                          r" (\d+) SN events, (\d+) tcals\s*$")
+    WATCHDOG_TIMEOUT = re.compile(r"^(|.*\]\s+)#\d+: (\S+)" +
+                                  r" (inputs|outputs|threadholds):" +
+                                  r" timeout\(\"timed out\"\) in" +
+                                  r" .*RunWatchdog.py.*\s*$")
+    WATCHDOG_RESET = re.compile(r"^(|.*\]\s+)#\d+: (\S+)" +
+                                r" (inputs|outputs|threadholds):" +
+                                r" error\(\"\(\d+," +
+                                r" 'Connection reset by peer'\)\"\) in" +
+                                r" .*RunWatchdog.py.*\s*$")
+    WATCHDOG_REFUSED = re.compile(r"^(|.*\]\s+)#\d+: (\S+)" +
+                                  r" (inputs|outputs|threadholds):" +
+                                  r" error\(\"\(\d+," +
+                                  r" 'Connection refused'\)\"\) in" +
+                                  r" .*RunWatchdog.py.*\s*$")
+    MONI_TIMEOUT = re.compile(r"^(|.*\]\s+)Ignoring (\S+-\d+):" +
+                                  r" timeout\(\"timed out\"\) in" +
+                                  r" .*DAQMoni.py.*\s*$")
+    MONI_RESET = re.compile(r"^(|.*\]\s+)Ignoring (\S+-\d+):" +
+                            r" error\(\"\(\d+,"
+                            r" 'Connection reset by peer'\)\"\) in" +
+                            r" .*DAQMoni.py.*\s*$")
+    MONI_REFUSED = re.compile(r"^(|.*\]\s+)Ignoring (\S+-\d+):" +
+                              r" error\(\"\(\d+,"
+                              r" 'Connection refused'\)\"\) in" +
+                              r" .*DAQMoni.py.*\s*$")
+    STOP_RUN = re.compile(r"^(|.*\]\s+)Stopping run (\d+)\s*$")
+    PHYS_TOTAL = re.compile(r"^(|.*\]\s+)(\d+) physics events collected in" +
+                            r" (\d+) seconds \((\d+\.\d+) Hz\)\s*$")
+    OTHER_TOTAL = re.compile(r"^(|.*\]\s+)(\d+) moni events, (\d+) SN events," +
+                             r" (\d+) tcals\s*$")
+    RECOVER = re.compile(r"^(|.*\]\s+)Recovering from failed run" +
+                         r" (\d_)\.\.\.\s*$")
+    RUN_TERM = re.compile(r"^(|.*\]\s+)Run terminated (\S+)\.\s*$")
+
+    STATE_INITIAL = 0
+    STATE_STARTING = 1
+    STATE_RUNNING = 2
+    STATE_STOPPING = 3
+    STATE_ENDING = 4
+
+    def __init__(self, fileName):
+        super(DashLog, self).__init__(fileName)
+
+    def __stateString(cls, val):
+        if val == cls.STATE_INITIAL:
+            return "INITIAL"
+        elif val == cls.STATE_STARTING:
+            return "STARTING"
+        elif val == cls.STATE_RUNNING:
+            return "RUNNING"
+        elif val == cls.STATE_STOPPING:
+            return "STOPPING"
+        elif val == cls.STATE_ENDING:
+            return "ENDING"
+
+        return "??%d??" % val
+    __stateString = classmethod(__stateString)
+
+    def parse(self, path):
+        state = self.STATE_INITIAL
+
+        fd = open(path, "r")
+        for line in fd:
+            line = line.rstrip()
+
+            if state == self.STATE_INITIAL:
+                if self.checkVersionInfoMessage(line):
+                    continue
+
+                m = self.START_RUN.match(line)
+                if m:
+                    runNum = int(m.group(2))
+                    state = self.STATE_STARTING
+                    continue
+
+            if state == self.STATE_STARTING:
+                m = self.RUN_CFG.match(line)
+                if m:
+                    runCfg = m.group(2)
+                    continue
+
+                m = self.CLU_CFG.match(line)
+                if m:
+                    cluCfg = m.group(2)
+                    continue
+
+                m = self.STARTED.match(line)
+                if m:
+                    tmpNum = int(m.group(2))
+                    if runNum != tmpNum:
+                        self.logError("Expected run#%d, not #%d in line \"%s\"" %
+                                      (runNum, tmpNum, line))
+                    runsetId = int(m.group(3))
+                    state = self.STATE_RUNNING
+                    continue
+
+            if state == self.STATE_RUNNING:
+                m = self.RECOVER.match(line)
+                if m:
+                    tmpNum = int(m.group(2))
+                    if runNum != tmpNum:
+                        self.logError("Expected run#%d, not #%d in line \"%s\"" %
+                                      (runNum, tmpNum, line))
+                        state = self.STATE_ENDING
+                        continue
+
+                m = self.RATELINE.match(line)
+                if m:
+                    numPhysics = float(m.group(2))
+                    if m.group(4) is None:
+                        rate = 0.0
+                    else:
+                        rate = float(m.group(4))
+                    numMoni = int(m.group(5))
+                    numSN = int(m.group(6))
+                    numTCal = int(m.group(7))
+                    continue
+
+                m = self.STOP_RUN.match(line)
+                if m:
+                    tmpNum = int(m.group(2))
+                    if runNum != tmpNum:
+                        self.logError("Expected run#%d, not #%d in line \"%s\"" %
+                                      (runNum, tmpNum, line))
+                    state = self.STATE_STOPPING
+                    continue
+
+                m = self.WATCHDOG_TIMEOUT.match(line)
+                if m:
+                    self.logError("%s RunWatchdog timeout for %s %s" %
+                                  (m.group(1).rstrip(), m.group(2), m.group(3)))
+                    continue
+
+                m = self.WATCHDOG_RESET.match(line)
+                if m:
+                    self.logError("%s RunWatchdog connection reset for %s %s" %
+                                  (m.group(1).rstrip(), m.group(2), m.group(3)))
+                    continue
+
+                m = self.WATCHDOG_REFUSED.match(line)
+                if m:
+                    self.logError("%s RunWatchdog connection refused for %s %s" %
+                                  (m.group(1).rstrip(), m.group(2), m.group(3)))
+                    continue
+
+                m = self.MONI_TIMEOUT.match(line)
+                if m:
+                    self.logError("%s Monitoring timeout for %s" %
+                                  (m.group(1).rstrip(), m.group(2)))
+                    continue
+
+                m = self.MONI_RESET.match(line)
+                if m:
+                    self.logError("%s Monitoring connection reset for %s" %
+                                  (m.group(1).rstrip(), m.group(2)))
+                    continue
+
+                m = self.MONI_REFUSED.match(line)
+                if m:
+                    self.logError("%s Monitoring connection refused for %s" %
+                                  (m.group(1).rstrip(), m.group(2)))
+                    continue
+
+            if state == self.STATE_STOPPING:
+                m = self.PHYS_TOTAL.match(line)
+                if m:
+                    totPhysics = int(m.group(2))
+                    totTime = int(m.group(3))
+                    totRate = float(m.group(4))
+                    continue
+
+                m = self.OTHER_TOTAL.match(line)
+                if m:
+                    totMoni = int(m.group(2))
+                    totSN = int(m.group(3))
+                    totTCal = int(m.group(4))
+                    state = self.STATE_ENDING
+                    continue
+
+            if state == self.STATE_ENDING:
+                m = self.RUN_TERM.match(line)
+                if m:
+                    termState = m.group(2)
+                    continue
+
+                if line.find("Doing complete rip-down and restart") >= 0:
+                    state = self.STATE_INITIAL
+                    continue
+
+            self.logError("State %s: %s" % (self.__stateString(state), line))
+
+    def report(self, fd, verbose):
+        pass
+
 class EventBuilderLog(ComponentLog):
-    BOUNDARY = re.compile(r"^(|.*\s+)called dataBoundary on (\S+)" +
+    BOUNDARY = re.compile(r"^(|.*\]\s+)called dataBoundary on (\S+)" +
                           r" with the message: Run(\S+):(\d+)\s*$")
 
     STATE_INITIAL = 0
@@ -137,6 +549,9 @@ class EventBuilderLog(ComponentLog):
                                             (str(self.__runNum), runNum))
                     continue
 
+                if line.find(" was not moved to the dispatch storage") > 0:
+                    continue
+
                 if line.find("Resetting logging") >= 0:
                     state = self.STATE_INITIAL
                     continue
@@ -147,17 +562,18 @@ class EventBuilderLog(ComponentLog):
         pass
 
 class GlobalTriggerLog(ComponentLog):
-    TRIG_CFG = re.compile(r"^(|.*\s+)triggerConfig element has: (\S+).*$")
-    TRIG_BLDVAL = re.compile(r"^(|.*\s+)(\S+) = (\S+).*$")
-    BUILD_TRIG = re.compile(r"^(|.*\s+)Building trigger: (\S+).*$")
-    LONGEST_TRIG = re.compile(r"^(|.*\s+)We have a new longest GT: (\d+\.\d+).*$")
-    TRIG_NUM = re.compile(r"^(|.*\s+)(\S+):  #  (\d+).*$")
-    ISSUE_NUM = re.compile(r"^(|.*\s+)Issue # \d+ GTEventPayload .*$")
-    MERGED_NUM = re.compile(r"^(|.*\s+)Merged GT # (\d+).*$")
-    TOT_GT_EVTS = re.compile(r"^(|.*\s+)Total # of GT events = (\d+).*$")
-    TOT_MERGED = re.compile(r"^(|.*\s+)Total # of merged GT events = (\d+).*$")
-    TRIG_TOTAL = re.compile(r"^(|.*\s+)Total # of (\S+)= (\d+).*$")
-    PROC_TOTAL = re.compile(r"^(|.*\s+)Processed (\d+) hits at \d+\.\d+" +
+    TRIG_CFG = re.compile(r"^(|.*\]\s+)triggerConfig element has: (\S+).*$")
+    TRIG_BLDVAL = re.compile(r"^(|.*\]\s+)(\S+) = (\S+).*$")
+    BUILD_TRIG = re.compile(r"^(|.*\]\s+)Building trigger: (\S+).*$")
+    LONGEST_TRIG = re.compile(r"^(|.*\]\s+)We have a new longest GT:" +
+                              r" (\d+\.\d+).*$")
+    TRIG_NUM = re.compile(r"^(|.*\]\s+)(\S+):  #  (\d+).*$")
+    ISSUE_NUM = re.compile(r"^(|.*\]\s+)Issue # \d+ GTEventPayload .*$")
+    MERGED_NUM = re.compile(r"^(|.*\]\s+)Merged GT # (\d+).*$")
+    TOT_GT_EVTS = re.compile(r"^(|.*\]\s+)Total # of GT events = (\d+).*$")
+    TOT_MERGED = re.compile(r"^(|.*\]\s+)Total # of merged GT events = (\d+).*$")
+    TRIG_TOTAL = re.compile(r"^(|.*\]\s+)Total # of (\S+)= (\d+).*$")
+    PROC_TOTAL = re.compile(r"^(|.*\]\s+)Processed (\d+) hits at \d+\.\d+" +
                             r" ms per hit.*$")
 
     STATE_INITIAL = 0
@@ -224,7 +640,7 @@ class GlobalTriggerLog(ComponentLog):
 
                 elif line.find("TriggerName set to ") >= 0 or \
                         line.find("Adding parameter ") >= 0 or \
-                        line.find("Added Parameter ") >= 0 or \
+                        line.find("Added Parameter: ") >= 0 or \
                         line.find("Adding readout ") >= 0 or \
                         line.find("Added Readout: ") >= 0:
                     continue
@@ -358,13 +774,13 @@ class LocalTriggerData(object):
         return float(self.__total * 100) / total
 
 class LocalTriggerLog(ComponentLog):
-    TRIG_CFG = re.compile(r"^(|.*\s+)triggerConfig element has: (\S+).*$")
-    TRIG_BLDVAL = re.compile(r"^(|.*\s+)(\S+) = (\S+).*$")
-    BUILD_TRIG = re.compile(r"^(|.*\s+)Building trigger: (\S+).*$")
-    NEW_TRIG = re.compile(r"^(|.*\s+)New Trigger (\d+) from (\S+) includes (\d+)" +
-                          r" hits.*$")
-    TRIG_CNT = re.compile(r"^(|.*\s+)Trigger count for (\S+) is (\d+)\s*$")
-    PROC_TOTAL = re.compile(r"^(|.*\s+)Processed (\d+) hits at \d+\.\d+" +
+    TRIG_CFG = re.compile(r"^(|.*\]\s+)triggerConfig element has: (\S+).*$")
+    TRIG_BLDVAL = re.compile(r"^(|.*\]\s+)(\S+) = (\S+).*$")
+    BUILD_TRIG = re.compile(r"^(|.*\]\s+)Building trigger: (\S+).*$")
+    NEW_TRIG = re.compile(r"^(|.*\]\s+)New Trigger (\d+) from (\S+)" +
+                          r" includes (\d+) hits.*$")
+    TRIG_CNT = re.compile(r"^(|.*\]\s+)Trigger count for (\S+) is (\d+)\s*$")
+    PROC_TOTAL = re.compile(r"^(|.*\]\s+)Processed (\d+) hits at \d+\.\d+" +
                             r" ms per hit.*$")
 
     STATE_INITIAL = 0
@@ -425,7 +841,7 @@ class LocalTriggerLog(ComponentLog):
 
                 elif line.find("TriggerName set to ") >= 0 or \
                         line.find("Adding parameter ") >= 0 or \
-                        line.find("Added Parameter ") >= 0 or \
+                        line.find("Added Parameter: ") >= 0 or \
                         line.find("Adding readout ") >= 0 or \
                         line.find("Added Readout: ") >= 0:
                     continue
@@ -564,11 +980,11 @@ class Builder(object):
     def state(self): return self.__stateString(self.__state)
 
 class SecondaryBuildersLog(ComponentLog):
-    RUNNUM = re.compile(r"^(|.*\s+)Setting runNumber = (\d+)\s*$")
-    BLDR_STATE = re.compile(r"^(|.*\s+)entered (\S+) (\S+) state and" +
+    RUNNUM = re.compile(r"^(|.*\]\s+)Setting runNumber = (\d+)\s*$")
+    BLDR_STATE = re.compile(r"^(|.*\]\s+)entered (\S+) (\S+) state and" +
                             r" calling dispatcher.dataBoundary()")
-    SPLI_STATE = re.compile(r"^(|.*\s+)Splicer (\S+) entered (\S+) state")
-    SPLI_HALT = re.compile(r"^(|.*\s+)entered stopped state. Splicer (\S+)" +
+    SPLI_STATE = re.compile(r"^(|.*\]\s+)Splicer (\S+) entered (\S+) state")
+    SPLI_HALT = re.compile(r"^(|.*\]\s+)entered stopped state. Splicer (\S+)" +
                            r" state is: 1: STOPPED")
 
     STATE_INITIAL = 0
@@ -828,14 +1244,14 @@ class RealDom(BaseDom):
     def id(self): return self.__id
 
 class StringHubLog(ComponentLog):
-    FOUND_PAIR = re.compile(r"^(|.*\s+)Found powered pair on" +
+    FOUND_PAIR = re.compile(r"^(|.*\]\s+)Found powered pair on" +
                             r" \((\d+), (\d+)\)\.\s*$")
-    FOUND_DOM = re.compile(r"^(|.*\s+)Found active DOM on" +
+    FOUND_DOM = re.compile(r"^(|.*\]\s+)Found active DOM on" +
                            r" \((\d+), (\d+), (\S+)\)\s*$")
-    FOUND_TOTAL = re.compile(r"^(|.*\s+)Found (\d+) active DOMs\.\s*$")
-    LOAD_CFG = re.compile(r"^(|.*\s+)Configuring (.*) -" +
+    FOUND_TOTAL = re.compile(r"^(|.*\]\s+)Found (\d+) active DOMs\.\s*$")
+    LOAD_CFG = re.compile(r"^(|.*\]\s+)Configuring (.*) -" +
                           r" loading config from (\S+)\s*$")
-    CFG_DONE = re.compile(r"^(|.*\s+)Configuration successfully" +
+    CFG_DONE = re.compile(r"^(|.*\]\s+)Configuration successfully" +
                           r" loaded.*size\(\)" +
                           " = (\d+)\s*$")
     DOM_REL = re.compile(r"^.*DataCollector-(\d\d[AB]) \S+ \[[^\]]+\]" +
@@ -935,6 +1351,9 @@ class StringHubLog(ComponentLog):
                 if self.checkVersionInfoMessage(line):
                     state = self.STATE_FOUND
                     nextFound = 0
+                    continue
+
+                if line.find("Found STOP symbol in stream - shutting down"):
                     continue
 
             elif state == self.STATE_FOUND:
@@ -1042,6 +1461,11 @@ class StringHubLog(ComponentLog):
                         continue
 
                     if msg.find("Got CONFIGURE signal") >= 0:
+                        if not self.__domMap.contains(cardLoc):
+                            self.logError("Got CONFIGURE signal for unknown" +
+                                          " card \"%s\"" % cardLoc)
+                            continue
+
                         try:
                             self.__domMap[cardLoc].setConfigSignal()
                         except LogParseException, lpe:
@@ -1186,7 +1610,7 @@ class StringHubLog(ComponentLog):
 
                 if line.find("Returning from stop.") >= 0 or \
                         line.find("Resetting logging") >= 0:
-                    state = self.STATE_INITIAL
+                    state = self.STATE_STOPPED
                     continue
 
                 m = self.DOM_GENERIC.match(line)
@@ -1211,6 +1635,10 @@ class StringHubLog(ComponentLog):
                                             (str(self.__domMap[cardLoc]),
                                              str(lpe)))
                         continue
+
+            elif state == self.STATE_STOPPED:
+                if line.find("Found STOP symbol in stream - shutting down"):
+                    continue
 
             self.logError("State %s: %s" % (self.__stateString(state), line))
 
@@ -1270,6 +1698,12 @@ def processFile(path, outFD, verbose):
         log = EventBuilderLog(fileName)
     elif fileName.startswith("secondaryBuilders-"):
         log = SecondaryBuildersLog(fileName)
+    elif fileName.startswith("catchall"):
+        log = CatchallLog(fileName)
+    elif fileName.startswith("cncserver"):
+        log = CnCServerLog(fileName)
+    elif fileName.startswith("dash"):
+        log = DashLog(fileName)
     else:
         print >>sys.stderr, "Unknown log file \"%s\"" % path
 
