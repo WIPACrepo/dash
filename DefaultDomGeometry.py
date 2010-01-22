@@ -166,7 +166,7 @@ class DomGeometry(object):
     def z(self): return self.__z
 
 class DefaultDomGeometry(object):
-    def __init__(self, translateDoms):
+    def __init__(self, translateDoms=True):
         self.__stringToDom = {}
         self.__translateDoms = translateDoms
         self.__domIdToDom = {}
@@ -177,11 +177,11 @@ class DefaultDomGeometry(object):
         if self.__translateDoms:
             mbId = dom.id()
             if self.__domIdToDom.has_key(mbId):
-                oldNum = self.__domIdToDom[mbId].getString()
-                if oldNum != stringNum:
+                oldNum = self.__domIdToDom[mbId].string()
+                if oldNum != dom.string():
                     print >>sys.stderr, ("DOM %s belongs to both" +
                                          " string %d and %d") % \
-                                         (mbId, oldNum, stringNum)
+                                         (mbId, oldNum, dom.string())
 
             self.__domIdToDom[mbId] = dom
 
