@@ -39,7 +39,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 4796 2009-12-14 20:45:32Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 4871 2010-01-26 14:56:01Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -421,14 +421,17 @@ if __name__ == "__main__":
                     'To force a restart, rerun with the --force option'
                 raise SystemExit
 
+    if opt.doList:
+        DAQConfig.showList(None, None)
+        raise SystemExit
+
     if not opt.skipKill:
         doLive = opt.killOnly
         doRun = True
         doCnC = True
 
         try:
-            activeConfig = \
-                DAQConfig.getClusterConfiguration(None, False, True)
+            activeConfig = DAQConfig.getClusterConfiguration(None, False, True)
             doKill(doLive, doRun, doCnC, opt.dryRun, dashDir, opt.verbose,
                    opt.quiet, activeConfig, opt.killWith9)
         except ClusterConfigException:

@@ -7,7 +7,7 @@
 #
 # Class to parse XML configuration information for IceCube runs
 
-import copy, os, sys
+import copy, os, re, sys
 from xml.dom import minidom, Node
 
 from CachedConfigName import CachedConfigName
@@ -16,6 +16,9 @@ from ClusterConfig \
 from DefaultDomGeometry import BadFileError, DefaultDomGeometryReader, \
     ProcessError, XMLError, XMLParser
 from RunCluster import RunCluster
+
+# should -l show cluster-config files?
+LIST_CLUSTER_CONFIGS = True
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -285,12 +288,12 @@ class DAQConfig(object):
             clusterDesc = configName[sepIndex+1:]
             configName = configName[:sepIndex]
 
-        if configDir is None:
-            configDir = os.path.join(metaDir, 'config')
-
         if doList:
-            showList(configDir, configName)
+            cls.showList(configDir, configName)
             return
+
+        if configDir is None:
+            configDir = os.path.join(metaDir, "config")
 
         try:
             runCfg = DAQConfig.load(configName, configDir)
@@ -461,6 +464,45 @@ class DAQConfig(object):
     def setTriggerConfig(self, name):
         """Set the trigger configuration file for this run configuration"""
         self.__trigCfg = name
+
+    def showList(cls, configDir, configName):
+        if configDir is None:
+            if LIST_CLUSTER_CONFIGS:
+                configDir = os.path.join(metaDir, "cluster-config", "src",
+                                         "main", "xml")
+            else:
+                configDir = os.path.join(metaDir, "config")
+
+        if not os.path.exists(configDir):
+            raise DAQConfigDirNotFound("Could not find config dir %s" %
+                                       configDir)
+
+        if configName is None:
+            configName = \
+                CachedConfigName().getConfigToUse(None, False, True)
+
+
+        cfgs = []
+
+        for f in os.listdir(configDir):
+            if not f.endswith(".xml"): continue
+            cfg = os.path.basename(f[:-4])
+            if cfg == 'default-dom-geometry': continue
+            cfgs.append(cfg)
+
+        cfgs.sort()
+        for cname in cfgs:
+            if configName is None:
+                mark = ""
+            elif cname == configName:
+                mark = "=> "
+            else:
+                mark = "   "
+            try:
+                print "%s%-60s" % (mark, cname)
+            except IOError:
+                break
+    showList = classmethod(showList)
 
     def write(self, fd):
         """Write this run configuration to the specified file descriptor"""
@@ -685,25 +727,7 @@ if __name__ == "__main__":
     configDir  = os.path.join(metaDir, "config")
 
     if opt.doList:
-        if not os.path.exists(configDir):
-            raise DAQConfigDirNotFound("Could not find config dir %s" %
-                                       configDir)
-        l = os.listdir(configDir)
-
-        import re
-
-        cfgs = []
-        for f in l:
-            match = re.search(r'^(.+?)\.xml$', f)
-            if not match: continue
-            cfg = match.group(1)
-            if cfg == 'default-dom-geometry': continue
-            cfgs.append(cfg)
-
-        cfgs.sort()
-        for cname in cfgs:
-            print "%-60s" % cname
-
+        DAQConfig.showList(configDir, None)
         raise SystemExit
 
     if opt.toCheck:

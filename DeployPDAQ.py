@@ -5,28 +5,27 @@
 #
 # Deploy valid pDAQ cluster configurations to any cluster
 
-import optparse, sys
-from ParallelShell import ParallelShell
-from os import environ, getcwd, listdir, system
-from os.path import abspath, isdir, join, split
+import optparse, os, sys
 
+from ClusterConfig import ClusterConfigException
 from DAQConfig import DAQConfig, DAQConfigNotFound
+from ParallelShell import ParallelShell
 
 # pdaq subdirectories to be deployed
 SUBDIRS = ("target", "cluster-config", "config", "dash", "src")
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if environ.has_key("PDAQ_HOME"):
-    metaDir = environ["PDAQ_HOME"]
+if os.environ.has_key("PDAQ_HOME"):
+    metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
 # add meta-project python dir to Python library search path
-sys.path.append(join(metaDir, 'src', 'main', 'python'))
+sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 4787 2009-12-07 20:24:40Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 4871 2010-01-26 14:56:01Z dglo $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -106,15 +105,18 @@ def main():
     if opt.verbose:               traceLevel = 1
     if opt.quiet and opt.verbose: traceLevel = 0
 
-    if opt.configName is None:
+    if opt.doList:
+        DAQConfig.showList(None, None)
+        raise SystemExit
+
+    if opt.configName:
         print >>sys.stderr, 'No configuration specified'
         p.print_help()
         raise SystemExit
 
     try:
-        config = DAQConfig.getClusterConfiguration(opt.configName, opt.doList,
+        config = DAQConfig.getClusterConfiguration(opt.configName, False,
                                                    clusterDesc=opt.clusterDesc)
-        if opt.doList: raise SystemExit
     except DAQConfigNotFound:
         print >>sys.stderr, 'Configuration "%s" not found' % configName
         p.print_help()
@@ -150,12 +152,12 @@ def main():
                              verbose=(traceLevel > 0 or opt.dryRun),
                              trace=(traceLevel > 0), timeout=opt.timeout)
 
-    deploy(config, parallel, environ["HOME"], metaDir, SUBDIRS, opt.delete,
+    deploy(config, parallel, os.environ["HOME"], metaDir, SUBDIRS, opt.delete,
            opt.dryRun, opt.deepDryRun, opt.undeploy, traceLevel)
 
 def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
            deepDryRun, undeploy, traceLevel):
-    m2  = join(homeDir, '.m2')
+    m2  = os.path.join(homeDir, '.m2')
 
     rsyncCmdStub = "nice rsync -azLC%s%s" % (delete and ' --delete' or '',
                                        deepDryRun and ' --dry-run' or '')
@@ -164,13 +166,14 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
     # here so that only one rsync is required for each node. (Running
     # multiple rsync's in parallel appeared to give rise to race
     # conditions and errors.)
-    rsyncDeploySrc = abspath(join(pdaqDir, "{" + ",".join(subdirs) + "}"))
+    rsyncDeploySrc = \
+        os.path.abspath(os.path.join(pdaqDir, "{" + ",".join(subdirs) + "}"))
 
     rsyncNodes = getUniqueHostNames(config)
 
     # Check if targetDir (the result of a build) is present
-    targetDir        = abspath(join(pdaqDir, 'target'))
-    if not undeploy and not isdir(targetDir):
+    targetDir        = os.path.abspath(os.path.join(pdaqDir, 'target'))
+    if not undeploy and not os.path.isdir(targetDir):
         print >>sys.stderr, \
             "ERROR: Target dir (%s) does not exist." % (targetDir)
         print >>sys.stderr, \
