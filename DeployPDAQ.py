@@ -25,7 +25,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 4871 2010-01-26 14:56:01Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 4887 2010-02-15 23:45:57Z dglo $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -109,7 +109,7 @@ def main():
         DAQConfig.showList(None, None)
         raise SystemExit
 
-    if opt.configName:
+    if not opt.configName:
         print >>sys.stderr, 'No configuration specified'
         p.print_help()
         raise SystemExit
