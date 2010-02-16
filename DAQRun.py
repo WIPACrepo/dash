@@ -50,7 +50,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4799 2009-12-14 21:17:26Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4888 2010-02-16 00:06:37Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -1594,13 +1594,31 @@ class DAQRun(object):
 
         monDict = {}
 
-        if self.runStats.hasRunNumber() and self.runState == "RUNNING":
+        if self.runStats is not None and \
+                self.runStats.hasRunNumber() and \
+                self.runState == "RUNNING":
             self.runStats.updateEventCounts(self, True)
             (numEvts, evtTime, payTime, numMoni, moniTime, numSN, snTime,
              numTcal, tcalTime) = self.runStats.monitorData()
-        elif self.prevRunStats.hasRunNumber() and self.runState == "STOPPED":
+        elif self.prevRunStats is not None and \
+                self.prevRunStats.hasRunNumber() and \
+                self.runState == "STOPPED":
             (numEvts, evtTime, payTime, numMoni, moniTime, numSN, snTime,
              numTcal, tcalTime) = self.prevRunStats.monitorData()
+        else:
+            if self.runStats is None:
+                curRun = None
+            else:
+                curRun = self.runStats.getRunNumber()
+            if self.prevRunStats is None:
+                prevRun = None
+            else:
+                prevRun = self.prevRunStats.getRunNumber()
+            self.log.error("Cannot return valid run info" +
+                           " (state %s, curRun %s, prevRun %s)" %
+                           (str(self.runState), str(curRun), str(prevRun)))
+            (numEvts, evtTime, payTime, numMoni, moniTime, numSN, snTime,
+             numTcal, tcalTime) = (0, 0, 0, 0, 0, 0, 0, 0, 0)
 
         monDict["physicsEvents"] = numEvts
         monDict["eventTime"] = str(evtTime)
