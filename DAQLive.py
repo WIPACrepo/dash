@@ -260,13 +260,13 @@ class DAQLive(Component):
                                      Prio.ITS, moniData["eventPayloadTime"])
             self.moniClient.sendMoni("walltimeEvents",
                                      moniData["physicsEvents"],
-                                     Prio.ITS, moniData["eventTime"])
+                                     Prio.EMAIL, moniData["eventTime"])
             self.moniClient.sendMoni("moniEvents", moniData["moniEvents"],
-                                     Prio.ITS, moniData["moniTime"])
+                                     Prio.EMAIL, moniData["moniTime"])
             self.moniClient.sendMoni("snEvents", moniData["snEvents"],
-                                     Prio.ITS, moniData["snTime"])
+                                     Prio.EMAIL, moniData["snTime"])
             self.moniClient.sendMoni("tcalEvents", moniData["tcalEvents"],
-                                     Prio.ITS, moniData["tcalTime"])
+                                     Prio.EMAIL, moniData["tcalTime"])
 
     def __waitForState(self, expState, badStates=('ERROR', ), timeout=None):
         "Wait for pDAQ to reach the expected state"
