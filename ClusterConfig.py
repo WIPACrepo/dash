@@ -54,6 +54,9 @@ class deployComponent(object):
 
     def id(self): return self.__id
 
+    def isBuilder(self):
+        return self.__name.lower().endswith('builder')
+
     def isHub(self):
         "Is this a stringHub component?"
         return self.__name.lower().find('hub') >= 0
