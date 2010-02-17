@@ -252,12 +252,11 @@ if __name__ == "__main__":
             deploy.deploy(cfg)
         deploy.showHome()
     if opt.run:
-        liveRun = LiveRun(DatabaseType.guessType(), opt.showCmd,
-                          opt.showCmdOutput, False, False)
+        liveRun = LiveRun(opt.showCmd, opt.showCmdOutput)
 
         # always kill running components in case they're from a previous release
         #
-        liveRun.unlaunch()
+        liveRun.killComponents()
 
         for data in RUN_LIST:
             data.run(liveRun, opt.quick)
