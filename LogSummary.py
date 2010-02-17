@@ -660,6 +660,10 @@ class GlobalTriggerLog(ComponentLog):
                         continue
 
             elif state == self.STATE_RUNNING:
+                if line.find("Splicer contains: ") >= 0 or \
+                        line.find("Total time = ") >= 0:
+                    continue
+
                 m = self.LONGEST_TRIG.match(line)
                 if m:
                     self.__longest = float(m.group(2))
@@ -1173,7 +1177,11 @@ class BaseDom(object):
     __stateString = classmethod(__stateString)
 
     def __str__(self):
-        return "(%d, %d, %s)" % (self.__card, self.__pair, self.__abNum)
+        if self.__abNum == 0:
+            abCh = "A"
+        else:
+            abCh = "B"
+        return "Dom-%d%d%s" % (self.__card, self.__pair, abCh)
 
     def __transition(self, curState, newState):
         if self.__state != curState:
@@ -1220,7 +1228,11 @@ class BaseDom(object):
         self.__transition(self.STATE_READY, self.STATE_STARTRUN)
 
     def setStopping(self):
-        self.__transition(self.STATE_RUNNING, self.STATE_STOPPING)
+        expState = self.STATE_RUNNING
+        if self.__state == self.STATE_READY or \
+                self.__state == self.STATE_STOPPING:
+            expState = self.__state
+        self.__transition(expState, self.STATE_STOPPING)
 
     def setStopped(self):
         self.__transition(self.STATE_STOPPING, self.STATE_STOPPED)
@@ -1336,6 +1348,7 @@ class StringHubLog(ComponentLog):
         loadCfg = None
         numDCThreads = 0
         inTCalException = False
+        inPipeException = False
 
         state = self.STATE_INITIAL
 
@@ -1461,7 +1474,7 @@ class StringHubLog(ComponentLog):
                         continue
 
                     if msg.find("Got CONFIGURE signal") >= 0:
-                        if not self.__domMap.contains(cardLoc):
+                        if not self.__domMap.has_key(cardLoc):
                             self.logError("Got CONFIGURE signal for unknown" +
                                           " card \"%s\"" % cardLoc)
                             continue
@@ -1527,6 +1540,9 @@ class StringHubLog(ComponentLog):
                     continue
 
             elif state == self.STATE_START:
+                if len(line.rstrip()) == 0:
+                    continue
+
                 if line.find("StringHub is starting the run.") >= 0 or \
                         line.find("signalStartRun") >= 0:
                     continue
@@ -1543,6 +1559,18 @@ class StringHubLog(ComponentLog):
                 if line.find("STDERR-") >= 0 and \
                         line.find("TCAL read failed") >= 0:
                     inTCalException = True
+                    continue
+
+                if inPipeException:
+                    if (line.find(" at ") >= 0 or line.find("	at ") >= 0):
+                        continue
+
+                    inPipeException = False
+                    # stack trace is done, keep looking for matches
+
+                if line.find("IOException: Broken pipe") >= 0:
+                    self.logError(line)
+                    inPipeException = True
                     continue
 
                 if line.find("Out-of-order sorted value") >= 0:
@@ -1567,7 +1595,9 @@ class StringHubLog(ComponentLog):
                                              str(lpe)))
                         continue
 
-                    if msg.find("Got STOP RUN signal") >= 0:
+                    if msg.find("Got STOP RUN signal") >= 0 or \
+                            msg.find("Stopping data collection") >= 0 or \
+                            msg.find("Exited runCore() loop") >= 0:
                         try:
                             self.__domMap[cardLoc].setStopping()
                         except LogParseException, lpe:
@@ -1600,6 +1630,9 @@ class StringHubLog(ComponentLog):
                         continue
 
             elif state == self.STATE_STOPPING:
+                if len(line.rstrip()) == 0:
+                    continue
+
                 if line.find("StringHub is starting the run.") >= 0 or \
                         line.find("signalStartRun") >= 0:
                     continue
@@ -1613,12 +1646,26 @@ class StringHubLog(ComponentLog):
                     state = self.STATE_STOPPED
                     continue
 
+                if inPipeException:
+                    if (line.find(" at ") >= 0 or line.find("	at ") >= 0):
+                        continue
+
+                    inPipeException = False
+                    # stack trace is done, keep looking for matches
+
+                if line.find("IOException: Broken pipe") >= 0:
+                    self.logError(line)
+                    inPipeException = True
+                    continue
+
                 m = self.DOM_GENERIC.match(line)
                 if m:
                     cardLoc = m.group(2)
                     msg = m.group(3)
 
-                    if msg.find("Got STOP RUN signal") >= 0:
+                    if msg.find("Got STOP RUN signal") >= 0 or \
+                            msg.find("Stopping data collection") >= 0 or \
+                            msg.find("Exited runCore() loop") >= 0:
                         try:
                             self.__domMap[cardLoc].setStopping()
                         except LogParseException, lpe:
