@@ -301,6 +301,8 @@ class DefaultDomGeometry(object):
         if strNum in [21, 29, 44, 52, 53, 60, 61, 68]: return 206
         if strNum in [26, 6,  12, 9,  3,   2, 13, 17]: return 207
         if strNum in [19, 37, 28]: return 208  
+        if strNum in [41, 32, 24, 15, 35, 25, 8, 16]: return 209
+        if strNum in [42, 43, 33, 34, 23, 51]: return 210
         raise ProcessError("Could not find icetop hub for string %d" % strNum)
     getIcetopNum = classmethod(getIcetopNum)
 
