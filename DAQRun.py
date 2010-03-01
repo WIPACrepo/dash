@@ -50,7 +50,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4888 2010-02-16 00:06:37Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4925 2010-03-01 19:10:04Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -411,10 +411,7 @@ class RateThread(threading.Thread):
 
         self.setName("DAQRun:RateThread")
 
-    def done(self):
-        return self.__done
-
-    def run(self):
+    def __run(self):
         self.__runStats.updateEventCounts(self.__daqRun, True)
 
         rateStr = ""
@@ -430,7 +427,18 @@ class RateThread(threading.Thread):
         self.__log.error(("\t%s physics events%s, %s moni events," +
                           " %s SN events, %s tcals")  %
                          (numEvts, rateStr, numMoni, numSN, numTcal))
-        self.__done = True
+
+    def done(self):
+        return self.__done
+
+    def run(self):
+        try:
+            try:
+                self.__run()
+            except:
+                self.__log.error(exc_string())
+        finally:
+            self.__done = True
 
 class ActiveDOMThread(threading.Thread):
     "A thread which reports the active DOM counts"
@@ -446,10 +454,7 @@ class ActiveDOMThread(threading.Thread):
 
         self.setName("DAQRun:ActiveDOMThread")
 
-    def done(self):
-        return self.__done
-
-    def run(self):
+    def __run(self):
         total = 0
         hubDOMs = {}
 
@@ -471,7 +476,17 @@ class ActiveDOMThread(threading.Thread):
                                                  Prio.ITS):
                 self.__log.error("Failed to send active DOM report")
 
-        self.__done = True
+    def done(self):
+        return self.__done
+
+    def run(self):
+        try:
+            try:
+                self.__run()
+            except:
+                self.__log.error(exc_string())
+        finally:
+            self.__done = True
 
 class Component(object):
     def __init__(self, name, id, inetAddr, rpcPort, mbeanPort):
