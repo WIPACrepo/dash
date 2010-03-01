@@ -404,32 +404,37 @@ class RunWatchdog(IntervalTimer):
     __appendError = staticmethod(__appendError)
 
     def __checkComp(self, comp, starved, stagnant, threshold):
-        isProblem = False
+        isOK = True
         try:
             badList = comp.checkList(comp.inputFields)
             if badList is not None:
                 starved += badList
-                isProblem = True
+                isOK = False
         except Exception:
             self.__log.error(str(comp) + ' inputs: ' + exc_string())
+            isOK = False
 
-        if not isProblem:
+        if isOK:
             try:
                 badList = comp.checkList(comp.outputFields)
                 if badList is not None:
                     stagnant += badList
-                    isProblem = True
+                    isOK = False
             except Exception:
                 self.__log.error(str(comp) + ' outputs: ' + exc_string())
+                isOK = False
 
-            if not isProblem:
+            if isOK:
                 try:
                     badList = comp.checkList(comp.thresholdFields)
                     if badList is not None:
                         threshold += badList
-                        isProblem = True
+                        isOK = False
                 except Exception:
                     self.__log.error(str(comp) + ' thresholds: ' + exc_string())
+                    isOK = False
+
+        return isOK
 
     def __contains(self, comps, compName):
         for c in comps.values():
@@ -501,12 +506,16 @@ class RunWatchdog(IntervalTimer):
         stagnant = []
         threshold = []
 
+        healthy = True
+
         # checks can raise exception if far end is dead
         for comp in self.__stringHubs:
-            self.__checkComp(comp, starved, stagnant, threshold)
+            if not self.__checkComp(comp, starved, stagnant, threshold):
+                healthy = False
 
         for comp in self.__soloComps:
-            self.__checkComp(comp, starved, stagnant, threshold)
+            if not self.__checkComp(comp, starved, stagnant, threshold):
+                healthy = False
 
         errMsg = None
 
@@ -522,7 +531,6 @@ class RunWatchdog(IntervalTimer):
             errMsg = RunWatchdog.__appendError(errMsg, 'threshold',
                                                self.__joinAll(threshold))
 
-        healthy = True
         if errMsg is not None:
             self.__log.error(errMsg)
             healthy = False
