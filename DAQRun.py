@@ -50,7 +50,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4925 2010-03-01 19:10:04Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4932 2010-03-16 16:49:54Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -442,9 +442,9 @@ class RateThread(threading.Thread):
 
 class ActiveDOMThread(threading.Thread):
     "A thread which reports the active DOM counts"
-    def __init__(self, moni, activeMoni, comps, log, sendDetails):
+    def __init__(self, moni, liveMoni, comps, log, sendDetails):
         self.__moni = moni
-        self.__activeMonitor = activeMoni
+        self.__liveMoniClient = liveMoni
         self.__comps = comps
         self.__log = log
         self.__sendDetails = sendDetails
@@ -469,11 +469,11 @@ class ActiveDOMThread(threading.Thread):
 
         now = datetime.datetime.now()
 
-        self.__activeMonitor.sendMoni("activeDOMs", total, Prio.ITS)
+        self.__liveMoniClient.sendMoni("activeDOMs", total, Prio.ITS)
 
         if self.__sendDetails:
-            if not self.__activeMonitor.sendMoni("activeStringDOMs", hubDOMs,
-                                                 Prio.ITS):
+            if not self.__liveMoniClient.sendMoni("activeStringDOMs", hubDOMs,
+                                                  Prio.ITS):
                 self.__log.error("Failed to send active DOM report")
 
     def done(self):
@@ -627,9 +627,9 @@ class DAQRun(object):
         self.badRateCount     = 0
 
         self.__activeDOMTimer = None
-        self.__activeMonitor = MoniClient("pdaq", "localhost", DAQPort.I3LIVE)
-        if str(self.__activeMonitor).startswith("BOGUS"):
-            self.__activeMonitor = None
+        self.__liveMoniClient = MoniClient("pdaq", "localhost", DAQPort.I3LIVE)
+        if str(self.__liveMoniClient).startswith("BOGUS"):
+            self.__liveMoniClient = None
             self.__activeDOMDetail = None
             if not DAQRun.LIVE_WARNING:
                 print >>sys.stderr, "Cannot import IceCube Live code, so" + \
@@ -1160,7 +1160,7 @@ class DAQRun(object):
 
         if self.__activeDOMTimer and self.__activeDOMTimer.isTime():
             self.__activeDOMTimer.reset()
-            if self.__activeMonitor is not None and \
+            if self.__liveMoniClient is not None and \
                     self.__activeDOMThread is not None and \
                     not self.__activeDOMThread.done():
                 self.__badActiveDOMCount += 1
@@ -1182,7 +1182,7 @@ class DAQRun(object):
                     self.__activeDOMDetail.reset()
 
                 self.__activeDOMThread = \
-                    ActiveDOMThread(self.moni, self.__activeMonitor,
+                    ActiveDOMThread(self.moni, self.__liveMoniClient,
                                     self.components, self.log, sendDetails)
                 self.__activeDOMThread.start()
 
