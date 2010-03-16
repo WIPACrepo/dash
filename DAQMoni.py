@@ -52,6 +52,9 @@ class MoniData(object):
     def getRPCClient(self, addr, port):
         return RPCClient(addr, port)
 
+    def listBeans(self):
+        return self.__beanList[:]
+
     def monitor(self, now):
         bSrt = self.__beanFields.keys()
         bSrt.sort()
@@ -258,6 +261,14 @@ class DAQMoni(object):
             if not self.__threadList[c].done:
                 return True
         return False
+
+    def listBeans(self, ID):
+        if not self.__moniList:
+            raise BeanFieldNotFoundException("Empty list of monitoring objects")
+        if ID not in self.__moniList:
+            raise BeanFieldNotFoundException("Component %d not found" % ID)
+        return self.__moniList[ID].listBeans()
+
 
 if __name__ == "__main__":
     usage = False

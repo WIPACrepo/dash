@@ -908,7 +908,8 @@ class StubbedDAQRun(DAQRun):
             self.__moniTimer = MockIntervalTimer(interval)
             return self.__moniTimer
 
-        if name == DAQRun.ACTIVE_NAME or name == DAQRun.ACTIVERPT_NAME:
+        if name == DAQRun.ACTIVE_NAME or name == DAQRun.ACTIVERPT_NAME or \
+                name == DAQRun.RADAR_NAME:
             return MockIntervalTimer(interval)
 
         raise Exception("Unknown timer %s (interval %d)" % (name, interval))

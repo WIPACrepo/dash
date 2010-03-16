@@ -50,7 +50,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4934 2010-03-16 16:54:07Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4935 2010-03-16 16:58:25Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -488,6 +488,111 @@ class ActiveDOMThread(threading.Thread):
         finally:
             self.__done = True
 
+class RadarDOM(object):
+    def __init__(self, mbID, string, cid, beanName):
+        self.__mbID = mbID
+        self.__string = string
+        self.__compID = cid
+        self.__beanName = beanName
+
+    def getRate(self, moni):
+        return moni.getSingleBeanField(self.__compID, self.__beanName,
+                                       "HitRate")
+
+    def mbID(self): return self.__mbID
+
+class RadarThread(threading.Thread):
+    "A thread which reports the hit rate for all radar-sensitive DOMs"
+
+    # mapping of DOM mainboard ID -> string number
+    DOM_MAP = { "48e492170268": 6 }
+
+    # list of radar sentinel DOMs
+    RADAR_DOMS = None
+
+    def __init__(self, moni, liveMoniClient, comps, log, samples, duration):
+        self.__moni = moni
+        self.__liveMoniClient = liveMoniClient
+        self.__comps = comps
+        self.__log = log
+        self.__samples = samples
+        self.__sampleSleep = float(duration) / float(samples)
+
+        self.__done = False
+
+        threading.Thread.__init__(self)
+
+        self.setName("DAQRun:RadarThread")
+
+    def __findDOMs(self):
+        strings = {}
+        for k in self.DOM_MAP.keys():
+            if not strings.has_key(self.DOM_MAP[k]):
+                strings[self.DOM_MAP[k]] = []
+            strings[self.DOM_MAP[k]].append(k)
+
+        self.RADAR_DOMS = []
+
+        for n in strings.keys():
+            for cid, comp in self.__comps.iteritems():
+                if len(strings[n]) == 0:
+                    break
+
+                if comp.name() != "stringHub" or (comp.id() % 1000) != n:
+                    continue
+
+                beans = self.__moni.listBeans(cid)
+                for b in beans:
+                    if len(strings[n]) == 0:
+                        break
+
+                    if b.startswith("DataCollectorMonitor"):
+                        mbid = self.__moni.getSingleBeanField(cid, b,
+                                                              "MainboardId")
+                        try:
+                            idx = strings[n].index(mbid)
+                        except:
+                            continue
+
+                        del strings[n][idx]
+
+                        self.RADAR_DOMS.append(RadarDOM(mbid, n, cid, b))
+
+    def __run(self):
+        if self.RADAR_DOMS is None:
+            self.__findDOMs()
+
+        if len(self.RADAR_DOMS) == 0:
+            return
+
+        rateList = {}
+        for i in range(self.__samples):
+            for rdom in self.RADAR_DOMS:
+                rate = rdom.getRate(self.__moni)
+
+                if not rateList.has_key(rdom.mbID()) or \
+                        rateList[rdom.mbID()] < rate:
+                    rateList[rdom.mbID()] = rate
+
+        rateData = []
+        for mbID in rateList:
+            rateData.append((mbID, rateList[mbID]))
+
+        if not self.__liveMoniClient.sendMoni("radarDOMs", rateData, Prio.EMAIL):
+            self.__log.error("Failed to send radar DOM report")
+
+    def done(self):
+        return self.__done
+
+    def run(self):
+        try:
+            try:
+                self.__run()
+            except:
+                self.__log.error(exc_string())
+        finally:
+            self.__done = True
+
 class Component(object):
     def __init__(self, name, id, inetAddr, rpcPort, mbeanPort):
         self.__name = name
@@ -532,6 +637,12 @@ class DAQRun(object):
     # monitoring timer
     MONI_NAME        = "moniTimer"
     MONI_PERIOD      = 100
+
+    # radar sentinal DOM monitor timer
+    RADAR_NAME        = "radarTimer"
+    RADAR_PERIOD      = 900
+    RADAR_SAMPLES    = 8             # number of samples
+    RADAR_SAMPLE_DURATION = 120      # number of seconds for sampling
 
     # event rate report timer
     RATE_NAME        = "rateTimer"
@@ -642,6 +753,11 @@ class DAQRun(object):
                                                       DAQRun.ACTIVERPT_PERIOD)
         self.__activeDOMThread   = None
         self.__badActiveDOMCount = 0
+
+        self.__radarTimer        = None
+        self.__radarThread       = None
+        self.__radarSamples      = 0
+        self.__badRadarCount     = 0
 
         self.__liveInfo       = None
         self.__id = int(time.time())
@@ -1153,6 +1269,10 @@ class DAQRun(object):
         self.watchdog = self.setup_watchdog(self.log, DAQRun.WATCH_PERIOD,
                                             self.components)
 
+        if self.__liveMoniClient is not None:
+            self.__radarTimer = self.setup_timer(DAQRun.RADAR_NAME,
+                                                 DAQRun.RADAR_PERIOD)
+
     def check_timers(self):
         if self.moni and self.__moniTimer and self.__moniTimer.isTime():
             self.__moniTimer.reset()
@@ -1224,6 +1344,27 @@ class DAQRun(object):
                             return False
             elif self.watchdog.timeToWatch():
                 self.watchdog.startWatch()
+
+        if self.__radarTimer and self.__radarTimer.isTime():
+            self.__radarTimer.reset()
+            if self.__radarThread is not None and not self.__radarThread.done():
+                self.__badRadarCount += 1
+                if self.__badRadarCount <= 3:
+                    self.log.error(("WARNING: Radar monitoring thread" +
+                                    " is hanging (#%d)") %
+                                   self.__badRadarCount)
+                else:
+                    self.log.error("ERROR: Radar monitoring seems to be" +
+                                   " stuck, it will be disabled")
+                    self.__radarTimer = None
+            else:
+                self.badRadarCount = 0
+
+                self.__radarThread = \
+                    RadarThread(self.moni, self.__liveMoniClient,
+                                self.components, self.log, self.RADAR_SAMPLES,
+                                self.RADAR_SAMPLE_DURATION)
+                self.__radarThread.start()
 
         return True
 
@@ -1368,6 +1509,11 @@ class DAQRun(object):
                 self.badRateCount = 0
 
                 self.__activeDOMTimer = None
+
+                self.__radarTimer = None
+                self.__radarThread = None
+                self.__radarSamples = 0
+                self.__badRadarCount = 0
 
                 try:      self.stopAllComponentLoggers()
                 except:   hadError = True; self.log.error(exc_string())
