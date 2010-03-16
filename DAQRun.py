@@ -50,7 +50,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4933 2010-03-16 16:50:48Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4934 2010-03-16 16:54:07Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -1405,7 +1405,13 @@ class DAQRun(object):
                 self.runState = "STOPPED"
 
             elif self.runState == "RUNNING":
-                if not self.check_timers():
+                try:
+                    result = self.check_timers()
+                except:
+                    self.log.error("Caught error in run task: " + exc_string())
+                    result = False
+
+                if not result:
                     self.log.error("Caught error in system," +
                                    " going to ERROR state...")
                     self.runState = "ERROR"
