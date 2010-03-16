@@ -50,7 +50,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4932 2010-03-16 16:49:54Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4933 2010-03-16 16:50:48Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -626,20 +626,22 @@ class DAQRun(object):
         self.rateThread       = None
         self.badRateCount     = 0
 
-        self.__activeDOMTimer = None
         self.__liveMoniClient = MoniClient("pdaq", "localhost", DAQPort.I3LIVE)
         if str(self.__liveMoniClient).startswith("BOGUS"):
             self.__liveMoniClient = None
-            self.__activeDOMDetail = None
             if not DAQRun.LIVE_WARNING:
                 print >>sys.stderr, "Cannot import IceCube Live code, so" + \
-                    " per-string active DOM stats wil not be reported"
+                    " stats wil not be reported to I3Live"
                 DAQRun.LIVE_WARNING = True
+
+        self.__activeDOMTimer = None
+        if self.__liveMoniClient is None:
+            self.__activeDOMDetail = None
         else:
             self.__activeDOMDetail = self.setup_timer(DAQRun.ACTIVERPT_NAME,
                                                       DAQRun.ACTIVERPT_PERIOD)
         self.__activeDOMThread   = None
-        self.__badActiveDOMCount   = 0
+        self.__badActiveDOMCount = 0
 
         self.__liveInfo       = None
         self.__id = int(time.time())
@@ -1141,8 +1143,9 @@ class DAQRun(object):
         self.__moniTimer = self.setup_timer(DAQRun.MONI_NAME,
                                             DAQRun.MONI_PERIOD)
 
-        self.__activeDOMTimer = self.setup_timer(DAQRun.ACTIVE_NAME,
-                                                 DAQRun.ACTIVE_PERIOD)
+        if self.__liveMoniClient is not None:
+            self.__activeDOMTimer = self.setup_timer(DAQRun.ACTIVE_NAME,
+                                                     DAQRun.ACTIVE_PERIOD)
 
         self.rateTimer = self.setup_timer(DAQRun.RATE_NAME,
                                           DAQRun.RATE_PERIOD)
