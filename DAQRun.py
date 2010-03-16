@@ -50,7 +50,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4935 2010-03-16 16:58:25Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4936 2010-03-16 18:28:39Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -573,6 +573,8 @@ class RadarThread(threading.Thread):
                 if not rateList.has_key(rdom.mbID()) or \
                         rateList[rdom.mbID()] < rate:
                     rateList[rdom.mbID()] = rate
+
+            time.sleep(self.__sampleSleep)
 
         rateData = []
         for mbID in rateList:
