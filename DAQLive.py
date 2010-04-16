@@ -496,6 +496,13 @@ class DAQLive(Component):
         if ret != 1: return "New subrun FAILED.  See pDAQ logs for more info."
         return "OK"
 
+    def version(self):
+        if self.__runIface is None:
+            if not self.__connectToDAQRun():
+                raise Exception("Could not connect to pDAQ")
+
+        return self.__runIface.getReleaseName()
+
 if __name__ == "__main__":
     import signal
 
