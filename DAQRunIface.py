@@ -4,7 +4,7 @@
 # Object to interface w/ DAQ run script
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started November, 2006
-# $Id: DAQRunIface.py 4984 2010-04-16 16:19:58Z dglo $
+# $Id: DAQRunIface.py 4985 2010-04-16 16:23:47Z dglo $
 
 from DAQRPC import RPCClient
 from os.path import join, exists
@@ -168,10 +168,6 @@ class DAQRunIface(object):
         self.__id = newID
         return unchanged
 
-    def getReleaseName(self):
-        "Get the pDAQ release name from DAQRun"
-        return self.__rpc.rpc_get_release_name()
-    
 if __name__ == "__main__":
     iface = DAQRunIface()
     print iface.getDaqLabels()

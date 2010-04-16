@@ -497,11 +497,9 @@ class DAQLive(Component):
         return "OK"
 
     def version(self):
-        if self.__runIface is None:
-            if not self.__connectToDAQRun():
-                raise Exception("Could not connect to pDAQ")
-
-        return self.__runIface.getReleaseName()
+        "Returns the current pDAQ release name"
+        infoMap = SVNVersionInfo.get_version_info(SVN_ID)
+        return infoMap["release"]
 
 if __name__ == "__main__":
     import signal

@@ -50,7 +50,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4984 2010-04-16 16:19:58Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 4985 2010-04-16 16:23:47Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -793,7 +793,6 @@ class DAQRun(object):
         self.server.register_function(self.rpc_daq_summary_xml)
         self.server.register_function(self.rpc_flash)
         self.server.register_function(self.rpc_run_monitoring)
-        self.server.register_function(self.rpc_get_release_name)
 
     def validateFlashingDoms(config, domlist):
         "Make sure flasher arguments are valid and convert names or string/pos to mbid if needed"
@@ -1804,11 +1803,6 @@ class DAQRun(object):
         monDict["tcalTime" ] = str(tcalTime)
 
         return monDict
-
-    def rpc_get_release_name(self):
-        "Returns the current pDAQ release name"
-        infoMap = get_version_info(SVN_ID)
-        return infoMap["release"]
 
 if __name__ == "__main__":
     runArgs = RunArgs()
