@@ -2,7 +2,7 @@
 
 import StringIO, time, unittest
 from DAQLogClient import DAQLog
-from DAQMoni import BeanFieldNotFoundException, DAQMoni, FileMoniData
+from DAQMoni import BeanFieldNotFoundException, DAQMoni, FileMoniData, unFixValue
 
 from DAQMocks import MockAppender, MockRunComponent
 
@@ -138,9 +138,10 @@ class TestDAQMoni(unittest.TestCase):
         MockMoni.clear()
 
     def testUnfix(self):
-        strVals = { 'a':'123', 'b':['123', '123'], 'c':'abc'}
+        strVals = { 'a':'123', 'b':['123', '123'], 'c':'abc', 'd':2147483647,
+                    'e':'5000000000'}
 
-        vals = FileMoniData.unFixValue(strVals)
+        vals = unFixValue(strVals)
         for k in vals:
             if k == 'a':
                 good = 123
@@ -161,6 +162,22 @@ class TestDAQMoni(unittest.TestCase):
                                                                str(v)))
             elif k == 'c':
                 good = 'abc'
+                self.assertEquals(type(good), type(vals[k]),
+                                  'Expected %s, not %s' % (str(type(good)),
+                                                           str(type(vals[k]))))
+                self.assertEquals(good, vals[k],
+                                  'Expected %s, not %s' % (str(good),
+                                                           str(vals[k])))
+            elif k == 'd':
+                good = 2147483647
+                self.assertEquals(type(good), type(vals[k]),
+                                  'Expected %s, not %s' % (str(type(good)),
+                                                           str(type(vals[k]))))
+                self.assertEquals(good, vals[k],
+                                  'Expected %s, not %s' % (str(good),
+                                                           str(vals[k])))
+            elif k == 'e':
+                good = 5000000000
                 self.assertEquals(type(good), type(vals[k]),
                                   'Expected %s, not %s' % (str(type(good)),
                                                            str(type(vals[k]))))
