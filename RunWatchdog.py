@@ -8,9 +8,10 @@
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started December, 2006
 
+import datetime, threading
 from DAQRPC import RPCClient
 from IntervalTimer import IntervalTimer
-import datetime, threading
+from DAQMoni import unFixValue
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -146,8 +147,8 @@ class WatchData(object):
     def __checkValues(self, watchList):
         unhealthy = []
         if len(watchList) == 1:
-            val = self.__client.mbean.get(watchList[0].beanName,
-                                          watchList[0].fieldName)
+            val = unFixValue(self.__client.mbean.get(watchList[0].beanName,
+                                                     watchList[0].fieldName))
             if not watchList[0].check(val):
                 unhealthy.append(watchList[0].unhealthyString(val))
         else:
@@ -158,7 +159,7 @@ class WatchData(object):
             valMap = self.__client.mbean.getAttributes(watchList[0].beanName,
                                                        fldList)
             for i in range(0, len(fldList)):
-                val = valMap[fldList[i]]
+                val = unFixValue(valMap[fldList[i]])
                 if not watchList[i].check(val):
                     unhealthy.append(watchList[i].unhealthyString(val))
 
