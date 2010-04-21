@@ -13,6 +13,29 @@ from DAQLogClient import LiveMonitor
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
+def unFixValue(obj):
+    """
+    Look for numbers masquerading as strings.  If an obj is a
+    string and successfully converts to a number, return that
+    convertion.  If obj is a dict or list, recuse into it
+    converting all such masquerading strings.  All other types are
+    unaltered.  This pairs with the similarly named fix* methods in
+    icecube.daq.juggler.mbean.XMLRPCServer
+    """
+
+    if type(obj) is dict:
+        for k in obj.keys():
+            obj[k] = unFixValue(obj[k])
+    elif type(obj) is list:
+        for i in xrange(0, len(obj)):
+            obj[i] = unFixValue(obj[i])
+    elif type(obj) is str:
+        try:
+            return int(obj)
+        except ValueError:
+            pass
+    return obj
+
 class BeanFieldNotFoundException(Exception): pass
 
 class MoniData(object):
@@ -47,7 +70,7 @@ class MoniData(object):
                 (bean, fld, str(self.__beanFields[bean]))
             raise BeanFieldNotFoundException(msg)
 
-        return self.__client.mbean.get(bean, fld)
+        return unFixValue(self.__client.mbean.get(bean, fld))
 
     def getRPCClient(self, addr, port):
         return RPCClient(addr, port)
@@ -63,6 +86,8 @@ class MoniData(object):
 
             # report monitoring data
             if len(attrs) > 0:
+                for k in attrs.keys():
+                    attrs[k] = unFixValue(attrs[k])
                 self._report(now, b, attrs)
 
     def monitorBean(self, now, bean):
@@ -75,6 +100,8 @@ class MoniData(object):
 
         # report monitoring data
         if len(attrs) > 0:
+            for k in attrs.keys():
+                attrs[k] = unFixValue(attrs[k])
             self._report(now, bean, attrs)
 
     def monitorField(self, now, bean, fld):
@@ -83,7 +110,7 @@ class MoniData(object):
                 (bean, self.__name, self.__daqID)
             raise BeanFieldNotFoundException(msg)
 
-        val = self.__client.mbean.get(bean, fld)
+        val = unFixValue(self.__client.mbean.get(bean, fld))
 
         self._report(now, bean, { fld:val, })
 
@@ -97,7 +124,7 @@ class FileMoniData(MoniData):
         print >>self.__fd, '%s: %s:' % (beanName, now)
         for key in attrs:
             print >>self.__fd, '\t%s: %s' % \
-                (key, str(FileMoniData.unFixValue(attrs[key])))
+                (key, str(attrs[key]))
         print >>self.__fd
         self.__fd.flush()
 
@@ -106,29 +133,6 @@ class FileMoniData(MoniData):
         if fname is None:
             return sys.stdout
         return open(fname, "w+")
-
-    def unFixValue(cls, obj):
-
-        """ Look for numbers masquerading as strings.  If an obj is a
-        string and successfully converts to a number, return that
-        convertion.  If obj is a dict or list, recuse into it
-        converting all such masquerading strings.  All other types are
-        unaltered.  This pairs with the similarly named fix* methods in
-        icecube.daq.juggler.mbean.XMLRPCServer """
-
-        if type(obj) is dict:
-            for k in obj.keys():
-                obj[k] = cls.unFixValue(obj[k])
-        elif type(obj) is list:
-            for i in xrange(0, len(obj)):
-                obj[i] = cls.unFixValue(obj[i])
-        elif type(obj) is str:
-            try:
-                return int(obj)
-            except ValueError:
-                pass
-        return obj
-    unFixValue = classmethod(unFixValue)
 
 class LiveMoniData(MoniData):
     def __init__(self, name, daqID, addr, port):
