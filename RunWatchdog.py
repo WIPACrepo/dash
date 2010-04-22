@@ -77,22 +77,33 @@ class ValueWatcher(object):
 
         return newValue == oldValue
 
+    def __typeCategory(self, val):
+        vType = type(val)
+        if vType == tuple:
+            return list
+        if vType == long:
+            return int
+        return vType
+
     def check(self, newValue):
         if self.__prevValue is None:
             if type(newValue) == list:
                 self.__prevValue = newValue[:]
             else:
                 self.__prevValue = newValue
-        elif type(newValue) != type(self.__prevValue):
-            if type(self.__prevValue) != list or \
-                    type(newValue) != tuple or \
-                    len(newValue) != 0:
-                raise Exception(("Previous type for %s was %s (%s)," +
-                                 " new type is %s (%s)") %
-                                (str(self), str(type(self.__prevValue)),
-                                str(self.__prevValue),
-                                str(type(newValue)), str(newValue)))
-        elif type(newValue) != list:
+            return True
+
+        newType = self.__typeCategory(newValue)
+        prevType = self.__typeCategory(self.__prevValue)
+
+        if newType != prevType:
+            raise Exception(("Previous type for %s was %s (%s)," +
+                             " new type is %s (%s)") %
+                            (str(self), str(type(self.__prevValue)),
+                             str(self.__prevValue),
+                             str(type(newValue)), str(newValue)))
+
+        if newType != list:
             if self.__compare(self.__prevValue, newValue):
                 self.__unchanged += 1
                 if self.__unchanged == ValueWatcher.NUM_UNCHANGED:
