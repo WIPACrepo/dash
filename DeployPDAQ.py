@@ -25,7 +25,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 4889 2010-02-16 18:57:10Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 5001 2010-04-27 18:58:09Z ksb $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -80,7 +80,7 @@ def main():
                    dryRun     = False,
                    undeploy   = False,
                    deepDryRun = False,
-                   timeout    = 60,
+                   timeout    = 300,
                    clusterDesc = None)
     opt, args = p.parse_args()
 
@@ -104,6 +104,11 @@ def main():
     if opt.quiet:                 traceLevel = -1
     if opt.verbose:               traceLevel = 1
     if opt.quiet and opt.verbose: traceLevel = 0
+
+    # How often to report count of processes waiting to finish
+    monitorIval = None
+    if traceLevel >= 0 and opt.timeout:
+        monitorIval = max(opt.timeout * 0.01, 2)
 
     if opt.doList:
         DAQConfig.showList(None, None)
@@ -153,10 +158,10 @@ def main():
                              trace=(traceLevel > 0), timeout=opt.timeout)
 
     deploy(config, parallel, os.environ["HOME"], metaDir, SUBDIRS, opt.delete,
-           opt.dryRun, opt.deepDryRun, opt.undeploy, traceLevel)
+           opt.dryRun, opt.deepDryRun, opt.undeploy, traceLevel, monitorIval)
 
 def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
-           deepDryRun, undeploy, traceLevel):
+           deepDryRun, undeploy, traceLevel, monitorIval=None):
     m2  = os.path.join(homeDir, '.m2')
 
     rsyncCmdStub = "nice rsync -azLC%s%s" % (delete and ' --delete' or '',
@@ -199,7 +204,7 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
 
     parallel.start()
     if parallel.isParallel():
-        parallel.wait()
+        parallel.wait(monitorIval)
 
     if traceLevel <= 0 and not dryRun:
         needSeparator = True

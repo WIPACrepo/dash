@@ -875,7 +875,7 @@ class MockParallelShell(object):
     def system(self, cmd):
         self.__checkCmd(cmd)
 
-    def wait(self):
+    def wait(self, monitorIval=None):
         pass
 
 class MockRPCClient(object):
