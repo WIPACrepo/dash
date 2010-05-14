@@ -212,14 +212,21 @@ if __name__ == "__main__":
                   help="Reduce 4/8 hour tests to 2/4 minute tests")
     op.add_option("-r", "--run", action="store_true", dest="run",
                   help="Run the standard tests")
+    op.add_option("-S", "--showCheck", action="store_true", dest="showChk",
+                  help="Show the 'livecmd check' commands")
     op.add_option("-s", "--showCommands", action="store_true", dest="showCmd",
                   help="Show the commands used to deploy and/or run")
+    op.add_option("-X", "--showCheckOutput", action="store_true",
+                  dest="showChkOutput",
+                  help="Show the output of the 'livecmd check' commands")
     op.add_option("-x", "--showCommandOutput", action="store_true",
                   dest="showCmdOutput",
                   help="Show the output of the deploy and/or run commands")
     op.set_defaults(deploy = False,
                     quick = False,
                     run = False,
+                    showChk = False,
+                    showChkOutput = False,
                     showCmd = False,
                     showCmdOutput = False)
 
@@ -255,7 +262,8 @@ if __name__ == "__main__":
             deploy.deploy(cfg)
         deploy.showHome()
     if opt.run:
-        liveRun = LiveRun(opt.showCmd, opt.showCmdOutput)
+        liveRun = LiveRun(opt.showCmd, opt.showCmdOutput, opt.showChk,
+                          opt.showChkOutput)
 
         # always kill running components in case they're from a previous release
         #
