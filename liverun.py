@@ -152,7 +152,8 @@ class LiveState(object):
 
     RUN_PAT = re.compile(r"Current run: (\d+)\s+subrun: (\d+)")
     DOM_PAT = re.compile(r"\s+(\d+)-(\d+): \d+ \d+ \d+ \d+ \d+")
-    SVC_PAT = re.compile(r"(\S+) \((\S+):(\d+)\), (async|sync)hronous - (.*)")
+    SVC_PAT = re.compile(r"(\S+)( .*)? \((\S+):(\d+)\), (async|sync)hronous" +
+                         " - (.*)")
     SVCBACK_PAT = re.compile(r"(\S+) \(started (\d+) times\)")
 
     PARSE_NORMAL = 1
@@ -257,6 +258,9 @@ class LiveState(object):
                     front == "snEvents":
                 # ignore rates
                 return LiveState.PARSE_NORMAL
+            elif front == "daqrelease":
+                # ignore DAQ release name
+                return LiveState.PARSE_NORMAL
 
         if parseState == LiveState.PARSE_FLASH:
             m = LiveState.DOM_PAT.match(line)
@@ -268,9 +272,9 @@ class LiveState(object):
         if m:
             name = m.group(1)
             host = m.group(2)
-            port = int(m.group(3))
-            isAsync = m.group(4) == "async"
-            back = m.group(5)
+            port = int(m.group(4))
+            isAsync = m.group(5) == "async"
+            back = m.group(6)
 
             state = RunState.UNKNOWN
             numStarts = 0
@@ -497,7 +501,9 @@ class LiveRun(object):
         for line in foe:
             line = line.rstrip()
             if self.__showCmdOutput: print '+ ' + line
-            if line == "Service pdaq is now being controlled":
+            if line == "Service pdaq is now being controlled" or \
+                    line.find("Synchronous service pdaq was already being" +
+                              " controlled") >= 0:
                 controlled = True
             else:
                 print >>sys.stderr, "Control: %s" % line
