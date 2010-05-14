@@ -292,20 +292,19 @@ class DAQConfig(object):
             cls.showList(configDir, configName)
             return
 
-        if configDir is None:
-            configDir = os.path.join(metaDir, "config")
-
         try:
-            runCfg = DAQConfig.load(configName, configDir)
-            cfg = RunCluster(runCfg, clusterDesc, configDir)
-        except DAQConfigNotFound, nfe:
-            ex = nfe
+            cfg = ClusterConfig(metaDir, configName, useFallbackConfig=False)
+        except ConfigNotFoundException, cnfe:
+            ex = cnfe
 
         if ex is not None:
+            if configDir is None:
+                configDir = os.path.join(metaDir, "config")
+
             try:
-                cfg = ClusterConfig(configDir, configName,
-                                    useFallbackConfig=False)
-            except ConfigNotFoundException, ex2:
+                runCfg = DAQConfig.load(configName, configDir)
+                cfg = RunCluster(runCfg, clusterDesc, configDir)
+            except DAQConfigNotFound, nfe:
                 raise ex
 
         return cfg
