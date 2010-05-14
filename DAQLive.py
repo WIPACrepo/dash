@@ -499,7 +499,7 @@ class DAQLive(Component):
     def version(self):
         "Returns the current pDAQ release name"
         infoMap = SVNVersionInfo.get_version_info(SVN_ID)
-        return infoMap["release"]
+        return infoMap["release"] + "_" + infoMap["repo_rev"]
 
 if __name__ == "__main__":
     import signal
