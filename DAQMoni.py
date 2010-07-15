@@ -246,7 +246,8 @@ class DAQMoni(object):
 
     def getSingleBeanField(self, ID, beanName, beanField):
         if not self.__moniList:
-            raise BeanFieldNotFoundException("Empty list of monitoring objects")
+            raise BeanFieldNotFoundException("Empty list of monitoring" +
+                                             " objects")
         if ID not in self.__moniList:
             raise BeanFieldNotFoundException("Component %d not found" % ID)
         return self.__moniList[ID].getBeanField(ID, beanName, beanField)
@@ -258,6 +259,7 @@ class DAQMoni(object):
                 if now is None:
                     now = datetime.datetime.now()
                 self.__threadList[c] = self.__threadList[c].getNewThread(now)
+                self.__threadList[c].done = False
                 self.__threadList[c].start()
 
     def isActive(self):

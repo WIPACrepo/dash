@@ -342,6 +342,7 @@ class TestDAQMoni(unittest.TestCase):
         while moni.isActive() and tries < 10:
             time.sleep(0.1)
             tries += 1
+        self.failUnless(tries < 10, "doMoni was active after %s tries" % tries)
 
         md = MockMoni.getMockData(name, daqId)
         lines = md.getOutputLines()
