@@ -50,7 +50,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4985 2010-04-16 16:23:47Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 5088 2010-07-15 17:42:48Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -198,7 +198,8 @@ class RunArgs(object):
         try:
             clusterConfig = \
                 DAQConfig.getClusterConfiguration(opt.clusterConfigName,
-                                                  clusterDesc=opt.clusterDesc)
+                                                  clusterDesc=opt.clusterDesc,
+                                                  configDir=opt.configDir)
         except DAQConfigNotFound:
             print "ERROR: No configuration was found!"
             raise SystemExit
