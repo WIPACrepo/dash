@@ -1093,12 +1093,11 @@ class IntegrationTest(unittest.TestCase):
                                      killWith9)
 
         launchList = self.__compList[:]
-        for i in range(len(launchList)):
-            comp = launchList[i]
         launchList.sort(RealComponent.sortForLaunch)
 
         for comp in launchList:
-            pShell.addExpectedJavaKill(comp.fullName(), killWith9, verbose, host)
+            pShell.addExpectedJavaKill(comp.fullName(), killWith9, verbose,
+                                       host)
 
         pShell.addExpectedPython(doLive, doDAQRun, doCnC, dashDir,
                                  IntegrationTest.CONFIG_DIR,
