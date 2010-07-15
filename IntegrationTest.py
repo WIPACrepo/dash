@@ -447,7 +447,7 @@ class RealComponent(object):
 
         return 0
 
-    def __repr__(self):  return str(self)
+    def __repr__(self): return str(self)
 
     def __str__(self):
         return '%s#%d' % (self.__name, self.__num)
