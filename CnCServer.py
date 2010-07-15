@@ -30,38 +30,37 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4782 2009-12-04 15:50:49Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 5092 2010-07-15 20:06:48Z dglo $"
 
 class CnCServerException(Exception): pass
 
 class Connector(object):
-    """
-    Component connector description
-    type - connection type
-    port - IP port number (for input connections)
-    """
+    "Component connector"
 
-    def __init__(self, type, isInput, port):
+    def __init__(self, name, isInput, port):
         """
         Connector constructor
-        type - connection type
+        name - connection name
         isInput - True if this is an input connector
         port - IP port number (for input connections)
         """
-        self.type = type
+        self.__name = name
         if isInput:
-            self.port = port
+            self.__port = port
         else:
-            self.port = None
+            self.__port = None
 
     def __str__(self):
         "String description"
-        if self.port is not None:
-            return '%d=>%s' % (self.port, self.type)
-        return self.type + '=>'
+        if self.__port is not None:
+            return '%d=>%s' % (self.__port, self.__name)
+        return self.__name + '=>'
 
     def isInput(self):
-        return self.port is not None
+        return self.__port is not None
+
+    def name(self): return self.__name
+    def port(self): return self.__port
 
 class Connection(object):
     """
@@ -82,19 +81,19 @@ class Connection(object):
     def __str__(self):
         "String description"
         frontStr = '%s:%s#%d@%s' % \
-            (self.conn.type, self.comp.name(), self.comp.num(),
+            (self.conn.name(), self.comp.name(), self.comp.num(),
              self.comp.host())
         if not self.conn.isInput():
             return frontStr
-        return '%s:%d' % (frontStr, self.conn.port)
+        return '%s:%d' % (frontStr, self.conn.port())
 
     def map(self):
         connDict = {}
-        connDict['type'] = self.conn.type
+        connDict['type'] = self.conn.name()
         connDict['compName'] = self.comp.name()
         connDict['compNum'] = self.comp.num()
         connDict['host'] = self.comp.host()
-        connDict['port'] = self.conn.port
+        connDict['port'] = self.conn.port()
         return connDict
 
 class ConnTypeEntry(object):
@@ -1446,9 +1445,9 @@ class DAQPool(object):
 
         for comp in compList:
             for n in comp.connectors():
-                if not connDict.has_key(n.type):
-                    connDict[n.type] = ConnTypeEntry(n.type)
-                connDict[n.type].add(n, comp)
+                if not connDict.has_key(n.name()):
+                    connDict[n.name()] = ConnTypeEntry(n.name())
+                connDict[n.name()].add(n, comp)
 
         connMap = {}
 

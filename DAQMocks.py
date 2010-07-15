@@ -408,18 +408,21 @@ class MockCnCLogger(CnCLogger):
         super(MockCnCLogger, self).__init__(appender, True)
 
 class MockConnection(object):
-    def __init__(self, type, port=None):
+    def __init__(self, name, port=None):
         "port is set for input connections, None for output connections"
-        self.type = type
-        self.port = port
+        self.__name = name
+        self.__port = port
 
     def __str__(self):
-        if self.port is not None:
-            return '%d=>%s' % (self.port, self.type)
-        return '=>' + self.type
+        if self.__port is not None:
+            return '%d=>%s' % (self.__port, self.__name)
+        return '=>' + self.__name
 
     def isInput(self):
-        return self.port is not None
+        return self.__port is not None
+
+    def name(self): return self.__name
+    def port(self): return self.__port
 
 class MockComponent(object):
     def __init__(self, name, num, host='localhost'):
