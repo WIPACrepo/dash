@@ -340,7 +340,7 @@ class TestDAQRun(unittest.TestCase):
 
         setId = 1
         runNum = 654
-        configName = 'sim5str'
+        configName = 'simpleConfig'
 
         if LOG_INFO:
             catchall.addExpectedText('Loaded global configuration "%s"' %
@@ -1312,7 +1312,6 @@ class TestDAQRun(unittest.TestCase):
                  (6, 'stringHub', 1003, 'localhost', 113, 213),
                  (8, 'stringHub', 1004, 'localhost', 114, 214),
                  (10, 'stringHub', 1005, 'localhost', 115, 215),
-                 (12, 'stringHub', 1201, 'localhost', 116, 216),
                  (14, 'inIceTrigger', 0, 'localhost', 117, 217),
                  (16, 'globalTrigger', 0, 'localhost', 118, 218),
                  (ebID, 'eventBuilder', 0, 'localhost', 119, 219),
@@ -1341,7 +1340,6 @@ class TestDAQRun(unittest.TestCase):
                  (6, 'stringHub', 1003, 'localhost', 113, 213),
                  (8, 'stringHub', 1004, 'localhost', 114, 214),
                  (10, 'stringHub', 1005, 'localhost', 115, 215),
-                 (12, 'stringHub', 1201, 'localhost', 116, 216),
                  (14, 'inIceTrigger', 0, 'localhost', 117, 217),
                  (16, 'globalTrigger', 0, 'localhost', 118, 218),
                  (ebID, 'eventBuilder', 0, 'localhost', 119, 219),

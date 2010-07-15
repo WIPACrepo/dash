@@ -447,6 +447,8 @@ class RealComponent(object):
 
         return 0
 
+    def __repr__(self):  return str(self)
+
     def __str__(self):
         return '%s#%d' % (self.__name, self.__num)
 
@@ -1003,36 +1005,30 @@ class MoniLogTarget(object):
             MoniLogTarget.MONI_TO_LIVE
 
 class IntegrationTest(unittest.TestCase):
-    CLUSTER_CONFIG = 'sim-localhost'
+    CLUSTER_CONFIG = 'simpleConfig'
     CONFIG_DIR = os.path.abspath('src/test/resources/config')
-    CONFIG_NAME = 'sim5str'
+    CONFIG_NAME = 'simpleConfig'
     COPY_DIR = '/tmp'
     SPADE_DIR = '/tmp'
     LOG_DIR = None
     LIVEMONI_ENABLED = False
 
-    NUM_COMPONENTS = 10
+    NUM_COMPONENTS = 9
 
     def __createComponents(self):
         # Note that these jvm/jvmArg values needs to correspond to
         # what would be used by the config in 'sim-localhost'
         jvm = 'java'
-        hubJvmArgs = '-server -Xms256m -Xmx512m ' \
-            '-Dicecube.daq.bindery.StreamBinder.prescale=1'
+        hubJvmArgs = '-server -Xmx512m'
         comps = [('stringHub', 1001, 9111, 9211, jvm, hubJvmArgs),
                  ('stringHub', 1002, 9112, 9212, jvm, hubJvmArgs),
                  ('stringHub', 1003, 9113, 9213, jvm, hubJvmArgs),
                  ('stringHub', 1004, 9114, 9214, jvm, hubJvmArgs),
                  ('stringHub', 1005, 9115, 9215, jvm, hubJvmArgs),
-                 ('stringHub', 1201, 9116, 9216, jvm, hubJvmArgs),
-                 ('inIceTrigger', 0, 9117, 9217, jvm,
-                  '-server -Xms1000m -Xmx2000m'),
-                 ('globalTrigger', 0, 9118, 9218, jvm,
-                  '-server -Xms256m -Xmx512m'),
-                 ('eventBuilder', 0, 9119, 9219, jvm,
-                  '-server -Xms600m -Xmx1200m'),
-                 ('secondaryBuilders', 0, 9120, 9220, jvm,
-                  '-server -Xms600m -Xmx1200m'),]
+                 ('inIceTrigger', 0, 9117, 9217, jvm, '-server'),
+                 ('globalTrigger', 0, 9118, 9218, jvm, '-server'),
+                 ('eventBuilder', 0, 9119, 9219, jvm, '-server'),
+                 ('secondaryBuilders', 0, 9120, 9220, jvm, '-server'),]
 
         if len(comps) != IntegrationTest.NUM_COMPONENTS:
             raise Exception("Expected %d components, not %d" %
@@ -1099,9 +1095,6 @@ class IntegrationTest(unittest.TestCase):
         launchList = self.__compList[:]
         for i in range(len(launchList)):
             comp = launchList[i]
-            if comp.fullName() == 'stringHub' and comp.getNumber() == 1081:
-                del launchList[i]
-                break
         launchList.sort(RealComponent.sortForLaunch)
 
         for comp in launchList:
@@ -1115,7 +1108,8 @@ class IntegrationTest(unittest.TestCase):
                                  IntegrationTest.COPY_DIR, logPort, livePort)
         for comp in launchList:
             deployComp = MockDeployComponent(comp.fullName(), comp.getNumber(),
-                                             logLevel, comp.jvm(), comp.jvmArgs())
+                                             logLevel, comp.jvm(),
+                                             comp.jvmArgs())
             pShell.addExpectedJava(deployComp, IntegrationTest.CONFIG_DIR,
                                    logPort, livePort, verbose, False, host)
 

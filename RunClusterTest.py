@@ -65,7 +65,7 @@ class RunClusterTest(unittest.TestCase):
                          (cluster.logDirCopies(), logCopyDir))
 
     def testClusterFile(self):
-        cfg = DAQConfig.load("sim5str", RunClusterTest.CONFIG_DIR)
+        cfg = DAQConfig.load("simpleConfig", RunClusterTest.CONFIG_DIR)
 
         cluster = RunCluster(cfg, "localhost", RunClusterTest.CONFIG_DIR)
 
@@ -76,7 +76,6 @@ class RunClusterTest(unittest.TestCase):
 
     def testDeployLocalhost(self):
         expNodes = [DeployData('localhost', 'inIceTrigger'),
-                    DeployData('localhost', 'iceTopTrigger'),
                     DeployData('localhost', 'globalTrigger'),
                     DeployData('localhost', 'eventBuilder'),
                     DeployData('localhost', 'SecondaryBuilders'),
@@ -85,24 +84,22 @@ class RunClusterTest(unittest.TestCase):
                     DeployData('localhost', 'stringHub', 1003),
                     DeployData('localhost', 'stringHub', 1004),
                     DeployData('localhost', 'stringHub', 1005),
-                    DeployData('localhost', 'stringHub', 1201),
                     ]
 
-        self.__checkCluster("localhost", "sim5str", expNodes, "spade", None)
+        self.__checkCluster("localhost", "simpleConfig", expNodes, "spade",
+                            None)
 
     def testDeploySPTS64(self):
-        cfgName = 'sim5str'
+        cfgName = 'simpleConfig'
         expNodes = [DeployData('spts64-iitrigger', 'inIceTrigger'),
-                    DeployData('spts64-ittrigger', 'iceTopTrigger'),
                     DeployData('spts64-gtrigger', 'globalTrigger'),
                     DeployData('spts64-evbuilder', 'eventBuilder'),
                     DeployData('spts64-expcont', 'SecondaryBuilders'),
                     DeployData('spts64-stringproc01', 'stringHub', 1001),
                     DeployData('spts64-stringproc02', 'stringHub', 1002),
                     DeployData('spts64-stringproc03', 'stringHub', 1003),
-                    DeployData('spts64-stringproc04', 'stringHub', 1004),
-                    DeployData('spts64-stringproc06', 'stringHub', 1005),
-                    DeployData('spts64-stringproc07', 'stringHub', 1201),
+                    DeployData('spts64-stringproc06', 'stringHub', 1004),
+                    DeployData('spts64-stringproc07', 'stringHub', 1005),
                     ]
 
         spadeDir = 'spade'

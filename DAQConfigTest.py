@@ -40,12 +40,11 @@ class DAQConfigTest(unittest.TestCase):
 
     def testListsSim5(self):
         metaDir = self.initPDAQHome()
-        cfg = DAQConfig.load("sim5str", metaDir + "/config")
+        cfg = DAQConfig.load("simpleConfig", metaDir + "/config")
 
         expected = ['eventBuilder', 'globalTrigger', 'inIceTrigger',
                     'secondaryBuilders', 'stringHub#1001', 'stringHub#1002',
-                    'stringHub#1003', 'stringHub#1004', 'stringHub#1005',
-                    'stringHub#1201']
+                    'stringHub#1003', 'stringHub#1004', 'stringHub#1005']
 
         comps = cfg.components()
 
@@ -61,7 +60,7 @@ class DAQConfigTest(unittest.TestCase):
 
     def testLookupSim5(self):
         metaDir = self.initPDAQHome()
-        cfg = DAQConfig.load("sim5str", metaDir + "/config")
+        cfg = DAQConfig.load("simpleConfig", metaDir + "/config")
 
         dataList = (('53494d550101', 'Nicholson_Baker', 1001, 1),
                     ('53494d550120', 'SIM0020', 1001, 20),

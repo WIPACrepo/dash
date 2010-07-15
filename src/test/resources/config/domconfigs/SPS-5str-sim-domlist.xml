@@ -300,26 +300,6 @@
             <noiseRate>50.0</noiseRate>
         </simulation>
     </domConfig>
-    <domConfig mbid="53494d550161" name="Anne Paawhai">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
-    <domConfig mbid="53494d550162" name="Whakae Rotki ">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
-    <domConfig mbid="53494d550163" name="Susa Apua ">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
-    <domConfig mbid="53494d550164" name="Elekenu Ten ">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
     <domConfig mbid="53494d550201" name="Trana Kelisti">
         <simulation>
             <noiseRate>50.0</noiseRate>
@@ -616,26 +596,6 @@
         </simulation>
     </domConfig>
     <domConfig mbid="53494d550260" name="Poorist Cassa ">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
-    <domConfig mbid="53494d550261" name="Tehenna Kare ">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
-    <domConfig mbid="53494d550262" name="Raaki Maya ">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
-    <domConfig mbid="53494d550263" name="Marana Tina ">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
-    <domConfig mbid="53494d550264" name="Hataika Dia ">
         <simulation>
             <noiseRate>50.0</noiseRate>
         </simulation>
@@ -940,26 +900,6 @@
             <noiseRate>50.0</noiseRate>
         </simulation>
     </domConfig>
-    <domConfig mbid="53494d550361" name="Heara Teka ">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
-    <domConfig mbid="53494d550362" name="Tetarac Pake ">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
-    <domConfig mbid="53494d550363" name="Whamuen Chrina ">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
-    <domConfig mbid="53494d550364" name="Katu Kaotuut">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
     <domConfig mbid="53494d550401" name="Mices Daniere">
         <simulation>
             <noiseRate>50.0</noiseRate>
@@ -1260,26 +1200,6 @@
             <noiseRate>50.0</noiseRate>
         </simulation>
     </domConfig>
-    <domConfig mbid="53494d550461" name="Hottefa Path ">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
-    <domConfig mbid="53494d550462" name="Alizabe Elie ">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
-    <domConfig mbid="53494d550463" name="Wha Lauroa ">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
-    <domConfig mbid="53494d550464" name="Lise Kericia">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
     <domConfig mbid="53494d550501" name="Cassa Katine ">
         <simulation>
             <noiseRate>50.0</noiseRate>
@@ -1576,26 +1496,6 @@
         </simulation>
     </domConfig>
     <domConfig mbid="53494d550560" name="Pitepha Tii ">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
-    <domConfig mbid="53494d550561" name="Diakawa Joa ">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
-    <domConfig mbid="53494d550562" name="Roa Herrie ">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
-    <domConfig mbid="53494d550563" name="Sangaai Horo ">
-        <simulation>
-            <noiseRate>50.0</noiseRate>
-        </simulation>
-    </domConfig>
-    <domConfig mbid="53494d550564" name="Uer Deine ">
         <simulation>
             <noiseRate>50.0</noiseRate>
         </simulation>
