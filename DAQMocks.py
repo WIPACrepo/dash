@@ -408,9 +408,15 @@ class MockCnCLogger(CnCLogger):
         super(MockCnCLogger, self).__init__(appender, True)
 
 class MockConnection(object):
-    def __init__(self, name, port=None):
+    INPUT = "a"
+    OPT_INPUT = "b"
+    OUTPUT = "c"
+    OPT_OUTPUT = "d"
+
+    def __init__(self, name, connCh, port=None):
         "port is set for input connections, None for output connections"
         self.__name = name
+        self.__connCh = connCh
         self.__port = port
 
     def __str__(self):
@@ -419,7 +425,11 @@ class MockConnection(object):
         return '=>' + self.__name
 
     def isInput(self):
-        return self.__port is not None
+        return self.__connCh == self.INPUT or self.__connCh == self.OPT_INPUT
+
+    def isOptional(self):
+        return self.__connCh == self.OPT_INPUT or \
+               self.__connCh == self.OPT_OUTPUT
 
     def name(self): return self.__name
     def port(self): return self.__port
@@ -459,11 +469,19 @@ class MockComponent(object):
             outStr += '[' + ','.join(extra) + ']'
         return outStr
 
-    def addInput(self, type, port):
-        self.__connectors.append(MockConnection(type, port))
+    def addInput(self, name, port, optional=False):
+        if not optional:
+            connCh = MockConnection.INPUT
+        else:
+            connCh = MockConnection.OPT_INPUT
+        self.__connectors.append(MockConnection(name, connCh, port))
 
-    def addOutput(self, type):
-        self.__connectors.append(MockConnection(type, None))
+    def addOutput(self, name, optional=False):
+        if not optional:
+            connCh = MockConnection.OUTPUT
+        else:
+            connCh = MockConnection.OPT_OUTPUT
+        self.__connectors.append(MockConnection(name, connCh))
 
     def commitSubrun(self, id, startTime):
         pass

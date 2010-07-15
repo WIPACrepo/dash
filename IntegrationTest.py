@@ -3,7 +3,7 @@
 import StringIO, datetime, os, re, sys
 import tempfile, threading, time, unittest, xmlrpclib
 
-from CnCServer import CnCServer, DAQClient, RunSet
+from CnCServer import CnCServer, Connector, DAQClient, RunSet
 from DAQConst import DAQPort
 from DAQLogClient import LiveMonitor, Prio
 from DAQMoni import DAQMoni, FileMoniData, MoniData
@@ -1151,30 +1151,30 @@ class IntegrationTest(unittest.TestCase):
 
     def __getConnectionList(self, name):
         if name == 'stringHub':
-            connList = [('moniData', False, -1),
-                        ('rdoutData', False, -1),
-                        ('rdoutReq', True, -1),
-                        ('snData', False, -1),
-                        ('tcalData', False, -1),
-                        ('stringHit', False, -1),
+            connList = [('moniData', Connector.OUTPUT, -1),
+                        ('rdoutData', Connector.OUTPUT, -1),
+                        ('rdoutReq', Connector.INPUT, -1),
+                        ('snData', Connector.OUTPUT, -1),
+                        ('tcalData', Connector.OUTPUT, -1),
+                        ('stringHit', Connector.OUTPUT, -1),
                         ]
         elif name == 'inIceTrigger':
-            connList = [('stringHit', True, -1),
-                        ('trigger', False, -1),
+            connList = [('stringHit', Connector.INPUT, -1),
+                        ('trigger', Connector.OUTPUT, -1),
                         ]
         elif name == 'globalTrigger':
-            connList = [('glblTrig', False, -1),
-                        ('trigger', True, -1),
+            connList = [('glblTrig', Connector.OUTPUT, -1),
+                        ('trigger', Connector.INPUT, -1),
                         ]
         elif name == 'eventBuilder':
-            connList = [('glblTrig', True, -1),
-                        ('rdoutData', True, -1),
-                        ('rdoutReq', False, -1),
+            connList = [('glblTrig', Connector.INPUT, -1),
+                        ('rdoutData', Connector.INPUT, -1),
+                        ('rdoutReq', Connector.OUTPUT, -1),
                         ]
         elif name == 'secondaryBuilders':
-            connList = [('moniData', True, -1),
-                        ('snData', True, -1),
-                        ('tcalData', True, -1),
+            connList = [('moniData', Connector.INPUT, -1),
+                        ('snData', Connector.INPUT, -1),
+                        ('tcalData', Connector.INPUT, -1),
                         ]
         else:
             raise Exception('Cannot get connection list for %s' % name)

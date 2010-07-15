@@ -30,34 +30,50 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 5092 2010-07-15 20:06:48Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 5094 2010-07-15 20:09:39Z dglo $"
 
 class CnCServerException(Exception): pass
 
 class Connector(object):
     "Component connector"
 
-    def __init__(self, name, isInput, port):
+    INPUT = "i"
+    OUTPUT = "o"
+    OPT_INPUT = "I"
+    OPT_OUTPUT = "O"
+
+    def __init__(self, name, descrChar, port):
         """
         Connector constructor
         name - connection name
-        isInput - True if this is an input connector
+        descrChar - connection description character (I, i, O, o)
         port - IP port number (for input connections)
         """
         self.__name = name
-        if isInput:
+        if type(descrChar) == bool:
+            raise Exception("Convert to new format")
+        self.__descrChar = descrChar
+        if self.isInput():
             self.__port = port
         else:
             self.__port = None
 
     def __str__(self):
         "String description"
-        if self.__port is not None:
-            return '%d=>%s' % (self.__port, self.__name)
-        return self.__name + '=>'
+        if self.isOptional():
+            connCh = "~"
+        else:
+            connCh = "="
+        if self.isInput():
+            return '%d%s>%s' % (self.__port, connCh, self.__name)
+        return self.__name + connCh + '>'
 
     def isInput(self):
-        return self.__port is not None
+        return self.__descrChar == self.INPUT or \
+               self.__descrChar == self.OPT_INPUT
+    def isOptional(self):
+        return self.__descrChar == self.OPT_INPUT or \
+               self.__descrChar == self.OPT_OUTPUT
 
     def name(self): return self.__name
     def port(self): return self.__port
@@ -110,7 +126,9 @@ class ConnTypeEntry(object):
         """
         self.__type = type
         self.__inList = []
+        self.__optInList = []
         self.__outList = []
+        self.__optOutList = []
 
     def __str__(self):
         return '%s in#%d out#%d' % (self.__type, len(self.__inList),
@@ -119,49 +137,78 @@ class ConnTypeEntry(object):
     def add(self, conn, comp):
         "Add a connection and component to the appropriate list"
         if conn.isInput():
-            self.__inList.append([conn, comp])
+            if conn.isOptional():
+                self.__optInList.append([conn, comp])
+            else:
+                self.__inList.append([conn, comp])
         else:
-            self.__outList.append(comp)
+            if conn.isOptional():
+                self.__optOutList.append(comp)
+            else:
+                self.__outList.append(comp)
 
     def buildConnectionMap(self, connMap):
         "Validate and fill the map of connections for each component"
-        if len(self.__inList) == 0:
-            raise ValueError('No inputs found for %d %s outputs' %
-                             (len(self.__outList), self.__type))
-        if len(self.__outList) == 0:
+
+        inLen = len(self.__inList) + len(self.__optInList)
+        outLen = len(self.__outList) + len(self.__optOutList)
+
+        # if there are no inputs and no required outputs (or no required
+        # inputs and no outputs), we're done
+        if (outLen == 0 and len(self.__inList) == 0) or \
+               (inLen == 0 and len(self.__outList) == 0):
+            return
+
+        # if there are no inputs, throw an error
+        if inLen == 0:
+            outStr = ''
+            for outComp in self.__outList + self.__optOutList:
+                if len(outStr) == 0:
+                    outStr = str(outComp)
+                else:
+                    outStr += ', ' + str(outComp)
+            raise ValueError('No inputs found for %s outputs (%s)' %
+                             (self.__type, outStr))
+
+        # if there are no outputs, throw an error
+        if outLen == 0:
             inStr = ''
-            for inPair in self.__inList:
+            for inPair in self.__inList + self.__optInList:
                 if len(inStr) == 0:
                     inStr = str(inPair[1])
                 else:
                     inStr += ', ' + str(inPair[1])
-            raise ValueError('No outputs found for %d %s inputs (%s)' %
-                             (len(self.__inList), self.__type, inStr))
-        if len(self.__inList) > 1 and len(self.__outList)  > 1:
-            inStr = ''
-            for inPair in self.__inList:
-                if len(inStr) == 0:
-                    inStr = str(inPair[1])
-                else:
-                    inStr += ', ' + str(inPair[1])
-            raise ValueError('Found %d %s outputs for %d inputs (%s)' %
-                             (len(self.__outList), self.__type,
-                              len(self.__inList), inStr))
+            raise ValueError('No outputs found for %s inputs (%s)' %
+                             (self.__type, inStr))
 
-        if len(self.__inList) == 1:
-            inConn = self.__inList[0][0]
-            inComp = self.__inList[0][1]
+        # if there are multiple inputs and outputs, throw an error
+        if inLen > 1 and outLen > 1:
+            raise ValueError('Found %d %s inputs for %d outputs' %
+                             (inLen, self.__type, outLen))
 
-            for outComp in self.__outList:
+        # at this point there is either a single input or a single output
+
+        if inLen == 1:
+            if len(self.__inList) == 1:
+                inObj = self.__inList[0]
+            else:
+                inObj = self.__optInList[0]
+            inConn = inObj[0]
+            inComp = inObj[1]
+
+            for outComp in self.__outList + self.__optOutList:
                 entry = Connection(inConn, inComp)
 
                 if not connMap.has_key(outComp):
                     connMap[outComp] = []
                 connMap[outComp].append(entry)
         else:
-            outComp = self.__outList[0]
+            if len(self.__outList) == 1:
+                outComp = self.__outList[0]
+            else:
+                outComp = self.__optOutList[0]
 
-            for inConn, inComp in self.__inList:
+            for inConn, inComp in self.__inList + self.__optInList:
                 entry = Connection(inConn, inComp)
 
                 if not connMap.has_key(outComp):
@@ -1822,9 +1869,9 @@ class CnCServer(DAQPool):
                           " be name)") % (name, num, n, str(d))
                 self.__log.info(errMsg)
                 raise CnCServerException(errMsg)
-            if type(d[1]) != bool:
+            if type(d[1]) != str or len(d[1]) != 1:
                 errMsg = ("Bad %s#%d connector#%d %s (second element should" +
-                          " be bool)") % (name, num, n, str(d))
+                          " be descrChar)") % (name, num, n, str(d))
                 self.__log.info(errMsg)
                 raise CnCServerException(errMsg)
             if type(d[2]) != int:

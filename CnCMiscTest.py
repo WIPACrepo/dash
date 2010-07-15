@@ -28,9 +28,9 @@ class TestCnCMisc(unittest.TestCase):
         typeStr = 'abc'
         port = 123
 
-        for isInput in (False, True):
-            conn = Connector(typeStr, isInput, port)
-            if isInput:
+        for descrCh in (Connector.OUTPUT, Connector.INPUT):
+            conn = Connector(typeStr, descrCh, port)
+            if descrCh == Connector.INPUT:
                 expStr = '%d=>%s' % (port, typeStr)
             else:
                 expStr = '%s=>' % typeStr
@@ -47,7 +47,7 @@ class TestCnCMisc(unittest.TestCase):
         connType = 'xyz'
         connPort = 987
 
-        conn = Connector(connType, True, connPort)
+        conn = Connector(connType, Connector.INPUT, connPort)
 
         ctn = Connection(conn, comp)
 
@@ -64,10 +64,10 @@ class TestCnCMisc(unittest.TestCase):
         self.checkConnectionMap(connPort, cMap, 'port')
 
     def testConnTypeEntrySimple(self):
-        inputs = (('Start', 1, 'here', ('Conn1', False, None)),
-                  ('Middle', 2, 'neither', ('Conn1', True, 123),
-                   ('Conn2', False, None)),
-                  ('Finish', 3, 'there', ('Conn2', True, 456)))
+        inputs = (('Start', 1, 'here', ('Conn1', Connector.OUTPUT, None)),
+                  ('Middle', 2, 'neither', ('Conn1', Connector.INPUT, 123),
+                   ('Conn2', Connector.OUTPUT, None)),
+                  ('Finish', 3, 'there', ('Conn2', Connector.INPUT, 456)))
 
         entries = self.connect(inputs)
 
@@ -79,6 +79,57 @@ class TestCnCMisc(unittest.TestCase):
             print str(key) + ':'
             for entry in cMap[key]:
                 print '  ' + str(entry)
+
+    def testConnTypeEntryOptional(self):
+        inputs = (('Start', 1, 'here',
+                   ('ReqReq', Connector.OUTPUT, None),
+                   ('OptOpt', Connector.OPT_OUTPUT, None),
+                   ('OptNone', Connector.OPT_INPUT, 9999)),
+                  ('Middle', 2, 'somewhere',
+                   ('ReqReq', Connector.INPUT, 1001),
+                   ('OptOpt', Connector.OPT_INPUT, 1002),
+                   ('OptReq', Connector.OUTPUT, None),
+                   ('ReqOpt', Connector.OPT_OUTPUT, None)),
+                  ('Finish', 3, 'there',
+                   ('OptReq', Connector.INPUT, 2001),
+                   ('ReqOpt', Connector.OPT_INPUT, 2002),
+                   ('NoneOpt', Connector.OPT_OUTPUT, None)))
+
+        entries = self.connect(inputs)
+
+        cMap = {}
+        for key in entries.keys():
+            entries[key].buildConnectionMap(cMap)
+
+        expMap = {}
+        for i in range(2):
+            key = "%s#%d" % (inputs[i][0], inputs[i][1])
+            expMap[key] = {}
+            for conn in inputs[i][3:]:
+                if conn[0].find("None") < 0 and \
+                   (conn[1] == Connector.OUTPUT or \
+                    conn[1] == Connector.OPT_OUTPUT):
+                    expMap[key][conn[0]] = "%s#%d" % \
+                                           (inputs[i + 1][0], inputs[i + 1][1])
+
+        for comp in cMap.keys():
+            key = str(comp)
+            if not expMap.has_key(key):
+                self.fail("Unexpected connection map entry for \"%s\"" % key)
+            for entry in cMap[comp]:
+                entryMap = entry.map()
+
+                conn = entryMap["type"]
+                comp = "%s#%d" % (entryMap["compName"], entryMap["compNum"])
+
+                if not expMap[key].has_key(conn):
+                    self.fail(("Component \"%s\" should not have a \"%s\"" +
+                               " connection") % (key, conn))
+
+                xComp = expMap[key][conn]
+                self.assertEquals(xComp, comp,
+                                  ("Expected \"%s\" type \"%s\" to connect to" +
+                                   " %s, not %s") % (key, conn, xComp, comp))
 
 if __name__ == '__main__':
     unittest.main()

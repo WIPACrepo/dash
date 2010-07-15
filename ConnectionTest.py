@@ -29,9 +29,11 @@ class Node(object):
     def getConnections(self):
         connectors = []
         for k in self.outLinks.keys():
-            connectors.append(Connector(k, False, self.getNextPort()))
+            connectors.append(Connector(k, Connector.OUTPUT,
+                                        self.getNextPort()))
         for k in self.inLinks.keys():
-            connectors.append(Connector(k, True, self.getNextPort()))
+            connectors.append(Connector(k, Connector.INPUT,
+                                        self.getNextPort()))
         return connectors
 
     def getDescription(self):
@@ -184,7 +186,7 @@ class ConnectionTest(unittest.TestCase):
             for typ in node.inLinks:
                 conn = None
                 for c in compConn:
-                    if c.isInput and c.name() == typ:
+                    if c.isInput() and c.name() == typ:
                         conn = c
                         compConn.remove(c)
                         break
