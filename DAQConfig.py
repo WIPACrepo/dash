@@ -54,6 +54,21 @@ class RunDom(object):
     def pos(self): return self.__pos
     def string(self): return self.__string
 
+class DomConfigName(object):
+    "DOM configuration file name and hub"""
+
+    def __init__(self, fileName, hub):
+        self.__fileName = fileName
+        self.__hub = hub
+
+    def xml(self, indent):
+        if self.__hub is None or DomConfig.OMIT_HUB_NUMBER:
+            hubStr = ""
+        else:
+            hubStr = " hub=\"%d\"" % self.__hub
+        return "%s<domConfigList%s>%s</domConfigList>" % \
+               (indent, hubStr, self.__fileName)
+
 class DomConfig(object):
     """Minimal details for a DOM configuration file"""
     def __init__(self, fileName):
@@ -204,13 +219,58 @@ class DAQConfig(object):
         self.__comps = []
         self.__trigCfg = None
         self.__domCfgList = []
+        self.__domCfgNames = []
         self.__stringHubs = {}
         self.__hasReplayHubs = False
 
         self.__modTime = None
 
+    def __cmp__(self, other):
+        val = len(self.__comps) - len(other.__comps)
+        if val == 0:
+            val = len(self.__domCfgList) - len(other.__domCfgList)
+            if val == 0:
+                val = len(self.__domCfgNames) - len(other.__domCfgNames)
+                if val == 0:
+                    val = cmp(self.__trigCfg, other.__trigCfg)
+                    if val == 0:
+                        sComps = self.__comps[:]
+                        sComps.sort()
+                        oComps = other.__comps[:]
+                        oComps.sort()
+                        for i in range(len(sComps)):
+                            val = cmp(sComps[i], oComps[i])
+                            if val != 0:
+                                break
+                        if val == 0:
+                            sDomCfgs = self.__domCfgList[:]
+                            sDomCfgs.sort()
+                            oDomCfgs = other.__domCfgList[:]
+                            oDomCfgs.sort()
+                            for i in range(len(sDomCfgs)):
+                                val = cmp(sDomCfgs[i], oDomCfgs[i])
+                                if val != 0:
+                                    break
+                            if val == 0:
+                                sDCNames = self.__domCfgNames[:]
+                                sDCNames.sort()
+                                oDCNames = other.__domCfgNames[:]
+                                oDCNames.sort()
+                                for i in range(len(sDCNames)):
+                                    val = cmp(sDCNames[i], oDCNames[i])
+                                    if val != 0:
+                                        break
+        return val
+
     def __str__(self):
-        return "%s[C*%d]" % (self.__fileName, len(self.__comps))
+        if len(self.__domCfgList) > 0:
+            if len(self.__domCfgNames) > 0:
+                dcType = "mixed"
+            else:
+                dcType = "parsed"
+        else:
+            dcType = "names"
+        return "%s[C*%d]%s" % (self.__fileName, len(self.__comps), dcType)
 
     def addComponent(self, compName):
         """Add a component name"""
@@ -219,16 +279,36 @@ class DAQConfig(object):
                                    compName)
         self.__comps.append(Component(compName, 0))
 
-    def addDomConfig(self, domCfg):
+    def addDomConfig(self, domCfg, hub=None):
         """Add a DomConfig object"""
         self.__domCfgList.append(domCfg)
 
-        for s in domCfg.getStringList():
+        hubs = domCfg.getStringList()
+        if hub is not None:
+            if len(hubs) != 1:
+                print >>sys.stderr, \
+                          "Expected \"%s\" to be for hub %d, not %s" % \
+                          (hub, hubs)
+            elif hubs[0] != hub:
+                print >>sys.stderr, \
+                          "Expected \"%s\" to be for hub %d, not %s" % \
+                          (hub, hubs[0])
+
+        for s in hubs:
             if not self.__stringHubs.has_key(s):
                 hub = StringHub(s)
                 self.__stringHubs[s] = hub
                 self.__comps.append(hub)
             self.__stringHubs[s].addDomConfig(domCfg)
+
+    def addDomConfigName(self, dcName, hub):
+        """Add a DomConfig object"""
+        self.__domCfgNames.append(DomConfigName(dcName, hub))
+
+        if hub is not None and not self.__stringHubs.has_key(hub):
+            sh = StringHub(hub)
+            self.__stringHubs[hub] = sh
+            self.__comps.append(sh)
 
     def addReplayHub(self, id, hitFile):
         self.__comps.append(ReplayHub(id, hitFile))
@@ -301,11 +381,16 @@ class DAQConfig(object):
             if configDir is None:
                 configDir = os.path.join(metaDir, "config")
 
+            savedValue = DAQConfigParser.PARSE_DOM_CONFIG
+            DAQConfigParser.PARSE_DOM_CONFIG = False
             try:
-                runCfg = DAQConfig.load(configName, configDir)
-                cfg = RunCluster(runCfg, clusterDesc, configDir)
-            except DAQConfigNotFound, nfe:
-                raise ex
+                try:
+                    runCfg = DAQConfig.load(configName, configDir)
+                    cfg = RunCluster(runCfg, clusterDesc, configDir)
+                except DAQConfigNotFound, nfe:
+                    raise ex
+            finally:
+                DAQConfigParser.PARSE_DOM_CONFIG = savedValue
 
         return cfg
 
@@ -520,6 +605,7 @@ class DAQConfig(object):
 class DAQConfigParser(XMLParser):
     """Run configuration file parser"""
 
+    PARSE_DOM_CONFIG = True
     DEFAULT_DOM_GEOMETRY = None
 
     def __init__(self):
@@ -666,9 +752,28 @@ class DAQConfigParser(XMLParser):
 
             if kid.nodeType == Node.ELEMENT_NODE:
                 if kid.nodeName == "domConfigList":
-                    domCfg = cls.__parseDomConfig(configDir,
-                                                  cls.getChildText(kid))
-                    runCfg.addDomConfig(domCfg)
+                    if kid.attributes is None or len(kid.attributes) == 0:
+                        hub = None
+                    else:
+                        if len(kid.attributes) != 1:
+                            raise ProcessError(("<%s> node has extra" +
+                                                " attributes") % kid.nodeName)
+                        attrName = "hub"
+                        if not kid.attributes.has_key(attrName):
+                            raise ProcessError(("<%s> node should have" +
+                                                "  \"%s\" attribute, not" +
+                                                " \"%s\"") %
+                                               (kid.nodeName, attrName,
+                                                kid.attributes.keys()[0]))
+
+                        hub = int(kid.attributes[attrName].value)
+
+                    dcName = cls.getChildText(kid).strip()
+                    if hub is None or cls.PARSE_DOM_CONFIG:
+                        domCfg = cls.__parseDomConfig(configDir, dcName)
+                        runCfg.addDomConfig(domCfg, hub)
+                    else:
+                        runCfg.addDomConfigName(dcName, hub)
                 elif kid.nodeName == "triggerConfig":
                     trigCfg = cls.getChildText(kid)
                     cls.__parseTriggerConfig(configDir, trigCfg)
