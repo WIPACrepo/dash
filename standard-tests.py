@@ -21,10 +21,8 @@ class RunData(object):
     #
     CFG2CLUSTER = {
         "spts64-dirtydozen-hlc-006" : "spts64-real-21-29",
-        "sim4strAMANDA-25Hz" : "spts64-sim4strAMANDA",
         "sim18str-noise25Hz-002" : "spts64-sim18str",
         "sim22str-with-phys-trig-001" : "spts64-simIC22str",
-        "sim22strAMANDA-doublespsfeb12rates" : "spts64-simIC22strAMANDA",
         "sim40str-25Hz-reduced-trigger" : "spts64-simIC40str",
         "sim60str-mbt23" : "spts64-simIC60str",
         "sim60str-mbt-vt-01" : "spts64-simIC60str",
@@ -61,12 +59,10 @@ class RunData(object):
 RUN_LIST = (RunData("spts64-dirtydozen-hlc-006", FOUR_HR),
             RunData("spts64-dirtydozen-hlc-006", 0, 1,
                     "flash-21", (60, 45, 120)),
-            RunData("sim4strAMANDA-25Hz", 300),
             ###RunData("sim18str-noise25Hz-002", FOUR_HR),
             ###RunData("sim18str-noise25Hz-002", EIGHT_HR),
             ###RunData("sim22str-with-phys-trig-001", FOUR_HR),
             ###RunData("sim22str-with-phys-trig-001", EIGHT_HR),
-            ###RunData("sim22strAMANDA-doublespsfeb12rates", FOUR_HR),
             #RunData("sim40str-25Hz-reduced-trigger", FOUR_HR),
             #RunData("sim40str-25Hz-reduced-trigger", EIGHT_HR),
             #RunData("sim60str-mbt23", FOUR_HR),
