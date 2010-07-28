@@ -851,15 +851,6 @@ class LiveRun(object):
         ignoreDB - False if I3Live should ensure this run config is
                    in the database
         """
-        self.__state.check()
-        if self.__state.svcState("pdaq") == RunState.UNKNOWN:
-            if not self.__controlPDAQ():
-                raise RunException("Could not tell I3Live to control pdaq")
-            self.__state.check()
-        if self.__state.runState() != RunState.STOPPED:
-            raise RunException("I3Live state should be %s, not %s" %
-                               (RunState.STOPPED, self.__state.runState()))
-
         # get absolute path to flasher data file
         #
         if flashName is None:
@@ -888,6 +879,15 @@ class LiveRun(object):
         #
         if runKilled or self.__state.runState() == RunState.DEAD:
             self.launch(clusterCfg)
+
+        self.__state.check()
+        if self.__state.svcState("pdaq") == RunState.UNKNOWN:
+            if not self.__controlPDAQ():
+                raise RunException("Could not tell I3Live to control pdaq")
+            self.__state.check()
+        if self.__state.runState() != RunState.STOPPED:
+            raise RunException("I3Live state should be %s, not %s" %
+                               (RunState.STOPPED, self.__state.runState()))
 
         # get the new run number
         #
