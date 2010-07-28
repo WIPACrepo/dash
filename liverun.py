@@ -484,7 +484,7 @@ class LiveRun(object):
         if not os.path.exists(path):
             raise SystemExit("%s '%s' does not exist" % (name, path))
 
-    def __controlPDAQ(self):
+    def __controlPDAQ(self, waitSecs):
         """
         Connect I3Live to pDAQ
 
@@ -498,6 +498,7 @@ class LiveRun(object):
         fi.close()
 
         controlled = False
+        unreachable = True
         for line in foe:
             line = line.rstrip()
             if self.__showCmdOutput: print '+ ' + line
@@ -505,11 +506,17 @@ class LiveRun(object):
                     line.find("Synchronous service pdaq was already being" +
                               " controlled") >= 0:
                 controlled = True
+            elif line.find("Service pdaq was unreachable on ") >= 0:
+                unreachable = True
             else:
                 print >>sys.stderr, "Control: %s" % line
         foe.close()
 
-        return controlled
+        if controlled or waitSecs < 0:
+            return controlled
+
+        time.sleep(waitSecs)
+        return self.__controlPDAQ(0)
 
     def __flashPath(self, flashFile):
         """
@@ -882,7 +889,7 @@ class LiveRun(object):
 
         self.__state.check()
         if self.__state.svcState("pdaq") == RunState.UNKNOWN:
-            if not self.__controlPDAQ():
+            if not self.__controlPDAQ(10):
                 raise RunException("Could not tell I3Live to control pdaq")
             self.__state.check()
         if self.__state.runState() != RunState.STOPPED:
