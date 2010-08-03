@@ -15,20 +15,6 @@ class RunDataException(Exception): pass
 class RunData(object):
     "Description of a pDAQ run"
 
-    # NOTE: this is a simple mapping of run configuration names to
-    #       the corresponding cluster configuration names.  The test runs
-    #       are described in RUN_LIST below
-    #
-    CFG2CLUSTER = {
-        "spts64-dirtydozen-hlc-006" : "spts64-real-21-29",
-        "sim18str-noise25Hz-002" : "spts64-sim18str",
-        "sim22str-with-phys-trig-001" : "spts64-simIC22str",
-        "sim40str-25Hz-reduced-trigger" : "spts64-simIC40str",
-        "sim60str-mbt23" : "spts64-simIC60str",
-        "sim60str-mbt-vt-01" : "spts64-simIC60str",
-        "sim80str-25Hz" : "spts64-simIC80str",
-        }
-
     def __init__(self, runCfg, duration, numRuns=1, flashName=None,
                  flashTimes=None, flashPause=60):
         self.__runCfg = runCfg
@@ -38,11 +24,7 @@ class RunData(object):
         self.__flashTimes = flashTimes
         self.__flashPause = flashPause
 
-        if not RunData.CFG2CLUSTER.has_key(self.__runCfg):
-            raise RunDataException("Unknown cluster config for '%s'" %
-                                   self.__runCfg)
-
-    def clusterConfig(self): return RunData.CFG2CLUSTER[self.__runCfg]
+    def clusterConfig(self): return self.__runCfg
 
     def run(self, liveRun, quick):
         if quick and self.__duration > 1200:
@@ -50,9 +32,9 @@ class RunData(object):
         else:
             duration = self.__duration
 
-        liveRun.run(RunData.CFG2CLUSTER[self.__runCfg], self.__runCfg,
-                    duration, self.__numRuns, self.__flashName,
-                    self.__flashTimes, self.__flashPause, False)
+        liveRun.run(self.clusterConfig(), self.__runCfg, duration,
+                    self.__numRuns, self.__flashName, self.__flashTimes,
+                    self.__flashPause, False)
 
 # configurations to run
 #
