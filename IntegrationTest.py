@@ -731,6 +731,7 @@ class StubbedDAQRun(DAQRun):
     def __getRunArgs(self, extraArgs=None):
 
         stdArgs = { '-a' : IntegrationTest.COPY_DIR,
+                    '-C' : IntegrationTest.CLUSTER_DESC,
                     '-c' : IntegrationTest.CONFIG_DIR,
                     '-l' : IntegrationTest.LOG_DIR,
                     '-n' : '',
@@ -1006,6 +1007,7 @@ class MoniLogTarget(object):
 
 class IntegrationTest(unittest.TestCase):
     CLUSTER_CONFIG = 'simpleConfig'
+    CLUSTER_DESC = 'localhost'
     CONFIG_DIR = os.path.abspath('src/test/resources/config')
     CONFIG_NAME = 'simpleConfig'
     COPY_DIR = '/tmp'
