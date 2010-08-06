@@ -39,7 +39,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 4871 2010-01-26 14:56:01Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 5123 2010-08-06 16:19:13Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -488,8 +488,6 @@ if __name__ == "__main__":
                         print "Using fallback for logDir: %s" % (logDirFallBack)
                     logDir = logDirFallBack
                     if not exists(logDir): mkdir(logDir)
-        else:
-            system('rm -f %s' % join(logDir, 'catchall.log'))
 
         doLive = False
         doRun = True
