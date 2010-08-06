@@ -842,6 +842,9 @@ class LiveRun(object):
         fi.close()
         foe.close()
 
+        # give components a chance to start
+        os.sleep(5)
+
     def run(self, clusterCfg, runCfg, duration, numRuns=1,
             flashName=None, flashTimes=None, flashPause=60,
             ignoreDB=False):
