@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 5094 2010-07-15 20:09:39Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 5139 2010-08-12 19:57:45Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -482,7 +482,7 @@ class RunSet(object):
 
             sleep(1)
 
-        self.waitForStateChange(30)
+        self.waitForStateChange(60)
 
         self.__state = 'ready'
         badList = self.listBadState()
