@@ -25,7 +25,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 5001 2010-04-27 18:58:09Z ksb $"
+SVN_ID = "$Id: DeployPDAQ.py 5153 2010-09-02 03:57:36Z ksb $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -71,6 +71,8 @@ def main():
                  help="Be chatty")
     p.add_option("", "--undeploy",       action="store_true",           dest="undeploy",
                  help="Remove entire ~pdaq/.m2 and ~pdaq/pDAQ_current dirs on remote nodes - use with caution!")
+    p.add_option("", "--nice-level",       action="store", type="int",   dest="niceLevel",
+                 help="Set nice adjustment for remote rsync processes.  Default: 10")
     p.set_defaults(configName = None,
                    doParallel = True,
                    doSerial   = False,
@@ -81,6 +83,7 @@ def main():
                    undeploy   = False,
                    deepDryRun = False,
                    timeout    = 300,
+                   niceLevel  = 10,
                    clusterDesc = None)
     opt, args = p.parse_args()
 
@@ -158,14 +161,17 @@ def main():
                              trace=(traceLevel > 0), timeout=opt.timeout)
 
     deploy(config, parallel, os.environ["HOME"], metaDir, SUBDIRS, opt.delete,
-           opt.dryRun, opt.deepDryRun, opt.undeploy, traceLevel, monitorIval)
+           opt.dryRun, opt.deepDryRun, opt.undeploy, traceLevel, monitorIval,
+           opt.niceLevel)
 
 def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
-           deepDryRun, undeploy, traceLevel, monitorIval=None):
+           deepDryRun, undeploy, traceLevel, monitorIval=None, niceLevel=10):
     m2  = os.path.join(homeDir, '.m2')
 
-    rsyncCmdStub = "nice rsync -azLC%s%s" % (delete and ' --delete' or '',
-                                       deepDryRun and ' --dry-run' or '')
+    rsyncCmdStub = 'rsync --rsync-path "nice -n %d rsync" -azLC%s%s' % \
+                   (niceLevel,
+                    delete and ' --delete' or '',
+                    deepDryRun and ' --dry-run' or '')
 
     # The 'SRC' arg for the rsync command.  The sh "{}" syntax is used
     # here so that only one rsync is required for each node. (Running

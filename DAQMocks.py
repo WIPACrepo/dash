@@ -842,7 +842,7 @@ class MockParallelShell(object):
             self.__addExpected('%s -k' % path)
 
     def addExpectedRsync(self, dir, subdirs, delete, dryRun, remoteHost,
-                         rtnCode, result=""):
+                         rtnCode, result="", niceLevel=10):
         if not delete:
             dOpt = ""
         else:
@@ -855,8 +855,8 @@ class MockParallelShell(object):
 
         group = "{" + ",".join(subdirs) + "}"
 
-        cmd = "nice rsync -azLC%s%s %s %s:%s" % \
-            (dOpt, drOpt, os.path.join(dir, group), remoteHost, dir)
+        cmd = 'rsync --rsync-path "nice -n %d rsync" -azLC%s%s %s %s:%s' % \
+            (niceLevel, dOpt, drOpt, os.path.join(dir, group), remoteHost, dir)
         self.__addExpected(cmd)
         self.__rtnCodes.append(rtnCode)
         self.__results.append(result)
