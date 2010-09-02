@@ -23,7 +23,8 @@ class MockClusterConfig(object):
 
 class DeployPDAQTest(unittest.TestCase):
     def __checkDeploy(self, hosts, subdirs, delete, dryRun, deepDryRun,
-                      undeploy, niceLevel=10):
+                      undeploy, niceAdj=DeployPDAQ.NICE_ADJ_DEFAULT,
+                      express=DeployPDAQ.EXPRESS_DEFAULT):
         topDir = tempfile.mkdtemp()
         os.mkdir(os.path.join(topDir, "target"))
 
@@ -39,12 +40,13 @@ class DeployPDAQTest(unittest.TestCase):
         else:
             for h in hosts:
                 parallel.addExpectedRsync(topDir, subdirs, delete, deepDryRun,
-                                          h, 0, niceLevel=niceLevel)
+                                          h, 0, niceAdj=niceAdj, express=express)
 
         traceLevel = -1
 
         DeployPDAQ.deploy(config, parallel, homeDir, topDir, subdirs, delete,
-                          dryRun, deepDryRun, undeploy, traceLevel, niceLevel=niceLevel)
+                          dryRun, deepDryRun, undeploy, traceLevel,
+                          niceAdj=niceAdj, express=express)
 
         parallel.check()
 
@@ -125,13 +127,28 @@ class DeployPDAQTest(unittest.TestCase):
         dryRun = False
         deepDryRun = False
         undeploy = False
-        niceLevel = 19
+        niceAdj = 5
         
         hosts = ("foo", "bar")
 
         subdirs = ("ABC", "DEF")
 
-        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy, niceLevel)
+        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy, niceAdj)
+
+    def testDeployExpress(self):
+        delete = False
+        dryRun = False
+        deepDryRun = False
+        undeploy = False
+        niceAdj = 5
+        express = True
+        
+        hosts = ("foo", "bar")
+
+        subdirs = ("ABC", "DEF")
+
+        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy,
+                           niceAdj, express)
 
 if __name__ == '__main__':
     unittest.main()

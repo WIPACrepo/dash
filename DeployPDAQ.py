@@ -14,6 +14,10 @@ from ParallelShell import ParallelShell
 # pdaq subdirectories to be deployed
 SUBDIRS = ("target", "cluster-config", "config", "dash", "src")
 
+# Defaults for a few args
+NICE_ADJ_DEFAULT = 19
+EXPRESS_DEFAULT  = False
+
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
     metaDir = os.environ["PDAQ_HOME"]
@@ -25,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 5153 2010-09-02 03:57:36Z ksb $"
+SVN_ID = "$Id: DeployPDAQ.py 5154 2010-09-02 20:09:39Z ksb $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -71,8 +75,10 @@ def main():
                  help="Be chatty")
     p.add_option("", "--undeploy",       action="store_true",           dest="undeploy",
                  help="Remove entire ~pdaq/.m2 and ~pdaq/pDAQ_current dirs on remote nodes - use with caution!")
-    p.add_option("", "--nice-level",       action="store", type="int",   dest="niceLevel",
-                 help="Set nice adjustment for remote rsync processes.  Default: 10")
+    p.add_option("", "--nice-adj",       action="store", type="int",    dest="niceAdj",
+                 help="Set nice adjustment for remote rsyncs [default=%default]")
+    p.add_option("-E", "--express",      action="store_true",          dest="express",
+                 help="Express rsyncs, unsets and overrides any/all nice adjustments")
     p.set_defaults(configName = None,
                    doParallel = True,
                    doSerial   = False,
@@ -83,7 +89,8 @@ def main():
                    undeploy   = False,
                    deepDryRun = False,
                    timeout    = 300,
-                   niceLevel  = 10,
+                   niceAdj    = NICE_ADJ_DEFAULT,
+                   express    = EXPRESS_DEFAULT,
                    clusterDesc = None)
     opt, args = p.parse_args()
 
@@ -162,17 +169,22 @@ def main():
 
     deploy(config, parallel, os.environ["HOME"], metaDir, SUBDIRS, opt.delete,
            opt.dryRun, opt.deepDryRun, opt.undeploy, traceLevel, monitorIval,
-           opt.niceLevel)
+           opt.niceAdj, opt.express)
 
 def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
-           deepDryRun, undeploy, traceLevel, monitorIval=None, niceLevel=10):
+           deepDryRun, undeploy, traceLevel, monitorIval=None,
+           niceAdj=NICE_ADJ_DEFAULT, express=EXPRESS_DEFAULT):
     m2  = os.path.join(homeDir, '.m2')
 
-    rsyncCmdStub = 'rsync --rsync-path "nice -n %d rsync" -azLC%s%s' % \
-                   (niceLevel,
-                    delete and ' --delete' or '',
-                    deepDryRun and ' --dry-run' or '')
+    # build stub of rsync command
+    if express:
+        rsyncCmdStub = "rsync"
+    else:
+        rsyncCmdStub = 'nice rsync --rsync-path "nice -n %d rsync"' % (niceAdj)
 
+    rsyncCmdStub += " -azLC%s%s" % (delete and ' --delete' or '',
+                                    deepDryRun and ' --dry-run' or '')
+    
     # The 'SRC' arg for the rsync command.  The sh "{}" syntax is used
     # here so that only one rsync is required for each node. (Running
     # multiple rsync's in parallel appeared to give rise to race

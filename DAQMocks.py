@@ -5,6 +5,7 @@
 import datetime, os, re, select, socket, sys, threading, time
 
 from CnCServer import CnCLogger, DAQClient
+import DeployPDAQ
 from DAQConst import DAQPort
 from DAQLaunch import RELEASE, getCompJar
 import GetIP
@@ -842,7 +843,15 @@ class MockParallelShell(object):
             self.__addExpected('%s -k' % path)
 
     def addExpectedRsync(self, dir, subdirs, delete, dryRun, remoteHost,
-                         rtnCode, result="", niceLevel=10):
+                         rtnCode, result="",
+                         niceAdj=DeployPDAQ.NICE_ADJ_DEFAULT,
+                         express=DeployPDAQ.EXPRESS_DEFAULT):
+
+        if express:
+            rCmd = "rsync"
+        else:
+            rCmd = 'nice rsync --rsync-path "nice -n %d rsync"' % (niceAdj)
+
         if not delete:
             dOpt = ""
         else:
@@ -855,8 +864,8 @@ class MockParallelShell(object):
 
         group = "{" + ",".join(subdirs) + "}"
 
-        cmd = 'rsync --rsync-path "nice -n %d rsync" -azLC%s%s %s %s:%s' % \
-            (niceLevel, dOpt, drOpt, os.path.join(dir, group), remoteHost, dir)
+        cmd = "%s -azLC%s%s %s %s:%s" % \
+            (rCmd, dOpt, drOpt, os.path.join(dir, group), remoteHost, dir)
         self.__addExpected(cmd)
         self.__rtnCodes.append(rtnCode)
         self.__results.append(result)
