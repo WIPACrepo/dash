@@ -14,7 +14,7 @@ Started November, 2007
 
 import datetime, optparse, os, popen2, re, select, signal, sys, threading, time
 
-from DAQConfig import DAQConfig
+from DAQConfig import DAQConfigParser
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -333,24 +333,26 @@ def main():
 
     usage = "usage: %prog [options] <releasefile>"
     p = optparse.OptionParser(usage=usage)
-    p.add_option("-c", "--config-name",  action="store", type="string",
-                 dest="clusterConfigName",
-                 help="Cluster configuration name, subset of deployed configuration.")
-    p.add_option("-v", "--verbose",      action="store_true",           dest="verbose",
+    p.add_option("-c", "--config-name", type="string", dest="clusterConfigName",
+                 action="store", default=None,
+                 help="Cluster configuration name, subset of deployed" +
+                 " configuration.")
+    p.add_option("-v", "--verbose", dest="verbose",
+                 action="store_true", default=False,
                  help="Be chatty")
-    p.add_option("-f", "--skip-flash",   action="store_true",           dest="skipFlash",
-                 help="Don't actually write flash on DOMs - just 'practice' all other steps")
-    p.add_option("-s", "--straggler-time", action="store", type="int",  dest="stragglerTime",
-                 help="Time (seconds) to wait before reporting details of straggler DOMs (default: 240)")
-    p.add_option("-w", "--watch-period",   action="store", type="int",  dest="watchPeriod",
-                 help="Interval (seconds) between status reports during upload (default: 15)")
-    
-    p.set_defaults(clusterConfigName = None,
-                   verbose           = False,
-                   stragglerTime     = 240,
-                   watchPeriod       = 15,
-                   skipFlash         = False)
-        
+    p.add_option("-f", "--skip-flash", dest="skipFlash",
+                 action="store_true", default=False,
+                 help="Don't actually write flash on DOMs -" +
+                 " just 'practice' all other steps")
+    p.add_option("-s", "--straggler-time", type="int",  dest="stragglerTime",
+                 action="store", default=240,
+                 help="Time (seconds) to wait before reporting details" +
+                 " of straggler DOMs (default: 240)")
+    p.add_option("-w", "--watch-period", type="int",  dest="watchPeriod",
+                 action="store", default=15,
+                 help="Interval (seconds) between status reports during" +
+                 " upload (default: 15)")
+
     opt, args = p.parse_args()
 
     if len(args) < 1:
@@ -365,7 +367,8 @@ def main():
         print usage
         raise SystemExit
 
-    clusterConfig = DAQConfig.getClusterConfiguration(opt.clusterConfigName)
+    clusterConfig = \
+        DAQConfigParser.getClusterConfiguration(opt.clusterConfigName)
 
     hublist = clusterConfig.getHubNodes()
 

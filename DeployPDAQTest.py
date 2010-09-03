@@ -40,7 +40,8 @@ class DeployPDAQTest(unittest.TestCase):
         else:
             for h in hosts:
                 parallel.addExpectedRsync(topDir, subdirs, delete, deepDryRun,
-                                          h, 0, niceAdj=niceAdj, express=express)
+                                          h, 0, niceAdj=niceAdj,
+                                          express=express)
 
         traceLevel = -1
 
@@ -133,7 +134,8 @@ class DeployPDAQTest(unittest.TestCase):
 
         subdirs = ("ABC", "DEF")
 
-        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy, niceAdj)
+        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy,
+                           niceAdj)
 
     def testDeployExpress(self):
         delete = False

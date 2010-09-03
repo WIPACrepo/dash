@@ -1,231 +1,404 @@
 #!/usr/bin/env python
 
-import sys, threading, unittest
-from DAQConst import DAQPort
-from DAQRPC import RPCServer
+import traceback, unittest
 
-TEST_LIVE = True
-try:
-    from DAQLive import DAQLive, LiveArgs
-except SystemExit:
-    TEST_LIVE = False
-    class DAQLive:
-        pass
+from DAQLive import DAQLive, LiveException
+from DAQMocks import MockLogger
 
-from DAQMocks import SocketReaderFactory
+class MockRunSet(object):
+    STATE_UNKNOWN = "unknown"
+    STATE_DESTROYED = "destroyed"
+    STATE_READY = "ready"
+    STATE_RUNNING = "running"
 
-class MockLive(DAQLive):
-    def __init__(self, port):
-        super(MockLive, self).__init__(self.__buildArgs(port))
+    def __init__(self, runCfg):
+        self.__state = self.STATE_UNKNOWN
+        self.__runCfg = runCfg
+        self.__expStopErr = False
+        self.__stopReturn = False
 
-    def __buildArgs(self, port, extraArgs=None):
-        stdArgs = { '-v' : '',
-                    '-P' : str(port) }
+    def __str__(self):
+        return "MockRunSet"
 
-        oldArgv = sys.argv
-        try:
-            sys.argv = ['foo']
+    def destroy(self):
+        self.__state = self.STATE_DESTROYED
 
-            for k in stdArgs.keys():
-                if extraArgs is None or not extraArgs.has_key(k):
-                    sys.argv.append(k)
-                    if len(stdArgs[k]) > 0:
-                        sys.argv.append(stdArgs[k])
+    def isDestroyed(self):
+        return self.__state == self.STATE_DESTROYED
 
-            if extraArgs is not None:
-                for k in extraArgs.keys():
-                    sys.argv.append(k)
-                    if len(extraArgs[k]) > 0:
-                        sys.argv.append(extraArgs[k])
+    def isReady(self):
+        return self.__state == self.STATE_READY
 
-            args = LiveArgs()
-            args.parse()
-        finally:
-            sys.argv = oldArgv
+    def isRunning(self):
+        return self.__state == self.STATE_RUNNING
+        
+    def runConfig(self):
+        if self.isDestroyed(): raise Exception("Runset destroyed")
+        return self.__runCfg
 
-        # don't check for DAQRun
-        #
-        args.ignoreRunThread()
+    def sendEventCounts(self):
+        if self.isDestroyed(): raise Exception("Runset destroyed")
 
-        return args
+    def setExpectedStopError(self):
+        self.__expStopErr = True
 
-class MockRun(object):
-    def __init__(self, id):
-        self.__id = id
+    def setState(self, newState):
+        self.__state = newState
 
-        self.__state = 'IDLE'
+    def setStopReturnError(self):
+        if self.isDestroyed(): raise Exception("Runset destroyed")
+        self.__stopReturn = True
 
-        self.__evtCounts = {}
-
-        self.__rpc = RPCServer(DAQPort.DAQRUN)
-        self.__rpc.register_function(self.__recover, 'rpc_recover')
-        self.__rpc.register_function(self.__monitor, 'rpc_run_monitoring')
-        self.__rpc.register_function(self.__getState, 'rpc_run_state')
-        self.__rpc.register_function(self.__startRun, 'rpc_start_run')
-        self.__rpc.register_function(self.__stopRun, 'rpc_stop_run')
-        self.__rpc.register_function(self.__ping, 'rpc_ping')
-        threading.Thread(target=self.__rpc.serve_forever, args=()).start()
-
-    def __getState(self):
+    def state(self):
         return self.__state
 
-    def __monitor(self):
-        return self.__evtCounts
+    def stopRun(self, hadError=False):
+        if self.isDestroyed(): raise Exception("Runset destroyed")
+        if hadError != self.__expStopErr:
+            raise Exception("Expected 'hadError' to be %s" % self.__expStopErr)
+        return self.__stopReturn
 
-    def __ping(self):
-        return self.__id
+    def subrun(self, id, domList):
+        pass
 
-    def __recover(self):
-        self.__state = 'STOPPED'
-        return 1
+class MockCnC(object):
+    RELEASE = "rel"
+    REPO_REV = "repoRev"
 
-    def __startRun(self, runNum, subRunNum, cfgName, logInfo=None):
-        self.__state = 'RUNNING'
-        return 1
+    def __init__(self):
+        self.__expRunCfg = None
+        self.__expRunNum = None
+        self.__expStopErr = False
+        self.__runSet = None
 
-    def __stopRun(self):
-        self.__state = 'STOPPED'
-        return 1
+    def breakRunset(self, rs):
+        rs.destroy()
 
-    def close(self):
-        self.__rpc.server_close()
+    def makeRunsetFromRunConfig(self, runCfg):
+        if self.__expRunCfg is None:
+            raise Exception("Expected run configuration has not been set")
+        if self.__expRunCfg != runCfg:
+            raise Exception("Expected run config \"%s\", not \"%s\"",
+                            self.__expRunCfg, runCfg)
 
-    def setEventCounts(self, physics, payTime, wallTime, moni, moniTime,
-                       sn, snTime, tcal, tcalTime):
-        self.__evtCounts.clear()
-        self.__evtCounts["physicsEvents"] = physics
-        self.__evtCounts["eventPayloadTime"] = payTime
-        self.__evtCounts["eventTime"] = wallTime
-        self.__evtCounts["moniEvents"] = moni
-        self.__evtCounts["moniTime"] = moniTime
-        self.__evtCounts["snEvents"] = sn
-        self.__evtCounts["snTime"] = snTime
-        self.__evtCounts["tcalEvents"] = tcal
-        self.__evtCounts["tcalTime"] = tcalTime
+        return self.__runSet
 
-class TestDAQLive(unittest.TestCase):
+    def setExpectedRunConfig(self, runCfg):
+        self.__expRunCfg = runCfg
+
+    def setExpectedRunNumber(self, runNum):
+        self.__expRunNum = runNum
+
+    def setRunSet(self, runSet):
+        self.__runSet = runSet
+
+    def startRun(self, rs, runNum, runOpts):
+        if self.__expRunCfg is None:
+            raise Exception("Expected run configuration has not been set")
+        if self.__expRunCfg != rs.runConfig():
+            raise Exception("Expected run config \"%s\", not \"%s\"",
+                            self.__expRunCfg, rs.runConfig())
+
+        if self.__expRunNum is None:
+            raise Exception("Expected run number has not been set")
+        if self.__expRunNum != runNum:
+            raise Exception("Expected run Number %s, not %s",
+                            self.__expRunNum, runNum)
+
+    def versionInfo(self):
+        return { "release": self.RELEASE, "repo_rev": self.REPO_REV }
+
+class DAQLiveTest(unittest.TestCase):
+    def __createLive(self, cnc, log):
+        self.__live = DAQLive(cnc, log)
+        return self.__live
+
+    def assertRaisesMsg(self, exc, func, *args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except type(exc), ex2:
+            if str(exc) == str(ex2):
+                return
+            raise self.failureException("Expected %s(%s), not %s(%s)" %
+                                        (type(exc), exc, type(ex2), ex2))
+        raise self.failureException("%s(%s) not raised" % type(exc), exc)
+
     def setUp(self):
         self.__live = None
-        self.__run = None
-        self.__logFactory = SocketReaderFactory()
 
     def tearDown(self):
-        self.__logFactory.tearDown()
-        if self.__run is not None:
-            self.__run.close()
         if self.__live is not None:
-            self.__live.close()
+            try:
+                self.__live.close()
+            except:
+                import traceback
+                traceback.print_exc()
 
-    def testStartNoConfig(self):
-        if not TEST_LIVE:
-            print 'Skipping I3Live-related test'
-            return
+    def testVersion(self):
+        cnc = MockCnC()
+        log = MockLogger("liveLog")
+        live = self.__createLive(cnc, log)
 
-        log = self.__logFactory.createLog('liveMoni', DAQPort.I3LIVE, False)
+        self.assertEqual(live.version(),
+                         MockCnC.RELEASE + "_" + MockCnC.REPO_REV)
 
-        port = 9876
+        log.checkStatus(1)
 
-        log.addExpectedText('Connecting to DAQRun')
-        log.addExpectedText('Started pdaq service on port %d' % port)
+    def testStartingNoStateArgs(self):
+        cnc = MockCnC()
+        log = MockLogger("liveLog")
+        live = self.__createLive(cnc, log)
 
-        self.__run = MockRun(1)
+        self.assertRaisesMsg(LiveException("No stateArgs specified"),
+                             live.starting, None)
 
-        self.__live = MockLive(port)
+    def testStartingNoKeys(self):
+        cnc = MockCnC()
+        log = MockLogger("liveLog")
+        live = self.__createLive(cnc, log)
 
-        self.assertRaises(Exception, self.__live.starting, {})
+        runCfg = "foo"
+        runNum = 13579
 
-        log.checkStatus(10)
+        cnc.setExpectedRunConfig(runCfg)
+        cnc.setExpectedRunNumber(runNum)
 
-    def testStart(self):
-        if not TEST_LIVE:
-            print 'Skipping I3Live-related test'
-            return
+        state = { }
 
-        log = self.__logFactory.createLog('liveMoni', DAQPort.I3LIVE, False)
+        self.assertRaisesMsg(LiveException("No stateArgs specified"),
+                             live.starting, state)
 
-        port = 9876
+    def testStartingNoRunCfgKey(self):
+        cnc = MockCnC()
+        log = MockLogger("liveLog")
+        live = self.__createLive(cnc, log)
 
-        log.addExpectedText('Connecting to DAQRun')
-        log.addExpectedText('Started pdaq service on port %d' % port)
+        runCfg = "foo"
+        runNum = 13579
 
-        self.__run = MockRun(2)
+        cnc.setExpectedRunConfig(runCfg)
+        cnc.setExpectedRunNumber(runNum)
 
-        self.__live = MockLive(port)
+        state = { "runNumber": runNum, }
 
-        runConfig = 'xxxCfg'
-        runNum = 543
-        
-        log.addExpectedText('Starting run %d - %s'% (runNum, runConfig))
-        log.addExpectedText("DAQ state is RUNNING")
-        log.addExpectedText('Started run %d'% runNum)
+        exc = LiveException("stateArgs does not contain key \"runConfig\"")
+        self.assertRaisesMsg(exc, live.starting, state)
 
-        args = {'runConfig':runConfig, 'runNumber':runNum}
-        self.__live.starting(args)
+    def testStartingNoRunNumKey(self):
+        cnc = MockCnC()
+        log = MockLogger("liveLog")
+        live = self.__createLive(cnc, log)
 
-    def testStop(self):
-        if not TEST_LIVE:
-            print 'Skipping I3Live-related test'
-            return
+        runCfg = "foo"
+        runNum = 13579
 
-        log = self.__logFactory.createLog('liveMoni', DAQPort.I3LIVE, False)
+        cnc.setExpectedRunConfig(runCfg)
+        cnc.setExpectedRunNumber(runNum)
 
-        port = 9876
+        state = { "runConfig": runCfg, }
 
-        log.addExpectedText('Connecting to DAQRun')
-        log.addExpectedText('Started pdaq service on port %d' % port)
+        exc = LiveException("stateArgs does not contain key \"runNumber\"")
+        self.assertRaisesMsg(exc, live.starting, state)
 
-        self.__run = MockRun(3)
+    def testStartingNoRunSet(self):
+        cnc = MockCnC()
+        log = MockLogger("liveLog")
+        live = self.__createLive(cnc, log)
 
-        self.__live = MockLive(port)
+        runCfg = "foo"
+        runNum = 13579
 
-        runNum = 0
+        cnc.setExpectedRunConfig(runCfg)
+        cnc.setExpectedRunNumber(runNum)
 
-        log.addExpectedText('Stopping run %d'% runNum)
-        log.addExpectedText("DAQ state is STOPPED")
-        log.addExpectedText('Stopped run %d'% runNum)
+        state = { "runConfig": runCfg, "runNumber": runNum }
 
-        numPhysics = 5
-        payloadTime = 1234
-        wallTime = 5432
-        numMoni = 10
-        moniTime = 12345
-        numSn = 15
-        snTime = 23456
-        numTcal = 20
-        tcalTime = 34567
+        self.assertRaisesMsg(LiveException("Cannot create runset for \"%s\"" %
+                                           runCfg), live.starting, state)
 
-        self.__run.setEventCounts(numPhysics, payloadTime, wallTime, numMoni,
-                                  moniTime, numSn, snTime, numTcal, tcalTime)
+    def testStarting(self):
+        cnc = MockCnC()
+        log = MockLogger("liveLog")
+        live = self.__createLive(cnc, log)
 
-        log.addExpectedLiveMoni('tcalEvents', numTcal)
-        log.addExpectedLiveMoni('moniEvents', numMoni)
-        log.addExpectedLiveMoni('snEvents', numSn)
-        log.addExpectedLiveMoni('physicsEvents', numPhysics)
-        log.addExpectedLiveMoni('walltimeEvents', numPhysics)
+        runCfg = "foo"
+        runNum = 13579
 
-        self.__live.stopping()
+        cnc.setExpectedRunConfig(runCfg)
+        cnc.setExpectedRunNumber(runNum)
+        cnc.setRunSet(MockRunSet(runCfg))
 
-    def testRecover(self):
-        if not TEST_LIVE:
-            print 'Skipping I3Live-related test'
-            return
+        state = { "runConfig": runCfg, "runNumber": runNum }
 
-        log = self.__logFactory.createLog('liveMoni', DAQPort.I3LIVE, False)
+        self.failUnless(live.starting(state), "starting failed")
 
-        port = 9876
+    def testStoppingNoRunset(self):
+        cnc = MockCnC()
+        log = MockLogger("liveLog")
+        live = self.__createLive(cnc, log)
 
-        log.addExpectedText('Connecting to DAQRun')
-        log.addExpectedText('Started pdaq service on port %d' % port)
+        exc = LiveException("Cannot stop run; no active runset")
+        self.assertRaisesMsg(exc, live.stopping)
 
-        self.__run = MockRun(4)
+    def testStoppingError(self):
+        cnc = MockCnC()
+        log = MockLogger("liveLog")
+        live = self.__createLive(cnc, log)
 
-        self.__live = MockLive(port)
+        runCfg = "foo"
+        runNum = 13579
+        runSet = MockRunSet(runCfg)
 
-        log.addExpectedText('Recovering pDAQ')
-        log.addExpectedText('DAQ state is STOPPED')
-        log.addExpectedText('Recovered pDAQ')
+        cnc.setExpectedRunConfig(runCfg)
+        cnc.setExpectedRunNumber(runNum)
+        cnc.setRunSet(runSet)
 
-        self.__live.recovering()
+        state = { "runConfig": runCfg, "runNumber": runNum }
+
+        self.failUnless(live.starting(state), "starting failed")
+
+        runSet.setStopReturnError()
+
+        exc = LiveException("Encountered ERROR while stopping run")
+        self.assertRaisesMsg(exc, live.stopping)
+
+    def testStopping(self):
+        cnc = MockCnC()
+        log = MockLogger("liveLog")
+        live = self.__createLive(cnc, log)
+
+        runCfg = "foo"
+        runNum = 13579
+
+        cnc.setExpectedRunConfig(runCfg)
+        cnc.setExpectedRunNumber(runNum)
+        cnc.setRunSet(MockRunSet(runCfg))
+
+        state = { "runConfig": runCfg, "runNumber": runNum }
+
+        self.failUnless(live.starting(state), "starting failed")
+
+        self.failUnless(live.stopping(), "stopping failed")
+
+    def testRecoveringNothing(self):
+        cnc = MockCnC()
+        log = MockLogger("liveLog")
+        live = self.__createLive(cnc, log)
+
+        self.failUnless(live.recovering(), "recovering failed")
+
+    def testRecoveringDestroyed(self):
+        cnc = MockCnC()
+        log = MockLogger("liveLog")
+        live = self.__createLive(cnc, log)
+
+        runCfg = "foo"
+        runNum = 13579
+        runSet = MockRunSet(runCfg)
+
+        cnc.setExpectedRunConfig(runCfg)
+        cnc.setExpectedRunNumber(runNum)
+        cnc.setRunSet(runSet)
+
+        state = { "runConfig": runCfg, "runNumber": runNum }
+
+        self.failUnless(live.starting(state), "starting failed")
+
+        runSet.setExpectedStopError()
+        runSet.destroy()
+
+        self.failUnless(live.recovering(), "recovering failed")
+
+    def testRecovering(self):
+        cnc = MockCnC()
+        log = MockLogger("liveLog")
+        live = self.__createLive(cnc, log)
+
+        runCfg = "foo"
+        runNum = 13579
+        runSet = MockRunSet(runCfg)
+
+        cnc.setExpectedRunConfig(runCfg)
+        cnc.setExpectedRunNumber(runNum)
+        cnc.setRunSet(runSet)
+
+        state = { "runConfig": runCfg, "runNumber": runNum }
+
+        self.failUnless(live.starting(state), "starting failed")
+
+        runSet.setExpectedStopError()
+
+        log.addExpectedExact("DAQLive recovered %s" % runSet)
+        self.failUnless(live.recovering(), "recovering failed")
+
+    def testRunningNothing(self):
+        cnc = MockCnC()
+        log = MockLogger("liveLog")
+        live = self.__createLive(cnc, log)
+
+        exc = LiveException("Cannot check run state; no active runset")
+        self.assertRaisesMsg(exc, live.running)
+
+    def testRunningBadState(self):
+        cnc = MockCnC()
+        log = MockLogger("liveLog")
+        live = self.__createLive(cnc, log)
+
+        runCfg = "foo"
+        runNum = 13579
+        runSet = MockRunSet(runCfg)
+
+        cnc.setExpectedRunConfig(runCfg)
+        cnc.setExpectedRunNumber(runNum)
+        cnc.setRunSet(runSet)
+
+        state = { "runConfig": runCfg, "runNumber": runNum }
+
+        self.failUnless(live.starting(state), "starting failed")
+
+        exc = LiveException("%s is not running (state = %s)" %
+                            (runSet, runSet.state()))
+        self.assertRaisesMsg(exc, live.running)
+
+    def testRunning(self):
+        cnc = MockCnC()
+        log = MockLogger("liveLog")
+        live = self.__createLive(cnc, log)
+
+        runCfg = "foo"
+        runNum = 13579
+        runSet = MockRunSet(runCfg)
+
+        cnc.setExpectedRunConfig(runCfg)
+        cnc.setExpectedRunNumber(runNum)
+        cnc.setRunSet(runSet)
+
+        state = { "runConfig": runCfg, "runNumber": runNum }
+
+        self.failUnless(live.starting(state), "starting failed")
+
+        runSet.setState(runSet.STATE_RUNNING)
+
+        self.failUnless(live.running(), "running failed")
+
+    def testSubrun(self):
+        cnc = MockCnC()
+        log = MockLogger("liveLog")
+        live = self.__createLive(cnc, log)
+
+        runCfg = "foo"
+        runNum = 13579
+        runSet = MockRunSet(runCfg)
+
+        cnc.setExpectedRunConfig(runCfg)
+        cnc.setExpectedRunNumber(runNum)
+        cnc.setRunSet(runSet)
+
+        state = { "runConfig": runCfg, "runNumber": runNum }
+
+        self.failUnless(live.starting(state), "starting failed")
+
+        self.assertEquals("OK", live.subrun(1, ["domA", "dom2", ]))
 
 if __name__ == '__main__':
     unittest.main()

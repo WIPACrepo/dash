@@ -4,7 +4,7 @@
 
 import sys
 
-from DAQConfig import DAQConfig
+from DAQConfig import DAQConfigParser
 
 class CCCException(Exception): pass
 
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     usage = False
 
     for arg in sys.argv[1:]:
-        if not DAQConfig.configExists(arg):
+        if not DAQConfigParser.fileExists(arg):
             print >>sys.stderr, "Could not find run config: %s" % arg
             usage = True
         else:
@@ -111,6 +111,6 @@ if __name__ == "__main__":
 
     ccc = ClusterConfigCreator(clusterName)
     for cfgName in cfgList:
-        runCfg = DAQConfig.load(cfgName)
+        runCfg = DAQConfigParser.load(cfgName)
 
         ccc.write(sys.stdout, runCfg)

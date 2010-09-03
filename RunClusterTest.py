@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os, unittest
-from DAQConfig import DAQConfig
+from DAQConfig import DAQConfigParser
 from RunCluster import RunCluster
 
 class DeployData(object):
@@ -31,13 +31,13 @@ class RunClusterTest(unittest.TestCase):
 
     def __checkCluster(self, clusterName, cfgName, expNodes, spadeDir,
                        logCopyDir):
-        cfg = DAQConfig.load(cfgName, RunClusterTest.CONFIG_DIR)
+        cfg = DAQConfigParser.load(cfgName, RunClusterTest.CONFIG_DIR)
 
         cluster = RunCluster(cfg, clusterName, RunClusterTest.CONFIG_DIR)
 
-        self.assertEquals(cluster.configName, cfgName,
+        self.assertEquals(cluster.configName(), cfgName,
                           'Expected config name %s, not %s' %
-                          (cfgName, cluster.configName))
+                          (cfgName, cluster.configName()))
 
         for node in cluster.nodes():
             for comp in node.components():
@@ -65,7 +65,7 @@ class RunClusterTest(unittest.TestCase):
                          (cluster.logDirCopies(), logCopyDir))
 
     def testClusterFile(self):
-        cfg = DAQConfig.load("simpleConfig", RunClusterTest.CONFIG_DIR)
+        cfg = DAQConfigParser.load("simpleConfig", RunClusterTest.CONFIG_DIR)
 
         cluster = RunCluster(cfg, "localhost", RunClusterTest.CONFIG_DIR)
 
@@ -75,6 +75,7 @@ class RunClusterTest(unittest.TestCase):
         cluster.writeCacheFile(True)
 
     def testDeployLocalhost(self):
+        cfgName = 'simpleConfig'
         expNodes = [DeployData('localhost', 'inIceTrigger'),
                     DeployData('localhost', 'globalTrigger'),
                     DeployData('localhost', 'eventBuilder'),
@@ -86,7 +87,7 @@ class RunClusterTest(unittest.TestCase):
                     DeployData('localhost', 'stringHub', 1005),
                     ]
 
-        self.__checkCluster("localhost", "simpleConfig", expNodes, "spade",
+        self.__checkCluster("localhost", cfgName, expNodes, "spade",
                             None)
 
     def testDeploySPTS64(self):

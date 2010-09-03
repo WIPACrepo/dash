@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import unittest
-from CnCServer import ConnTypeEntry, Connection, Connector
+from CnCServer import Connector
+from RunSet import ConnTypeEntry, Connection
 
 from DAQMocks import MockComponent
 

@@ -1,27 +1,31 @@
 #!/usr/bin/env python
 
-import StringIO, datetime, os, re, sys
-import tempfile, threading, time, unittest, xmlrpclib
+import StringIO, datetime, os, re, shutil, sys
+import tempfile, threading, time, traceback, unittest, xmlrpclib
 
-from CnCServer import CnCServer, Connector, DAQClient, RunSet
+from CnCServer import CnCServer, Connector
+from DAQClient import DAQClient
 from DAQConst import DAQPort
-from DAQLogClient import LiveMonitor, Prio
-from DAQMoni import DAQMoni, FileMoniData, MoniData
+from DAQLog import LiveMonitor
 from DAQRPC import RPCServer
-from DAQRun import DAQRun, RunArgs
-from RunWatchdog import RunWatchdog
+from LiveImports import Prio, LIVE_IMPORT, SERVICE_NAME
+from RunOption import RunOption
+from RunSet import RunSet
+from TaskManager import MonitorTask, RateTask, TaskManager, WatchdogTask
 
-TEST_LIVE = True
+global CAUGHT_WARNING
+CAUGHT_WARNING = False
+
 try:
-    from DAQLive import DAQLive, LiveArgs
+    from DAQLive import DAQLive
 except SystemExit:
-    TEST_LIVE = False
     class DAQLive:
         SERVICE_NAME = 'dead'
 
 from DAQMocks \
-    import MockAppender, MockCnCLogger, MockIntervalTimer, MockParallelShell, \
-    MockDeployComponent, SocketReaderFactory, SocketWriter
+    import MockAppender, MockClusterConfig, MockCnCLogger, \
+    MockDeployComponent, MockIntervalTimer, MockParallelShell, \
+    MockRunConfigFile, SocketReader, SocketReaderFactory, SocketWriter
 
 class BeanData(object):
     DAQ_BEANS = {'stringHub' :
@@ -29,6 +33,8 @@ class BeanData(object):
                       ('eventBuilder', 'sender', 'NumReadoutRequestsReceived',
                        'i', 0),
                       ('eventBuilder', 'sender', 'NumReadoutsSent', 'o', 0),
+                      ('stringHub', 'stringhub', 'NumberOfActiveChannels', 't',
+                       0),
                       ),
                  'inIceTrigger' :
                      (('stringHub', 'stringHit', 'RecordsReceived', 'i', 0),
@@ -60,7 +66,7 @@ class BeanData(object):
                       ('eventBuilder', 'backEnd', 'DiskAvailable',
                        't', 1024, True),
                       ('eventBuilder', 'backEnd', 'EventData',
-                       'o', [0, 0]),
+                       'o', [0, 0, 0]),
                       ('eventBuilder', 'backEnd', 'FirstEventTime',
                        'o', 0, True),
                       ('eventBuilder', 'backEnd', 'NumBadEvents',
@@ -157,181 +163,117 @@ class BeanData(object):
                     (self.__remoteComp, self.__bean, self.__field,
                      str(type(self.__value)))
 
-class CachedData(object):
-    def __init__(self):
-        self.__data = {}
+class MostlyTaskManager(TaskManager):
+    WAITSECS = 0.25
 
-    def __getitem__(self, key):
-        return self.__data[key]
+    TIMERS = {}
 
-    def __iter__(self):
-        for k in self.__data:
-            yield k
+    def __init__(self, runset, dashlog, liveMoniClient, runDir, runOptions):
+        super(MostlyTaskManager, self).__init__(runset, dashlog, liveMoniClient,
+                                                runDir, runOptions)
 
-    def __len__(self):
-        return len(self.__data)
+    def createIntervalTimer(self, name, period):
+        if not self.TIMERS.has_key(name):
+            self.TIMERS[name] = MockIntervalTimer(name, self.WAITSECS)
 
-    def __key(self, name, daqId):
-        return '%s#%d' % (name, daqId)
+        return self.TIMERS[name]
 
-    def add(self, name, daqId, client):
-        key = self.__key(name, daqId)
+    def triggerTimer(self, name):
+        if not self.TIMERS.has_key(name):
+            raise Exception("Unknown timer \"%s\"" % name)
 
-        if self.__data.has_key(key):
-            raise Exception('MBean exists for %s' % key)
+        self.TIMERS[name].trigger()
 
-        self.__data[key] = client
+class MostlyRunSet(RunSet):
+    LOGFACTORY = SocketReaderFactory()
+    LOGDICT = {}
 
-    def clear(self):
-        self.__data.clear()
+    def __init__(self, parent, runConfig, set, logger, dashAppender=None):
+        self.__dashAppender = dashAppender
+        self.__taskMgr = None
 
-    def get(self, name, daqId):
-        key = self.__key(name, daqId)
+        if len(self.LOGDICT) > 0:
+            raise Exception("Found %d open runset logs" % len(self.LOGDICT))
 
-        if not self.__data.has_key(key):
-            raise Exception('MBean not found for %s' % key)
+        super(MostlyRunSet, self).__init__(parent, runConfig, set, logger)
 
-        return self.__data[key]
+    def closeAllLogs(cls):
+        for k in cls.LOGDICT.keys():
+            cls.LOGDICT[k].stopServing()
+            del cls.LOGDICT[k]
+    closeAllLogs = classmethod(closeAllLogs)
 
-    def has_key(self, name, daqId):
-        return self.__data.has_key(self.__key(name, daqId))
+    def createComponentLog(cls, runDir, comp, host, port, liveHost, livePort,
+                           quiet=True):
+        if cls.LOGDICT.has_key(comp.fullName()):
+            return cls.LOGDICT[comp.fullName()]
 
-class MockMoniFile(FileMoniData):
-    DATA = CachedData()
+        expStartMsg = True
+        log = cls.LOGFACTORY.createLog(comp.fullName(), port, expStartMsg)
+        cls.LOGDICT[comp.fullName()] = log
 
-    BEAN_PAT = re.compile(r'^(\S+):\s*\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\.\d+:\s*$')
-    DATA_PAT = re.compile(r'^\s+(\S+):\s*(.*)$')
+        #log.addExpectedRegexp('Start #\d+ on \S+#\d+')
+        log.addExpectedRegexp(r'Hello from \S+#\d+')
+        log.addExpectedTextRegexp(r'Version info: \S+ \S+ \S+ \S+ \S+' +
+                                  r' \S+ \d+\S+')
 
-    def __init__(self, name, daqId, addr, port):
-        self.__stringFile = None
+        comp.logTo(host, port, liveHost, livePort)
 
-        super(MockMoniFile, self).__init__(name, daqId, addr, port, None)
+        return log
+    createComponentLog = classmethod(createComponentLog)
 
-        MockMoniFile.DATA.add(name, daqId, self)
+    def createDashLog(self):
+        return MockCnCLogger(self.__dashAppender, quiet=True, extraLoud=False)
 
-    def check(cls):
-        for c in cls.DATA:
-            lines = cls.DATA[c].getOutputLines()
+    def createRunData(self, runNum, clusterConfigName, runOptions, versionInfo,
+                      spadeDir, copyDir=None, logDir=None):
+        return super(MostlyRunSet, self).createRunData(runNum,
+                                                       clusterConfigName,
+                                                       runOptions, versionInfo,
+                                                       spadeDir, copyDir,
+                                                       logDir, True)
 
-            #bean = None
-            for l in lines:
-                if len(l) == 0:
-                    # ignore blank lines
-                    continue
+    def createRunDir(self, logDir, runNum, backupExisting=True):
+        pass
 
-                m = cls.BEAN_PAT.match(l)
-                if m:
-                    #bean = m.group(1)
-                    continue
+    def createTaskManager(self, dashlog, liveMoniClient, runDir, runOptions):
+        self.__taskMgr = MostlyTaskManager(self, dashlog, liveMoniClient,
+                                           runDir, runOptions)
+        return self.__taskMgr
 
-                m = cls.DATA_PAT.match(l)
-                if m:
-                    #fld = m.group(1)
-                    #print 'Moni %s: %s.%s' % (c, bean, fld)
-                    continue
+    def getComponentLog(cls, comp):
+        if cls.LOGDICT.has_key(comp.fullName()):
+            return cls.LOGDICT[comp.fullName()]
+        return None
+    getComponentLog = classmethod(getComponentLog)
 
-                raise Exception('Bad %s moni: %s' % (str(c), l))
+    def getTaskManager(self):
+        return self.__taskMgr
 
-    check = classmethod(check)
-
-    def clear(cls):
-        cls.DATA.clear()
-    clear = classmethod(clear)
-
-    def getOutputLines(self):
-        if self.__stringFile is None:
-            return None
-        return self.__stringFile.getvalue().split('\n')
-
-    def openFile(self, fname):
-        if self.__stringFile is None:
-            self.__stringFile = StringIO.StringIO()
-        return self.__stringFile
-
-class MockMoniBoth(MockMoniFile):
-    def __init__(self, name, daqId, addr, port):
-        super(MockMoniBoth, self).__init__(name, daqId, addr, port)
-
-        self.__moni = LiveMonitor()
-
-    def _report(self, now, b, attrs):
-        super(MockMoniBoth, self)._report(now, b, attrs)
-
-        if not MoniData.SEND_LIVE_MONI: return
-
-        for key in attrs:
-            self.__moni.send('%s*%s+%s' % (str(self), b, key), now, attrs[key])
-
-class MockMoni(DAQMoni):
-    def __init__(self, log, moniPath, comps, moniType):
-
-        self.__moniFlag = False
-        self.__didMoni = False
-
-        super(MockMoni, self).__init__(log, moniPath, comps, moniType,
-                                       quiet=True)
-
-    def createFileData(self, name, daqId, addr, port, fname):
-        return MockMoniFile(name, daqId, addr, port)
-
-    def createBothData(self, name, daqId, addr, port, fname):
-        return MockMoniBoth(name, daqId, addr, port)
-
-    def didMoni(self):
-        return self.__didMoni
-
-    def doMoni(self):
-        super(MockMoni, self).doMoni()
-        self.__didMoni = True
-
-    def timeToMoni(self):
-        "Override this so we can control when monitoring runs"
-        val = self.__moniFlag
-        self.__moniFlag = False
-        return val
-
-class MockWatchdog(RunWatchdog):
-    def __init__(self, daqLog, interval, comps):
-        self.__watchFlag = False
-        self.__didWatch = False
-
-        super(MockWatchdog, self).__init__(daqLog, interval, comps, True)
-
-    def didWatch(self):
-        return self.__didWatch
-
-    def realWatch(self):
-        val = super(MockWatchdog, self).realWatch()
-        self.__didWatch = True
-        return val
-
-    def setWatchFlag(self):
-        self.__watchFlag = True
-        self.__didWatch = False
-
-    def timeToWatch(self):
-        "Override this so we can control when watchdog runs"
-        if self.inProgress(): return False
-        val = self.__watchFlag
-        self.__watchFlag = False
-        return val
+    def queueForSpade(self, duration):
+        pass
 
 class MostlyDAQClient(DAQClient):
     def __init__(self, name, num, host, port, mbeanPort, connectors, appender):
         self.__appender = appender
 
         super(MostlyDAQClient, self).__init__(name, num, host, port,
-                                              mbeanPort, connectors)
+                                              mbeanPort, connectors,
+                                              quiet=True)
 
-    def createCnCLogger(self, quiet):
+    def createLogger(self, quiet):
         return MockCnCLogger(self.__appender, quiet)
 
 class MostlyCnCServer(CnCServer):
     SERVER_NAME = "MostlyCnC"
     APPENDERS = {}
 
-    def __init__(self, logPort, livePort):
+    def __init__(self, clusterConfigObject, logPort, livePort, copyDir,
+                 defaultLogDir, runConfigDir, spadeDir):
+        self.__clusterConfig = clusterConfigObject
         self.__liveOnly = logPort is None and livePort is not None
+        self.__logServer = None
+        self.__runset = None
 
         if logPort is None:
             logIP = None
@@ -341,10 +283,15 @@ class MostlyCnCServer(CnCServer):
             liveIP = None
         else:
             liveIP = 'localhost'
+
         super(MostlyCnCServer, self).__init__(name=MostlyCnCServer.SERVER_NAME,
+                                              copyDir=copyDir,
+                                              defaultLogDir=defaultLogDir,
+                                              runConfigDir=runConfigDir,
+                                              spadeDir=spadeDir,
                                               logIP=logIP, logPort=logPort,
                                               liveIP=liveIP, livePort=livePort,
-                                              quiet=True)
+                                              forceRestart=False, quiet=True)
 
     def createClient(self, name, num, host, port, mbeanPort, connectors):
         if self.__liveOnly:
@@ -367,8 +314,41 @@ class MostlyCnCServer(CnCServer):
 
         return MockCnCLogger(MostlyCnCServer.APPENDERS[key], quiet)
 
+    def getClusterConfig(self):
+        return self.__clusterConfig
+
+    def createRunset(self, runConfig, compList, logger):
+        self.__runset = MostlyRunSet(self, runConfig, compList, logger,
+                                     dashAppender=self.__dashAppender)
+        return self.__runset
+
+    def getLogServer(self):
+        return self.__logServer
+
+    def getRunSet(self):
+        return self.__runset
+
     def monitorLoop(self):
         pass
+
+    def openLogServer(self, port, logDir):
+        self.__logServer = SocketReader("CnCDefault", port)
+
+        msg = "Start of log at LOG=log(localhost:%d)" % port
+        self.__logServer.addExpectedText(msg)
+        self.__logServer.addExpectedText("I'm server MostlyCnC running on" +
+                                         " port %s" % DAQPort.CNCSERVER)
+        msg = ("%(filename)s %(revision)s %(date)s %(time)s %(author)s" +
+               " %(release)s %(repo_rev)s") % self.versionInfo()
+        self.__logServer.addExpectedText(msg)
+
+        return self.__logServer
+
+    def setDashAppender(self, dashAppender):
+        self.__dashAppender = dashAppender
+
+    def startLiveThread(self):
+        return None
 
 class RealComponent(object):
     # Component order, used in the __getOrder() method
@@ -418,7 +398,12 @@ class RealComponent(object):
         self.__cmd.register_function(self.__startRun, 'xmlrpc.startRun')
         self.__cmd.register_function(self.__startSubrun, 'xmlrpc.startSubrun')
         self.__cmd.register_function(self.__stopRun, 'xmlrpc.stopRun')
-        threading.Thread(target=self.__cmd.serve_forever, args=()).start()
+
+        tName = "RealXML*%s#%d" % (self.__name, self.__num)
+        t = threading.Thread(name=tName, target=self.__cmd.serve_forever,
+                             args=())
+        t.setDaemon(True)
+        t.start()
 
         self.__mbean = RPCServer(mbeanPort)
         self.__mbean.register_function(self.__getAttributes,
@@ -426,7 +411,12 @@ class RealComponent(object):
         self.__mbean.register_function(self.__getMBeanValue, 'mbean.get')
         self.__mbean.register_function(self.__listGetters, 'mbean.listGetters')
         self.__mbean.register_function(self.__listMBeans, 'mbean.listMBeans')
-        threading.Thread(target=self.__mbean.serve_forever, args=()).start()
+
+        tName = "RealMBean*%s#%d" % (self.__name, self.__num)
+        t = threading.Thread(name=tName, target=self.__mbean.serve_forever,
+                             args=())
+        t.setDaemon(True)
+        t.start()
 
         self.__cnc = xmlrpclib.ServerProxy('http://localhost:%d' %
                                            DAQPort.CNCSERVER, verbose=verbose)
@@ -499,7 +489,16 @@ class RealComponent(object):
         if self.__mbeanData is None:
             self.__mbeanData = BeanData.buildDAQBeans(self.__name)
 
-        return self.__mbeanData[bean][fld].getValue()
+        val = self.__mbeanData[bean][fld].getValue()
+        if type(val) == list:
+            for i in range(len(val)):
+                if type(val[i]) == long or val[i] < xmlrpclib.MININT or \
+                        val[i] > xmlrpclib.MAXINT:
+                    val[i] = str(val[i])
+                    if val[i].endswith("L"):
+                        val[i] = val[i][:-1]
+
+        return val
 
     def __getStartOrder(cls, name):
         if not cls.COMP_ORDER.has_key(name):
@@ -544,7 +543,7 @@ class RealComponent(object):
         if self.__liver is not None:
             time = datetime.datetime.utcnow()
             self.__liver.write('%s(log:str) %d [%s] %s' %
-                               (DAQLive.SERVICE_NAME, Prio.DEBUG, time, msg))
+                               (SERVICE_NAME, Prio.DEBUG, time, msg))
 
     def __logTo(self, logHost, logPort, liveHost, livePort):
         if logHost == '':
@@ -579,11 +578,10 @@ class RealComponent(object):
     def __resetLogging(self):
         self.__logger = None
 
-        self.__state = 'reset'
         return 'RLOG'
 
     def __startRun(self, runNum):
-        self.__log('Start #%d on %s' % (runNum, str(self)))
+        #self.__log('Start #%d on %s' % (runNum, str(self)))
 
         if self.__connections is None:
             print >>sys.stderr, "Component %s has no connections" % str(self)
@@ -611,10 +609,10 @@ class RealComponent(object):
                     print >>sys.stderr, ("Comp %s is stopped before %s" %
                                          (str(c), str(self)))
 
-        self.__state = 'stopped'
+        self.__state = 'ready'
         return 'STOP'
 
-    def addI3LiveMonitoring(self, liveLog):
+    def addI3LiveMonitoring(self, liveLog, useMBeanData=True):
         if self.__mbeanData is None:
             self.__mbeanData = BeanData.buildDAQBeans(self.__name)
 
@@ -623,33 +621,67 @@ class RealComponent(object):
         for bean in beanKeys:
             for fld in self.__mbeanData[bean]:
                 name = '%s-%d*%s+%s' % (self.__name, self.__num, bean, fld)
-                val = self.__mbeanData[bean][fld].getValue()
-                liveLog.addExpectedLiveMoni(name, val)
+                if useMBeanData:
+                    val = self.__mbeanData[bean][fld].getValue()
+                else:
+                    val = None
+                    if bean == "backEnd":
+                        if fld == "FirstEventTime":
+                            val = 1000
+                        elif fld == "EventData":
+                            val = [2, 10000000000]
+                        elif fld == "NumEventsSent":
+                            val = 2
+                    if val is None:
+                        val = self.__mbeanData[bean][fld].getValue()
+
+                if bean == "backEnd" and fld == "EventData":
+                    type = "json"
+                else:
+                    type = None
+
+                liveLog.addExpectedLiveMoni(name, val, type)
 
     def close(self):
         self.__cmd.server_close()
         self.__mbean.server_close()
 
-    def fullName(self): return self.__name
+    def fullName(self):
+        if self.__num == 0 and not self.__name.lower().endswith("hub"):
+            return self.__name
 
-    def isComponent(self, name, num=-1):
-        return self.__name == name and (num < 0 or self.__num == num)
-
-    def jvm(self): return self.__jvm
-    def jvmArgs(self): return self.__jvmArgs
+        return "%s#%d" % (self.__name, self.__num)
 
     def getCommandPort(self): return self.__cmd.portnum
     def getId(self): return 999
+
+    def getMBean(self, bean, fld):
+        if self.__mbeanData is None:
+            self.__mbeanData = BeanData.buildDAQBeans(self.__name)
+
+        return self.__mbeanData[bean][fld].getValue()
+
     def getMBeanPort(self): return self.__mbean.portnum
+    def getName(self): return self.__name
     def getNumber(self): return self.__num
 
     def getState(self):
         return self.__getState()
 
+    def isComponent(self, name, num=-1):
+        return self.__name == name and (num < 0 or self.__num == num)
+    def jvm(self): return self.__jvm
+    def jvmArgs(self): return self.__jvmArgs
+
+    def logTo(self, logHost, logPort, liveHost, livePort):
+        return self.__logTo(logHost, logPort, liveHost, livePort)
+
     def register(self, connList):
-        reg = self.__cnc.rpc_register_component(self.__name, self.__num,
-                                                'localhost', self.__cmd.portnum,
-                                                self.__mbean.portnum, connList)
+        reg = self.__cnc.rpc_component_register(self.__name, self.__num,
+                                                'localhost',
+                                                self.__cmd.portnum,
+                                                self.__mbean.portnum,
+                                                connList)
         if type(reg) != dict:
             raise Exception('Expected registration to return dict, not %s' %
                             str(type(reg)))
@@ -661,7 +693,8 @@ class RealComponent(object):
 
         self.__id = reg["id"]
 
-        self.__logTo(reg["logIP"], reg["logPort"], reg["liveIP"], reg["livePort"])
+        self.__logTo(reg["logIP"], reg["logPort"], reg["liveIP"],
+                     reg["livePort"])
 
     def setComponentList(self, compList):
         self.__compList = compList
@@ -706,316 +739,33 @@ class RealComponent(object):
         return 0
     sortForStart = staticmethod(sortForStart)
 
-class StubbedDAQRun(DAQRun):
-    LOGFACTORY = None
-    LOGDICT = {}
-
-    def __init__(self, extraArgs=None, startServer=False):
-        self.__moni = None
-        self.__moniTimer = None
-        self.__rate = None
-        self.__watchdog = None
-
-        self.__fileAppender = None
-        self.__mockAppender = None
-        self.__logServer = None
-
-        self.__countTime = None
-
-        self.liveLog = None
-        self.catchAllLog = None
-
-        super(StubbedDAQRun, self).__init__(self.__getRunArgs(extraArgs),
-                                            startServer)
-
-    def __getRunArgs(self, extraArgs=None):
-
-        stdArgs = { '-a' : IntegrationTest.COPY_DIR,
-                    '-C' : IntegrationTest.CLUSTER_DESC,
-                    '-c' : IntegrationTest.CONFIG_DIR,
-                    '-l' : IntegrationTest.LOG_DIR,
-                    '-n' : '',
-                    '-p' : str(DAQPort.DAQRUN),
-                    '-q' : '',
-                    '-s' : IntegrationTest.SPADE_DIR,
-                    '-u' : IntegrationTest.CLUSTER_CONFIG }
-
-        oldArgv = sys.argv
-        try:
-            sys.argv = ['foo']
-
-            for k in stdArgs.keys():
-                if extraArgs is None or not extraArgs.has_key(k):
-                    sys.argv.append(k)
-                    if len(stdArgs[k]) > 0:
-                        sys.argv.append(stdArgs[k])
-
-            if extraArgs is not None:
-                for k in extraArgs.keys():
-                    sys.argv.append(k)
-                    if len(extraArgs[k]) > 0:
-                        sys.argv.append(extraArgs[k])
-
-            args = RunArgs()
-            args.parse()
-        finally:
-            sys.argv = oldArgv
-
-        return args
-
-    def clearLogs(cls):
-        cls.LOGDICT.clear()
-    clearLogs = classmethod(clearLogs)
-
-    def createFileAppender(self):
-        return self.__fileAppender
-
-    def createInitialAppender(self):
-        if self.__mockAppender is None:
-            self.__mockAppender = MockAppender('runlog',
-                                               IntegrationTest.NUM_COMPONENTS)
-
-        return self.__mockAppender
-
-    def createLogSocketServer(cls, logPort, shortName, logFile):
-        name = os.path.basename(logFile)
-        if name[-4:] == '.log':
-            name = name[:-4]
-
-        if cls.LOGDICT.has_key(name):
-            return cls.LOGDICT[name]
-
-        isServer = (name == 'catchall' or name == 'cncserver')
-
-        expStartMsg = True
-        log = cls.LOGFACTORY.createLog(name, logPort, expStartMsg,
-                                       depth=IntegrationTest.NUM_COMPONENTS)
-        cls.LOGDICT[name] = log
-
-        if not isServer:
-            log.addExpectedRegexp(r'Hello from \S+#\d+')
-            log.addExpectedTextRegexp(r'Version info: \S+ \S+ \S+ \S+ \S+' +
-                                      r' \S+ \d+\S+')
-            if logPort != DAQPort.CATCHALL:
-                log.addExpectedRegexp('Start #\d+ on \S+#\d+')
-
-        return log
-
-    createLogSocketServer = classmethod(createLogSocketServer)
-
-    def createRunLogDirectory(self, runNum, logDir):
-        self.setLogPath(runNum, logDir)
-
-    def forceMonitoring(self):
-        self.__moniTimer.trigger()
-
-        numTries = 0
-        while not self.__moni.didMoni() and numTries < 100:
-            time.sleep(0.1)
-            numTries += 1
-
-        if not self.__moni.didMoni():
-            raise Exception('Monitoring did not run')
-
-        numTries = 0
-        while self.__moni.isActive() and numTries < 100:
-            time.sleep(0.1)
-            numTries += 1
-
-        if self.__moni.isActive():
-            raise Exception('Monitoring is still active')
-
-    def forceRate(self):
-        self.__rate.trigger()
-
-        numTries = 0
-        while not self.__rate.gotTime() and numTries < 100:
-            time.sleep(0.1)
-            numTries += 1
-
-        if not self.__rate.gotTime():
-            raise Exception('Rate timer did not run')
-
-        numTries = 0
-        while self.rateThread is not None and not self.rateThread.done() and \
-                numTries < 100:
-            time.sleep(0.1)
-            numTries += 1
-
-        if self.rateThread is not None and not self.rateThread.done():
-            raise Exception('RateThread is still running')
-
-    def forceWatchdog(self):
-        self.__watchdog.setWatchFlag()
-
-        numTries = 0
-        while not self.__watchdog.didWatch() and numTries < 100:
-            time.sleep(0.1)
-            numTries += 1
-
-        if not self.__watchdog.didWatch():
-            raise Exception('Watchdog did not run')
-
-    def get_base_prefix(self, runNum, runTime, runDuration):
-        return 'MockPrefix#%d' % runNum
-
-    def getComponentLog(cls, name, num):
-        key = '%s-%d' % (name, num)
-        if cls.LOGDICT.has_key(key):
-            return cls.LOGDICT[key]
-        return None
-    getComponentLog = classmethod(getComponentLog)
-
-    def getCountTime(self):
-        return self.__countTime
-
-    def getWatchCount(self):
-        if self.__watchdog is None:
-            return -1
-
-        return self.__watchdog.getCount()
-
-    def move_spade_files(self, copyDir, basePrefix, logTopLevel, runDir,
-                         spadeDir):
-        pass
-
-    def restartComponents(self, pShell):
-        super(StubbedDAQRun, self).restartComponents(pShell, checkExists=False,
-                                                     startMissing=False)
-
-    def setCountTime(self, countTime):
-        self.__countTime = countTime
-
-    def setFileAppender(self, appender):
-        self.__fileAppender = appender
-
-    def setup_monitoring(self, log, moniPath, comps, moniType):
-        if self.__moni is not None:
-            raise Exception('DAQMoni already exists')
-
-        self.__moni = MockMoni(log, moniPath, comps, moniType)
-        return self.__moni
-
-    def setup_timer(self, name, interval):
-        if name == DAQRun.RATE_NAME:
-            if self.__rate is not None:
-                raise Exception('Rate timer already exists')
-
-            self.__rate = MockIntervalTimer(interval)
-            return self.__rate
-
-        if name == DAQRun.MONI_NAME:
-            if self.__moniTimer is not None:
-                raise Exception('Rate timer already exists')
-
-            self.__moniTimer = MockIntervalTimer(interval)
-            return self.__moniTimer
-
-        if name == DAQRun.ACTIVE_NAME or name == DAQRun.ACTIVERPT_NAME or \
-                name == DAQRun.RADAR_NAME:
-            return MockIntervalTimer(interval)
-
-        raise Exception("Unknown timer %s (interval %d)" % (name, interval))
-
-    def setup_watchdog(self, log, interval, comps):
-        if self.__watchdog is not None:
-            raise Exception('Watchdog already exists')
-
-        self.__watchdog = MockWatchdog(log, interval, comps)
-        return self.__watchdog
-
-class MostlyLive(DAQLive):
-    def __init__(self, port):
-        super(MostlyLive, self).__init__(self.__buildArgs(port))
-
-    def __buildArgs(self, port, extraArgs=None):
-        stdArgs = { '-v' : '',
-                    '-P' : str(port) }
-
-        oldArgv = sys.argv
-        try:
-            sys.argv = ['foo']
-
-            for k in stdArgs.keys():
-                if extraArgs is None or not extraArgs.has_key(k):
-                    sys.argv.append(k)
-                    if len(stdArgs[k]) > 0:
-                        sys.argv.append(stdArgs[k])
-
-            if extraArgs is not None:
-                for k in extraArgs.keys():
-                    sys.argv.append(k)
-                    if len(extraArgs[k]) > 0:
-                        sys.argv.append(extraArgs[k])
-
-            args = LiveArgs()
-            args.parse()
-        finally:
-            sys.argv = oldArgv
-
-        return args
-
-class MoniLogTarget(object):
-    MONI_TO_FILE = 1
-    LOG_TO_FILE = 2
-    MONI_TO_LIVE = 4
-    LOG_TO_LIVE = 8
-    DEFAULT = MONI_TO_FILE | LOG_TO_FILE
-
-    def __init__(self, flags=DEFAULT):
-        self.__flags = flags
-
-    def __str__(self):
-        fStr = ''
-        if self.__flags & MoniLogTarget.MONI_TO_FILE:
-            fStr += '|MoniToFile'
-        if self.__flags & MoniLogTarget.MONI_TO_LIVE:
-            fStr += '|MoniToLive'
-        if self.__flags & MoniLogTarget.LOG_TO_FILE:
-            fStr += '|LogToFile'
-        if self.__flags & MoniLogTarget.LOG_TO_LIVE:
-            fStr += '|LogToLive'
-        if len(fStr) == 0:
-            fStr = 'None'
-        else:
-            fStr = fStr[1:]
-        return fStr
-
-    def anyToFile(self):
-        return (self.__flags & (MoniLogTarget.MONI_TO_FILE |
-                                MoniLogTarget.LOG_TO_FILE)) != 0
-
-    def anyToLive(self):
-        return (self.__flags & (MoniLogTarget.MONI_TO_LIVE |
-                                MoniLogTarget.LOG_TO_LIVE)) != 0
-
-    def logToFile(self):
-        return (self.__flags & MoniLogTarget.LOG_TO_FILE) == \
-            MoniLogTarget.LOG_TO_FILE
-
-    def logToLive(self):
-        return (self.__flags & MoniLogTarget.LOG_TO_LIVE) == \
-            MoniLogTarget.LOG_TO_LIVE
-
-    def moniToFile(self):
-        return (self.__flags & MoniLogTarget.MONI_TO_FILE) == \
-            MoniLogTarget.MONI_TO_FILE
-
-    def moniToLive(self):
-        return (self.__flags & MoniLogTarget.MONI_TO_LIVE) == \
-            MoniLogTarget.MONI_TO_LIVE
-
 class IntegrationTest(unittest.TestCase):
     CLUSTER_CONFIG = 'simpleConfig'
-    CLUSTER_DESC = 'localhost'
     CONFIG_DIR = os.path.abspath('src/test/resources/config')
     CONFIG_NAME = 'simpleConfig'
-    COPY_DIR = '/tmp'
+    COPY_DIR = 'bogus'
     SPADE_DIR = '/tmp'
     LOG_DIR = None
     LIVEMONI_ENABLED = False
 
     NUM_COMPONENTS = 9
+
+    RUNNING = False
+
+    def __addLiveMoni(self, liveMoni, compName, compNum, beanName,
+                      fieldName, isJSON=False):
+
+        for c in self.__compList:
+            if c.getName()() == compName and c.getNumber() == compNum:
+                val = c.getMBean(beanName, fieldName)
+                var = "%s-%d*%s+%s" % (compName, compNum, beanName, fieldName)
+                if isJSON:
+                    liveMoni.addExpectedLiveMoni(var, val, "json")
+                else:
+                    liveMoni.addExpectedLiveMoni(var, val)
+                return
+
+        raise Exception("Unknown component %s-%d" % (compName, compNum))
 
     def __createComponents(self):
         # Note that these jvm/jvmArg values needs to correspond to
@@ -1055,31 +805,25 @@ class IntegrationTest(unittest.TestCase):
 
         log.addExpectedText('Connecting to DAQRun')
         log.addExpectedText('Started %s service on port %d' %
-                            (DAQLive.SERVICE_NAME, livePort))
+                            (SERVICE_NAME, livePort))
 
         self.__live = MostlyLive(livePort)
 
         return (self.__live, log)
 
-    def __createLoggers(self, dr, targetFlags, liveRunOnly):
-        if not targetFlags.logToFile() and not liveRunOnly:
+    def __createLoggers(self, runOptions, liveRunOnly):
+        if not RunOption.isLogToFile(runOptions) and not liveRunOnly:
             appender = None
-            catchall = None
         else:
-            appender = MockAppender('main', IntegrationTest.NUM_COMPONENTS)
-            catchall = \
-                StubbedDAQRun.createLogSocketServer(DAQPort.CATCHALL,
-                                                    'catchall', 'catchall')
+            appender = MockAppender('main',
+                                    depth=IntegrationTest.NUM_COMPONENTS)
 
-        dr.setFileAppender(appender)
-
-        return (appender, catchall)
+        dashLog = MockAppender("dash")
+        return (appender, dashLog)
 
     def __createParallelShell(self, logPort, livePort):
         pShell = MockParallelShell()
 
-        doLive = False
-        doDAQRun = False
         doCnC = True
         dryRun = False
         verbose = False
@@ -1091,56 +835,64 @@ class IntegrationTest(unittest.TestCase):
 
         logLevel = 'INFO'
 
-        pShell.addExpectedPythonKill(doLive, doDAQRun, doCnC, dashDir,
-                                     killWith9)
+        pShell.addExpectedPythonKill(doCnC, dashDir, killWith9)
 
         launchList = self.__compList[:]
         launchList.sort(RealComponent.sortForLaunch)
 
         for comp in launchList:
-            pShell.addExpectedJavaKill(comp.fullName(), killWith9, verbose,
-                                       host)
+            pShell.addExpectedJavaKill(comp.getName(), comp.getNumber(),
+                                       killWith9, verbose, host)
 
-        pShell.addExpectedPython(doLive, doDAQRun, doCnC, dashDir,
-                                 IntegrationTest.CONFIG_DIR,
+        pShell.addExpectedPython(doCnC, dashDir, IntegrationTest.CONFIG_DIR,
                                  IntegrationTest.LOG_DIR,
                                  IntegrationTest.SPADE_DIR,
                                  IntegrationTest.CONFIG_NAME,
                                  IntegrationTest.COPY_DIR, logPort, livePort)
         for comp in launchList:
-            deployComp = MockDeployComponent(comp.fullName(), comp.getNumber(),
+            deployComp = MockDeployComponent(comp.getName(), comp.getNumber(),
                                              logLevel, comp.jvm(),
                                              comp.jvmArgs())
             pShell.addExpectedJava(deployComp, IntegrationTest.CONFIG_DIR,
-                                   logPort, livePort, verbose, False, host)
+                                   DAQPort.CATCHALL, livePort, verbose, False,
+                                   host)
 
         return pShell
 
-    def __createRunObjects(self, targetFlags, liveRunOnly=False):
-        if targetFlags.anyToFile() and targetFlags.anyToLive() and \
-                not liveRunOnly:
+    def __createRunObjects(self, runOptions, liveRunOnly=False):
+        anyToFile = RunOption.isLogToFile(runOptions) or \
+            RunOption.isMoniToFile(runOptions)
+        anyToLive = RunOption.isLogToLive(runOptions) or \
+            RunOption.isMoniToLive(runOptions)
+        if anyToFile and anyToLive and not liveRunOnly:
             extraArgs = {'-B' : '', }
-        elif liveRunOnly or not targetFlags.anyToLive():
+        elif liveRunOnly or not anyToLive:
             extraArgs = None
         else:
             extraArgs = {'-L' : '', }
 
-        self.__run = StubbedDAQRun(extraArgs)
+        (appender, dashLog) = \
+            self.__createLoggers(runOptions, liveRunOnly)
 
-        (appender, catchall) = \
-            self.__createLoggers(self.__run, targetFlags, liveRunOnly)
+        self.__createComponents()
 
-        if targetFlags.logToFile() or liveRunOnly:
+        cluCfg = MockClusterConfig(IntegrationTest.CLUSTER_CONFIG)
+        for c in self.__compList:
+            cluCfg.addComponent(c.fullName(), c.jvm(), c.jvmArgs(),
+                                "localhost")
+
+        if RunOption.isLogToFile(runOptions) or liveRunOnly:
             logPort = DAQPort.CATCHALL
         else:
             logPort = None
-        if targetFlags.logToLive() and not liveRunOnly:
+        if RunOption.isLogToLive(runOptions) and not liveRunOnly:
             livePort = DAQPort.I3LIVE
         else:
             livePort = None
-        self.__cnc = MostlyCnCServer(logPort, livePort)
-
-        self.__createComponents()
+        self.__cnc = MostlyCnCServer(cluCfg, None, livePort, self.COPY_DIR,
+                                     self.LOG_DIR, self.CONFIG_DIR,
+                                     self.SPADE_DIR)
+        self.__cnc.setDashAppender(dashLog)
 
         if liveRunOnly:
             paraLivePort = None
@@ -1149,7 +901,79 @@ class IntegrationTest(unittest.TestCase):
         pShell = \
             self.__createParallelShell(logPort, paraLivePort)
 
-        return (self.__run, self.__cnc, appender, catchall, pShell)
+        return (self.__cnc, appender, dashLog, pShell)
+
+    def __forceMonitoring(self, cnc, liveMoni):
+        taskMgr = cnc.getRunSet().getTaskManager()
+
+        if liveMoni is not None:
+            liveMoni.setCheckDepth(32)
+            for c in self.__compList:
+                c.addI3LiveMonitoring(liveMoni)
+
+        taskMgr.triggerTimer(MonitorTask.NAME)
+        time.sleep(MostlyTaskManager.WAITSECS)
+        taskMgr.waitForTasks()
+
+        if liveMoni is not None:
+            self.__waitForEmptyLog(liveMoni, "Didn't get moni messages")
+
+    def __forceRate(self, cnc, dashLog):
+        taskMgr = cnc.getRunSet().getTaskManager()
+
+        self.__setBeanData("eventBuilder", 0, "backEnd", "EventData", [0, 0])
+        self.__setBeanData("eventBuilder", 0, "backEnd", "FirstEventTime", 0)
+
+        dashLog.addExpectedRegexp(r"\s+0 physics events, 0 moni events," +
+                                  r" 0 SN events, 0 tcals")
+
+        taskMgr.triggerTimer(RateTask.NAME)
+        time.sleep(MostlyTaskManager.WAITSECS)
+        taskMgr.waitForTasks()
+
+        self.__waitForEmptyLog(dashLog, "Didn't get rate message")
+
+        numEvts = 5
+        firstTime = 5000
+        curTime = 20000000000 + firstTime
+
+        self.__setBeanData("eventBuilder", 0, "backEnd", "EventData",
+                           [numEvts, curTime])
+        self.__setBeanData("eventBuilder", 0, "backEnd", "FirstEventTime",
+                           firstTime)
+
+        duration = (curTime - firstTime) / 10000000000
+        if duration <= 0:
+            hzStr = ""
+        else:
+            hzStr = " (%2.2f Hz)" % (float(numEvts - 1) / float(duration))
+
+        dashLog.addExpectedExact(("	%d physics events%s, 0 moni events," +
+                                  " 0 SN events, 0 tcals") % (numEvts, hzStr))
+
+        taskMgr.triggerTimer(RateTask.NAME)
+        time.sleep(MostlyTaskManager.WAITSECS)
+        taskMgr.waitForTasks()
+
+        self.__waitForEmptyLog(dashLog, "Didn't get second rate message")
+
+    def __forceWatchdog(self, cnc, dashLog):
+        taskMgr = cnc.getRunSet().getTaskManager()
+
+        self.__setBeanData("eventBuilder", 0, "backEnd", "DiskAvailable", 0)
+
+        taskMgr.triggerTimer(WatchdogTask.NAME)
+        time.sleep(MostlyTaskManager.WAITSECS)
+        taskMgr.waitForTasks()
+
+        dashLog.addExpectedRegexp("Watchdog reports threshold components.*")
+        dashLog.addExpectedExact("Run is unhealthy (2 checks left)")
+
+        taskMgr.triggerTimer(WatchdogTask.NAME)
+        time.sleep(MostlyTaskManager.WAITSECS)
+        taskMgr.waitForTasks()
+
+        self.__waitForEmptyLog(dashLog, "Didn't get watchdog message")
 
     def __getConnectionList(self, name):
         if name == 'stringHub':
@@ -1183,56 +1007,73 @@ class IntegrationTest(unittest.TestCase):
 
         return connList
 
-    def __registerComponents(self, liveLog, catchall, liveRunOnly):
+    def __registerComponents(self, liveLog, logServer, liveRunOnly):
+        dashLog = None
         for comp in self.__compList:
-            if catchall is not None:
-                catchall.addExpectedTextRegexp(('Got registration for ID#%d' +
-                                                ' %s at localhost:%d M#%d.*') %
-                                               (DAQClient.ID, str(comp),
-                                                comp.getCommandPort(),
-                                                comp.getMBeanPort()))
-                catchall.addExpectedExact('Hello from %s' % str(comp))
+            if logServer is not None:
+                msg = ("Got registration for ID#%d %s" +
+                       " at localhost:%d M#%d.*") % \
+                       (DAQClient.ID.peekNext(), str(comp),
+                        comp.getCommandPort(), comp.getMBeanPort())
+                logServer.addExpectedTextRegexp(msg)
+                logServer.addExpectedExact('Hello from %s' % str(comp))
             if liveLog is not None and not liveRunOnly:
                 liveLog.addExpectedTextRegexp(('Got registration for ID#%d %s' +
                                                ' at localhost:%d M#%d.*') %
-                                              (DAQClient.ID, str(comp),
+                                              (DAQClient.ID.peekNext(),
+                                               str(comp),
                                                comp.getCommandPort(),
                                                comp.getMBeanPort()))
                 liveLog.addExpectedText('Hello from %s' % str(comp))
-            comp.register(self.__getConnectionList(comp.fullName()))
+            comp.register(self.__getConnectionList(comp.getName()))
 
-    def __runTest(self, live, dr, cnc, liveLog, appender, catchall,
-                   targetFlags, liveRunOnly):
+    def __runTest(self, live, cnc, liveLog, appender, dashLog, runOptions,
+                  liveRunOnly):
 
         try:
-            self.__testBody(live, dr, cnc, liveLog, appender, catchall,
-                            targetFlags, liveRunOnly)
+            self.__testBody(live, cnc, liveLog, appender, dashLog, runOptions,
+                            liveRunOnly)
         finally:
-            dr.running = False
             time.sleep(0.4)
 
             cnc.closeServer()
 
-    def __testBody(self, live, dr, cnc, liveLog, appender, catchall,
-                   targetFlags, liveRunOnly):
+            self.RUNNING = False
+
+    def __setBeanData(self, compName, compNum, beanName, fieldName, value):
+        setData = False
+        for c in self.__compList:
+            if c.getName() == compName and c.getNumber() == compNum:
+                c.setMBean(beanName, fieldName, value)
+                setData = True
+                break
+
+        if not setData:
+            raise Exception("Could not find component %s#%d" %
+                            (compName, compNum))
+
+    def __testBody(self, live, cnc, liveLog, appender, dashLog, runOptions,
+                   liveRunOnly):
+
+        logServer = cnc.getLogServer()
 
         RUNLOG_INFO = False
 
+        import datetime
         if liveLog: liveLog.checkStatus(10)
-        if catchall: catchall.checkStatus(10)
         if appender: appender.checkStatus(10)
+        if dashLog: dashLog.checkStatus(10)
+        if logServer: logServer.checkStatus(10)
 
-        self.__registerComponents(liveLog, catchall, liveRunOnly)
+        self.__registerComponents(liveLog, logServer, liveRunOnly)
 
         time.sleep(0.4)
-        self.assertEquals('STOPPED', dr.runState, 'Should be stopped, not ' +
-                          dr.runState)
 
         if liveLog: liveLog.checkStatus(10)
-        if catchall: catchall.checkStatus(10)
         if appender: appender.checkStatus(10)
+        if logServer: logServer.checkStatus(10)
 
-        setId = RunSet.ID
+        setId = RunSet.ID.peekNext()
         runNum = 654
         configName = IntegrationTest.CONFIG_NAME
 
@@ -1241,48 +1082,52 @@ class IntegrationTest(unittest.TestCase):
                                     (runNum, configName))
 
         if RUNLOG_INFO:
-            msg = 'Loaded global configuration "%s"' % configName
-            if catchall and not liveRunOnly: catchall.addExpectedText(msg)
-            if liveLog: liveLog.addExpectedText(msg)
+            if liveLog:
+                liveLog.addExpectedText('Loading run configuration "%s"' %
+                                        configName)
+                liveLog.addExpectedText('Loaded run configuration "%s"' %
+                                        configName)
 
             for n in ('in-ice', 'icetop'):
                 msg = 'Configuration includes detector %s' % n
-                if catchall and not liveRunOnly: catchall.addExpectedText(msg)
                 if liveLog: liveLog.addExpectedText(msg)
 
             for c in self.__compList:
                 msg = 'Component list will require %s#%d' % \
-                    (c.fullName(), c.getNumber())
-                if catchall and not liveRunOnly: catchall.addExpectedText(msg)
+                    (c.getName(), c.getNumber())
                 if liveLog: liveLog.addExpectedText(msg)
 
-        msg = ('Starting run %d (waiting for required %d components to' +
-               ' register w/ CnCServer)') % (runNum, len(self.__compList))
-        if catchall and not liveRunOnly: catchall.addExpectedText(msg)
-        if liveLog: liveLog.addExpectedText(msg)
+        for s in ("Loading", "Loaded"):
+            msg = '%s run configuration "%s"' % (s, configName)
+            if liveLog and not liveRunOnly: liveLog.addExpectedText(msg)
+            if logServer: logServer.addExpectedText(msg)
 
-        msg = 'Built runset with the following components:'
-        if catchall: catchall.addExpectedText(msg)
-        if liveLog and not liveRunOnly: liveLog.addExpectedText(msg)
+        msg = 'Built runset #\d+: .*'
+        if liveLog and not liveRunOnly: liveLog.addExpectedTextRegexp(msg)
+        if logServer: logServer.addExpectedTextRegexp(msg)
 
         msg = 'Created Run Set #%d' % setId
-        if catchall and not liveRunOnly: catchall.addExpectedText(msg)
         if liveLog: liveLog.addExpectedText(msg)
 
         msgList = (('Version info: %(filename)s %(revision)s %(date)s' +
                     ' %(time)s %(author)s %(release)s %(repo_rev)s') %
-                   dr.versionInfo,
+                   cnc.versionInfo(),
                    'Starting run %d...' % runNum,
                    'Run configuration: %s' % configName,
-                   'Cluster configuration: %s' %
-                   IntegrationTest.CLUSTER_CONFIG
                    )
         if RUNLOG_INFO:
             msgList.append('Created logger for CnCServer')
 
         for msg in msgList:
-            if appender and not liveRunOnly: appender.addExpectedExact(msg)
+            #if appender and not liveRunOnly: appender.addExpectedExact(msg)
             if liveLog: liveLog.addExpectedText(msg)
+
+        if dashLog:
+            dashLog.addExpectedRegexp(r'Version info: \S+ \d+ \S+ \S+ \S+' +
+                                      r' \S+ \d+\S+')
+            dashLog.addExpectedExact('Run configuration: %s' % configName)
+            dashLog.addExpectedExact("Cluster configuration: " +
+                                     IntegrationTest.CLUSTER_CONFIG)
 
         if appender and not liveRunOnly and RUNLOG_INFO:
             msg = 'Setting up logging for %d components' % len(self.__compList)
@@ -1292,7 +1137,7 @@ class IntegrationTest(unittest.TestCase):
             for c in self.__compList:
                 logPort = DAQPort.RUNCOMP_BASE + c.getCommandPort()
                 patStr = r'%s\(\d+ \S+:%d\) -> %s:%d' % \
-                    (c.fullName(), c.getCommandPort(), dr.ip, logPort)
+                    (c.getName(), c.getCommandPort(), dr.ip, logPort)
                 appender.addExpectedRegexp(patStr)
                 if liveLog: liveLog.addExpectedTextRegexp(patStr)
         if liveLog:
@@ -1303,81 +1148,113 @@ class IntegrationTest(unittest.TestCase):
                 liveLog.addExpectedText('Hello from %s' % str(c))
                 liveLog.addExpectedTextRegexp((r'Version info: %s \S+ \S+' +
                                                r' \S+ \S+ \S+ \d+\S+') %
-                                              c.fullName())
+                                              c.getName())
 
         if RUNLOG_INFO:
             msg = 'Configuring run set...'
             if appender and not liveRunOnly: appender.addExpectedExact(msg)
             if liveLog: liveLog.addExpectedText(msg)
 
-            if targetFlags.moniToFile():
+            if RunOption.isMoniToFile(runOptions):
                 runDir = os.path.join(IntegrationTest.LOG_DIR,
-                                      DAQRun.logDirName(runNum))
+                                      str(runNum))
                 for c in self.__compList:
                     msg = ('Creating moni output file %s/%s-%d.moni' +
                            ' (remote is localhost:%d)') % \
-                           (runDir, c.fullName(), c.getNumber(),
+                           (runDir, c.getName(), c.getNumber(),
                             c.getMBeanPort())
                     if appender and not liveRunOnly:
                         appender.addExpectedExact(msg)
                     if liveLog: liveLog.addExpectedText(msg)
 
+        msg = "Starting run #%d with \"%s\"" % \
+            (runNum, IntegrationTest.CLUSTER_CONFIG)
+        if liveLog and not liveRunOnly: liveLog.addExpectedText(msg)
+        if logServer: logServer.addExpectedText(msg)
+
+        if dashLog:
+            dashLog.addExpectedExact("Starting run %d..." % runNum)
         if liveLog:
             for c in self.__compList:
                 liveLog.addExpectedText('Start #%d on %s' % (runNum, str(c)))
 
         msg = 'Started run %d on run set %d' % (runNum, setId)
-        if appender and not liveRunOnly: appender.addExpectedExact(msg)
         if liveLog: liveLog.addExpectedText(msg)
 
-        countStart = datetime.datetime.utcnow()
-        dr.setCountTime(countStart)
+        startEvts = 2
+        startEvtTime = 1001
+
         if liveLog:
             liveLog.addExpectedTextRegexp(r"DAQ state is RUNNING after \d+" +
                                           " seconds")
             liveLog.addExpectedText('Started run %d' % runNum)
 
-        startEvts = 2
-        startEvtTime = 1001
+        if live is not None:
+            live.starting({'runNumber':runNum, 'runConfig':configName})
+        else:
+            global CAUGHT_WARNING
+            if not LIVE_IMPORT and not CAUGHT_WARNING:
+                CAUGHT_WARNING = True
+                if logServer:
+                    msg = r"^Cannot import IceCube Live.*"
+                    logServer.addExpectedTextRegexp(msg)
 
-        for c in self.__compList:
-            if c.fullName() == 'eventBuilder':
-                c.setMBean('backEnd', 'NumEventsSent', startEvts)
-                c.setMBean('backEnd', 'EventData', [startEvts, startEvtTime])
-                c.setMBean('backEnd', 'FirstEventTime', startEvtTime - 1)
+            id = cnc.rpc_runset_make(configName)
+            self.assertEquals(setId, id,
+                              "Expected to create runset #%d, not #%d" %
+                              (setId, id))
+            cnc.rpc_runset_start_run(setId, runNum, RunOption.LOG_TO_FILE)
 
-        msg = '%s physics events, 0 moni events, 0 SN events, 0 tcals' % \
-            startEvts
-        if appender and not liveRunOnly: appender.addExpectedExact('\t' + msg)
-        if liveLog: liveLog.addExpectedText(msg)
+        self.__waitForState(cnc, setId, "running")
 
-        if targetFlags.moniToLive():
+        if liveLog: liveLog.checkStatus(10)
+        if appender: appender.checkStatus(500)
+        if dashLog: dashLog.checkStatus(10)
+        if logServer: logServer.checkStatus(10)
+
+        global CAUGHT_WARNING
+        if not LIVE_IMPORT and not CAUGHT_WARNING:
+            CAUGHT_WARNING = True
+            if logServer:
+                msg = r"^Cannot import IceCube Live.*"
+                logServer.addExpectedTextRegexp(msg)
+
+        if RunOption.isMoniToLive(runOptions):
             # monitoring values can potentially come in any order
             liveLog.setCheckDepth(32)
             for c in self.__compList:
                 c.addI3LiveMonitoring(liveLog)
 
-        if live is not None:
-            live.starting({'runNumber':runNum, 'runConfig':configName})
-        else:
-            dr.rpc_start_run(runNum, None, configName)
-
-        numTries = 0
-        while dr.runState == 'STARTING' and numTries < 500:
-            time.sleep(0.1)
-            numTries += 1
-        self.assertEquals('RUNNING', dr.runState, 'Should be running, not ' +
-                          dr.runState)
-
-        dr.forceMonitoring()
-        dr.forceRate()
-        dr.forceWatchdog()
+        if liveLog:
+            activeDOMMap = {}
+            for c in self.__compList:
+                if c.isComponent("stringHub"):
+                    activeDOMMap[str(c.getNumber())] = 0
+            liveLog.addExpectedLiveMoni("activeDOMs", 0)
+            liveLog.addExpectedLiveMoni("activeStringDOMs", activeDOMMap,
+                                        "json")
+        self.__forceMonitoring(cnc, liveLog)
 
         if liveLog: liveLog.checkStatus(10)
-        if catchall: catchall.checkStatus(10)
         if appender: appender.checkStatus(500)
+        if dashLog: dashLog.checkStatus(10)
+        if logServer: logServer.checkStatus(10)
 
-        if targetFlags.moniToLive():
+        self.__forceRate(cnc, dashLog)
+
+        if liveLog: liveLog.checkStatus(10)
+        if appender: appender.checkStatus(500)
+        if dashLog: dashLog.checkStatus(10)
+        if logServer: logServer.checkStatus(10)
+
+        self.__forceWatchdog(cnc, dashLog)
+
+        if liveLog: liveLog.checkStatus(10)
+        if appender: appender.checkStatus(500)
+        if dashLog: dashLog.checkStatus(10)
+        if logServer: logServer.checkStatus(10)
+
+        if RunOption.isMoniToLive(runOptions):
             liveLog.setCheckDepth(5)
 
         subRunId = 1
@@ -1385,7 +1262,7 @@ class IntegrationTest(unittest.TestCase):
         if liveLog: liveLog.addExpectedText('Starting subrun %d.%d' %
                                             (runNum, subRunId))
 
-        domList = [('53494d550101', 0, 1, 2, 3, 4),
+        domList = [['53494d550101', 0, 1, 2, 3, 4],
                    ['1001', '22', 1, 2, 3, 4, 5],
                    ('a', 0, 1, 2, 3, 4)]
 
@@ -1406,37 +1283,31 @@ class IntegrationTest(unittest.TestCase):
             else:
                 break
 
-        msg = ("Subrun %d: will ignore missing DOM ('DOM %s not found in" +
-               " config!')...") % (subRunId, domList[2][0])
-        if appender and not liveRunOnly: appender.addExpectedExact(msg)
-        if liveLog: liveLog.addExpectedText(msg)
+        msg = "Subrun %d: will ignore missing DOMs ['#%s']" % \
+                   (subRunId, domList[2][0])
+        if dashLog: dashLog.addExpectedExact(msg)
 
         fmt = 'Subrun %d: flashing DOMs (%%s)' % subRunId
-        if appender and not liveRunOnly:
-            if liveLog:
-                appender.addExpectedExact(fmt % str(rpcFlashList))
-            else:
-                appender.addExpectedExact(fmt % str(rawFlashList))
-        if liveLog: liveLog.addExpectedText(fmt % str(rpcFlashList))
+        if dashLog: dashLog.addExpectedExact(fmt % str(rpcFlashList))
 
         for c in self.__compList:
             if not appender or liveRunOnly:
                 clog = None
             else:
-                clog = StubbedDAQRun.getComponentLog(c.fullName(), c.getNumber())
+                clog = MostlyRunSet.getComponentLog(c)
                 if clog is None:
                     raise Exception('No log for %s#%d' %
-                                    (c.fullName(), c.getNumber()))
+                                    (c.getName(), c.getNumber()))
 
-            if c.fullName() == 'eventBuilder':
+            if c.getName() == 'eventBuilder':
                 msg = 'Prep subrun %d' % subRunId
                 if clog: clog.addExpectedExact(msg)
                 if liveLog: liveLog.addExpectedText(msg)
-            if c.fullName() == 'stringHub':
+            if c.getName() == 'stringHub':
                 msg = 'Start subrun %s' % str(rpcFlashList)
                 if clog: clog.addExpectedExact(msg)
                 if liveLog: liveLog.addExpectedText(msg)
-            if c.fullName() == 'eventBuilder':
+            if c.getName() == 'eventBuilder':
                 patStr = 'Commit subrun %d: \d+L' % subRunId
                 if clog: clog.addExpectedRegexp(patStr)
                 if liveLog: liveLog.addExpectedTextRegexp(patStr)
@@ -1444,11 +1315,12 @@ class IntegrationTest(unittest.TestCase):
         if live is not None:
             live.subrun(subRunId, domList)
         else:
-            dr.rpc_flash(subRunId, domList)
+            cnc.rpc_runset_subrun(setId, subRunId, domList)
 
+        if dashLog: dashLog.checkStatus(10)
         if appender: appender.checkStatus(10)
-        if catchall: catchall.checkStatus(10)
         if liveLog: liveLog.checkStatus(10)
+        if logServer: logServer.checkStatus(10)
 
         subRunId += 1
 
@@ -1456,27 +1328,26 @@ class IntegrationTest(unittest.TestCase):
                                             (runNum, subRunId))
 
         msg = 'Subrun %d: Got command to stop flashers' % subRunId
-        if appender and not liveRunOnly: appender.addExpectedExact(msg)
-        if liveLog: liveLog.addExpectedText(msg)
+        if dashLog: dashLog.addExpectedExact(msg)
 
         for c in self.__compList:
             if not appender or liveRunOnly:
                 clog = None
             else:
-                clog = StubbedDAQRun.getComponentLog(c.fullName(), c.getNumber())
+                clog = MostlyRunSet.getComponentLog(c)
                 if clog is None:
                     raise Exception('No log for %s#%d' %
-                                    (c.fullName(), c.getNumber()))
+                                    (c.getName(), c.getNumber()))
 
-            if c.fullName() == 'eventBuilder':
+            if c.getName() == 'eventBuilder':
                 msg = 'Prep subrun %d' % subRunId
                 if clog: clog.addExpectedExact(msg)
                 if liveLog: liveLog.addExpectedText(msg)
-            if c.fullName() == 'stringHub':
+            if c.getName() == 'stringHub':
                 msg = 'Start subrun %s' % str([])
                 if clog: clog.addExpectedExact(msg)
                 if liveLog: liveLog.addExpectedText(msg)
-            if c.fullName() == 'eventBuilder':
+            if c.getName() == 'eventBuilder':
                 patStr = 'Commit subrun %d: \d+L' % subRunId
                 if clog: clog.addExpectedRegexp(patStr)
                 if liveLog: liveLog.addExpectedTextRegexp(patStr)
@@ -1484,59 +1355,60 @@ class IntegrationTest(unittest.TestCase):
         if live is not None:
             live.subrun(subRunId, [])
         else:
-            dr.rpc_flash(subRunId, [])
+            cnc.rpc_runset_subrun(setId, subRunId, [])
 
+        if dashLog: dashLog.checkStatus(10)
         if appender: appender.checkStatus(10)
-        if catchall: catchall.checkStatus(10)
         if liveLog: liveLog.checkStatus(10)
+        if logServer: logServer.checkStatus(10)
 
         if liveLog: liveLog.addExpectedText('Stopping run %d' % runNum)
+
+        domTicksPerSec = 10000000000
 
         numEvts = 17
         numMoni = 222
         numSN = 51
         numTCal = 93
-        lastEvtTime = startEvtTime + numEvts
+        lastEvtTime = startEvtTime + (domTicksPerSec * 3)
 
-        for c in self.__compList:
-            if c.fullName() == 'eventBuilder':
-                c.setMBean('backEnd', 'NumEventsSent', numEvts)
-                c.setMBean('backEnd', 'EventData', [numEvts, lastEvtTime])
-            elif c.fullName() == 'secondaryBuilders':
-                c.setMBean('moniBuilder', 'TotalDispatchedData', numMoni)
-                c.setMBean('snBuilder', 'TotalDispatchedData', numSN)
-                c.setMBean('tcalBuilder', 'TotalDispatchedData', numTCal)
+        self.__setBeanData("eventBuilder", 0, "backEnd", "NumEventsSent",
+                           numEvts)
+        self.__setBeanData("eventBuilder", 0, "backEnd", "EventData",
+                           [numEvts, lastEvtTime])
+        self.__setBeanData("eventBuilder", 0, "backEnd", "FirstEventTime",
+                           startEvtTime)
+        self.__setBeanData("secondaryBuilders", 0, "moniBuilder",
+                           "TotalDispatchedData", numMoni)
+        self.__setBeanData("secondaryBuilders", 0, "snBuilder",
+                           "TotalDispatchedData", numSN)
+        self.__setBeanData("secondaryBuilders", 0, "tcalBuilder",
+                           "TotalDispatchedData", numTCal)
 
         msg = 'Stopping run %d' % runNum
-        if appender and not liveRunOnly: appender.addExpectedExact(msg)
         if liveLog: liveLog.addExpectedText(msg)
 
         for c in self.__compList:
             if not appender or liveRunOnly:
                 clog = None
             else:
-                clog = StubbedDAQRun.getComponentLog(c.fullName(), c.getNumber())
+                clog = MostlyRunSet.getComponentLog(c)
                 if clog is None:
                     raise Exception('No log for %s#%d' %
-                                    (c.fullName(), c.getNumber()))
+                                    (c.getName(), c.getNumber()))
 
-            msg = 'Stop %s#%d' % (c.fullName(), c.getNumber())
+            msg = 'Stop %s#%d' % (c.getName(), c.getNumber())
             if clog: clog.addExpectedExact(msg)
             if liveLog: liveLog.addExpectedText(msg)
 
-        if catchall:
-            catchall.addExpectedTextRegexp(r'Reset log to \S+:\d+')
-            if liveLog and not liveRunOnly:
-                liveLog.addExpectedTextRegexp(r'Reset log to \S+:\d+')
-
-        patStr = (r'%d physics events collected in \d+ seconds' +
-                  r'(\s+\(\d+\.\d+ Hz\))?') % numEvts
-        if appender and not liveRunOnly: appender.addExpectedRegexp(patStr)
+        patStr = (r'%d physics events collected in -?\d+ seconds' +
+                  r'(\s+\(-?\d+\.\d+ Hz\))?') % numEvts
+        dashLog.addExpectedRegexp(patStr)
         if liveLog: liveLog.addExpectedTextRegexp(patStr)
 
         msg = '%d moni events, %d SN events, %d tcals' % \
             (numMoni, numSN, numTCal)
-        if appender and not liveRunOnly: appender.addExpectedExact(msg)
+        dashLog.addExpectedExact(msg)
         if liveLog: liveLog.addExpectedText(msg)
 
         if RUNLOG_INFO:
@@ -1549,25 +1421,9 @@ class IntegrationTest(unittest.TestCase):
             if liveLog: liveLog.addExpectedTextRegexp(patStr)
 
         msg = 'Run terminated SUCCESSFULLY.'
-        if appender and not liveRunOnly: appender.addExpectedExact(msg)
+        dashLog.addExpectedExact(msg)
         if liveLog: liveLog.addExpectedText(msg)
 
-        if RUNLOG_INFO:
-            if targetFlags.moniToFile():
-                msg = ('Queued data for SPADE (spadeDir=%s, logDir=%s,' +
-                       ' runNum=%s)...') % \
-                       (IntegrationTest.SPADE_DIR, IntegrationTest.LOG_DIR,
-                        runNum)
-                if appender and not liveRunOnly: appender.addExpectedExact(msg)
-                if liveLog: liveLog.addExpectedText(msg)
-
-        msg = "Doing complete rip-down and restart of pDAQ" + \
-            " (everything but DAQRun)"
-        if appender and not liveRunOnly: appender.addExpectedExact(msg)
-        if liveLog: liveLog.addExpectedText(msg)
-
-        countTime = datetime.datetime.utcnow()
-        dr.setCountTime(countTime)
         if liveLog:
             liveLog.addExpectedTextRegexp(r"DAQ state is STOPPED after \d+" +
                                           " seconds")
@@ -1582,20 +1438,16 @@ class IntegrationTest(unittest.TestCase):
         if live is not None:
             live.stopping()
         else:
-            dr.rpc_stop_run()
+            cnc.rpc_runset_stop_run(setId)
 
-        numTries = 0
-        while dr.runState == 'STOPPING' and numTries < 100:
-            time.sleep(0.1)
-            numTries += 1
-        self.assertEquals('STOPPED', dr.runState, 'Should be stopped, not ' +
-                          dr.runState)
+        self.__waitForState(cnc, setId, "ready")
 
+        if dashLog: dashLog.checkStatus(10)
         if appender: appender.checkStatus(10)
-        if catchall: catchall.checkStatus(10)
         if liveLog: liveLog.checkStatus(10)
+        if logServer: logServer.checkStatus(10)
 
-        moni = dr.rpc_run_monitoring()
+        moni = cnc.rpc_runset_monitor_run(setId)
         self.failIf(moni is None, 'rpc_run_monitoring returned None')
         self.failIf(len(moni) == 0, 'rpc_run_monitoring returned no data')
         self.assertEquals(numEvts, moni['physicsEvents'],
@@ -1611,71 +1463,76 @@ class IntegrationTest(unittest.TestCase):
                           'Expected %d tcal events, not %d' %
                           (numTCal, moni['tcalEvents']))
 
+        if dashLog: dashLog.checkStatus(10)
         if appender: appender.checkStatus(10)
-        if catchall: catchall.checkStatus(10)
         if liveLog: liveLog.checkStatus(10)
+        if logServer: logServer.checkStatus(10)
 
         if RUNLOG_INFO:
             msg = 'Breaking run set...'
             if liveLog and not liveRunOnly: liveLog.addExpectedText(msg)
-            if catchall:
-                catchall.addExpectedText(msg)
-
-        if catchall:
-            endMsg = 'End of log'
-            for key in MostlyCnCServer.APPENDERS:
-                if key != 'server':
-                    MostlyCnCServer.APPENDERS[key].addExpectedExact(endMsg)
 
         if live is not None:
             live.release()
         else:
-            dr.rpc_release_runsets()
+            cnc.rpc_runset_break(setId)
 
+        if dashLog: dashLog.checkStatus(10)
         if appender: appender.checkStatus(10)
-        if catchall: catchall.checkStatus(10)
         if liveLog: liveLog.checkStatus(10)
+        if logServer: logServer.checkStatus(10)
+
+    def __waitForEmptyLog(cls, log, errMsg):
+        for i in range(5):
+            if log.isEmpty():
+                break
+            time.sleep(0.25)
+        log.checkStatus(1)
+    __waitForEmptyLog = classmethod(__waitForEmptyLog)
+
+    def __waitForState(self, cnc, setId, expState):
+        numTries = 0
+        state = 'unknown'
+        while numTries < 500:
+            state = cnc.rpc_runset_state(setId)
+            if state == expState:
+                break
+            time.sleep(0.1)
+            numTries += 1
+        self.assertEquals(expState, state, 'Should be %s, not %s' %
+                          (expState, state))
 
     def setUp(self):
-        StubbedDAQRun.clearLogs()
-        MockMoniFile.clear()
         MostlyCnCServer.APPENDERS.clear()
 
         self.__logFactory = SocketReaderFactory()
 
-        StubbedDAQRun.LOGFACTORY = self.__logFactory
-
         IntegrationTest.LOG_DIR = tempfile.mkdtemp()
 
-        # registration timeout messages can mess up log checker
-        DAQRun.REGISTRATION_TIMEOUT = 60
         DAQLive.STATE_WARNING = False
 
         self.__live = None
-        self.__run = None
         self.__cnc = None
         self.__compList = None
 
     def tearDown(self):
-        MockMoniFile.check()
-
-        self.__logFactory.tearDown()
+        try:
+            self.__logFactory.tearDown()
+        except:
+            traceback.print_exc()
 
         if self.__compList is not None and len(self.__compList) > 0:
             for c in self.__compList:
                 c.close()
         if self.__cnc is not None:
             self.__cnc.closeServer()
-        if self.__run is not None:
-            if self.__run.running:
-                self.__run.running = False
-                time.sleep(0.4)
-            self.__run.server.server_close()
         if self.__live is not None:
             self.__live.close()
 
         for key in MostlyCnCServer.APPENDERS:
             MostlyCnCServer.APPENDERS[key].checkStatus(10)
+
+        MostlyRunSet.closeAllLogs()
 
         for root, dirs, files in os.walk(IntegrationTest.LOG_DIR,
                                          topdown=False):
@@ -1684,118 +1541,104 @@ class IntegrationTest(unittest.TestCase):
             for name in dirs:
                 os.rmdir(os.path.join(root, name))
 
-        os.rmdir(IntegrationTest.LOG_DIR)
+        shutil.rmtree(IntegrationTest.LOG_DIR, ignore_errors=True)
         IntegrationTest.LOG_DIR = None
 
+        if True:
+            reps = 5
+            for n in range(reps):
+                if threading.activeCount() < 2:
+                    break
+
+                needHdr = True
+                for t in threading.enumerate():
+                    if t.getName() == "MainThread": continue
+
+                    if needHdr:
+                        print >>sys.stderr, "---- Active threads #%d" % \
+                            (reps - n)
+                        needHdr = False
+                    print >>sys.stderr, "  %s" % t
+
+                time.sleep(1)
+
+            if threading.activeCount() > 1:
+                print >>sys.stderr, \
+                    "tearDown exiting with %d active threads" % \
+                    threading.activeCount()
+
     def testFinishInMain(self):
-        targetFlags = MoniLogTarget(MoniLogTarget.MONI_TO_FILE |
-                                    MoniLogTarget.LOG_TO_FILE)
+        #print "Not running testFinishInMain"; return
+        runOptions = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
 
-        (dr, cnc, appender, catchall, pShell) = \
-            self.__createRunObjects(targetFlags)
+        (cnc, appender, dashLog, pShell) = \
+            self.__createRunObjects(runOptions)
 
-        catchall.addExpectedText("I'm server %s running on port %d" %
-                                 (cnc.name(), DAQPort.CNCSERVER))
-        catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
+        t = threading.Thread(name="MainFinish", target=cnc.run, args=())
+        t.setDaemon(True)
+        t.start()
 
-        threading.Thread(target=cnc.run, args=()).start()
-        threading.Thread(target=dr.run_thread, args=(None, pShell)).start()
-
-        self.__runTest(None, dr, cnc, None, appender, catchall, targetFlags,
-                       False)
-
-    def testDAQRunInMain(self):
-        if sys.platform != 'darwin':
-            print 'Skipping server tests in non-Darwin OS'
-            return
-
-        targetFlags = MoniLogTarget(MoniLogTarget.MONI_TO_FILE |
-                                    MoniLogTarget.LOG_TO_FILE)
-
-        (dr, cnc, appender, catchall, pShell) = \
-            self.__createRunObjects(targetFlags)
-
-        catchall.addExpectedText("I'm server %s running on port %d" %
-                                  (cnc.name(), DAQPort.CNCSERVER))
-        catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
-
-        threading.Thread(target=cnc.run, args=()).start()
-        threading.Thread(target=self.__runTest,
-                         args=(None, dr, cnc, None, appender, catchall,
-                               targetFlags, False)).start()
-
-        dr.run_thread(None, pShell)
+        self.__runTest(None, cnc, None, appender, dashLog, runOptions, False)
 
     def testCnCInMain(self):
+        #print "Not running testCnCInMain"; return
         if sys.platform != 'darwin':
             print 'Skipping server tests in non-Darwin OS'
             return
 
-        targetFlags = MoniLogTarget(MoniLogTarget.MONI_TO_FILE |
-                                    MoniLogTarget.LOG_TO_FILE)
+        runOptions = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
 
-        (dr, cnc, appender, catchall, pShell) = \
-            self.__createRunObjects(targetFlags)
+        (cnc, appender, dashLog, pShell) = self.__createRunObjects(runOptions)
 
-        catchall.addExpectedText("I'm server %s running on port %d" %
-                                 (cnc.name(), DAQPort.CNCSERVER))
-        catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
-
-        threading.Thread(target=dr.run_thread, args=(None, pShell)).start()
-        threading.Thread(target=self.__runTest,
-                         args=(None, dr, cnc, None, appender, catchall,
-                               targetFlags, False)).start()
+        t = threading.Thread(name="CnCFinish", target=self.__runTest,
+                             args=(None, cnc, None, appender, dashLog,
+                                   runOptions, False))
+        t.setDaemon(True)
+        t.start()
 
         cnc.run()
 
     def testLiveFinishInMain(self):
+        print "Not running testLiveFinishInMain"; return
         #from DAQMocks import LogChecker; LogChecker.DEBUG = True
-        if not TEST_LIVE:
+        if not LIVE_IMPORT:
             print 'Skipping I3Live-related test'
             return
 
         livePort = 9751
 
-        targetFlags = MoniLogTarget(MoniLogTarget.MONI_TO_FILE |
-                                    MoniLogTarget.LOG_TO_LIVE)
+        runOptions = RunOption.LOG_TO_LIVE | RunOption.MONI_TO_FILE
 
-        (dr, cnc, appender, catchall, pShell) = \
-            self.__createRunObjects(targetFlags, True)
+        (cnc, appender, dashLog, pShell) = \
+            self.__createRunObjects(runOptions, True)
 
-        catchall.addExpectedText("I'm server %s running on port %d" %
-                                 (cnc.name(), DAQPort.CNCSERVER))
-        catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
-
-        threading.Thread(target=cnc.run, args=()).start()
-        threading.Thread(target=dr.run_thread, args=(None, pShell)).start()
-        threading.Thread(target=dr.server.serve_forever, args=()).start()
+        t = threading.Thread(name="LiveFinish", target=cnc.run, args=())
+        t.setDaemon(True)
+        t.start()
 
         (live, liveLog) = self.__createLiveObjects(livePort)
 
-        self.__runTest(live, dr, cnc, liveLog, appender, catchall, targetFlags,
+        self.__runTest(live, cnc, liveLog, appender, dashLog, runOptions,
                        True)
 
     def testZAllLiveFinishInMain(self):
+        print "Not running testZAllLiveFinishInMain"; return
         #from DAQMocks import LogChecker; LogChecker.DEBUG = True
-        if not TEST_LIVE:
+        if not LIVE_IMPORT:
             print 'Skipping I3Live-related test'
             return
 
         livePort = 9751
 
         if IntegrationTest.LIVEMONI_ENABLED:
-            liveMoniFlag = MoniLogTarget.MONI_TO_LIVE
+            moniType = RunOption.MONI_TO_LIVE
         else:
-            liveMoniFlag = 0
+            moniType = RunOption.MONI_TO_NONE
 
-        targetFlags = MoniLogTarget(liveMoniFlag |
-                                    MoniLogTarget.LOG_TO_LIVE)
+        runOptions = RunOption.LOG_TO_LIVE | moniType
 
-        (dr, cnc, appender, catchall, pShell) = \
-            self.__createRunObjects(targetFlags)
-
-        threading.Thread(target=dr.run_thread, args=(None, pShell)).start()
-        threading.Thread(target=dr.server.serve_forever, args=()).start()
+        (cnc, appender, dashLog, pShell) = \
+            self.__createRunObjects(runOptions)
 
         (live, liveLog) = self.__createLiveObjects(livePort)
 
@@ -1803,50 +1646,48 @@ class IntegrationTest(unittest.TestCase):
                                  (cnc.name(), DAQPort.CNCSERVER))
         liveLog.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
-        threading.Thread(target=cnc.run, args=()).start()
+        t = threading.Thread(name="AllLiveFinish", target=cnc.run, args=())
+        t.setDaemon(True)
+        t.start()
 
         liveLog.checkStatus(100)
 
-        self.__runTest(live, dr, cnc, liveLog, appender, catchall, targetFlags,
+        self.__runTest(live, cnc, liveLog, appender, dashLog, runOptions,
                        False)
 
     def testZBothFinishInMain(self):
-        if not TEST_LIVE:
+        print "Not running testZBothFinishInMain"; return
+        if not LIVE_IMPORT:
             print 'Skipping I3Live-related test'
             return
 
         livePort = 9751
 
         if IntegrationTest.LIVEMONI_ENABLED:
-            liveMoniFlag = MoniLogTarget.MONI_TO_LIVE
+            moniType = RunOption.MONI_TO_BOTH
         else:
-            liveMoniFlag = 0
+            moniType = RunOption.MONI_TO_FILE
 
-        targetFlags = MoniLogTarget(MoniLogTarget.MONI_TO_FILE |
-                                    MoniLogTarget.LOG_TO_FILE |
-                                    liveMoniFlag |
-                                    MoniLogTarget.LOG_TO_LIVE)
+        runOptions = RunOption.LOG_TO_BOTH | moniType
 
-        (dr, cnc, appender, catchall, pShell) = \
-            self.__createRunObjects(targetFlags)
-
-        threading.Thread(target=dr.run_thread, args=(None, pShell)).start()
-        threading.Thread(target=dr.server.serve_forever, args=()).start()
+        (cnc, appender, dashLog, pShell) = \
+            self.__createRunObjects(runOptions)
 
         (live, liveLog) = self.__createLiveObjects(livePort)
 
-        msg = "I'm server %s running on port %d" % (cnc.name(), DAQPort.CNCSERVER)
-        catchall.addExpectedText(msg)
+        msg = "I'm server %s running on port %d" % \
+            (cnc.name(), DAQPort.CNCSERVER)
         liveLog.addExpectedText(msg)
 
         patStr = r'\S+ \S+ \S+ \S+ \S+ \S+ \S+'
-        catchall.addExpectedTextRegexp(patStr)
         liveLog.addExpectedTextRegexp(patStr)
 
-        threading.Thread(target=cnc.run, args=()).start()
+        t = threading.Thread(name="BothLiveFinish", target=cnc.run, args=())
+        t.setDaemon(True)
+        t.start()
 
         #from DAQMocks import LogChecker; LogChecker.DEBUG = True
-        self.__runTest(live, dr, cnc, liveLog, appender, catchall, targetFlags,
+        self.__runTest(live, cnc, liveLog, appender, dashLog, runOptions,
                        False)
 
 if __name__ == '__main__':

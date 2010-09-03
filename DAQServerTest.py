@@ -1,10 +1,16 @@
 #!/usr/bin/env python
 
-import socket, unittest
-from CnCServer import DAQClient, CnCServer
+import shutil, socket, tempfile, traceback, unittest
+from CnCServer import CnCServer, CnCServerException
+from DAQClient import DAQClient
+from DAQConst import DAQPort
+from DAQMocks import MockAppender, MockClusterConfig, MockCnCLogger, \
+    MockRunConfigFile, SocketReaderFactory, SocketWriter
+from LiveImports import LIVE_IMPORT
+from RunOption import RunOption
+from RunSet import RunSet
 
-from DAQMocks import MockAppender, MockCnCLogger, \
-    SocketReaderFactory, SocketWriter
+CAUGHT_WARNING = False
 
 class TinyClient(object):
     def __init__(self, name, num, host, port, mbeanPort, connectors):
@@ -12,8 +18,7 @@ class TinyClient(object):
         self.__num = num
         self.__connectors = connectors
 
-        self.__id = DAQClient.ID
-        DAQClient.ID += 1
+        self.__id = DAQClient.ID.next()
 
         self.__host = host
         self.__port = port
@@ -56,8 +61,8 @@ class TinyClient(object):
             raise Exception('Cannot log to I3Live')
 
         self.__log = SocketWriter(logIP, logPort)
-        self.__log.write_ts('Start of log at %s:%d' % (logIP, logPort))
-        self.__log.write_ts('Version info: unknown unknown unknown unknown' +
+        self.__log.write_ts('Start of log at LOG=log(%s:%d)' % (logIP, logPort))
+        self.__log.write_ts('Version info: unknown 000 unknown unknown' +
                             ' unknown BRANCH 0:0')
 
     def map(self):
@@ -71,6 +76,9 @@ class TinyClient(object):
 
     def name(self):
         return self.__name
+
+    def num(self):
+        return self.__num
 
     def order(self):
         return self.__order
@@ -93,12 +101,60 @@ class TinyClient(object):
     def stopRun(self):
         self.__state = 'ready'
 
+class FakeTaskManager(object):
+    def __init__(self): pass
+    def reset(self): pass
+    def start(self): pass
+    def stop(self): pass
+
+class MockRunSet(RunSet):
+    def __init__(self, parent, runConfig, compList, logger, clientLog=None):
+        self.__dashLog = logger
+        self.__clientLog = clientLog
+        self.__deadComp = []
+
+        super(MockRunSet, self).__init__(parent, runConfig, compList, logger)
+
+    def createComponentLog(self, runDir, c, host, port, liveHost, livePort,
+                           quiet=True):
+        return self.__clientLog
+
+    def createDashLog(self):
+        return self.__dashLog
+
+    def createRunData(self, runNum, clusterConfigName, runOptions, versionInfo,
+                      spadeDir, copyDir=None, logDir=None):
+        return super(MockRunSet, self).createRunData(runNum,
+                                                     clusterConfigName,
+                                                     runOptions, versionInfo,
+                                                     spadeDir, copyDir,
+                                                     logDir, True)
+
+    def createRunDir(self, logDir, runNum, backupExisting=True):
+        return None
+
+    def createTaskManager(self, dashlog, liveMoniClient, runDir, moniType):
+        return FakeTaskManager()
+
+    def queueForSpade(self, duration):
+        pass
+
 class MockServer(CnCServer):
     APPENDER = MockAppender('server')
 
-    def __init__(self, logPort, livePort):
-        super(MockServer, self).__init__(logIP='localhost', logPort=logPort,
+    def __init__(self, clusterConfigObject=None, copyDir=None,
+                 runConfigDir=None, spadeDir=None, logPort=None, livePort=None,
+                 forceRestart=False, clientLog=None, logFactory=None):
+        self.__clusterConfig = clusterConfigObject
+        self.__clientLog = clientLog
+        self.__logFactory = logFactory
+
+        super(MockServer, self).__init__(copyDir=copyDir,
+                                         runConfigDir=runConfigDir,
+                                         spadeDir=spadeDir,
+                                         logIP='localhost', logPort=logPort,
                                          liveIP='localhost', livePort=livePort,
+                                         forceRestart=forceRestart,
                                          testOnly=True)
 
     def createClient(self, name, num, host, port, mbeanPort, connectors):
@@ -107,7 +163,27 @@ class MockServer(CnCServer):
     def createCnCLogger(self, quiet):
         return MockCnCLogger(MockServer.APPENDER, quiet)
 
+    def createRunset(self, runConfig, compList, logger):
+        return MockRunSet(self, runConfig, compList, logger,
+                          clientLog=self.__clientLog)
+
+    def getClusterConfig(self):
+        return self.__clusterConfig
+
+    def openLogServer(self, port, logDir):
+        if self.__logFactory is None:
+            raise Exception("MockServer log factory has not been set")
+        return self.__logFactory.createLog("catchall", port,
+                                           expectStartMsg=False,
+                                           startServer=False)
+
+    def startLiveThread(self):
+        return None
+
 class TestDAQServer(unittest.TestCase):
+    HUB_NUMBER = 1021
+    DOM_MAINBOARD_ID = "53494d552101"
+
     def __createLog(self, name, port, expectStartMsg=True):
         return self.__logFactory.createLog(name, port, expectStartMsg)
 
@@ -127,10 +203,10 @@ class TestDAQServer(unittest.TestCase):
                           'Registration should return client ID#%d, not %d' %
                           (expId, rtnArray["id"]))
         self.assertEquals(logHost, rtnArray["logIP"],
-                          'Registration should return host %s, not %s' %
+                          'Registration should return loghost %s, not %s' %
                           (logHost, rtnArray["logIP"]))
         self.assertEquals(logPort, rtnArray["logPort"],
-                          'Registration should return port#%d, not %d' %
+                          'Registration should return logport#%d, not %d' %
                           (logPort, rtnArray["logPort"]))
         self.assertEquals(liveHost, rtnArray["liveIP"],
                           'Registration should return livehost %s, not %s' %
@@ -142,8 +218,17 @@ class TestDAQServer(unittest.TestCase):
     def setUp(self):
         self.__logFactory = SocketReaderFactory()
 
+        self.__runConfigDir = None
+
     def tearDown(self):
-        self.__logFactory.tearDown()
+        try:
+            self.__logFactory.tearDown()
+        except:
+            traceback.print_exc()
+
+        if self.__runConfigDir is not None:
+            shutil.rmtree(self.__runConfigDir, ignore_errors=True)
+            self.__runConfigDir = None
 
         MockServer.APPENDER.checkStatus(10)
 
@@ -158,9 +243,10 @@ class TestDAQServer(unittest.TestCase):
 
         liver = self.__createLog('live', livePort, False)
 
-        dc = MockServer(logPort, livePort)
+        dc = MockServer(logPort=logPort, livePort=livePort,
+                        logFactory=self.__logFactory)
 
-        self.assertEqual(dc.rpc_list_components(), [])
+        self.assertEqual(dc.rpc_component_listDicts(), [])
 
         name = 'foo'
         num = 0
@@ -168,56 +254,48 @@ class TestDAQServer(unittest.TestCase):
         port = 666
         mPort = 667
 
-        expId = DAQClient.ID
+        expId = DAQClient.ID.peekNext()
 
         logger.addExpectedText('Got registration for ID#%d %s#%d at %s:%d' %
                                (expId, name, num, host, port))
         liver.addExpectedText('Got registration for ID#%d %s#%d at %s:%d' %
                               (expId, name, num, host, port))
 
-        rtnArray = dc.rpc_register_component(name, num, host, port, mPort, [])
+        rtnArray = dc.rpc_component_register(name, num, host, port, mPort, [])
 
         localAddr = self.__getInternetAddress()
 
         self.__verifyRegArray(rtnArray, expId, localAddr, logPort,
                               localAddr, livePort)
 
-        self.assertEqual(dc.rpc_get_num_components(), 1)
+        self.assertEqual(dc.rpc_component_count(), 1)
 
         fooStr = 'ID#%d %s#%d at %s:%d M#%d %s' % \
-            (DAQClient.ID - 1, name, num, host, port, mPort, 'idle')
-        fooDict = { "id" : DAQClient.ID - 1,
+            (expId, name, num, host, port, mPort, 'idle')
+        fooDict = { "id" : expId,
                     "compName" : name,
                     "compNum" : num,
                     "host" : host,
                     "rpcPort" : port,
                     "mbeanPort" : mPort,
                     "state" : "idle"}
-        self.assertEqual(dc.rpc_list_components(), [fooDict, ])
+        self.assertEqual(dc.rpc_component_listDicts(), [fooDict, ])
 
         logger.checkStatus(100)
         liver.checkStatus(100)
 
     def testRegisterWithLog(self):
-        oldPort = 12345
-        
-        oldLog = self.__createLog('old', oldPort)
-
-        dc = MockServer(oldPort, None)
-
-        oldLog.checkStatus(100)
-
         logHost = 'localhost'
         logPort = 23456
 
-        logger = self.__createLog('file', logPort)
+        logger = self.__createLog('log', logPort)
+
+        dc = MockServer(logPort=logPort, logFactory=self.__logFactory)
+
+        logger.checkStatus(100)
 
         liveHost = ''
         livePort = 0
-
-        dc.rpc_log_to(logHost, logPort, liveHost, livePort)
-
-        logger.checkStatus(100)
 
         name = 'foo'
         num = 0
@@ -225,13 +303,13 @@ class TestDAQServer(unittest.TestCase):
         port = 666
         mPort = 667
 
-        expId = DAQClient.ID
+        expId = DAQClient.ID.peekNext()
 
         logger.addExpectedText(('Got registration for ID#%d %s#%d at %s:%d' +
                                 ' M#%d') %
                                (expId, name, num, host, port, mPort))
 
-        rtnArray = dc.rpc_register_component(name, num, host, port, mPort, [])
+        rtnArray = dc.rpc_component_register(name, num, host, port, mPort, [])
 
         localAddr = self.__getInternetAddress()
 
@@ -240,116 +318,158 @@ class TestDAQServer(unittest.TestCase):
 
         logger.checkStatus(100)
 
-        logger.addExpectedText('End of log')
-        oldLog.addExpectedText('Reset log to localhost:%d' % oldPort)
-
-        dc.rpc_close_log()
-
-        logger.checkStatus(100)
-        oldLog.checkStatus(100)
-
     def testNoRunset(self):
         logPort = 11545
 
         logger = self.__createLog('main', logPort)
 
-        dc = MockServer(logPort, None)
+        dc = MockServer(logPort=logPort,
+                        logFactory=self.__logFactory)
 
         logger.checkStatus(100)
 
-        self.assertRaises(ValueError, dc.rpc_runset_break, 1)
-        self.assertRaises(ValueError, dc.rpc_runset_configure, 1)
-        self.assertRaises(ValueError, dc.rpc_runset_configure, 1, 'xxx')
-        self.assertRaises(ValueError, dc.rpc_runset_list, 1)
-        self.assertRaises(ValueError, dc.rpc_runset_log_to, 1, 'xxx', [])
-        self.assertRaises(ValueError, dc.rpc_runset_start_run, 1, 1)
-        self.assertRaises(ValueError, dc.rpc_runset_stop_run, 1)
+        moniType = RunOption.MONI_TO_NONE
+
+        self.assertRaises(CnCServerException, dc.rpc_runset_break, 1)
+        self.assertRaises(CnCServerException, dc.rpc_runset_list, 1)
+        self.assertRaises(CnCServerException, dc.rpc_runset_start_run, 1, 1,
+                          moniType)
+        self.assertRaises(CnCServerException, dc.rpc_runset_stop_run, 1)
 
         logger.checkStatus(100)
 
     def testRunset(self):
+        self.__runConfigDir = tempfile.mkdtemp()
+
         logPort = 21765
 
         logger = self.__createLog('main', logPort)
 
-        dc = MockServer(logPort, None)
-
-        logger.checkStatus(100)
-
-        self.assertEqual(dc.rpc_get_num_components(), 0)
-        self.assertEqual(dc.rpc_num_sets(), 0)
-        self.assertEqual(dc.rpc_list_components(), [])
-
-        id = DAQClient.ID
-        name = 'foo'
-        num = 99
-        host = 'localhost'
-        port = 666
-        mPort = 0
-
         clientHost = 'localhost'
-        clientPort = 21567
+        clientPort = DAQPort.RUNCOMP_BASE
 
         clientLogger = self.__createLog('client', clientPort)
 
-        compName = 'ID#%d %s#%d at %s:%d' % (id, name, num, host, port)
+        compId = DAQClient.ID.peekNext()
+        compName = 'stringHub'
+        compNum = self.HUB_NUMBER
+        compHost = 'localhost'
+        compPort = 666
+        compBeanPort = 0
 
-        logger.addExpectedText('Got registration for %s' % compName)
+        cluCfg = MockClusterConfig("clusterFoo")
+        cluCfg.addComponent("%s#%d" % (compName, compNum), "java", "",
+                            compHost)
 
-        dc.rpc_register_component(name, num, host, port, mPort, [])
+        dc = MockServer(clusterConfigObject=cluCfg, copyDir="copyDir",
+                        runConfigDir=self.__runConfigDir, spadeDir="/tmp",
+                        logPort=logPort, clientLog=clientLogger,
+                        logFactory=self.__logFactory)
 
         logger.checkStatus(100)
 
-        self.assertEqual(dc.rpc_get_num_components(), 1)
-        self.assertEqual(dc.rpc_num_sets(), 0)
+        self.assertEqual(dc.rpc_component_count(), 0)
+        self.assertEqual(dc.rpc_runset_count(), 0)
+        self.assertEqual(dc.rpc_component_listDicts(), [])
 
-        logger.addExpectedText('Built runset with the following components:')
+        regStr = 'ID#%d %s#%d at %s:%d' % \
+            (compId, compName, compNum, compHost, compPort)
 
-        setId = dc.rpc_runset_make([name])
+        logger.addExpectedText('Got registration for %s' % regStr)
+
+        dc.rpc_component_register(compName, compNum, compHost, compPort,
+                                  compBeanPort, [])
 
         logger.checkStatus(100)
 
-        self.assertEqual(dc.rpc_get_num_components(), 0)
-        self.assertEqual(dc.rpc_num_sets(), 1)
+        self.assertEqual(dc.rpc_component_count(), 1)
+        self.assertEqual(dc.rpc_runset_count(), 0)
+
+        connErr = "No connection map entry for ID#%s %s#%d .*" % \
+            (compId, compName, compNum)
+        logger.addExpectedTextRegexp(connErr)
+
+        rcFile = MockRunConfigFile(self.__runConfigDir)
+
+        domList = [MockRunConfigFile.createDOM(self.DOM_MAINBOARD_ID), ]
+        runConfig = rcFile.create([], domList)
+
+        logger.addExpectedTextRegexp('Loading run configuration .*')
+        logger.addExpectedTextRegexp('Loaded run configuration .*')
+        logger.addExpectedTextRegexp("Built runset #\d+: .*")
+
+        setId = dc.rpc_runset_make(runConfig)
+
+        logger.checkStatus(100)
+
+        self.assertEqual(dc.rpc_component_count(), 0)
+        self.assertEqual(dc.rpc_runset_count(), 1)
 
         rs = dc.rpc_runset_list(setId)
         self.assertEqual(len(rs), 1)
 
         rsc = rs[0]
-        self.assertEqual(id, rsc["id"])
-        self.assertEqual(name, rsc["compName"])
-        self.assertEqual(num, rsc["compNum"])
-        self.assertEqual(host, rsc["host"])
-        self.assertEqual(port, rsc["rpcPort"])
-        self.assertEqual(mPort, rsc["mbeanPort"])
-        self.assertEqual("connected", rsc["state"])
+        self.assertEqual(compId, rsc["id"])
+        self.assertEqual(compName, rsc["compName"])
+        self.assertEqual(compNum, rsc["compNum"])
+        self.assertEqual(compHost, rsc["host"])
+        self.assertEqual(compPort, rsc["rpcPort"])
+        self.assertEqual(compBeanPort, rsc["mbeanPort"])
+        self.assertEqual("ready", rsc["state"])
 
         logger.checkStatus(100)
 
-        clientLogger.addExpectedTextRegexp(r'Version info: unknown unknown' +
-                                           ' unknown unknown unknown \S+ \S+')
+        runNum = 456
 
-        self.assertEqual(dc.rpc_runset_log_to(setId, clientHost,
-                                              [[name, num, clientPort, 'fatal'],
-                                               ]), 'OK')
+        logger.addExpectedText("Starting run #%d with \"%s\"" %
+                                (runNum, cluCfg.configName()))
 
-        clientLogger.checkStatus(100)
+        logger.addExpectedTextRegexp(r"Version info: \S+ \d+" +
+                                     r" \S+ \S+ \S+ \S+ \d+\S*")
+        clientLogger.addExpectedTextRegexp(r"Version info: \S+ \d+" +
+                                           r" \S+ \S+ \S+ \S+ \d+\S*")
 
-        self.assertEqual(dc.rpc_runset_configure(setId), 'OK')
+        logger.addExpectedText("Run configuration: %s" % runConfig)
+        logger.addExpectedText("Cluster configuration: %s" %
+                               cluCfg.configName())
 
-        self.assertEqual(dc.rpc_runset_configure(setId, 'zzz'), 'OK')
+        logDir = "/xxx/yyy/zzz"
 
-        self.assertEqual(dc.rpc_runset_start_run(setId, 444), 'OK')
+        moniType = RunOption.MONI_TO_NONE
+
+        global CAUGHT_WARNING
+        if not LIVE_IMPORT and not CAUGHT_WARNING:
+            CAUGHT_WARNING = True
+            logger.addExpectedTextRegexp(r"^Cannot import IceCube Live.*")
+
+        logger.addExpectedText("Starting run %d..." % runNum)
+
+        self.assertEqual(dc.rpc_runset_start_run(setId, runNum, moniType), 'OK')
+
+        logger.checkStatus(10)
+        clientLogger.checkStatus(10)
+
+        logger.addExpectedText("0 physics events collected in 0 seconds")
+        logger.addExpectedText("0 moni events, 0 SN events, 0 tcals")
+        logger.addExpectedText("Run terminated SUCCESSFULLY")
+
+        spadeDir = "/tmp"
 
         self.assertEqual(dc.rpc_runset_stop_run(setId), 'OK')
 
-        self.assertEqual(dc.rpc_get_num_components(), 0)
-        self.assertEqual(dc.rpc_num_sets(), 1)
+        logger.checkStatus(10)
+
+        self.assertEqual(dc.rpc_component_count(), 0)
+        self.assertEqual(dc.rpc_runset_count(), 1)
+
+        logger.checkStatus(10)
 
         self.assertEquals(dc.rpc_runset_break(setId), 'OK')
 
-        self.assertEqual(dc.rpc_get_num_components(), 1)
-        self.assertEqual(dc.rpc_num_sets(), 0)
+        logger.checkStatus(10)
+
+        self.assertEqual(dc.rpc_component_count(), 1)
+        self.assertEqual(dc.rpc_runset_count(), 0)
 
         logger.checkStatus(10)
         clientLogger.checkStatus(10)

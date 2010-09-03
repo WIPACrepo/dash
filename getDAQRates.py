@@ -84,18 +84,18 @@ class Component(object):
             compNum = 0
         else:
             if len(fileName) < 5 or fileName[-5:] != '.moni':
-                raise ValueError('Non-moni filename "%s"' % fileName)
+                raise Exception('Non-moni filename "%s"' % fileName)
 
             baseName = os.path.basename(fileName)
             idx = baseName.rfind('-')
             if idx <= 0:
-                raise ValueError("Didn't find '-' separator in \"%s\"" %
-                                 fileName)
+                raise Exception("Didn't find '-' separator in \"%s\"" %
+                                fileName)
 
             compName = baseName[:idx]
             if not COMP_FIELDS.has_key(compName):
-                raise ValueError('Unknown component "%s" in "%s"' %
-                                 (compName, fileName))
+                raise Exception('Unknown component "%s" in "%s"' %
+                                (compName, fileName))
 
             try:
                 compNum = int(baseName[idx+1:-5])

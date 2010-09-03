@@ -3,7 +3,8 @@
 # Run standard pDAQ tests
 
 import optparse, os, re, socket, stat, sys
-from liverun import DatabaseType, LiveRun
+from BaseRun import DatabaseType
+from liverun import LiveRun
 
 # times in seconds
 #
@@ -32,9 +33,10 @@ class RunData(object):
         else:
             duration = self.__duration
 
-        liveRun.run(self.clusterConfig(), self.__runCfg, duration,
-                    self.__numRuns, self.__flashName, self.__flashTimes,
-                    self.__flashPause, False)
+        for r in range(self.__numRuns):
+            liveRun.run(self.clusterConfig(), self.__runCfg,
+                        duration, self.__flashName, self.__flashTimes,
+                        self.__flashPause, False)
 
 # configurations to run
 #
@@ -184,29 +186,27 @@ class Deploy(object):
 
 if __name__ == "__main__":
     op = optparse.OptionParser()
-    op.add_option("-d", "--deploy", action="store_true", dest="deploy",
+    op.add_option("-d", "--deploy", dest="deploy",
+                  action="store_true", default=False,
                   help="Deploy the standard tests")
-    op.add_option("-q", "--quick", action="store_true", dest="quick",
+    op.add_option("-q", "--quick", dest="quick",
+                  action="store_true", default=False,
                   help="Reduce 4/8 hour tests to 2/4 minute tests")
-    op.add_option("-r", "--run", action="store_true", dest="run",
+    op.add_option("-r", "--run", dest="run",
+                  action="store_true", default=False,
                   help="Run the standard tests")
-    op.add_option("-S", "--showCheck", action="store_true", dest="showChk",
+    op.add_option("-S", "--showCheck", dest="showChk",
+                  action="store_true", default=False,
                   help="Show the 'livecmd check' commands")
-    op.add_option("-s", "--showCommands", action="store_true", dest="showCmd",
+    op.add_option("-s", "--showCommands", dest="showCmd",
+                  action="store_true", default=False,
                   help="Show the commands used to deploy and/or run")
-    op.add_option("-X", "--showCheckOutput", action="store_true",
-                  dest="showChkOutput",
+    op.add_option("-X", "--showCheckOutput", dest="showChkOutput",
+                  action="store_true", default=False,
                   help="Show the output of the 'livecmd check' commands")
-    op.add_option("-x", "--showCommandOutput", action="store_true",
-                  dest="showCmdOutput",
+    op.add_option("-x", "--showCommandOutput", dest="showCmdOutput",
+                  action="store_true", default=False,
                   help="Show the output of the deploy and/or run commands")
-    op.set_defaults(deploy = False,
-                    quick = False,
-                    run = False,
-                    showChk = False,
-                    showChkOutput = False,
-                    showCmd = False,
-                    showCmdOutput = False)
 
     opt, args = op.parse_args()
 

@@ -8,7 +8,7 @@
 import optparse, os, sys
 
 from ClusterConfig import ClusterConfigException
-from DAQConfig import DAQConfig, DAQConfigNotFound
+from DAQConfig import DAQConfig, DAQConfigParser, XMLFileNotFound
 from ParallelShell import ParallelShell
 
 # pdaq subdirectories to be deployed
@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 5154 2010-09-02 20:09:39Z ksb $"
+SVN_ID = "$Id: DeployPDAQ.py 5156 2010-09-03 22:00:36Z dglo $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -49,49 +49,56 @@ def main():
                "%(release)s %(repo_rev)s" % get_version_info(SVN_ID)
     usage = "%prog [options]\nversion: " + ver_info
     p = optparse.OptionParser(usage=usage, version=ver_info)
-    p.add_option("-C", "--cluster-desc", action="store", type="string", dest="clusterDesc",
+    p.add_option("-C", "--cluster-desc", type="string", dest="clusterDesc",
+                 action="store", default=None,
                  help="Cluster description name")
-    p.add_option("-c", "--config-name",  action="store", type="string", dest="configName",
+    p.add_option("-c", "--config-name", type="string", dest="configName",
+                 action="store", default=None,
                  help="REQUIRED: Configuration name")
-    p.add_option("", "--delete",         action="store_true",           dest="delete",
+    p.add_option("", "--delete", dest="delete",
+                 action="store_true", default=True,
                  help="Run rsync's with --delete")
-    p.add_option("", "--no-delete",      action="store_false",          dest="delete",
+    p.add_option("", "--no-delete", dest="delete",
+                 action="store_false", default=True,
                  help="Run rsync's without --delete")
-    p.add_option("-l", "--list-configs", action="store_true",           dest="doList",
+    p.add_option("-l", "--list-configs", dest="doList",
+                 action="store_true", default=False,
                  help="List available configs")
-    p.add_option("-n", "--dry-run",      action="store_true",           dest="dryRun",
-                 help="Don't run rsyncs, just print as they would be run (disables quiet)")
-    p.add_option("", "--deep-dry-run",   action="store_true",           dest="deepDryRun",
+    p.add_option("-n", "--dry-run", dest="dryRun",
+                 action="store_true", default=False,
+                 help="Don't run rsyncs, just print as they would be run" +
+                 " (disables quiet)")
+    p.add_option("", "--deep-dry-run", dest="deepDryRun",
+                 action="store_true", default=False,
                  help="Run rsync's with --dry-run (implies verbose and serial)")
-    p.add_option("-p", "--parallel",     action="store_true",           dest="doParallel",
+    p.add_option("-p", "--parallel", dest="doParallel",
+                 action="store_true", default=True,
                  help="Run rsyncs in parallel (default)")
-    p.add_option("-q", "--quiet",        action="store_true",           dest="quiet",
+    p.add_option("-q", "--quiet", dest="quiet",
+                 action="store_true", default=False,
                  help="Run quietly")
-    p.add_option("-s", "--serial",       action="store_true",           dest="doSerial",
-                 help="Run rsyncs serially (overrides parallel and unsets timeout)")
-    p.add_option("-t", "--timeout",      action="store", type="int",    dest="timeout",
+    p.add_option("-s", "--serial", dest="doSerial",
+                 action="store_true", default=False,
+                 help="Run rsyncs serially (overrides parallel and unsets" +
+                 " timeout)")
+    p.add_option("-t", "--timeout", type="int", dest="timeout",
+                 action="store", default=300,
                  help="Number of seconds before rsync is terminated")
-    p.add_option("-v", "--verbose",      action="store_true",           dest="verbose",
+    p.add_option("-v", "--verbose", dest="verbose",
+                 action="store_true", default=False,
                  help="Be chatty")
-    p.add_option("", "--undeploy",       action="store_true",           dest="undeploy",
-                 help="Remove entire ~pdaq/.m2 and ~pdaq/pDAQ_current dirs on remote nodes - use with caution!")
-    p.add_option("", "--nice-adj",       action="store", type="int",    dest="niceAdj",
-                 help="Set nice adjustment for remote rsyncs [default=%default]")
-    p.add_option("-E", "--express",      action="store_true",          dest="express",
-                 help="Express rsyncs, unsets and overrides any/all nice adjustments")
-    p.set_defaults(configName = None,
-                   doParallel = True,
-                   doSerial   = False,
-                   verbose    = False,
-                   quiet      = False,
-                   delete     = True,
-                   dryRun     = False,
-                   undeploy   = False,
-                   deepDryRun = False,
-                   timeout    = 300,
-                   niceAdj    = NICE_ADJ_DEFAULT,
-                   express    = EXPRESS_DEFAULT,
-                   clusterDesc = None)
+    p.add_option("", "--undeploy", dest="undeploy",
+                 action="store_true", default=False,
+                 help="Remove entire ~pdaq/.m2 and ~pdaq/pDAQ_current dirs" +
+                 " on remote nodes - use with caution!")
+    p.add_option("", "--nice-adj", type="int", dest="niceAdj",
+                 action="store", default=NICE_ADJ_DEFAULT,
+                 help="Set nice adjustment for remote rsyncs" +
+                 " [default=%default]")
+    p.add_option("-E", "--express", dest="express",
+                 action="store_true", default=EXPRESS_DEFAULT,
+                 help="Express rsyncs, unsets and overrides any/all" +
+                 " nice adjustments")
     opt, args = p.parse_args()
 
     ## Work through options implications ##
@@ -130,15 +137,17 @@ def main():
         raise SystemExit
 
     try:
-        config = DAQConfig.getClusterConfiguration(opt.configName, False,
-                                                   clusterDesc=opt.clusterDesc)
-    except DAQConfigNotFound:
+        cdesc = opt.clusterDesc
+        config = \
+            DAQConfigParser.getClusterConfiguration(opt.configName, False,
+                                                    clusterDesc=cdesc)
+    except XMLFileNotFound:
         print >>sys.stderr, 'Configuration "%s" not found' % opt.configName
         p.print_help()
         raise SystemExit
 
     if traceLevel >= 0:
-        print "CONFIG: %s" % config.configName
+        print "CONFIG: %s" % config.configName()
 
         nodeList = config.nodes()
         nodeList.sort()

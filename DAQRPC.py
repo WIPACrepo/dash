@@ -7,12 +7,7 @@
 # J. Jacobsen, for UW-IceCube 2006-2007
 #
 
-import DocXMLRPCServer
-import xmlrpclib
-import socket
-import datetime
-import math
-import select
+import DocXMLRPCServer, datetime, math, select, socket, traceback, xmlrpclib
 
 class RPCClient(xmlrpclib.ServerProxy):
 
@@ -31,7 +26,9 @@ class RPCClient(xmlrpclib.ServerProxy):
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         socket.setdefaulttimeout(timeout)
         xmlrpclib.ServerProxy.__init__(self,
-                                       "http://%s:%s" % (self.servername, self.portnum), verbose=verbose)
+                                       "http://%s:%s" %
+                                       (self.servername, self.portnum),
+                                       verbose=verbose)
         self.statDict = { }
 
     def showStats(self):
@@ -64,7 +61,7 @@ class RPCClient(xmlrpclib.ServerProxy):
         try:
             result = eval(code)
             self.statDict[method].tally(datetime.datetime.now()-tstart)
-        except Exception:
+        except:
             self.statDict[method].tally(datetime.datetime.now()-tstart)
             raise
         
@@ -73,7 +70,8 @@ class RPCClient(xmlrpclib.ServerProxy):
 class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
     "Generic class for serving methods to remote objects"
     # also inherited: register_function
-    def __init__(self, portnum, servername="localhost", documentation="DAQ Server", timeout=60):
+    def __init__(self, portnum, servername="localhost",
+                 documentation="DAQ Server", timeout=60):
         self.servername = servername
         self.portnum    = portnum
 
@@ -81,7 +79,8 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         self.__timeout = timeout
 
         self.allow_reuse_address = True
-        DocXMLRPCServer.DocXMLRPCServer.__init__(self, ('', portnum), logRequests=False)
+        DocXMLRPCServer.DocXMLRPCServer.__init__(self, ('', portnum),
+                                                 logRequests=False)
         self.set_server_title("Server Methods")
         self.set_server_name("DAQ server at %s:%s" % (servername, portnum))
         self.set_server_documentation(documentation)
@@ -96,7 +95,11 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         while self.__running:
             try:
                 r,w,e = select.select([self.fileno()], [], [], self.__timeout)
-            except select.error:
+            except select.error, err:
+                # ignore interrupted system calls
+                if err[0] == 4: continue
+                # errno 9: Bad file descriptor
+                if err[0] != 9: traceback.print_exc()
                 break
             if r:
                 self.handle_request()
@@ -128,7 +131,7 @@ class RPCStat(object):
         xavg2 = avg*avg
         try:
             rms = math.sqrt(x2avg - xavg2)
-        except Exception:
+        except:
             rms = None
         return (self.n, self.min, self.max, avg, rms)
     

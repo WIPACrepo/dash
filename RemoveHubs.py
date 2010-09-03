@@ -5,7 +5,7 @@
 import os, sys
 
 from CreateClusterConfig import ClusterConfigCreator
-from DAQConfig import DAQConfig
+from DAQConfig import DAQConfig, DAQConfigParser
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -135,7 +135,7 @@ if __name__ == "__main__":
             print >>sys.stderr, "Specify --force to overwrite this file"
             raise SystemExit()
 
-    runCfg = DAQConfig.load(runCfgName)
+    runCfg = DAQConfigParser.load(runCfgName)
     if runCfg is not None:
         newCfg = runCfg.omit(hubIdList)
         if newCfg is not None:

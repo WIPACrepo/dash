@@ -8,7 +8,7 @@ import sys, optparse, re
 from os import environ
 from os.path import join
 
-from DAQConfig import DAQConfig
+from DAQConfig import DAQConfigParser
 from ParallelShell import *
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
@@ -22,21 +22,21 @@ def main():
     "Main program"
     usage = "%prog [options]"
     p = optparse.OptionParser(usage=usage)
-    p.add_option("-c", "--config-name",  action="store", type="string", dest="clusterConfigName",
+    p.add_option("-c", "--config-name", type="string", dest="clusterConfigName",
+                 action="store", default=None,
                  help="REQUIRED: Configuration name")
-    p.add_option("-n", "--dry-run",      action="store_true",           dest="dryRun",
-                 help="Don't actually run DOMPrep - just print what would be done")
-    p.add_option("-l", "--list-configs", action="store_true",           dest="doList",
+    p.add_option("-n", "--dry-run", dest="dryRun",
+                 action="store_true", default=False,
+                 help="Don't actually run DOMPrep - just print what" + \
+                     " would be done")
+    p.add_option("-l", "--list-configs", dest="doList",
+                 action="store_true", default=False,
                  help="List available configs")
-    
-    p.set_defaults(clusterConfigName = None,
-                   dryRun            = False,
-                   doList            = False)
-    
+
     opt, args = p.parse_args()
 
-    config = DAQConfig.getClusterConfiguration(opt.clusterConfigName,
-                                               opt.doList)
+    config = DAQConfigParser.getClusterConfiguration(opt.clusterConfigName,
+                                                     opt.doList)
     if opt.doList: raise SystemExit
 
     # Get relevant hubs - if it has a stringhub component on it, run DOMPrep.py there.

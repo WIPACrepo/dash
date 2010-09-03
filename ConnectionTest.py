@@ -1,11 +1,17 @@
 #!/usr/bin/env python
 
-import unittest
+import shutil, sys, tempfile, unittest
 from CnCServer import Connector, DAQPool
 
-from DAQMocks import MockAppender, MockDAQClient, MockLogger
+from DAQMocks import MockAppender, MockDAQClient, MockLogger, MockRunConfigFile
 
 LOUD = False
+
+class MyDAQPool(DAQPool):
+    def returnRunsetComponents(self, rs, verbose=False, killWith9=True,
+                               eventCheck=False):
+        rs.returnComponents(self, None, None, None, None, None, None, None,
+                            None)
 
 class Node(object):
     IS_OUTPUT = True
@@ -106,7 +112,7 @@ class Node(object):
 class ConnectionTest(unittest.TestCase):
     EXP_ID = 1
 
-    def buildRunset(self, nodeList):
+    def buildRunset(self, nodeList, extraLoud=True):
         if LOUD:
             print '-- Nodes'
             for node in nodeList:
@@ -114,29 +120,39 @@ class ConnectionTest(unittest.TestCase):
 
         nodeLog = {}
 
-        pool = DAQPool()
+        pool = MyDAQPool()
         port = -1
         for node in nodeList:
             key = '%s#%d' % (node.name, node.num)
             nodeLog[key] = MockAppender('Log-%s' % key)
             pool.add(MockDAQClient(node.name, node.num, None, port, 0,
                                    node.getConnections(), nodeLog[key],
-                                   node.outLinks))
+                                   node.outLinks, extraLoud=extraLoud))
             port -= 1
+        self.assertEqual(pool.numComponents(), len(nodeList))
 
         if LOUD:
-            print '-- Pool has %s comps' % pool.numUnused()
+            print '-- Pool has %s comps' % pool.numComponents()
             for c in pool.components():
                 print '    %s' % str(c)
 
-        numComps = pool.numUnused()
+        numComps = pool.numComponents()
 
         nameList = []
         for node in nodeList:
             nameList.append(node.name + '#' + str(node.num))
 
+        rcFile = MockRunConfigFile(self.__runConfigDir)
+        runConfig = rcFile.create(nameList, [])
+
         logger = MockLogger('main')
-        runset = pool.makeRunset(nameList, logger)
+        logger.addExpectedExact("Loading run configuration \"%s\"" %
+                                runConfig)
+        logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
+        logger.addExpectedRegexp(r"Built runset #\d+: .*")
+
+        runset = pool.makeRunset(self.__runConfigDir, runConfig, 0, logger,
+                                 forceRestart=False, strict=False)
 
         chkId = ConnectionTest.EXP_ID
         ConnectionTest.EXP_ID += 1
@@ -207,16 +223,25 @@ class ConnectionTest(unittest.TestCase):
         if LOUD:
             print '-- SET: ' + str(runset)
 
-        for key in nodeLog:
-            nodeLog[key].addExpectedExact('End of log')
+        if extraLoud:
+            for key in nodeLog:
+                nodeLog[key].addExpectedExact('End of log')
+                nodeLog[key].addExpectedExact('Reset log to ?LOG?')
         pool.returnRunset(runset)
-        self.assertEquals(pool.numUnused(), numComps)
+        self.assertEquals(pool.numComponents(), numComps)
         self.assertEquals(pool.numSets(), 0)
 
         logger.checkStatus(10)
 
         for key in nodeLog:
             nodeLog[key].checkStatus(10)
+
+    def setUp(self):
+        self.__runConfigDir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        if self.__runConfigDir is not None:
+            shutil.rmtree(self.__runConfigDir, ignore_errors=True)
 
     def testSimple(self):
         # build nodes

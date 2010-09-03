@@ -2,7 +2,7 @@
 
 import os, unittest
 
-from DAQConfig import DAQConfig
+from DAQConfig import DAQConfigParser
 
 class DAQConfigTest(unittest.TestCase):
     def initPDAQHome(self):
@@ -40,7 +40,7 @@ class DAQConfigTest(unittest.TestCase):
 
     def testListsSim5(self):
         metaDir = self.initPDAQHome()
-        cfg = DAQConfig.load("simpleConfig", metaDir + "/config")
+        cfg = DAQConfigParser.load("simpleConfig", metaDir + "/config")
 
         expected = ['eventBuilder', 'globalTrigger', 'inIceTrigger',
                     'secondaryBuilders', 'stringHub#1001', 'stringHub#1002',
@@ -54,13 +54,13 @@ class DAQConfigTest(unittest.TestCase):
 
         for c in comps:
             try:
-                expected.index(c.fullname())
+                expected.index(c.fullName())
             except:
                 self.fail('Unexpected component "%s"' % c)
 
     def testLookupSim5(self):
         metaDir = self.initPDAQHome()
-        cfg = DAQConfig.load("simpleConfig", metaDir + "/config")
+        cfg = DAQConfigParser.load("simpleConfig", metaDir + "/config")
 
         dataList = (('53494d550101', 'Nicholson_Baker', 1001, 1),
                     ('53494d550120', 'SIM0020', 1001, 20),
@@ -87,7 +87,7 @@ class DAQConfigTest(unittest.TestCase):
 
     def testListsSpsIC40IT6(self):
         metaDir = self.initPDAQHome()
-        cfg = DAQConfig.load("sps-IC40-IT6-AM-Revert-IceTop-V029",
+        cfg = DAQConfigParser.load("sps-IC40-IT6-AM-Revert-IceTop-V029",
                                   metaDir + "/config")
 
         expected = ['amandaTrigger', 'eventBuilder', 'globalTrigger',
@@ -116,13 +116,13 @@ class DAQConfigTest(unittest.TestCase):
 
         for c in comps:
             try:
-                expected.index(c.fullname())
+                expected.index(c.fullName())
             except:
                 self.fail('Unexpected component "%s"' % c)
 
     def testLookupSpsIC40IT6(self):
         metaDir = self.initPDAQHome()
-        cfg = DAQConfig.load("sps-IC40-IT6-AM-Revert-IceTop-V029",
+        cfg = DAQConfigParser.load("sps-IC40-IT6-AM-Revert-IceTop-V029",
                                   metaDir + "/config")
 
         dataList = (('737d355af587', 'Bat', 21, 1),
@@ -136,7 +136,7 @@ class DAQConfigTest(unittest.TestCase):
 
     def testReplay(self):
         metaDir = self.initPDAQHome()
-        cfg = DAQConfig.load("replay-ic22-it4", metaDir + "/config")
+        cfg = DAQConfigParser.load("replay-ic22-it4", metaDir + "/config")
 
         expected = ['eventBuilder', 'globalTrigger', 'iceTopTrigger',
                     'inIceTrigger',
@@ -157,7 +157,7 @@ class DAQConfigTest(unittest.TestCase):
 
         for c in comps:
             try:
-                expected.index(c.fullname())
+                expected.index(c.fullName())
             except:
                 self.fail('Unexpected component "%s"' % c)
 

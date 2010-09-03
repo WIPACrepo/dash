@@ -1,72 +1,40 @@
 #!/usr/bin/env python
 
-#
-# ClusterConfig.py
-#
-# J. Jacobsen, NPX Designs, Inc. for UW-IceCube
-#
-# February, 2007
+import os
 
-import sys
-from os import environ, listdir, remove
-from re import search
-from os.path import abspath, exists, join
-from xml.dom import minidom
-
+from xml.dom import Node, minidom
 from CachedConfigName import CachedConfigName
+from Component import Component
+from XMLFileCache import XMLFileCache
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if environ.has_key("PDAQ_HOME"):
-    metaDir = environ["PDAQ_HOME"]
+if os.environ.has_key("PDAQ_HOME"):
+    metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
 class ClusterConfigException(Exception): pass
-class ConfigNotSpecifiedException(ClusterConfigException): pass
 class ConfigNotFoundException(ClusterConfigException): pass
 class MalformedDeployConfigException(ClusterConfigException): pass
 
-CLUSTER_CONGIF_DEFAULTS = "cluster-config-defaults.xml"
-DEFAULT_CLUSTER_NAME = "localhost"
-GLOBAL_DEFAULT_LOG_LEVEL = "INFO"
-HUB_COMP_NAME = "StringHub"
-
-class deployComponent(object):
+class ClusterComponent(Component, CachedConfigName):
     "Record-keeping class for deployed components"
-    def __init__(self, compName, compID, logLevel, jvm, jvmArgs):
-        self.__name = compName
-        self.__id   = compID
-        self.__logLevel = logLevel
-        self.__jvm      = jvm
-        self.__jvmArgs  = jvmArgs
+    def __init__(self, name, id, logLevel, jvm, jvmArgs, host):
+        self.__jvm = jvm
+        self.__jvmArgs = jvmArgs
+        self.__host = host
 
-    def __cmp__(self, other):
-        val = cmp(self.__name, other.__name)
-        if val == 0:
-            val = cmp(self.__id, other.__id)
-        return val
+        super(ClusterComponent, self).__init__(name, id, logLevel)
 
     def __str__(self):
-        if self.__id == 0 and not self.__name.lower().endswith("hub"):
-            return "%s@%s" % (self.__name, self.__logLevel)
-        return "%s#%d@%s" % (self.__name, self.__id, self.__logLevel)
+        return "%s@%s" % (self.fullName(), self.logLevel())
 
-    def id(self): return self.__id
-
-    def isBuilder(self):
-        return self.__name.lower().endswith('builder')
-
-    def isHub(self):
-        "Is this a stringHub component?"
-        return self.__name.lower().find('hub') >= 0
-
+    def host(self): return self.__host
     def jvm(self): return self.__jvm
     def jvmArgs(self): return self.__jvmArgs
-    def logLevel(self): return self.__logLevel
-    def name(self): return self.__name
 
-class deployNode(object):
+class ClusterNode(object):
     "Record-keeping class for host targets"
     def __init__(self, locName, hostName):
         self.__locName  = locName
@@ -85,15 +53,55 @@ class deployNode(object):
     def hostName(self): return self.__hostName
     def locName(self): return self.__locName
 
-class deployConfig(object):
-    """ Class for parsing and storing pDAQ cluster configurations
-    stored in XML files """
+class ClusterConfig(CachedConfigName):
+    def __init__(self, configName, remarks, clusterName):
+        self.__remarks = remarks
+        self.__clusterName = clusterName
+
+        self.__logDirForSpade = None
+        self.__logDirCopies = None
+        self.__defaultLogLevel = None
+
+        self.__nodes = []
+
+        super(ClusterConfig, self).__init__()
+
+        self.setConfigName(configName)
+
+    def addNode(self, name, hostname):
+        node = ClusterNode(name, hostname)
+        self.__nodes.append(node)
+        return node
+
+    def defaultLogLevel(self): return self.__defaultLogLevel
+    def logDirCopies(self): return self.__logDirCopies
+    def logDirForSpade(self): return self.__logDirForSpade
+    def nodes(self): return self.__nodes[:]
+
+    def setLogDirForSpade(self, logDir):
+        self.__logDirForSpade = logDir
+
+    def setLogDirCopies(self, copyDir):
+        self.__logDirCopies = copyDir
+            
+    def setDefaultLogLevel(self, logLevel):
+        self.__defaultLogLevel = logLevel
+
+class ClusterConfigParser(XMLFileCache):
+    """
+    Class for parsing and storing pDAQ cluster configuration XML files
+    """
+
+    CLUSTER_CONFIG_DEFAULTS = "cluster-config-defaults.xml"
+    DEFAULT_CLUSTER_NAME = "localhost"
+    GLOBAL_DEFAULT_LOG_LEVEL = "INFO"
+
     def __init__(self):
         self.__nodes = []
 
     def defaultLogLevel(self): return self.__defaultLogLevel
 
-    def getDefaultJavaInfo(self, configDir, clusterName):
+    def getDefaultJavaInfo(cls, configDir, clusterName):
         """ Get the default set of java information from the
         cluster-config default file for clusterName.
 
@@ -108,7 +116,7 @@ class deployConfig(object):
 
         # Parse the default cluster config file
         configFile, icecubeNode = \
-            self.openAndParseConfig(configDir, CLUSTER_CONGIF_DEFAULTS)
+            cls.openAndParseConfig(configDir, cls.CLUSTER_CONFIG_DEFAULTS)
 
         # Get the proper cluster node, using 'localhost' as fallback
         clusterNodes = icecubeNode.getElementsByTagName("cluster")
@@ -123,18 +131,19 @@ class deployConfig(object):
                     node.getAttribute("name") == clusterName:
                 clusterNode = node
             if defaultClusterNode is None and \
-                    node.getAttribute("name") == DEFAULT_CLUSTER_NAME:
+                    node.getAttribute("name") == cls.DEFAULT_CLUSTER_NAME:
                 defaultClusterNode = node
             if None not in (clusterNode, defaultClusterNode):
                 break
         if defaultClusterNode is None:
             raise MalformedDeployConfigException(\
                 "Missing '%s' cluster config in '%s'" % \
-                    (DEFAULT_CLUSTER_NAME, CLUSTER_CONGIF_DEFAULTS))
+                    (cls.DEFAULT_CLUSTER_NAME, cls.CLUSTER_CONFIG_DEFAULTS))
         if clusterNode is None:
             clusterNode = defaultClusterNode
             print "Warning: No '%s' cluster in '%s'.  Using cluster '%s'." % \
-                (clusterName, CLUSTER_CONGIF_DEFAULTS, DEFAULT_CLUSTER_NAME)
+                (clusterName, cls.CLUSTER_CONFIG_DEFAULTS,
+                 cls.DEFAULT_CLUSTER_NAME)
 
         # Get list of module nodes
         moduleNodes = clusterNode.getElementsByTagName("module")
@@ -143,15 +152,15 @@ class deployConfig(object):
             if name:
                 if name == "default":
                     fbJavaDict['jvm'] = \
-                        self.getElementSingleTagName(node, 'jvm')
+                        cls.getElementSingleTagName(node, 'jvm')
                     fbJavaDict['jvmArgs'] = \
-                        self.getElementSingleTagName(node, 'jvmArgs')
+                        cls.getElementSingleTagName(node, 'jvmArgs')
                 else:
                     defJavaDict[name] = {}
                     defJavaDict[name]['jvm'] = \
-                        self.getElementSingleTagName(node, 'jvm')
+                        cls.getElementSingleTagName(node, 'jvm')
                     defJavaDict[name]['jvmArgs'] = \
-                        self.getElementSingleTagName(node, 'jvmArgs')
+                        cls.getElementSingleTagName(node, 'jvmArgs')
             else:
                 raise MalformedDeployConfigException(\
                     "Unnamed module found in cluster '%s' in cluster config "
@@ -159,6 +168,7 @@ class deployConfig(object):
                     "configFile='%s'" % (clusterName, configFile))
 
         return defJavaDict, fbJavaDict
+    getDefaultJavaInfo = classmethod(getDefaultJavaInfo)
 
     def getElementSingleTagName(cls, root, name, deep=True, enforce=True):
         """ Fetch a single element tag name of form
@@ -215,43 +225,58 @@ class deployConfig(object):
             return defaultVal
     getValue = classmethod(getValue)
 
-    def loadConfig(self, configDir, configName):
-        "Load the configuration data from the XML-formatted file"
-        self.configFile = self.xmlOf(join(configDir,configName))
-        if not exists(self.configFile): raise ConfigNotFoundException(configName)
+    def openAndParseConfig(cls, configDir, configName):
+        """ Open the given configName'd file in the configDir dir
+        returning name of the file parsed and the top-level icecube
+        element node. """
+        configFile = os.path.join(configDir, configName)
+        if not configFile.endswith(".xml"):
+            configFile += ".xml"
+        if not os.path.exists(configFile):
+            raise ConfigNotFoundException(configName)
+
         try:
-            parsed = minidom.parse(self.configFile)
+            parsed = minidom.parse(configFile)
         except:
-            raise MalformedDeployConfigException(self.configFile)
+            raise MalformedDeployConfigException(configFile)
+
         icecube = parsed.getElementsByTagName("icecube")
-        if len(icecube) != 1:
-            raise MalformedDeployConfigException(self.configFile)
+        if len(icecube) != 1: raise MalformedDeployConfigException(configFile)
+        return configFile, icecube[0]
+    openAndParseConfig = classmethod(openAndParseConfig)
+
+    def parse(cls, dom, configDir, configName, strict=True):
+        "Load the configuration data from the XML-formatted file"
+        icecube = dom.getElementsByTagName("icecube")
+        if len(icecube) != 1: raise MalformedDeployConfigException(configName)
 
         # Get "remarks" string if available
-        self.remarks = self.getValue(icecube[0], "remarks")
+        remarks = cls.getValue(icecube[0], "remarks")
         
         cluster = icecube[0].getElementsByTagName("cluster")
         if len(cluster) != 1:
-            raise MalformedDeployConfigException(self.configFile)
-        self.__clusterName = self.getValue(cluster[0], "name")
+            raise MalformedDeployConfigException(configName)
+        clusterName = cls.getValue(cluster[0], "name")
+
+        cluCfg = ClusterConfig(configName, remarks, clusterName)
 
         # Get location of SPADE output
-        self.__logDirForSpade = self.getValue(cluster[0], "logDirForSpade")
+        cluCfg.setLogDirForSpade(cls.getValue(cluster[0], "logDirForSpade"))
 
         # Get location of SPADE/logs copies
-        self.__logDirCopies = self.getValue(cluster[0], "logDirCopies")
+        cluCfg.setLogDirCopies(cls.getValue(cluster[0], "logDirCopies"))
             
         # Get default log level
-        self.__defaultLogLevel = self.getValue(cluster[0], "defaultLogLevel",
-                                               GLOBAL_DEFAULT_LOG_LEVEL)
+        cluCfg.setDefaultLogLevel(cls.getValue(cluster[0], "defaultLogLevel",
+                                               cls.GLOBAL_DEFAULT_LOG_LEVEL))
         
         # Get default java info as a dict of modules and fallback defaults
-        self.__defaultJava, self.__fallBackJava = \
-            self.getDefaultJavaInfo(configDir, self.__clusterName)
+        defaultJava, fallBackJava = \
+            cls.getDefaultJavaInfo(configDir, clusterName)
 
         locations = cluster[0].getElementsByTagName("location")
         for nodeXML in locations:
-            name = self.getValue(nodeXML, "name")
+            name = cls.getValue(nodeXML, "name")
             if name is None:
                 raise MalformedDeployConfigException(\
                     "<location> is missing 'name' attribute")
@@ -261,45 +286,42 @@ class deployConfig(object):
                 hostname = nodeXML.attributes["host"].value
             else:
                 address = nodeXML.getElementsByTagName("address")
-                hostname = self.getElementSingleTagName(address[0], "host")
+                hostname = cls.getElementSingleTagName(address[0], "host")
 
-            thisNode = deployNode(name, hostname)
-            self.__nodes.append(thisNode)
+            thisNode = cluCfg.addNode(name, hostname)
 
             # Get modules: name and ID
             modules = nodeXML.getElementsByTagName("module")
             for compXML in modules:
-                compName = self.getValue(compXML, "name")
+                compName = cls.getValue(compXML, "name")
                 if compName is None:
                     raise MalformedDeployConfigException(\
                         "Found module without 'name'")
 
-                idStr = self.getValue(compXML, "id", "0")
+                idStr = cls.getValue(compXML, "id", "0")
                 try:
                     compID = int(idStr)
                 except:
                     raise MalformedDeployConfigException(\
                         "Bad id '%s' for module '%d'" % (idStr, compName))
 
-                logLevel = self.getValue(compXML, "logLevel",
-                                         self.__defaultLogLevel)
+                logLevel = cls.getValue(compXML, "logLevel",
+                                         cluCfg.defaultLogLevel())
 
                 # Get the jvm/jvmArgs from the default cluster config
-                jvm     = self.__defaultJava.get(compName,
-                                                 self.__fallBackJava).get('jvm')
+                jvm = defaultJava.get(compName, fallBackJava).get('jvm')
                 jvmArgs = \
-                    self.__defaultJava.get(compName,
-                                           self.__fallBackJava).get('jvmArgs')
+                    defaultJava.get(compName, fallBackJava).get('jvmArgs')
 
                 # Override if module has a jvm a/o jvmArgs defined
-                modJvm = self.getElementSingleTagName(compXML, 'jvm',
-                                                      deep=False,
-                                                      enforce=False)
+                modJvm = cls.getElementSingleTagName(compXML, 'jvm',
+                                                     deep=False,
+                                                     enforce=False)
                 if modJvm: jvm = modJvm
 
-                modJvmArgs = self.getElementSingleTagName(compXML, 'jvmArgs',
-                                                          deep=False,
-                                                          enforce=False)
+                modJvmArgs = cls.getElementSingleTagName(compXML, 'jvmArgs',
+                                                         deep=False,
+                                                         enforce=False)
                 if modJvmArgs: jvmArgs = modJvmArgs
 
                 # Hubs need special ID arg
@@ -307,84 +329,48 @@ class deployConfig(object):
                 #    jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % \
                 #        compID
 
-                thisNode.addComp(deployComponent(compName, compID, logLevel,
-                                                 jvm, jvmArgs))
-                                       
-    def logDirCopies(self): return self.__logDirCopies
-    def logDirForSpade(self): return self.__logDirForSpade
-    def nodes(self): return self.__nodes[:]
+                thisNode.addComp(ClusterComponent(compName, compID, logLevel,
+                                                 jvm, jvmArgs, hostname))
 
-    def openAndParseConfig(self, configDir, configName):
-        """ Open the given configName'd file in the configDir dir
-        returning name of the file parsed and the top-level icecube
-        element node. """
-        configFile = self.xmlOf(join(configDir, configName))
-        if not exists(configFile): raise ConfigNotFoundException(configName)
+        return cluCfg
+    parse = classmethod(parse)
+
+if __name__ == "__main__":
+    import datetime, optparse
+
+    p = optparse.OptionParser()
+    p.add_option("-c", "--check-config", type="string", dest="toCheck",
+                 action="store", default= None,
+                 help="Check whether configuration is valid")
+    opt, args = p.parse_args()
+
+    configDir  = os.path.join(metaDir, "cluster-config", "src", "main", "xml")
+
+    if opt.toCheck:
         try:
-            parsed = minidom.parse(configFile)
-        except:
-            import sys, traceback
-            traceback.print_exc(file=sys.stdout)
-            raise MalformedDeployConfigException(configFile)
-        icecube = parsed.getElementsByTagName("icecube")
-        if len(icecube) != 1: raise MalformedDeployConfigException(configFile)
-        return configFile, icecube[0]
+            ClusterConfigParser.load(opt.toCheck, configDir)
+            print "%s/%s is ok." % (configDir, opt.toCheck)
+        except Exception, e:
+            from exc_string import exc_string
+            print "%s/%s is not a valid config: %s [%s]" % \
+                (configDir, opt.toCheck, e, exc_string())
+        raise SystemExit
 
-    def xmlOf(self, name):
-        if not name.endswith(".xml"): return name+".xml"
-        return name
+    # Code for testing:
+    if len(args) == 0:
+        args.append("sim5str")
 
-class ClusterConfig(deployConfig, CachedConfigName):
-    def __init__(self, topDir, cmdlineConfig, showListAndExit=False,
-                 useFallbackConfig=True, useActiveConfig=False):
-        super(ClusterConfig, self).__init__()
-        super(CachedConfigName, self).__init__()
+    for configName in args:
+        print '-----------------------------------------------------------'
+        print "Config %s" % configName
+        startTime = datetime.datetime.now()
+        dc = ClusterConfigParser.load(configName, configDir)
+        diff = datetime.datetime.now() - startTime
+        initTime = float(diff.seconds) + (float(diff.microseconds) / 1000000.0)
 
-        self.clusterConfigDir = abspath(join(topDir, 'cluster-config'))
-
-        configToUse = self.getConfigToUse(cmdlineConfig, useFallbackConfig,
-                                          useActiveConfig)
-
-        configXMLDir = join(metaDir, 'cluster-config', 'src', 'main', 'xml')
-
-        if showListAndExit:
-            self.showConfigs(configXMLDir, configToUse)
-            raise SystemExit
-
-        if configToUse is None:
-            raise ConfigNotSpecifiedException
-
-        # CachedConfigName expects self.configName
-        self.configName = configToUse
-        # 'forward' compatibility with RunCluster
-        self.descName = None
-
-        self.loadConfig(configXMLDir, configToUse)
-
-    def showConfigs(self, configDir, configToUse):
-        "Utility to show all available cluster configurations in configDir"
-        l = listdir(configDir)
-        cfgs = []
-        for f in l:
-            match = search(r'^(.+?)\.xml$', f)
-            if not match: continue
-            cfgs.append(match.group(1))
-
-        ok = []
-        remarks = {}
-        for cname in cfgs:
-            try:
-                config = deployConfig()
-                config.loadConfig(configDir, cname)
-                ok.append(cname)
-                remarks[cname] = config.remarks
-            except Exception: pass
-
-        ok.sort()
-        for cname in ok:
-            sep = "==="
-            if configToUse and cname == configToUse:
-                sep = "<=>"
-            print "%40s %3s " % (cname, sep),
-            if remarks[cname]: print remarks[cname]
-            else: print
+        startTime = datetime.datetime.now()
+        dc = ClusterConfigParser.load(configName, configDir)
+        diff = datetime.datetime.now() - startTime
+        nextTime = float(diff.seconds) + (float(diff.microseconds) / 1000000.0)
+        print "Initial time %.03f, subsequent time: %.03f" % \
+            (initTime, nextTime)

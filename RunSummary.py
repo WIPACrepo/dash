@@ -707,36 +707,42 @@ def generateOutputPage(runDirName, runDirectories, liveTime24hr, liveTime7days, 
 
 def main():
     p = optparse.OptionParser()
-    p.add_option("-s", "--spade-dir",   action="store", type="string", dest="spadeDir")
-    p.add_option("-o", "--output-dir",  action="store", type="string", dest="outputDir")
-    p.add_option("-a", "--replace-all", action="store_true",           dest="replaceAll")
-    p.add_option("-v", "--verbose",     action="store_true",           dest="verbose")
-    p.add_option("-m", "--max-mb",      action="store", type="int",    dest="maxTarMegs")
-    p.add_option("-l", "--use-symlinks",
-                                        action="store_true",           dest="useSymlinks")
-    p.add_option("-i", "--ignore-process",
-                                        action="store_true",           dest="ignoreExisting")
-    p.add_option("-t", "--oldest-time", action="store", type="int",    dest="oldestTime")
-    p.add_option("-x", "--max-extract-file-mb",
-                                        action="store", type="float",  dest="maxFileMegs")
-    p.add_option("-r", "--remove-intermediate-tarballs",
-                                        action="store_true",           dest="removeTars")
-    p.add_option("-p", "--process-inclusions",
-                                        action="store", type="string", dest="inclusionDir")
-    
-    p.set_defaults(spadeDir       = "/mnt/data/spade/localcopies/daq",
-                   outputDir      = "%s/public_html/daq-reports" % environ["HOME"],
-                   verbose        = False,
-                   maxTarMegs     = None,
-                   maxFileMegs    = None,
-                   useSymlinks    = False,
-                   ignoreExisting = False,
-                   removeTars     = False,
-                   inclusionDir   = False,
-                   oldestTime     = 100000,
-                   replaceAll     = False)
+    p.add_option("-s", "--spade-dir", type="string", dest="spadeDir",
+                 action="store", default="/mnt/data/spade/localcopies/daq",
+                 help="Spade directory")
+    p.add_option("-o", "--output-dir", type="string", dest="outputDir",
+                 action="store",
+                 default="%s/public_html/daq-reports" % environ["HOME"],
+                 help="Output directory")
+    p.add_option("-a", "--replace-all", dest="replaceAll",
+                 action="store_true", default=False,
+                 help="Replace existing files")
+    p.add_option("-v", "--verbose", dest="verbose",
+                 action="store_true", default=False,
+                 help="Verbose output")
+    p.add_option("-m", "--max-mb", type="int", dest="maxTarMegs",
+                 action="store", default=None,
+                 help="Maximum size of tar file (in megabytes)")
+    p.add_option("-l", "--use-symlinks", dest="useSymlinks",
+                 action="store_true", default=False,
+                 help="Use symbolic links")
+    p.add_option("-i", "--ignore-process", dest="ignoreExisting",
+                 action="store_true", default=False,
+                 help="Ignore existing files")
+    p.add_option("-t", "--oldest-time", type="int", dest="oldestTime",
+                 action="store", default=100000,
+                 help="Oldest time")
+    p.add_option("-x", "--max-file-mb", type="float", dest="maxFileMegs",
+                 action="store", default=None,
+                 help="Maximum size of file (in megabytes)")
+    p.add_option("-r", "--remove-intermediate-tarballs", dest="removeTars",
+                 action="store_true", default=False,
+                 help="Remove tar files")
+    p.add_option("-p", "--process-inclusions", type="string", dest="inclusionDir",
+                 action="store", default=False,
+                 help="")
 
-    opt, args = p.parse_args()
+        opt, args = p.parse_args()
 
     if not opt.ignoreExisting and checkForRunningProcesses():
         print "RunSummary.py is already running."

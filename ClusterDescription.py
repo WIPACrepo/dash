@@ -4,6 +4,8 @@ import os, sys, traceback
 
 from xml.dom import minidom, Node
 
+from Component import Component
+
 class XMLError(Exception): pass
 class XMLFileDoesNotExist(XMLError): pass
 class XMLFormatError(XMLError): pass
@@ -27,8 +29,11 @@ class ConfigXMLBase(object):
 
         self.extractFrom(dom)
 
-        self.configDir = configDir
-        self.configName = configName
+        self.__configDir = configDir
+        self.__configName = configName
+
+    def configName(self):
+        return self.__configName
 
     def extractFrom(self, dom):
         raise UnimplementedException('extractFrom method is not implemented')
@@ -83,14 +88,13 @@ class ConfigXMLBase(object):
         except:
             return defaultVal
 
-class ClusterComponent(object):
+class ClusterComponent(Component):
     def __init__(self, name, id, logLevel, jvm, jvmArgs, required):
-        self.__name = name
-        self.__id = id
-        self.__logLevel = logLevel
         self.__jvm = jvm
         self.__jvmArgs = jvmArgs
         self.__required = required
+
+        super(ClusterComponent, self).__init__(name, id, logLevel)
 
     def __str__(self):
         if self.__jvm is None:
@@ -110,22 +114,10 @@ class ClusterComponent(object):
             rStr = ""
 
         return "%s@%s(%s)%s" % \
-            (self.fullName(), str(self.__logLevel), jStr, rStr)
-
-    def fullName(self):
-        if not self.isHub():
-            return self.__name
-        return "%s#%d" % (self.__name, self.__id)
-
-    def id(self): return self.__id
-
-    def isHub(self):
-        return self.__name.lower().find('hub') >= 0
+            (self.fullName(), str(self.logLevel()), jStr, rStr)
 
     def jvm(self): return self.__jvm
     def jvmArgs(self): return self.__jvmArgs
-    def logLevel(self): return self.__logLevel
-    def name(self): return self.__name
     def required(self): return self.__required
 
 class ClusterSimHub(object):
@@ -235,7 +227,7 @@ class ClusterDescription(ConfigXMLBase):
                 raise e
 
     def __str__(self):
-        return self.__name
+        return self.name
 
     def __findDefault(self, compName, valName):
         if compName is not None and \

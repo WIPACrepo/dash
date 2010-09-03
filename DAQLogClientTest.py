@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os, tempfile, time, unittest
-from DAQLogClient import FileAppender
+from DAQLog import FileAppender
 
 class TestDAQLogClient(unittest.TestCase):
     DIR_PATH = None

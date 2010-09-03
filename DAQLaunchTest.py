@@ -28,7 +28,7 @@ class MockNode(object):
 
 class MockClusterConfig(object):
     def __init__(self, name):
-        self.configName = name
+        self.__configName = name
         self.__nodes = []
 
     def addNode(self, node):
@@ -36,6 +36,9 @@ class MockClusterConfig(object):
 
     def clearActiveConfig(self):
         pass
+
+    def configName(self):
+        return self.__configName
 
     def nodes(self): return self.__nodes[:]
 
@@ -119,8 +122,8 @@ class DAQLaunchTest(unittest.TestCase):
                 for killWith9 in (True, False):
                     parallel = MockParallelShell()
 
-                    parallel.addExpectedJavaKill(compName, killWith9, verbose,
-                                                 host)
+                    parallel.addExpectedJavaKill(compName, compId, killWith9,
+                                                 verbose, host)
 
                     killJavaProcesses(dryRun, config, verbose, killWith9,
                                       parallel)
@@ -146,10 +149,8 @@ class DAQLaunchTest(unittest.TestCase):
         logLevel = 'DEBUG'
 
         # if there are N targets, range is 2^N
-        for targets in range(8):
+        for targets in range(2):
             doCnC = (targets & 1) == 1
-            doDAQRun = (targets & 2) == 2
-            doLive = (targets & 4) == 4
 
             for host in MockNode.LIST:
                 node = MockNode(host)
@@ -169,19 +170,18 @@ class DAQLaunchTest(unittest.TestCase):
                     for evtChk in (True, False):
                         parallel = MockParallelShell()
 
-                        parallel.addExpectedPython(doLive, doDAQRun, doCnC,
-                                                   dashDir, configDir, logDir,
-                                                   spadeDir, cfgName, copyDir,
-                                                   logPort, livePort)
-                        parallel.addExpectedJava(comp, configDir, logPort,
-                                                 livePort, verbose, evtChk,
-                                                 host)
+                        parallel.addExpectedPython(doCnC, dashDir, configDir,
+                                                   logDir, spadeDir, cfgName,
+                                                   copyDir, logPort, livePort)
+                        parallel.addExpectedJava(comp, configDir,
+                                                 DAQPort.CATCHALL, livePort,
+                                                 verbose, evtChk, host)
 
                         dryRun = False
 
-                        doLaunch(doLive, doDAQRun, doCnC, dryRun, verbose,
-                                 quiet, config, dashDir, configDir, logDir,
-                                 spadeDir, copyDir, logPort, livePort,
+                        doLaunch(doCnC, dryRun, verbose, quiet,
+                                 config, dashDir, configDir, logDir, spadeDir,
+                                 copyDir, logPort, livePort,
                                  eventCheck=evtChk, checkExists=checkExists,
                                  startMissing=False, parallel=parallel)
 
@@ -200,10 +200,8 @@ class DAQLaunchTest(unittest.TestCase):
         logLevel = 'DEBUG'
 
         # if there are N targets, range is 2^N
-        for targets in range(8):
+        for targets in range(2):
             doCnC = (targets & 1) == 1
-            doDAQRun = (targets & 2) == 2
-            doLive = (targets & 4) == 4
 
             for host in MockNode.LIST:
                 node = MockNode(host)
@@ -217,13 +215,12 @@ class DAQLaunchTest(unittest.TestCase):
                 for killWith9 in (True, False):
                     parallel = MockParallelShell()
 
-                    parallel.addExpectedPythonKill(doLive, doDAQRun, doCnC,
-                                                   dashDir, killWith9)
-                    parallel.addExpectedJavaKill(compName, killWith9, verbose,
-                                                 host)
+                    parallel.addExpectedPythonKill(doCnC, dashDir, killWith9)
+                    parallel.addExpectedJavaKill(compName, compId, killWith9,
+                                                 verbose, host)
 
-                    doKill(doLive, doDAQRun, doCnC, dryRun, dashDir, verbose,
-                           quiet, config, killWith9, parallel)
+                    doKill(doCnC, dryRun, dashDir, verbose, quiet, config,
+                           killWith9, parallel)
 
                     parallel.check()
 
@@ -247,8 +244,6 @@ class DAQLaunchTest(unittest.TestCase):
         killWith9 = False
 
         doCnC = True
-        doDAQRun = False
-        doLive = False
 
         for host in MockNode.LIST:
             node = MockNode(host)
@@ -268,17 +263,16 @@ class DAQLaunchTest(unittest.TestCase):
                 for eventCheck in (True, False):
                     parallel = MockParallelShell()
 
-                    parallel.addExpectedPythonKill(doLive, doDAQRun, doCnC,
-                                                   dashDir, killWith9)
-                    parallel.addExpectedJavaKill(compName, killWith9, verbose,
-                                                 host)
+                    parallel.addExpectedPythonKill(doCnC, dashDir, killWith9)
+                    parallel.addExpectedJavaKill(compName, compId, killWith9,
+                                                 verbose, host)
 
-                    parallel.addExpectedPython(doLive, doDAQRun, doCnC,
-                                               dashDir, configDir, logDir,
-                                               spadeDir, cfgName, copyDir,
-                                               logPort, livePort)
-                    parallel.addExpectedJava(comp, configDir, logPort, livePort,
-                                             verbose, eventCheck, host)
+                    parallel.addExpectedPython(doCnC, dashDir, configDir,
+                                               logDir, spadeDir, cfgName,
+                                               copyDir, logPort, livePort)
+                    parallel.addExpectedJava(comp, configDir, DAQPort.CATCHALL,
+                                             livePort, verbose, eventCheck,
+                                             host)
 
                     cyclePDAQ(dashDir, config, configDir, logDir, spadeDir,
                               copyDir, logPort, livePort,
