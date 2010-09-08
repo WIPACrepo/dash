@@ -121,6 +121,13 @@ class DAQLiveTest(unittest.TestCase):
                 return
             raise self.failureException("Expected %s(%s), not %s(%s)" %
                                         (type(exc), exc, type(ex2), ex2))
+        except:
+            # handle exceptions in python 2.3
+            (excType, excVal, excTB) = sys.exc_info()
+            if type(excVal) == type(exc) and str(excVal) == str(exc):
+                return
+            raise self.failureException("Expected %s(%s), not %s(%s)" %
+                                        (type(exc), exc, type(excVal), excVal))
         raise self.failureException("%s(%s) not raised" % type(exc), exc)
 
     def setUp(self):
