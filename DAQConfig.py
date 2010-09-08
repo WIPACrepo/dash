@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, sys
+import copy, os, sys
 
 from xml.dom import Node, minidom
 
