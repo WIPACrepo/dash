@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 5167 2010-09-08 19:57:27Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 5168 2010-09-08 20:13:57Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -551,7 +551,8 @@ class CnCServer(DAQPool):
             self.__server.register_function(self.rpc_ping)
             self.__server.register_function(self.rpc_runset_active)
             self.__server.register_function(self.rpc_runset_break)
-            self.__server.register_function(self.rpc_runset_count)
+            self.__server.register_function(self.rpc_runset_break)
+            self.__server.register_function(self.rpc_runset_configname)
             self.__server.register_function(self.rpc_runset_debug)
             self.__server.register_function(self.rpc_runset_events)
             self.__server.register_function(self.rpc_runset_list)
@@ -917,6 +918,15 @@ class CnCServer(DAQPool):
         self.breakRunset(runSet)
 
         return "OK"
+
+    def rpc_runset_configname(self, id):
+        "return run configuration name for this runset"
+        runSet = self.findRunset(id)
+
+        if not runSet:
+            raise CnCServerException('Could not find runset#%d' % id)
+
+        return runSet.configName()
 
     def rpc_runset_count(self):
         "return number of existing run sets"

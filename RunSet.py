@@ -1046,12 +1046,15 @@ class RunSet(object):
     def components(self):
         return self.__set[:]
 
+    def configName(self):
+        return self.__cfg.basename()
+
     def configure(self):
         "Configure all components in the runset"
         self.__logDebug(RunSetDebug.START_RUN, "RSConfig TOP")
         self.__state = RunSetState.CONFIGURING
 
-        data = (self.__cfg.basename(), )
+        data = (self.configName(), )
         tGroup = ComponentOperationGroup(ComponentOperation.CONFIG_COMP)
         for c in self.__set:
             tGroup.start(c, self.__logger, data)
