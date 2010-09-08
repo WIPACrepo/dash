@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 5156 2010-09-03 22:00:36Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 5167 2010-09-08 19:57:27Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -574,11 +574,10 @@ class CnCServer(DAQPool):
             sys.exit(0)
         print >>sys.stderr, "Cannot exit with active runset(s)"
 
-    def __getComponents(self, idList):
-        getAll = idList is None
+    def __getComponents(self, idList, getAll):
         compList = []
 
-        if getAll:
+        if getAll or idList is None or len(idList) == 0:
             compList += self.components()
         else:
             for c in self.components():
@@ -586,7 +585,7 @@ class CnCServer(DAQPool):
                     compList.append(c)
                     del idList[i]
 
-        if getAll or len(idList) > 0:
+        if getAll or (idList is not None and len(idList) > 0):
             for rsid in self.listRunsetIDs():
                 rs = self.findRunset(rsid)
                 if getAll:
@@ -761,9 +760,9 @@ class CnCServer(DAQPool):
                             self.__log.livePort(), verbose=verbose,
                             killWith9=killWith9, eventCheck=eventCheck)
 
-    def rpc_component_connector_info(self, idList=None):
+    def rpc_component_connector_info(self, idList=None, getAll=True):
         "list component connector information"
-        compList = self.__getComponents(idList)
+        compList = self.__getComponents(idList, getAll)
 
         tGroup = ComponentOperationGroup(ComponentOperation.GET_CONN_INFO)
         for c in compList:
@@ -793,9 +792,9 @@ class CnCServer(DAQPool):
         "return number of components currently registered"
         return self.numComponents()
 
-    def rpc_component_listDicts(self, idList=None):
+    def rpc_component_listDicts(self, idList=None, getAll=True):
         "list unused components"
-        return self.__listComponentDicts(self.__getComponents(idList))
+        return self.__listComponentDicts(self.__getComponents(idList, getAll))
 
     def rpc_component_listIDs(self, includeRunsetComponents=False):
         "return list of component IDs"
