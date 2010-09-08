@@ -15,8 +15,12 @@ try:
 except ImportError:
     # create bogus placeholder classes
     class Component(object):
-        def __init__(self):
-            sys.exit("Cannot import I3Live classes")
+        def __init__(self, compName, rpcPort=None, moniHost=None,
+                     moniPort=None, synchronous=None, lightSensitive=None,
+                     makesLight=None, logger=None):
+            pass
+
+        def close(self): pass
 
     class Prio(object):
         ITS   = 123

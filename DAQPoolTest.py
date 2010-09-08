@@ -8,7 +8,7 @@ from RunSet import RunSet, ConnectionException
 
 from DAQMocks import MockComponent, MockLogger, MockRunConfigFile
 
-CAUGHT_WARNING = False
+ACTIVE_WARNING = False
 
 class FakeLogger(object):
     def __init__(self): pass
@@ -631,15 +631,17 @@ class TestDAQPool(unittest.TestCase):
         runNum = 1
         moniType = RunOption.MONI_TO_NONE
 
-        global CAUGHT_WARNING
-        if not LIVE_IMPORT and not CAUGHT_WARNING:
-            CAUGHT_WARNING = True
-            logger.addExpectedRegexp(r"^Cannot import IceCube Live.*")
-
         logger.addExpectedExact("Starting run #%d with \"%s\"" %
                                 (runNum, clusterName))
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
+
+        global ACTIVE_WARNING
+        if not LIVE_IMPORT and not ACTIVE_WARNING:
+            ACTIVE_WARNING = True
+            dashLog.addExpectedExact("Cannot import IceCube Live code, so" +
+                                     " per-string active DOM stats wil not" +
+                                     " be reported")
 
         versionInfo = {"filename": "fName",
                        "revision": "1234",

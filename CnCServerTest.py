@@ -14,7 +14,7 @@ from DAQMocks \
     import MockAppender, MockClusterConfig, MockCnCLogger, MockRunConfigFile, \
     SocketReaderFactory, SocketWriter
 
-CAUGHT_WARNING = False
+ACTIVE_WARNING = False
 
 class MostlyDAQClient(DAQClient):
     def __init__(self, name, num, host, port, mbeanPort, connectors, appender):
@@ -465,10 +465,12 @@ class TestCnCServer(unittest.TestCase):
 
         catchall.addExpectedText("Starting run %d..." % runNum)
 
-        global CAUGHT_WARNING
-        if not LIVE_IMPORT and not CAUGHT_WARNING:
-            CAUGHT_WARNING = True
-            catchall.addExpectedTextRegexp(r"Cannot import IceCube Live code.*")
+        global ACTIVE_WARNING
+        if not LIVE_IMPORT and not ACTIVE_WARNING:
+            ACTIVE_WARNING = True
+            catchall.addExpectedText("Cannot import IceCube Live code, so" +
+                                     " per-string active DOM stats wil not" +
+                                     " be reported")
 
         self.assertEqual(self.cnc.rpc_runset_start_run(setId, runNum, moniType),
                          'OK')

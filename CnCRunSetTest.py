@@ -17,7 +17,7 @@ from RunSet import RunSet, RunSetException
 from TaskManager import TaskManager
 from WatchdogTask import WatchdogTask
 
-CAUGHT_WARNING = False
+ACTIVE_WARNING = False
 
 class MockComponentLogger(MockLogger):
     def __init__(self, name):
@@ -512,11 +512,6 @@ class CnCRunSetTest(unittest.TestCase):
 
         runNum = 321
 
-        global CAUGHT_WARNING
-        if not LIVE_IMPORT and not CAUGHT_WARNING:
-            CAUGHT_WARNING = True
-            logger.addExpectedRegexp(r"^Cannot import IceCube Live code.*")
-
         logger.addExpectedExact("Starting run #%d with \"%s\"" %
                                 (runNum, cluCfg.configName()))
 
@@ -527,6 +522,13 @@ class CnCRunSetTest(unittest.TestCase):
                                  cluCfg.configName())
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
+
+        global ACTIVE_WARNING
+        if not LIVE_IMPORT and not ACTIVE_WARNING:
+            ACTIVE_WARNING = True
+            dashLog.addExpectedExact("Cannot import IceCube Live code, so" +
+                                     " per-string active DOM stats wil not" +
+                                     " be reported")
 
         versionInfo = {"filename": "fName",
                        "revision": "1234",
@@ -747,6 +749,13 @@ class CnCRunSetTest(unittest.TestCase):
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
 
+        global ACTIVE_WARNING
+        if not LIVE_IMPORT and not ACTIVE_WARNING:
+            ACTIVE_WARNING = True
+            dashLog.addExpectedExact("Cannot import IceCube Live code, so" +
+                                     " per-string active DOM stats wil not" +
+                                     " be reported")
+
         self.__cnc.rpc_runset_start_run(rsId, runNum, RunOption.MONI_TO_LIVE)
 
         if catchall: catchall.checkStatus(5)
@@ -756,12 +765,6 @@ class CnCRunSetTest(unittest.TestCase):
         numEvts = 5
         payTime = 50000000001
         firstTime = 1
-
-        global CAUGHT_WARNING
-        if not LIVE_IMPORT and not CAUGHT_WARNING:
-            CAUGHT_WARNING = True
-            catchall.addExpectedTextRegexp(r"^Cannot import IceCube Live" +
-                                           r" code.*")
 
         self.__checkRateTask(comps, rs, dashLog, numEvts, payTime, firstTime)
         self.__checkMonitorTask(comps, rs, liveMoni)

@@ -13,8 +13,7 @@ from RunOption import RunOption
 from RunSet import RunSet
 from TaskManager import MonitorTask, RateTask, TaskManager, WatchdogTask
 
-global CAUGHT_WARNING
-CAUGHT_WARNING = False
+ACTIVE_WARNING = False
 
 try:
     from DAQLive import DAQLive
@@ -1174,6 +1173,13 @@ class IntegrationTest(unittest.TestCase):
 
         if dashLog:
             dashLog.addExpectedExact("Starting run %d..." % runNum)
+            if live is None:
+                global ACTIVE_WARNING
+                if not LIVE_IMPORT and not ACTIVE_WARNING:
+                    ACTIVE_WARNING = True
+                    msg = "Cannot import IceCube Live code, so per-string" + \
+                        " active DOM stats wil not be reported"
+                    dashLog.addExpectedExact(msg)
         if liveLog:
             for c in self.__compList:
                 liveLog.addExpectedText('Start #%d on %s' % (runNum, str(c)))
@@ -1192,13 +1198,6 @@ class IntegrationTest(unittest.TestCase):
         if live is not None:
             live.starting({'runNumber':runNum, 'runConfig':configName})
         else:
-            global CAUGHT_WARNING
-            if not LIVE_IMPORT and not CAUGHT_WARNING:
-                CAUGHT_WARNING = True
-                if logServer:
-                    msg = r"^Cannot import IceCube Live.*"
-                    logServer.addExpectedTextRegexp(msg)
-
             id = cnc.rpc_runset_make(configName)
             self.assertEquals(setId, id,
                               "Expected to create runset #%d, not #%d" %
@@ -1211,13 +1210,6 @@ class IntegrationTest(unittest.TestCase):
         if appender: appender.checkStatus(500)
         if dashLog: dashLog.checkStatus(10)
         if logServer: logServer.checkStatus(10)
-
-        global CAUGHT_WARNING
-        if not LIVE_IMPORT and not CAUGHT_WARNING:
-            CAUGHT_WARNING = True
-            if logServer:
-                msg = r"^Cannot import IceCube Live.*"
-                logServer.addExpectedTextRegexp(msg)
 
         if RunOption.isMoniToLive(runOptions):
             # monitoring values can potentially come in any order
