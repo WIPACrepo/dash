@@ -135,7 +135,7 @@ if __name__ == "__main__":
             print >>sys.stderr, "Specify --force to overwrite this file"
             raise SystemExit()
 
-    runCfg = DAQConfigParser.load(runCfgName)
+    runCfg = DAQConfigParser.load(runCfgName, configDir)
     if runCfg is not None:
         newCfg = runCfg.omit(hubIdList)
         if newCfg is not None:
