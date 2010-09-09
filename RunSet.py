@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-import datetime, os, shutil, socket, time
+import datetime, os, socket, time
+
+import SpadeQueue
 
 from CnCThread import CnCThread
 from CompOp import ComponentOperation, ComponentOperationGroup, Result
@@ -16,7 +18,6 @@ from RunSetState import RunSetState
 from RunStats import RunStats
 from TaskManager import TaskManager
 from UniqueID import UniqueID
-from tarfile import TarFile
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -253,21 +254,6 @@ class RunData(object):
     def __str__(self):
         return "Run#%d %s" % (self.__runNumber, self.__runStats)
 
-    def __copySpadeTarFile(self, basePrefix, tarFile):
-        if self.__copyDir is None:
-            return
-
-        copyFile = os.path.join(self.__copyDir, basePrefix + ".dat.tar")
-        self.__dashlog.info("Link or copy %s->%s" % (tarFile, copyFile))
-
-        try:
-            os.link(tarFile, copyFile)
-        except OSError, e:
-            if e.errno == 18: # Cross-device link
-                shutil.copyfile(tarFile, copyFile)
-            else:
-                raise
-
     def getSingleBeanField(self, comp, bean, fldName):
         tGroup = ComponentOperationGroup(ComponentOperation.GET_SINGLE_BEAN)
         tGroup.start(comp, self.__dashlog, (bean, fldName))
@@ -335,29 +321,6 @@ class RunData(object):
         return (nEvts, evtTime, self.__firstPayTime, payloadTime, nMoni,
                 moniTime, nSN, snTime, nTCal, tcalTime)
 
-    def __writeSpadeSemaphore(self, basePrefix):
-        semFile = os.path.join(self.__spadeDir, basePrefix + ".sem")
-        fd = open(semFile, "w")
-        fd.close()
-
-    def __writeSpadeTarFile(self, basePrefix, copyCatchall=False):
-        if self.__runDir is None:
-            return None
-
-        if copyCatchall:
-            catchall = os.path.join(self.__logDir, "catchall.log")
-            if os.path.isfile(catchall):
-                shutil.move(catchall, runDir)
-
-        tarBall = os.path.join(self.__spadeDir, basePrefix + ".dat.tar")
-        #self.__dashlog.info("Target files are:\n%s\n%s" % (tarBall, semFile))
-
-        tarObj = TarFile(tarBall, "w")
-        tarObj.add(self.__runDir, os.path.basename(self.__runDir), True)
-        tarObj.close()
-
-        return tarBall
-
     def __createDashLog(self):
         log = DAQLog(level=DAQLog.ERROR)
 
@@ -417,33 +380,15 @@ class RunData(object):
     def info(self, msg):
         self.__dashlog.info(msg)
 
-    def queueForSpade(self, duration, parent):
-        parent.saveCatchall(self.__runDir)
+    def queueForSpade(self, duration):
         if self.__logDir is None:
             self.__dashlog.error("Not logging to file so cannot queue to SPADE")
             return
 
-        try:
-            now = datetime.datetime.now()
-            basePrefix = "SPS-pDAQ-run-%03d_%04d%02d%02d_%02d%02d%02d_%06d" % \
-                (self.__runNumber, now.year, now.month, now.day, now.hour,
-                 now.minute, now.second, duration)
-
-            tarFile = self.__writeSpadeTarFile(basePrefix)
-
-            if tarFile is not None:
-                self.__copySpadeTarFile(basePrefix, tarFile)
-
-                semFile = self.__writeSpadeSemaphore(basePrefix)
-
-                self.__dashlog.info(("Queued data for SPADE (spadeDir=%s" +
-                                     ", logDir=%s, runNum=%s)...") %
-                                    (self.__spadeDir, self.__logDir,
-                                     self.__runNumber))
-        except:
-            self.__dashlog.error("FAILED to queue data for SPADE: " +
-                                 exc_string())
-            self.__logDir = None
+        SpadeQueue.queueForSpade(self.__dashlog, self.__spadeDir,
+                                 self.__copyDir, self.__runDir,
+                                 self.__runNumber, datetime.datetime.now(),
+                                 duration)
 
     def reportRates(self, comps):
         try:
@@ -908,6 +853,9 @@ class RunSet(object):
         else:
             self.__runData.error("Run terminated SUCCESSFULLY.")
 
+        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING saveCatchall")
+        self.__parent.saveCatchall(self.__runData.runDirectory())
+
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING queueSpade")
         self.queueForSpade(duration)
 
@@ -1228,7 +1176,7 @@ class RunSet(object):
         return self.__state == RunSetState.RUNNING
 
     def queueForSpade(self, duration):
-        self.__runData.queueForSpade(duration, self.__parent)
+        self.__runData.queueForSpade(duration)
 
     def reset(self):
         "Reset all components in the runset back to the idle state"
@@ -1509,6 +1457,7 @@ class RunSet(object):
             try:
                 self.__stopRunInternal(hadError)
             finally:
+                self.__logger.error("Could not stop run: " + exc_string())
                 self.__stopping = False
 
     def subrun(self, id, data):
