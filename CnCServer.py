@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 5182 2010-09-09 17:12:34Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 5184 2010-09-09 22:54:36Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -1230,6 +1230,10 @@ if __name__ == "__main__":
         livePort = int(opt.liveLog[colon+1:])
 
     if opt.daemon: Daemon.Daemon().Daemonize()
+
+    if sys.version_info > (2, 3):
+        from DumpThreads import DumpThreadsOnSignal
+        DumpThreadsOnSignal()
 
     cnc = CnCServer(clusterDesc=opt.clusterDesc, name="CnCServer",
                     copyDir=opt.copyDir, dashDir=opt.dashDir,
