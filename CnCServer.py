@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 5184 2010-09-09 22:54:36Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 5194 2010-09-10 15:10:25Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -1088,16 +1088,12 @@ class CnCServer(DAQPool):
         if not os.path.exists(catchallFile):
             return
 
-        restart = False
         if self.__logServer is not None:
             self.__logServer.stopServing()
-            restart = True
 
         os.rename(catchallFile, os.path.join(runDir, "catchall.log"))
 
-        if restart:
-            self.__logServer = \
-                self.openLogServer(DAQPort.CATCHALL, self.__defaultLogDir)
+        if self.__logServer is not None:
             self.__logServer.startServing()
 
     def startLiveThread(self):
