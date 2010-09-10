@@ -3,8 +3,13 @@
 import signal, sys, threading, traceback
 
 class DumpThreadsOnSignal(object):
-    def __init__(self, fd=sys.stderr, signum=signal.SIGQUIT):
-        self.__fd = fd
+    def __init__(self, fd=None, logger=None, signum=signal.SIGQUIT):
+        if fd is None and logger is None:
+            self.__fd = sys.stderr
+        else:
+            self.__fd = fd
+        self.__logger = logger
+
         signal.signal(signum, self.__handleSignal)
 
     def __findThread(cls, tId):
@@ -16,9 +21,9 @@ class DumpThreadsOnSignal(object):
     __findThread = classmethod(__findThread)
 
     def __handleSignal(self, signum, frame):
-        self.dumpThreads(self.__fd)
+        self.dumpThreads(self.__fd, self.__logger)
 
-    def dumpThreads(cls, fd):
+    def dumpThreads(cls, fd=None, logger=None):
         first = True
         for tId, stack in sys._current_frames().items():
             thrd = cls.__findThread(tId)
@@ -29,16 +34,19 @@ class DumpThreadsOnSignal(object):
 
             if first:
                 first = False
-            else:
+            elif fd is not None:
                 print >>fd
 
-            print >>fd, tStr
-
             for filename, lineno, name, line in traceback.extract_stack(stack):
-                print >>fd, "  File \"%s\", line %d, in %s" % \
+                tStr += "\n  File \"%s\", line %d, in %s" % \
                     (filename, lineno, name)
                 if line is not None:
-                    print >>fd, "    %s" % line.strip()
+                    tStr += "\n    %s" % line.strip()
 
-        print >>fd, "---------------------------------------------"
+            if fd is not None: print >>fd, tStr
+            if logger is not None: logger.error(tStr)
+            
+        if fd is not None:
+            print >>fd, "---------------------------------------------"
+
     dumpThreads = classmethod(dumpThreads)

@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 5194 2010-09-10 15:10:25Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 5195 2010-09-10 15:12:59Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -564,6 +564,10 @@ class CnCServer(DAQPool):
             self.__server.register_function(self.rpc_runset_stop_run)
             self.__server.register_function(self.rpc_runset_subrun)
             self.__server.register_function(self.rpc_version)
+
+        if sys.version_info > (2, 3):
+            from DumpThreads import DumpThreadsOnSignal
+            DumpThreadsOnSignal(fd=sys.stderr, logger=self.__log)
 
     def __str__(self):
         ccfg = self.getClusterConfig()
@@ -1226,10 +1230,6 @@ if __name__ == "__main__":
         livePort = int(opt.liveLog[colon+1:])
 
     if opt.daemon: Daemon.Daemon().Daemonize()
-
-    if sys.version_info > (2, 3):
-        from DumpThreads import DumpThreadsOnSignal
-        DumpThreadsOnSignal()
 
     cnc = CnCServer(clusterDesc=opt.clusterDesc, name="CnCServer",
                     copyDir=opt.copyDir, dashDir=opt.dashDir,
