@@ -25,7 +25,7 @@ def __copySpadeTarFile(logger, copyDir, spadeBaseName, tarFile):
         if e.errno == 18: # Cross-device link
             shutil.copyfile(tarFile, copyFile)
         else:
-            raise
+            raise OSError(str(e) + ": Copy %s to %s" % (tarFile, copyFile))
 
 def __writeSpadeSemaphore(spadeDir, spadeBaseName):
     semFile = os.path.join(spadeDir, spadeBaseName + ".sem")
