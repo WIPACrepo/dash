@@ -303,7 +303,8 @@ class BaseRun(object):
         self.__updateDBProg = \
             os.path.join(os.environ["HOME"], "offline-db-update",
                          "offline-db-update-config")
-        self.checkExists("PnF program", self.__updateDBProg)
+        if not self.checkExists("PnF program", self.__updateDBProg, False):
+            self.__updateDBProg = None
 
         # make sure run-config directory exists
         #
@@ -312,15 +313,19 @@ class BaseRun(object):
             raise SystemExit("Run config directory '%s' does not exist" %
                              self.__configDir)
 
-    def checkExists(cls, name, path):
+    def checkExists(cls, name, path, fatal=True):
         """
         Exit if the specified path does not exist
 
         name - description of this path (used in error messages)
         path - file/directory path
+        fatal - True if program should exit if file is not found
         """
         if not os.path.exists(path):
-            raise SystemExit("%s '%s' does not exist" % (name, path))
+            if fatal:
+                raise SystemExit("%s '%s' does not exist" % (name, path))
+            return False
+        return True
     checkExists = classmethod(checkExists)
 
     def cleanUp(self):
@@ -471,6 +476,10 @@ class BaseRun(object):
         runCfg - run configuration
         """
         if self.__dbType == DatabaseType.NONE:
+            return
+
+        if self.__updateDBProg is None:
+            print >>sys.stderr, "Not updating database with \"%s\"" % runCfg
             return
 
         runCfgPath = os.path.join(self.__configDir, runCfg + ".xml")
