@@ -101,11 +101,6 @@ class TestRunSet(unittest.TestCase):
 
         clusterName = "cluster-foo"
 
-        logger.addExpectedExact("Starting run #%d with \"%s\"" %
-                                (runNum, clusterName))
-
-        logger.addExpectedExact("Run configuration: %s" % runConfig.basename())
-
         parent = MyParent()
         runset = MyRunSet(parent, runConfig, compList, logger)
 
@@ -115,6 +110,7 @@ class TestRunSet(unittest.TestCase):
                          (runset.id(), expState))
 
         self.checkStatus(runset, compList, expState)
+        logger.checkStatus(10)
 
         runset.configure()
 
@@ -124,10 +120,7 @@ class TestRunSet(unittest.TestCase):
                          (runset.id(), expState))
 
         self.checkStatus(runset, compList, expState)
-
-        logger.addExpectedRegexp(r"Version info: \S+ \d+ \S+ \S+ \S+ \S+" +
-                                  r" \d+\S*")
-        logger.addExpectedExact("Cluster configuration: %s" % clusterName)
+        logger.checkStatus(10)
 
         logDir = "/tmp"
 
@@ -140,6 +133,7 @@ class TestRunSet(unittest.TestCase):
                         'Components should not be running')
 
         self.checkStatus(runset, compList, expState)
+        logger.checkStatus(10)
 
         try:
             runset.stopRun()
@@ -160,6 +154,15 @@ class TestRunSet(unittest.TestCase):
 
         expState = "running"
 
+        logger.addExpectedExact("Starting run #%d with \"%s\"" %
+                                (runNum, clusterName))
+
+        logger.addExpectedExact("Run configuration: %s" % runConfig.basename())
+
+        logger.addExpectedRegexp(r"Version info: \S+ \d+ \S+ \S+ \S+ \S+" +
+                                  r" \d+\S*")
+        logger.addExpectedExact("Cluster configuration: %s" % clusterName)
+
         runset.startRun(runNum, clusterName, RunOption.MONI_TO_NONE,
                         versionInfo, spadeDir, copyDir, logDir)
         self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %
@@ -172,6 +175,7 @@ class TestRunSet(unittest.TestCase):
                             'Components should not be running')
 
         self.checkStatus(runset, compList, expState)
+        logger.checkStatus(10)
 
         domList = [('53494d550101', 0, 1, 2, 3, 4),
                    ['1001', '22', 1, 2, 3, 4, 5],
@@ -196,6 +200,7 @@ class TestRunSet(unittest.TestCase):
                           (expectError, str(ve)))
 
         self.checkStatus(runset, compList, expState)
+        logger.checkStatus(10)
 
         logger.addExpectedExact("0 physics events collected in 0 seconds")
         logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
@@ -214,6 +219,7 @@ class TestRunSet(unittest.TestCase):
                         'Components should not be running')
 
         self.checkStatus(runset, compList, expState)
+        logger.checkStatus(10)
 
     def __runTests(self, compList, runNum):
         logger = MockLogger('foo#0')
@@ -226,6 +232,23 @@ class TestRunSet(unittest.TestCase):
         runConfig = FakeRunConfig("XXXrunCfgXXX")
 
         expId = RunSet.ID.peekNext()
+
+
+        clusterName = "cluster-foo"
+
+        spadeDir = "/tmp"
+        copyDir = None
+
+        parent = MyParent()
+        runset = MyRunSet(parent, runConfig, compList, logger)
+
+        expState = "idle"
+
+        self.assertEqual(str(runset), 'RunSet #%d (%s)' %
+                         (runset.id(), expState))
+
+        self.checkStatus(runset, compList, expState)
+        logger.checkStatus(10)
 
         expState = "configuring"
 
@@ -242,30 +265,9 @@ class TestRunSet(unittest.TestCase):
             if cfgWaitStr is None:
                 break
 
-            logger.addExpectedExact(("RunSet #%d (%s): Waiting for" +
-                                     " configuring: %s") %
-                                    (expId, expState, cfgWaitStr))
+            logger.addExpectedExact("RunSet #%d (%s): Waiting for %s: %s" %
+                                    (expId, expState, expState, cfgWaitStr))
             i += 1
-
-        clusterName = "cluster-foo"
-
-        logger.addExpectedExact("Starting run #%d with \"%s\"" %
-                                (runNum, clusterName))
-
-        logger.addExpectedExact("Run configuration: %s" % runConfig.basename())
-
-        spadeDir = "/tmp"
-        copyDir = None
-
-        parent = MyParent()
-        runset = MyRunSet(parent, runConfig, compList, logger)
-
-        expState = "idle"
-
-        self.assertEqual(str(runset), 'RunSet #%d (%s)' %
-                         (runset.id(), expState))
-
-        self.checkStatus(runset, compList, expState)
 
         runset.configure()
 
@@ -275,17 +277,12 @@ class TestRunSet(unittest.TestCase):
                          (runset.id(), expState))
 
         self.checkStatus(runset, compList, expState)
+        logger.checkStatus(10)
 
         global CAUGHT_WARNING
         if not LIVE_IMPORT and not CAUGHT_WARNING:
             CAUGHT_WARNING = True
             logger.addExpectedRegexp(r"^Cannot import IceCube Live.*")
-
-        logger.addExpectedRegexp(r"Version info: \S+ \d+ \S+ \S+ \S+ \S+" +
-                                  r" \d+\S*")
-        logger.addExpectedExact("Cluster configuration: %s" % clusterName)
-
-        logger.addExpectedExact("Starting run %d..." % runNum)
 
         logDir = "/tmp"
 
@@ -299,8 +296,12 @@ class TestRunSet(unittest.TestCase):
                         'Components should not be running')
 
         self.checkStatus(runset, compList, expState)
+        logger.checkStatus(10)
+
+        #logger.addExpectedRegexp("Could not stop run: .*")
 
         self.assertRaises(RunSetException, runset.stopRun)
+        logger.checkStatus(10)
 
         versionInfo = {"filename": "fName",
                        "revision": "1234",
@@ -312,6 +313,17 @@ class TestRunSet(unittest.TestCase):
                        }
 
         expState = "running"
+
+        logger.addExpectedExact("Starting run #%d with \"%s\"" %
+                                (runNum, clusterName))
+
+        logger.addExpectedRegexp(r"Version info: \S+ \d+ \S+ \S+ \S+ \S+" +
+                                  r" \d+\S*")
+        logger.addExpectedExact("Cluster configuration: %s" % clusterName)
+
+        logger.addExpectedExact("Run configuration: %s" % runConfig.basename())
+
+        logger.addExpectedExact("Starting run %d..." % runNum)
 
         runset.startRun(runNum, clusterName, RunOption.MONI_TO_NONE,
                         versionInfo, spadeDir, copyDir, logDir)
@@ -325,6 +337,7 @@ class TestRunSet(unittest.TestCase):
                             'Components should not be running')
 
         self.checkStatus(runset, compList, expState)
+        logger.checkStatus(10)
 
         logger.addExpectedExact("0 physics events collected in 0 seconds")
         logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
@@ -344,6 +357,7 @@ class TestRunSet(unittest.TestCase):
                         'Components should not be running')
 
         self.checkStatus(runset, compList, expState)
+        logger.checkStatus(10)
 
         runset.reset()
 
@@ -359,7 +373,6 @@ class TestRunSet(unittest.TestCase):
                         'Components should not be running')
 
         self.checkStatus(runset, compList, expState)
-
         logger.checkStatus(10)
 
     def testEmpty(self):
