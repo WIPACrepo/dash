@@ -59,9 +59,7 @@ class CnCRun(BaseRun):
             raise RunException("Cannot connect to CnCServer")
 
     def __setLastRunNumber(self, runNum, subRunNum):
-        "Return the last run number"
-        if not os.path.exists(self.__runNumFile):
-            return 0, 0
+        "Set the last used run number"
         fd = open(self.__runNumFile, "w")
         print >>fd, "%d %d" % (runNum, subRunNum)
         fd.close()
@@ -134,11 +132,11 @@ class CnCRun(BaseRun):
     def getLastRunNumber(self):
         "Return the last run number"
         if not os.path.exists(self.__runNumFile):
-            return 0, 0
+            return 0
         line = open(self.__runNumFile).readline()
         m = re.search('(\d+)\s+(\d+)', line)
         if not m:
-            return 0, 0
+            return 0
         return int(m.group(1))
 
     def getRunNumber(self):
