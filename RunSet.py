@@ -1456,8 +1456,10 @@ class RunSet(object):
             self.__stopping = True
             try:
                 self.__stopRunInternal(hadError)
-            finally:
+            except:
                 self.__logger.error("Could not stop run: " + exc_string())
+                raise
+            finally:
                 self.__stopping = False
 
     def subrun(self, id, data):

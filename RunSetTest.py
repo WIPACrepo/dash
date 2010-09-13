@@ -135,6 +135,8 @@ class TestRunSet(unittest.TestCase):
         self.checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
+        logger.addExpectedRegexp("Could not stop run: .*")
+
         try:
             runset.stopRun()
         except RunSetException, ve:
@@ -298,7 +300,7 @@ class TestRunSet(unittest.TestCase):
         self.checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
-        #logger.addExpectedRegexp("Could not stop run: .*")
+        logger.addExpectedRegexp("Could not stop run: .*")
 
         self.assertRaises(RunSetException, runset.stopRun)
         logger.checkStatus(10)
