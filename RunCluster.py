@@ -19,6 +19,16 @@ sys.path.append(os.path.join(metaDir, 'cluster-config'))
 
 class RunClusterError(Exception): pass
 
+class RunControl(Component):
+    def __init__(self):
+        super(RunControl, self).__init__("RunControl", 0, None)
+
+    def __str__(self):
+        return self.name()
+
+    def fullName(self): return self.name()
+    def isControlServer(self): return True
+
 class RunComponent(Component):
     def __init__(self, name, id, logLevel, jvm, jvmArgs, host):
         self.__jvm = jvm
@@ -44,6 +54,7 @@ class RunComponent(Component):
         return "%s@%s(%s)" % (nStr, str(self.logLevel()), jStr)
 
     def host(self): return self.__host
+    def isControlServer(self): return False
     def jvm(self): return self.__jvm
     def jvmArgs(self): return self.__jvmArgs
 
@@ -67,6 +78,10 @@ class RunNode(object):
                               len(self.__comps))
 
     def addComponent(self, comp):
+        if comp.isControlServer():
+            self.__comps.append(RunControl())
+            return
+
         if comp.logLevel() is not None:
             logLvl = comp.logLevel()
         else:

@@ -41,7 +41,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 5156 2010-09-03 22:00:36Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 5202 2010-09-13 15:53:12Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -94,9 +94,11 @@ def __buildComponentList(clusterConfig):
     compList = []
     for node in clusterConfig.nodes():
         for comp in node.components():
-            compList.append(ClusterComponent(comp.name(), comp.id(),
-                                             comp.logLevel(), comp.jvm(),
-                                             comp.jvmArgs(), node.hostName()))
+            if not comp.isControlServer():
+                compList.append(ClusterComponent(comp.name(), comp.id(),
+                                                 comp.logLevel(), comp.jvm(),
+                                                 comp.jvmArgs(),
+                                                 node.hostName()))
     return compList
 
 def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9, parallel=None):

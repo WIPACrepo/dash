@@ -88,6 +88,16 @@ class ConfigXMLBase(object):
         except:
             return defaultVal
 
+class ControlComponent(Component):
+    def __init__(self):
+        super(ControlComponent, self).__init__("CnCServer", 0, None)
+
+    def __str__(self):
+        return "CnCServer"
+
+    def isControlServer(self): return True
+    def required(self): return True
+
 class ClusterComponent(Component):
     def __init__(self, name, id, logLevel, jvm, jvmArgs, required):
         self.__jvm = jvm
@@ -116,6 +126,7 @@ class ClusterComponent(Component):
         return "%s@%s(%s)%s" % \
             (self.fullName(), str(self.logLevel()), jStr, rStr)
 
+    def isControlServer(self): return False
     def jvm(self): return self.__jvm
     def jvmArgs(self): return self.__jvmArgs
     def required(self): return self.__required
@@ -147,6 +158,7 @@ class ClusterHost(object):
         self.name = name
         self.compMap = {}
         self.simHub = None
+        self.ctlServer = False
 
     def __str__(self):
         return self.name
@@ -188,11 +200,20 @@ class ClusterHost(object):
             print "%s  SimHub*%d prio %d%s" % \
                 (prefix, self.simHub.number, self.simHub.priority, uStr)
 
+        if self.ctlServer:
+            print "%s  ControlServer" % prefix
+
     def getComponents(self):
         return self.compMap.values()
 
     def getSimulatedHub(self):
         return self.simHub
+
+    def isControlServer(self):
+        return self.ctlServer
+
+    def setControlServer(self):
+        self.ctlServer = True
 
 class ClusterDescription(ConfigXMLBase):
     def __init__(self, configDir, configName, suffix='.cfg'):
@@ -429,6 +450,8 @@ class ClusterDescription(ConfigXMLBase):
 
                 if kid.nodeName == 'component':
                     self.___parseComponentNode(self.name, host, kid)
+                elif kid.nodeName == 'controlServer':
+                    host.setControlServer()
                 elif kid.nodeName == 'simulatedHub':
                     if simHub is not None:
                         errMsg = ('Cluster "%s" host "%s" has multiple' +
@@ -468,6 +491,8 @@ class ClusterDescription(ConfigXMLBase):
         for host in self.__hostMap.keys():
             for comp in self.__hostMap[host].getComponents():
                 yield (host, comp)
+            if self.__hostMap[host].isControlServer():
+                yield (host, ControlComponent())
 
     def listHostSimHubPairs(self):
         for host in self.__hostMap.keys():

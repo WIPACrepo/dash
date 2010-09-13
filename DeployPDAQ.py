@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 5156 2010-09-03 22:00:36Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 5202 2010-09-13 15:53:12Z dglo $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -160,7 +160,7 @@ def main():
             compList.sort()
 
             for comp in compList:
-                print "%s#%d" % (comp.name(), comp.id()),
+                print comp.fullName(),
                 if comp.isHub():
                     print "[%s]" % getHubType(comp.id()),
                 print " ",
