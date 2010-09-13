@@ -442,7 +442,11 @@ class ClusterDescription(ConfigXMLBase):
                 host.addSimulatedHub(simHub)
 
             # add host to internal host dictionary
-            self.__hostMap[hostName] = host
+            if not self.__hostMap.has_key(hostName):
+                self.__hostMap[hostName] = host
+            else:
+                errMsg = 'Multiple entries for host "%s"' % hostName
+                raise ClusterDescriptionFormatError(errMsg)
 
             for comp in host.getComponents():
                 compKey = str(comp)
