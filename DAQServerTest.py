@@ -177,6 +177,9 @@ class MockServer(CnCServer):
                                            expectStartMsg=False,
                                            startServer=False)
 
+    def saveCatchall(self, runDir):
+        pass
+
     def startLiveThread(self):
         return None
 

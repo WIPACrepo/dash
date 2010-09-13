@@ -713,6 +713,7 @@ class MockDeployComponent(Component):
 
         super(MockDeployComponent, self).__init__(name, id, logLevel)
 
+    def isControlServer(self): return False
     def jvm(self): return self.__jvm
     def jvmArgs(self): return self.__jvmArgs
 

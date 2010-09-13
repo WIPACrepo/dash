@@ -28,6 +28,13 @@ class FakeRunConfig(object):
     def hasDOM(self, mbid):
         return True
 
+class MyParent(object):
+    def __init__(self):
+        pass
+
+    def saveCatchall(self, runDir):
+        pass
+
 class MyRunSet(RunSet):
     def __init__(self, parent, runConfig, compList, logger):
         self.__dashLog = logger
@@ -99,7 +106,8 @@ class TestRunSet(unittest.TestCase):
 
         logger.addExpectedExact("Run configuration: %s" % runConfig.basename())
 
-        runset = MyRunSet(None, runConfig, compList, logger)
+        parent = MyParent()
+        runset = MyRunSet(parent, runConfig, compList, logger)
 
         expState = "idle"
 
@@ -249,7 +257,8 @@ class TestRunSet(unittest.TestCase):
         spadeDir = "/tmp"
         copyDir = None
 
-        runset = MyRunSet(None, runConfig, compList, logger)
+        parent = MyParent()
+        runset = MyRunSet(parent, runConfig, compList, logger)
 
         expState = "idle"
 

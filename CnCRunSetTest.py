@@ -245,6 +245,9 @@ class MostlyCnCServer(CnCServer):
 
         return self.__logServer
 
+    def saveCatchall(self, runDir):
+        pass
+
     def startLiveThread(self):
         return None
 

@@ -67,6 +67,9 @@ class MyDAQPool(DAQPool):
         rs.returnComponents(self, None, None, None, None, None, None, None,
                             None)
 
+    def saveCatchall(self, runDir):
+        pass
+
 class TestDAQPool(unittest.TestCase):
     def __checkRunsetState(self, runset, expState):
         for c in runset.components():
