@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import optparse, sys
+import optparse, socket, sys
 from os import environ
 from os.path import join
 from DAQConst import DAQPort
@@ -18,7 +18,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQStatus.py 5168 2010-09-08 20:13:57Z dglo $"
+SVN_ID  = "$Id: DAQStatus.py 5206 2010-09-13 18:16:18Z dglo $"
 
 LINE_LENGTH = 78
 
@@ -122,12 +122,18 @@ def listTerse(compList, indent, indent2):
         numList.append(c["compNum"])
     dumpComp(prevComp, numList, indent, indent2)
 
-def listVerbose(compList, indent, indent2):
+def listVerbose(compList, indent, indent2, useNumeric=True):
     compList.sort(cmpComp)
 
     for c in compList:
+        if useNumeric:
+            hostName = c["host"]
+        else:
+            hostName = socket.getfqdn(c["host"])
+            idx = hostName.find(".")
+            if idx > 0: hostName = hostName[:idx]
         print "%s%s#%d %s#%d at %s:%d M#%d %s" % \
-            (indent, indent2, c["id"], c["compName"], c["compNum"], c["host"],
+            (indent, indent2, c["id"], c["compName"], c["compNum"], hostName,
              c["rpcPort"], c["mbeanPort"], c["state"])
 
 if __name__ == "__main__":
@@ -136,6 +142,9 @@ if __name__ == "__main__":
     usage = "%prog [options]\nversion: " + ver_info
     p = optparse.OptionParser(usage=usage, version=ver_info)
 
+    p.add_option("-n", "--numeric", dest="numeric",
+                 action="store_true", default=False,
+                 help="Verbose listing uses IP addresses instead of hostnames")
     p.add_option("-v", "--verbose", dest="verbose",
                  action="store_true", default=False,
                  help="Print detailed list")
@@ -170,7 +179,7 @@ if __name__ == "__main__":
     print "======================="
     print "%d unused component%s" % (nc, getPlural(nc))
     if opt.verbose:
-        listVerbose(lc, indent, indent2)
+        listVerbose(lc, indent, indent2, opt.numeric)
     else:
         listTerse(lc, indent, indent2)
 
