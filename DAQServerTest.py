@@ -45,7 +45,9 @@ class TinyClient(object):
         return self.__connectors[:]
 
     def fullName(self):
-        return self.__name
+        if self.__num == 0:
+            return self.__name
+        return "%s#%d" % (self.__name, self.__num)
 
     def id(self):
         return self.__id
@@ -259,10 +261,13 @@ class TestDAQServer(unittest.TestCase):
 
         expId = DAQClient.ID.peekNext()
 
-        logger.addExpectedText('Got registration for ID#%d %s#%d at %s:%d' %
-                               (expId, name, num, host, port))
-        liver.addExpectedText('Got registration for ID#%d %s#%d at %s:%d' %
-                              (expId, name, num, host, port))
+        if num == 0:
+            fullName = name
+        else:
+            fullName = "%s#%d" % (name, num)
+
+        logger.addExpectedText('Registered %s' % fullName)
+        liver.addExpectedText('Registered %s' % fullName)
 
         rtnArray = dc.rpc_component_register(name, num, host, port, mPort, [])
 
@@ -308,9 +313,12 @@ class TestDAQServer(unittest.TestCase):
 
         expId = DAQClient.ID.peekNext()
 
-        logger.addExpectedText(('Got registration for ID#%d %s#%d at %s:%d' +
-                                ' M#%d') %
-                               (expId, name, num, host, port, mPort))
+        if num == 0:
+            fullName = name
+        else:
+            fullName = "%s#%d" % (name, num)
+
+        logger.addExpectedText('Registered %s' % fullName)
 
         rtnArray = dc.rpc_component_register(name, num, host, port, mPort, [])
 
@@ -375,10 +383,12 @@ class TestDAQServer(unittest.TestCase):
         self.assertEqual(dc.rpc_runset_count(), 0)
         self.assertEqual(dc.rpc_component_listDicts(), [])
 
-        regStr = 'ID#%d %s#%d at %s:%d' % \
-            (compId, compName, compNum, compHost, compPort)
+        if compNum == 0:
+            fullName = compName
+        else:
+            fullName = "%s#%d" % (compName, compNum)
 
-        logger.addExpectedText('Got registration for %s' % regStr)
+        logger.addExpectedText('Registered %s' % fullName)
 
         dc.rpc_component_register(compName, compNum, compHost, compPort,
                                   compBeanPort, [])

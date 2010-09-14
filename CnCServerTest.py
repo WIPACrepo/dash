@@ -334,9 +334,6 @@ class TestCnCServer(unittest.TestCase):
         cluCfg.addComponent("%s#%d" % (compName, compNum), "java", "",
                             compHost)
 
-        catchall.addExpectedText("I'm server %s running on port %d" %
-                                 (MostlyCnCServer.SERVER_NAME,
-                                  DAQPort.CNCSERVER))
         catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
         self.cnc = MostlyCnCServer(clusterConfigObject=cluCfg,
@@ -355,10 +352,12 @@ class TestCnCServer(unittest.TestCase):
         cmdPort = 19001
         mbeanPort = 19002
 
-        catchall.addExpectedText(('Got registration for ID#%d %s#%d at' +
-                                  ' localhost:%d M#%d') %
-                                 (DAQClient.ID.peekNext(), compName, compNum,
-                                  cmdPort, mbeanPort))
+        if compNum == 0:
+            fullName = compName
+        else:
+            fullName = "%s#%d" % (compName, compNum)
+
+        catchall.addExpectedText('Registered %s' % fullName)
 
         self.comp = RealComponent(compName, compNum, cmdPort, mbeanPort)
 

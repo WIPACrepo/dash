@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 5195 2010-09-10 15:12:59Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 5210 2010-09-14 22:06:51Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -858,7 +858,7 @@ class CnCServer(DAQPool):
         client = self.createClient(name, num, host, port, mbeanPort,
                                    connectors)
 
-        self.__log.debug("Got registration for %s" % str(client))
+        self.__log.debug("Registered %s" % client.fullName())
 
         self.add(client)
 
@@ -1072,8 +1072,6 @@ class CnCServer(DAQPool):
 
     def run(self):
         "Start a server"
-        self.__log.debug("I'm server %s running on port %d" %
-                         (self.__name, DAQPort.CNCSERVER))
         self.__log.info(("%(filename)s %(revision)s %(date)s %(time)s" +
                          " %(author)s %(release)s %(repo_rev)s") %
                         self.__versionInfo)

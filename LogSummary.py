@@ -55,8 +55,9 @@ class CatchallLog(ComponentLog):
                              r" XML-RPC port \d+\s*$")
     RDR_PORT = re.compile(r"^(|.*\]\s+)\S+:\S+ listening on port \d+\s*$")
     XMLRPC_PORT = re.compile(r"^(|.*\]\s+)XML-RPC on port \d+\s*$")
-    REG_COMP = re.compile(r"^(|.*\]\s+)Got registration for ID#(\d+)" +
-                          r" (\S+) at (\S+):(\d+) M#(\d+) \[[^\]]*\]\s*$")
+    OLDREG_COMP = re.compile(r"^(|.*\]\s+)Got registration for ID#(\d+)" +
+                             r" (\S+) at (\S+):(\d+) M#(\d+) \[[^\]]*\]\s*$")
+    NEWREG_COMP = re.compile(r"^(|.*\]\s+)Registered (\S+)\s*$")
     START_RUN = re.compile(r"^(|.*\]\s+)Starting run (\d+) \(waiting for" +
                            r" required (\d+) components to register" +
                            r" w/ CnCServer\)\s*$")
@@ -134,13 +135,18 @@ class CatchallLog(ComponentLog):
                 if m:
                     continue
 
-                m = self.REG_COMP.match(line)
+                m = self.OLDREG_COMP.match(line)
                 if m:
                     id = int(m.group(2))
                     comp = m.group(3)
                     addr = m.group(4)
                     rpcPort = int(m.group(5))
                     mbeanPort = int(m.group(6))
+                    continue
+
+                m = self.NEWREG_COMP.match(line)
+                if m:
+                    comp = m.group(1)
                     continue
 
                 m = self.START_RUN.match(line)
@@ -167,13 +173,18 @@ class CatchallLog(ComponentLog):
                 if m:
                     continue
 
-                m = self.REG_COMP.match(line)
+                m = self.OLDREG_COMP.match(line)
                 if m:
                     id = int(m.group(2))
                     comp = m.group(3)
                     addr = m.group(4)
                     rpcPort = int(m.group(5))
                     mbeanPort = int(m.group(6))
+                    continue
+
+                m = self.NEWREG_COMP.match(line)
+                if m:
+                    comp = m.group(1)
                     continue
 
                 if line.find("Built runset with the following components:") >= 0:

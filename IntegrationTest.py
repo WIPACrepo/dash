@@ -335,8 +335,6 @@ class MostlyCnCServer(CnCServer):
 
         msg = "Start of log at LOG=log(localhost:%d)" % port
         self.__logServer.addExpectedText(msg)
-        self.__logServer.addExpectedText("I'm server MostlyCnC running on" +
-                                         " port %s" % DAQPort.CNCSERVER)
         msg = ("%(filename)s %(revision)s %(date)s %(time)s %(author)s" +
                " %(release)s %(repo_rev)s") % self.versionInfo()
         self.__logServer.addExpectedText(msg)
@@ -1013,19 +1011,11 @@ class IntegrationTest(unittest.TestCase):
         dashLog = None
         for comp in self.__compList:
             if logServer is not None:
-                msg = ("Got registration for ID#%d %s" +
-                       " at localhost:%d M#%d.*") % \
-                       (DAQClient.ID.peekNext(), str(comp),
-                        comp.getCommandPort(), comp.getMBeanPort())
-                logServer.addExpectedTextRegexp(msg)
+                logServer.addExpectedTextRegexp("Registered %s" %
+                                                comp.fullName())
                 logServer.addExpectedExact('Hello from %s' % str(comp))
             if liveLog is not None and not liveRunOnly:
-                liveLog.addExpectedTextRegexp(('Got registration for ID#%d %s' +
-                                               ' at localhost:%d M#%d.*') %
-                                              (DAQClient.ID.peekNext(),
-                                               str(comp),
-                                               comp.getCommandPort(),
-                                               comp.getMBeanPort()))
+                liveLog.addExpectedTextRegexp('Registered %s' % comp.fullName())
                 liveLog.addExpectedText('Hello from %s' % str(comp))
             comp.register(self.__getConnectionList(comp.getName()))
 
@@ -1637,8 +1627,6 @@ class IntegrationTest(unittest.TestCase):
 
         (live, liveLog) = self.__createLiveObjects(livePort)
 
-        liveLog.addExpectedText("I'm server %s running on port %d" %
-                                 (cnc.name(), DAQPort.CNCSERVER))
         liveLog.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
 
         t = threading.Thread(name="AllLiveFinish", target=cnc.run, args=())
@@ -1669,10 +1657,6 @@ class IntegrationTest(unittest.TestCase):
             self.__createRunObjects(runOptions)
 
         (live, liveLog) = self.__createLiveObjects(livePort)
-
-        msg = "I'm server %s running on port %d" % \
-            (cnc.name(), DAQPort.CNCSERVER)
-        liveLog.addExpectedText(msg)
 
         patStr = r'\S+ \S+ \S+ \S+ \S+ \S+ \S+'
         liveLog.addExpectedTextRegexp(patStr)
