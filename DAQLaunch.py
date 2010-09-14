@@ -41,7 +41,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 5202 2010-09-13 15:53:12Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 5212 2010-09-14 23:02:01Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -232,13 +232,14 @@ def doKill(doCnC, dryRun, dashDir, verbose, quiet, clusterConfig,
 
     for b in batch:
         if b[0]:
-            # Kill this program
-            prog = join(dashDir, b[1] + '.py')
-            cmd = prog + ' -k'
-            if verbose: print cmd
-            if not dryRun:
-                runCmd(cmd, parallel)
-                if not quiet: killed.append(b[1])
+            pids = list(findProcess(b[1], processList()))
+            pid = int(os.getpid())
+            for p in pids:
+                if pid != p:
+                    # print "Killing %d..." % p
+                    import signal
+                    os.kill(p, signal.SIGKILL)
+                    if not quiet: killed.append(b[1])
         elif not dryRun and not quiet:
             ignored.append(b[1])
 

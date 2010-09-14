@@ -935,27 +935,7 @@ class MockParallelShell(object):
             self.__addExpected(cmd)
 
     def addExpectedPythonKill(self, doCnC, dashDir, killWith9):
-        if killWith9:
-            nineArg = '-9 '
-        else:
-            nineArg = ''
-
-        user = os.environ['USER']
-
-        doLive = True
-        doRun = True
-
-        if doLive:
-            path = os.path.join(dashDir, 'DAQLive.py')
-            self.__addExpected('%s -k' % path)
-
-        if doRun:
-            path = os.path.join(dashDir, 'DAQRun.py')
-            self.__addExpected('%s -k' % path)
-
-        if doCnC:
-            path = os.path.join(dashDir, 'CnCServer.py')
-            self.__addExpected('%s -k' % path)
+        pass
 
     def addExpectedRsync(self, dir, subdirs, delete, dryRun, remoteHost,
                          rtnCode, result="",
