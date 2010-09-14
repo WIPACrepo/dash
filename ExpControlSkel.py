@@ -6,7 +6,7 @@ John Jacobsen, jacobsen@npxdesigns.com
 Started November, 2006
 """
 
-import optparse, os, sys
+import optparse, os, re, sys
 from cncrun import CnCRun
 import optparse
 import time
@@ -23,7 +23,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 5156 2010-09-03 22:00:36Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 5211 2010-09-14 22:15:30Z dglo $"
 
 class DOMArgumentException(Exception): pass
 
@@ -46,6 +46,29 @@ def getLastRunNum(runFile):
         return int(ret.rstrip('\r\n'))
     except:
         return None
+
+# stolen from live/misc/util.py
+def getDurationFromString(s):
+    """
+    Return duration in seconds based on string <s>
+    """
+    m = re.search('^(\d+)$', s)
+    if m:
+        return int(m.group(1))
+    m = re.search('^(\d+)s(?:ec(?:s)?)?$', s)
+    if m:
+        return int(m.group(1))
+    m = re.search('^(\d+)m(?:in(?:s)?)?$', s)
+    if m:
+        return int(m.group(1)) * 60
+    m = re.search('^(\d+)h(?:r(?:s)?)?$', s)
+    if m:
+        return int(m.group(1)) * 3600
+    m = re.search('^(\d+)d(?:ay(?:s)?)?$', s)
+    if m:
+        return int(m.group(1)) * 86400
+    raise ValueError('String "%s" is not a known duration format.  Try'
+                     '30sec, 10min, 2days etc.' % s)
 
 class DOM:
     def __init__(self, *args):
@@ -214,12 +237,14 @@ def main():
     if clusterCfg is None:
         raise SystemExit("Cannot determine cluster configuration")
 
+    duration = getDurationFromString(opt.duration)
+
     for r in range(opt.numRuns):
         run = cnc.createRun(None, opt.runConfig, flashName=opt.flasherRun)
         if opt.flasherRun is None:
-            run.start(opt.duration)
+            run.start(duration)
         else:
-            run.start(opt.duration, flashTimes, flashPause, False)
+            run.start(duration, flashTimes, flashPause, False)
         try:
             run.wait()
         finally:
