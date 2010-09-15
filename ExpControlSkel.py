@@ -23,7 +23,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 5211 2010-09-14 22:15:30Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 5216 2010-09-15 16:29:39Z dglo $"
 
 class DOMArgumentException(Exception): pass
 
@@ -70,7 +70,7 @@ def getDurationFromString(s):
     raise ValueError('String "%s" is not a known duration format.  Try'
                      '30sec, 10min, 2days etc.' % s)
 
-class DOM:
+class SubRunDOM(object):
     def __init__(self, *args):
         if len(args) == 7:
             self.string = args[0]
@@ -130,7 +130,8 @@ class SubRun:
         self.domlist  = []
         
     def addDOM(self, d):
-        self.domlist.append(d)
+        self.domlist.append(SubRunDOM(string, pos,  bright, window, delay,
+                                      mask, rate))
         
     def __str__(self):
         typ = "FLASHER"
@@ -179,7 +180,7 @@ class SubRunSet:
                 delay  = int(m7.group(5))
                 mask   = int(m7.group(6), 16)
                 rate   = int(m7.group(7))
-                sr.addDOM(DOM(string, pos,  bright, window, delay, mask, rate))
+                sr.addDOM(string, pos,  bright, window, delay, mask, rate)
             elif m6 and sr:
                 mbid   = m6.group(1)
                 bright = int(m6.group(2))
@@ -187,7 +188,7 @@ class SubRunSet:
                 delay  = int(m6.group(4))
                 mask   = int(m6.group(5), 16)
                 rate   = int(m6.group(6))
-                sr.addDOM(DOM(mbid, bright, window, delay, mask, rate))
+                sr.addDOM(mbid, bright, window, delay, mask, rate)
                 
     def __str__(self):
         s = ""

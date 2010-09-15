@@ -105,7 +105,7 @@ class ThreadableProcess:
         if self.verbose: print "OK, stopping thread for %s (%s)" % (self.hub, self.cmd)
         self.doStop = True
 
-class DOM:
+class DOMState:
     """
     Small class to represent DOM states
     """
@@ -156,7 +156,7 @@ class DOMCounter:
             cwd = line[0]
             dat = line[1]
             if not self.domDict.has_key(cwd):
-                self.domDict[cwd] = DOM(cwd)
+                self.domDict[cwd] = DOMState(cwd)
             self.domDict[cwd].addData(dat)
         
     def doms(self): return self.domDict.keys()

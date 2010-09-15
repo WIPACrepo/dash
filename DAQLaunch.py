@@ -41,7 +41,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 5214 2010-09-15 13:06:27Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 5216 2010-09-15 16:29:39Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -77,13 +77,13 @@ def runCmd(cmd, parallel):
     else:
         parallel.system(cmd)
 
-class ClusterComponent(Component):
+class LaunchComponent(Component):
     def __init__(self, name, id, logLevel, jvm, jvmArgs, host):
         self.__jvm = jvm
         self.__jvmArgs = jvmArgs
         self.__host = host
 
-        super(ClusterComponent, self).__init__(name, id, logLevel)
+        super(LaunchComponent, self).__init__(name, id, logLevel)
 
     def host(self): return self.__host
     def isControlServer(self): return False
@@ -95,10 +95,10 @@ def __buildComponentList(clusterConfig):
     for node in clusterConfig.nodes():
         for comp in node.components():
             if not comp.isControlServer():
-                compList.append(ClusterComponent(comp.name(), comp.id(),
-                                                 comp.logLevel(), comp.jvm(),
-                                                 comp.jvmArgs(),
-                                                 node.hostName()))
+                compList.append(LaunchComponent(comp.name(), comp.id(),
+                                                comp.logLevel(), comp.jvm(),
+                                                comp.jvmArgs(),
+                                                node.hostName()))
     return compList
 
 def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9, parallel=None):

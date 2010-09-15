@@ -11,9 +11,9 @@ from liverun import LiveRun
 FOUR_HR = 14400
 EIGHT_HR = 28800
 
-class RunDataException(Exception): pass
+class PDAQRunException(Exception): pass
 
-class RunData(object):
+class PDAQRun(object):
     "Description of a pDAQ run"
 
     def __init__(self, runCfg, duration, numRuns=1, flashName=None,
@@ -40,21 +40,21 @@ class RunData(object):
 
 # configurations to run
 #
-RUN_LIST = (RunData("spts64-dirtydozen-hlc-006", FOUR_HR),
-            RunData("spts64-dirtydozen-hlc-006", 0, 1,
+RUN_LIST = (PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
+            PDAQRun("spts64-dirtydozen-hlc-006", 0, 1,
                     "flash-21", (60, 45, 120)),
-            ###RunData("sim18str-noise25Hz-002", FOUR_HR),
-            ###RunData("sim18str-noise25Hz-002", EIGHT_HR),
-            ###RunData("sim22str-with-phys-trig-001", FOUR_HR),
-            ###RunData("sim22str-with-phys-trig-001", EIGHT_HR),
-            #RunData("sim40str-25Hz-reduced-trigger", FOUR_HR),
-            #RunData("sim40str-25Hz-reduced-trigger", EIGHT_HR),
-            #RunData("sim60str-mbt23", FOUR_HR),
-            #RunData("sim60str-mbt23", EIGHT_HR),
-            RunData("sim60str-mbt-vt-01", FOUR_HR),
-            RunData("sim60str-mbt-vt-01", EIGHT_HR),
-            ###RunData("sim80str-25Hz", FOUR_HR),
-            ###RunData("sim80str-25Hz", EIGHT_HR),
+            ###PDAQRun("sim18str-noise25Hz-002", FOUR_HR),
+            ###PDAQRun("sim18str-noise25Hz-002", EIGHT_HR),
+            ###PDAQRun("sim22str-with-phys-trig-001", FOUR_HR),
+            ###PDAQRun("sim22str-with-phys-trig-001", EIGHT_HR),
+            #PDAQRun("sim40str-25Hz-reduced-trigger", FOUR_HR),
+            #PDAQRun("sim40str-25Hz-reduced-trigger", EIGHT_HR),
+            #PDAQRun("sim60str-mbt23", FOUR_HR),
+            #PDAQRun("sim60str-mbt23", EIGHT_HR),
+            PDAQRun("sim60str-mbt-vt-01", FOUR_HR),
+            pDAQRun("sim60str-mbt-vt-01", EIGHT_HR),
+            ###pDAQRun("sim80str-25Hz", FOUR_HR),
+            ###pDAQRun("sim80str-25Hz", EIGHT_HR),
             )
 
 class Deploy(object):
