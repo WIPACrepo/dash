@@ -15,7 +15,7 @@ from LiveImports import MoniClient, Prio
 from RunOption import RunOption
 from RunSetDebug import RunSetDebug
 from RunSetState import RunSetState
-from RunStats import RunStats
+from RunStats import PayloadTime, RunStats
 from TaskManager import TaskManager
 from UniqueID import UniqueID
 
@@ -254,19 +254,6 @@ class RunData(object):
     def __str__(self):
         return "Run#%d %s" % (self.__runNumber, self.__runStats)
 
-    def getSingleBeanField(self, comp, bean, fldName):
-        tGroup = ComponentOperationGroup(ComponentOperation.GET_SINGLE_BEAN)
-        tGroup.start(comp, self.__dashlog, (bean, fldName))
-        tGroup.wait(10)
-
-        r = tGroup.results()
-        if not r.has_key(comp):
-            result = ComponentOperation.RESULT_ERROR
-        else:
-            result = r[comp]
-
-        return result
-
     def __getRateData(self, comps):
         nEvts = 0
         evtTime = -1
@@ -296,6 +283,8 @@ class RunData(object):
                         self.__dashlog.error(msg)
                     else:
                         self.__firstPayTime = val
+                        self.__reportRunStart()
+
             if c.isComponent("secondaryBuilders"):
                 for bldr in ("moni", "sn", "tcal"):
                     val = self.getSingleBeanField(c, bldr + "Builder",
@@ -337,6 +326,18 @@ class RunData(object):
 
         return log
 
+    def __reportRunStart(self):
+        time = PayloadTime.toDateTime(self.__firstPayTime)
+        data = { "runnum" : self.__runNumber }
+        self.__liveMoniClient.sendMoni("runstart", data, prio=Prio.SCP,
+                                       time=time)
+
+    def __reportRunStop(self, numEvts, lastPayTime):
+        time = PayloadTime.toDateTime(lastPayTime)
+        data = { "events" : numEvts, "runnum" : self.__runNumber }
+        self.__liveMoniClient.sendMoni("runstop", data, prio=Prio.SCP,
+                                       time=time)
+
     def error(self, msg):
         self.__dashlog.error(msg)
 
@@ -377,6 +378,19 @@ class RunData(object):
 
         return monDict
 
+    def getSingleBeanField(self, comp, bean, fldName):
+        tGroup = ComponentOperationGroup(ComponentOperation.GET_SINGLE_BEAN)
+        tGroup.start(comp, self.__dashlog, (bean, fldName))
+        tGroup.wait(10)
+
+        r = tGroup.results()
+        if not r.has_key(comp):
+            result = ComponentOperation.RESULT_ERROR
+        else:
+            result = r[comp]
+
+        return result
+
     def info(self, msg):
         self.__dashlog.info(msg)
 
@@ -392,12 +406,15 @@ class RunData(object):
 
     def reportRates(self, comps):
         try:
-            (numEvts, numMoni, numSN, numTcal, duration) = \
+            (numEvts, numMoni, numSN, numTcal, duration, lastTime) = \
                 self.__runStats.stop(self.__getRateData(comps))
         except:
-            (numEvts, numMoni, numSN, numTcal, duration) = (0, 0, 0, 0, 0)
+            (numEvts, numMoni, numSN, numTcal, duration, lastTime) = \
+                (0, 0, 0, 0, 0, 0)
             self.__dashlog.error("Could not get event count: " + exc_string())
             return -1
+
+        self.__reportRunStop(numEvts, lastTime)
 
         if duration == 0:
             rateStr = ""

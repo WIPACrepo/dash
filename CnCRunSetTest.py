@@ -315,6 +315,22 @@ class CnCRunSetTest(unittest.TestCase):
 
         raise Exception("Unknown component %s-%d" % (compName, compNum))
 
+    def __addRunStartMoni(self, liveMoni, firstTime, runNum):
+
+        if not LIVE_IMPORT:
+            return
+
+        data = { "runnum": runNum }
+        liveMoni.addExpectedLiveMoni("runstart", data, "json")
+
+    def __addRunStopMoni(self, liveMoni, lastTime, numEvts, runNum):
+
+        if not LIVE_IMPORT:
+            return
+
+        data = { "events" : numEvts, "runnum": runNum }
+        liveMoni.addExpectedLiveMoni("runstop", data, "json")
+
     def __checkActiveDOMsTask(self, comps, rs, liveMoni):
         if not LIVE_IMPORT:
             return
@@ -394,7 +410,8 @@ class CnCRunSetTest(unittest.TestCase):
 
         self.__waitForEmptyLog(liveMoni, "Didn't get radar message")
 
-    def __checkRateTask(self, comps, rs, dashLog, numEvts, payTime, firstTime):
+    def __checkRateTask(self, comps, rs, liveMoni, dashLog, numEvts, payTime,
+                        firstTime, runNum):
         timer = rs.getTaskManager().getTimer(RateTask.NAME)
 
         dashLog.addExpectedRegexp(r"\s+0 physics events, 0 moni events," +
@@ -417,6 +434,9 @@ class CnCRunSetTest(unittest.TestCase):
 
         dashLog.addExpectedExact(("	%d physics events%s, 0 moni events," +
                                   " 0 SN events, 0 tcals") % (numEvts, hzStr))
+
+        if liveMoni is not None:
+            self.__addRunStartMoni(liveMoni, firstTime, runNum)
 
         timer.trigger()
 
@@ -552,7 +572,8 @@ class CnCRunSetTest(unittest.TestCase):
         payTime = 50000000001
         firstTime = 1
 
-        self.__checkRateTask(comps, rs, dashLog, numEvts, payTime, firstTime)
+        self.__checkRateTask(comps, rs, None, dashLog, numEvts, payTime,
+                             firstTime, runNum)
 
         numMoni = 0
         numSN = 0
@@ -769,7 +790,8 @@ class CnCRunSetTest(unittest.TestCase):
         payTime = 50000000001
         firstTime = 1
 
-        self.__checkRateTask(comps, rs, dashLog, numEvts, payTime, firstTime)
+        self.__checkRateTask(comps, rs, liveMoni, dashLog, numEvts, payTime,
+                             firstTime, runNum)
         self.__checkMonitorTask(comps, rs, liveMoni)
         self.__checkActiveDOMsTask(comps, rs, liveMoni)
         self.__checkWatchdogTask(comps, rs, dashLog)
@@ -794,6 +816,8 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog.addExpectedExact("%d moni events, %d SN events, %d tcals" %
                                  (numMoni, numSN, numTcals))
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
+
+        self.__addRunStopMoni(liveMoni, payTime, numEvts, runNum)
 
         self.__cnc.rpc_runset_stop_run(rsId)
 

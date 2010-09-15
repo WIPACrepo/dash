@@ -108,7 +108,7 @@ class RunStats(object):
             duration = (self.__evtPayTime - self.__startPayTime) / 10000000000
 
         return (self.__numEvts, self.__numMoni, self.__numSN, self.__numTcal,
-                duration)
+                duration, self.__evtPayTime)
 
     def updateEventCounts(self, evtData, addRate=False):
         "Gather run statistics"
