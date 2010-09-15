@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 5213 2010-09-15 12:35:56Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 5218 2010-09-15 20:39:32Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -730,8 +730,9 @@ class CnCServer(DAQPool):
                 count = lastCount
 
             new = (lastCount != count)
-            if new:
-                print "%d bins, %d comps" % (self.numUnused(), count)
+            if new and not self.__quiet:
+                print >>sys.stderr, "%d bins, %d comps" % \
+                    (self.numUnused(), count)
 
             lastCount = count
 
@@ -1176,7 +1177,7 @@ if __name__ == "__main__":
                  action="store", default="/mnt/data/pdaq/runs",
                  help="Directory where SPADE will pick up logs/moni files")
     p.add_option("-v", "--verbose", dest="quiet",
-                 action="store_false", default=False,
+                 action="store_false", default=True,
                  help="Write catchall messages to console")
 
     opt, args = p.parse_args()
