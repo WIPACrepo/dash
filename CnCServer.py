@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 5210 2010-09-14 22:06:51Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 5213 2010-09-15 12:35:56Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -549,6 +549,7 @@ class CnCServer(DAQPool):
             self.__server.register_function(self.rpc_cycle_live)
             self.__server.register_function(self.rpc_end_all)
             self.__server.register_function(self.rpc_ping)
+            self.__server.register_function(self.rpc_register_component)
             self.__server.register_function(self.rpc_runset_active)
             self.__server.register_function(self.rpc_runset_break)
             self.__server.register_function(self.rpc_runset_configname)
@@ -901,13 +902,20 @@ class CnCServer(DAQPool):
                                  (str(c), exc_string()))
         return 1
 
-    def rpc_runset_active(self):
-        "return number of active (running) run sets"
-        return self.numActiveSets()
-
     def rpc_ping(self):
         "remote method for far end to confirm that server is still alive"
         return self.__id
+
+    def rpc_register_component(self, name, num, host, port, mbeanPort,
+                               connArray):
+        "backward compatibility shim"
+        return self.rpc_component_register(name, num, host, port, mbeanPort,
+                                           connArray)
+
+        "register a component with the server"
+    def rpc_runset_active(self):
+        "return number of active (running) run sets"
+        return self.numActiveSets()
 
     def rpc_runset_break(self, id):
         "break up the specified runset"
