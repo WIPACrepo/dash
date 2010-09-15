@@ -18,7 +18,7 @@ class ClusterConfigException(Exception): pass
 class ConfigNotFoundException(ClusterConfigException): pass
 class MalformedDeployConfigException(ClusterConfigException): pass
 
-class ClusterComponent(Component, CachedConfigName):
+class ClusterComponent(Component):
     "Record-keeping class for deployed components"
     def __init__(self, name, id, logLevel, jvm, jvmArgs, host):
         self.__jvm = jvm
@@ -31,6 +31,7 @@ class ClusterComponent(Component, CachedConfigName):
         return "%s@%s" % (self.fullName(), self.logLevel())
 
     def host(self): return self.__host
+    def isControlServer(self): return False
     def jvm(self): return self.__jvm
     def jvmArgs(self): return self.__jvmArgs
 
