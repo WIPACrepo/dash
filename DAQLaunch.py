@@ -41,7 +41,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 5216 2010-09-15 16:29:39Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 5217 2010-09-15 17:25:43Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -438,6 +438,10 @@ if __name__ == "__main__":
             caughtException = True
         if caughtException and opt.killOnly:
             print >>sys.stderr, 'DAQ is not currently active'
+
+        if opt.force:
+            print >>sys.stderr, "Remember to run SpadeQueue.py to recover" + \
+                " any orphaned data"
 
     if not opt.killOnly:
         clusterConfig = \
