@@ -288,7 +288,7 @@ class RunData(object):
                     nEvts = int(evtData[0])
                     evtTime = datetime.datetime.utcnow()
                     payloadTime = long(evtData[1])
-                if self.__firstPayTime <= 0:
+                if nEvts > 0 and self.__firstPayTime <= 0:
                     val = self.getSingleBeanField(c, "backEnd",
                                                   "FirstEventTime")
                     if type(val) == Result:

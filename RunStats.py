@@ -114,17 +114,18 @@ class RunStats(object):
         "Gather run statistics"
         if evtData is not None:
             (self.__numEvts, self.__evtTime,
-             self.__firstPayTime, self.__evtPayTime,
+             firstPayTime, self.__evtPayTime,
              self.__numMoni, self.__moniTime,
              self.__numSN, self.__snTime,
              self.__numTcal, self.__tcalTime) = evtData
 
-            if addRate and self.__numEvts > 0 and self.__firstPayTime > 0:
-                if self.__startPayTime is None:
-                    self.__startPayTime = self.__firstPayTime
+            if self.__numEvts > 0:
+                if self.__startPayTime is None and firstPayTime > 0:
+                    self.__startPayTime = firstPayTime
                     startDT = PayloadTime.toDateTime(self.__startPayTime)
                     self.__physicsRate.add(startDT, 1)
-                curDT = PayloadTime.toDateTime(self.__evtPayTime)
-                self.__physicsRate.add(curDT, self.__numEvts)
+                if addRate:
+                    curDT = PayloadTime.toDateTime(self.__evtPayTime)
+                    self.__physicsRate.add(curDT, self.__numEvts)
 
         return evtData
