@@ -41,7 +41,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 5212 2010-09-14 23:02:01Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 5214 2010-09-15 13:06:27Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -86,7 +86,7 @@ class ClusterComponent(Component):
         super(ClusterComponent, self).__init__(name, id, logLevel)
 
     def host(self): return self.__host
-
+    def isControlServer(self): return False
     def jvm(self): return self.__jvm
     def jvmArgs(self): return self.__jvmArgs
 
