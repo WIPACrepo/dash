@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 5223 2010-09-16 23:00:44Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 5224 2010-09-16 23:04:29Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -539,8 +539,8 @@ class CnCServer(DAQPool):
         if self.__server:
             self.__server.register_function(self.rpc_component_connector_info)
             self.__server.register_function(self.rpc_component_count)
+            self.__server.register_function(self.rpc_component_list)
             self.__server.register_function(self.rpc_component_list_dicts)
-            self.__server.register_function(self.rpc_component_list_ids)
             self.__server.register_function(self.rpc_component_register)
             self.__server.register_function(self.rpc_cycle_live)
             self.__server.register_function(self.rpc_end_all)
@@ -798,23 +798,23 @@ class CnCServer(DAQPool):
         "return number of components currently registered"
         return self.numComponents()
 
-    def rpc_component_list_dicts(self, idList=None, getAll=True):
-        "list unused components"
-        return self.__listComponentDicts(self.__getComponents(idList, getAll))
-
-    def rpc_component_list_ids(self, includeRunsetComponents=False):
+    def rpc_component_list(self, includeRunsetComponents=False):
         "return list of component IDs"
-        idList = []
+        idDict = {}
         for c in self.components():
-            idList.append(c.id())
+            idDict[c.fullName()] = c.id()
 
         if includeRunsetComponents:
             for rsid in self.listRunsetIDs():
                 rs = self.findRunset(rsid)
                 for c in rs.components():
-                    idList.append(c.id())
+                    idDict[c.fullName()] = c.id()
 
-        return idList
+        return idDict
+
+    def rpc_component_list_dicts(self, idList=None, getAll=True):
+        "list unused components"
+        return self.__listComponentDicts(self.__getComponents(idList, getAll))
 
     def rpc_component_register(self, name, num, host, port, mbeanPort,
                                connArray):
