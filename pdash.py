@@ -9,9 +9,9 @@ class Dash(object):
         self.__cnc = RPCClient("localhost", DAQPort.CNCSERVER)
 
     def __listAll(self):
-        ids = self.__cnc.rpc_runset_listIDs()
-        cids = self.__cnc.rpc_component_listIDs()
-        comps = self.__cnc.rpc_component_listDicts(cids)
+        ids = self.__cnc.rpc_runset_list_ids()
+        cids = self.__cnc.rpc_component_list_ids()
+        comps = self.__cnc.rpc_component_list_dicts(cids)
 
         if len(comps) > 0:
             print "Components:"

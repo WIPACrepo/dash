@@ -1213,7 +1213,7 @@ class DAQFakeRun(object):
         numSets = self.__client.rpc_runset_count()
         if LOUD:
             print >>sys.stderr, "%d active runsets" % numSets
-            for c in self.__client.rpc_component_listDicts():
+            for c in self.__client.rpc_component_list_dicts():
                 print >>sys.stderr, str(c)
             print >>sys.stderr, "---"
 

@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
     if opt.list:
         try:
-            idList = rpc.rpc_runset_listIDs()
+            idList = rpc.rpc_runset_list_ids()
             print "Run set IDs:"
             for i in idList:
                 print "  %d" % i

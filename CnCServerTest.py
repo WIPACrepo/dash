@@ -364,7 +364,7 @@ class TestCnCServer(unittest.TestCase):
         catchall.checkStatus(100)
         clientLogger.checkStatus(100)
 
-        s = self.cnc.rpc_component_listDicts()
+        s = self.cnc.rpc_component_list_dicts()
         self.assertEquals(1, len(s),
                           'Expected 1 listed component, not %d' % len(s))
         self.assertEquals(compName, s[0]["compName"],

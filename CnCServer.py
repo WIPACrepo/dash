@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 5218 2010-09-15 20:39:32Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 5221 2010-09-16 22:48:06Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -543,8 +543,8 @@ class CnCServer(DAQPool):
         if self.__server:
             self.__server.register_function(self.rpc_component_connector_info)
             self.__server.register_function(self.rpc_component_count)
-            self.__server.register_function(self.rpc_component_listDicts)
-            self.__server.register_function(self.rpc_component_listIDs)
+            self.__server.register_function(self.rpc_component_list_dicts)
+            self.__server.register_function(self.rpc_component_list_ids)
             self.__server.register_function(self.rpc_component_register)
             self.__server.register_function(self.rpc_cycle_live)
             self.__server.register_function(self.rpc_end_all)
@@ -557,7 +557,7 @@ class CnCServer(DAQPool):
             self.__server.register_function(self.rpc_runset_debug)
             self.__server.register_function(self.rpc_runset_events)
             self.__server.register_function(self.rpc_runset_list)
-            self.__server.register_function(self.rpc_runset_listIDs)
+            self.__server.register_function(self.rpc_runset_list_ids)
             self.__server.register_function(self.rpc_runset_make)
             self.__server.register_function(self.rpc_runset_monitor_run)
             self.__server.register_function(self.rpc_runset_start_run)
@@ -799,11 +799,11 @@ class CnCServer(DAQPool):
         "return number of components currently registered"
         return self.numComponents()
 
-    def rpc_component_listDicts(self, idList=None, getAll=True):
+    def rpc_component_list_dicts(self, idList=None, getAll=True):
         "list unused components"
         return self.__listComponentDicts(self.__getComponents(idList, getAll))
 
-    def rpc_component_listIDs(self, includeRunsetComponents=False):
+    def rpc_component_list_ids(self, includeRunsetComponents=False):
         "return list of component IDs"
         idList = []
         for c in self.components():
@@ -968,7 +968,7 @@ class CnCServer(DAQPool):
 
         return runSet.events(subrunNumber)
 
-    def rpc_runset_listIDs(self):
+    def rpc_runset_list_ids(self):
         """return a list of active runset IDs"""
         return self.listRunsetIDs()
 

@@ -41,7 +41,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 5217 2010-09-15 17:25:43Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 5221 2010-09-16 22:48:06Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -401,7 +401,7 @@ if __name__ == "__main__":
 
             active = 0
             runsets = {}
-            for id in cnc.rpc_runset_listIDs():
+            for id in cnc.rpc_runset_list_ids():
                 runsets[id] = cnc.rpc_runset_state(id)
                 if not runsets[id] in inactiveStates:
                     active += 1

@@ -251,7 +251,7 @@ class TestDAQServer(unittest.TestCase):
         dc = MockServer(logPort=logPort, livePort=livePort,
                         logFactory=self.__logFactory)
 
-        self.assertEqual(dc.rpc_component_listDicts(), [])
+        self.assertEqual(dc.rpc_component_list_dicts(), [])
 
         name = 'foo'
         num = 0
@@ -287,7 +287,7 @@ class TestDAQServer(unittest.TestCase):
                     "rpcPort" : port,
                     "mbeanPort" : mPort,
                     "state" : "idle"}
-        self.assertEqual(dc.rpc_component_listDicts(), [fooDict, ])
+        self.assertEqual(dc.rpc_component_list_dicts(), [fooDict, ])
 
         logger.checkStatus(100)
         liver.checkStatus(100)
@@ -381,7 +381,7 @@ class TestDAQServer(unittest.TestCase):
 
         self.assertEqual(dc.rpc_component_count(), 0)
         self.assertEqual(dc.rpc_runset_count(), 0)
-        self.assertEqual(dc.rpc_component_listDicts(), [])
+        self.assertEqual(dc.rpc_component_list_dicts(), [])
 
         if compNum == 0:
             fullName = compName
