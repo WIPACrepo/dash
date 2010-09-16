@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 5221 2010-09-16 22:48:06Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 5222 2010-09-16 22:51:41Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -225,13 +225,7 @@ class DAQPool(object):
             if waitList is not None:
                 raise CnCServerException("Still waiting for " + str(waitList))
         except:
-            self.__poolLock.acquire()
-            # return all components to the pool
-            try:
-                for comp in compList:
-                    self.__addInternal(comp)
-            finally:
-                self.__poolLock.release()
+            self.__returnComponents(compList)
             raise
 
         setAdded = False
