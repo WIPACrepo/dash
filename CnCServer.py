@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 5226 2010-09-16 23:10:51Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 5227 2010-09-16 23:11:47Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -539,7 +539,10 @@ class CnCServer(DAQPool):
         if self.__server:
             self.__server.register_function(self.rpc_component_connector_info)
             self.__server.register_function(self.rpc_component_count)
+            self.__server.register_function(self.rpc_component_get_bean_field)
             self.__server.register_function(self.rpc_component_list)
+            self.__server.register_function(self.rpc_component_list_beans)
+            self.__server.register_function(self.rpc_component_list_bean_fields)
             self.__server.register_function(self.rpc_component_list_dicts)
             self.__server.register_function(self.rpc_component_register)
             self.__server.register_function(self.rpc_cycle_live)
@@ -800,6 +803,12 @@ class CnCServer(DAQPool):
         "return number of components currently registered"
         return self.numComponents()
 
+    def rpc_component_get_bean_field(self, compId, bean, field):
+        for c in self.components():
+            if c.id() == compId:
+                return c.getSingleBeanField(bean, field)
+        raise CnCServerException("Unknown component #%d" % compId)
+
     def rpc_component_list(self, includeRunsetComponents=False):
         "return dictionary of component names -> IDs"
         idDict = {}
@@ -813,6 +822,18 @@ class CnCServer(DAQPool):
                     idDict[c.fullName()] = c.id()
 
         return idDict
+
+    def rpc_component_list_beans(self, compId):
+        for c in self.components():
+            if c.id() == compId:
+                return c.getBeanNames()
+        raise CnCServerException("Unknown component #%d" % compId)
+
+    def rpc_component_list_bean_fields(self, compId, bean):
+        for c in self.components():
+            if c.id() == compId:
+                return c.getBeanFields(bean)
+        raise CnCServerException("Unknown component #%d" % compId)
 
     def rpc_component_list_dicts(self, idList=None, getAll=True):
         "list unused components"
