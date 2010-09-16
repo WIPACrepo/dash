@@ -1,17 +1,45 @@
 #!/usr/bin/env python
 
-import sys, traceback
+import cmd, sys, traceback
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 
-class Dash(object):
+class Dash(cmd.Cmd):
+    CMD_BEAN = "bean"
+    CMD_HELP = "help"
+    CMD_LS = "ls"
+
+    CMDS = {
+        CMD_BEAN : "get bean data",
+        CMD_HELP : "print this message",
+        CMD_LS : "list component info",
+        }
+
     def __init__(self):
         self.__cnc = RPCClient("localhost", DAQPort.CNCSERVER)
 
+        cmd.Cmd.__init__(self)
+
+        self.prompt = "> "
+
+    def __findComponentId(cls, compDict, compName):
+        if not compDict.has_key(compName):
+            if compName.endswith("#0") or compName.endswith("-0"):
+                compName = compName[:-2]
+            elif compName.find("-") > 0:
+                flds = compName.split("-")
+                if len(flds) > 1:
+                    compName = "#".join(flds)
+
+        if compDict.has_key(compName):
+            return compDict[compName]
+
+        raise ValueError("Unknown component \"%s\"" % compName)
+
     def __listAll(self):
         ids = self.__cnc.rpc_runset_list_ids()
-        cids = self.__cnc.rpc_component_list_ids()
-        comps = self.__cnc.rpc_component_list_dicts(cids)
+        compDict = self.__cnc.rpc_component_list()
+        comps = self.__cnc.rpc_component_list_dicts(compDict.values())
 
         if len(comps) > 0:
             print "Components:"
@@ -54,44 +82,123 @@ class Dash(object):
                   (indent, cdict["id"], cdict["compName"],
                    cdict["compNum"], cdict["state"])
 
-    def close(self):
-        pass
-
-    def eval(self, line):
-        flds = line.split()
-        if len(flds) == 0:
+    def __runCmdBean(self, args):
+        "Get bean data"
+        if len(args) == 0:
+            print >>sys.stderr, "Please specify a component.bean.field"
             return
 
-        if flds[0] == "ls":
-            if len(flds) == 1:
-                self.__listAll()
+        compDict = self.__cnc.rpc_component_list()
+
+        for c in args:
+            bflds = c.split(".")
+
+            if len(bflds) == 1:
+                try:
+                    compId = int(bflds[0])
+                except ValueError:
+                    compId = None
             else:
-                idList = []
-                for cstr in flds[1:]:
-                    if cstr == "*":
-                        idList = None
+                compId = None
+
+            if compId is not None:
+                compName = None
+                for c in compDict.keys():
+                    if compDict[c] == compId:
+                        compName = c
                         break
 
-                    try:
-                        idList.append(int(cstr))
-                    except ValueError:
-                        print >>sys.stderr, "Bad component id \"%s\"" % cstr
+                if compName is None:
+                    print >>sys.stderr, "Unknown component \"%s\"" % bflds[0]
+            else:
+                compName = bflds[0]
+                if not compDict.has_key(compName):
+                    print >>sys.stderr, "Unknown component \"%s\"" % compName
+                    continue
 
-                self.__printComponentDetails(idList)
-        else:
-            print >>sys.stderr, "Unknown command \"%s\"" % line
+                compId = compDict[compName]
 
-if __name__ == "__main__":
-    dash = Dash()
-    while True:
+            if len(bflds) == 1:
+                beanList = self.__cnc.rpc_component_list_beans(compId)
+
+                print "%s beans:" % compName
+                for b in beanList:
+                    print "    " + b
+
+                return
+
+            beanName = bflds[1]
+            if len(bflds) == 2:
+                fldList = \
+                    self.__cnc.rpc_component_list_bean_fields(compId, beanName)
+
+                print "%s bean %s fields:" % (compName, beanName)
+                for f in fldList:
+                    print "    " + f
+
+                return
+
+            fldName = bflds[2]
+            if len(bflds) == 3:
+                val = self.__cnc.rpc_component_get_bean_field(compId, beanName,
+                                                              fldName)
+                print "%s bean %s field %s: %s" % \
+                    (compName, beanName, fldName, val)
+
+                return
+
+            print >>sys.stderr, "Bad component.bean.field \"%s\"" % c
+
+    def __runCmdList(self, args):
+        "List component info"
+        if len(args) == 0:
+            self.__listAll()
+            return
+
+        compDict = None
+        idList = []
+        for cstr in args:
+            if cstr == "*":
+                idList = None
+                break
+
+            try:
+                id = int(cstr)
+            except ValueError:
+                if compDict is None:
+                    compDict = self.__cnc.rpc_component_list()
+
+                try:
+                    id = self.__findComponentId(compDict, cstr)
+                except ValueError:
+                    print >>sys.stderr, "Unknown component \"%s\"" % cstr
+                    continue
+
+            idList.append(id)
+
+        self.__printComponentDetails(idList)
+
+    def do_bean(self, line):
+        "Get bean data"
         try:
-            line = raw_input("> ")
-        except EOFError:
-            break
-
-        try:
-            dash.eval(line)
+            self.__runCmdBean(line.split())
         except:
             traceback.print_exc()
 
-    dash.close()
+    def do_EOF(self, line):
+        print
+        return True
+
+    def do_list(self, line):
+        "List component info"
+        try:
+            self.__runCmdList(line.split())
+        except:
+            traceback.print_exc()
+
+    def do_ls(self, args):
+        "List component info"
+        return self.do_list(args)
+
+if __name__ == "__main__":
+    Dash().cmdloop()
