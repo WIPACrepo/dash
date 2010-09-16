@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 5222 2010-09-16 22:51:41Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 5223 2010-09-16 23:00:44Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -133,14 +133,16 @@ class DAQPool(object):
         finally:
             self.__setsLock.release()
 
-    def __returnComponents(self, compList):
+    def __returnComponents(self, compList, logger):
+        tGroup = ComponentOperationGroup(ComponentOperation.RESET_COMP)
+        for c in compList:
+            tGroup.start(c, logger, ())
+        tGroup.wait()
+        tGroup.reportErrors(logger, "reset")
+
         self.__poolLock.acquire()
         try:
             for c in compList:
-                try:
-                    c.reset()
-                except:
-                    pass
                 self.__addInternal(c)
         finally:
             self.__poolLock.release()
@@ -225,7 +227,7 @@ class DAQPool(object):
             if waitList is not None:
                 raise CnCServerException("Still waiting for " + str(waitList))
         except:
-            self.__returnComponents(compList)
+            self.__returnComponents(compList, logger)
             raise
 
         setAdded = False
@@ -240,7 +242,7 @@ class DAQPool(object):
             setAdded = True
         finally:
             if not setAdded:
-                self.__returnComponents(compList)
+                self.__returnComponents(compList, logger)
                 runSet = None
 
         if runSet is not None:
@@ -254,7 +256,7 @@ class DAQPool(object):
                 runSet.configure()
             except:
                 self.__removeRunset(runSet)
-                self.__returnComponents(runSet.components())
+                self.__returnComponents(runSet.components(), logger)
                 raise
 
             setComps = []
@@ -662,15 +664,18 @@ class CnCServer(DAQPool):
         self.__monitoring = False
         if self.__server is not None:
             self.__server.server_close()
+
+        tGroup = ComponentOperationGroup(ComponentOperation.CLOSE)
+        for c in self.components():
+            tGroup.start(c, self.__log, ())
+        tGroup.wait()
+        tGroup.reportErrors(self.__log, "close")
+
         self.__log.closeFinal()
         if self.__logServer is not None:
             self.__logServer.stopServing()
             self.__logServer = None
-        for c in self.components():
-            try:
-                c.close()
-            except:
-                pass
+
         return True
 
     def createClient(self, name, num, host, port, mbeanPort, connectors):
@@ -889,12 +894,11 @@ class CnCServer(DAQPool):
 
     def rpc_end_all(self):
         "terminate all clients"
+        tGroup = ComponentOperationGroup(ComponentOperation.RESET_COMP)
         for c in self.components():
-            try:
-                c.terminate()
-            except:
-                self.__log.error("Cannot terminate %s: %s" %
-                                 (str(c), exc_string()))
+            tGroup.start(c, self.__log, ())
+        tGroup.wait()
+        tGroup.reportErrors(logger, "terminate")
         return 1
 
     def rpc_ping(self):

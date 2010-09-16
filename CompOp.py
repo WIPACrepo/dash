@@ -21,6 +21,8 @@ class ComponentOperation(threading.Thread):
     "result for an erroneous thread"
     RESULT_ERROR = Result("???")
 
+    "thread will close the component's inputs and outputs"
+    CLOSE = "CLOSE"
     "thread will configure the component"
     CONFIG_COMP = "CONFIG_COMP"
     "thread will configure the component's logging"
@@ -47,6 +49,8 @@ class ComponentOperation(threading.Thread):
     START_RUN = "START_RUN"
     "thread will stop the running component"
     STOP_RUN = "STOP_RUN"
+    "thread will terminate the component"
+    TERMINATE = "TERMINATE"
 
     def __init__(self, comp, log, operation, data):
         """
@@ -68,6 +72,10 @@ class ComponentOperation(threading.Thread):
 
         super(ComponentOperation, self).__init__(name=name)
         self.setDaemon(True)
+
+    def __close(self):
+        "Close the component's inputs and outputs"
+        self.__comp.close()
 
     def __configComponent(self):
         "Configure the component"
@@ -127,9 +135,15 @@ class ComponentOperation(threading.Thread):
         "Stop the running component"
         self.__result = self.__comp.stopRun()
 
+    def __terminate(self):
+        "Terminate the component"
+        self.__comp.terminate()
+
     def __runOperation(self):
         "Execute the requested operation"
-        if self.__operation == ComponentOperation.CONFIG_COMP:
+        if self.__operation == ComponentOperation.CLOSE:
+            self.__close()
+        elif self.__operation == ComponentOperation.CONFIG_COMP:
             self.__configComponent()
         elif self.__operation == ComponentOperation.CONFIG_LOGGING:
             self.__configLogging()
@@ -155,6 +169,8 @@ class ComponentOperation(threading.Thread):
             self.__stopLogging()
         elif self.__operation == ComponentOperation.STOP_RUN:
             self.__stopRun()
+        elif self.__operation == ComponentOperation.TERMINATE:
+            self.__terminate()
         else:
             raise ComponentOperationException("Unknown operation %s" %
                                               str(self.__operation))
