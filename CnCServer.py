@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 5224 2010-09-16 23:04:29Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 5225 2010-09-16 23:09:42Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -799,7 +799,7 @@ class CnCServer(DAQPool):
         return self.numComponents()
 
     def rpc_component_list(self, includeRunsetComponents=False):
-        "return list of component IDs"
+        "return dictionary of component names -> IDs"
         idDict = {}
         for c in self.components():
             idDict[c.fullName()] = c.id()
