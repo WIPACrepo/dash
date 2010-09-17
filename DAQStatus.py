@@ -18,7 +18,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQStatus.py 5221 2010-09-16 22:48:06Z dglo $"
+SVN_ID  = "$Id: DAQStatus.py 5229 2010-09-17 16:29:12Z dglo $"
 
 LINE_LENGTH = 78
 
@@ -155,7 +155,7 @@ if __name__ == "__main__":
 
     try:
         nc = cncrpc.rpc_component_count()
-        lc = cncrpc.rpc_component_list_dicts([], False)
+        lc = cncrpc.rpc_component_list_dicts([], True)
         ns = cncrpc.rpc_runset_count()
         ids = cncrpc.rpc_runset_list_ids()
         versInfo = cncrpc.rpc_version()
