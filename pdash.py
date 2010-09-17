@@ -93,30 +93,24 @@ class Dash(cmd.Cmd):
         for c in args:
             bflds = c.split(".")
 
-            if len(bflds) == 1:
+            if compDict.has_key(bflds[0]):
+                compName = bflds[0]
+                compId = compDict[compName]
+            else:
                 try:
                     compId = int(bflds[0])
                 except ValueError:
                     compId = None
-            else:
-                compId = None
 
-            if compId is not None:
                 compName = None
-                for c in compDict.keys():
-                    if compDict[c] == compId:
-                        compName = c
-                        break
+                if compId is not None:
+                    for c in compDict.keys():
+                        if compDict[c] == compId:
+                            compName = c
+                            break
 
                 if compName is None:
                     print >>sys.stderr, "Unknown component \"%s\"" % bflds[0]
-            else:
-                compName = bflds[0]
-                if not compDict.has_key(compName):
-                    print >>sys.stderr, "Unknown component \"%s\"" % compName
-                    continue
-
-                compId = compDict[compName]
 
             if len(bflds) == 1:
                 beanList = self.__cnc.rpc_component_list_beans(compId)
