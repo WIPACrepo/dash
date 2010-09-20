@@ -41,7 +41,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 5221 2010-09-16 22:48:06Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 12280 2010-09-20 19:46:19Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -351,7 +351,7 @@ if __name__ == "__main__":
                  action="store_true", default=False,
                  help="kill components even if there is an active run")
     p.add_option("-F", "--no-force-restart", dest="forceRestart",
-                 action="store_false", default=False,
+                 action="store_false", default=True,
                  help="Do not force healthy components to restart at run end")
     p.add_option("-k", "--kill-only", dest="killOnly",
                  action="store_true",  default=False,
