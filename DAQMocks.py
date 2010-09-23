@@ -568,6 +568,7 @@ class MockComponent(object):
         self.__connected = False
         self.__configured = False
         self.__configWait = 0;
+        self.__monitorCount = 0
         self.__monitorState = '???'
         self.__isBadHub = False
 
@@ -645,7 +646,11 @@ class MockComponent(object):
     def logTo(self, logIP, logPort, liveIP, livePort):
         pass
 
+    def monitorCount(self):
+        return self.__monitorCount
+
     def monitor(self):
+        self.__monitorCount += 1
         return self.__monitorState
 
     def name(self):
@@ -673,6 +678,9 @@ class MockComponent(object):
 
     def setConfigureWait(self, waitNum):
         self.__configWait = waitNum
+
+    def setMonitorState(self, newState):
+        self.__monitorState = newState
 
     def setOrder(self, num):
         self.__cmdOrder = num

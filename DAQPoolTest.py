@@ -2,6 +2,7 @@
 
 import shutil, tempfile, unittest
 from CnCServer import DAQPool
+from DAQClient import DAQClient
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet, ConnectionException
@@ -689,6 +690,51 @@ class TestDAQPool(unittest.TestCase):
         self.assertEqual(runset.size(), 0)
 
         logger.checkStatus(10)
+
+    def testMonitorClients(self):
+        self.__runConfigDir = tempfile.mkdtemp()
+
+        mgr = MyDAQPool()
+
+        compList = []
+
+        fooHub = MockComponent('fooHub', 0)
+        fooHub.addOutput('conn')
+        compList.append(fooHub)
+
+        barComp = MockComponent('bar', 0)
+        barComp.addInput('conn', 123)
+        compList.append(barComp)
+
+        bazComp = MockComponent('baz', 0)
+        bazComp.addInput('conn', 456)
+        compList.append(bazComp)
+
+        self.assertEqual(mgr.numComponents(), 0)
+
+        for c in compList:
+            mgr.add(c)
+
+        self.assertEqual(mgr.numComponents(), len(compList))
+
+        cnt = mgr.monitorClients()
+        self.assertEqual(cnt, len(compList))
+
+        for c in compList:
+            self.assertEqual(c.monitorCount(), 1)
+
+        fooHub.setMonitorState(DAQClient.STATE_DEAD)
+        bazComp.setMonitorState(DAQClient.STATE_MISSING)
+
+        self.assertEqual(mgr.numComponents(), len(compList))
+
+        cnt = mgr.monitorClients()
+
+        self.assertEqual(cnt, 1)
+        self.assertEqual(mgr.numComponents(), 2)
+
+        for c in compList:
+            self.assertEqual(c.monitorCount(), 2)
 
 if __name__ == '__main__':
     unittest.main()
