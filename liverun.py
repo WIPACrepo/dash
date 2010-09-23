@@ -232,12 +232,17 @@ class LiveState(object):
                     front =="walltimeEventsTime"  or \
                     front == "tcalEvents" or \
                     front == "moniEvents" or \
-                    front == "snEvents":
+                    front == "snEvents" or \
+                    front == "runlength":
                 # ignore rates
                 return LiveState.PARSE_NORMAL
             elif front == "daqrelease":
                 # ignore DAQ release name
                 return LiveState.PARSE_NORMAL
+            else:
+                print >>sys.stderr, "Unknown livecmd pair: \"%s\"/\"%s\"" % \
+                      (front, back)
+                continue
 
         if parseState == LiveState.PARSE_FLASH:
             m = LiveState.DOM_PAT.match(line)
