@@ -327,16 +327,18 @@ class RunData(object):
         return log
 
     def __reportRunStart(self):
-        time = PayloadTime.toDateTime(self.__firstPayTime)
-        data = { "runnum" : self.__runNumber }
-        self.__liveMoniClient.sendMoni("runstart", data, prio=Prio.SCP,
-                                       time=time)
+        if self.__liveMoniClient is not None:
+            time = PayloadTime.toDateTime(self.__firstPayTime)
+            data = { "runnum" : self.__runNumber }
+            self.__liveMoniClient.sendMoni("runstart", data, prio=Prio.SCP,
+                                           time=time)
 
     def __reportRunStop(self, numEvts, lastPayTime):
-        time = PayloadTime.toDateTime(lastPayTime)
-        data = { "events" : numEvts, "runnum" : self.__runNumber }
-        self.__liveMoniClient.sendMoni("runstop", data, prio=Prio.SCP,
-                                       time=time)
+        if self.__liveMoniClient is not None:
+            time = PayloadTime.toDateTime(lastPayTime)
+            data = { "events" : numEvts, "runnum" : self.__runNumber }
+            self.__liveMoniClient.sendMoni("runstop", data, prio=Prio.SCP,
+                                           time=time)
 
     def error(self, msg):
         self.__dashlog.error(msg)
