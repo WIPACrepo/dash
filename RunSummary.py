@@ -742,7 +742,7 @@ def main():
                  action="store", default=False,
                  help="")
 
-        opt, args = p.parse_args()
+    opt, args = p.parse_args()
 
     if not opt.ignoreExisting and checkForRunningProcesses():
         print "RunSummary.py is already running."
