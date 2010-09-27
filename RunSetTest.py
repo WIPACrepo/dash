@@ -65,7 +65,7 @@ class MyRunSet(RunSet):
         pass
         
 class TestRunSet(unittest.TestCase):
-    def checkStatus(self, runset, compList, expState):
+    def __checkStatus(self, runset, compList, expState):
         statDict = runset.status()
         self.assertEqual(len(statDict), len(compList))
         for c in compList:
@@ -109,7 +109,7 @@ class TestRunSet(unittest.TestCase):
         self.assertEqual(str(runset), 'RunSet #%d (%s)' %
                          (runset.id(), expState))
 
-        self.checkStatus(runset, compList, expState)
+        self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
         runset.configure()
@@ -119,7 +119,7 @@ class TestRunSet(unittest.TestCase):
         self.assertEqual(str(runset), 'RunSet #%d (%s)' %
                          (runset.id(), expState))
 
-        self.checkStatus(runset, compList, expState)
+        self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
         logDir = "/tmp"
@@ -132,7 +132,7 @@ class TestRunSet(unittest.TestCase):
             self.failIf(self.__isCompListRunning(compList),
                         'Components should not be running')
 
-        self.checkStatus(runset, compList, expState)
+        self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
         logger.addExpectedRegexp("Could not stop run: .*")
@@ -176,7 +176,7 @@ class TestRunSet(unittest.TestCase):
             self.failUnless(self.__isCompListRunning(compList, runNum),
                             'Components should not be running')
 
-        self.checkStatus(runset, compList, expState)
+        self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
         domList = [('53494d550101', 0, 1, 2, 3, 4),
@@ -201,7 +201,7 @@ class TestRunSet(unittest.TestCase):
                 self.fail("Expected subrun to fail with \"%s\", not \"%s\"" %
                           (expectError, str(ve)))
 
-        self.checkStatus(runset, compList, expState)
+        self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
         logger.addExpectedExact("0 physics events collected in 0 seconds")
@@ -220,7 +220,7 @@ class TestRunSet(unittest.TestCase):
             self.failIf(self.__isCompListRunning(compList),
                         'Components should not be running')
 
-        self.checkStatus(runset, compList, expState)
+        self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
     def __runTests(self, compList, runNum):
@@ -249,7 +249,7 @@ class TestRunSet(unittest.TestCase):
         self.assertEqual(str(runset), 'RunSet #%d (%s)' %
                          (runset.id(), expState))
 
-        self.checkStatus(runset, compList, expState)
+        self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
         expState = "configuring"
@@ -278,7 +278,7 @@ class TestRunSet(unittest.TestCase):
         self.assertEqual(str(runset), 'RunSet #%d (%s)' %
                          (runset.id(), expState))
 
-        self.checkStatus(runset, compList, expState)
+        self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
         global CAUGHT_WARNING
@@ -297,7 +297,7 @@ class TestRunSet(unittest.TestCase):
             self.failIf(self.__isCompListRunning(compList),
                         'Components should not be running')
 
-        self.checkStatus(runset, compList, expState)
+        self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
         logger.addExpectedRegexp("Could not stop run: .*")
@@ -338,7 +338,7 @@ class TestRunSet(unittest.TestCase):
             self.failUnless(self.__isCompListRunning(compList, runNum),
                             'Components should not be running')
 
-        self.checkStatus(runset, compList, expState)
+        self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
         logger.addExpectedExact("0 physics events collected in 0 seconds")
@@ -358,7 +358,7 @@ class TestRunSet(unittest.TestCase):
             self.failIf(self.__isCompListRunning(compList),
                         'Components should not be running')
 
-        self.checkStatus(runset, compList, expState)
+        self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
         runset.reset()
@@ -374,7 +374,7 @@ class TestRunSet(unittest.TestCase):
             self.failIf(self.__isCompListRunning(compList),
                         'Components should not be running')
 
-        self.checkStatus(runset, compList, expState)
+        self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
     def testEmpty(self):
