@@ -1473,15 +1473,18 @@ class RunSet(object):
                 self.__runData.error(msg)
             elif self.__logger is not None:
                 self.__logger.error(msg)
-        else:
-            self.__stopping = True
-            try:
-                self.__stopRunInternal(hadError)
-            except:
-                self.__logger.error("Could not stop run: " + exc_string())
-                raise
-            finally:
-                self.__stopping = False
+            return False
+
+        self.__stopping = True
+        try:
+            hadError = self.__stopRunInternal(hadError)
+        except:
+            self.__logger.error("Could not stop run: " + exc_string())
+            raise
+        finally:
+            self.__stopping = False
+
+        return hadError
 
     def subrun(self, id, data):
         "Start a subrun with all components in the runset"
