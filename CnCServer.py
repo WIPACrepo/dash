@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12293 2010-09-27 22:46:06Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 12294 2010-09-27 22:54:22Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -660,9 +660,7 @@ class CnCServer(DAQPool):
 
         try:
             if self.__forceRestart:
-                self.restartRunset(runSet, self.getClusterConfig(),
-                                   self.__runConfigDir, self.__dashDir,
-                                   self.__log)
+                self.restartRunset(runSet, self.__log)
             else:
                 self.returnRunset(runSet, self.__log)
         except:
@@ -756,9 +754,7 @@ class CnCServer(DAQPool):
                                  (rs.id(), rs.state()))
                 try:
                     if self.__forceRestart:
-                        self.restartRunset(rs, self.getClusterConfig(),
-                                           self.__runConfigDir,
-                                           self.__dashDir, self.__log)
+                        self.restartRunset(rs, self.__log)
                     else:
                         self.returnRunset(rs, self.__log)
                 except:
@@ -1093,9 +1089,7 @@ class CnCServer(DAQPool):
             delayedException = ve
 
         if self.__forceRestart or (hadError and self.__restartOnError):
-            self.restartRunset(runSet, self.getClusterConfig(),
-                               self.__runConfigDir, self.__dashDir,
-                               self.__log)
+            self.restartRunset(runSet, self.__log)
 
         if delayedException is not None:
             raise delayedException
