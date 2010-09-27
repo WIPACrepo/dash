@@ -676,7 +676,7 @@ class TestDAQPool(unittest.TestCase):
                                  (numMoni, numSN, numTcals))
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
 
-        runset.stopRun()
+        self.failIf(runset.stopRun(), "stopRun() encountered error")
 
         self.__checkRunsetState(runset, 'ready')
 

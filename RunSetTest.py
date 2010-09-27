@@ -164,10 +164,13 @@ class TestRunSet(unittest.TestCase):
         logger.addExpectedRegexp("Could not stop run: .*")
 
         try:
-            runset.stopRun()
+            stopErr = runset.stopRun()
         except RunSetException, ve:
             if not "is not running" in str(ve):
                 raise ve
+            stopErr = False
+
+        self.failIf(stopErr, "stopRun() encountered error")
 
         logger.addExpectedExact("Starting run %d..." % runNum)
 
@@ -236,7 +239,8 @@ class TestRunSet(unittest.TestCase):
 
         expState = "ready"
 
-        runset.stopRun()
+        self.failIf(runset.stopRun(), "stopRun() encountered error")
+
         self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %
                          (runset.id(), runNum, expState))
 
@@ -370,7 +374,7 @@ class TestRunSet(unittest.TestCase):
         logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
         logger.addExpectedExact("Run terminated SUCCESSFULLY.")
 
-        runset.stopRun()
+        self.failIf(runset.stopRun(), "stopRun() encountered error")
 
         expState = "ready"
 

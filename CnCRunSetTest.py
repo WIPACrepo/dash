@@ -591,7 +591,7 @@ class CnCRunSetTest(unittest.TestCase):
                                  (numMoni, numSN, numTcals))
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
 
-        rs.stopRun()
+        self.failIf(rs.stopRun(), "stopRun() encountered error")
 
         logger.checkStatus(5)
         dashLog.checkStatus(5)
