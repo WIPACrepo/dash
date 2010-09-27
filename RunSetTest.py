@@ -65,6 +65,18 @@ class MyRunSet(RunSet):
         pass
         
 class TestRunSet(unittest.TestCase):
+    def __buildCompList(self, nameList):
+        compList = []
+
+        num = 1
+        for name in nameList:
+            c = MockComponent(name, num)
+            c.setOrder(num)
+            compList.append(c)
+            num += 1
+
+        return compList
+
     def __checkStatus(self, runset, compList, expState):
         statDict = runset.status()
         self.assertEqual(len(statDict), len(compList))
@@ -101,8 +113,7 @@ class TestRunSet(unittest.TestCase):
 
         clusterName = "cluster-foo"
 
-        parent = MyParent()
-        runset = MyRunSet(parent, runConfig, compList, logger)
+        runset = MyRunSet(MyParent(), runConfig, compList, logger)
 
         expState = "idle"
 
@@ -241,8 +252,7 @@ class TestRunSet(unittest.TestCase):
         spadeDir = "/tmp"
         copyDir = None
 
-        parent = MyParent()
-        runset = MyRunSet(parent, runConfig, compList, logger)
+        runset = MyRunSet(MyParent(), runConfig, compList, logger)
 
         expState = "idle"
 
@@ -381,9 +391,7 @@ class TestRunSet(unittest.TestCase):
         self.__runTests([], 1)
 
     def testSet(self):
-        compList = []
-        compList.append(MockComponent('foo', 1))
-        compList.append(MockComponent('bar', 2))
+        compList = self.__buildCompList(("foo", "bar"))
         compList[0].setConfigureWait(2)
 
         self.__runTests(compList, 2)
@@ -391,33 +399,23 @@ class TestRunSet(unittest.TestCase):
     def testSubrunGood(self):
         runNum = 3
 
-        compList = []
-        compList.append(MockComponent("fooHub", 1))
-        compList.append(MockComponent("barHub", 2))
-        compList.append(MockComponent("bazBuilder", 3))
+        compList = self.__buildCompList(("fooHub", "barHub", "bazBuilder"))
 
         self.__runSubrun(compList, 3)
 
     def testSubrunOneBad(self):
         runNum = 4
 
-        compList = []
-        compList.append(MockComponent("fooHub", 1))
-        compList.append(MockComponent("barHub", 2))
-        compList.append(MockComponent("bazBuilder", 3))
-
+        compList = self.__buildCompList(("fooHub", "barHub", "bazBuilder"))
         compList[1].setBadHub()
 
-        self.__runSubrun(compList, 3, expectError="on %s" % compList[1].fullName())
+        self.__runSubrun(compList, 3, expectError="on %s" %
+                         compList[1].fullName())
 
     def testSubrunBothBad(self):
         runNum = 4
 
-        compList = []
-        compList.append(MockComponent("fooHub", 1))
-        compList.append(MockComponent("barHub", 2))
-        compList.append(MockComponent("bazBuilder", 3))
-
+        compList = self.__buildCompList(("fooHub", "barHub", "bazBuilder"))
         compList[0].setBadHub()
         compList[1].setBadHub()
 
