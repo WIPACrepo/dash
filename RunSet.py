@@ -1258,8 +1258,8 @@ class RunSet(object):
                 try:
                     self.__set.remove(comp)
                 except ValueError:
-                    self.__logger.error("Cannot remove component %s from %s" %
-                                        (comp, self))
+                    self.__logger.error(("Cannot remove component %s from" +
+                                         " RunSet #%d") % (comp, self.__id))
 
         self.__logger.error("Cycling components %s" % cluCfgList)
         self.cycleComponents(cluCfgList, configDir, dashDir, logPort, livePort,
