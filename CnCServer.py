@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12292 2010-09-27 22:27:44Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 12293 2010-09-27 22:46:06Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -330,12 +330,8 @@ class DAQPool(object):
 
         return comp
 
-    def restartRunset(self, rs, clusterConfig, runConfigDir, dashDir, logger,
-                      verbose=False, killWith9=False, eventCheck=False):
-        # save the list of components
-        #
-        compList = rs.components()
-
+    def restartRunset(self, rs, logger, verbose=False, killWith9=False,
+                      eventCheck=False):
         try:
             self.__removeRunset(rs)
         except ValueError:
@@ -343,16 +339,19 @@ class DAQPool(object):
                          (rs, len(self.__sets), self.__sets))
 
         try:
-            rs.restartComponents(compList, clusterConfig, runConfigDir, dashDir,
-                                 logger.logPort(), logger.livePort(),
-                                 verbose=verbose, killWith9=killWith9,
-                                 eventCheck=eventCheck)
+            self.restartRunsetComponents(rs, verbose=verbose,
+                                         killWith9=killWith9,
+                                         eventCheck=eventCheck)
         except:
             logger.error("Cannot restart %s (#%d available - %s)" %
                          (rs, len(self.__sets), self.__sets))
 
-        self.returnRunsetComponents(rs)
-        rs.destroy()
+        rs.destroy(ignoreComponents=True)
+
+    def restartRunsetComponents(self, rs, verbose=False, killWith9=True,
+                                eventCheck=False):
+        "Placeholder for subclass method"
+        raise CnCServerException("Unimplemented for %s" % type(self))
 
     def returnAll(self, killRunning=True):
         """
@@ -409,7 +408,7 @@ class DAQPool(object):
     def returnRunsetComponents(self, rs, verbose=False, killWith9=True,
                                eventCheck=False):
         "Placeholder for subclass method"
-        raise CnCServerException("Unimplemented")
+        raise CnCServerException("Unimplemented for %s" % type(self))
 
     def runset(self, num):
         return self.__sets[num]
@@ -774,6 +773,13 @@ class CnCServer(DAQPool):
     def openLogServer(self, port, logDir):
         logName = os.path.join(logDir, "catchall.log")
         return LogSocketServer(port, "CnCServer", logName, quiet=self.__quiet)
+
+    def restartRunsetComponents(self, rs, verbose=False, killWith9=True,
+                                eventCheck=False):
+        rs.restartAllComponents(self.getClusterConfig(), self.__runConfigDir,
+                                self.__dashDir, self.__log.logPort(),
+                                self.__log.livePort(), verbose=verbose,
+                                killWith9=killWith9, eventCheck=eventCheck)
 
     def returnRunsetComponents(self, rs, verbose=False, killWith9=True,
                                eventCheck=False):

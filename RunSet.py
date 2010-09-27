@@ -1151,8 +1151,8 @@ class RunSet(object):
                             livePort, verbose, eventCheck,
                             checkExists=checkExists)
 
-    def destroy(self):
-        if len(self.__set) > 0:
+    def destroy(self, ignoreComponents=False):
+        if not ignoreComponents and len(self.__set) > 0:
             raise RunSetException('RunSet #%d is not empty' % self.__id)
 
         if self.__runData is not None:
