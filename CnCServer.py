@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 5230 2010-09-17 16:30:37Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 12290 2010-09-27 21:54:15Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -176,9 +176,9 @@ class DAQPool(object):
 
         self.__setsLock.acquire()
         try:
-            for s in self.__sets:
-                if s.id() == id:
-                    runset = s
+            for rs in self.__sets:
+                if rs.id() == id:
+                    runset = rs
                     break
         finally:
             self.__setsLock.release()
@@ -198,8 +198,8 @@ class DAQPool(object):
 
         self.__setsLock.acquire()
         try:
-            for s in self.__sets:
-                ids.append(s.id())
+            for rs in self.__sets:
+                ids.append(rs.id())
         finally:
             self.__setsLock.release()
 
@@ -290,8 +290,8 @@ class DAQPool(object):
         num = 0
         self.__setsLock.acquire()
         try:
-            for s in self.__sets:
-                if s.isRunning():
+            for rs in self.__sets:
+                if rs.isRunning():
                     num += 1
                     break
         finally:
@@ -330,29 +330,29 @@ class DAQPool(object):
 
         return comp
 
-    def restartRunset(self, s, clusterConfig, runConfigDir, dashDir, logger,
+    def restartRunset(self, rs, clusterConfig, runConfigDir, dashDir, logger,
                       verbose=False, killWith9=False, eventCheck=False):
         # save the list of components
         #
-        compList = s.components()
+        compList = rs.components()
 
         try:
-            self.__removeRunset(s)
+            self.__removeRunset(rs)
         except ValueError:
             logger.error("Cannot remove %s (#%d available - %s)" %
-                         (s, len(self.__sets), self.__sets))
+                         (rs, len(self.__sets), self.__sets))
 
         try:
-            s.restartComponents(compList, clusterConfig, runConfigDir, dashDir,
-                                logger.logPort(), logger.livePort(),
-                                verbose=verbose, killWith9=killWith9,
-                                eventCheck=eventCheck)
+            rs.restartComponents(compList, clusterConfig, runConfigDir, dashDir,
+                                 logger.logPort(), logger.livePort(),
+                                 verbose=verbose, killWith9=killWith9,
+                                 eventCheck=eventCheck)
         except:
             logger.error("Cannot restart %s (#%d available - %s)" %
-                         (s, len(self.__sets), self.__sets))
+                         (rs, len(self.__sets), self.__sets))
 
-        self.returnRunsetComponents(s)
-        s.destroy()
+        self.returnRunsetComponents(rs)
+        rs.destroy()
 
     def returnAll(self, killRunning=True):
         """
@@ -371,10 +371,10 @@ class DAQPool(object):
             self.__setsLock.release()
 
         savedEx = None
-        for s in removed:
+        for rs in removed:
             try:
-                self.returnRunsetComponents(s)
-                s.destroy()
+                self.returnRunsetComponents(rs)
+                rs.destroy()
             except Exception, ex:
                 savedEx = ex
 
@@ -383,15 +383,15 @@ class DAQPool(object):
 
         return True
 
-    def returnRunset(self, s):
+    def returnRunset(self, rs):
         "Return runset components to the pool"
-        self.__removeRunset(s)
+        self.__removeRunset(rs)
         savedEx = None
         try:
-            self.returnRunsetComponents(s)
+            self.returnRunsetComponents(rs)
         except Exception, ex:
             savedEx = ex
-        s.destroy()
+        rs.destroy()
         if savedEx is not None:
             raise savedEx
 
