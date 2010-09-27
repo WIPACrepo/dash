@@ -602,7 +602,7 @@ class CnCRunSetTest(unittest.TestCase):
                                     (comps[0], MyRunSet.FAIL_STATE))
             logger.addExpectedExact("Cycling components [%s]" % comps[0])
         try:
-            self.__cnc.returnRunset(rs)
+            self.__cnc.returnRunset(rs, logger)
             if failReset:
                 self.fail("returnRunset should not have succeeded")
         except RunSetException:

@@ -227,7 +227,7 @@ class ConnectionTest(unittest.TestCase):
             for key in nodeLog:
                 nodeLog[key].addExpectedExact('End of log')
                 nodeLog[key].addExpectedExact('Reset log to ?LOG?')
-        pool.returnRunset(runset)
+        pool.returnRunset(runset, logger)
         self.assertEquals(pool.numComponents(), numComps)
         self.assertEquals(pool.numSets(), 0)
 

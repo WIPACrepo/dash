@@ -165,7 +165,7 @@ class TestDAQPool(unittest.TestCase):
         found = mgr.findRunset(runset.id())
         self.failIf(found is None, "Couldn't find runset #%d" % runset.id())
 
-        mgr.returnRunset(runset)
+        mgr.returnRunset(runset, logger)
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
@@ -571,7 +571,7 @@ class TestDAQPool(unittest.TestCase):
         found = mgr.findRunset(runset.id())
         self.failIf(found is None, "Couldn't find runset #%d" % runset.id())
 
-        mgr.returnRunset(runset)
+        mgr.returnRunset(runset, logger)
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
@@ -680,7 +680,7 @@ class TestDAQPool(unittest.TestCase):
 
         self.__checkRunsetState(runset, 'ready')
 
-        mgr.returnRunset(runset)
+        mgr.returnRunset(runset, logger)
 
         self.assertEqual(runset.id(), None)
         self.assertEqual(runset.configured(), False)

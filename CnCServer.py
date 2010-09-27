@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12290 2010-09-27 21:54:15Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 12292 2010-09-27 22:27:44Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -383,15 +383,26 @@ class DAQPool(object):
 
         return True
 
-    def returnRunset(self, rs):
+    def returnRunset(self, rs, logger):
         "Return runset components to the pool"
-        self.__removeRunset(rs)
+        try:
+            self.__removeRunset(rs)
+        except ValueError:
+            logger.error("Cannot remove %s (#%d available - %s)" %
+                         (rs, len(self.__sets), self.__sets))
+
         savedEx = None
         try:
             self.returnRunsetComponents(rs)
         except Exception, ex:
             savedEx = ex
-        rs.destroy()
+
+        try:
+            rs.destroy()
+        except Exception, ex:
+            if savedEx is None:
+                savedEx = ex
+
         if savedEx is not None:
             raise savedEx
 
@@ -654,7 +665,7 @@ class CnCServer(DAQPool):
                                    self.__runConfigDir, self.__dashDir,
                                    self.__log)
             else:
-                self.returnRunset(runSet)
+                self.returnRunset(runSet, self.__log)
         except:
             self.__log.error("Failed to break %s: %s" %
                              (runSet, exc_string()))
@@ -750,7 +761,7 @@ class CnCServer(DAQPool):
                                            self.__runConfigDir,
                                            self.__dashDir, self.__log)
                     else:
-                        self.returnRunset(rs)
+                        self.returnRunset(rs, self.__log)
                 except:
                     self.__log.error("Failed to return %s: %s" %
                                      (rs, exc_string()))
