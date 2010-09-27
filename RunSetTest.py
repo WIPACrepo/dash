@@ -7,7 +7,7 @@ from RunSet import RunSet, RunSetException
 
 CAUGHT_WARNING = False
 
-from DAQMocks import MockComponent, MockLogger
+from DAQMocks import MockClusterConfig, MockComponent, MockLogger
 
 class FakeLogger(object):
     def __init__(self): pass
@@ -61,10 +61,25 @@ class MyRunSet(RunSet):
     def createTaskManager(self, dashlog, liveMoniClient, runDir, moniType):
         return FakeTaskManager()
 
+    def cycleComponents(self, compList, configDir, dashDir, logPort, livePort,
+                        verbose, killWith9, eventCheck, checkExists=True):
+        pass
+
     def queueForSpade(self, duration):
         pass
         
 class TestRunSet(unittest.TestCase):
+    def __buildClusterConfig(self, compList, baseName):
+        jvm = "java-" + baseName
+        jvmArgs = "args=" + baseName
+
+        clusterCfg = MockClusterConfig("CC-" + baseName)
+        for c in compList:
+            clusterCfg.addComponent(c.fullName(), jvm, jvmArgs,
+                                       "host-" + c.fullName())
+
+        return clusterCfg
+
     def __buildCompList(self, nameList):
         compList = []
 
@@ -420,6 +435,119 @@ class TestRunSet(unittest.TestCase):
         compList[1].setBadHub()
 
         self.__runSubrun(compList, 3, expectError="on any string hubs")
+
+    def testRestartFailCluCfg(self):
+        compList = self.__buildCompList(("sleepy", "sneezy", "happy", "grumpy",
+                                         "doc", "dopey", "bashful"))
+
+        runConfig = FakeRunConfig("XXXrunCfgXXX")
+        logger = MockLogger('foo#0')
+
+        runset = MyRunSet(MyParent(), runConfig, compList, logger)
+
+        baseName = "failCluCfg"
+
+        clusterCfg = self.__buildClusterConfig(compList[1:], baseName)
+
+        logger.addExpectedExact(("Cannot restart component %s: Not found" +
+                                 " in cluster config \"%s\"") %
+                                (compList[0].fullName(),
+                                 clusterCfg.configName()))
+
+        errMsg = None
+        for c in compList[1:]:
+            if errMsg is None:
+                errMsg = "Cycling components [" + c.fullName()
+            else:
+                errMsg += ", " + c.fullName()
+        if errMsg is not None:
+            errMsg += "]"
+            logger.addExpectedExact(errMsg)
+
+        runset.restartComponents(compList[:], clusterCfg, None, None, None,
+                                 None, False, False, False)
+
+    def testRestartExtraComp(self):
+        compList = self.__buildCompList(("sleepy", "sneezy", "happy", "grumpy",
+                                         "doc", "dopey", "bashful"))
+
+        runConfig = FakeRunConfig("XXXrunCfgXXX")
+        logger = MockLogger('foo#0')
+
+        runset = MyRunSet(MyParent(), runConfig, compList, logger)
+
+        extraComp = MockComponent("queen", 10)
+
+        longList = compList[:]
+        longList.append(extraComp)
+
+        baseName = "failCluCfg"
+
+        clusterCfg = self.__buildClusterConfig(longList, baseName)
+
+        logger.addExpectedExact("Cannot remove component %s from RunSet #%d" %
+                                (extraComp.fullName(), runset.id()))
+
+        errMsg = None
+        for c in longList:
+            if errMsg is None:
+                errMsg = "Cycling components [" + c.fullName()
+            else:
+                errMsg += ", " + c.fullName()
+        if errMsg is not None:
+            errMsg += "]"
+            logger.addExpectedExact(errMsg)
+
+        runset.restartComponents(longList, clusterCfg, None, None, None,
+                                 None, False, False, False)
+
+    def testRestart(self):
+        compList = self.__buildCompList(("sleepy", "sneezy", "happy", "grumpy",
+                                         "doc", "dopey", "bashful"))
+
+        runConfig = FakeRunConfig("XXXrunCfgXXX")
+        logger = MockLogger('foo#0')
+
+        runset = MyRunSet(MyParent(), runConfig, compList, logger)
+
+        clusterCfg = self.__buildClusterConfig(compList, "restart")
+
+        errMsg = None
+        for c in compList:
+            if errMsg is None:
+                errMsg = "Cycling components [" + c.fullName()
+            else:
+                errMsg += ", " + c.fullName()
+        if errMsg is not None:
+            errMsg += "]"
+            logger.addExpectedExact(errMsg)
+
+        runset.restartComponents(compList[:], clusterCfg, None, None, None,
+                                 None, False, False, False)
+
+    def testRestartAll(self):
+        compList = self.__buildCompList(("sleepy", "sneezy", "happy", "grumpy",
+                                         "doc", "dopey", "bashful"))
+
+        runConfig = FakeRunConfig("XXXrunCfgXXX")
+        logger = MockLogger('foo#0')
+
+        runset = MyRunSet(MyParent(), runConfig, compList, logger)
+
+        clusterCfg = self.__buildClusterConfig(compList, "restartAll")
+
+        errMsg = None
+        for c in compList:
+            if errMsg is None:
+                errMsg = "Cycling components [" + c.fullName()
+            else:
+                errMsg += ", " + c.fullName()
+        if errMsg is not None:
+            errMsg += "]"
+            logger.addExpectedExact(errMsg)
+
+        runset.restartAllComponents(clusterCfg, None, None, None, None,
+                                    False, False, False)
 
 if __name__ == '__main__':
     unittest.main()

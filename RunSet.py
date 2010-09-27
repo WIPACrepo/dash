@@ -1230,8 +1230,10 @@ class RunSet(object):
 
     def restartAllComponents(self, clusterConfig, configDir, dashDir, logPort,
                              livePort, verbose, killWith9, eventCheck):
-        self.restartComponents(self.__set, clusterConfig, configDir, dashDir,
-                               logPort, livePort, verbose, killWith9,
+        # restarted components are removed from self.__set, so we need to
+        # pass in a copy of self.__set
+        self.restartComponents(self.__set[:], clusterConfig, configDir,
+                               dashDir, logPort, livePort, verbose, killWith9,
                                eventCheck)
 
     def restartComponents(self, compList, clusterConfig, configDir, dashDir,
