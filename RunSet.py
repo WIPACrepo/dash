@@ -789,8 +789,15 @@ class RunSet(object):
 
             waitList = srcSet + otherSet
 
-            endSecs = time.time() + timeoutSecs
-            while len(waitList) > 0 and time.time() < endSecs:
+            msgSecs = None
+            curSecs = time.time()
+            endSecs = curSecs + timeoutSecs
+
+            # number of seconds between "Waiting for ..." messages
+            #
+            waitMsgPeriod = 5
+
+            while len(waitList) > 0 and curSecs < endSecs:
                 self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING WAITCHK top")
                 newList = waitList[:]
                 tGroup = ComponentOperationGroup(ComponentOperation.GET_STATE)
@@ -836,19 +843,27 @@ class RunSet(object):
                     # one or more components must have stopped
                     #
                     if len(waitList) > 0:
-                        waitStr = None
-                        for c in waitList:
-                            if waitStr is None:
-                                waitStr = ''
-                            else:
-                                waitStr += ', '
-                            waitStr += c.fullName() + connDict[c]
+                        newSecs = time.time()
+                        if msgSecs is None or \
+                               newSecs < (msgSecs + waitMsgPeriod):
+                            waitStr = None
+                            for c in waitList:
+                                if waitStr is None:
+                                    waitStr = ''
+                                else:
+                                    waitStr += ', '
+                                waitStr += c.fullName() + connDict[c]
 
-                        self.__runData.info('%s: Waiting for %s %s' %
-                                           (str(self), self.__state, waitStr))
+                            self.__runData.info('%s: Waiting for %s %s' %
+                                                (str(self), self.__state,
+                                                 waitStr))
+                            msgSecs = newSecs
+
+                curSecs = time.time()
                 self.__logDebug(RunSetDebug.STOP_RUN,
                                 "STOPPING WAITCHK - %d secs, %d comps",
-                                endSecs - time.time(), len(waitList))
+                                endSecs - curSecs, len(waitList))
+
             # if the components all stopped normally, don't force-stop them
             #
             if len(waitList) == 0:
