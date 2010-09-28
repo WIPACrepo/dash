@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12294 2010-09-27 22:54:22Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 12300 2010-09-28 16:58:00Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -474,7 +474,7 @@ class Connector(object):
     def name(self):
         "Return the connector name"
         return self.__name
-    
+
     def port(self):
         "Return connector port number"
         return self.__port
@@ -651,15 +651,16 @@ class CnCServer(DAQPool):
         return slst
 
     def breakRunset(self, runSet):
+        hadError = False
         if not runSet.isReady():
             try:
-                runSet.stopRun()
+                hadError = runSet.stopRun()
             except:
                 self.__log.error("While breaking %s: %s" %
                                  (runSet, exc_string()))
 
         try:
-            if self.__forceRestart:
+            if self.__forceRestart or (hadError and self.__restartOnError):
                 self.restartRunset(runSet, self.__log)
             else:
                 self.returnRunset(runSet, self.__log)
