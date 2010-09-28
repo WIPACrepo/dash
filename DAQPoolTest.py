@@ -179,7 +179,7 @@ class TestDAQPool(unittest.TestCase):
     def testBuildMissingOneOutput(self):
         self.__runConfigDir = tempfile.mkdtemp()
 
-        mgr = DAQPool()
+        mgr = MyDAQPool()
 
         compList = []
 
@@ -228,7 +228,7 @@ class TestDAQPool(unittest.TestCase):
     def testBuildMissingMultiOutput(self):
         self.__runConfigDir = tempfile.mkdtemp()
 
-        mgr = DAQPool()
+        mgr = MyDAQPool()
 
         compList = []
 
@@ -276,7 +276,7 @@ class TestDAQPool(unittest.TestCase):
     def testBuildMatchPlusMissingMultiOutput(self):
         self.__runConfigDir = tempfile.mkdtemp()
 
-        mgr = DAQPool()
+        mgr = MyDAQPool()
 
         compList = []
 
@@ -326,7 +326,7 @@ class TestDAQPool(unittest.TestCase):
     def testBuildMissingOneInput(self):
         self.__runConfigDir = tempfile.mkdtemp()
 
-        mgr = DAQPool()
+        mgr = MyDAQPool()
 
         compList = []
 
@@ -376,7 +376,7 @@ class TestDAQPool(unittest.TestCase):
     def testBuildMatchPlusMissingInput(self):
         self.__runConfigDir = tempfile.mkdtemp()
 
-        mgr = DAQPool()
+        mgr = MyDAQPool()
 
         compList = []
 
@@ -425,7 +425,7 @@ class TestDAQPool(unittest.TestCase):
     def testBuildMatchPlusMissingMultiInput(self):
         self.__runConfigDir = tempfile.mkdtemp()
 
-        mgr = DAQPool()
+        mgr = MyDAQPool()
 
         compList = []
 
@@ -476,7 +476,7 @@ class TestDAQPool(unittest.TestCase):
     def testBuildMultiMissing(self):
         self.__runConfigDir = tempfile.mkdtemp()
 
-        mgr = DAQPool()
+        mgr = MyDAQPool()
 
         compList = []
 

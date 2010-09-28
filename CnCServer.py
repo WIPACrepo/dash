@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12300 2010-09-28 16:58:00Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 12301 2010-09-28 17:20:04Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -255,8 +255,10 @@ class DAQPool(object):
                 runSet.setOrder(connMap, logger)
                 runSet.configure()
             except:
-                self.__removeRunset(runSet)
-                self.__returnComponents(runSet.components(), logger)
+                if not forceRestart:
+                    self.returnRunset(runSet, logger)
+                else:
+                    self.restartRunset(runSet, logger)
                 raise
 
             setComps = []
