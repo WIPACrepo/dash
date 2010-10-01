@@ -1395,7 +1395,7 @@ class RunSet(object):
                         logger.warn('No connection map entry for %s' % str(c))
                 else:
                     for m in connMap[c]:
-                        # XXX hack -- ignore source->eventBuilder links
+                        # XXX hack -- ignore source->builder links
                         if not c.isSource() or not m.comp.isBuilder():
                             tmp[m.comp] = 1
 
