@@ -60,6 +60,8 @@ class MockComponent(object):
     def __init__(self, name, num):
         self.__name = name
         self.__num = num
+
+        self.__order = None
         self.__updatedRates = False
 
         self.__beanData = self.__createBeanData()
@@ -125,9 +127,13 @@ class MockComponent(object):
 
     def name(self): return self.__name
     def num(self): return self.__num
+    def order(self): return self.__order
 
     def reset(self):
         self.__updatedRates = False
+
+    def setOrder(self, num):
+        self.__order = num
 
     def updateRates(self): self.__updatedRates = True
 
@@ -215,7 +221,7 @@ class MyTaskManager(TaskManager):
     def triggerTimers(self):
         for k in self.__timerDict:
             self.__timerDict[k].trigger()
-        
+
 class TaskManagerTest(unittest.TestCase):
     def __addRadarDOMData(self, compList, radarString, radarDOM, hitRate):
         for c in compList:
@@ -294,6 +300,10 @@ class TaskManagerTest(unittest.TestCase):
                     MockComponent("eventBuilder", 0),
                     MockComponent("secondaryBuilders", 0)]
 
+        orderNum = 1
+        for c in compList:
+            c.setOrder(orderNum)
+
         runset = MockRunSet(compList)
         #runset.startRunning()
 
@@ -334,6 +344,10 @@ class TaskManagerTest(unittest.TestCase):
                     MockComponent("globalTrigger", 0),
                     MockComponent("eventBuilder", 0),
                     MockComponent("secondaryBuilders", 0)]
+
+        orderNum = 1
+        for c in compList:
+            c.setOrder(orderNum)
 
         runset = MockRunSet(compList)
         runset.startRunning()
@@ -380,6 +394,10 @@ class TaskManagerTest(unittest.TestCase):
                     MockComponent("globalTrigger", 0),
                     MockComponent("eventBuilder", 0),
                     MockComponent("secondaryBuilders", 0)]
+
+        orderNum = 1
+        for c in compList:
+            c.setOrder(orderNum)
 
         runset = MockRunSet(compList)
         runset.startRunning()

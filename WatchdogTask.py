@@ -279,6 +279,9 @@ class WatchData(object):
 
         return isOK
 
+    def order(self):
+        return self.__comp.order()
+
 class WatchdogThread(CnCThread):
     def __init__(self, data, dashlog):
         self.__data = data
@@ -338,14 +341,6 @@ class WatchdogTask(CnCTask):
         return None
 
     def __gatherData(self, runset):
-        iniceTrigger  = None
-        simpleTrigger  = None
-        icetopTrigger  = None
-        amandaTrigger  = None
-        globalTrigger   = None
-        eventBuilder   = None
-        secondaryBuilders   = None
-
         watchData = []
 
         components = runset.components()
@@ -369,7 +364,7 @@ class WatchdogTask(CnCTask):
                     if self.__contains(components, "globalTrigger"):
                         cw.addOutputValue("globalTrigger", "trigger",
                                           "RecordsSent")
-                    iniceTrigger = cw
+                    watchData.append(cw)
                 elif comp.name() == "simpleTrigger":
                     hub = self.__findAnyHub(components)
                     if hub is not None:
@@ -378,7 +373,7 @@ class WatchdogTask(CnCTask):
                     if self.__contains(components, "globalTrigger"):
                         cw.addOutputValue("globalTrigger", "trigger",
                                           "RecordsSent")
-                    iniceTrigger = cw
+                    watchData.append(cw)
                 elif comp.name() == "iceTopTrigger":
                     hub = self.__findAnyHub(components)
                     if hub is not None:
@@ -387,12 +382,12 @@ class WatchdogTask(CnCTask):
                     if self.__contains(components, "globalTrigger"):
                         cw.addOutputValue("globalTrigger", "trigger",
                                           "RecordsSent")
-                    icetopTrigger = cw
+                    watchData.append(cw)
                 elif comp.name() == "amandaTrigger":
                     if self.__contains(components, "globalTrigger"):
                         cw.addOutputValue("globalTrigger", "trigger",
                                           "RecordsSent")
-                    amandaTrigger = cw
+                    watchData.append(cw)
                 elif comp.name() == "globalTrigger":
                     if self.__contains(components, "inIceTrigger"):
                         cw.addInputValue("inIceTrigger", "trigger",
@@ -409,7 +404,7 @@ class WatchdogTask(CnCTask):
                     if self.__contains(components, "eventBuilder"):
                         cw.addOutputValue("eventBuilder", "glblTrig",
                                           "RecordsSent")
-                    globalTrigger = cw
+                    watchData.append(cw)
                 elif comp.name() == "eventBuilder":
                     hub = self.__findAnyHub(components)
                     if hub is not None:
@@ -423,7 +418,7 @@ class WatchdogTask(CnCTask):
                     cw.addThresholdValue("backEnd", "DiskAvailable", 1024)
                     cw.addThresholdValue("backEnd", "NumBadEvents", 0,
                                          False)
-                    eventBuilder = cw
+                    watchData.append(cw)
                 elif comp.name() == "secondaryBuilders":
                     cw.addThresholdValue("snBuilder", "DiskAvailable", 1024)
                     cw.addOutputValue("dispatch", "moniBuilder",
@@ -433,7 +428,7 @@ class WatchdogTask(CnCTask):
                     # XXX - Disabled until there"s a simulated tcal stream
                     #cw.addOutputValue("dispatch", "tcalBuilder",
                     #                  "TotalDispatchedData")
-                    secondaryBuilders = cw
+                    watchData.append(cw)
                 else:
                     self.logError("Couldn't create watcher for unknown" +
                                   " component " + comp.fullName())
@@ -441,16 +436,9 @@ class WatchdogTask(CnCTask):
                 self.logError("Couldn't create watcher for component %s: %s" %
                               (comp.fullName(), exc_string()))
 
-        # soloComps is filled here so we can determine the order
-        # of components in the list
+        # sort entries by component order
         #
-        if iniceTrigger: watchData.append(iniceTrigger)
-        if simpleTrigger: watchData.append(simpleTrigger)
-        if icetopTrigger: watchData.append(icetopTrigger)
-        if amandaTrigger: watchData.append(amandaTrigger)
-        if globalTrigger: watchData.append(globalTrigger)
-        if eventBuilder: watchData.append(eventBuilder)
-        if secondaryBuilders: watchData.append(secondaryBuilders)
+        watchData.sort(lambda x,y : cmp(x.order(), y.order()))
 
         return watchData
 
