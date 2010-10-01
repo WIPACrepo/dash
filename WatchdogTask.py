@@ -44,7 +44,7 @@ class ThresholdWatcher(Watcher):
             dir = "above"
 
         fullName = "%s %s.%s %s %s" % \
-            (comp, beanName, fieldName, dir, str(self.__threshold))
+            (comp.fullName(), beanName, fieldName, dir, str(self.__threshold))
         super(ThresholdWatcher, self).__init__(fullName, beanName, fieldName)
 
     def __compare(self, threshold, value):
@@ -80,7 +80,8 @@ class ValueWatcher(Watcher):
         self.__prevValue = None
         self.__unchanged = 0
 
-        fullName = "%s->%s %s.%s" % (fromComp, toComp, beanName, fieldName)
+        fullName = "%s->%s %s.%s" % (fromComp.fullName(), toComp.fullName(),
+                                     beanName, fieldName)
         super(ValueWatcher, self).__init__(fullName, beanName, fieldName)
 
     def __compare(self, oldValue, newValue):
@@ -211,8 +212,7 @@ class WatchData(object):
         if beanName not in self.__inputFields:
             self.__inputFields[beanName] = []
 
-        vw = ValueWatcher(otherType, self.__comp.fullName(), beanName,
-                          fieldName)
+        vw = ValueWatcher(otherType, self.__comp, beanName, fieldName)
         self.__inputFields[beanName].append(vw)
 
     def addOutputValue(self, otherType, beanName, fieldName):
@@ -221,8 +221,7 @@ class WatchData(object):
         if beanName not in self.__outputFields:
             self.__outputFields[beanName] = []
 
-        vw = ValueWatcher(self.__comp.fullName(), otherType, beanName,
-                          fieldName)
+        vw = ValueWatcher(self.__comp, otherType, beanName, fieldName)
         self.__outputFields[beanName].append(vw)
 
     def addThresholdValue(self, beanName, fieldName, threshold, lessThan=True):
@@ -236,8 +235,8 @@ class WatchData(object):
         if beanName not in self.__thresholdFields:
             self.__thresholdFields[beanName] = []
 
-        tw = ThresholdWatcher(self.__comp.fullName(), beanName, fieldName,
-                              threshold, lessThan)
+        tw = ThresholdWatcher(self.__comp, beanName, fieldName, threshold,
+                              lessThan)
         self.__thresholdFields[beanName].append(tw)
 
     def check(self, starved, stagnant, threshold):
@@ -307,12 +306,29 @@ class WatchdogThread(CnCThread):
     def starved(self): return self.__starved[:]
     def threshold(self): return self.__threshold[:]
 
+class DummyComponent(object):
+    def __init__(self, name):
+        self.__name = name
+        self.__order = None
+
+    def __str__(self): return self.__name
+    def fullName(self): return self.__name
+    def isBuilder(self): return False
+    def isSource(self): return False
+    def order(self): return self.__order
+
+    def setOrder(self, num):
+        self.__order = num
+
 class WatchdogTask(CnCTask):
     NAME = "Watchdog"
     PERIOD = 10
     DEBUG_BIT = RunSetDebug.WATCH_TASK
 
     HEALTH_METER_FULL = 3
+
+    DOM_COMP = DummyComponent("dom")
+    DISPATCH_COMP = DummyComponent("dispatch")
 
     def __init__(self, taskMgr, runset, dashlog):
         self.__threadList = {}
@@ -326,17 +342,17 @@ class WatchdogTask(CnCTask):
         for data in watchData:
             self.__threadList[data] = WatchdogThread(data, dashlog)
 
-    def __contains(self, comps, compName):
-        for c in comps:
-            if c.name() == compName:
-                return True
-
-        return False
-
     def __findAnyHub(self, comps):
         for comp in comps:
             if comp.name().lower().endswith("hub"):
                 return comp
+
+        return None
+
+    def __findComp(self, comps, compName):
+        for c in comps:
+            if c.name() == compName:
+                return c
 
         return None
 
@@ -349,71 +365,55 @@ class WatchdogTask(CnCTask):
                 cw = WatchData(comp, self.logger())
                 if comp.name() == "stringHub" or \
                         comp.name() == "replayHub":
-                    cw.addInputValue("dom", "sender", "NumHitsReceived")
-                    if self.__contains(components, "eventBuilder"):
-                        cw.addInputValue("eventBuilder", "sender",
+                    cw.addInputValue(self.DOM_COMP, "sender", "NumHitsReceived")
+                    comp = self.__findComp(components, "eventBuilder")
+                    if comp is not None:
+                        cw.addInputValue(comp, "sender",
                                          "NumReadoutRequestsReceived")
-                        cw.addOutputValue("eventBuilder", "sender",
-                                          "NumReadoutsSent")
+                        cw.addOutputValue(comp, "sender", "NumReadoutsSent")
                     watchData.append(cw)
                 elif comp.name() == "inIceTrigger":
                     hub = self.__findAnyHub(components)
                     if hub is not None:
-                        cw.addInputValue(hub.name(), "stringHit",
-                                         "RecordsReceived")
-                    if self.__contains(components, "globalTrigger"):
-                        cw.addOutputValue("globalTrigger", "trigger",
-                                          "RecordsSent")
+                        cw.addInputValue(hub, "stringHit", "RecordsReceived")
+                    comp = self.__findComp(components, "globalTrigger")
+                    if comp is not None:
+                        cw.addOutputValue(comp, "trigger", "RecordsSent")
                     watchData.append(cw)
                 elif comp.name() == "simpleTrigger":
                     hub = self.__findAnyHub(components)
                     if hub is not None:
-                        cw.addInputValue(hub.name(), "stringHit",
-                                         "RecordsReceived")
-                    if self.__contains(components, "globalTrigger"):
-                        cw.addOutputValue("globalTrigger", "trigger",
-                                          "RecordsSent")
+                        cw.addInputValue(hub, "stringHit", "RecordsReceived")
+                    comp = self.__findComp(components, "globalTrigger")
+                    if comp is not None:
+                        cw.addOutputValue(comp, "trigger", "RecordsSent")
                     watchData.append(cw)
                 elif comp.name() == "iceTopTrigger":
                     hub = self.__findAnyHub(components)
                     if hub is not None:
-                        cw.addInputValue(hub.name(), "icetopHit",
-                                         "RecordsReceived")
-                    if self.__contains(components, "globalTrigger"):
-                        cw.addOutputValue("globalTrigger", "trigger",
-                                          "RecordsSent")
-                    watchData.append(cw)
-                elif comp.name() == "amandaTrigger":
-                    if self.__contains(components, "globalTrigger"):
-                        cw.addOutputValue("globalTrigger", "trigger",
-                                          "RecordsSent")
+                        cw.addInputValue(hub, "icetopHit", "RecordsReceived")
+                    comp = self.__findComp(components, "globalTrigger")
+                    if comp is not None:
+                        cw.addOutputValue(comp, "trigger", "RecordsSent")
                     watchData.append(cw)
                 elif comp.name() == "globalTrigger":
-                    if self.__contains(components, "inIceTrigger"):
-                        cw.addInputValue("inIceTrigger", "trigger",
-                                         "RecordsReceived")
-                    if self.__contains(components, "simpleTrigger"):
-                        cw.addInputValue("simpleTrigger", "trigger",
-                                         "RecordsReceived")
-                    if self.__contains(components, "iceTopTrigger"):
-                        cw.addInputValue("iceTopTrigger", "trigger",
-                                         "RecordsReceived")
-                    if self.__contains(components, "amandaTrigger"):
-                        cw.addInputValue("amandaTrigger", "trigger",
-                                         "RecordsReceived")
-                    if self.__contains(components, "eventBuilder"):
-                        cw.addOutputValue("eventBuilder", "glblTrig",
-                                          "RecordsSent")
+                    for trig in ("inIce", "iceTop", "simple"):
+                        comp = self.__findComp(components, trig + "Trigger")
+                        if comp is not None:
+                            cw.addInputValue(comp, "trigger", "RecordsReceived")
+                    comp = self.__findComp(components, "eventBuilder")
+                    if comp is not None:
+                        cw.addOutputValue(comp, "glblTrig", "RecordsSent")
                     watchData.append(cw)
                 elif comp.name() == "eventBuilder":
                     hub = self.__findAnyHub(components)
                     if hub is not None:
-                        cw.addInputValue(hub.name(), "backEnd",
-                                         "NumReadoutsReceived")
-                    if self.__contains(components, "globalTrigger"):
-                        cw.addInputValue("globalTrigger", "backEnd",
+                        cw.addInputValue(hub, "backEnd", "NumReadoutsReceived")
+                    comp = self.__findComp(components, "globalTrigger")
+                    if comp is not None:
+                        cw.addInputValue(comp, "backEnd",
                                          "NumTriggerRequestsReceived")
-                    cw.addOutputValue("dispatch", "backEnd",
+                    cw.addOutputValue(self.DISPATCH_COMP, "backEnd",
                                       "NumEventsSent")
                     cw.addThresholdValue("backEnd", "DiskAvailable", 1024)
                     cw.addThresholdValue("backEnd", "NumBadEvents", 0,
@@ -421,12 +421,12 @@ class WatchdogTask(CnCTask):
                     watchData.append(cw)
                 elif comp.name() == "secondaryBuilders":
                     cw.addThresholdValue("snBuilder", "DiskAvailable", 1024)
-                    cw.addOutputValue("dispatch", "moniBuilder",
+                    cw.addOutputValue(self.DISPATCH_COMP, "moniBuilder",
                                       "TotalDispatchedData")
-                    cw.addOutputValue("dispatch", "snBuilder",
+                    cw.addOutputValue(self.DISPATCH_COMP, "snBuilder",
                                       "TotalDispatchedData")
                     # XXX - Disabled until there"s a simulated tcal stream
-                    #cw.addOutputValue("dispatch", "tcalBuilder",
+                    #cw.addOutputValue(self.DISPATCH_COMP, "tcalBuilder",
                     #                  "TotalDispatchedData")
                     watchData.append(cw)
                 else:
