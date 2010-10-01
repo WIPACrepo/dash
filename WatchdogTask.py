@@ -7,6 +7,25 @@ from RunSetDebug import RunSetDebug
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
+class UnhealthyRecord(object):
+    def __init__(self, msg, order):
+        self.__msg = msg
+        self.__order = order
+
+    def __repr__(self): return str(self)
+
+    def __str__(self):
+        return "#%d: %s" % (self.__order, self.__msg)
+
+    def __cmp__(self, other):
+        val = cmp(self.__order, other.__order)
+        if val == 0:
+            val = cmp(self.__msg, other.__msg)
+        return val
+
+    def message(self): return self.__msg
+    def order(self): return self.__order
+
 class Watcher(object):
     def __init__(self, fullName, beanName, fieldName):
         self.__fullName = fullName
@@ -35,6 +54,7 @@ class Watcher(object):
 
 class ThresholdWatcher(Watcher):
     def __init__(self, comp, beanName, fieldName, threshold, lessThan):
+        self.__comp = comp
         self.__threshold = threshold
         self.__lessThan = lessThan
 
@@ -70,13 +90,17 @@ class ThresholdWatcher(Watcher):
 
         return True
 
-    def unhealthyString(self, value):
-        return "%s (value=%s)" % (str(self), str(value))
+    def unhealthyRecord(self, value):
+        msg = "%s (value=%s)" % (str(self), str(value))
+        return UnhealthyRecord(msg, self.__comp.order())
 
 class ValueWatcher(Watcher):
     NUM_UNCHANGED = 3
 
     def __init__(self, fromComp, toComp, beanName, fieldName):
+        self.__fromComp = fromComp
+        self.__toComp = toComp
+        self.__order = self.__computeOrder(beanName, fieldName)
         self.__prevValue = None
         self.__unchanged = 0
 
@@ -90,6 +114,15 @@ class ValueWatcher(Watcher):
                                 (str(self), str(oldValue), str(newValue)))
 
         return newValue == oldValue
+
+    def __computeOrder(self, beanName, fieldName):
+        if self.__fromComp.isBuilder() and self.__toComp.isSource():
+            return self.__fromComp.order() + 1
+
+        if self.__fromComp.isSource() and self.__toComp.isBuilder():
+            return self.__toComp.order() + 2
+
+        return self.__fromComp.order()
 
     def check(self, newValue):
         if self.__prevValue is None:
@@ -142,8 +175,9 @@ class ValueWatcher(Watcher):
 
         return self.__unchanged == 0
 
-    def unhealthyString(self, value):
-        return "%s not changing from %s" % (str(self), str(self.__prevValue))
+    def unhealthyRecord(self, value):
+        msg = "%s not changing from %s" % (str(self), str(self.__prevValue))
+        return UnhealthyRecord(msg, self.__order)
 
 class WatchData(object):
     def __init__(self, comp, dashlog):
@@ -180,7 +214,7 @@ class WatchData(object):
                 val = None
                 chkVal = False
             if not chkVal:
-                unhealthy.append(watchList[0].unhealthyString(val))
+                unhealthy.append(watchList[0].unhealthyRecord(val))
         else:
             fldList = []
             for f in watchList:
@@ -199,7 +233,7 @@ class WatchData(object):
                 except:
                     chkVal = False
                 if not chkVal:
-                    unhealthy.append(watchList[i].unhealthyString(val))
+                    unhealthy.append(watchList[i].unhealthyRecord(val))
 
         if len(unhealthy) == 0:
             return None
@@ -338,9 +372,29 @@ class WatchdogTask(CnCTask):
                                            self.DEBUG_BIT, self.NAME,
                                            self.PERIOD)
 
+        self.__computeDummyOrder(runset)
+
         watchData = self.__gatherData(runset)
         for data in watchData:
             self.__threadList[data] = WatchdogThread(data, dashlog)
+
+    def __computeDummyOrder(self, runset):
+        minOrder = None
+        maxOrder = None
+
+        for comp in runset.components():
+            order = comp.order()
+            if type(order) != int:
+                raise TaskException("Expected integer order for %s, not %s" %
+                                    comp.fullName(), type(comp.order()))
+
+            if minOrder is None or order < minOrder:
+                minOrder = order
+            if maxOrder is None or order > maxOrder:
+                maxOrder = order
+
+        self.DOM_COMP.setOrder(minOrder - 1)
+        self.DISPATCH_COMP.setOrder(maxOrder + 1)
 
     def __findAnyHub(self, comps):
         for comp in comps:
@@ -444,11 +498,14 @@ class WatchdogTask(CnCTask):
 
     def __logBadComps(self, errType, badList):
         errStr = None
+
+        badList.sort()
         for bad in badList:
             if errStr is None:
-                errStr = "    " + str(bad)
+                errStr = ""
             else:
-                errStr += "\n    " + str(bad)
+                errStr += "\n"
+            errStr += "    " + bad.message()
 
         self.logError("Watchdog reports %s components:\n%s" % (errType, errStr))
 
