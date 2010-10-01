@@ -253,6 +253,8 @@ class WatchData(object):
             isOK = False
 
         if isOK:
+            # don't report output problems if there are input problems
+            #
             try:
                 badList = self.__checkBeans(self.__outputFields)
                 if badList is not None:
@@ -263,16 +265,17 @@ class WatchData(object):
                                      exc_string())
                 isOK = False
 
-            if isOK:
-                try:
-                    badList = self.__checkBeans(self.__thresholdFields)
-                    if badList is not None:
-                        threshold += badList
-                        isOK = False
-                except:
-                    self.__dashlog.error(self.__comp.fullName() +
-                                         " thresholds: " + exc_string())
-                    isOK = False
+        # report threshold problems even if there are other problems
+        #
+        try:
+            badList = self.__checkBeans(self.__thresholdFields)
+            if badList is not None:
+                threshold += badList
+                isOK = False
+        except:
+            self.__dashlog.error(self.__comp.fullName() + " thresholds: " +
+                                 exc_string())
+            isOK = False
 
         return isOK
 
@@ -504,7 +507,7 @@ class WatchdogTask(CnCTask):
             else:
                 self.logError("Run is not healthy, stopping")
                 self.setError()
-                
+
     def waitUntilFinished(self):
         for c in self.__threadList.keys():
             if self.__threadList[c].isAlive():
