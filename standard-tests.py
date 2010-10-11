@@ -52,9 +52,9 @@ RUN_LIST = (PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
             #PDAQRun("sim60str-mbt23", FOUR_HR),
             #PDAQRun("sim60str-mbt23", EIGHT_HR),
             PDAQRun("sim60str-mbt-vt-01", FOUR_HR),
-            pDAQRun("sim60str-mbt-vt-01", EIGHT_HR),
-            ###pDAQRun("sim80str-25Hz", FOUR_HR),
-            ###pDAQRun("sim80str-25Hz", EIGHT_HR),
+            PDAQRun("sim60str-mbt-vt-01", EIGHT_HR),
+            ###PDAQRun("sim80str-25Hz", FOUR_HR),
+            ###PDAQRun("sim80str-25Hz", EIGHT_HR),
             )
 
 class Deploy(object):

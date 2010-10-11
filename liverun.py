@@ -242,7 +242,7 @@ class LiveState(object):
             else:
                 print >>sys.stderr, "Unknown livecmd pair: \"%s\"/\"%s\"" % \
                       (front, back)
-                continue
+                return LiveState.PARSE_NORMAL
 
         if parseState == LiveState.PARSE_FLASH:
             m = LiveState.DOM_PAT.match(line)
@@ -274,6 +274,7 @@ class LiveState(object):
             return LiveState.PARSE_NORMAL
 
         print >>sys.stderr, "Unknown livecmd line: %s" % line
+        return LiveState.PARSE_NORMAL
 
     def check(self):
         "Check the current I3Live service states"
