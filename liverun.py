@@ -24,7 +24,7 @@
 #             flashFile, flashTimes, flashPause)
 
 
-import os, re, sys, time
+import os, re, subprocess, sys, time
 from BaseRun import BaseRun, RunException, StateException
 from DAQConst import DAQPort
 
@@ -281,15 +281,18 @@ class LiveState(object):
 
         cmd = "%s check" % self.__prog
         if self.__showCmd: print cmd
-        (fi, foe) = os.popen4(cmd)
-        fi.close()
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, close_fds=True,
+                                shell=True)
+        proc.stdin.close()
 
         parseState = LiveState.PARSE_NORMAL
-        for line in foe:
+        for line in proc.stdout:
             line = line.rstrip()
             if self.__showCmdOutput: print '+ ' + line
             parseState = self.__parseLine(parseState, line)
-        foe.close()
+        proc.stdout.close()
 
     def lightMode(self):
         "Return the light mode from the most recent check()"
@@ -350,12 +353,15 @@ class LiveRun(BaseRun):
         cmd = "%s control pdaq localhost:%s" % \
             (self.__liveCmdProg, DAQPort.DAQLIVE)
         if self.__showCmd: print cmd
-        (fi, foe) = os.popen4(cmd)
-        fi.close()
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, close_fds=True,
+                                shell=True)
+        proc.stdin.close()
 
         controlled = False
         unreachable = True
-        for line in foe:
+        for line in proc.stdout:
             line = line.rstrip()
             if self.__showCmdOutput: print '+ ' + line
             if line == "Service pdaq is now being controlled" or \
@@ -366,7 +372,7 @@ class LiveRun(BaseRun):
                 unreachable = True
             else:
                 print >>sys.stderr, "Control: %s" % line
-        foe.close()
+        proc.stdout.close()
 
         if controlled or waitSecs < 0:
             return controlled
@@ -391,11 +397,14 @@ class LiveRun(BaseRun):
         Return True if there was a problem
         """
         if self.__showCmd: print cmd
-        (fi, foe) = os.popen4(cmd)
-        fi.close()
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, close_fds=True,
+                                shell=True)
+        proc.stdin.close()
 
         problem = False
-        for line in foe:
+        for line in proc.stdout:
             line = line.rstrip()
             if self.__showCmdOutput: print '+ ' + line
 
@@ -403,7 +412,7 @@ class LiveRun(BaseRun):
                 problem = True
             if problem:
                 print >>sys.stderr, "%s: %s" % (name, line)
-        foe.close()
+        proc.stdout.close()
 
         return not problem
 
@@ -520,11 +529,14 @@ class LiveRun(BaseRun):
         """Start flashers for the specified duration with the specified data"""
         cmd = "%s flasher -d %d -f %s" % (self.__liveCmdProg, tm, data)
         if self.__showCmd: print cmd
-        (fi, foe) = os.popen4(cmd)
-        fi.close()
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, close_fds=True,
+                                shell=True)
+        proc.stdin.close()
 
         problem = False
-        for line in foe:
+        for line in proc.stdout:
             line = line.rstrip()
             if self.__showCmdOutput: print '+ ' + line
 
@@ -532,7 +544,7 @@ class LiveRun(BaseRun):
                 problem = True
             if problem:
                 print >>sys.stderr, "Flasher: %s" % line
-        foe.close()
+        proc.stdout.close()
 
         return problem
 
@@ -540,15 +552,18 @@ class LiveRun(BaseRun):
         "Return the last run number"
         cmd = "%s lastrun" % self.__liveCmdProg
         if self.__showCmd: print cmd
-        (fi, foe) = os.popen4(cmd)
-        fi.close()
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, close_fds=True,
+                                shell=True)
+        proc.stdin.close()
 
         num = None
-        for line in foe:
+        for line in proc.stdout:
             line = line.rstrip()
             if self.__showCmdOutput: print '+ ' + line
             num = int(line)
-        foe.close()
+        proc.stdout.close()
 
         return num
 

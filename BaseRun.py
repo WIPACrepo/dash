@@ -2,7 +2,7 @@
 #
 # Base class for managing pDAQ runs
 
-import os, socket, sys, threading, time
+import os, socket, subprocess, sys, threading, time
 
 class RunException(Exception): pass
 
@@ -381,11 +381,14 @@ class BaseRun(object):
         "Kill all pDAQ components"
         cmd = "%s -k" % self.__launchProg
         if self.__showCmd: print cmd
-        (fi, foe) = os.popen4(cmd)
-        fi.close()
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, close_fds=True,
+                                shell=True)
+        proc.stdin.close()
 
         failLine = None
-        for line in foe:
+        for line in proc.stdout:
             line = line.rstrip()
 
             if line.startswith("Found "):
@@ -394,7 +397,7 @@ class BaseRun(object):
                 pass
             elif line.find("To force a restart") < 0:
                 print >>sys.stderr, "KillComponents: %s" % line
-        foe.close()
+        proc.stdout.close()
 
         if failLine is not None:
             raise LaunchException("Could not kill components: %s" % failLine)
@@ -414,9 +417,17 @@ class BaseRun(object):
         else:
             print "Launching %s" % clusterCfg
 
-        (fi, foe) = os.popen4(cmd)
-        fi.close()
-        foe.close()
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, close_fds=True,
+                                shell=True)
+        proc.stdin.close()
+
+        for line in proc.stdout:
+            line = line.rstrip()
+            if self.__showCmdOutput: print '+ ' + line
+
+        proc.stdout.close()
 
         # give components a chance to start
         time.sleep(5)
@@ -492,10 +503,13 @@ class BaseRun(object):
 
         cmd = "%s %s %s" % (self.__updateDBProg, arg, runCfgPath)
         if self.__showCmd: print cmd
-        (fi, foe) = os.popen4(cmd)
-        fi.close()
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, close_fds=True,
+                                shell=True)
+        proc.stdin.close()
 
-        for line in foe:
+        for line in proc.stdout:
             line = line.rstrip()
             if self.__showCmdOutput: print '+ ' + line
 
@@ -504,7 +518,7 @@ class BaseRun(object):
 
             elif line != "xml":
                 print >>sys.stderr, "UpdateDB: %s" % line
-        foe.close()
+        proc.stdout.close()
 
     def waitForRun(self, runNum, duration):
         """

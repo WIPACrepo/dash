@@ -2,7 +2,7 @@
 #
 # Run standard pDAQ tests
 
-import optparse, os, re, socket, stat, sys
+import optparse, os, re, socket, stat, subprocess, sys
 from BaseRun import DatabaseType
 from liverun import LiveRun
 
@@ -96,13 +96,16 @@ class Deploy(object):
         cmd = "%s -c %s %s" % (self.__deploy, clusterCfg, arg)
         if self.__showCmd: print cmd
 
-        (fi, foe) = os.popen4(cmd)
-        fi.close()
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, close_fds=True,
+                                shell=True)
+        proc.stdin.close()
 
         inNodes = False
         inCmds = False
 
-        for line in foe:
+        for line in proc.stdout:
             line = line.rstrip()
             if self.__showCmdOutput: print '+ ' + line
 
@@ -156,7 +159,7 @@ class Deploy(object):
                 raise SystemExit("Deploy error: " + line[7:])
 
             print >>sys.stderr, "Deploy: %s" % line
-        foe.close()
+        proc.stdout.close()
 
     def deploy(self, clusterConfig):
         "Deploy to the specified cluster"
