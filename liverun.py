@@ -294,6 +294,8 @@ class LiveState(object):
             parseState = self.__parseLine(parseState, line)
         proc.stdout.close()
 
+        proc.wait()
+
     def lightMode(self):
         "Return the light mode from the most recent check()"
         return LightMode.str(self.__lightMode)
@@ -374,6 +376,8 @@ class LiveRun(BaseRun):
                 print >>sys.stderr, "Control: %s" % line
         proc.stdout.close()
 
+        proc.wait()
+
         if controlled or waitSecs < 0:
             return controlled
 
@@ -413,6 +417,8 @@ class LiveRun(BaseRun):
             if problem:
                 print >>sys.stderr, "%s: %s" % (name, line)
         proc.stdout.close()
+
+        proc.wait()
 
         return not problem
 
@@ -546,6 +552,8 @@ class LiveRun(BaseRun):
                 print >>sys.stderr, "Flasher: %s" % line
         proc.stdout.close()
 
+        proc.wait()
+
         return problem
 
     def getLastRunNumber(self):
@@ -564,6 +572,8 @@ class LiveRun(BaseRun):
             if self.__showCmdOutput: print '+ ' + line
             num = int(line)
         proc.stdout.close()
+
+        proc.wait()
 
         return num
 

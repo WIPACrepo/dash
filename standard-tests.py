@@ -161,6 +161,8 @@ class Deploy(object):
             print >>sys.stderr, "Deploy: %s" % line
         proc.stdout.close()
 
+        proc.wait()
+
     def deploy(self, clusterConfig):
         "Deploy to the specified cluster"
         if not self.__showCmd: print "Deploying %s" % clusterConfig

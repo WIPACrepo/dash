@@ -399,6 +399,8 @@ class BaseRun(object):
                 print >>sys.stderr, "KillComponents: %s" % line
         proc.stdout.close()
 
+        proc.wait()
+
         if failLine is not None:
             raise LaunchException("Could not kill components: %s" % failLine)
 
@@ -428,6 +430,8 @@ class BaseRun(object):
             if self.__showCmdOutput: print '+ ' + line
 
         proc.stdout.close()
+
+        proc.wait()
 
         # give components a chance to start
         time.sleep(5)
@@ -519,6 +523,8 @@ class BaseRun(object):
             elif line != "xml":
                 print >>sys.stderr, "UpdateDB: %s" % line
         proc.stdout.close()
+
+        proc.wait()
 
     def waitForRun(self, runNum, duration):
         """
