@@ -248,6 +248,10 @@ if __name__ == "__main__":
         liveRun = LiveRun(opt.showCmd, opt.showCmdOutput, opt.showChk,
                           opt.showChkOutput)
 
+        if sys.version_info > (2, 3):
+            from DumpThreads import DumpThreadsOnSignal
+            DumpThreadsOnSignal(fd=sys.stderr)
+
         # always kill running components in case they're from a previous release
         #
         liveRun.killComponents()
