@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import traceback, unittest
+import sys, traceback, unittest
 
 from DAQLive import DAQLive, LiveException
 from DAQMocks import MockLogger
