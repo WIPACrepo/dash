@@ -265,7 +265,6 @@ class TestRunSet(unittest.TestCase):
 
         expId = RunSet.ID.peekNext()
 
-
         clusterName = "cluster-foo"
 
         spadeDir = "/tmp"
@@ -310,11 +309,6 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
-        global CAUGHT_WARNING
-        if not LIVE_IMPORT and not CAUGHT_WARNING:
-            CAUGHT_WARNING = True
-            logger.addExpectedRegexp(r"^Cannot import IceCube Live.*")
-
         logDir = "/tmp"
 
         runName = 'xxx'
@@ -344,6 +338,11 @@ class TestRunSet(unittest.TestCase):
                        }
 
         expState = "running"
+
+        global CAUGHT_WARNING
+        if not LIVE_IMPORT and not CAUGHT_WARNING:
+            CAUGHT_WARNING = True
+            logger.addExpectedRegexp(r"^Cannot import IceCube Live.*")
 
         logger.addExpectedExact("Starting run #%d with \"%s\"" %
                                 (runNum, clusterName))
