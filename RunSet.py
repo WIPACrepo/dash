@@ -348,10 +348,10 @@ class RunData(object):
         if str(self.__liveMoniClient).startswith("BOGUS"):
             self.__liveMoniClient = None
             if not RunSet.LIVE_WARNING:
+                RunSet.LIVE_WARNING = True
                 self.__dashlog.error("Cannot import IceCube Live code, so" +
                                     " per-string active DOM stats wil not" +
                                     " be reported")
-                RunSet.LIVE_WARNING = True
 
         self.__taskMgr = runSet.createTaskManager(self.__dashlog,
                                                   self.__liveMoniClient,
@@ -1492,10 +1492,11 @@ class RunSet(object):
 
         self.__stopping = True
         try:
-            hadError = self.__stopRunInternal(hadError)
-        except:
-            self.__logger.error("Could not stop run: " + exc_string())
-            raise
+            try:
+                hadError = self.__stopRunInternal(hadError)
+            except:
+                self.__logger.error("Could not stop run: " + exc_string())
+                raise
         finally:
             self.__stopping = False
 
