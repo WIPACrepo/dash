@@ -7,8 +7,9 @@
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started January, 2007
 
-import sys
 import optparse
+import signal
+import sys
 from time import sleep
 from os import environ, mkdir, system
 from os.path import exists, isabs, join
@@ -41,7 +42,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 12280 2010-09-20 19:46:19Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 12357 2010-10-29 23:47:33Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -135,7 +136,10 @@ def killJavaComponents(compList, dryRun, verbose, killWith9, parallel=None):
 
             cmd = sleepr + fmtStr % niner
             if verbose: print cmd
-            parallel.add(cmd)
+            if dryRun:
+                print cmd
+            else:
+                parallel.add(cmd)
 
     if not dryRun:
         parallel.start()
@@ -199,7 +203,10 @@ def startJavaComponents(compList, dryRun, configDir, dashDir, logPort, livePort,
                  quietStr)
 
         if verbose: print cmd
-        parallel.add(cmd)
+        if dryRun:
+            print cmd
+        else:
+            parallel.add(cmd)
 
     if verbose and not dryRun: parallel.showAll()
     if not dryRun:
@@ -236,10 +243,12 @@ def doKill(doCnC, dryRun, dashDir, verbose, quiet, clusterConfig,
             pid = int(os.getpid())
             for p in pids:
                 if pid != p:
-                    # print "Killing %d..." % p
-                    import signal
-                    os.kill(p, signal.SIGKILL)
-                    if not quiet: killed.append(b[1])
+                    if dryRun:
+                        print "kill -KILL %d" % p
+                    else:
+                        # print "Killing %d..." % p
+                        os.kill(p, signal.SIGKILL)
+                        if not quiet: killed.append(b[1])
         elif not dryRun and not quiet:
             ignored.append(b[1])
 
@@ -291,12 +300,14 @@ def doLaunch(doCnC, dryRun, verbose, quiet, clusterConfig, dashDir,
 
         cmd = "%s%s" % (path, options)
         if verbose: print cmd
-        if not dryRun:
+        if dryRun:
+            print cmd
+        else:
             runCmd(cmd, parallel)
             if not quiet: launched.append(progBase)
+    elif not dryRun and not quiet:
+        ignored.append(progBase)
 
-        elif not dryRun and not quiet:
-            ignored.append(progBase)
 
     startJavaProcesses(dryRun, clusterConfig, configDir, dashDir,
                        DAQPort.CATCHALL, livePort, verbose, eventCheck,
