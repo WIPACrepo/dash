@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12301 2010-09-28 17:20:04Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 12353 2010-10-29 18:43:20Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -1124,7 +1124,10 @@ class CnCServer(DAQPool):
         t.setDaemon(True)
         t.start()
 
-        self.__live = self.startLiveThread()
+        try:
+            self.__live = self.startLiveThread()
+        except:
+            self.__log.error("Cannot start I3Live thread: " + exc_string())
 
         self.__server.serve_forever()
 
