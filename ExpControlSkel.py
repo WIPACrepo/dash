@@ -23,7 +23,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 5216 2010-09-15 16:29:39Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 12355 2010-10-29 20:04:28Z dglo $"
 
 class DOMArgumentException(Exception): pass
 
@@ -212,8 +212,8 @@ def main():
     p.add_option("-c", "--config-name",  type="string", dest="runConfig",
                  action="store", default=None,
                  help="Run configuration name")
-    p.add_option("-d", "--duration-seconds", type="int", dest="duration",
-                 action="store", default=300,
+    p.add_option("-d", "--duration-seconds", type="string", dest="duration",
+                 action="store", default="300",
                  help="Run duration (in seconds)")
     p.add_option("-f", "--flasher-run", type="string", dest="flasherRun",
                  action="store", default=None,
