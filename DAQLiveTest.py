@@ -132,7 +132,7 @@ class DAQLiveTest(unittest.TestCase):
                 return
             raise self.failureException("Expected %s(%s), not %s(%s)" %
                                         (type(exc), exc, type(excVal), excVal))
-        raise self.failureException("%s(%s) not raised" % type(exc), exc)
+        raise self.failureException("%s(%s) not raised" % (type(exc), exc))
 
     def setUp(self):
         self.__live = None
