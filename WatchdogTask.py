@@ -146,7 +146,13 @@ class ValueWatcher(Watcher):
             raise TaskException("ValueWatcher does not support %s" % newType)
 
         if newType != list:
-            if self.__compare(self.__prevValue, newValue):
+            try:
+                cmpEq = self.__compare(self.__prevValue, newValue)
+            except TaskException, te:
+                self.__unchanged = 0
+                raise te
+
+            if cmpEq:
                 self.__unchanged += 1
                 if self.__unchanged == ValueWatcher.NUM_UNCHANGED:
                     raise TaskException(str(self) + " is not changing")
@@ -160,8 +166,16 @@ class ValueWatcher(Watcher):
                                  len(newValue)))
         else:
             tmpStag = False
-            for i in range(0, len(newValue)):
-                if self.__compare(self.__prevValue[i], newValue[i]):
+            tmpEx = None
+            for i in range(len(newValue)):
+                try:
+                    cmpEq = self.__compare(self.__prevValue[i], newValue[i])
+                except TaskException, te:
+                    if tmpEx is None:
+                        tmpEx = te
+                    cmpEq = False
+
+                if cmpEq:
                     tmpStag = True
                 else:
                     self.__prevValue[i] = newValue[i]
@@ -172,6 +186,9 @@ class ValueWatcher(Watcher):
                 if self.__unchanged == ValueWatcher.NUM_UNCHANGED:
                     raise TaskException(("At least one %s value is not" +
                                          " changing") % str(self))
+
+            if tmpEx:
+                raise tmpEx
 
         return self.__unchanged == 0
 
