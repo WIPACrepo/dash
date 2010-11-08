@@ -240,22 +240,22 @@ class WatchData(object):
 
         return unhealthy
 
-    def addInputValue(self, otherType, beanName, fieldName):
+    def addInputValue(self, otherComp, beanName, fieldName):
         self.__comp.checkBeanField(beanName, fieldName)
 
         if beanName not in self.__inputFields:
             self.__inputFields[beanName] = []
 
-        vw = ValueWatcher(otherType, self.__comp, beanName, fieldName)
+        vw = ValueWatcher(otherComp, self.__comp, beanName, fieldName)
         self.__inputFields[beanName].append(vw)
 
-    def addOutputValue(self, otherType, beanName, fieldName):
+    def addOutputValue(self, otherComp, beanName, fieldName):
         self.__comp.checkBeanField(beanName, fieldName)
 
         if beanName not in self.__outputFields:
             self.__outputFields[beanName] = []
 
-        vw = ValueWatcher(self.__comp, otherType, beanName, fieldName)
+        vw = ValueWatcher(self.__comp, otherComp, beanName, fieldName)
         self.__outputFields[beanName].append(vw)
 
     def addThresholdValue(self, beanName, fieldName, threshold, lessThan=True):
@@ -496,7 +496,7 @@ class WatchdogTask(CnCTask):
 
         return watchData
 
-    def __logBadComps(self, errType, badList):
+    def __logUnhealthy(self, errType, badList):
         errStr = None
 
         badList.sort()
@@ -528,16 +528,16 @@ class WatchdogTask(CnCTask):
 
         healthy = True
         if len(hanging) > 0:
-            self.__logBadComps("hanging", hanging)
+            self.__logUnhealthy("hanging", hanging)
             healthy = False
         if len(starved) > 0:
-            self.__logBadComps("starved", starved)
+            self.__logUnhealthy("starved", starved)
             healthy = False
         if len(stagnant) > 0:
-            self.__logBadComps("stagnant", stagnant)
+            self.__logUnhealthy("stagnant", stagnant)
             healthy = False
         if len(threshold) > 0:
-            self.__logBadComps("threshold", threshold)
+            self.__logUnhealthy("threshold", threshold)
             healthy = False
 
         if healthy:
