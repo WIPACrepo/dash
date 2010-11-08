@@ -34,6 +34,7 @@ class MonitorThread(CnCThread):
                 attrs = self.__comp.getMultiBeanFields(b, flds)
                 self.__refused = 0
             except socket.error, se:
+                attrs = None
                 msg = None
                 try:
                     msg = se[1]
@@ -43,9 +44,9 @@ class MonitorThread(CnCThread):
                     self.__refused += 1
                     break
             except:
+                attrs = None
                 self.__dashlog.error("Ignoring %s:%s: %s" %
                                      (str(self.__comp), b, exc_string()))
-                continue
 
             # report monitoring data
             if attrs is not None and len(attrs) > 0:
