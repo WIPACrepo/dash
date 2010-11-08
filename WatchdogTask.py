@@ -549,7 +549,8 @@ class WatchdogTask(CnCTask):
 
         for c in self.__threadList.keys():
             if self.__threadList[c].isAlive():
-                hanging.append(str(self.__threadList[c]))
+                hanging.append(UnhealthyRecord(str(self.__threadList[c]),
+                                               c.order()))
             else:
                 starved += self.__threadList[c].starved()
                 stagnant += self.__threadList[c].stagnant()
