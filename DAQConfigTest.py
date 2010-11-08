@@ -18,7 +18,8 @@ class DAQConfigTest(unittest.TestCase):
 
     def lookup(self, cfg, dataList):
         for data in dataList:
-            self.assert_(cfg.hasDOM(data[0]), "Didn't find mbid " + data[0])
+            self.assertTrue(cfg.hasDOM(data[0]),
+                            "Didn't find mbid " + data[0])
 
         for data in dataList:
             try:
