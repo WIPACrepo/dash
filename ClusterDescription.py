@@ -265,7 +265,7 @@ class ClusterDescription(ConfigXMLBase):
             return self.__defaultJVMArgs
 
         return None
-            
+
     def ___parseComponentNode(self, clusterName, host, node):
         "Parse a <component> node from a run cluster description file"
         name = self.getValue(node, 'name')
@@ -455,7 +455,7 @@ class ClusterDescription(ConfigXMLBase):
                 elif kid.nodeName == 'simulatedHub':
                     if simHub is not None:
                         errMsg = ('Cluster "%s" host "%s" has multiple' +
-                                  '<simulatedHub> nodes') % (self.name, host)
+                                  ' <simulatedHub> nodes') % (self.name, host)
                         raise ClusterDescriptionFormatError(errMsg)
 
                     simHub = self.__parseSimulatedHubNode(self.name, host, kid)
