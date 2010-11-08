@@ -18,6 +18,9 @@ class UnhealthyRecord(object):
         return "#%d: %s" % (self.__order, self.__msg)
 
     def __cmp__(self, other):
+        if type(other) != UnhealthyRecord:
+            return -1
+
         val = cmp(self.__order, other.__order)
         if val == 0:
             val = cmp(self.__msg, other.__msg)
@@ -522,7 +525,11 @@ class WatchdogTask(CnCTask):
                 errStr = ""
             else:
                 errStr += "\n"
-            errStr += "    " + bad.message()
+            if type(bad) == UnhealthyRecord:
+                msg = bad.message()
+            else:
+                msg = "%s (%s is not UnhealthyRecord)" % (str(bad), type(bad))
+            errStr += "    " + msg
 
         self.logError("Watchdog reports %s components:\n%s" % (errType, errStr))
 
