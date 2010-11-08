@@ -94,7 +94,10 @@ class ThresholdWatcher(Watcher):
         return True
 
     def unhealthyRecord(self, value):
-        msg = "%s (value=%s)" % (str(self), str(value))
+        if isinstance(value, Exception) and not isinstance(value, TaskException):
+            msg = "%s: %s" % (str(self), exc_string())
+        else:
+            msg = "%s (value=%s)" % (str(self), str(value))
         return UnhealthyRecord(msg, self.__comp.order())
 
 class ValueWatcher(Watcher):
@@ -196,7 +199,10 @@ class ValueWatcher(Watcher):
         return self.__unchanged == 0
 
     def unhealthyRecord(self, value):
-        msg = "%s not changing from %s" % (str(self), str(self.__prevValue))
+        if isinstance(value, Exception) and not isinstance(value, TaskException):
+            msg = "%s: %s" % (str(self), exc_string())
+        else:
+            msg = "%s not changing from %s" % (str(self), str(self.__prevValue))
         return UnhealthyRecord(msg, self.__order)
 
 class WatchData(object):
@@ -230,9 +236,9 @@ class WatchData(object):
                 val = self.__comp.getSingleBeanField(watchList[0].beanName(),
                                                      watchList[0].fieldName())
                 chkVal = watchList[0].check(val)
-            except:
-                val = None
-                chkVal = False
+            except Exception, ex:
+                unhealthy.append(watchList[0].unhealthyRecord(ex))
+                chkVal = True
             if not chkVal:
                 unhealthy.append(watchList[0].unhealthyRecord(val))
         else:
@@ -243,15 +249,17 @@ class WatchData(object):
             try:
                 valMap = self.__comp.getMultiBeanFields(watchList[0].beanName(),
                                                         fldList)
-            except:
-                return [exc_string(), ]
+            except Exception, ex:
+                fldList = []
+                unhealthy.append(watchList[0].unhealthyRecord(ex))
 
-            for i in range(0, len(fldList)):
+            for i in range(len(fldList)):
                 val = valMap[fldList[i]]
                 try:
                     chkVal = watchList[i].check(val)
-                except:
-                    chkVal = False
+                except Exception, ex:
+                    unhealthy.append(watchList[i].unhealthyRecord(ex))
+                    chkVal = True
                 if not chkVal:
                     unhealthy.append(watchList[i].unhealthyRecord(val))
 
