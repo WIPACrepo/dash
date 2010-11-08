@@ -516,7 +516,7 @@ class MockClusterConfig(object):
 
     def nodes(self):
         return self.__nodes.values()
-       
+
 class MockCnCLogger(CnCLogger):
     def __init__(self, appender, quiet=False, extraLoud=False):
         #if appender is None: raise Exception('Appender cannot be None')
@@ -585,7 +585,7 @@ class MockComponent(object):
             extra.append('CFG')
         for conn in self.__connectors:
             extra.append(str(conn))
-            
+
         if len(extra) > 0:
             outStr += '[' + ','.join(extra) + ']'
         return outStr
@@ -968,7 +968,8 @@ class MockParallelShell(object):
         group = "{" + ",".join(subdirs) + "}"
 
         cmd = "%s -azLC%s%s %s %s:%s" % \
-            (rCmd, dOpt, drOpt, os.path.join(dir, group), remoteHost, dir)
+            (rCmd, dOpt, drOpt, os.path.join(dir, group), remoteHost,
+             os.path.basename(dir))
         self.__addExpected(cmd)
         self.__rtnCodes.append(rtnCode)
         self.__results.append(result)
@@ -992,7 +993,7 @@ class MockParallelShell(object):
                             (idx, len(self.__results)))
 
         return self.__results[idx]
-                          
+
     def getReturnCodes(self):
         return self.__rtnCodes
 
