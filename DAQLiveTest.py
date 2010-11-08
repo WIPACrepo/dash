@@ -31,7 +31,7 @@ class MockRunSet(object):
 
     def isRunning(self):
         return self.__state == self.STATE_RUNNING
-        
+
     def runConfig(self):
         if self.isDestroyed(): raise Exception("Runset destroyed")
         return self.__runCfg
@@ -117,12 +117,16 @@ class DAQLiveTest(unittest.TestCase):
         try:
             func(*args, **kwargs)
         except type(exc), ex2:
+            if exc is None:
+                return
             if str(exc) == str(ex2):
                 return
             raise self.failureException("Expected %s(%s), not %s(%s)" %
                                         (type(exc), exc, type(ex2), ex2))
         except:
             # handle exceptions in python 2.3
+            if exc is None:
+                return
             (excType, excVal, excTB) = sys.exc_info()
             if type(excVal) == type(exc) and str(excVal) == str(exc):
                 return
