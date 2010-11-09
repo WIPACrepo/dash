@@ -187,16 +187,23 @@ class RunCluster(CachedConfigName):
 
         hubNum = 0
         for hub in hubList:
-            assigned = False
-            while not assigned:
+            looped = False
+            while True:
                 if hubAlloc[hubNum] < simList[hubNum].number:
                     hubAlloc[hubNum] += 1
-                    assigned = True
+                    hubNum += 1
+                    if hubNum >= len(hubAlloc):
+                        hubNum = 0
+                    break
 
                 # move to next host
                 hubNum += 1
                 if hubNum >= len(hubAlloc):
+                    if looped:
+                        raise RunClusterError(("Cannot assign hub %s;" +
+                                               " out of hubs") % hub)
                     hubNum = 0
+                    looped = True
 
         allocMap = {}
         for i in range(len(simList)):

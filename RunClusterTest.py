@@ -2,7 +2,7 @@
 
 import os, unittest
 from DAQConfig import DAQConfigParser
-from RunCluster import RunCluster
+from RunCluster import RunCluster, RunClusterError
 
 class DeployData(object):
     def __init__(self, host, name, id=0):
@@ -87,8 +87,7 @@ class RunClusterTest(unittest.TestCase):
                     DeployData('localhost', 'stringHub', 1005),
                     ]
 
-        self.__checkCluster("localhost", cfgName, expNodes, "spade",
-                            None)
+        self.__checkCluster("localhost", cfgName, expNodes, "spade", None)
 
     def testDeploySPTS64(self):
         cfgName = 'simpleConfig'
@@ -108,6 +107,28 @@ class RunClusterTest(unittest.TestCase):
 
         self.__checkCluster("spts64", cfgName, expNodes,
                             "/mnt/data/spade/pdaq/runs", "/mnt/data/pdaqlocal")
+
+    def testDeployTooMany(self):
+        cfgName = 'tooManyConfig'
+        expNodes = [DeployData('spts64-iitrigger', 'inIceTrigger'),
+                    DeployData('spts64-gtrigger', 'globalTrigger'),
+                    DeployData('spts64-evbuilder', 'eventBuilder'),
+                    DeployData('spts64-expcont', 'SecondaryBuilders'),
+                    DeployData('spts64-stringproc01', 'stringHub', 1001),
+                    DeployData('spts64-stringproc02', 'stringHub', 1002),
+                    DeployData('spts64-stringproc03', 'stringHub', 1003),
+                    DeployData('spts64-stringproc06', 'stringHub', 1004),
+                    DeployData('spts64-stringproc07', 'stringHub', 1005),
+                    ]
+
+        spadeDir = 'spade'
+        logCopyDir = None
+
+        try:
+            self.__checkCluster("localhost", cfgName, expNodes, "spade", None)
+        except RunClusterError, rce:
+            if not str(rce).endswith("out of hubs"):
+                fail("Unexpected exception: " + str(rce))
 
     def testDeploySPS(self):
         cfgName = 'sps-IC40-IT6-Revert-IceTop-V029'
