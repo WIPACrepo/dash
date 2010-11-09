@@ -57,6 +57,9 @@ class TaskManager(threading.Thread):
             finally:
                 self.__flag.release()
 
+        for t in self.__tasks:
+            t.close()
+
     def createIntervalTimer(self, name, period):
         return IntervalTimer(name, period, startTriggered=True)
 

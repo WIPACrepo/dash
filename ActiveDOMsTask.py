@@ -111,6 +111,9 @@ class ActiveDOMsTask(CnCTask):
         self.__thread = None
         self.__badCount = 0
 
+    def close(self):
+        pass
+
     def waitUntilFinished(self):
         if self.__liveMoniClient is None:
             return

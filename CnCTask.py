@@ -45,6 +45,9 @@ class CnCTask(object):
 
         return timer.timeLeft()
 
+    def close(self):
+        raise Exception("Unimplemented")
+
     def endTimer(self):
         self.__timer = None
 

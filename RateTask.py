@@ -48,6 +48,9 @@ class RateTask(CnCTask):
     def _reset(self):
         self.__badCount = 0
 
+    def close(self):
+        pass
+
     def waitUntilFinished(self):
         if self.__thread is not None and self.__thread.isAlive():
             self.__thread.join()

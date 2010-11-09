@@ -586,6 +586,9 @@ class WatchdogTask(CnCTask):
                 self.logError("Run is not healthy, stopping")
                 self.setError()
 
+    def close(self):
+        pass
+
     def waitUntilFinished(self):
         for c in self.__threadList.keys():
             if self.__threadList[c].isAlive():

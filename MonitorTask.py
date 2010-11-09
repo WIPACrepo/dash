@@ -52,6 +52,11 @@ class MonitorThread(CnCThread):
             if attrs is not None and len(attrs) > 0:
                 self.__reporter.send(self.__now, b, attrs)
 
+    def close(self):
+        if self.__reporter is not None:
+            self.__reporter.close()
+            self.__reporter = None
+
     def getNewThread(self, now):
         thrd = MonitorThread(self.__comp, self.__dashlog, self.__reporter,
                              now, self.__refused)
@@ -92,6 +97,9 @@ class MonitorToLive(object):
     def __str__(self):
         return "MonitorToLive(%s)" % self.__name
 
+    def close(self):
+        pass
+
     def send(self, now, beanName, attrs):
         for key in attrs:
             self.__live.sendMoni("%s*%s+%s" % (self.__name, beanName, key),
@@ -101,6 +109,10 @@ class MonitorToBoth(object):
     def __init__(self, dir, basename, live):
         self.__file = MonitorToFile(dir, basename)
         self.__live = MonitorToLive(basename, live)
+
+    def close(self):
+        self.__file.close()
+        self.__live.close()
 
     def send(self, now, beanName, attrs):
         self.__file.send(now, beanName, attrs)
@@ -153,6 +165,10 @@ class MonitorTask(CnCTask):
                     now = datetime.datetime.now()
                 self.__threadList[c] = thrd.getNewThread(now)
                 self.__threadList[c].start()
+
+    def close(self):
+        for c in self.__threadList.keys():
+            self.__threadList[c].close()
 
     def waitUntilFinished(self):
         for c in self.__threadList.keys():
