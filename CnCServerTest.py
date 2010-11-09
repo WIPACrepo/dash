@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, shutil, sys, tempfile, threading, traceback, unittest, xmlrpclib
+import os, shutil, sys, tempfile, threading, time, traceback, unittest, xmlrpclib
 
 from CnCServer import CnCServer, CnCServerException
 from DAQClient import DAQClient
@@ -404,6 +404,8 @@ class TestCnCServer(unittest.TestCase):
         setId = self.cnc.rpc_runset_make(runConfig)
         self.assertEquals('ready', self.comp.getState(),
                           'Unexpected state %s' % self.comp.getState())
+
+        time.sleep(1)
 
         catchall.checkStatus(100)
 

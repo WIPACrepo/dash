@@ -211,7 +211,7 @@ class MyRunSet(RunSet):
         if self.__failReset is not None:
             return [(self.__failReset, self.FAIL_STATE), ]
         return []
-        
+
     def setUnresetComponent(self, comp):
         self.__failReset = comp
 
@@ -736,7 +736,7 @@ class CnCRunSetTest(unittest.TestCase):
         for c in comps:
             if c.isSource() or c.name() == "extraComp": continue
             runCompList.append(c.fullName())
-        
+
         domList = [MockRunConfigFile.createDOM(self.RADAR_DOM), ]
 
         rcFile = MockRunConfigFile(self.__runConfigDir)
@@ -751,6 +751,8 @@ class CnCRunSetTest(unittest.TestCase):
 
         rs = self.__cnc.findRunset(rsId)
         self.failIf(rs is None, "Could not find runset #%d" % rsId)
+
+        time.sleep(1)
 
         if catchall: catchall.checkStatus(5)
 
@@ -820,6 +822,8 @@ class CnCRunSetTest(unittest.TestCase):
         self.__addRunStopMoni(liveMoni, payTime, numEvts, runNum)
 
         self.__cnc.rpc_runset_stop_run(rsId)
+
+        time.sleep(1)
 
         if catchall: catchall.checkStatus(5)
         dashLog.checkStatus(5)
