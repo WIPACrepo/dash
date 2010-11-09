@@ -324,35 +324,23 @@ class RunCluster(CachedConfigName):
         and the host name of the current machine
         """
 
-        hasSim = False
-        hasReal = False
-
-        for hub in hubList:
-            if hub.isRealHub():
-                hasReal = True
-            else:
-                hasSim = True
-
-        if hasReal and hasSim:
-            raise RunClusterError(('Run configuration "%s" has both real' +
-                                   ' and simulated hubs') % self.configName())
-
-        if hasReal: return 'sps'
-
         try:
             hostname = socket.gethostname()
         except:
             hostname = None
 
-        if hostname is None:
-            minus = -1
-        else:
-            minus = hostname.find('-')
+        if hostname is not None:
+            # SPS is easy
+            if hostname.endswith("icecube.southpole.usap.gov"):
+                return "sps"
+            # try to identify test systems
+            if hostname.endswith("icecube.wisc.edu"):
+                hlist = hostname.split(".")
+                if len(hlist) > 4 and \
+                       (hlist[1] == "spts64" or hlist[1] == "spts"):
+                    return hlist[1]
 
-        if hostname is None or not hostname.startswith('sp') or minus < 0:
-            return 'localhost'
-
-        return hostname[:minus]
+        return 'localhost'
 
     def __sortByPriority(x, y):
         "Sort simulated hub nodes by priority"
