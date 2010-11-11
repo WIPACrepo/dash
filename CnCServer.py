@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12353 2010-10-29 18:43:20Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 12393 2010-11-11 02:28:43Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -594,7 +594,7 @@ class CnCServer(DAQPool):
     def __getComponents(self, idList, getAll):
         compList = []
 
-        if getAll and (idList is None or len(idList) == 0):
+        if idList is None or len(idList) == 0:
             compList += self.components()
         else:
             for c in self.components():
