@@ -21,6 +21,7 @@ except ImportError:
             pass
 
         def close(self): pass
+        def run(self): pass
 
     class Prio(object):
         ITS   = 123
