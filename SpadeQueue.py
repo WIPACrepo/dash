@@ -27,11 +27,20 @@ def __copySpadeTarFile(logger, copyDir, spadeBaseName, tarFile):
         else:
             raise OSError(str(e) + ": Copy %s to %s" % (tarFile, copyFile))
 
+
+def __touch_file(f):
+    open(f, "w").close()
+
+    
 def __writeSpadeSemaphore(spadeDir, spadeBaseName):
     semFile = os.path.join(spadeDir, spadeBaseName + ".sem")
-    fd = open(semFile, "w")
-    fd.close()
+    __touch_file(semFile)
 
+
+def __indicate_daq_logs_queued(spadeDir):
+    __touch_file(os.path.join(spadeDir, "logs-queued"))
+
+                 
 def __writeSpadeTarFile(spadeDir, spadeBaseName, runDir):
     tarBall = os.path.join(spadeDir, spadeBaseName + ".dat.tar")
 
@@ -40,6 +49,7 @@ def __writeSpadeTarFile(spadeDir, spadeBaseName, runDir):
     tarObj.close()
 
     return tarBall
+
 
 def queueForSpade(logger, spadeDir, copyDir, runDir, runNum, runTime,
                   runDuration):
@@ -63,14 +73,18 @@ def queueForSpade(logger, spadeDir, copyDir, runDir, runNum, runTime,
 
         semFile = __writeSpadeSemaphore(spadeDir, spadeBaseName)
 
+        __indicate_daq_logs_queued(spadeDir)
+        
         logger.info(("Queued data for SPADE (spadeDir=%s" +
                      ", runDir=%s, runNum=%s)...") %
                     (spadeDir, runDir, runNum))
     except:
         logger.error("FAILED to queue data for SPADE: " + exc_string())
 
+
 if __name__ == "__main__":
     import logging
+    from datetime import datetime
     if len(sys.argv) < 2:
         print >>sys.stderr, "Usage: %s runNumber" % sys.argv[0]
         raise SystemExit
@@ -79,10 +93,10 @@ if __name__ == "__main__":
 
     logger = logging.getLogger("spadeQueue")
     logger.setLevel(logging.DEBUG)
-    queue_for_spade(logger,
-                    "/mnt/data/pdaqlocal/viaTDRSS",
-                    None,
-                    "/mnt/data/pdaq/log/daqrun%05d" % runNum,
-                    runNum,
-                    datetime.utcnow(),
-                    0)
+    queueForSpade(logger,
+                  "/mnt/data/pdaqlocal/viaTDRSS",
+                  None,
+                  "/mnt/data/pdaq/log/daqrun%05d" % runNum,
+                  runNum,
+                  datetime.utcnow(),
+                  0)
