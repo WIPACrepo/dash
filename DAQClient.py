@@ -185,8 +185,12 @@ class DAQClient(ComponentName):
         self.__client = self.createClient(host, port)
         self.__clientLock = threading.Lock()
 
-        self.__mbean = self.createMBeanClient(host, mbeanPort)
-        self.__mbeanLock = threading.Lock()
+        try:
+            self.__mbean = self.createMBeanClient(host, mbeanPort)
+            self.__mbeanLock = threading.Lock()
+        except:
+            self.__mbean = None
+            self.__mbeanLock = None
 
     def __str__(self):
         "String description"
@@ -215,7 +219,8 @@ class DAQClient(ComponentName):
             (self.__id, self.name(), self.num(), hpStr, mbeanStr, extraStr)
 
     def checkBeanField(self, bean, field):
-        self.__mbean.checkBeanField(bean, field)
+        if self.__mbean is not None:
+            self.__mbean.checkBeanField(bean, field)
 
     def close(self):
         self.__log.close()
@@ -311,12 +316,19 @@ class DAQClient(ComponentName):
             return None
 
     def getBeanFields(self, bean):
+        if self.__mbean is None:
+            return []
         return self.__mbean.getBeanFields(bean)
 
     def getBeanNames(self):
+        if self.__mbean is None:
+            return []
         return self.__mbean.getBeanNames()
 
     def getMultiBeanFields(self, name, fieldList):
+        if self.__mbean is None:
+            return {}
+
         self.__mbeanLock.acquire()
         try:
             return self.__mbean.getAttributes(name, fieldList)
@@ -356,6 +368,9 @@ class DAQClient(ComponentName):
         return csStr
 
     def getSingleBeanField(self, name, field):
+        if self.__mbean is None:
+            return None
+
         self.__mbeanLock.acquire()
         try:
             return self.__mbean.get(name, field)
