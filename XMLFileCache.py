@@ -47,10 +47,8 @@ class XMLFileCache(object):
             if cls.CACHE[fileName].modTime() == fileStat.st_mtime:
                 return cls.CACHE[fileName].data()
 
-        parsed = False
         try:
             dom = minidom.parse(fileName)
-            parsed = True
         except Exception, e:
             raise XMLFileParseError("Couldn't parse \"%s\": %s" %
                                     (fileName, str(e)))
