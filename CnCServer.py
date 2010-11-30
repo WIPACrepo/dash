@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12393 2010-11-11 02:28:43Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 12413 2010-11-30 03:52:19Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -932,12 +932,12 @@ class CnCServer(DAQPool):
         self.__live = self.startLiveThread()
 
     def rpc_end_all(self):
-        "terminate all clients"
+        "reset all clients"
         tGroup = ComponentOperationGroup(ComponentOperation.RESET_COMP)
         for c in self.components():
             tGroup.start(c, self.__log, ())
         tGroup.wait()
-        tGroup.reportErrors(logger, "terminate")
+        tGroup.reportErrors(self.__log, "reset")
         return 1
 
     def rpc_ping(self):
