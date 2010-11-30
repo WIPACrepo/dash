@@ -114,13 +114,12 @@ class RunCluster(CachedConfigName):
             name = name[:-4]
         self.setConfigName(name)
 
-        hubList = self.__extractHubs(cfg)
-
-        clusterDesc = self.__getClusterDescription(descrName, hubList,
-                                                   configDir)
+        clusterDesc = self.__getClusterDescription(descrName, configDir)
         self.__descName = clusterDesc.configName()
 
         hostMap = {}
+
+        hubList = self.__extractHubs(cfg)
 
         self.__addRequired(clusterDesc, hostMap)
         self.__addTriggers(clusterDesc, hubList, hostMap)
@@ -295,10 +294,10 @@ class RunCluster(CachedConfigName):
                 hubList.append(comp)
         return hubList
 
-    def __getClusterDescription(self, name, hubList, configDir):
+    def __getClusterDescription(self, name, configDir):
         "Get the appropriate cluster description"
         if name is None:
-            name = self.__guessDescriptionName(hubList)
+            name = ClusterDescription.getClusterFromHostName()
 
         if configDir is None:
             configDir = os.path.abspath(os.path.join(metaDir, 'config'))
@@ -317,30 +316,6 @@ class RunCluster(CachedConfigName):
         simList.sort(self.__sortByPriority)
 
         return simList
-
-    def __guessDescriptionName(self, hubList):
-        """
-        Guess the cluster description file name, using the list of hubs
-        and the host name of the current machine
-        """
-
-        try:
-            hostname = socket.gethostname()
-        except:
-            hostname = None
-
-        if hostname is not None:
-            # SPS is easy
-            if hostname.endswith("icecube.southpole.usap.gov"):
-                return "sps"
-            # try to identify test systems
-            if hostname.endswith("icecube.wisc.edu"):
-                hlist = hostname.split(".")
-                if len(hlist) > 4 and \
-                       (hlist[1] == "spts64" or hlist[1] == "spts"):
-                    return hlist[1]
-
-        return 'localhost'
 
     def __sortByPriority(x, y):
         "Sort simulated hub nodes by priority"

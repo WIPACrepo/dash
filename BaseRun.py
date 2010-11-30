@@ -4,6 +4,8 @@
 
 import os, socket, subprocess, sys, threading, time
 
+from ClusterDescription import ClusterDescription
+
 class RunException(Exception): pass
 
 class FlashFileException(RunException): pass
@@ -23,12 +25,15 @@ class DatabaseType(object):
         Use host name to determine if we're using the production or test
         database and return that type
         """
-        hostName = socket.gethostname()
-        if hostName.startswith("spts-") or hostName.startswith("spts64-"):
+        clu = ClusterDescription.getClusterFromHostName()
+        if clu == ClusterDescription.SPTS or clu == ClusterDescription.SPTS64:
             return cls.TEST
-        if hostName.startswith("sps-"):
+        if clu == ClusterDescription.SPS:
             return cls.PROD
-        return cls.NONE
+        if clu == ClusterDescription.LOCAL:
+            return cls.NONE
+        raise UnimplementedException("Cannot guess database for cluster \"%s\"" %
+                                     clu)
     guessType = classmethod(guessType)
 
 class FlasherThread(threading.Thread):

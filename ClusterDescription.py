@@ -216,6 +216,11 @@ class ClusterHost(object):
         self.ctlServer = True
 
 class ClusterDescription(ConfigXMLBase):
+    LOCAL = "localhost"
+    SPS = "sps"
+    SPTS = "spts"
+    SPTS64 = "spts64"
+
     def __init__(self, configDir, configName, suffix='.cfg'):
 
         self.name = None
@@ -477,6 +482,31 @@ class ClusterDescription(ConfigXMLBase):
                     errMsg = 'Multiple entries for component "%s"' % compKey
                     raise ClusterDescriptionFormatError(errMsg)
                 self.__compToHost[compKey] = host
+
+    def getClusterFromHostName(cls):
+        """
+        Use the host name of the current machine to determine the cluster name.
+        Returned values are "sps", "spts", "spts64", or "localhost"
+        """
+
+        try:
+            hostname = socket.gethostname()
+        except:
+            hostname = None
+
+        if hostname is not None:
+            # SPS is easy
+            if hostname.endswith("icecube.southpole.usap.gov"):
+                return cls.SPS
+            # try to identify test systems
+            if hostname.endswith("icecube.wisc.edu"):
+                hlist = hostname.split(".")
+                if len(hlist) > 4 and \
+                       (hlist[1] == cls.SPTS64 or hlist[1] == cls.SPTS):
+                    return hlist[1]
+
+        return cls.LOCAL
+    getClusterFromHostName = classmethod(getClusterFromHostName)
 
     def getJVM(self, compName):
         return self.__findDefault(compName, 'jvm')
