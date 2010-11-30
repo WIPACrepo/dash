@@ -2,7 +2,7 @@
 
 import copy, os, sys
 
-from xml.dom import Node, minidom
+from xml.dom import Node
 
 from CachedConfigName import CachedConfigName
 from ClusterConfig import ClusterConfigParser, ConfigNotFoundException
@@ -332,12 +332,8 @@ class DomConfigParser(XMLParser, XMLFileCache):
 
     def __loadDomIdMap(cls):
         if cls.DEFAULT_DOM_GEOMETRY is None:
-            try:
-                cls.DEFAULT_DOM_GEOMETRY = \
-                    DefaultDomGeometryReader.parse(translateDoms=True)
-            except AttributeError:
-                cls.DEFAULT_DOM_GEOMETRY = \
-                    DupDefaultDomGeometryReader.parse(translateDoms=True)
+            cls.DEFAULT_DOM_GEOMETRY = \
+                DefaultDomGeometryReader.parse(translateDoms=True)
 
         return cls.DEFAULT_DOM_GEOMETRY.getDomIdToDomDict()
     __loadDomIdMap = classmethod(__loadDomIdMap)
