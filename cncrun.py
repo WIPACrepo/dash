@@ -106,14 +106,14 @@ class CnCRun(BaseRun):
                 continue
 
             if curState != RunSetState.RESETTING:
-                raise StateException(("I3Live state should be RESETTING," +
-                                      " not %s") % curState)
+                raise StateException("DAQ state should be RESETTING, not %s" %
+                                     curState)
 
             time.sleep(waitSecs)
 
         if curState != expState:
             totTime = int(time.time() - startTime)
-            raise StateException(("I3Live state should be %s, not %s" +
+            raise StateException(("DAQ state should be %s, not %s" +
                                   " (waited %d secs)") %
                                  (expState, curState, totTime))
 
