@@ -144,7 +144,7 @@ class ConnTypeEntry(object):
             inConn = inObj[0]
             inComp = inObj[1]
 
-            for outComp in self.__outList:
+            for outComp in self.__outList + self.__optOutList:
                 entry = Connection(inConn, inComp)
 
                 if not connMap.has_key(outComp):
