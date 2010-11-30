@@ -49,7 +49,7 @@ class ChannelThread(threading.Thread):
     def add(self, sock):
         """
         Add an input socket to the list of channels
-        
+
         sock - input socket
         """
 
@@ -59,6 +59,10 @@ class ChannelThread(threading.Thread):
 
         if not self.__running:
             self.start()
+            for i in range(10):
+                if self.__running:
+                    break
+                time.sleep(0.1)
 
     def close(self):
         "Close all input channels"
@@ -469,7 +473,7 @@ class FakeClient(ServerProxy, threading.Thread):
                                                " to \"%s\" at %s:%s") %
                                               (self.name(), conn['type'],
                                                conn['host'], conn['port']))
-                    
+
                 if LOUD:
                     print >>sys.stderr, "Connect %s to %s:%d" % \
                         (self.name(), conn['host'], conn['port'])
@@ -867,7 +871,17 @@ class LogThread(threading.Thread):
         pw = []
         pe = [self.__sock]
         while self.__serving:
-            rd, rw, re = select.select(pr, pw, pe, self.TIMEOUT)
+            try:
+                rd, rw, re = select.select(pr, pw, pe, self.TIMEOUT)
+            except select.error, selerr:
+                if selerr[0] == socket.EBADF:
+                    break
+                raise
+            except socket.error, sockerr:
+                if sockerr.errno == socket.EBADF:
+                    break
+                raise
+
             if len(re) != 0:
                 print >>sys.stderr, "Error on select"
 
@@ -974,6 +988,11 @@ class ComponentData(object):
         self.__addNumericPrefix = addNumericPrefix
         self.__mbeanDict = self.__buildMBeanDict()
 
+    def __str__(self):
+        if self.__compNum == 0:
+            return self.__compName
+        return "%s#%d" % (self.__compName, self.__compNum)
+
     def __buildMBeanDict(self):
         beanDict = {}
         if not self.__BEAN_DATA.has_key(self.__compName):
@@ -987,19 +1006,36 @@ class ComponentData(object):
 
         return beanDict
 
-    def createAll(cls, numHubs, addNumericPrefix):
+    def createAll(cls, numHubs, addNumericPrefix, includeIceTop=False,
+                  includeTrackEngine=False):
         "Create initial component data list"
-        comps = cls.createHubs(numHubs, addNumericPrefix)
+        comps = cls.createHubs(numHubs, addNumericPrefix,
+                               sendTrackHits=includeTrackEngine,
+                               isIceTop=False)
+        if includeIceTop:
+            itHubs = numHubs / 8
+            if itHubs == 0:
+                itHubs = 1
+            comps = cls.createHubs(itHubs, addNumericPrefix,
+                                   sendTrackHits=includeTrackEngine,
+                                   isIceTop=True)
 
         # create additional components
         comps.append(ComponentData("inIceTrigger", 0,
                                    [("stringHit", Connector.INPUT),
                                     ("trigger", Connector.OUTPUT)],
                                    addNumericPrefix))
-        #comps.append(ComponentData("icetopTrigger", 0,
-        #                           [("icetopHit", Connector.INPUT),
-        #                            ("trigger", Connector.OUTPUT)],
-        #                           addNumericPrefix))
+        if includeIceTop:
+            comps.append(ComponentData("icetopTrigger", 0,
+                                       [("icetopHit", Connector.INPUT),
+                                        ("trigger", Connector.OUTPUT)],
+                                       addNumericPrefix))
+        if includeTrackEngine:
+            comps.append(ComponentData("trackEngine", 0,
+                                       [("trackHit", Connector.INPUT),
+                                        ("trigger", Connector.OUTPUT)],
+                                       addNumericPrefix))
+
         comps.append(ComponentData("globalTrigger", 0,
                                    [("trigger", Connector.INPUT),
                                     ("glblTrig", Connector.OUTPUT)],
@@ -1018,18 +1054,27 @@ class ComponentData(object):
         return comps
     createAll = classmethod(createAll)
 
-    def createHubs(cls, numHubs, addNumericPrefix):
+    def createHubs(cls, numHubs, addNumericPrefix, sendTrackHits,
+                   isIceTop=False):
         "create all stringHubs"
         comps = []
 
+        connList = [("moniData", Connector.OUTPUT),
+                    ("snData", Connector.OUTPUT),
+                    ("tcalData", Connector.OUTPUT),
+                    ("rdoutReq", Connector.INPUT),
+                    ("rdoutData", Connector.OUTPUT)]
+
+        if isIceTop:
+            connList.append(("icetopHit", Connector.OUTPUT))
+        else:
+            connList.append(("stringHit", Connector.OUTPUT))
+
+        if sendTrackHits:
+            connList.append(("trackHit", Connector.OPT_OUTPUT))
+
         for n in range(numHubs):
-            comps.append(ComponentData("stringHub", n + 1,
-                                       [("stringHit", Connector.OUTPUT),
-                                        ("moniData", Connector.OUTPUT),
-                                        ("snData", Connector.OUTPUT),
-                                        ("tcalData", Connector.OUTPUT),
-                                        ("rdoutReq", Connector.INPUT),
-                                        ("rdoutData", Connector.OUTPUT)],
+            comps.append(ComponentData("stringHub", n + 1, connList,
                                        addNumericPrefix))
 
         return comps
@@ -1301,6 +1346,38 @@ class DAQFakeRun(object):
         fd.close()
     hackActiveConfig = classmethod(hackActiveConfig)
 
+    def makeMockClusterConfig(cls, runCfgDir, compData, numHubs):
+        path = os.path.join(runCfgDir, "localhost.cfg")
+        if os.path.exists(path):
+            return
+
+        path = os.path.join(runCfgDir, "localhost-cluster.cfg")
+        if os.path.exists(path):
+            return
+
+        fd = open(path, "w")
+        print >>fd, "<cluster name=\"localhost\">"
+        print >>fd, "  <logDirForSpade>%s</logDirForSpade>"
+        print >>fd, "  <host name=\"localhost\">"
+
+        for cd in compData:
+            nm = str(cd)
+            if nm.startswith("stringHub"): continue
+
+            if nm == "globalTrigger" or nm == "eventBuilder" or \
+               nm == "secondaryBuilders":
+                req = " required=\"true\""
+            else:
+                req = ""
+
+            print >>fd, "    <component name=\"%s\"%s/>" % (nm, req)
+
+        print >>fd, "    <simulatedHub number=\"%d\" priority=\"1\"/>" % numHubs
+        print >>fd, "  </host>"
+        print >>fd, "</cluster>"
+        fd.close()
+    makeMockClusterConfig = classmethod(makeMockClusterConfig)
+
     def makeRunset(self, compList, runCfg):
         nameList = []
         for c in compList:
@@ -1328,6 +1405,14 @@ class DAQFakeRun(object):
             #
             comps = self.createComps(compData, forkClients)
 
+            # wait for all components to be registered
+            #
+            numNew = numComps + len(compData)
+            for cc in range(10):
+                if self.__client.rpc_component_count() == numNew:
+                    break
+                time.sleep(0.1)
+
             # simulate a run
             #
             try:
@@ -1343,11 +1428,17 @@ class DAQFakeRun(object):
             # wait for closed components to be removed from server
             #
             print "Waiting for components"
-            self.__waitForComponents(numComps)
+            self.__waitForComponents(numNew)
 
 if __name__ == "__main__":
     parser = optparse.OptionParser()
 
+    parser.add_option("-A", "--includeTrackEngine", dest="incTrackEng",
+                      action="store_true", default=False,
+                      help="Include track engine in full configuration")
+    parser.add_option("-a", "--trackEngine", dest="trackEng",
+                      action="store_true", default=False,
+                      help="Use existing track engine")
     parser.add_option("-c", "--config", type="string", dest="runCfgDir",
                       action="store", default="/tmp/config",
                       help="Run configuration directory"),
@@ -1396,6 +1487,11 @@ if __name__ == "__main__":
     if opt.firstPort != FakeClient.NEXT_PORT:
         FakeClient.NEXT_PORT = opt.firstPort
 
+    # make sure to include trackEngine if user wants to use real track engine
+    #
+    if opt.trackEng:
+        opt.incTrackEng = True
+
     # get list of components
     #
     if opt.tinyCfg:
@@ -1403,7 +1499,8 @@ if __name__ == "__main__":
     elif opt.smallCfg:
         compData = ComponentData.createSmall()
     else:
-        compData = ComponentData.createAll(opt.numHubs, not opt.realNames)
+        compData = ComponentData.createAll(opt.numHubs, not opt.realNames,
+                                           includeTrackEngine=opt.incTrackEng)
         for cd in compData:
             if opt.evtBldr and cd.isComponent("eventBuilder"):
                 cd.useRealComponent()
@@ -1413,6 +1510,10 @@ if __name__ == "__main__":
                 cd.useRealComponent()
             elif opt.icetopTrig and cd.isComponent("icetopTrigger"):
                 cd.useRealComponent()
+            elif opt.trackEng and cd.isComponent("trackEngine"):
+                cd.useRealComponent()
+
+    DAQFakeRun.makeMockClusterConfig(opt.runCfgDir, compData, opt.numHubs)
 
     try:
         DAQConfigParser.getClusterConfiguration(None, useActiveConfig=True)
