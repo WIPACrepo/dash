@@ -287,6 +287,12 @@ class ClusterDescription(ConfigXMLBase):
                 (clusterName, host.name, name)
             raise ClusterDescriptionFormatError(errMsg)
 
+        reqStr = self.getValue(node, 'required')
+        if reqStr is not None:
+            reqStr = reqStr.lower()
+            if reqStr == 'true' or reqStr == '1' or reqStr == 'on':
+                required = True
+
         logLvl = self.getValue(node, 'logLevel')
         if logLvl is None:
             logLvl = self.__findDefault(name, 'logLevel')
@@ -300,12 +306,6 @@ class ClusterDescription(ConfigXMLBase):
             jvmArgs = self.__findDefault(name, 'jvmArgs')
 
         required = False
-
-        reqStr = self.getValue(node, 'required')
-        if reqStr is not None:
-            reqStr = reqStr.lower()
-            if reqStr == 'true' or reqStr == '1' or reqStr == 'on':
-                required = True
 
         host.addComponent(name, id, logLvl, jvm, jvmArgs, required)
 
@@ -339,6 +339,54 @@ class ClusterDescription(ConfigXMLBase):
                         if cKid.nodeName == valName:
                             self.__defaultComponent[name][valName] = \
                                 self.getChildText(cKid)
+
+    def __parseHostNodes(self, hostNodes):
+        self.__hostMap = {}
+        self.__compToHost = {}
+
+        for node in hostNodes:
+            hostName = self.getValue(node, 'name')
+            if hostName is None:
+                errMsg = ('Cluster "%s" has <host> node without "name"' +
+                          ' attribute') % self.name
+                raise ClusterDescriptionFormatError(errMsg)
+
+            host = ClusterHost(hostName)
+
+            simHub = None
+            for kid in node.childNodes:
+                if kid.nodeType != Node.ELEMENT_NODE:
+                    continue
+
+                if kid.nodeName == 'component':
+                    self.___parseComponentNode(self.name, host, kid)
+                elif kid.nodeName == 'controlServer':
+                    host.setControlServer()
+                elif kid.nodeName == 'simulatedHub':
+                    if simHub is not None:
+                        errMsg = ('Cluster "%s" host "%s" has multiple' +
+                                  ' <simulatedHub> nodes') % (self.name, host)
+                        raise ClusterDescriptionFormatError(errMsg)
+
+                    simHub = self.__parseSimulatedHubNode(self.name, host, kid)
+
+            # if we found a <simulatedHub> node, add it now
+            if simHub is not None:
+                host.addSimulatedHub(simHub)
+
+            # add host to internal host dictionary
+            if not self.__hostMap.has_key(hostName):
+                self.__hostMap[hostName] = host
+            else:
+                errMsg = 'Multiple entries for host "%s"' % hostName
+                raise ClusterDescriptionFormatError(errMsg)
+
+            for comp in host.getComponents():
+                compKey = str(comp)
+                if self.__compToHost.has_key(compKey):
+                    errMsg = 'Multiple entries for component "%s"' % compKey
+                    raise ClusterDescriptionFormatError(errMsg)
+                self.__compToHost[compKey] = host
 
     def __parseSimulatedHubNode(self, clusterName, host, node):
         "Parse a <simulatedHub> node from a run cluster description file"
@@ -436,52 +484,7 @@ class ClusterDescription(ConfigXMLBase):
             errMsg = 'No hosts defined for cluster "%s"' % self.name
             raise ClusterDescriptionFormatError(errMsg)
 
-        self.__hostMap = {}
-        self.__compToHost = {}
-
-        for node in hostNodes:
-            hostName = self.getValue(node, 'name')
-            if hostName is None:
-                errMsg = ('Cluster "%s" has <host> node without "name"' +
-                          ' attribute') % self.name
-                raise ClusterDescriptionFormatError(errMsg)
-
-            host = ClusterHost(hostName)
-
-            simHub = None
-            for kid in node.childNodes:
-                if kid.nodeType != Node.ELEMENT_NODE:
-                    continue
-
-                if kid.nodeName == 'component':
-                    self.___parseComponentNode(self.name, host, kid)
-                elif kid.nodeName == 'controlServer':
-                    host.setControlServer()
-                elif kid.nodeName == 'simulatedHub':
-                    if simHub is not None:
-                        errMsg = ('Cluster "%s" host "%s" has multiple' +
-                                  ' <simulatedHub> nodes') % (self.name, host)
-                        raise ClusterDescriptionFormatError(errMsg)
-
-                    simHub = self.__parseSimulatedHubNode(self.name, host, kid)
-
-            # if we found a <simulatedHub> node, add it now
-            if simHub is not None:
-                host.addSimulatedHub(simHub)
-
-            # add host to internal host dictionary
-            if not self.__hostMap.has_key(hostName):
-                self.__hostMap[hostName] = host
-            else:
-                errMsg = 'Multiple entries for host "%s"' % hostName
-                raise ClusterDescriptionFormatError(errMsg)
-
-            for comp in host.getComponents():
-                compKey = str(comp)
-                if self.__compToHost.has_key(compKey):
-                    errMsg = 'Multiple entries for component "%s"' % compKey
-                    raise ClusterDescriptionFormatError(errMsg)
-                self.__compToHost[compKey] = host
+        self.__parseHostNodes(hostNodes)
 
     def getClusterFromHostName(cls):
         """
