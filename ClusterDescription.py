@@ -335,7 +335,7 @@ class ClusterDescription(ConfigXMLBase):
                     if cKid.nodeType != Node.ELEMENT_NODE:
                         continue
 
-                    for valName in ('jvm', 'jvmArgs'):
+                    for valName in ('jvm', 'jvmArgs', 'logLevel'):
                         if cKid.nodeName == valName:
                             self.__defaultComponent[name][valName] = \
                                 self.getChildText(cKid)
