@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, sys, traceback
+import os, socket, sys, traceback
 
 from xml.dom import minidom, Node
 
