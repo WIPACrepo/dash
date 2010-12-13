@@ -968,15 +968,14 @@ class MockParallelShell(object):
         group = "{" + ",".join(subdirs) + "}"
 
         cmd = "%s -azLC%s%s %s %s:%s" % \
-            (rCmd, dOpt, drOpt, os.path.join(dir, group), remoteHost,
-             os.path.basename(dir))
+            (rCmd, dOpt, drOpt, os.path.join(dir, group), remoteHost, dir)
         self.__addExpected(cmd)
         self.__rtnCodes.append(rtnCode)
         self.__results.append(result)
 
     def addExpectedUndeploy(self, homeDir, pdaqDir, remoteHost):
-        cmd = "ssh %s \"\\rm -rf %s %s\"" % \
-            (remoteHost, os.path.join(homeDir, ".m2"), pdaqDir)
+        cmd = "ssh %s \"\\rm -rf ~%s/.m2 %s\"" % \
+            (remoteHost, os.environ["USER"], pdaqDir)
         self.__addExpected(cmd)
 
     def check(self):

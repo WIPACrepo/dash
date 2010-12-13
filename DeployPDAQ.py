@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 12352 2010-10-29 18:40:17Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 12453 2010-12-13 19:56:22Z dglo $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -42,6 +42,11 @@ def getHubType(compID):
     if compID % 1000 == 0: return "amanda"
     elif compID % 1000 <= 200: return "in-ice",
     else: return "icetop",
+
+def replaceHome(homeDir, curDir):
+    if curDir.startswith(homeDir):
+        return "~%s" % os.environ["USER"] + curDir[len(homeDir):]
+    return curDir
 
 def main():
     "Main program"
@@ -176,15 +181,14 @@ def main():
                              verbose=(traceLevel > 0 or opt.dryRun),
                              trace=(traceLevel > 0), timeout=opt.timeout)
 
-    deploy(config, parallel, os.environ["HOME"], metaDir, SUBDIRS, opt.delete,
+    pdaqDir = replaceHome(os.environ["HOME"], metaDir)
+    deploy(config, parallel, os.environ["HOME"], pdaqDir, SUBDIRS, opt.delete,
            opt.dryRun, opt.deepDryRun, opt.undeploy, traceLevel, monitorIval,
            opt.niceAdj, opt.express)
 
 def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
            deepDryRun, undeploy, traceLevel, monitorIval=None,
            niceAdj=NICE_ADJ_DEFAULT, express=EXPRESS_DEFAULT):
-    m2  = os.path.join(homeDir, '.m2')
-
     # build stub of rsync command
     if express:
         rsyncCmdStub = "rsync"
@@ -193,18 +197,21 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
 
     rsyncCmdStub += " -azLC%s%s" % (delete and ' --delete' or '',
                                     deepDryRun and ' --dry-run' or '')
-    
+
     # The 'SRC' arg for the rsync command.  The sh "{}" syntax is used
     # here so that only one rsync is required for each node. (Running
     # multiple rsync's in parallel appeared to give rise to race
     # conditions and errors.)
-    rsyncDeploySrc = \
-        os.path.abspath(os.path.join(pdaqDir, "{" + ",".join(subdirs) + "}"))
+    rsyncDeploySrc = os.path.join(pdaqDir, "{" + ",".join(subdirs) + "}")
+    if not rsyncDeploySrc.startswith("~"):
+        rsyncDeploySrc = os.path.abspath(rsyncDeploySrc)
 
     rsyncNodes = getUniqueHostNames(config)
 
     # Check if targetDir (the result of a build) is present
-    targetDir        = os.path.abspath(os.path.join(pdaqDir, 'target'))
+    targetDir = os.path.join(pdaqDir, 'target')
+    if targetDir.startswith("~"):
+        targetDir = os.path.join(homeDir, targetDir[targetDir.find("/")+1:])
     if not undeploy and not os.path.isdir(targetDir):
         print >>sys.stderr, \
             "ERROR: Target dir (%s) does not exist." % (targetDir)
@@ -222,10 +229,11 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
             done = True
 
         if undeploy:
-            cmd = 'ssh %s "\\rm -rf %s %s"' % (nodeName, m2, pdaqDir)
+            cmd = 'ssh %s "\\rm -rf ~%s/.m2 %s"' % \
+                  (nodeName, os.environ["USER"], pdaqDir)
         else:
             cmd = "%s %s %s:%s" % (rsyncCmdStub, rsyncDeploySrc, nodeName,
-                                   os.path.basename(pdaqDir))
+                                   pdaqDir)
         if traceLevel >= 0: print "  "+cmd
         parallel.add(cmd)
 
