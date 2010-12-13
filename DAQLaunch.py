@@ -39,7 +39,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 5123 2010-08-06 16:19:13Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 12458 2010-12-13 21:21:33Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -80,6 +80,7 @@ def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9, parallel=None):
         parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose)
     for node in clusterConfig.nodes():
         for comp in node.components():
+            if comp.jvm() is None: continue
             jarName = getCompJar(comp.name())
             if killWith9: niner = "-9"
             else:         niner = ""
@@ -127,6 +128,7 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
     for node in clusterConfig.nodes():
         myIP = getIP(node.hostName())
         for comp in node.components():
+            if comp.jvm() is None: continue
             execJar = join(binDir, getCompJar(comp.name()))
             if checkExists and not exists(execJar):
                 print "%s jar file does not exist: %s" % \
