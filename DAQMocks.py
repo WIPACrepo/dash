@@ -831,11 +831,12 @@ class MockLogger(LogChecker):
 class MockParallelShell(object):
     BINDIR = os.path.join(METADIR, 'target', 'pDAQ-%s-dist' % RELEASE, 'bin')
 
-    def __init__(self, isParallel=True):
+    def __init__(self, isParallel=True, debug=False):
         self.__exp = []
         self.__rtnCodes = []
         self.__results = []
         self.__isParallel = isParallel
+        self.__debug = debug
 
     def __addExpected(self, cmd):
         if cmd.find("/bin/StringHub") > 0 and cmd.find(".componentId=") < 0:
@@ -847,11 +848,15 @@ class MockParallelShell(object):
         if expLen == 0:
             raise Exception('Did not expect command "%s"' % cmd)
 
+        if self.__debug: print >>sys.stderr, "PSh got: " + cmd
+
         found = None
         for i in range(expLen):
             if cmd == self.__exp[i]:
                 found = i
+                if self.__debug: print >>sys.stderr, "PSh found cmd"
                 break
+            if self.__debug: print >>sys.stderr, "PSh not: " + self.__exp[i]
 
         if found is None:
             raise Exception('Command not found in expected command list: ' \
