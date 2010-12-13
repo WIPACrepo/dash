@@ -3,7 +3,7 @@
 import StringIO, datetime, os, re, sys
 import tempfile, threading, time, unittest, xmlrpclib
 
-from CnCServer import CnCServer, DAQClient, RunSet
+from CnCServer import CnCServer, Connector, DAQClient, RunSet
 from DAQConst import DAQPort
 from DAQLogClient import LiveMonitor, Prio
 from DAQMoni import DAQMoni, FileMoniData, MoniData
@@ -361,7 +361,9 @@ class MostlyCnCServer(CnCServer):
     def createCnCLogger(self, quiet):
         key = 'server'
         if not MostlyCnCServer.APPENDERS.has_key(key):
-            MostlyCnCServer.APPENDERS[key] = MockAppender('Mock-%s' % key)
+            MostlyCnCServer.APPENDERS[key] = \
+                MockAppender('Mock-%s' % key,
+                             depth=IntegrationTest.NUM_COMPONENTS)
 
         return MockCnCLogger(MostlyCnCServer.APPENDERS[key], quiet)
 
@@ -370,13 +372,13 @@ class MostlyCnCServer(CnCServer):
 
 class RealComponent(object):
     # Component order, used in the __getOrder() method
-    COMP_ORDER = { 'stringHub' : 50,
-                   'amandaTrigger' : 0,
-                   'iceTopTrigger' : 2,
-                   'inIceTrigger' : 4,
-                   'globalTrigger' : 10,
-                   'eventBuilder' : 30,
-                   'secondaryBuilders' : 32,
+    COMP_ORDER = { 'stringHub' : (50, 50),
+                   'amandaTrigger' : (0, 13),
+                   'iceTopTrigger' : (2, 12),
+                   'inIceTrigger' : (4, 11),
+                   'globalTrigger' : (10, 10),
+                   'eventBuilder' : (30, 2),
+                   'secondaryBuilders' : (32, 0),
                    }
 
     def __init__(self, name, num, cmdPort, mbeanPort, jvm, jvmArgs,
@@ -386,13 +388,14 @@ class RealComponent(object):
         self.__num = num
         self.__jvm = jvm
         self.__jvmArgs = jvmArgs
-        if name.endswith('Hub'):
-            self.__jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % num
 
         self.__state = 'FOO'
 
         self.__logger = None
         self.__liver = None
+
+        self.__compList = None
+        self.__connections = None
 
         self.__mbeanData = None
 
@@ -429,8 +432,8 @@ class RealComponent(object):
                                            DAQPort.CNCSERVER, verbose=verbose)
 
     def __cmp__(self, other):
-        selfOrder = RealComponent.__getOrder(self.__name)
-        otherOrder = RealComponent.__getOrder(other.__name)
+        selfOrder = RealComponent.__getLaunchOrder(self.__name)
+        otherOrder = RealComponent.__getLaunchOrder(other.__name)
 
         if selfOrder < otherOrder:
             return -1
@@ -443,6 +446,8 @@ class RealComponent(object):
             return 1
 
         return 0
+
+    def __repr__(self): return str(self)
 
     def __str__(self):
         return '%s#%d' % (self.__name, self.__num)
@@ -459,6 +464,19 @@ class RealComponent(object):
         return 'CFG'
 
     def __connect(self, *args):
+        if self.__compList is None:
+            raise Exception("No component list for %s" % str(self))
+
+        tmpDict = {}
+        for connList in args:
+            for cd in connList:
+                for c in self.__compList:
+                    if c.isComponent(cd["compName"], cd["compNum"]):
+                        tmpDict[c] = 1
+                        break
+
+        self.__connections = tmpDict.keys()
+
         self.__state = 'connected'
         return 'CONN'
 
@@ -471,16 +489,28 @@ class RealComponent(object):
             attrs[f] = self.__mbeanData[bean][f].getValue()
         return attrs
 
+    def __getLaunchOrder(cls, name):
+        if not cls.COMP_ORDER.has_key(name):
+            raise Exception('Unknown component type %s' % name)
+        return cls.COMP_ORDER[name][0]
+    __getLaunchOrder = classmethod(__getLaunchOrder)
+
     def __getMBeanValue(self, bean, fld):
         if self.__mbeanData is None:
             self.__mbeanData = BeanData.buildDAQBeans(self.__name)
 
         return self.__mbeanData[bean][fld].getValue()
 
+    def __getStartOrder(cls, name):
+        if not cls.COMP_ORDER.has_key(name):
+            raise Exception('Unknown component type %s' % name)
+        return cls.COMP_ORDER[name][1]
+    __getStartOrder = classmethod(__getStartOrder)
+
     def __getOrder(cls, name):
         if not cls.COMP_ORDER.has_key(name):
             raise Exception('Unknown component type %s' % name)
-        return cls.COMP_ORDER[name]
+        return cls.COMP_ORDER[name][0]
     __getOrder = classmethod(__getOrder)
 
     def __getState(self):
@@ -555,6 +585,14 @@ class RealComponent(object):
     def __startRun(self, runNum):
         self.__log('Start #%d on %s' % (runNum, str(self)))
 
+        if self.__connections is None:
+            print >>sys.stderr, "Component %s has no connections" % str(self)
+        elif self.__name != "eventBuilder":
+            for c in self.__connections:
+                if c.getState() != 'running':
+                    print >>sys.stderr, ("Comp %s is running before %s" %
+                                         (str(c), str(self)))
+
         self.__state = 'running'
         return 'RUN#%d' % runNum
 
@@ -564,6 +602,14 @@ class RealComponent(object):
 
     def __stopRun(self):
         self.__log('Stop %s' % str(self))
+
+        if self.__connections is None:
+            print >>sys.stderr, "Component %s has no connections" % str(self)
+        elif self.__name != "eventBuilder":
+            for c in self.__connections:
+                if c.getState() == 'stopped':
+                    print >>sys.stderr, ("Comp %s is stopped before %s" %
+                                         (str(c), str(self)))
 
         self.__state = 'stopped'
         return 'STOP'
@@ -585,6 +631,10 @@ class RealComponent(object):
         self.__mbean.server_close()
 
     def fullName(self): return self.__name
+
+    def isComponent(self, name, num=-1):
+        return self.__name == name and (num < 0 or self.__num == num)
+
     def jvm(self): return self.__jvm
     def jvmArgs(self): return self.__jvmArgs
 
@@ -600,18 +650,21 @@ class RealComponent(object):
         reg = self.__cnc.rpc_register_component(self.__name, self.__num,
                                                 'localhost', self.__cmd.portnum,
                                                 self.__mbean.portnum, connList)
-        if type(reg) != list:
-            raise Exception('Expected registration to return list, not %s' %
+        if type(reg) != dict:
+            raise Exception('Expected registration to return dict, not %s' %
                             str(type(reg)))
 
         numElems = 6
         if len(reg) != numElems:
             raise Exception(('Expected registration to return %d-element' +
-                             ' list, not %d') % (numElems, len(reg)))
+                             ' dictionary, not %d') % (numElems, len(reg)))
 
-        self.__id = reg[0]
+        self.__id = reg["id"]
 
-        self.__logTo(reg[1], reg[2], reg[3], reg[4])
+        self.__logTo(reg["logIP"], reg["logPort"], reg["liveIP"], reg["livePort"])
+
+    def setComponentList(self, compList):
+        self.__compList = compList
 
     def setMBean(self, bean, fld, val):
         if self.__mbeanData is None:
@@ -620,8 +673,8 @@ class RealComponent(object):
         self.__mbeanData[bean][fld].setValue(val)
 
     def sortForLaunch(y, x):
-        selfOrder = RealComponent.__getOrder(x.__name)
-        otherOrder = RealComponent.__getOrder(y.__name)
+        selfOrder = RealComponent.__getLaunchOrder(x.__name)
+        otherOrder = RealComponent.__getLaunchOrder(y.__name)
 
         if selfOrder < otherOrder:
             return -1
@@ -635,6 +688,23 @@ class RealComponent(object):
 
         return 0
     sortForLaunch = staticmethod(sortForLaunch)
+
+    def sortForStart(y, x):
+        selfOrder = RealComponent.__getStartOrder(x.__name)
+        otherOrder = RealComponent.__getStartOrder(y.__name)
+
+        if selfOrder < otherOrder:
+            return -1
+        elif selfOrder > otherOrder:
+            return 1
+
+        if x.__num < y.__num:
+            return 1
+        elif x.__num > y.__num:
+            return -1
+
+        return 0
+    sortForStart = staticmethod(sortForStart)
 
 class StubbedDAQRun(DAQRun):
     LOGFACTORY = None
@@ -661,6 +731,7 @@ class StubbedDAQRun(DAQRun):
     def __getRunArgs(self, extraArgs=None):
 
         stdArgs = { '-a' : IntegrationTest.COPY_DIR,
+                    '-C' : IntegrationTest.CLUSTER_DESC,
                     '-c' : IntegrationTest.CONFIG_DIR,
                     '-l' : IntegrationTest.LOG_DIR,
                     '-n' : '',
@@ -701,7 +772,8 @@ class StubbedDAQRun(DAQRun):
 
     def createInitialAppender(self):
         if self.__mockAppender is None:
-            self.__mockAppender = MockAppender('runlog')
+            self.__mockAppender = MockAppender('runlog',
+                                               IntegrationTest.NUM_COMPONENTS)
 
         return self.__mockAppender
 
@@ -716,7 +788,8 @@ class StubbedDAQRun(DAQRun):
         isServer = (name == 'catchall' or name == 'cncserver')
 
         expStartMsg = True
-        log = cls.LOGFACTORY.createLog(name, logPort, expStartMsg)
+        log = cls.LOGFACTORY.createLog(name, logPort, expStartMsg,
+                                       depth=IntegrationTest.NUM_COMPONENTS)
         cls.LOGDICT[name] = log
 
         if not isServer:
@@ -838,7 +911,8 @@ class StubbedDAQRun(DAQRun):
             self.__moniTimer = MockIntervalTimer(interval)
             return self.__moniTimer
 
-        if name == DAQRun.ACTIVE_NAME or name == DAQRun.ACTIVERPT_NAME:
+        if name == DAQRun.ACTIVE_NAME or name == DAQRun.ACTIVERPT_NAME or \
+                name == DAQRun.RADAR_NAME:
             return MockIntervalTimer(interval)
 
         raise Exception("Unknown timer %s (interval %d)" % (name, interval))
@@ -932,34 +1006,35 @@ class MoniLogTarget(object):
             MoniLogTarget.MONI_TO_LIVE
 
 class IntegrationTest(unittest.TestCase):
-    CLUSTER_CONFIG = 'sim-localhost'
+    CLUSTER_CONFIG = 'simpleConfig'
+    CLUSTER_DESC = 'localhost'
     CONFIG_DIR = os.path.abspath('src/test/resources/config')
-    CONFIG_NAME = 'sim5str'
+    CONFIG_NAME = 'simpleConfig'
     COPY_DIR = '/tmp'
     SPADE_DIR = '/tmp'
     LOG_DIR = None
     LIVEMONI_ENABLED = False
 
+    NUM_COMPONENTS = 9
+
     def __createComponents(self):
         # Note that these jvm/jvmArg values needs to correspond to
         # what would be used by the config in 'sim-localhost'
         jvm = 'java'
-        hubJvmArgs = '-server -Xms256m -Xmx512m ' \
-            '-Dicecube.daq.bindery.StreamBinder.prescale=1'
+        hubJvmArgs = '-server -Xmx512m'
         comps = [('stringHub', 1001, 9111, 9211, jvm, hubJvmArgs),
                  ('stringHub', 1002, 9112, 9212, jvm, hubJvmArgs),
                  ('stringHub', 1003, 9113, 9213, jvm, hubJvmArgs),
                  ('stringHub', 1004, 9114, 9214, jvm, hubJvmArgs),
                  ('stringHub', 1005, 9115, 9215, jvm, hubJvmArgs),
-                 ('stringHub', 1201, 9116, 9216, jvm, hubJvmArgs),
-                 ('inIceTrigger', 0, 9117, 9217, jvm,
-                  '-server -Xms1000m -Xmx2000m'),
-                 ('globalTrigger', 0, 9118, 9218, jvm,
-                  '-server -Xms256m -Xmx512m'),
-                 ('eventBuilder', 0, 9119, 9219, jvm,
-                  '-server -Xms600m -Xmx1200m'),
-                 ('secondaryBuilders', 0, 9120, 9220, jvm,
-                  '-server -Xms600m -Xmx1200m'),]
+                 ('inIceTrigger', 0, 9117, 9217, jvm, '-server'),
+                 ('globalTrigger', 0, 9118, 9218, jvm, '-server'),
+                 ('eventBuilder', 0, 9119, 9219, jvm, '-server'),
+                 ('secondaryBuilders', 0, 9120, 9220, jvm, '-server'),]
+
+        if len(comps) != IntegrationTest.NUM_COMPONENTS:
+            raise Exception("Expected %d components, not %d" %
+                            (IntegrationTest.NUM_COMPONENTS, len(comps)))
 
         verbose = False
 
@@ -969,11 +1044,14 @@ class IntegrationTest(unittest.TestCase):
             if self.__compList is None:
                 self.__compList = []
             self.__compList.append(comp)
+            comp.setComponentList(self.__compList)
 
         self.__compList.sort()
 
     def __createLiveObjects(self, livePort):
-        log = self.__logFactory.createLog('liveMoni', DAQPort.I3LIVE, False)
+        numComps = IntegrationTest.NUM_COMPONENTS * 2
+        log = self.__logFactory.createLog('liveMoni', DAQPort.I3LIVE, False,
+                                          depth=numComps)
 
         log.addExpectedText('Connecting to DAQRun')
         log.addExpectedText('Started %s service on port %d' %
@@ -988,7 +1066,7 @@ class IntegrationTest(unittest.TestCase):
             appender = None
             catchall = None
         else:
-            appender = MockAppender('main')
+            appender = MockAppender('main', IntegrationTest.NUM_COMPONENTS)
             catchall = \
                 StubbedDAQRun.createLogSocketServer(DAQPort.CATCHALL,
                                                     'catchall', 'catchall')
@@ -1017,15 +1095,11 @@ class IntegrationTest(unittest.TestCase):
                                      killWith9)
 
         launchList = self.__compList[:]
-        for i in range(len(launchList)):
-            comp = launchList[i]
-            if comp.fullName() == 'stringHub' and comp.getNumber() == 1081:
-                del launchList[i]
-                break
         launchList.sort(RealComponent.sortForLaunch)
 
         for comp in launchList:
-            pShell.addExpectedJavaKill(comp.fullName(), killWith9, verbose, host)
+            pShell.addExpectedJavaKill(comp.fullName(), killWith9, verbose,
+                                       host)
 
         pShell.addExpectedPython(doLive, doDAQRun, doCnC, dashDir,
                                  IntegrationTest.CONFIG_DIR,
@@ -1035,7 +1109,8 @@ class IntegrationTest(unittest.TestCase):
                                  IntegrationTest.COPY_DIR, logPort, livePort)
         for comp in launchList:
             deployComp = MockDeployComponent(comp.fullName(), comp.getNumber(),
-                                             logLevel, comp.jvm(), comp.jvmArgs())
+                                             logLevel, comp.jvm(),
+                                             comp.jvmArgs())
             pShell.addExpectedJava(deployComp, IntegrationTest.CONFIG_DIR,
                                    logPort, livePort, verbose, False, host)
 
@@ -1078,30 +1153,30 @@ class IntegrationTest(unittest.TestCase):
 
     def __getConnectionList(self, name):
         if name == 'stringHub':
-            connList = [('moniData', False, -1),
-                        ('rdoutData', False, -1),
-                        ('rdoutReq', True, -1),
-                        ('snData', False, -1),
-                        ('tcalData', False, -1),
-                        ('stringHit', False, -1),
+            connList = [('moniData', Connector.OUTPUT, -1),
+                        ('rdoutData', Connector.OUTPUT, -1),
+                        ('rdoutReq', Connector.INPUT, -1),
+                        ('snData', Connector.OUTPUT, -1),
+                        ('tcalData', Connector.OUTPUT, -1),
+                        ('stringHit', Connector.OUTPUT, -1),
                         ]
         elif name == 'inIceTrigger':
-            connList = [('stringHit', True, -1),
-                        ('trigger', False, -1),
+            connList = [('stringHit', Connector.INPUT, -1),
+                        ('trigger', Connector.OUTPUT, -1),
                         ]
         elif name == 'globalTrigger':
-            connList = [('glblTrig', False, -1),
-                        ('trigger', True, -1),
+            connList = [('glblTrig', Connector.OUTPUT, -1),
+                        ('trigger', Connector.INPUT, -1),
                         ]
         elif name == 'eventBuilder':
-            connList = [('glblTrig', True, -1),
-                        ('rdoutData', True, -1),
-                        ('rdoutReq', False, -1),
+            connList = [('glblTrig', Connector.INPUT, -1),
+                        ('rdoutData', Connector.INPUT, -1),
+                        ('rdoutReq', Connector.OUTPUT, -1),
                         ]
         elif name == 'secondaryBuilders':
-            connList = [('moniData', True, -1),
-                        ('snData', True, -1),
-                        ('tcalData', True, -1),
+            connList = [('moniData', Connector.INPUT, -1),
+                        ('snData', Connector.INPUT, -1),
+                        ('tcalData', Connector.INPUT, -1),
                         ]
         else:
             raise Exception('Cannot get connection list for %s' % name)
@@ -1190,10 +1265,6 @@ class IntegrationTest(unittest.TestCase):
         if catchall: catchall.addExpectedText(msg)
         if liveLog and not liveRunOnly: liveLog.addExpectedText(msg)
 
-        if liveLog:
-            liveLog.addExpectedText("Waiting for state RUNNING for 10 seconds" +
-                                    ", (currently STARTING)")
-
         msg = 'Created Run Set #%d' % setId
         if catchall and not liveRunOnly: catchall.addExpectedText(msg)
         if liveLog: liveLog.addExpectedText(msg)
@@ -1225,7 +1296,10 @@ class IntegrationTest(unittest.TestCase):
                 appender.addExpectedRegexp(patStr)
                 if liveLog: liveLog.addExpectedTextRegexp(patStr)
         if liveLog:
-            for c in self.__compList:
+            keys = self.__compList[:]
+            keys.sort(RealComponent.sortForStart)
+
+            for c in keys:
                 liveLog.addExpectedText('Hello from %s' % str(c))
                 liveLog.addExpectedTextRegexp((r'Version info: %s \S+ \S+' +
                                                r' \S+ \S+ \S+ \d+\S+') %
@@ -1480,7 +1554,7 @@ class IntegrationTest(unittest.TestCase):
 
         if RUNLOG_INFO:
             if targetFlags.moniToFile():
-                msg = ('Queueing data for SPADE (spadeDir=%s, logDir=%s,' +
+                msg = ('Queued data for SPADE (spadeDir=%s, logDir=%s,' +
                        ' runNum=%s)...') % \
                        (IntegrationTest.SPADE_DIR, IntegrationTest.LOG_DIR,
                         runNum)
@@ -1572,6 +1646,10 @@ class IntegrationTest(unittest.TestCase):
         StubbedDAQRun.LOGFACTORY = self.__logFactory
 
         IntegrationTest.LOG_DIR = tempfile.mkdtemp()
+
+        # registration timeout messages can mess up log checker
+        DAQRun.REGISTRATION_TIMEOUT = 60
+        DAQLive.STATE_WARNING = False
 
         self.__live = None
         self.__run = None
@@ -1671,6 +1749,7 @@ class IntegrationTest(unittest.TestCase):
         cnc.run()
 
     def testLiveFinishInMain(self):
+        #from DAQMocks import LogChecker; LogChecker.DEBUG = True
         if not TEST_LIVE:
             print 'Skipping I3Live-related test'
             return
@@ -1696,7 +1775,7 @@ class IntegrationTest(unittest.TestCase):
         self.__runTest(live, dr, cnc, liveLog, appender, catchall, targetFlags,
                        True)
 
-    def testAllLiveFinishInMain(self):
+    def testZAllLiveFinishInMain(self):
         #from DAQMocks import LogChecker; LogChecker.DEBUG = True
         if not TEST_LIVE:
             print 'Skipping I3Live-related test'
@@ -1731,7 +1810,7 @@ class IntegrationTest(unittest.TestCase):
         self.__runTest(live, dr, cnc, liveLog, appender, catchall, targetFlags,
                        False)
 
-    def testBothFinishInMain(self):
+    def testZBothFinishInMain(self):
         if not TEST_LIVE:
             print 'Skipping I3Live-related test'
             return

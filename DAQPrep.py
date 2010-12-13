@@ -8,7 +8,7 @@ import sys, optparse, re
 from os import environ
 from os.path import join
 
-from ClusterConfig import *
+from DAQConfig import DAQConfig
 from ParallelShell import *
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
@@ -35,7 +35,9 @@ def main():
     
     opt, args = p.parse_args()
 
-    config = ClusterConfig(metaDir, opt.clusterConfigName, opt.doList)
+    config = DAQConfig.getClusterConfiguration(opt.clusterConfigName,
+                                               opt.doList)
+    if opt.doList: raise SystemExit
 
     # Get relevant hubs - if it has a stringhub component on it, run DOMPrep.py there.
     hublist = config.getHubNodes()

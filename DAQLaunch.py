@@ -13,12 +13,15 @@ from time import sleep
 from os import environ, mkdir, system
 from os.path import exists, isabs, join
 
+from ClusterConfig \
+    import ClusterConfig, ClusterConfigException, ConfigNotFoundException, \
+           ConfigNotSpecifiedException
+from DAQConfig import DAQConfig
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from GetIP import getIP
 from Process import findProcess, processList
 
-from ClusterConfig import *
 from ParallelShell import *
 
 # the pDAQ release name
@@ -36,7 +39,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 4643 2009-10-05 20:31:34Z ksb $"
+SVN_ID = "$Id: DAQLaunch.py 5123 2010-08-06 16:19:13Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -75,12 +78,12 @@ def runCmd(cmd, parallel):
 def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9, parallel=None):
     if parallel is None:
         parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose)
-    for node in clusterConfig.nodes:
-        for comp in node.comps:
-            jarName = getCompJar(comp.compName)
+    for node in clusterConfig.nodes():
+        for comp in node.components():
+            jarName = getCompJar(comp.name())
             if killWith9: niner = "-9"
             else:         niner = ""
-            if node.hostName == "localhost": # Just kill it
+            if node.hostName() == "localhost": # Just kill it
                 cmd = "pkill %s -fu %s %s" % (niner, environ["USER"], jarName)
                 if verbose: print cmd
                 parallel.add(cmd)
@@ -90,11 +93,12 @@ def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9, parallel=None):
                     if verbose: print cmd
                     parallel.add(cmd)
             else:                            # Have to ssh to kill
-                cmd = "ssh %s pkill %s -f %s" % (node.hostName, niner, jarName)
+                cmd = "ssh %s pkill %s -f %s" % \
+                    (node.hostName(), niner, jarName)
                 parallel.add(cmd)
                 if not killWith9:
                     cmd = "sleep 2; ssh %s pkill -9 -f %s" % \
-                        (node.hostName, jarName)
+                        (node.hostName(), jarName)
                     parallel.add(cmd)
 
     if not dryRun:
@@ -120,36 +124,40 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
     else:
         quietStr = ""
 
-    for node in clusterConfig.nodes:
-        myIP = getIP(node.hostName)
-        for comp in node.comps:
-            execJar = join(binDir, getCompJar(comp.compName))
+    for node in clusterConfig.nodes():
+        myIP = getIP(node.hostName())
+        for comp in node.components():
+            execJar = join(binDir, getCompJar(comp.name()))
             if checkExists and not exists(execJar):
                 print "%s jar file does not exist: %s" % \
-                    (comp.compName, execJar)
+                    (comp.name(), execJar)
                 continue
 
-            javaCmd = comp.jvm
-            jvmArgs = comp.jvmArgs
+            javaCmd = comp.jvm()
+            jvmArgs = comp.jvmArgs()
 
             switches = "-g %s" % configDir
             switches += " -c %s:%d" % (myIP, DAQPort.CNCSERVER)
             if logPort is not None:
-                switches += " -l %s:%d,%s" % (myIP, logPort, comp.logLevel)
+                switches += " -l %s:%d,%s" % (myIP, logPort, comp.logLevel())
             if livePort is not None:
-                switches += " -L %s:%d,%s" % (myIP, livePort, comp.logLevel)
+                switches += " -L %s:%d,%s" % (myIP, livePort, comp.logLevel())
             compIO = quietStr
 
-            if eventCheck and comp.compName == "eventBuilder":
+            if comp.isHub():
+                jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % \
+                    comp.id()
+
+            if eventCheck and comp.isBuilder():
                 jvmArgs += " -Dicecube.daq.eventBuilder.validateEvents"
 
-            if node.hostName == "localhost": # Just run it
+            if node.hostName() == "localhost": # Just run it
                 cmd = "%s %s -jar %s %s %s &" % \
                     (javaCmd, jvmArgs, execJar, switches, compIO)
             else:                            # Have to ssh to run it
                 cmd = \
                     """ssh -n %s \'sh -c \"%s %s -jar %s %s %s &\"%s &\'""" % \
-                    (node.hostName, javaCmd, jvmArgs, execJar, switches,
+                    (node.hostName(), javaCmd, jvmArgs, execJar, switches,
                      compIO, quietStr)
 
             if verbose: print cmd
@@ -321,6 +329,9 @@ if __name__ == "__main__":
     p.add_option("-B", "--log-to-files-and-i3live", action="store_const",
                   const=LOGMODE_BOTH, dest="logMode",
                  help="Send log messages to both I3Live and to local files")
+    p.add_option("-C", "--cluster-desc",  action="store", type="string",
+                 dest="clusterDesc",
+                 help="Cluster description name.")
     p.add_option("-c", "--config-name",  action="store", type="string",
                  dest="clusterConfigName",
                  help="Cluster configuration name, subset of deployed configuration.")
@@ -381,37 +392,6 @@ if __name__ == "__main__":
     logDirFallBack = join(metaDir, 'log')
     dashDir   = join(metaDir, 'dash')
 
-    clusterConfig = ClusterConfig(metaDir, opt.clusterConfigName, opt.doList)
-
-    spadeDir  = clusterConfig.logDirForSpade
-    # Assume non-fully-qualified paths are relative to metaproject top dir:
-    if not isabs(spadeDir):
-        spadeDir = join(metaDir, spadeDir)
-
-    if not exists(spadeDir) and not opt.dryRun: mkdir(spadeDir)
-
-    copyDir   = clusterConfig.logDirCopies
-    # Assume non-fully-qualified paths are relative to metaproject top dir:
-    if copyDir:
-        if not isabs(copyDir):
-            copyDir = join(metaDir, copyDir)
-        if not exists(copyDir) and not opt.dryRun: mkdir(copyDir)
-
-    # Set up logDir
-    if not exists(logDir):
-        if not opt.dryRun:
-            try:
-                mkdir(logDir)
-            except OSError, (errno, strerror):
-                if opt.verbose:
-                    print "Problem making log dir: '%s' (%s)" % \
-                        (logDir, strerror)
-                    print "Using fallback for logDir: %s" % (logDirFallBack)
-                logDir = logDirFallBack
-                if not exists(logDir): mkdir(logDir)
-    else:
-        system('rm -f %s' % join(logDir, 'catchall.log'))
-
     if not opt.force:
         # connect to CnCServer
         cncrpc = RPCClient('localhost', DAQPort.CNCSERVER)
@@ -441,16 +421,9 @@ if __name__ == "__main__":
                     'To force a restart, rerun with the --force option'
                 raise SystemExit
 
-    if opt.verbose:
-        print "Version: %(filename)s %(revision)s %(date)s %(time)s " \
-              "%(author)s %(release)s %(repo_rev)s" % get_version_info(SVN_ID)
-        print "CONFIG: %s" % clusterConfig.configName
-        print "NODES:"
-        for node in clusterConfig.nodes:
-            print "  %s(%s)" % (node.hostName, node.locName),
-            for comp in node.comps:
-                print "%s-%d " % (comp.compName, comp.compID),
-            print
+    if opt.doList:
+        DAQConfig.showList(None, None)
+        raise SystemExit
 
     if not opt.skipKill:
         doLive = opt.killOnly
@@ -458,17 +431,64 @@ if __name__ == "__main__":
         doCnC = True
 
         try:
-            activeConfig = ClusterConfig(metaDir, None, False, False, True)
+            activeConfig = DAQConfig.getClusterConfiguration(None, False, True)
             doKill(doLive, doRun, doCnC, opt.dryRun, dashDir, opt.verbose,
-                   opt.quiet,  activeConfig, opt.killWith9)
-        except ConfigNotSpecifiedException:
+                   opt.quiet, activeConfig, opt.killWith9)
+        except ClusterConfigException:
             if opt.killOnly: print >>sys.stderr, 'DAQ is not currently active'
-        except ConfigNotFoundException, ex:
-            raise SystemExit('Cannot find active configuration ' +
-                             '"%s" to kill it' % ex.message)
 
     if not opt.killOnly:
-        # DAQLive will be started if it's not running
+        clusterConfig = DAQConfig.getClusterConfiguration(opt.clusterConfigName,
+                                                          opt.doList, False,
+                                                          opt.clusterDesc)
+        if opt.doList: raise SystemExit
+
+        if opt.verbose:
+            print "Version: %(filename)s %(revision)s %(date)s %(time)s " \
+                "%(author)s %(release)s %(repo_rev)s" % get_version_info(SVN_ID)
+            print "CONFIG: %s" % clusterConfig.configName
+
+            nodeList = clusterConfig.nodes()
+            nodeList.sort()
+
+            print "NODES:"
+            for node in nodeList:
+                print "  %s(%s)" % (node.hostName(), node.locName()),
+
+                compList = node.components()
+                compList.sort()
+
+                for comp in compList:
+                    print "%s#%d " % (comp.name(), comp.id()),
+                print
+
+        spadeDir  = clusterConfig.logDirForSpade()
+        # Assume non-fully-qualified paths are relative to metaproject top dir:
+        if not isabs(spadeDir):
+            spadeDir = join(metaDir, spadeDir)
+
+        if not exists(spadeDir) and not opt.dryRun: mkdir(spadeDir)
+
+        copyDir   = clusterConfig.logDirCopies()
+        # Assume non-fully-qualified paths are relative to metaproject top dir:
+        if copyDir:
+            if not isabs(copyDir):
+                copyDir = join(metaDir, copyDir)
+            if not exists(copyDir) and not opt.dryRun: mkdir(copyDir)
+
+        # Set up logDir
+        if not exists(logDir):
+            if not opt.dryRun:
+                try:
+                    mkdir(logDir)
+                except OSError, (errno, strerror):
+                    if opt.verbose:
+                        print "Problem making log dir: '%s' (%s)" % \
+                            (logDir, strerror)
+                        print "Using fallback for logDir: %s" % (logDirFallBack)
+                    logDir = logDirFallBack
+                    if not exists(logDir): mkdir(logDir)
+
         doLive = False
         doRun = True
         doCnC = True

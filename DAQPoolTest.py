@@ -6,6 +6,12 @@ from CnCServer import DAQPool
 from DAQMocks import MockComponent, MockLogger
 
 class TestDAQPool(unittest.TestCase):
+    def __checkRunsetState(self, runset, expState):
+        for c in runset.components():
+            self.assertEquals(c.state(), expState,
+                              "Comp %s state should be %s, not %s" %
+                              (c.name(), expState, c.state()))
+
     def testEmpty(self):
         mgr = DAQPool()
 
@@ -411,41 +417,19 @@ class TestDAQPool(unittest.TestCase):
         self.assertEqual(mgr.numUnused(), 0)
         self.assertEqual(runset.size(), len(compList))
 
+        self.__checkRunsetState(runset, 'connected')
+
         runset.configure('abc')
 
-        ordered = True
-        prevName = None
-        for c in runset.components():
-            if not prevName:
-                prevName = c.name()
-            elif prevName > c.name():
-                ordered = False
-
-        self.failIf(ordered, 'Runset not sorted before startRun()')
+        self.__checkRunsetState(runset, 'ready')
 
         runset.startRun(1)
 
-        ordered = True
-        prevName = None
-        for c in runset.components():
-            if not prevName:
-                prevName = c.name()
-            elif prevName < c.name():
-                ordered = False
-
-        self.failUnless(ordered, 'Runset was not sorted by startRun()')
+        self.__checkRunsetState(runset, 'running')
 
         runset.stopRun()
 
-        ordered = True
-        prevName = None
-        for c in runset.components():
-            if not prevName:
-                prevName = c.name()
-            elif prevName > c.name():
-                ordered = False
-
-        self.failUnless(ordered, 'Runset was not reversed by stopRun()')
+        self.__checkRunsetState(runset, 'ready')
 
         mgr.returnRunset(runset)
 

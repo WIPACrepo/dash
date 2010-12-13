@@ -7,9 +7,18 @@
 #
 # Class to parse XML configuration information for IceCube runs
 
-import optparse, os, re
-from xml.dom import minidom
-from exc_string import exc_string
+import copy, os, re, sys
+from xml.dom import minidom, Node
+
+from CachedConfigName import CachedConfigName
+from ClusterConfig \
+    import ClusterConfig, ConfigNotFoundException, ConfigNotSpecifiedException
+from DefaultDomGeometry import BadFileError, DefaultDomGeometryReader, \
+    ProcessError, XMLError, XMLParser
+from RunCluster import RunCluster
+
+# should -l show cluster-config files?
+LIST_CLUSTER_CONFIGS = True
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -18,328 +27,798 @@ else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
-class DAQConfigNotFound          (Exception): pass
-class DAQConfigDirNotFound       (Exception): pass
-class noRunConfigFound           (Exception): pass
-class noDOMConfigFound           (Exception):
-    def __init__(self, configName):
-        Exception.__init__(self, configName)
+class DAQConfigException(Exception): pass
+class BadComponentName(DAQConfigException): pass
+class BadDAQConfig(DAQConfigException): pass
+class BadDOMID(DAQConfigException): pass
+class DOMNotInConfigException(DAQConfigException): pass
+class DAQConfigNotFound(DAQConfigException): pass
 
-        self.configName = configName
+class RunDom(object):
+    """Minimal details for a single DOM"""
+    def __init__(self, id, strNum, pos, name, domCfg):
+        self.__id = id
+        self.__string = strNum
+        self.__pos = pos
+        self.__name = name
+        self.__domCfg = domCfg
+
+    def __repr__(self):  return str(self)
 
     def __str__(self):
-        return self.configName
+        return "%012x" % self.__id
 
-class noDeployedDOMsListFound    (Exception): pass
-class noComponentsFound          (Exception): pass
-class triggerException           (Exception): pass
-class DOMNotInConfigException    (Exception): pass
+    def domConfig(self): return self.__domCfg
+    def id(self): return self.__id
+    def name(self): return self.__name
+    def pos(self): return self.__pos
+    def string(self): return self.__string
 
-def showList(configDir):
-    if not os.path.exists(configDir):
-        raise DAQConfigDirNotFound("Could not find config dir %s" % configDir)
-    l = os.listdir(configDir)
+class DomConfigName(object):
+    "DOM configuration file name and hub"""
 
-    cfgs = []
-    for f in l:
-        match = re.search(r'^(.+?)\.xml$', f)
-        if not match: continue
-        cfgs.append(match.group(1))
+    def __init__(self, fileName, hub):
+        self.__fileName = fileName
+        self.__hub = hub
 
-    ok = []
-    for cname in cfgs:
-        if re.search(r'default-dom-geometry', cname): continue
-        ok.append(cname)
+    def xml(self, indent):
+        if self.__hub is None or DomConfig.OMIT_HUB_NUMBER:
+            hubStr = ""
+        else:
+            hubStr = " hub=\"%d\"" % self.__hub
+        return "%s<domConfigList%s>%s</domConfigList>" % \
+               (indent, hubStr, self.__fileName)
 
-    ok.sort()
-    for cname in ok: print "%60s" % cname
+class DomConfig(object):
+    """Minimal details for a DOM configuration file"""
+    def __init__(self, fileName):
+        self.__fileName = fileName
+        self.__domList = []
+        self.__stringMap = {}
+        self.__commentOut = False
 
-def xmlOf(name):
-    if not re.search(r'^(.+?)\.xml$', name): return name+".xml"
-    return name
+    def __str__(self):
+        dlStr = "["
+        for d in self.__domList:
+            if len(dlStr) > 1:
+                dlStr += ", "
+            dlStr += str(d)
+        dlStr += "]"
 
-def configExists(configDir, configName):
-    if not os.path.exists(configDir): return False
-    configFile = xmlOf(os.path.join(configDir, configName))
-    if not os.path.exists(configFile): return False
-    return True
+        keys = self.__stringMap.keys()
+        keys.sort()
 
-def checkForValidConfig(configDir, configName):
-    try:
-        DAQConfig(configName, configDir)
-        print "%s/%s is ok." % (configDir, configName)
-        return True
-    except Exception, e:
-        print "%s/%s is not a valid config: %s [%s]" % \
-            (configDir, configName, e, exc_string())
-        return False
+        sStr = "["
+        for s in keys:
+            if len(sStr) > 1:
+                sStr += ", "
+            sStr += str(s)
+        sStr += "]"
 
-class DOMData(object):
-    """
-    DOM Geometry data
-    """
-    def __init__(self, name, string, pos):
-        self.name = name
-        self.string = string
-        self.pos = pos
+        return "%s: %s %s" % (self.__fileName, dlStr, sStr)
 
-        if(re.search(r'AMANDA_', name)): self.kind = "amanda"
-        elif(pos > 60):                  self.kind = "icetop"
-        else:                            self.kind = "in-ice"
+    def addDom(self, dom):
+        """Add a DOM"""
+        self.__domList.append(dom)
+        if not self.__stringMap.has_key(dom.string()):
+            self.__stringMap[dom.string()] = []
+        self.__stringMap[dom.string()].append(dom)
 
-class DefaultDOMGeometry(object):
+    def commentOut(self):
+        """This domconfig file should be commented-out"""
+        self.__commentOut = True
 
-    DEPLOYEDDOMS            = "default-dom-geometry.xml"
+    def filename(self): return self.__fileName
 
-    def __init__(self, configDir):
-        """
-        Convert the default-dom-geometry.xml file to a dictionary
-        of DOMData objects
-        """
-        deployedDOMsXML = xmlOf(os.path.join(configDir, self.DEPLOYEDDOMS))
-        if not os.path.exists(deployedDOMsXML):
-            raise noDeployedDOMsListFound("no deployed DOMs list found!")
-        deployedDOMsParsed = minidom.parse(deployedDOMsXML)
+    def getStringList(self):
+        """Get the list of strings whose DOMs are referenced in this file"""
+        return self.__stringMap.keys()
 
-        deployedStrings = deployedDOMsParsed.getElementsByTagName("string")
-        if len(deployedStrings) < 1:
-            raise noDeployedDOMsListFound("No string list in %s!" %
-                                          DefaultDOMGeometry.DEPLOYEDDOMS)
+    def getDOMByID(self, domid):
+        for d in self.__domList:
+            if d.id() == domid:
+                return d
+        return None
 
-        self.domDict  = {}
+    def getDOMByName(self, name):
+        for d in self.__domList:
+            if d.name() == name:
+                return d
+        return None
 
-        for string in deployedStrings:
-            stringNumTag = string.getElementsByTagName("number")
-            stringNum    = int(stringNumTag[0].childNodes[0].data)
-            domlist = string.getElementsByTagName("dom")
-            for dom in domlist:
-                domIDtag    = dom.getElementsByTagName("mainBoardId")
-                domID       = domIDtag[0].childNodes[0].data
-                nameTag     = dom.getElementsByTagName("name")
-                name        = nameTag[0].childNodes[0].data
-                positionTag = dom.getElementsByTagName("position")
-                position    = int(positionTag[0].childNodes[0].data)
-                # print "%20s %25s %2d %2d %s" % \
-                # (domID, name, stringNum, position, kind)
+    def getDOMByStringPos(self, string, pos):
+        for d in self.__domList:
+            if d.string() == string and d.pos() == pos:
+                return d
+        return None
 
-                self.domDict[domID] = DOMData(name, stringNum, position)
+    def isCommentedOut(self):
+        """Is domconfig file commented-out?"""
+        return self.__commentOut
 
-        # clean up DOM
-        deployedDOMsParsed.unlink()
+    def xml(self, indent):
+        """Return the XML string for this DOM configuration file"""
+        includeStringNumber = False
 
-    def getHubID(self, domID):
-        """
-        Get the stringhub id associated with the DOM mainboard ID
-        """
-        if not self.domDict.has_key(domID):
-            raise DOMNotInConfigException("Cannot find DOM %12s" % domID)
-        return self.domDict[domID].string
+        if self.__commentOut:
+            prefix = "<!--"
+            suffix = " -->"
+        else:
+            prefix = ""
+            suffix = ""
+        strList = self.__stringMap.keys()
+        if not includeStringNumber or len(strList) != 1:
+            nStr = ""
+        else:
+            nStr = " n=\"%d\"" % strList[0]
+        return "%s%s<domConfigList%s>%s</domConfigList>%s" % \
+            (prefix, indent, nStr, self.__fileName, suffix)
 
-    def getKind(self, domID):
-        """
-        Get the trigger kind associated with the DOM mainboard ID
-        """
-        if not self.domDict.has_key(domID):
-            raise DOMNotInConfigException("Cannot find DOM %12s" % domID)
-        return self.domDict[domID].kind
+class Component(object):
+    def __init__(self, name, id):
+        self.__name = name
+        self.__id = id
+        self.__logLevel = None
 
-    def getIDbyName(self, domlist, name):
-        """
-        Get DOM mainboard ID for given DOM name (e.g., 'Alpaca').
-        Names from deployed DOMs list supercede names in domconfig files.
-        Raise DOMNotInConfigException if DOM is missing
-        """
-        for d in domlist:
-            if self.domDict.has_key(d) and self.domDict[d].name == name:
-                return str(d) # Convert from unicode to ASCII
-        raise DOMNotInConfigException("Cannot find DOM named \"%s\"" % name)
+    def __cmp__(self, other):
+        val = cmp(self.__name, other.__name)
+        if val == 0:
+            val = cmp(self.__id, other.__id)
+        return val
 
-    def getIDbyStringPos(self, domlist, string, pos):
-        """
-        Get DOM mainboard ID for a given string, position.
-        Raise DOMNotInConfigException if DOM is missing
-        """
-        for d in domlist:
-            if self.domDict.has_key(d) and \
-                    string == self.domDict[d].string and \
-                    pos == self.domDict[d].pos:
-                return str(d)
-        raise DOMNotInConfigException("Cannot find string %d pos %d" %
-                                      (string, pos))
+    def __str__(self):
+        return self.fullname()
+
+    def __repr__(self): return self.__str__()
+
+    def id(self): return self.__id
+
+    def fullname(self):
+        if self.__id == 0 and not self.isHub():
+            return self.__name
+        return '%s#%d' % (self.__name, self.__id)
+
+    def isHub(self):
+        return self.__name.lower().find('hub') >= 0
+
+    def isRealHub(self):
+        return self.__name.lower() == 'stringhub' and self.__id < 1000
+
+    def logLevel(self): return self.__logLevel
+    def name(self): return self.__name
+
+    def setLogLevel(self, lvl):
+        self.__logLevel = lvl
+
+class StringHub(Component):
+    def __init__(self, id):
+        self.__domConfigs = []
+
+        super(StringHub, self).__init__("stringHub", id)
+
+    def addDomConfig(self, domCfg):
+        self.__domConfigs.append(domCfg)
+
+    def getDomConfigs(self):
+        return self.__domConfigs[:]
+
+class ReplayHub(Component):
+    def __init__(self, id, hitFile):
+        self.__hitFile = hitFile
+
+        super(ReplayHub, self).__init__("replayHub", id)
 
 class DAQConfig(object):
 
-    # Parse this only once, in case we cycle over multiple configs
-    DeployedDOMs   = None
-    persister      = {}
+    CACHE = {}
 
-    def __init__(self, configName="default",
-                 configDir="/usr/local/icecube/config"):
-        # Optimize by looking up pre-parsed configurations:
-        if DAQConfig.persister.has_key(configName):
-            self.__dict__ = DAQConfig.persister[configName]
+    """Run configuration data"""
+    def __init__(self, fileName):
+        self.__fileName = fileName
 
-            tmpFile = xmlOf(os.path.join(configDir, configName))
+        self.__comps = []
+        self.__trigCfg = None
+        self.__domCfgList = []
+        self.__domCfgNames = []
+        self.__stringHubs = {}
+        self.__hasReplayHubs = False
 
+        self.__modTime = None
+
+    def __cmp__(self, other):
+        val = len(self.__comps) - len(other.__comps)
+        if val == 0:
+            val = len(self.__domCfgList) - len(other.__domCfgList)
+            if val == 0:
+                val = len(self.__domCfgNames) - len(other.__domCfgNames)
+                if val == 0:
+                    val = cmp(self.__trigCfg, other.__trigCfg)
+                    if val == 0:
+                        sComps = self.__comps[:]
+                        sComps.sort()
+                        oComps = other.__comps[:]
+                        oComps.sort()
+                        for i in range(len(sComps)):
+                            val = cmp(sComps[i], oComps[i])
+                            if val != 0:
+                                break
+                        if val == 0:
+                            sDomCfgs = self.__domCfgList[:]
+                            sDomCfgs.sort()
+                            oDomCfgs = other.__domCfgList[:]
+                            oDomCfgs.sort()
+                            for i in range(len(sDomCfgs)):
+                                val = cmp(sDomCfgs[i], oDomCfgs[i])
+                                if val != 0:
+                                    break
+                            if val == 0:
+                                sDCNames = self.__domCfgNames[:]
+                                sDCNames.sort()
+                                oDCNames = other.__domCfgNames[:]
+                                oDCNames.sort()
+                                for i in range(len(sDCNames)):
+                                    val = cmp(sDCNames[i], oDCNames[i])
+                                    if val != 0:
+                                        break
+        return val
+
+    def __str__(self):
+        if len(self.__domCfgList) > 0:
+            if len(self.__domCfgNames) > 0:
+                dcType = "mixed"
+            else:
+                dcType = "parsed"
+        else:
+            dcType = "names"
+        return "%s[C*%d]%s" % (self.__fileName, len(self.__comps), dcType)
+
+    def addComponent(self, compName):
+        """Add a component name"""
+        if compName.find("#") > 0:
+            raise BadComponentName("Found \"#\" in component name \"%s\"" %
+                                   compName)
+        self.__comps.append(Component(compName, 0))
+
+    def addDomConfig(self, domCfg, hub=None):
+        """Add a DomConfig object"""
+        self.__domCfgList.append(domCfg)
+
+        hubs = domCfg.getStringList()
+        if hub is not None:
+            if len(hubs) != 1:
+                print >>sys.stderr, \
+                          "Expected \"%s\" to be for hub %d, not %s" % \
+                          (hub, hubs)
+            elif hubs[0] != hub:
+                print >>sys.stderr, \
+                          "Expected \"%s\" to be for hub %d, not %s" % \
+                          (hub, hubs[0])
+
+        for s in hubs:
+            if not self.__stringHubs.has_key(s):
+                hub = StringHub(s)
+                self.__stringHubs[s] = hub
+                self.__comps.append(hub)
+            self.__stringHubs[s].addDomConfig(domCfg)
+
+    def addDomConfigName(self, dcName, hub):
+        """Add a DomConfig object"""
+        self.__domCfgNames.append(DomConfigName(dcName, hub))
+
+        if hub is not None and not self.__stringHubs.has_key(hub):
+            sh = StringHub(hub)
+            self.__stringHubs[hub] = sh
+            self.__comps.append(sh)
+
+    def addReplayHub(self, id, hitFile):
+        self.__comps.append(ReplayHub(id, hitFile))
+
+    def components(self):
+        objs = self.__comps[:]
+        objs.sort()
+        return objs
+
+    def configExists(cls, configName,
+                     configDir=os.path.join(metaDir, "config")):
+        if not os.path.exists(configDir): return False
+        fileName = os.path.join(configDir, configName)
+        if not fileName.endswith(".xml"): fileName += ".xml"
+        if not os.path.exists(fileName): return False
+        return True
+    configExists = classmethod(configExists)
+
+    def configFile(self): return self.__fileName
+
+    def createOmitFileName(cls, configDir, fileName, hubIdList):
+        """
+        Create a new file name from the original name
+        and the list of omitted hubs
+        """
+        baseName = os.path.basename(fileName)
+        if baseName.endswith(".xml"):
+            baseName = baseName[:-4]
+
+        noStr = ""
+        for h in hubIdList:
+            noStr += "-no" + cls.getHubName(h)
+
+        return os.path.join(configDir, baseName + noStr + ".xml")
+    createOmitFileName = classmethod(createOmitFileName)
+
+    def filename(self): return self.__fileName
+
+    def getClusterConfiguration(cls, configName, doList=False,
+                                useActiveConfig=False, clusterDesc=None,
+                                configDir=None):
+        """
+        Find and parse the cluster configuration from either the
+        run configuration directory or from the old cluster configuration
+        directory
+        """
+        ex = None
+
+        if configName is None:
+            configName = \
+                CachedConfigName().getConfigToUse(None, False, useActiveConfig)
+            if configName is None:
+                raise ConfigNotSpecifiedException("No configuration specified")
+
+        sepIndex = configName.find('@')
+        if sepIndex > 0:
+            clusterDesc = configName[sepIndex+1:]
+            configName = configName[:sepIndex]
+
+        if doList:
+            cls.showList(configDir, configName)
+            return
+
+        try:
+            cfg = ClusterConfig(metaDir, configName, useFallbackConfig=False)
+        except ConfigNotFoundException, cnfe:
+            ex = cnfe
+
+        if ex is not None:
+            if configDir is None:
+                configDir = os.path.join(metaDir, "config")
+
+            savedValue = DAQConfigParser.PARSE_DOM_CONFIG
+            DAQConfigParser.PARSE_DOM_CONFIG = False
             try:
-                cfgStat = os.stat(tmpFile)
-            except OSError:
-                raise DAQConfigNotFound(tmpFile)
+                try:
+                    runCfg = DAQConfig.load(configName, configDir)
+                    cfg = RunCluster(runCfg, clusterDesc, configDir)
+                except DAQConfigNotFound, nfe:
+                    raise ex
+            finally:
+                DAQConfigParser.PARSE_DOM_CONFIG = savedValue
 
-            if self.__modTime == cfgStat.st_mtime:
-                return
+        return cfg
 
-            # if we made it to here, the config file must have been modified
+    getClusterConfiguration = classmethod(getClusterConfiguration)
+
+    def getHubName(cls, num):
+        """Get the standard representation for a hub number"""
+        baseNum = num % 1000
+        if baseNum > 0 and baseNum < 100:
+            return "%02d" % baseNum
+        if baseNum > 200 and baseNum < 220:
+            return "%02dt" % (baseNum - 200)
+        return "?%d?" % baseNum
+    getHubName = classmethod(getHubName)
+
+    def getIDbyName(self, name):
+        for dc in self.__domCfgList:
+            dom = dc.getDOMByName(name)
+            if dom is not None:
+                return "%12x" % dom.id()
+
+        raise DOMNotInConfigException("Cannot find DOM named \"%s\"" % name)
+
+    def getIDbyStringPos(self, string, pos):
+        for dc in self.__domCfgList:
+            dom = dc.getDOMByStringPos(string, pos)
+            if dom is not None:
+                return "%12x" % dom.id()
+
+        raise DOMNotInConfigException("Cannot find DOM named \"%s\"" % name)
+
+    def hasDOM(self, domid):
+        if type(domid) != int and type(domid) != long:
+            try:
+                val = long(domid, 16)
+                domid = val
+            except ValueError:
+                raise BadDOMID("Invalid DOM ID \"%s\"" % domid)
+
+        for dc in self.__domCfgList:
+            dom = dc.getDOMByID(domid)
+            if dom is not None:
+                return True
+
+        return False
+
+    def hasHubs(self):
+        """Does this run configuration include any DOMs or replayHubs?"""
+        for c in self.__comps:
+            if c.isHub():
+                return True
+        return False
+
+    def hasTriggerConfig(self):
+        """Does this run configuration have a trigger configuration file?"""
+        return self.__trigCfg is not None
+
+    def isModTime(self, modTime):
+        return self.__modTime == modTime
+
+    def load(cls, cfgName, configDir=os.path.join(metaDir, "config")):
+        "Load the run configuration"
+
+        fileName = os.path.join(configDir, cfgName)
+        if not fileName.endswith(".xml"):
+            fileName += ".xml"
+        if not os.path.exists(fileName):
+            raise DAQConfigNotFound(cfgName)
+
+        try:
+            cfgStat = os.stat(fileName)
+        except OSError:
+            raise DAQConfigNotFound(fileName)
+
+        # Optimize by looking up pre-parsed configurations:
+        if DAQConfig.CACHE.has_key(fileName):
+            if DAQConfig.CACHE[fileName].isModTime(cfgStat.st_mtime):
+                return DAQConfig.CACHE[fileName]
+
+        parsed = False
+        try:
+            dom = minidom.parse(fileName)
+            parsed = True
+        except Exception, e:
+            raise BadDAQConfig("Couldn't parse \"%s\": %s" % (fileName, str(e)))
+        except KeyboardInterrupt:
+            raise BadDAQConfig("Couldn't parse \"%s\": KeyboardInterrupt" %
+                               fileName)
+
+        if parsed:
+            try:
+                rc = DAQConfigParser.parse(dom, configDir, fileName)
+            except XMLError, xe:
+                raise BadDAQConfig("%s: %s" % (fileName, str(xe)))
+            except KeyboardInterrupt:
+                raise BadDAQConfig("Couldn't parse \"%s\": KeyboardInterrupt" %
+                                   fileName)
+
+            rc.setModTime(cfgStat.st_mtime)
+            DAQConfig.CACHE[fileName] = rc
+            return rc
+
+        return None
+    load = classmethod(load)
+
+    def omit(self, hubIdList):
+        """Create a new run configuration which omits the specified hubs"""
+        omitMap = {}
+
+        error = False
+        for h in hubIdList:
+            if not self.__stringHubs.has_key(h):
+                print >>sys.stderr, "Hub %s not found in %s" % \
+                    (self.getHubName(h), self.__fileName)
+                error = True
+            else:
+                domCfgs = self.__stringHubs[h].getDomConfigs()
+                if len(domCfgs) == 1:
+                    omitMap[domCfgs[0]] = h
+                else:
+                    dfStr = None
+                    for dc in domCfgs:
+                        if dfStr is None:
+                            dfStr = dc.filename()
+                        else:
+                            dfStr += ", " + dc.filename()
+                    print >>sys.stderr, ("Hub %s is specified in multiple" +
+                                         " domConfig files: %s") % \
+                                         (self.getHubName(h), dfStr)
+                    error = True
+
+        if error:
+            return None
+
+        dir = os.path.dirname(self.__fileName)
+        base = os.path.basename(self.__fileName)
+        newCfg = DAQConfig(self.createOmitFileName(dir, base, hubIdList))
+        for c in self.__comps:
+            if not c.isHub():
+                newCfg.addComponent(c.name())
+        newCfg.setTriggerConfig(self.__trigCfg)
+        for dc in self.__domCfgList:
+            if not omitMap.has_key(dc):
+                newCfg.addDomConfig(dc)
+            else:
+                dup = copy.copy(dc)
+                dup.commentOut()
+                newCfg.addDomConfig(dup)
+
+        return newCfg
+
+    def setModTime(self, modTime):
+        self.__modTime = modTime
+
+    def setTriggerConfig(self, name):
+        """Set the trigger configuration file for this run configuration"""
+        self.__trigCfg = name
+
+    def showList(cls, configDir, configName):
+        if configDir is None:
+            if LIST_CLUSTER_CONFIGS:
+                configDir = os.path.join(metaDir, "cluster-config", "src",
+                                         "main", "xml")
+            else:
+                configDir = os.path.join(metaDir, "config")
 
         if not os.path.exists(configDir):
             raise DAQConfigDirNotFound("Could not find config dir %s" %
                                        configDir)
-        self.configFile = xmlOf(os.path.join(configDir, configName))
+
+        if configName is None:
+            configName = \
+                CachedConfigName().getConfigToUse(None, False, True)
+
+
+        cfgs = []
+
+        for f in os.listdir(configDir):
+            if not f.endswith(".xml"): continue
+            cfg = os.path.basename(f[:-4])
+            if cfg == 'default-dom-geometry': continue
+            cfgs.append(cfg)
+
+        cfgs.sort()
+        for cname in cfgs:
+            if configName is None:
+                mark = ""
+            elif cname == configName:
+                mark = "=> "
+            else:
+                mark = "   "
+            try:
+                print "%s%-60s" % (mark, cname)
+            except IOError:
+                break
+    showList = classmethod(showList)
+
+    def write(self, fd):
+        """Write this run configuration to the specified file descriptor"""
+        indent = "    "
+        print >>fd, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+        print >>fd, "<runConfig>"
+        for d in self.__domCfgList:
+            print >>fd, d.xml(indent)
+        print >>fd, "%s<triggerConfig>%s</triggerConfig>" % \
+            (indent, self.__trigCfg)
+        for c in self.__comps:
+            if not c.isHub():
+                print >>fd, "%s<runComponent name=\"%s\"/>" % (indent, c.name())
+        print >>fd, "</runConfig>"
+
+class DAQConfigParser(XMLParser):
+    """Run configuration file parser"""
+
+    PARSE_DOM_CONFIG = True
+    DEFAULT_DOM_GEOMETRY = None
+
+    def __init__(self):
+        """Use this object's class methods directly"""
+        raise Exception("Cannot create this object")
+
+    def __parseDomConfig(cls, configDir, baseName):
+        """Parse a DOM configuration file and return a DomConfig object"""
+        if DAQConfigParser.DEFAULT_DOM_GEOMETRY is None:
+            try:
+                DAQConfigParser.DEFAULT_DOM_GEOMETRY = \
+                    DefaultDomGeometryReader.parse(translateDoms=True)
+            except AttributeError:
+                DAQConfigParser.DEFAULT_DOM_GEOMETRY = \
+                    DupDefaultDomGeometryReader.parse(translateDoms=True)
+
+        domIdToDom = DAQConfigParser.DEFAULT_DOM_GEOMETRY.getDomIdToDomDict()
+
+        fileName = os.path.join(configDir, "domconfigs", baseName)
+        if not fileName.endswith(".xml"):
+            fileName += ".xml"
+
+        if not os.path.exists(fileName):
+            raise BadFileError("Cannot read dom config file \"%s\"" % fileName)
 
         try:
-            cfgStat = os.stat(self.configFile)
-        except OSError:
-            raise DAQConfigNotFound(self.configFile)
+            dom = minidom.parse(fileName)
+        except Exception, e:
+            raise ProcessError("Couldn't parse \"%s\": %s" % (fileName, str(e)))
 
-        self.__modTime = cfgStat.st_mtime
+        dcListList = dom.getElementsByTagName("domConfigList")
+        if dcListList is None or len(dcListList) == 0:
+            raise ProcessError("No <domConfigList> tag found in %s" % fileName)
+        dcList = dcListList[0]
 
-        # Parse the runconfig
-        parsed = minidom.parse(self.configFile)
-        configs = parsed.getElementsByTagName("runConfig")
-        if len(configs) < 1: raise noRunConfigFound("No runconfig field found!")
+        if dcList.attributes is None or \
+                not dcList.attributes.has_key("configId"):
+            cfgId = None
+        else:
+            cfgId = dcList.attributes["configId"].value
 
-        # Parse the comprehensive lookup table "default-dom-geometry.xml"
-        if DAQConfig.DeployedDOMs == None:
-            DAQConfig.DeployedDOMs = DefaultDOMGeometry(configDir)
+        domCfg = DomConfig(baseName)
 
-        self.domlist = []
-        self.kindList  = []
+        domNum = 0
+        for kid in dcList.childNodes:
+            if kid.nodeType == Node.TEXT_NODE:
+                continue
 
-        hubIDList = []
+            if kid.nodeType == Node.COMMENT_NODE:
+                continue
 
-        noDOMs = configs[0].getElementsByTagName("noDOMConfig")
-        domCfgList = configs[0].getElementsByTagName("domConfigList")
-        hubFileList = configs[0].getElementsByTagName("hubFiles")
+            if kid.nodeType == Node.ELEMENT_NODE:
+                if kid.nodeName == "domConfig":
+                    if kid.attributes is None or len(kid.attributes) == 0:
+                        raise ProcessError("<%s> node has no attributes" %
+                                           kid.nodeName)
+                    if not kid.attributes.has_key("mbid"):
+                        raise ProcessError(("<%s> node should have \"mbid\"" +
+                                            " attribute") % kid.nodeName)
 
-        hubType = None
+                    domId = kid.attributes["mbid"].value
+                    if not domIdToDom.has_key(domId):
+                        raise ProcessError("Unknown DOM #%d ID %s" %
+                                           (domNum, domId))
 
-        if len(noDOMs) > 0:
-            pass
+                    domGeom = domIdToDom[domId]
 
-        elif len(domCfgList) > 0:
-            for domConfig in domCfgList:
-                domConfigName = domConfig.childNodes[0].data
-                # print "Parsing %s" % domConfigName
+                    name = kid.attributes["name"].value
 
-                domConfigXML = \
-                    xmlOf(os.path.join(configDir, "domconfigs", domConfigName))
-                if not os.path.exists(domConfigXML):
-                    raise noDOMConfigFound("DOMConfig not found: %s" %
-                                           domConfigName)
+                    dom = RunDom(long(domId, 16), domGeom.string(),
+                                 domGeom.pos(), domGeom.name(), domCfg)
+                    domCfg.addDom(dom)
 
-                domConfigParsed = minidom.parse(domConfigXML)
-                for dom in domConfigParsed.getElementsByTagName("domConfig"):
-                    self.domlist.append(dom.getAttribute("mbid"))
-                domConfigParsed.unlink()
+                    domNum += 1
+                else:
+                    raise ProcessError("Unexpected %s child <%s>" %
+                                       (dcList.nodeName, kid.nodeName))
+                continue
 
-            hubIDInConfigDict = {}
-            kindInConfigDict  = {}
+            raise ProcessError("Found unknown %s node <%s>" %
+                               (dcList.nodeName, kid.nodeName))
 
-            for domID in self.domlist:
-                hubID  = DAQConfig.DeployedDOMs.getHubID(domID)
-                kind   = DAQConfig.DeployedDOMs.getKind(domID)
-                # print "Got DOM %s hub %s kind %s" % (domID, hubID, kind)
-                hubIDInConfigDict[hubID] = True
-                kindInConfigDict[kind]   = True
+        return domCfg
+    __parseDomConfig = classmethod(__parseDomConfig)
 
-            self.kindList  = kindInConfigDict.keys()
-            hubIDList      = hubIDInConfigDict.keys()
+    def __parseHubFiles(cls, topNode, runCfg):
+        hubNodeNum = 0
+        for kid in topNode.childNodes:
+            if kid.nodeType == Node.TEXT_NODE:
+                continue
 
-            hubType = 'stringHub'
+            if kid.nodeType == Node.COMMENT_NODE:
+                continue
 
-        elif len(hubFileList) == 1:
-            # WARNING: not currently building the 'kind' list
-            for hubNode in hubFileList[0].getElementsByTagName("hub"):
-                idStr = hubNode.getAttribute("id")
-                hubIDList.append(int(idStr))
+            if kid.nodeType == Node.ELEMENT_NODE:
+                if kid.nodeName == "hub":
+                    hubNodeNum += 1
+                    if not kid.attributes.has_key("id") or \
+                            not kid.attributes.has_key("hitFile"):
+                        raise ProcessError(("<%s> node #%d does not have" +
+                                            "  \"id\" and/or \"hitFile\"" +
+                                            " attributes") %
+                                           (kid.nodeName, hubNodeNum))
 
-            hubType = 'replayHub'
+                    idStr = kid.attributes["id"].value
+                    try:
+                        id = int(idStr)
+                    except:
+                        raise ProcessError(("Bad \"id\" attribute \"%s\"" +
+                                            " for <%s> #%d") %
+                                           (idStr, kid.nodeName, hubNodeNum))
+                    runCfg.addReplayHub(id,  kid.attributes["hitFile"].value)
+                else:
+                    raise ProcessError("Unexpected %s child <%s>" %
+                                       (topNode.nodeName, kid.nodeName))
+    __parseHubFiles = classmethod(__parseHubFiles)
 
-        self.ndoms = len(self.domlist)
-        # print "Found %d DOMs." % self.ndoms
+    def __parseTriggerConfig(cls, configDir, baseName):
+        """Parse a trigger configuration file and return nothing"""
+        fileName = os.path.join(configDir, "trigger", baseName)
+        if not fileName.endswith(".xml"):
+            fileName += ".xml"
 
-        self.checkTriggerConfigFile(configs[0], configDir)
+        if not os.path.exists(fileName):
+            raise BadFileError("Cannot read trigger config file \"%s\"" %
+                               fileName)
+    __parseTriggerConfig = classmethod(__parseTriggerConfig)
 
-        self.compList = self.extractComponents(configs[0])
+    def parse(cls, dom, configDir, fileName):
+        """Parse a run configuration file and return a DAQConfig object"""
+        rcList = dom.getElementsByTagName("runConfig")
+        if rcList is None or len(rcList) == 0:
+            raise ProcessError("No <runConfig> tag found in %s" % fileName)
 
-        for hubID in hubIDList:
-            self.compList.append('%s#%d' % (hubType, hubID))
+        runCfg = DAQConfig(fileName)
 
-        DAQConfig.persister             [ configName ] = self.__dict__
+        hubFiles = None
+        for kid in rcList[0].childNodes:
+            if kid.nodeType == Node.TEXT_NODE:
+                continue
 
-    def checkTriggerConfigFile(self, config, configDir):
-        triggerConfigs = config.getElementsByTagName("triggerConfig")
-        if len(triggerConfigs) == 0: raise triggerException("no triggers found")
-        for trig in triggerConfigs:
-            trigName = trig.childNodes[0].data
-            trigXML = xmlOf(os.path.join(configDir, "trigger", trigName))
-            if not os.path.exists(trigXML):
-                raise triggerException("trigger config file not found: %s" %
-                                       trigXML)
+            if kid.nodeType == Node.COMMENT_NODE:
+                continue
 
-    def extractComponents(self, config):
-        comps = []
-        compNodes = config.getElementsByTagName("runComponent")
-        if len(compNodes) == 0: raise noComponentsFound("No components found")
-        for node in compNodes:
-            nodeName = node.attributes['name'].value
-            if not node.attributes.has_key('id'):
-                nodeId = 0
-            else:
-                nodeId = int(node.attributes['id'].value)
+            if kid.nodeType == Node.ELEMENT_NODE:
+                if kid.nodeName == "domConfigList":
+                    if kid.attributes is None or len(kid.attributes) == 0:
+                        hub = None
+                    else:
+                        if len(kid.attributes) != 1:
+                            raise ProcessError(("<%s> node has extra" +
+                                                " attributes") % kid.nodeName)
+                        attrName = "hub"
+                        if not kid.attributes.has_key(attrName):
+                            raise ProcessError(("<%s> node should have" +
+                                                "  \"%s\" attribute, not" +
+                                                " \"%s\"") %
+                                               (kid.nodeName, attrName,
+                                                kid.attributes.keys()[0]))
 
-            comps.append('%s#%d' % (nodeName, nodeId))
+                        hub = int(kid.attributes[attrName].value)
 
-        return comps
+                    dcName = cls.getChildText(kid).strip()
+                    if hub is None or cls.PARSE_DOM_CONFIG:
+                        domCfg = cls.__parseDomConfig(configDir, dcName)
+                        runCfg.addDomConfig(domCfg, hub)
+                    else:
+                        runCfg.addDomConfigName(dcName, hub)
+                elif kid.nodeName == "triggerConfig":
+                    trigCfg = cls.getChildText(kid)
+                    cls.__parseTriggerConfig(configDir, trigCfg)
+                    runCfg.setTriggerConfig(trigCfg)
+                elif kid.nodeName == "hubFiles":
+                    cls.__parseHubFiles(kid, runCfg)
+                elif kid.nodeName == "stringHub":
+                    print >>sys.stderr, "Ignoring <stringHub> in \"%s\"" % \
+                        fileName
+                elif kid.nodeName == "runComponent":
+                    if kid.attributes is None or len(kid.attributes) == 0:
+                        raise ProcessError("<%s> node has no attributes" %
+                                           kid.nodeName)
+                    if len(kid.attributes) != 1:
+                        raise ProcessError("<%s> node has extra attributes" %
+                                           kid.nodeName)
+                    if not kid.attributes.has_key("name"):
+                        raise ProcessError(("<%s> node should have \"name\"" +
+                                            " attribute, not \"%s\"") %
+                                           (kid.nodeName,
+                                            kid.attributes.keys()[0]))
 
-    def kinds(self):
-        """
-        Return list of detectors in configuration: any of
-        amanda, in-ice, icetop
-        """
-        return self.kindList
+                    runCfg.addComponent(kid.attributes["name"].value)
 
-    def components(self):
-        """
-        Return list of components in parsed configuration.
-        """
-        return self.compList
+                elif kid.nodeName == "defaultLogLevel":
+                    pass
+                else:
+                    raise ProcessError("Unknown runConfig node <%s>" %
+                                       kid.nodeName)
+                continue
 
-    def hasDOM(self, domid):
-        """
-        Indicate whether DOM mainboard id domid is in the current configuration
-        """
-        for d in self.domlist:
-            if d == domid: return True
-        return False
+            raise ProcessError("Found unknown runConfig node <%s>" %
+                               kid.nodeName)
 
-    def getIDbyName(self, name):
-        """
-        Get DOM mainboard ID for given DOM name (e.g., 'Alpaca').
-        Names from deployed DOMs list supercede names in domconfig files.
-        Raise DOMNotInConfigException if DOM is missing
-        """
-        return DAQConfig.DeployedDOMs.getIDbyName(self.domlist, name)
+        if not runCfg.hasHubs():
+            raise ProcessError("No doms or replayHubs found")
+        if not runCfg.hasTriggerConfig():
+            raise ProcessError("No <triggerConfig> found")
 
-    def getIDbyStringPos(self, string, pos):
-        """
-        Get DOM mainboard ID for a given string, position.
-        Raise DOMNotInConfigException if DOM is missing
-        """
-        return DAQConfig.DeployedDOMs.getIDbyStringPos(self.domlist, string,
-                                                       pos)
+        return runCfg
+    parse = classmethod(parse)
 
 if __name__ == "__main__":
+    import optparse
+
     p = optparse.OptionParser()
     p.add_option("-l", "--list-configs", action="store_true",
                  dest="doList", help="List available configs")
@@ -351,12 +830,18 @@ if __name__ == "__main__":
 
     configDir  = os.path.join(metaDir, "config")
 
-    if(opt.doList):
-        showList(configDir)
+    if opt.doList:
+        DAQConfig.showList(configDir, None)
         raise SystemExit
 
-    if(opt.toCheck):
-        checkForValidConfig(configDir, opt.toCheck)
+    if opt.toCheck:
+        try:
+            DAQConfig.load(opt.toCheck, configDir)
+            print "%s/%s is ok." % (configDir, opt.toCheck)
+        except Exception, e:
+            from exc_string import exc_string
+            print "%s/%s is not a valid config: %s [%s]" % \
+                (configDir, opt.toCheck, e, exc_string())
         raise SystemExit
 
     # Code for testing:
@@ -364,13 +849,11 @@ if __name__ == "__main__":
         args.append("sim5str")
 
     for configName in args:
+        print '-----------------------------------------------------------'
         print "Config %s" % configName
-        dc = DAQConfig(configName, configDir)
-        print "Number of DOMs in configuration: %s" % dc.nDOMs()
-        for hubID in dc.hubIDs():
-            print "String/hubID %d is in configuration." % hubID
-        for kind in dc.kinds():
-            print "Configuration includes %s" % kind
-        for comp in dc.components():
-            print "Configuration requires %s" % comp
+        dc = DAQConfig.load(configName, configDir)
 
+        comps = dc.components()
+        comps.sort()
+        for comp in comps:
+            print 'Comp %s log %s' % (str(comp), str(comp.logLevel()))

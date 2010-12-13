@@ -18,6 +18,7 @@ from os.path import exists, abspath, join, basename, isdir
 from os import listdir, mkdir
 from Process import processList, findProcess
 from DAQLaunch import cyclePDAQ
+from DAQConfig import DAQConfig, DAQConfigNotFound, DOMNotInConfigException
 from tarfile import TarFile
 from shutil import move, copyfile
 from GetIP import getIP
@@ -25,7 +26,6 @@ from re import search
 from xmlrpclib import Fault
 from IntervalTimer import IntervalTimer
 from RateCalc import RateCalc
-import DAQConfig
 import datetime
 import optparse
 import Daemon
@@ -38,7 +38,6 @@ import sys
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-from ClusterConfig import *
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -51,7 +50,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQRun.py 4830 2009-12-24 18:53:28Z dglo $"
+SVN_ID  = "$Id: DAQRun.py 5088 2010-07-15 17:42:48Z dglo $"
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -98,6 +97,11 @@ class RunArgs(object):
                      action="store",      type="string",
                      dest="configDir",
                      help="Directory where run configurations are stored")
+
+        p.add_option("-C", "--cluster-desc",
+                     action="store",      type="string",
+                     dest="clusterDesc",
+                     help="Cluster description name")
 
         p.add_option("-f", "--force-reconfig",
                      action="store_true",
@@ -150,6 +154,7 @@ class RunArgs(object):
                      help="Configuration to relaunch [if --relaunch]")
 
         p.set_defaults(kill              = False,
+                       clusterDesc       = None,
                        clusterConfigName = None,
                        nodaemon          = False,
                        quiet             = False,
@@ -191,10 +196,12 @@ class RunArgs(object):
         dashDir          = join(metaDir, 'dash')
 
         try:
-            clusterConfig = ClusterConfig(metaDir, opt.clusterConfigName, False,
-                                          False, True)
-        except ConfigNotSpecifiedException:
-            print "ERROR: No cluster configuration was found!"
+            clusterConfig = \
+                DAQConfig.getClusterConfiguration(opt.clusterConfigName,
+                                                  clusterDesc=opt.clusterDesc,
+                                                  configDir=opt.configDir)
+        except DAQConfigNotFound:
+            print "ERROR: No configuration was found!"
             raise SystemExit
 
         if not exists(opt.configDir):
@@ -405,10 +412,7 @@ class RateThread(threading.Thread):
 
         self.setName("DAQRun:RateThread")
 
-    def done(self):
-        return self.__done
-
-    def run(self):
+    def __run(self):
         self.__runStats.updateEventCounts(self.__daqRun, True)
 
         rateStr = ""
@@ -424,13 +428,24 @@ class RateThread(threading.Thread):
         self.__log.error(("\t%s physics events%s, %s moni events," +
                           " %s SN events, %s tcals")  %
                          (numEvts, rateStr, numMoni, numSN, numTcal))
-        self.__done = True
+
+    def done(self):
+        return self.__done
+
+    def run(self):
+        try:
+            try:
+                self.__run()
+            except:
+                self.__log.error(exc_string())
+        finally:
+            self.__done = True
 
 class ActiveDOMThread(threading.Thread):
     "A thread which reports the active DOM counts"
-    def __init__(self, moni, activeMoni, comps, log, sendDetails):
+    def __init__(self, moni, liveMoni, comps, log, sendDetails):
         self.__moni = moni
-        self.__activeMonitor = activeMoni
+        self.__liveMoniClient = liveMoni
         self.__comps = comps
         self.__log = log
         self.__sendDetails = sendDetails
@@ -440,10 +455,7 @@ class ActiveDOMThread(threading.Thread):
 
         self.setName("DAQRun:ActiveDOMThread")
 
-    def done(self):
-        return self.__done
-
-    def run(self):
+    def __run(self):
         total = 0
         hubDOMs = {}
 
@@ -458,14 +470,131 @@ class ActiveDOMThread(threading.Thread):
 
         now = datetime.datetime.now()
 
-        self.__activeMonitor.sendMoni("activeDOMs", total, Prio.ITS)
+        self.__liveMoniClient.sendMoni("activeDOMs", total, Prio.ITS)
 
         if self.__sendDetails:
-            if not self.__activeMonitor.sendMoni("activeStringDOMs", hubDOMs,
-                                                 Prio.ITS):
+            if not self.__liveMoniClient.sendMoni("activeStringDOMs", hubDOMs,
+                                                  Prio.ITS):
                 self.__log.error("Failed to send active DOM report")
 
-        self.__done = True
+    def done(self):
+        return self.__done
+
+    def run(self):
+        try:
+            try:
+                self.__run()
+            except:
+                self.__log.error(exc_string())
+        finally:
+            self.__done = True
+
+class RadarDOM(object):
+    def __init__(self, mbID, string, cid, beanName):
+        self.__mbID = mbID
+        self.__string = string
+        self.__compID = cid
+        self.__beanName = beanName
+
+    def getRate(self, moni):
+        return moni.getSingleBeanField(self.__compID, self.__beanName,
+                                       "HitRate")
+
+    def mbID(self): return self.__mbID
+
+class RadarThread(threading.Thread):
+    "A thread which reports the hit rate for all radar-sensitive DOMs"
+
+    # mapping of DOM mainboard ID -> string number
+    DOM_MAP = { "48e492170268": 6 }
+
+    # list of radar sentinel DOMs
+    RADAR_DOMS = None
+
+    def __init__(self, moni, liveMoniClient, comps, log, samples, duration):
+        self.__moni = moni
+        self.__liveMoniClient = liveMoniClient
+        self.__comps = comps
+        self.__log = log
+        self.__samples = samples
+        self.__sampleSleep = float(duration) / float(samples)
+
+        self.__done = False
+
+        threading.Thread.__init__(self)
+
+        self.setName("DAQRun:RadarThread")
+
+    def __findDOMs(self):
+        strings = {}
+        for k in self.DOM_MAP.keys():
+            if not strings.has_key(self.DOM_MAP[k]):
+                strings[self.DOM_MAP[k]] = []
+            strings[self.DOM_MAP[k]].append(k)
+
+        self.RADAR_DOMS = []
+
+        for n in strings.keys():
+            for cid, comp in self.__comps.iteritems():
+                if len(strings[n]) == 0:
+                    break
+
+                if comp.name() != "stringHub" or (comp.id() % 1000) != n:
+                    continue
+
+                beans = self.__moni.listBeans(cid)
+                for b in beans:
+                    if len(strings[n]) == 0:
+                        break
+
+                    if b.startswith("DataCollectorMonitor"):
+                        mbid = self.__moni.getSingleBeanField(cid, b,
+                                                              "MainboardId")
+                        try:
+                            idx = strings[n].index(mbid)
+                        except:
+                            continue
+
+                        del strings[n][idx]
+
+                        self.RADAR_DOMS.append(RadarDOM(mbid, n, cid, b))
+
+    def __run(self):
+        if self.RADAR_DOMS is None:
+            self.__findDOMs()
+
+        if len(self.RADAR_DOMS) == 0:
+            return
+
+        rateList = {}
+        for i in range(self.__samples):
+            for rdom in self.RADAR_DOMS:
+                rate = rdom.getRate(self.__moni)
+
+                if not rateList.has_key(rdom.mbID()) or \
+                        rateList[rdom.mbID()] < rate:
+                    rateList[rdom.mbID()] = rate
+
+            time.sleep(self.__sampleSleep)
+
+        rateData = []
+        for mbID in rateList:
+            rateData.append((mbID, rateList[mbID]))
+
+        if not self.__liveMoniClient.sendMoni("radarDOMs", rateData, Prio.EMAIL):
+            self.__log.error("Failed to send radar DOM report")
+
+    def done(self):
+        return self.__done
+
+    def run(self):
+        try:
+            try:
+                self.__run()
+            except:
+                self.__log.error(exc_string())
+        finally:
+            self.__done = True
 
 class Component(object):
     def __init__(self, name, id, inetAddr, rpcPort, mbeanPort):
@@ -511,6 +640,12 @@ class DAQRun(object):
     # monitoring timer
     MONI_NAME        = "moniTimer"
     MONI_PERIOD      = 100
+
+    # radar sentinal DOM monitor timer
+    RADAR_NAME        = "radarTimer"
+    RADAR_PERIOD      = 900
+    RADAR_SAMPLES    = 8             # number of samples
+    RADAR_SAMPLE_DURATION = 120      # number of seconds for sampling
 
     # event rate report timer
     RATE_NAME        = "rateTimer"
@@ -605,20 +740,27 @@ class DAQRun(object):
         self.rateThread       = None
         self.badRateCount     = 0
 
-        self.__activeDOMTimer = None
-        self.__activeMonitor = MoniClient("pdaq", "localhost", DAQPort.I3LIVE)
-        if str(self.__activeMonitor).startswith("BOGUS"):
-            self.__activeMonitor = None
-            self.__activeDOMDetail = None
+        self.__liveMoniClient = MoniClient("pdaq", "localhost", DAQPort.I3LIVE)
+        if str(self.__liveMoniClient).startswith("BOGUS"):
+            self.__liveMoniClient = None
             if not DAQRun.LIVE_WARNING:
                 print >>sys.stderr, "Cannot import IceCube Live code, so" + \
-                    " per-string active DOM stats wil not be reported"
+                    " stats wil not be reported to I3Live"
                 DAQRun.LIVE_WARNING = True
+
+        self.__activeDOMTimer = None
+        if self.__liveMoniClient is None:
+            self.__activeDOMDetail = None
         else:
             self.__activeDOMDetail = self.setup_timer(DAQRun.ACTIVERPT_NAME,
                                                       DAQRun.ACTIVERPT_PERIOD)
         self.__activeDOMThread   = None
-        self.__badActiveDOMCount   = 0
+        self.__badActiveDOMCount = 0
+
+        self.__radarTimer        = None
+        self.__radarThread       = None
+        self.__radarSamples      = 0
+        self.__badRadarCount     = 0
 
         self.__liveInfo       = None
         self.__id = int(time.time())
@@ -665,7 +807,7 @@ class DAQRun(object):
                     # Look by DOM name
                     try:
                         args[0] = config.getIDbyName(domid)
-                    except DAQConfig.DOMNotInConfigException:
+                    except DOMNotInConfigException, e:
                         not_found.append("DOM %s not found in config!" % domid)
                         continue
             # Look for (str, pos, f0, ..., f4)
@@ -678,7 +820,7 @@ class DAQRun(object):
                                                 (string, pos))
                 try:
                     args[0] = config.getIDbyStringPos(string, pos)
-                except DAQConfig.DOMNotInConfigException:
+                except DOMNotInConfigException, e:
                     not_found.append("DOM at %s-%s not found in config!" %
                                    (string, pos))
                     continue
@@ -687,26 +829,6 @@ class DAQRun(object):
             l.append(args)
         return (l, not_found)
     validateFlashingDoms = staticmethod(validateFlashingDoms)
-
-    def parseComponentName(componentString):
-        "Find component name in string returned by CnCServer"
-        match = search(r'ID#(\d+) (\S+?)#(\d+) at (\S+?):(\d+)', componentString)
-        if not match: return ()
-        setCompID = int(match.group(1))
-        shortName = match.group(2)
-        daqID     = int(match.group(3))
-        compIP    = match.group(4)
-        compPort  = int(match.group(5))
-        return (setCompID, shortName, daqID, compIP, compPort)
-    parseComponentName = staticmethod(parseComponentName)
-
-    def getNameList(l):
-        "Build list of parsed names from CnCServer"
-        for x in l:
-            parsed = DAQRun.parseComponentName(x)
-            if len(parsed) > 0:
-                yield "%s#%d" % (parsed[1], parsed[2])
-    getNameList = staticmethod(getNameList)
 
     def findMissing(target, reference):
         """
@@ -725,10 +847,16 @@ class DAQRun(object):
         """
         tstart = datetime.datetime.now()
         while True:
-            remoteList = cncrpc.rpccall("rpc_show_components")
-            remoteNames = list(DAQRun.getNameList(remoteList))
-            waitList = DAQRun.findMissing(requiredList, remoteNames)
-            if waitList == []: return remoteList
+            compList = cncrpc.rpccall("rpc_list_components")
+            nameList = []
+            for c in compList:
+                if c["compNum"] == 0 and not c["compName"].endswith("Hub"):
+                    nameList.append(c["compName"])
+                else:
+                    nameList.append("%s#%d" % (c["compName"], c["compNum"]))
+            waitList = DAQRun.findMissing(requiredList, nameList)
+            if waitList == []:
+                return requiredList
 
             if datetime.datetime.now()-tstart >= datetime.timedelta(seconds=timeOutSecs):
                 raise RequiredComponentsNotAvailableException("Still waiting for "+
@@ -762,13 +890,11 @@ class DAQRun(object):
 
     def getComponentsFromGlobalConfig(self, configName, configDir):
         "Get and set global configuration"
-        self.configuration = DAQConfig.DAQConfig(configName, configDir)
+        self.configuration = DAQConfig.load(configName, configDir)
         self.log.info("Loaded global configuration \"%s\"" % configName)
         requiredComps = []
         for comp in self.configuration.components():
-            requiredComps.append(comp)
-        for kind in self.configuration.kinds():
-            self.log.info("Configuration includes detector %s" % kind)
+            requiredComps.append(comp.fullname())
         for comp in requiredComps:
             self.log.info("Component list will require %s" % comp)
         return requiredComps
@@ -899,19 +1025,23 @@ class DAQRun(object):
             (runNum, runTime.year, runTime.month, runTime.day, runTime.hour,
              runTime.minute, runTime.second, runDuration)
 
-    def queue_for_spade(self, spadeDir, copyDir, logTopLevel, runNum, runTime, runDuration):
+    def queue_for_spade(self, spadeDir, copyDir, logTopLevel, runNum, runTime,
+                        runDuration):
         """
         Put tarball of log and moni files in SPADE directory as well as
         semaphore file to indicate to SPADE to effect the transfer
         """
         if not spadeDir: return
-        if not exists(spadeDir): return
-        self.log.info(("Queueing data for SPADE (spadeDir=%s, logDir=%s," +
-                       " runNum=%d)...") % (spadeDir, logTopLevel, runNum))
+        if not exists(spadeDir):
+            self.log.error("SPADE directory %s does not exist" % spadeDir)
+            return
         runDir = DAQRun.logDirName(runNum)
         basePrefix = self.get_base_prefix(runNum, runTime, runDuration)
         try:
-            self.move_spade_files(copyDir, basePrefix, logTopLevel, runDir, spadeDir)
+            self.move_spade_files(copyDir, basePrefix, logTopLevel, runDir,
+                                  spadeDir)
+            self.log.info(("Queued data for SPADE (spadeDir=%s, logDir=%s,"
+                           " runNum=%s)...") % (spadeDir, logTopLevel, runNum))
         except Exception:
             self.log.error("FAILED to queue data for SPADE: %s" % exc_string())
 
@@ -966,8 +1096,9 @@ class DAQRun(object):
         # extract remote component data
         compList = cncrpc.rpccall("rpc_runset_list", self.runSetID)
         for comp in compList:
-            self.components[comp[0]] = \
-                Component(comp[1], comp[2], comp[3], comp[4], comp[5])
+            self.components[comp["id"]] = \
+                Component(comp["compName"], comp["compNum"], comp["host"],
+                          comp["rpcPort"], comp["mbeanPort"])
 
     def setup_component_loggers(self, cncrpc, ip, runset):
         "Tell components where to log to"
@@ -1131,14 +1262,19 @@ class DAQRun(object):
         self.__moniTimer = self.setup_timer(DAQRun.MONI_NAME,
                                             DAQRun.MONI_PERIOD)
 
-        self.__activeDOMTimer = self.setup_timer(DAQRun.ACTIVE_NAME,
-                                                 DAQRun.ACTIVE_PERIOD)
+        if self.__liveMoniClient is not None:
+            self.__activeDOMTimer = self.setup_timer(DAQRun.ACTIVE_NAME,
+                                                     DAQRun.ACTIVE_PERIOD)
 
         self.rateTimer = self.setup_timer(DAQRun.RATE_NAME,
                                           DAQRun.RATE_PERIOD)
 
         self.watchdog = self.setup_watchdog(self.log, DAQRun.WATCH_PERIOD,
                                             self.components)
+
+        if self.__liveMoniClient is not None:
+            self.__radarTimer = self.setup_timer(DAQRun.RADAR_NAME,
+                                                 DAQRun.RADAR_PERIOD)
 
     def check_timers(self):
         if self.moni and self.__moniTimer and self.__moniTimer.isTime():
@@ -1150,7 +1286,7 @@ class DAQRun(object):
 
         if self.__activeDOMTimer and self.__activeDOMTimer.isTime():
             self.__activeDOMTimer.reset()
-            if self.__activeMonitor is not None and \
+            if self.__liveMoniClient is not None and \
                     self.__activeDOMThread is not None and \
                     not self.__activeDOMThread.done():
                 self.__badActiveDOMCount += 1
@@ -1172,7 +1308,7 @@ class DAQRun(object):
                     self.__activeDOMDetail.reset()
 
                 self.__activeDOMThread = \
-                    ActiveDOMThread(self.moni, self.__activeMonitor,
+                    ActiveDOMThread(self.moni, self.__liveMoniClient,
                                     self.components, self.log, sendDetails)
                 self.__activeDOMThread.start()
 
@@ -1211,6 +1347,27 @@ class DAQRun(object):
                             return False
             elif self.watchdog.timeToWatch():
                 self.watchdog.startWatch()
+
+        if self.__radarTimer and self.__radarTimer.isTime():
+            self.__radarTimer.reset()
+            if self.__radarThread is not None and not self.__radarThread.done():
+                self.__badRadarCount += 1
+                if self.__badRadarCount <= 3:
+                    self.log.error(("WARNING: Radar monitoring thread" +
+                                    " is hanging (#%d)") %
+                                   self.__badRadarCount)
+                else:
+                    self.log.error("ERROR: Radar monitoring seems to be" +
+                                   " stuck, it will be disabled")
+                    self.__radarTimer = None
+            else:
+                self.badRadarCount = 0
+
+                self.__radarThread = \
+                    RadarThread(self.moni, self.__liveMoniClient,
+                                self.components, self.log, self.RADAR_SAMPLES,
+                                self.RADAR_SAMPLE_DURATION)
+                self.__radarThread.start()
 
         return True
 
@@ -1356,6 +1513,11 @@ class DAQRun(object):
 
                 self.__activeDOMTimer = None
 
+                self.__radarTimer = None
+                self.__radarThread = None
+                self.__radarSamples = 0
+                self.__badRadarCount = 0
+
                 try:      self.stopAllComponentLoggers()
                 except:   hadError = True; self.log.error(exc_string())
 
@@ -1392,7 +1554,13 @@ class DAQRun(object):
                 self.runState = "STOPPED"
 
             elif self.runState == "RUNNING":
-                if not self.check_timers():
+                try:
+                    result = self.check_timers()
+                except:
+                    self.log.error("Caught error in run task: " + exc_string())
+                    result = False
+
+                if not result:
                     self.log.error("Caught error in system," +
                                    " going to ERROR state...")
                     self.runState = "ERROR"
@@ -1599,13 +1767,31 @@ class DAQRun(object):
 
         monDict = {}
 
-        if self.runStats.hasRunNumber() and self.runState == "RUNNING":
+        if self.runStats is not None and \
+                self.runStats.hasRunNumber() and \
+                self.runState == "RUNNING":
             self.runStats.updateEventCounts(self, True)
             (numEvts, evtTime, payTime, numMoni, moniTime, numSN, snTime,
              numTcal, tcalTime) = self.runStats.monitorData()
-        elif self.prevRunStats.hasRunNumber() and self.runState == "STOPPED":
+        elif self.prevRunStats is not None and \
+                self.prevRunStats.hasRunNumber() and \
+                self.runState == "STOPPED":
             (numEvts, evtTime, payTime, numMoni, moniTime, numSN, snTime,
              numTcal, tcalTime) = self.prevRunStats.monitorData()
+        else:
+            if self.runStats is None:
+                curRun = None
+            else:
+                curRun = self.runStats.getRunNumber()
+            if self.prevRunStats is None:
+                prevRun = None
+            else:
+                prevRun = self.prevRunStats.getRunNumber()
+            self.log.error("Cannot return valid run info" +
+                           " (state %s, curRun %s, prevRun %s)" %
+                           (str(self.runState), str(curRun), str(prevRun)))
+            (numEvts, evtTime, payTime, numMoni, moniTime, numSN, snTime,
+             numTcal, tcalTime) = (0, 0, 0, 0, 0, 0, 0, 0, 0)
 
         monDict["physicsEvents"] = numEvts
         monDict["eventTime"] = str(evtTime)

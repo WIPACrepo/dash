@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from DAQConst import DAQPort
+from DAQLog import LogSocketServer
 from DAQLogClient \
     import BothSocketAppender, DAQLog, LiveSocketAppender, LogSocketAppender
 from DAQRPC import RPCClient, RPCServer
@@ -29,36 +30,53 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4579 2009-08-31 23:01:45Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 5139 2010-08-12 19:57:45Z dglo $"
+
+class CnCServerException(Exception): pass
 
 class Connector(object):
-    """
-    Component connector description
-    type - connection type
-    port - IP port number (for input connections)
-    """
+    "Component connector"
 
-    def __init__(self, type, isInput, port):
+    INPUT = "i"
+    OUTPUT = "o"
+    OPT_INPUT = "I"
+    OPT_OUTPUT = "O"
+
+    def __init__(self, name, descrChar, port):
         """
         Connector constructor
-        type - connection type
-        isInput - True if this is an input connector
+        name - connection name
+        descrChar - connection description character (I, i, O, o)
         port - IP port number (for input connections)
         """
-        self.type = type
-        if isInput:
-            self.port = port
+        self.__name = name
+        if type(descrChar) == bool:
+            raise Exception("Convert to new format")
+        self.__descrChar = descrChar
+        if self.isInput():
+            self.__port = port
         else:
-            self.port = None
+            self.__port = None
 
     def __str__(self):
         "String description"
-        if self.port is not None:
-            return '%d=>%s' % (self.port, self.type)
-        return self.type + '=>'
+        if self.isOptional():
+            connCh = "~"
+        else:
+            connCh = "="
+        if self.isInput():
+            return '%d%s>%s' % (self.__port, connCh, self.__name)
+        return self.__name + connCh + '>'
 
     def isInput(self):
-        return self.port is not None
+        return self.__descrChar == self.INPUT or \
+               self.__descrChar == self.OPT_INPUT
+    def isOptional(self):
+        return self.__descrChar == self.OPT_INPUT or \
+               self.__descrChar == self.OPT_OUTPUT
+
+    def name(self): return self.__name
+    def port(self): return self.__port
 
 class Connection(object):
     """
@@ -79,19 +97,19 @@ class Connection(object):
     def __str__(self):
         "String description"
         frontStr = '%s:%s#%d@%s' % \
-            (self.conn.type, self.comp.name(), self.comp.num(),
+            (self.conn.name(), self.comp.name(), self.comp.num(),
              self.comp.host())
         if not self.conn.isInput():
             return frontStr
-        return '%s:%d' % (frontStr, self.conn.port)
+        return '%s:%d' % (frontStr, self.conn.port())
 
     def map(self):
         connDict = {}
-        connDict['type'] = self.conn.type
+        connDict['type'] = self.conn.name()
         connDict['compName'] = self.comp.name()
         connDict['compNum'] = self.comp.num()
         connDict['host'] = self.comp.host()
-        connDict['port'] = self.conn.port
+        connDict['port'] = self.conn.port()
         return connDict
 
 class ConnTypeEntry(object):
@@ -108,7 +126,9 @@ class ConnTypeEntry(object):
         """
         self.__type = type
         self.__inList = []
+        self.__optInList = []
         self.__outList = []
+        self.__optOutList = []
 
     def __str__(self):
         return '%s in#%d out#%d' % (self.__type, len(self.__inList),
@@ -117,49 +137,78 @@ class ConnTypeEntry(object):
     def add(self, conn, comp):
         "Add a connection and component to the appropriate list"
         if conn.isInput():
-            self.__inList.append([conn, comp])
+            if conn.isOptional():
+                self.__optInList.append([conn, comp])
+            else:
+                self.__inList.append([conn, comp])
         else:
-            self.__outList.append(comp)
+            if conn.isOptional():
+                self.__optOutList.append(comp)
+            else:
+                self.__outList.append(comp)
 
     def buildConnectionMap(self, connMap):
         "Validate and fill the map of connections for each component"
-        if len(self.__inList) == 0:
-            raise ValueError('No inputs found for %d %s outputs' %
-                             (len(self.__outList), self.__type))
-        if len(self.__outList) == 0:
+
+        inLen = len(self.__inList) + len(self.__optInList)
+        outLen = len(self.__outList) + len(self.__optOutList)
+
+        # if there are no inputs and no required outputs (or no required
+        # inputs and no outputs), we're done
+        if (outLen == 0 and len(self.__inList) == 0) or \
+               (inLen == 0 and len(self.__outList) == 0):
+            return
+
+        # if there are no inputs, throw an error
+        if inLen == 0:
+            outStr = ''
+            for outComp in self.__outList + self.__optOutList:
+                if len(outStr) == 0:
+                    outStr = str(outComp)
+                else:
+                    outStr += ', ' + str(outComp)
+            raise ValueError('No inputs found for %s outputs (%s)' %
+                             (self.__type, outStr))
+
+        # if there are no outputs, throw an error
+        if outLen == 0:
             inStr = ''
-            for inPair in self.__inList:
+            for inPair in self.__inList + self.__optInList:
                 if len(inStr) == 0:
                     inStr = str(inPair[1])
                 else:
                     inStr += ', ' + str(inPair[1])
-            raise ValueError('No outputs found for %d %s inputs (%s)' %
-                             (len(self.__inList), self.__type, inStr))
-        if len(self.__inList) > 1 and len(self.__outList)  > 1:
-            inStr = ''
-            for inPair in self.__inList:
-                if len(inStr) == 0:
-                    inStr = str(inPair[1])
-                else:
-                    inStr += ', ' + str(inPair[1])
-            raise ValueError('Found %d %s outputs for %d inputs (%s)' %
-                             (len(self.__outList), self.__type,
-                              len(self.__inList), inStr))
+            raise ValueError('No outputs found for %s inputs (%s)' %
+                             (self.__type, inStr))
 
-        if len(self.__inList) == 1:
-            inConn = self.__inList[0][0]
-            inComp = self.__inList[0][1]
+        # if there are multiple inputs and outputs, throw an error
+        if inLen > 1 and outLen > 1:
+            raise ValueError('Found %d %s inputs for %d outputs' %
+                             (inLen, self.__type, outLen))
 
-            for outComp in self.__outList:
+        # at this point there is either a single input or a single output
+
+        if inLen == 1:
+            if len(self.__inList) == 1:
+                inObj = self.__inList[0]
+            else:
+                inObj = self.__optInList[0]
+            inConn = inObj[0]
+            inComp = inObj[1]
+
+            for outComp in self.__outList + self.__optOutList:
                 entry = Connection(inConn, inComp)
 
                 if not connMap.has_key(outComp):
                     connMap[outComp] = []
                 connMap[outComp].append(entry)
         else:
-            outComp = self.__outList[0]
+            if len(self.__outList) == 1:
+                outComp = self.__outList[0]
+            else:
+                outComp = self.__optOutList[0]
 
-            for inConn, inComp in self.__inList:
+            for inConn, inComp in self.__inList + self.__optInList:
                 entry = Connection(inConn, inComp)
 
                 if not connMap.has_key(outComp):
@@ -169,9 +218,10 @@ class ConnTypeEntry(object):
 class SubrunThread(threading.Thread):
     "A thread which starts the subrun in an individual stringHub"
 
-    def __init__(self, comp, data):
+    def __init__(self, comp, data, logger):
         self.__comp = comp
         self.__data = data
+        self.__logger = logger
         self.__time = None
         self.__done = False
 
@@ -179,20 +229,181 @@ class SubrunThread(threading.Thread):
 
         self.setName(str(comp) + ":subrun")
 
+    def comp(self):
+        return self.__comp
+
     def done(self):
         return self.__done
 
     def finished(self):
         return self.__time is not None
 
+    def fullName(self):
+        return self.__comp.fullName()
+
     def run(self):
         tStr = self.__comp.startSubrun(self.__data)
         if tStr is not None:
-            self.__time = long(tStr)
+            try:
+                self.__time = long(tStr)
+            except ValueError:
+                self.__logger.error(("Component %s startSubrun returned bad" +
+                                     " value \"%s\"") %
+                                    (str(self.__comp), tStr))
+                self.__time = 0
+
         self.__done = True
 
     def time(self):
         return self.__time
+
+class RunSetThreadGroup(object):
+    def __init__(self):
+        "Create a runset thread group"
+        self.__list = []
+
+    def reportErrors(self, logger, method):
+        numAlive = 0
+        numErrors = 0
+        for t in self.__list:
+            if t.isAlive():
+                numAlive += 1
+            if t.isError():
+                numErrors += 1
+        if numAlive > 0:
+            if numAlive == 1:
+                plural = ""
+            else:
+                plural = "s"
+            logger.error(("Thread group contains %d running thread%s" +
+                          " after %s") % (numAlive, plural, method))
+        if numErrors > 0:
+            if numErrors == 1:
+                plural = ""
+            else:
+                plural = "s"
+            logger.error("Thread group encountered %d error%s during %s" %
+                         (numErrors, plural, method))
+
+    def start(self, thread):
+        "Start a thread after adding it to the group"
+        self.__list.append(thread)
+        thread.start()
+
+    def wait(self, reps=4, waitSecs=0.5):
+        """
+        Wait for all the threads to finish
+        reps - number of times to loop before deciding threads are hung
+        waitSecs - number of seconds to wait (as a float)
+        NOTE:
+        if all threads are hung, max wait time is (#threads * waitSecs * reps)
+        """
+        alive = True
+        for i in range(reps):
+            alive = False
+            for t in self.__list:
+                if t.isAlive():
+                    t.join(waitSecs)
+                    alive |= t.isAlive()
+            if not alive:
+                break
+
+class RunSetThread(threading.Thread):
+    "Thread used to communicate with a component in a run set"
+
+    "thread will configure the component"
+    CONFIG_COMP = "CONFIG_COMP"
+    "thread will configure the component's logging"
+    CONFIG_LOGGING = "CONFIG_LOGGING"
+    "thread will force the running component to stop"
+    FORCED_STOP = "FORCED_STOP"
+    "thread will reset the component"
+    RESET_COMP = "RESET_COMP"
+    "thread will reset the component's logging"
+    RESET_LOGGING = "RESET_LOGGING"
+    "thread will start the component running"
+    START_RUN = "START_RUN"
+    "thread will stop the running component"
+    STOP_RUN = "STOP_RUN"
+
+    def __init__(self, comp, log, operation, data):
+        """
+        Initialize a run set thread
+        comp - component
+        log - object used to log errors
+        operation - RunSetThread operation
+        data - tuple holding all data needed for the operation
+        """
+        self.__comp = comp
+        self.__log = log
+        self.__operation = operation
+        self.__data = data
+
+        self.__error = False
+
+        threading.Thread.__init__(self)
+
+        self.setName("CnCServer:RunSet*%s" % str(self.__comp))
+
+    def __configComponent(self):
+        "Configure the component"
+        self.__comp.configure(self.__data[0])
+
+    def __configLogging(self):
+        "Configure logging for the component"
+        self.__comp.logTo(self.__data[0], self.__data[1], self.__data[2],
+                          self.__data[3])
+
+    def __forcedStop(self):
+        "Force the running component to stop"
+        self.__comp.forcedStop()
+
+    def __resetComponent(self):
+        "Reset the component"
+        self.__comp.reset()
+
+    def __resetLogging(self):
+        "Reset logging for the component"
+        self.__comp.resetLogging()
+
+    def __startRun(self):
+        "Start the component running"
+        self.__comp.startRun(self.__data[0])
+
+    def __stopRun(self):
+        "Stop the running component"
+        self.__comp.stopRun()
+
+    def __runOperation(self):
+        "Execute the requested operation"
+        if self.__operation == RunSetThread.CONFIG_COMP:
+            self.__configComponent()
+        elif self.__operation == RunSetThread.CONFIG_LOGGING:
+            self.__configLogging()
+        elif self.__operation == RunSetThread.FORCED_STOP:
+            self.__forcedStop()
+        elif self.__operation == RunSetThread.RESET_COMP:
+            self.__resetComponent()
+        elif self.__operation == RunSetThread.RESET_LOGGING:
+            self.__resetLogging()
+        elif self.__operation == RunSetThread.START_RUN:
+            self.__startRun()
+        elif self.__operation == RunSetThread.STOP_RUN:
+            self.__stopRun()
+        else:
+            raise Exception("Unknown operation %s" % str(self.__operation))
+
+    def isError(self): return self.__error
+
+    def run(self):
+        "Main method for thread"
+        try:
+            self.__runOperation()
+        except:
+            self.__log.error("%s(%s): %s" % (str(self.__operation),
+                                             str(self.__comp),
+                                             exc_string()))
+            self.__error = True
 
 class RunSet(object):
     "A set of components to be used in one or more runs"
@@ -245,14 +456,21 @@ class RunSet(object):
         "Configure all components in the runset"
         self.__state = 'configuring'
 
+        tGroup = RunSetThreadGroup()
         for c in self.__set:
-            c.configure(globalConfigName)
+            tGroup.start(RunSetThread(c, self.__logger,
+                                      RunSetThread.CONFIG_COMP,
+                                      (globalConfigName, )))
+        tGroup.wait()
+        tGroup.reportErrors(self.__logger, "configure")
 
-        waitLoop = 0
-        while True:
+        for i in range(60):
             waitList = []
             for c in self.__set:
-                stateStr = c.state()
+                try:
+                    stateStr = c.state()
+                except:
+                    stateStr = DAQClient.STATE_DEAD
                 if stateStr != 'configuring' and stateStr != 'ready':
                     waitList.append(c)
 
@@ -263,11 +481,8 @@ class RunSet(object):
                                 self.listComponentsCommaSep(waitList)))
 
             sleep(1)
-            waitLoop += 1
-            if waitLoop > 60:
-                break
 
-        self.waitForStateChange(30)
+        self.waitForStateChange(60)
 
         self.__state = 'ready'
         badList = self.listBadState()
@@ -278,30 +493,49 @@ class RunSet(object):
 
     def configureBothLogging(self, liveIP, livePort, pdaqIP, pdaqList):
         "Configure I3Live and pDAQ logging for all components in the runset"
+        tGroup = RunSetThreadGroup()
         for c in self.__set:
             for i in range(0, len(pdaqList)):
                 logData = pdaqList[i]
                 if c.isComponent(logData[0], logData[1]):
-                    c.logTo(pdaqIP, logData[2], liveIP, livePort)
+                    tGroup.start(RunSetThread(c, self.__logger,
+                                              RunSetThread.CONFIG_LOGGING,
+                                              (pdaqIP, logData[2],
+                                               liveIP, livePort)))
                     del pdaqList[i]
                     break
+
+        tGroup.wait()
+        tGroup.reportErrors(self.__logger, "configureBothLogging")
 
         return pdaqList
 
     def configureLiveLogging(self, logIP, logPort):
         "Configure I3Live logging for all components in the runset"
+        tGroup = RunSetThreadGroup()
         for c in self.__set:
-            c.logTo(None, None, logIP, logPort)
+            tGroup.start(RunSetThread(c, self.__logger,
+                                      RunSetThread.CONFIG_LOGGING,
+                                      (None, None, logIP, logPort)))
+
+        tGroup.wait()
+        tGroup.reportErrors(self.__logger, "configureLiveLogging")
 
     def configureLogging(self, logIP, logList):
         "Configure logging for specified components in the runset"
+        tGroup = RunSetThreadGroup()
         for c in self.__set:
             for i in range(0, len(logList)):
                 logData = logList[i]
                 if c.isComponent(logData[0], logData[1]):
-                    c.logTo(logIP, logData[2], None, None)
+                    tGroup.start(RunSetThread(c, self.__logger,
+                                              RunSetThread.CONFIG_LOGGING,
+                                              (logIP, logData[2], None, None)))
                     del logList[i]
                     break
+
+        tGroup.wait()
+        tGroup.reportErrors(self.__logger, "configureLogging")
 
         return logList
 
@@ -320,7 +554,7 @@ class RunSet(object):
     def events(self, subrunNumber):
         "Get the number of events in the specified subrun"
         for c in self.__set:
-            if c.isComponent("eventBuilder"):
+            if c.isBuilder():
                 return c.events(subrunNumber)
 
         raise ValueError('RunSet #%d does not contain an event builder' %
@@ -332,18 +566,14 @@ class RunSet(object):
     def isRunning(self):
         return self.__state is not None and self.__state == 'running'
 
-    def list(self):
-        slst = []
-        for c in self.__set:
-            slst.append(c.list())
-
-        return slst
-
     def listBadState(self):
         slst = []
 
         for c in self.__set:
-            stateStr = c.state()
+            try:
+                stateStr = c.state()
+            except:
+                stateStr = DAQClient.STATE_DEAD
             if stateStr != self.__state:
                 slst.append(c.fullName() + ':' + stateStr)
 
@@ -368,8 +598,12 @@ class RunSet(object):
         "Reset all components in the runset back to the idle state"
         self.__state = 'resetting'
 
+        tGroup = RunSetThreadGroup()
         for c in self.__set:
-            c.reset()
+            tGroup.start(RunSetThread(c, self.__logger,
+                                      RunSetThread.RESET_COMP, ()))
+        tGroup.wait()
+        tGroup.reportErrors(self.__logger, "reset")
 
         try:
             self.waitForStateChange(60)
@@ -388,11 +622,17 @@ class RunSet(object):
 
     def resetLogging(self):
         "Reset logging for all components in the runset"
+        tGroup = RunSetThreadGroup()
         for c in self.__set:
-            c.resetLogging()
+            tGroup.start(RunSetThread(c, self.__logger,
+                                      RunSetThread.RESET_LOGGING, ()))
+        tGroup.wait()
+        tGroup.reportErrors(self.__logger, "resetLogging")
 
     def returnComponents(self, pool):
         badList = self.reset()
+        if len(badList) == 0:
+            self.resetLogging()
 
         # transfer components back to pool
         #
@@ -427,9 +667,17 @@ class RunSet(object):
         if not self.__configured:
             raise ValueError("RunSet #%d is not configured" % self.__id)
 
+        srcSet = []
+        otherSet = []
+
         failStr = None
         for c in self.__set:
-            if c.order() is None:
+            if c.order() is not None:
+                if c.isSource():
+                    srcSet.append(c)
+                else:
+                    otherSet.append(c)
+            else:
                 if not failStr:
                     failStr = 'No order set for ' + str(c)
                 else:
@@ -437,22 +685,31 @@ class RunSet(object):
         if failStr:
             raise ValueError(failStr)
 
-        # start back to front
-        #
-        self.__set.sort(self.sortCmp)
-
         self.__state = 'starting'
-
         self.__runNumber = runNum
-        for c in self.__set:
+
+        # start non-sources in order (back to front)
+        #
+        otherSet.sort(self.sortCmp)
+        for c in otherSet:
             c.startRun(runNum)
 
+        # start sources in parallel
+        #
+        tGroup = RunSetThreadGroup()
+        for c in srcSet:
+            tGroup.start(RunSetThread(c, self.__logger,
+                                      RunSetThread.START_RUN, (runNum, )))
+        tGroup.wait()
+        tGroup.reportErrors(self.__logger, "startRun")
+        
         self.waitForStateChange(30)
 
         self.__state = 'running'
 
         badList = self.listBadState()
         if len(badList) > 0:
+            self.__state = 'error'
             raise ValueError('Could not start runset#%d run#%d components: %s' %
                              (self.__id, runNum, str(badList)))
 
@@ -463,7 +720,10 @@ class RunSet(object):
         """
         setStat = {}
         for c in self.__set:
-            setStat[c] = c.state()
+            try:
+                setStat[c] = c.state()
+            except:
+                setStat[c] = DAQClient.STATE_DEAD
 
         return setStat
 
@@ -472,20 +732,27 @@ class RunSet(object):
         if self.__runNumber is None:
             raise ValueError("RunSet #%d is not running" % self.__id)
 
+        srcSet = []
+        otherSet = []
+
+        for c in self.__set:
+            if c.isSource():
+                srcSet.append(c)
+            else:
+                otherSet.append(c)
+
         # stop from front to back
         #
-        #self.__set.sort(lambda x, y: x.order()-y.order())
-        #self.__set.sort(self.sortCmp)
-        self.__set.sort(lambda x, y: self.sortCmp(y, x))
-
-        waitList = self.__set[:]
+        otherSet.sort(lambda x, y: self.sortCmp(y, x))
 
         for i in range(0, 2):
             if i == 0:
                 self.__state = 'stopping'
+                srcOp = RunSetThread.STOP_RUN
                 timeoutSecs = int(RunSet.TIMEOUT_SECS * .75)
             else:
                 self.__state = 'forcingStop'
+                srcOp = RunSetThread.FORCED_STOP
                 timeoutSecs = int(RunSet.TIMEOUT_SECS * .25)
 
             if i == 1:
@@ -493,7 +760,17 @@ class RunSet(object):
                                     (str(self), len(waitList),
                                      self.listComponentsCommaSep(waitList)))
 
-            for c in waitList:
+            # stop sources in parallel
+            #
+            tGroup = RunSetThreadGroup()
+            for c in srcSet:
+                tGroup.start(RunSetThread(c, self.__logger, srcOp, ()))
+            tGroup.wait()
+            tGroup.reportErrors(self.__logger, self.__state)
+
+            # stop non-sources in order
+            #
+            for c in otherSet:
                 if i == 0:
                     c.stopRun()
                 else:
@@ -501,11 +778,16 @@ class RunSet(object):
 
             connDict = {}
 
+            waitList = srcSet + otherSet
+
             endSecs = time() + timeoutSecs
             while len(waitList) > 0 and time() < endSecs:
                 newList = waitList[:]
                 for c in waitList:
-                    stateStr = c.state()
+                    try:
+                        stateStr = c.state()
+                    except:
+                        stateStr = DAQClient.STATE_DEAD
                     if stateStr != self.__state:
                         newList.remove(c)
                         if c in connDict:
@@ -576,13 +858,13 @@ class RunSet(object):
             raise ValueError("RunSet #%d is not running" % self.__id)
 
         for c in self.__set:
-            if c.isComponent("eventBuilder"):
+            if c.isBuilder():
                 c.prepareSubrun(id)
 
         shThreads = []
         for c in self.__set:
-            if c.isComponent("stringHub"):
-                thread = SubrunThread(c, data)
+            if c.isSource():
+                thread = SubrunThread(c, data, self.__logger)
                 thread.start()
                 shThreads.append(thread)
 
@@ -594,7 +876,7 @@ class RunSet(object):
             for thread in shThreads:
                 if thread.done():
                     if not thread.finished():
-                        badComps.append(thread.comp)
+                        badComps.append(thread.comp())
                     elif latestTime is None or thread.time() > latestTime:
                         latestTime = thread.time()
                     shThreads.remove(thread)
@@ -607,7 +889,7 @@ class RunSet(object):
                              self.listComponentsCommaSep(badComps))
 
         for c in self.__set:
-            if c.isComponent("eventBuilder"):
+            if c.isBuilder():
                 c.commitSubrun(id, repr(latestTime))
 
     def waitForStateChange(self, timeoutSecs=TIMEOUT_SECS):
@@ -622,7 +904,10 @@ class RunSet(object):
         while len(waitList) > 0 and time() < endSecs:
             newList = waitList[:]
             for c in waitList:
-                stateStr = c.state()
+                try:
+                    stateStr = c.state()
+                except:
+                    stateStr = DAQClient.STATE_DEAD
                 if stateStr != self.__state:
                     newList.remove(c)
 
@@ -951,13 +1236,13 @@ class DAQClient(object):
 
         csStr = None
         for cs in connStates:
-            if cs[1] == 'idle':
+            if cs["state"] == 'idle':
                 continue
             if not csStr:
                 csStr = '['
             else:
                 csStr += ', '
-            csStr += '%s:%s' % (cs[0], cs[1])
+            csStr += '%s:%s' % (cs["type"], cs["state"])
 
         if not csStr:
             csStr = ''
@@ -972,6 +1257,10 @@ class DAQClient(object):
     def id(self):
         return self.__id
 
+    def isBuilder(self):
+        "Is this an eventBuilder (or debugging fooBuilder)?"
+        return self.__name.endswith("Builder")
+
     def isComponent(self, name, num=-1):
         "Does this component have the specified name and number?"
         return self.__name == name and (num < 0 or self.__num == num)
@@ -979,7 +1268,8 @@ class DAQClient(object):
     def isSource(self):
         "Is this component a source of data?"
 
-        # XXX This is a hack
+        # XXX Hack for stringHubs which are sources but which confuse
+        #     things by also reading requests from the eventBuilder
         if self.__name.endswith('Hub'):
             return True
 
@@ -988,10 +1278,6 @@ class DAQClient(object):
                 return False
 
         return True
-
-    def list(self):
-        return [ self.__id, self.__name, self.__num, self.__host, self.__port,
-                 self.__mbeanPort, self.state() ]
 
     def logTo(self, logIP, logPort, liveIP, livePort):
         "Send log messages to the specified host and port"
@@ -1011,6 +1297,14 @@ class DAQClient(object):
         self.__log.debug(("Version info: %(filename)s %(revision)s" +
                           " %(date)s %(time)s %(author)s %(release)s" +
                           " %(repo_rev)s") % get_version_info(infoStr))
+
+    def map(self):
+        return { "id" : self.__id,
+                 "compName" : self.__name,
+                 "compNum" : self.__num,
+                 "host" : self.__host,
+                 "rpcPort" : self.__port,
+                 "mbeanPort" : self.__mbeanPort }
 
     def monitor(self):
         "Return the monitoring value"
@@ -1153,13 +1447,22 @@ class DAQPool(object):
             else:
                 rtnVal = c.connect(connMap[c])
 
+        # wait for components to switch status to 'connected'
+        #
         chkList = compList[:]
-        while len(chkList) > 0:
+        for i in range(10):
+            if len(chkList) == 0:
+                break
+
+            errMsg = None
             for c in chkList:
-                state = c.state()
-                if state == 'connected':
+                try:
+                    stateStr = c.state()
+                except:
+                    stateStr = DAQClient.STATE_DEAD
+                if stateStr == 'connected':
                     chkList.remove(c)
-                elif state != 'connecting':
+                elif stateStr != 'connecting':
                     if not errMsg:
                         errMsg = 'Connect failed for %s (%s)' % \
                             (c.fullName(), rtnVal)
@@ -1167,12 +1470,15 @@ class DAQPool(object):
                         errMsg += ', %s (%s)' % (c.fullName(), rtnVal)
             sleep(1)
 
+        if errMsg is None and len(chkList) != 0:
+            errMsg = "Could not connect %s" % str(chkList)
+
         if errMsg:
             raise ValueError(errMsg)
 
         self.setOrder(compList, connMap, logger)
 
-        return None
+        return RunSet(compList, logger)
 
     def add(self, comp):
         "Add the component to the config server's pool"
@@ -1186,9 +1492,9 @@ class DAQPool(object):
 
         for comp in compList:
             for n in comp.connectors():
-                if not connDict.has_key(n.type):
-                    connDict[n.type] = ConnTypeEntry(n.type)
-                connDict[n.type].add(n, comp)
+                if not connDict.has_key(n.name()):
+                    connDict[n.name()] = ConnTypeEntry(n.name())
+                connDict[n.name()].add(n, comp)
 
         connMap = {}
 
@@ -1232,17 +1538,19 @@ class DAQPool(object):
             try:
                 # __buildRunset fills 'compList' with the specified components
                 #
-                self.__buildRunset(nameList, compList, logger)
-                runSet = RunSet(compList, logger)
-                self.__sets.append(runSet)
-                setAdded = True
+                runSet = self.__buildRunset(nameList, compList, logger)
             except Exception:
                 runSet = None
                 raise
+            self.__sets.append(runSet)
+            setAdded = True
         finally:
             if not setAdded:
                 for c in compList:
-                    c.reset()
+                    try:
+                        c.reset()
+                    except:
+                        pass
                     self.add(c)
                 runSet = None
 
@@ -1331,7 +1639,8 @@ class DAQPool(object):
         # walk through detector, setting order number for each component
         #
         level = 1
-        while len(allComps) > 0 and len(curLevel) > 0:
+        while len(allComps) > 0 and len(curLevel) > 0 and \
+                level < len(compList) + 2:
             tmp = {}
             for c in curLevel:
 
@@ -1350,7 +1659,9 @@ class DAQPool(object):
                             str(c)
                 else:
                     for m in connMap[c]:
-                        tmp[m.comp] = 1
+                        # XXX hack -- ignore source->eventBuilder links
+                        if not c.isSource() or not m.comp.isBuilder():
+                            tmp[m.comp] = 1
 
             curLevel = tmp.keys()
             level += 1
@@ -1394,6 +1705,10 @@ class CnCServer(DAQPool):
         if (logIP is not None and logPort is not None) or \
                 (liveIP is not None and livePort is not None):
             self.__log.openLog(logIP, logPort, liveIP, livePort)
+            self.__logServer = None
+        else:
+            self.__logServer = LogSocketServer(8081, "CnCServer", None, True)
+            self.__logServer.startServing()
 
         if testOnly:
             self.__server = None
@@ -1415,12 +1730,11 @@ class CnCServer(DAQPool):
             self.__server.register_function(self.rpc_get_num_components)
             self.__server.register_function(self.rpc_list_components)
             self.__server.register_function(self.rpc_log_to)
-            self.__server.register_function(self.rpc_log_to_default)
             self.__server.register_function(self.rpc_num_sets)
             self.__server.register_function(self.rpc_ping)
             self.__server.register_function(self.rpc_register_component)
-            self.__server.register_function(self.rpc_runset_break)
             self.__server.register_function(self.rpc_runset_bothlog_to)
+            self.__server.register_function(self.rpc_runset_break)
             self.__server.register_function(self.rpc_runset_configure)
             self.__server.register_function(self.rpc_runset_events)
             self.__server.register_function(self.rpc_runset_list)
@@ -1430,10 +1744,8 @@ class CnCServer(DAQPool):
             self.__server.register_function(self.rpc_runset_log_to_default)
             self.__server.register_function(self.rpc_runset_make)
             self.__server.register_function(self.rpc_runset_start_run)
-            self.__server.register_function(self.rpc_runset_status)
             self.__server.register_function(self.rpc_runset_stop_run)
             self.__server.register_function(self.rpc_runset_subrun)
-            self.__server.register_function(self.rpc_show_components)
 
     def __getHostAddress(self, name):
         "Only return IPv4 addresses -- IPv6 confuses some stuff"
@@ -1449,6 +1761,9 @@ class CnCServer(DAQPool):
     def closeServer(self):
         self.__server.server_close()
         self.__log.closeFinal()
+        if self.__logServer is not None:
+            self.__logServer.stopServing()
+            self.__logServer = None
         for c in self.components():
             c.close()
 
@@ -1494,12 +1809,14 @@ class CnCServer(DAQPool):
         "list unused components"
         s = []
         for c in self.components():
+            cDict = c.map()
             try:
                 state = c.state()
             except Exception:
                 state = DAQClient.STATE_DEAD
 
-            s.append(c.list())
+            cDict["state"] = state
+            s.append(cDict)
 
         return s
 
@@ -1516,11 +1833,6 @@ class CnCServer(DAQPool):
         self.__log.openLog(logHost, logPort, liveHost, livePort)
         return 1
 
-    def rpc_log_to_default(self):
-        "reset logging to the default logger"
-        self.__log.resetLog()
-        return 1
-
     def rpc_num_sets(self):
         "show existing run sets"
         return self.numSets()
@@ -1532,8 +1844,41 @@ class CnCServer(DAQPool):
     def rpc_register_component(self, name, num, host, port, mbeanPort,
                                connArray):
         "register a component with the server"
+
+        if type(name) != str or len(name) == 0:
+            raise CnCServerException("Bad component name (should be a string)")
+        if type(num) != int:
+            raise CnCServerException("Bad component number" +
+                                     " (should be an integer)")
+
         connectors = []
-        for d in connArray:
+        for n in range(len(connArray)):
+            d = connArray[n]
+            if type(d) != tuple and type(d) != list:
+                errMsg = "Bad %s#%d connector#%d \"%s\"%s" % \
+                    (name, num, n, str(d), str(type(d)))
+                self.__log.info(errMsg)
+                raise CnCServerException(errMsg)
+            if len(d) != 3:
+                errMsg = ("Bad %s#%d connector#%d %s (should have 3" +
+                          " elements)") % (name, num, n, str(d))
+                self.__log.info(errMsg)
+                raise CnCServerException(errMsg)
+            if type(d[0]) != str or len(d[0]) == 0:
+                errMsg = ("Bad %s#%d connector#%d %s (first element should" +
+                          " be name)") % (name, num, n, str(d))
+                self.__log.info(errMsg)
+                raise CnCServerException(errMsg)
+            if type(d[1]) != str or len(d[1]) != 1:
+                errMsg = ("Bad %s#%d connector#%d %s (second element should" +
+                          " be descrChar)") % (name, num, n, str(d))
+                self.__log.info(errMsg)
+                raise CnCServerException(errMsg)
+            if type(d[2]) != int:
+                errMsg = ("Bad %s#%d connector#%d %s (third element should" +
+                          " be int)") % (name, num, n, str(d))
+                self.__log.info(errMsg)
+                raise CnCServerException(errMsg)
             connectors.append(Connector(d[0], d[1], d[2]))
 
         client = self.createClient(name, num, host, port, mbeanPort,
@@ -1546,22 +1891,32 @@ class CnCServer(DAQPool):
 
         logPort = self.__log.logPort()
         if logPort is None:
-            logPort = 0
+            if self.__logServer is not None:
+                logPort = self.__logServer.port()
+            else:
+                logIP = ""
+                logPort = 0
 
         liveIP = self.__getHostAddress(self.__log.liveHost())
 
         livePort = self.__log.livePort()
         if livePort is None:
+            liveIP = ""
             livePort = 0
 
-        return [client.id(), logIP, logPort, liveIP, livePort, self.__id]
+        return { "id" : client.id(),
+                 "logIP" : logIP,
+                 "logPort" : logPort,
+                 "liveIP" : liveIP,
+                 "livePort" : livePort,
+                 "serverId" : self.__id }
 
     def rpc_runset_bothlog_to(self, id, liveIP, livePort, pdaqIP, pdaqList):
         "configure I3Live logging for the specified runset"
         runSet = self.findRunset(id)
 
         if not runSet:
-            raise ValueError, 'Could not find runset#%d' % id
+            raise ValueError('Could not find runset#%d' % id)
 
         leftOver = runSet.configureBothLogging(liveIP, livePort,
                                                pdaqIP, pdaqList)
@@ -1624,14 +1979,25 @@ class CnCServer(DAQPool):
         if not runSet:
             raise ValueError('Could not find runset#%d' % id)
 
-        return runSet.list()
+        slst = []
+        for c in runSet.components():
+            cDict = c.map()
+            try:
+                state = c.state()
+            except Exception:
+                state = DAQClient.STATE_DEAD
+            cDict["state"] = state
+
+            slst.append(cDict)
+
+        return slst
 
     def rpc_runset_livelog_to(self, id, logIP, logPort):
         "configure I3Live logging for the specified runset"
         runSet = self.findRunset(id)
 
         if not runSet:
-            raise ValueError, 'Could not find runset#%d' % id
+            raise ValueError('Could not find runset#%d' % id)
 
         runSet.configureLiveLogging(logIP, logPort)
 
@@ -1695,19 +2061,6 @@ class CnCServer(DAQPool):
 
         return "OK"
 
-    def rpc_runset_status(self, id):
-        "get run status for the specified runset"
-        runSet = self.findRunset(id)
-
-        if not runSet:
-            raise ValueError('Could not find runset#%d' % id)
-
-        setStat = runSet.status()
-        for c in setStat.keys():
-            self.__log.info(str(c) + ' ' + str(c.state()))
-
-        return "OK"
-
     def rpc_runset_stop_run(self, id):
         "stop a run with the specified runset"
         runSet = self.findRunset(id)
@@ -1732,18 +2085,6 @@ class CnCServer(DAQPool):
         runSet.subrun(subrunId, subrunData)
 
         return "OK"
-
-    def rpc_show_components(self):
-        "show unused components and their current states"
-        s = []
-        for c in self.components():
-            try:
-                state = c.state()
-            except Exception:
-                state = DAQClient.STATE_DEAD
-
-            s.append(str(c) + ' ' + str(state))
-        return s
 
     def run(self):
         "Server loop"

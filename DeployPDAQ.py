@@ -5,37 +5,37 @@
 #
 # Deploy valid pDAQ cluster configurations to any cluster
 
-import optparse, sys
-from ClusterConfig import *
+import optparse, os, sys
+
+from ClusterConfig import ClusterConfigException
+from DAQConfig import DAQConfig, DAQConfigNotFound
 from ParallelShell import ParallelShell
-from os import environ, getcwd, listdir, system
-from os.path import abspath, isdir, join, split
+
+# pdaq subdirectories to be deployed
+SUBDIRS = ("target", "cluster-config", "config", "dash", "src")
+
+# Defaults for a few args
+NICE_ADJ_DEFAULT = 19
+EXPRESS_DEFAULT  = False
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if environ.has_key("PDAQ_HOME"):
-    metaDir = environ["PDAQ_HOME"]
+if os.environ.has_key("PDAQ_HOME"):
+    metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
 # add meta-project python dir to Python library search path
-sys.path.append(join(metaDir, 'src', 'main', 'python'))
+sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 4107 2009-04-27 18:10:01Z dglo $"
-
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if environ.has_key("PDAQ_HOME"):
-    metaDir = environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
+SVN_ID = "$Id: DeployPDAQ.py 5154 2010-09-02 20:09:39Z ksb $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
     retHash = {}
-    for node in config.nodes:
-        retHash[str(node.hostName)] = 1
+    for node in config.nodes():
+        retHash[str(node.hostName())] = 1
     return retHash.keys()
 
 def getHubType(compID):
@@ -49,6 +49,8 @@ def main():
                "%(release)s %(repo_rev)s" % get_version_info(SVN_ID)
     usage = "%prog [options]\nversion: " + ver_info
     p = optparse.OptionParser(usage=usage, version=ver_info)
+    p.add_option("-C", "--cluster-desc", action="store", type="string", dest="clusterDesc",
+                 help="Cluster description name")
     p.add_option("-c", "--config-name",  action="store", type="string", dest="configName",
                  help="REQUIRED: Configuration name")
     p.add_option("", "--delete",         action="store_true",           dest="delete",
@@ -66,13 +68,17 @@ def main():
     p.add_option("-q", "--quiet",        action="store_true",           dest="quiet",
                  help="Run quietly")
     p.add_option("-s", "--serial",       action="store_true",           dest="doSerial",
-                 help="Run rsyncs serially (overrides parallel)")
+                 help="Run rsyncs serially (overrides parallel and unsets timeout)")
     p.add_option("-t", "--timeout",      action="store", type="int",    dest="timeout",
                  help="Number of seconds before rsync is terminated")
     p.add_option("-v", "--verbose",      action="store_true",           dest="verbose",
                  help="Be chatty")
     p.add_option("", "--undeploy",       action="store_true",           dest="undeploy",
                  help="Remove entire ~pdaq/.m2 and ~pdaq/pDAQ_current dirs on remote nodes - use with caution!")
+    p.add_option("", "--nice-adj",       action="store", type="int",    dest="niceAdj",
+                 help="Set nice adjustment for remote rsyncs [default=%default]")
+    p.add_option("-E", "--express",      action="store_true",          dest="express",
+                 help="Express rsyncs, unsets and overrides any/all nice adjustments")
     p.set_defaults(configName = None,
                    doParallel = True,
                    doSerial   = False,
@@ -82,7 +88,10 @@ def main():
                    dryRun     = False,
                    undeploy   = False,
                    deepDryRun = False,
-                   timeout    = 60)
+                   timeout    = 300,
+                   niceAdj    = NICE_ADJ_DEFAULT,
+                   express    = EXPRESS_DEFAULT,
+                   clusterDesc = None)
     opt, args = p.parse_args()
 
     ## Work through options implications ##
@@ -92,8 +101,10 @@ def main():
         opt.verbose = True
         opt.quiet = False
 
-    # Serial overrides parallel
-    if opt.doSerial: opt.doParallel = False
+    # Serial overrides parallel and unsets timout
+    if opt.doSerial:
+        opt.doParallel = False
+        opt.timeout = None
 
     # dry-run implies we want to see what is happening
     if opt.dryRun:   opt.quiet = False
@@ -104,33 +115,45 @@ def main():
     if opt.verbose:               traceLevel = 1
     if opt.quiet and opt.verbose: traceLevel = 0
 
-    rsyncCmdStub = "nice rsync -azLC%s%s" % (opt.delete and ' --delete' or '',
-                                       opt.deepDryRun and ' --dry-run' or '')
+    # How often to report count of processes waiting to finish
+    monitorIval = None
+    if traceLevel >= 0 and opt.timeout:
+        monitorIval = max(opt.timeout * 0.01, 2)
 
-    # The 'SRC' arg for the rsync command.  The sh "{}" syntax is used
-    # here so that only one rsync is required for each node. (Running
-    # multiple rsync's in parallel appeared to give rise to race
-    # conditions and errors.)
-    rsyncDeploySrc = abspath(join(metaDir, '{target,cluster-config,config,dash,src}'))
+    if opt.doList:
+        DAQConfig.showList(None, None)
+        raise SystemExit
 
-    targetDir        = abspath(join(metaDir, 'target'))
+    if not opt.configName:
+        print >>sys.stderr, 'No configuration specified'
+        p.print_help()
+        raise SystemExit
 
     try:
-        config = ClusterConfig(metaDir, opt.configName, opt.doList, False)
-    except ConfigNotSpecifiedException:
-        print >>sys.stderr, 'No configuration specified'
+        config = DAQConfig.getClusterConfiguration(opt.configName, False,
+                                                   clusterDesc=opt.clusterDesc)
+    except DAQConfigNotFound:
+        print >>sys.stderr, 'Configuration "%s" not found' % opt.configName
         p.print_help()
         raise SystemExit
 
     if traceLevel >= 0:
         print "CONFIG: %s" % config.configName
+
+        nodeList = config.nodes()
+        nodeList.sort()
+
         print "NODES:"
-        for node in config.nodes:
-            print "  %s(%s)" % (node.hostName, node.locName),
-            for comp in node.comps:
-                print "%s:%d" % (comp.compName, comp.compID),
-                if comp.compName == "StringHub":
-                    print "[%s]" % getHubType(comp.compID)
+        for node in nodeList:
+            print "  %s(%s)" % (node.hostName(), node.locName()),
+
+            compList = node.components()
+            compList.sort()
+
+            for comp in compList:
+                print "%s#%d" % (comp.name(), comp.id()),
+                if comp.isHub():
+                    print "[%s]" % getHubType(comp.id()),
                 print " ",
             print
 
@@ -140,44 +163,68 @@ def main():
         if traceLevel >= 0:
             print "VERSION: %s" % ver
 
-    m2  = join(environ["HOME"], '.m2')
-
     parallel = ParallelShell(parallel=opt.doParallel, dryRun=opt.dryRun,
                              verbose=(traceLevel > 0 or opt.dryRun),
                              trace=(traceLevel > 0), timeout=opt.timeout)
 
-    done = False
+    deploy(config, parallel, os.environ["HOME"], metaDir, SUBDIRS, opt.delete,
+           opt.dryRun, opt.deepDryRun, opt.undeploy, traceLevel, monitorIval,
+           opt.niceAdj, opt.express)
+
+def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
+           deepDryRun, undeploy, traceLevel, monitorIval=None,
+           niceAdj=NICE_ADJ_DEFAULT, express=EXPRESS_DEFAULT):
+    m2  = os.path.join(homeDir, '.m2')
+
+    # build stub of rsync command
+    if express:
+        rsyncCmdStub = "rsync"
+    else:
+        rsyncCmdStub = 'nice rsync --rsync-path "nice -n %d rsync"' % (niceAdj)
+
+    rsyncCmdStub += " -azLC%s%s" % (delete and ' --delete' or '',
+                                    deepDryRun and ' --dry-run' or '')
+    
+    # The 'SRC' arg for the rsync command.  The sh "{}" syntax is used
+    # here so that only one rsync is required for each node. (Running
+    # multiple rsync's in parallel appeared to give rise to race
+    # conditions and errors.)
+    rsyncDeploySrc = \
+        os.path.abspath(os.path.join(pdaqDir, "{" + ",".join(subdirs) + "}"))
 
     rsyncNodes = getUniqueHostNames(config)
 
+    # Check if targetDir (the result of a build) is present
+    targetDir        = os.path.abspath(os.path.join(pdaqDir, 'target'))
+    if not undeploy and not os.path.isdir(targetDir):
+        print >>sys.stderr, \
+            "ERROR: Target dir (%s) does not exist." % (targetDir)
+        print >>sys.stderr, \
+            "ERROR: Did you run 'mvn clean install assembly:assembly'?"
+        raise SystemExit
+
+    done = False
     for nodeName in rsyncNodes:
 
-        # Check if targetDir (the result of a build) is present
-        if not opt.undeploy and not isdir(targetDir):
-            print >>sys.stderr, "ERROR: Target dir (%s) does not exist." % (targetDir)
-            print >>sys.stderr, "ERROR: Did you run 'mvn clean install assembly:assembly'?"
-            raise SystemExit
-        
         # Ignore localhost - already "deployed"
         if nodeName == "localhost": continue
         if not done and traceLevel >= 0:
             print "COMMANDS:"
             done = True
 
-        if opt.undeploy:
-            cmd = 'ssh %s "\\rm -rf %s %s"' % (nodeName, m2, metaDir)
-            parallel.add(cmd)
-            continue
-
-        rsynccmd = "%s %s %s:%s" % (rsyncCmdStub, rsyncDeploySrc, nodeName, metaDir)
-        if traceLevel >= 0: print "  "+rsynccmd
-        parallel.add(rsynccmd)
+        if undeploy:
+            cmd = 'ssh %s "\\rm -rf %s %s"' % (nodeName, m2, pdaqDir)
+        else:
+            cmd = "%s %s %s:%s" % (rsyncCmdStub, rsyncDeploySrc, nodeName,
+                                   pdaqDir)
+        if traceLevel >= 0: print "  "+cmd
+        parallel.add(cmd)
 
     parallel.start()
-    if opt.doParallel:
-        parallel.wait()
+    if parallel.isParallel():
+        parallel.wait(monitorIval)
 
-    if traceLevel <= 0 and not opt.dryRun:
+    if traceLevel <= 0 and not dryRun:
         needSeparator = True
         rtnCodes = parallel.getReturnCodes()
         for i in range(len(rtnCodes)):

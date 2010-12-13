@@ -88,11 +88,12 @@ class MockCnCRPC(object):
         newSet = []
         for r in required:
             sep = r.find('#')
-            if sep < 0:
-                raise Exception('Found bad component "%s"' % r)
-
-            name = r[:sep]
-            id = int(r[sep+1:])
+            if sep > 0:
+                name = r[:sep]
+                id = int(r[sep+1:])
+            else:
+                name = r
+                id = 0
 
             found = False
             for c in self.compList:
@@ -116,29 +117,42 @@ class MockCnCRPC(object):
     def _doSubrun(self, runSetId, subRunId, domList):
         pass
 
+    def __listComponents(self):
+        if self.compList is None:
+            raise Exception('List of components has not been set')
+
+        showList = []
+        for c in self.compList:
+            showList.append({ "id" : c[0],
+                              "compName" : c[1],
+                              "compNum" : c[2],
+                              "host" : c[3],
+                              "rpcPort" : c[4],
+                              "mbeanPort" : c[5],
+                              "state" : "xxx"})
+        return showList
+
     def __listRunset(self, id):
         if self.runsetId is None:
             return ()
         if id != self.runsetId:
             raise Exception('Expected runset#%d, not #%d' % (self.runsetId, id))
-        return self.runsetComps
+
+        showList = []
+        for c in self.runsetComps:
+            showList.append({ "id" : c[0],
+                              "compName" : c[1],
+                              "compNum" : c[2],
+                              "host" : c[3],
+                              "rpcPort" : c[4],
+                              "mbeanPort" : c[5],
+                              "state" : "xxx"})
+        return showList
 
     def __listRunsetIDs(self):
         if self.runsetId is None:
             return []
         return [self.runsetId, ]
-
-    def __showComponents(self):
-        if self.compList is None:
-            raise Exception('List of components has not been set')
-
-        showList = []
-
-        for c in self.compList:
-            showList.append('ID#%d %s#%d at %s:%d' %
-                            (c[0], c[1], c[2], c[3], c[4]))
-
-        return showList
 
     def getRunsetLoggers(self):
         return self.runsetLoggers
@@ -153,8 +167,8 @@ class MockCnCRPC(object):
         self.RSFlashFlag = False
 
     def rpccall(self, name, *args):
-        if name == 'rpc_show_components':
-            return self.__showComponents()
+        if name == 'rpc_list_components':
+            return self.__listComponents()
         if name == 'rpc_log_to':
             self.LogToFlag = True
             return
@@ -326,7 +340,7 @@ class TestDAQRun(unittest.TestCase):
 
         setId = 1
         runNum = 654
-        configName = 'sim5str'
+        configName = 'simpleConfig'
 
         if LOG_INFO:
             catchall.addExpectedText('Loaded global configuration "%s"' %
@@ -432,7 +446,7 @@ class TestDAQRun(unittest.TestCase):
             appender.addExpectedExact('RPC Call stats:\n%s' % cnc.showStats())
         appender.addExpectedExact('Run terminated SUCCESSFULLY.')
         if LOG_INFO:
-            appender.addExpectedExact(('Queueing data for SPADE (spadeDir=%s,' +
+            appender.addExpectedExact(('Queued data for SPADE (spadeDir=%s,' +
                                        ' logDir=%s, runNum=%s)...') %
                                       (TestDAQRun.SPADE_DIR, TestDAQRun.LOG_DIR,
                                        runNum))
@@ -517,46 +531,6 @@ class TestDAQRun(unittest.TestCase):
 
         os.rmdir(TestDAQRun.LOG_DIR)
         TestDAQRun.LOG_DIR = None
-
-    def testParseCompName(self):
-        lst = (('ID#1 foo#0 at localhost:12345 ',
-                (1, 'foo', 0, 'localhost', 12345)),
-               ('ID#22 bar#11 at 192.168.1.10:54321',
-                (22, 'bar', 11, '192.168.1.10', 54321)),
-               ('bad', ()))
-
-        for l in lst:
-            t = DAQRun.parseComponentName(l[0])
-            self.assertEqual(len(l[1]), len(t),
-                             'Expected %d-element tuple, but got %d elements' %
-                             (len(l[1]), len(t)))
-            for n in range(0, len(t)):
-                self.assertEquals(l[1][n], t[n],
-                                  'Expected element#%d to be "%s", not "%s"' %
-                                  (n, str(l[1][n]), str(t[n])))
-
-    def testGetNameList(self):
-        lst = (('ID#1 foo#0 at localhost:12345 ',
-                (1, 'foo', 0, 'localhost', 12345)),
-               ('ID#22 bar#11 at 192.168.1.10:54321',
-                (22, 'bar', 11, '192.168.1.10', 54321)),
-               ('bad', ()))
-
-        names = []
-        vals = []
-        for l in lst:
-            names.append(l[0])
-            if len(l[1]) > 0:
-                vals.append('%s#%d' % (l[1][1], l[1][2]))
-
-        nlst = list(DAQRun.getNameList(names))
-        self.assertEqual(len(vals), len(nlst),
-                         'Expected %d-element list, but got %d elements' %
-                         (len(vals), len(nlst)))
-        for n in range(0, len(nlst)):
-            self.assertEquals(vals[n], nlst[n],
-                              'Expected element#%d to be "%s", not "%s"' %
-                              (n, str(vals[n]), str(nlst[n])))
 
     def testFindMissing(self):
         required = ['abc#1', 'def#2', 'ghi#3']
@@ -935,11 +909,11 @@ class TestDAQRun(unittest.TestCase):
 
         dr.fill_component_dictionaries(cnc)
 
-        expMsg = ('\t%d physics events, %d moni events,' +
+        expMsg = ('\t%d physics events.*, %d moni events,' +
                   ' %d SN events, %d tcals') % \
                   (numEvts, numMoni, numSN, numTCal)
 
-        logger.addExpectedExact(expMsg)
+        logger.addExpectedRegexp(expMsg)
 
         dr.rateTimer.trigger()
 
@@ -1012,9 +986,9 @@ class TestDAQRun(unittest.TestCase):
             time.sleep(0.1)
             numTries += 1
 
-        logger.addExpectedExact(('\t%d physics events, %d moni' +
-                                 ' events, %d SN events, %d tcals') %
-                                (numEvts, numMoni, numSN, numTCal))
+        logger.addExpectedRegexp(('\t%d physics events.*, %d moni' +
+                                  ' events, %d SN events, %d tcals') %
+                                 (numEvts, numMoni, numSN, numTCal))
 
         rtnVal = dr.check_timers()
         self.failUnless(rtnVal, 'Expected call to succeed')
@@ -1338,7 +1312,6 @@ class TestDAQRun(unittest.TestCase):
                  (6, 'stringHub', 1003, 'localhost', 113, 213),
                  (8, 'stringHub', 1004, 'localhost', 114, 214),
                  (10, 'stringHub', 1005, 'localhost', 115, 215),
-                 (12, 'stringHub', 1201, 'localhost', 116, 216),
                  (14, 'inIceTrigger', 0, 'localhost', 117, 217),
                  (16, 'globalTrigger', 0, 'localhost', 118, 218),
                  (ebID, 'eventBuilder', 0, 'localhost', 119, 219),
@@ -1367,7 +1340,6 @@ class TestDAQRun(unittest.TestCase):
                  (6, 'stringHub', 1003, 'localhost', 113, 213),
                  (8, 'stringHub', 1004, 'localhost', 114, 214),
                  (10, 'stringHub', 1005, 'localhost', 115, 215),
-                 (12, 'stringHub', 1201, 'localhost', 116, 216),
                  (14, 'inIceTrigger', 0, 'localhost', 117, 217),
                  (16, 'globalTrigger', 0, 'localhost', 118, 218),
                  (ebID, 'eventBuilder', 0, 'localhost', 119, 219),

@@ -8,9 +8,10 @@
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started December, 2006
 
+import datetime, threading
 from DAQRPC import RPCClient
 from IntervalTimer import IntervalTimer
-import datetime, threading
+from DAQMoni import unFixValue
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -76,17 +77,33 @@ class ValueWatcher(object):
 
         return newValue == oldValue
 
+    def __typeCategory(self, val):
+        vType = type(val)
+        if vType == tuple:
+            return list
+        if vType == long:
+            return int
+        return vType
+
     def check(self, newValue):
         if self.__prevValue is None:
             if type(newValue) == list:
                 self.__prevValue = newValue[:]
             else:
                 self.__prevValue = newValue
-        elif type(newValue) != type(self.__prevValue):
-            raise Exception('Previous value for %s was %s, new value is %s' %
+            return True
+
+        newType = self.__typeCategory(newValue)
+        prevType = self.__typeCategory(self.__prevValue)
+
+        if newType != prevType:
+            raise Exception(("Previous type for %s was %s (%s)," +
+                             " new type is %s (%s)") %
                             (str(self), str(type(self.__prevValue)),
-                             str(type(newValue))))
-        elif type(newValue) != list:
+                             str(self.__prevValue),
+                             str(type(newValue)), str(newValue)))
+
+        if newType != list:
             if self.__compare(self.__prevValue, newValue):
                 self.__unchanged += 1
                 if self.__unchanged == ValueWatcher.NUM_UNCHANGED:
@@ -141,8 +158,8 @@ class WatchData(object):
     def __checkValues(self, watchList):
         unhealthy = []
         if len(watchList) == 1:
-            val = self.__client.mbean.get(watchList[0].beanName,
-                                          watchList[0].fieldName)
+            val = unFixValue(self.__client.mbean.get(watchList[0].beanName,
+                                                     watchList[0].fieldName))
             if not watchList[0].check(val):
                 unhealthy.append(watchList[0].unhealthyString(val))
         else:
@@ -153,7 +170,7 @@ class WatchData(object):
             valMap = self.__client.mbean.getAttributes(watchList[0].beanName,
                                                        fldList)
             for i in range(0, len(fldList)):
-                val = valMap[fldList[i]]
+                val = unFixValue(valMap[fldList[i]])
                 if not watchList[i].check(val):
                     unhealthy.append(watchList[i].unhealthyString(val))
 
@@ -399,32 +416,37 @@ class RunWatchdog(IntervalTimer):
     __appendError = staticmethod(__appendError)
 
     def __checkComp(self, comp, starved, stagnant, threshold):
-        isProblem = False
+        isOK = True
         try:
             badList = comp.checkList(comp.inputFields)
             if badList is not None:
                 starved += badList
-                isProblem = True
+                isOK = False
         except Exception:
             self.__log.error(str(comp) + ' inputs: ' + exc_string())
+            isOK = False
 
-        if not isProblem:
+        if isOK:
             try:
                 badList = comp.checkList(comp.outputFields)
                 if badList is not None:
                     stagnant += badList
-                    isProblem = True
+                    isOK = False
             except Exception:
                 self.__log.error(str(comp) + ' outputs: ' + exc_string())
+                isOK = False
 
-            if not isProblem:
+            if isOK:
                 try:
                     badList = comp.checkList(comp.thresholdFields)
                     if badList is not None:
                         threshold += badList
-                        isProblem = True
+                        isOK = False
                 except Exception:
                     self.__log.error(str(comp) + ' thresholds: ' + exc_string())
+                    isOK = False
+
+        return isOK
 
     def __contains(self, comps, compName):
         for c in comps.values():
@@ -496,12 +518,16 @@ class RunWatchdog(IntervalTimer):
         stagnant = []
         threshold = []
 
+        healthy = True
+
         # checks can raise exception if far end is dead
         for comp in self.__stringHubs:
-            self.__checkComp(comp, starved, stagnant, threshold)
+            if not self.__checkComp(comp, starved, stagnant, threshold):
+                healthy = False
 
         for comp in self.__soloComps:
-            self.__checkComp(comp, starved, stagnant, threshold)
+            if not self.__checkComp(comp, starved, stagnant, threshold):
+                healthy = False
 
         errMsg = None
 
@@ -517,7 +543,6 @@ class RunWatchdog(IntervalTimer):
             errMsg = RunWatchdog.__appendError(errMsg, 'threshold',
                                                self.__joinAll(threshold))
 
-        healthy = True
         if errMsg is not None:
             self.__log.error(errMsg)
             healthy = False

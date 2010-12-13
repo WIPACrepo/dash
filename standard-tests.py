@@ -15,21 +15,6 @@ class RunDataException(Exception): pass
 class RunData(object):
     "Description of a pDAQ run"
 
-    # NOTE: this is a simple mapping of run configuration names to
-    #       the corresponding cluster configuration names.  The test runs
-    #       are described in RUN_LIST below
-    #
-    CFG2CLUSTER = {
-        "spts64-dirtydozen-hlc-006" : "spts64-real-21-29",
-        "sim4strAMANDA-25Hz" : "spts64-sim4strAMANDA",
-        "sim18str-noise25Hz-002" : "spts64-sim18str",
-        "sim22str-with-phys-trig-001" : "spts64-simIC22str",
-        "sim22strAMANDA-doublespsfeb12rates" : "spts64-simIC22strAMANDA",
-        "sim40str-25Hz-reduced-trigger" : "spts64-simIC40str",
-        "sim60str-mbt23" : "spts64-simIC60str",
-        "sim80str-25Hz" : "spts64-simIC80str",
-        }
-
     def __init__(self, runCfg, duration, numRuns=1, flashName=None,
                  flashTimes=None, flashPause=60):
         self.__runCfg = runCfg
@@ -39,11 +24,7 @@ class RunData(object):
         self.__flashTimes = flashTimes
         self.__flashPause = flashPause
 
-        if not RunData.CFG2CLUSTER.has_key(self.__runCfg):
-            raise RunDataException("Unknown cluster config for '%s'" %
-                                   self.__runCfg)
-
-    def clusterConfig(self): return RunData.CFG2CLUSTER[self.__runCfg]
+    def clusterConfig(self): return self.__runCfg
 
     def run(self, liveRun, quick):
         if quick and self.__duration > 1200:
@@ -51,25 +32,25 @@ class RunData(object):
         else:
             duration = self.__duration
 
-        liveRun.run(RunData.CFG2CLUSTER[self.__runCfg], self.__runCfg,
-                    duration, self.__numRuns, self.__flashName,
-                    self.__flashTimes, self.__flashPause, False)
+        liveRun.run(self.clusterConfig(), self.__runCfg, duration,
+                    self.__numRuns, self.__flashName, self.__flashTimes,
+                    self.__flashPause, False)
 
 # configurations to run
 #
 RUN_LIST = (RunData("spts64-dirtydozen-hlc-006", FOUR_HR),
             RunData("spts64-dirtydozen-hlc-006", 0, 1,
                     "flash-21", (60, 45, 120)),
-            RunData("sim4strAMANDA-25Hz", 300),
             ###RunData("sim18str-noise25Hz-002", FOUR_HR),
             ###RunData("sim18str-noise25Hz-002", EIGHT_HR),
             ###RunData("sim22str-with-phys-trig-001", FOUR_HR),
             ###RunData("sim22str-with-phys-trig-001", EIGHT_HR),
-            ###RunData("sim22strAMANDA-doublespsfeb12rates", FOUR_HR),
             #RunData("sim40str-25Hz-reduced-trigger", FOUR_HR),
             #RunData("sim40str-25Hz-reduced-trigger", EIGHT_HR),
-            RunData("sim60str-mbt23", FOUR_HR),
-            RunData("sim60str-mbt23", EIGHT_HR),
+            #RunData("sim60str-mbt23", FOUR_HR),
+            #RunData("sim60str-mbt23", EIGHT_HR),
+            RunData("sim60str-mbt-vt-01", FOUR_HR),
+            RunData("sim60str-mbt-vt-01", EIGHT_HR),
             ###RunData("sim80str-25Hz", FOUR_HR),
             ###RunData("sim80str-25Hz", EIGHT_HR),
             )
@@ -209,14 +190,21 @@ if __name__ == "__main__":
                   help="Reduce 4/8 hour tests to 2/4 minute tests")
     op.add_option("-r", "--run", action="store_true", dest="run",
                   help="Run the standard tests")
+    op.add_option("-S", "--showCheck", action="store_true", dest="showChk",
+                  help="Show the 'livecmd check' commands")
     op.add_option("-s", "--showCommands", action="store_true", dest="showCmd",
                   help="Show the commands used to deploy and/or run")
+    op.add_option("-X", "--showCheckOutput", action="store_true",
+                  dest="showChkOutput",
+                  help="Show the output of the 'livecmd check' commands")
     op.add_option("-x", "--showCommandOutput", action="store_true",
                   dest="showCmdOutput",
                   help="Show the output of the deploy and/or run commands")
     op.set_defaults(deploy = False,
                     quick = False,
                     run = False,
+                    showChk = False,
+                    showChkOutput = False,
                     showCmd = False,
                     showCmdOutput = False)
 
@@ -252,12 +240,12 @@ if __name__ == "__main__":
             deploy.deploy(cfg)
         deploy.showHome()
     if opt.run:
-        liveRun = LiveRun(DatabaseType.guessType(), opt.showCmd,
-                          opt.showCmdOutput, False, False)
+        liveRun = LiveRun(opt.showCmd, opt.showCmdOutput, opt.showChk,
+                          opt.showChkOutput)
 
         # always kill running components in case they're from a previous release
         #
-        liveRun.unlaunch()
+        liveRun.killComponents()
 
         for data in RUN_LIST:
             data.run(liveRun, opt.quick)

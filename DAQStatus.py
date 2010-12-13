@@ -17,16 +17,16 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQStatus.py 4024 2009-04-03 21:03:29Z dglo $"
+SVN_ID  = "$Id: DAQStatus.py 4771 2009-11-30 18:36:15Z dglo $"
 
 LINE_LENGTH = 78
 
 def cmpComp(x, y):
-    c = cmp(x[6], y[6])
+    c = cmp(x["state"], y["state"])
     if c == 0:
-        c = cmp(x[1], y[1])
+        c = cmp(x["compName"], y["compName"])
         if c == 0:
-            c = cmp(x[2], y[2])
+            c = cmp(x["compNum"], y["compNum"])
 
     return c
 
@@ -103,16 +103,16 @@ def listTerse(compList, indent=''):
 
     numList = []
     for c in compList:
-        compChanged = cmp(prevComp, c[1]) != 0
-        stateChanged = cmp(prevState, c[6]) != 0
+        compChanged = cmp(prevComp, c["compName"]) != 0
+        stateChanged = cmp(prevState, c["state"]) != 0
         if compChanged or stateChanged:
             dumpComp(prevComp, numList, indent)
-            prevComp = c[1]
+            prevComp = c["compName"]
             numList = []
         if stateChanged:
-            prevState = c[6]
+            prevState = c["state"]
             print indent + prevState
-        numList.append(c[2])
+        numList.append(c["compNum"])
     dumpComp(prevComp, numList, indent)
 
 def listVerbose(compList, indent=''):
@@ -120,7 +120,8 @@ def listVerbose(compList, indent=''):
 
     for c in compList:
         print '%s  #%d %s#%d at %s:%d M#%d %s' % \
-            (indent, c[0], c[1], c[2], c[3], c[4], c[5], c[6])
+            (indent, c["id"], c["compName"], c["compNum"], c["host"],
+             c["rpcPort"], c["mbeanPort"], c["state"])
 
 if __name__ == "__main__":
     ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s " \

@@ -5,6 +5,7 @@
 import datetime, os, re, select, socket, sys, threading, time
 
 from CnCServer import CnCLogger, DAQClient
+import DeployPDAQ
 from DAQConst import DAQPort
 from DAQLaunch import RELEASE, getCompJar
 import GetIP
@@ -287,11 +288,14 @@ class LogChecker(object):
     TYPE_RETEXT = 4
     TYPE_LIVE = 5
 
-    def __init__(self, prefix, name, isLive=False, depth=5):
+    def __init__(self, prefix, name, isLive=False, depth=None):
         self.__prefix = prefix
         self.__name = name
         self.__isLive = isLive
-        self.__depth = depth
+        if depth is None:
+            self.__depth = 5
+        else:
+            self.__depth = depth
 
         self.__expMsgs = []
 
@@ -385,8 +389,8 @@ class LogChecker(object):
         raise UnimplementedException()
 
 class MockAppender(LogChecker):
-    def __init__(self, name):
-        super(MockAppender, self).__init__('LOG', name)
+    def __init__(self, name, depth=None):
+        super(MockAppender, self).__init__('LOG', name, depth=depth)
 
     def close(self):
         pass
@@ -405,18 +409,31 @@ class MockCnCLogger(CnCLogger):
         super(MockCnCLogger, self).__init__(appender, True)
 
 class MockConnection(object):
-    def __init__(self, type, port=None):
+    INPUT = "a"
+    OPT_INPUT = "b"
+    OUTPUT = "c"
+    OPT_OUTPUT = "d"
+
+    def __init__(self, name, connCh, port=None):
         "port is set for input connections, None for output connections"
-        self.type = type
-        self.port = port
+        self.__name = name
+        self.__connCh = connCh
+        self.__port = port
 
     def __str__(self):
-        if self.port is not None:
-            return '%d=>%s' % (self.port, self.type)
-        return '=>' + self.type
+        if self.__port is not None:
+            return '%d=>%s' % (self.__port, self.__name)
+        return '=>' + self.__name
 
     def isInput(self):
-        return self.port is not None
+        return self.__connCh == self.INPUT or self.__connCh == self.OPT_INPUT
+
+    def isOptional(self):
+        return self.__connCh == self.OPT_INPUT or \
+               self.__connCh == self.OPT_OUTPUT
+
+    def name(self): return self.__name
+    def port(self): return self.__port
 
 class MockComponent(object):
     def __init__(self, name, num, host='localhost'):
@@ -429,17 +446,21 @@ class MockComponent(object):
 
         self.runNum = None
 
+        self.__isBldr = name.endswith("Builder")
         self.__isSrc = name.endswith("Hub") or name == "amandaTrigger"
         self.__connected = False
         self.__configured = False
         self.__configWait = 0;
         self.__monitorState = '???'
+        self.__isBadHub = False
 
     def __str__(self):
         outStr = self.fullName()
         extra = []
         if self.__isSrc:
             extra.append('SRC')
+        if self.__isBldr:
+            extra.append('BLD')
         if self.__configured:
             extra.append('CFG')
         for conn in self.__connectors:
@@ -449,11 +470,22 @@ class MockComponent(object):
             outStr += '[' + ','.join(extra) + ']'
         return outStr
 
-    def addInput(self, type, port):
-        self.__connectors.append(MockConnection(type, port))
+    def addInput(self, name, port, optional=False):
+        if not optional:
+            connCh = MockConnection.INPUT
+        else:
+            connCh = MockConnection.OPT_INPUT
+        self.__connectors.append(MockConnection(name, connCh, port))
 
-    def addOutput(self, type):
-        self.__connectors.append(MockConnection(type, None))
+    def addOutput(self, name, optional=False):
+        if not optional:
+            connCh = MockConnection.OUTPUT
+        else:
+            connCh = MockConnection.OPT_OUTPUT
+        self.__connectors.append(MockConnection(name, connCh))
+
+    def commitSubrun(self, id, startTime):
+        pass
 
     def configure(self, configName=None):
         if not self.__connected:
@@ -479,7 +511,10 @@ class MockComponent(object):
     def host(self):
         return self.__host
 
-    def isComponent(self, name, num):
+    def isBuilder(self):
+        return self.__isBldr
+
+    def isComponent(self, name, num=-1):
         return self.__name == name
 
     def isConfigured(self):
@@ -503,10 +538,19 @@ class MockComponent(object):
     def order(self):
         return self.__cmdOrder
 
+    def prepareSubrun(self, id):
+        pass
+
     def reset(self):
         self.__connected = False
         self.__configured = False
         self.runNum = None
+
+    def resetLogging(self):
+        pass
+
+    def setBadHub(self):
+        self.__isBadHub = True
 
     def setConfigureWait(self, waitNum):
         self.__configWait = waitNum
@@ -519,6 +563,11 @@ class MockComponent(object):
             raise Exception(self.__name + ' has not been configured')
 
         self.runNum = runNum
+
+    def startSubrun(self, data):
+        if self.__isBadHub:
+            return None
+        return 100
 
     def state(self):
         if not self.__connected:
@@ -540,11 +589,24 @@ class MockComponent(object):
 
 class MockDeployComponent(object):
     def __init__(self, name, id, level, jvm, jvmArgs):
-        self.compName = name
-        self.compID = id
-        self.logLevel = level
-        self.jvm = jvm
-        self.jvmArgs = jvmArgs
+        self.__name = name
+        self.__id = id
+        self.__logLevel = level
+        self.__jvm = jvm
+        self.__jvmArgs = jvmArgs
+
+    def __str__(self):
+        if self.__id == 0:
+            return self.__name
+        return "%s#%d" % (self.__name, self.__id)
+
+    def id(self): return self.__id
+    def isBuilder(self): return self.__name.endswith("Builder")
+    def isHub(self): return self.__name.endswith("Hub")
+    def jvm(self): return self.__jvm
+    def jvmArgs(self): return self.__jvmArgs
+    def logLevel(self): return self.__logLevel
+    def name(self): return self.__name
 
 class MockDAQClient(DAQClient):
     def __init__(self, name, num, host, port, mbeanPort, connectors,
@@ -635,8 +697,16 @@ class MockLogger(LogChecker):
 class MockParallelShell(object):
     BINDIR = os.path.join(METADIR, 'target', 'pDAQ-%s-dist' % RELEASE, 'bin')
 
-    def __init__(self):
+    def __init__(self, isParallel=True):
         self.__exp = []
+        self.__rtnCodes = []
+        self.__results = []
+        self.__isParallel = isParallel
+
+    def __addExpected(self, cmd):
+        if cmd.find("/bin/StringHub") > 0 and cmd.find(".componentId=") < 0:
+            raise Exception("Missing componentId: %s" % cmd)
+        self.__exp.append(cmd)
 
     def __checkCmd(self, cmd):
         expLen = len(self.__exp)
@@ -666,16 +736,18 @@ class MockParallelShell(object):
 
         ipAddr = GetIP.getIP(host)
         jarPath = os.path.join(MockParallelShell.BINDIR,
-                               getCompJar(comp.compName))
+                               getCompJar(comp.name()))
 
         if verbose:
             redir = ''
         else:
             redir = ' </dev/null >/dev/null 2>&1'
 
-        cmd = '%s %s' % (comp.jvm, comp.jvmArgs)
+        cmd = '%s %s' % (comp.jvm(), comp.jvmArgs())
 
-        if eventCheck and comp.compName == 'eventBuilder':
+        if comp.isHub():
+            cmd += " -Dicecube.daq.stringhub.componentId=%d" % comp.id()
+        if eventCheck and comp.isBuilder():
             cmd += ' -Dicecube.daq.eventBuilder.validateEvents'
 
         cmd += ' -jar %s' % jarPath
@@ -683,16 +755,16 @@ class MockParallelShell(object):
         cmd += ' -c %s:%d' % (ipAddr, DAQPort.CNCSERVER)
 
         if logPort is not None:
-            cmd += ' -l %s:%d,%s' % (ipAddr, logPort, comp.logLevel)
+            cmd += ' -l %s:%d,%s' % (ipAddr, logPort, comp.logLevel())
         if livePort is not None:
-            cmd += ' -L %s:%d,%s' % (ipAddr, livePort, comp.logLevel)
+            cmd += ' -L %s:%d,%s' % (ipAddr, livePort, comp.logLevel())
         cmd += ' %s &' % redir
 
         if self.__isLocalhost(host):
-            self.__exp.append(cmd)
+            self.__addExpected(cmd)
         else:
-            self.__exp.append(('ssh -n %s \'sh -c "%s"%s &\'') %
-                              (host, cmd, redir))
+            self.__addExpected(('ssh -n %s \'sh -c "%s"%s &\'') %
+                               (host, cmd, redir))
 
     def addExpectedJavaKill(self, compName, killWith9, verbose, host):
         if killWith9:
@@ -710,11 +782,12 @@ class MockParallelShell(object):
             sshCmd = 'ssh %s ' % host
             pkillOpt = ' -f'
 
-        self.__exp.append('%spkill %s%s %s' % (sshCmd, nineArg, pkillOpt, jar))
+        self.__addExpected('%spkill %s%s %s' %
+                           (sshCmd, nineArg, pkillOpt, jar))
 
         if not killWith9:
-            self.__exp.append('sleep 2; %spkill -9%s %s' %
-                              (sshCmd, pkillOpt, jar))
+            self.__addExpected('sleep 2; %spkill -9%s %s' %
+                               (sshCmd, pkillOpt, jar))
 
     def addExpectedPython(self, doLive, doDAQRun, doCnC, dashDir, configDir,
                           logDir, spadeDir, cfgName, copyDir, logPort,
@@ -722,7 +795,7 @@ class MockParallelShell(object):
         if doLive:
             cmd = os.path.join(dashDir, 'DAQLive.py')
             cmd += ' &'
-            self.__exp.append(cmd)
+            self.__addExpected(cmd)
 
         if doDAQRun:
             cmd = os.path.join(dashDir, 'DAQRun.py')
@@ -737,7 +810,7 @@ class MockParallelShell(object):
                 else:
                     cmd += " -L"
             cmd += ' -a %s' % copyDir
-            self.__exp.append(cmd)
+            self.__addExpected(cmd)
 
         if doCnC:
             cmd = os.path.join(dashDir, 'CnCServer.py')
@@ -746,7 +819,7 @@ class MockParallelShell(object):
             if livePort is not None:
                 cmd += ' -L localhost:%d' % livePort
             cmd += ' -d'
-            self.__exp.append(cmd)
+            self.__addExpected(cmd)
 
     def addExpectedPythonKill(self, doLive, doDAQRun, doCnC, dashDir,
                               killWith9):
@@ -759,15 +832,48 @@ class MockParallelShell(object):
 
         if doLive:
             path = os.path.join(dashDir, 'DAQLive.py')
-            self.__exp.append('%s -k' % path)
+            self.__addExpected('%s -k' % path)
 
         if doDAQRun:
             path = os.path.join(dashDir, 'DAQRun.py')
-            self.__exp.append('%s -k' % path)
+            self.__addExpected('%s -k' % path)
 
         if doCnC:
             path = os.path.join(dashDir, 'CnCServer.py')
-            self.__exp.append('%s -k' % path)
+            self.__addExpected('%s -k' % path)
+
+    def addExpectedRsync(self, dir, subdirs, delete, dryRun, remoteHost,
+                         rtnCode, result="",
+                         niceAdj=DeployPDAQ.NICE_ADJ_DEFAULT,
+                         express=DeployPDAQ.EXPRESS_DEFAULT):
+
+        if express:
+            rCmd = "rsync"
+        else:
+            rCmd = 'nice rsync --rsync-path "nice -n %d rsync"' % (niceAdj)
+
+        if not delete:
+            dOpt = ""
+        else:
+            dOpt = " --delete"
+
+        if not dryRun:
+            drOpt = ""
+        else:
+            drOpt = " --dry-run"
+
+        group = "{" + ",".join(subdirs) + "}"
+
+        cmd = "%s -azLC%s%s %s %s:%s" % \
+            (rCmd, dOpt, drOpt, os.path.join(dir, group), remoteHost, dir)
+        self.__addExpected(cmd)
+        self.__rtnCodes.append(rtnCode)
+        self.__results.append(result)
+
+    def addExpectedUndeploy(self, homeDir, pdaqDir, remoteHost):
+        cmd = "ssh %s \"\\rm -rf %s %s\"" % \
+            (remoteHost, os.path.join(homeDir, ".m2"), pdaqDir)
+        self.__addExpected(cmd)
 
     def check(self):
         if len(self.__exp) > 0:
@@ -776,6 +882,19 @@ class MockParallelShell(object):
 
     def getMetaPath(self, subdir):
         return os.path.join(METADIR, subdir)
+
+    def getResult(self, idx):
+        if idx < 0 or idx >= len(self.__results):
+            raise Exception("Cannot return result %d (only %d available)" %
+                            (idx, len(self.__results)))
+
+        return self.__results[idx]
+                          
+    def getReturnCodes(self):
+        return self.__rtnCodes
+
+    def isParallel(self):
+        return self.__isParallel
 
     def showAll(self):
         raise Exception('SHOWALL')
@@ -786,7 +905,7 @@ class MockParallelShell(object):
     def system(self, cmd):
         self.__checkCmd(cmd)
 
-    def wait(self):
+    def wait(self, monitorIval=None):
         pass
 
 class MockRPCClient(object):
@@ -898,7 +1017,7 @@ class MockXMLRPC(object):
         pass
 
 class SocketReader(LogChecker):
-    def __init__(self, name, port):
+    def __init__(self, name, port, depth=None):
         self.__port = port
 
         self.__errMsg = None
@@ -908,7 +1027,7 @@ class SocketReader(LogChecker):
 
         isLive = (self.__port == DAQPort.I3LIVE)
         super(SocketReader, self).__init__('SOC', name,
-                                           isLive=isLive)
+                                           isLive=isLive, depth=depth)
 
     def __bind(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -1009,8 +1128,8 @@ class SocketReaderFactory(object):
     def __init__(self):
         self.__logList = []
 
-    def createLog(self, name, port, expectStartMsg=True):
-        log = SocketReader(name, port)
+    def createLog(self, name, port, expectStartMsg=True, depth=None):
+        log = SocketReader(name, port, depth)
         self.__logList.append(log)
 
         if expectStartMsg:

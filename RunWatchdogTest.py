@@ -287,7 +287,7 @@ class TestRunWatchdog(unittest.TestCase):
             if l: dir = 'less than'
             else: dir = 'greater than'
             self.failIf(tw.check(vFalse),
-                            'Check(%d) <%s> should be False' % (vFalse, dir))
+                        'Check(%d) <%s> should be False' % (vFalse, dir))
             self.failUnless(tw.check(thresh),
                             'Check(%d) <%s> should be True' % (thresh, dir))
             self.failUnless(tw.check(vTrue),
@@ -338,9 +338,40 @@ class TestRunWatchdog(unittest.TestCase):
             vw.check(val)
             self.fail('Expected check to fail')
         except Exception, e:
-            self.assertEquals('Previous value for %s was %s, new value is %s' %
-                              (str(vw), str(type(firstVal)), str(type(val))),
-                              str(e), 'Unexpected exception: ' + str(e))
+            self.assertEquals(('Previous type for %s was %s (%s),' +
+                               ' new type is %s (%s)') %
+                              (str(vw), str(type(firstVal)), str(firstVal),
+                               str(type(val)), str(val)), str(e),
+                              'Unexpected exception: ' + str(e))
+
+    def testValWatchCheckListToTuple(self):
+        fComp = 'fooComp'
+        tComp = 'barComp'
+        bean = 'fooBean'
+        fld = 'fooFld'
+
+        firstVal = ['a', 'b', 'c']
+
+        vw = ValueWatcher(fComp, tComp, bean, fld)
+        vw.check(firstVal)
+
+        val = ('a', 'b', 'c')
+        self.failIf(vw.check(val), 'List->tuple check should be False')
+
+
+    def testValWatchCheckIntToLong(self):
+        fComp = 'fooComp'
+        tComp = 'barComp'
+        bean = 'fooBean'
+        fld = 'fooFld'
+
+        firstVal = 500000000
+
+        vw = ValueWatcher(fComp, tComp, bean, fld)
+        vw.check(firstVal)
+
+        val = 5000000000
+        self.failUnless(vw.check(val), 'int->long check should succeed')
 
     def testValWatchCheckDecrease(self):
         fComp = 'fooComp'

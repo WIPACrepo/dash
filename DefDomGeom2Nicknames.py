@@ -9,14 +9,14 @@ from DefaultDomGeometry import DefaultDomGeometryReader, NicknameReader
 
 if __name__ == "__main__":
     # read in default-dom-geometry.xml
-    #defDomGeom = DefaultDomGeometryReader().read()
+    #defDomGeom = DefaultDomGeometryReader.parse()
 
     if len(sys.argv) <= 1:
-        defDomGeom = DefaultDomGeometryReader().read()
+        defDomGeom = DefaultDomGeometryReader.parse()
     else:
-        defDomGeom = DefaultDomGeometryReader().read(sys.argv[1])
+        defDomGeom = DefaultDomGeometryReader.parse(sys.argv[1])
 
-    NicknameReader().read(geom=defDomGeom)
+    NicknameReader.parse(geom=defDomGeom)
 
     # dump the new default-dom-geometry data to sys.stdout
     defDomGeom.dumpNicknames()
