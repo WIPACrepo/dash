@@ -288,6 +288,8 @@ class ClusterDescription(ConfigXMLBase):
             raise ClusterDescriptionFormatError(errMsg)
 
         reqStr = self.getValue(node, 'required')
+
+        required = False
         if reqStr is not None:
             reqStr = reqStr.lower()
             if reqStr == 'true' or reqStr == '1' or reqStr == 'on':
@@ -304,8 +306,6 @@ class ClusterDescription(ConfigXMLBase):
         jvmArgs = self.getValue(node, 'jvmArgs')
         if jvmArgs is None:
             jvmArgs = self.__findDefault(name, 'jvmArgs')
-
-        required = False
 
         host.addComponent(name, id, logLvl, jvm, jvmArgs, required)
 
