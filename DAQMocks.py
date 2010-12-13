@@ -465,7 +465,7 @@ class MockComponent(object):
             extra.append('CFG')
         for conn in self.__connectors:
             extra.append(str(conn))
-            
+
         if len(extra) > 0:
             outStr += '[' + ','.join(extra) + ']'
         return outStr
@@ -871,8 +871,8 @@ class MockParallelShell(object):
         self.__results.append(result)
 
     def addExpectedUndeploy(self, homeDir, pdaqDir, remoteHost):
-        cmd = "ssh %s \"\\rm -rf %s %s\"" % \
-            (remoteHost, os.path.join(homeDir, ".m2"), pdaqDir)
+        cmd = "ssh %s \"\\rm -rf ~%s/.m2 %s\"" % \
+            (remoteHost, os.environ["USER"], pdaqDir)
         self.__addExpected(cmd)
 
     def check(self):
@@ -889,7 +889,7 @@ class MockParallelShell(object):
                             (idx, len(self.__results)))
 
         return self.__results[idx]
-                          
+
     def getReturnCodes(self):
         return self.__rtnCodes
 
