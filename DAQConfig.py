@@ -1351,8 +1351,6 @@ class DAQConfigParser(XMLParser, XMLFileCache):
         if sepIndex > 0:
             clusterDesc = configName[sepIndex+1:]
             configName = configName[:sepIndex]
-        else:
-            clusterDesc = None
 
         if doList:
             cls.showList(configDir, configName)
