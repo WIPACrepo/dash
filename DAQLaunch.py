@@ -42,7 +42,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 12357 2010-10-29 23:47:33Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 12468 2010-12-14 22:48:24Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -110,6 +110,8 @@ def killJavaComponents(compList, dryRun, verbose, killWith9, parallel=None):
     if parallel is None:
         parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose)
     for comp in compList:
+        if comp.jvm() is None: continue
+
         if comp.isHub():
             killPat = "stringhub.componentId=%d" % comp.id()
         else:
@@ -171,6 +173,8 @@ def startJavaComponents(compList, dryRun, configDir, dashDir, logPort, livePort,
         quietStr = ""
 
     for comp in compList:
+        if comp.jvm() is None: continue
+
         myIP = getIP(comp.host())
         execJar = join(binDir, getCompJar(comp.name()))
         if checkExists and not exists(execJar):
