@@ -94,11 +94,11 @@ class RunNode(object):
             logLvl = comp.logLevel()
         else:
             logLvl = self.__defaultLogLevel
-        if comp.jvm() is not None:
+        if comp.jvm() is not None or comp.isControlServer():
             jvm = comp.jvm()
         else:
             jvm = self.__defaultJVM
-        if comp.jvmArgs() is not None:
+        if comp.jvmArgs() is not None or comp.isControlServer():
             jvmArgs = comp.jvmArgs()
         else:
             jvmArgs = self.__defaultJVMArgs
