@@ -286,6 +286,9 @@ class Run(object):
         self.__mgr.waitForRun(self.__runNum, self.__duration)
 
 class BaseRun(object):
+    """User's PATH, used by findExecutable()"""
+    PATH = None
+
     def __init__(self, showCmd=False, showCmdOutput=False, dbType=None):
         """
         showCmd - True if commands should be printed before being run
@@ -301,9 +304,7 @@ class BaseRun(object):
 
         # check for needed executables
         #
-        self.__launchProg = \
-            os.path.join(os.environ["PDAQ_HOME"], "dash", "DAQLaunch.py")
-        self.checkExists("Launch program", self.__launchProg)
+        self.__launchProg = self.findExecutable("Launch program", "DAQLaunch.py")
 
         self.__updateDBProg = \
             os.path.join(os.environ["HOME"], "offline-db-update",
@@ -339,6 +340,17 @@ class BaseRun(object):
 
     def createRun(self, clusterCfg, runCfg, flashName=None):
         return Run(self, clusterCfg, runCfg, flashName)
+
+    def findExecutable(cls, name, cmd):
+        """Find 'cmd' in the user's PATH"""
+        if cls.PATH is None:
+            cls.PATH = os.environ["PATH"].split(":")
+        for pdir in cls.PATH:
+            pcmd = os.path.join(pdir, cmd)
+            if os.path.exists(pcmd):
+                return pcmd
+        raise SystemExit("%s '%s' does not exist" % (name, cmd))
+    findExecutable = classmethod(findExecutable)
 
     def flash(self, tm, data):
         """Start flashers for the specified duration with the specified data"""

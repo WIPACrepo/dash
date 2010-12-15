@@ -336,8 +336,7 @@ class LiveRun(BaseRun):
 
         # check for needed executables
         #
-        self.__liveCmdProg = os.path.join(os.environ["HOME"], "bin", "livecmd")
-        self.checkExists("I3Live program", self.__liveCmdProg)
+        self.__liveCmdProg = self.findExecutable("I3Live program", "livecmd")
 
         # build state-checker
         #
