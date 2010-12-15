@@ -345,7 +345,7 @@ class LiveRun(BaseRun):
 
         super(LiveRun, self).__init__(showCmd, showCmdOutput, dbType)
 
-    def __controlPDAQ(self, waitSecs):
+    def __controlPDAQ(self, waitSecs, attempts=3):
         """
         Connect I3Live to pDAQ
 
@@ -381,8 +381,11 @@ class LiveRun(BaseRun):
         if controlled or waitSecs < 0:
             return controlled
 
+        if attempts <= 0:
+            return False
+
         time.sleep(waitSecs)
-        return self.__controlPDAQ(0)
+        return self.__controlPDAQ(0, attempts=attempts-1)
 
     def __refreshState(self):
         self.__state.check()
