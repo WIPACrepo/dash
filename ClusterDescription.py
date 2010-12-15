@@ -96,6 +96,8 @@ class ControlComponent(Component):
         return "CnCServer"
 
     def isControlServer(self): return True
+    def jvm(self): return None
+    def jvmArgs(self): return None
     def required(self): return True
 
 class ClusterComponent(Component):
