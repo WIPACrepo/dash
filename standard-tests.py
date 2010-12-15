@@ -4,6 +4,7 @@
 
 import optparse, os, re, socket, stat, subprocess, sys
 from BaseRun import DatabaseType
+from ClusterDescription import ClusterDescription
 from liverun import LiveRun
 
 # times in seconds
@@ -220,9 +221,13 @@ if __name__ == "__main__":
         # Use hostname to guess what we're meant to do
         #
         hostName = socket.gethostname()
-        if hostName.startswith("spts64-build64"):
+        cluster = ClusterDescription.getClusterFromHostName(hostName)
+        if cluster == ClusterDescription.SPS:
+            raise SystemExit("Tests should not be run on SPS cluster")
+
+        if hostName.find("access") >= 0 or hostName.find("build") >= 0:
             opt.deploy = True
-        elif hostName.startswith("spts64-expcont"):
+        elif hostName.find("expcont") >= 0:
             opt.run = True
         else:
             raise SystemExit("Please specify --deploy or --run" +
