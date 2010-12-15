@@ -488,16 +488,18 @@ class ClusterDescription(ConfigXMLBase):
 
         self.__parseHostNodes(hostNodes)
 
-    def getClusterFromHostName(cls):
+    def getClusterFromHostName(cls, hostname=None):
         """
-        Use the host name of the current machine to determine the cluster name.
-        Returned values are "sps", "spts", "spts64", or "localhost"
+        Determine the cluster name from 'hostname'.
+        Returned values are "sps", "spts", "spts64", or "localhost".
+        If 'hostname' is not set, the host name of the current machine is used.
         """
 
-        try:
-            hostname = socket.gethostname()
-        except:
-            hostname = None
+        if hostname is None:
+            try:
+                hostname = socket.gethostname()
+            except:
+                hostname = None
 
         if hostname is not None:
             # SPS is easy
