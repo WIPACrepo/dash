@@ -206,7 +206,7 @@ class DefaultDomGeometry(object):
         strList = self.__stringToDom.keys()
         strList.sort()
 
-        print "<?xml version=\"1.0\"?>"
+        print "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
         print "<domGeometry>"
         for s in strList:
             domList = self.__stringToDom[s]
@@ -283,7 +283,7 @@ class DefaultDomGeometry(object):
                     return dom
 
         return None
-        
+
     def getDomIdToDomDict(self):
         "Get the DOM ID -> DOM object dictionary"
         return self.__domIdToDom
@@ -300,7 +300,7 @@ class DefaultDomGeometry(object):
         if strNum in [45, 54, 62, 63, 69, 70, 75, 76]: return 205
         if strNum in [21, 29, 44, 52, 53, 60, 61, 68]: return 206
         if strNum in [26, 6,  12, 9,  3,   2, 13, 17]: return 207
-        if strNum in [19, 37, 28]: return 208  
+        if strNum in [19, 37, 28]: return 208
         if strNum in [41, 32, 24, 15, 35, 25, 8, 16]: return 209
         if strNum in [42, 43, 33, 34, 23, 51]: return 210
         raise ProcessError("Could not find icetop hub for string %d" % strNum)
@@ -505,6 +505,56 @@ class DefaultDomGeometryReader(XMLParser):
 
         # clean up XML objects
         dom.unlink()
+
+        return geom
+    parse = classmethod(parse)
+
+class DomsTxtReader(object):
+    def parse(cls, fileName=None, geom=None):
+        if fileName is None:
+            fileName = os.path.join(metaDir, "config", "doms.txt")
+
+        if not os.path.exists(fileName):
+            raise BadFileError("Cannot read doms.txt file \"%s\"" %
+                               fileName)
+
+        fd = open(fileName, "r")
+
+        newGeom = geom is None
+        if newGeom:
+            geom = DefaultDomGeometry()
+
+        for line in fd:
+            line = line.rstrip()
+            if len(line) == 0:
+                continue
+
+            #(id, prodId, name, loc, desc) = re.split("\s+", line, 4)
+            (loc, prodId, name, id) = re.split("\s+", line, 3)
+            if id == "mbid":
+                continue
+
+            try:
+                (strStr, posStr) = re.split("-", loc)
+                strNum = int(strStr)
+                pos = int(posStr)
+            except:
+                print >>sys.stderr, "Bad location \"%s\" for DOM \"%s\"" % \
+                    (loc, prodId)
+                continue
+
+            geom.addString(strNum, errorOnMulti=False)
+
+            if newGeom:
+                oldDom = None
+            else:
+                oldDom = geom.getDom(strNum, pos)
+
+            if oldDom is None:
+                dom = DomGeometry(strNum, pos, id, name, prodId)
+                dom.validate()
+
+                geom.addDom(dom)
 
         return geom
     parse = classmethod(parse)
