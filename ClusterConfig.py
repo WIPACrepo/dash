@@ -356,10 +356,10 @@ class ClusterConfig(deployConfig, CachedConfigName):
 
         # CachedConfigName expects self.configName
         self.configName = configToUse
-        # 'forward' compatibility with RunCluster
-        self.descName = None
 
         self.loadConfig(configXMLDir, configToUse)
+
+    def descName(self): return None
 
     def showConfigs(self, configDir, configToUse):
         "Utility to show all available cluster configurations in configDir"
