@@ -75,6 +75,7 @@ class ClusterConfig(CachedConfigName):
         return node
 
     def defaultLogLevel(self): return self.__defaultLogLevel
+    def descName(self): return None
     def logDirCopies(self): return self.__logDirCopies
     def logDirForSpade(self): return self.__logDirForSpade
     def nodes(self): return self.__nodes[:]
@@ -84,7 +85,7 @@ class ClusterConfig(CachedConfigName):
 
     def setLogDirCopies(self, copyDir):
         self.__logDirCopies = copyDir
-            
+
     def setDefaultLogLevel(self, logLevel):
         self.__defaultLogLevel = logLevel
 
@@ -253,7 +254,7 @@ class ClusterConfigParser(XMLFileCache):
 
         # Get "remarks" string if available
         remarks = cls.getValue(icecube[0], "remarks")
-        
+
         cluster = icecube[0].getElementsByTagName("cluster")
         if len(cluster) != 1:
             raise MalformedDeployConfigException(configName)
@@ -266,11 +267,11 @@ class ClusterConfigParser(XMLFileCache):
 
         # Get location of SPADE/logs copies
         cluCfg.setLogDirCopies(cls.getValue(cluster[0], "logDirCopies"))
-            
+
         # Get default log level
         cluCfg.setDefaultLogLevel(cls.getValue(cluster[0], "defaultLogLevel",
                                                cls.GLOBAL_DEFAULT_LOG_LEVEL))
-        
+
         # Get default java info as a dict of modules and fallback defaults
         defaultJava, fallBackJava = \
             cls.getDefaultJavaInfo(configDir, clusterName)

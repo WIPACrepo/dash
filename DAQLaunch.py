@@ -42,7 +42,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 12468 2010-12-14 22:48:24Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 12495 2010-12-22 23:26:27Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -293,6 +293,8 @@ def doLaunch(doCnC, dryRun, verbose, quiet, clusterConfig, dashDir,
         path  = join(dashDir, progName)
         # enable forceConfig and relaunch options
         options = " -c %s -o %s -s %s" % (configDir, logDir, spadeDir)
+        if clusterConfig.descName() is not None:
+            options += ' -C ' + clusterConfig.descName()
         if logPort is not None:
             options += ' -l localhost:%d' % logPort
         if livePort is not None:
