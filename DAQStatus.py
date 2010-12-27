@@ -18,7 +18,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQStatus.py 12394 2010-11-11 02:31:07Z dglo $"
+SVN_ID  = "$Id: DAQStatus.py 12496 2010-12-27 20:21:06Z dglo $"
 
 LINE_LENGTH = 78
 
@@ -190,7 +190,7 @@ if __name__ == "__main__":
         ls = cncrpc.rpc_runset_list(runid)
         print "%sRunSet#%d (%s)" % (indent, runid, cfg)
         if opt.verbose:
-            listVerbose(ls, indent, indent2)
+            listVerbose(ls, indent, indent2, opt.numeric)
         else:
             listTerse(ls, indent, indent2)
 
