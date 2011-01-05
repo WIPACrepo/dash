@@ -262,7 +262,7 @@ class LogSocketAppender(BaseFileAppender):
 
     def _write(self, fd, time, msg):
         try:
-            fd.send("%s [%s] %s" % ('-', time, msg))
+            fd.send("%s %s [%s] %s" % ('-', '-', time, msg))
         except socket.error, se:
             raise LogException('LogSocket %s: %s' % (self.__loc, str(se)))
 
@@ -338,7 +338,7 @@ if __name__ == "__main__":
         filename = logfile
 
     print "Write log messages arriving on port %d to %s." % (port, filename)
-    
+
     try:
         logger = LogSocketServer(port, "all-components", logfile)
         logger.startServing()
