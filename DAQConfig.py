@@ -794,6 +794,15 @@ class StringHub(Component):
     def getDomConfigs(self):
         return self.__domConfigs[:]
 
+    def isDeepCore(self):
+        return (self.id() % 1000) > 78 and (self.id() % 1000) < 200
+
+    def isIceTop(self):
+        return (self.id() % 1000) >= 200
+
+    def isInIce(self):
+        return (self.id() % 1000) < 200
+
 class ReplayHub(Component):
     "Replay hub data from a run configuration file"
 
@@ -871,6 +880,13 @@ class DAQConfig(object):
         else:
             dcType = "names"
         return "%s[C*%d]%s" % (self.__fileName, len(self.__comps), dcType)
+
+    def __hasHubs(self):
+        """Does this run configuration include any DOMs or replayHubs?"""
+        for c in self.__comps:
+            if c.isHub():
+                return True
+        return False
 
     def addComponent(self, compName, strict):
         """Add a component name"""
@@ -1003,17 +1019,6 @@ class DAQConfig(object):
 
         return False
 
-    def hasHubs(self):
-        """Does this run configuration include any DOMs or replayHubs?"""
-        for c in self.__comps:
-            if c.isHub():
-                return True
-        return False
-
-    def hasTriggerConfig(self):
-        """Does this run configuration have a trigger configuration file?"""
-        return self.__trigCfg is not None
-
     def omit(self, hubIdList):
         """Create a new run configuration which omits the specified hubs"""
         omitMap = {}
@@ -1129,6 +1134,40 @@ class DAQConfig(object):
             except IOError:
                 break
     showList = classmethod(showList)
+
+    def validate(self):
+        if not self.__hasHubs():
+            raise ProcessError("No doms or replayHubs found in %s" %
+                               self.basename())
+        if self.__trigCfg is None:
+            raise ProcessError("No <triggerConfig> found in %s" %
+                               self.basename())
+
+        (iiHub, iiTrig, ttHub, ttTrig) = (False, False, False, False)
+        for c in self.__comps:
+            if c.isHub():
+                if c.isInIce():
+                    iiHub = True
+                else:
+                    ttHub = True
+            elif c.isTrigger():
+                if c.name().lower().startswith("inice"):
+                    iiTrig = True
+                else:
+                    ttTrig = True
+
+        if iiHub and not iiTrig:
+            raise ProcessError("Found in-ice hubs but no in-ice trigger in %s" %
+                               self.basename())
+        if not iiHub and iiTrig:
+            raise ProcessError("Found in-ice trigger but no in-ice hubs in %s" %
+                               self.basename())
+        if ttHub and not ttTrig:
+            raise ProcessError("Found icetop hubs but no icetop trigger in %s" %
+                               self.basename())
+        if not ttHub and ttTrig:
+            raise ProcessError("Found icetop trigger but no icetop hubs in %s" %
+                               self.basename())
 
     def write(self, fd):
         """Write this run configuration to the specified file descriptor"""
@@ -1499,10 +1538,8 @@ class DAQConfigParser(XMLParser, XMLFileCache):
             raise ProcessError("Found unknown runConfig node <%s>" %
                                kid.nodeName)
 
-        if strict and not runCfg.hasHubs():
-            raise ProcessError("No doms or replayHubs found")
-        if strict and not runCfg.hasTriggerConfig():
-            raise ProcessError("No <triggerConfig> found")
+        if strict:
+            runCfg.validate()
 
         return runCfg
     parse = classmethod(parse)
