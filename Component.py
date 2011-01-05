@@ -37,6 +37,10 @@ class Component(object):
         "Is this a stringHub component running at the South Pole?"
         return self.__name.lower() == "stringhub" and self.__id < 1000
 
+    def isTrigger(self):
+        "Is this a trigger component?"
+        return self.__name.lower().find("trigger") >= 0
+
     def logLevel(self): return self.__logLevel
     def name(self): return self.__name
 
