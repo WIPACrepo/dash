@@ -1151,9 +1151,10 @@ class DAQConfig(object):
                 else:
                     ttHub = True
             elif c.isTrigger():
-                if c.name().lower().startswith("inice"):
+                lname = c.name().lower()
+                if lname.startswith("inice"):
                     iiTrig = True
-                else:
+                elif lname.startswith("icetop"):
                     ttTrig = True
 
         if iiHub and not iiTrig:
