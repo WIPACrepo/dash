@@ -223,6 +223,8 @@ class ClusterDescription(ConfigXMLBase):
     SPTS = "spts"
     SPTS64 = "spts64"
 
+    DEFAULT_LOG_LEVEL = "WARN"
+
     def __init__(self, configDir, configName, suffix='.cfg'):
 
         self.name = None
@@ -231,7 +233,7 @@ class ClusterDescription(ConfigXMLBase):
 
         self.__logDirForSpade = None
         self.__logDirCopies = None
-        self.__defaultLogLevel = "INFO"
+        self.__defaultLogLevel = self.DEFAULT_LOG_LEVEL
         self.__defaultJVM = None
         self.__defaultJVMArgs = None
         self.__defaultComponent = None
