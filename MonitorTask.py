@@ -49,7 +49,8 @@ class MonitorThread(CnCThread):
                                      (str(self.__comp), b, exc_string()))
 
             # report monitoring data
-            if attrs is not None and len(attrs) > 0:
+            if attrs is not None and len(attrs) > 0 and \
+                   self.__reporter is not None:
                 self.__reporter.send(self.__now, b, attrs)
 
     def close(self):
