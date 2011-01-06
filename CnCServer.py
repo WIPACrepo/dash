@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12413 2010-11-30 03:52:19Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 12511 2011-01-06 00:01:11Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -483,8 +483,6 @@ class Connector(object):
 
 class CnCServer(DAQPool):
     "Command and Control Server"
-
-    DEFAULT_LOG_LEVEL = 'info'
 
     # max time to wait for components to register
     REGISTRATION_TIMEOUT = 60
