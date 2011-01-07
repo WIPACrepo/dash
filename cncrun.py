@@ -53,7 +53,7 @@ class CnCRun(BaseRun):
         try:
             self.__cnc.rpc_ping()
         except socket.error, err:
-            if err[0] == 61:
+            if err[0] == 61 or err[0] == 111:
                 self.__cnc = None
             else:
                 raise
@@ -179,7 +179,11 @@ class CnCRun(BaseRun):
     def isRunning(self):
         if self.__cnc is None:
             self.__reconnect(False)
-        return self.__cnc is not None and self.__cnc.rpc_runset_active() > 0
+        try:
+            return self.__cnc is not None and \
+                   self.__cnc.rpc_runset_active() > 0
+        except socket.error, err:
+            return False
 
     def isStopped(self, refreshState=False):
         if self.__cnc is None:
