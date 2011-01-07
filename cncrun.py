@@ -33,6 +33,9 @@ from RunSetState import RunSetState
 
 class CnCRun(BaseRun):
     def __init__(self, showCmd=False, showCmdOutput=False, dbType=None):
+        self.__showCmd = showCmd
+        self.__showCmdOutput = showCmdOutput
+
         self.__cnc = None
         self.__reconnect(False)
 
@@ -64,6 +67,26 @@ class CnCRun(BaseRun):
         print >>fd, "%d %d" % (runNum, subRunNum)
         fd.close()
 
+    def __status(self):
+        "Print the current DAQ status"
+
+        if not self.__showCmdOutput: return
+
+        cmd = "DAQStatus.py"
+        if self.__showCmd: print cmd
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, close_fds=True,
+                                shell=True)
+        proc.stdin.close()
+
+        for line in proc.stdout:
+            line = line.rstrip()
+            print '+ ' + line
+        proc.stdout.close()
+
+        proc.wait()
+
     def __waitForState(self, expState, numTries, numErrors=0, waitSecs=10):
         """
         Wait for the specified state
@@ -76,6 +99,8 @@ class CnCRun(BaseRun):
         """
         if self.__runSetId is None:
             return False
+
+        self.__status()
 
         prevState = self.__cnc.rpc_runset_state(self.__runSetId)
         curState = prevState
