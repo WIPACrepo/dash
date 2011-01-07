@@ -5,6 +5,7 @@
 import optparse, os, re, socket, stat, subprocess, sys
 from BaseRun import DatabaseType
 from ClusterDescription import ClusterDescription
+from cncrun import CnCRun
 from liverun import LiveRun
 
 # times in seconds
@@ -192,6 +193,9 @@ class Deploy(object):
 
 if __name__ == "__main__":
     op = optparse.OptionParser()
+    op.add_option("-c", "--cncrun", dest="cncrun",
+                  action="store_true", default=False,
+                  help="Control CnC directly instead of using I3Live")
     op.add_option("-d", "--deploy", dest="deploy",
                   action="store_true", default=False,
                   help="Deploy the standard tests")
@@ -250,8 +254,11 @@ if __name__ == "__main__":
             deploy.deploy(cfg)
         deploy.showHome()
     if opt.run:
-        liveRun = LiveRun(opt.showCmd, opt.showCmdOutput, opt.showChk,
-                          opt.showChkOutput)
+        if opt.cncrun:
+            liveRun = CnCRun(opt.showCmd, opt.showCmdOutput)
+        else:
+            liveRun = LiveRun(opt.showCmd, opt.showCmdOutput, opt.showChk,
+                              opt.showChkOutput)
 
         if sys.version_info > (2, 3):
             from DumpThreads import DumpThreadsOnSignal
