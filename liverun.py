@@ -424,58 +424,6 @@ class LiveRun(BaseRun):
 
         return not problem
 
-    def __waitForRun(self, runNum, duration):
-        """
-        Wait for the current run to start and stop
-
-        runNum - current run number
-        duration - expected number of seconds this run will last
-        """
-        waitSecs = 10
-        numTries = duration / waitSecs
-
-        expState = LiveRunState.RUNNING
-        numWaits = 0
-
-        daqStopped = False
-
-        while True:
-            self.__state.check()
-            if self.__state.runState() == expState:
-                if expState == LiveRunState.STOPPED:
-                    break
-            else:
-                if expState == LiveRunState.RUNNING:
-                    runTime = numWaits * waitSecs
-                    if runTime < duration:
-                        print >>sys.stderr, \
-                            ("WARNING: Expected %d second run, but run %d" +
-                             " ended after about %d seconds") % \
-                             (duration, runNum, runTime)
-
-                    if self.__state.runState() == LiveRunState.STOPPED or \
-                            self.__state.runState() == LiveRunState.STOPPING or \
-                            self.__state.runState() == LiveRunState.RECOVERING:
-                        break
-
-                    print >>sys.stderr, "Unexpected run %d state %s" % \
-                        (runNum, self.__state.runState())
-
-                elif expState != LiveRunState.STOPPED:
-                    print >>sys.stderr, "Ignoring expected run %d state %s" % \
-                        (runNum, expState)
-
-            if not daqStopped and \
-                    self.__state.svcState("pdaq") == LiveRunState.STOPPED:
-                print >>sys.stderr, "pDAQ is STOPPED"
-                daqStopped = True
-
-            numWaits += 1
-            if numWaits > numTries:
-                break
-
-            time.sleep(waitSecs)
-
     def __waitForState(self, curState, expState, numTries, numErrors=0,
                        waitSecs=10):
         """
