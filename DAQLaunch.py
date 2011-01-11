@@ -42,7 +42,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 12495 2010-12-22 23:26:27Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 12532 2011-01-11 16:55:19Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -262,7 +262,7 @@ def doKill(doCnC, dryRun, dashDir, verbose, quiet, clusterConfig,
         reportAction("Killed", killed, ignored)
 
     # clear the active configuration
-    clusterConfig.clearActiveConfig()
+    if not dryRun: clusterConfig.clearActiveConfig()
 
 def isRunning(procName, procList):
     "Is this process running?"
