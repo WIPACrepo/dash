@@ -254,6 +254,12 @@ class WatchData(object):
                 unhealthy.append(watchList[0].unhealthyRecord(ex))
 
             for i in range(len(fldList)):
+                if not valMap.has_key(fldList[i]):
+                    self.__dashlog.error("No value found for %s field#%d %s" %
+                                         (self.__comp.fullName(), i,
+                                          fldList[i]))
+                    continue
+
                 val = valMap[fldList[i]]
                 try:
                     chkVal = watchList[i].check(val)
