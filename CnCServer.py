@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12537 2011-01-12 23:25:36Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 12540 2011-01-12 23:42:40Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -268,7 +268,7 @@ class DAQPool(object):
 
         return runSet
 
-    def monitorClients(self):
+    def monitorClients(self, logger=None):
         "check that all components in the pool are still alive"
         count = 0
 
@@ -283,6 +283,12 @@ class DAQPool(object):
                 state = c.monitor()
                 if state == DAQClient.STATE_DEAD:
                     self.remove(c)
+                    try:
+                        c.close()
+                    except:
+                        if logger is not None:
+                            logger.error("Could not close %s: %s" %
+                                         (c.fullName(), exc_string()))
                 elif state != DAQClient.STATE_MISSING:
                     count += 1
 
@@ -737,7 +743,7 @@ class CnCServer(DAQPool):
         self.__monitoring = True
         while self.__monitoring:
             try:
-                count = self.monitorClients()
+                count = self.monitorClients(self.__log)
             except:
                 self.__log.error("Monitoring clients: " + exc_string())
                 count = lastCount
