@@ -340,6 +340,11 @@ class RunData(object):
             self.__liveMoniClient.sendMoni("runstop", data, prio=Prio.SCP,
                                            time=time)
 
+    def destroy(self):
+        self.stop()
+        self.__liveMoniClient.close()
+        self.__dashlog.close()
+
     def error(self, msg):
         self.__dashlog.error(msg)
 
@@ -1173,7 +1178,7 @@ class RunSet(object):
             raise RunSetException('RunSet #%d is not empty' % self.__id)
 
         if self.__runData is not None:
-            self.__runData.stop()
+            self.__runData.destroy()
 
         self.__id = None
         self.__configured = False
