@@ -22,5 +22,7 @@ def getIP(remoteHost='1.2.3.4'):
         remoteHost = '1.2.3.4'
 
     s.connect((remoteHost, 56))
-    return s.getsockname()[0]
-        
+    addr = s.getsockname()[0]
+    s.close()
+    return addr
+

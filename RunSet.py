@@ -609,7 +609,9 @@ class RunSet(object):
                 remoteAddr = dummyAddr
 
         s.connect((remoteAddr, dummyPort))
-        return s.getsockname()[0]
+        addr = s.getsockname()[0]
+        s.close()
+        return addr
 
     def __listComponentsCommaSep(cls, compList):
         """
