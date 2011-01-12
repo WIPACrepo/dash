@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12511 2011-01-06 00:01:11Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 12537 2011-01-12 23:25:36Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -345,8 +345,8 @@ class DAQPool(object):
                                          killWith9=killWith9,
                                          eventCheck=eventCheck)
         except:
-            logger.error("Cannot restart %s (#%d available - %s)" %
-                         (rs, len(self.__sets), self.__sets))
+            logger.error("Cannot restart %s (#%d available - %s): %s" %
+                         (rs, len(self.__sets), self.__sets, exc_string()))
 
         rs.destroy(ignoreComponents=True)
 
