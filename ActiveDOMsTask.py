@@ -32,10 +32,11 @@ class ActiveDOMThread(CnCThread):
                                                 "NumberOfActiveChannels")
                     num = int(nStr)
                 except:
-                    self.__dashlog.error("Cannot get # active DOMS from" +
-                                         " %s: %s" %
-                                         (c.fullName(), exc_string()))
                     num = 0
+                    self.__dashlog.error("Cannot get # active DOMS from" +
+                                         " %s string \"%s\": %s" %
+                                         (c.fullName(), str(nStr),
+                                          exc_string()))
                 total += num
                 if self.__sendDetails:
                     hubDOMs[str(c.num())] = num
