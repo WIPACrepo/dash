@@ -217,9 +217,7 @@ class DAQLog(object):
         self.__appenderList.append(appender)
 
     def clearAppenders(self):
-        for a in self.__appenderList:
-            a.close()
-        del self.__appenderList[:]
+        self.close()
 
     def close(self):
         for a in self.__appenderList:
