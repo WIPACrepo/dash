@@ -215,8 +215,8 @@ class DAQClient(ComponentName):
                     extraStr += ' ' + str(c)
             extraStr += ']'
 
-        return "ID#%d %s#%s%s%s%s" % \
-            (self.__id, self.name(), self.num(), hpStr, mbeanStr, extraStr)
+        return "ID#%d %s%s%s%s" % \
+            (self.__id, self.fullName(), hpStr, mbeanStr, extraStr)
 
     def checkBeanField(self, bean, field):
         if self.__mbean is not None:
