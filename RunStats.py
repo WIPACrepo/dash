@@ -59,8 +59,9 @@ class RunStats(object):
         return "Stats[e%s m%s s%s t%s]" % \
             (self.__numEvts, self.__numMoni, self.__numSN, self.__numTcal)
 
-    def addRate(self, dateTime, numEvts):
-        self.__physicsRate.add(dateTime, numEvts)
+    def __addRate(self, payTime, numEvts):
+        dt = PayloadTime.toDateTime(payTime)
+        self.__physicsRate.add(dt, numEvts)
 
     def clear(self):
         "Clear run-related statistics"
@@ -122,10 +123,8 @@ class RunStats(object):
             if self.__numEvts > 0:
                 if self.__startPayTime is None and firstPayTime > 0:
                     self.__startPayTime = firstPayTime
-                    startDT = PayloadTime.toDateTime(self.__startPayTime)
-                    self.__physicsRate.add(startDT, 1)
+                    self.__addRate(self.__startPayTime, 1)
                 if addRate:
-                    curDT = PayloadTime.toDateTime(self.__evtPayTime)
-                    self.__physicsRate.add(curDT, self.__numEvts)
+                    self.__addRate(self.__evtPayTime, self.__numEvts)
 
         return evtData
