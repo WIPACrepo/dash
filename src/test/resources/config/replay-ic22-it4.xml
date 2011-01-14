@@ -24,10 +24,10 @@
       <hub id="73" hitFile="HIT-stringHub#73" />
       <hub id="74" hitFile="HIT-stringHub#74" />
       <hub id="78" hitFile="HIT-stringHub#78" />
-      <hub id="81" hitFile="HIT-stringHub#81" />
-      <hub id="82" hitFile="HIT-stringHub#82" />
-      <hub id="83" hitFile="HIT-stringHub#83" />
-      <hub id="84" hitFile="HIT-stringHub#84" />
+      <hub id="201" hitFile="HIT-stringHub#201" />
+      <hub id="202" hitFile="HIT-stringHub#202" />
+      <hub id="203" hitFile="HIT-stringHub#203" />
+      <hub id="204" hitFile="HIT-stringHub#204" />
     </hubFiles>
     <triggerConfig>sps-icecube-amanda-008</triggerConfig>
     <runComponent name="inIceTrigger"/>

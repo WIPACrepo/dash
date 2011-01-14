@@ -148,8 +148,8 @@ class DAQConfigTest(unittest.TestCase):
                     'replayHub#57', 'replayHub#58', 'replayHub#59',
                     'replayHub#65', 'replayHub#66', 'replayHub#67',
                     'replayHub#72', 'replayHub#73', 'replayHub#74',
-                    'replayHub#78', 'replayHub#81', 'replayHub#82',
-                    'replayHub#83', 'replayHub#84']
+                    'replayHub#78', 'replayHub#201', 'replayHub#202',
+                    'replayHub#203', 'replayHub#204']
         comps = cfg.components()
 
         self.assertEqual(len(expected), len(comps),
