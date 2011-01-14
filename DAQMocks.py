@@ -604,6 +604,9 @@ class MockComponent(object):
             connCh = MockConnection.OPT_OUTPUT
         self.__connectors.append(MockConnection(name, connCh))
 
+    def close(self):
+        pass
+
     def commitSubrun(self, id, startTime):
         pass
 
