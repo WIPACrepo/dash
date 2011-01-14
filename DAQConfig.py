@@ -815,6 +815,15 @@ class ReplayHub(Component):
         return "%s<hub id=\"%d\" hitFile=\"%s\" />" % \
                (indent, self.id(), self.__hitFile)
 
+    def isDeepCore(self):
+        return (self.id() % 1000) > 78 and (self.id() % 1000) < 200
+
+    def isIceTop(self):
+        return (self.id() % 1000) >= 200
+
+    def isInIce(self):
+        return (self.id() % 1000) < 200
+
 class DAQConfig(object):
     """Run configuration data"""
 
