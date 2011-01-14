@@ -42,14 +42,14 @@ class PayloadTime(object):
 class RunStats(object):
     def __init__(self):
         self.__startPayTime = None
-        self.__numEvts = None
+        self.__numEvts = 0
         self.__evtTime = None
         self.__evtPayTime = None
-        self.__numMoni = None
+        self.__numMoni = 0
         self.__moniTime = None
-        self.__numSN = None
+        self.__numSN = 0
         self.__snTime = None
-        self.__numTcal = None
+        self.__numTcal = 0
         self.__tcalTime = None
 
         # Calculates rate over latest 5min interval
@@ -113,18 +113,17 @@ class RunStats(object):
 
     def updateEventCounts(self, evtData, addRate=False):
         "Gather run statistics"
-        if evtData is not None:
+        if evtData is not None and evtData[0] >= 0 and evtData[3] >= 0:
             (self.__numEvts, self.__evtTime,
              firstPayTime, self.__evtPayTime,
              self.__numMoni, self.__moniTime,
              self.__numSN, self.__snTime,
              self.__numTcal, self.__tcalTime) = evtData
 
-            if self.__numEvts > 0:
-                if self.__startPayTime is None and firstPayTime > 0:
-                    self.__startPayTime = firstPayTime
-                    self.__addRate(self.__startPayTime, 1)
-                if addRate:
-                    self.__addRate(self.__evtPayTime, self.__numEvts)
+            if self.__startPayTime is None and firstPayTime > 0:
+                self.__startPayTime = firstPayTime
+                self.__addRate(self.__startPayTime, 1)
+            if addRate:
+                self.__addRate(self.__evtPayTime, self.__numEvts)
 
         return evtData
