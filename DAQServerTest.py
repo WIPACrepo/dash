@@ -411,7 +411,7 @@ class TestDAQServer(unittest.TestCase):
         logger.addExpectedTextRegexp('Loaded run configuration .*')
         logger.addExpectedTextRegexp("Built runset #\d+: .*")
 
-        setId = dc.rpc_runset_make(runConfig)
+        setId = dc.rpc_runset_make(runConfig, strict=False)
 
         logger.checkStatus(100)
 

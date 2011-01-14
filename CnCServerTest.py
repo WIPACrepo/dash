@@ -401,7 +401,7 @@ class TestCnCServer(unittest.TestCase):
 
         catchall.addExpectedTextRegexp(r"Built runset #\d+: .*")
 
-        setId = self.cnc.rpc_runset_make(runConfig)
+        setId = self.cnc.rpc_runset_make(runConfig, strict=False)
         self.assertEquals('ready', self.comp.getState(),
                           'Unexpected state %s' % self.comp.getState())
 
