@@ -542,6 +542,10 @@ class TestCnCServer(unittest.TestCase):
         self.__runEverything(False)
 
     def testForceRestart(self):
+        if sys.platform != 'darwin':
+            print 'Skipping server tests in non-Darwin OS'
+            return
+
         self.__runEverything(True)
 
 if __name__ == '__main__':
