@@ -40,6 +40,9 @@ class MockClusterConfig(object):
     def configName(self):
         return self.__configName
 
+    def descName(self):
+        return None
+
     def nodes(self): return self.__nodes[:]
 
     def writeCacheFile(self, writeActive):
