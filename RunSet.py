@@ -224,7 +224,8 @@ class RunData(object):
                                       " file logging")
 
             self.__logDir = logDir
-            self.__runDir = runSet.createRunDir(self.__logDir, self.__runNumber)
+            self.__runDir = runSet.createRunDir(self.__logDir,
+                                                self.__runNumber)
 
         self.__spadeDir = spadeDir
         self.__copyDir = copyDir
@@ -343,7 +344,8 @@ class RunData(object):
 
     def destroy(self):
         self.stop()
-        self.__liveMoniClient.close()
+        if self.__liveMoniClient is not None:
+            self.__liveMoniClient.close()
         self.__dashlog.close()
 
     def error(self, msg):
