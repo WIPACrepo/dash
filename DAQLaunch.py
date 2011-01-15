@@ -42,7 +42,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 12559 2011-01-15 18:33:17Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 12560 2011-01-15 18:36:40Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -215,7 +215,9 @@ def startJavaComponents(compList, dryRun, configDir, dashDir, logPort, livePort,
     if verbose and not dryRun: parallel.showAll()
     if not dryRun:
         parallel.start()
-        parallel.wait()
+        if not verbose:
+            # if we wait during verbose mode, the program hangs
+            parallel.wait()
 
 def reportAction(action, actionList, ignored):
     "Report which Python daemons were launched/killed and which were ignored"
@@ -313,7 +315,6 @@ def doLaunch(doCnC, dryRun, verbose, quiet, clusterConfig, dashDir,
             if not quiet: launched.append(progBase)
     elif not dryRun and not quiet:
         ignored.append(progBase)
-
 
     startJavaProcesses(dryRun, clusterConfig, configDir, dashDir,
                        DAQPort.CATCHALL, livePort, verbose, eventCheck,
