@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 12453 2010-12-13 19:56:22Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 12559 2011-01-15 18:33:17Z dglo $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -152,7 +152,11 @@ def main():
         raise SystemExit
 
     if traceLevel >= 0:
-        print "CONFIG: %s" % config.configName()
+        if clusterConfig.descName() is None:
+            print "CLUSTER CONFIG: %s" % config.configName()
+        else:
+            print "CONFIG: %s" % config.configName()
+            print "CLUSTER: %s" % clusterConfig.descName()
 
         nodeList = config.nodes()
         nodeList.sort()
