@@ -113,12 +113,20 @@ class RunStats(object):
 
     def updateEventCounts(self, evtData, addRate=False):
         "Gather run statistics"
-        if evtData is not None and evtData[0] >= 0 and evtData[3] > 0:
-            (self.__numEvts, self.__evtTime,
-             firstPayTime, self.__evtPayTime,
+        if evtData is None: return None
+
+        (numEvts, evtTime, firstPayTime, evtPayTime,
+         numMoni, moniTime, numSN, snTime, numTcal, tcalTime) = evtData
+
+        if numEvts >= 0 and evtPayTime > 0:
+            (self.__numEvts, self.__evtTime, self.__evtPayTime,
              self.__numMoni, self.__moniTime,
              self.__numSN, self.__snTime,
-             self.__numTcal, self.__tcalTime) = evtData
+             self.__numTcal, self.__tcalTime) = \
+             (numEvts, evtTime, evtPayTime,
+              numMoni, moniTime,
+              numSN, snTime,
+              numTcal, tcalTime)
 
             if self.__startPayTime is None and firstPayTime > 0:
                 self.__startPayTime = firstPayTime
