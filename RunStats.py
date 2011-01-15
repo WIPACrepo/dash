@@ -113,7 +113,7 @@ class RunStats(object):
 
     def updateEventCounts(self, evtData, addRate=False):
         "Gather run statistics"
-        if evtData is not None and evtData[0] >= 0 and evtData[3] >= 0:
+        if evtData is not None and evtData[0] >= 0 and evtData[3] > 0:
             (self.__numEvts, self.__evtTime,
              firstPayTime, self.__evtPayTime,
              self.__numMoni, self.__moniTime,
