@@ -42,7 +42,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 12532 2011-01-11 16:55:19Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 12557 2011-01-15 17:34:59Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -446,7 +446,9 @@ if __name__ == "__main__":
         caughtException = False
         try:
             activeConfig = \
-                DAQConfigParser.getClusterConfiguration(None, False, True)
+                DAQConfigParser.getClusterConfiguration(None, False, True,
+                                                        opt.clusterDesc,
+                                                        configDir=configDir)
             doKill(doCnC, opt.dryRun, dashDir, opt.verbose, opt.quiet,
                    activeConfig, opt.killWith9)
         except ClusterConfigException:
