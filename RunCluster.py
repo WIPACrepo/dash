@@ -13,10 +13,6 @@ else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
-# add 'cluster-config' to Python library search path
-#
-sys.path.append(os.path.join(metaDir, 'cluster-config'))
-
 class RunClusterError(Exception): pass
 
 class RunComponent(Component):
