@@ -562,8 +562,8 @@ class WatchdogTask(CnCTask):
                 stagnant += self.__threadList[c].stagnant()
                 threshold += self.__threadList[c].threshold()
 
-                self.__threadList[c] = self.__threadList[c].getNewThread()
-                self.__threadList[c].start()
+            self.__threadList[c] = self.__threadList[c].getNewThread()
+            self.__threadList[c].start()
 
         healthy = True
         if len(hanging) > 0:
