@@ -45,8 +45,9 @@ class TaskManager(threading.Thread):
                 try:
                     taskSecs = t.check()
                 except:
-                    self.__dashlog.error("%s exception: %s" %
-                                         (str(t), exc_string()))
+                    if self.__dashlog is not None:
+                        self.__dashlog.error("%s exception: %s" %
+                                             (str(t), exc_string()))
                     taskSecs = CnCTask.MAX_TASK_SECS
                 if waitSecs > taskSecs:
                     waitSecs = taskSecs
@@ -71,7 +72,8 @@ class TaskManager(threading.Thread):
         try:
             self.__run()
         except:
-            self.__dashlog.error(exc_string())
+            if self.__dashlog is not None:
+                self.__dashlog.error(exc_string())
 
     def setDebugBits(self, debugBits):
         for t in self.__tasks:
