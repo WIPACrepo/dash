@@ -10,6 +10,12 @@ class RunOption(object):
     MONI_TO_LIVE = 0x4000
     MONI_TO_BOTH = MONI_TO_FILE | MONI_TO_LIVE
 
+    def __appendWithComma(cls, prevstr, addstr):
+        if prevstr is None:
+            return addstr
+        return prevstr + "," + addstr
+    __appendWithComma = classmethod(__appendWithComma)
+
     def __isOption(cls, flags, option):
         return (flags & option) == option
     __isOption = classmethod(__isOption)
@@ -45,3 +51,31 @@ class RunOption(object):
     def isMoniToNone(cls, flags):
         return cls.__isOption(flags, cls.MONI_TO_NONE)
     isMoniToNone = classmethod(isMoniToNone)
+
+    def string(cls, flags):
+        logStr = None
+        if cls.isLogToNone(flags):
+            logStr = cls.__appendWithComma(logStr, "None")
+        if cls.isLogToBoth(flags):
+            logStr = cls.__appendWithComma(logStr, "Both")
+        elif cls.isLogToFile(flags):
+            logStr = cls.__appendWithComma(logStr, "File")
+        elif cls.isLogToLive(flags):
+            logStr = cls.__appendWithComma(logStr, "Live")
+        elif logStr is None:
+            logStr = ""
+
+        moniStr = None
+        if cls.isMoniToNone(flags):
+            moniStr = cls.__appendWithComma(moniStr, "None")
+        if cls.isMoniToBoth(flags):
+            moniStr = cls.__appendWithComma(moniStr, "Both")
+        elif cls.isMoniToFile(flags):
+            moniStr = cls.__appendWithComma(moniStr, "File")
+        elif cls.isMoniToLive(flags):
+            moniStr = cls.__appendWithComma(moniStr, "Live")
+        elif moniStr is None:
+            moniStr = ""
+
+        return "RunOption[log(%s)moni(%s)]" % (logStr, moniStr)
+    string = classmethod(string)
