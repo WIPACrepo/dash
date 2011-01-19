@@ -73,7 +73,7 @@ class CnCLogger(DAQLog):
             return 'PREV=%s' % str(self.__prevInfo)
         return '?LOG?'
 
-    def _logmsg(self, level, s):
+    def _logmsg(self, level, s, retry=True):
         """
         Log a string to stdout and, if available, to the socket logger
         stdout of course will not appear if daemonized.
@@ -87,7 +87,8 @@ class CnCLogger(DAQLog):
             print >>sys.stderr, 'Lost logging connection to %s' % \
                 str(self.__logInfo)
             self.resetLog()
-            self._logmsg(level, s)
+            if retry:
+                self._logmsg(level, s, False)
 
     def closeLog(self):
         "Close the log socket"
