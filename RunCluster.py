@@ -223,7 +223,7 @@ class RunCluster(CachedConfigName):
             id = hub.id() % 1000
             if id == 0:
                 needAmanda = True
-            elif id < 80:
+            elif id < 200:
                 needInice = True
             else:
                 needIcetop = True
