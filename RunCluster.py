@@ -348,6 +348,7 @@ if __name__ == '__main__':
 
     from DAQConfig import DAQConfigParser
 
+    nameList = []
     grabDesc = False
     clusterDesc = None
 
@@ -358,6 +359,8 @@ if __name__ == '__main__':
             continue
 
         if name.startswith('-C'):
+            if clusterDesc is not None:
+                raise Exception("Cannot specify multiple cluster descriptions")
             if len(name) > 2:
                 clusterDesc = name[2:]
             else:
@@ -368,6 +371,9 @@ if __name__ == '__main__':
             # ignore
             continue
 
+        nameList.append(name)
+
+    for name in nameList:
         cfg = DAQConfigParser.load(name, configDir)
         try:
             runCluster = RunCluster(cfg, clusterDesc)
@@ -385,8 +391,10 @@ if __name__ == '__main__':
         print 'RunCluster: %s (%s)' % \
             (runCluster.configName(), runCluster.descName())
         print '--------------------'
-        print 'SPADE logDir: %s' % runCluster.logDirForSpade()
-        print 'Copied logDir: %s' % runCluster.logDirCopies()
+        if runCluster.logDirForSpade() is not None:
+            print 'SPADE logDir: %s' % runCluster.logDirForSpade()
+        if runCluster.logDirCopies() is not None:
+            print 'Copied logDir: %s' % runCluster.logDirCopies()
         print 'Default log level: %s' % runCluster.defaultLogLevel()
         for node in runCluster.nodes():
             print '  %s@%s logLevel %s' % \
