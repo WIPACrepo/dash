@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12540 2011-01-12 23:42:40Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 12583 2011-01-21 21:37:17Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -519,6 +519,8 @@ class CnCServer(DAQPool):
 
         self.__live = None
 
+        self.__openFileCount = None
+
         super(CnCServer, self).__init__(defaultDebugBits=defaultRunsetDebug)
 
         # close and exit on ctrl-C
@@ -594,6 +596,22 @@ class CnCServer(DAQPool):
             print >>sys.stderr, "\nExiting"
             sys.exit(0)
         print >>sys.stderr, "Cannot exit with active runset(s)"
+
+    def __countFileDescriptors(cls):
+        "Count number of open file descriptors for this process"
+        if not sys.platform.startswith("linux"):
+            return 0
+
+        path = "/proc/%d/fd" % os.getpid()
+        if not os.path.exists(path):
+            raise CnCServerException("Path \"%s\" does not exist" % path)
+
+        count = 0
+        for entry in os.listdir(path):
+            count += 1
+
+        return count
+    __countFileDescriptors = classmethod(__countFileDescriptors)
 
     def __getComponents(self, idList, getAll):
         compList = []
@@ -1163,10 +1181,24 @@ class CnCServer(DAQPool):
         if logDir is None:
             logDir = self.__defaultLogDir
 
+        try:
+            openCount = self.__countFileDescriptors()
+        except:
+            self.__log.error("Cannot count open files: %s" % exc_string())
+            openCount = 0
+
         runSet.startRun(runNum, self.getClusterConfig().configName(),
                         runOptions, get_version_info(SVN_ID), self.__spadeDir,
                         copyDir=self.__copyDir, logDir=logDir,
                         quiet=self.__quiet)
+
+        if self.__openFileCount is None:
+            self.__openFileCount = openCount
+        elif openCount > self.__openFileCount:
+            runSet.logToDash("WARNING: Possible file leak; open file count" +
+                             " increased from %d to %d" %
+                             (self.__openFileCount, openCount))
+            self.__openFileCount = openCount
 
     def versionInfo(self):
         return self.__versionInfo
