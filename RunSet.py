@@ -1221,6 +1221,10 @@ class RunSet(object):
         return self.__state == RunSetState.RUNNING
 
     def queueForSpade(self, duration):
+        if self.__runData is None:
+            self.__logger.error("No run data; cannot queue for SPADE")
+            return
+
         self.__runData.queueForSpade(duration)
 
     def reset(self):
@@ -1577,6 +1581,7 @@ class RunSet(object):
                 c.commitSubrun(id, repr(latestTime))
 
     def updateRates(self):
-        self.__runData.updateRates(self.__set)
+        if self.__runData is not None:
+            self.__runData.updateRates(self.__set)
 
 if __name__ == "__main__": pass
