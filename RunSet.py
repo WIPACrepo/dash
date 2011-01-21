@@ -1220,6 +1220,13 @@ class RunSet(object):
     def isRunning(self):
         return self.__state == RunSetState.RUNNING
 
+    def logToDash(self, msg):
+        "Used when CnCServer needs to add a log message to dash.log"
+        if self.__runData is not None:
+            self.__runData.error(msg)
+        else:
+            self.__logger.error(msg)
+
     def queueForSpade(self, duration):
         if self.__runData is None:
             self.__logger.error("No run data; cannot queue for SPADE")
