@@ -27,6 +27,7 @@ class DAQLive(Component):
                                         makesLight=True)
 
     def recovering(self, retry=True):
+        rtnVal = True
         if self.__runSet is None:
             # if no active runset, nothing to recover
             pass
@@ -34,12 +35,12 @@ class DAQLive(Component):
             if self.__runSet.isDestroyed():
                 self.__runSet = None
             elif not self.__runSet.isReady():
-                self.__runSet.stopRun(hadError=True)
+                rtnVal = self.__runSet.stopRun(hadError=True)
 
             if self.__runSet is not None:
                 self.__log.error("DAQLive recovered %s" % self.__runSet)
 
-        return True
+        return rtnVal
 
     def runChange(self, stateArgs=None): raise UnimplementedException()
 
