@@ -348,19 +348,19 @@ class DAQClient(ComponentName):
                 self.__clientLock.release()
         except:
             self.__log.error(exc_string())
-            return None
+            connStates = []
 
         csStr = None
         for cs in connStates:
             if cs["state"] == 'idle':
                 continue
-            if not csStr:
+            if csStr is None:
                 csStr = '['
             else:
                 csStr += ', '
             csStr += '%s:%s' % (cs["type"], cs["state"])
 
-        if not csStr:
+        if csStr is None:
             csStr = ''
         else:
             csStr += ']'
