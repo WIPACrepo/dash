@@ -737,7 +737,10 @@ class RunSet(object):
         tGroup.reportErrors(self.__logger, "stopLogging")
 
     def __stopRunInternal(self, hadError=False):
-        "Stop all components in the runset"
+        """
+        Stop all components in the runset
+        Return True if an error is encountered while stopping.
+        """
         if self.__runData is None:
             raise RunSetException("RunSet #%d is not running" % self.__id)
 
@@ -1508,7 +1511,10 @@ class RunSet(object):
         return setStats
 
     def stopRun(self, hadError=False):
-        "Stop all components in the runset"
+        """
+        Stop all components in the runset
+        Return True if an error is encountered while stopping.
+        """
         if self.__stopping:
             msg = "Ignored extra stopRun() call"
             if self.__runData is not None:
