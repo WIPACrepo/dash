@@ -548,7 +548,7 @@ class DAQClient(ComponentName):
                 state != self.STATE_MISSING and state != self.STATE_DEAD:
             raise DAQClientException("%s state is %s" % (self, state))
 
-        self.__log.closeLog()
+        self.__log.closeFinal()
         try:
             self.__client.xmlrpc.terminate()
         except:
