@@ -946,7 +946,7 @@ class IntegrationTest(unittest.TestCase):
         if duration <= 0:
             hzStr = ""
         else:
-            hzStr = " (%2.2f Hz)" % (float(numEvts - 0) / float(duration))
+            hzStr = " (%2.2f Hz)" % (float(numEvts - 1) / float(duration))
 
         dashLog.addExpectedExact(("	%d physics events%s, 0 moni events," +
                                   " 0 SN events, 0 tcals") % (numEvts, hzStr))
