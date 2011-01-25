@@ -35,7 +35,7 @@ class DAQLive(Component):
             if self.__runSet.isDestroyed():
                 self.__runSet = None
             elif not self.__runSet.isReady():
-                rtnVal = self.__runSet.stopRun(hadError=True)
+                rtnVal = not self.__runSet.stopRun(hadError=True)
 
             if self.__runSet is not None:
                 self.__log.error("DAQLive recovered %s" % self.__runSet)

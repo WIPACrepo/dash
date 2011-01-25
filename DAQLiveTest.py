@@ -320,6 +320,29 @@ class DAQLiveTest(unittest.TestCase):
 
         self.failUnless(live.recovering(), "recovering failed")
 
+    def testRecoveringStopFail(self):
+        cnc = MockCnC()
+        log = MockLogger("liveLog")
+        live = self.__createLive(cnc, log)
+
+        runCfg = "foo"
+        runNum = 13579
+        runSet = MockRunSet(runCfg)
+
+        cnc.setExpectedRunConfig(runCfg)
+        cnc.setExpectedRunNumber(runNum)
+        cnc.setRunSet(runSet)
+
+        state = { "runConfig": runCfg, "runNumber": runNum }
+
+        self.failUnless(live.starting(state), "starting failed")
+
+        runSet.setExpectedStopError()
+        runSet.setStopReturnError()
+
+        log.addExpectedExact("DAQLive recovered %s" % runSet)
+        self.failIf(live.recovering(), "recovering failed")
+
     def testRecovering(self):
         cnc = MockCnC()
         log = MockLogger("liveLog")
