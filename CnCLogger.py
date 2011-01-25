@@ -82,12 +82,13 @@ class CnCLogger(DAQLog):
         try:
             super(CnCLogger, self)._logmsg(level, s)
         except Exception, ex:
-            if str(ex).find('Connection refused') < 0:
-                raise
-            print >>sys.stderr, 'Lost logging connection to %s' % \
-                str(self.__logInfo)
+            if type(ex) != LogException:
+                if str(ex).find('Connection refused') < 0:
+                    raise
+                print >>sys.stderr, 'Lost logging connection to %s' % \
+                      str(self.__logInfo)
             self.resetLog()
-            if retry:
+            if retry and self.hasAppender():
                 self._logmsg(level, s, False)
 
     def closeLog(self):
@@ -139,6 +140,7 @@ class CnCLogger(DAQLog):
         if self.__prevInfo is not None and self.__logInfo != self.__prevInfo:
             self.close()
             self.__logInfo = self.__prevInfo
+            self.__prevInfo = None
             self.__addAppenders()
 
         if self.hasAppender() and self.__extraLoud:
