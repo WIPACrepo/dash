@@ -1544,8 +1544,12 @@ class RunSet(object):
             try:
                 (newData, missingDoms) = self.__validateSubrunDOMs(data)
                 if len(missingDoms) > 0:
-                    self.__runData.warn(("Subrun %d: will ignore missing" +
-                                         " DOMs %s") % (id, missingDoms))
+                    if len(missingDoms) > 1:
+                        sStr = "s"
+                    else:
+                        sStr = ""
+                    self.__runData.warn(("Subrun %d: ignoring missing" +
+                                         " DOM%s %s") % (id, sStr, missingDoms))
 
                 # newData has any missing DOMs deleted and any string/position
                 # pairs converted to mainboard IDs
@@ -1554,10 +1558,14 @@ class RunSet(object):
                 raise RunSetException("Subrun %d: invalid argument list (%s)" %
                                       (id, inv))
 
-            self.__runData.error("Subrun %d: flashing DOMs (%s)" %
-                                 (id, str(data)))
+            if len(missingDoms) > 1:
+                sStr = "s"
+            else:
+                sStr = ""
+            self.__runData.error("Subrun %d: flashing DOM%s (%s)" %
+                                 (id, sStr, str(data)))
         else:
-            self.__runData.error("Subrun %d: Got command to stop flashers" % id)
+            self.__runData.error("Subrun %d: stopping flashers" % id)
         for c in self.__set:
             if c.isBuilder():
                 c.prepareSubrun(id)
