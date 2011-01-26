@@ -1011,7 +1011,8 @@ class DAQConfig(object):
             if dom is not None:
                 return "%12x" % dom.id()
 
-        raise DOMNotInConfigException("Cannot find DOM named \"%s\"" % name)
+        raise DOMNotInConfigException("Cannot find string %d pos %d" %
+                                      (string, pos))
 
     def hasDOM(self, domid):
         if type(domid) != int and type(domid) != long:
