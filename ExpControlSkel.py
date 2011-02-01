@@ -23,7 +23,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 12355 2010-10-29 20:04:28Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 12617 2011-02-01 23:31:49Z dglo $"
 
 class DOMArgumentException(Exception): pass
 
@@ -37,7 +37,7 @@ def setLastRunNum(runFile, runNum):
     fd = open(runFile, 'w')
     print >>fd, runNum
     fd.close()
-    
+
 def getLastRunNum(runFile):
     try:
         f = open(runFile, "r")
@@ -92,7 +92,7 @@ class SubRunDOM(object):
             self.rate   = args[5]
         else:
             raise DOMArgumentException()
-        
+
     def flasherInfo(self):
         if self.mbid != None:
             return (self.mbid, self.bright, self.window, self.delay, self.mask, self.rate)
@@ -119,7 +119,7 @@ class SubRunDOM(object):
                     "rate"        : self.rate }
         else:
             raise DOMArgumentException()
-                    
+
 class SubRun:
     FLASH = 1
     DELAY = 2
@@ -128,11 +128,11 @@ class SubRun:
         self.duration = duration
         self.id       = id
         self.domlist  = []
-        
+
     def addDOM(self, d):
         self.domlist.append(SubRunDOM(string, pos,  bright, window, delay,
                                       mask, rate))
-        
+
     def __str__(self):
         typ = "FLASHER"
         if self.type == SubRun.DELAY: typ = "DELAY"
@@ -148,7 +148,7 @@ class SubRun:
 
     def flasherDictList(self):
         return [d.flasherHash() for d in self.domlist]
-                
+
 class SubRunSet:
     def __init__(self, fileName):
         self.subruns = []
@@ -163,7 +163,7 @@ class SubRunSet:
                 num += 1
                 sr = None
                 continue
-            
+
             m = search(r'flash (\d+)', l)
             if m:
                 t = int(m.group(1))
@@ -189,7 +189,7 @@ class SubRunSet:
                 mask   = int(m6.group(5), 16)
                 rate   = int(m6.group(6))
                 sr.addDOM(mbid, bright, window, delay, mask, rate)
-                
+
     def __str__(self):
         s = ""
         for l in self.subruns:
