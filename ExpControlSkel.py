@@ -23,7 +23,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 12617 2011-02-01 23:31:49Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 12618 2011-02-01 23:33:48Z dglo $"
 
 class DOMArgumentException(Exception): pass
 
@@ -247,7 +247,11 @@ def main():
         else:
             run.start(duration, flashTimes, flashPause, False)
         try:
-            run.wait()
+            try:
+                run.wait()
+            except KeyboardInterrupt:
+                print "Run interrupted by user"
+                break
         finally:
             print >>sys.stderr, "Stopping run..."
             run.finish()
