@@ -1010,7 +1010,7 @@ class DAQConfig(object):
         for dc in self.__domCfgList:
             dom = dc.getDOMByName(name)
             if dom is not None:
-                return "%12x" % dom.id()
+                return "%012x" % dom.id()
 
         raise DOMNotInConfigException("Cannot find DOM named \"%s\"" % name)
 
@@ -1018,7 +1018,7 @@ class DAQConfig(object):
         for dc in self.__domCfgList:
             dom = dc.getDOMByStringPos(string, pos)
             if dom is not None:
-                return "%12x" % dom.id()
+                return "%012x" % dom.id()
 
         raise DOMNotInConfigException("Cannot find string %d pos %d" %
                                       (string, pos))
