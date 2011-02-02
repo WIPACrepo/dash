@@ -42,8 +42,8 @@ class PDAQRun(object):
 
 # configurations to run
 #
-RUN_LIST = (PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
-            PDAQRun("spts64-dirtydozen-hlc-006", 0, 1,
+RUN_LIST = (PDAQRun("spts-dirtyfive-hlc-006", FOUR_HR),
+            PDAQRun("spts-dirtyfive-hlc-006", 0, 1,
                     "flash-21", (60, 45, 120)),
             ###PDAQRun("sim18str-noise25Hz-002", FOUR_HR),
             ###PDAQRun("sim18str-noise25Hz-002", EIGHT_HR),
