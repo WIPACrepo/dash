@@ -1571,19 +1571,23 @@ if __name__ == "__main__":
     p.add_option("-c", "--check-config", type="string", dest="toCheck",
                  action="store", default=None,
                  help="Check whether configuration is valid")
+    p.add_option("-S", "--not-strict", dest="strict",
+                 action="store_false", default=True,
+                 help="Do not perform strict checking")
     opt, args = p.parse_args()
 
     configDir  = os.path.join(metaDir, "config")
 
     if opt.toCheck:
         try:
-            DAQConfigParser.load(opt.toCheck, configDir)
+            DAQConfigParser.load(opt.toCheck, configDir, opt.strict)
             print "%s/%s is ok." % (configDir, opt.toCheck)
+            status = None
         except Exception, e:
             from exc_string import exc_string
-            print "%s/%s is not a valid config: %s [%s]" % \
-                (configDir, opt.toCheck, e, exc_string())
-        raise SystemExit
+            status = "%s/%s is not a valid config: %s [%s]" % \
+                     (configDir, opt.toCheck, e, exc_string())
+        raise SystemExit(status)
 
     # Code for testing:
     if len(args) == 0:
@@ -1593,7 +1597,7 @@ if __name__ == "__main__":
         print '-----------------------------------------------------------'
         print "Config %s" % configName
         startTime = datetime.datetime.now()
-        dc = DAQConfigParser.load(configName, configDir)
+        dc = DAQConfigParser.load(configName, configDir, opt.strict)
         diff = datetime.datetime.now() - startTime
         initTime = float(diff.seconds) + (float(diff.microseconds) / 1000000.0)
 
