@@ -704,6 +704,9 @@ class DomConfig(object):
 
     def filename(self): return self.__fileName
 
+    def getAllDOMs(self):
+        return self.__domList
+
     def getDOMByID(self, domid):
         for d in self.__domList:
             if d.id() == domid:
@@ -986,6 +989,12 @@ class DAQConfig(object):
         return deleted
 
     def filename(self): return self.__fileName
+
+    def getAllDOMs(self):
+        dlist = []
+        for dc in self.__domCfgList:
+            dlist += dc.getAllDOMs()
+        return dlist
 
     def getHubName(cls, num):
         """Get the standard representation for a hub number"""
