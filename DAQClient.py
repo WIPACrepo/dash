@@ -183,14 +183,11 @@ class DAQClient(ComponentName):
         self.__log = self.createLogger(quiet=quiet)
 
         self.__client = self.createClient(host, port)
-        self.__clientLock = threading.Lock()
 
         try:
             self.__mbean = self.createMBeanClient(host, mbeanPort)
-            self.__mbeanLock = threading.Lock()
         except:
             self.__mbean = None
-            self.__mbeanLock = None
 
     def __str__(self):
         "String description"
@@ -228,11 +225,7 @@ class DAQClient(ComponentName):
     def commitSubrun(self, subrunNum, latestTime):
         "Start marking events with the subrun number"
         try:
-            self.__clientLock.acquire()
-            try:
-                return self.__client.xmlrpc.commitSubrun(subrunNum, latestTime)
-            finally:
-                self.__clientLock.release()
+            return self.__client.xmlrpc.commitSubrun(subrunNum, latestTime)
         except:
             self.__log.error(exc_string())
             return None
@@ -241,17 +234,9 @@ class DAQClient(ComponentName):
         "Configure this component"
         try:
             if not configName:
-                self.__clientLock.acquire()
-                try:
-                    return self.__client.xmlrpc.configure()
-                finally:
-                    self.__clientLock.release()
+                return self.__client.xmlrpc.configure()
             else:
-                self.__clientLock.acquire()
-                try:
-                    return self.__client.xmlrpc.configure(configName)
-                finally:
-                    self.__clientLock.release()
+                return self.__client.xmlrpc.configure(configName)
         except:
             self.__log.error(exc_string())
             return None
@@ -260,21 +245,13 @@ class DAQClient(ComponentName):
         "Connect this component with other components in a runset"
 
         if not connList:
-            self.__clientLock.acquire()
-            try:
-                return self.__client.xmlrpc.connect()
-            finally:
-                self.__clientLock.release()
+            return self.__client.xmlrpc.connect()
 
         cl = []
         for conn in connList:
             cl.append(conn.map())
 
-        self.__clientLock.acquire()
-        try:
-            return self.__client.xmlrpc.connect(cl)
-        finally:
-            self.__clientLock.release()
+        return self.__client.xmlrpc.connect(cl)
 
     def connectors(self):
         return self.__connectors[:]
@@ -291,11 +268,7 @@ class DAQClient(ComponentName):
     def events(self, subrunNumber):
         "Get the number of events in the specified subrun"
         try:
-            self.__clientLock.acquire()
-            try:
-                evts = self.__client.xmlrpc.getEvents(subrunNumber)
-            finally:
-                self.__clientLock.release()
+            evts = self.__client.xmlrpc.getEvents(subrunNumber)
             if type(evts) == str:
                 evts = long(evts[:-1])
             return evts
@@ -306,11 +279,7 @@ class DAQClient(ComponentName):
     def forcedStop(self):
         "Force component to stop running"
         try:
-            self.__clientLock.acquire()
-            try:
-                return self.__client.xmlrpc.forcedStop()
-            finally:
-                self.__clientLock.release()
+            return self.__client.xmlrpc.forcedStop()
         except:
             self.__log.error(exc_string())
             return None
@@ -329,11 +298,7 @@ class DAQClient(ComponentName):
         if self.__mbean is None:
             return {}
 
-        self.__mbeanLock.acquire()
-        try:
-            return self.__mbean.getAttributes(name, fieldList)
-        finally:
-            self.__mbeanLock.release()
+        return self.__mbean.getAttributes(name, fieldList)
 
     def getNonstoppedConnectorsString(self):
         """
@@ -341,11 +306,7 @@ class DAQClient(ComponentName):
         which have not yet stopped
         """
         try:
-            self.__clientLock.acquire()
-            try:
-                connStates = self.__client.xmlrpc.listConnectorStates()
-            finally:
-                self.__clientLock.release()
+            connStates = self.__client.xmlrpc.listConnectorStates()
         except:
             self.__log.error(exc_string())
             connStates = []
@@ -371,11 +332,7 @@ class DAQClient(ComponentName):
         if self.__mbean is None:
             return None
 
-        self.__mbeanLock.acquire()
-        try:
-            return self.__mbean.get(name, field)
-        finally:
-            self.__mbeanLock.release()
+        return self.__mbean.get(name, field)
 
     def host(self):
         return self.__host
@@ -398,11 +355,7 @@ class DAQClient(ComponentName):
         return True
 
     def listConnectorStates(self):
-        self.__clientLock.acquire()
-        try:
-            return self.__client.xmlrpc.listConnectorStates()
-        finally:
-            self.__clientLock.release()
+        return self.__client.xmlrpc.listConnectorStates()
 
     def logTo(self, logIP, logPort, liveIP, livePort):
         "Send log messages to the specified host and port"
@@ -417,12 +370,8 @@ class DAQClient(ComponentName):
         if livePort is None:
             livePort = 0
 
-        self.__clientLock.acquire()
-        try:
-            self.__client.xmlrpc.logTo(logIP, logPort, liveIP, livePort)
-            infoStr = self.__client.xmlrpc.getVersionInfo()
-        finally:
-            self.__clientLock.release()
+        self.__client.xmlrpc.logTo(logIP, logPort, liveIP, livePort)
+        infoStr = self.__client.xmlrpc.getVersionInfo()
 
         self.__log.debug(("Version info: %(filename)s %(revision)s" +
                           " %(date)s %(time)s %(author)s %(release)s" +
@@ -452,11 +401,7 @@ class DAQClient(ComponentName):
     def prepareSubrun(self, subrunNum):
         "Start marking events as bogus in preparation for subrun"
         try:
-            self.__clientLock.acquire()
-            try:
-                return self.__client.xmlrpc.prepareSubrun(subrunNum)
-            finally:
-                self.__clientLock.release()
+            return self.__client.xmlrpc.prepareSubrun(subrunNum)
         except:
             self.__log.error(exc_string())
             return None
@@ -464,20 +409,12 @@ class DAQClient(ComponentName):
     def reset(self):
         "Reset component back to the idle state"
         self.__log.closeLog()
-        self.__clientLock.acquire()
-        try:
-            return self.__client.xmlrpc.reset()
-        finally:
-            self.__clientLock.release()
+        return self.__client.xmlrpc.reset()
 
     def resetLogging(self):
         "Reset component back to the idle state"
         self.__log.resetLog()
-        self.__clientLock.acquire()
-        try:
-            return self.__client.xmlrpc.resetLogging()
-        finally:
-            self.__clientLock.release()
+        return self.__client.xmlrpc.resetLogging()
 
     def setOrder(self, orderNum):
         self.__cmdOrder = orderNum
@@ -485,11 +422,7 @@ class DAQClient(ComponentName):
     def startRun(self, runNum):
         "Start component processing DAQ data"
         try:
-            self.__clientLock.acquire()
-            try:
-                return self.__client.xmlrpc.startRun(runNum)
-            finally:
-                self.__clientLock.release()
+            return self.__client.xmlrpc.startRun(runNum)
         except:
             self.__log.error(exc_string())
             return None
@@ -497,11 +430,7 @@ class DAQClient(ComponentName):
     def startSubrun(self, data):
         "Send subrun data to stringHubs"
         try:
-            self.__clientLock.acquire()
-            try:
-                return self.__client.xmlrpc.startSubrun(data)
-            finally:
-                self.__clientLock.release()
+            return self.__client.xmlrpc.startSubrun(data)
         except:
             self.__log.error(exc_string())
             return None
@@ -509,11 +438,7 @@ class DAQClient(ComponentName):
     def state(self):
         "Get current state"
         try:
-            self.__clientLock.acquire()
-            try:
-                state = self.__client.xmlrpc.getState()
-            finally:
-                self.__clientLock.release()
+            state = self.__client.xmlrpc.getState()
         except socket.error:
             state = None
         except:
@@ -532,11 +457,7 @@ class DAQClient(ComponentName):
     def stopRun(self):
         "Stop component processing DAQ data"
         try:
-            self.__clientLock.acquire()
-            try:
-                return self.__client.xmlrpc.stopRun()
-            finally:
-                self.__clientLock.release()
+            return self.__client.xmlrpc.stopRun()
         except:
             self.__log.error(exc_string())
             return None
