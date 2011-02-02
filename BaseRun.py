@@ -497,6 +497,10 @@ class BaseRun(object):
         """
         raise UnimplementedException()
 
+    def state(self):
+        """Current state of runset"""
+        raise UnimplementedException()
+
     def stopRun(self):
         """Stop the run"""
         raise UnimplementedException()

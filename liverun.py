@@ -625,6 +625,9 @@ class LiveRun(BaseRun):
         return self.__waitForState(LiveRunState.STARTING, LiveRunState.RUNNING,
                                    18, 0)
 
+    def state(self):
+        return self.__state.runState()
+
     def stopRun(self):
         """Stop the run"""
         pass

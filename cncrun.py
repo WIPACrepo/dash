@@ -260,6 +260,19 @@ class CnCRun(BaseRun):
 
         return True
 
+    def state(self):
+        if self.__cnc is None:
+            self.__reconnect(False)
+        if self.__cnc is None:
+            return "DEAD"
+        if self.__runSetId is None:
+            return "STOPPED"
+        try:
+            state = self.__cnc.rpc_runset_state(self.__runSetId)
+            return str(state).upper()
+        except:
+            return "ERROR"
+
     def stopRun(self):
         """Stop the run"""
         if self.__runSetId is None:
