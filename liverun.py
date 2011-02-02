@@ -194,6 +194,11 @@ class LiveState(object):
         if line.startswith("Flashing DOMs"):
             return LiveState.PARSE_FLASH
 
+        if parseState == LiveState.PARSE_FLASH:
+            m = LiveState.DOM_PAT.match(line)
+            if m:
+                return LiveState.PARSE_FLASH
+
         if line.find(": ") > 0:
             (front, back) = line.split(": ", 1)
             front = front.strip()
@@ -243,12 +248,6 @@ class LiveState(object):
                 print >>sys.stderr, "Unknown livecmd pair: \"%s\"/\"%s\"" % \
                       (front, back)
                 return LiveState.PARSE_NORMAL
-
-        if parseState == LiveState.PARSE_FLASH:
-            m = LiveState.DOM_PAT.match(line)
-            if m:
-                # toss flashing DOM line
-                return LiveState.PARSE_FLASH
 
         m = LiveState.SVC_PAT.match(line)
         if m:
