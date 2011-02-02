@@ -135,6 +135,28 @@ class DAQConfigTest(unittest.TestCase):
 
         self.lookup(cfg, dataList)
 
+    def testDumpDOMs(self):
+        metaDir = self.initPDAQHome()
+        cfg = DAQConfigParser.load("sps-IC40-IT6-AM-Revert-IceTop-V029",
+                                  metaDir + "/config")
+
+        for d in cfg.getAllDOMs():
+            mbid = str(d)
+            if len(mbid) != 12 or mbid.startswith(" "):
+                self.fail("DOM %s(%s) has bad MBID" % (mbid, d.name()))
+            n = 0
+            if str(d).startswith("0"):
+                n += 1
+                nmid = cfg.getIDbyName(d.name())
+                if nmid != mbid:
+                    self.fail("Bad IDbyName value \"%s\" for \"%s\"" %
+                              (nmid, mbid))
+
+                newid = cfg.getIDbyStringPos(d.string(), d.pos())
+                if newid.startswith(" ") or len(newid) != 12:
+                    self.fail("Bad IDbyStringPos value \"%s\" for \"%s\" %d" %
+                              (newid, mbid, n))
+
     def testReplay(self):
         metaDir = self.initPDAQHome()
         cfg = DAQConfigParser.load("replay-ic22-it4", metaDir + "/config")
