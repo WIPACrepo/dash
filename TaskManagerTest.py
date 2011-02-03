@@ -6,6 +6,7 @@ from LiveImports import Prio
 from RadarTask import RadarThread
 from RunOption import RunOption
 from TaskManager import TaskManager
+from WatchdogTask import WatchdogTask
 
 from DAQMocks import MockIntervalTimer
 
@@ -437,7 +438,8 @@ class TaskManagerTest(unittest.TestCase):
                             "    secondaryBuilders snBuilder.DiskAvailable" +
                             " below 1024 (value=0)")
         dashlog.addExpected(MockLog.LEVEL_ERROR,
-                            "Run is unhealthy (2 checks left)")
+                            "Run is unhealthy (%d checks left)" %
+                            (WatchdogTask.HEALTH_METER_FULL - 1))
 
         rst.triggerTimers()
 

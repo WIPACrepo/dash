@@ -453,7 +453,8 @@ class CnCRunSetTest(unittest.TestCase):
         time.sleep(MostlyTaskManager.WAITSECS * 2.0)
 
         dashLog.addExpectedRegexp("Watchdog reports threshold components.*")
-        dashLog.addExpectedExact("Run is unhealthy (2 checks left)")
+        dashLog.addExpectedExact("Run is unhealthy (%d checks left)" %
+                                 (WatchdogTask.HEALTH_METER_FULL - 1))
 
         timer.trigger()
 

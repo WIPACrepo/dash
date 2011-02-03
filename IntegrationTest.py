@@ -967,7 +967,8 @@ class IntegrationTest(unittest.TestCase):
         taskMgr.waitForTasks()
 
         dashLog.addExpectedRegexp("Watchdog reports threshold components.*")
-        dashLog.addExpectedExact("Run is unhealthy (2 checks left)")
+        dashLog.addExpectedExact("Run is unhealthy (%d checks left)" %
+                                 (WatchdogTask.HEALTH_METER_FULL - 1))
 
         taskMgr.triggerTimer(WatchdogTask.NAME)
         time.sleep(MostlyTaskManager.WAITSECS)
