@@ -1268,11 +1268,11 @@ class IntegrationTest(unittest.TestCase):
             else:
                 break
 
-        msg = "Subrun %d: will ignore missing DOMs ['#%s']" % \
+        msg = "Subrun %d: ignoring missing DOM ['#%s']" % \
                    (subRunId, domList[2][0])
         if dashLog: dashLog.addExpectedExact(msg)
 
-        fmt = 'Subrun %d: flashing DOMs (%%s)' % subRunId
+        fmt = 'Subrun %d: flashing DOM (%%s)' % subRunId
         if dashLog: dashLog.addExpectedExact(fmt % str(rpcFlashList))
 
         for c in self.__compList:
@@ -1312,7 +1312,7 @@ class IntegrationTest(unittest.TestCase):
         if liveLog: liveLog.addExpectedText('Stopping subrun %d.%d' %
                                             (runNum, subRunId))
 
-        msg = 'Subrun %d: Got command to stop flashers' % subRunId
+        msg = 'Subrun %d: stopping flashers' % subRunId
         if dashLog: dashLog.addExpectedExact(msg)
 
         for c in self.__compList:

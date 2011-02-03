@@ -216,7 +216,7 @@ class TestRunSet(unittest.TestCase):
 
         subrunNum = -1
 
-        logger.addExpectedExact("Subrun %d: flashing DOMs (%s)" %
+        logger.addExpectedExact("Subrun %d: flashing DOM (%s)" %
                                 (subrunNum, data))
 
         try:
