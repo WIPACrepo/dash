@@ -13,29 +13,6 @@ class LaunchException(RunException): pass
 class StateException(RunException): pass
 class UnimplementedException(RunException): pass
 
-class DatabaseType(object):
-    """I3DB types"""
-
-    TEST = "test"
-    PROD = "production"
-    NONE = "none"
-
-    def guessType(cls):
-        """
-        Use host name to determine if we're using the production or test
-        database and return that type
-        """
-        clu = ClusterDescription.getClusterFromHostName()
-        if clu == ClusterDescription.SPTS or clu == ClusterDescription.SPTS64:
-            return cls.TEST
-        if clu == ClusterDescription.SPS:
-            return cls.PROD
-        if clu == ClusterDescription.LOCAL:
-            return cls.NONE
-        raise UnimplementedException("Cannot guess database for cluster \"%s\"" %
-                                     clu)
-    guessType = classmethod(guessType)
-
 class FlasherThread(threading.Thread):
     "Thread which starts and stops flashers during a run"
 
@@ -300,7 +277,7 @@ class BaseRun(object):
         if dbType is not None:
             self.__dbType = dbType
         else:
-            self.__dbType = DatabaseType.guessType()
+            self.__dbType = ClusterDescription.getClusterDatabaseType()
 
         # check for needed executables
         #
@@ -377,7 +354,7 @@ class BaseRun(object):
         raise UnimplementedException()
 
     def ignoreDatabase(self):
-        return self.__dbType == DatabaseType.NONE
+        return self.__dbType == ClusterDescription.DBTYPE_NONE
 
     def isDead(self, refreshState=False):
         raise UnimplementedException()
@@ -511,7 +488,7 @@ class BaseRun(object):
 
         runCfg - run configuration
         """
-        if self.__dbType == DatabaseType.NONE:
+        if self.__dbType == ClusterDescription.DBTYPE_NONE:
             return
 
         if self.__updateDBProg is None:
@@ -521,7 +498,7 @@ class BaseRun(object):
         runCfgPath = os.path.join(self.__configDir, runCfg + ".xml")
         self.checkExists("Run configuration", runCfgPath)
 
-        if self.__dbType == DatabaseType.TEST:
+        if self.__dbType == ClusterDescription.DBTYPE_TEST:
             arg = "-D I3OmDb_test"
         else:
             arg = ""

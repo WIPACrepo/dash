@@ -224,6 +224,10 @@ class ClusterDescription(ConfigXMLBase):
     SPTS = "spts"
     SPTS64 = "spts64"
 
+    DBTYPE_TEST = "test"
+    DBTYPE_PROD = "production"
+    DBTYPE_NONE = "none"
+
     DEFAULT_LOG_LEVEL = "WARN"
 
     def __init__(self, configDir, configName, suffix='.cfg'):
@@ -521,6 +525,23 @@ class ClusterDescription(ConfigXMLBase):
 
         return cls.LOCAL
     getClusterFromHostName = classmethod(getClusterFromHostName)
+
+    def getClusterDatabaseType(cls, clu=None):
+        """
+        Determine the database type for the cluster description.
+        'clu' should be one of the ClusterDescription constants
+        """
+        if clu is None:
+            clu = cls.getClusterFromHostName()
+        if clu == cls.SPTS or clu == cls.SPTS64:
+            return cls.DBTYPE_TEST
+        if clu == cls.SPS or clu == cls.PDAQ2:
+            return cls.DBTYPE_PROD
+        if clu == cls.LOCAL:
+            return cls.DBTYPE_NONE
+        raise UnimplementedException("Cannot guess database" +
+                                     " for cluster \"%s\"" % clu)
+    getClusterDatabaseType = classmethod(getClusterDatabaseType)
 
     def getJVM(self, compName):
         return self.__findDefault(compName, 'jvm')
