@@ -219,6 +219,7 @@ class ClusterHost(object):
 
 class ClusterDescription(ConfigXMLBase):
     LOCAL = "localhost"
+    PDAQ2 = "pdaq2"
     SPS = "sps"
     SPTS = "spts"
     SPTS64 = "spts64"
@@ -506,7 +507,11 @@ class ClusterDescription(ConfigXMLBase):
         if hostname is not None:
             # SPS is easy
             if hostname.endswith("icecube.southpole.usap.gov"):
-                return cls.SPS
+                hlist = hostname.split(".")
+                if hlist[0] == "pdaq2":
+                    return cls.PDAQ2
+                else:
+                    return cls.SPS
             # try to identify test systems
             if hostname.endswith("icecube.wisc.edu"):
                 hlist = hostname.split(".")
