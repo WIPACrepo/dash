@@ -44,7 +44,8 @@ class MyRunSet(RunSet):
     def createRunDir(self, logDir, runNum, backupExisting=True):
         return None
 
-    def createTaskManager(self, dashlog, liveMoniClient, runDir, moniType):
+    def createTaskManager(self, dashlog, liveMoniClient, runDir, runCfg,
+                          moniType):
         return FakeTaskManager()
 
     def getLog(self, name):

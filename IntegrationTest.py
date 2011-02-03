@@ -167,9 +167,10 @@ class MostlyTaskManager(TaskManager):
 
     TIMERS = {}
 
-    def __init__(self, runset, dashlog, liveMoniClient, runDir, runOptions):
+    def __init__(self, runset, dashlog, liveMoniClient, runDir, runCfg,
+                 runOptions):
         super(MostlyTaskManager, self).__init__(runset, dashlog, liveMoniClient,
-                                                runDir, runOptions)
+                                                runDir, runCfg, runOptions)
 
     def createIntervalTimer(self, name, period):
         if not self.TIMERS.has_key(name):
@@ -235,9 +236,10 @@ class MostlyRunSet(RunSet):
     def createRunDir(self, logDir, runNum, backupExisting=True):
         pass
 
-    def createTaskManager(self, dashlog, liveMoniClient, runDir, runOptions):
+    def createTaskManager(self, dashlog, liveMoniClient, runDir, runCfg,
+                          runOptions):
         self.__taskMgr = MostlyTaskManager(self, dashlog, liveMoniClient,
-                                           runDir, runOptions)
+                                           runDir, runCfg, runOptions)
         return self.__taskMgr
 
     def getComponentLog(cls, comp):

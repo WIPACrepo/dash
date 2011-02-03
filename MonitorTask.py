@@ -126,16 +126,19 @@ class MonitorTask(CnCTask):
 
     MAX_REFUSED = 3
 
-    def __init__(self, taskMgr, runset, dashlog, live, runDir, runOptions):
+    def __init__(self, taskMgr, runset, dashlog, live, runDir, runOptions,
+                 period=None):
         self.__threadList = {}
         if not RunOption.isMoniToNone(runOptions):
             for c in runset.components():
                 reporter = self.__createReporter(c, runDir, live, runOptions)
                 self.__threadList[c] = MonitorThread(c, dashlog, reporter)
 
+        if period is None: period = self.PERIOD
+
         super(MonitorTask, self).__init__("Monitor", taskMgr, dashlog,
                                           self.DEBUG_BIT, self.NAME,
-                                          self.PERIOD)
+                                          period)
 
     def __createReporter(cls, comp, runDir, live, runOptions):
         if RunOption.isMoniToBoth(runOptions) and live is not None:

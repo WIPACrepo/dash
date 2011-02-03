@@ -845,6 +845,8 @@ class DAQConfig(object):
         self.__topComment = None
         self.__strayStream = None
         self.__senderOption = None
+        self.__monitorPeriod = None
+        self.__watchdogPeriod = None
 
     def __cmp__(self, other):
         val = len(self.__comps) - len(other.__comps)
@@ -1038,6 +1040,8 @@ class DAQConfig(object):
 
         return False
 
+    def monitorPeriod(self): return self.__monitorPeriod
+
     def omit(self, hubIdList):
         """Create a new run configuration which omits the specified hubs"""
         omitMap = {}
@@ -1098,6 +1102,9 @@ class DAQConfig(object):
         for n in newList:
             self.addDomConfig(n)
 
+    def setMonitorPeriod(self, period):
+        self.__monitorPeriod = period
+
     def setReplayBaseDir(self, dir):
         self.__replayBaseDir = dir
 
@@ -1114,6 +1121,9 @@ class DAQConfig(object):
     def setTriggerConfig(self, name):
         """Set the trigger configuration file for this run configuration"""
         self.__trigCfg = name
+
+    def setWatchdogPeriod(self, period):
+        self.__watchdogPeriod = period
 
     def showList(cls, configDir, configName):
         if configDir is None:
@@ -1188,6 +1198,8 @@ class DAQConfig(object):
         if not ttHub and ttTrig:
             raise ProcessError("Found icetop trigger but no icetop hubs in %s" %
                                self.basename())
+
+    def watchdogPeriod(self): return self.__watchdogPeriod
 
     def write(self, fd):
         """Write this run configuration to the specified file descriptor"""
@@ -1541,7 +1553,24 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                                             kid.attributes.keys()[0]))
 
                     runCfg.addComponent(kid.attributes["name"].value, strict)
-
+                elif kid.nodeName == "watchdog":
+                    valStr = kid.attributes["period"].value
+                    try:
+                        period = int(valStr)
+                    except:
+                        raise ProcessError(("<%s> node has invalid" +
+                                            " \"period\" value \"%s\"") %
+                                           (kid.nodeName, valStr))
+                    runCfg.setWatchdogPeriod(period)
+                elif kid.nodeName == "monitor":
+                    valStr = kid.attributes["period"].value
+                    try:
+                        period = int(valStr)
+                    except:
+                        raise ProcessError(("<%s> node has invalid" +
+                                            " \"period\" value \"%s\"") %
+                                           (kid.nodeName, valStr))
+                    runCfg.setMonitorPeriod(period)
                 elif kid.nodeName == "defaultLogLevel":
                     pass
                 elif kid.nodeName == "stream":

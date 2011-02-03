@@ -67,7 +67,7 @@ class ActiveDOMsTask(CnCTask):
     REPORT_NAME = "ActiveReport"
     REPORT_PERIOD = 600
 
-    def __init__(self, taskMgr, runset, dashlog, liveMoni):
+    def __init__(self, taskMgr, runset, dashlog, liveMoni, period=None):
         self.__runset = runset
         self.__liveMoniClient = liveMoni
 
@@ -80,7 +80,7 @@ class ActiveDOMsTask(CnCTask):
             self.__detailTimer = None
         else:
             name = self.NAME
-            period = self.PERIOD
+            if period is None: period = self.PERIOD
             self.__detailTimer = \
                 taskMgr.createIntervalTimer(self.REPORT_NAME,
                                             self.REPORT_PERIOD)

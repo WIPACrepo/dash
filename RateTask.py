@@ -20,14 +20,16 @@ class RateTask(CnCTask):
     PERIOD = 60
     DEBUG_BIT = RunSetDebug.RATE_TASK
 
-    def __init__(self, taskMgr, runset, dashlog):
+    def __init__(self, taskMgr, runset, dashlog, period=None):
         self.__runset = runset
 
         self.__thread = None
         self.__badCount = 0
 
+        if period is None: period = self.PERIOD
+
         super(RateTask, self).__init__("Rate", taskMgr, dashlog,
-                                       self.DEBUG_BIT, self.NAME, self.PERIOD)
+                                       self.DEBUG_BIT, self.NAME, period)
 
     def _check(self):
         if self.__thread is None or not self.__thread.isAlive():

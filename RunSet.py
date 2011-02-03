@@ -198,13 +198,14 @@ class SubrunThread(CnCThread):
         return self.__time
 
 class RunData(object):
-    def __init__(self, runSet, runNumber, clusterConfigName, runConfigName,
+    def __init__(self, runSet, runNumber, clusterConfigName, runConfig,
                  runOptions, versionInfo, spadeDir, copyDir, logDir, testing):
         """
         RunData constructor
         runSet - run set which uses this data
         runNum - current run number
         clusterConfigName - current cluster configuration file name
+        runConfig - current run configuration
         runOptions - logging/monitoring options
         versionInfo - release and revision info
         spadeDir - directory where SPADE files are written
@@ -213,6 +214,7 @@ class RunData(object):
         testing - True if this is called from a unit test
         """
         self.__runNumber = runNumber
+        self.__runConfig = runConfig
         self.__runOptions = runOptions
 
         if not RunOption.isLogToFile(self.__runOptions):
@@ -242,7 +244,7 @@ class RunData(object):
         self.__dashlog.error(("Version info: %(filename)s %(revision)s" +
                               " %(date)s %(time)s %(author)s %(release)s" +
                               " %(repo_rev)s") % versionInfo)
-        self.__dashlog.error("Run configuration: %s" % runConfigName)
+        self.__dashlog.error("Run configuration: %s" % runConfig.basename())
         self.__dashlog.error("Cluster configuration: %s" % clusterConfigName)
 
         self.__taskMgr = None
@@ -365,6 +367,7 @@ class RunData(object):
         self.__taskMgr = runSet.createTaskManager(self.__dashlog,
                                                   self.__liveMoniClient,
                                                   self.__runDir,
+                                                  self.__runConfig,
                                                   self.__runOptions)
         self.__taskMgr.start()
 
@@ -1140,7 +1143,7 @@ class RunSet(object):
 
     def createRunData(self, runNum, clusterConfigName, runOptions, versionInfo,
                       spadeDir, copyDir, logDir, testing=False):
-        return RunData(self, runNum, clusterConfigName, self.__cfg.basename(),
+        return RunData(self, runNum, clusterConfigName, self.__cfg,
                        runOptions, versionInfo, spadeDir, copyDir, logDir,
                        testing)
 
@@ -1169,8 +1172,10 @@ class RunSet(object):
 
         return runDir
 
-    def createTaskManager(self, dashlog, liveMoniClient, runDir, runOptions):
-        return TaskManager(self, dashlog, liveMoniClient, runDir, runOptions)
+    def createTaskManager(self, dashlog, liveMoniClient, runDir, runConfig,
+                          runOptions):
+        return TaskManager(self, dashlog, liveMoniClient, runDir, runConfig,
+                           runOptions)
 
     def cycleComponents(self, compList, configDir, dashDir, logPort, livePort,
                         verbose, killWith9, eventCheck, checkExists=True):

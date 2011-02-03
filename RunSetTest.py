@@ -58,7 +58,8 @@ class MyRunSet(RunSet):
     def createRunDir(self, logDir, runNum, backupExisting=True):
         return None
 
-    def createTaskManager(self, dashlog, liveMoniClient, runDir, moniType):
+    def createTaskManager(self, dashlog, liveMoniClient, runDir, runCfg,
+                          moniType):
         return FakeTaskManager()
 
     def cycleComponents(self, compList, configDir, dashDir, logPort, livePort,
@@ -67,7 +68,7 @@ class MyRunSet(RunSet):
 
     def queueForSpade(self, duration):
         pass
-        
+
 class TestRunSet(unittest.TestCase):
     def __buildClusterConfig(self, compList, baseName):
         jvm = "java-" + baseName
@@ -105,7 +106,7 @@ class TestRunSet(unittest.TestCase):
                 return False
 
         return True
-        
+
     def __isCompListRunning(self, compList, runNum=-1):
         for c in compList:
             if c.runNum is None:

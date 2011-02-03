@@ -65,7 +65,8 @@ class MostlyRunSet(RunSet):
     def createRunDir(self, logDir, runNum, backupExisting=True):
         return None
 
-    def createTaskManager(self, dashlog, liveMoniClient, runDir, moniType):
+    def createTaskManager(self, dashlog, liveMoniClient, runDir, runCfg,
+                          moniType):
         return FakeTaskManager()
 
     def cycleComponents(self, compList, configDir, dashDir, logPort, livePort,

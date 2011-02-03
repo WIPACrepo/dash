@@ -398,13 +398,15 @@ class WatchdogTask(CnCTask):
     DOM_COMP = DummyComponent("dom")
     DISPATCH_COMP = DummyComponent("dispatch")
 
-    def __init__(self, taskMgr, runset, dashlog):
+    def __init__(self, taskMgr, runset, dashlog, period=None):
         self.__threadList = {}
         self.__healthMeter = self.HEALTH_METER_FULL
 
+        if period is None: period = self.PERIOD
+
         super(WatchdogTask, self).__init__("Watchdog", taskMgr, dashlog,
                                            self.DEBUG_BIT, self.NAME,
-                                           self.PERIOD)
+                                           period)
 
         self.__computeDummyOrder(runset)
 

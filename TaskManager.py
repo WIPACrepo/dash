@@ -17,7 +17,7 @@ set_exc_string_encoding("ascii")
 class TaskManager(threading.Thread):
     "Manage RunSet tasks"
 
-    def __init__(self, runset, dashlog, live, runDir, runOptions):
+    def __init__(self, runset, dashlog, live, runDir, runCfg, runOptions):
         if dashlog is None:
             raise TaskException("Dash logfile cannot be None")
 
@@ -25,10 +25,12 @@ class TaskManager(threading.Thread):
         self.__dashlog = dashlog
 
         self.__tasks = (MonitorTask(self, runset, dashlog, live, runDir,
-                                    runOptions),
+                                    runOptions,
+                                    period=runCfg.monitorPeriod()),
                         RateTask(self, runset, dashlog),
                         ActiveDOMsTask(self, runset, dashlog, live),
-                        WatchdogTask(self, runset, dashlog),
+                        WatchdogTask(self, runset, dashlog,
+                                     period=runCfg.watchdogPeriod()),
                         RadarTask(self, runset, dashlog, live))
 
         self.__running = False

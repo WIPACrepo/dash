@@ -211,11 +211,17 @@ class MockRunSet(object):
         for c in self.__comps:
             c.updateRates()
 
+class MockRunConfig(object):
+    def __init__(self): pass
+
+    def monitorPeriod(self): return None
+    def watchdogPeriod(self): return None
+
 class MyTaskManager(TaskManager):
-    def __init__(self, runset, dashlog, live, runDir, moniType):
+    def __init__(self, runset, dashlog, live, runDir, runCfg, moniType):
         self.__timerDict = {}
         super(MyTaskManager, self).__init__(runset, dashlog, live, runDir,
-                                             moniType)
+                                            runCfg, moniType)
 
     def createIntervalTimer(self, name, period):
         timer = MockIntervalTimer(name)
@@ -315,7 +321,9 @@ class TaskManagerTest(unittest.TestCase):
 
         live = MockLiveMoni()
 
-        rst = MyTaskManager(runset, dashlog, live, None,
+        runCfg = MockRunConfig()
+
+        rst = MyTaskManager(runset, dashlog, live, None, runCfg,
                             RunOption.MONI_TO_LIVE)
         rst.start()
 
@@ -360,11 +368,13 @@ class TaskManagerTest(unittest.TestCase):
 
         live = MockLiveMoni()
 
+        runCfg = MockRunConfig()
+
         hitRate = 12.34
 
         self.__loadExpected(live, compList, radarString, radarDOM, hitRate)
 
-        rst = MyTaskManager(runset, dashlog, live, None,
+        rst = MyTaskManager(runset, dashlog, live, None, runCfg,
                             RunOption.MONI_TO_LIVE)
         rst.triggerTimers()
         rst.start()
@@ -410,9 +420,11 @@ class TaskManagerTest(unittest.TestCase):
 
         live = MockLiveMoni()
 
+        runCfg = MockRunConfig()
+
         hitRate = 12.34
 
-        rst = MyTaskManager(runset, dashlog, live, None,
+        rst = MyTaskManager(runset, dashlog, live, None, runCfg,
                             RunOption.MONI_TO_LIVE)
 
         self.__loadExpected(live, compList, radarString, radarDOM, hitRate)

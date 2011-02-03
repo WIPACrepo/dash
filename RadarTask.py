@@ -105,7 +105,8 @@ class RadarTask(CnCTask):
     RADAR_SAMPLE_DURATION = 120
 
     def __init__(self, taskMgr, runset, dashlog, liveMoni,
-                 samples=RADAR_SAMPLES, duration=RADAR_SAMPLE_DURATION):
+                 samples=RADAR_SAMPLES, duration=RADAR_SAMPLE_DURATION,
+                 period=None):
         self.__runset = runset
         self.__liveMoniClient = liveMoni
         self.__samples = samples
@@ -119,7 +120,7 @@ class RadarTask(CnCTask):
             period = None
         else:
             name = self.NAME
-            period = self.PERIOD
+            if period is None: period = self.PERIOD
 
         super(RadarTask, self).__init__("Radar", taskMgr, dashlog,
                                         self.DEBUG_BIT, name, period)
