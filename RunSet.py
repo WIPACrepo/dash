@@ -1542,6 +1542,9 @@ class RunSet(object):
 
         return rtnVal
 
+    def stopping(self):
+        return self.__stopping
+
     def subrun(self, id, data):
         "Start a subrun with all components in the runset"
         if self.__runData is None or self.__state != RunSetState.RUNNING:

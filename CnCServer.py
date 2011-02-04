@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12583 2011-01-21 21:37:17Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 12645 2011-02-04 20:34:16Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -1112,6 +1112,13 @@ class CnCServer(DAQPool):
         except ValueError, ve:
             hadError = True
             delayedException = ve
+
+        chk = 50
+        while runSet.stopping() and chk > 0:
+            chk -= 1
+            time.sleep(1)
+        if runSet.stopping():
+            raise CnCServerException("Runset#%d is still stopping" % id)
 
         if self.__forceRestart or (hadError and self.__restartOnError):
             self.restartRunset(runSet, self.__log)
