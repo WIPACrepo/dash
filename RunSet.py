@@ -349,7 +349,9 @@ class RunData(object):
         self.stop()
         if self.__liveMoniClient is not None:
             self.__liveMoniClient.close()
-        self.__dashlog.close()
+        if self.__dashlog is not None:
+            self.__dashlog.close()
+            self.__dashlog = None
 
     def error(self, msg):
         self.__dashlog.error(msg)
