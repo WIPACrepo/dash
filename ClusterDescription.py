@@ -293,7 +293,7 @@ class ClusterDescription(ConfigXMLBase):
             id = int(idStr)
         except ValueError:
             errMsg = 'Cluster "%s" host "%s" component "%s" has bad ID "%s"' % \
-                (clusterName, host.name, name)
+                (clusterName, host.name, name, idStr)
             raise ClusterDescriptionFormatError(errMsg)
 
         reqStr = self.getValue(node, 'required')

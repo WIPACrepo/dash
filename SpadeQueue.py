@@ -71,7 +71,7 @@ def queueForSpade(logger, spadeDir, copyDir, runDir, runNum, runTime,
         if copyDir is not None and os.path.exists(copyDir):
             __copySpadeTarFile(logger, copyDir, spadeBaseName, tarFile)
 
-        semFile = __writeSpadeSemaphore(spadeDir, spadeBaseName)
+        __writeSpadeSemaphore(spadeDir, spadeBaseName)
 
         __indicate_daq_logs_queued(spadeDir)
         
@@ -84,7 +84,6 @@ def queueForSpade(logger, spadeDir, copyDir, runDir, runNum, runTime,
 
 if __name__ == "__main__":
     import logging
-    from datetime import datetime
     if len(sys.argv) < 2:
         print >>sys.stderr, "Usage: %s runNumber" % sys.argv[0]
         raise SystemExit
@@ -98,5 +97,5 @@ if __name__ == "__main__":
                   None,
                   "/mnt/data/pdaq/log/daqrun%05d" % runNum,
                   runNum,
-                  datetime.utcnow(),
+                  datetime.datetime.utcnow(),
                   0)

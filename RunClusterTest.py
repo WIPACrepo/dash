@@ -128,7 +128,7 @@ class RunClusterTest(unittest.TestCase):
             self.__checkCluster("localhost", cfgName, expNodes, "spade", None)
         except RunClusterError, rce:
             if not str(rce).endswith("out of hubs"):
-                fail("Unexpected exception: " + str(rce))
+                self.fail("Unexpected exception: " + str(rce))
 
     def testDeploySPS(self):
         cfgName = 'sps-IC40-IT6-Revert-IceTop-V029'

@@ -32,9 +32,9 @@ class MockConn(object):
 
     def __repr__(self):
         if self.isInput():
-            return "->%s" % self.type
+            return "->%s(%s)" % (self.__descrCh, self.__name)
 
-        return "%s->" % self.type
+        return "%s->(%s)" % (self.__descrCh, self.__name)
 
     def isInput(self): return self.__descrCh == "i" or self.__descrCh == "I"
     def isOptional(self): return self.__descrCh == "I" or self.__descrCh == "O"
@@ -629,7 +629,7 @@ class CnCRunSetTest(unittest.TestCase):
 
     __setBeanData = classmethod(__setBeanData)
 
-    def __waitForEmptyLog(self, log, errMsg):
+    def __waitForEmptyLog(cls, log, errMsg):
         for i in range(5):
             if log.isEmpty():
                 break

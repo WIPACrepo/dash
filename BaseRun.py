@@ -110,7 +110,11 @@ class Run(object):
 
         self.__flashThread = None
         self.__lightMode = None
-        self.__runNum = None
+
+        # __runNum being 0 is considered a safe initializer as per Dave G.
+        # it was None which would cause a TypeError on some 
+        # error messages
+        self.__runNum = 0
         self.__duration = None
 
         if self.__clusterCfg is None:
@@ -170,7 +174,7 @@ class Run(object):
         self.__mgr.stopRun()
 
         if not self.__mgr.waitForStopped():
-            raise RunException("Run %d did not stop" % runNum)
+            raise RunException("Run %d did not stop" % self.__runNum)
 
         if self.__flashThread is not None:
             self.__flashThread.waitForThread()
@@ -179,7 +183,7 @@ class Run(object):
             raise RunException(("Could not set lightMode to dark after run " +
                                 " #%d: %s") % (self.__runNum, self.__runCfg))
 
-        self.__runNum = None
+        self.__runNum = 0
 
     def start(self, duration, flashTimes=None, flashPause=60, ignoreDB=False):
         """
@@ -333,7 +337,7 @@ class BaseRun(object):
         """Start flashers for the specified duration with the specified data"""
         raise UnimplementedException()
 
-    def getActiveClusterConfig(self):
+    def getActiveClusterConfig(cls):
         "Return the name of the current pDAQ cluster configuration"
         clusterFile = os.path.join(os.environ["HOME"], ".active")
         try:
@@ -554,7 +558,7 @@ class BaseRun(object):
                     break
 
                 print >>sys.stderr, "Unexpected run %d state %s" % \
-                    (runNum, self.getRunState())
+                    (runNum, self.state())
 
             numWaits += 1
             if numWaits > numTries:

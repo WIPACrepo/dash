@@ -142,7 +142,6 @@ class DAQLiveTest(unittest.TestCase):
             try:
                 self.__live.close()
             except:
-                import traceback
                 traceback.print_exc()
 
     def testVersion(self):

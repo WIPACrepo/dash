@@ -363,7 +363,7 @@ class DomConfigParser(XMLParser, XMLFileCache):
         return (interval, prescale)
     __parseChargeHistogram = classmethod(__parseChargeHistogram)
 
-    def __parseChargeStamp(self, dom, node):
+    def __parseChargeStamp(cls, dom, node):
         if node.attributes is None or \
                len(node.attributes) == 0:
             raise ProcessError("%s <%s> node has no attributes" %
@@ -559,7 +559,7 @@ class DomConfigParser(XMLParser, XMLFileCache):
     def parse(cls, dom, configDir, baseName, strict):
         dcListList = dom.getElementsByTagName("domConfigList")
         if dcListList is None or len(dcListList) == 0:
-            raise ProcessError("No <domConfigList> tag found in %s" % fileName)
+            raise ProcessError("No <domConfigList> tag found in %s" % baseName)
         dcList = dcListList[0]
 
         if dcList.attributes is None or \
@@ -923,11 +923,11 @@ class DAQConfig(object):
         if hub is not None:
             if len(hubs) != 1:
                 print >>sys.stderr, \
-                          "Expected \"%s\" to be for hub %d, not %s" % \
+                          "Expected \"%s\" to be the only hub, not %s" % \
                           (hub, hubs)
             elif hubs[0] != hub:
                 print >>sys.stderr, \
-                          "Expected \"%s\" to be for hub %d, not %s" % \
+                          "Expected \"%s\" to be for hub 0, not %s" % \
                           (hub, hubs[0])
 
         for s in hubs:
@@ -1134,7 +1134,7 @@ class DAQConfig(object):
                 configDir = os.path.join(metaDir, "config")
 
         if not os.path.exists(configDir):
-            raise DAQConfigDirNotFound("Could not find config dir %s" %
+            raise DAQConfigException("Could not find config dir %s" %
                                        configDir)
 
         if configName is None:

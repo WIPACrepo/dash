@@ -35,6 +35,8 @@ class Dash(cmd.Cmd):
             return compDict[compName]
 
         raise ValueError("Unknown component \"%s\"" % compName)
+    __findComponentId = classmethod(__findComponentId)
+
 
     def __listAll(self):
         ids = self.__cnc.rpc_runset_list_ids()

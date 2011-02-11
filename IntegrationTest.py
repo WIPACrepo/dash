@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import StringIO, datetime, os, re, shutil, sys
+import datetime, os, shutil, sys
 import tempfile, threading, time, traceback, unittest, xmlrpclib
 
 from CnCServer import CnCServer, Connector
@@ -25,6 +25,10 @@ from DAQMocks \
     import MockAppender, MockClusterConfig, MockCnCLogger, \
     MockDeployComponent, MockIntervalTimer, MockParallelShell, \
     MockRunConfigFile, SocketReader, SocketReaderFactory, SocketWriter
+
+class MostlyLive:
+    def __init__(self, port):
+        raise NotImplementedError("Missing code")
 
 class BeanData(object):
     DAQ_BEANS = {'stringHub' :
@@ -1054,7 +1058,7 @@ class IntegrationTest(unittest.TestCase):
 
         RUNLOG_INFO = False
 
-        import datetime
+        #import datetime
         if liveLog: liveLog.checkStatus(10)
         if appender: appender.checkStatus(10)
         if dashLog: dashLog.checkStatus(10)
@@ -1104,12 +1108,12 @@ class IntegrationTest(unittest.TestCase):
         msg = 'Created Run Set #%d' % setId
         if liveLog: liveLog.addExpectedText(msg)
 
-        msgList = (('Version info: %(filename)s %(revision)s %(date)s' +
+        msgList = [('Version info: %(filename)s %(revision)s %(date)s' +
                     ' %(time)s %(author)s %(release)s %(repo_rev)s') %
                    cnc.versionInfo(),
                    'Starting run %d...' % runNum,
-                   'Run configuration: %s' % configName,
-                   )
+                   'Run configuration: %s' % configName
+                   ]
         if RUNLOG_INFO:
             msgList.append('Created logger for CnCServer')
 
@@ -1124,17 +1128,6 @@ class IntegrationTest(unittest.TestCase):
             dashLog.addExpectedExact("Cluster configuration: " +
                                      IntegrationTest.CLUSTER_CONFIG)
 
-        if appender and not liveRunOnly and RUNLOG_INFO:
-            msg = 'Setting up logging for %d components' % len(self.__compList)
-            appender.addExpectedExact(msg)
-            if liveLog: liveLog.addExpectedText(msg)
-
-            for c in self.__compList:
-                logPort = DAQPort.RUNCOMP_BASE + c.getCommandPort()
-                patStr = r'%s\(\d+ \S+:%d\) -> %s:%d' % \
-                    (c.getName(), c.getCommandPort(), dr.ip, logPort)
-                appender.addExpectedRegexp(patStr)
-                if liveLog: liveLog.addExpectedTextRegexp(patStr)
         if liveLog:
             keys = self.__compList[:]
             keys.sort(RealComponent.sortForStart)

@@ -1165,8 +1165,7 @@ class MockXMLRPC(object):
                     break
 
             if not comp:
-                raise ValueError(('Component %s#%d should not connect to' +
-                                  ' %s:%s%%d') %
+                raise ValueError(('Component %s#%d should not connect to %s:%s#%d') %
                                  (self.name, self.num, l['type'], l['compName'],
                                   l.getCompNum()))
 

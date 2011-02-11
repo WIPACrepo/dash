@@ -777,6 +777,7 @@ class RunSet(object):
                 srcOp = ComponentOperation.FORCED_STOP
                 timeoutSecs = int(RunSet.TIMEOUT_SECS * .25)
 
+            waitList = srcSet + otherSet
             if i == 1:
                 self.__runData.error('%s: Forcing %d components to stop: %s' %
                                     (str(self), len(waitList),
@@ -806,7 +807,6 @@ class RunSet(object):
 
             connDict = {}
 
-            waitList = srcSet + otherSet
 
             msgSecs = None
             curSecs = time.time()

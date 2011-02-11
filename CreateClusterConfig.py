@@ -3,8 +3,15 @@
 # Create an SPS cluster configuration from a run configuration file
 
 import sys
+import os
 
 from DAQConfig import DAQConfigParser
+# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py            
+if os.environ.has_key("PDAQ_HOME"):
+    metaDir = os.environ["PDAQ_HOME"]
+else:
+    from locate_pdaq import find_pdaq_trunk
+    metaDir = find_pdaq_trunk()
 
 class CCCException(Exception): pass
 
@@ -98,8 +105,14 @@ if __name__ == "__main__":
     cfgList = []
     usage = False
 
+    # configExists has a keyword argument that builds a dir
+    # like this.  load( does not and wants a directory
+    # to stay consistent use the same construction
+    # in both places
+    configDir = os.path.join(metaDir, "config")
+
     for arg in sys.argv[1:]:
-        if not DAQConfigParser.fileExists(arg):
+        if not DAQConfigParser.configExists(arg, configDir=configDir):
             print >>sys.stderr, "Could not find run config: %s" % arg
             usage = True
         else:
@@ -111,6 +124,6 @@ if __name__ == "__main__":
 
     ccc = ClusterConfigCreator(clusterName)
     for cfgName in cfgList:
-        runCfg = DAQConfigParser.load(cfgName)
+        runCfg = DAQConfigParser.load(cfgName, configDir)
 
         ccc.write(sys.stdout, runCfg)

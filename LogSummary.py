@@ -772,7 +772,7 @@ class LocalTriggerData(object):
 
     def avgHits(self):
         if len(self.__hits) == 0:
-            return 0
+            return 0.0
 
         total = 0
         for h in self.__hits:

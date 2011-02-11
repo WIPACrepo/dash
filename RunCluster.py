@@ -110,8 +110,6 @@ class RunCluster(CachedConfigName):
             if len(hubList) > 0:
                 self.__addSimHubs(clusterDesc, hubList, hostMap)
 
-        #self.__copyConfigLogLevel(cfg, hostMap)
-
         self.__logDirForSpade = clusterDesc.logDirForSpade()
         self.__logDirCopies = clusterDesc.logDirCopies()
         self.__defaultLogLevel = clusterDesc.defaultLogLevel()
@@ -254,20 +252,6 @@ class RunCluster(CachedConfigName):
             for compKey in hostMap[host].keys():
                 node.addComponent(hostMap[host][compKey])
 
-    def __copyConfigLogLevel(self, cfg, hostMap):
-        "Copy any run configuration log levels to cluster components"
-        compMap = {}
-        for comp in cfg.components():
-            compMap[comp.fullName().lower()] = obj
-
-        for host in hostMap.keys():
-            for hostKey in hostMap[host].keys():
-                compKey = hostKey.lower()
-                if compMap.has_key(compKey) and \
-                        compMap[compKey].logLevel() is not None:
-                    lvl = compMap[compKey].logLevel()
-                    hostMap[host][hostKey].setLogLevel(lvl)
-
     def __extractHubs(self, cfg):
         "build a list of hub components used by the run configuration"
         hubList = []
@@ -332,8 +316,6 @@ class RunCluster(CachedConfigName):
 
         return hostMap.keys()
 
-    def hostName(self): return self.__hostName
-    def locName(self): return self.__locName
     def logDirForSpade(self): return self.__logDirForSpade
     def logDirCopies(self) : return self.__logDirCopies
     def nodes(self): return self.__nodes[:]

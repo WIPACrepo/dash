@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 12561 2011-01-15 18:52:25Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 12653 2011-02-11 22:10:30Z mnewcomb $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -40,8 +40,8 @@ def getUniqueHostNames(config):
 
 def getHubType(compID):
     if compID % 1000 == 0: return "amanda"
-    elif compID % 1000 <= 200: return "in-ice",
-    else: return "icetop",
+    elif compID % 1000 <= 200: return "in-ice"
+    else: return "icetop"
 
 def replaceHome(homeDir, curDir):
     if curDir.startswith(homeDir):

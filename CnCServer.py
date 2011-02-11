@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12652 2011-02-11 16:02:53Z mnewcomb $"
+SVN_ID  = "$Id: CnCServer.py 12653 2011-02-11 22:10:30Z mnewcomb $"
 
 class CnCServerException(Exception): pass
 
@@ -458,13 +458,14 @@ class Connector(object):
         return self.__name + connCh + '>'
 
     def connectorTuple(self):
-        "Return connector tuple (used when registering components)"
+        """Return connector tuple (used when registering components)
+        This method can raise a ValueError exception if __port is none."""
         if self.__port is not None:
             port = self.__port
         elif not self.isInput():
             port = 0
         else:
-            raise Error("Connector %s port was set to None" % str(self))
+            raise ValueError("Connector %s port was set to None" % str(self))
 
         return (self.__name, self.__descrChar, port)
 
@@ -664,7 +665,7 @@ class CnCServer(DAQPool):
             if states.has_key(c):
                 stateStr = str(states[c])
             else:
-                stateStr = self.STATE_DEAD
+                stateStr = DAQClient.STATE_DEAD
 
             cDict = c.map()
             cDict["state"] = stateStr
@@ -823,7 +824,7 @@ class CnCServer(DAQPool):
             if results.has_key(c):
                 result = results[c]
             else:
-                result = self.STATE_DEAD
+                result = DAQClient.STATE_DEAD
 
             cDict = c.map()
 
@@ -1269,7 +1270,6 @@ if __name__ == "__main__":
         for p in pids:
             if pid != p:
                 # print "Killing %d..." % p
-                import signal
                 os.kill(p, signal.SIGKILL)
 
         sys.exit(0)

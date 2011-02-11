@@ -8,9 +8,8 @@ Started November, 2006
 
 import optparse, os, re, sys
 from cncrun import CnCRun
-import optparse
 import time
-import sys
+from datetime import datetime
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -23,7 +22,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 12618 2011-02-01 23:33:48Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 12653 2011-02-11 22:10:30Z mnewcomb $"
 
 class DOMArgumentException(Exception): pass
 
@@ -130,8 +129,10 @@ class SubRun:
         self.domlist  = []
 
     def addDOM(self, d):
-        self.domlist.append(SubRunDOM(string, pos,  bright, window, delay,
-                                      mask, rate))
+        #self.domlist.append(SubRunDOM(string, pos,  bright, window, delay,
+        #                              mask, rate))
+        raise NotImplementedError("source for SubRunDOM class parameters not known")
+
 
     def __str__(self):
         typ = "FLASHER"
@@ -150,13 +151,18 @@ class SubRun:
         return [d.flasherHash() for d in self.domlist]
 
 class SubRunSet:
+    """This class is not instantiated anywhere, and had some import errors
+    in it.  It's probably not been used in a long time.  Consider removing
+    this if no one uses it for a while longer.
+    2/11/2011
+    """
     def __init__(self, fileName):
         self.subruns = []
         num = 0
         sr = None
         for l in open(fileName).readlines():
             # Look for bare "delay lines"
-            m = search(r'delay (\d+)', l)
+            m = re.search(r'delay (\d+)', l)
             if m:
                 t = int(m.group(1))
                 self.subruns.append(SubRun(SubRun.DELAY, t, num))
@@ -164,14 +170,14 @@ class SubRunSet:
                 sr = None
                 continue
 
-            m = search(r'flash (\d+)', l)
+            m = re.search(r'flash (\d+)', l)
             if m:
                 t = int(m.group(1))
                 sr = SubRun(SubRun.FLASH, t, num)
                 self.subruns.append(sr)
                 num += 1
-            m6 = search('^\s*(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
-            m7 = search('^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
+            m6 = re.search('^\s*(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
+            m7 = re.search('^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
             if m7 and sr:
                 string = int(m7.group(1))
                 pos    = int(m7.group(2))
@@ -245,7 +251,9 @@ def main():
         if opt.flasherRun is None:
             run.start(duration)
         else:
-            run.start(duration, flashTimes, flashPause, False)
+            #run.start(duration, flashTimes, flashPause, False)
+            raise SystemExit("flasher runs with ExpControSkel not implemented")
+        
         try:
             try:
                 run.wait()

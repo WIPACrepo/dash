@@ -621,7 +621,13 @@ class LiveRun(BaseRun):
 
         if not self.__waitForState(LiveRunState.STOPPED, LiveRunState.STARTING,
                                    10, 6):
-            raise RunException("Run %d did not start" % runNum)
+            try:
+                runNum = self.getRunNumber()
+                str = "Run %d did not start" % runNum
+            except:
+                str = "Run did not start"
+            raise RunException(str)
+            
         return self.__waitForState(LiveRunState.STARTING, LiveRunState.RUNNING,
                                    18, 0)
 

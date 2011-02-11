@@ -108,14 +108,17 @@ class ChannelThread(threading.Thread):
             if len(rd) == 0:
                 continue
 
+            index = 0
             while True:
                 try:
-                    data = sock.recv(8192, socket.MSG_DONTWAIT)
+                    data = rd[index].recv(8192, socket.MSG_DONTWAIT)
                     # ignore incoming data
                     #print "%s: %s" % (self.__compName, data)
                 except:
                     break # Go back to select so we don't busy-wait
-
+                index = index+1
+                if(index>=len(rd)):
+                    break
         self.close()
 
 class InputThread(threading.Thread):
@@ -239,7 +242,7 @@ class FakeConnector(Connector):
         "Send data to the output socket"
         if len(self.__outChanList) == 0:
             raise FakeClientException("No output socket for %s" %
-                                      self.__name)
+                                      str(self))
 
         for chan in self.__outChanList:
             chan.send(outMsg)
@@ -1236,7 +1239,7 @@ class DAQFakeRun(object):
                           (runsetId, numEvts, runSecs)
                 else:
                     print ("RunSet %d could not get event count after" +
-                           " %.2f secs") % (runsetId, numEvts, runSecs)
+                           " %.2f secs") % (runsetId, runSecs)
 
                 waitSecs = duration - runSecs
         finally:
@@ -1441,10 +1444,10 @@ if __name__ == "__main__":
                       help="Use existing track engine")
     parser.add_option("-c", "--config", type="string", dest="runCfgDir",
                       action="store", default="/tmp/config",
-                      help="Run configuration directory"),
+                      help="Run configuration directory")
     parser.add_option("-d", "--duration", type="int", dest="duration",
                       action="store", default="5",
-                      help="Number of seconds for run"),
+                      help="Number of seconds for run")
     parser.add_option("-e", "--eventBuilder", dest="evtBldr",
                       action="store_true", default=False,
                       help="Use existing event builder")
@@ -1456,22 +1459,22 @@ if __name__ == "__main__":
                       help="Use existing global trigger")
     parser.add_option("-H", "--numberOfHubs", type="int", dest="numHubs",
                       action="store", default=2,
-                      help="Number of fake hubs"),
+                      help="Number of fake hubs")
     parser.add_option("-i", "--iniceTrigger", dest="iniceTrig",
                       action="store_true", default=False,
                       help="Use existing in-ice trigger")
     parser.add_option("-n", "--numOfRuns", type="int", dest="numRuns",
                       action="store", default=1,
-                      help="Number of runs"),
+                      help="Number of runs")
     parser.add_option("-p", "--firstPortNumber", type="int", dest="firstPort",
                       action="store", default=FakeClient.NEXT_PORT,
-                      help="First port number used for fake components"),
+                      help="First port number used for fake components")
     parser.add_option("-R", "--realNames", dest="realNames",
                       action="store_true", default=False,
-                      help="Use component names without numeric prefix"),
+                      help="Use component names without numeric prefix")
     parser.add_option("-r", "--runNum", type="int", dest="runNum",
                       action="store", default=1234,
-                      help="Run number"),
+                      help="Run number")
     parser.add_option("-S", "--small", dest="smallCfg",
                       action="store_true", default=False,
                       help="Use canned 3-element configuration")

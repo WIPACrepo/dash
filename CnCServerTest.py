@@ -11,8 +11,8 @@ from RunOption import RunOption
 from RunSet import RunSet
 
 from DAQMocks \
-    import MockAppender, MockClusterConfig, MockCnCLogger, MockRunConfigFile, \
-    SocketReaderFactory, SocketWriter
+    import MockAppender, MockClusterConfig, MockCnCLogger, MockRunConfigFile,\
+    SocketReaderFactory, SocketWriter, MockLogger
 
 ACTIVE_WARNING = False
 

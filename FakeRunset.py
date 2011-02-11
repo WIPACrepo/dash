@@ -8,19 +8,19 @@ if __name__ == "__main__":
 
     parser.add_option("-c", "--config", type="string", dest="runCfgDir",
                       action="store", default="/tmp/config",
-                      help="Run configuration directory"),
+                      help="Run configuration directory")
     parser.add_option("-f", "--forkClients", dest="forkClients",
                       action="store_true", default=False,
-                      help="Should clients be run in a separate process"),
+                      help="Should clients be run in a separate process")
     parser.add_option("-H", "--numberOfHubs", type="int", dest="numHubs",
                       action="store", default=2,
-                      help="Number of fake hubs"),
+                      help="Number of fake hubs")
     parser.add_option("-p", "--firstPortNumber", type="int", dest="firstPort",
                       action="store", default=FakeClient.NEXT_PORT,
-                      help="First port number used for fake components"),
+                      help="First port number used for fake components")
     parser.add_option("-R", "--realNames", dest="realNames",
                       action="store_true", default=False,
-                      help="Use component names without numeric prefix"),
+                      help="Use component names without numeric prefix")
     parser.add_option("-S", "--small", dest="smallCfg",
                       action="store_true", default=False,
                       help="Use canned 3-element configuration")
@@ -45,10 +45,11 @@ if __name__ == "__main__":
     else:
         compData = ComponentData.createAll(opt.numHubs, not opt.realNames)
 
+
     if opt.extraHubs <= 0:
         extraData = None
     else:
-        extraData = ComponentData.createHubs(opt.extraHubs, not opt.realNames)
+        extraData = ComponentData.createHubs(opt.extraHubs, not opt.realNames, False)
 
     from DumpThreads import DumpThreadsOnSignal
     DumpThreadsOnSignal()
