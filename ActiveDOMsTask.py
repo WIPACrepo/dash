@@ -7,6 +7,7 @@ from CnCThread import CnCThread
 from LiveImports import Prio
 from RunSetDebug import RunSetDebug
 
+
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
@@ -22,41 +23,54 @@ class ActiveDOMThread(CnCThread):
                                               dashlog)
 
     def _run(self):
+        activeTotal = 0
         total = 0
+        hubActiveDoms = 0
+        hubTotalDoms = 0
         hubDOMs = {}
+        hubInactiveDOMs = {}
 
         for c in self.__comps:
             if c.isSource():
+                
+                # collect the number of active and total channels
                 try:
-                    nStr = c.getSingleBeanField("stringhub",
-                                                "NumberOfActiveChannels")
-                except:
-                    self.__dashlog.error("Cannot get # active DOMS from" +
+                    nList = c.getSingleBeanField("stringhub",
+                                                 "NumberOfActiveAndTotalChannels")
+                except Exception, e:
+                    self.__dashlog.error("Cannot get # active and total DOMS from" +
                                          " %s: %s" %
                                          (c.fullName(), exc_string()))
+                    print "Exception: "
+                    print e
+
                     continue
 
+                
                 try:
-                    num = int(nStr)
+                    hubActiveDoms, hubTotalDoms = [ int(a) for a in nList ] 
                 except:
                     self.__dashlog.error("Cannot get # active DOMS from" +
                                          " %s string \"%s\": %s" %
                                          (c.fullName(), str(nStr),
                                           exc_string()))
                     continue
+                
+                activeTotal += hubActiveDoms
+                total += hubTotalDoms
 
-                total += num
                 if self.__sendDetails:
-                    hubDOMs[str(c.num())] = num
+                    hubDOMs[str(c.num())] = (hubActiveDoms, hubTotalDoms)
 
         now = datetime.datetime.now()
 
-        self.__liveMoniClient.sendMoni("activeDOMs", total, Prio.ITS)
+        self.__liveMoniClient.sendMoni("totalDOMs", (activeTotal,total), Prio.ITS)
 
         if self.__sendDetails:
-            if not self.__liveMoniClient.sendMoni("activeStringDOMs", hubDOMs,
+            if not self.__liveMoniClient.sendMoni("stringDOMsInfo", hubDOMs,
                                                   Prio.ITS):
-                self.__dashlog.error("Failed to send active DOM report")
+                self.__dashlog.error("Failed to send active/total DOM report")
+
 
 class ActiveDOMsTask(CnCTask):
     NAME = "ActiveDOM"

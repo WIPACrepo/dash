@@ -14,7 +14,8 @@ class MockComponent(object):
     BEANBAG = {
         "stringHub" :
             { "stringhub" :
-                  { "NumberOfActiveChannels" : 2 },
+                  { "NumberOfActiveChannels" : 2 ,
+                    "NumberOfActiveAndTotalChannels" : [1,2]},
               "sender" :
                   { "NumHitsReceived" : 0,
                     "NumReadoutRequestsReceived" : 0,
@@ -252,6 +253,12 @@ class TaskManagerTest(unittest.TestCase):
         live.addExpected("stringHub-1*sender+NumReadoutsSent", 0, Prio.ITS)
         live.addExpected("stringHub-1*stringhub+NumberOfActiveChannels",
                          2, Prio.ITS)
+
+        live.addExpected("stringHub-1*stringhub+NumberOfActiveAndTotalChannels",
+                         [1,2], Prio.ITS)
+        live.addExpected("stringHub-6*stringhub+NumberOfActiveAndTotalChannels",
+                         [1,2], Prio.ITS)
+
         live.addExpected(radarName + "*sender+NumHitsReceived", 0, Prio.ITS)
         live.addExpected(radarName + "*sender+NumReadoutRequestsReceived",
                          0, Prio.ITS)
@@ -281,8 +288,8 @@ class TaskManagerTest(unittest.TestCase):
                          0, Prio.ITS)
 
         # add activeDOM data
-        live.addExpected("activeDOMs", 4, Prio.ITS)
-        live.addExpected("activeStringDOMs", {"1":2, "%d" % radarString :2},
+        live.addExpected("totalDOMs", (2,4), Prio.ITS)
+        live.addExpected("stringDOMsInfo", {"1":(1,2), "6" : (1,2) },
                          Prio.ITS)
 
         # add radar DOM data
