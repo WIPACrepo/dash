@@ -101,7 +101,7 @@ class ClusterConfigParser(XMLFileCache):
     def __init__(self):
         self.__nodes = []
 
-    def defaultLogLevel(self): return GLOBAL_DEFAULT_LOG_LEVEL
+    def defaultLogLevel(self): return self.GLOBAL_DEFAULT_LOG_LEVEL
 
     def getDefaultJavaInfo(cls, configDir, clusterName):
         """ Get the default set of java information from the
