@@ -15,7 +15,7 @@ from returning before the commands finish, otherwise the interpreter
 will return while the commands continue to run;
 """
 
-import re, subprocess, sys, time, os, os.path, datetime, signal
+import subprocess, time, os, os.path, datetime, signal
 
 class TimeoutException(Exception): pass
 

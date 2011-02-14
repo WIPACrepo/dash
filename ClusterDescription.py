@@ -333,7 +333,7 @@ class ClusterDescription(ConfigXMLBase):
                 name = self.getValue(kid, 'name')
                 if name is None:
                     errMsg = ('Cluster "%s" default section has <component>' +
-                              ' node without "name" attribute') % clusterName
+                              ' node without "name" attribute') % self.name
                     raise ClusterDescriptionFormatError(errMsg)
 
                 if self.__defaultComponent is None:

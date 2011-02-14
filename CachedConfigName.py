@@ -2,7 +2,7 @@
 #
 # Deal with the various configuration name caches
 
-import os, sys
+import os
 
 class NoNameException(Exception): pass
 

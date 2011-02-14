@@ -30,6 +30,7 @@ from DAQRPC import RPCClient
 from BaseRun import BaseRun, RunException, StateException
 from RunOption import RunOption
 from RunSetState import RunSetState
+import subprocess
 
 class CnCRun(BaseRun):
     def __init__(self, showCmd=False, showCmdOutput=False, dbType=None):
