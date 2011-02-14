@@ -8,7 +8,6 @@ from LiveImports import Component, SERVICE_NAME
 from RunOption import RunOption
 
 class LiveException(Exception): pass
-class UnimplementedException(LiveException): pass
 
 class DAQLive(Component):
     "Frequency of monitoring uploads"
@@ -40,7 +39,7 @@ class DAQLive(Component):
 
         return rtnVal
 
-    def runChange(self, stateArgs=None): raise UnimplementedException()
+    def runChange(self, stateArgs=None): raise NotImplementedError()
 
     def running(self, retry=True):
         if self.__runSet is None:

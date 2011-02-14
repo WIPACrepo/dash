@@ -10,7 +10,7 @@ class XMLError(Exception): pass
 class XMLFileDoesNotExist(XMLError): pass
 class XMLFormatError(XMLError): pass
 class ClusterDescriptionFormatError(XMLFormatError): pass
-class UnimplementedException(Exception): pass
+
 
 class ConfigXMLBase(object):
     def __init__(self, configDir, configName, suffix='.xml'):
@@ -36,7 +36,7 @@ class ConfigXMLBase(object):
         return self.__configName
 
     def extractFrom(self, dom):
-        raise UnimplementedException('extractFrom method is not implemented')
+        raise NotImplementedError('extractFrom method is not implemented')
 
     def getNodeName(node):
         nodeName = '<%s>' % str(node.nodeName)
@@ -539,7 +539,7 @@ class ClusterDescription(ConfigXMLBase):
             return cls.DBTYPE_PROD
         if clu == cls.LOCAL:
             return cls.DBTYPE_NONE
-        raise UnimplementedException("Cannot guess database" +
+        raise NotImplementedError("Cannot guess database" +
                                      " for cluster \"%s\"" % clu)
     getClusterDatabaseType = classmethod(getClusterDatabaseType)
 
@@ -589,7 +589,7 @@ if __name__ == '__main__':
 
         try:
             cluster = ClusterDescription(dirName, baseName)
-        except UnimplementedException, ue:
+        except NotImplementedError, ue:
             print >>sys.stderr, 'For %s:' % name
             traceback.print_exc()
             continue

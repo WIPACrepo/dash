@@ -3,7 +3,7 @@
 import os, os.path, socket, sys, traceback
 
 from CachedConfigName import CachedConfigName
-from ClusterDescription import ClusterDescription, UnimplementedException
+from ClusterDescription import ClusterDescription
 from Component import Component
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
@@ -359,7 +359,7 @@ if __name__ == '__main__':
         cfg = DAQConfigParser.load(name, configDir)
         try:
             runCluster = RunCluster(cfg, clusterDesc)
-        except UnimplementedException, ue:
+        except NotImplementedError, ue:
             print >>sys.stderr, 'For %s:' % name
             traceback.print_exc()
             continue

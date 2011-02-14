@@ -11,7 +11,6 @@ class RunException(Exception): pass
 class FlashFileException(RunException): pass
 class LaunchException(RunException): pass
 class StateException(RunException): pass
-class UnimplementedException(RunException): pass
 
 class FlasherThread(threading.Thread):
     "Thread which starts and stops flashers during a run"
@@ -317,7 +316,7 @@ class BaseRun(object):
 
     def cleanUp(self):
         """Do final cleanup before exiting"""
-        raise UnimplementedException()
+        raise NotImplementedError()
 
     def createRun(self, clusterCfg, runCfg, flashName=None):
         return Run(self, clusterCfg, runCfg, flashName)
@@ -335,7 +334,7 @@ class BaseRun(object):
 
     def flash(self, tm, data):
         """Start flashers for the specified duration with the specified data"""
-        raise UnimplementedException()
+        raise NotImplementedError()
 
     def getActiveClusterConfig(cls):
         "Return the name of the current pDAQ cluster configuration"
@@ -351,29 +350,29 @@ class BaseRun(object):
 
     def getLastRunNumber(self):
         "Return the last run number"
-        raise UnimplementedException()
+        raise NotImplementedError()
 
     def getRunNumber(self):
         "Return the current run number"
-        raise UnimplementedException()
+        raise NotImplementedError()
 
     def ignoreDatabase(self):
         return self.__dbType == ClusterDescription.DBTYPE_NONE
 
     def isDead(self, refreshState=False):
-        raise UnimplementedException()
+        raise NotImplementedError()
 
     def isRecovering(self, refreshState=False):
-        raise UnimplementedException()
+        raise NotImplementedError()
 
     def isRunning(self, refreshState=False):
-        raise UnimplementedException()
+        raise NotImplementedError()
 
     def isStopped(self, refreshState=False):
-        raise UnimplementedException()
+        raise NotImplementedError()
 
     def isStopping(self, refreshState=False):
-        raise UnimplementedException()
+        raise NotImplementedError()
 
     def killComponents(self):
         "Kill all pDAQ components"
@@ -463,7 +462,7 @@ class BaseRun(object):
 
         Return True if the light mode was set successfully
         """
-        raise UnimplementedException()
+        raise NotImplementedError()
 
     def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False):
         """
@@ -476,15 +475,15 @@ class BaseRun(object):
 
         Return True if the run was started
         """
-        raise UnimplementedException()
+        raise NotImplementedError()
 
     def state(self):
         """Current state of runset"""
-        raise UnimplementedException()
+        raise NotImplementedError()
 
     def stopRun(self):
         """Stop the run"""
-        raise UnimplementedException()
+        raise NotImplementedError()
 
     def updateDB(self, runCfg):
         """
@@ -568,4 +567,4 @@ class BaseRun(object):
 
     def waitForStopped(self):
         """Wait for the current run to be stopped"""
-        raise UnimplementedException()
+        raise NotImplementedError()

@@ -10,7 +10,7 @@ class MockBean(object):
         self.__val = val
 
     def nextValue(self):
-        raise Exception("Unimplemented")
+        raise NotImplementedError()
 
     def _setValue(self, newVal):
         self.__val = newVal

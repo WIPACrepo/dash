@@ -14,7 +14,7 @@ class CnCThread(threading.Thread):
         self.setDaemon(True)
 
     def _run(self):
-        raise Exception("Unimplemented")
+        raise NotImplementedError()
 
     def run(self):
         try:

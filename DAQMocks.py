@@ -19,10 +19,6 @@ else:
     from locate_pdaq import find_pdaq_trunk
     METADIR = find_pdaq_trunk()
 
-class UnimplementedException(Exception):
-    def __init__(self):
-        super(UnimplementedException, self).__init__('Unimplemented')
-
 class BaseChecker(object):
     PAT_DAQLOG = re.compile(r'^([^\]]+)\s+\[([^\]]+)\]\s+(.*)$', re.MULTILINE)
     PAT_LIVELOG = re.compile(r'^(\S+)\((\S+):(\S+)\)\s+(\d+)\s+\[([^\]]+)\]' +
@@ -32,7 +28,7 @@ class BaseChecker(object):
         pass
 
     def check(self, checker, msg, debug, setError=True):
-        raise UnimplementedException()
+        raise NotImplementedError()
 
 class BaseLiveChecker(BaseChecker):
     def __init__(self, varName):
@@ -44,16 +40,16 @@ class BaseLiveChecker(BaseChecker):
             (self._getShortName(), self.__varName, self._getValue())
 
     def _checkText(self, checker, msg, debug, setError):
-        raise UnimplementedException()
+        raise NotImplementedError()
 
     def _getShortName(self):
-        raise UnimplementedException()
+        raise NotImplementedError()
 
     def _getValue(self):
-        raise UnimplementedException()
+        raise NotImplementedError()
 
     def _getValueType(self):
-        raise UnimplementedException()
+        raise NotImplementedError()
 
     def check(self, checker, msg, debug, setError=True):
         m = BaseChecker.PAT_LIVELOG.match(msg)
@@ -439,7 +435,7 @@ class LogChecker(object):
         self.__depth = depth
 
     def setError(self, msg):
-        raise UnimplementedException()
+        raise NotImplementedError()
 
 class MockAppender(LogChecker):
     def __init__(self, name, depth=None):

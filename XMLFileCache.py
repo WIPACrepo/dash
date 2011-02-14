@@ -71,6 +71,6 @@ class XMLFileCache(object):
     load = classmethod(load)
 
     def parse(cls, dom, configDir, fileName, strict=True):
-        raise UnimplementedException("parse() method has not been" +
+        raise NotImplementedError("parse() method has not been" +
                                      " implemented for %s" % cls)
     parse = classmethod(parse)

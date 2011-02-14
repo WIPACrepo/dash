@@ -25,7 +25,7 @@ class CnCTask(object):
         return self.__name
 
     def _check(self):
-        raise Exception("Unimplemented")
+        raise NotImplementedException()
 
     def _reset(self): pass
 
@@ -46,7 +46,7 @@ class CnCTask(object):
         return timer.timeLeft()
 
     def close(self):
-        raise Exception("Unimplemented")
+        raise NotImplementedError()
 
     def endTimer(self):
         self.__timer = None
@@ -72,4 +72,4 @@ class CnCTask(object):
         self.__taskMgr.setError()
 
     def waitUntilFinished(self):
-        raise Exception("Unimplemented")
+        raise NotImplementedError()
