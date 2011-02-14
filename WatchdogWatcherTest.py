@@ -199,11 +199,11 @@ class WatchdogWatcherTest(unittest.TestCase):
         vw = ValueWatcher(fcomp, tcomp, beanName, fldName)
 
         lst = [1, 15, 7, 3]
-        rtnval = vw.check(lst)
+        vw.check(lst)
 
         l2 = lst[:-1]
         try:
-            rtnval = vw.check(l2)
+            vw.check(l2)
         except TaskException, te:
             expMsg = "Previous %s list had %d entries, new list has %d" % \
                      (vw, len(lst), len(l2))
@@ -220,10 +220,10 @@ class WatchdogWatcherTest(unittest.TestCase):
         vw = ValueWatcher(fcomp, tcomp, beanName, fldName)
 
         val = 15
-        rtnval = vw.check(val)
+        vw.check(val)
 
         try:
-            rtnval = vw.check(val - 2)
+            vw.check(val - 2)
         except TaskException, te:
             expMsg = "%s DECREASED (%s->%s)" % (vw, val, val - 2)
             if str(te).find(expMsg) < 0:
@@ -239,14 +239,14 @@ class WatchdogWatcherTest(unittest.TestCase):
         vw = ValueWatcher(fcomp, tcomp, beanName, fldName)
 
         lst = [1, 15, 7, 3]
-        rtnval = vw.check(lst)
+        vw.check(lst)
 
         l2 = lst[:]
         for i in range(len(l2)):
             l2[i] -= 2
 
         try:
-            rtnval = vw.check(l2)
+            vw.check(l2)
         except TaskException, te:
             expMsg = "%s DECREASED (%s->%s)" % (vw, lst[0], l2[0])
             if str(te).find(expMsg) < 0:
@@ -266,7 +266,7 @@ class WatchdogWatcherTest(unittest.TestCase):
         sawUnchanged = False
         for i in range(4):
             try:
-                rtnval = vw.check(val)
+                vw.check(val)
             except TaskException, te:
                 expMsg = "%s.%s is not changing" % (beanName, fldName)
                 if str(te).find(expMsg) < 0:
@@ -291,7 +291,7 @@ class WatchdogWatcherTest(unittest.TestCase):
         sawUnchanged = False
         for i in range(4):
             try:
-                rtnval = vw.check(lst)
+                vw.check(lst)
             except TaskException, te:
                 expMsg = "At least one %s value is not changing" % vw
                 if str(te).find(expMsg) < 0:
@@ -331,7 +331,7 @@ class WatchdogWatcherTest(unittest.TestCase):
         vw = ValueWatcher(fcomp, tcomp, beanName, fldName)
 
         for val in range(4):
-            rtnval = vw.check(val)
+            vw.check(val)
 
     def testValueCheckList(self):
         (fcomp, tcomp, uorder) = \
@@ -348,7 +348,7 @@ class WatchdogWatcherTest(unittest.TestCase):
             l2 = lst[:]
             for n in range(len(lst)):
                 l2[n] += i
-            rtnval = vw.check(l2)
+            vw.check(l2)
 
 if __name__ == '__main__':
     unittest.main()

@@ -181,7 +181,6 @@ class WatchdogDataTest(unittest.TestCase):
         beanName = "bean"
         inName = "inFld"
         outName = "outFld"
-        ltName = "ltFld"
         gtName = "gtFld"
 
         starveVal = 12
@@ -272,7 +271,6 @@ class WatchdogDataTest(unittest.TestCase):
         beanName = "bean"
         inName = "inFld"
         outName = "outFld"
-        ltName = "ltFld"
         gtName = "gtFld"
 
         tVal = 10

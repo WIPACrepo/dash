@@ -831,7 +831,6 @@ class IntegrationTest(unittest.TestCase):
         pShell = MockParallelShell()
 
         doCnC = True
-        dryRun = False
         verbose = False
         killWith9 = False
 
@@ -866,16 +865,6 @@ class IntegrationTest(unittest.TestCase):
         return pShell
 
     def __createRunObjects(self, runOptions, liveRunOnly=False):
-        anyToFile = RunOption.isLogToFile(runOptions) or \
-            RunOption.isMoniToFile(runOptions)
-        anyToLive = RunOption.isLogToLive(runOptions) or \
-            RunOption.isMoniToLive(runOptions)
-        if anyToFile and anyToLive and not liveRunOnly:
-            extraArgs = {'-B' : '', }
-        elif liveRunOnly or not anyToLive:
-            extraArgs = None
-        else:
-            extraArgs = {'-L' : '', }
 
         (appender, dashLog) = \
             self.__createLoggers(runOptions, liveRunOnly)
@@ -1015,7 +1004,7 @@ class IntegrationTest(unittest.TestCase):
         return connList
 
     def __registerComponents(self, liveLog, logServer, liveRunOnly):
-        dashLog = None
+        
         for comp in self.__compList:
             if logServer is not None:
                 logServer.addExpectedTextRegexp("Registered %s" %
@@ -1176,7 +1165,6 @@ class IntegrationTest(unittest.TestCase):
         msg = 'Started run %d on run set %d' % (runNum, setId)
         if liveLog: liveLog.addExpectedText(msg)
 
-        startEvts = 2
         startEvtTime = 1001
 
         if liveLog:

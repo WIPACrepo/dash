@@ -186,10 +186,10 @@ class RealComponent(object):
         return "%s#%d" % (self.__name, self.__num)
 
     def __configure(self, cfgName=None):
-        if cfgName is None:
-            cfgStr = ''
-        else:
-            cfgStr = ' with %s' % cfgName
+        #if cfgName is None:
+        #    cfgStr = ''
+        #else:
+        #    cfgStr = ' with %s' % cfgName
 
         #self.__logger.write('Config %s#%d%s' %
         #                    (self.__name, self.__num, cfgStr))
@@ -460,8 +460,6 @@ class TestCnCServer(unittest.TestCase):
         catchall.addExpectedText("Run configuration: %s" % runConfig)
         catchall.addExpectedText("Cluster configuration: %s" %
                                  cluCfg.configName())
-
-        logDir = "/tmp"
 
         moniType = RunOption.MONI_TO_NONE
 

@@ -239,14 +239,10 @@ class TestDAQServer(unittest.TestCase):
         MockServer.APPENDER.checkStatus(10)
 
     def testRegister(self):
-        logHost = 'localhost'
         logPort = 11853
-
         logger = self.__createLog('file', logPort)
 
-        liveHost = 'localhost'
         livePort = 35811
-
         liver = self.__createLog('live', livePort, False)
 
         dc = MockServer(logPort=logPort, livePort=livePort,
@@ -279,8 +275,6 @@ class TestDAQServer(unittest.TestCase):
 
         self.assertEqual(dc.rpc_component_count(), 1)
 
-        fooStr = 'ID#%d %s#%d at %s:%d M#%d %s' % \
-            (expId, name, num, host, port, mPort, 'idle')
         fooDict = { "id" : expId,
                     "compName" : name,
                     "compNum" : num,
@@ -294,9 +288,7 @@ class TestDAQServer(unittest.TestCase):
         liver.checkStatus(100)
 
     def testRegisterWithLog(self):
-        logHost = 'localhost'
         logPort = 23456
-
         logger = self.__createLog('log', logPort)
 
         dc = MockServer(logPort=logPort, logFactory=self.__logFactory)
@@ -357,7 +349,6 @@ class TestDAQServer(unittest.TestCase):
 
         logger = self.__createLog('main', logPort)
 
-        clientHost = 'localhost'
         clientPort = DAQPort.RUNCOMP_BASE
 
         clientLogger = self.__createLog('client', clientPort)
@@ -447,8 +438,6 @@ class TestDAQServer(unittest.TestCase):
         logger.addExpectedText("Cluster configuration: %s" %
                                cluCfg.configName())
 
-        logDir = "/xxx/yyy/zzz"
-
         moniType = RunOption.MONI_TO_NONE
 
         global CAUGHT_WARNING
@@ -466,8 +455,6 @@ class TestDAQServer(unittest.TestCase):
         logger.addExpectedText("0 physics events collected in 0 seconds")
         logger.addExpectedText("0 moni events, 0 SN events, 0 tcals")
         logger.addExpectedText("Run terminated SUCCESSFULLY")
-
-        spadeDir = "/tmp"
 
         self.assertEqual(dc.rpc_runset_stop_run(setId), 'OK')
 

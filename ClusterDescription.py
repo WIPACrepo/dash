@@ -258,7 +258,7 @@ class ClusterDescription(ConfigXMLBase):
             try:
                 super(ClusterDescription, self).__init__(configDir, retryName,
                                                          suffix)
-            except XMLFileDoesNotExist, e2:
+            except XMLFileDoesNotExist:
                 raise e
 
     def __str__(self):

@@ -956,7 +956,7 @@ class RunSet(object):
                     # Look by DOM name
                     try:
                         args[0] = self.__cfg.getIDbyName(domid)
-                    except DOMNotInConfigException, e:
+                    except DOMNotInConfigException:
                         not_found.append("#" + domid)
                         continue
             # Look for (str, pos, f0, ..., f4)
@@ -970,7 +970,7 @@ class RunSet(object):
                     raise InvalidSubrunData(msg)
                 try:
                     args[0] = self.__cfg.getIDbyStringPos(string, pos)
-                except DOMNotInConfigException, e:
+                except DOMNotInConfigException:
                     not_found.append("Pos %s-%s" % (string, pos))
                     continue
             else:

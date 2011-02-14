@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12653 2011-02-11 22:10:30Z mnewcomb $"
+SVN_ID  = "$Id: CnCServer.py 12659 2011-02-14 23:32:54Z mnewcomb $"
 
 class CnCServerException(Exception): pass
 
@@ -606,9 +606,7 @@ class CnCServer(DAQPool):
         if not os.path.exists(path):
             raise CnCServerException("Path \"%s\" does not exist" % path)
 
-        count = 0
-        for entry in os.listdir(path):
-            count += 1
+        count = len(os.listdir(path))
 
         return count
     __countFileDescriptors = classmethod(__countFileDescriptors)

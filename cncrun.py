@@ -185,7 +185,7 @@ class CnCRun(BaseRun):
         try:
             state = self.__cnc.rpc_runset_state(self.__runSetId)
             return state == RunSetState.RUNNING
-        except socket.error, err:
+        except socket.error:
             return False
 
     def isStopped(self, refreshState=False):
@@ -196,7 +196,7 @@ class CnCRun(BaseRun):
         try:
             state = self.__cnc.rpc_runset_state(self.__runSetId)
             return state == RunSetState.READY
-        except socket.error, err:
+        except socket.error:
             return False
 
     def isStopping(self, refreshState=False):
@@ -207,7 +207,7 @@ class CnCRun(BaseRun):
         try:
             state = self.__cnc.rpc_runset_state(self.__runSetId)
             return state == RunSetState.STOPPING
-        except socket.error, err:
+        except socket.error:
             return False
 
     def setLightMode(self, isLID):

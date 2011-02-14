@@ -289,7 +289,7 @@ class LiveSocketAppender(LogSocketAppender):
         if not msg.startswith('Start of log at '):
             try:
                 fd.send(self.__fmt.format('log', time, msg, self.__prio))
-            except socket.error, err:
+            except socket.error:
                 raise LogException("%s (Cannot send: %s)" % (msg, exc_string()))
 
 class LiveMonitor(object):

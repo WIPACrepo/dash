@@ -562,12 +562,6 @@ class DomConfigParser(XMLParser, XMLFileCache):
             raise ProcessError("No <domConfigList> tag found in %s" % baseName)
         dcList = dcListList[0]
 
-        if dcList.attributes is None or \
-                not dcList.attributes.has_key("configId"):
-            cfgId = None
-        else:
-            cfgId = dcList.attributes["configId"].value
-
         domIdToDom = cls.__loadDomIdMap()
 
         domCfg = DomConfig(baseName)
@@ -1444,7 +1438,7 @@ class DAQConfigParser(XMLParser, XMLFileCache):
             try:
                 try:
                     runCfg = cls.load(configName, configDir)
-                except XMLFileNotFound, nfe:
+                except XMLFileNotFound:
                     raise ex
             finally:
                 cls.PARSE_DOM_CONFIG = savedValue
@@ -1483,7 +1477,6 @@ class DAQConfigParser(XMLParser, XMLFileCache):
         if topComment is not None:
             runCfg.setTopComment(topComment)
 
-        hubFiles = None
         for kid in rcNode.childNodes:
             if kid.nodeType == Node.TEXT_NODE:
                 continue

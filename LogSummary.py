@@ -1754,7 +1754,6 @@ class StringHubLog(ComponentLog):
 def processDir(dirName, outFD, verbose):
     subdir = []
 
-    err = False
     for f in os.listdir(dirName):
         path = os.path.join(dirName, f)
 

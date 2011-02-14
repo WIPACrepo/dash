@@ -312,8 +312,6 @@ class TestRunSet(unittest.TestCase):
 
         logDir = "/tmp"
 
-        runName = 'xxx'
-
         expState = "ready"
         if len(compList) > 0:
             self.failUnless(self.__isCompListConfigured(compList),
@@ -416,14 +414,12 @@ class TestRunSet(unittest.TestCase):
         self.__runTests(compList, 2)
 
     def testSubrunGood(self):
-        runNum = 3
 
         compList = self.__buildCompList(("fooHub", "barHub", "bazBuilder"))
 
         self.__runSubrun(compList, 3)
 
     def testSubrunOneBad(self):
-        runNum = 4
 
         compList = self.__buildCompList(("fooHub", "barHub", "bazBuilder"))
         compList[1].setBadHub()
@@ -432,7 +428,6 @@ class TestRunSet(unittest.TestCase):
                          compList[1].fullName())
 
     def testSubrunBothBad(self):
-        runNum = 4
 
         compList = self.__buildCompList(("fooHub", "barHub", "bazBuilder"))
         compList[0].setBadHub()
