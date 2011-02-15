@@ -51,9 +51,8 @@ class ActiveDOMThread(CnCThread):
                     hubActiveDoms, hubTotalDoms = [ int(a) for a in nList ] 
                 except:
                     self.__dashlog.error("Cannot get # active DOMS from" +
-                                         " %s string \"%s\": %s" %
-                                         (c.fullName(), str(nStr),
-                                          exc_string()))
+                                         " %s string: %s" %
+                                         (c.fullName(), exc_string()))
                     continue
                 
                 activeTotal += hubActiveDoms
