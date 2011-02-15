@@ -25,7 +25,7 @@ class CnCTask(object):
         return self.__name
 
     def _check(self):
-        raise NotImplementedException()
+        raise NotImplementedError()
 
     def _reset(self): pass
 
