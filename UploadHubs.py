@@ -114,15 +114,15 @@ class DOMState:
         self.lines      = []
         if lines:
             for l in lines: self.addData(l)
-        self.failed     = False
-        self.hasWarning = False
+        self._failed_    = False
+        self._hasWarning = False
         self.done       = False
         self.version    = None
         
     def addData(self, line):
         self.lines.append(line)
-        if re.search('FAIL', line):    self.failed = True
-        if re.search('WARNING', line): self.hasWarning = True
+        if re.search('FAIL', line):    self._failed = True
+        if re.search('WARNING', line): self._hasWarning = True
         m = re.search('DONE \((\d+)\)', line)
         if m:
             self.done = True
@@ -134,8 +134,8 @@ class DOMState:
         except KeyError:
             return None
         
-    def hasWarning(self): return self.hasWarning
-    def failed(self):     return self.failed
+    def hasWarning(self): return self._hasWarning
+    def failed(self):     return self._failed
         
     def __str__(self):
         s = "DOM %s:\n" % self.cwd
