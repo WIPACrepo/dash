@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 
-import shutil, sys, tempfile, time, unittest
+import shutil, tempfile, time, unittest
 
 from ActiveDOMsTask import ActiveDOMsTask
 from CnCServer import CnCServer, CnCServerException
-from DAQClient import DAQClient
 from DAQConst import DAQPort
 from DAQMocks import MockClusterConfig, MockIntervalTimer, MockLogger, \
     MockRunConfigFile, SocketReader
@@ -268,7 +267,7 @@ class CnCRunSetTest(unittest.TestCase):
                               "NumReadoutsSent" : 0,
                               },
                         "stringhub" :
-                            { "NumberOfActiveChannels" : 0,
+                            { "NumberOfActiveAndTotalChannels" : 0,
                               },
                         },
                   "inIceTrigger" :
@@ -340,11 +339,12 @@ class CnCRunSetTest(unittest.TestCase):
         timer = rs.getTaskManager().getTimer(ActiveDOMsTask.NAME)
 
         numDOMs = 22
+        numTotal = 60
 
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
-                           "NumberOfActiveChannels", numDOMs)
+                           "NumberOfActiveAndTotalChannels", (numDOMs, numTotal))
 
-        liveMoni.addExpectedLiveMoni("activeDOMs", numDOMs)
+        liveMoni.addExpectedLiveMoni("totalDOMs", [numDOMs, numTotal], "json")
 
         timer.trigger()
 
@@ -375,7 +375,7 @@ class CnCRunSetTest(unittest.TestCase):
                            "NumEventsSent")
 
         self.__addLiveMoni(comps, liveMoni, "stringHub", 21, "stringhub",
-                           "NumberOfActiveChannels")
+                           "NumberOfActiveAndTotalChannels")
         self.__addLiveMoni(comps, liveMoni, "eventBuilder", 0, "backEnd",
                            "DiskAvailable")
         self.__addLiveMoni(comps, liveMoni, "eventBuilder", 0, "backEnd",
@@ -619,9 +619,12 @@ class CnCRunSetTest(unittest.TestCase):
         setData = False
         for c in comps:
             if c.name() == compName and c.num() == compNum:
+                if setData:
+                    raise Exception("Found multiple components for %s" %
+                                    c.fullName())
+
                 c.setBeanData(beanName, fieldName, value)
                 setData = True
-                break
 
         if not setData:
             raise Exception("Could not find component %s#%d" %
