@@ -85,15 +85,15 @@ class ConnTypeEntry(object):
     def add(self, conn, comp):
         "Add a connection and component to the appropriate list"
         if conn.isInput():
-             if conn.isOptional():
-                 self.__optInList.append([conn, comp])
-             else:
-                 self.__inList.append([conn, comp])
+            if conn.isOptional():
+                self.__optInList.append([conn, comp])
+            else:
+                self.__inList.append([conn, comp])
         else:
-             if conn.isOptional():
-                 self.__optOutList.append(comp)
-             else:
-                 self.__outList.append(comp)
+            if conn.isOptional():
+                self.__optOutList.append(comp)
+            else:
+                self.__outList.append(comp)
 
     def buildConnectionMap(self, connMap):
         "Validate and fill the map of connections for each component"
