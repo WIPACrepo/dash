@@ -1393,7 +1393,7 @@ class DAQConfigParser(XMLParser, XMLFileCache):
 
     def configExists(cls, configName,
                      configDir=os.path.join(metaDir, "config")):
-        return cls.__buildPath(configDir, configName) != None
+        return cls.buildPath(configDir, configName) != None
     configExists = classmethod(configExists)
 
     def getClusterConfiguration(cls, configName, doList=False,
@@ -1418,7 +1418,7 @@ class DAQConfigParser(XMLParser, XMLFileCache):
             configName = configName[:sepIndex]
 
         if doList:
-            cls.showList(configDir, configName)
+            DAQConfig.showList(configDir, configName)
             return
 
         ccDir = \
