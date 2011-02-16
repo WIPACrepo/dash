@@ -22,7 +22,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 12653 2011-02-11 22:10:30Z mnewcomb $"
+SVN_ID = "$Id: ExpControlSkel.py 12676 2011-02-16 16:37:22Z mnewcomb $"
 
 class DOMArgumentException(Exception): pass
 
@@ -157,6 +157,9 @@ class SubRunSet:
     2/11/2011
     """
     def __init__(self, fileName):
+        """Probably unused.. - consider removing this if no one uses it for a while longer"""
+
+        raise NotImplementedError("calls addDom method that wants one argument and this one has many args")
         self.subruns = []
         num = 0
         sr = None
@@ -186,7 +189,7 @@ class SubRunSet:
                 delay  = int(m7.group(5))
                 mask   = int(m7.group(6), 16)
                 rate   = int(m7.group(7))
-                sr.addDOM(string, pos,  bright, window, delay, mask, rate)
+                #sr.addDOM(string, pos,  bright, window, delay, mask, rate)
             elif m6 and sr:
                 mbid   = m6.group(1)
                 bright = int(m6.group(2))
@@ -194,7 +197,7 @@ class SubRunSet:
                 delay  = int(m6.group(4))
                 mask   = int(m6.group(5), 16)
                 rate   = int(m6.group(6))
-                sr.addDOM(mbid, bright, window, delay, mask, rate)
+                #sr.addDOM(mbid, bright, window, delay, mask, rate)
 
     def __str__(self):
         s = ""
