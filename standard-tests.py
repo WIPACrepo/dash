@@ -3,7 +3,6 @@
 # Run standard pDAQ tests
 
 import optparse, os, re, socket, stat, subprocess, sys
-from BaseRun import DatabaseType
 from ClusterDescription import ClusterDescription
 from cncrun import CnCRun
 from liverun import LiveRun
