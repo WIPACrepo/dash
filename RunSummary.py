@@ -14,7 +14,7 @@ from sys import stderr, argv
 from os import listdir, mkdir, environ, stat, popen, symlink, unlink
 from os.path import exists, isdir, abspath, basename, join
 from shutil import copy
-from re import *
+import re
 from exc_string import *
 
 class BadSnippetFormatException(Exception): pass
@@ -24,8 +24,8 @@ def datetimeFromDayTime(day, time):
     """
     Convert day, time strings to a single datetime object
     """
-    dp = search('^(\d\d\d\d)-(\d\d)-(\d\d)$', day)
-    tp = search('^(\d\d):(\d\d):(\d\d)$', time)
+    dp = re.search('^(\d\d\d\d)-(\d\d)-(\d\d)$', day)
+    tp = re.search('^(\d\d):(\d\d):(\d\d)$', time)
     if (not dp) or (not tp):
         raise BadDayTimeException(day+","+time)
     return datetime.datetime(int(dp.group(1)),
@@ -39,10 +39,10 @@ def dayTime(s):
     """
     Pull out day, time strings from YYYY-MM-DD hh:mm:ss in <s>
     """
-    n = search("""
+    n = re.search("""
     (\d\d\d\d-\d\d-\d\d).*? # yyyymmdd
     (\d\d:\d\d:\d\d).*?     # hhmmss
-    """, s, S|X)
+    """, s, re.S|re.X)
     if n:
         return (n.group(1), n.group(2))
     else:
@@ -61,14 +61,14 @@ class SnippetRunRec:
         self.release   = None
         self.startTime = None
         self.stopTime  = None
-        m = search("""
+        m = re.search("""
            <tr>.*?                                           # Start table
            <td.*?div\ class="run"\s*>(.*?)</div></td>.*?     # Run
            <td.*?div\ class="release"\s*>(.*?)</div></td>.*? # Release
            <td.*?div\ class="start"  \s*>(.*?)</div></td>.*? # Start time
            <td.*?div\ class="stop"   \s*>(.*?)</div></td>.*? # Stop time
            <td.*?div\ class="config" \s*>(.*?)</div></td>.*? # Config
-           """, self.txt, S|X)
+           """, self.txt, re.S|re.X)
         
         if m:
             self.run       = int(m.group(1))
@@ -90,26 +90,26 @@ class SnippetRunRec:
         ret = ""
         found = False
         for line in html.split('\n'):
-            m = search("""
+            m = re.search("""
             <td.*?div\ class="%s.*?"\s*> # Start cell, pick out label
             (.*?)                        # Contents
             </div></td>                  # End cell
-            """ % label, line, X)
+            """ % label, line, re.X)
             if m:
                 found = True
                 contents = m.group(1)
-                n = search("""
+                n = re.search("""
                 <a\ href=.+?> # Pick out symlinks
                 (.+?)        # Contents
                 </a>         
-                """, contents, X)
+                """, contents, re.X)
                 if n: contents = n.group(1)
                 # Pick out first part of space-separated content
                 #  this is slightly kludgy but the easiest way to make
                 #  HH:MM:SS *not* greyed-out
-                n = search("(.+?)&nbsp;", contents)
+                n = re.search("(.+?)&nbsp;", contents)
                 if n: contents = n.group(1)
-                line = sub(">%s<" % contents,
+                line = re.sub(">%s<" % contents,
                            ">%s<" % ("<FONT COLOR='%s'>%s</FONT>" % (color,contents)),
                            line)
             ret += line+"\n"
@@ -157,7 +157,7 @@ def getLatestFileTime(dir):
     l = listdir(dir)
     latest = None
     for f in l:
-        if not search("SPS-pDAQ-run", f): continue
+        if not re.search("SPS-pDAQ-run", f): continue
         stat_dat = stat("%s/%s" % (dir, f))
         mtim = stat_dat[8]
         if mtim > latest or latest == None: latest = mtim
@@ -206,7 +206,7 @@ def getStatusColor(status, nEvents, cumEvents):
     return statusColor
 
 def fmt(s):
-    if s != None: return sub('\s', '&nbsp;', str(s))
+    if s != None: return re.sub('\s', '&nbsp;', str(s))
     return " "
 
 def yyyymmdd(t):
@@ -220,7 +220,7 @@ def hhmmss(t):
 def dashTime(dateStr):
     "Get datetime object from string in form 'yyyy-mm-dd hh:mm:ss.uuuuuu'"
     if not dateStr: return None
-    match = search(r'(\d\d\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)\.(\d\d\d\d\d\d)', dateStr)
+    match = re.search(r'(\d\d\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)\.(\d\d\d\d\d\d)', dateStr)
     if not match: return None
     return datetime.datetime(int(match.group(1)),
                              int(match.group(2)),
@@ -288,8 +288,8 @@ def getDashEvent(dashFile, pat):
     df = open(dashFile, "r")
     ret = None
     for l in df.readlines():
-        if search(pat, l):
-            match = search(r'^DAQRun \[(.+?)\]', l)
+        if re.search(pat, l):
+            match = re.search(r'^DAQRun \[(.+?)\]', l)
             if match:
                 ret = match.group(1)
                 break
@@ -338,7 +338,7 @@ def makeRunReport(snippetFile, dashFile, release, runInfo, configName,
                                             # Azriel's requirements for rate calculation
                 rateStr = "%2.2f" % (float(cumEvents)/float(dtsec))
 
-    match = search(infoPat, runInfo)
+    match = re.search(infoPat, runInfo)
     if not match:
         print "WARNING: run info from file name (%s) doesn't match canonical pattern (%s), skipping!" % \
               (runInfo, infoPat)              
@@ -364,8 +364,8 @@ def makeSummaryHtml(logLink, runNum, release, configName, status, nEvents, cumEv
     mons  = []
     logs  = []
     for f in files:
-        if search(r'\.log$', f): logs.append(f)
-        if search(r'\.moni$', f): mons.append(f)
+        if re.search(r'\.log$', f): logs.append(f)
+        if re.search(r'\.moni$', f): mons.append(f)
     mons.sort()
     logs.sort()
 
@@ -414,8 +414,8 @@ def makeSummaryHtml(logLink, runNum, release, configName, status, nEvents, cumEv
 infoPat = r'(\d+)_(\d\d\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)_(\d+)'
 
 def infocmp(a, b):
-    amatch = search(infoPat, a)
-    bmatch = search(infoPat, b)
+    amatch = re.search(infoPat, a)
+    bmatch = re.search(infoPat, b)
     if not amatch: return 0
     if not bmatch: return 0
     n = 2
@@ -431,14 +431,14 @@ def processInclusionDir(dir):
     """
     l = listdir(dir)
     for dirfile in l:
-        m = search(r'^daqrun(\d+)$', dirfile)
+        m = re.search(r'^daqrun(\d+)$', dirfile)
         if m:
             run = int(m.group(1))
             dashFile = join(dir, dirfile, 'dash.log')
             if exists(dashFile):
                 tarFile = None
                 for f in open(dashFile).readlines():
-                    p = search(r'^DAQRun \[(\d+)-(\d+)-(\d+) (\d+):(\d+):(\d+)', f)
+                    p = re.search(r'^DAQRun \[(\d+)-(\d+)-(\d+) (\d+):(\d+):(\d+)', f)
                     if p:
                         tarFile = join(dir, "SPS-pDAQ-run-%d_%04d%02d%02d_%02d%02d%02d_000000.dat.tar" % \
                                        (run,
@@ -461,7 +461,7 @@ def recursiveGetTarFiles(dir):
         if isdir(fq):
             ret += recursiveGetTarFiles(fq)
         else:
-            if search("SPS-pDAQ-run-%s" % infoPat, f):
+            if re.search("SPS-pDAQ-run-%s" % infoPat, f):
                 ret.append("%s/%s" % (dir, f))
     return ret
 
@@ -486,11 +486,11 @@ def createTopHTML(runDir, liveTime24hr=None, liveTime7days=None, refresh=15):
     if exists(logoFile): logoHTML = "<IMG SRC='%s'>" % logoFile
 
         
-    if search(r'daq-reports/spts64', runDir):
+    if re.search(r'daq-reports/spts64', runDir):
         refreshHTML = ""
         title = "SPTS64 Run Summaries"
         refreshNotice = ""
-    elif search(r'daq-reports/sps', runDir):
+    elif re.search(r'daq-reports/sps', runDir):
         refreshHTML = "<META http-equiv='refresh' content='%d;url=http://live.icecube.wisc.edu/recent'>" % refresh
         title = "SPS Run Summaries"
         refreshNotice = """
@@ -593,8 +593,8 @@ def skipper():
 findpat = "^\d+_(\d\d\d\d\d\d\d\d)_(\d\d\d\d\d\d)_\d+$"
 
 def byDate(a, b):
-    pa = search(findpat, a)
-    pb = search(findpat, b)
+    pa = re.search(findpat, a)
+    pb = re.search(findpat, b)
     if (not pa) or (not pb): return 0
     if pa.group(1) > pb.group(1): return -1
     if pa.group(1) < pb.group(1): return 1
@@ -605,7 +605,7 @@ def byDate(a, b):
 def findall(pat, l):
     ret = []
     for item in l:
-        if search(pat, item): ret.append(item)
+        if re.search(pat, item): ret.append(item)
     return ret
 
 def getSortedRunReportDirs(outputDir):
@@ -773,12 +773,12 @@ def main():
 
     for f in tarlist:
         prefix = 'SPS-pDAQ-run-'
-        if search(r'.done$', f): continue # Skip SPADE .done semaphores
-        if search(r'.sem$', f):  continue # Skip SPADE .sem  semaphores
-        match = search(r'%s(\S+?)\.' % prefix, f)
+        if re.search(r'.done$', f): continue # Skip SPADE .done semaphores
+        if re.search(r'.sem$', f):  continue # Skip SPADE .sem  semaphores
+        match = re.search(r'%s(\S+?)\.' % prefix, f)
         if match:
             runInfoString = match.group(1)
-            match = search(infoPat, runInfoString)
+            match = re.search(infoPat, runInfoString)
             if not match: continue
             #runNum = int(match.group(1))
             outDir = runDir + "/" + runInfoString
@@ -822,7 +822,7 @@ def main():
                         if opt.verbose: print "WARNING: bad tar file %s!" % copyFile
                         continue
 
-                    if(search('\.test', copyFile)): continue # Hack/workaround for 'test' files put in during
+                    if(re.search('\.test', copyFile)): continue # Hack/workaround for 'test' files put in during
                                                              # run stop failure debugging
                     
                     # Extract top tarball
@@ -832,7 +832,7 @@ def main():
                         tar = tarfile.open(copyFile)
                         
                         for el in tar.getnames():
-                            if search('\.dat\.tar$', el):
+                            if re.search('\.dat\.tar$', el):
                                 if opt.verbose: print "Extract %s -> %s" % (el, outDir)
                                 tar.extract(el, outDir)
                                 extractedTarball = True
@@ -862,26 +862,26 @@ def main():
                         tar.extract(el, outDir)
                         
                     # Find dash.log
-                    if search(r'dash.log', el):
+                    if re.search(r'dash.log', el):
                         dashFile = outDir + "/" + el
                         dashContents = open(dashFile).read()
 
                         # Get status
-                        s = search(r'Run terminated (.+).', dashContents)
+                        s = re.search(r'Run terminated (.+).', dashContents)
                         if s:
                             if s.group(1)=="SUCCESSFULLY": status = "SUCCESS"
                             else: status = "FAIL"
 
-                        s = search(r'config name (.+?)\n', dashContents)
+                        s = re.search(r'config name (.+?)\n', dashContents)
                         if s: configName = s.group(1)
                         else:
-                            s = search(r'Run configuration: (.+?)\n', dashContents)
+                            s = re.search(r'Run configuration: (.+?)\n', dashContents)
                             if s: configName = s.group(1)
 
-                        s = search(r'\]\s+(\d+).+?events collected', dashContents)
+                        s = re.search(r'\]\s+(\d+).+?events collected', dashContents)
                         if s: nEvents = int(s.group(1))
 
-                        s = search(r'Version Info:.+\s+(\S+)\s+(\d\S*)\n', dashContents)
+                        s = re.search(r'Version Info:.+\s+(\S+)\s+(\d\S*)\n', dashContents)
                         if s: release = "%s_%s" % (s.group(1), s.group(2)) 
 
                         # lines = findall('\[(.+?)\]\s+(\d+) physics events \(.+? Hz\)\,', dashContents)
@@ -889,14 +889,14 @@ def main():
                         dc = dashContents.split('\n')
                         lines = []
                         for l in dc:
-                            s = search('\[(.+?)\]\s+(\d+) physics events \(.+? Hz\)\,', l)
+                            s = re.search('\[(.+?)\]\s+(\d+) physics events \(.+? Hz\)\,', l)
                             if s: lines.append((s.group(1), s.group(2)))
                         if len(lines) > 0:
                             lastTimeStr = lines[-1][0]
                             cumEvents   = int(lines[-1][1])
                             
                     # Remember more precise unpacked location for link
-                    if search(r'(daqrun\d+)/$', el): 
+                    if re.search(r'(daqrun\d+)/$', el): 
                         linkDir = runInfoString + "/" + el
 
                 tar.close()
