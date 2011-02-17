@@ -30,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12659 2011-02-14 23:32:54Z mnewcomb $"
+SVN_ID  = "$Id: CnCServer.py 12677 2011-02-17 22:24:38Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -640,13 +640,17 @@ class CnCServer(DAQPool):
 
         return compList
 
-    def __getHostAddress(self, name):
-        "Only return IPv4 addresses -- IPv6 confuses some stuff"
+    def __convertLocalhostToIPAddress(self, name):
+        """
+        Convert localhost/127.0.0.1 to usable IPv4 address
+        Only return IPv4 addresses -- IPv6 confuses some stuff
+        """
         if name is None or name == '':
             name = 'localhost'
         if name == 'localhost' or name == '127.0.0.1':
             for addrData in socket.getaddrinfo(socket.gethostname(), None):
-                if addrData[0] == socket.AF_INET:
+                if addrData[0] == socket.AF_INET and \
+                       not addrData[4][0].startswith("127.0"):
                     name = addrData[4][0]
                     break
         return name
@@ -922,7 +926,7 @@ class CnCServer(DAQPool):
 
         self.add(client)
 
-        logIP = self.__getHostAddress(self.__log.logHost())
+        logIP = self.__convertLocalhostToIPAddress(self.__log.logHost())
 
         logPort = self.__log.logPort()
         if logPort is None:
@@ -932,7 +936,7 @@ class CnCServer(DAQPool):
                 logIP = ""
                 logPort = 0
 
-        liveIP = self.__getHostAddress(self.__log.liveHost())
+        liveIP = self.__convertLocalhostToIPAddress(self.__log.liveHost())
 
         livePort = self.__log.livePort()
         if livePort is None:
