@@ -18,6 +18,7 @@ from RunSetState import RunSetState
 from RunStats import PayloadTime, RunStats
 from TaskManager import TaskManager
 from UniqueID import UniqueID
+from utils import ip
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -603,30 +604,6 @@ class RunSet(object):
 
         return slst
 
-    def __getHostAddr(self, remoteAddr=None):
-        """
-        Adapted from
-        http://mail.python.org/pipermail/python-list/2005-January/300454.html
-        """
-
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-        dummyAddr = "192.168.123.123"
-        dummyPort = 56
-
-        if remoteAddr is None:
-            remoteAddr = dummyAddr
-        else:
-            try:
-                socket.getaddrinfo(remoteAddr, dummyPort)
-            except socket.gaierror:
-                remoteAddr = dummyAddr
-
-        s.connect((remoteAddr, dummyPort))
-        addr = s.getsockname()[0]
-        s.close()
-        return addr
-
     def __listComponentsCommaSep(cls, compList):
         """
         Concatenate a list of components into a string showing names and IDs
@@ -661,7 +638,7 @@ class RunSet(object):
 
         tGroup = ComponentOperationGroup(ComponentOperation.CONFIG_LOGGING)
 
-        host = self.__getHostAddr()
+        host = ip.getLocalIpAddr()
 
         self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP initLogs")
         port = DAQPort.RUNCOMP_BASE

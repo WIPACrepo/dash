@@ -8,18 +8,7 @@ from DAQConst import DAQPort
 from DAQMocks import MockRunConfigFile
 from RunOption import RunOption
 from SimpleXMLRPCServer import SimpleXMLRPCServer
-
-def getHostAddress(name):
-    "Only return IPv4 addresses -- IPv6 confuses some stuff"
-    if name is None or name == '':
-        name = 'localhost'
-    if name == 'localhost' or name == '127.0.0.1':
-        hostName = socket.gethostname()
-        for addrData in socket.getaddrinfo(hostName, None):
-            if addrData[0] == socket.AF_INET:
-                name = addrData[4][0]
-                break
-    return name
+from utils import ip
 
 class FakeClientException(Exception): pass
 
@@ -315,7 +304,7 @@ class MBeanThread(threading.Thread):
 class FakeClient(ServerProxy, threading.Thread):
     "Faux DAQ client"
 
-    LOCAL_ADDR = getHostAddress("localhost")
+    LOCAL_ADDR = ip.getLocalIpAddr()
     CNCSERVER_HOST = LOCAL_ADDR
     CNCSERVER_PORT = DAQPort.CNCSERVER
 
@@ -1114,7 +1103,7 @@ class ComponentData(object):
 class DAQFakeRun(object):
     "Fake DAQRun"
 
-    LOCAL_ADDR = getHostAddress("localhost")
+    LOCAL_ADDR = ip.getLocalIpAddr()
     CNCSERVER_HOST = LOCAL_ADDR
     CNCSERVER_PORT = 8080
 

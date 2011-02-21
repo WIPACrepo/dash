@@ -9,6 +9,7 @@ from DAQMocks import MockAppender, MockClusterConfig, MockCnCLogger, \
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet
+from utils import ip
 
 CAUGHT_WARNING = False
 
@@ -194,10 +195,7 @@ class TestDAQServer(unittest.TestCase):
         return self.__logFactory.createLog(name, port, expectStartMsg)
 
     def __getInternetAddress(self):
-        for addrData in socket.getaddrinfo(socket.gethostname(), None):
-            if addrData[0] == socket.AF_INET:
-                return addrData[4][0]
-        return None
+        return ip.getLocalIpAddr()
 
     def __verifyRegArray(self, rtnArray, expId, logHost, logPort,
                          liveHost, livePort):

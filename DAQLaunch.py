@@ -13,6 +13,7 @@ import sys
 from time import sleep
 from os import environ, mkdir, system
 from os.path import exists, isabs, join
+from utils import ip
 
 from ClusterConfig \
     import ClusterConfig, ClusterConfigException, ConfigNotFoundException
@@ -21,7 +22,6 @@ from DAQConfig import ConfigNotSpecifiedException, DAQConfig, \
     DAQConfigException, DAQConfigParser
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
-from GetIP import getIP
 from Process import findProcess, processList
 from RunSetState import RunSetState
 
@@ -42,7 +42,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 12560 2011-01-15 18:36:40Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 12692 2011-02-21 22:55:22Z mnewcomb $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -175,7 +175,7 @@ def startJavaComponents(compList, dryRun, configDir, dashDir, logPort, livePort,
     for comp in compList:
         if comp.jvm() is None: continue
 
-        myIP = getIP(comp.host())
+        myIP = ip.getLocalIpAddr(comp.host())
         execJar = join(binDir, getCompJar(comp.name()))
         if checkExists and not exists(execJar):
             print "%s jar file does not exist: %s" % (comp.name(), execJar)

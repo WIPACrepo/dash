@@ -10,8 +10,8 @@ from DAQClient import DAQClient
 import DeployPDAQ
 from DAQConst import DAQPort
 from DAQLaunch import RELEASE, getCompJar
-import GetIP
 from LiveImports import SERVICE_NAME
+from utils import ip
 
 if os.environ.has_key("PDAQ_HOME"):
     METADIR = os.environ["PDAQ_HOME"]
@@ -872,7 +872,7 @@ class MockParallelShell(object):
     def addExpectedJava(self, comp, configDir, logPort, livePort,
                         verbose, eventCheck, host):
 
-        ipAddr = GetIP.getIP(host)
+        ipAddr = ip.getLocalIpAddr(host)
         jarPath = os.path.join(MockParallelShell.BINDIR,
                                getCompJar(comp.name()))
 

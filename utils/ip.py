@@ -9,7 +9,10 @@ def isValidIPAddr(ipStr):
     Returns:
         A boolean, True if the string is a valid dotted decimal IP string
     """
-    octets = ipStr.spit('.')
+
+    ipStr = "%s" % ipStr
+
+    octets = ipStr.split('.')
     if(len(octets)!=4):
         return False
 
@@ -23,17 +26,19 @@ def isValidIPAddr(ipStr):
 
 
 def isLoopbackIPAddr(ipStr):
-    """Take a dotted decimal notation IP string and validate if it's loopback or not.
-    Note that if you look at RFC3330 you'll find that the definition of loopback is
-    127.0.0.0/8 ( ie if the first octet is 127 it's loopback ).  You can find the rfc 
-    here:
+    """Take a dotted decimal notation IP string and validate if it's loopback 
+    or not.  Note that if you look at RFC3330 you'll find that the definition 
+    of loopback is 127.0.0.0/8 ( ie if the first octet is 127 it's loopback ).
+
+    You can find the rfc here:
     http://www.rfc-editor.org/rfc/rfc3330.txt
 
     Args:
         ipStr: A string, representing a quad-dotted ip
 
     Returns:
-        A boolean, True if the string is a valid quad-dotted decimal ip string and is loopback
+        A boolean, True if the string is a valid quad-dotted decimal ip string
+        and is loopback
     """
 
     if(not isValidIPAddr(ipStr)):
@@ -92,8 +97,8 @@ def getLocalIpAddr(remoteAddr=None):
     return addr
 
 def convertLocalhostToIpAddr(name):
-    """Take argument 'name' and if it somehow refers to the localhost convert that to the 
-    machines external ip address.
+    """Take argument 'name' and if it somehow refers to the localhost convert 
+    that to the machines external ip address.
 
     Args:
     name - machine address to filter
@@ -113,7 +118,3 @@ def convertLocalhostToIpAddr(name):
         return name
 
 
-if __name__=="__main__":
-    print getLocalIpAddr(None)
-
-    print convertLocalhostToIpAddr(None)
