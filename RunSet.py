@@ -1527,7 +1527,7 @@ class RunSet(object):
             try:
                 xmlLog = DashXMLLog.DashXMLLog()
                 rtnVal = self.__stopRunInternal(xmlLog, hadError)
-                if(not rtnVal):
+                if(rtnVal):
                     xmlLog.setTermCond("Failure")
                 else:
                     xmlLog.setTermCond("Success")
