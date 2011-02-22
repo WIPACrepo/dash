@@ -1542,16 +1542,16 @@ class RunSet(object):
                     # write the xml log file to disk
                     
                     logDir = self.__runData.runDirectory()
-                    logFile = "dash.xml"
+                    logFile = "run.xml"
                     if(logDir==None):
                         logDir = "."
-                        logFile = "dash-%d.xml"% self.__runData.runNumber()
+                        logFile = "run-%d.xml"% self.__runData.runNumber()
                     
                     xmlLogFileName = os.path.join(logDir, logFile)
                     try:
                         xmlLog.writeLog(xmlLogFileName)
                     except DashXMLLog.DashXMLLogException:
-                        self.__logger.error("Could not write dash xml log file: %s" % xmlLogFileName)
+                        self.__logger.error("Could not write run xml log file: %s" % xmlLogFileName)
             except:
                 self.__logger.error("Could not stop run: " + exc_string())
                 raise
