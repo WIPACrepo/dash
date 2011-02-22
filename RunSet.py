@@ -19,6 +19,7 @@ from RunStats import PayloadTime, RunStats
 from TaskManager import TaskManager
 from UniqueID import UniqueID
 from utils import ip
+from utils import DashXMLLog
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -248,6 +249,8 @@ class RunData(object):
         self.__dashlog.error("Run configuration: %s" % runConfig.basename())
         self.__dashlog.error("Cluster configuration: %s" % clusterConfigName)
 
+        self.__clusterConfigName = clusterConfigName
+
         self.__taskMgr = None
         self.__liveMoniClient = None
 
@@ -421,7 +424,7 @@ class RunData(object):
                                  self.__runNumber, datetime.datetime.now(),
                                  duration)
 
-    def reportRates(self, comps):
+    def reportRates(self, comps, xmlLog):
         try:
             (numEvts, numMoni, numSN, numTcal, duration, lastTime) = \
                 self.__runStats.stop(self.__getRateData(comps))
@@ -441,6 +444,12 @@ class RunData(object):
                               "seconds%s") % (numEvts, duration, rateStr))
         self.__dashlog.error("%d moni events, %d SN events, %d tcals" %
                              (numMoni, numSN, numTcal))
+        xmlLog.setEvents(numEvts)
+        xmlLog.setMoni(numMoni)
+        xmlLog.setTcal(numTcal)
+        xmlLog.setSN(numSN)
+        xmlLog.setEndTime(lastTime)
+
         return duration
 
     def reset(self):
@@ -452,6 +461,12 @@ class RunData(object):
 
     def runNumber(self):
         return self.__runNumber
+
+    def clusterConfigName(self):
+        return self.__clusterConfigName
+    
+    def firstPayTime(self):
+        return self.__firstPayTime
 
     def sendEventCounts(self, state, comps):
         "Report run monitoring quantities"
@@ -718,7 +733,7 @@ class RunSet(object):
         tGroup.wait()
         tGroup.reportErrors(self.__logger, "stopLogging")
 
-    def __stopRunInternal(self, hadError=False):
+    def __stopRunInternal(self, xmlLog, hadError=False):
         """
         Stop all components in the runset
         Return True if an error is encountered while stopping.
@@ -873,7 +888,7 @@ class RunSet(object):
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING reset done")
 
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING report")
-        duration = self.__runData.reportRates(self.__set)
+        duration = self.__runData.reportRates(self.__set, xmlLog)
         if duration < 0:
             hadError = True
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING report done")
@@ -1510,7 +1525,33 @@ class RunSet(object):
         self.__stopping = True
         try:
             try:
-                rtnVal = self.__stopRunInternal(hadError)
+                xmlLog = DashXMLLog.DashXMLLog()
+                rtnVal = self.__stopRunInternal(xmlLog, hadError)
+                if(not rtnVal):
+                    xmlLog.setTermCond("Failure")
+                else:
+                    xmlLog.setTermCond("Success")
+
+                if(self.__runData!=None):
+                    # run number
+                    xmlLog.setRun(self.__runData.runNumber())
+                    # cluster configuration 
+                    xmlLog.setConfig(self.__runData.clusterConfigName())
+                    # start time
+                    xmlLog.setStartTime(self.__runData.firstPayTime())
+                    # write the xml log file to disk
+                    
+                    logDir = self.__runData.runDirectory()
+                    logFile = "dash.xml"
+                    if(logDir==None):
+                        logDir = "."
+                        logFile = "dash-%d.xml"% self.__runData.runNumber()
+                    
+                    xmlLogFileName = os.path.join(logDir, logFile)
+                    try:
+                        xmlLog.writeLog(xmlLogFileName)
+                    except DashXMLLog.DashXMLLogException:
+                        self.__logger.error("Could not write dash xml log file: %s" % xmlLogFileName)
             except:
                 self.__logger.error("Could not stop run: " + exc_string())
                 raise

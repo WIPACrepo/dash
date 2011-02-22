@@ -32,6 +32,7 @@
               <directory>.</directory>
               <includes>
                 <include>*.pyc</include>
+		<include>dash-*.xml</include>
               </includes>
             </fileset>
           </filesets>
