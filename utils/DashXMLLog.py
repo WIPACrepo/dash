@@ -50,6 +50,8 @@ class DashXMLLog:
         Returns:
             Nothing
         """
+        if field_name == self._root_elem_name:
+            raise DashXMLLogException("cannot duplicate the root element name")
 
         if field_name in self._fields:
             # field already defined
@@ -166,8 +168,7 @@ class DashXMLLog:
         Args:
             file_name: the name of the file to which we should write the xml log file
         """
-        doc = self._build_document()
-        docStr =  doc.toprettyxml(indent="\t")
+        docStr = self.documentToKirillString()
         
         fd = open(file_name, "w")
         fd.write(docStr)
@@ -180,7 +181,34 @@ class DashXMLLog:
             indent: the indentation character.  used in testing
         """
         doc = self._build_document()
+
         return doc.toprettyxml(indent=indent)
+
+        
+    def documentToKirillString(self):
+        """Apparently some people don't quite know how to download an xml parser so we have to write out xml files in
+        a specific format to fit a broken hand rolled xml parser"""
+
+        doc = self._build_document()
+        
+        if(doc.encoding==None):
+            dispStr = "<?xml version=\"1.0\"?>"
+        else:
+            dispStr = "<?xml version=\"1.0\" encoding=\"%s\"?>" % (doc.encoding)
+            
+        # okay here look for any and all processing instructions
+        for n in doc.childNodes:
+            if(n.nodeType==doc.PROCESSING_INSTRUCTION_NODE):
+                dispStr="%s\n%s" % (dispStr, n.toxml())
+
+        n = doc.getElementsByTagName(self._root_elem_name)[0]
+        dispStr = "%s\n<%s>" % (dispStr, self._root_elem_name)
+        for n in n.childNodes:
+            dispStr="%s\n\t%s" % ( dispStr, n.toxml())
+        dispStr = "%s\n</%s>" % (dispStr, self._root_elem_name)
+
+        return dispStr
+
 
 
 if __name__ == "__main__":
@@ -196,7 +224,7 @@ if __name__ == "__main__":
     a.setSN(47624256)
 
     a.setField("ExtraField", 50)
-    print a.documentToString()
-    
+    #print a.documentToString()
+    a.dispLog()
 
         
