@@ -448,7 +448,9 @@ class RunData(object):
         xmlLog.setMoni(numMoni)
         xmlLog.setTcal(numTcal)
         xmlLog.setSN(numSN)
-        xmlLog.setEndTime(lastTime)
+        # end time string
+        xmlLogEndTime = PayloadTime.toDateTime(lastTime)
+        xmlLog.setEndTime(xmlLogEndTime)
 
         return duration
 
@@ -1539,7 +1541,8 @@ class RunSet(object):
                     # cluster configuration 
                     xmlLog.setConfig(self.__runData.clusterConfigName())
                     # start time
-                    xmlLog.setStartTime(self.__runData.firstPayTime())
+                    xmlLogStartTime = PayloadTime.toDateTime(self.__runData.firstPayTime()) 
+                    xmlLog.setStartTime(xmlLogStartTime)
                     # write the xml log file to disk
                     
                     logDir = self.__runData.runDirectory()
