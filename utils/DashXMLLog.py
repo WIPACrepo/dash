@@ -225,6 +225,6 @@ if __name__ == "__main__":
 
     a.setField("ExtraField", 50)
     #print a.documentToString()
-    a.dispLog()
+    #a.dispLog()
 
         
