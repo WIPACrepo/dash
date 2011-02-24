@@ -77,20 +77,20 @@ class CatchallLog(ComponentLog):
         self.__port = None
         super(CatchallLog, self).__init__(fileName)
 
-    def __stateString(cls, val):
-        if val == cls.STATE_INITIAL:
+    @staticmethod
+    def __stateString(val):
+        if val == CatchallLog.STATE_INITIAL:
             return "INITIAL"
-        elif val == cls.STATE_STARTING:
+        elif val == CatchallLog.STATE_STARTING:
             return "STARTING"
-        elif val == cls.STATE_BUILDING:
+        elif val == CatchallLog.STATE_BUILDING:
             return "BUILDING"
-        elif val == cls.STATE_BUILTLIST:
+        elif val == CatchallLog.STATE_BUILTLIST:
             return "BUILTLIST"
-        elif val == cls.STATE_CREATED:
+        elif val == CatchallLog.STATE_CREATED:
             return "CREATED"
 
         return "??%d??" % val
-    __stateString = classmethod(__stateString)
 
     def parse(self, path):
         state = self.STATE_INITIAL
@@ -232,12 +232,12 @@ class CnCServerLog(ComponentLog):
     def __init__(self, fileName):
         super(CnCServerLog, self).__init__(fileName)
 
-    def __stateString(cls, val):
-        if val == cls.STATE_INITIAL:
+    @staticmethod
+    def __stateString(val):
+        if val == CnCServerLog.STATE_INITIAL:
             return "INITIAL"
 
         return "??%d??" % val
-    __stateString = classmethod(__stateString)
 
     def parse(self, path):
         state = self.STATE_INITIAL
@@ -319,20 +319,20 @@ class DashLog(ComponentLog):
     def __init__(self, fileName):
         super(DashLog, self).__init__(fileName)
 
-    def __stateString(cls, val):
-        if val == cls.STATE_INITIAL:
+    @staticmethod
+    def __stateString(val):
+        if val == DashLog.STATE_INITIAL:
             return "INITIAL"
-        elif val == cls.STATE_STARTING:
+        elif val == DashLog.STATE_STARTING:
             return "STARTING"
-        elif val == cls.STATE_RUNNING:
+        elif val == DashLog.STATE_RUNNING:
             return "RUNNING"
-        elif val == cls.STATE_STOPPING:
+        elif val == DashLog.STATE_STOPPING:
             return "STOPPING"
-        elif val == cls.STATE_ENDING:
+        elif val == DashLog.STATE_ENDING:
             return "ENDING"
 
         return "??%d??" % val
-    __stateString = classmethod(__stateString)
 
     def parse(self, path):
         state = self.STATE_INITIAL
@@ -485,20 +485,20 @@ class EventBuilderLog(ComponentLog):
 
         super(EventBuilderLog, self).__init__(fileName)
 
-    def __stateString(cls, val):
-        if val == cls.STATE_INITIAL:
+    @staticmethod
+    def __stateString(val):
+        if val == EventBuilderLog.STATE_INITIAL:
             return "INITIAL"
-        elif val == cls.STATE_STARTING:
+        elif val == EventBuilderLog.STATE_STARTING:
             return "STARTING"
-        elif val == cls.STATE_STARTED:
+        elif val == EventBuilderLog.STATE_STARTED:
             return "STARTED"
-        elif val == cls.STATE_STOPPING:
+        elif val == EventBuilderLog.STATE_STOPPING:
             return "STOPPING"
-        elif val == cls.STATE_STOPPED:
+        elif val == EventBuilderLog.STATE_STOPPED:
             return "STOPPED"
 
         return "??%d??" % val
-    __stateString = classmethod(__stateString)
 
     def parse(self, path):
         state = self.STATE_INITIAL
@@ -607,22 +607,23 @@ class GlobalTriggerLog(ComponentLog):
 
         super(GlobalTriggerLog, self).__init__(fileName)
 
-    def __stateString(cls, val):
-        if val == cls.STATE_INITIAL:
+    @staticmethod
+    def __stateString(val):
+        if val == GlobalTriggerLog.STATE_INITIAL:
             return "INITIAL"
-        if val == cls.STATE_CONFIG:
+        if val == GlobalTriggerLog.STATE_CONFIG:
             return "CONFIG"
-        if val == cls.STATE_RUNNING:
+        if val == GlobalTriggerLog.STATE_RUNNING:
             return "RUNNING"
-        if val == cls.STATE_STOPPING:
+        if val == GlobalTriggerLog.STATE_STOPPING:
             return "STOPPING"
-        if val == cls.STATE_REPORT:
+        if val == GlobalTriggerLog.STATE_REPORT:
             return "REPORT"
-        if val == cls.STATE_STOPPED:
+        if val == GlobalTriggerLog.STATE_STOPPED:
             return "STOPPED"
 
         return "??%d??" % val
-    __stateString = classmethod(__stateString)
+
 
     def parse(self, path):
         curTrig = None
@@ -813,20 +814,20 @@ class LocalTriggerLog(ComponentLog):
 
         super(LocalTriggerLog, self).__init__(fileName)
 
-    def __stateString(cls, val):
-        if val == cls.STATE_INITIAL:
+    @staticmethod
+    def __stateString(val):
+        if val == LocalTriggerLog.STATE_INITIAL:
             return "INITIAL"
-        if val == cls.STATE_CONFIG:
+        if val == LocalTriggerLog.STATE_CONFIG:
             return "CONFIG"
-        if val == cls.STATE_RUNNING:
+        if val == LocalTriggerLog.STATE_RUNNING:
             return "RUNNING"
-        if val == cls.STATE_STOPPING:
+        if val == LocalTriggerLog.STATE_STOPPING:
             return "STOPPING"
-        if val == cls.STATE_STOPPED:
+        if val == LocalTriggerLog.STATE_STOPPED:
             return "STOPPED"
 
         return "??%d??" % val
-    __stateString = classmethod(__stateString)
 
     def parse(self, path):
         curTrig = None
@@ -952,20 +953,20 @@ class Builder(object):
         self.__name = name
         self.__state = self.STATE_INITIAL
 
-    def __stateString(cls, val):
-        if val == cls.STATE_INITIAL:
+    @staticmethod
+    def __stateString(val):
+        if val == Builder.STATE_INITIAL:
             return "INITIAL"
-        if val == cls.STATE_STARTING:
+        if val == Builder.STATE_STARTING:
             return "STARTING"
-        if val == cls.STATE_STARTED:
+        if val == Builder.STATE_STARTED:
             return "STARTED"
-        if val == cls.STATE_STOPPING:
+        if val == Builder.STATE_STOPPING:
             return "STOPPING"
-        if val == cls.STATE_STOPPED:
+        if val == Builder.STATE_STOPPED:
             return "STOPPED"
 
         return "??%d??" % val
-    __stateString = classmethod(__stateString)
 
     def __str__(self):
         return self.__name
@@ -1016,18 +1017,18 @@ class SecondaryBuildersLog(ComponentLog):
 
         super(SecondaryBuildersLog, self).__init__(fileName)
 
-    def __stateString(cls, val):
-        if val == cls.STATE_INITIAL:
+    @staticmethod
+    def __stateString(val):
+        if val == SecondaryBuildersLog.STATE_INITIAL:
             return "INITIAL"
-        elif val == cls.STATE_STARTING:
+        elif val == SecondaryBuildersLog.STATE_STARTING:
             return "STARTING"
-        elif val == cls.STATE_STOPPING:
+        elif val == SecondaryBuildersLog.STATE_STOPPING:
             return "STOPPING"
-        elif val == cls.STATE_STOPPED:
+        elif val == SecondaryBuildersLog.STATE_STOPPED:
             return "STOPPED"
 
         return "??%d??" % val
-    __stateString = classmethod(__stateString)
 
     def parse(self, path):
         state = self.STATE_INITIAL
@@ -1166,30 +1167,30 @@ class BaseDom(object):
 
         self.__state = self.STATE_INITIAL
 
-    def __stateString(cls, val):
-        if val == cls.STATE_INITIAL:
+    @staticmethod
+    def __stateString(val):
+        if val == BaseDom.STATE_INITIAL:
             return "INITIAL"
-        if val == cls.STATE_SIGCONFIG:
+        if val == BaseDom.STATE_SIGCONFIG:
             return "SIGCONFIG"
-        if val == cls.STATE_CONFIGING:
+        if val == BaseDom.STATE_CONFIGING:
             return "CONFIGING"
-        if val == cls.STATE_FINISHCFG:
+        if val == BaseDom.STATE_FINISHCFG:
             return "FINISHCFG"
-        if val == cls.STATE_READY:
+        if val == BaseDom.STATE_READY:
             return "READY"
-        if val == cls.STATE_SIGSTART:
+        if val == BaseDom.STATE_SIGSTART:
             return "SIGSTART"
-        if val == cls.STATE_STARTRUN:
+        if val == BaseDom.STATE_STARTRUN:
             return "STARTRUN"
-        if val == cls.STATE_RUNNING:
+        if val == BaseDom.STATE_RUNNING:
             return "RUNNING"
-        if val == cls.STATE_STOPPING:
+        if val == BaseDom.STATE_STOPPING:
             return "STOPPING"
-        if val == cls.STATE_STOPPED:
+        if val == BaseDom.STATE_STOPPED:
             return "STOPPED"
 
         return "??%d??" % val
-    __stateString = classmethod(__stateString)
 
     def __str__(self):
         if self.__abNum == 0:
@@ -1348,24 +1349,24 @@ class StringHubLog(ComponentLog):
             abNum = 1
         return card * 8 + pair * 2 + abNum
 
-    def __stateString(cls, val):
-        if val == cls.STATE_INITIAL:
+    @staticmethod
+    def __stateString(val):
+        if val == StringHubLog.STATE_INITIAL:
             return "INITIAL"
-        if val == cls.STATE_FOUND:
+        if val == StringHubLog.STATE_FOUND:
             return "FOUND"
-        if val == cls.STATE_CONFIG:
+        if val == StringHubLog.STATE_CONFIG:
             return "CONFIG"
-        if val == cls.STATE_DCTHREAD:
+        if val == StringHubLog.STATE_DCTHREAD:
             return "DCTHREAD"
-        if val == cls.STATE_START:
+        if val == StringHubLog.STATE_START:
             return "START"
-        if val == cls.STATE_STOPPING:
+        if val == StringHubLog.STATE_STOPPING:
             return "STOPPING"
-        if val == cls.STATE_STOPPED:
+        if val == StringHubLog.STATE_STOPPED:
             return "STOPPED"
 
         return "??%d??" % val
-    __stateString = classmethod(__stateString)
 
     def parse(self, path):
         nextFound = 0

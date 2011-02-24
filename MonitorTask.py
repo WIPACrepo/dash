@@ -140,7 +140,8 @@ class MonitorTask(CnCTask):
                                           self.DEBUG_BIT, self.NAME,
                                           period)
 
-    def __createReporter(cls, comp, runDir, live, runOptions):
+    @staticmethod
+    def __createReporter(comp, runDir, live, runOptions):
         if RunOption.isMoniToBoth(runOptions) and live is not None:
             return MonitorToBoth(runDir, comp.fileName(), live)
         if RunOption.isMoniToFile(runOptions):
@@ -150,7 +151,6 @@ class MonitorTask(CnCTask):
             return MonitorToLive(comp.fileName(), live)
 
         return None
-    __createReporter = classmethod(__createReporter)
 
     def _check(self):
         now = None

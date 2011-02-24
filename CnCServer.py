@@ -31,7 +31,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12692 2011-02-21 22:55:22Z mnewcomb $"
+SVN_ID  = "$Id: CnCServer.py 12696 2011-02-24 15:46:28Z mnewcomb $"
 
 class CnCServerException(Exception): pass
 
@@ -597,8 +597,9 @@ class CnCServer(DAQPool):
             print >>sys.stderr, "\nExiting"
             sys.exit(0)
         print >>sys.stderr, "Cannot exit with active runset(s)"
-
-    def __countFileDescriptors(cls):
+        
+    @staticmethod
+    def __countFileDescriptors():
         "Count number of open file descriptors for this process"
         if not sys.platform.startswith("linux"):
             return 0
@@ -610,7 +611,6 @@ class CnCServer(DAQPool):
         count = len(os.listdir(path))
 
         return count
-    __countFileDescriptors = classmethod(__countFileDescriptors)
 
     def __getComponents(self, idList, getAll):
         compList = []

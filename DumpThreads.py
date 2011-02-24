@@ -12,17 +12,18 @@ class DumpThreadsOnSignal(object):
 
         signal.signal(signum, self.__handleSignal)
 
-    def __findThread(cls, tId):
+    @staticmethod
+    def __findThread(tId):
         for t in threading.enumerate():
             if t.ident == tId:
                 return t
 
         return None
-    __findThread = classmethod(__findThread)
 
     def __handleSignal(self, signum, frame):
         self.dumpThreads(self.__fd, self.__logger)
 
+    @classmethod
     def dumpThreads(cls, fd=None, logger=None):
         first = True
         for tId, stack in sys._current_frames().items():
@@ -49,4 +50,4 @@ class DumpThreadsOnSignal(object):
         if fd is not None:
             print >>fd, "---------------------------------------------"
 
-    dumpThreads = classmethod(dumpThreads)
+

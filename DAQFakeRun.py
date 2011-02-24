@@ -372,7 +372,8 @@ class FakeClient(ServerProxy, threading.Thread):
     def __str__(self):
         return "FakeClient:%s#%d" % (self.__name, self.__num)
 
-    def __buildConnectors(connectors):
+    @classmethod
+    def __buildConnectors(cls,connectors):
         """
         Build the connectors for this component
 
@@ -383,12 +384,11 @@ class FakeClient(ServerProxy, threading.Thread):
         connList = []
         for conn in connectors:
             if conn[1]:
-                connPort = FakeClient.nextPortNumber()
+                connPort = cls.nextPortNumber()
             else:
                 connPort = 0
             connList.append(FakeConnector(conn[0], conn[1], connPort))
         return connList
-    __buildConnectors = staticmethod(__buildConnectors)
 
     def __createConnectorSockets(self):
         "Create input threads for all input connectors"
@@ -677,12 +677,12 @@ class FakeClient(ServerProxy, threading.Thread):
         "Return component name"
         return "%s#%d" % (self.__name, self.__num)
 
+    @classmethod
     def nextPortNumber(cls):
         "Get the next available port number"
         port = cls.NEXT_PORT
         cls.NEXT_PORT += 1
         return port
-    nextPortNumber = classmethod(nextPortNumber)
 
     def register(self):
         "Create input sockets and register component with CnCServer"
@@ -998,6 +998,7 @@ class ComponentData(object):
 
         return beanDict
 
+    @classmethod
     def createAll(cls, numHubs, addNumericPrefix, includeIceTop=False,
                   includeTrackEngine=False):
         "Create initial component data list"
@@ -1044,9 +1045,9 @@ class ComponentData(object):
                                    addNumericPrefix))
 
         return comps
-    createAll = classmethod(createAll)
 
-    def createHubs(cls, numHubs, addNumericPrefix, sendTrackHits,
+    @staticmethod
+    def createHubs(numHubs, addNumericPrefix, sendTrackHits,
                    isIceTop=False):
         "create all stringHubs"
         comps = []
@@ -1070,22 +1071,21 @@ class ComponentData(object):
                                        addNumericPrefix))
 
         return comps
-    createHubs = classmethod(createHubs)
 
-    def createSmall(cls):
+    @staticmethod
+    def createSmall():
         "Create 3-element component data list"
         return [ComponentData("foo", 0, [("hit", Connector.OUTPUT)]),
                 ComponentData("bar", 0, [("hit", Connector.INPUT),
                                          ("event", Connector.OUTPUT)]),
                 ComponentData("fooBuilder", 0, [("event", Connector.INPUT)])]
-    createSmall = classmethod(createSmall)
 
-    def createTiny(cls):
+    @staticmethod
+    def createTiny():
         "Create 2-element component data list"
         return [ComponentData("foo", 0, [("hit", Connector.OUTPUT)]),
                 ComponentData("bar", 0, [("hit", Connector.INPUT)])]
-    createTiny = classmethod(createTiny)
-
+    
     def getFakeClient(self):
         "Create a FakeClient object using this component data"
         return FakeClient(self.__compName, self.__compNum, self.__connList,
@@ -1122,7 +1122,8 @@ class DAQFakeRun(object):
         self.__client = ServerProxy("http://%s:%s" % (cncHost, cncPort),
                                     verbose=verbose)
 
-    def __createClusterDescriptionFile(cls, runCfgDir):
+    @staticmethod
+    def __createClusterDescriptionFile(runCfgDir):
         path = os.path.join(runCfgDir, "sps-cluster.cfg")
         if not os.path.exists(path):
             fd = open(path, "w")
@@ -1145,12 +1146,11 @@ class DAQFakeRun(object):
   </host>
 </cluster>"""
             fd.close()
-    __createClusterDescriptionFile = classmethod(__createClusterDescriptionFile)
 
-    def __getRunTime(cls, startTime):
+    @staticmethod
+    def __getRunTime(startTime):
         diff = datetime.datetime.now() - startTime
         return float(diff.seconds) + (float(diff.microseconds) / 1000000.0)
-    __getRunTime = classmethod(__getRunTime)
 
     def __openLog(self, host, port):
         """
@@ -1295,7 +1295,8 @@ class DAQFakeRun(object):
             lt.stop()
         del self.__logThreads[:]
 
-    def createComps(cls, compData, forkClients):
+    @staticmethod
+    def createComps(compData, forkClients):
         "create and start components"
         comps = []
         for cd in compData:
@@ -1308,8 +1309,8 @@ class DAQFakeRun(object):
 
             comps.append(client)
         return comps
-    createComps = classmethod(createComps)
 
+    @classmethod
     def createMockRunConfig(cls, runCfgDir, compList):
         cfgFile = MockRunConfigFile(runCfgDir)
 
@@ -1320,9 +1321,9 @@ class DAQFakeRun(object):
         cls.__createClusterDescriptionFile(runCfgDir)
 
         return cfgFile.create(nameList, [])
-    createMockRunConfig = classmethod(createMockRunConfig)
 
-    def hackActiveConfig(cls, clusterCfg):
+    @staticmethod
+    def hackActiveConfig(clusterCfg):
         path = os.path.join(os.environ["HOME"], ".active")
         if not os.path.exists(path):
             print >>sys.stderr, "Setting ~/.active to \"%s\"" % clusterCfg
@@ -1336,9 +1337,9 @@ class DAQFakeRun(object):
         fd = open(path, "w")
         print >>fd, clusterCfg
         fd.close()
-    hackActiveConfig = classmethod(hackActiveConfig)
 
-    def makeMockClusterConfig(cls, runCfgDir, compData, numHubs):
+    @staticmethod
+    def makeMockClusterConfig(runCfgDir, compData, numHubs):
         path = os.path.join(runCfgDir, "localhost.cfg")
         if os.path.exists(path):
             return
@@ -1368,7 +1369,6 @@ class DAQFakeRun(object):
         print >>fd, "  </host>"
         print >>fd, "</cluster>"
         fd.close()
-    makeMockClusterConfig = classmethod(makeMockClusterConfig)
 
     def makeRunset(self, compList, runCfg):
         nameList = []

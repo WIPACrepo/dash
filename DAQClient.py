@@ -35,7 +35,8 @@ class MBeanClient(object):
         for bean in self.__beanList:
             self.__beanFields[bean] = self.__client.mbean.listGetters(bean)
 
-    def __unFixValue(cls, obj):
+    @classmethod
+    def __unFixValue(cls,obj):
 
         """ Look for numbers masquerading as strings.  If an obj is a
         string and successfully converts to a number, return that
@@ -56,7 +57,7 @@ class MBeanClient(object):
             except ValueError:
                 pass
         return obj
-    __unFixValue = classmethod(__unFixValue)
+
 
     def checkBeanField(self, bean, fld):
         if bean not in self.__beanList:

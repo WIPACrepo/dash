@@ -20,7 +20,9 @@ class ProcessError(XMLError): pass
 class BadFileError(XMLError): pass
 
 class XMLParser(object):
-    def getChildText(cls, node):
+    
+    @staticmethod
+    def getChildText(node):
         "Return the text from this node's child"
         nodeName = "<%s>" % str(node.nodeName)
         if nodeName == "<#document>":
@@ -52,7 +54,7 @@ class XMLParser(object):
             raise ProcessError("No text child node for %s" % nodeName)
 
         return text
-    getChildText = classmethod(getChildText)
+
 
 class DomGeometry(object):
     "Data for a single DOM"
@@ -288,7 +290,8 @@ class DefaultDomGeometry(object):
         "Get the DOM ID -> DOM object dictionary"
         return self.__domIdToDom
 
-    def getIcetopNum(cls, strNum):
+    @staticmethod
+    def getIcetopNum(strNum):
         "Translate the in-ice string number to the corresponding icetop hub"
         if strNum % 1000 == 0 or strNum >= 2000: return strNum
         if strNum > 1000: return ((((strNum % 100) + 7)) / 8) + 1200
@@ -304,7 +307,6 @@ class DefaultDomGeometry(object):
         if strNum in [41, 32, 24, 15, 35, 25, 8, 16]: return 209
         if strNum in [42, 43, 33, 34, 23, 51]: return 210
         raise ProcessError("Could not find icetop hub for string %d" % strNum)
-    getIcetopNum = classmethod(getIcetopNum)
 
     def getStringToDomDict(self):
         "Get the string number -> DOM object dictionary"
@@ -370,6 +372,8 @@ class DefaultDomGeometry(object):
                         self.addDom(dom)
 
 class DefaultDomGeometryReader(XMLParser):
+
+    @classmethod
     def __parseDomNode(cls, stringNum, node):
         "Extract a single DOM's data from the default-dom-geometry XML tree"
         if node.attributes is not None and len(node.attributes) > 0:
@@ -421,8 +425,8 @@ class DefaultDomGeometryReader(XMLParser):
         dom.validate()
 
         return dom
-    __parseDomNode = classmethod(__parseDomNode)
 
+    @classmethod
     def __parseStringNode(cls, geom, node):
         "Extract data from a default-dom-geometry <string> node tree"
         if node.attributes is not None and len(node.attributes) > 0:
@@ -464,8 +468,8 @@ class DefaultDomGeometryReader(XMLParser):
 
         if stringNum is None:
             raise ProcessError("String is missing number")
-    __parseStringNode = classmethod(__parseStringNode)
 
+    @classmethod
     def parse(cls, fileName=None, translateDoms=False):
         if fileName is None:
             fileName = os.path.join(metaDir, "config",
@@ -507,10 +511,11 @@ class DefaultDomGeometryReader(XMLParser):
         dom.unlink()
 
         return geom
-    parse = classmethod(parse)
+
 
 class DomsTxtReader(object):
-    def parse(cls, fileName=None, geom=None):
+    @staticmethod
+    def parse(fileName=None, geom=None):
         if fileName is None:
             fileName = os.path.join(metaDir, "config", "doms.txt")
 
@@ -557,10 +562,11 @@ class DomsTxtReader(object):
                 geom.addDom(dom)
 
         return geom
-    parse = classmethod(parse)
+
 
 class NicknameReader(object):
-    def parse(cls, fileName=None, geom=None):
+    @staticmethod
+    def parse(fileName=None, geom=None):
         if fileName is None:
             fileName = os.path.join(metaDir, "config", "nicknames.txt")
 
@@ -608,7 +614,6 @@ class NicknameReader(object):
                 geom.addDom(dom)
 
         return geom
-    parse = classmethod(parse)
 
 if __name__ == "__main__":
     # read in default-dom-geometry.xml

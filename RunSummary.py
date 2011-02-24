@@ -86,6 +86,7 @@ class SnippetRunRec:
                                                         self.startDay, self.startTime,
                                                         self.stopDay,  self.stopTime,
                                                         self.config)
+    @staticmethod
     def colorTableCell(html, label, color):
         ret = ""
         found = False
@@ -116,7 +117,6 @@ class SnippetRunRec:
         if not found:
             raise Exception("ERROR: label %s not found!" % label)
         return ret
-    colorTableCell = staticmethod(colorTableCell)
     
     def html(self, lastRelease, lastConfig, lastStartDay, lastStopDay):
         """

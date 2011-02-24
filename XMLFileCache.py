@@ -21,15 +21,16 @@ class XMLFileCache(object):
     "Cached file"
     CACHE = {}
 
-    def buildPath(cls, dir, name):
+    @staticmethod
+    def buildPath(dir, name):
         fileName = os.path.join(dir, name)
         if not fileName.endswith(".xml"):
             fileName += ".xml"
         if not os.path.exists(fileName):
             return None
         return fileName
-    buildPath = classmethod(buildPath)
 
+    @classmethod
     def load(cls, cfgName, configDir, strict=True):
         "Load the XML file"
 
@@ -68,9 +69,8 @@ class XMLFileCache(object):
         return data
 
         return None
-    load = classmethod(load)
 
+    @classmethod
     def parse(cls, dom, configDir, fileName, strict=True):
         raise NotImplementedError("parse() method has not been" +
                                      " implemented for %s" % cls)
-    parse = classmethod(parse)

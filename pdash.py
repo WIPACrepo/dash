@@ -22,7 +22,8 @@ class Dash(cmd.Cmd):
 
         self.prompt = "> "
 
-    def __findComponentId(cls, compDict, compName):
+    @staticmethod
+    def __findComponentId(compDict, compName):
         if not compDict.has_key(compName):
             if compName.endswith("#0") or compName.endswith("-0"):
                 compName = compName[:-2]
@@ -35,7 +36,6 @@ class Dash(cmd.Cmd):
             return compDict[compName]
 
         raise ValueError("Unknown component \"%s\"" % compName)
-    __findComponentId = classmethod(__findComponentId)
 
 
     def __listAll(self):

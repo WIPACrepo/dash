@@ -1112,9 +1112,10 @@ class MockRunConfigFile(object):
 
         return name
 
-    def createDOM(cls, mbid):
+    @staticmethod
+    def createDOM(mbid):
         return SimDOMXML(mbid)
-    createDOM = classmethod(createDOM)
+
 
 class MockXMLRPC(object):
     LOUD = False

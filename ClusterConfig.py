@@ -103,6 +103,7 @@ class ClusterConfigParser(XMLFileCache):
 
     def defaultLogLevel(self): return self.GLOBAL_DEFAULT_LOG_LEVEL
 
+    @classmethod
     def getDefaultJavaInfo(cls, configDir, clusterName):
         """ Get the default set of java information from the
         cluster-config default file for clusterName.
@@ -170,8 +171,8 @@ class ClusterConfigParser(XMLFileCache):
                     "configFile='%s'" % (clusterName, configFile))
 
         return defJavaDict, fbJavaDict
-    getDefaultJavaInfo = classmethod(getDefaultJavaInfo)
 
+    @classmethod
     def getElementSingleTagName(cls, root, name, deep=True, enforce=True):
         """ Fetch a single element tag name of form
         <tagName>yowsa!</tagName>.  If deep is False, then only look
@@ -199,7 +200,7 @@ class ClusterConfigParser(XMLFileCache):
         elif len(elems) == 0:
             return None
         return elems[0].childNodes[0].data.strip()
-    getElementSingleTagName = classmethod(getElementSingleTagName)
+
 
     def getHubNodes(self):
         hublist = []
@@ -217,17 +218,17 @@ class ClusterConfigParser(XMLFileCache):
                     hublist.append(node.hostName())
         return hublist
 
+    @classmethod
     def getValue(cls, node, name, defaultVal=None):
         if node.attributes is not None and node.attributes.has_key(name):
             return node.attributes[name].value
-
         try:
             return cls.getElementSingleTagName(node, name)
         except:
             return defaultVal
-    getValue = classmethod(getValue)
 
-    def openAndParseConfig(cls, configDir, configName):
+    @staticmethod
+    def openAndParseConfig(configDir, configName):
         """ Open the given configName'd file in the configDir dir
         returning name of the file parsed and the top-level icecube
         element node. """
@@ -245,8 +246,8 @@ class ClusterConfigParser(XMLFileCache):
         icecube = parsed.getElementsByTagName("icecube")
         if len(icecube) != 1: raise MalformedDeployConfigException(configFile)
         return configFile, icecube[0]
-    openAndParseConfig = classmethod(openAndParseConfig)
 
+    @classmethod
     def parse(cls, dom, configDir, configName, strict=True):
         "Load the configuration data from the XML-formatted file"
         icecube = dom.getElementsByTagName("icecube")
@@ -335,7 +336,6 @@ class ClusterConfigParser(XMLFileCache):
                                                  jvm, jvmArgs, hostname))
 
         return cluCfg
-    parse = classmethod(parse)
 
 if __name__ == "__main__":
     import datetime, optparse

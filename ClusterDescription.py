@@ -38,13 +38,14 @@ class ConfigXMLBase(object):
     def extractFrom(self, dom):
         raise NotImplementedError('extractFrom method is not implemented')
 
+    @staticmethod
     def getNodeName(node):
         nodeName = '<%s>' % str(node.nodeName)
         if nodeName == '<#document>':
             nodeName = 'top-level'
         return nodeName
-    getNodeName = staticmethod(getNodeName)
 
+    @staticmethod
     def getChildText(node):
         if node.childNodes is None or len(node.childNodes) == 0:
             raise XMLFormatError('No %s child nodes' %
@@ -66,8 +67,7 @@ class ConfigXMLBase(object):
 
         return text
 
-    getChildText = staticmethod(getChildText)
-
+    @staticmethod
     def getSingleChild(node, name):
         kids = node.getElementsByTagName(name)
         if len(kids) < 1:
@@ -77,7 +77,6 @@ class ConfigXMLBase(object):
 
         return kids[0]
 
-    getSingleChild = staticmethod(getSingleChild)
 
     def getValue(self, node, name, defaultVal=None):
         if node.attributes is not None and node.attributes.has_key(name):
@@ -147,13 +146,12 @@ class ClusterSimHub(object):
             uStr = ""
         return "%s*%d^%d%s" % (self.host, self.number, self.priority, uStr)
 
+    @staticmethod
     def sortByPriority(x, y):
         val = cmp(y.priority, x.priority)
         if val == 0:
             val = cmp(x.host.name, y.host.name)
         return val
-
-    sortByPriority = staticmethod(sortByPriority)
 
 class ClusterHost(object):
     def __init__(self, name):
@@ -495,6 +493,7 @@ class ClusterDescription(ConfigXMLBase):
 
         self.__parseHostNodes(hostNodes)
 
+    @classmethod
     def getClusterFromHostName(cls, hostname=None):
         """
         Determine the cluster name from 'hostname'.
@@ -524,8 +523,8 @@ class ClusterDescription(ConfigXMLBase):
                     return hlist[1]
 
         return cls.LOCAL
-    getClusterFromHostName = classmethod(getClusterFromHostName)
 
+    @classmethod
     def getClusterDatabaseType(cls, clu=None):
         """
         Determine the database type for the cluster description.
@@ -541,7 +540,6 @@ class ClusterDescription(ConfigXMLBase):
             return cls.DBTYPE_NONE
         raise NotImplementedError("Cannot guess database" +
                                      " for cluster \"%s\"" % clu)
-    getClusterDatabaseType = classmethod(getClusterDatabaseType)
 
     def getJVM(self, compName):
         return self.__findDefault(compName, 'jvm')

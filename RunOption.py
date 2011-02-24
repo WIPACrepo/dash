@@ -10,72 +10,73 @@ class RunOption(object):
     MONI_TO_LIVE = 0x4000
     MONI_TO_BOTH = MONI_TO_FILE | MONI_TO_LIVE
 
-    def __appendWithComma(cls, prevstr, addstr):
+    @staticmethod
+    def __appendWithComma(prevstr, addstr):
         if prevstr is None:
             return addstr
         return prevstr + "," + addstr
-    __appendWithComma = classmethod(__appendWithComma)
 
-    def __isOption(cls, flags, option):
+    @staticmethod
+    def __isOption(flags, option):
         return (flags & option) == option
-    __isOption = classmethod(__isOption)
 
-    def isLogToBoth(cls, flags):
-        return cls.__isOption(flags, cls.LOG_TO_FILE | cls.LOG_TO_LIVE)
-    isLogToBoth = classmethod(isLogToBoth)
+    @staticmethod
+    def isLogToBoth(flags):
+        return RunOption.__isOption(flags, RunOption.LOG_TO_FILE | RunOption.LOG_TO_LIVE)
+    
+    @staticmethod
+    def isLogToFile(flags):
+        return RunOption.__isOption(flags, RunOption.LOG_TO_FILE)
+    
+    @staticmethod
+    def isLogToLive(flags):
+        return RunOption.__isOption(flags, RunOption.LOG_TO_LIVE)
 
-    def isLogToFile(cls, flags):
-        return cls.__isOption(flags, cls.LOG_TO_FILE)
-    isLogToFile = classmethod(isLogToFile)
+    @staticmethod
+    def isLogToNone(flags):
+        return RunOption.__isOption(flags, RunOption.LOG_TO_NONE)
+    
+    @staticmethod
+    def isMoniToBoth(flags):
+        return RunOption.__isOption(flags, RunOption.MONI_TO_FILE | RunOption.MONI_TO_LIVE)
 
-    def isLogToLive(cls, flags):
-        return cls.__isOption(flags, cls.LOG_TO_LIVE)
-    isLogToLive = classmethod(isLogToLive)
+    @staticmethod
+    def isMoniToFile(flags):
+        return RunOption.__isOption(flags, RunOption.MONI_TO_FILE)
 
-    def isLogToNone(cls, flags):
-        return cls.__isOption(flags, cls.LOG_TO_NONE)
-    isLogToNone = classmethod(isLogToNone)
+    @staticmethod
+    def isMoniToLive(flags):
+        return RunOption.__isOption(flags, RunOption.MONI_TO_LIVE)
 
-    def isMoniToBoth(cls, flags):
-        return cls.__isOption(flags, cls.MONI_TO_FILE | cls.MONI_TO_LIVE)
-    isMoniToBoth = classmethod(isMoniToBoth)
+    @staticmethod
+    def isMoniToNone(flags):
+        return RunOption.__isOption(flags, RunOption.MONI_TO_NONE)
 
-    def isMoniToFile(cls, flags):
-        return cls.__isOption(flags, cls.MONI_TO_FILE)
-    isMoniToFile = classmethod(isMoniToFile)
-
-    def isMoniToLive(cls, flags):
-        return cls.__isOption(flags, cls.MONI_TO_LIVE)
-    isMoniToLive = classmethod(isMoniToLive)
-
-    def isMoniToNone(cls, flags):
-        return cls.__isOption(flags, cls.MONI_TO_NONE)
-    isMoniToNone = classmethod(isMoniToNone)
-
-    def string(cls, flags):
+    @staticmethod
+    def string(flags):
         logStr = None
-        if cls.isLogToNone(flags):
-            logStr = cls.__appendWithComma(logStr, "None")
-        if cls.isLogToBoth(flags):
-            logStr = cls.__appendWithComma(logStr, "Both")
-        elif cls.isLogToFile(flags):
-            logStr = cls.__appendWithComma(logStr, "File")
-        elif cls.isLogToLive(flags):
-            logStr = cls.__appendWithComma(logStr, "Live")
+        if RunOption.isLogToNone(flags):
+            logStr = RunOption.__appendWithComma(logStr, "None")
+        if RunOption.isLogToBoth(flags):
+            logStr = RunOption.__appendWithComma(logStr, "Both")
+        elif RunOption.isLogToFile(flags):
+            logStr = RunOption.__appendWithComma(logStr, "File")
+        elif RunOption.isLogToLive(flags):
+            logStr = RunOption.__appendWithComma(logStr, "Live")
         elif logStr is None:
             logStr = ""
 
         moniStr = None
-        if cls.isMoniToNone(flags):
-            moniStr = cls.__appendWithComma(moniStr, "None")
-        if cls.isMoniToBoth(flags):
-            moniStr = cls.__appendWithComma(moniStr, "Both")
-        elif cls.isMoniToFile(flags):
-            moniStr = cls.__appendWithComma(moniStr, "File")
-        elif cls.isMoniToLive(flags):
-            moniStr = cls.__appendWithComma(moniStr, "Live")
+        if RunOption.isMoniToNone(flags):
+            moniStr = RunOption.__appendWithComma(moniStr, "None")
+        if RunOption.isMoniToBoth(flags):
+            moniStr = RunOption.__appendWithComma(moniStr, "Both")
+        elif RunOption.isMoniToFile(flags):
+            moniStr = RunOption.__appendWithComma(moniStr, "File")
+        elif RunOption.isMoniToLive(flags):
+            moniStr = RunOption.__appendWithComma(moniStr, "Live")
         elif moniStr is None:
             moniStr = ""
 
         return "RunOption[log(%s)moni(%s)]" % (logStr, moniStr)
-    string = classmethod(string)
+

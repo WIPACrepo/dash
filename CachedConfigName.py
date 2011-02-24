@@ -14,16 +14,18 @@ else:
     metaDir = find_pdaq_trunk()
 
 class CachedFile(object):
-    def __getCachedNamePath(cls, useActiveConfig):
+    
+    @staticmethod
+    def __getCachedNamePath(useActiveConfig):
         "get the active or default cluster configuration"
         if useActiveConfig:
             return os.path.join(os.environ["HOME"], ".active")
         return os.path.join(metaDir, 'config', ".config")
-    __getCachedNamePath = classmethod(__getCachedNamePath)
 
-    def __readCacheFile(cls, useActiveConfig):
+    @staticmethod
+    def __readCacheFile(useActiveConfig):
         "read the cached cluster name"
-        clusterFile = cls.__getCachedNamePath(useActiveConfig)
+        clusterFile = CachedFile.__getCachedNamePath(useActiveConfig)
         try:
             f = open(clusterFile, "r")
             ret = f.readline()
@@ -31,34 +33,33 @@ class CachedFile(object):
             return ret.rstrip('\r\n')
         except:
             return None
-    __readCacheFile = classmethod(__readCacheFile)
 
-    def clearActiveConfig(cls):
+    @staticmethod
+    def clearActiveConfig():
         "delete the active cluster name"
-        activeName = cls.__getCachedNamePath(True)
+        activeName = CachedFile.__getCachedNamePath(True)
         if os.path.exists(activeName): os.remove(activeName)
-    clearActiveConfig = classmethod(clearActiveConfig)
 
-    def getConfigToUse(cls, cmdlineConfig, useFallbackConfig, useActiveConfig):
+    @staticmethod
+    def getConfigToUse(cmdlineConfig, useFallbackConfig, useActiveConfig):
         "Determine the name of the configuration to use"
         if cmdlineConfig is not None:
             cfg = cmdlineConfig
         else:
-            cfg = cls.__readCacheFile(useActiveConfig)
+            cfg = CachedFile.__readCacheFile(useActiveConfig)
             if cfg is None and useFallbackConfig:
                 cfg = 'sim-localhost'
 
         return cfg
-    getConfigToUse = classmethod(getConfigToUse)
 
-
-    def writeCacheFile(cls, name, writeActiveConfig=False):
+    @staticmethod
+    def writeCacheFile(name, writeActiveConfig=False):
         "write this config name to the appropriate cache file"
-        cachedNamePath = cls.__getCachedNamePath(writeActiveConfig)
-        fd = open(cachedNamePath, 'w')
-        print >>fd, name
-        fd.close()
-    writeCacheFile = classmethod(writeCacheFile)
+        cachedNamePath = CachedFile.__getCachedNamePath(writeActiveConfig)
+        
+        with open(cachedNamePath, 'w') as fd:
+            print >>fd, name
+        
 
 class CachedConfigName(CachedFile):
     def __init__(self):

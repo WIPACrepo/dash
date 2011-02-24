@@ -14,7 +14,8 @@ class PayloadTime(object):
     # previous payload time
     PREV_TIME = None
 
-    def toDateTime(cls, payTime):
+    @staticmethod
+    def toDateTime(payTime):
         if payTime is None:
             return None
 
@@ -37,7 +38,7 @@ class PayloadTime(object):
                                  ts.tm_min, ts.tm_sec,
                                  int((curTime * 1000000) % 1000000))
 
-    toDateTime = classmethod(toDateTime)
+
 
 class RunStats(object):
     def __init__(self):

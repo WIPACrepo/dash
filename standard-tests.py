@@ -172,7 +172,8 @@ class Deploy(object):
 
         self.__runDeploy(clusterConfig, "--delete")
 
-    def getUniqueClusterConfigs(self, runList):
+    @staticmethod
+    def getUniqueClusterConfigs(runList):
         "Return a list of the unique elements"
         ccDict = {}
         for data in runList:
@@ -182,7 +183,6 @@ class Deploy(object):
         uniqList.sort()
 
         return uniqList
-    getUniqueClusterConfigs = classmethod(getUniqueClusterConfigs)
 
     def showHome(self):
         "Print the actual pDAQ home directory name"

@@ -469,6 +469,7 @@ class CnCRunSetTest(unittest.TestCase):
     def __computeRateHz(self, startEvts, curEvts, duration):
         return float(curEvts - startEvts) / float(duration)
 
+    @classmethod
     def __loadBeanData(cls, compList):
         for c in compList:
             if not cls.BEAN_DATA.has_key(c.name()):
@@ -480,12 +481,10 @@ class CnCRunSetTest(unittest.TestCase):
                 else:
                     for f in cls.BEAN_DATA[c.name()][b]:
                         c.setBeanData(b, f, cls.BEAN_DATA[c.name()][b][f])
-
-    __loadBeanData = classmethod(__loadBeanData)
-
+    
+    @classmethod
     def __loadRadarDOMMap(cls):
         RadarThread.DOM_MAP[cls.RADAR_DOM] = cls.HUB_NUMBER
-    __loadRadarDOMMap = classmethod(__loadRadarDOMMap)
 
     def __runDirect(self, failReset):
         self.__copyDir = tempfile.mkdtemp()
@@ -614,7 +613,8 @@ class CnCRunSetTest(unittest.TestCase):
         logger.checkStatus(5)
         dashLog.checkStatus(5)
 
-    def __setBeanData(cls, comps, compName, compNum, beanName, fieldName,
+    @staticmethod
+    def __setBeanData(comps, compName, compNum, beanName, fieldName,
                       value):
         setData = False
         for c in comps:
@@ -630,15 +630,14 @@ class CnCRunSetTest(unittest.TestCase):
             raise Exception("Could not find component %s#%d" %
                             (compName, compNum))
 
-    __setBeanData = classmethod(__setBeanData)
-
-    def __waitForEmptyLog(cls, log, errMsg):
+    @staticmethod
+    def __waitForEmptyLog(log, errMsg):
         for i in range(5):
             if log.isEmpty():
                 break
             time.sleep(0.25)
         log.checkStatus(1)
-    __waitForEmptyLog = classmethod(__waitForEmptyLog)
+
 
     def setUp(self):
         self.__cnc = None

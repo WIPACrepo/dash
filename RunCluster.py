@@ -283,6 +283,7 @@ class RunCluster(CachedConfigName):
 
         return simList
 
+    @staticmethod
     def __sortByPriority(x, y):
         "Sort simulated hub nodes by priority"
         val = cmp(y.priority, x.priority)
@@ -290,7 +291,6 @@ class RunCluster(CachedConfigName):
             val = cmp(x.host.name, y.host.name)
         return val
 
-    __sortByPriority = staticmethod(__sortByPriority)
 
     def defaultLogLevel(self): return self.__defaultLogLevel
     def descName(self): return self.__descName

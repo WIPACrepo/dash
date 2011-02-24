@@ -619,7 +619,8 @@ class RunSet(object):
 
         return slst
 
-    def __listComponentsCommaSep(cls, compList):
+    @staticmethod
+    def __listComponentsCommaSep(compList):
         """
         Concatenate a list of components into a string showing names and IDs
         """
@@ -631,7 +632,7 @@ class RunSet(object):
                 compStr += ', '
             compStr += c.fullName()
         return compStr
-    __listComponentsCommaSep = classmethod(__listComponentsCommaSep)
+
 
     def __logDebug(self, debugBit, *args):
         if (self.__debugBits & debugBit) != debugBit:
@@ -1122,7 +1123,8 @@ class RunSet(object):
 
         self.__logDebug(RunSetDebug.START_RUN, "RSConn DONE")
 
-    def createComponentLog(cls, runDir, comp, host, port, liveHost, livePort,
+    @staticmethod
+    def createComponentLog(runDir, comp, host, port, liveHost, livePort,
                            quiet=True):
         if not os.path.exists(runDir):
             raise RunSetException("Run directory \"%s\" does not exist" %
@@ -1133,7 +1135,6 @@ class RunSet(object):
         sock.startServing()
 
         return sock
-    createComponentLog = classmethod(createComponentLog)
 
     def createRunData(self, runNum, clusterConfigName, runOptions, versionInfo,
                       spadeDir, copyDir, logDir, testing=False):

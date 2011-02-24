@@ -37,7 +37,8 @@ class FlasherThread(threading.Thread):
 
         self.__running = False
 
-    def computeRunDuration(cls, times, pauseSecs):
+    @staticmethod
+    def computeRunDuration(times, pauseSecs):
         """
         Compute the number of seconds needed for this flasher run
 
@@ -50,7 +51,6 @@ class FlasherThread(threading.Thread):
             tot += tm + pauseSecs + 5
 
         return tot
-    computeRunDuration = classmethod(computeRunDuration)
 
     def run(self):
         "Body of the flasher thread"
@@ -141,7 +141,8 @@ class Run(object):
         else:
             self.__flashData = self.__flashPath(flashName)
 
-    def __flashPath(cls, flashFile):
+    @staticmethod
+    def __flashPath(flashFile):
         """
         Find a flasher file or raise FlashFileException
 
@@ -166,7 +167,6 @@ class Run(object):
                 return path
 
         raise FlashFileException("Flash file '%s' not found" % flashFile)
-    __flashPath = classmethod(__flashPath)
 
     def finish(self):
         "clean up after run has ended"
@@ -299,7 +299,8 @@ class BaseRun(object):
             raise SystemExit("Run config directory '%s' does not exist" %
                              self.__configDir)
 
-    def checkExists(cls, name, path, fatal=True):
+    @staticmethod
+    def checkExists(name, path, fatal=True):
         """
         Exit if the specified path does not exist
 
@@ -312,7 +313,6 @@ class BaseRun(object):
                 raise SystemExit("%s '%s' does not exist" % (name, path))
             return False
         return True
-    checkExists = classmethod(checkExists)
 
     def cleanUp(self):
         """Do final cleanup before exiting"""
@@ -321,6 +321,7 @@ class BaseRun(object):
     def createRun(self, clusterCfg, runCfg, flashName=None):
         return Run(self, clusterCfg, runCfg, flashName)
 
+    @classmethod
     def findExecutable(cls, name, cmd):
         """Find 'cmd' in the user's PATH"""
         if cls.PATH is None:
@@ -330,13 +331,13 @@ class BaseRun(object):
             if os.path.exists(pcmd):
                 return pcmd
         raise SystemExit("%s '%s' does not exist" % (name, cmd))
-    findExecutable = classmethod(findExecutable)
 
     def flash(self, tm, data):
         """Start flashers for the specified duration with the specified data"""
         raise NotImplementedError()
 
-    def getActiveClusterConfig(cls):
+    @staticmethod
+    def getActiveClusterConfig():
         "Return the name of the current pDAQ cluster configuration"
         clusterFile = os.path.join(os.environ["HOME"], ".active")
         try:
@@ -346,7 +347,6 @@ class BaseRun(object):
             return ret.rstrip('\r\n')
         except:
             return None
-    getActiveClusterConfig = classmethod(getActiveClusterConfig)
 
     def getLastRunNumber(self):
         "Return the last run number"

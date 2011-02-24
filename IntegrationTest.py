@@ -122,7 +122,8 @@ class BeanData(object):
             (self.__remoteComp, self.__bean, self.__field, self.__watchType,
              str(self.__value), dir)
 
-    def buildBeans(cls, masterList, compName):
+    @staticmethod
+    def buildBeans(masterList, compName):
         if not masterList.has_key(compName):
             raise Exception('Unknown component %s' % compName)
 
@@ -142,11 +143,10 @@ class BeanData(object):
                 raise Exception('Bad bean tuple %s' % str(t))
 
         return mbeans
-    buildBeans = classmethod(buildBeans)
 
-    def buildDAQBeans(cls, compName):
-        return cls.buildBeans(BeanData.DAQ_BEANS, compName)
-    buildDAQBeans = classmethod(buildDAQBeans)
+    @staticmethod
+    def buildDAQBeans(compName):
+        return BeanData.buildBeans(BeanData.DAQ_BEANS, compName)
 
     def getValue(self):
         return self.__value
@@ -201,12 +201,13 @@ class MostlyRunSet(RunSet):
 
         super(MostlyRunSet, self).__init__(parent, runConfig, set, logger)
 
+    @classmethod
     def closeAllLogs(cls):
         for k in cls.LOGDICT.keys():
             cls.LOGDICT[k].stopServing()
             del cls.LOGDICT[k]
-    closeAllLogs = classmethod(closeAllLogs)
 
+    @classmethod
     def createComponentLog(cls, runDir, comp, host, port, liveHost, livePort,
                            quiet=True):
         if cls.LOGDICT.has_key(comp.fullName()):
@@ -224,7 +225,6 @@ class MostlyRunSet(RunSet):
         comp.logTo(host, port, liveHost, livePort)
 
         return log
-    createComponentLog = classmethod(createComponentLog)
 
     def createDashLog(self):
         return MockCnCLogger(self.__dashAppender, quiet=True, extraLoud=False)
@@ -246,11 +246,11 @@ class MostlyRunSet(RunSet):
                                            runDir, runCfg, runOptions)
         return self.__taskMgr
 
+    @classmethod
     def getComponentLog(cls, comp):
         if cls.LOGDICT.has_key(comp.fullName()):
             return cls.LOGDICT[comp.fullName()]
         return None
-    getComponentLog = classmethod(getComponentLog)
 
     def getTaskManager(self):
         return self.__taskMgr
@@ -485,11 +485,11 @@ class RealComponent(object):
             attrs[f] = self.__mbeanData[bean][f].getValue()
         return attrs
 
+    @classmethod
     def __getLaunchOrder(cls, name):
         if not cls.COMP_ORDER.has_key(name):
             raise Exception('Unknown component type %s' % name)
         return cls.COMP_ORDER[name][0]
-    __getLaunchOrder = classmethod(__getLaunchOrder)
 
     def __getMBeanValue(self, bean, fld):
         if self.__mbeanData is None:
@@ -506,17 +506,17 @@ class RealComponent(object):
 
         return val
 
+    @classmethod
     def __getStartOrder(cls, name):
         if not cls.COMP_ORDER.has_key(name):
             raise Exception('Unknown component type %s' % name)
         return cls.COMP_ORDER[name][1]
-    __getStartOrder = classmethod(__getStartOrder)
 
+    @classmethod
     def __getOrder(cls, name):
         if not cls.COMP_ORDER.has_key(name):
             raise Exception('Unknown component type %s' % name)
         return cls.COMP_ORDER[name][0]
-    __getOrder = classmethod(__getOrder)
 
     def __getState(self):
         return self.__state
@@ -711,6 +711,7 @@ class RealComponent(object):
 
         self.__mbeanData[bean][fld].setValue(val)
 
+    @staticmethod
     def sortForLaunch(y, x):
         selfOrder = RealComponent.__getLaunchOrder(x.__name)
         otherOrder = RealComponent.__getLaunchOrder(y.__name)
@@ -726,8 +727,8 @@ class RealComponent(object):
             return -1
 
         return 0
-    sortForLaunch = staticmethod(sortForLaunch)
 
+    @staticmethod
     def sortForStart(y, x):
         selfOrder = RealComponent.__getStartOrder(x.__name)
         otherOrder = RealComponent.__getStartOrder(y.__name)
@@ -743,7 +744,7 @@ class RealComponent(object):
             return -1
 
         return 0
-    sortForStart = staticmethod(sortForStart)
+
 
 class IntegrationTest(unittest.TestCase):
     CLUSTER_CONFIG = 'simpleConfig'
@@ -1451,13 +1452,13 @@ class IntegrationTest(unittest.TestCase):
         if liveLog: liveLog.checkStatus(10)
         if logServer: logServer.checkStatus(10)
 
-    def __waitForEmptyLog(cls, log, errMsg):
+    @staticmethod
+    def __waitForEmptyLog(log, errMsg):
         for i in range(5):
             if log.isEmpty():
                 break
             time.sleep(0.25)
         log.checkStatus(1)
-    __waitForEmptyLog = classmethod(__waitForEmptyLog)
 
     def __waitForState(self, cnc, setId, expState):
         numTries = 0

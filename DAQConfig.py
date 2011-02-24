@@ -330,14 +330,15 @@ class DomConfigParser(XMLParser, XMLFileCache):
         """Use this object's class methods directly"""
         raise Exception("Cannot create this object")
 
+    @classmethod
     def __loadDomIdMap(cls):
         if cls.DEFAULT_DOM_GEOMETRY is None:
             cls.DEFAULT_DOM_GEOMETRY = \
                 DefaultDomGeometryReader.parse(translateDoms=True)
 
         return cls.DEFAULT_DOM_GEOMETRY.getDomIdToDomDict()
-    __loadDomIdMap = classmethod(__loadDomIdMap)
 
+    @classmethod
     def __parseChargeHistogram(cls, dom, node):
         interval = None
         prescale = None
@@ -361,8 +362,8 @@ class DomConfigParser(XMLParser, XMLFileCache):
                                 " and prescale") % (dom, kid.nodeName))
 
         return (interval, prescale)
-    __parseChargeHistogram = classmethod(__parseChargeHistogram)
 
+    @classmethod
     def __parseChargeStamp(cls, dom, node):
         if node.attributes is None or \
                len(node.attributes) == 0:
@@ -381,8 +382,8 @@ class DomConfigParser(XMLParser, XMLFileCache):
 
         return (node.attributes["type"].value,
                 node.attributes["channel"].value)
-    __parseChargeStamp = classmethod(__parseChargeStamp)
 
+    @classmethod
     def __parseDomData(cls, dom, node):
         for kid in node.childNodes:
             if kid.nodeType == Node.TEXT_NODE or \
@@ -428,8 +429,8 @@ class DomConfigParser(XMLParser, XMLFileCache):
                     raise ProcessError("%s <%s> node has attributes" %
                                        (dom, kid.nodeName))
                 dom.addAttribute(kid.nodeName, cls.getChildText(kid))
-    __parseDomData = classmethod(__parseDomData)
 
+    @classmethod
     def __parseLocalCoincidence(cls, dom, node):
         lc = LocalCoincidence()
 
@@ -477,8 +478,8 @@ class DomConfigParser(XMLParser, XMLFileCache):
                 lc.addAttribute(kid.nodeName, cls.getChildText(kid))
 
         return lc
-    __parseLocalCoincidence = classmethod(__parseLocalCoincidence)
 
+    @classmethod
     def __parseSimulation(cls, dom, node):
         sim = KeyValuePairs("simulation")
 
@@ -495,8 +496,8 @@ class DomConfigParser(XMLParser, XMLFileCache):
                 sim.addAttribute(kid.nodeName, cls.getChildText(kid))
 
         return sim
-    __parseSimulation = classmethod(__parseSimulation)
 
+    @classmethod
     def __parseSupernovaMode(cls, dom, node):
         if node.attributes is None or \
                len(node.attributes) == 0:
@@ -539,8 +540,8 @@ class DomConfigParser(XMLParser, XMLFileCache):
                                 " and disc") % (dom, node.nodeName))
 
         return (enabled, deadtime, disc)
-    __parseSupernovaMode = classmethod(__parseSupernovaMode)
 
+    @classmethod
     def __setDomFormat(cls, dom, node):
         for kid in node.childNodes:
             if kid.nodeType == Node.TEXT_NODE or \
@@ -554,8 +555,8 @@ class DomConfigParser(XMLParser, XMLFileCache):
                     dom.setEngineeringFormat()
                 else:
                     print >>sys.stderr, "Unknown format <%s>" % kid.nodeName
-    __setDomFormat = classmethod(__setDomFormat)
 
+    @classmethod
     def parse(cls, dom, configDir, baseName, strict):
         dcListList = dom.getElementsByTagName("domConfigList")
         if dcListList is None or len(dcListList) == 0:
@@ -608,11 +609,10 @@ class DomConfigParser(XMLParser, XMLFileCache):
                                (dcList.nodeName, kid.nodeName))
 
         return domCfg
-    parse = classmethod(parse)
 
+    @classmethod
     def parseAllDomData(cls):
         cls.PARSE_DOM_DATA = True
-    parseAllDomData = classmethod(parseAllDomData)
 
 class DomConfigName(object):
     "DOM configuration file name and hub"""
@@ -733,8 +733,9 @@ class DomConfig(object):
         """Get the list of strings whose DOMs are referenced in this file"""
         return self.__stringMap.keys()
 
-    def omitHubNumber(cls): cls.OMIT_HUB_NUMBER = True
-    omitHubNumber = classmethod(omitHubNumber)
+    @classmethod
+    def omitHubNumber(cls): 
+        cls.OMIT_HUB_NUMBER = True
 
     def isCommentedOut(self):
         """Is domconfig file commented-out?"""
@@ -956,8 +957,10 @@ class DAQConfig(object):
         objs.sort()
         return objs
 
-    def configFile(self): return self.__fileName
+    def configFile(self): 
+        return self.__fileName
 
+    @classmethod
     def createOmitFileName(cls, configDir, fileName, hubIdList):
         """
         Create a new file name from the original name
@@ -972,7 +975,6 @@ class DAQConfig(object):
             noStr += "-no" + cls.getHubName(h)
 
         return os.path.join(configDir, baseName + noStr + ".xml")
-    createOmitFileName = classmethod(createOmitFileName)
 
     def deleteDomConfig(self, domCfg):
         "Return True if the dom configuration was found and deleted"
@@ -984,7 +986,8 @@ class DAQConfig(object):
                 break
         return deleted
 
-    def filename(self): return self.__fileName
+    def filename(self): 
+        return self.__fileName
 
     def getAllDOMs(self):
         dlist = []
@@ -992,7 +995,8 @@ class DAQConfig(object):
             dlist += dc.getAllDOMs()
         return dlist
 
-    def getHubName(cls, num):
+    @staticmethod
+    def getHubName(num):
         """Get the standard representation for a hub number"""
         baseNum = num % 1000
         if baseNum > 0 and baseNum < 100:
@@ -1000,7 +1004,6 @@ class DAQConfig(object):
         if baseNum > 200 and baseNum < 220:
             return "%02dt" % (baseNum - 200)
         return "?%d?" % baseNum
-    getHubName = classmethod(getHubName)
 
     def getIDbyName(self, name):
         for dc in self.__domCfgList:
@@ -1034,7 +1037,8 @@ class DAQConfig(object):
 
         return False
 
-    def monitorPeriod(self): return self.__monitorPeriod
+    def monitorPeriod(self): 
+        return self.__monitorPeriod
 
     def omit(self, hubIdList):
         """Create a new run configuration which omits the specified hubs"""
@@ -1119,6 +1123,7 @@ class DAQConfig(object):
     def setWatchdogPeriod(self, period):
         self.__watchdogPeriod = period
 
+    @classmethod
     def showList(cls, configDir, configName):
         if configDir is None:
             if cls.LIST_CLUSTER_CONFIGS:
@@ -1156,7 +1161,6 @@ class DAQConfig(object):
                 print "%s%-60s" % (mark, cname)
             except IOError:
                 break
-    showList = classmethod(showList)
 
     def validate(self):
         if not self.__hasHubs():
@@ -1257,7 +1261,8 @@ class DAQConfigParser(XMLParser, XMLFileCache):
         """Use this object's class methods directly"""
         raise Exception("Cannot create this object")
 
-    def __parseHubFiles(cls, topNode, runCfg):
+    @staticmethod
+    def __parseHubFiles(topNode, runCfg):
         hubNodeNum = 0
         for kid in topNode.childNodes:
             if kid.nodeType == Node.TEXT_NODE:
@@ -1288,8 +1293,9 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                 else:
                     raise ProcessError("Unexpected %s child <%s>" %
                                        (topNode.nodeName, kid.nodeName))
-    __parseHubFiles = classmethod(__parseHubFiles)
+    
 
+    @classmethod
     def __parseSenderOption(cls, topNode, runCfg):
         if topNode.attributes is None or len(topNode.attributes) == 0:
             raise ProcessError("<%s> node has no attributes" %
@@ -1342,9 +1348,9 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                                topNode.nodeName)
 
         runCfg.setSenderOption(hubId, fwdIsolatedHits)
-    __parseSenderOption = classmethod(__parseSenderOption)
 
-    def __parseStrayStream(cls, topNode, runCfg):
+    @classmethod
+    def __parseStrayStream(cls,topNode, runCfg):
         if topNode.attributes is None or len(topNode.attributes) == 0:
             raise ProcessError("<%s> node has no attributes" %
                                topNode.nodeName)
@@ -1378,9 +1384,9 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                                topNode.nodeName)
 
         runCfg.setStrayStream(name, prescale)
-    __parseStrayStream = classmethod(__parseStrayStream)
-
-    def __parseTriggerConfig(cls, configDir, baseName):
+    
+    @staticmethod
+    def __parseTriggerConfig(configDir, baseName):
         """Parse a trigger configuration file and return nothing"""
         fileName = os.path.join(configDir, "trigger", baseName)
         if not fileName.endswith(".xml"):
@@ -1389,13 +1395,13 @@ class DAQConfigParser(XMLParser, XMLFileCache):
         if not os.path.exists(fileName):
             raise BadFileError("Cannot read trigger config file \"%s\"" %
                                fileName)
-    __parseTriggerConfig = classmethod(__parseTriggerConfig)
 
+    @classmethod
     def configExists(cls, configName,
                      configDir=os.path.join(metaDir, "config")):
         return cls.buildPath(configDir, configName) != None
-    configExists = classmethod(configExists)
 
+    @classmethod
     def getClusterConfiguration(cls, configName, doList=False,
                                 useActiveConfig=False, clusterDesc=None,
                                 configDir=None):
@@ -1442,8 +1448,8 @@ class DAQConfigParser(XMLParser, XMLFileCache):
 
             cfg = RunCluster(runCfg, clusterDesc, configDir)
         return cfg
-    getClusterConfiguration = classmethod(getClusterConfiguration)
 
+    @classmethod
     def parse(cls, dom, configDir, fileName, strict=True):
         """Parse a run configuration file and return a DAQConfig object"""
         topComment = None
@@ -1581,7 +1587,7 @@ class DAQConfigParser(XMLParser, XMLFileCache):
             runCfg.validate()
 
         return runCfg
-    parse = classmethod(parse)
+
 
 if __name__ == "__main__":
     import datetime, optparse

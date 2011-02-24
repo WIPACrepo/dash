@@ -33,6 +33,7 @@ class LightModeException(RunException): pass
 class AbstractState(object):
     "Generic class for keeping track of the current state"
 
+    @classmethod
     def get(cls, stateName):
         """
         Return the numeric value of the named state
@@ -43,8 +44,8 @@ class AbstractState(object):
             return cls.STATES.index(stateName)
         except ValueError:
             raise StateException("Unknown state '%s'" % stateName)
-    get = classmethod(get)
 
+    @classmethod
     def str(cls, state):
         """
         Return the string associated with a numeric state
@@ -54,7 +55,6 @@ class AbstractState(object):
         if state < 0 or state > len(cls.STATES):
             raise StateException("Unknown state #%s" % state)
         return cls.STATES[state]
-    str = classmethod(str)
 
 class LiveRunState(AbstractState):
     "I3Live states"
