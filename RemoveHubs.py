@@ -127,7 +127,9 @@ if __name__ == "__main__":
     
     hostname = ip.getHostNameNoDomain()
     if(hostname.lower()=="expcont"):
-        print >>sys.stderr, "Warning: Running RemoveHubs.py on exptcont"
+        print >>sys.stderr, "-"*60
+        print >>sys.stderr, "Warning: Running RemoveHubs.py on expcont"
+        print >>sys.stderr, "-"*60
 
     (forceCreate, runCfgName, cluCfgName, hubIdList) = parseArgs()
 
