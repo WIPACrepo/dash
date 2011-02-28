@@ -1,5 +1,20 @@
 import socket
 
+def getHostNameNoDomain():
+    """Get the host name of the calling machine.
+    Will not return the domain name with the host name
+
+    Args:
+        None
+
+    Returns:
+        A string containing the host name of the calling machine
+    """
+    
+    host_name = socket.gethostname().split('.')
+
+    return host_name[0]
+
 def isValidIPAddr(ipStr):
     """Validate a dotted decima notation IP/netmask string.
     

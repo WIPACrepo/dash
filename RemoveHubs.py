@@ -3,6 +3,7 @@
 # Create a new run configuration without one or more hubs
 
 import os, sys
+from utils import ip
 
 from CreateClusterConfig import ClusterConfigCreator
 from DAQConfig import DAQConfig, DAQConfigParser
@@ -123,6 +124,11 @@ def parseArgs():
     return (forceCreate, runCfgName, cluCfgName, hubIdList)
 
 if __name__ == "__main__":
+    
+    hostname = ip.getHostNameNoDomain()
+    if(hostname.lower()=="exptcont"):
+        print >>sys.stderr, "Warning: Running RemoveHubs.py on exptcont"
+
     (forceCreate, runCfgName, cluCfgName, hubIdList) = parseArgs()
 
     configDir = os.path.join(metaDir, "config")
