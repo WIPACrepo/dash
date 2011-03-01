@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 12718 2011-03-01 17:56:16Z mnewcomb $"
+SVN_ID = "$Id: DeployPDAQ.py 12719 2011-03-01 17:57:59Z mnewcomb $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -256,22 +256,10 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
         for cmd in cmd_results_dict:
             rtn_code,result = cmd_results_dict[cmd]
             nodeName = "unknown" if cmd not in cmdToNodeNameDict else cmdToNodeNameDict[cmd]
-            if(rtn_code!=0):
+            if(rtn_code!=0 or len(results)>0):
                 print "Error non-zero return code  ( %d ) for host:%s cmd:%s" % (rtn_code, nodeName, cmd)
                 if(len(result)>0):
                     print "Results: %s" % result
 
-    if traceLevel >= 0 and not dryRun:
-        needSeparator = True
-        rtnCodes = parallel.getReturnCodes()
-        for i in range(len(rtnCodes)):
-            result = parallel.getResult(i)
-            if rtnCodes[i] != 0 or len(result) > 0:
-                if needSeparator:
-                    print "----------------------------------"
-                    needSeparator = False
-
-                print "\"%s\" returned %s:\n%s" % \
-                    (parallel.getCommand(i), str(rtnCodes[i]), result)
 
 if __name__ == "__main__": main()
