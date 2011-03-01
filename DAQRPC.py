@@ -93,8 +93,10 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         """Handle one request at a time until doomsday."""
         self.__running = True
         while self.__running:
+            # initialize r to an empty list - identical behaviour to a timeout
+            r = []
             try:
-                r,w,e = select.select([self.fileno()], [], [], self.__timeout)
+                r, w, e = select.select([self.fileno()], [], [], self.__timeout)
             except select.error, err:
                 # ignore interrupted system calls
                 if err[0] == 4: continue
