@@ -1015,6 +1015,16 @@ class MockParallelShell(object):
     def wait(self, monitorIval=None):
         pass
 
+    def getCmdAndReturnCodes(self):
+        
+        # commands are in self.__exp
+        ret = {}
+        for exp,rtncode in zip(self.__exp, self.__rtnCodes):
+            ret[exp]=rtncode
+
+        return ret
+
+
 class MockRPCClient(object):
     def __init__(self, name, num, outLinks=None):
         self.xmlrpc = MockXMLRPC(name, num, outLinks)

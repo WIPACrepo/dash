@@ -42,7 +42,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 12692 2011-02-21 22:55:22Z mnewcomb $"
+SVN_ID = "$Id: DAQLaunch.py 12707 2011-03-01 16:39:07Z mnewcomb $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -147,6 +147,26 @@ def killJavaComponents(compList, dryRun, verbose, killWith9, parallel=None):
         parallel.start()
         parallel.wait()
 
+        # check for ssh failures here
+        cmd_and_rtncode_dict = parallel.getCmdAndReturnCodes()
+        for cmd in cmd_and_rtncode_dict:
+            if(cmd.startswith("ssh")):
+                # ssh has meaningful return codes
+                # 0 -> success
+                # 255 -> no such host
+                rtn_code = cmd_and_rtncode_dict[cmd]
+                if(rtn_code==255):
+                    print "-"*60
+                    print "SSH command returns no such host for:"
+                    print cmd
+                    print "-"*60
+                elif(rtn_code!=0):
+                    print "-"*60
+                    print "SSH Return Code Indicates Error: %d" % rtn_code
+                    print cmd
+                    print "-"*60
+                    
+
 def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
                        livePort, verbose, eventCheck, checkExists=True,
                        parallel=None):
@@ -218,6 +238,26 @@ def startJavaComponents(compList, dryRun, configDir, dashDir, logPort, livePort,
         if not verbose:
             # if we wait during verbose mode, the program hangs
             parallel.wait()
+            
+            # check for ssh failures here
+            cmd_and_rtncode_dict = parallel.getCmdAndReturnCodes()
+            for cmd in cmd_and_rtncode_dict:
+                if(cmd.startswith("ssh")):
+                    # ssh has meaningful return codes
+                    # 0 -> success
+                    # 255 -> no such host
+                    rtn_code = cmd_and_rtncode_dict[cmd]
+                    if(rtn_code==255):
+                        print "-"*60
+                        print "SSH command returns no such host for:"
+                        print cmd
+                        print "-"*60
+                    elif(rtn_code!=0):
+                        print "-"*60
+                        print "SSH Return Code Indicates Error: %d" % rtn_code
+                        print cmd
+                        print "-"*60
+                        
 
 def reportAction(action, actionList, ignored):
     "Report which Python daemons were launched/killed and which were ignored"

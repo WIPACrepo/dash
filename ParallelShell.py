@@ -210,12 +210,30 @@ class ParallelShell(object):
         return ret
 
     def getReturnCodes(self):
+        """Get the return codes set by wait/poll
+        Setting a default value of 0 assumes success if not done.
+        Is that correct???"""
         ret = []
         for c in self.pcmds:
             if c.subproc and c.done:
                 ret.append(c.subproc.returncode)
             else:
                 ret.append(0)
+        return ret
+    
+    def getCmdAndReturnCodes(self):
+        """Return a dictionary of commands and the return codes generated
+        by running those commands.  If a command is not done it is assumed
+        to be unsuccesful.  This is different behaviour from getReturnCodes
+        above.
+        """
+        ret = {}
+        for c in self.pcmds:
+            if (c.subproc and c.done):
+                ret[c.cmd]=c.subproc.returncode
+            else:
+                ret[c.cmd]=-1
+
         return ret
 
     def system(self, cmd):
