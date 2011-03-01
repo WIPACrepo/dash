@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 12715 2011-03-01 17:31:56Z mnewcomb $"
+SVN_ID = "$Id: DeployPDAQ.py 12716 2011-03-01 17:36:27Z mnewcomb $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -269,7 +269,7 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
                 print "-"*60
                 print "Error non-zero return code  ( %d ) for host:%s cmd:%s" % (rtn_code, nodeName, cmd)
 
-    if traceLevel <= 0 and not dryRun:
+    if traceLevel >= 0 and not dryRun:
         needSeparator = True
         rtnCodes = parallel.getReturnCodes()
         for i in range(len(rtnCodes)):
