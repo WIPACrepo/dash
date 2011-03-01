@@ -222,7 +222,7 @@ class ParallelShell(object):
                 ret.append(0)
         return ret
     
-    def getCmdAndReturnCodes(self):
+    def getCmdResults(self):
         """Return a dictionary of commands and the return codes generated
         by running those commands.  If a command is not done it is assumed
         to be unsuccesful.  This is different behaviour from getReturnCodes
@@ -232,9 +232,9 @@ class ParallelShell(object):
         for c in self.pcmds:
             # this 
             if (c.subproc and c.done):
-                ret[c.origCmd]=c.subproc.returncode
+                ret[c.origCmd]=(c.subproc.returncode, c.getResult())
             else:
-                ret[c.origCmd]=-1
+                ret[c.origCmd]=(-1, '')
 
         return ret
 

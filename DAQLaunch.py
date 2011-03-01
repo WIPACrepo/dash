@@ -42,7 +42,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 12707 2011-03-01 16:39:07Z mnewcomb $"
+SVN_ID = "$Id: DAQLaunch.py 12717 2011-03-01 17:53:08Z mnewcomb $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -109,6 +109,7 @@ def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9, parallel=None):
 def killJavaComponents(compList, dryRun, verbose, killWith9, parallel=None):
     if parallel is None:
         parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose)
+    cmdToHostDict = {}
     for comp in compList:
         if comp.jvm() is None: continue
 
@@ -121,6 +122,7 @@ def killJavaComponents(compList, dryRun, verbose, killWith9, parallel=None):
             fmtStr = "pkill %%s -fu %s %s" % (environ["USER"], killPat)
         else:
             fmtStr = "ssh %s pkill %%s -f %s" % (comp.host(), killPat)
+
 
         # add '-' on first command
         if killWith9: add9 = 0
@@ -142,29 +144,22 @@ def killJavaComponents(compList, dryRun, verbose, killWith9, parallel=None):
                 print cmd
             else:
                 parallel.add(cmd)
+                cmdToHostDict[cmd] = comp.host()
 
     if not dryRun:
         parallel.start()
         parallel.wait()
 
         # check for ssh failures here
-        cmd_and_rtncode_dict = parallel.getCmdAndReturnCodes()
-        for cmd in cmd_and_rtncode_dict:
-            if(cmd.startswith("ssh")):
-                # ssh has meaningful return codes
-                # 0 -> success
-                # 255 -> no such host
-                rtn_code = cmd_and_rtncode_dict[cmd]
-                if(rtn_code==255):
-                    print "-"*60
-                    print "SSH command returns no such host for:"
-                    print cmd
-                    print "-"*60
-                elif(rtn_code!=0):
-                    print "-"*60
-                    print "SSH Return Code Indicates Error: %d" % rtn_code
-                    print cmd
-                    print "-"*60
+        cmd_results_dict = parallel.getCmdResults()
+        for cmd in cmd_results_dict:
+            rtn_code,results = cmd_results_dict[cmd]
+            nodeName = "unknown" if cmd not in cmdToHostDict else cmdToHostDict[cmd]
+            if(rtn_code!=0):
+                print "-"*60
+                print "Error non-zero return code ( %d ) for host: %s, cmd: %s" % (rtn_code, nodeName, cmd)
+                print "Results '%s'" % results
+                print "-"*60
                     
 
 def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
@@ -192,6 +187,7 @@ def startJavaComponents(compList, dryRun, configDir, dashDir, logPort, livePort,
     else:
         quietStr = ""
 
+    cmdToHostDict = {}
     for comp in compList:
         if comp.jvm() is None: continue
 
@@ -225,7 +221,7 @@ def startJavaComponents(compList, dryRun, configDir, dashDir, logPort, livePort,
             cmd = """ssh -n %s \'sh -c \"%s %s -jar %s %s %s &\"%s &\'""" % \
                 (comp.host(), javaCmd, jvmArgs, execJar, switches, compIO,
                  quietStr)
-
+        cmdToHostDict[cmd] = comp.host()
         if verbose: print cmd
         if dryRun:
             print cmd
@@ -240,23 +236,13 @@ def startJavaComponents(compList, dryRun, configDir, dashDir, logPort, livePort,
             parallel.wait()
             
             # check for ssh failures here
-            cmd_and_rtncode_dict = parallel.getCmdAndReturnCodes()
-            for cmd in cmd_and_rtncode_dict:
-                if(cmd.startswith("ssh")):
-                    # ssh has meaningful return codes
-                    # 0 -> success
-                    # 255 -> no such host
-                    rtn_code = cmd_and_rtncode_dict[cmd]
-                    if(rtn_code==255):
-                        print "-"*60
-                        print "SSH command returns no such host for:"
-                        print cmd
-                        print "-"*60
-                    elif(rtn_code!=0):
-                        print "-"*60
-                        print "SSH Return Code Indicates Error: %d" % rtn_code
-                        print cmd
-                        print "-"*60
+            cmd_results_dict = parallel.getCmdResults()
+            for cmd in cmd_results_dict:
+                rtn_code,results = cmd_results_dict[cmd]
+                nodeName = "unknown" if cmd not in cmdToHostDict else cmdToHostDict[cmd]
+                if(rtn_code!=0):
+                    print "Error non zero return code ( %d ) for host: %s, cmd: %s" % ( rtn_code, nodeName, cmd)
+                    print "Results '%s'" % results
                         
 
 def reportAction(action, actionList, ignored):
