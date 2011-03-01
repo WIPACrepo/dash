@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 12709 2011-03-01 16:55:22Z mnewcomb $"
+SVN_ID = "$Id: DeployPDAQ.py 12710 2011-03-01 17:06:57Z mnewcomb $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -223,6 +223,8 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
             "ERROR: Did you run 'mvn clean install assembly:assembly'?"
         raise SystemExit
 
+    cmdToNodeNameDict = {}
+
     done = False
     for nodeName in rsyncNodes:
 
@@ -238,6 +240,8 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
         else:
             cmd = "%s %s %s:%s" % (rsyncCmdStub, rsyncDeploySrc, nodeName,
                                    pdaqDir)
+
+        cmdToNodeNameDict[cmd] = nodeName
         if traceLevel >= 0: print "  "+cmd
         parallel.add(cmd)
 
@@ -246,28 +250,22 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
         parallel.wait(monitorIval)
 
         
-    cmd_and_rtncode_dict = parallel.getCmdAndReturnCodes()
-    for cmd in cmd_and_rtncode_dict:
-        if(cmd.startswith("ssh")):
-            # ssh has meaningful return codes
-            # 0 -> success
-            # 255 -> no such host
+    if(not dryRun):
+        cmd_and_rtncode_dict = parallel.getCmdAndReturnCodes()
+        for cmd in cmd_and_rtncode_dict:
             rtn_code = cmd_and_rtncode_dict[cmd]
-            if(rtn_code==255):
+            nodeName = cmdToNodeNameDict[cmd]
+            if(cmd.startswith("ssh") and rtn_code==255):
+                # ssh has meaningful return codes
+                # 0 -> success
+                # 255 -> no such host
                 print "-"*60
-                print "SSH command returns no such host for:"
+                print "SSH command returns no such host (%s) for:" % nodeName
                 print cmd
                 print "-"*60
             elif(rtn_code!=0):
                 print "-"*60
-                print "SSH Return Code Indicates Error: %d" % rtn_code
-                print cmd
-                print "-"*60
-        else:
-            rtn_code = cmd_and_rtncode_dict[cmd]
-            if(rtn_code!=0):
-                print "-"*60
-                print "Error non-zero return code ( %d ) for %s" % (rtn_code, cmd)
+                print "Error non-zero return code  ( %d ) for %s/%s" % (rtn_code, nodeName, cmd)
 
     if traceLevel <= 0 and not dryRun:
         needSeparator = True
