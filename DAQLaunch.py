@@ -42,7 +42,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 12717 2011-03-01 17:53:08Z mnewcomb $"
+SVN_ID = "$Id: DAQLaunch.py 12722 2011-03-01 18:08:05Z mnewcomb $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -155,7 +155,11 @@ def killJavaComponents(compList, dryRun, verbose, killWith9, parallel=None):
         for cmd in cmd_results_dict:
             rtn_code,results = cmd_results_dict[cmd]
             nodeName = "unknown" if cmd not in cmdToHostDict else cmdToHostDict[cmd]
-            if(rtn_code!=0):
+            # pkill return codes
+            # 0 -> killed something
+            # 1 -> no matched process to kill
+            # 1 is okay..  expected if nothing is running
+            if(rtn_code>1):
                 print "-"*60
                 print "Error non-zero return code ( %d ) for host: %s, cmd: %s" % (rtn_code, nodeName, cmd)
                 print "Results '%s'" % results
