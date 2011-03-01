@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 12710 2011-03-01 17:06:57Z mnewcomb $"
+SVN_ID = "$Id: DeployPDAQ.py 12711 2011-03-01 17:11:21Z mnewcomb $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -254,7 +254,9 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
         cmd_and_rtncode_dict = parallel.getCmdAndReturnCodes()
         for cmd in cmd_and_rtncode_dict:
             rtn_code = cmd_and_rtncode_dict[cmd]
-            nodeName = cmdToNodeNameDict[cmd]
+            nodeName = "unknown"
+            if(cmd in cmdToNodeNameDict):
+                nodeName = cmdToNodeNameDict[cmd]
             if(cmd.startswith("ssh") and rtn_code==255):
                 # ssh has meaningful return codes
                 # 0 -> success
