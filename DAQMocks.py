@@ -1015,12 +1015,12 @@ class MockParallelShell(object):
     def wait(self, monitorIval=None):
         pass
 
-    def getCmdAndReturnCodes(self):
+    def getCmdResults(self):
         
         # commands are in self.__exp
         ret = {}
         for exp,rtncode in zip(self.__exp, self.__rtnCodes):
-            ret[exp]=rtncode
+            ret[exp]=(rtncode,"")
 
         return ret
 
