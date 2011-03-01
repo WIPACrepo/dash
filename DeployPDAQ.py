@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 12714 2011-03-01 17:30:42Z mnewcomb $"
+SVN_ID = "$Id: DeployPDAQ.py 12715 2011-03-01 17:31:56Z mnewcomb $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -264,7 +264,6 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
                 # 255 -> no such host
                 print "-"*60
                 print "Error no such host (%s) for %s" % (nodeName, cmd)
-                print cmd
                 print "-"*60
             elif(rtn_code!=0):
                 print "-"*60
