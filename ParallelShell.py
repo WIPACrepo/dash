@@ -45,6 +45,7 @@ class PCmd(object):
         """
 
         self.cmd        = cmd
+        self.origCmd    = cmd
         self.subproc    = None
         self.parallel   = parallel
         self.dryRun     = dryRun
@@ -199,7 +200,7 @@ class ParallelShell(object):
         process IDs and (if finished) with return codes. """
         for c in self.pcmds: print c
 
-    def getCommand(self, job): return self.pcmds[job].cmd
+    def getCommand(self, job): return self.pcmds[job].origCmd
 
     def getResult(self, job): return self.pcmds[job].getResult()
 
@@ -229,10 +230,11 @@ class ParallelShell(object):
         """
         ret = {}
         for c in self.pcmds:
+            # this 
             if (c.subproc and c.done):
-                ret[c.cmd]=c.subproc.returncode
+                ret[c.origCmd]=c.subproc.returncode
             else:
-                ret[c.cmd]=-1
+                ret[c.origCmd]=-1
 
         return ret
 
