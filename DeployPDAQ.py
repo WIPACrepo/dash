@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 12727 2011-03-02 17:47:12Z mnewcomb $"
+SVN_ID = "$Id: DeployPDAQ.py 12729 2011-03-02 17:51:06Z mnewcomb $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -246,7 +246,6 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
             cmd = "%s %s %s:%s" % (rsyncCmdStub, rsyncDeploySrc, nodeName,
                                    pdaqDir)
 
-        print cmd
         cmdToNodeNameDict[cmd] = nodeName
         if traceLevel > 0: 
             print "  "+cmd
