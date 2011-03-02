@@ -1350,7 +1350,7 @@ class DAQConfigParser(XMLParser, XMLFileCache):
         runCfg.setSenderOption(hubId, fwdIsolatedHits)
 
     @classmethod
-    def __parseStrayStream(cls,topNode, runCfg):
+    def __parseStrayStream(cls, topNode, runCfg):
         if topNode.attributes is None or len(topNode.attributes) == 0:
             raise ProcessError("<%s> node has no attributes" %
                                topNode.nodeName)
@@ -1410,8 +1410,6 @@ class DAQConfigParser(XMLParser, XMLFileCache):
         run configuration directory or from the old cluster configuration
         directory
         """
-        ex = None
-
         if configName is None:
             configName = \
                 CachedConfigName.getConfigToUse(None, False, useActiveConfig)
