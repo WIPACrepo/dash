@@ -325,6 +325,7 @@ class ClusterDescription(ConfigXMLBase):
                 self.__defaultLogLevel = self.getChildText(kid)
             elif kid.nodeName == 'jvm':
                 self.__defaultJVM = self.getChildText(kid)
+                self.__defaultJVM = os.path.expanduser(self.__defaultJVM)
             elif kid.nodeName == 'jvmArgs':
                 self.__defaultJVMArgs = self.getChildText(kid)
             elif kid.nodeName == 'component':
@@ -480,7 +481,11 @@ class ClusterDescription(ConfigXMLBase):
         self.name = self.getValue(cluster, 'name')
 
         self.__logDirForSpade = self.getValue(cluster, 'logDirForSpade')
+        # expand tilde
+        self.__logDirForSpade = os.path.expanduser(self.__logDirForSpade)
+
         self.__logDirCopies = self.getValue(cluster, 'logDirCopies')
+        self.__logDirCopies = os.path.expanduser(self.__logDirCopies)
 
         dfltNodes = cluster.getElementsByTagName('default')
         for node in dfltNodes:
