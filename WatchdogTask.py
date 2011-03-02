@@ -185,6 +185,7 @@ class ValueWatcher(Watcher):
                     tmpStag = True
                 else:
                     self.__prevValue[i] = newValue[i]
+
             if not tmpStag:
                 self.__unchanged = 0
             else:
@@ -253,21 +254,23 @@ class WatchData(object):
                 fldList = []
                 unhealthy.append(watchList[0].unhealthyRecord(ex))
 
-            for i in range(len(fldList)):
-                if not valMap.has_key(fldList[i]):
+            for index, fldVal in enumerate(fldList):
+
+                try:
+                    val = valMap[fldVal]
+                except KeyError, e:
                     self.__dashlog.error("No value found for %s field#%d %s" %
-                                         (self.__comp.fullName(), i,
-                                          fldList[i]))
+                                         (self.__comp.fullName(), index,
+                                          fldVal))
                     continue
 
-                val = valMap[fldList[i]]
                 try:
-                    chkVal = watchList[i].check(val)
+                    chkVal = watchList[index].check(val)
                 except Exception, ex:
-                    unhealthy.append(watchList[i].unhealthyRecord(ex))
+                    unhealthy.append(watchList[index].unhealthyRecord(ex))
                     chkVal = True
                 if not chkVal:
-                    unhealthy.append(watchList[i].unhealthyRecord(val))
+                    unhealthy.append(watchList[index].unhealthyRecord(val))
 
         if len(unhealthy) == 0:
             return None
