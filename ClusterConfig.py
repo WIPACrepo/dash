@@ -155,13 +155,13 @@ class ClusterConfigParser(XMLFileCache):
             if name:
                 if name == "default":
                     fbJavaDict['jvm'] = \
-                        cls.getElementSingleTagName(node, 'jvm')
+                        os.path.expanduser(cls.getElementSingleTagName(node, 'jvm'))
                     fbJavaDict['jvmArgs'] = \
                         cls.getElementSingleTagName(node, 'jvmArgs')
                 else:
                     defJavaDict[name] = {}
                     defJavaDict[name]['jvm'] = \
-                        cls.getElementSingleTagName(node, 'jvm')
+                        os.path.expanduser(cls.getElementSingleTagName(node, 'jvm'))
                     defJavaDict[name]['jvmArgs'] = \
                         cls.getElementSingleTagName(node, 'jvmArgs')
             else:
@@ -264,10 +264,12 @@ class ClusterConfigParser(XMLFileCache):
         cluCfg = ClusterConfig(configName, remarks, clusterName)
 
         # Get location of SPADE output
-        cluCfg.setLogDirForSpade(cls.getValue(cluster[0], "logDirForSpade"))
+        logDirForSpade = os.path.expanduser(cls.getValue(cluster[0], "logDirForSpade"))
+        cluCfg.setLogDirForSpade(logDirForSpade)
 
         # Get location of SPADE/logs copies
-        cluCfg.setLogDirCopies(cls.getValue(cluster[0], "logDirCopies"))
+        logDirCopies = os.path.expanduser(cls.getValue(cluster[0], "logDirCopies"))
+        cluCfg.setLogDirCopies(logDirCopies)
 
         # Get default log level
         cluCfg.setDefaultLogLevel(cls.getValue(cluster[0], "defaultLogLevel",
