@@ -736,13 +736,15 @@ class RunSet(object):
         tGroup.wait()
         tGroup.reportErrors(self.__logger, "stopLogging")
 
-    def __stopRunInternal(self, xmlLog, hadError=False):
+    def __stopRunInternal(self, hadError=False):
         """
         Stop all components in the runset
         Return True if an error is encountered while stopping.
         """
         if self.__runData is None:
             raise RunSetException("RunSet #%d is not running" % self.__id)
+
+        xmlLog = DashXMLLog.DashXMLLog()
 
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING %s", self.__runData)
         self.__runData.stop()
@@ -905,6 +907,39 @@ class RunSet(object):
         self.__parent.saveCatchall(self.__runData.runDirectory())
 
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING queueSpade")
+
+        
+        # fill in the rest of the xml logging information
+        # run number                                                                                                           
+        xmlLog.setRun(self.__runData.runNumber())
+        # cluster configuration                                                                                                
+        xmlLog.setConfig(self.__runData.clusterConfigName())
+        # start time                                                                                                           
+        xmlLogStartTime = PayloadTime.toDateTime(self.__runData.firstPayTime())
+        xmlLog.setStartTime(xmlLogStartTime)
+        
+        # run status
+        if(hadError):
+            xmlLog.setTermCond("Failure")
+        else:
+            xmlLog.setTermCond("Success")
+
+        # write the xml log file to disk                                                                                       
+        logDir = self.__runData.runDirectory()
+        logFile = "run.xml"
+        if(logDir==None):
+            logDir = "."
+            logFile = "run-%d.xml"% self.__runData.runNumber()
+            
+        xmlLogFileName = os.path.join(logDir, logFile)
+        try:
+            xmlLog.writeLog(xmlLogFileName)
+        except DashXMLLog.DashXMLLogException:
+            self.__logger.error("Could not write run xml log file: %s" % xmlLogFileName)
+
+
+        # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
+        # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
         self.queueForSpade(duration)
 
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING stopLog")
@@ -1527,38 +1562,10 @@ class RunSet(object):
 
         self.__stopping = True
         try:
-            try:
-                xmlLog = DashXMLLog.DashXMLLog()
-                rtnVal = self.__stopRunInternal(xmlLog, hadError)
-                if(rtnVal):
-                    xmlLog.setTermCond("Failure")
-                else:
-                    xmlLog.setTermCond("Success")
-
-                if(self.__runData!=None):
-                    # run number
-                    xmlLog.setRun(self.__runData.runNumber())
-                    # cluster configuration 
-                    xmlLog.setConfig(self.__runData.clusterConfigName())
-                    # start time
-                    xmlLogStartTime = PayloadTime.toDateTime(self.__runData.firstPayTime()) 
-                    xmlLog.setStartTime(xmlLogStartTime)
-                    # write the xml log file to disk
-                    
-                    logDir = self.__runData.runDirectory()
-                    logFile = "run.xml"
-                    if(logDir==None):
-                        logDir = "."
-                        logFile = "run-%d.xml"% self.__runData.runNumber()
-                    
-                    xmlLogFileName = os.path.join(logDir, logFile)
-                    try:
-                        xmlLog.writeLog(xmlLogFileName)
-                    except DashXMLLog.DashXMLLogException:
-                        self.__logger.error("Could not write run xml log file: %s" % xmlLogFileName)
-            except:
-                self.__logger.error("Could not stop run: " + exc_string())
-                raise
+            rtnVal = self.__stopRunInternal(hadError)
+        except:
+            self.__logger.error("Could not stop run: " + exc_string())
+            raise
         finally:
             self.__stopping = False
 
