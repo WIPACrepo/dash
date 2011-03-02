@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 12721 2011-03-01 17:59:07Z mnewcomb $"
+SVN_ID = "$Id: DeployPDAQ.py 12727 2011-03-02 17:47:12Z mnewcomb $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -121,11 +121,16 @@ def main():
     # dry-run implies we want to see what is happening
     if opt.dryRun:   opt.quiet = False
 
-    # Map quiet/verbose to a 3-value tracelevel
+    # Map quiet/verbose to a 2-value tracelevel
     traceLevel = 0
     if opt.quiet:                 traceLevel = -1
     if opt.verbose:               traceLevel = 1
-    if opt.quiet and opt.verbose: traceLevel = 0
+
+    # DAQ Launch does not allow both quiet and verbose.
+    # make the behaviour uniform
+    if opt.quiet and opt.verbose:
+        print >>sys.stderr, "Cannot specify both -q(uiet) and -v(erbose)"
+        raise SystemExit
 
     # How often to report count of processes waiting to finish
     monitorIval = None
@@ -243,8 +248,15 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
 
         print cmd
         cmdToNodeNameDict[cmd] = nodeName
-        if traceLevel >= 0: print "  "+cmd
+        if traceLevel > 0: 
+            print "  "+cmd
+        elif traceLevel==0:
+            # print a '.' with no newline
+            print ".",
         parallel.add(cmd)
+
+    # add a newline to take care of the end of the line of "."'s above
+    print ""
 
     parallel.start()
     if parallel.isParallel():
