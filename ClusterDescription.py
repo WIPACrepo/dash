@@ -307,6 +307,9 @@ class ClusterDescription(ConfigXMLBase):
             logLvl = self.__findDefault(name, 'logLevel')
 
         jvm = self.getValue(node, 'jvm')
+        if(jvm != None):
+            jvm = os.path.expanduser(jvm)
+
         if jvm is None:
             jvm = self.__findDefault(name, 'jvm')
 
@@ -325,7 +328,8 @@ class ClusterDescription(ConfigXMLBase):
                 self.__defaultLogLevel = self.getChildText(kid)
             elif kid.nodeName == 'jvm':
                 self.__defaultJVM = self.getChildText(kid)
-                self.__defaultJVM = os.path.expanduser(self.__defaultJVM)
+                if(self.__defaultJVM !=None):
+                    self.__defaultJVM = os.path.expanduser(self.__defaultJVM)
             elif kid.nodeName == 'jvmArgs':
                 self.__defaultJVMArgs = self.getChildText(kid)
             elif kid.nodeName == 'component':
@@ -482,10 +486,12 @@ class ClusterDescription(ConfigXMLBase):
 
         self.__logDirForSpade = self.getValue(cluster, 'logDirForSpade')
         # expand tilde
-        self.__logDirForSpade = os.path.expanduser(self.__logDirForSpade)
+        if(self.__logDirForSpade!=None):
+            self.__logDirForSpade = os.path.expanduser(self.__logDirForSpade)
 
         self.__logDirCopies = self.getValue(cluster, 'logDirCopies')
-        self.__logDirCopies = os.path.expanduser(self.__logDirCopies)
+        if(self.__logDirCopies!=None):
+            self.__logDirCopies = os.path.expanduser(self.__logDirCopies)
 
         dfltNodes = cluster.getElementsByTagName('default')
         for node in dfltNodes:
@@ -515,8 +521,8 @@ class ClusterDescription(ConfigXMLBase):
         if hostname is not None:
             # SPS is easy
             if hostname.endswith("icecube.southpole.usap.gov"):
-                hlist = hostname.split(".")
-                if hlist[0] == "pdaq2":
+                hname = hostname.split(".",1)[0]
+                if hname == "pdaq2":
                     return cls.PDAQ2
                 else:
                     return cls.SPS
