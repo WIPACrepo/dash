@@ -23,7 +23,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 12744 2011-03-03 22:12:53Z mnewcomb $"
+SVN_ID = "$Id: ExpControlSkel.py 12745 2011-03-03 23:28:41Z mnewcomb $"
 
 class DOMArgumentException(Exception): pass
 
@@ -252,6 +252,10 @@ def main():
             # a totally unknown host
             print >>sys.stderr, "Are you sure you are running ExpControlSkel on the correct host?"
             raise SystemExit
+
+    if opt.runConfig==None:
+        print >>sys.stderr, "You must specify a run configuration ( -c option )"
+        raise SystemExit
 
     cnc = CnCRun(showCmd=opt.showCmd, showCmdOutput=opt.showCmdOut)
 

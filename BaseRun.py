@@ -121,6 +121,10 @@ class Run(object):
             if self.__clusterCfg is None:
                 raise RunException("No cluster configuration specified")
 
+        # __runCfg has to be non-null as well otherwise we get an exception
+        if self.__runCfg is None:
+            raise RunException("No Run Configuration Specified")
+
         # if pDAQ isn't active or if we need a different cluster config,
         #   kill the current components
         #
