@@ -10,6 +10,7 @@ import optparse, os, sys
 from ClusterConfig import ClusterConfigException
 from DAQConfig import DAQConfig, DAQConfigParser, XMLFileNotFound
 from ParallelShell import ParallelShell
+from utils.Machineid import Machineid
 
 # pdaq subdirectories to be deployed
 SUBDIRS = ("target", "cluster-config", "config", "dash", "src")
@@ -29,7 +30,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 12731 2011-03-02 18:02:50Z mnewcomb $"
+SVN_ID = "$Id: DeployPDAQ.py 12744 2011-03-03 22:12:53Z mnewcomb $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -104,7 +105,16 @@ def main():
                  action="store_true", default=EXPRESS_DEFAULT,
                  help="Express rsyncs, unsets and overrides any/all" +
                  " nice adjustments")
+    p.add_option("-m", "--no-host-check", dest="nohostcheck", default=False,
+                 help="Disable checking the host type for run permission")
     opt, args = p.parse_args()
+
+    if not opt.nohostcheck:
+        hostid = Machineid()
+        if(not (hostid.is_build_host() or
+           ( hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+            print >>sys.stderr, "Are you sure you are running DeployPDAQ on the correct host?"
+            raise SystemExit
 
     ## Work through options implications ##
     # A deep-dry-run implies verbose and serial

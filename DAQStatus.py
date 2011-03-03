@@ -6,6 +6,7 @@ from os.path import join
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from LiveImports import SERVICE_NAME
+from utils.Machineid import Machineid
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if environ.has_key("PDAQ_HOME"):
@@ -18,7 +19,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQStatus.py 12496 2010-12-27 20:21:06Z dglo $"
+SVN_ID  = "$Id: DAQStatus.py 12744 2011-03-03 22:12:53Z mnewcomb $"
 
 LINE_LENGTH = 78
 
@@ -148,8 +149,20 @@ if __name__ == "__main__":
     p.add_option("-v", "--verbose", dest="verbose",
                  action="store_true", default=False,
                  help="Print detailed list")
-
+    p.add_option("-m", "--no-host-check", dest="nohostcheck", default=False,
+                 help="Disable checking the host type for run permission")
     opt, args = p.parse_args()
+
+    if not opt.nohostcheck:
+        hostid = Machineid()
+        if(not (hostid.is_control_host() or
+           ( hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+            # to run daq launch you should either be a control host or
+            # a totally unknown host
+            print >>sys.stderr, "Are you sure you are running DAQStatus on the right host?"
+            raise SystemExit
+
+
 
     cncrpc = RPCClient("localhost", DAQPort.CNCSERVER)
 

@@ -14,6 +14,7 @@ from time import sleep
 from os import environ, mkdir, system
 from os.path import exists, isabs, join
 from utils import ip
+from utils.Machineid import Machineid
 
 from ClusterConfig \
     import ClusterConfig, ClusterConfigException, ConfigNotFoundException
@@ -42,7 +43,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 12722 2011-03-01 18:08:05Z mnewcomb $"
+SVN_ID = "$Id: DAQLaunch.py 12744 2011-03-03 22:12:53Z mnewcomb $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -422,7 +423,19 @@ if __name__ == "__main__":
     p.add_option("-9", "--kill-kill", dest="killWith9",
                  action="store_true", default=False,
                  help="just kill everything with extreme (-9) prejudice")
+    p.add_option("-m", "--no-host-check", dest="nohostcheck", default=False,
+                 help="Disable checking the host type for run permission")
     opt, args = p.parse_args()
+
+    if not opt.nohostcheck:
+        hostid = Machineid()
+        if(not (hostid.is_control_host() or
+           ( hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+            # to run daq launch you should either be a control host or
+            # a totally unknown host
+            print >>sys.stderr, "Are you sure you are running DAQLaunch on the correct host?"
+            raise SystemExit
+
 
     if opt.quiet and opt.verbose:
         print >>sys.stderr, "Cannot specify both -q(uiet) and -v(erbose)"

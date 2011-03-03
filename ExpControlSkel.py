@@ -10,6 +10,7 @@ import optparse, os, re, sys
 from cncrun import CnCRun
 import time
 from datetime import datetime
+from utils.Machineid import Machineid
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -22,7 +23,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 12676 2011-02-16 16:37:22Z mnewcomb $"
+SVN_ID = "$Id: ExpControlSkel.py 12744 2011-03-03 22:12:53Z mnewcomb $"
 
 class DOMArgumentException(Exception): pass
 
@@ -239,7 +240,18 @@ def main():
     p.add_option("-x", "--showCommandOutput", dest="showCmdOut",
                  action="store_true", default=False,
                  help="Show the output of the deploy and/or run commands")
+    p.add_option("-m", "--no-host-check", dest="nohostcheck", default=False,
+                 help="Disable checking the host type for run permission")
     opt, args = p.parse_args()
+
+    if not opt.nohostcheck:
+        hostid = Machineid()
+        if(not (hostid.is_control_host() or
+           ( hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+            # to run daq launch you should either be a control host or
+            # a totally unknown host
+            print >>sys.stderr, "Are you sure you are running ExpControlSkel on the correct host?"
+            raise SystemExit
 
     cnc = CnCRun(showCmd=opt.showCmd, showCmdOutput=opt.showCmdOut)
 

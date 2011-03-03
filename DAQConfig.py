@@ -11,6 +11,7 @@ from DefaultDomGeometry import BadFileError, DefaultDomGeometryReader, \
     ProcessError, XMLParser
 from RunCluster import RunCluster
 from XMLFileCache import XMLFileCache, XMLFileNotFound
+from utils.Machineid import Machineid
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -1597,7 +1598,19 @@ if __name__ == "__main__":
     p.add_option("-S", "--not-strict", dest="strict",
                  action="store_false", default=True,
                  help="Do not perform strict checking")
+    p.add_option("-m", "--no-host-check", dest="nohostcheck", default=False,
+                 help="Disable checking the host type for run permission")
     opt, args = p.parse_args()
+
+    if not opt.nohostcheck:
+        hostid = Machineid()
+        if(not (hostid.is_build_host() or
+           ( hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+            # to run daq launch you should either be a control host or
+            # a totally unknown host
+            print >>sys.stderr, "Are you sure you are running DAQConfig on the correct host?"
+            raise SystemExit
+
 
     configDir  = os.path.join(metaDir, "config")
 
