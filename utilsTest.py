@@ -1,6 +1,7 @@
 from utils import ip
 from utils.DashXMLLog import DashXMLLog
 from utils.DashXMLLog import DashXMLLogException
+from utils.Machineid import Machineid
 import unittest
 
 class TestUtils(unittest.TestCase):
@@ -26,6 +27,45 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(ip.convertLocalhostToIpAddr('fred'), 'fred')
         self.assertEquals(ip.convertLocalhostToIpAddr('localhost'),
                           ip.getLocalIpAddr())
+
+
+    def test_machineid(self):
+        a = Machineid("access.spts.icecube.wisc.edu")
+        self.assertTrue(a.is_build_host())
+        self.assertFalse(a.is_control_host())
+        self.assertFalse(a.is_unknown_host())
+
+        self.assertTrue(a.is_spts_cluster())
+        self.assertFalse(a.is_sps_cluster())
+        self.assertFalse(a.is_unknown_cluster())
+
+        a = Machineid("access.icecube.southpole.usap.gov")
+        self.assertTrue(a.is_build_host())
+        self.assertFalse(a.is_control_host())
+        self.assertFalse(a.is_unknown_host())
+
+        self.assertTrue(a.is_sps_cluster())
+        self.assertFalse(a.is_spts_cluster())
+        self.assertFalse(a.is_unknown_cluster())
+
+        a = Machineid("expcont.icecube.southpole.usap.gov")
+        self.assertFalse(a.is_build_host())
+        self.assertTrue(a.is_control_host())
+        self.assertFalse(a.is_unknown_host())
+
+        self.assertTrue(a.is_sps_cluster())
+        self.assertFalse(a.is_spts_cluster())
+        self.assertFalse(a.is_unknown_cluster())
+
+        a = Machineid("mnewcomb-laptop")
+        self.assertFalse(a.is_build_host())
+        self.assertFalse(a.is_control_host())
+        self.assertTrue(a.is_unknown_host())
+
+        self.assertFalse(a.is_sps_cluster())
+        self.assertFalse(a.is_spts_cluster())
+        self.assertTrue(a.is_unknown_cluster())
+        
 
 
     def test_dashxmllog(self):
@@ -77,12 +117,6 @@ SUCCESS
             self.assertEqual(docStr, expectedDocStr)
         except DashXMLLogException:
             self.fail("Dash XML Log Code raised an exception")
-
-
-if __name__ == "__main__":
-    unittest.main()
-
-        
 
 
 if __name__ == "__main__":
