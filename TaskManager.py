@@ -8,8 +8,8 @@ from IntervalTimer import IntervalTimer
 from MonitorTask import MonitorTask
 from RadarTask import RadarTask
 from RateTask import RateTask
-from RunSetDebug import RunSetDebug
 from WatchdogTask import WatchdogTask
+from BytesWrittenTask import BytesWrittenTask
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -31,7 +31,8 @@ class TaskManager(threading.Thread):
                         ActiveDOMsTask(self, runset, dashlog, live),
                         WatchdogTask(self, runset, dashlog,
                                      period=runCfg.watchdogPeriod()),
-                        RadarTask(self, runset, dashlog, live))
+                        RadarTask(self, runset, dashlog, live),
+                        BytesWrittenTask(self, runset, dashlog, live))
 
         self.__running = False
         self.__flag = threading.Condition()
@@ -63,7 +64,8 @@ class TaskManager(threading.Thread):
         for t in self.__tasks:
             t.close()
 
-    def createIntervalTimer(self, name, period):
+    @classmethod
+    def createIntervalTimer(cls, name, period):
         return IntervalTimer(name, period, startTriggered=True)
 
     def reset(self):

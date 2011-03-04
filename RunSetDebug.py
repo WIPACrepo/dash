@@ -6,12 +6,13 @@ class RunSetDebug(object):
     RADAR_TASK = 0x4
     RATE_TASK = 0x8
     WATCH_TASK = 0x10
+    BYTES_WRITTEN_TASK = 0x20
 
     START_RUN = 0x100
     STOP_RUN = 0x200
 
     ALL = ACTDOM_TASK | MONI_TASK | RADAR_TASK | RATE_TASK | WATCH_TASK | \
-          START_RUN | STOP_RUN
+          BYTES_WRITTEN_TASK | START_RUN | STOP_RUN
 
     NAME_MAP = {
         "activeDomsTask" : ACTDOM_TASK,
@@ -19,6 +20,7 @@ class RunSetDebug(object):
         "radarTask" : RADAR_TASK,
         "rateTask" : RATE_TASK,
         "watchdogTask" : WATCH_TASK,
+        "bytesWrittenTask" : BYTES_WRITTEN_TASK,
         "startRun" : START_RUN,
         "stopRun" : STOP_RUN,
         "all" : ALL,
