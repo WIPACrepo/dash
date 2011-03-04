@@ -31,8 +31,7 @@ class TaskManager(threading.Thread):
                         ActiveDOMsTask(self, runset, dashlog, live),
                         WatchdogTask(self, runset, dashlog,
                                      period=runCfg.watchdogPeriod()),
-                        RadarTask(self, runset, dashlog, live),
-                        BytesWrittenTask(self, runset, dashlog, live))
+                        RadarTask(self, runset, dashlog, live))
 
         self.__running = False
         self.__flag = threading.Condition()
