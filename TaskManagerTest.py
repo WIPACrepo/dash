@@ -47,6 +47,7 @@ class MockComponent(object):
                     "NumEventsSent" : 0,
                     "NumReadoutsReceived" : 0,
                     "NumTriggerRequestsReceived" : 0,
+                    "NumBytesWritten": 0
                     },
               },
         "secondaryBuilders" :
@@ -280,6 +281,8 @@ class TaskManagerTest(unittest.TestCase):
         live.addExpected("eventBuilder-0*backEnd+NumEventsSent", 0, Prio.ITS)
         live.addExpected("eventBuilder-0*backEnd+NumBadEvents", 0, Prio.ITS)
         live.addExpected("eventBuilder-0*backEnd+DiskAvailable", 2560, Prio.ITS)
+        live.addExpected("eventBuilder-0*backEnd+NumBytesWritten", 0, Prio.ITS)
+
         live.addExpected("secondaryBuilders-0*moniBuilder+TotalDispatchedData",
                          0, Prio.ITS)
         live.addExpected("secondaryBuilders-0*snBuilder+TotalDispatchedData",

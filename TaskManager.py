@@ -9,7 +9,6 @@ from MonitorTask import MonitorTask
 from RadarTask import RadarTask
 from RateTask import RateTask
 from WatchdogTask import WatchdogTask
-from BytesWrittenTask import BytesWrittenTask
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
