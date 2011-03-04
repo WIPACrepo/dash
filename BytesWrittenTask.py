@@ -28,12 +28,12 @@ class BytesWrittenThread(CnCThread):
         send it off to i3live"""
 
         for c in self.__comps:
-            if c.getName()=='eventBuilder':
+            if c.name()=='eventBuilder':
                 # c is a reference to the event builder component
                 numBytesWritten = 0
 
                 try:
-                    numBytesWritten = c.getSingleBeanFied("eventBuilder", "numBytesWritten")
+                    numBytesWritten = c.getSingleBeanField("eventBuilder", "numBytesWritten")
                 except Exception, e:
                     self.__dashlog.error("Cannot get numBytesWritten %s: %s" % (c.fullName(), exc_string()))
                     print "Exception: ", e
