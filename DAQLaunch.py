@@ -43,7 +43,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 12744 2011-03-03 22:12:53Z mnewcomb $"
+SVN_ID = "$Id: DAQLaunch.py 12770 2011-03-11 17:27:08Z mnewcomb $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -109,7 +109,7 @@ def killJavaProcesses(dryRun, clusterConfig, verbose, killWith9, parallel=None):
 
 def killJavaComponents(compList, dryRun, verbose, killWith9, parallel=None):
     if parallel is None:
-        parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose)
+        parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose, timeout=30)
     cmdToHostDict = {}
     for comp in compList:
         if comp.jvm() is None: continue
@@ -162,7 +162,7 @@ def killJavaComponents(compList, dryRun, verbose, killWith9, parallel=None):
             # 1 is okay..  expected if nothing is running
             if(rtn_code>1):
                 print "-"*60
-                print "Error non-zero return code ( %d ) for host: %s, cmd: %s" % (rtn_code, nodeName, cmd)
+                print "Error non-zero return code ( %s ) for host: %s, cmd: %s" % (rtn_code, nodeName, cmd)
                 print "Results '%s'" % results
                 print "-"*60
                     
@@ -177,7 +177,7 @@ def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
 def startJavaComponents(compList, dryRun, configDir, dashDir, logPort, livePort,
                         verbose, eventCheck, checkExists=True, parallel=None):
     if parallel is None:
-        parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose)
+        parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose, timeout=30)
 
     # The dir where all the "executable" jar files are
     binDir = join(metaDir, 'target', 'pDAQ-%s-dist' % RELEASE, 'bin')
@@ -246,7 +246,7 @@ def startJavaComponents(compList, dryRun, configDir, dashDir, logPort, livePort,
                 rtn_code,results = cmd_results_dict[cmd]
                 nodeName = "unknown" if cmd not in cmdToHostDict else cmdToHostDict[cmd]
                 if(rtn_code!=0):
-                    print "Error non zero return code ( %d ) for host: %s, cmd: %s" % ( rtn_code, nodeName, cmd)
+                    print "Error non zero return code ( %s ) for host: %s, cmd: %s" % ( rtn_code, nodeName, cmd)
                     print "Results '%s'" % results
                         
 
