@@ -529,21 +529,22 @@ class TestCnCServer(unittest.TestCase):
 
         clientLogger.checkStatus(100)
         catchall.checkStatus(100)
+        self.cnc.closeServer()
 
     def testEverything(self):
         self.__runEverything(False)
 
     def testEverythingAgain(self):
-        if sys.platform != 'darwin':
-            print 'Skipping server tests in non-Darwin OS'
-            return
+        #if sys.platform != 'darwin':
+        #    print 'Skipping server tests in non-Darwin OS'
+        #    return
 
         self.__runEverything(False)
 
     def testForceRestart(self):
-        if sys.platform != 'darwin':
-            print 'Skipping server tests in non-Darwin OS'
-            return
+        #if sys.platform != 'darwin':
+        #    print 'Skipping server tests in non-Darwin OS'
+        #    return
 
         self.__runEverything(True)
 
