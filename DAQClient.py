@@ -266,17 +266,6 @@ class DAQClient(ComponentName):
     def createMBeanClient(self, host, mbeanPort):
         return MBeanClient(self.fullName(), host, mbeanPort)
 
-    def events(self, subrunNumber):
-        "Get the number of events in the specified subrun"
-        try:
-            evts = self.__client.xmlrpc.getEvents(subrunNumber)
-            if type(evts) == str:
-                evts = long(evts[:-1])
-            return evts
-        except:
-            self.__log.error(exc_string())
-            return None
-
     def forcedStop(self):
         "Force component to stop running"
         try:
@@ -459,6 +448,17 @@ class DAQClient(ComponentName):
         "Stop component processing DAQ data"
         try:
             return self.__client.xmlrpc.stopRun()
+        except:
+            self.__log.error(exc_string())
+            return None
+
+    def subrunEvents(self, subrunNumber):
+        "Get the number of events in the specified subrun"
+        try:
+            evts = self.__client.xmlrpc.getEvents(subrunNumber)
+            if type(evts) == str:
+                evts = long(evts[:-1])
+            return evts
         except:
             self.__log.error(exc_string())
             return None

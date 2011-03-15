@@ -31,7 +31,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12783 2011-03-15 21:39:18Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 12784 2011-03-15 21:40:21Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -1013,7 +1013,7 @@ class CnCServer(DAQPool):
         if not runSet:
             raise CnCServerException('Could not find runset#%d' % id)
 
-        return runSet.events(subrunNumber)
+        return runSet.subrunEvents(subrunNumber)
 
     def rpc_runset_list_ids(self):
         """return a list of active runset IDs"""

@@ -349,6 +349,9 @@ class RunData(object):
             self.__liveMoniClient.sendMoni("runstop", data, prio=Prio.SCP,
                                            time=time)
 
+    def clusterConfigName(self):
+        return self.__clusterConfigName
+
     def destroy(self):
         self.stop()
         if self.__liveMoniClient is not None:
@@ -376,6 +379,9 @@ class RunData(object):
                                                   self.__runConfig,
                                                   self.__runOptions)
         self.__taskMgr.start()
+
+    def firstPayTime(self):
+        return self.__firstPayTime
 
     def getEventCounts(self, state, comps):
         "Return monitoring data for the run"
@@ -463,12 +469,6 @@ class RunData(object):
 
     def runNumber(self):
         return self.__runNumber
-
-    def clusterConfigName(self):
-        return self.__clusterConfigName
-
-    def firstPayTime(self):
-        return self.__firstPayTime
 
     def sendEventCounts(self, state, comps):
         "Report run monitoring quantities"
@@ -650,6 +650,16 @@ class RunSet(object):
         else:
             logger.error(args[0] % args[1:])
 
+    def __sortCmp(self, x, y):
+        if y.order() is None:
+            self.__logger.error('Comp %s cmdOrder is None' % str(y))
+            return -1
+        elif x.order() is None:
+            self.__logger.error('Comp %s cmdOrder is None' % str(x))
+            return 1
+        else:
+            return y.order()-x.order()
+
     def __startComponents(self, quiet):
         liveHost = None
         livePort = None
@@ -698,7 +708,7 @@ class RunSet(object):
 
         # start non-sources in order (back to front)
         #
-        otherSet.sort(self.sortCmp)
+        otherSet.sort(self.__sortCmp)
         self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP startOther")
         for c in otherSet:
             c.startRun(self.__runData.runNumber())
@@ -761,7 +771,7 @@ class RunSet(object):
 
         # stop from front to back
         #
-        otherSet.sort(lambda x, y: self.sortCmp(y, x))
+        otherSet.sort(lambda x, y: self.__sortCmp(y, x))
 
         for i in range(0, 2):
             self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING phase %d", i)
@@ -1229,15 +1239,6 @@ class RunSet(object):
         self.__state = RunSetState.DESTROYED
         self.__runData = None
 
-    def events(self, subrunNumber):
-        "Get the number of events in the specified subrun"
-        for c in self.__set:
-            if c.isBuilder():
-                return c.events(subrunNumber)
-
-        raise RunSetException('RunSet #%d does not contain an event builder' %
-                              self.__id)
-
     def debugBits(self):
         return self.__debugBits
 
@@ -1490,16 +1491,6 @@ class RunSet(object):
     def size(self):
         return len(self.__set)
 
-    def sortCmp(self, x, y):
-        if y.order() is None:
-            self.__logger.error('Comp %s cmdOrder is None' % str(y))
-            return -1
-        elif x.order() is None:
-            self.__logger.error('Comp %s cmdOrder is None' % str(x))
-            return 1
-        else:
-            return y.order()-x.order()
-
     def startRun(self, runNum, clusterConfigName, runOptions, versionInfo,
                  spadeDir, copyDir=None, logDir=None, quiet=True):
         "Start all components in the runset"
@@ -1639,6 +1630,15 @@ class RunSet(object):
         for c in self.__set:
             if c.isBuilder():
                 c.commitSubrun(id, repr(latestTime))
+
+    def subrunEvents(self, subrunNumber):
+        "Get the number of events in the specified subrun"
+        for c in self.__set:
+            if c.isBuilder():
+                return c.subrunEvents(subrunNumber)
+
+        raise RunSetException('RunSet #%d does not contain an event builder' %
+                              self.__id)
 
     def updateRates(self):
         if self.__runData is not None:
