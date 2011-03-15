@@ -466,7 +466,7 @@ class RunData(object):
 
     def clusterConfigName(self):
         return self.__clusterConfigName
-    
+
     def firstPayTime(self):
         return self.__firstPayTime
 
@@ -908,29 +908,29 @@ class RunSet(object):
 
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING queueSpade")
 
-        
+
         # fill in the rest of the xml logging information
-        # run number                                                                                                           
+        # run number
         xmlLog.setRun(self.__runData.runNumber())
-        # cluster configuration                                                                                                
+        # cluster configuration
         xmlLog.setConfig(self.__runData.clusterConfigName())
-        # start time                                                                                                           
+        # start time
         xmlLogStartTime = PayloadTime.toDateTime(self.__runData.firstPayTime())
         xmlLog.setStartTime(xmlLogStartTime)
-        
+
         # run status
         if(hadError):
             xmlLog.setTermCond("Failure")
         else:
             xmlLog.setTermCond("Success")
 
-        # write the xml log file to disk                                                                                       
+        # write the xml log file to disk
         logDir = self.__runData.runDirectory()
         logFile = "run.xml"
         if(logDir==None):
             logDir = "."
             logFile = "run-%d.xml"% self.__runData.runNumber()
-            
+
         xmlLogFileName = os.path.join(logDir, logFile)
         try:
             xmlLog.writeLog(xmlLogFileName)
