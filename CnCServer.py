@@ -31,7 +31,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12696 2011-02-24 15:46:28Z mnewcomb $"
+SVN_ID  = "$Id: CnCServer.py 12783 2011-03-15 21:39:18Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -597,7 +597,7 @@ class CnCServer(DAQPool):
             print >>sys.stderr, "\nExiting"
             sys.exit(0)
         print >>sys.stderr, "Cannot exit with active runset(s)"
-        
+
     @staticmethod
     def __countFileDescriptors():
         "Count number of open file descriptors for this process"
