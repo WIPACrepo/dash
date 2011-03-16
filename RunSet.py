@@ -754,8 +754,6 @@ class RunSet(object):
         if self.__runData is None:
             raise RunSetException("RunSet #%d is not running" % self.__id)
 
-        xmlLog = DashXMLLog.DashXMLLog()
-
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING %s", self.__runData)
         self.__runData.stop()
 
@@ -902,6 +900,8 @@ class RunSet(object):
         self.__runData.reset()
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING reset done")
 
+        xmlLog = DashXMLLog.DashXMLLog(dir_name=self.__runData.runDirectory())
+
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING report")
         duration = self.__runData.reportRates(self.__set, xmlLog)
         if duration < 0:
@@ -927,25 +927,15 @@ class RunSet(object):
         # start time
         xmlLogStartTime = PayloadTime.toDateTime(self.__runData.firstPayTime())
         xmlLog.setStartTime(xmlLogStartTime)
-
         # run status
-        if(hadError):
-            xmlLog.setTermCond("Failure")
-        else:
-            xmlLog.setTermCond("Success")
+        xmlLog.setTermCond(hadError)
 
         # write the xml log file to disk
-        logDir = self.__runData.runDirectory()
-        logFile = "run.xml"
-        if(logDir==None):
-            logDir = "."
-            logFile = "run-%d.xml"% self.__runData.runNumber()
-
-        xmlLogFileName = os.path.join(logDir, logFile)
         try:
-            xmlLog.writeLog(xmlLogFileName)
+            xmlLog.writeLog()
         except DashXMLLog.DashXMLLogException:
-            self.__logger.error("Could not write run xml log file: %s" % xmlLogFileName)
+            self.__logger.error("Could not write run xml log file" %
+                                xmlLog.getPath())
 
 
         # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT

@@ -74,7 +74,7 @@ class TestUtils(unittest.TestCase):
         a.setConfig("sps-IC79-Erik-Changed-TriggerIDs-V151")
         a.setStartTime(55584.113903)
         a.setEndTime(55584.227695)
-        a.setTermCond("SUCCESS")
+        a.setTermCond(False)
         a.setEvents(24494834)
         a.setMoni(60499244)
         a.setTcal(4653819)
@@ -107,7 +107,7 @@ sps-IC79-Erik-Changed-TriggerIDs-V151
 4653819
 </Tcal>
 <TermCondition>
-SUCCESS
+Success
 </TermCondition>
 <run>
 117554

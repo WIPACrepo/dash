@@ -1,3 +1,5 @@
+import os
+
 from xml.dom.minidom import Document
 
 
@@ -10,7 +12,7 @@ class DashXMLLog:
     This class will generate an xml logging file for dash.  The purpose is to generate this for
     Kirill.  Apparently he was parsing dash.log and generating a log file.  The parsing would break
     as people changed the format of the dash.log file.  This code will let you generate an xml log that
-    will meet at least his requirements.  You can add more fields to this with the 'setField" method.
+    will meet at least his requirements.  You can add more fields to this with the 'setField' method.
 
     A minimum xml logging file should look like this:
 
@@ -30,7 +32,12 @@ class DashXMLLog:
     </DAQRunlog>
     """
 
-    def __init__(self, root_elem_name="DAQRunlog", style_sheet_url="/2001/xml/DAQRunlog.xsl"):
+    def __init__(self, dir_name=None, file_name="run.xml", root_elem_name="DAQRunlog",
+                 style_sheet_url="/2001/xml/DAQRunlog.xsl"):
+        self._dir_name = dir_name
+        self._file_name = file_name
+        self._path = None
+
         self._fields = {}
         self._root_elem_name = root_elem_name
         self._style_sheet_url = style_sheet_url
@@ -39,6 +46,22 @@ class DashXMLLog:
                                   "TermCondition", "Events", "Moni", "Tcal",
                                   "SN" ]
 
+
+    def getPath(self):
+        if self._path is None:
+            if self._dir_name is not None:
+                file_name = os.path.join(self._dir_name, self._file_name)
+            else:
+                file_name = "run.xml"
+
+                next_num = 1
+                while os.path.exists(file_name):
+                    file_name = "run-%d.xml" % next_num
+                    next_num += 1
+
+            self._path = file_name
+
+        return self._path
 
     def setField(self, field_name, field_val):
         """Store the name and value for a field in this log file
@@ -93,12 +116,16 @@ class DashXMLLog:
         """
         self.setField("EndTime", end_time)
 
-    def setTermCond(self, term_cond):
+    def setTermCond(self, had_error):
         """Set the termination condition for this run
 
         Args:
             term_cond: the termination condition for this run
         """
+        if had_error:
+            term_cond = "Failure"
+        else:
+            term_cond = "Success"
         self.setField("TermCondition", term_cond)
 
     def setEvents(self, events):
@@ -162,7 +189,7 @@ class DashXMLLog:
 
         return doc
 
-    def writeLog(self, file_name):
+    def writeLog(self):
         """Build an xml document with stored state and write it to a file
 
         Args:
@@ -170,7 +197,7 @@ class DashXMLLog:
         """
         docStr = self.documentToKirillString()
 
-        fd = open(file_name, "w")
+        fd = open(self.getPath(), "w")
         fd.write(docStr)
         fd.close()
 
@@ -217,7 +244,7 @@ if __name__ == "__main__":
     a.setConfig("sps-IC79-Erik-Changed-TriggerIDs-V151")
     a.setStartTime(55584.113903)
     a.setEndTime(55584.227695)
-    a.setTermCond("SUCCESS")
+    a.setTermCond(False)
     a.setEvents(24494834)
     a.setMoni(60499244)
     a.setTcal(4653819)
