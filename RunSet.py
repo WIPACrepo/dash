@@ -420,6 +420,12 @@ class RunData(object):
     def info(self, msg):
         self.__dashlog.info(msg)
 
+    def isErrorEnabled(self): return self.__dashlog.isErrorEnabled()
+
+    def isInfoEnabled(self): return self.__dashlog.isInfoEnabled()
+
+    def isWarnEnabled(self): return self.__dashlog.isWarnEnabled()
+
     def queueForSpade(self, duration):
         if self.__logDir is None:
             self.__dashlog.error("Not logging to file so cannot queue to SPADE")
@@ -538,6 +544,10 @@ class RunSet(object):
 
     STATE_DEAD = "DEAD"
 
+    # number of seconds between "Waiting for ..." messages during stopRun()
+    #
+    WAIT_MSG_PERIOD = 5
+
     def __init__(self, parent, cfg, set, logger):
         """
         RunSet constructor:
@@ -581,6 +591,53 @@ class RunSet(object):
         setStr += " (%s)" % self.__state
         return setStr
 
+    def __attemptToStop(self, srcSet, otherSet, newState, srcOp, timeoutSecs):
+        self.__state = newState
+
+        waitList = srcSet + otherSet
+
+        if srcOp == ComponentOperation.FORCED_STOP:
+            self.__runData.error('%s: Forcing %d components to stop: %s' %
+                                 (str(self), len(waitList),
+                                  self.__listComponentsCommaSep(waitList)))
+
+        # stop sources in parallel
+        #
+        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING SRC create *%d",
+                        len(srcSet))
+        tGroup = ComponentOperationGroup(srcOp)
+        for c in srcSet:
+            tGroup.start(c, self.__runData, ())
+        tGroup.wait()
+        tGroup.reportErrors(self.__runData, self.__state)
+        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING SRC done")
+
+        # stop non-sources in order
+        #
+        for c in otherSet:
+            self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING OTHER %s", c)
+            tGroup = ComponentOperationGroup(srcOp)
+            tGroup.start(c, self.__runData, ())
+            tGroup.wait()
+            tGroup.reportErrors(self.__runData, self.__state)
+            self.__logDebug(RunSetDebug.STOP_RUN,
+                            "STOPPING OTHER %s done", c)
+
+        connDict = {}
+
+        msgSecs = None
+        curSecs = time.time()
+        endSecs = curSecs + timeoutSecs
+
+        while len(waitList) > 0 and curSecs < endSecs:
+            msgSecs = self.__stopComponents(waitList, connDict, msgSecs)
+            curSecs = time.time()
+            self.__logDebug(RunSetDebug.STOP_RUN,
+                            "STOPPING WAITCHK - %d secs, %d comps",
+                            endSecs - curSecs, len(waitList))
+
+        return waitList
+
     def __badStateString(self, badList):
         badStr = []
         for b in badList:
@@ -620,6 +677,75 @@ class RunSet(object):
             self.__state = RunSetState.ERROR
 
         return slst
+
+    def __finalReport(self, waitList, hadError):
+        xmlLog = DashXMLLog.DashXMLLog(dir_name=self.__runData.runDirectory())
+
+        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING report")
+        duration = self.__runData.reportRates(self.__set, xmlLog)
+        if duration < 0:
+            hadError = True
+        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING report done")
+
+        if hadError:
+            self.__runData.error("Run terminated WITH ERROR.")
+        else:
+            self.__runData.error("Run terminated SUCCESSFULLY.")
+
+        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING saveCatchall")
+        self.__parent.saveCatchall(self.__runData.runDirectory())
+
+        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING queueSpade")
+
+        # fill in the rest of the xml logging information
+        # run number
+        xmlLog.setRun(self.__runData.runNumber())
+        # cluster configuration
+        xmlLog.setConfig(self.__runData.clusterConfigName())
+        # start time
+        xmlLogStartTime = PayloadTime.toDateTime(self.__runData.firstPayTime())
+        xmlLog.setStartTime(xmlLogStartTime)
+        # run status
+        xmlLog.setTermCond(hadError)
+
+        # write the xml log file to disk
+        try:
+            xmlLog.writeLog()
+        except DashXMLLog.DashXMLLogException:
+            self.__logger.error("Could not write run xml log file \"%s\"" %
+                                xmlLog.getPath())
+
+
+        # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
+        # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
+        self.queueForSpade(duration)
+
+        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING stopLog")
+        self.__stopLogging()
+        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING stopLog done")
+
+        if len(waitList) > 0:
+            self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING rptZombies")
+            waitStr = None
+            for c in waitList:
+                if waitStr is None:
+                    waitStr = ''
+                else:
+                    waitStr += ', '
+                waitStr += c.fullName() + connDict[c]
+
+            errStr = '%s: Could not stop %s' % (str(self), waitStr)
+            self.__runData.error(errStr)
+            self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING rptZombies done")
+            raise RunSetException(errStr)
+
+        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING chkReady")
+        badList = self.__checkState(RunSetState.READY)
+        if len(badList) > 0:
+            self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING raiseError")
+            msg = "Could not stop %s" % self.__badStateString(badList)
+            self.__runData.error(msg)
+            raise RunSetException(msg)
 
     @staticmethod
     def __listComponentsCommaSep(compList):
@@ -738,6 +864,68 @@ class RunSet(object):
 
         self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP done")
 
+    def __stopComponents(self, waitList, connDict, msgSecs):
+                self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING WAITCHK top")
+                newList = waitList[:]
+                tGroup = ComponentOperationGroup(ComponentOperation.GET_STATE)
+                for c in waitList:
+                    tGroup.start(c, self.__logger, ())
+                tGroup.wait()
+                states = tGroup.results()
+                for c in waitList:
+                    if states.has_key(c):
+                        stateStr = str(states[c])
+                    else:
+                        stateStr = self.STATE_DEAD
+                    if stateStr != self.__state:
+                        newList.remove(c)
+                        if c in connDict:
+                            del connDict[c]
+
+                changed = False
+
+                # if any components have changed state...
+                #
+                if len(waitList) != len(newList):
+                    waitList[:] = newList
+                    changed = True
+
+                # ...or if any component's engines have changed state...
+                #
+                for c in waitList:
+                    csStr = c.getNonstoppedConnectorsString()
+                    if not c in connDict:
+                        connDict[c] = csStr
+                    elif connDict[c] != csStr:
+                        connDict[c] = csStr
+                        changed = True
+
+                if not changed:
+                    #
+                    # hmmm ... we may be hanging
+                    #
+                    time.sleep(1)
+                elif len(waitList) > 0:
+                    #
+                    # one or more components must have stopped
+                    #
+                    newSecs = time.time()
+                    if msgSecs is None or \
+                           newSecs < (msgSecs + self.WAIT_MSG_PERIOD):
+                        waitStr = None
+                        for c in waitList:
+                            if waitStr is None:
+                                waitStr = ''
+                            else:
+                                waitStr += ', '
+                            waitStr += c.fullName() + connDict[c]
+
+                        self.__runData.info('%s: Waiting for %s %s' %
+                                            (str(self), self.__state, waitStr))
+                        msgSecs = newSecs
+
+                return msgSecs
+
     def __stopLogging(self):
         self.resetLogging()
         tGroup = ComponentOperationGroup(ComponentOperation.STOP_LOGGING)
@@ -774,202 +962,23 @@ class RunSet(object):
         for i in range(0, 2):
             self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING phase %d", i)
             if i == 0:
-                self.__state = RunSetState.STOPPING
-                srcOp = ComponentOperation.STOP_RUN
-                timeoutSecs = int(RunSet.TIMEOUT_SECS * .75)
+                waitList = self.__attemptToStop(srcSet, otherSet,
+                                                RunSetState.STOPPING,
+                                                ComponentOperation.STOP_RUN,
+                                                int(RunSet.TIMEOUT_SECS * .75))
             else:
-                self.__state = RunSetState.FORCING_STOP
-                srcOp = ComponentOperation.FORCED_STOP
-                timeoutSecs = int(RunSet.TIMEOUT_SECS * .25)
-
-            waitList = srcSet + otherSet
-            if i == 1:
-                self.__runData.error('%s: Forcing %d components to stop: %s' %
-                                    (str(self), len(waitList),
-                                     self.__listComponentsCommaSep(waitList)))
-
-            # stop sources in parallel
-            #
-            self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING SRC create *%d",
-                            len(srcSet))
-            tGroup = ComponentOperationGroup(srcOp)
-            for c in srcSet:
-                tGroup.start(c, self.__runData, ())
-            tGroup.wait()
-            tGroup.reportErrors(self.__runData, self.__state)
-            self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING SRC done")
-
-            # stop non-sources in order
-            #
-            for c in otherSet:
-                self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING OTHER %s", c)
-                tGroup = ComponentOperationGroup(srcOp)
-                tGroup.start(c, self.__runData, ())
-                tGroup.wait()
-                tGroup.reportErrors(self.__runData, self.__state)
-                self.__logDebug(RunSetDebug.STOP_RUN,
-                                "STOPPING OTHER %s done", c)
-
-            connDict = {}
-
-
-            msgSecs = None
-            curSecs = time.time()
-            endSecs = curSecs + timeoutSecs
-
-            # number of seconds between "Waiting for ..." messages
-            #
-            waitMsgPeriod = 5
-
-            while len(waitList) > 0 and curSecs < endSecs:
-                self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING WAITCHK top")
-                newList = waitList[:]
-                tGroup = ComponentOperationGroup(ComponentOperation.GET_STATE)
-                for c in waitList:
-                    tGroup.start(c, self.__logger, ())
-                tGroup.wait()
-                states = tGroup.results()
-                for c in waitList:
-                    if states.has_key(c):
-                        stateStr = str(states[c])
-                    else:
-                        stateStr = self.STATE_DEAD
-                    if stateStr != self.__state:
-                        newList.remove(c)
-                        if c in connDict:
-                            del connDict[c]
-
-                changed = False
-
-                # if any components have changed state...
-                #
-                if len(waitList) != len(newList):
-                    waitList = newList
-                    changed = True
-
-                # ...or if any component's engines have changed state...
-                #
-                for c in waitList:
-                    csStr = c.getNonstoppedConnectorsString()
-                    if not c in connDict:
-                        connDict[c] = csStr
-                    elif connDict[c] != csStr:
-                        connDict[c] = csStr
-                        changed = True
-
-                if not changed:
-                    #
-                    # hmmm ... we may be hanging
-                    #
-                    time.sleep(1)
-                else:
-                    #
-                    # one or more components must have stopped
-                    #
-                    if len(waitList) > 0:
-                        newSecs = time.time()
-                        if msgSecs is None or \
-                               newSecs < (msgSecs + waitMsgPeriod):
-                            waitStr = None
-                            for c in waitList:
-                                if waitStr is None:
-                                    waitStr = ''
-                                else:
-                                    waitStr += ', '
-                                waitStr += c.fullName() + connDict[c]
-
-                            self.__runData.info('%s: Waiting for %s %s' %
-                                                (str(self), self.__state,
-                                                 waitStr))
-                            msgSecs = newSecs
-
-                curSecs = time.time()
-                self.__logDebug(RunSetDebug.STOP_RUN,
-                                "STOPPING WAITCHK - %d secs, %d comps",
-                                endSecs - curSecs, len(waitList))
-
-            # if the components all stopped normally, don't force-stop them
-            #
+                waitList = self.__attemptToStop(srcSet, otherSet,
+                                                RunSetState.FORCING_STOP,
+                                                ComponentOperation.FORCED_STOP,
+                                                int(RunSet.TIMEOUT_SECS * .25))
             if len(waitList) == 0:
                 break
-
-        if len(waitList) > 0:
-            hadError = True
 
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING reset")
         self.__runData.reset()
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING reset done")
 
-        xmlLog = DashXMLLog.DashXMLLog(dir_name=self.__runData.runDirectory())
-
-        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING report")
-        duration = self.__runData.reportRates(self.__set, xmlLog)
-        if duration < 0:
-            hadError = True
-        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING report done")
-
-        if hadError:
-            self.__runData.error("Run terminated WITH ERROR.")
-        else:
-            self.__runData.error("Run terminated SUCCESSFULLY.")
-
-        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING saveCatchall")
-        self.__parent.saveCatchall(self.__runData.runDirectory())
-
-        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING queueSpade")
-
-
-        # fill in the rest of the xml logging information
-        # run number
-        xmlLog.setRun(self.__runData.runNumber())
-        # cluster configuration
-        xmlLog.setConfig(self.__runData.clusterConfigName())
-        # start time
-        xmlLogStartTime = PayloadTime.toDateTime(self.__runData.firstPayTime())
-        xmlLog.setStartTime(xmlLogStartTime)
-        # run status
-        xmlLog.setTermCond(hadError)
-
-        # write the xml log file to disk
-        try:
-            xmlLog.writeLog()
-        except DashXMLLog.DashXMLLogException:
-            self.__logger.error("Could not write run xml log file" %
-                                xmlLog.getPath())
-
-
-        # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
-        # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
-        self.queueForSpade(duration)
-
-        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING stopLog")
-        self.__stopLogging()
-        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING stopLog done")
-
-        if len(waitList) > 0:
-            self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING rptZombies")
-            waitStr = None
-            for c in waitList:
-                if waitStr is None:
-                    waitStr = ''
-                else:
-                    waitStr += ', '
-                waitStr += c.fullName() + connDict[c]
-
-            errStr = '%s: Could not stop %s' % (str(self), waitStr)
-            self.__runData.error(errStr)
-            self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING rptZombies done")
-            raise RunSetException(errStr)
-
-        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING chkReady")
-        badList = self.__checkState(RunSetState.READY)
-        if len(badList) > 0:
-            self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING raiseError")
-            msg = "Could not stop %s" % self.__badStateString(badList)
-            self.__runData.error(msg)
-            raise RunSetException(msg)
-
-        return hadError
+        return waitList
 
     def __validateSubrunDOMs(self, subrunData):
         """
@@ -1543,14 +1552,20 @@ class RunSet(object):
 
         self.__stopping = True
         try:
-            rtnVal = self.__stopRunInternal(hadError)
+            waitList = self.__stopRunInternal(hadError)
         except:
             self.__logger.error("Could not stop run: " + exc_string())
+            waitList = []
+            hadError = True
             raise
         finally:
+            if len(waitList) > 0:
+                hadError = True
+            if self.__runData is not None:
+                self.__finalReport(waitList, hadError)
             self.__stopping = False
 
-        return rtnVal
+        return hadError
 
     def stopping(self):
         return self.__stopping

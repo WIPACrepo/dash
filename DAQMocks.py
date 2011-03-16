@@ -820,6 +820,18 @@ class MockLogger(LogChecker):
 
     def info(self, m): self._checkMsg(m)
 
+    def isDebugEnabled(self): return True
+
+    def isErrorEnabled(self): return True
+
+    def isFatalEnabled(self): return True
+
+    def isInfoEnabled(self): return True
+
+    def isTraceEnabled(self): return True
+
+    def isWarnEnabled(self): return True
+
     def setError(self, msg):
         raise Exception(msg)
 
@@ -1016,7 +1028,7 @@ class MockParallelShell(object):
         pass
 
     def getCmdResults(self):
-        
+
         # commands are in self.__exp
         ret = {}
         for exp,rtncode in zip(self.__exp, self.__rtnCodes):

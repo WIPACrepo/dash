@@ -234,6 +234,18 @@ class DAQLog(object):
 
     def info(self, msg): self._logmsg(DAQLog.INFO, msg)
 
+    def isDebugEnabled(self): return self.__level == DAQLog.DEBUG
+
+    def isErrorEnabled(self): return self.__level == DAQLog.ERROR
+
+    def isFatalEnabled(self): return self.__level == DAQLog.FATAL
+
+    def isInfoEnabled(self): return self.__level == DAQLog.INFO
+
+    def isTraceEnabled(self): return self.__level == DAQLog.TRACE
+
+    def isWarnEnabled(self): return self.__level == DAQLog.WARN
+
     def setLevel(self, level):
         self.__level = level
 
