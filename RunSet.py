@@ -865,66 +865,66 @@ class RunSet(object):
         self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP done")
 
     def __stopComponents(self, waitList, connDict, msgSecs):
-                self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING WAITCHK top")
-                newList = waitList[:]
-                tGroup = ComponentOperationGroup(ComponentOperation.GET_STATE)
+        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING WAITCHK top")
+        newList = waitList[:]
+        tGroup = ComponentOperationGroup(ComponentOperation.GET_STATE)
+        for c in waitList:
+            tGroup.start(c, self.__logger, ())
+        tGroup.wait()
+        states = tGroup.results()
+        for c in waitList:
+            if states.has_key(c):
+                stateStr = str(states[c])
+            else:
+                stateStr = self.STATE_DEAD
+            if stateStr != self.__state:
+                newList.remove(c)
+                if c in connDict:
+                    del connDict[c]
+
+        changed = False
+
+        # if any components have changed state...
+        #
+        if len(waitList) != len(newList):
+            waitList[:] = newList
+            changed = True
+
+        # ...or if any component's engines have changed state...
+        #
+        for c in waitList:
+            csStr = c.getNonstoppedConnectorsString()
+            if not c in connDict:
+                connDict[c] = csStr
+            elif connDict[c] != csStr:
+                connDict[c] = csStr
+                changed = True
+
+        if not changed:
+            #
+            # hmmm ... we may be hanging
+            #
+            time.sleep(1)
+        elif len(waitList) > 0:
+            #
+            # one or more components must have stopped
+            #
+            newSecs = time.time()
+            if msgSecs is None or \
+                   newSecs < (msgSecs + self.WAIT_MSG_PERIOD):
+                waitStr = None
                 for c in waitList:
-                    tGroup.start(c, self.__logger, ())
-                tGroup.wait()
-                states = tGroup.results()
-                for c in waitList:
-                    if states.has_key(c):
-                        stateStr = str(states[c])
+                    if waitStr is None:
+                        waitStr = ''
                     else:
-                        stateStr = self.STATE_DEAD
-                    if stateStr != self.__state:
-                        newList.remove(c)
-                        if c in connDict:
-                            del connDict[c]
+                        waitStr += ', '
+                    waitStr += c.fullName() + connDict[c]
 
-                changed = False
+                self.__runData.info('%s: Waiting for %s %s' %
+                                    (str(self), self.__state, waitStr))
+                msgSecs = newSecs
 
-                # if any components have changed state...
-                #
-                if len(waitList) != len(newList):
-                    waitList[:] = newList
-                    changed = True
-
-                # ...or if any component's engines have changed state...
-                #
-                for c in waitList:
-                    csStr = c.getNonstoppedConnectorsString()
-                    if not c in connDict:
-                        connDict[c] = csStr
-                    elif connDict[c] != csStr:
-                        connDict[c] = csStr
-                        changed = True
-
-                if not changed:
-                    #
-                    # hmmm ... we may be hanging
-                    #
-                    time.sleep(1)
-                elif len(waitList) > 0:
-                    #
-                    # one or more components must have stopped
-                    #
-                    newSecs = time.time()
-                    if msgSecs is None or \
-                           newSecs < (msgSecs + self.WAIT_MSG_PERIOD):
-                        waitStr = None
-                        for c in waitList:
-                            if waitStr is None:
-                                waitStr = ''
-                            else:
-                                waitStr += ', '
-                            waitStr += c.fullName() + connDict[c]
-
-                        self.__runData.info('%s: Waiting for %s %s' %
-                                            (str(self), self.__state, waitStr))
-                        msgSecs = newSecs
-
-                return msgSecs
+        return msgSecs
 
     def __stopLogging(self):
         self.resetLogging()
