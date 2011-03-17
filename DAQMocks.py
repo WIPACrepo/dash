@@ -567,6 +567,8 @@ class MockComponent(object):
         self.__monitorCount = 0
         self.__monitorState = '???'
         self.__isBadHub = False
+        self.__hangType = 0
+        self.__stopping = 0
 
     def __repr__(self): return str(self)
 
@@ -619,6 +621,14 @@ class MockComponent(object):
     def connectors(self):
         return self.__connectors[:]
 
+    def forcedStop(self):
+        if self.__stopping == 1:
+            if self.__hangType != 2:
+                self.runNum = None
+                self.__stopping = 0
+            else:
+                self.__stopping = 2
+
     def fullName(self):
         if self.__num == 0 and self.__name[-3:].lower() != 'hub':
             return self.__name
@@ -626,6 +636,9 @@ class MockComponent(object):
 
     def getConfigureWait(self):
         return self.__configWait
+
+    def getNonstoppedConnectorsString(self):
+        return ""
 
     def host(self):
         return self.__host
@@ -638,6 +651,9 @@ class MockComponent(object):
 
     def isConfigured(self):
         return self.__configured
+
+    def isHanging(self):
+        return self.__hangType != 0
 
     def isSource(self):
         return self.__isSrc
@@ -678,6 +694,9 @@ class MockComponent(object):
     def setConfigureWait(self, waitNum):
         self.__configWait = waitNum
 
+    def setHangType(self, hangType):
+        self.__hangType = hangType
+
     def setMonitorState(self, newState):
         self.__monitorState = newState
 
@@ -702,6 +721,10 @@ class MockComponent(object):
             if self.__configured and self.__configWait > 0:
                 self.__configWait -= 1
             return 'connected'
+        if self.__stopping == 1:
+            return "stopping"
+        elif self.__stopping == 2:
+            return "forcingStop"
         if not self.runNum:
             return 'ready'
 
@@ -711,7 +734,10 @@ class MockComponent(object):
         if self.runNum is None:
             raise Exception(self.__name + ' is not running')
 
-        self.runNum = None
+        if self.__hangType > 0:
+            self.__stopping = 1
+        else:
+            self.runNum = None
 
 class MockDeployComponent(Component):
     def __init__(self, name, id, logLevel, jvm, jvmArgs):

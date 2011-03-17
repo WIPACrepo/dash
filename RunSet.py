@@ -596,12 +596,13 @@ class RunSet(object):
     def __attemptToStop(self, srcSet, otherSet, newState, srcOp, timeoutSecs):
         self.__state = newState
 
-        waitList = srcSet + otherSet
-
-        if srcOp == ComponentOperation.FORCED_STOP:
-            self.__runData.error('%s: Forcing %d components to stop: %s' %
-                                 (str(self), len(waitList),
-                                  self.__listComponentsCommaSep(waitList)))
+        if self.__runData.isErrorEnabled() and \
+               srcOp == ComponentOperation.FORCED_STOP:
+            fullSet = srcSet + otherSet
+            self.__runData.error('%s: Forcing %d component%s to stop: %s' %
+                                 (str(self), len(fullSet),
+                                  len(fullSet) == 0 and "s" or "",
+                                  self.__listComponentsCommaSep(fullSet)))
 
         # stop sources in parallel
         #
@@ -631,14 +632,13 @@ class RunSet(object):
         curSecs = time.time()
         endSecs = curSecs + timeoutSecs
 
-        while len(waitList) > 0 and curSecs < endSecs:
-            msgSecs = self.__stopComponents(waitList, connDict, msgSecs)
+        while (len(srcSet) > 0 or len(otherSet) > 0) and curSecs < endSecs:
+            msgSecs = self.__stopComponents(srcSet, otherSet, connDict, msgSecs)
             curSecs = time.time()
             self.__logDebug(RunSetDebug.STOP_RUN,
                             "STOPPING WAITCHK - %d secs, %d comps",
-                            endSecs - curSecs, len(waitList))
+                            endSecs - curSecs, len(srcSet) + len(otherSet))
 
-        return waitList
 
     def __badStateString(self, badList):
         badStr = []
@@ -728,7 +728,7 @@ class RunSet(object):
 
         if len(waitList) > 0:
             self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING rptZombies")
-            waitStr = self.__listComponentsCommaSep(waitList, connDict)
+            waitStr = self.__listComponentsCommaSep(waitList)
             errStr = '%s: Could not stop %s' % (str(self), waitStr)
             self.__runData.error(errStr)
             self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING rptZombies done")
@@ -862,55 +862,52 @@ class RunSet(object):
 
         self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP done")
 
-    def __stopComponents(self, waitList, connDict, msgSecs):
+    def __stopComponents(self, srcSet, otherSet, connDict, msgSecs):
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING WAITCHK top")
-        newList = waitList[:]
         tGroup = ComponentOperationGroup(ComponentOperation.GET_STATE)
-        for c in waitList:
+        for c in srcSet:
+            tGroup.start(c, self.__logger, ())
+        for c in otherSet:
             tGroup.start(c, self.__logger, ())
         tGroup.wait()
-        states = tGroup.results()
-        for c in waitList:
-            if states.has_key(c):
-                stateStr = str(states[c])
-            else:
-                stateStr = self.STATE_DEAD
-            if stateStr != self.__state:
-                newList.remove(c)
-                if c in connDict:
-                    del connDict[c]
 
         changed = False
 
-        # if any components have changed state...
-        #
-        if len(waitList) != len(newList):
-            waitList[:] = newList
-            changed = True
-
-        # ...or if any component's engines have changed state...
-        #
-        for c in waitList:
-            csStr = c.getNonstoppedConnectorsString()
-            if not c in connDict:
-                connDict[c] = csStr
-            elif connDict[c] != csStr:
-                connDict[c] = csStr
-                changed = True
+        states = tGroup.results()
+        for set in (srcSet, otherSet):
+            copy = set[:]
+            for c in copy:
+                if states.has_key(c):
+                    stateStr = str(states[c])
+                else:
+                    stateStr = self.STATE_DEAD
+                if stateStr != self.__state:
+                    set.remove(c)
+                    if c in connDict:
+                        del connDict[c]
+                    changed = True
+                else:
+                    csStr = c.getNonstoppedConnectorsString()
+                    if not c in connDict:
+                        connDict[c] = csStr
+                    elif connDict[c] != csStr:
+                        connDict[c] = csStr
+                        changed = True
 
         if not changed:
             #
             # hmmm ... we may be hanging
             #
             time.sleep(1)
-        elif len(waitList) > 0:
+        elif len(srcSet) > 0 or len(otherSet) > 0:
             #
             # one or more components must have stopped
             #
             newSecs = time.time()
             if msgSecs is None or \
                    newSecs < (msgSecs + self.WAIT_MSG_PERIOD):
-                waitStr = self.__listComponentsCommaSep(waitList, connDict)
+                waitStr = self.__listComponentsCommaSep(srcSet + otherSet,
+                                                        connDict)
                 self.__runData.info('%s: Waiting for %s %s' %
                                     (str(self), self.__state, waitStr))
                 msgSecs = newSecs
@@ -953,23 +950,21 @@ class RunSet(object):
         for i in range(0, 2):
             self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING phase %d", i)
             if i == 0:
-                waitList = self.__attemptToStop(srcSet, otherSet,
-                                                RunSetState.STOPPING,
-                                                ComponentOperation.STOP_RUN,
-                                                int(RunSet.TIMEOUT_SECS * .75))
+                self.__attemptToStop(srcSet, otherSet, RunSetState.STOPPING,
+                                     ComponentOperation.STOP_RUN,
+                                     int(RunSet.TIMEOUT_SECS * .75))
             else:
-                waitList = self.__attemptToStop(srcSet, otherSet,
-                                                RunSetState.FORCING_STOP,
-                                                ComponentOperation.FORCED_STOP,
-                                                int(RunSet.TIMEOUT_SECS * .25))
-            if len(waitList) == 0:
+                self.__attemptToStop(srcSet, otherSet, RunSetState.FORCING_STOP,
+                                     ComponentOperation.FORCED_STOP,
+                                     int(RunSet.TIMEOUT_SECS * .25))
+            if len(srcSet) == 0 and len(otherSet) == 0:
                 break
 
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING reset")
         self.__runData.reset()
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING reset done")
 
-        return waitList
+        return srcSet + otherSet
 
     def __validateSubrunDOMs(self, subrunData):
         """
@@ -1542,12 +1537,13 @@ class RunSet(object):
             return False
 
         self.__stopping = True
+        waitList = []
+        hadError = True
         try:
             waitList = self.__stopRunInternal(hadError)
+            hadError = False
         except:
             self.__logger.error("Could not stop run: " + exc_string())
-            waitList = []
-            hadError = True
             raise
         finally:
             if len(waitList) > 0:

@@ -254,7 +254,7 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
-    def __runTests(self, compList, runNum):
+    def __runTests(self, compList, runNum, hangType=None):
         logger = MockLogger('foo#0')
 
         num = 1
@@ -368,13 +368,53 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
+        expState = "stopping"
+
+        hangStr = None
+        forceStr = None
+        hangList = []
+        if hangType > 0:
+            for c in compList:
+                if c.isHanging():
+                    if hangStr is None:
+                        hangStr = ''
+                    else:
+                        hangStr += ', '
+                    hangStr += c.fullName()
+                    hangList.append((c, expState))
+
+        if hangType > 0:
+            logger.addExpectedExact(("RunSet #%d run#%d (%s):" +
+                                     " Waiting for %s %s") %
+                                    (runset.id(), runNum, expState, expState,
+                                     hangStr))
+            logger.addExpectedExact(("RunSet #%d run#%d (%s):" +
+                                     " Forcing 1 component to stop: %s") %
+                                    (runset.id(), runNum, "forcingStop",
+                                     hangStr))
+
         logger.addExpectedExact("0 physics events collected in 0 seconds")
         logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
-        logger.addExpectedExact("Run terminated SUCCESSFULLY.")
+        if hangType > 1:
+            expState = "forcingStop"
+            logger.addExpectedExact("Run terminated WITH ERROR.")
+            logger.addExpectedExact(("RunSet #%d run#%d (%s):" +
+                                     " Could not stop %s") %
+                                    (runset.id(), runNum, expState, hangStr))
+        else:
+            logger.addExpectedExact("Run terminated SUCCESSFULLY.")
 
-        self.failIf(runset.stopRun(), "stopRun() encountered error")
-
-        expState = "ready"
+        if hangType < 2:
+            self.failIf(runset.stopRun(), "stopRun() encountered error")
+            expState = "ready"
+        else:
+            try:
+                if not runset.stopRun():
+                    self.fail("stopRun() should have failed")
+            except RunSetException, rse:
+                expMsg = "RunSet #%d run#%d (%s): Could not stop %s" % \
+                         (runset.id(), runNum, expState, hangStr)
+                self.assertEqual(str(rse), expMsg, "Bad exception: %s" % rse)
 
         self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %
                          (runset.id(), runNum, expState))
@@ -385,7 +425,8 @@ class TestRunSet(unittest.TestCase):
             self.failIf(self.__isCompListRunning(compList),
                         'Components should not be running')
 
-        self.__checkStatus(runset, compList, expState)
+        if hangType == 0:
+            self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
         runset.reset()
@@ -414,7 +455,6 @@ class TestRunSet(unittest.TestCase):
         self.__runTests(compList, 2)
 
     def testSubrunGood(self):
-
         compList = self.__buildCompList(("fooHub", "barHub", "bazBuilder"))
 
         self.__runSubrun(compList, 3)
@@ -424,7 +464,7 @@ class TestRunSet(unittest.TestCase):
         compList = self.__buildCompList(("fooHub", "barHub", "bazBuilder"))
         compList[1].setBadHub()
 
-        self.__runSubrun(compList, 3, expectError="on %s" %
+        self.__runSubrun(compList, 4, expectError="on %s" %
                          compList[1].fullName())
 
     def testSubrunBothBad(self):
@@ -433,7 +473,27 @@ class TestRunSet(unittest.TestCase):
         compList[0].setBadHub()
         compList[1].setBadHub()
 
-        self.__runSubrun(compList, 3, expectError="on any string hubs")
+        self.__runSubrun(compList, 5, expectError="on any string hubs")
+
+    def testStopHang(self):
+        hangType = 1
+
+        compList = self.__buildCompList(("foo", "bar"))
+        compList[1].setHangType(hangType)
+
+        RunSet.TIMEOUT_SECS = 5
+
+        self.__runTests(compList, 6, hangType=hangType)
+
+    def testForcedStopHang(self):
+        hangType = 2
+
+        compList = self.__buildCompList(("foo", "bar"))
+        compList[1].setHangType(hangType)
+
+        RunSet.TIMEOUT_SECS = 5
+
+        self.__runTests(compList, 7, hangType=hangType)
 
     def testRestartFailCluCfg(self):
         compList = self.__buildCompList(("sleepy", "sneezy", "happy", "grumpy",
