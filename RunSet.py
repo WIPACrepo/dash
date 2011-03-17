@@ -111,23 +111,25 @@ class ConnTypeEntry(object):
 
         # if there are no inputs, throw an error
         if inLen == 0:
-            outStr = ''
+            outStr = None
             for outComp in self.__outList + self.__optOutList:
-                if len(outStr) == 0:
-                    outStr = str(outComp)
+                if outStr is None:
+                    outStr = ''
                 else:
-                    outStr += ', ' + str(outComp)
+                    outStr += ', '
+                outStr += str(outComp)
             raise ConnectionException('No inputs found for %s outputs (%s)' %
                                       (self.__type, outStr))
 
         # if there are no outputs, throw an error
         if outLen == 0:
-            inStr = ''
+            inStr = None
             for inPair in self.__inList + self.__optInList:
-                if len(inStr) == 0:
-                    inStr = str(inPair[1])
+                if inStr is None:
+                    inStr = ''
                 else:
-                    inStr += ', ' + str(inPair[1])
+                    inStr += ', '
+                inStr += str(inPair[1])
             raise ConnectionException('No outputs found for %s inputs (%s)' %
                                       (self.__type, inStr))
 
@@ -726,14 +728,7 @@ class RunSet(object):
 
         if len(waitList) > 0:
             self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING rptZombies")
-            waitStr = None
-            for c in waitList:
-                if waitStr is None:
-                    waitStr = ''
-                else:
-                    waitStr += ', '
-                waitStr += c.fullName() + connDict[c]
-
+            waitStr = self.__listComponentsCommaSep(waitList, connDict)
             errStr = '%s: Could not stop %s' % (str(self), waitStr)
             self.__runData.error(errStr)
             self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING rptZombies done")
@@ -748,17 +743,20 @@ class RunSet(object):
             raise RunSetException(msg)
 
     @staticmethod
-    def __listComponentsCommaSep(compList):
+    def __listComponentsCommaSep(compList, connDict=None):
         """
         Concatenate a list of components into a string showing names and IDs
         """
         compStr = None
         for c in compList:
-            if compStr == None:
+            if compStr is None:
                 compStr = ''
             else:
                 compStr += ', '
-            compStr += c.fullName()
+            if connDict is None or not connDict.has_key(c):
+                compStr += c.fullName()
+            else:
+                compStr += c.fullName() + connDict[c]
         return compStr
 
 
@@ -912,14 +910,7 @@ class RunSet(object):
             newSecs = time.time()
             if msgSecs is None or \
                    newSecs < (msgSecs + self.WAIT_MSG_PERIOD):
-                waitStr = None
-                for c in waitList:
-                    if waitStr is None:
-                        waitStr = ''
-                    else:
-                        waitStr += ', '
-                    waitStr += c.fullName() + connDict[c]
-
+                waitStr = self.__listComponentsCommaSep(waitList, connDict)
                 self.__runData.info('%s: Waiting for %s %s' %
                                     (str(self), self.__state, waitStr))
                 msgSecs = newSecs
