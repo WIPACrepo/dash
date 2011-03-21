@@ -481,7 +481,7 @@ class CnCRunSetTest(unittest.TestCase):
                 else:
                     for f in cls.BEAN_DATA[c.name()][b]:
                         c.setBeanData(b, f, cls.BEAN_DATA[c.name()][b][f])
-    
+
     @classmethod
     def __loadRadarDOMMap(cls):
         RadarThread.DOM_MAP[cls.RADAR_DOM] = cls.HUB_NUMBER

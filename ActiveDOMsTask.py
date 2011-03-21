@@ -32,29 +32,27 @@ class ActiveDOMThread(CnCThread):
 
         for c in self.__comps:
             if c.isSource():
-                
+
                 # collect the number of active and total channels
                 try:
-                    nList = c.getSingleBeanField("stringhub",
-                                                 "NumberOfActiveAndTotalChannels")
+                    nList = \
+                          c.getSingleBeanField("stringhub",
+                                               "NumberOfActiveAndTotalChannels")
                 except Exception, e:
-                    self.__dashlog.error("Cannot get # active and total DOMS from" +
-                                         " %s: %s" %
+                    self.__dashlog.error("Cannot get # active and total DOMS" +
+                                         " from %s: %s" %
                                          (c.fullName(), exc_string()))
-                    print "Exception: "
-                    print e
-
                     continue
 
-                
+
                 try:
-                    hubActiveDoms, hubTotalDoms = [ int(a) for a in nList ] 
+                    hubActiveDoms, hubTotalDoms = [ int(a) for a in nList ]
                 except:
                     self.__dashlog.error("Cannot get # active DOMS from" +
                                          " %s string: %s" %
                                          (c.fullName(), exc_string()))
                     continue
-                
+
                 activeTotal += hubActiveDoms
                 total += hubTotalDoms
 
@@ -63,7 +61,8 @@ class ActiveDOMThread(CnCThread):
 
         now = datetime.datetime.now()
 
-        self.__liveMoniClient.sendMoni("totalDOMs", (activeTotal,total), Prio.ITS)
+        self.__liveMoniClient.sendMoni("totalDOMs", (activeTotal, total),
+                                       Prio.ITS)
 
         if self.__sendDetails:
             if not self.__liveMoniClient.sendMoni("stringDOMsInfo", hubDOMs,

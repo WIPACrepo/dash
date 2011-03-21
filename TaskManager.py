@@ -43,6 +43,9 @@ class TaskManager(threading.Thread):
         while self.__running:
             waitSecs = CnCTask.MAX_TASK_SECS
             for t in self.__tasks:
+                # don't do remaining tasks if stop() has been called
+                if not self.__running: break
+
                 try:
                     taskSecs = t.check()
                 except:
@@ -85,12 +88,13 @@ class TaskManager(threading.Thread):
         self.__runset.setError()
 
     def stop(self):
-        self.__flag.acquire()
-        try:
-            self.__running = False
-            self.__flag.notify()
-        finally:
-            self.__flag.release()
+        if self.__running:
+            self.__flag.acquire()
+            try:
+                self.__running = False
+                self.__flag.notify()
+            finally:
+                self.__flag.release()
 
     def waitForTasks(self):
         for t in self.__tasks:
