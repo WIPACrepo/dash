@@ -637,9 +637,16 @@ class LiveRun(BaseRun):
 
     def stopRun(self):
         """Stop the run"""
-        pass
+        cmd = "%s stop daq" % self.__liveCmdProg
+        if not self.__runBasicCommand("StopRun", cmd):
+            return False
 
     def waitForStopped(self):
+        if self.__state.runState() != LiveRunState.STOPPING and \
+                self.__state.runState() != LiveRunState.STOPPED:
+            if not self.__waitForState(self.__state.runState(),
+                                       LiveRunState.STOPPING, 60, 0):
+                return False
         return self.__waitForState(LiveRunState.STOPPING, LiveRunState.STOPPED,
                                    60, 0)
 

@@ -2,7 +2,7 @@
 #
 # Run standard pDAQ tests
 
-import optparse, os, re, socket, stat, subprocess, sys
+import os, re, socket, stat, subprocess, sys
 from ClusterDescription import ClusterDescription
 from cncrun import CnCRun
 from liverun import LiveRun
@@ -191,6 +191,8 @@ class Deploy(object):
         print "==============================================================="
 
 if __name__ == "__main__":
+    import optparse, signal
+
     op = optparse.OptionParser()
     op.add_option("-c", "--cncrun", dest="cncrun",
                   action="store_true", default=False,
@@ -266,6 +268,10 @@ if __name__ == "__main__":
         # always kill running components in case they're from a previous release
         #
         liveRun.killComponents()
+
+        # stop existing runs gracefully on ^C
+        #
+        signal.signal(signal.SIGINT, liveRun.stopOnSIGINT)
 
         for data in RUN_LIST:
             data.run(liveRun, opt.quick)

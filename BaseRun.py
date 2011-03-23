@@ -174,9 +174,10 @@ class Run(object):
 
     def finish(self):
         "clean up after run has ended"
-        self.__mgr.stopRun()
+        if not self.__mgr.isStopped(True):
+            self.__mgr.stopRun()
 
-        if not self.__mgr.waitForStopped():
+        if not self.__mgr.isStopped(True) and not self.__mgr.waitForStopped():
             raise RunException("Run %d did not stop" % self.__runNum)
 
         if self.__flashThread is not None:
@@ -484,6 +485,14 @@ class BaseRun(object):
     def state(self):
         """Current state of runset"""
         raise NotImplementedError()
+
+    def stopOnSIGINT(self, signal, frame):
+        print "Caught signal, stopping run"
+        if self.isRunning(True):
+            self.stopRun()
+            self.waitForStopped()
+        print "Exiting"
+        raise SystemExit
 
     def stopRun(self):
         """Stop the run"""
