@@ -395,14 +395,27 @@ class RunData(object):
          numTcal, tcalTime) = self.__runStats.monitorData()
 
         monDict["physicsEvents"] = numEvts
-        monDict["eventTime"] = str(evtTime)
-        monDict["eventPayloadTime"] = str(payTime)
+        if evtTime is None or numEvts == 0:
+            monDict["eventTime"] = None
+            monDict["eventPayloadTime"] = None
+        else:
+            monDict["eventTime"] = str(evtTime)
+            monDict["eventPayloadTime"] = str(payTime)
         monDict["moniEvents"] = numMoni
-        monDict["moniTime" ] = str(moniTime)
+        if moniTime is None or numMoni == 0:
+            monDict["moniTime" ] = None
+        else:
+            monDict["moniTime" ] = str(moniTime)
         monDict["snEvents"] = numSN
-        monDict["snTime" ] = str(snTime)
+        if snTime is None or numSN == 0:
+            monDict["snTime" ] = None
+        else:
+            monDict["snTime" ] = str(snTime)
         monDict["tcalEvents"] = numTcal
-        monDict["tcalTime" ] = str(tcalTime)
+        if tcalTime is None or numTcal == 0:
+            monDict["tcalTime" ] = None
+        else:
+            monDict["tcalTime" ] = str(tcalTime)
 
         return monDict
 
@@ -486,20 +499,30 @@ class RunData(object):
             self.__liveMoniClient.sendMoni("eventRates", moniData, Prio.ITS)
         else:
             # send discrete messages for each type of event
-            self.__liveMoniClient.sendMoni("physicsEvents",
-                                           moniData["physicsEvents"],
-                                           Prio.ITS,
-                                           moniData["eventPayloadTime"])
-            self.__liveMoniClient.sendMoni("walltimeEvents",
-                                           moniData["physicsEvents"],
-                                           Prio.EMAIL, moniData["eventTime"])
-            self.__liveMoniClient.sendMoni("moniEvents", moniData["moniEvents"],
-                                           Prio.EMAIL, moniData["moniTime"])
-            self.__liveMoniClient.sendMoni("snEvents", moniData["snEvents"],
-                                           Prio.EMAIL, moniData["snTime"])
-            self.__liveMoniClient.sendMoni("tcalEvents",
-                                           moniData["tcalEvents"],
-                                           Prio.EMAIL, moniData["tcalTime"])
+            if moniData["eventPayloadTime"] is not None:
+                self.__liveMoniClient.sendMoni("physicsEvents",
+                                               moniData["physicsEvents"],
+                                               Prio.ITS,
+                                               moniData["eventPayloadTime"])
+            if moniData["eventTime"] is not None:
+                self.__liveMoniClient.sendMoni("walltimeEvents",
+                                               moniData["physicsEvents"],
+                                               Prio.EMAIL,
+                                               moniData["eventTime"])
+            if moniData["moniTime"] is not None:
+                self.__liveMoniClient.sendMoni("moniEvents",
+                                               moniData["moniEvents"],
+                                               Prio.EMAIL,
+                                               moniData["moniTime"])
+            if moniData["snTime"] is not None:
+                self.__liveMoniClient.sendMoni("snEvents",
+                                               moniData["snEvents"],
+                                               Prio.EMAIL, moniData["snTime"])
+            if moniData["tcalTime"] is not None:
+                self.__liveMoniClient.sendMoni("tcalEvents",
+                                               moniData["tcalEvents"],
+                                               Prio.EMAIL,
+                                               moniData["tcalTime"])
 
     def setDebugBits(self, debugBits):
         if self.__taskMgr is not None:
