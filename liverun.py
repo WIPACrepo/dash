@@ -423,12 +423,12 @@ class LiveRun(BaseRun):
 
         return not problem
 
-    def __waitForState(self, curState, expState, numTries, numErrors=0,
+    def __waitForState(self, initState, expState, numTries, numErrors=0,
                        waitSecs=10):
         """
         Wait for the specified state
 
-        curState - current detector state
+        initState - expected initial detector state
         expState - expected final state
         numTries - number of tries before ceasing to wait
         numErrors - number of ERROR states allowed before assuming
@@ -436,6 +436,7 @@ class LiveRun(BaseRun):
         waitSecs - number of seconds to wait on each "try"
         """
         prevState = self.__state.runState()
+        curState = prevState
 
         if prevState != expState:
             print "Switching from %s to %s" % (prevState, expState)
@@ -444,35 +445,35 @@ class LiveRun(BaseRun):
         for i in range(numTries):
             self.__state.check()
 
-            if self.__state.runState() != prevState:
+            curState = self.__state.runState()
+            if curState != prevState:
                 swTime = int(time.time() - startTime)
                 print "  Switched from %s to %s in %s secs" % \
-                    (prevState, self.__state.runState(), swTime)
+                    (prevState, curState, swTime)
 
-                prevState = self.__state.runState()
+                prevState = curState
                 startTime = time.time()
 
-            if self.__state.runState() == expState:
+            if curState == expState:
                 break
 
-            if numErrors > 0 and self.__state.runState() == LiveRunState.ERROR:
+            if numErrors > 0 and curState == LiveRunState.ERROR:
                 time.sleep(5)
                 numErrors -= 1
                 continue
 
-            if self.__state.runState() != curState and \
-                    self.__state.runState() != LiveRunState.RECOVERING:
+            if curState != initState and curState != LiveRunState.RECOVERING:
                 raise StateException(("I3Live state should be %s or" +
                                       " RECOVERING, not %s") %
-                                     (curState, self.__state.runState()))
+                                     (initState, curState))
 
             time.sleep(waitSecs)
 
-        if self.__state.runState() != expState:
+        if curState != expState:
             totTime = int(time.time() - startTime)
             raise StateException(("I3Live state should be %s, not %s" +
                                   " (waited %d secs)") %
-                                 (expState, self.__state.runState(), totTime))
+                                 (expState, curState, totTime))
 
         return True
 
