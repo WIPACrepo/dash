@@ -171,13 +171,13 @@ class CnCRun(BaseRun):
             return None
         return self.__runNum
 
-    def isDead(self):
+    def isDead(self, refreshState=False):
         return self.__cnc is None
 
     def isRecovering(self, refreshState=False):
         return False
 
-    def isRunning(self):
+    def isRunning(self, refreshState=False):
         if self.__cnc is None:
             self.__reconnect(False)
         if self.__runSetId is None:
