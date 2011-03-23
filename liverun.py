@@ -627,7 +627,7 @@ class LiveRun(BaseRun):
             except:
                 str = "Run did not start"
             raise RunException(str)
-            
+
         return self.__waitForState(LiveRunState.STARTING, LiveRunState.RUNNING,
                                    18, 0)
 

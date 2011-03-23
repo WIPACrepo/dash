@@ -111,7 +111,7 @@ class Run(object):
         self.__lightMode = None
 
         # __runNum being 0 is considered a safe initializer as per Dave G.
-        # it was None which would cause a TypeError on some 
+        # it was None which would cause a TypeError on some
         # error messages
         self.__runNum = 0
         self.__duration = None
