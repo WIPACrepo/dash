@@ -591,7 +591,7 @@ class LiveRun(BaseRun):
             time.sleep(waitSecs)
 
         if self.__state.lightMode() != expMode:
-            raise LightModeException("I3Live state should be %s, not %s" %
+            raise LightModeException("I3Live lightMode should be %s, not %s" %
                                      (expMode, self.__state.lightMode()))
 
         return True
