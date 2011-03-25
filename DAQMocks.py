@@ -148,6 +148,9 @@ class LiveChecker(BaseLiveChecker):
                 return vstr[:-1]
             return vstr
 
+        if type(val) == bool:
+            return self.__value and "true" or "false"
+
         return str(val)
 
     def _checkText(self, checker, msg, debug, setError):

@@ -78,7 +78,7 @@ class DAQLive(Component):
         if self.__runSet is not None and not self.__runSet.isDestroyed():
             self.__cnc.breakRunset(self.__runSet)
 
-        self.__runSet = self.__cnc.makeRunsetFromRunConfig(runCfg)
+        self.__runSet = self.__cnc.makeRunsetFromRunConfig(runCfg, runNum)
         if self.__runSet is None:
             raise LiveException("Cannot create runset for \"%s\"" % runCfg)
 

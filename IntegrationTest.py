@@ -1005,7 +1005,6 @@ class IntegrationTest(unittest.TestCase):
         return connList
 
     def __registerComponents(self, liveLog, logServer, liveRunOnly):
-        
         for comp in self.__compList:
             if logServer is not None:
                 logServer.addExpectedTextRegexp("Registered %s" %
@@ -1176,7 +1175,7 @@ class IntegrationTest(unittest.TestCase):
         if live is not None:
             live.starting({'runNumber':runNum, 'runConfig':configName})
         else:
-            id = cnc.rpc_runset_make(configName)
+            id = cnc.rpc_runset_make(configName, runNum)
             self.assertEquals(setId, id,
                               "Expected to create runset #%d, not #%d" %
                               (setId, id))

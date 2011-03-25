@@ -401,7 +401,9 @@ class TestDAQServer(unittest.TestCase):
         logger.addExpectedTextRegexp('Loaded run configuration .*')
         logger.addExpectedTextRegexp("Built runset #\d+: .*")
 
-        setId = dc.rpc_runset_make(runConfig, strict=False)
+        runNum = 456
+
+        setId = dc.rpc_runset_make(runConfig, runNum, strict=False)
 
         logger.checkStatus(100)
 
@@ -421,8 +423,6 @@ class TestDAQServer(unittest.TestCase):
         self.assertEqual("ready", rsc["state"])
 
         logger.checkStatus(100)
-
-        runNum = 456
 
         logger.addExpectedText("Starting run #%d with \"%s\"" %
                                 (runNum, cluCfg.configName()))

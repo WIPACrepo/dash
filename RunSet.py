@@ -293,7 +293,7 @@ class RunData(object):
                         self.__dashlog.error(msg)
                     else:
                         self.__firstPayTime = val
-                        self.__reportRunStart()
+                        self.__reportEventStart()
 
             if c.isComponent("secondaryBuilders"):
                 for bldr in ("moni", "sn", "tcal"):
@@ -337,18 +337,11 @@ class RunData(object):
 
         return log
 
-    def __reportRunStart(self):
+    def __reportEventStart(self):
         if self.__liveMoniClient is not None:
             time = PayloadTime.toDateTime(self.__firstPayTime)
             data = { "runnum" : self.__runNumber }
-            self.__liveMoniClient.sendMoni("runstart", data, prio=Prio.SCP,
-                                           time=time)
-
-    def __reportRunStop(self, numEvts, lastPayTime):
-        if self.__liveMoniClient is not None:
-            time = PayloadTime.toDateTime(lastPayTime)
-            data = { "events" : numEvts, "runnum" : self.__runNumber }
-            self.__liveMoniClient.sendMoni("runstop", data, prio=Prio.SCP,
+            self.__liveMoniClient.sendMoni("eventstart", data, prio=Prio.SCP,
                                            time=time)
 
     def clusterConfigName(self):
@@ -451,7 +444,7 @@ class RunData(object):
                                  self.__runNumber, datetime.datetime.now(),
                                  duration)
 
-    def reportRates(self, comps, xmlLog):
+    def reportRates(self, comps):
         try:
             (numEvts, numMoni, numSN, numTcal, firstTime, lastTime) = \
                 self.__runStats.stop(self.__getRateData(comps))
@@ -467,8 +460,6 @@ class RunData(object):
         else:
             duration  = (lastTime - firstTime) / 10000000000
 
-        self.__reportRunStop(numEvts, lastTime)
-
         if duration == 0:
             rateStr = ""
         else:
@@ -477,15 +468,47 @@ class RunData(object):
                               "seconds%s") % (numEvts, duration, rateStr))
         self.__dashlog.error("%d moni events, %d SN events, %d tcals" %
                              (numMoni, numSN, numTcal))
-        xmlLog.setEvents(numEvts)
-        xmlLog.setMoni(numMoni)
-        xmlLog.setTcal(numTcal)
-        xmlLog.setSN(numSN)
-        # end time string
-        xmlLogEndTime = PayloadTime.toDateTime(lastTime)
-        xmlLog.setEndTime(xmlLogEndTime)
 
-        return duration
+        return (numEvts, numMoni, numSN, numTcal, firstTime, lastTime, duration)
+
+    def reportRunStart(self, runNum, release, revision, started):
+        if self.__liveMoniClient is not None:
+            self.reportRunStart(self.__liveMoniClient, runNum, release,
+                                revision, started)
+
+    @classmethod
+    def reportRunStartClass(self, moniClient, runNum, release, revision,
+                            started):
+        """
+        This is a class method because failed runsets must be reported to
+        I3Live, but only successful runsets initialize RunData
+        """
+        time = datetime.datetime.now()
+        data = { "runnum" : runNum,
+                 "release" : release,
+                 "revision" : revision,
+                 "started" : started }
+        moniClient.sendMoni("runstart", data, prio=Prio.SCP, time=time)
+
+    def reportRunStop(self, numEvts, firstPayTime, lastPayTime, hadError):
+        if self.__liveMoniClient is not None:
+            firstDT = PayloadTime.toDateTime(firstPayTime)
+            lastDT = PayloadTime.toDateTime(lastPayTime)
+
+            if hadError is None:
+                status = "UNKNOWN"
+            elif hadError:
+                status = "FAIL"
+            else:
+                status = "SUCCESS"
+
+            data = { "runnum" : self.__runNumber,
+                     "runstart" : str(firstDT),
+                     "events" : numEvts,
+                     "status" : status }
+
+            self.__liveMoniClient.sendMoni("runstop", data, prio=Prio.SCP,
+                                           time=lastDT)
 
     def reset(self):
         if self.__taskMgr is not None:
@@ -710,10 +733,9 @@ class RunSet(object):
         return slst
 
     def __finalReport(self, waitList, hadError):
-        xmlLog = DashXMLLog.DashXMLLog(dir_name=self.__runData.runDirectory())
-
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING report")
-        duration = self.__runData.reportRates(self.__set, xmlLog)
+        (numEvts, numMoni, numSN, numTcal, firstTime, lastTime, duration) = \
+                  self.__runData.reportRates(self.__set)
         if duration < 0:
             hadError = True
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING report done")
@@ -723,29 +745,15 @@ class RunSet(object):
         else:
             self.__runData.error("Run terminated SUCCESSFULLY.")
 
+        self.__runData.reportRunStop(numEvts, firstTime, lastTime, hadError)
+
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING saveCatchall")
         self.__parent.saveCatchall(self.__runData.runDirectory())
 
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING queueSpade")
 
-        # fill in the rest of the xml logging information
-        # run number
-        xmlLog.setRun(self.__runData.runNumber())
-        # cluster configuration
-        xmlLog.setConfig(self.__runData.clusterConfigName())
-        # start time
-        xmlLogStartTime = PayloadTime.toDateTime(self.__runData.firstPayTime())
-        xmlLog.setStartTime(xmlLogStartTime)
-        # run status
-        xmlLog.setTermCond(hadError)
-
-        # write the xml log file to disk
-        try:
-            xmlLog.writeLog()
-        except DashXMLLog.DashXMLLogException:
-            self.__logger.error("Could not write run xml log file \"%s\"" %
-                                xmlLog.getPath())
-
+        self.__writeRunXML(numEvts, numMoni, numSN, numTcal, firstTime,
+                           lastTime, duration, hadError)
 
         # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
         # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
@@ -1078,6 +1086,28 @@ class RunSet(object):
                                    " leave %s (%s)") %
                                   (len(waitList), self.__state, waitStr))
 
+    def __writeRunXML(self,numEvts, numMoni, numSN, numTcal, firstTime,
+                      lastTime, duration, hadError):
+
+        xmlLog = DashXMLLog.DashXMLLog(dir_name=self.__runData.runDirectory())
+
+        xmlLog.setRun(self.__runData.runNumber())
+        xmlLog.setConfig(self.__runData.clusterConfigName())
+        xmlLog.setStartTime(PayloadTime.toDateTime(firstTime))
+        xmlLog.setEndTime(PayloadTime.toDateTime(lastTime))
+        xmlLog.setEvents(numEvts)
+        xmlLog.setMoni(numMoni)
+        xmlLog.setSN(numSN)
+        xmlLog.setTcal(numTcal)
+        xmlLog.setTermCond(hadError)
+
+        # write the xml log file to disk
+        try:
+            xmlLog.writeLog()
+        except DashXMLLog.DashXMLLogException:
+            self.__logger.error("Could not write run xml log file \"%s\"" %
+                                xmlLog.getPath())
+
     def buildConnectionMap(self):
         "Validate and fill the map of connections for each component"
         self.__logDebug(RunSetDebug.START_RUN, "BldConnMap TOP")
@@ -1288,6 +1318,26 @@ class RunSet(object):
             return
 
         self.__runData.queueForSpade(duration)
+
+    def reportRunStart(self, runNum, release, revision, started):
+        if self.__runData is not None:
+            self.__runData.reportRunStart(runNum, release, revision, started)
+        else:
+            try:
+                moniClient = MoniClient("pdaq", "localhost", DAQPort.I3LIVE)
+            except:
+                self.__logger.error("Cannot create temporary client: " +
+                                    exc_string())
+                return
+            try:
+                RunData.reportRunStartClass(moniClient, runNum, release,
+                                            revision, started)
+            finally:
+                try:
+                    moniClient.close()
+                except:
+                    self.__logger.error("Could not close temporary client: " +
+                                        exc_string())
 
     def reset(self):
         "Reset all components in the runset back to the idle state"

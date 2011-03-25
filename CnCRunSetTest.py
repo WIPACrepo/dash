@@ -13,6 +13,7 @@ from RadarTask import RadarTask, RadarThread
 from RateTask import RateTask
 from RunOption import RunOption
 from RunSet import RunSet, RunSetException
+from RunStats import PayloadTime
 from TaskManager import TaskManager
 from WatchdogTask import WatchdogTask
 
@@ -298,6 +299,14 @@ class CnCRunSetTest(unittest.TestCase):
                   "extraComp" : {},
                   }
 
+    def __addEventStartMoni(self, liveMoni, runNum):
+
+        if not LIVE_IMPORT:
+            return
+
+        data = { "runnum": runNum }
+        liveMoni.addExpectedLiveMoni("eventstart", data, "json")
+
     def __addLiveMoni(self, comps, liveMoni, compName, compNum, beanName,
                       fieldName, isJSON=False):
 
@@ -316,20 +325,27 @@ class CnCRunSetTest(unittest.TestCase):
 
         raise Exception("Unknown component %s-%d" % (compName, compNum))
 
-    def __addRunStartMoni(self, liveMoni, firstTime, runNum):
+    def __addRunStartMoni(self, liveMoni, runNum, release, revision, started):
 
         if not LIVE_IMPORT:
             return
 
-        data = { "runnum": runNum }
+        data = { "runnum": runNum,
+                 "release" : release,
+                 "revision" : revision,
+                 "started" : True }
         liveMoni.addExpectedLiveMoni("runstart", data, "json")
 
-    def __addRunStopMoni(self, liveMoni, lastTime, numEvts, runNum):
+    def __addRunStopMoni(self, liveMoni, firstTime, lastTime, numEvts, runNum):
 
         if not LIVE_IMPORT:
             return
 
-        data = { "events" : numEvts, "runnum": runNum }
+        data = { "runnum": runNum,
+                 "runstart": str(PayloadTime.toDateTime(firstTime)),
+                 "events" : numEvts,
+                 "status" : "SUCCESS",
+                 }
         liveMoni.addExpectedLiveMoni("runstop", data, "json")
 
     def __checkActiveDOMsTask(self, comps, rs, liveMoni):
@@ -342,13 +358,16 @@ class CnCRunSetTest(unittest.TestCase):
         numTotal = 60
 
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
-                           "NumberOfActiveAndTotalChannels", (numDOMs, numTotal))
+                           "NumberOfActiveAndTotalChannels",
+                           (numDOMs, numTotal))
 
         liveMoni.addExpectedLiveMoni("totalDOMs", [numDOMs, numTotal], "json")
 
         timer.trigger()
 
         self.__waitForEmptyLog(liveMoni, "Didn't get active DOM message")
+
+        liveMoni.checkStatus(5)
 
     def __checkMonitorTask(self, comps, rs, liveMoni):
         timer = rs.getTaskManager().getTimer(MonitorTask.NAME)
@@ -393,6 +412,8 @@ class CnCRunSetTest(unittest.TestCase):
 
         self.__waitForEmptyLog(liveMoni, "Didn't get moni messages")
 
+        liveMoni.checkStatus(5)
+
     def __checkRadarTask(self, comps, rs, liveMoni):
         if not LIVE_IMPORT:
             return
@@ -411,6 +432,8 @@ class CnCRunSetTest(unittest.TestCase):
         timer.trigger()
 
         self.__waitForEmptyLog(liveMoni, "Didn't get radar message")
+
+        liveMoni.checkStatus(5)
 
     def __checkRateTask(self, comps, rs, liveMoni, dashLog, numEvts, payTime,
                         firstTime, runNum):
@@ -438,13 +461,17 @@ class CnCRunSetTest(unittest.TestCase):
                                   " 0 SN events, 0 tcals") % (numEvts, hzStr))
 
         if liveMoni is not None:
-            self.__addRunStartMoni(liveMoni, firstTime, runNum)
+            self.__addEventStartMoni(liveMoni, runNum)
 
         timer.trigger()
 
         self.__waitForEmptyLog(dashLog, "Didn't get second rate message")
 
-    def __checkWatchdogTask(self, comps, rs, dashLog):
+        dashLog.checkStatus(5)
+        if liveMoni is not None:
+            liveMoni.checkStatus(5)
+
+    def __checkWatchdogTask(self, comps, rs, dashLog, liveMoni):
         timer = rs.getTaskManager().getTimer(WatchdogTask.NAME)
 
         self.__setBeanData(comps, "eventBuilder", 0, "backEnd", "DiskAvailable",
@@ -461,6 +488,9 @@ class CnCRunSetTest(unittest.TestCase):
         timer.trigger()
 
         self.__waitForEmptyLog(dashLog, "Didn't get watchdog message")
+
+        dashLog.checkStatus(5)
+        liveMoni.checkStatus(5)
 
     def __computeDuration(self, startTime, curTime):
         domTicksPerSec = 10000000000
@@ -527,15 +557,15 @@ class CnCRunSetTest(unittest.TestCase):
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
         logger.addExpectedRegexp(r"Built runset #\d+: .*")
 
-        rs = self.__cnc.makeRunset(self.__runConfigDir, runConfig, 0, logger,
-                                   forceRestart=False, strict=False)
+        runNum = 321
+
+        rs = self.__cnc.makeRunset(self.__runConfigDir, runConfig, runNum, 0,
+                                   logger, forceRestart=False, strict=False)
 
         logger.checkStatus(5)
 
         dashLog = MockLogger("dashLog")
         rs.setDashLog(dashLog)
-
-        runNum = 321
 
         logger.addExpectedExact("Starting run #%d with \"%s\"" %
                                 (runNum, cluCfg.configName()))
@@ -666,13 +696,14 @@ class CnCRunSetTest(unittest.TestCase):
 
         rcFile = MockRunConfigFile(self.__runConfigDir)
         runConfig = rcFile.create(nameList, [])
+        runNum = 123
 
         logger = MockLogger("main")
         logger.addExpectedExact("Loading run configuration \"%s\"" % runConfig)
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
 
         self.assertRaises(CnCServerException, self.__cnc.makeRunset,
-                          self.__runConfigDir, runConfig, 0, logger,
+                          self.__runConfigDir, runConfig, runNum, 0, logger,
                           forceRestart=False, strict=False)
 
     def testMissingComponent(self):
@@ -684,13 +715,14 @@ class CnCRunSetTest(unittest.TestCase):
 
         rcFile = MockRunConfigFile(self.__runConfigDir)
         runConfig = rcFile.create([], domList)
+        runNum = 456
 
         logger = MockLogger("main")
         logger.addExpectedExact("Loading run configuration \"%s\"" % runConfig)
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
 
         self.assertRaises(CnCServerException, self.__cnc.makeRunset,
-                          self.__runConfigDir, runConfig, 0, logger,
+                          self.__runConfigDir, runConfig, runNum, 0, logger,
                           forceRestart=False, strict=False)
 
     def testRunDirect(self):
@@ -752,7 +784,15 @@ class CnCRunSetTest(unittest.TestCase):
         catchall.addExpectedText("Loaded run configuration \"%s\"" % runConfig)
         catchall.addExpectedTextRegexp(r"Built runset #\d+: .*")
 
-        rsId = self.__cnc.rpc_runset_make(runConfig)
+        liveMoni = SocketReader("liveMoni", DAQPort.I3LIVE, 99)
+        liveMoni.startServing()
+
+        runNum = 345
+
+        (rel, rev) = self.__cnc.getRelease()
+        self.__addRunStartMoni(liveMoni, runNum, rel, rev, True)
+
+        rsId = self.__cnc.rpc_runset_make(runConfig, runNum)
 
         rs = self.__cnc.findRunset(rsId)
         self.failIf(rs is None, "Could not find runset #%d" % rsId)
@@ -763,11 +803,6 @@ class CnCRunSetTest(unittest.TestCase):
 
         dashLog = MockLogger("dashLog")
         rs.setDashLog(dashLog)
-
-        liveMoni = SocketReader("liveMoni", DAQPort.I3LIVE, 99)
-        liveMoni.startServing()
-
-        runNum = 345
 
         catchall.addExpectedText("Starting run #%d with \"%s\"" %
                                  (runNum, cluCfg.configName()))
@@ -801,7 +836,7 @@ class CnCRunSetTest(unittest.TestCase):
                              firstTime, runNum)
         self.__checkMonitorTask(comps, rs, liveMoni)
         self.__checkActiveDOMsTask(comps, rs, liveMoni)
-        self.__checkWatchdogTask(comps, rs, dashLog)
+        self.__checkWatchdogTask(comps, rs, dashLog, liveMoni)
         self.__checkRadarTask(comps, rs, liveMoni)
 
         if catchall: catchall.checkStatus(5)
@@ -824,7 +859,7 @@ class CnCRunSetTest(unittest.TestCase):
                                  (numMoni, numSN, numTcals))
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
 
-        self.__addRunStopMoni(liveMoni, payTime, numEvts, runNum)
+        self.__addRunStopMoni(liveMoni, firstTime, payTime, numEvts, runNum)
 
         self.__cnc.rpc_runset_stop_run(rsId)
 

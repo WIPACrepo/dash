@@ -158,7 +158,7 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
         logger.addExpectedRegexp("Built runset #\d+: .*")
 
-        runset = mgr.makeRunset(self.__runConfigDir, runConfig, 0, logger,
+        runset = mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                                 forceRestart=False, strict=False)
 
         self.assertEqual(mgr.numComponents(), 0)
@@ -210,7 +210,7 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
 
         try:
-            mgr.makeRunset(self.__runConfigDir, runConfig, 0, logger,
+            mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
         except ConnectionException, ce:
@@ -258,7 +258,7 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
 
         try:
-            mgr.makeRunset(self.__runConfigDir, runConfig, 0, logger,
+            mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
         except ConnectionException, ce:
@@ -308,7 +308,7 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
 
         try:
-            mgr.makeRunset(self.__runConfigDir, runConfig, 0, logger,
+            mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
         except ConnectionException, ce:
@@ -357,7 +357,7 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
 
         try:
-            mgr.makeRunset(self.__runConfigDir, runConfig, 0, logger,
+            mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
         except ConnectionException, ce:
@@ -406,7 +406,7 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
 
         try:
-            mgr.makeRunset(self.__runConfigDir, runConfig, 0, logger,
+            mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
         except ConnectionException, ce:
@@ -457,7 +457,7 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
 
         try:
-            mgr.makeRunset(self.__runConfigDir, runConfig, 0, logger,
+            mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
         except ConnectionException, ce:
@@ -514,7 +514,7 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
 
         try:
-            mgr.makeRunset(self.__runConfigDir, runConfig, 0, logger,
+            mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
         except ConnectionException, ce:
@@ -564,7 +564,7 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
         logger.addExpectedRegexp("Built runset #\d+: .*")
 
-        runset = mgr.makeRunset(self.__runConfigDir, runConfig, 0, logger,
+        runset = mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                                 forceRestart=False, strict=False)
 
         self.assertEqual(mgr.numComponents(), 0)
@@ -615,7 +615,7 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
         logger.addExpectedRegexp("Built runset #\d+: .*")
 
-        runset = mgr.makeRunset(self.__runConfigDir, runConfig, 0, logger,
+        runset = mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                                 forceRestart=False, strict=False)
 
         self.assertEqual(mgr.numComponents(), 0)

@@ -74,12 +74,15 @@ class MockCnC(object):
     def breakRunset(self, rs):
         rs.destroy()
 
-    def makeRunsetFromRunConfig(self, runCfg):
+    def makeRunsetFromRunConfig(self, runCfg, runNum):
         if self.__expRunCfg is None:
             raise Exception("Expected run configuration has not been set")
         if self.__expRunCfg != runCfg:
             raise Exception("Expected run config \"%s\", not \"%s\"",
                             self.__expRunCfg, runCfg)
+        if self.__expRunNum != runNum:
+            raise Exception("Expected run number %s, not %s",
+                            self.__expRunNum, runNum)
 
         return self.__runSet
 

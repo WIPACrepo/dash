@@ -1257,7 +1257,7 @@ class DAQFakeRun(object):
         mockRunCfg = self.createMockRunConfig(runCfgDir, compList)
         self.hackActiveConfig(mockRunCfg)
 
-        runsetId = self.makeRunset(compList, mockRunCfg)
+        runsetId = self.makeRunset(compList, mockRunCfg, runNum)
 
         if numSets != self.__client.rpc_runset_count() - 1:
             print >>sys.stderr, "Expected %d run sets" % (numSets + 1)
@@ -1370,12 +1370,12 @@ class DAQFakeRun(object):
         print >>fd, "</cluster>"
         fd.close()
 
-    def makeRunset(self, compList, runCfg):
+    def makeRunset(self, compList, runCfg, runNum):
         nameList = []
         for c in compList:
             nameList.append(c.name())
 
-        runsetId = self.__client.rpc_runset_make(runCfg, False)
+        runsetId = self.__client.rpc_runset_make(runCfg, runNum, strict=False)
         if runsetId < 0:
             raise DAQFakeRunException("Cannot make runset from %s" %
                                       str(nameList))

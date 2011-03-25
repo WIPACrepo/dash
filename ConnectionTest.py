@@ -67,7 +67,7 @@ class Node(object):
                     rtnStr += str(l)
 
             rtnStr += ']'
-                
+
         if len(self.inLinks) > 0:
             rtnStr += ' IN['
 
@@ -151,8 +151,8 @@ class ConnectionTest(unittest.TestCase):
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
         logger.addExpectedRegexp(r"Built runset #\d+: .*")
 
-        runset = pool.makeRunset(self.__runConfigDir, runConfig, 0, logger,
-                                 forceRestart=False, strict=False)
+        runset = pool.makeRunset(self.__runConfigDir, runConfig, 0, 0,
+                                 logger, forceRestart=False, strict=False)
 
         chkId = ConnectionTest.EXP_ID
         ConnectionTest.EXP_ID += 1

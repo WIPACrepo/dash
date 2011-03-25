@@ -402,7 +402,9 @@ class TestCnCServer(unittest.TestCase):
 
         catchall.addExpectedTextRegexp(r"Built runset #\d+: .*")
 
-        setId = self.cnc.rpc_runset_make(runConfig, strict=False)
+        runNum = 444
+
+        setId = self.cnc.rpc_runset_make(runConfig, runNum, strict=False)
         self.assertEquals('ready', self.comp.getState(),
                           'Unexpected state %s' % self.comp.getState())
 
@@ -443,8 +445,6 @@ class TestCnCServer(unittest.TestCase):
 
         clientLogger.checkStatus(100)
         catchall.checkStatus(100)
-
-        runNum = 444
 
         clientLogger.addExpectedTextRegexp("Start of log at LOG=log(\S+:%d)" %
                                            clientPort)

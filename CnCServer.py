@@ -31,7 +31,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12784 2011-03-15 21:40:21Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 12811 2011-03-25 21:29:15Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -186,6 +186,9 @@ class DAQPool(object):
 
         return runset
 
+    def getRelease(self):
+        return (None, None)
+
     def getRunsetsInErrorState(self):
         problems = []
         for rs in self.__sets:
@@ -206,7 +209,7 @@ class DAQPool(object):
 
         return ids
 
-    def makeRunset(self, runConfigDir, runConfigName, timeout, logger,
+    def makeRunset(self, runConfigDir, runConfigName, runNum, timeout, logger,
                    forceRestart=True, strict=True):
         "Build a runset from the specified run configuration"
         logger.info("Loading run configuration \"%s\"" % runConfigName)
@@ -250,18 +253,21 @@ class DAQPool(object):
             if self.__defaultDebugBits is not None:
                 runSet.setDebugBits(self.__defaultDebugBits)
 
+            (release, revision) = self.getRelease()
             try:
                 connMap = runSet.buildConnectionMap()
                 runSet.connect(connMap, logger)
                 runSet.setOrder(connMap, logger)
                 runSet.configure()
             except:
+                runSet.reportRunStart(runNum, release, revision, False)
                 if not forceRestart:
                     self.returnRunset(runSet, logger)
                 else:
                     self.restartRunset(runSet, logger)
                 raise
 
+            runSet.reportRunStart(runNum, release, revision, True)
             setComps = []
             for c in runSet.components():
                 setComps.append(c.fullName())
@@ -728,11 +734,14 @@ class CnCServer(DAQPool):
             raise CnCServerException("Cannot find cluster configuration" +
                                      " %s: %s" % (cdescStr, exc_string()))
 
-    def makeRunsetFromRunConfig(self, runConfig, timeout=REGISTRATION_TIMEOUT,
-                                strict=True):
+    def getRelease(self):
+        return (self.__versionInfo["release"], self.__versionInfo["revision"])
+
+    def makeRunsetFromRunConfig(self, runConfig, runNum,
+                                timeout=REGISTRATION_TIMEOUT, strict=True):
         try:
-            runSet = self.makeRunset(self.__runConfigDir, runConfig, timeout,
-                                     self.__log,
+            runSet = self.makeRunset(self.__runConfigDir, runConfig, runNum,
+                                     timeout, self.__log,
                                      forceRestart=self.__forceRestart,
                                      strict=strict)
         except:
@@ -1031,7 +1040,7 @@ class CnCServer(DAQPool):
 
         return self.__listComponentDicts(runSet.components())
 
-    def rpc_runset_make(self, runConfig, strict=True,
+    def rpc_runset_make(self, runConfig, runNum=None, strict=True,
                         timeout=REGISTRATION_TIMEOUT):
         "build a runset from the specified run configuration"
         if self.__runConfigDir is None:
@@ -1041,7 +1050,7 @@ class CnCServer(DAQPool):
             raise CnCServerException("Must now specify a run config name," +
                                      " not a list of components")
 
-        runSet = self.makeRunsetFromRunConfig(runConfig, strict=strict)
+        runSet = self.makeRunsetFromRunConfig(runConfig, runNum, strict=strict)
         if runSet is None:
             return -1
 
