@@ -104,13 +104,8 @@ class RunStats(object):
         # get final event counts
         self.updateEventCounts(evtData)
 
-        if self.__startPayTime is None or self.__evtPayTime is None:
-            duration = 0
-        else:
-            duration = (self.__evtPayTime - self.__startPayTime) / 10000000000
-
         return (self.__numEvts, self.__numMoni, self.__numSN, self.__numTcal,
-                duration, self.__evtPayTime)
+                self.__startPayTime, self.__evtPayTime)
 
     def updateEventCounts(self, evtData, addRate=False):
         "Gather run statistics"

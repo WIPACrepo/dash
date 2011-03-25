@@ -549,7 +549,7 @@ class MockConnection(object):
     def port(self): return self.__port
 
 class MockComponent(object):
-    def __init__(self, name, num, host='localhost'):
+    def __init__(self, name, num=0, host='localhost'):
         self.__name = name
         self.__num = num
         self.__host = host
@@ -570,6 +570,8 @@ class MockComponent(object):
         self.__hangType = 0
         self.__stopping = 0
 
+        self.__beanData = {}
+
     def __repr__(self): return str(self)
 
     def __str__(self):
@@ -588,6 +590,15 @@ class MockComponent(object):
             outStr += '[' + ','.join(extra) + ']'
         return outStr
 
+    def addBeanData(self, beanName, fieldName, value):
+        if self.checkBeanField(beanName, fieldName):
+            raise Exception("Value for %c bean %s field %s already exists" %
+                            (self, beanName, fieldName))
+
+        if not self.__beanData.has_key(beanName):
+            self.__beanData[beanName] = {}
+        self.__beanData[beanName][fieldName] = value
+
     def addInput(self, name, port, optional=False):
         if not optional:
             connCh = MockConnection.INPUT
@@ -601,6 +612,10 @@ class MockComponent(object):
         else:
             connCh = MockConnection.OPT_OUTPUT
         self.__connectors.append(MockConnection(name, connCh))
+
+    def checkBeanField(self, beanName, fieldName):
+        return self.__beanData.has_key(beanName) and \
+            self.__beanData[beanName].has_key(fieldName)
 
     def close(self):
         pass
@@ -634,11 +649,30 @@ class MockComponent(object):
             return self.__name
         return '%s#%d' % (self.__name, self.__num)
 
+    def getBeanFields(self, beanName):
+        return self.__beanData[beanName].keys()
+
+    def getBeanNames(self):
+        return self.__beanData.keys()
+
     def getConfigureWait(self):
         return self.__configWait
 
+    def getMultiBeanFields(self, beanName, fieldList):
+        rtnMap = {}
+        for f in fieldList:
+            rtnMap[f] = self.getSingleBeanField(beanName, f)
+        return rtnMap
+
     def getNonstoppedConnectorsString(self):
         return ""
+
+    def getSingleBeanField(self, beanName, fieldName):
+        if not self.checkBeanField(beanName, fieldName):
+            raise Exception("No %s data for bean %s field %s" %
+                            (self, beanName, fieldName))
+
+        return self.__beanData[beanName][fieldName]
 
     def host(self):
         return self.__host

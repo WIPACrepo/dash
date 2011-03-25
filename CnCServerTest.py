@@ -489,6 +489,8 @@ class TestCnCServer(unittest.TestCase):
         numSN = 0
         numTcals = 0
 
+        catchall.addExpectedText("Starting time is not set")
+
         catchall.addExpectedText("%d physics events collected in %d seconds" %
                                   (numEvts, numSecs))
         catchall.addExpectedText("%d moni events, %d SN events, %d tcals" %

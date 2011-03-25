@@ -234,6 +234,8 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
+        logger.addExpectedExact("Starting time is not set")
+
         logger.addExpectedExact("0 physics events collected in 0 seconds")
         logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
         logger.addExpectedExact("Run terminated SUCCESSFULLY.")
@@ -392,6 +394,8 @@ class TestRunSet(unittest.TestCase):
                                      " Forcing 1 component to stop: %s") %
                                     (runset.id(), runNum, "forcingStop",
                                      hangStr))
+
+        logger.addExpectedExact("Starting time is not set")
 
         logger.addExpectedExact("0 physics events collected in 0 seconds")
         logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")

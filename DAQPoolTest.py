@@ -588,17 +588,17 @@ class TestDAQPool(unittest.TestCase):
 
         mgr = MyDAQPool()
 
-        a = MockComponent('aHub', 0)
-        a.addOutput('ab')
+        aComp = MockComponent('aHub', 0)
+        aComp.addOutput('ab')
 
-        b = MockComponent('b', 0)
-        b.addInput('ab', 123)
-        b.addOutput('bc')
+        bComp = MockComponent('b', 0)
+        bComp.addInput('ab', 123)
+        bComp.addOutput('bc')
 
-        c = MockComponent('c', 0)
-        c.addInput('bc', 456)
+        cComp = MockComponent('eventBuilder', 0)
+        cComp.addInput('bc', 456)
 
-        compList = [c, a, b]
+        compList = [cComp, aComp, bComp]
 
         self.assertEqual(mgr.numComponents(), 0)
 
@@ -665,11 +665,21 @@ class TestDAQPool(unittest.TestCase):
 
         self.__checkRunsetState(runset, 'running')
 
-        numEvts = 0
-        numSecs = 0
+        numEvts = 1
         numMoni = 0
         numSN = 0
         numTcals = 0
+
+        firstTime = 12345678L
+        lastTime = 23456789L
+
+        cComp.addBeanData("backEnd", "FirstEventTime", firstTime)
+        cComp.addBeanData("backEnd", "EventData", (numEvts, lastTime))
+
+        monDict = runset.getEventCounts()
+        self.assertEqual(monDict["physicsEvents"], numEvts)
+
+        numSecs = (lastTime - firstTime) / 1.0E10
 
         dashLog.addExpectedExact("%d physics events collected in %d seconds" %
                                  (numEvts, numSecs))

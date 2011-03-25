@@ -453,13 +453,19 @@ class RunData(object):
 
     def reportRates(self, comps, xmlLog):
         try:
-            (numEvts, numMoni, numSN, numTcal, duration, lastTime) = \
+            (numEvts, numMoni, numSN, numTcal, firstTime, lastTime) = \
                 self.__runStats.stop(self.__getRateData(comps))
         except:
-            (numEvts, numMoni, numSN, numTcal, duration, lastTime) = \
-                (0, 0, 0, 0, 0, 0)
             self.__dashlog.error("Could not get event count: " + exc_string())
             return -1
+
+        duration = 0
+        if firstTime is None:
+            self.__dashlog.error("Starting time is not set")
+        elif lastTime is None:
+            self.__dashlog.error("Ending time is not set")
+        else:
+            duration  = (lastTime - firstTime) / 10000000000
 
         self.__reportRunStop(numEvts, lastTime)
 
