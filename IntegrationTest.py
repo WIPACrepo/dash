@@ -24,7 +24,8 @@ except SystemExit:
 from DAQMocks \
     import MockAppender, MockClusterConfig, MockCnCLogger, \
     MockDeployComponent, MockIntervalTimer, MockParallelShell, \
-    MockRunConfigFile, SocketReader, SocketReaderFactory, SocketWriter
+    MockRunConfigFile, RunXMLValidator, SocketReader, SocketReaderFactory, \
+    SocketWriter
 
 class MostlyLive:
     def __init__(self, port):
@@ -1437,6 +1438,10 @@ class IntegrationTest(unittest.TestCase):
         if liveLog: liveLog.checkStatus(10)
         if logServer: logServer.checkStatus(10)
 
+        RunXMLValidator.validate(runNum, IntegrationTest.CLUSTER_CONFIG,
+                                 None, None, numEvts, numMoni, numSN, numTcal,
+                                 False)
+
         if RUNLOG_INFO:
             msg = 'Breaking run set...'
             if liveLog and not liveRunOnly: liveLog.addExpectedText(msg)
@@ -1483,6 +1488,8 @@ class IntegrationTest(unittest.TestCase):
         self.__live = None
         self.__cnc = None
         self.__compList = None
+
+        RunXMLValidator.setUp()
 
     def tearDown(self):
         try:
@@ -1535,6 +1542,8 @@ class IntegrationTest(unittest.TestCase):
                 print >>sys.stderr, \
                     "tearDown exiting with %d active threads" % \
                     threading.activeCount()
+
+        RunXMLValidator.tearDown()
 
     def testFinishInMain(self):
         #print "Not running testFinishInMain"; return

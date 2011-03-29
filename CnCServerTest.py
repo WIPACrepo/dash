@@ -12,7 +12,7 @@ from RunSet import RunSet
 
 from DAQMocks \
     import MockAppender, MockClusterConfig, MockCnCLogger, MockRunConfigFile,\
-    SocketReaderFactory, SocketWriter, MockLogger
+    SocketReaderFactory, SocketWriter, MockLogger, RunXMLValidator
 
 ACTIVE_WARNING = False
 
@@ -291,6 +291,8 @@ class TestCnCServer(unittest.TestCase):
         MostlyCnCServer.APPENDERS.clear()
         RealComponent.APPENDERS.clear()
 
+        RunXMLValidator.setUp()
+
     def tearDown(self):
         for key in RealComponent.APPENDERS:
             RealComponent.APPENDERS[key].WaitForEmpty(10)
@@ -319,6 +321,8 @@ class TestCnCServer(unittest.TestCase):
             self.__logFactory.tearDown()
         except:
             traceback.print_exc()
+
+        RunXMLValidator.tearDown()
 
     def __runEverything(self, forceRestart):
         catchall = self.createLog('master', 18999)
@@ -504,6 +508,9 @@ class TestCnCServer(unittest.TestCase):
 
         clientLogger.checkStatus(100)
         catchall.checkStatus(100)
+
+        RunXMLValidator.validate(runNum, cluCfg.configName(), None, None,
+                                 numEvts, numMoni, numSN, numTcal, False)
 
         if forceRestart:
             try:

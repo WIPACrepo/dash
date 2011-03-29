@@ -1,11 +1,12 @@
 import os
 
-from xml.dom.minidom import Document
+from datetime import datetime
+from xml.dom import minidom
 
 
-class DashXMLLogException(Exception):
-    pass
-
+class DashXMLLogException(Exception): pass
+class FileNotFoundException(DashXMLLogException): pass
+class MalformedFileException(DashXMLLogException): pass
 
 class DashXMLLog:
     """
@@ -83,6 +84,10 @@ class DashXMLLog:
 
         self._fields[field_name] = field_val
 
+    def getField(self, field_name):
+        if not self._fields.has_key(field_name): return None
+        return self._fields[field_name]
+
     def setRun(self, run_num):
         """Set the value for the required 'run' field
 
@@ -92,6 +97,12 @@ class DashXMLLog:
 
         self.setField("run", run_num)
 
+    def getRun(self):
+        """Get the value for the required 'run' field"""
+        fld = self.getField("run")
+        if fld is None: return None
+        return int(fld)
+
     def setConfig(self, config_name):
         """Set the name of the config file used for this run
 
@@ -99,6 +110,10 @@ class DashXMLLog:
             config_name: the name of the config file for this run
         """
         self.setField("Config", config_name)
+
+    def getConfig(self):
+        """Get the name of the config file used for this run"""
+        return self.getField("Config")
 
     def setStartTime(self, start_time):
         """Set the start time for this run
@@ -108,6 +123,14 @@ class DashXMLLog:
         """
         self.setField("StartTime", start_time)
 
+    def getStartTime(self):
+        """Get the start time for this run"""
+        fld = self.getField("StartTime")
+        if fld is None: return None
+        if type(fld) != datetime:
+            fld = datetime.strptime(str(fld), "%Y-%m-%d %H:%M:%S.%f")
+        return fld
+
     def setEndTime(self, end_time):
         """Set the end time for this run
 
@@ -116,17 +139,36 @@ class DashXMLLog:
         """
         self.setField("EndTime", end_time)
 
+    def getEndTime(self):
+        """Get the end time for this run"""
+        fld = self.getField("EndTime")
+        if fld is None: return None
+        if type(fld) != datetime:
+            fld = datetime.strptime(str(fld), "%Y-%m-%d %H:%M:%S.%f")
+        return fld
+
     def setTermCond(self, had_error):
         """Set the termination condition for this run
 
         Args:
             term_cond: the termination condition for this run
+            (False if the run succeeded, True if there was an error)
         """
         if had_error:
             term_cond = "Failure"
         else:
             term_cond = "Success"
         self.setField("TermCondition", term_cond)
+
+    def getTermCond(self):
+        """Get the termination condition for this run"""
+        fld = self.getField("TermCondition")
+        if fld is None: return None
+        if fld == "Failure":
+            return True
+        if fld == "Success":
+            return False
+        raise ValueError("Bad termination condition \"%s\"" % fld)
 
     def setEvents(self, events):
         """Set the number of events for this run
@@ -136,29 +178,53 @@ class DashXMLLog:
         """
         self.setField("Events", events)
 
+    def getEvents(self):
+        """Get the number of events for this run"""
+        fld = self.getField("Events")
+        if fld is None: return None
+        return int(fld)
+
     def setMoni(self, moni):
-        """Set the number of moni events for this run
+        """Set the number of monitoring events for this run
 
         Args:
-            moni: the number of moni events for this run
+            moni: the number of monitoring events for this run
         """
         self.setField("Moni", moni)
 
+    def getMoni(self):
+        """Get the number of monitoring events for this run"""
+        fld = self.getField("Moni")
+        if fld is None: return None
+        return int(fld)
+
     def setTcal(self, tcal):
-        """Set the number of tcal events for this run
+        """Set the number of time calibration events for this run
 
         Args:
-            tcal: the number of tcal events for this run
+            tcal: the number of time calibration events for this run
         """
         self.setField("Tcal", tcal)
 
+    def getTcal(self):
+        """Get the number of time calibration events for this run"""
+        fld = self.getField("Tcal")
+        if fld is None: return None
+        return int(fld)
+
     def setSN(self, sn):
-        """Set the number of sn events for this run
+        """Set the number of supernova events for this run
 
         Args:
-            sn: the number of sn events for this run
+            sn: the number of supernova events for this run
         """
         self.setField("SN", sn)
+
+    def getSN(self):
+        """Get the number of supernova events for this run"""
+        fld = self.getField("SN")
+        if fld is None: return None
+        return int(fld)
 
     def _build_document(self):
         """Take the internal fields dictionary, the _root_elem_name, and the style sheet url to build
@@ -171,7 +237,7 @@ class DashXMLLog:
             if requiredKey not in fields_known:
                 raise DashXMLLogException("Missing Required Field %s" % requiredKey)
 
-        doc = Document()
+        doc = minidom.Document()
         processingInstr = doc.createProcessingInstruction("xml-stylesheet",
                                                           "type=\"text/xsl\" href=\"%s\"" % self._style_sheet_url)
         doc.appendChild(processingInstr)
@@ -236,7 +302,38 @@ class DashXMLLog:
 
         return dispStr
 
+    @classmethod
+    def parse(cls, dir_name=None, file_name="run.xml"):
+        if dir_name is None:
+            path = file_name
+        else:
+            path = os.path.join(dir_name, file_name)
+        if not os.path.exists(path):
+            raise FileNotFoundException("File \"%s\" does not exist" % path)
 
+        try:
+            parsed = minidom.parse(path)
+        except Exception, ex:
+            raise MalformedFileException("Bad run file \"%s\": %s" % (path, ex))
+
+        rootList = parsed.getElementsByTagName("DAQRunlog")
+        if len(rootList) == 0:
+            raise MalformedFileException("No DAQRunlog entries found" +
+                                         " in \"%s\"" % path)
+        elif len(rootList) > 1:
+            raise MalformedFileException("Multiple DAQRunlog entries found" +
+                                         " in \"%s\"" % path)
+
+        runXML = DashXMLLog()
+        for node in rootList[0].childNodes:
+            if node.nodeType != minidom.Node.ELEMENT_NODE:
+                continue
+            for kid in node.childNodes:
+                if kid.nodeType != minidom.Node.TEXT_NODE:
+                    continue
+                runXML.setField(node.tagName, kid.nodeValue.strip())
+
+        return runXML
 
 if __name__ == "__main__":
     a = DashXMLLog()

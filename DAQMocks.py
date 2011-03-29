@@ -3,6 +3,7 @@
 # Classes used for pDAQ unit testing
 
 import datetime, os, re, select, socket, sys, tempfile, threading, time
+from unittest import TestCase
 
 from CnCLogger import CnCLogger
 from Component import Component
@@ -12,6 +13,7 @@ from DAQConst import DAQPort
 from DAQLaunch import RELEASE, getCompJar
 from LiveImports import SERVICE_NAME
 from utils import ip
+from utils.DashXMLLog import DashXMLLog
 
 if os.environ.has_key("PDAQ_HOME"):
     METADIR = os.environ["PDAQ_HOME"]
@@ -1451,3 +1453,67 @@ class SocketWriter(object):
     def close(self):
         "Shut down socket to remote server - do this to avoid stale sockets"
         self.socket.close()
+
+class RunXMLValidator(TestCase):
+    def __init__(self, runNum, cfgName, startTime, endTime, numEvts,
+                 numMoni, numSN, numTcal, failed):
+        if not os.path.exists("run.xml"):
+            self.fail("run.xml was not created")
+        run = DashXMLLog.parse()
+        self.assertEquals(run.getRun(), runNum,
+                          "Expected run number %s, not %s" %
+                          (runNum, run.getRun()))
+        self.assertEquals(run.getConfig(), cfgName,
+                          "Expected config \"%s\", not \"%s\"" %
+                          (cfgName, run.getConfig()))
+        if startTime is not None:
+            self.assertEquals(run.getStartTime(), startTime,
+                              "Expected start time %s<%s>, not %s<%s>" %
+                              (startTime, type(startTime),
+                               run.getStartTime(), type(run.getStartTime())))
+        if endTime is not None:
+            self.assertEquals(run.getEndTime(), endTime,
+                              "Expected end time %s<%s>, not %s<%s>" %
+                              (endTime, type(endTime),
+                               run.getEndTime(), type(run.getEndTime())))
+        self.assertEquals(run.getTermCond(), failed,
+                          "Expected terminal condition %s, not %s" %
+                          (failed, run.getTermCond()))
+        self.assertEquals(run.getEvents(), numEvts,
+                          "Expected number of events %s, not %s" %
+                          (numEvts, run.getEvents()))
+        self.assertEquals(run.getMoni(), numMoni,
+                          "Expected number of monitoring events %s, not %s" %
+                          (numMoni, run.getMoni()))
+        self.assertEquals(run.getTcal(), numTcal,
+                          "Expected number of time cal events %s, not %s" %
+                          (numTcal, run.getTcal()))
+        self.assertEquals(run.getSN(), numSN,
+                          "Expected number of supernova events %s, not %s" %
+                          (numSN, run.getSN()))
+
+    @classmethod
+    def setUp(cls):
+        if os.path.exists("run.xml"):
+            raise ValueError("Found unexpected run.xml file")
+
+    @classmethod
+    def tearDown(cls):
+        if os.path.exists("run.xml"):
+            try:
+                os.remove("run.xml")
+            except Exception, ex:
+                print "Cannot remove run.xml: %s" % ex
+            raise ValueError("Found unexpected run.xml file")
+
+    @classmethod
+    def validate(cls, runNum, cfgName, startTime, endTime, numEvts,
+                 numMoni, numSN, numTcal, failed):
+        try:
+            RunXMLValidator(runNum, cfgName, startTime, endTime, numEvts,
+                            numMoni, numSN, numTcal, failed)
+        finally:
+            try:
+                os.remove("run.xml")
+            except:
+                pass

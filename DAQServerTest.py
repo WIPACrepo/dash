@@ -5,7 +5,7 @@ from CnCServer import CnCServer, CnCServerException
 from DAQClient import DAQClient
 from DAQConst import DAQPort
 from DAQMocks import MockAppender, MockClusterConfig, MockCnCLogger, \
-    MockRunConfigFile, SocketReaderFactory, SocketWriter
+    MockRunConfigFile, RunXMLValidator, SocketReaderFactory, SocketWriter
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet
@@ -224,6 +224,8 @@ class TestDAQServer(unittest.TestCase):
 
         self.__runConfigDir = None
 
+        RunXMLValidator.setUp()
+
     def tearDown(self):
         try:
             self.__logFactory.tearDown()
@@ -235,6 +237,8 @@ class TestDAQServer(unittest.TestCase):
             self.__runConfigDir = None
 
         MockServer.APPENDER.checkStatus(10)
+
+        RunXMLValidator.tearDown()
 
     def testRegister(self):
         logPort = 11853
@@ -459,6 +463,9 @@ class TestDAQServer(unittest.TestCase):
         self.assertEqual(dc.rpc_runset_stop_run(setId), 'OK')
 
         logger.checkStatus(10)
+
+        RunXMLValidator.validate(runNum, cluCfg.configName(), None, None,
+                                 0, 0, 0, 0, False)
 
         self.assertEqual(dc.rpc_component_count(), 0)
         self.assertEqual(dc.rpc_runset_count(), 1)

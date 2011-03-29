@@ -6,8 +6,10 @@ from DAQClient import DAQClient
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet, ConnectionException
+from RunStats import PayloadTime
 
-from DAQMocks import MockComponent, MockLogger, MockRunConfigFile
+from DAQMocks import MockComponent, MockLogger, MockRunConfigFile, \
+     RunXMLValidator
 
 ACTIVE_WARNING = False
 
@@ -91,9 +93,13 @@ class TestDAQPool(unittest.TestCase):
     def setUp(self):
         self.__runConfigDir = None
 
+        RunXMLValidator.setUp()
+
     def tearDown(self):
         if self.__runConfigDir is not None:
             shutil.rmtree(self.__runConfigDir, ignore_errors=True)
+
+        RunXMLValidator.tearDown()
 
     def testEmpty(self):
         mgr = DAQPool()
@@ -701,6 +707,11 @@ class TestDAQPool(unittest.TestCase):
         self.assertEqual(runset.size(), 0)
 
         logger.checkStatus(10)
+
+        RunXMLValidator.validate(runNum, clusterName,
+                                 PayloadTime.toDateTime(firstTime),
+                                 PayloadTime.toDateTime(lastTime),
+                                 numEvts, numMoni, numSN, numTcal, False)
 
     def testMonitorClients(self):
         self.__runConfigDir = tempfile.mkdtemp()

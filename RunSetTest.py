@@ -7,7 +7,8 @@ from RunSet import RunSet, RunSetException
 
 CAUGHT_WARNING = False
 
-from DAQMocks import MockClusterConfig, MockComponent, MockLogger
+from DAQMocks import MockClusterConfig, MockComponent, MockLogger, \
+     RunXMLValidator
 
 class FakeLogger(object):
     def __init__(self): pass
@@ -244,6 +245,9 @@ class TestRunSet(unittest.TestCase):
 
         self.failIf(runset.stopRun(), "stopRun() encountered error")
 
+        RunXMLValidator.validate(runNum, clusterName, None, None,
+                                 0, 0, 0, 0, False)
+
         self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %
                          (runset.id(), runNum, expState))
 
@@ -423,6 +427,9 @@ class TestRunSet(unittest.TestCase):
         self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %
                          (runset.id(), runNum, expState))
 
+        RunXMLValidator.validate(runNum, clusterName, None, None,
+                                 0, 0, 0, 0, hangType > 1)
+
         if len(compList) > 0:
             self.failUnless(self.__isCompListConfigured(compList),
                             'Components should be configured')
@@ -448,6 +455,13 @@ class TestRunSet(unittest.TestCase):
 
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
+
+
+    def setUp(self):
+        RunXMLValidator.setUp()
+
+    def tearDown(self):
+        RunXMLValidator.tearDown()
 
     def testEmpty(self):
         self.__runTests([], 1)

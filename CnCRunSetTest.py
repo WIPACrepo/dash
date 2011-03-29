@@ -6,7 +6,7 @@ from ActiveDOMsTask import ActiveDOMsTask
 from CnCServer import CnCServer, CnCServerException
 from DAQConst import DAQPort
 from DAQMocks import MockClusterConfig, MockIntervalTimer, MockLogger, \
-    MockRunConfigFile, SocketReader
+    MockRunConfigFile, RunXMLValidator, SocketReader
 from LiveImports import LIVE_IMPORT
 from MonitorTask import MonitorTask
 from RadarTask import RadarTask, RadarThread
@@ -643,6 +643,9 @@ class CnCRunSetTest(unittest.TestCase):
         logger.checkStatus(5)
         dashLog.checkStatus(5)
 
+        RunXMLValidator.validate(runNum, cluCfg.configName(), None, None,
+                                 numEvts, numMoni, numSN, numTcal, False)
+
     @staticmethod
     def __setBeanData(comps, compName, compNum, beanName, fieldName,
                       value):
@@ -676,6 +679,8 @@ class CnCRunSetTest(unittest.TestCase):
         self.__runConfigDir = None
         self.__spadeDir = None
 
+        RunXMLValidator.setUp()
+
     def tearDown(self):
         if self.__cnc is not None:
             self.__cnc.closeServer()
@@ -686,6 +691,8 @@ class CnCRunSetTest(unittest.TestCase):
             shutil.rmtree(self.__runConfigDir, ignore_errors=True)
         if self.__spadeDir is not None:
             shutil.rmtree(self.__spadeDir, ignore_errors=True)
+
+        RunXMLValidator.tearDown()
 
     def testEmptyRunset(self):
         self.__runConfigDir = tempfile.mkdtemp()
@@ -868,6 +875,9 @@ class CnCRunSetTest(unittest.TestCase):
         if catchall: catchall.checkStatus(5)
         dashLog.checkStatus(5)
         liveMoni.checkStatus(5)
+
+        RunXMLValidator.validate(runNum, cluCfg.configName(), None, None,
+                                 numEvts, numMoni, numSN, numTcal, False)
 
         self.__cnc.rpc_runset_break(rsId)
 
