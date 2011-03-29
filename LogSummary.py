@@ -384,14 +384,14 @@ class DashLog(ComponentLog):
 
                 m = self.RATELINE.match(line)
                 if m:
-                    numPhysics = float(m.group(2))
+                    numEvts = int(m.group(2))
                     if m.group(4) is None:
                         rate = 0.0
                     else:
                         rate = float(m.group(4))
                     numMoni = int(m.group(5))
                     numSN = int(m.group(6))
-                    numTCal = int(m.group(7))
+                    numTcal = int(m.group(7))
                     continue
 
                 m = self.STOP_RUN.match(line)

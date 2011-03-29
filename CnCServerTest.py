@@ -487,14 +487,14 @@ class TestCnCServer(unittest.TestCase):
         numSecs = 0
         numMoni = 0
         numSN = 0
-        numTcals = 0
+        numTcal = 0
 
         catchall.addExpectedText("Starting time is not set")
 
         catchall.addExpectedText("%d physics events collected in %d seconds" %
                                   (numEvts, numSecs))
         catchall.addExpectedText("%d moni events, %d SN events, %d tcals" %
-                                  (numMoni, numSN, numTcals))
+                                  (numMoni, numSN, numTcal))
         catchall.addExpectedText("Run terminated SUCCESSFULLY.")
 
         if forceRestart:

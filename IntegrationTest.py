@@ -1338,7 +1338,7 @@ class IntegrationTest(unittest.TestCase):
         numEvts = 17
         numMoni = 222
         numSN = 51
-        numTCal = 93
+        numTcal = 93
         lastEvtTime = startEvtTime + (domTicksPerSec * 3)
 
         self.__setBeanData("eventBuilder", 0, "backEnd", "NumEventsSent",
@@ -1352,7 +1352,7 @@ class IntegrationTest(unittest.TestCase):
         self.__setBeanData("secondaryBuilders", 0, "snBuilder",
                            "TotalDispatchedData", numSN)
         self.__setBeanData("secondaryBuilders", 0, "tcalBuilder",
-                           "TotalDispatchedData", numTCal)
+                           "TotalDispatchedData", numTcal)
 
         msg = 'Stopping run %d' % runNum
         if liveLog: liveLog.addExpectedText(msg)
@@ -1376,7 +1376,7 @@ class IntegrationTest(unittest.TestCase):
         if liveLog: liveLog.addExpectedTextRegexp(patStr)
 
         msg = '%d moni events, %d SN events, %d tcals' % \
-            (numMoni, numSN, numTCal)
+            (numMoni, numSN, numTcal)
         dashLog.addExpectedExact(msg)
         if liveLog: liveLog.addExpectedText(msg)
 
@@ -1398,7 +1398,7 @@ class IntegrationTest(unittest.TestCase):
                                           " seconds")
             liveLog.addExpectedText('Stopped run %d' % runNum)
 
-            liveLog.addExpectedLiveMoni('tcalEvents', numTCal)
+            liveLog.addExpectedLiveMoni('tcalEvents', numTcal)
             liveLog.addExpectedLiveMoni('moniEvents', numMoni)
             liveLog.addExpectedLiveMoni('snEvents', numSN)
             liveLog.addExpectedLiveMoni('physicsEvents', numEvts)
@@ -1428,9 +1428,9 @@ class IntegrationTest(unittest.TestCase):
         self.assertEquals(numSN, moni['snEvents'],
                           'Expected %d sn events, not %d' %
                           (numSN, moni['snEvents']))
-        self.assertEquals(numTCal, moni['tcalEvents'],
+        self.assertEquals(numTcal, moni['tcalEvents'],
                           'Expected %d tcal events, not %d' %
-                          (numTCal, moni['tcalEvents']))
+                          (numTcal, moni['tcalEvents']))
 
         if dashLog: dashLog.checkStatus(10)
         if appender: appender.checkStatus(10)

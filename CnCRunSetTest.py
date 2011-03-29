@@ -609,7 +609,7 @@ class CnCRunSetTest(unittest.TestCase):
 
         numMoni = 0
         numSN = 0
-        numTcals = 0
+        numTcal = 0
 
         duration = self.__computeDuration(firstTime, payTime)
         if duration <= 0:
@@ -620,7 +620,7 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog.addExpectedExact("%d physics events collected in %d seconds%s" %
                                  (numEvts, duration, hzStr))
         dashLog.addExpectedExact("%d moni events, %d SN events, %d tcals" %
-                                 (numMoni, numSN, numTcals))
+                                 (numMoni, numSN, numTcal))
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
 
         self.failIf(rs.stopRun(), "stopRun() encountered error")
@@ -845,7 +845,7 @@ class CnCRunSetTest(unittest.TestCase):
 
         numMoni = 0
         numSN = 0
-        numTcals = 0
+        numTcal = 0
 
         duration = self.__computeDuration(firstTime, payTime)
         if duration <= 0:
@@ -856,7 +856,7 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog.addExpectedExact("%d physics events collected in %d seconds%s" %
                                  (numEvts, duration, hzStr))
         dashLog.addExpectedExact("%d moni events, %d SN events, %d tcals" %
-                                 (numMoni, numSN, numTcals))
+                                 (numMoni, numSN, numTcal))
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
 
         self.__addRunStopMoni(liveMoni, firstTime, payTime, numEvts, runNum)

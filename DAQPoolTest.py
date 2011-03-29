@@ -668,7 +668,7 @@ class TestDAQPool(unittest.TestCase):
         numEvts = 1
         numMoni = 0
         numSN = 0
-        numTcals = 0
+        numTcal = 0
 
         firstTime = 12345678L
         lastTime = 23456789L
@@ -684,7 +684,7 @@ class TestDAQPool(unittest.TestCase):
         dashLog.addExpectedExact("%d physics events collected in %d seconds" %
                                  (numEvts, numSecs))
         dashLog.addExpectedExact("%d moni events, %d SN events, %d tcals" %
-                                 (numMoni, numSN, numTcals))
+                                 (numMoni, numSN, numTcal))
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
 
         self.failIf(runset.stopRun(), "stopRun() encountered error")
