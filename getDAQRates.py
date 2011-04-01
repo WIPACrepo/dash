@@ -208,7 +208,8 @@ def processDir(dirName):
     """Process all .moni files in the specified directory"""
     allData = {}
     for entry in os.listdir(dirName):
-        if entry.endswith('.log') or entry.endswith('.html'):
+        if entry.endswith('.log') or entry.endswith('.html') or \
+               entry.endswith('.xml'):
             continue
 
         try:
