@@ -24,7 +24,8 @@ COMP_FIELDS = {
           'rdoutReq' : 'RecordsReceived',
           'rdoutData' : 'RecordsSent' },
     'stringHub' :
-        { 'stringHit' : 'RecordsSent',
+        { 'sender' : 'NumHitsReceived',
+          'stringHit' : 'RecordsSent',
           'moniData' : 'RecordsSent',
           'snData' : 'RecordsSent',
           'tcalData' : 'RecordsSent',
@@ -32,7 +33,8 @@ COMP_FIELDS = {
           'rdoutReq' : 'RecordsReceived',
           'rdoutData' : 'RecordsSent' },
     'icetopHub' :
-        { 'icetopHit' : 'RecordsSent',
+        { 'sender' : 'NumHitsReceived',
+          'icetopHit' : 'RecordsSent',
           'moniData' : 'RecordsSent',
           'snData' : 'RecordsSent',
           'tcalData' : 'RecordsSent',
@@ -295,8 +297,10 @@ def reportDataRates(allData):
     """Report the DAQ data rates"""
     if not DATA_ONLY:
         print 'Data Rates:'
-    reportList = [('stringHub', 'stringHit'),
+    reportList = [('stringHub', 'sender'),
+                  ('stringHub', 'stringHit'),
                   ('inIceTrigger', 'stringHit'),
+                  ('icetopHub', 'sender'),
                   ('icetopHub', 'icetopHit'),
                   ('iceTopTrigger', 'icetopHit'),
                   ('amandaTrigger', 'selfContained'),
@@ -335,7 +339,7 @@ def reportRatesInternal(allData, reportList):
         isCombined = rptTuple[0].endswith('Hub') or \
             (rptTuple[0].endswith('Trigger') and
              rptTuple[0] != 'globalTrigger' and rptTuple[1] == 'trigger')
-                 
+
         if combinedField is not None:
             if not isCombined or combinedField != rptTuple[1]:
                 if combinedRate is None:
