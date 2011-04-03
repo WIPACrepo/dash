@@ -236,7 +236,6 @@ class CnCRun(BaseRun):
         """
         Start flashers for the specified duration with the specified data file
         """
-        print >>sys.stderr, "FLASH tm %s path %s" % (tm, dataPath)
         if self.__runSetId is None:
             print >>sys.stderr, "No active runset!"
             return True
@@ -250,7 +249,6 @@ class CnCRun(BaseRun):
         runData = self.getLastRunNumber()
         subrun = runData[1] + 1
         self.__setLastRunNumber(runData[0], subrun)
-        print >>sys.stderr, "SUBRUN id %d sub %d data %d" % (runData[0], subrun, len(data))
         self.__cnc.rpc_runset_subrun(self.__runSetId, subrun, data)
 
         # XXX should be monitoring run state during this time
@@ -258,7 +256,6 @@ class CnCRun(BaseRun):
 
         subrun += 1
         self.__setLastRunNumber(runData[0], subrun)
-        print >>sys.stderr, "SUBRUN id %d sub %d OFF" % (runData[0], subrun)
         self.__cnc.rpc_runset_subrun(self.__runSetId, subrun, [])
 
     def getLastRunNumber(self):
