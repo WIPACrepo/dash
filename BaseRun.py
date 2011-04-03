@@ -15,12 +15,12 @@ class StateException(RunException): pass
 class FlasherThread(threading.Thread):
     "Thread which starts and stops flashers during a run"
 
-    def __init__(self, run, data, times, pauseSecs):
+    def __init__(self, run, dataPath, times, pauseSecs):
         """
         Create a flasher thread (which has not been started)
 
         run - BaseRun object
-        data - flasher description file
+        dataPath - path for flasher description file
         times -list of flasher durations (in seconds)
         pauseSecs - number of seconds to pause between flasher sequences
         """
@@ -29,7 +29,7 @@ class FlasherThread(threading.Thread):
         self.setDaemon(True)
 
         self.__run = run
-        self.__data = data
+        self.__dataPath = dataPath
         self.__times = times
         self.__pauseSecs = pauseSecs
 
@@ -69,7 +69,7 @@ class FlasherThread(threading.Thread):
             if not self.__running:
                 break
 
-            problem = self.__run.flash(tm, self.__data)
+            problem = self.__run.flash(tm, self.__dataPath)
 
             if problem or not self.__running:
                 break
@@ -223,7 +223,8 @@ class Run(object):
 
         # get the new run number
         #
-        self.__runNum = self.__mgr.getLastRunNumber() + 1
+        runData = self.__mgr.getLastRunNumber()
+        self.__runNum = runData[0] + 1
         self.__duration = duration
 
         # set the LID mode

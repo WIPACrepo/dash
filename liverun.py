@@ -481,9 +481,11 @@ class LiveRun(BaseRun):
         """Do final cleanup before exiting"""
         pass
 
-    def flash(self, tm, data):
-        """Start flashers for the specified duration with the specified data"""
-        cmd = "%s flasher -d %d -f %s" % (self.__liveCmdProg, tm, data)
+    def flash(self, tm, dataPath):
+        """
+        Start flashers for the specified duration with the specified data file
+        """
+        cmd = "%s flasher -d %d -f %s" % (self.__liveCmdProg, tm, dataPath)
         if self.__showCmd: print cmd
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
@@ -525,7 +527,7 @@ class LiveRun(BaseRun):
 
         proc.wait()
 
-        return num
+        return (num, 0)
 
     def getRunNumber(self):
         "Return the current run number"
