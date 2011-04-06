@@ -5,7 +5,10 @@ try:
     from live.control.component import Component
     from live.control.log \
         import LOG_FATAL, LOG_ERROR, LOG_WARN, LOG_INFO, LOG_DEBUG, LOG_TRACE
-    from live.transport.Queue import Prio
+    try:
+        from live.transport.Queue import Prio
+    except ImportError:
+        from live.transport.prioqueue import Prio
 
     # set pDAQ's I3Live service name
     SERVICE_NAME = "pdaq"
@@ -31,7 +34,9 @@ except ImportError:
 
     class MoniClient(object):
         def __init__(self, service, host, port, logger=None):
-            pass
+            raise ImportError("bad moni client")
+
+
         def __str__(self):
             """
             The returned string should start with "BOGUS"
