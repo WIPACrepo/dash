@@ -34,8 +34,7 @@ except ImportError:
 
     class MoniClient(object):
         def __init__(self, service, host, port, logger=None):
-            raise ImportError("bad moni client")
-
+            pass
 
         def __str__(self):
             """
