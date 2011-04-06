@@ -23,20 +23,57 @@ class TaskManager(threading.Thread):
         self.__runset = runset
         self.__dashlog = dashlog
 
-        self.__tasks = (MonitorTask(self, runset, dashlog, live, runDir,
-                                    runOptions,
-                                    period=runCfg.monitorPeriod()),
-                        RateTask(self, runset, dashlog),
-                        ActiveDOMsTask(self, runset, dashlog, live),
-                        WatchdogTask(self, runset, dashlog,
-                                     period=runCfg.watchdogPeriod()),
-                        RadarTask(self, runset, dashlog, live))
+        self.__tasks = self.__createAllTasks(live, runDir, runCfg, runOptions)
 
         self.__running = False
         self.__flag = threading.Condition()
 
         super(TaskManager, self).__init__(name="TaskManager")
         self.setDaemon(True)
+
+    def __createAllTasks(self, live, runDir, runCfg, runOptions):
+        """
+        This method exists solely to make it easy to detect
+        errors in the task constructors.
+        """
+        taskList = []
+
+        taskNum = 0
+        while True:
+            try:
+                task = self.__createTask(taskNum, live, runDir,
+                                         runCfg, runOptions)
+                if task is None:
+                    break
+                taskList.append(task)
+            except:
+                self.__dashlog.error("Cannot create task#%d: %s" %
+                                     (taskNum, exc_string()))
+            taskNum += 1
+
+        return taskList
+
+    def __createTask(self, taskNum, live, runDir, runCfg, runOptions):
+        """
+        Create a single task.  There's nothing magic about 'taskNum',
+        it's just a convenient way to iterate through all the task
+        constructors.
+        """
+        if taskNum == 0:
+            return MonitorTask(self, self.__runset, self.__dashlog, live,
+                               runDir, runOptions,
+                               period=runCfg.monitorPeriod())
+        elif taskNum == 1:
+            return RateTask(self, self.__runset, self.__dashlog)
+        elif taskNum == 2:
+            return ActiveDOMsTask(self, self.__runset, self.__dashlog, live)
+        elif taskNum == 3:
+            return WatchdogTask(self, self.__runset, self.__dashlog,
+                                period=runCfg.watchdogPeriod())
+        elif taskNum == 4:
+            return RadarTask(self, self.__runset, self.__dashlog, live)
+
+        return None
 
     def __run(self):
         self.__running = True
