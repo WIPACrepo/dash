@@ -31,7 +31,10 @@ class DumpThreadsOnSignal(object):
             if thrd is None:
                 tStr = "Thread #%d" % tId
             else:
-                tStr = "Thread %s" % thrd.name
+                # changed to get the string representation
+                # of the thread as it has state, name, and 
+                # such embedded in it
+                tStr = "Thread %s" % thrd
 
             if first:
                 first = False
