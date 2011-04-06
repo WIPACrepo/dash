@@ -30,8 +30,13 @@ class MBeanClient(object):
         self.__compName = compName
         self.__client = RPCClient(host, port)
 
-        self.__beanFields = {}
+        self.__loadBeanInfo()
+
+    def __loadBeanInfo(self):
+        "Get the bean names and fields from the remote client"
         self.__beanList = self.__client.mbean.listMBeans()
+
+        self.__beanFields = {}
         for bean in self.__beanList:
             self.__beanFields[bean] = self.__client.mbean.listGetters(bean)
 
@@ -82,7 +87,9 @@ class MBeanClient(object):
                 attrs[k] = self.__unFixValue(attrs[k])
         return attrs
 
-    def getBeanNames(self):
+    def getBeanNames(self, reload=False):
+        if reload:
+            self.__loadBeanInfo()
         return self.__beanList
 
     def getBeanFields(self, bean):
@@ -279,10 +286,10 @@ class DAQClient(ComponentName):
             return []
         return self.__mbean.getBeanFields(bean)
 
-    def getBeanNames(self):
+    def getBeanNames(self, reload=False):
         if self.__mbean is None:
             return []
-        return self.__mbean.getBeanNames()
+        return self.__mbean.getBeanNames(reload)
 
     def getMultiBeanFields(self, name, fieldList):
         if self.__mbean is None:
