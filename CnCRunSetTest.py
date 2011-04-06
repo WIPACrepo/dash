@@ -269,6 +269,7 @@ class CnCRunSetTest(unittest.TestCase):
                               },
                         "stringhub" :
                             { "NumberOfActiveAndTotalChannels" : 0,
+                              "TotalLBMOverflows" : 0, 
                               },
                         },
                   "inIceTrigger" :
@@ -356,13 +357,18 @@ class CnCRunSetTest(unittest.TestCase):
 
         numDOMs = 22
         numTotal = 60
+        totalOverflows = 20
 
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
                            "NumberOfActiveAndTotalChannels",
                            (numDOMs, numTotal))
 
-        liveMoni.addExpectedLiveMoni("totalDOMs", [numDOMs, numTotal], "json")
+        self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
+                           "TotalLBMOverflows",
+                           20)
 
+        liveMoni.addExpectedLiveMoni("totalDOMs", [numDOMs, numTotal], "json")
+        liveMoni.addExpectedLiveMoni("LBMOverflows", { str(self.HUB_NUMBER): totalOverflows }, "json")
         timer.trigger()
 
         self.__waitForEmptyLog(liveMoni, "Didn't get active DOM message")
@@ -395,6 +401,8 @@ class CnCRunSetTest(unittest.TestCase):
 
         self.__addLiveMoni(comps, liveMoni, "stringHub", 21, "stringhub",
                            "NumberOfActiveAndTotalChannels")
+        self.__addLiveMoni(comps, liveMoni, "stringHub", 21, "stringhub",
+                           "TotalLBMOverflows")
         self.__addLiveMoni(comps, liveMoni, "eventBuilder", 0, "backEnd",
                            "DiskAvailable")
         self.__addLiveMoni(comps, liveMoni, "eventBuilder", 0, "backEnd",

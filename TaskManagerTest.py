@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import datetime, sys, time, unittest
+import datetime, time, unittest
 
 from LiveImports import Prio
 from RadarTask import RadarThread
@@ -15,7 +15,8 @@ class MockComponent(object):
         "stringHub" :
             { "stringhub" :
                   { "NumberOfActiveChannels" : 2 ,
-                    "NumberOfActiveAndTotalChannels" : [1,2]},
+                    "NumberOfActiveAndTotalChannels" : [1,2],
+                    "TotalLBMOverflows" : 20 },
               "sender" :
                   { "NumHitsReceived" : 0,
                     "NumReadoutRequestsReceived" : 0,
@@ -254,11 +255,15 @@ class TaskManagerTest(unittest.TestCase):
         live.addExpected("stringHub-1*sender+NumReadoutsSent", 0, Prio.ITS)
         live.addExpected("stringHub-1*stringhub+NumberOfActiveChannels",
                          2, Prio.ITS)
+        live.addExpected("stringHub-1*stringhub+TotalLBMOverflows",
+                         20, Prio.ITS)
 
         live.addExpected("stringHub-1*stringhub+NumberOfActiveAndTotalChannels",
                          [1,2], Prio.ITS)
         live.addExpected("stringHub-6*stringhub+NumberOfActiveAndTotalChannels",
                          [1,2], Prio.ITS)
+        live.addExpected("stringHub-6*stringhub+TotalLBMOverflows",
+                         20, Prio.ITS)
 
         live.addExpected(radarName + "*sender+NumHitsReceived", 0, Prio.ITS)
         live.addExpected(radarName + "*sender+NumReadoutRequestsReceived",
@@ -292,6 +297,8 @@ class TaskManagerTest(unittest.TestCase):
 
         # add activeDOM data
         live.addExpected("totalDOMs", (2,4), Prio.ITS)
+        live.addExpected("LBMOverflows", { "1" : 20, "6" : 20 },
+                         Prio.ITS)
         live.addExpected("stringDOMsInfo", {"1":(1,2), "6" : (1,2) },
                          Prio.ITS)
 

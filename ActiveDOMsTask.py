@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-import datetime
-
 from CnCTask import CnCTask
 from CnCThread import CnCThread
 from LiveImports import Prio
@@ -23,54 +21,76 @@ class ActiveDOMThread(CnCThread):
                                               dashlog)
 
     def _run(self):
-        activeTotal = 0
+        active_total = 0
         total = 0
-        hubActiveDoms = 0
-        hubTotalDoms = 0
-        hubDOMs = {}
-        hubInactiveDOMs = {}
+        hub_active_doms = 0
+        hub_total_doms = 0
+        hub_DOMs = {}
+
+        lbm_Overflows_Dict = {}
 
         for c in self.__comps:
             if c.isSource():
 
                 # collect the number of active and total channels
                 try:
-                    nList = \
-                          c.getSingleBeanField("stringhub",
-                                               "NumberOfActiveAndTotalChannels")
-                except Exception, e:
-                    self.__dashlog.error("Cannot get # active and total DOMS" +
-                                         " from %s: %s" %
-                                         (c.fullName(), exc_string()))
+                    beanData = c.getMultiBeanFields(
+                        "stringhub",
+                        [ "NumberOfActiveAndTotalChannels",
+                          "TotalLBMOverflows" ])
+
+                except Exception:
+                    self.__dashlog.error(
+                        "Cannot get ActiveDomsTask bean data from %s: %s" %
+                        (c.fullName(), exc_string()))
                     continue
 
 
+                # okay, so we are assuming a little about what 
+                # comes out of getMultiBeanFields it looks given 
+                # the code in MonitorTasks that it's a dictionary
+
+                activeDoms = beanData["NumberOfActiveAndTotalChannels"]
                 try:
-                    hubActiveDoms, hubTotalDoms = [ int(a) for a in nList ]
+                    hub_active_doms, hub_total_doms = [ int(a) for a in activeDoms ]
                 except:
                     self.__dashlog.error("Cannot get # active DOMS from" +
                                          " %s string: %s" %
                                          (c.fullName(), exc_string()))
                     continue
 
-                activeTotal += hubActiveDoms
-                total += hubTotalDoms
+                active_total += hub_active_doms
+                total += hub_total_doms
+
+                lbm_Overflows_Dict[str(c.num())] = beanData["TotalLBMOverflows"]
 
                 if self.__sendDetails:
-                    hubDOMs[str(c.num())] = (hubActiveDoms, hubTotalDoms)
+                    hub_DOMs[str(c.num())] = (hub_active_doms, hub_total_doms)
 
-        now = datetime.datetime.now()
-
-        self.__liveMoniClient.sendMoni("totalDOMs", (activeTotal, total),
+        self.__liveMoniClient.sendMoni("totalDOMs", (active_total, total),
                                        Prio.ITS)
 
+        # send the lbm overflow information off to live
+        self.__liveMoniClient.sendMoni("LBMOverflows", 
+                                       lbm_Overflows_Dict, Prio.ITS)
+
         if self.__sendDetails:
-            if not self.__liveMoniClient.sendMoni("stringDOMsInfo", hubDOMs,
+            if not self.__liveMoniClient.sendMoni("stringDOMsInfo", hub_DOMs,
                                                   Prio.ITS):
                 self.__dashlog.error("Failed to send active/total DOM report")
 
 
 class ActiveDOMsTask(CnCTask):
+    """Essentially a timer, so every REPORT_PERIOD a 
+    ActiveDOMsThread is created and run.  This sends three chucks of information
+    off to live: 
+    'totalDOMS' which is a count of the total number of active doms
+    in the array along with a count of the number of doms ( active or inactive ).
+    'stringDOMsInfo' which is a dictionary relating string number to the number of 
+    active and total number of doms in a string
+    'LBMOverflows' which is a dictionary relating string number to the total number of lbm
+    overflows for a given string
+    """
     NAME = "ActiveDOM"
     PERIOD = 60
     DEBUG_BIT = RunSetDebug.ACTDOM_TASK
