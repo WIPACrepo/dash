@@ -657,7 +657,7 @@ class MockComponent(object):
     def getBeanFields(self, beanName):
         return self.__beanData[beanName].keys()
 
-    def getBeanNames(self):
+    def getBeanNames(self, reload=False):
         return self.__beanData.keys()
 
     def getConfigureWait(self):

@@ -82,7 +82,7 @@ class MockComponent(object):
 
         return self.__beanData[beanName].keys()
 
-    def getBeanNames(self):
+    def getBeanNames(self, reload=False):
         return self.__beanData.keys()
 
     def getMultiBeanFields(self, beanName, fieldList):
