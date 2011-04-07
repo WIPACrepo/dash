@@ -42,6 +42,8 @@ except ImportError:
             so DAQRun can detect problems
             """
             return "BOGUS"
+        def close(self): pass
+        def sendMoni(self, name, data, prio=None, time=None): pass
 
     # set bogus log level constants
     LOG_FATAL = 32760
