@@ -357,7 +357,7 @@ class CnCRunSetTest(unittest.TestCase):
 
         numDOMs = 22
         numTotal = 60
-        totalOverflows = 20
+        #totalOverflows = 20
 
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
                            "NumberOfActiveAndTotalChannels",
@@ -368,7 +368,7 @@ class CnCRunSetTest(unittest.TestCase):
                            20)
 
         liveMoni.addExpectedLiveMoni("totalDOMs", [numDOMs, numTotal], "json")
-        liveMoni.addExpectedLiveMoni("LBMOverflows", { str(self.HUB_NUMBER): totalOverflows }, "json")
+        #liveMoni.addExpectedLiveMoni("LBMOverflows", { str(self.HUB_NUMBER): totalOverflows }, "json")
         timer.trigger()
 
         self.__waitForEmptyLog(liveMoni, "Didn't get active DOM message")
