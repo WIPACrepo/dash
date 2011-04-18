@@ -105,7 +105,7 @@ class MockComponent(object):
     def getBeanFields(self, beanName):
         return self.__beanData[beanName].keys()
 
-    def getBeanNames(self, reload=False):
+    def getBeanNames(self):
         return self.__beanData.keys()
 
     def fullName(self):
@@ -131,6 +131,8 @@ class MockComponent(object):
 
     def isSource(self):
         return self.__name.lower().endswith("hub")
+
+    def reloadBeanInfo(self): pass
 
     def name(self): return self.__name
     def num(self): return self.__num

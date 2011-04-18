@@ -82,7 +82,7 @@ class MockComponent(object):
 
         return self.__beanData[beanName].keys()
 
-    def getBeanNames(self, reload=False):
+    def getBeanNames(self):
         return self.__beanData.keys()
 
     def getMultiBeanFields(self, beanName, fieldList):
@@ -114,6 +114,7 @@ class MockComponent(object):
         return self.__name == name and (num < 0 or self.__num == num)
 
     def isSource(self): return self.__name.lower().endswith("hub")
+    def reloadBeanInfo(self): pass
     def logTo(self, host, port, liveHost, livePort): pass
     def name(self): return self.__name
     def num(self): return self.__num
@@ -269,7 +270,7 @@ class CnCRunSetTest(unittest.TestCase):
                               },
                         "stringhub" :
                             { "NumberOfActiveAndTotalChannels" : 0,
-                              "TotalLBMOverflows" : 0, 
+                              "TotalLBMOverflows" : 0,
                               },
                         },
                   "inIceTrigger" :

@@ -21,24 +21,60 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 4782 2009-12-04 15:50:49Z dglo $"
-
-class BeanFieldNotFoundException(Exception): pass
+class MBeanException(Exception): pass
+class BeanFieldNotFoundException(MBeanException): pass
+class BeanLoadException(MBeanException): pass
 
 class MBeanClient(object):
     def __init__(self, compName, host, port):
+        "Python interface to Java MBeanAgent"
         self.__compName = compName
-        self.__client = RPCClient(host, port)
+        self.__client = self.createRPCClient(host, port)
+        self.__beanList = []
+        self.__beanFields = {}
 
-        self.__loadBeanInfo()
+        self.__loadLock = threading.Lock()
+        self.__loadedInfo = False
 
     def __loadBeanInfo(self):
         "Get the bean names and fields from the remote client"
-        self.__beanList = self.__client.mbean.listMBeans()
 
-        self.__beanFields = {}
+        self.__loadedInfo = False
+        try:
+            self.__beanList = self.__client.mbean.listMBeans()
+        except:
+            raise BeanLoadException("Cannot get list of %s MBeans: %s " %
+                                    (self.__compName, exc_string()))
+
+        failed = []
         for bean in self.__beanList:
-            self.__beanFields[bean] = self.__client.mbean.listGetters(bean)
+            try:
+                self.__beanFields[bean] = \
+                                        self.__client.mbean.listGetters(bean)
+            except:
+                # don't let a single failure abort remaining fetches,
+                failed.append(bean)
+
+                # make sure bean has an entry
+                if not self.__beanFields.has_key(bean):
+                    self.__beanFields[bean] = []
+
+        if len(failed) > 0:
+            raise BeanLoadException("Cannot load %s MBeans %s: %s" %
+                                    (self.__compName, failed, exc_string()))
+
+        self.__loadedInfo = True
+
+    def __lockAndLoad(self):
+        "load bean info from the remote client if it hasn't yet been loaded"
+
+        if not self.__loadedInfo:
+            self.__loadLock.acquire()
+            try:
+                if not self.__loadedInfo:
+                    self.__loadBeanInfo()
+            finally:
+                self.__loadLock.release()
 
     @classmethod
     def __unFixValue(cls,obj):
@@ -65,6 +101,9 @@ class MBeanClient(object):
 
 
     def checkBeanField(self, bean, fld):
+        "throw an exception if the bean or field does not exist"
+        self.__lockAndLoad()
+
         if bean not in self.__beanList:
             msg = "Bean %s not in list of beans for %s" % \
                 (bean, self.__compName)
@@ -75,30 +114,44 @@ class MBeanClient(object):
                 (bean, fld, self.__compName, str(self.__beanFields[bean]))
             raise BeanFieldNotFoundException(msg)
 
+    def createRPCClient(self, host, port):
+        "create an RPC client to talk to the Java MBeanAgent"
+        return RPCClient(host, port)
+
     def get(self, bean, fld):
+        "get the value for a single MBean field"
         self.checkBeanField(bean, fld)
 
         return self.__unFixValue(self.__client.mbean.get(bean, fld))
 
     def getAttributes(self, bean, fldList):
+        "get the values for a list of MBean fields"
         attrs = self.__client.mbean.getAttributes(bean, fldList)
         if type(attrs) == dict and len(attrs) > 0:
             for k in attrs.keys():
                 attrs[k] = self.__unFixValue(attrs[k])
         return attrs
 
-    def getBeanNames(self, reload=False):
-        if reload:
-            self.__loadBeanInfo()
+    def getBeanNames(self):
+        "return a list of MBean names associated with this component"
+        self.__lockAndLoad()
+
         return self.__beanList
 
     def getBeanFields(self, bean):
-        if bean not in self.__beanList:
+        "return a list of fields associated with this component's MBean"
+        self.__lockAndLoad()
+
+        if bean not in self.__beanFields:
             msg = "Bean %s not in list of beans for %s" % \
                 (bean, self.__compName)
             raise BeanFieldNotFoundException(msg)
 
         return self.__beanFields[bean]
+
+    def reloadBeanInfo(self):
+        "reload MBean names and fields during the next request"
+        self.__loadedInfo = False
 
 class ComponentName(object):
     "DAQ component name"
@@ -286,10 +339,10 @@ class DAQClient(ComponentName):
             return []
         return self.__mbean.getBeanFields(bean)
 
-    def getBeanNames(self, reload=False):
+    def getBeanNames(self):
         if self.__mbean is None:
             return []
-        return self.__mbean.getBeanNames(reload)
+        return self.__mbean.getBeanNames()
 
     def getMultiBeanFields(self, name, fieldList):
         if self.__mbean is None:
@@ -402,6 +455,11 @@ class DAQClient(ComponentName):
         except:
             self.__log.error(exc_string())
             return None
+
+    def reloadBeanInfo(self):
+        "Reload component MBean info"
+        if self.__mbean is not None:
+            self.__mbean.reloadBeanInfo()
 
     def reset(self):
         "Reset component back to the idle state"

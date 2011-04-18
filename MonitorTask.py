@@ -20,6 +20,9 @@ class MonitorThread(CnCThread):
         self.__refused = refused
         self.__warned = False
 
+        # reload MBean info to pick up any dynamically created MBeans
+        self.__comp.reloadBeanInfo()
+
         super(MonitorThread, self).__init__(comp.fullName(), dashlog)
 
     def _run(self):
@@ -131,12 +134,9 @@ class MonitorTask(CnCTask):
         self.__threadList = {}
         if not RunOption.isMoniToNone(runOptions):
             for c in runset.components():
-                # force reload of bean names, so dynamically created beans
-                # get picked up
-                try:
-                    c.getBeanNames(reload=True)
-                except:
-                    dashlog.error("MBean reload failed: " + exc_string())
+                # refresh MBean info to pick up any new MBeans
+                c.reloadBeanInfo()
+
                 reporter = self.__createReporter(c, runDir, live, runOptions)
                 self.__threadList[c] = MonitorThread(c, dashlog, reporter)
 
