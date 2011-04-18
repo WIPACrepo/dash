@@ -19,7 +19,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id$"
+SVN_ID  = "$Id: DAQStopRun.py 12889 2011-04-18 18:06:43Z dglo $"
 
 if __name__ == "__main__":
     ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s " \
