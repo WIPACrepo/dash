@@ -651,9 +651,13 @@ class RunSet(object):
         if self.__runData.isErrorEnabled() and \
                srcOp == ComponentOperation.FORCED_STOP:
             fullSet = srcSet + otherSet
+            plural = len(fullSet) == 1 and "s" or ""
+            if len(fullSet) == 1:
+                plural = ""
+            else:
+                plural = "s"
             self.__runData.error('%s: Forcing %d component%s to stop: %s' %
-                                 (str(self), len(fullSet),
-                                  len(fullSet) == 0 and "s" or "",
+                                 (str(self), len(fullSet), plural,
                                   self.__listComponentsCommaSep(fullSet)))
 
         # stop sources in parallel
