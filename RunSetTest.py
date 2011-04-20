@@ -99,7 +99,9 @@ class TestRunSet(unittest.TestCase):
         self.assertEqual(len(statDict), len(compList))
         for c in compList:
             self.failUnless(statDict.has_key(c), 'Could not find ' + str(c))
-            self.assertEqual(statDict[c], expState)
+            self.assertEqual(statDict[c], expState,
+                             "Component %s: %s != expected %s" %
+                             (c, statDict[c], expState))
 
     def __isCompListConfigured(self, compList):
         for c in compList:
@@ -117,8 +119,7 @@ class TestRunSet(unittest.TestCase):
 
         return True
 
-    def __runSubrun(self, compList, runNum, spadeDir="/tmp", copyDir=None,
-                    expectError=None):
+    def __runSubrun(self, compList, runNum, expectError=None):
         logger = MockLogger('LOG')
 
         num = 1
@@ -150,10 +151,6 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
-        logDir = "/tmp"
-
-        #runset.startLogging(logDir, 123, clusterName)
-
         if len(compList) > 0:
             self.failUnless(self.__isCompListConfigured(compList),
                             'Components should be configured')
@@ -165,6 +162,8 @@ class TestRunSet(unittest.TestCase):
 
         logger.addExpectedRegexp("Could not stop run: .*")
 
+        expState = "running"
+
         try:
             stopErr = runset.stopRun()
         except RunSetException, ve:
@@ -174,38 +173,8 @@ class TestRunSet(unittest.TestCase):
 
         self.failIf(stopErr, "stopRun() encountered error")
 
-        logger.addExpectedExact("Starting run %d..." % runNum)
-
-        versionInfo = {"filename": "fName",
-                       "revision": "1234",
-                       "date": "date",
-                       "time": "time",
-                       "author": "author",
-                       "release": "rel",
-                       "repo_rev": "1repoRev",
-                       }
-
-        expState = "running"
-
-        logger.addExpectedExact("Starting run #%d with \"%s\"" %
-                                (runNum, clusterName))
-
-        logger.addExpectedExact("Run configuration: %s" % runConfig.basename())
-
-        logger.addExpectedRegexp(r"Version info: \S+ \d+ \S+ \S+ \S+ \S+" +
-                                  r" \d+\S*")
-        logger.addExpectedExact("Cluster configuration: %s" % clusterName)
-
-        runset.startRun(runNum, clusterName, RunOption.MONI_TO_NONE,
-                        versionInfo, spadeDir, copyDir, logDir)
-        self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %
-                         (runset.id(), runNum, expState))
-
-        if len(compList) > 0:
-            self.failUnless(self.__isCompListConfigured(compList),
-                            'Components should be configured')
-            self.failUnless(self.__isCompListRunning(compList, runNum),
-                            'Components should not be running')
+        self.__startRun(runset, runNum, runConfig, clusterName,
+                        components=compList, logger=logger)
 
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
@@ -235,30 +204,8 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
-        logger.addExpectedExact("Starting time is not set")
-
-        logger.addExpectedExact("0 physics events collected in 0 seconds")
-        logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
-        logger.addExpectedExact("Run terminated SUCCESSFULLY.")
-
-        expState = "ready"
-
-        self.failIf(runset.stopRun(), "stopRun() encountered error")
-
-        RunXMLValidator.validate(runNum, clusterName, None, None,
-                                 0, 0, 0, 0, False)
-
-        self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %
-                         (runset.id(), runNum, expState))
-
-        if len(compList) > 0:
-            self.failUnless(self.__isCompListConfigured(compList),
-                            'Components should be configured')
-            self.failIf(self.__isCompListRunning(compList),
-                        'Components should not be running')
-
-        self.__checkStatus(runset, compList, expState)
-        logger.checkStatus(10)
+        self.__stopRun(runset, runNum, clusterName, components=compList,
+                       logger=logger)
 
     def __runTests(self, compList, runNum, hangType=None):
         logger = MockLogger('foo#0')
@@ -273,9 +220,6 @@ class TestRunSet(unittest.TestCase):
         expId = RunSet.ID.peekNext()
 
         clusterName = "cluster-foo"
-
-        spadeDir = "/tmp"
-        copyDir = None
 
         runset = MyRunSet(MyParent(), runConfig, compList, logger)
 
@@ -316,8 +260,6 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
-        logDir = "/tmp"
-
         expState = "ready"
         if len(compList) > 0:
             self.failUnless(self.__isCompListConfigured(compList),
@@ -333,15 +275,6 @@ class TestRunSet(unittest.TestCase):
         self.assertRaises(RunSetException, runset.stopRun)
         logger.checkStatus(10)
 
-        versionInfo = {"filename": "fName",
-                       "revision": "1234",
-                       "date": "date",
-                       "time": "time",
-                       "author": "author",
-                       "release": "rel",
-                       "repo_rev": "1repoRev",
-                       }
-
         expState = "running"
 
         global CAUGHT_WARNING
@@ -349,60 +282,112 @@ class TestRunSet(unittest.TestCase):
             CAUGHT_WARNING = True
             logger.addExpectedRegexp(r"^Cannot import IceCube Live.*")
 
-        logger.addExpectedExact("Starting run #%d with \"%s\"" %
-                                (runNum, clusterName))
+        self.__startRun(runset, runNum, runConfig, clusterName,
+                        components=compList, logger=logger)
 
-        logger.addExpectedRegexp(r"Version info: \S+ \d+ \S+ \S+ \S+ \S+" +
-                                  r" \d+\S*")
-        logger.addExpectedExact("Cluster configuration: %s" % clusterName)
+        expState = "stopping"
 
-        logger.addExpectedExact("Run configuration: %s" % runConfig.basename())
+        self.__stopRun(runset, runNum, clusterName, components=compList,
+                       logger=logger, hangType=hangType)
 
-        logger.addExpectedExact("Starting run %d..." % runNum)
+        runset.reset()
 
-        runset.startRun(runNum, clusterName, RunOption.MONI_TO_NONE,
-                        versionInfo, spadeDir, copyDir, logDir)
-        self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %
-                         (runset.id(), runNum, expState))
+        expState = "idle"
+
+        self.assertEqual(str(runset), 'RunSet #%d (%s)' %
+                         (runset.id(), expState))
 
         if len(compList) > 0:
-            self.failUnless(self.__isCompListConfigured(compList),
-                            'Components should be configured')
-            self.failUnless(self.__isCompListRunning(compList, runNum),
-                            'Components should not be running')
+            self.failIf(self.__isCompListConfigured(compList),
+                        'Components should be configured')
+            self.failIf(self.__isCompListRunning(compList),
+                        'Components should not be running')
 
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
+
+    def __startRun(self, runset, runNum, runConfig, clusterName,
+                   runOptions=RunOption.MONI_TO_NONE, versionInfo=None,
+                   spadeDir="/tmp", copyDir=None, logDir=None,
+                   components=None, logger=None):
+
+        if versionInfo is None:
+            versionInfo = {"filename": "fName",
+                           "revision": "1234",
+                           "date": "date",
+                           "time": "time",
+                           "author": "author",
+                           "release": "rel",
+                           "repo_rev": "1repoRev",
+                           }
+
+        expState = "running"
+
+        logger.addExpectedExact("Starting run #%d with \"%s\"" %
+                                (runNum, clusterName))
+        logger.addExpectedExact(("Version info: %(filename)s %(revision)s" +
+                                 " %(date)s %(time)s %(author)s %(release)s" +
+                                 " %(repo_rev)s") % versionInfo)
+
+        logger.addExpectedExact("Run configuration: %s" % runConfig.basename())
+        logger.addExpectedExact("Cluster configuration: %s" % clusterName)
+
+        logger.addExpectedExact("Starting run %d..." % runNum)
+
+        runset.startRun(runNum, clusterName, runOptions, versionInfo,
+                        spadeDir, copyDir, logDir)
+        self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %
+                         (runset.id(), runNum, expState))
+
+        if components is not None and len(components) > 0:
+            self.failUnless(self.__isCompListConfigured(components),
+                            'Components should be configured')
+            self.failUnless(self.__isCompListRunning(components, runNum),
+                            'Components should not be running')
+
+        self.__checkStatus(runset, components, expState)
+        logger.checkStatus(10)
+
+    def __stopRun(self, runset, runNum,  clusterName, components=None,
+                  logger=None, hangType=0):
+        logger.DEBUG = True
         expState = "stopping"
 
         hangStr = None
-        forceStr = None
         hangList = []
         if hangType > 0:
-            for c in compList:
+            for c in components:
                 if c.isHanging():
+                    hangList.append(c)
                     if hangStr is None:
                         hangStr = ''
                     else:
                         hangStr += ', '
                     hangStr += c.fullName()
-                    hangList.append((c, expState))
 
         if hangType > 0:
+            if len(hangList) < len(components):
+                logger.addExpectedExact(("RunSet #%d run#%d (%s):" +
+                                         " Waiting for %s %s") %
+                                        (runset.id(), runNum, expState,
+                                         expState, hangStr))
+            if len(hangList) == 1:
+                plural = ""
+            else:
+                plural = "s"
             logger.addExpectedExact(("RunSet #%d run#%d (%s):" +
-                                     " Waiting for %s %s") %
-                                    (runset.id(), runNum, expState, expState,
-                                     hangStr))
-            logger.addExpectedExact(("RunSet #%d run#%d (%s):" +
-                                     " Forcing 1 component to stop: %s") %
+                                     " Forcing %d component%s to stop: %s") %
                                     (runset.id(), runNum, "forcingStop",
-                                     hangStr))
+                                     len(hangList), plural, hangStr))
 
         logger.addExpectedExact("Starting time is not set")
 
         logger.addExpectedExact("0 physics events collected in 0 seconds")
         logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
+
+        expState = "ready"
+
         if hangType > 1:
             expState = "forcingStop"
             logger.addExpectedExact("Run terminated WITH ERROR.")
@@ -426,36 +411,20 @@ class TestRunSet(unittest.TestCase):
 
         self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %
                          (runset.id(), runNum, expState))
+        self.assertFalse(runset.stopping(), "RunSet #%d is still stopping")
 
         RunXMLValidator.validate(runNum, clusterName, None, None,
                                  0, 0, 0, 0, hangType > 1)
 
-        if len(compList) > 0:
-            self.failUnless(self.__isCompListConfigured(compList),
+        if len(components) > 0:
+            self.failUnless(self.__isCompListConfigured(components),
                             'Components should be configured')
-            self.failIf(self.__isCompListRunning(compList),
+            self.failIf(self.__isCompListRunning(components),
                         'Components should not be running')
 
         if hangType == 0:
-            self.__checkStatus(runset, compList, expState)
+            self.__checkStatus(runset, components, expState)
         logger.checkStatus(10)
-
-        runset.reset()
-
-        expState = "idle"
-
-        self.assertEqual(str(runset), 'RunSet #%d (%s)' %
-                         (runset.id(), expState))
-
-        if len(compList) > 0:
-            self.failIf(self.__isCompListConfigured(compList),
-                        'Components should be configured')
-            self.failIf(self.__isCompListRunning(compList),
-                        'Components should not be running')
-
-        self.__checkStatus(runset, compList, expState)
-        logger.checkStatus(10)
-
 
     def setUp(self):
         RunXMLValidator.setUp()
@@ -625,6 +594,67 @@ class TestRunSet(unittest.TestCase):
 
         runset.restartAllComponents(clusterCfg, None, None, None, None,
                                     False, False, False)
+
+
+    def testShortStopWithoutStart(self):
+        compList = self.__buildCompList(("one", "two", "three"))
+        runConfig = FakeRunConfig("XXXrunCfgXXX")
+        logger = MockLogger('foo#0')
+
+        runset = MyRunSet(MyParent(), runConfig, compList, logger)
+
+        logger.addExpectedRegexp("Could not stop run: RunSetException.*")
+
+        try:
+            self.failIf(runset.stopRun(), "stopRun() encountered error")
+            self.fail("stopRun() on new runset should throw exception")
+        except Exception, ex:
+            if not str(ex).startswith("RunSet #") or \
+               not str(ex).endswith(" is not running"):
+                raise ex
+
+
+    def testShortStopNormal(self):
+        compList = self.__buildCompList(("one", "two", "three"))
+        runConfig = FakeRunConfig("XXXrunCfgXXX")
+        logger = MockLogger('foo#0')
+
+        runset = MyRunSet(MyParent(), runConfig, compList, logger)
+
+        runset.configure()
+
+        runNum = 100
+        cluCfgName = "foo"
+
+        self.__startRun(runset, runNum, runConfig, cluCfgName,
+                        components=compList, logger=logger)
+
+        self.__stopRun(runset, runNum, cluCfgName, components=compList,
+                       logger=logger)
+
+    def testShortStopHang(self):
+        compList = self.__buildCompList(("one", "two", "three"))
+        runConfig = FakeRunConfig("XXXrunCfgXXX")
+        logger = MockLogger('foo#0')
+
+        runset = MyRunSet(MyParent(), runConfig, compList, logger)
+
+        runset.configure()
+
+        runNum = 100
+        cluCfgName = "foo"
+
+        self.__startRun(runset, runNum, runConfig, cluCfgName,
+                        components=compList, logger=logger)
+
+        hangType = 2
+        for c in compList:
+            c.setHangType(hangType)
+
+        RunSet.TIMEOUT_SECS = 5
+
+        self.__stopRun(runset, runNum, cluCfgName, components=compList,
+                       logger=logger, hangType=hangType)
 
 if __name__ == '__main__':
     unittest.main()
