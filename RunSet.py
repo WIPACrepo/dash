@@ -914,6 +914,8 @@ class RunSet(object):
 
         changed = False
 
+        # remove stopped components from appropriate dictionary
+        #
         states = tGroup.results()
         for set in (srcSet, otherSet):
             copy = set[:]
@@ -1628,11 +1630,11 @@ class RunSet(object):
             self.__logger.error("Could not stop run: " + exc_string())
             raise
         finally:
+            self.__stopping = False
             if len(waitList) > 0:
                 hadError = True
             if self.__runData is not None:
                 self.__finalReport(waitList, hadError)
-            self.__stopping = False
 
         return hadError
 
