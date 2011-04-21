@@ -407,7 +407,7 @@ class DefaultDomGeometryReader(XMLParser):
                 elif kid.nodeName == "productionId":
                     prod = cls.getChildText(kid)
                 elif kid.nodeName == "channelId":
-                    chanId = cls.getChildText(kid)
+                    chanId = int(cls.getChildText(kid))
                 elif kid.nodeName == "xCoordinate":
                     x = float(cls.getChildText(kid))
                 elif kid.nodeName == "yCoordinate":
