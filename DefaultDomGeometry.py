@@ -225,17 +225,13 @@ class DefaultDomGeometry(object):
                 continue
 
             print "%s<string>" % indent
-            print "%s%s<number>%02d</number>" % (indent, indent, s)
+            print "%s%s<number>%d</number>" % (indent, indent, s)
 
             domList.sort()
             for dom in domList:
                 print "%s%s<dom>" % (indent, indent)
                 if dom.pos() is not None:
-                    if s % 1000 == 1:
-                        print "%s<position>%d</position>" % (domIndent, dom.pos())
-                    else:
-                        print "%s<position>%02d</position>" % \
-                              (domIndent, dom.pos())
+                    print "%s<position>%d</position>" % (domIndent, dom.pos())
                 if dom.channelId() is not None:
                     print "%s<channelId>%d</channelId>" % \
                           (domIndent, dom.channelId())
