@@ -248,14 +248,14 @@ class DefaultDomGeometry(object):
                     print "%s<productionId>%s</productionId>" % \
                           (domIndent, dom.prodId())
                 if dom.x() is not None:
-                    xStr = "%4.2f" % dom.x()
-                    print "%s<xCoordinate>%s</xCoordinate>" % (domIndent, xStr)
+                    print "%s<xCoordinate>%3.2f</xCoordinate>" % \
+                          (domIndent, dom.x())
                 if dom.y() is not None:
-                    yStr = "%4.2f" % dom.y()
-                    print "%s<yCoordinate>%s</yCoordinate>" % (domIndent, yStr)
+                    print "%s<yCoordinate>%3.2f</yCoordinate>" % \
+                          (domIndent, dom.y())
                 if dom.z() is not None:
-                    zStr = "%4.2f" % dom.z()
-                    print "%s<zCoordinate>%s</zCoordinate>" % (domIndent, zStr)
+                    print "%s<zCoordinate>%3.2f</zCoordinate>" % \
+                          (domIndent, dom.z())
                 print "%s%s</dom>" % (indent, indent)
 
             print "%s</string>" % indent
