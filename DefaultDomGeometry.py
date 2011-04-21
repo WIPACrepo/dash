@@ -20,7 +20,7 @@ class ProcessError(XMLError): pass
 class BadFileError(XMLError): pass
 
 class XMLParser(object):
-    
+
     @staticmethod
     def getChildText(node):
         "Return the text from this node's child"
@@ -306,6 +306,7 @@ class DefaultDomGeometry(object):
         if strNum in [19, 37, 28]: return 208
         if strNum in [41, 32, 24, 15, 35, 25, 8, 16]: return 209
         if strNum in [42, 43, 33, 34, 23, 51]: return 210
+        if strNum in [1, 7, 14, 22, 31, 79, 80, 81]: return 211
         raise ProcessError("Could not find icetop hub for string %d" % strNum)
 
     def getStringToDomDict(self):
