@@ -57,6 +57,9 @@ class XMLParser(object):
 
 
 class DomGeometry(object):
+    "maximum possible channel ID"
+    MAX_CHAN_ID = 87 * 64
+
     "Data for a single DOM"
     def __init__(self, string, pos, id, name, prod, chanId=None,
                  x=None, y=None, z=None):
@@ -127,7 +130,10 @@ class DomGeometry(object):
     def pos(self): return self.__pos
     def prodId(self): return self.__prod
 
-    def setChannelId(self, chanId): self.__chanId = chanId
+    def setChannelId(self, chanId):
+        if chanId > self.MAX_CHAN_ID:
+            raise Exception("Bad channel ID %d for %s" % (chanId, self))
+        self.__chanId = chanId
 
     def setDesc(self, desc):
         if desc is None or desc == "-" or desc == "NULL":
@@ -336,12 +342,22 @@ class DefaultDomGeometry(object):
                 if dom.pos() < 1 or dom.pos() > 64:
                     print >>sys.stderr, "Bad position %d for %s" % \
                         (dom.pos(), dom)
-                else:
-                    if baseNum < 200:
+                elif baseNum <= 86 or dom.originalOrder() is not None:
+                    if baseNum <= 86:
                         pos = dom.pos() - 1
-                    elif dom.originalOrder() is not None:
-                        pos = dom.originalOrder()
-                    dom.setChannelId((baseNum * 64) + pos)
+                    else:
+                        pos = -1
+
+                    if pos >= 0 and baseNum <= 86:
+                        newChanId = (baseNum * 64) + pos
+                        if dom.channelId() is not None and \
+                           dom.channelId() != newChanId:
+                            print >>sys.stderr, \
+                                  "Rewriting %s channel ID from %s to %d" % \
+                                  (dom, dom.channelId(), newChanId)
+                        dom.setChannelId(newChanId)
+                    elif dom.channelId() is None:
+                        print >>sys.stderr, "Not setting channel ID for %s" % dom
 
                 if (baseNum <= 80 and dom.pos() <= 60) or \
                         (baseNum > 200 and dom.pos() > 60) or \
