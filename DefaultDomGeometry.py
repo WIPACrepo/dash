@@ -237,7 +237,7 @@ class DefaultDomGeometry(object):
                         print "%s<position>%02d</position>" % \
                               (domIndent, dom.pos())
                 if dom.channelId() is not None:
-                    print "%s<channelId>%s</channelId>" % \
+                    print "%s<channelId>%d</channelId>" % \
                           (domIndent, dom.channelId())
                 if dom.id() is not None:
                     print "%s<mainBoardId>%s</mainBoardId>" % \
