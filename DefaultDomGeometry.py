@@ -214,6 +214,9 @@ class DefaultDomGeometry(object):
         strList = self.__stringToDom.keys()
         strList.sort()
 
+        indent = "  "
+        domIndent = indent + indent + indent
+
         print "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
         print "<domGeometry>"
         for s in strList:
@@ -221,37 +224,41 @@ class DefaultDomGeometry(object):
             if len(domList) == 0:
                 continue
 
-            print "   <string>"
-            print "      <number>%02d</number>" % s
+            print "%s<string>" % indent
+            print "%s%s<number>%02d</number>" % (indent, indent, s)
 
             domList.sort()
             for dom in domList:
-                print "     <dom>"
+                print "%s%s<dom>" % (indent, indent)
                 if dom.pos() is not None:
                     if s % 1000 == 1:
-                        print "        <position>%d</position>" % dom.pos()
+                        print "%s<position>%d</position>" % (domIndent, dom.pos())
                     else:
-                        print "        <position>%02d</position>" % dom.pos()
+                        print "%s<position>%02d</position>" % \
+                              (domIndent, dom.pos())
                 if dom.channelId() is not None:
-                    print "        <channelId>%s</channelId>" % dom.channelId()
+                    print "%s<channelId>%s</channelId>" % \
+                          (domIndent, dom.channelId())
                 if dom.id() is not None:
-                    print "        <mainBoardId>%s</mainBoardId>" % dom.id()
+                    print "%s<mainBoardId>%s</mainBoardId>" % \
+                          (domIndent, dom.id())
                 if dom.name() is not None:
-                    print "        <name>%s</name>" % dom.name()
+                    print "%s<name>%s</name>" % (domIndent, dom.name())
                 if dom.prodId() is not None:
-                    print "        <productionId>%s</productionId>" % dom.prodId()
+                    print "%s<productionId>%s</productionId>" % \
+                          (domIndent, dom.prodId())
                 if dom.x() is not None:
                     xStr = "%4.2f" % dom.x()
-                    print "        <xCoordinate>%s</xCoordinate>" % xStr
+                    print "%s<xCoordinate>%s</xCoordinate>" % (domIndent, xStr)
                 if dom.y() is not None:
                     yStr = "%4.2f" % dom.y()
-                    print "        <yCoordinate>%s</yCoordinate>" % yStr
+                    print "%s<yCoordinate>%s</yCoordinate>" % (domIndent, yStr)
                 if dom.z() is not None:
                     zStr = "%4.2f" % dom.z()
-                    print "        <zCoordinate>%s</zCoordinate>" % zStr
-                print "     </dom>"
+                    print "%s<zCoordinate>%s</zCoordinate>" % (domIndent, zStr)
+                print "%s%s</dom>" % (indent, indent)
 
-            print "   </string>"
+            print "%s</string>" % indent
         print "</domGeometry>"
 
     def dumpNicknames(self):
