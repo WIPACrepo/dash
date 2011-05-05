@@ -312,6 +312,9 @@ class DefaultDomGeometry(object):
 
             domList.sort()
             for dom in domList:
+                if dom.mbid() is None and dom.name() is None and \
+                       dom.prodId() is None:
+                    continue
                 print >>out, "%s%s<dom>" % (indent, indent)
                 if dom.pos() is not None:
                     print >>out, "%s<position>%d</position>" % \
