@@ -618,7 +618,7 @@ class DomsTxtReader(object):
             if newGeom:
                 dom = None
             else:
-                dom = defDomGeom.getDom(strNum, pos)
+                dom = defDomGeom.getDom(strNum, pos, prodId)
 
             if dom is None:
                 dom = DomGeometry(strNum, pos, mbid, name, prodId)
@@ -670,7 +670,7 @@ class NicknameReader(object):
             if newGeom:
                 dom = None
             else:
-                dom = defDomGeom.getDom(strNum, pos)
+                dom = defDomGeom.getDom(strNum, pos, prodId)
 
             if dom is not None:
                 dom.setDesc(desc)
