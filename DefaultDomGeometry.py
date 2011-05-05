@@ -673,7 +673,8 @@ class NicknameReader(object):
                 dom = defDomGeom.getDom(strNum, pos, prodId)
 
             if dom is not None:
-                dom.setDesc(desc)
+                if desc != "-":
+                    dom.setDesc(desc)
             else:
                 dom = DomGeometry(strNum, pos, mbid, name, prodId)
                 dom.validate()
