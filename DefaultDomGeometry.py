@@ -195,14 +195,15 @@ class DefaultDomGeometry(object):
 
         if self.__translateDoms:
             mbid = dom.mbid()
-            if self.__domIdToDom.has_key(mbid):
-                oldNum = self.__domIdToDom[mbid].string()
-                if oldNum != dom.string():
-                    print >>sys.stderr, ("DOM %s belongs to both" +
-                                         " string %d and %d") % \
-                                         (mbid, oldNum, dom.string())
+            if mbid is not None:
+                if self.__domIdToDom.has_key(mbid):
+                    oldNum = self.__domIdToDom[mbid].string()
+                    if oldNum != dom.string():
+                        print >>sys.stderr, ("DOM %s belongs to both" +
+                                             " string %d and %d") % \
+                                             (mbid, oldNum, dom.string())
 
-            self.__domIdToDom[mbid] = dom
+                self.__domIdToDom[mbid] = dom
 
     def addString(self, stringNum, errorOnMulti=True):
         if not self.__stringToDom.has_key(stringNum):
