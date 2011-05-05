@@ -149,7 +149,12 @@ class DomGeometry(object):
     def setId(self, mbid): self.__mbid = mbid
     def setName(self, name): self.__name = name
     def setOriginalOrder(self, num): self.__origOrder = num
-    def setPos(self, pos): self.__pos = pos
+
+    def setPos(self, pos):
+        if pos < 1 or pos > self.MAX_POSITION:
+            raise DomGeometryException("Bad position %d for %s" % (pos, self))
+        self.__pos = pos
+
     def setProdId(self, prod): self.__prod = prod
 
     def setString(self, strNum):
