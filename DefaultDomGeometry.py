@@ -214,12 +214,24 @@ class DefaultDomGeometry(object):
 
     def deleteDom(self, stringNum, dom):
         for i in range(len(self.__stringToDom[stringNum])):
-            if dom == self.__stringToDom[stringNum][i]:
+            cur = self.__stringToDom[stringNum][i]
+            found = False
+            if dom.pos() == cur.pos() and dom.pos() <= 60:
+                found = True
+            elif dom.mbid() is not None and cur.mbid() is not None and \
+                     dom.mbid() == cur.mbid():
+                found = True
+            elif dom.prodId() is not None and cur.prodId() is not None and \
+                     dom.prodId() == cur.prodId():
+                found = True
+
+            if found:
                 del self.__stringToDom[stringNum][i]
                 return
 
-        print >>sys.stderr, "Could not delete %s from string %d" % \
-            (dom, stringNum)
+        if dom.mbid() is not None or dom.name() is not None:
+            print >>sys.stderr, "Could not delete %s from string %d" % \
+                  (dom, stringNum)
 
     def dump(self, out=sys.stdout):
         "Dump the string->DOM dictionary in default-dom-geometry format"
