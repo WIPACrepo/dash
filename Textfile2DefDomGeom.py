@@ -5,23 +5,32 @@
 #
 # URL: http://icecube.wisc.edu/~testdaq/database_files/nicknames.txt
 
-import sys
+import optparse, sys
 from DefaultDomGeometry import DefaultDomGeometryReader, DomsTxtReader, \
      NicknameReader
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        raise SystemExit("Please specify a file to load!")
-    if len(sys.argv) > 2:
-        raise SystemExit("Too many command-line arguments!")
+    p = optparse.OptionParser()
 
-    if sys.argv[1].endswith("nicknames.txt"):
+    p.add_option("-d", "--domstxt", type="string", dest="domsFile",
+                 action="store", default=None,
+                 help="DOM description file")
+    p.add_option("-n", "--nicknames", type="string", dest="nicknames",
+                 action="store", default=None,
+                 help="DOM 'nicknames' file")
+    p.add_option("-v", "--verbose", dest="verbose",
+                 action="store_true", default=False,
+                 help="Be chatty")
+
+    if opt.domsFile is not None and opt.nicknames is not None:
+        raise SystemExit("Cannot specify both doms.txt and nicknames.txt files")
+
+    if opt.nicknames is not None:
         newGeom = NicknameReader.parse(sys.argv[1])
-    elif sys.argv[1].endswith("doms.txt"):
+    elif opt.domsFile is not None:
         newGeom = DomsTxtReader.parse(sys.argv[1])
     else:
-        raise SystemExit("File must be 'nicknames.txt' or 'doms.txt'," +
-                         " not '%s'" % sys.argv[1])
+        raise SystemExit("Please specify a doms.txt or nicknames.txt file")
 
     oldDomGeom = DefaultDomGeometryReader.parse()
 
