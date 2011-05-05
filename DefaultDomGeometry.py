@@ -392,14 +392,14 @@ class DefaultDomGeometry(object):
         if strNum in [46, 55, 56, 65, 72, 73, 77, 78]: return 201
         if strNum in [38, 39, 48, 58, 64, 66, 71, 74]: return 202
         if strNum in [30, 40, 47, 49, 50, 57, 59, 67]: return 203
-        if strNum in [4,  11, 27, 10, 5,  18, 20, 36]: return 204
+        if strNum in [4,  5,  10, 11, 18, 20, 27, 36]: return 204
         if strNum in [45, 54, 62, 63, 69, 70, 75, 76]: return 205
         if strNum in [21, 29, 44, 52, 53, 60, 61, 68]: return 206
-        if strNum in [26, 6,  12, 9,  3,   2, 13, 17]: return 207
-        if strNum in [19, 37, 28]: return 208
-        if strNum in [41, 32, 24, 15, 35, 25, 8, 16]: return 209
-        if strNum in [42, 43, 33, 34, 23, 51]: return 210
-        if strNum in [1, 7, 14, 22, 31, 79, 80, 81]: return 211
+        if strNum in [2,  3,  6,  9,  12, 13, 17, 26]: return 207
+        if strNum in [19, 28, 37]: return 208
+        if strNum in [8,  15, 16, 24, 25, 32, 35, 41]: return 209
+        if strNum in [23, 33, 34, 42, 43, 51]: return 210
+        if strNum in [1,  7,  14, 22, 31, 79, 80, 81]: return 211
         raise ProcessError("Could not find icetop hub for string %d" % strNum)
 
     def getStringToDomDict(self):
