@@ -234,6 +234,48 @@ class DomGeometry(object):
 
     def string(self): return self.__string
 
+    def update(self, dom, verbose=False):
+        "Copy missing info from DOM argument"
+        if self.__mbid is None:
+            self.__mbid = dom.__mbid
+        elif verbose and dom.__string < self.BASE_ICETOP_HUB_NUM and \
+                 dom.__mbid is not None and self.__mbid != dom.__mbid:
+            print >>sys.stderr, \
+                  "Not changing DOM %s MBID from \"%s\" to \"%s\"" % \
+                  (self, self.__mbid, dom.__mbid)
+
+        if self.__name is None:
+            self.__name = dom.__name
+        elif verbose and dom.__string < self.BASE_ICETOP_HUB_NUM and \
+                 dom.__name is not None and self.__name != dom.__name:
+            print >>sys.stderr, \
+                  "Not changing DOM %s name from \"%s\" to \"%s\"" % \
+                  (self, self.__name, dom.__name)
+
+        if self.__prod is None:
+            self.__prod = dom.__prod
+        elif verbose and dom.__string < self.BASE_ICETOP_HUB_NUM and \
+                 dom.__prod is not None and self.__prod != dom.__prod:
+            print >>sys.stderr, \
+                  "Not changing DOM %s prodID from \"%s\" to \"%s\"" % \
+                  (self, self.__prod, dom.__prod)
+
+        if self.__chanId is None:
+            self.__chanId = dom.__chanId
+        elif verbose and dom.__string < self.BASE_ICETOP_HUB_NUM and \
+                 dom.__chanId is not None and self.__chanId != dom.__chanId:
+            print >>sys.stderr, \
+                  "Not changing DOM %s channel ID from %d to %d" % \
+                  (self, self.__chanId, dom.__chanId)
+
+        if self.__origString is None:
+            self.__origString = dom.__origString
+        elif verbose and dom.__origString is not None and \
+                 self.__origString != dom.__origString:
+            print >>sys.stderr, \
+                  "Not changing DOM %s original string from %d to %d" % \
+                  (self, self.__origString, dom.__origString)
+
     def validate(self):
         if self.__pos is None:
             if self.__name is not None:
@@ -456,6 +498,24 @@ class DefaultDomGeometry(object):
 
                     self.addString(dom.string(), errorOnMulti=False)
                     self.addDom(dom)
+
+    def update(self, newDomGeom, verbose=False):
+        "Copy missing string, DOM, or DOM info from 'newDomGeom'"
+        keys = self.__stringToDom.keys()
+
+        for s in newDomGeom.__stringToDom:
+            if not s in keys:
+                self.__stringToDom[s] = newDomGeom.__stringToDom[s]
+                continue
+            for nd in newDomGeom.__stringToDom[s]:
+                foundPos = False
+                for dom in self.__stringToDom[s]:
+                    if dom.pos() == nd.pos():
+                        foundPos = True
+                        if dom.mbid() == nd.mbid():
+                            dom.update(nd, verbose=verbose)
+                if not foundPos:
+                    self.addDom(nd)
 
 class DefaultDomGeometryReader(XMLParser):
 
