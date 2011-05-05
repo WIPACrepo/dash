@@ -616,11 +616,11 @@ class DomsTxtReader(object):
             defDomGeom.addString(strNum, errorOnMulti=False)
 
             if newGeom:
-                oldDom = None
+                dom = None
             else:
-                oldDom = defDomGeom.getDom(strNum, pos)
+                dom = defDomGeom.getDom(strNum, pos)
 
-            if oldDom is None:
+            if dom is None:
                 dom = DomGeometry(strNum, pos, mbid, name, prodId)
                 dom.validate()
 
@@ -668,12 +668,12 @@ class NicknameReader(object):
             defDomGeom.addString(strNum, errorOnMulti=False)
 
             if newGeom:
-                oldDom = None
+                dom = None
             else:
-                oldDom = defDomGeom.getDom(strNum, pos)
+                dom = defDomGeom.getDom(strNum, pos)
 
-            if oldDom is not None:
-                oldDom.setDesc(desc)
+            if dom is not None:
+                dom.setDesc(desc)
             else:
                 dom = DomGeometry(strNum, pos, mbid, name, prodId)
                 dom.validate()
