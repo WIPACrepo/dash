@@ -65,11 +65,11 @@ class DomGeometry(object):
     MAX_CHAN_ID = 87 * MAX_POSITION
 
     "Data for a single DOM"
-    def __init__(self, string, pos, id, name, prod, chanId=None,
+    def __init__(self, string, pos, mbid, name, prod, chanId=None,
                  x=None, y=None, z=None):
         self.__string = string
         self.__pos = pos
-        self.__id = id
+        self.__mbid = mbid
         self.__name = name
         self.__prod = prod
         self.__chanId = chanId
@@ -119,7 +119,7 @@ class DomGeometry(object):
 
     def __str__(self):
         return "%s[%s] %02d-%02d" % \
-            (self.__id, self.__name, self.__string, self.__pos)
+            (self.__mbid, self.__name, self.__string, self.__pos)
 
     def channelId(self): return self.__chanId
 
@@ -128,7 +128,7 @@ class DomGeometry(object):
             return "-"
         return self.__desc
 
-    def id(self): return self.__id
+    def mbid(self): return self.__mbid
     def name(self): return self.__name
     def originalOrder(self): return self.__origOrder
     def pos(self): return self.__pos
@@ -146,7 +146,7 @@ class DomGeometry(object):
         else:
             self.__desc = desc
 
-    def setId(self, id): self.__id = id
+    def setId(self, mbid): self.__mbid = mbid
     def setName(self, name): self.__name = name
     def setOriginalOrder(self, num): self.__origOrder = num
     def setPos(self, pos): self.__pos = pos
@@ -162,17 +162,18 @@ class DomGeometry(object):
         if self.__pos is None:
             if self.__name is not None:
                 dname = self.__name
-            elif id is None:
-                dname = self.__id
+            elif self.__mbid is not None:
+                dname = self.__mbid
             else:
                 raise ProcessError("Blank DOM entry")
 
             raise ProcessError("DOM %s is missing ID in string %s" % dname)
-        if self.__id is None:
-            raise ProcessError("DOM pos %d is missing ID in string %s" %
+        if self.__mbid is None:
+            raise ProcessError("DOM pos %d is missing MBID in string %s" %
                                (self.__pos, self.__string))
         if self.__name is None:
-            raise ProcessError("DOM %s is missing ID in string %s" % self.__id)
+            raise ProcessError("DOM %s is missing name in string %s" %
+                               self.__mbid)
 
     def x(self): return self.__x
     def y(self): return self.__y
@@ -188,15 +189,15 @@ class DefaultDomGeometry(object):
         self.__stringToDom[dom.string()].append(dom)
 
         if self.__translateDoms:
-            mbId = dom.id()
-            if self.__domIdToDom.has_key(mbId):
-                oldNum = self.__domIdToDom[mbId].string()
+            mbid = dom.mbid()
+            if self.__domIdToDom.has_key(mbid):
+                oldNum = self.__domIdToDom[mbid].string()
                 if oldNum != dom.string():
                     print >>sys.stderr, ("DOM %s belongs to both" +
                                          " string %d and %d") % \
-                                         (mbId, oldNum, dom.string())
+                                         (mbid, oldNum, dom.string())
 
-            self.__domIdToDom[mbId] = dom
+            self.__domIdToDom[mbid] = dom
 
     def addString(self, stringNum, errorOnMulti=True):
         if not self.__stringToDom.has_key(stringNum):
@@ -240,9 +241,9 @@ class DefaultDomGeometry(object):
                 if dom.channelId() is not None:
                     print "%s<channelId>%d</channelId>" % \
                           (domIndent, dom.channelId())
-                if dom.id() is not None:
+                if dom.mbid() is not None:
                     print "%s<mainBoardId>%s</mainBoardId>" % \
-                          (domIndent, dom.id())
+                          (domIndent, dom.mbid())
                 if dom.name() is not None:
                     print "%s<name>%s</name>" % (domIndent, dom.name())
                 if dom.prodId() is not None:
@@ -281,7 +282,7 @@ class DefaultDomGeometry(object):
                 desc = "-"
 
             print "%s\t%s\t%s\t%02d-%02d\t%s" % \
-                (dom.id(), dom.prodId(), name, dom.string(), dom.pos(), desc)
+                (dom.mbid(), dom.prodId(), name, dom.string(), dom.pos(), desc)
 
     def getDom(self, strNum, pos):
         if self.__stringToDom.has_key(strNum):
@@ -397,7 +398,7 @@ class DefaultDomGeometryReader(XMLParser):
                                node.nodeName)
 
         pos = None
-        id = None
+        mbid = None
         name = None
         prod = None
         chanId = None
@@ -416,7 +417,7 @@ class DefaultDomGeometryReader(XMLParser):
                 if kid.nodeName == "position":
                     pos = int(cls.getChildText(kid))
                 elif kid.nodeName == "mainBoardId":
-                    id = cls.getChildText(kid)
+                    mbid = cls.getChildText(kid)
                 elif kid.nodeName == "name":
                     name = cls.getChildText(kid)
                 elif kid.nodeName == "productionId":
@@ -437,7 +438,7 @@ class DefaultDomGeometryReader(XMLParser):
             raise ProcessError("Found unknown %s node <%s>" %
                                (node.nodeName, kid.nodeName))
 
-        dom = DomGeometry(stringNum, pos, id, name, prod, chanId, x, y, z)
+        dom = DomGeometry(stringNum, pos, mbid, name, prod, chanId, x, y, z)
         dom.validate()
 
         return dom
@@ -551,8 +552,8 @@ class DomsTxtReader(object):
                 continue
 
             #(id, prodId, name, loc, desc) = re.split("\s+", line, 4)
-            (loc, prodId, name, id) = re.split("\s+", line, 3)
-            if id == "mbid":
+            (loc, prodId, name, mbid) = re.split("\s+", line, 3)
+            if mbid == "mbid":
                 continue
 
             try:
@@ -572,7 +573,7 @@ class DomsTxtReader(object):
                 oldDom = geom.getDom(strNum, pos)
 
             if oldDom is None:
-                dom = DomGeometry(strNum, pos, id, name, prodId)
+                dom = DomGeometry(strNum, pos, mbid, name, prodId)
                 dom.validate()
 
                 geom.addDom(dom)
@@ -601,8 +602,8 @@ class NicknameReader(object):
             if len(line) == 0:
                 continue
 
-            (id, prodId, name, loc, desc) = re.split("\s+", line, 4)
-            if id == "mbid":
+            (mbid, prodId, name, loc, desc) = re.split("\s+", line, 4)
+            if mbid == "mbid":
                 continue
 
             try:
@@ -624,7 +625,7 @@ class NicknameReader(object):
             if oldDom is not None:
                 oldDom.setDesc(desc)
             else:
-                dom = DomGeometry(strNum, pos, id, name, prodId)
+                dom = DomGeometry(strNum, pos, mbid, name, prodId)
                 dom.validate()
 
                 geom.addDom(dom)
