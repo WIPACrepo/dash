@@ -44,9 +44,9 @@ if __name__ == "__main__":
         raise SystemExit("Cannot specify both doms.txt and nicknames.txt files")
 
     if opt.nicknames is not None:
-        newGeom = NicknameReader.parse(args[0])
+        newGeom = NicknameReader.parse(opt.nicknames)
     elif opt.domsFile is not None:
-        newGeom = DomsTxtReader.parse(args[0])
+        newGeom = DomsTxtReader.parse(opt.domsFile)
     elif opt.geomFile is not None:
         newGeom = None
     else:
