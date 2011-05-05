@@ -538,7 +538,7 @@ class DefaultDomGeometryReader(XMLParser):
 
 class DomsTxtReader(object):
     @staticmethod
-    def parse(fileName=None, geom=None):
+    def parse(fileName=None, defDomGeom=None):
         if fileName is None:
             fileName = os.path.join(metaDir, "config", "doms.txt")
 
@@ -548,9 +548,9 @@ class DomsTxtReader(object):
 
         fd = open(fileName, "r")
 
-        newGeom = geom is None
+        newGeom = defDomGeom is None
         if newGeom:
-            geom = DefaultDomGeometry()
+            defDomGeom = DefaultDomGeometry()
 
         for line in fd:
             line = line.rstrip()
@@ -571,25 +571,25 @@ class DomsTxtReader(object):
                     (loc, prodId)
                 continue
 
-            geom.addString(strNum, errorOnMulti=False)
+            defDomGeom.addString(strNum, errorOnMulti=False)
 
             if newGeom:
                 oldDom = None
             else:
-                oldDom = geom.getDom(strNum, pos)
+                oldDom = defDomGeom.getDom(strNum, pos)
 
             if oldDom is None:
                 dom = DomGeometry(strNum, pos, mbid, name, prodId)
                 dom.validate()
 
-                geom.addDom(dom)
+                defDomGeom.addDom(dom)
 
-        return geom
+        return defDomGeom
 
 
 class NicknameReader(object):
     @staticmethod
-    def parse(fileName=None, geom=None):
+    def parse(fileName=None, defDomGeom=None):
         if fileName is None:
             fileName = os.path.join(metaDir, "config", "nicknames.txt")
 
@@ -599,9 +599,9 @@ class NicknameReader(object):
 
         fd = open(fileName, "r")
 
-        newGeom = geom is None
+        newGeom = defDomGeom is None
         if newGeom:
-            geom = DefaultDomGeometry()
+            defDomGeom = DefaultDomGeometry()
 
         for line in fd:
             line = line.rstrip()
@@ -621,12 +621,12 @@ class NicknameReader(object):
                     (loc, prodId)
                 continue
 
-            geom.addString(strNum, errorOnMulti=False)
+            defDomGeom.addString(strNum, errorOnMulti=False)
 
             if newGeom:
                 oldDom = None
             else:
-                oldDom = geom.getDom(strNum, pos)
+                oldDom = defDomGeom.getDom(strNum, pos)
 
             if oldDom is not None:
                 oldDom.setDesc(desc)
@@ -634,9 +634,9 @@ class NicknameReader(object):
                 dom = DomGeometry(strNum, pos, mbid, name, prodId)
                 dom.validate()
 
-                geom.addDom(dom)
+                defDomGeom.addDom(dom)
 
-        return geom
+        return defDomGeom
 
 if __name__ == "__main__":
     # read in default-dom-geometry.xml

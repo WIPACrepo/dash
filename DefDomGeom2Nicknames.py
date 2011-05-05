@@ -16,7 +16,7 @@ if __name__ == "__main__":
     else:
         defDomGeom = DefaultDomGeometryReader.parse(sys.argv[1])
 
-    NicknameReader.parse(geom=defDomGeom)
+    NicknameReader.parse(defDomGeom=defDomGeom)
 
     # dump the new default-dom-geometry data to sys.stdout
     defDomGeom.dumpNicknames()
