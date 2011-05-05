@@ -308,11 +308,12 @@ class DefaultDomGeometry(object):
             print >>out, "%s\t%s\t%s\t%02d-%02d\t%s" % \
                 (dom.mbid(), dom.prodId(), name, dom.string(), dom.pos(), desc)
 
-    def getDom(self, strNum, pos):
+    def getDom(self, strNum, pos, prodId=None):
         if self.__stringToDom.has_key(strNum):
             for dom in self.__stringToDom[strNum]:
                 if dom.pos() == pos:
-                    return dom
+                    if prodId is None or dom.prodId() == prodId:
+                            return dom
 
         return None
 
