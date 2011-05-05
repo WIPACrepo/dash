@@ -220,7 +220,7 @@ class DefaultDomGeometry(object):
         print >>sys.stderr, "Could not delete %s from string %d" % \
             (dom, stringNum)
 
-    def dump(self):
+    def dump(self, out=sys.stdout):
         "Dump the string->DOM dictionary in default-dom-geometry format"
         strList = self.__stringToDom.keys()
         strList.sort()
@@ -228,47 +228,48 @@ class DefaultDomGeometry(object):
         indent = "  "
         domIndent = indent + indent + indent
 
-        print "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-        print "<domGeometry>"
+        print >>out, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+        print >>out, "<domGeometry>"
         for s in strList:
             domList = self.__stringToDom[s]
             if len(domList) == 0:
                 continue
 
-            print "%s<string>" % indent
-            print "%s%s<number>%d</number>" % (indent, indent, s)
+            print >>out, "%s<string>" % indent
+            print >>out, "%s%s<number>%d</number>" % (indent, indent, s)
 
             domList.sort()
             for dom in domList:
-                print "%s%s<dom>" % (indent, indent)
+                print >>out, "%s%s<dom>" % (indent, indent)
                 if dom.pos() is not None:
-                    print "%s<position>%d</position>" % (domIndent, dom.pos())
+                    print >>out, "%s<position>%d</position>" % \
+                          (domIndent, dom.pos())
                 if dom.channelId() is not None:
-                    print "%s<channelId>%d</channelId>" % \
+                    print >>out, "%s<channelId>%d</channelId>" % \
                           (domIndent, dom.channelId())
                 if dom.mbid() is not None:
-                    print "%s<mainBoardId>%s</mainBoardId>" % \
+                    print >>out, "%s<mainBoardId>%s</mainBoardId>" % \
                           (domIndent, dom.mbid())
                 if dom.name() is not None:
-                    print "%s<name>%s</name>" % (domIndent, dom.name())
+                    print >>out, "%s<name>%s</name>" % (domIndent, dom.name())
                 if dom.prodId() is not None:
-                    print "%s<productionId>%s</productionId>" % \
+                    print >>out, "%s<productionId>%s</productionId>" % \
                           (domIndent, dom.prodId())
                 if dom.x() is not None:
-                    print "%s<xCoordinate>%3.2f</xCoordinate>" % \
+                    print >>out, "%s<xCoordinate>%3.2f</xCoordinate>" % \
                           (domIndent, dom.x())
                 if dom.y() is not None:
-                    print "%s<yCoordinate>%3.2f</yCoordinate>" % \
+                    print >>out, "%s<yCoordinate>%3.2f</yCoordinate>" % \
                           (domIndent, dom.y())
                 if dom.z() is not None:
-                    print "%s<zCoordinate>%3.2f</zCoordinate>" % \
+                    print >>out, "%s<zCoordinate>%3.2f</zCoordinate>" % \
                           (domIndent, dom.z())
-                print "%s%s</dom>" % (indent, indent)
+                print >>out, "%s%s</dom>" % (indent, indent)
 
-            print "%s</string>" % indent
-        print "</domGeometry>"
+            print >>out, "%s</string>" % indent
+        print >>out, "</domGeometry>"
 
-    def dumpNicknames(self):
+    def dumpNicknames(self, out=sys.stdout):
         "Dump the DOM data in nicknames.txt format"
         allDoms = []
         for s in self.__stringToDom:
@@ -277,7 +278,7 @@ class DefaultDomGeometry(object):
 
         allDoms.sort(cmp=lambda x,y : cmp(x.name(), y.name()))
 
-        print "mbid\tthedomid\tthename\tlocation\texplanation"
+        print >>out, "mbid\tthedomid\tthename\tlocation\texplanation"
         for dom in allDoms:
             name = dom.name().encode("iso-8859-1")
 
@@ -286,7 +287,7 @@ class DefaultDomGeometry(object):
             except:
                 desc = "-"
 
-            print "%s\t%s\t%s\t%02d-%02d\t%s" % \
+            print >>out, "%s\t%s\t%s\t%02d-%02d\t%s" % \
                 (dom.mbid(), dom.prodId(), name, dom.string(), dom.pos(), desc)
 
     def getDom(self, strNum, pos):
