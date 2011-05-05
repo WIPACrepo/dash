@@ -84,16 +84,17 @@ class DomGeometry(object):
         self.__desc = None
 
         self.__origOrder = None
-        self.__prevString = None
+        self.__origString = None
 
     def __cmp__(self, other):
-        if self.__origOrder is None:
-            if other.__origOrder is not None:
-                return -1
-        elif other.__origOrder is None:
-            return 1
-        elif self.__origOrder != other.__origOrder:
-            return self.__origOrder - other.__origOrder
+        if self.__string > self.MAX_STRING:
+            if self.__origOrder is None:
+                if other.__origOrder is not None:
+                    return -1
+            elif other.__origOrder is None:
+                return 1
+            elif self.__origOrder != other.__origOrder:
+                return self.__origOrder - other.__origOrder
 
         if self.__string is None:
             if other.__string is not None:
@@ -103,13 +104,13 @@ class DomGeometry(object):
         elif self.__string != other.__string:
             return self.__string - other.__string
 
-        if self.__prevString is None:
-            if other.__prevString is not None:
+        if self.__origString is None:
+            if other.__origString is not None:
                 return -1
-        elif other.__prevString is None:
+        elif other.__origString is None:
             return 1
-        elif self.__prevString != other.__prevString:
-            return self.__prevString - other.__prevString
+        elif self.__origString != other.__origString:
+            return self.__origString - other.__origString
 
         if self.__pos is None:
             if other.__pos is not None:
@@ -135,6 +136,7 @@ class DomGeometry(object):
     def mbid(self): return self.__mbid
     def name(self): return self.__name
     def originalOrder(self): return self.__origOrder
+    def originalString(self): return self.__origString
     def pos(self): return self.__pos
     def prodId(self): return self.__prod
 
@@ -147,15 +149,19 @@ class DomGeometry(object):
                       (self.__pos, self)
             return
 
-        if baseNum <= self.MAX_STRING or self.__origOrder is not None:
-            if baseNum <= self.MAX_STRING:
+        origStr = baseNum
+        if self.__origString is not None:
+            origStr = self.__origString
+
+        if origStr <= self.MAX_STRING or self.__origOrder is not None:
+            if origStr <= self.MAX_STRING:
                 pos = self.__pos - 1
             else:
                 pos = -1
 
-            if pos >= 0 and baseNum <= self.MAX_STRING:
-                newChanId = (baseNum * self.MAX_POSITION) + pos
-                if verbose and self.__chanId is not None and \
+            if pos >= 0 and origStr <= self.MAX_STRING:
+                newChanId = (origStr * self.MAX_POSITION) + pos
+                if verbose and  self.__chanId is not None and \
                    self.__chanId != newChanId:
                     print >>sys.stderr, \
                           "Rewriting %s channel ID from %s to %d" % \
@@ -204,6 +210,7 @@ class DomGeometry(object):
     def setId(self, mbid): self.__mbid = mbid
     def setName(self, name): self.__name = name
     def setOriginalOrder(self, num): self.__origOrder = num
+    def setOriginalString(self, num): self.__origString = num
 
     def setPos(self, pos):
         if pos < 1 or pos > self.MAX_POSITION:
@@ -213,8 +220,13 @@ class DomGeometry(object):
     def setProdId(self, prod): self.__prod = prod
 
     def setString(self, strNum):
-        self.__prevString = self.__string
+        tmpNum = self.__string
         self.__string = strNum
+        if self.__origString is not None:
+            raise DomGeometryException(("Cannot overwrite original string %d" +
+                                        " with %d for %s") %
+                                       (self.__origString, tmpNum, self))
+        self.__origString = tmpNum
 
     def setX(self, coord): self.__x = coord
     def setY(self, coord): self.__y = coord
@@ -316,6 +328,12 @@ class DefaultDomGeometry(object):
                        dom.prodId() is None:
                     continue
                 print >>out, "%s%s<dom>" % (indent, indent)
+                if dom.originalString() is not None and \
+                       dom.originalString() < \
+                       DomGeometry.BASE_ICETOP_HUB_NUM and \
+                       dom.originalString() != dom.string():
+                    print >>out, "%s<originalString>%d</originalString>" % \
+                          (domIndent, dom.originalString())
                 if dom.pos() is not None:
                     print >>out, "%s<position>%d</position>" % \
                           (domIndent, dom.pos())
@@ -367,16 +385,29 @@ class DefaultDomGeometry(object):
             except:
                 desc = "-"
 
-            print >>out, "%s\t%s\t%s\t%02d-%02d\t%s" % \
-                (dom.mbid(), dom.prodId(), name, dom.string(), dom.pos(), desc)
+            if dom.originalString() is None:
+                strNum = dom.string()
+            else:
+                strNum = dom.originalString()
 
-    def getDom(self, strNum, pos, prodId=None):
+            print >>out, "%s\t%s\t%s\t%02d-%02d\t%s" % \
+                (dom.mbid(), dom.prodId(), name, strNum, dom.pos(), desc)
+
+    def getDom(self, strNum, pos, prodId=None, origNum=None):
         if self.__stringToDom.has_key(strNum):
             for dom in self.__stringToDom[strNum]:
                 if dom.pos() == pos:
-                    if prodId is None or dom.prodId() == prodId:
+                    if origNum is not None:
+                        if dom.originalString() is not None and \
+                           dom.originalString() == origNum:
                             return dom
 
+                    if prodId is not None:
+                        if dom.prodId() == prodId:
+                            return dom
+
+                    if prodId is None and origNum is None:
+                        return dom
         return None
 
     def getDomIdToDomDict(self):
@@ -405,13 +436,6 @@ class DefaultDomGeometry(object):
     def getStringToDomDict(self):
         "Get the string number -> DOM object dictionary"
         return self.__stringToDom
-
-    def mergeMissing(self, oldDomGeom):
-        keys = self.__stringToDom.keys()
-
-        for s in oldDomGeom.__stringToDom:
-            if not s in keys:
-                self.__stringToDom[s] = oldDomGeom.__stringToDom[s]
 
     def rewrite(self, verbose=False, rewriteOldIcetop=False):
         """
@@ -451,6 +475,8 @@ class DefaultDomGeometryReader(XMLParser):
         y = None
         z = None
 
+        origStr = None
+
         for kid in node.childNodes:
             if kid.nodeType == Node.TEXT_NODE:
                 continue
@@ -475,6 +501,8 @@ class DefaultDomGeometryReader(XMLParser):
                     y = float(cls.getChildText(kid))
                 elif kid.nodeName == "zCoordinate":
                     z = float(cls.getChildText(kid))
+                elif kid.nodeName == "originalString":
+                    origStr = int(cls.getChildText(kid))
                 else:
                     raise ProcessError("Unexpected %s child <%s>" %
                                        (node.nodeName, kid.nodeName))
@@ -484,6 +512,8 @@ class DefaultDomGeometryReader(XMLParser):
                                (node.nodeName, kid.nodeName))
 
         dom = DomGeometry(stringNum, pos, mbid, name, prod, chanId, x, y, z)
+        if origStr is not None:
+            dom.setOriginalString(origStr)
         dom.validate()
 
         return dom
@@ -613,6 +643,12 @@ class DomsTxtReader(object):
                     (loc, prodId)
                 continue
 
+            if pos <= 60:
+                origStr = None
+            else:
+                origStr = strNum
+                strNum = DefaultDomGeometry.getIcetopNum(origStr)
+
             defDomGeom.addString(strNum, errorOnMulti=False)
 
             if newGeom:
@@ -625,6 +661,11 @@ class DomsTxtReader(object):
                 dom.validate()
 
                 defDomGeom.addDom(dom)
+
+            if origStr is not None:
+                if dom.originalString() is None or \
+                   dom.originalString() != origStr:
+                    dom.setOriginalString(origStr)
 
         return defDomGeom
 
@@ -665,6 +706,12 @@ class NicknameReader(object):
                     (loc, prodId)
                 continue
 
+            if pos <= 60:
+                origStr = None
+            else:
+                origStr = strNum
+                strNum = DefaultDomGeometry.getIcetopNum(origStr)
+
             defDomGeom.addString(strNum, errorOnMulti=False)
 
             if newGeom:
@@ -680,6 +727,11 @@ class NicknameReader(object):
                 dom.validate()
 
                 defDomGeom.addDom(dom)
+
+            if origStr is not None:
+                if dom.originalString() is None or \
+                   dom.originalString() != origStr:
+                    dom.setOriginalString(origStr)
 
         return defDomGeom
 
