@@ -56,6 +56,8 @@ class XMLParser(object):
         return text
 
 
+class DomGeometryException(Exception): pass
+
 class DomGeometry(object):
     "maximum possible channel ID"
     MAX_CHAN_ID = 87 * 64
@@ -132,7 +134,8 @@ class DomGeometry(object):
 
     def setChannelId(self, chanId):
         if chanId > self.MAX_CHAN_ID:
-            raise Exception("Bad channel ID %d for %s" % (chanId, self))
+            raise DOMGeometryException("Bad channel ID %d for %s" %
+                                       (chanId, self))
         self.__chanId = chanId
 
     def setDesc(self, desc):
