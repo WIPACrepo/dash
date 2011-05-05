@@ -59,8 +59,10 @@ class XMLParser(object):
 class DomGeometryException(Exception): pass
 
 class DomGeometry(object):
+    "maximum possible DOM position"
+    MAX_POSITION = 64
     "maximum possible channel ID"
-    MAX_CHAN_ID = 87 * 64
+    MAX_CHAN_ID = 87 * MAX_POSITION
 
     "Data for a single DOM"
     def __init__(self, string, pos, id, name, prod, chanId=None,
@@ -336,7 +338,7 @@ class DefaultDomGeometry(object):
             domList = self.__stringToDom[s][:]
 
             for dom in domList:
-                if dom.pos() < 1 or dom.pos() > 64:
+                if dom.pos() < 1 or dom.pos() > self.MAX_POSITION:
                     print >>sys.stderr, "Bad position %d for %s" % \
                         (dom.pos(), dom)
                 elif baseNum <= 86 or dom.originalOrder() is not None:
@@ -346,7 +348,7 @@ class DefaultDomGeometry(object):
                         pos = -1
 
                     if pos >= 0 and baseNum <= 86:
-                        newChanId = (baseNum * 64) + pos
+                        newChanId = (baseNum * self.MAX_POSITION) + pos
                         if dom.channelId() is not None and \
                            dom.channelId() != newChanId:
                             print >>sys.stderr, \
