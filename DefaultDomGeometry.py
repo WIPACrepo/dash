@@ -136,7 +136,7 @@ class DomGeometry(object):
 
     def setChannelId(self, chanId):
         if chanId > self.MAX_CHAN_ID:
-            raise DOMGeometryException("Bad channel ID %d for %s" %
+            raise DomGeometryException("Bad channel ID %d for %s" %
                                        (chanId, self))
         self.__chanId = chanId
 
