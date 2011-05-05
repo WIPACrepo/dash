@@ -61,8 +61,12 @@ class DomGeometryException(Exception): pass
 class DomGeometry(object):
     "maximum possible DOM position"
     MAX_POSITION = 64
+    "maximum possible DOM position"
+    MAX_STRING = 86
     "maximum possible channel ID"
-    MAX_CHAN_ID = 87 * MAX_POSITION
+    MAX_CHAN_ID = (MAX_STRING + 1) * MAX_POSITION
+    "start of range for icetop hub IDs"
+    BASE_ICETOP_HUB_NUM = 200
 
     "Data for a single DOM"
     def __init__(self, string, pos, mbid, name, prod, chanId=None,
@@ -133,6 +137,57 @@ class DomGeometry(object):
     def originalOrder(self): return self.__origOrder
     def pos(self): return self.__pos
     def prodId(self): return self.__prod
+
+    def rewrite(self, verbose=False, rewriteOldIcetop=False):
+        baseNum = self.__string % 1000
+
+        if self.__pos < 1 or self.__pos > self.MAX_POSITION:
+            if verbose:
+                print >>sys.stderr, "Bad position %d for %s" % \
+                      (self.__pos, self)
+            return
+
+        if baseNum <= self.MAX_STRING or self.__origOrder is not None:
+            if baseNum <= self.MAX_STRING:
+                pos = self.__pos - 1
+            else:
+                pos = -1
+
+            if pos >= 0 and baseNum <= self.MAX_STRING:
+                newChanId = (baseNum * self.MAX_POSITION) + pos
+                if verbose and self.__chanId is not None and \
+                   self.__chanId != newChanId:
+                    print >>sys.stderr, \
+                          "Rewriting %s channel ID from %s to %d" % \
+                          (dom, self.__chanId, newChanId)
+                self.__chanId = newChanId
+            elif verbose and self.__chanId is None:
+                print >>sys.stderr, "Not setting channel ID for %s" % dom
+
+        changedString = False
+        if (baseNum <= self.MAX_STRING and self.__pos <= 60) or \
+               (baseNum > self.BASE_ICETOP_HUB_NUM and self.__pos > 60) or \
+               (not rewriteOldIcetop and baseNum > self.MAX_STRING and
+                self.__pos > 60):
+            pass
+        else:
+            if self.__pos <= 60:
+                it = baseNum
+            elif rewriteOldIcetop and baseNum > self.MAX_STRING and \
+                     baseNum < self.BASE_ICETOP_HUB_NUM:
+                it = baseNum % 10 + self.BASE_ICETOP_HUB_NUM
+            else:
+                try:
+                    it = DefaultDomGeometry.getIcetopNum(self.__string)
+                except ProcessError:
+                    it = self.__string
+
+            if it != baseNum:
+                it = (self.__string / 1000) * 1000 + (it % 1000)
+                self.setString(it)
+                changedString = True
+
+        return changedString
 
     def setChannelId(self, chanId):
         if chanId > self.MAX_CHAN_ID:
@@ -351,7 +406,7 @@ class DefaultDomGeometry(object):
             if not s in keys:
                 self.__stringToDom[s] = oldDomGeom.__stringToDom[s]
 
-    def rewrite(self, rewriteOldIcetop=True):
+    def rewrite(self, verbose=False, rewriteOldIcetop=False):
         """
         Rewrite default-dom-geometry from 64 DOMs per string hub to
         60 DOMs per string hub and 32 DOMs per icetop hub
@@ -364,54 +419,12 @@ class DefaultDomGeometry(object):
             domList = self.__stringToDom[s][:]
 
             for dom in domList:
-                if dom.pos() < 1 or dom.pos() > self.MAX_POSITION:
-                    print >>sys.stderr, "Bad position %d for %s" % \
-                        (dom.pos(), dom)
-                elif baseNum <= 86 or dom.originalOrder() is not None:
-                    if baseNum <= 86:
-                        pos = dom.pos() - 1
-                    else:
-                        pos = -1
+                if dom.rewrite(verbose=verbose,
+                               rewriteOldIcetop=rewriteOldIcetop):
+                    self.deleteDom(s, dom)
 
-                    if pos >= 0 and baseNum <= 86:
-                        newChanId = (baseNum * self.MAX_POSITION) + pos
-                        if dom.channelId() is not None and \
-                           dom.channelId() != newChanId:
-                            print >>sys.stderr, \
-                                  "Rewriting %s channel ID from %s to %d" % \
-                                  (dom, dom.channelId(), newChanId)
-                        dom.setChannelId(newChanId)
-                    elif dom.channelId() is None:
-                        print >>sys.stderr, "Not setting channel ID for %s" % dom
-
-                if (baseNum <= 80 and dom.pos() <= 60) or \
-                        (baseNum > 200 and dom.pos() > 60) or \
-                        (not rewriteOldIcetop and baseNum > 80 and \
-                             dom.pos() > 60):
-                    pass
-                else:
-                    if dom.pos() <= 60:
-                        it = baseNum
-                    elif rewriteOldIcetop and baseNum > 80 and baseNum < 200:
-                        it = baseNum % 10 + 200
-                    else:
-                        try:
-                            it = DefaultDomGeometry.getIcetopNum(s)
-                        except ProcessError:
-                            print >>sys.stderr, \
-                                "Dropping %d-%d: Unknown icetop hub" % \
-                                (s, dom.pos())
-                            self.deleteDom(s, dom)
-                            it = s
-
-                    if it != baseNum:
-                        self.deleteDom(s, dom)
-
-                        it = (s / 1000) * 1000 + (it % 1000)
-                        dom.setString(it)
-
-                        self.addString(it, errorOnMulti=False)
-                        self.addDom(dom)
+                    self.addString(dom.string(), errorOnMulti=False)
+                    self.addDom(dom)
 
 class DefaultDomGeometryReader(XMLParser):
 
