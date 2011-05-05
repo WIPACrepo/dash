@@ -537,8 +537,11 @@ class DefaultDomGeometryReader(XMLParser):
 
 
 class DomsTxtReader(object):
+    "Read Mark Krasberg's doms.txt file"
+
     @staticmethod
     def parse(fileName=None, defDomGeom=None):
+        "Parse a doms.txt file"
         if fileName is None:
             fileName = os.path.join(metaDir, "config", "doms.txt")
 
@@ -557,7 +560,7 @@ class DomsTxtReader(object):
             if len(line) == 0:
                 continue
 
-            #(id, prodId, name, loc, desc) = re.split("\s+", line, 4)
+            #(mbid, prodId, name, loc, desc) = re.split("\s+", line, 4)
             (loc, prodId, name, mbid) = re.split("\s+", line, 3)
             if mbid == "mbid":
                 continue
@@ -588,6 +591,8 @@ class DomsTxtReader(object):
 
 
 class NicknameReader(object):
+    "Read Mark Krasberg's nicknames.txt file"
+
     @staticmethod
     def parse(fileName=None, defDomGeom=None):
         if fileName is None:
