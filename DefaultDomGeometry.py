@@ -293,6 +293,11 @@ class DefaultDomGeometry(object):
 
         print >>out, "mbid\tthedomid\tthename\tlocation\texplanation"
         for dom in allDoms:
+            if dom.prodId() is None:
+                continue
+            if dom.string() >= 1000:
+                continue
+
             name = dom.name().encode("iso-8859-1")
 
             try:
