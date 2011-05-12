@@ -67,8 +67,8 @@ class ActiveDOMThread(CnCThread):
                 if self.__sendDetails:
                     hub_DOMs[str(c.num())] = (hub_active_doms, hub_total_doms)
 
-        self.__liveMoniClient.sendMoni("totalDOMs", (active_total, total),
-                                       Prio.ITS)
+        self.__liveMoniClient.sendMoni("activeDOMs", active_total, Prio.ITS)
+        self.__liveMoniClient.sendMoni("expectedDOMs", total, Prio.ITS)
 
         if self.__sendDetails:
             if not self.__liveMoniClient.sendMoni("stringDOMsInfo", hub_DOMs,
