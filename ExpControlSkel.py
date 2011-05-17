@@ -23,7 +23,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 12745 2011-03-03 23:28:41Z mnewcomb $"
+SVN_ID = "$Id: ExpControlSkel.py 12977 2011-05-17 21:16:09Z mnewcomb $"
 
 class DOMArgumentException(Exception): pass
 
@@ -34,16 +34,14 @@ def updateStatus(oldStatus, newStatus):
     return newStatus
 
 def setLastRunNum(runFile, runNum):
-    fd = open(runFile, 'w')
-    print >>fd, runNum
-    fd.close()
+    with open(runFile, 'w') as fd:
+        print >>fd, runNum
 
 def getLastRunNum(runFile):
     try:
-        f = open(runFile, "r")
-        ret = f.readline()
-        f.close()
-        return int(ret.rstrip('\r\n'))
+        with open(runFile, 'r') as f:
+            ret = f.readline()
+            return int(ret.rstrip('\r\n'))
     except:
         return None
 
@@ -164,6 +162,7 @@ class SubRunSet:
         self.subruns = []
         num = 0
         sr = None
+        # NOTE THIS IS A FILE DESCRIPTOR LEAK
         for l in open(fileName).readlines():
             # Look for bare "delay lines"
             m = re.search(r'delay (\d+)', l)

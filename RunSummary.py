@@ -53,7 +53,8 @@ class SnippetRunRec:
     Storage class to store, parse and massage HTML snippets
     """
     def __init__(self, fileName):
-        self.txt       = open(fileName).read()
+        with open(fileName) as fd:
+            self.txt   = fd.read()
         self.run       = None
         self.config    = None
         self.startDay  = None

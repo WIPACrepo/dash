@@ -1146,14 +1146,13 @@ class MockRunConfigFile(object):
         else:
             fileName = cfgName + ".xml"
 
-        fd = open(os.path.join(cfgDir, fileName), "w")
-        print >>fd, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-        print >>fd, "<domConfigList>"
-        if domList is not None:
-            for d in domList:
-                d.printXML(fd, "  ")
-        print >>fd, "</domConfigList>"
-        fd.close()
+        with open(os.path.join(cfgDir, fileName), 'w') as fd:
+            print >>fd, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+            print >>fd, "<domConfigList>"
+            if domList is not None:
+                for d in domList:
+                    d.printXML(fd, "  ")
+            print >>fd, "</domConfigList>"
 
     def __makeTriggerConfig(self, cfgName):
         cfgDir = os.path.join(self.__configDir, "trigger")
@@ -1165,9 +1164,8 @@ class MockRunConfigFile(object):
         else:
             fileName = cfgName + ".xml"
 
-        fd = open(os.path.join(cfgDir, fileName), "w")
-        print >>fd, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-        fd.close()
+        with open(os.path.join(cfgDir, fileName), "w") as fd:
+            print >>fd, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
 
     def create(self, compList, domList):
         path = tempfile.mktemp(suffix=".xml", dir=self.__configDir)
@@ -1178,20 +1176,19 @@ class MockRunConfigFile(object):
         trigCfg = "empty-trigger"
         self.__makeTriggerConfig(trigCfg)
 
-        fd = open(path, "w")
-        print >>fd, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-        print >>fd, "<runConfig>"
-        print >>fd, "    <domConfigList>%s</domConfigList>" % domCfg
-        print >>fd, "    <triggerConfig>%s</triggerConfig>" % trigCfg
-        for c in compList:
-            pound = c.rfind("#")
-            if pound > 0:
-                val = int(c[pound+1:])
-                if val == 0:
-                    c = c[:pound]
-            print >>fd, "    <runComponent name=\"%s\"/>" % c
-        print >>fd, "</runConfig>"
-        fd.close()
+        with open(path, 'w') as fd:
+            print >>fd, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+            print >>fd, "<runConfig>"
+            print >>fd, "    <domConfigList>%s</domConfigList>" % domCfg
+            print >>fd, "    <triggerConfig>%s</triggerConfig>" % trigCfg
+            for c in compList:
+                pound = c.rfind("#")
+                if pound > 0:
+                    val = int(c[pound+1:])
+                    if val == 0:
+                        c = c[:pound]
+                print >>fd, "    <runComponent name=\"%s\"/>" % c
+            print >>fd, "</runConfig>"
 
         name = os.path.basename(path)
         if name.endswith(".xml"):

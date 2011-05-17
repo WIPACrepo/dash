@@ -27,10 +27,9 @@ class CachedFile(object):
         "read the cached cluster name"
         clusterFile = CachedFile.__getCachedNamePath(useActiveConfig)
         try:
-            f = open(clusterFile, "r")
-            ret = f.readline()
-            f.close()
-            return ret.rstrip('\r\n')
+            with open(clusterFile, 'r') as f:
+                ret = f.readline()
+                return ret.rstrip('\r\n')
         except:
             return None
 

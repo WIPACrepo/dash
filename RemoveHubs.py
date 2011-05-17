@@ -147,9 +147,8 @@ if __name__ == "__main__":
     if runCfg is not None:
         newCfg = runCfg.omit(hubIdList)
         if newCfg is not None:
-            fd = open(newPath, "w")
-            newCfg.write(fd)
-            fd.close()
+            with open(newPath, 'w') as fd:
+                newCfg.write(fd)
             print "Created %s" % newPath
 
             if cluCfgName is not None:
@@ -165,7 +164,6 @@ if __name__ == "__main__":
                         raise SystemExit()
 
                 ccc = ClusterConfigCreator("sps")
-                fd = open(cluPath, "w")
-                ccc.write(fd, newCfg)
-                fd.close()
+                with open(cluPath, 'w') as fd:
+                    ccc.write(fd, newCfg)
                 print "Created %s" % cluPath

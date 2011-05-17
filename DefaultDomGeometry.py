@@ -678,54 +678,53 @@ class DomsTxtReader(object):
             raise BadFileError("Cannot read doms.txt file \"%s\"" %
                                fileName)
 
-        fd = open(fileName, "r")
-
-        newGeom = defDomGeom is None
-        if newGeom:
-            defDomGeom = DefaultDomGeometry()
-
-        for line in fd:
-            line = line.rstrip()
-            if len(line) == 0:
-                continue
-
-            #(mbid, prodId, name, loc, desc) = re.split("\s+", line, 4)
-            (loc, prodId, name, mbid) = re.split("\s+", line, 3)
-            if mbid == "mbid":
-                continue
-
-            try:
-                (strStr, posStr) = re.split("-", loc)
-                strNum = int(strStr)
-                pos = int(posStr)
-            except:
-                print >>sys.stderr, "Bad location \"%s\" for DOM \"%s\"" % \
-                    (loc, prodId)
-                continue
-
-            if pos <= 60:
-                origStr = None
-            else:
-                origStr = strNum
-                strNum = DefaultDomGeometry.getIcetopNum(origStr)
-
-            defDomGeom.addString(strNum, errorOnMulti=False)
-
+        with open(fileName, 'r') as fd:
+            newGeom = defDomGeom is None
             if newGeom:
-                dom = None
-            else:
-                dom = defDomGeom.getDom(strNum, pos, prodId)
+                defDomGeom = DefaultDomGeometry()
 
-            if dom is None:
-                dom = DomGeometry(strNum, pos, mbid, name, prodId)
-                dom.validate()
+            for line in fd:
+                line = line.rstrip()
+                if len(line) == 0:
+                    continue
 
-                defDomGeom.addDom(dom)
+                #(mbid, prodId, name, loc, desc) = re.split("\s+", line, 4)
+                (loc, prodId, name, mbid) = re.split("\s+", line, 3)
+                if mbid == "mbid":
+                    continue
 
-            if origStr is not None:
-                if dom.originalString() is None or \
-                   dom.originalString() != origStr:
-                    dom.setOriginalString(origStr)
+                try:
+                    (strStr, posStr) = re.split("-", loc)
+                    strNum = int(strStr)
+                    pos = int(posStr)
+                except:
+                    print >>sys.stderr, "Bad location \"%s\" for DOM \"%s\"" % \
+                        (loc, prodId)
+                    continue
+
+                if pos <= 60:
+                    origStr = None
+                else:
+                    origStr = strNum
+                    strNum = DefaultDomGeometry.getIcetopNum(origStr)
+
+                defDomGeom.addString(strNum, errorOnMulti=False)
+
+                if newGeom:
+                    dom = None
+                else:
+                    dom = defDomGeom.getDom(strNum, pos, prodId)
+
+                if dom is None:
+                    dom = DomGeometry(strNum, pos, mbid, name, prodId)
+                    dom.validate()
+
+                    defDomGeom.addDom(dom)
+
+                if origStr is not None:
+                    if dom.originalString() is None or \
+                            dom.originalString() != origStr:
+                        dom.setOriginalString(origStr)
 
         return defDomGeom
 
@@ -742,56 +741,55 @@ class NicknameReader(object):
             raise BadFileError("Cannot read nicknames file \"%s\"" %
                                fileName)
 
-        fd = open(fileName, "r")
-
-        newGeom = defDomGeom is None
-        if newGeom:
-            defDomGeom = DefaultDomGeometry()
-
-        for line in fd:
-            line = line.rstrip()
-            if len(line) == 0:
-                continue
-
-            (mbid, prodId, name, loc, desc) = re.split("\s+", line, 4)
-            if mbid == "mbid":
-                continue
-
-            try:
-                (strStr, posStr) = re.split("-", loc)
-                strNum = int(strStr)
-                pos = int(posStr)
-            except:
-                print >>sys.stderr, "Bad location \"%s\" for DOM \"%s\"" % \
-                    (loc, prodId)
-                continue
-
-            if pos <= 60:
-                origStr = None
-            else:
-                origStr = strNum
-                strNum = DefaultDomGeometry.getIcetopNum(origStr)
-
-            defDomGeom.addString(strNum, errorOnMulti=False)
-
+        with open(fileName, 'r') as fd:
+            newGeom = defDomGeom is None
             if newGeom:
-                dom = None
-            else:
-                dom = defDomGeom.getDom(strNum, pos, prodId)
+                defDomGeom = DefaultDomGeometry()
 
-            if dom is not None:
-                if desc != "-":
-                    dom.setDesc(desc)
-            else:
-                dom = DomGeometry(strNum, pos, mbid, name, prodId)
-                dom.validate()
+            for line in fd:
+                line = line.rstrip()
+                if len(line) == 0:
+                    continue
 
-                defDomGeom.addDom(dom)
+                (mbid, prodId, name, loc, desc) = re.split("\s+", line, 4)
+                if mbid == "mbid":
+                    continue
 
-            if origStr is not None:
-                if dom.originalString() is None or \
-                   dom.originalString() != origStr:
-                    dom.setOriginalString(origStr)
+                try:
+                    (strStr, posStr) = re.split("-", loc)
+                    strNum = int(strStr)
+                    pos = int(posStr)
+                except:
+                    print >>sys.stderr, "Bad location \"%s\" for DOM \"%s\"" % \
+                        (loc, prodId)
+                    continue
+
+                if pos <= 60:
+                    origStr = None
+                else:
+                    origStr = strNum
+                    strNum = DefaultDomGeometry.getIcetopNum(origStr)
+
+                defDomGeom.addString(strNum, errorOnMulti=False)
+
+                if newGeom:
+                    dom = None
+                else:
+                    dom = defDomGeom.getDom(strNum, pos, prodId)
+
+                if dom is not None:
+                    if desc != "-":
+                        dom.setDesc(desc)
+                else:
+                    dom = DomGeometry(strNum, pos, mbid, name, prodId)
+                    dom.validate()
+
+                    defDomGeom.addDom(dom)
+
+                if origStr is not None:
+                    if dom.originalString() is None or \
+                            dom.originalString() != origStr:
+                        dom.setOriginalString(origStr)
 
         return defDomGeom
 
@@ -808,105 +806,104 @@ class GeometryFileReader(object):
         if not os.path.exists(fileName):
             raise BadFileError("Cannot read geometry file \"%s\"" % fileName)
 
-        fd = open(fileName, "r")
-
-        newGeom = defDomGeom is None
-        if newGeom:
-            defDomGeom = DefaultDomGeometry()
-
-        LINE_PAT = re.compile(r"^\s*(\d+)\s+(\d+)\s+(-*\d+\.\d+)" +
-                              r"\s+(-*\d+\.\d+)\s+(-*\d+\.\d+)\s*$")
-
-        linenum = 0
-        for line in fd:
-            line = line.rstrip()
-            linenum += 1
-
-            if len(line) == 0:
-                continue
-
-            m = LINE_PAT.match(line)
-            if not m:
-                print >>sys.stderr, "Bad geometry line %d: %s" % (linenum, line)
-                continue
-
-            strStr = m.group(1)
-            posStr = m.group(2)
-            xStr = m.group(3)
-            yStr = m.group(4)
-            zStr = m.group(5)
-
-            try:
-                strNum = int(strStr)
-            except:
-                print >>sys.stderr, "Bad string \"%s\" on line %d" % \
-                    (strStr, linenum)
-                continue
-
-            try:
-                pos = int(posStr)
-            except:
-                print >>sys.stderr, "Bad position \"%s\" on line %d" % \
-                    (posStr, linenum)
-                continue
-
-            coords = []
-            for cStr in (xStr, yStr, zStr):
-                try:
-                    coords.append(float(cStr))
-                except:
-                    if len(coords) == 0:
-                        cname = "x"
-                    elif len(coords) == 1:
-                        cname = "y"
-                    else:
-                        cname = "z"
-                    print >>sys.stderr, "Bad %s coord \"%s\" on line %d" % \
-                          (cname, cStr, linenum)
-                    break
-
-            if len(coords) != 3:
-                continue
-
-            if pos <= 60:
-                origStr = None
-            else:
-                origStr = strNum
-                strNum = DefaultDomGeometry.getIcetopNum(origStr)
-
-            defDomGeom.addString(strNum, errorOnMulti=False)
-
+        with open(fileName, 'r') as fd:
+            newGeom = defDomGeom is None
             if newGeom:
-                dom = None
-            else:
-                dom = defDomGeom.getDom(strNum, pos, origNum=origStr)
+                defDomGeom = DefaultDomGeometry()
 
-            if dom is None:
-                dom = DomGeometry(strNum, pos, None, None, None)
+            LINE_PAT = re.compile(r"^\s*(\d+)\s+(\d+)\s+(-*\d+\.\d+)" +
+                                  r"\s+(-*\d+\.\d+)\s+(-*\d+\.\d+)\s*$")
 
-                defDomGeom.addDom(dom)
+            linenum = 0
+            for line in fd:
+                line = line.rstrip()
+                linenum += 1
 
-            if origStr is not None:
-                if dom.originalString() is None or \
-                   dom.originalString() != origStr:
-                    dom.setOriginalString(origStr)
+                if len(line) == 0:
+                    continue
 
-            (x, y, z) = coords
+                m = LINE_PAT.match(line)
+                if not m:
+                    print >>sys.stderr, "Bad geometry line %d: %s" % (linenum, line)
+                    continue
 
-            if dom.x() is None or \
-                       (minCoordDiff is not None and \
-                        abs(dom.x() - x) > minCoordDiff):
+                strStr = m.group(1)
+                posStr = m.group(2)
+                xStr = m.group(3)
+                yStr = m.group(4)
+                zStr = m.group(5)
+
+                try:
+                    strNum = int(strStr)
+                except:
+                    print >>sys.stderr, "Bad string \"%s\" on line %d" % \
+                        (strStr, linenum)
+                    continue
+
+                try:
+                    pos = int(posStr)
+                except:
+                    print >>sys.stderr, "Bad position \"%s\" on line %d" % \
+                        (posStr, linenum)
+                    continue
+
+                coords = []
+                for cStr in (xStr, yStr, zStr):
+                    try:
+                        coords.append(float(cStr))
+                    except:
+                        if len(coords) == 0:
+                            cname = "x"
+                        elif len(coords) == 1:
+                            cname = "y"
+                        else:
+                            cname = "z"
+                        print >>sys.stderr, "Bad %s coord \"%s\" on line %d" % \
+                            (cname, cStr, linenum)
+                        break
+
+                if len(coords) != 3:
+                    continue
+
+                if pos <= 60:
+                    origStr = None
+                else:
+                    origStr = strNum
+                    strNum = DefaultDomGeometry.getIcetopNum(origStr)
+
+                defDomGeom.addString(strNum, errorOnMulti=False)
+
+                if newGeom:
+                    dom = None
+                else:
+                    dom = defDomGeom.getDom(strNum, pos, origNum=origStr)
+
+                if dom is None:
+                    dom = DomGeometry(strNum, pos, None, None, None)
+
+                    defDomGeom.addDom(dom)
+
+                if origStr is not None:
+                    if dom.originalString() is None or \
+                            dom.originalString() != origStr:
+                        dom.setOriginalString(origStr)
+
+                (x, y, z) = coords
+
+                if dom.x() is None or \
+                        (minCoordDiff is not None and \
+                             abs(dom.x() - x) > minCoordDiff):
                     dom.setX(x)
-            if y is not None:
-                if dom.y() is None or \
-                       (minCoordDiff is not None and \
-                        abs(dom.y() - y) > minCoordDiff):
-                    dom.setY(y)
-            if z is not None:
-                if dom.z() is None or \
-                       (minCoordDiff is not None and \
-                        abs(dom.z() - z) > minCoordDiff):
-                    dom.setZ(z)
+                if y is not None:
+                    if dom.y() is None or \
+                            (minCoordDiff is not None and \
+                                 abs(dom.y() - y) > minCoordDiff):
+                        dom.setY(y)
+                if z is not None:
+                    if dom.z() is None or \
+                            (minCoordDiff is not None and \
+                                 abs(dom.z() - z) > minCoordDiff):
+                        dom.setZ(z)
 
         return defDomGeom
 

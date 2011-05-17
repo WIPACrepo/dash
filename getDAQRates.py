@@ -238,47 +238,47 @@ def processFile(fileName, comp):
     secLastSaved = {}
     secSeenData = {}
 
-    fd = open(fileName, 'r')
-    for line in fd:
-        line = line.rstrip()
-        if len(line) == 0:
-            secName = None
-            secTime = None
-            continue
+    with open(fileName, 'r') as fd:
+        for line in fd:
+            line = line.rstrip()
+            if len(line) == 0:
+                secName = None
+                secTime = None
+                continue
 
-        if secName is not None:
-            m = MONILINE_PAT.match(line)
+            if secName is not None:
+                m = MONILINE_PAT.match(line)
+                if m:
+                    name = m.group(1)
+                    vals = m.group(2)
+
+                    if flds is None or flds[secName] == name:
+                        if TIME_INTERVAL is not None and \
+                                secTime > secLastSaved[secName] + TIME_INTERVAL:
+                            newVal = fixValue(vals)
+                            if newVal > 0:
+                                data[secName][secTime] = newVal
+                                secLastSaved[secName] = secTime
+                            elif vals != '0':
+                                secSeenData[secName] = (secTime, vals)
+                                if not secFirst.has_key(secName):
+                                    secFirst[secName] = (secTime, vals)
+                    continue
+
+            m = MONISEC_PAT.match(line)
             if m:
-                name = m.group(1)
-                vals = m.group(2)
+                nm = m.group(1)
+                if not flds.has_key(nm):
+                    continue
 
-                if flds is None or flds[secName] == name:
-                    if TIME_INTERVAL is not None and \
-                            secTime > secLastSaved[secName] + TIME_INTERVAL:
-                        newVal = fixValue(vals)
-                        if newVal > 0:
-                            data[secName][secTime] = newVal
-                            secLastSaved[secName] = secTime
-                    elif vals != '0':
-                        secSeenData[secName] = (secTime, vals)
-                        if not secFirst.has_key(secName):
-                            secFirst[secName] = (secTime, vals)
-                continue
+                secName = nm
+                mSec = float(m.group(3)) / 1000000.0
+                secTime = time.mktime(time.strptime(m.group(2), TIMEFMT)) + mSec
 
-        m = MONISEC_PAT.match(line)
-        if m:
-            nm = m.group(1)
-            if not flds.has_key(nm):
-                continue
-
-            secName = nm
-            mSec = float(m.group(3)) / 1000000.0
-            secTime = time.mktime(time.strptime(m.group(2), TIMEFMT)) + mSec
-
-            if not data.has_key(secName):
-                data[secName] = {}
-                secLastSaved[secName] = 0.0
-                secSeenData[secName] = None
+                if not data.has_key(secName):
+                    data[secName] = {}
+                    secLastSaved[secName] = 0.0
+                    secSeenData[secName] = None
 
     for k in data:
         if TIME_INTERVAL is None and \
@@ -286,7 +286,7 @@ def processFile(fileName, comp):
             (firstTime, firstVals) = secFirst[k]
             if not data[k].has_key(firstTime):
                 data[k][firstTime] = fixValue(firstVals)
-
+                
         if secSeenData.has_key(k) and secSeenData[k] is not None:
             (lastTime, lastVals) = secSeenData[k]
             if not data[k].has_key(lastTime):

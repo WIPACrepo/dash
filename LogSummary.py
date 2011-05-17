@@ -95,128 +95,128 @@ class CatchallLog(ComponentLog):
     def parse(self, path):
         state = self.STATE_INITIAL
 
-        fd = open(path, "r")
-        for line in fd:
-            line = line.rstrip()
+        with open(path, 'r') as fd:
+            for line in fd:
+                line = line.rstrip()
 
-            if state == self.STATE_INITIAL:
-                if self.checkInitialLogMessage(line) or \
-                        line.find("Resetting logging") >= 0 or \
-                        line.find("ShutdownHook: moving temp file for ") >= 0:
-                    continue
+                if state == self.STATE_INITIAL:
+                    if self.checkInitialLogMessage(line) or \
+                            line.find("Resetting logging") >= 0 or \
+                            line.find("ShutdownHook: moving temp file for ") >= 0:
+                        continue
 
-                m = self.SRVR_PORT.match(line)
-                if m:
-                    self.__port = int(m.group(2))
-                    continue
+                    m = self.SRVR_PORT.match(line)
+                    if m:
+                        self.__port = int(m.group(2))
+                        continue
 
-                m = self.SHUTDOWN.match(line)
-                if m:
-                    continue
+                    m = self.SHUTDOWN.match(line)
+                    if m:
+                        continue
 
-                if self.checkVersionInfoMessage(line):
-                    state = self.STATE_STARTING
-                    continue
+                    if self.checkVersionInfoMessage(line):
+                        state = self.STATE_STARTING
+                        continue
 
-            elif state == self.STATE_STARTING:
-                if line.find("Logging has been reset") >= 0 or \
-                        line.find("Resetting logging") >= 0:
-                    continue
+                elif state == self.STATE_STARTING:
+                    if line.find("Logging has been reset") >= 0 or \
+                            line.find("Resetting logging") >= 0:
+                        continue
 
-                m = self.MBEAN_AGENT.match(line)
-                if m:
-                    continue
+                    m = self.MBEAN_AGENT.match(line)
+                    if m:
+                        continue
 
-                m = self.RDR_PORT.match(line)
-                if m:
-                    continue
+                    m = self.RDR_PORT.match(line)
+                    if m:
+                        continue
 
-                m = self.XMLRPC_PORT.match(line)
-                if m:
-                    continue
+                    m = self.XMLRPC_PORT.match(line)
+                    if m:
+                        continue
 
-                m = self.OLDREG_COMP.match(line)
-                if m:
-                    id = int(m.group(2))
-                    comp = m.group(3)
-                    addr = m.group(4)
-                    rpcPort = int(m.group(5))
-                    mbeanPort = int(m.group(6))
-                    continue
+                    m = self.OLDREG_COMP.match(line)
+                    if m:
+                        id = int(m.group(2))
+                        comp = m.group(3)
+                        addr = m.group(4)
+                        rpcPort = int(m.group(5))
+                        mbeanPort = int(m.group(6))
+                        continue
 
-                m = self.NEWREG_COMP.match(line)
-                if m:
-                    comp = m.group(1)
-                    continue
+                    m = self.NEWREG_COMP.match(line)
+                    if m:
+                        comp = m.group(1)
+                        continue
 
-                m = self.START_RUN.match(line)
-                if m:
-                    runNum = int(m.group(2))
-                    numComps = int(m.group(3))
-                    state = self.STATE_BUILDING
-                    continue
+                    m = self.START_RUN.match(line)
+                    if m:
+                        runNum = int(m.group(2))
+                        numComps = int(m.group(3))
+                        state = self.STATE_BUILDING
+                        continue
 
-            elif state == self.STATE_BUILDING:
-                if line.find("Logging has been reset") >= 0 or \
-                        line.find("Resetting logging") >= 0:
-                    continue
+                elif state == self.STATE_BUILDING:
+                    if line.find("Logging has been reset") >= 0 or \
+                            line.find("Resetting logging") >= 0:
+                        continue
 
-                m = self.MBEAN_AGENT.match(line)
-                if m:
-                    continue
+                    m = self.MBEAN_AGENT.match(line)
+                    if m:
+                        continue
 
-                m = self.RDR_PORT.match(line)
-                if m:
-                    continue
+                    m = self.RDR_PORT.match(line)
+                    if m:
+                        continue
 
-                m = self.XMLRPC_PORT.match(line)
-                if m:
-                    continue
+                    m = self.XMLRPC_PORT.match(line)
+                    if m:
+                        continue
 
-                m = self.OLDREG_COMP.match(line)
-                if m:
-                    id = int(m.group(2))
-                    comp = m.group(3)
-                    addr = m.group(4)
-                    rpcPort = int(m.group(5))
-                    mbeanPort = int(m.group(6))
-                    continue
+                    m = self.OLDREG_COMP.match(line)
+                    if m:
+                        id = int(m.group(2))
+                        comp = m.group(3)
+                        addr = m.group(4)
+                        rpcPort = int(m.group(5))
+                        mbeanPort = int(m.group(6))
+                        continue
 
-                m = self.NEWREG_COMP.match(line)
-                if m:
-                    comp = m.group(1)
-                    continue
+                    m = self.NEWREG_COMP.match(line)
+                    if m:
+                        comp = m.group(1)
+                        continue
 
-                if line.find("Built runset with the following components:") >= 0:
-                    state = self.STATE_BUILTLIST
-                    continue
+                    if line.find("Built runset with the following components:") >= 0:
+                        state = self.STATE_BUILTLIST
+                        continue
 
-            elif state == self.STATE_BUILTLIST:
-                m = self.LIST_COMP.match(line)
-                if m:
-                    id = int(m.group(2))
-                    comp = m.group(3)
-                    addr = m.group(4)
-                    rpcPort = int(m.group(5))
-                    mbeanPort = int(m.group(6))
-                    continue
+                elif state == self.STATE_BUILTLIST:
+                    m = self.LIST_COMP.match(line)
+                    if m:
+                        id = int(m.group(2))
+                        comp = m.group(3)
+                        addr = m.group(4)
+                        rpcPort = int(m.group(5))
+                        mbeanPort = int(m.group(6))
+                        continue
 
-                m = self.CREATED.match(line)
-                if m:
-                    runsetNum = int(m.group(2))
-                    state = self.STATE_CREATED
-                    continue
+                    m = self.CREATED.match(line)
+                    if m:
+                        runsetNum = int(m.group(2))
+                        state = self.STATE_CREATED
+                        continue
 
-            elif state == self.STATE_CREATED:
-                if line.find("Logging has been reset") >= 0 or \
-                        line.find("Resetting logging") >= 0:
-                    continue
+                elif state == self.STATE_CREATED:
+                    if line.find("Logging has been reset") >= 0 or \
+                            line.find("Resetting logging") >= 0:
+                        continue
 
-                m = self.RESET_LOG.match(line)
-                if m:
-                    continue
+                    m = self.RESET_LOG.match(line)
+                    if m:
+                        continue
 
-            self.logError("State %s: %s" % (self.__stateString(state), line))
+                self.logError("State %s: %s" % (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         pass
@@ -242,28 +242,28 @@ class CnCServerLog(ComponentLog):
     def parse(self, path):
         state = self.STATE_INITIAL
 
-        fd = open(path, "r")
-        for line in fd:
-            line = line.rstrip()
+        with open(path,'r') as fd:
+            for line in fd:
+                line = line.rstrip()
 
-            if state == self.STATE_INITIAL:
-                if self.checkInitialLogMessage(line):
-                    continue
+                if state == self.STATE_INITIAL:
+                    if self.checkInitialLogMessage(line):
+                        continue
 
-                m = self.WAITCFG.match(line)
-                if m:
-                    runsetId = int(m.group(2))
-                    waitState = m.group(3)
-                    continue
+                    m = self.WAITCFG.match(line)
+                    if m:
+                        runsetId = int(m.group(2))
+                        waitState = m.group(3)
+                        continue
 
-                m = self.WAITSTOP.match(line)
-                if m:
-                    runsetId = int(m.group(2))
-                    run = int(m.group(3))
-                    waitState = m.group(4)
-                    continue
+                    m = self.WAITSTOP.match(line)
+                    if m:
+                        runsetId = int(m.group(2))
+                        run = int(m.group(3))
+                        waitState = m.group(4)
+                        continue
 
-            self.logError("State %s: %s" % (self.__stateString(state), line))
+                self.logError("State %s: %s" % (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         pass
@@ -337,135 +337,135 @@ class DashLog(ComponentLog):
     def parse(self, path):
         state = self.STATE_INITIAL
 
-        fd = open(path, "r")
-        for line in fd:
-            line = line.rstrip()
+        with open(path, 'r') as fd:
+            for line in fd:
+                line = line.rstrip()
 
-            if state == self.STATE_INITIAL:
-                if self.checkVersionInfoMessage(line):
-                    continue
+                if state == self.STATE_INITIAL:
+                    if self.checkVersionInfoMessage(line):
+                        continue
 
-                m = self.START_RUN.match(line)
-                if m:
-                    runNum = int(m.group(2))
-                    state = self.STATE_STARTING
-                    continue
+                    m = self.START_RUN.match(line)
+                    if m:
+                        runNum = int(m.group(2))
+                        state = self.STATE_STARTING
+                        continue
 
-            if state == self.STATE_STARTING:
-                m = self.RUN_CFG.match(line)
-                if m:
-                    runCfg = m.group(2)
-                    continue
+                if state == self.STATE_STARTING:
+                    m = self.RUN_CFG.match(line)
+                    if m:
+                        runCfg = m.group(2)
+                        continue
 
-                m = self.CLU_CFG.match(line)
-                if m:
-                    cluCfg = m.group(2)
-                    continue
+                    m = self.CLU_CFG.match(line)
+                    if m:
+                        cluCfg = m.group(2)
+                        continue
 
-                m = self.STARTED.match(line)
-                if m:
-                    tmpNum = int(m.group(2))
-                    if runNum != tmpNum:
-                        self.logError("Expected run#%d, not #%d in line \"%s\"" %
-                                      (runNum, tmpNum, line))
-                    runsetId = int(m.group(3))
-                    state = self.STATE_RUNNING
-                    continue
+                    m = self.STARTED.match(line)
+                    if m:
+                        tmpNum = int(m.group(2))
+                        if runNum != tmpNum:
+                            self.logError("Expected run#%d, not #%d in line \"%s\"" %
+                                          (runNum, tmpNum, line))
+                        runsetId = int(m.group(3))
+                        state = self.STATE_RUNNING
+                        continue
 
-            if state == self.STATE_RUNNING:
-                m = self.RECOVER.match(line)
-                if m:
-                    tmpNum = int(m.group(2))
-                    if runNum != tmpNum:
-                        self.logError("Expected run#%d, not #%d in line \"%s\"" %
-                                      (runNum, tmpNum, line))
+                if state == self.STATE_RUNNING:
+                    m = self.RECOVER.match(line)
+                    if m:
+                        tmpNum = int(m.group(2))
+                        if runNum != tmpNum:
+                            self.logError("Expected run#%d, not #%d in line \"%s\"" %
+                                          (runNum, tmpNum, line))
+                            state = self.STATE_ENDING
+                            continue
+
+                    m = self.RATELINE.match(line)
+                    if m:
+                        numEvts = int(m.group(2))
+                        if m.group(4) is None:
+                            rate = 0.0
+                        else:
+                            rate = float(m.group(4))
+                        numMoni = int(m.group(5))
+                        numSN = int(m.group(6))
+                        numTcal = int(m.group(7))
+                        continue
+
+                    m = self.STOP_RUN.match(line)
+                    if m:
+                        tmpNum = int(m.group(2))
+                        if runNum != tmpNum:
+                            self.logError("Expected run#%d, not #%d in line \"%s\"" %
+                                          (runNum, tmpNum, line))
+                        state = self.STATE_STOPPING
+                        continue
+
+                    m = self.WATCHDOG_TIMEOUT.match(line)
+                    if m:
+                        self.logError("%s RunWatchdog timeout for %s %s" %
+                                      (m.group(1).rstrip(), m.group(2), m.group(3)))
+                        continue
+
+                    m = self.WATCHDOG_RESET.match(line)
+                    if m:
+                        self.logError("%s RunWatchdog connection reset for %s %s" %
+                                      (m.group(1).rstrip(), m.group(2), m.group(3)))
+                        continue
+
+                    m = self.WATCHDOG_REFUSED.match(line)
+                    if m:
+                        self.logError("%s RunWatchdog connection refused for %s %s" %
+                                      (m.group(1).rstrip(), m.group(2), m.group(3)))
+                        continue
+
+                    m = self.MONI_TIMEOUT.match(line)
+                    if m:
+                        self.logError("%s Monitoring timeout for %s" %
+                                      (m.group(1).rstrip(), m.group(2)))
+                        continue
+
+                    m = self.MONI_RESET.match(line)
+                    if m:
+                        self.logError("%s Monitoring connection reset for %s" %
+                                      (m.group(1).rstrip(), m.group(2)))
+                        continue
+
+                    m = self.MONI_REFUSED.match(line)
+                    if m:
+                        self.logError("%s Monitoring connection refused for %s" %
+                                      (m.group(1).rstrip(), m.group(2)))
+                        continue
+
+                if state == self.STATE_STOPPING:
+                    m = self.PHYS_TOTAL.match(line)
+                    if m:
+                        totPhysics = int(m.group(2))
+                        totTime = int(m.group(3))
+                        totRate = float(m.group(4))
+                        continue
+
+                    m = self.OTHER_TOTAL.match(line)
+                    if m:
+                        totMoni = int(m.group(2))
+                        totSN = int(m.group(3))
+                        totTCal = int(m.group(4))
                         state = self.STATE_ENDING
                         continue
 
-                m = self.RATELINE.match(line)
-                if m:
-                    numEvts = int(m.group(2))
-                    if m.group(4) is None:
-                        rate = 0.0
-                    else:
-                        rate = float(m.group(4))
-                    numMoni = int(m.group(5))
-                    numSN = int(m.group(6))
-                    numTcal = int(m.group(7))
-                    continue
+                if state == self.STATE_ENDING:
+                    m = self.RUN_TERM.match(line)
+                    if m:
+                        termState = m.group(2)
+                        continue
 
-                m = self.STOP_RUN.match(line)
-                if m:
-                    tmpNum = int(m.group(2))
-                    if runNum != tmpNum:
-                        self.logError("Expected run#%d, not #%d in line \"%s\"" %
-                                      (runNum, tmpNum, line))
-                    state = self.STATE_STOPPING
-                    continue
+                    if line.find("Doing complete rip-down and restart") >= 0:
+                        state = self.STATE_INITIAL
+                        continue
 
-                m = self.WATCHDOG_TIMEOUT.match(line)
-                if m:
-                    self.logError("%s RunWatchdog timeout for %s %s" %
-                                  (m.group(1).rstrip(), m.group(2), m.group(3)))
-                    continue
-
-                m = self.WATCHDOG_RESET.match(line)
-                if m:
-                    self.logError("%s RunWatchdog connection reset for %s %s" %
-                                  (m.group(1).rstrip(), m.group(2), m.group(3)))
-                    continue
-
-                m = self.WATCHDOG_REFUSED.match(line)
-                if m:
-                    self.logError("%s RunWatchdog connection refused for %s %s" %
-                                  (m.group(1).rstrip(), m.group(2), m.group(3)))
-                    continue
-
-                m = self.MONI_TIMEOUT.match(line)
-                if m:
-                    self.logError("%s Monitoring timeout for %s" %
-                                  (m.group(1).rstrip(), m.group(2)))
-                    continue
-
-                m = self.MONI_RESET.match(line)
-                if m:
-                    self.logError("%s Monitoring connection reset for %s" %
-                                  (m.group(1).rstrip(), m.group(2)))
-                    continue
-
-                m = self.MONI_REFUSED.match(line)
-                if m:
-                    self.logError("%s Monitoring connection refused for %s" %
-                                  (m.group(1).rstrip(), m.group(2)))
-                    continue
-
-            if state == self.STATE_STOPPING:
-                m = self.PHYS_TOTAL.match(line)
-                if m:
-                    totPhysics = int(m.group(2))
-                    totTime = int(m.group(3))
-                    totRate = float(m.group(4))
-                    continue
-
-                m = self.OTHER_TOTAL.match(line)
-                if m:
-                    totMoni = int(m.group(2))
-                    totSN = int(m.group(3))
-                    totTCal = int(m.group(4))
-                    state = self.STATE_ENDING
-                    continue
-
-            if state == self.STATE_ENDING:
-                m = self.RUN_TERM.match(line)
-                if m:
-                    termState = m.group(2)
-                    continue
-
-                if line.find("Doing complete rip-down and restart") >= 0:
-                    state = self.STATE_INITIAL
-                    continue
-
-            self.logError("State %s: %s" % (self.__stateString(state), line))
+                self.logError("State %s: %s" % (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         pass
@@ -503,74 +503,74 @@ class EventBuilderLog(ComponentLog):
     def parse(self, path):
         state = self.STATE_INITIAL
 
-        fd = open(path, "r")
-        for line in fd:
-            line = line.rstrip()
+        with open(path, 'r') as fd:
+            for line in fd:
+                line = line.rstrip()
 
-            if state == self.STATE_INITIAL:
-                if self.checkInitialLogMessage(line) or \
-                        line.find("Resetting logging") >= 0:
-                    continue
+                if state == self.STATE_INITIAL:
+                    if self.checkInitialLogMessage(line) or \
+                            line.find("Resetting logging") >= 0:
+                        continue
 
-                if self.checkVersionInfoMessage(line):
-                    state = self.STATE_STARTING
-                    continue
+                    if self.checkVersionInfoMessage(line):
+                        state = self.STATE_STARTING
+                        continue
 
-            elif state == self.STATE_STARTING:
-                if line.find("Splicer entered STARTING state") >= 0:
-                    continue
+                elif state == self.STATE_STARTING:
+                    if line.find("Splicer entered STARTING state") >= 0:
+                        continue
 
-                if line.find("Splicer entered STARTED state") >= 0:
-                    state = self.STATE_STARTED
-                    continue
+                    if line.find("Splicer entered STARTED state") >= 0:
+                        state = self.STATE_STARTED
+                        continue
 
-                m = self.BOUNDARY.match(line)
-                if m:
-                    if m.group(2) != "STARTING" or m.group(3) != "Start":
-                        self.logError("Bad STARTING boundary message: %s" % line)
-                    self.__runNum = int(m.group(4))
-                    continue
+                    m = self.BOUNDARY.match(line)
+                    if m:
+                        if m.group(2) != "STARTING" or m.group(3) != "Start":
+                            self.logError("Bad STARTING boundary message: %s" % line)
+                        self.__runNum = int(m.group(4))
+                        continue
 
-            elif state == self.STATE_STARTED:
-                if line.find("HKN1Splicer was started.") >= 0:
-                    continue
+                elif state == self.STATE_STARTED:
+                    if line.find("HKN1Splicer was started.") >= 0:
+                        continue
 
-                if line.find("pushing LAST_POSSIBLE_SPLICEABLE") >= 0:
-                    state = self.STATE_STOPPING
-                    continue
+                    if line.find("pushing LAST_POSSIBLE_SPLICEABLE") >= 0:
+                        state = self.STATE_STOPPING
+                        continue
 
-            elif state == self.STATE_STOPPING:
-                if line.find("pushing LAST_POSSIBLE_SPLICEABLE") >= 0 or \
-                        line.find("Splicer entered STOPPING state") >= 0:
-                    continue
+                elif state == self.STATE_STOPPING:
+                    if line.find("pushing LAST_POSSIBLE_SPLICEABLE") >= 0 or \
+                            line.find("Splicer entered STOPPING state") >= 0:
+                        continue
 
-                if line.find("Splicer entered STOPPED state") >= 0:
-                    state = self.STATE_STOPPED
-                    continue
+                    if line.find("Splicer entered STOPPED state") >= 0:
+                        state = self.STATE_STOPPED
+                        continue
 
-            elif state == self.STATE_STOPPED:
-                if line.find("HKN1Splicer was stopped.") >= 0:
-                    continue
+                elif state == self.STATE_STOPPED:
+                    if line.find("HKN1Splicer was stopped.") >= 0:
+                        continue
 
-                m = self.BOUNDARY.match(line)
-                if m:
-                    if m.group(2) != "STOPPED" or m.group(3) != "Stop":
-                        self.logError("Bad STOPPED boundary message: %s" % line)
-                    runNum = int(m.group(4))
-                    if self.__runNum != runNum:
-                        self.logError(("Expected data boundary run number %s," +
-                                         " not %s") % \
-                                            (str(self.__runNum), runNum))
-                    continue
+                    m = self.BOUNDARY.match(line)
+                    if m:
+                        if m.group(2) != "STOPPED" or m.group(3) != "Stop":
+                            self.logError("Bad STOPPED boundary message: %s" % line)
+                        runNum = int(m.group(4))
+                        if self.__runNum != runNum:
+                            self.logError(("Expected data boundary run number %s," +
+                                           " not %s") % \
+                                              (str(self.__runNum), runNum))
+                        continue
 
-                if line.find(" was not moved to the dispatch storage") > 0:
-                    continue
+                    if line.find(" was not moved to the dispatch storage") > 0:
+                        continue
 
-                if line.find("Resetting logging") >= 0:
-                    state = self.STATE_INITIAL
-                    continue
+                    if line.find("Resetting logging") >= 0:
+                        state = self.STATE_INITIAL
+                        continue
 
-            self.logError("State %s: %s" % (self.__stateString(state), line))
+                self.logError("State %s: %s" % (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         pass
@@ -630,131 +630,131 @@ class GlobalTriggerLog(ComponentLog):
 
         state = self.STATE_INITIAL
 
-        fd = open(path, "r")
-        for line in fd:
-            line = line.rstrip()
+        with open(path, 'r') as fd:
+            for line in fd:
+                line = line.rstrip()
 
-            if state == self.STATE_INITIAL:
-                if self.checkInitialLogMessage(line):
-                    continue
-
-                if self.checkVersionInfoMessage(line):
-                    state = self.STATE_CONFIG
-                    continue
-
-            elif state == self.STATE_CONFIG:
-                if self.__cfgName is None:
-                    if line.find("loaded DOM registry") >= 0 or \
-                            line.find("Getting root element of xml file") >= 0:
+                if state == self.STATE_INITIAL:
+                    if self.checkInitialLogMessage(line):
                         continue
 
-                    m = self.TRIG_CFG.match(line)
+                    if self.checkVersionInfoMessage(line):
+                        state = self.STATE_CONFIG
+                        continue
+
+                elif state == self.STATE_CONFIG:
+                    if self.__cfgName is None:
+                        if line.find("loaded DOM registry") >= 0 or \
+                                line.find("Getting root element of xml file") >= 0:
+                            continue
+
+                        m = self.TRIG_CFG.match(line)
+                        if m:
+                            self.__cfgName = m.group(2)
+                            continue
+
+                    elif line.find("TriggerName set to ") >= 0 or \
+                            line.find("Adding parameter ") >= 0 or \
+                            line.find("Added Parameter: ") >= 0 or \
+                            line.find("Adding readout ") >= 0 or \
+                            line.find("Added Readout: ") >= 0:
+                        continue
+
+                    elif line.find("HKN1Splicer was started") >= 0:
+                        state = self.STATE_RUNNING
+                        continue
+
+                    else:
+                        m = self.TRIG_BLDVAL.match(line)
+                        if m:
+                            continue
+
+                        m = self.BUILD_TRIG.match(line)
+                        if m:
+                            curTrig = m.group(2)
+                            continue
+
+                elif state == self.STATE_RUNNING:
+                    if line.find("Splicer contains: ") >= 0 or \
+                            line.find("Total time = ") >= 0:
+                        continue
+
+                    m = self.LONGEST_TRIG.match(line)
                     if m:
-                        self.__cfgName = m.group(2)
+                        self.__longest = float(m.group(2))
                         continue
 
-                elif line.find("TriggerName set to ") >= 0 or \
-                        line.find("Adding parameter ") >= 0 or \
-                        line.find("Added Parameter: ") >= 0 or \
-                        line.find("Adding readout ") >= 0 or \
-                        line.find("Added Readout: ") >= 0:
-                    continue
+                    m = self.TRIG_NUM.match(line)
+                    if m:
+                        self.__trigCnt[m.group(2)] = long(m.group(3))
+                        continue
 
-                elif line.find("HKN1Splicer was started") >= 0:
-                    state = self.STATE_RUNNING
-                    continue
-
-                else:
-                    m = self.TRIG_BLDVAL.match(line)
+                    m = self.ISSUE_NUM.match(line)
                     if m:
                         continue
 
-                    m = self.BUILD_TRIG.match(line)
+                    m = self.MERGED_NUM.match(line)
                     if m:
-                        curTrig = m.group(2)
+                        self.__merged = long(m.group(2))
                         continue
 
-            elif state == self.STATE_RUNNING:
-                if line.find("Splicer contains: ") >= 0 or \
-                        line.find("Total time = ") >= 0:
-                    continue
+                    if line.find("pushing LAST_POSSIBLE_SPLICEABLE") >= 0:
+                        state = self.STATE_STOPPING
+                        continue
 
-                m = self.LONGEST_TRIG.match(line)
-                if m:
-                    self.__longest = float(m.group(2))
-                    continue
+                elif state == self.STATE_STOPPING:
+                    if line.find("pushing LAST_POSSIBLE_SPLICEABLE") >= 0 or \
+                            len(line) == 0:
+                        continue
 
-                m = self.TRIG_NUM.match(line)
-                if m:
-                    self.__trigCnt[m.group(2)] = long(m.group(3))
-                    continue
+                    if line.find("Flushing InputHandler in GlobalTrigger") >= 0 or \
+                            line.find("Flushing: Total count = ") >= 0 or \
+                            line.find("Flushing GlobalTriggers") >= 0 or \
+                            line.find("GlobalTrigger count for ") >= 0 or \
+                            line.find("Flushing GlobalTriggerBag") >= 0:
+                        continue
 
-                m = self.ISSUE_NUM.match(line)
-                if m:
-                    continue
+                    if line.find("================================") >= 0:
+                        state = self.STATE_REPORT
+                        continue
 
-                m = self.MERGED_NUM.match(line)
-                if m:
-                    self.__merged = long(m.group(2))
-                    continue
+                    m = self.PROC_TOTAL.match(line)
+                    if m:
+                        self.__totHits = long(m.group(2))
+                        state = self.STATE_STOPPED
+                        continue
 
-                if line.find("pushing LAST_POSSIBLE_SPLICEABLE") >= 0:
-                    state = self.STATE_STOPPING
-                    continue
+                elif state == self.STATE_REPORT:
+                    if line.find("================================") >= 0:
+                        state = self.STATE_STOPPING
+                        continue
 
-            elif state == self.STATE_STOPPING:
-                if line.find("pushing LAST_POSSIBLE_SPLICEABLE") >= 0 or \
-                        len(line) == 0:
-                    continue
+                    if line.find("I3 GlobalTrigger Run Summary") >= 0 or \
+                            len(line) == 0:
+                        continue
 
-                if line.find("Flushing InputHandler in GlobalTrigger") >= 0 or \
-                        line.find("Flushing: Total count = ") >= 0 or \
-                        line.find("Flushing GlobalTriggers") >= 0 or \
-                        line.find("GlobalTrigger count for ") >= 0 or \
-                        line.find("Flushing GlobalTriggerBag") >= 0:
-                    continue
+                    m = self.TOT_GT_EVTS.match(line)
+                    if m:
+                        self.__totGTEvts = long(m.group(2))
+                        continue
 
-                if line.find("================================") >= 0:
-                    state = self.STATE_REPORT
-                    continue
+                    m = self.TOT_MERGED.match(line)
+                    if m:
+                        self.__merged = long(m.group(2))
+                        continue
 
-                m = self.PROC_TOTAL.match(line)
-                if m:
-                    self.__totHits = long(m.group(2))
-                    state = self.STATE_STOPPED
-                    continue
+                    m = self.TRIG_TOTAL.match(line)
+                    if m:
+                        self.__trigCnt[m.group(2)] = long(m.group(3))
+                        continue
 
-            elif state == self.STATE_REPORT:
-                if line.find("================================") >= 0:
-                    state = self.STATE_STOPPING
-                    continue
+                elif state == self.STATE_STOPPED:
+                    if line.find("Received Splicer STOPPED") >= 0 or \
+                            line.find("HKN1Splicer was stopped") >= 0 or \
+                            line.find("Resetting logging") >= 0:
+                        continue
 
-                if line.find("I3 GlobalTrigger Run Summary") >= 0 or \
-                        len(line) == 0:
-                    continue
-
-                m = self.TOT_GT_EVTS.match(line)
-                if m:
-                    self.__totGTEvts = long(m.group(2))
-                    continue
-
-                m = self.TOT_MERGED.match(line)
-                if m:
-                    self.__merged = long(m.group(2))
-                    continue
-
-                m = self.TRIG_TOTAL.match(line)
-                if m:
-                    self.__trigCnt[m.group(2)] = long(m.group(3))
-                    continue
-
-            elif state == self.STATE_STOPPED:
-                if line.find("Received Splicer STOPPED") >= 0 or \
-                        line.find("HKN1Splicer was stopped") >= 0 or \
-                        line.find("Resetting logging") >= 0:
-                    continue
-
-            self.logError("State %s: %s" % (self.__stateString(state), line))
+                self.logError("State %s: %s" % (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         if verbose:
@@ -834,98 +834,98 @@ class LocalTriggerLog(ComponentLog):
 
         state = self.STATE_INITIAL
 
-        fd = open(path, "r")
-        for line in fd:
-            line = line.rstrip()
+        with open(path, 'r') as fd:
+            for line in fd:
+                line = line.rstrip()
 
-            if state == self.STATE_INITIAL:
-                if self.checkInitialLogMessage(line):
-                    continue
-
-                if self.checkVersionInfoMessage(line):
-                    state = self.STATE_CONFIG
-                    nextFound = 0
-                    continue
-
-            elif state == self.STATE_CONFIG:
-                if self.__cfgName is None:
-                    if line.find("loaded DOM registry") >= 0 or \
-                            line.find("Getting root element of xml file") >= 0:
+                if state == self.STATE_INITIAL:
+                    if self.checkInitialLogMessage(line):
                         continue
 
-                    m = self.TRIG_CFG.match(line)
+                    if self.checkVersionInfoMessage(line):
+                        state = self.STATE_CONFIG
+                        nextFound = 0
+                        continue
+
+                elif state == self.STATE_CONFIG:
+                    if self.__cfgName is None:
+                        if line.find("loaded DOM registry") >= 0 or \
+                                line.find("Getting root element of xml file") >= 0:
+                            continue
+
+                        m = self.TRIG_CFG.match(line)
+                        if m:
+                            self.__cfgName = m.group(2)
+                            continue
+
+                    elif line.find("TriggerName set to ") >= 0 or \
+                            line.find("Adding parameter ") >= 0 or \
+                            line.find("Added Parameter: ") >= 0 or \
+                            line.find("Adding readout ") >= 0 or \
+                            line.find("Added Readout: ") >= 0:
+                        continue
+
+                    elif line.find("HKN1Splicer was started") >= 0:
+                        state = self.STATE_RUNNING
+                        continue
+
+                    else:
+                        m = self.TRIG_BLDVAL.match(line)
+                        if m:
+                            continue
+
+                        m = self.BUILD_TRIG.match(line)
+                        if m:
+                            curTrig = m.group(2)
+                            continue
+
+                elif state == self.STATE_RUNNING:
+                    if line.find("pushing LAST_POSSIBLE_SPLICEABLE") >= 0:
+                        continue
+
+                    if line.find("Flushing InputHandler") >= 0:
+                        state = self.STATE_STOPPING
+                        continue
+
+                    m = self.NEW_TRIG.match(line)
                     if m:
-                        self.__cfgName = m.group(2)
+                        num = int(m.group(2))
+                        name = m.group(3)
+                        numHits = int(m.group(4))
+                        if not self.__trigData.has_key(name):
+                            self.__trigData[name] = LocalTriggerData()
+                        self.__trigData[name].setTotal(num)
+                        self.__trigData[name].addHits(numHits)
                         continue
 
-                elif line.find("TriggerName set to ") >= 0 or \
-                        line.find("Adding parameter ") >= 0 or \
-                        line.find("Added Parameter: ") >= 0 or \
-                        line.find("Adding readout ") >= 0 or \
-                        line.find("Added Readout: ") >= 0:
-                    continue
+                elif state == self.STATE_STOPPING:
+                    if line.find("Flushing Triggers") >= 0 or \
+                            line.find("Flushing: Total count = ") >= 0 or \
+                            line.find("Flushing TriggerBag") >= 0:
+                        continue
 
-                elif line.find("HKN1Splicer was started") >= 0:
-                    state = self.STATE_RUNNING
-                    continue
-
-                else:
-                    m = self.TRIG_BLDVAL.match(line)
+                    m = self.TRIG_CNT.match(line)
                     if m:
+                        name = m.group(2)
+                        cnt = int(m.group(3))
+                        if not self.__trigData.has_key(name):
+                            self.__trigData[name] = LocalTriggerData()
+                        self.__trigData[name].setTotal(cnt)
                         continue
 
-                    m = self.BUILD_TRIG.match(line)
+                    m = self.PROC_TOTAL.match(line)
                     if m:
-                        curTrig = m.group(2)
+                        totHits = long(m.group(2))
+                        state = self.STATE_STOPPED
                         continue
 
-            elif state == self.STATE_RUNNING:
-                if line.find("pushing LAST_POSSIBLE_SPLICEABLE") >= 0:
-                    continue
+                elif state == self.STATE_STOPPED:
+                    if line.find("Received Splicer STOPPED") >= 0 or \
+                            line.find("HKN1Splicer was stopped") >= 0 or \
+                            line.find("Resetting logging") >= 0:
+                        continue
 
-                if line.find("Flushing InputHandler") >= 0:
-                    state = self.STATE_STOPPING
-                    continue
-
-                m = self.NEW_TRIG.match(line)
-                if m:
-                    num = int(m.group(2))
-                    name = m.group(3)
-                    numHits = int(m.group(4))
-                    if not self.__trigData.has_key(name):
-                        self.__trigData[name] = LocalTriggerData()
-                    self.__trigData[name].setTotal(num)
-                    self.__trigData[name].addHits(numHits)
-                    continue
-
-            elif state == self.STATE_STOPPING:
-                if line.find("Flushing Triggers") >= 0 or \
-                        line.find("Flushing: Total count = ") >= 0 or \
-                        line.find("Flushing TriggerBag") >= 0:
-                    continue
-
-                m = self.TRIG_CNT.match(line)
-                if m:
-                    name = m.group(2)
-                    cnt = int(m.group(3))
-                    if not self.__trigData.has_key(name):
-                        self.__trigData[name] = LocalTriggerData()
-                    self.__trigData[name].setTotal(cnt)
-                    continue
-
-                m = self.PROC_TOTAL.match(line)
-                if m:
-                    totHits = long(m.group(2))
-                    state = self.STATE_STOPPED
-                    continue
-
-            elif state == self.STATE_STOPPED:
-                if line.find("Received Splicer STOPPED") >= 0 or \
-                        line.find("HKN1Splicer was stopped") >= 0 or \
-                        line.find("Resetting logging") >= 0:
-                    continue
-
-            self.logError("State %s: %s" % (self.__stateString(state), line))
+                self.logError("State %s: %s" % (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         if verbose:
@@ -1033,106 +1033,106 @@ class SecondaryBuildersLog(ComponentLog):
     def parse(self, path):
         state = self.STATE_INITIAL
 
-        fd = open(path, "r")
-        for line in fd:
-            line = line.rstrip()
+        with open(path, 'r') as fd:
+            for line in fd:
+                line = line.rstrip()
 
-            if state == self.STATE_INITIAL:
-                if self.checkInitialLogMessage(line) or \
-                        line.find("Resetting logging") >= 0:
-                    continue
-
-                if self.checkVersionInfoMessage(line):
-                    state = self.STATE_STARTING
-                    continue
-
-            elif state == self.STATE_STARTING:
-                if line.find("HKN1Splicer was started.") >= 0:
-                    continue
-
-                m = self.RUNNUM.match(line)
-                if m:
-                    self.__runNum = int(m.group(2))
-                    continue
-
-                m = self.BLDR_STATE.match(line)
-                if m:
-                    name = m.group(2)
-                    bldrState = m.group(3)
-                    if bldrState != "starting":
-                        self.logError("Bad %s builder STARTING state: %s" %
-                                      (name, line))
+                if state == self.STATE_INITIAL:
+                    if self.checkInitialLogMessage(line) or \
+                            line.find("Resetting logging") >= 0:
                         continue
 
-                    if not self.__builder.has_key(name):
-                        self.__builder[name] = Builder(name)
-                    self.__builder[name].setStarting()
-                    continue
-
-                m = self.SPLI_STATE.match(line)
-                if m:
-                    name = m.group(2)
-                    splState = m.group(3)
-                    if splState != "STARTED":
-                        self.logError("Bad %s splicer STARTING state: %s" %
-                                      (name, line))
+                    if self.checkVersionInfoMessage(line):
+                        state = self.STATE_STARTING
                         continue
 
-                    if not self.__builder.has_key(name):
-                        self.__builder[name] = Builder(name)
-                    self.__builder[name].setStarted()
-                    continue
-
-                if line.find("pushing LAST_POSSIBLE_SPLICEABLE") >= 0:
-                    state = self.STATE_STOPPING
-                    continue
-
-            elif state == self.STATE_STOPPING:
-                if line.find("pushing LAST_POSSIBLE_SPLICEABLE") >= 0 or \
-                        line.find("HKN1Splicer was stopped.") >= 0:
-                    continue
-
-                m = self.SPLI_STATE.match(line)
-                if m:
-                    name = m.group(2)
-                    splState = m.group(3)
-                    if splState != "STOPPING":
-                        self.logError("Bad %s splicer STOPPING state: %s" %
-                                      (name, line))
+                elif state == self.STATE_STARTING:
+                    if line.find("HKN1Splicer was started.") >= 0:
                         continue
 
-                    if not self.__builder.has_key(name):
-                        self.__builder[name] = Builder(name)
-                    self.__builder[name].setStopping()
-                    continue
-
-                m = self.BLDR_STATE.match(line)
-                if m:
-                    name = m.group(2)
-                    bldrState = m.group(3)
-                    if bldrState != "stopped":
-                        self.logError("Bad %s builder STOPPING state: %s" %
-                                      (name, line))
+                    m = self.RUNNUM.match(line)
+                    if m:
+                        self.__runNum = int(m.group(2))
                         continue
 
-                    if not self.__builder.has_key(name):
-                        self.__builder[name] = Builder(name)
-                    self.__builder[name].setStopped()
-                    continue
+                    m = self.BLDR_STATE.match(line)
+                    if m:
+                        name = m.group(2)
+                        bldrState = m.group(3)
+                        if bldrState != "starting":
+                            self.logError("Bad %s builder STARTING state: %s" %
+                                          (name, line))
+                            continue
 
-                m = self.SPLI_HALT.match(line)
-                if m:
-                    name = m.group(2)
-                    if not self.__builder.has_key(name):
-                        self.__builder[name] = Builder(name)
-                    self.__builder[name].setSplicerStopped()
-                    continue
+                        if not self.__builder.has_key(name):
+                            self.__builder[name] = Builder(name)
+                        self.__builder[name].setStarting()
+                        continue
 
-                if line.find("Resetting logging") >= 0:
-                    state = self.STATE_INITIAL
-                    continue
+                    m = self.SPLI_STATE.match(line)
+                    if m:
+                        name = m.group(2)
+                        splState = m.group(3)
+                        if splState != "STARTED":
+                            self.logError("Bad %s splicer STARTING state: %s" %
+                                          (name, line))
+                            continue
 
-            self.logError("State %s: %s" % (self.__stateString(state), line))
+                        if not self.__builder.has_key(name):
+                            self.__builder[name] = Builder(name)
+                        self.__builder[name].setStarted()
+                        continue
+
+                    if line.find("pushing LAST_POSSIBLE_SPLICEABLE") >= 0:
+                        state = self.STATE_STOPPING
+                        continue
+
+                elif state == self.STATE_STOPPING:
+                    if line.find("pushing LAST_POSSIBLE_SPLICEABLE") >= 0 or \
+                            line.find("HKN1Splicer was stopped.") >= 0:
+                        continue
+
+                    m = self.SPLI_STATE.match(line)
+                    if m:
+                        name = m.group(2)
+                        splState = m.group(3)
+                        if splState != "STOPPING":
+                            self.logError("Bad %s splicer STOPPING state: %s" %
+                                          (name, line))
+                            continue
+
+                        if not self.__builder.has_key(name):
+                            self.__builder[name] = Builder(name)
+                        self.__builder[name].setStopping()
+                        continue
+
+                    m = self.BLDR_STATE.match(line)
+                    if m:
+                        name = m.group(2)
+                        bldrState = m.group(3)
+                        if bldrState != "stopped":
+                            self.logError("Bad %s builder STOPPING state: %s" %
+                                          (name, line))
+                            continue
+
+                        if not self.__builder.has_key(name):
+                            self.__builder[name] = Builder(name)
+                        self.__builder[name].setStopped()
+                        continue
+
+                    m = self.SPLI_HALT.match(line)
+                    if m:
+                        name = m.group(2)
+                        if not self.__builder.has_key(name):
+                            self.__builder[name] = Builder(name)
+                        self.__builder[name].setSplicerStopped()
+                        continue
+
+                    if line.find("Resetting logging") >= 0:
+                        state = self.STATE_INITIAL
+                        continue
+
+                self.logError("State %s: %s" % (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         if verbose:
@@ -1378,360 +1378,360 @@ class StringHubLog(ComponentLog):
 
         state = self.STATE_INITIAL
 
-        fd = open(path, "r")
-        for line in fd:
-            line = line.rstrip()
+        with open(path, 'r') as fd:
+            for line in fd:
+                line = line.rstrip()
 
-            if DEBUG: print >>sys.stderr, ":: " + line
-            if state == self.STATE_INITIAL:
-                if self.checkInitialLogMessage(line) or \
-                        line.find("Resetting logging") >= 0:
-                    continue
+                if DEBUG: print >>sys.stderr, ":: " + line
+                if state == self.STATE_INITIAL:
+                    if self.checkInitialLogMessage(line) or \
+                            line.find("Resetting logging") >= 0:
+                        continue
 
-                if self.checkVersionInfoMessage(line):
-                    state = self.STATE_FOUND
-                    nextFound = 0
-                    continue
+                    if self.checkVersionInfoMessage(line):
+                        state = self.STATE_FOUND
+                        nextFound = 0
+                        continue
 
-                if line.find("Found STOP symbol in stream - shutting down"):
-                    continue
+                    if line.find("Found STOP symbol in stream - shutting down"):
+                        continue
 
-            elif state == self.STATE_FOUND:
-                m = self.FOUND_DOM.match(line)
-                if m:
-                    num = self.__getPairNumber(int(m.group(2)), int(m.group(3)),
-                                               m.group(4))
-                    if num == nextFound:
-                        if self.__hubId < 200:
-                            nextFound += 1
+                elif state == self.STATE_FOUND:
+                    m = self.FOUND_DOM.match(line)
+                    if m:
+                        num = self.__getPairNumber(int(m.group(2)), int(m.group(3)),
+                                                   m.group(4))
+                        if num == nextFound:
+                            if self.__hubId < 200:
+                                nextFound += 1
+                            else:
+                                nextFound += 2
                         else:
-                            nextFound += 2
+                            self.__prevRpt.append(("Previous DOM on %s (#%d)," +
+                                                   " current DOM on %s (#%d)") %
+                                                  (self.__getCardLoc(nextFound),
+                                                   nextFound, self.__getCardLoc(num),
+                                                   num))
+                            nextFound = num + 1
+                        totalDOMs += 1
+                        continue
+
+                    m = self.FOUND_PAIR.match(line)
+                    if m:
+                        num = self.__getPairNumber(int(m.group(2)), int(m.group(3)),
+                                                   "A")
+                        if num != nextFound:
+                            self.__prevRpt.append(("Previous pair on %s (#%d)," +
+                                                   " current pair on %s (#%d)") %
+                                                  (self.__getCardLoc(nextFound,
+                                                                     False),
+                                                   nextFound,
+                                                   self.__getCardLoc(num, False),
+                                                   num))
+                            nextFound = num
+                        continue
+
+                    m = self.FOUND_TOTAL.match(line)
+                    if m:
+                        num = int(m.group(2))
+                        if num != totalDOMs:
+                            self.logError("Found %d DOMs (should be %d)" %
+                                          (num, totalDOMs))
+                            totalDOMs = num
+                        state = self.STATE_CONFIG
+                        continue
+
+                    if line.find("Number of domConfigNodes found:") >= 0:
+                        state = self.STATE_CONFIG
+                        continue
+
+                elif state == self.STATE_CONFIG:
+                    if line.find("Number of domConfigNodes found:") >= 0:
+                        continue
+
+                    if loadCfg is None:
+                        m = self.LOAD_CFG.match(line)
+                        if m:
+                            loadCfg = m.group(3)
+                            continue
                     else:
-                        self.__prevRpt.append(("Previous DOM on %s (#%d)," +
-                                               " current DOM on %s (#%d)") %
-                                              (self.__getCardLoc(nextFound),
-                                               nextFound, self.__getCardLoc(num),
-                                               num))
-                        nextFound = num + 1
-                    totalDOMs += 1
-                    continue
+                        if line.find("XML parsing completed - took ") < 0:
+                            self.logError("While loading config \"%s\", got: %s" %
+                                          (loadCfg, line))
+                            loadCfg = None
+                            continue
 
-                m = self.FOUND_PAIR.match(line)
-                if m:
-                    num = self.__getPairNumber(int(m.group(2)), int(m.group(3)),
-                                               "A")
-                    if num != nextFound:
-                        self.__prevRpt.append(("Previous pair on %s (#%d)," +
-                                               " current pair on %s (#%d)") %
-                                              (self.__getCardLoc(nextFound,
-                                                                 False),
-                                               nextFound,
-                                               self.__getCardLoc(num, False),
-                                               num))
-                        nextFound = num
-                    continue
-
-                m = self.FOUND_TOTAL.match(line)
-                if m:
-                    num = int(m.group(2))
-                    if num != totalDOMs:
-                        self.logError("Found %d DOMs (should be %d)" %
-                                        (num, totalDOMs))
-                        totalDOMs = num
-                    state = self.STATE_CONFIG
-                    continue
-
-                if line.find("Number of domConfigNodes found:") >= 0:
-                    state = self.STATE_CONFIG
-                    continue
-
-            elif state == self.STATE_CONFIG:
-                if line.find("Number of domConfigNodes found:") >= 0:
-                    continue
-
-                if loadCfg is None:
-                    m = self.LOAD_CFG.match(line)
+                    m = self.CFG_DONE.match(line)
                     if m:
-                        loadCfg = m.group(3)
-                        continue
-                else:
-                    if line.find("XML parsing completed - took ") < 0:
-                        self.logError("While loading config \"%s\", got: %s" %
-                                        (loadCfg, line))
-                    loadCfg = None
-                    continue
-
-                m = self.CFG_DONE.match(line)
-                if m:
-                    num = int(m.group(2))
-                    if totalDOMs == 0:
-                        totalDOMs = num
-                    elif num != totalDOMs:
-                        self.logError("Expected to configure %d DOMS, not %d" %
-                                        (totalDOMs, num))
-                    state = self.STATE_DCTHREAD
-                    continue
-
-            elif state == self.STATE_DCTHREAD:
-                if DEBUG: print >>sys.stderr, "--InDCThread--"
-                if line.find("Begin data collection thread") >= 0:
-                    numDCThreads += 1
-                    continue
-
-                if line.find("Starting up HKN1 sorting trees") >= 0:
-                    continue
-
-                if line.find("StringHub is starting the run.") >= 0 or \
-                        line.find("signalStartRun") >= 0:
-                    state = self.STATE_START
-                    continue
-
-                m = self.DOM_REL.match(line)
-                if m:
-                    dom = RealDom(m.group(1), m.group(2), m.group(3))
-                    self.__domMap[m.group(1)] = dom
-                    continue
-
-                m = self.SIMDOM_REL.match(line)
-                if m:
-                    dom = SimDom(m.group(1))
-                    self.__domMap[m.group(2)] = dom
-                    continue
-
-                m = self.DOM_GENERIC.match(line)
-                if m:
-                    cardLoc = m.group(2)
-                    msg = m.group(3)
-
-                    if msg.find("Entering run loop") >= 0:
+                        num = int(m.group(2))
+                        if totalDOMs == 0:
+                            totalDOMs = num
+                        elif num != totalDOMs:
+                            self.logError("Expected to configure %d DOMS, not %d" %
+                                          (totalDOMs, num))
+                        state = self.STATE_DCTHREAD
                         continue
 
-                    if not self.__domMap.has_key(cardLoc):
-                        self.logError("Got unknown card \"%s\"" % cardLoc)
+                elif state == self.STATE_DCTHREAD:
+                    if DEBUG: print >>sys.stderr, "--InDCThread--"
+                    if line.find("Begin data collection thread") >= 0:
+                        numDCThreads += 1
                         continue
 
-                    if msg.find("Got CONFIGURE signal") >= 0:
-                        try:
-                            self.__domMap[cardLoc].setConfigSignal()
-                        except LogParseException, lpe:
-                            self.logError(("WARNING: %s configure" +
-                                             " signal: %s") %
-                                            (str(self.__domMap[cardLoc]),
-                                             str(lpe)))
+                    if line.find("Starting up HKN1 sorting trees") >= 0:
                         continue
 
-                    m = self.CONFIG_DOM.match(msg)
+                    if line.find("StringHub is starting the run.") >= 0 or \
+                            line.find("signalStartRun") >= 0:
+                        state = self.STATE_START
+                        continue
+
+                    m = self.DOM_REL.match(line)
                     if m:
-                        if cardLoc != m.group(1):
-                            self.logError(("Got configure msg for DOM %s" +
-                                             " from DataCollector %s") %
-                                            (m.group(1), cardLoc))
-                        try:
-                            self.__domMap[cardLoc].setConfiguring()
-                        except LogParseException, lpe:
-                            self.logError("WARNING: %s configuring: %s" %
-                                            (str(self.__domMap[cardLoc]),
-                                             str(lpe)))
+                        dom = RealDom(m.group(1), m.group(2), m.group(3))
+                        self.__domMap[m.group(1)] = dom
                         continue
 
-                    m = self.FINISH_CFG.match(msg)
+                    m = self.SIMDOM_REL.match(line)
                     if m:
-                        if cardLoc != m.group(1):
-                            self.logError(("Got finishCfg msg for DOM %s" +
-                                             " from DataCollector %s") %
-                                            (m.group(1), cardLoc))
-                        try:
-                            val = int(m.group(2))
-                            self.__domMap[cardLoc].setConfigFinished(val)
-                        except LogParseException, lpe:
-                            self.logError("WARNING: %s finished cfg: %s" %
-                                            (str(self.__domMap[cardLoc]),
-                                             str(lpe)))
+                        dom = SimDom(m.group(1))
+                        self.__domMap[m.group(2)] = dom
                         continue
 
-                    if msg.find("DOM is configured") >= 0:
-                        try:
-                            self.__domMap[cardLoc].setReady()
-                        except LogParseException, lpe:
-                            self.logError("WARNING: %s ready: %s" %
-                                            (str(self.__domMap[cardLoc]),
-                                             str(lpe)))
+                    m = self.DOM_GENERIC.match(line)
+                    if m:
+                        cardLoc = m.group(2)
+                        msg = m.group(3)
+
+                        if msg.find("Entering run loop") >= 0:
+                            continue
+
+                        if not self.__domMap.has_key(cardLoc):
+                            self.logError("Got unknown card \"%s\"" % cardLoc)
+                            continue
+
+                        if msg.find("Got CONFIGURE signal") >= 0:
+                            try:
+                                self.__domMap[cardLoc].setConfigSignal()
+                            except LogParseException, lpe:
+                                self.logError(("WARNING: %s configure" +
+                                               " signal: %s") %
+                                              (str(self.__domMap[cardLoc]),
+                                               str(lpe)))
+                            continue
+
+                        m = self.CONFIG_DOM.match(msg)
+                        if m:
+                            if cardLoc != m.group(1):
+                                self.logError(("Got configure msg for DOM %s" +
+                                               " from DataCollector %s") %
+                                              (m.group(1), cardLoc))
+                            try:
+                                self.__domMap[cardLoc].setConfiguring()
+                            except LogParseException, lpe:
+                                self.logError("WARNING: %s configuring: %s" %
+                                              (str(self.__domMap[cardLoc]),
+                                               str(lpe)))
+                            continue
+
+                        m = self.FINISH_CFG.match(msg)
+                        if m:
+                            if cardLoc != m.group(1):
+                                self.logError(("Got finishCfg msg for DOM %s" +
+                                               " from DataCollector %s") %
+                                              (m.group(1), cardLoc))
+                            try:
+                                val = int(m.group(2))
+                                self.__domMap[cardLoc].setConfigFinished(val)
+                            except LogParseException, lpe:
+                                self.logError("WARNING: %s finished cfg: %s" %
+                                              (str(self.__domMap[cardLoc]),
+                                               str(lpe)))
+                            continue
+
+                        if msg.find("DOM is configured") >= 0:
+                            try:
+                                self.__domMap[cardLoc].setReady()
+                            except LogParseException, lpe:
+                                self.logError("WARNING: %s ready: %s" %
+                                              (str(self.__domMap[cardLoc]),
+                                               str(lpe)))
+                            continue
+
+                        if msg.find("DOM is now configured") >= 0:
+                            try:
+                                self.__domMap[cardLoc].setSimReady()
+                            except LogParseException, lpe:
+                                self.logError("WARNING: %s ready: %s" %
+                                              (str(self.__domMap[cardLoc]),
+                                               str(lpe)))
+                            continue
+
+                    if line.find("Data collector ensemble has been configured") >= 0:
+                        state = self.STATE_START
                         continue
 
-                    if msg.find("DOM is now configured") >= 0:
-                        try:
-                            self.__domMap[cardLoc].setSimReady()
-                        except LogParseException, lpe:
-                            self.logError("WARNING: %s ready: %s" %
-                                            (str(self.__domMap[cardLoc]),
-                                             str(lpe)))
+                elif state == self.STATE_START:
+                    if len(line.rstrip()) == 0:
                         continue
 
-                if line.find("Data collector ensemble has been configured") >= 0:
-                    state = self.STATE_START
-                    continue
+                    if line.find("StringHub is starting the run.") >= 0 or \
+                            line.find("signalStartRun") >= 0:
+                        continue
 
-            elif state == self.STATE_START:
-                if len(line.rstrip()) == 0:
-                    continue
+                    if inTCalException:
+                        if line.find("STDERR-") >= 0 and \
+                                (line.find(" at ") > 0 or
+                                 line.find("	at ") > 0):
+                                continue
 
-                if line.find("StringHub is starting the run.") >= 0 or \
-                        line.find("signalStartRun") >= 0:
-                    continue
+                        inTCalException = False
+                        # stack trace is done, keep looking for matches
 
-                if inTCalException:
                     if line.find("STDERR-") >= 0 and \
-                            (line.find(" at ") > 0 or
-                             line.find("	at ") > 0):
+                            line.find("TCAL read failed") >= 0:
+                        inTCalException = True
                         continue
 
-                    inTCalException = False
-                    # stack trace is done, keep looking for matches
+                    if inPipeException:
+                        if (line.find(" at ") >= 0 or line.find("	at ") >= 0):
+                            continue
 
-                if line.find("STDERR-") >= 0 and \
-                        line.find("TCAL read failed") >= 0:
-                    inTCalException = True
-                    continue
+                        inPipeException = False
+                        # stack trace is done, keep looking for matches
 
-                if inPipeException:
-                    if (line.find(" at ") >= 0 or line.find("	at ") >= 0):
+                    if line.find("IOException: Broken pipe") >= 0:
+                        self.logError(line)
+                        inPipeException = True
                         continue
 
-                    inPipeException = False
-                    # stack trace is done, keep looking for matches
-
-                if line.find("IOException: Broken pipe") >= 0:
-                    self.logError(line)
-                    inPipeException = True
-                    continue
-
-                if line.find("Out-of-order sorted value") >= 0:
-                    self.__outOfOrder += 1
-                    continue
-
-                if line.find("GPS not ready") >= 0:
-                    self.__gpsNotReady += 1
-                    continue
-
-                m = self.DOM_GENERIC.match(line)
-                if m:
-                    cardLoc = m.group(2)
-                    msg = m.group(3)
-
-                    if not self.__domMap.has_key(cardLoc):
-                        self.logError("Got unknown card \"%s\"" % cardLoc)
+                    if line.find("Out-of-order sorted value") >= 0:
+                        self.__outOfOrder += 1
                         continue
 
-                    if msg.find("DOM is running") >= 0:
-                        try:
-                            self.__domMap[cardLoc].setRunning()
-                        except LogParseException, lpe:
-                            self.logError("WARNING: %s running: %s" %
-                                            (str(self.__domMap[cardLoc]),
-                                             str(lpe)))
+                    if line.find("GPS not ready") >= 0:
+                        self.__gpsNotReady += 1
                         continue
 
-                    if msg.find("Got STOP RUN signal") >= 0 or \
-                            msg.find("Stopping data collection") >= 0 or \
-                            msg.find("Exited runCore() loop") >= 0:
-                        try:
-                            self.__domMap[cardLoc].setStopping()
-                        except LogParseException, lpe:
-                            self.logError("WARNING: %s stopping: %s" %
-                                            (str(self.__domMap[cardLoc]),
-                                             str(lpe)))
-                        state = self.STATE_STOPPING
-                        continue
-
-                    if msg.find("Wild TCAL") >= 0:
-                        self.__domMap[cardLoc].addWildTCal()
-                        continue
-
-                    if msg.find("TCAL read failed") >= 0:
-                        self.__domMap[cardLoc].addTCalFailure()
-                        continue
-
-                    if msg.find("Failed GPS read") >= 0:
-                        self.__domMap[cardLoc].addGPSFailure()
-                        continue
-
-                    m = self.START_RUN.match(msg)
+                    m = self.DOM_GENERIC.match(line)
                     if m:
-                        if cardLoc != m.group(1):
-                            self.logError(("Got start run for DOM %s" +
-                                             " from DataCollector %s") %
-                                            (m.group(1), cardLoc))
-                        try:
-                            self.__domMap[cardLoc].setStartRun()
-                        except LogParseException, lpe:
-                            self.logError("WARNING: %s(%s) start run: %s" %
-                                            (cardLoc, str(self.__domMap[cardLoc]),
-                                             str(lpe)))
+                        cardLoc = m.group(2)
+                        msg = m.group(3)
+
+                        if not self.__domMap.has_key(cardLoc):
+                            self.logError("Got unknown card \"%s\"" % cardLoc)
+                            continue
+
+                        if msg.find("DOM is running") >= 0:
+                            try:
+                                self.__domMap[cardLoc].setRunning()
+                            except LogParseException, lpe:
+                                self.logError("WARNING: %s running: %s" %
+                                              (str(self.__domMap[cardLoc]),
+                                               str(lpe)))
+                            continue
+
+                        if msg.find("Got STOP RUN signal") >= 0 or \
+                                msg.find("Stopping data collection") >= 0 or \
+                                msg.find("Exited runCore() loop") >= 0:
+                            try:
+                                self.__domMap[cardLoc].setStopping()
+                            except LogParseException, lpe:
+                                self.logError("WARNING: %s stopping: %s" %
+                                              (str(self.__domMap[cardLoc]),
+                                               str(lpe)))
+                            state = self.STATE_STOPPING
+                            continue
+
+                        if msg.find("Wild TCAL") >= 0:
+                            self.__domMap[cardLoc].addWildTCal()
+                            continue
+
+                        if msg.find("TCAL read failed") >= 0:
+                            self.__domMap[cardLoc].addTCalFailure()
+                            continue
+
+                        if msg.find("Failed GPS read") >= 0:
+                            self.__domMap[cardLoc].addGPSFailure()
+                            continue
+
+                        m = self.START_RUN.match(msg)
+                        if m:
+                            if cardLoc != m.group(1):
+                                self.logError(("Got start run for DOM %s" +
+                                               " from DataCollector %s") %
+                                              (m.group(1), cardLoc))
+                                try:
+                                    self.__domMap[cardLoc].setStartRun()
+                                except LogParseException, lpe:
+                                    self.logError("WARNING: %s(%s) start run: %s" %
+                                                  (cardLoc, str(self.__domMap[cardLoc]),
+                                                   str(lpe)))
+                                continue
+
+                elif state == self.STATE_STOPPING:
+                    if len(line.rstrip()) == 0:
                         continue
 
-            elif state == self.STATE_STOPPING:
-                if len(line.rstrip()) == 0:
-                    continue
-
-                if line.find("StringHub is starting the run.") >= 0 or \
-                        line.find("signalStartRun") >= 0:
-                    continue
-
-                if line.find("Found STOP symbol in stream - ") >= 0 or \
-                        line.find("Stopping payload destinations") >= 0:
-                    continue
-
-                if line.find("Returning from stop.") >= 0 or \
-                        line.find("Resetting logging") >= 0:
-                    state = self.STATE_STOPPED
-                    continue
-
-                if inPipeException:
-                    if (line.find(" at ") >= 0 or line.find("	at ") >= 0):
+                    if line.find("StringHub is starting the run.") >= 0 or \
+                            line.find("signalStartRun") >= 0:
                         continue
 
-                    inPipeException = False
-                    # stack trace is done, keep looking for matches
-
-                if line.find("IOException: Broken pipe") >= 0:
-                    self.logError(line)
-                    inPipeException = True
-                    continue
-
-                m = self.DOM_GENERIC.match(line)
-                if m:
-                    cardLoc = m.group(2)
-                    msg = m.group(3)
-
-                    if not self.__domMap.has_key(cardLoc):
-                        self.logError("Got unknown card \"%s\"" % cardLoc)
+                    if line.find("Found STOP symbol in stream - ") >= 0 or \
+                            line.find("Stopping payload destinations") >= 0:
                         continue
 
-                    if msg.find("Got STOP RUN signal") >= 0 or \
-                            msg.find("Stopping data collection") >= 0 or \
-                            msg.find("Exited runCore() loop") >= 0:
-                        try:
-                            self.__domMap[cardLoc].setStopping()
-                        except LogParseException, lpe:
-                            self.logError("WARNING: %s stopping: %s" %
-                                            (str(self.__domMap[cardLoc]),
-                                             str(lpe)))
+                    if line.find("Returning from stop.") >= 0 or \
+                            line.find("Resetting logging") >= 0:
+                        state = self.STATE_STOPPED
                         continue
 
-                    if msg.find("Wrote EOS to streams.") >= 0:
-                        try:
-                            self.__domMap[cardLoc].setStopped()
-                        except LogParseException, lpe:
-                            self.logError("WARNING: %s stopped: %s" %
-                                            (str(self.__domMap[cardLoc]),
-                                             str(lpe)))
+                    if inPipeException:
+                        if (line.find(" at ") >= 0 or line.find("	at ") >= 0):
+                            continue
+
+                        inPipeException = False
+                        # stack trace is done, keep looking for matches
+
+                    if line.find("IOException: Broken pipe") >= 0:
+                        self.logError(line)
+                        inPipeException = True
                         continue
 
-            elif state == self.STATE_STOPPED:
-                if line.find("Found STOP symbol in stream - shutting down"):
-                    continue
+                    m = self.DOM_GENERIC.match(line)
+                    if m:
+                        cardLoc = m.group(2)
+                        msg = m.group(3)
 
-            self.logError("State %s: %s" % (self.__stateString(state), line))
+                        if not self.__domMap.has_key(cardLoc):
+                            self.logError("Got unknown card \"%s\"" % cardLoc)
+                            continue
+
+                        if msg.find("Got STOP RUN signal") >= 0 or \
+                                msg.find("Stopping data collection") >= 0 or \
+                                msg.find("Exited runCore() loop") >= 0:
+                            try:
+                                self.__domMap[cardLoc].setStopping()
+                            except LogParseException, lpe:
+                                self.logError("WARNING: %s stopping: %s" %
+                                              (str(self.__domMap[cardLoc]),
+                                               str(lpe)))
+                            continue
+
+                        if msg.find("Wrote EOS to streams.") >= 0:
+                            try:
+                                self.__domMap[cardLoc].setStopped()
+                            except LogParseException, lpe:
+                                self.logError("WARNING: %s stopped: %s" %
+                                              (str(self.__domMap[cardLoc]),
+                                               str(lpe)))
+                            continue
+
+                elif state == self.STATE_STOPPED:
+                    if line.find("Found STOP symbol in stream - shutting down"):
+                        continue
+
+                self.logError("State %s: %s" % (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         if verbose:

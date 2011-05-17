@@ -1126,9 +1126,8 @@ class DAQFakeRun(object):
     def __createClusterDescriptionFile(runCfgDir):
         path = os.path.join(runCfgDir, "sps-cluster.cfg")
         if not os.path.exists(path):
-            fd = open(path, "w")
-
-            print >>fd, """<cluster name="localhost">
+            with open(path, 'w') as fd:
+                print >>fd, """<cluster name="localhost">
   <logDirForSpade>spade</logDirForSpade>
  <default>
    <jvm>java</jvm>
@@ -1145,7 +1144,7 @@ class DAQFakeRun(object):
     <simulatedHub number="100" priority="1"/>
   </host>
 </cluster>"""
-            fd.close()
+         
 
     @staticmethod
     def __getRunTime(startTime):
@@ -1328,15 +1327,13 @@ class DAQFakeRun(object):
         if not os.path.exists(path):
             print >>sys.stderr, "Setting ~/.active to \"%s\"" % clusterCfg
         else:
-            fd = open(path, "r")
-            curCfg = fd.read().split("\n")[0]
-            fd.close()
+            with open(path, 'r') as fd:
+                curCfg = fd.read().split("\n")[0]
             print >>sys.stderr, "Changing ~/.active from \"%s\" to \"%s\"" % \
                   (curCfg, clusterCfg)
 
-        fd = open(path, "w")
-        print >>fd, clusterCfg
-        fd.close()
+        with open(path, 'w') as fd:
+            print >>fd, clusterCfg
 
     @staticmethod
     def makeMockClusterConfig(runCfgDir, compData, numHubs):
@@ -1348,27 +1345,27 @@ class DAQFakeRun(object):
         if os.path.exists(path):
             return
 
-        fd = open(path, "w")
-        print >>fd, "<cluster name=\"localhost\">"
-        print >>fd, "  <logDirForSpade>%s</logDirForSpade>"
-        print >>fd, "  <host name=\"localhost\">"
+        with open(path, 'w') as fd:
+            print >>fd, "<cluster name=\"localhost\">"
+            print >>fd, "  <logDirForSpade>%s</logDirForSpade>"
+            print >>fd, "  <host name=\"localhost\">"
 
-        for cd in compData:
-            nm = str(cd)
-            if nm.startswith("stringHub"): continue
+            for cd in compData:
+                nm = str(cd)
+                if nm.startswith("stringHub"): continue
 
-            if nm == "globalTrigger" or nm == "eventBuilder" or \
-               nm == "secondaryBuilders":
-                req = " required=\"true\""
-            else:
-                req = ""
+                if nm == "globalTrigger" or nm == "eventBuilder" or \
+                        nm == "secondaryBuilders":
+                    req = " required=\"true\""
+                else:
+                    req = ""
 
-            print >>fd, "    <component name=\"%s\"%s/>" % (nm, req)
+                print >>fd, "    <component name=\"%s\"%s/>" % (nm, req)
 
-        print >>fd, "    <simulatedHub number=\"%d\" priority=\"1\"/>" % numHubs
-        print >>fd, "  </host>"
-        print >>fd, "</cluster>"
-        fd.close()
+            print >>fd, "    <simulatedHub number=\"%d\" priority=\"1\"/>" % numHubs
+            print >>fd, "  </host>"
+            print >>fd, "</cluster>"
+
 
     def makeRunset(self, compList, runCfg, runNum):
         nameList = []

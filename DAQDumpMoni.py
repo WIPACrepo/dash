@@ -66,4 +66,4 @@ for arg in args:
                 except ZeroDivisionError:
                     pass
                 print utc, name, spe, hv, kpa
-                
+    f.close()

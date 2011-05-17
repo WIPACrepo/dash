@@ -347,10 +347,9 @@ class BaseRun(object):
         "Return the name of the current pDAQ cluster configuration"
         clusterFile = os.path.join(os.environ["HOME"], ".active")
         try:
-            f = open(clusterFile, "r")
-            ret = f.readline()
-            f.close()
-            return ret.rstrip('\r\n')
+            with open(clusterFile, 'r') as f:
+                ret = f.readline()
+                return ret.rstrip('\r\n')
         except:
             return None
 

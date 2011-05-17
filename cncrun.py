@@ -145,9 +145,8 @@ class CnCRun(BaseRun):
 
     def __setLastRunNumber(self, runNum, subRunNum):
         "Set the last used run number"
-        fd = open(self.__runNumFile, "w")
-        print >>fd, "%d %d" % (runNum, subRunNum)
-        fd.close()
+        with open(self.__runNumFile, 'w') as fd:
+            print >>fd, "%d %d" % (runNum, subRunNum)
 
     def __status(self):
         "Print the current DAQ status"
@@ -264,11 +263,12 @@ class CnCRun(BaseRun):
         subnum = 0
 
         if os.path.exists(self.__runNumFile):
-            line = open(self.__runNumFile).readline()
-            m = re.search('(\d+)\s+(\d+)', line)
-            if m:
-                num =int(m.group(1))
-                subrun = int(m.group(2))
+            with open(self.__runNumFile) as fd:
+                line = fd.readline()
+                m = re.search('(\d+)\s+(\d+)', line)
+                if m:
+                    num =int(m.group(1))
+                    subrun = int(m.group(2))
 
         return (num, subrun)
 
