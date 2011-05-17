@@ -1201,6 +1201,7 @@ class IntegrationTest(unittest.TestCase):
                 if c.isComponent("stringHub"):
                     activeDOMMap[str(c.getNumber())] = 0
             liveLog.addExpectedLiveMoni("activeDOMs", 0)
+            liveLog.addExpectedLiveMoni("expectedDOMs", 0)
             liveLog.addExpectedLiveMoni("activeStringDOMs", activeDOMMap,
                                         "json")
         self.__forceMonitoring(cnc, liveLog)
@@ -1560,9 +1561,6 @@ class IntegrationTest(unittest.TestCase):
 
     def testCnCInMain(self):
         #print "Not running testCnCInMain"; return
-        if sys.platform != 'darwin':
-            print 'Skipping server tests in non-Darwin OS'
-            return
 
         runOptions = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
 
