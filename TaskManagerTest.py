@@ -298,7 +298,8 @@ class TaskManagerTest(unittest.TestCase):
                          0, Prio.ITS)
 
         # add activeDOM data
-        live.addExpected("totalDOMs", (2,4), Prio.ITS)
+        live.addExpected("activeDOMs", 2, Prio.ITS)
+        live.addExpected("expectedDOMs", 4, Prio.ITS)
         live.addExpected("LBMOverflows", { "1" : 20, "6" : 20 },
                          Prio.ITS)
         live.addExpected("stringDOMsInfo", {"1":(1,2), "6" : (1,2) },
