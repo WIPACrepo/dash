@@ -94,6 +94,15 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         self.__is_shut_down.wait()
         DocXMLRPCServer.DocXMLRPCServer.server_close(self)
 
+    def get_request(self):
+        """Overridden in order to set so_keepalive on client
+        sockets."""
+        
+        (conn, addr) = self.socket.accept()
+        conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+
+        return (conn,addr)
+
     def serve_forever(self):
         """Handle one request at a time until doomsday."""
         self.__running = True
