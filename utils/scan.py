@@ -17,6 +17,18 @@ import re
 import struct
 import socket
 
+def fixed_ntoa(n):
+    """python 2.6.2 on spts has a broken socket.inet_ntoa"""
+
+    n = socket.ntohl(n)
+    
+    d = 256*256*256
+    q = []
+    while d>0:
+        m, n = divmod(n,d)
+        q.append(str(m))
+        d = d / 256
+    return '.'.join(q)
 
 def read_unix_proc(proc_unix_path="/proc/net/unix", debug=True):
     """This method was written specifically with linux and the /proc
@@ -111,18 +123,20 @@ def read_tcp_proc(proc_tcp_path="/proc/net/tcp", debug=True):
 
                 uid = int(match.group(12))
                 inode = int(match.group(14))
-                
+
                 # from hex to a python integer
                 local_addr = int(local_addr, 16)
-                # from a python integer to a dotted quad
-                local_ip   = socket.inet_ntoa(struct.pack('L', local_addr))
+
+                local_ip = fixed_ntoa(local_addr)
+                        
                 # get the local port number ( hex to python int )
                 local_port = int(local_port, 16)
 
                 # from hex to a python integer
                 remote_addr = int(remote_addr, 16)
                 # from a python integer to a dotted quad
-                remote_ip = socket.inet_ntoa(struct.pack('L', remote_addr))
+                remote_ip = fixed_ntoa(remote_addr)
+
                 # get the remote port number ( hex to python int )
                 remote_port = int(remote_port, 16)
 
@@ -180,14 +194,16 @@ def read_udp_proc(proc_udp_path="/proc/net/udp", debug=True):
                 # from hex to a python integer
                 local_addr = int(local_addr, 16)
                 # from a python integer to a dotted quad
-                local_ip   = socket.inet_ntoa(struct.pack('L', local_addr))
+                local_ip = fixed_ntoa(local_addr)
+
                 # get the local port number ( hex to python int )
                 local_port = int(local_port, 16)
 
                 # from hex to a python integer
                 remote_addr = int(remote_addr, 16)
                 # from a python integer to a dotted quad
-                remote_ip = socket.inet_ntoa(struct.pack('L', remote_addr))
+                remote_ip = fixed_ntoa(remote_addr)
+
                 # get the remote port number ( hex to python int )
                 remote_port = int(remote_port, 16)
             
