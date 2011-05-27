@@ -516,7 +516,7 @@ class WatchdogTask(CnCTask):
     DEBUG_BIT = RunSetDebug.WATCH_TASK
 
     # number of bad checks before the run is killed
-    HEALTH_METER_FULL = 3
+    HEALTH_METER_FULL = 9
     # number of complaints printed before run is killed
     NUM_HEALTH_MSGS = 3
 
