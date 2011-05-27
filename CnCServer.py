@@ -31,7 +31,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 12811 2011-03-25 21:29:15Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 13001 2011-05-27 22:22:25Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -484,6 +484,11 @@ class Connector(object):
     def isOptional(self):
         "Return True if this is an optional connector"
         return self.__descrChar == self.OPT_INPUT or \
+               self.__descrChar == self.OPT_OUTPUT
+
+    def isOutput(self):
+        "Return True if this is an output connector"
+        return self.__descrChar == self.OUTPUT or \
                self.__descrChar == self.OPT_OUTPUT
 
     def name(self):
