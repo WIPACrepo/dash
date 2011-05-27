@@ -391,33 +391,20 @@ class DummyComponent(object):
     def setOrder(self, num):
         self.__order = num
 
-class WatchdogTask(CnCTask):
-    NAME = "Watchdog"
-    PERIOD = 10
-    DEBUG_BIT = RunSetDebug.WATCH_TASK
-
-    HEALTH_METER_FULL = 3
-
+class WatchdogRule(object):
     DOM_COMP = DummyComponent("dom")
     DISPATCH_COMP = DummyComponent("dispatch")
 
-    def __init__(self, taskMgr, runset, dashlog, period=None):
-        self.__threadList = {}
-        self.__healthMeter = self.HEALTH_METER_FULL
+    @classmethod
+    def findComp(cls, comps, compName):
+        for c in comps:
+            if c.name() == compName:
+                return c
 
-        if period is None: period = self.PERIOD
+        return None
 
-        super(WatchdogTask, self).__init__("Watchdog", taskMgr, dashlog,
-                                           self.DEBUG_BIT, self.NAME,
-                                           period)
-
-        self.__computeDummyOrder(runset)
-
-        watchData = self.__gatherData(runset)
-        for data in watchData:
-            self.__threadList[data] = WatchdogThread(data, dashlog)
-
-    def __computeDummyOrder(self, runset):
+    @classmethod
+    def initialize(cls, runset):
         minOrder = None
         maxOrder = None
 
@@ -432,97 +419,146 @@ class WatchdogTask(CnCTask):
             if maxOrder is None or order > maxOrder:
                 maxOrder = order
 
-        self.DOM_COMP.setOrder(minOrder - 1)
-        self.DISPATCH_COMP.setOrder(maxOrder + 1)
+        cls.DOM_COMP.setOrder(minOrder - 1)
+        cls.DISPATCH_COMP.setOrder(maxOrder + 1)
 
-    def __findAnyHub(self, comps):
-        for comp in comps:
+class StringHubRule(WatchdogRule):
+    def initData(self, data, thisComp, components):
+        data.addInputValue(self.DOM_COMP, "sender", "NumHitsReceived")
+        comp = self.findComp(components, "eventBuilder")
+        if comp is not None:
+            data.addInputValue(comp, "sender", "NumReadoutRequestsReceived")
+            data.addOutputValue(comp, "sender", "NumReadoutsSent")
+
+    def matches(self, comp):
+        return comp.name() == "stringHub" or comp.name() == "replayHub"
+
+class LocalTriggerRule(WatchdogRule):
+    def initData(self, data, thisComp, components):
+        if thisComp.name() == "iceTopTrigger":
+            hitName = "icetopHit"
+            wantIcetop = True
+        else:
+            hitName = "stringHit"
+            wantIcetop = False
+
+        hub = None
+        for comp in components:
             if comp.name().lower().endswith("hub"):
-                return comp
+                if wantIcetop:
+                    found = comp.num() >= 200
+                else:
+                    found = comp.num() < 200
+                if found:
+                    hub = comp
+                    break
 
-        return None
+        if hub is not None:
+            data.addInputValue(hub, hitName, "RecordsReceived")
+        comp = self.findComp(components, "globalTrigger")
+        if comp is not None:
+            data.addOutputValue(comp, "trigger", "RecordsSent")
 
-    def __findComp(self, comps, compName):
-        for c in comps:
-            if c.name() == compName:
-                return c
+    def matches(self, comp):
+        return comp.name() == "inIceTrigger" or \
+                   comp.name() == "simpleTrigger" or \
+                   comp.name() == "iceTopTrigger"
 
-        return None
+class GlobalTriggerRule(WatchdogRule):
+    def initData(self, data, thisComp, components):
+        for trig in ("inIce", "iceTop", "simple"):
+            comp = self.findComp(components, trig + "Trigger")
+            if comp is not None:
+                data.addInputValue(comp, "trigger", "RecordsReceived")
+        comp = self.findComp(components, "eventBuilder")
+        if comp is not None:
+            data.addOutputValue(comp, "glblTrig", "RecordsSent")
 
-    def __gatherData(self, runset):
+    def matches(self, comp):
+        return comp.name() == "globalTrigger"
+
+class EventBuilderRule(WatchdogRule):
+    def initData(self, data, thisComp, components):
+        hub = None
+        for comp in components:
+            if comp.name().lower().endswith("hub"):
+                hub = comp
+                break
+        if hub is not None:
+            data.addInputValue(hub, "backEnd", "NumReadoutsReceived")
+        comp = self.findComp(components, "globalTrigger")
+        if comp is not None:
+            data.addInputValue(comp, "backEnd", "NumTriggerRequestsReceived")
+        data.addOutputValue(self.DISPATCH_COMP, "backEnd", "NumEventsSent")
+        data.addThresholdValue("backEnd", "DiskAvailable", 1024)
+        data.addThresholdValue("backEnd", "NumBadEvents", 0, False)
+
+    def matches(self, comp):
+        return comp.name() == "eventBuilder"
+
+class SecondaryBuildersRule(WatchdogRule):
+    def initData(self, data, thisComp, components):
+        data.addThresholdValue("snBuilder", "DiskAvailable", 1024)
+        data.addOutputValue(self.DISPATCH_COMP, "moniBuilder",
+                          "TotalDispatchedData")
+        data.addOutputValue(self.DISPATCH_COMP, "snBuilder",
+                          "TotalDispatchedData")
+        # XXX - Disabled until there"s a simulated tcal stream
+        #data.addOutputValue(self.DISPATCH_COMP, "tcalBuilder",
+        #                  "TotalDispatchedData")
+
+    def matches(self, comp):
+        return comp.name() == "secondaryBuilders"
+
+class WatchdogTask(CnCTask):
+    NAME = "Watchdog"
+    PERIOD = 10
+    DEBUG_BIT = RunSetDebug.WATCH_TASK
+
+    # number of bad checks before the run is killed
+    HEALTH_METER_FULL = 3
+    # number of complaints printed before run is killed
+    NUM_HEALTH_MSGS = 3
+
+    def __init__(self, taskMgr, runset, dashlog, period=None, rules=None):
+        self.__threadList = {}
+        self.__healthMeter = self.HEALTH_METER_FULL
+
+        if period is None: period = self.PERIOD
+
+        super(WatchdogTask, self).__init__("Watchdog", taskMgr, dashlog,
+                                           self.DEBUG_BIT, self.NAME,
+                                           period)
+
+        WatchdogRule.initialize(runset)
+
+        if rules is None:
+            rules = (StringHubRule(),
+                     LocalTriggerRule(),
+                     GlobalTriggerRule(),
+                     EventBuilderRule(),
+                     SecondaryBuildersRule(),
+                     )
+
+        watchData = self.__gatherData(runset, rules)
+        for data in watchData:
+            self.__threadList[data] = self.createThread(data, dashlog)
+
+    def __gatherData(self, runset, rules):
         watchData = []
 
         components = runset.components()
         for comp in components:
             try:
-                cw = WatchData(comp, self.logger())
-                if comp.name() == "stringHub" or \
-                        comp.name() == "replayHub":
-                    cw.addInputValue(self.DOM_COMP, "sender", "NumHitsReceived")
-                    comp = self.__findComp(components, "eventBuilder")
-                    if comp is not None:
-                        cw.addInputValue(comp, "sender",
-                                         "NumReadoutRequestsReceived")
-                        cw.addOutputValue(comp, "sender", "NumReadoutsSent")
-                    watchData.append(cw)
-                elif comp.name() == "inIceTrigger":
-                    hub = self.__findAnyHub(components)
-                    if hub is not None:
-                        cw.addInputValue(hub, "stringHit", "RecordsReceived")
-                    comp = self.__findComp(components, "globalTrigger")
-                    if comp is not None:
-                        cw.addOutputValue(comp, "trigger", "RecordsSent")
-                    watchData.append(cw)
-                elif comp.name() == "simpleTrigger":
-                    hub = self.__findAnyHub(components)
-                    if hub is not None:
-                        cw.addInputValue(hub, "stringHit", "RecordsReceived")
-                    comp = self.__findComp(components, "globalTrigger")
-                    if comp is not None:
-                        cw.addOutputValue(comp, "trigger", "RecordsSent")
-                    watchData.append(cw)
-                elif comp.name() == "iceTopTrigger":
-                    hub = self.__findAnyHub(components)
-                    if hub is not None:
-                        cw.addInputValue(hub, "icetopHit", "RecordsReceived")
-                    comp = self.__findComp(components, "globalTrigger")
-                    if comp is not None:
-                        cw.addOutputValue(comp, "trigger", "RecordsSent")
-                    watchData.append(cw)
-                elif comp.name() == "globalTrigger":
-                    for trig in ("inIce", "iceTop", "simple"):
-                        comp = self.__findComp(components, trig + "Trigger")
-                        if comp is not None:
-                            cw.addInputValue(comp, "trigger", "RecordsReceived")
-                    comp = self.__findComp(components, "eventBuilder")
-                    if comp is not None:
-                        cw.addOutputValue(comp, "glblTrig", "RecordsSent")
-                    watchData.append(cw)
-                elif comp.name() == "eventBuilder":
-                    hub = self.__findAnyHub(components)
-                    if hub is not None:
-                        cw.addInputValue(hub, "backEnd", "NumReadoutsReceived")
-                    comp = self.__findComp(components, "globalTrigger")
-                    if comp is not None:
-                        cw.addInputValue(comp, "backEnd",
-                                         "NumTriggerRequestsReceived")
-                    cw.addOutputValue(self.DISPATCH_COMP, "backEnd",
-                                      "NumEventsSent")
-                    cw.addThresholdValue("backEnd", "DiskAvailable", 1024)
-                    cw.addThresholdValue("backEnd", "NumBadEvents", 0,
-                                         False)
-                    watchData.append(cw)
-                elif comp.name() == "secondaryBuilders":
-                    cw.addThresholdValue("snBuilder", "DiskAvailable", 1024)
-                    cw.addOutputValue(self.DISPATCH_COMP, "moniBuilder",
-                                      "TotalDispatchedData")
-                    cw.addOutputValue(self.DISPATCH_COMP, "snBuilder",
-                                      "TotalDispatchedData")
-                    # XXX - Disabled until there"s a simulated tcal stream
-                    #cw.addOutputValue(self.DISPATCH_COMP, "tcalBuilder",
-                    #                  "TotalDispatchedData")
-                    watchData.append(cw)
-                else:
+                found = False
+                for r in rules:
+                    if r.matches(comp):
+                        data = WatchData(comp, self.logger())
+                        r.initData(data, comp, components)
+                        watchData.append(data)
+                        found = True
+                        break
+                if not found:
                     self.logError("Couldn't create watcher for unknown" +
                                   " component " + comp.fullName())
             except:
@@ -590,15 +626,19 @@ class WatchdogTask(CnCTask):
                 self.logError("Run is healthy again")
         else:
             self.__healthMeter -= 1
-            if self.__healthMeter >= 0:
-                self.logError("Run is unhealthy (%d checks left)" %
-                              self.__healthMeter)
+            if self.__healthMeter > 0:
+                if self.__healthMeter % self.NUM_HEALTH_MSGS == 0:
+                    self.logError("Run is unhealthy (%d checks left)" %
+                                  self.__healthMeter)
             else:
                 self.logError("Run is not healthy, stopping")
                 self.setError()
 
     def close(self):
         pass
+
+    def createThread(self, data, dashlog):
+        return WatchdogThread(data, dashlog)
 
     def waitUntilFinished(self):
         for c in self.__threadList.keys():
