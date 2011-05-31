@@ -654,6 +654,9 @@ class MockComponent(object):
             return self.__name
         return '%s#%d' % (self.__name, self.__num)
 
+    def fileName(self):
+        return '%s-%d' % (self.__name, self.__num)
+
     def getBeanFields(self, beanName):
         return self.__beanData[beanName].keys()
 
@@ -717,6 +720,9 @@ class MockComponent(object):
         return self.__cmdOrder
 
     def prepareSubrun(self, id):
+        pass
+
+    def reloadBeanInfo(self):
         pass
 
     def reset(self):
@@ -866,6 +872,9 @@ class MockIntervalTimer(object):
     def trigger(self):
         self.__isTime = True
         self.__gotTime = False
+
+    def waitSecs(self):
+        return self.__waitSecs
 
 class MockLogger(LogChecker):
     def __init__(self, name):
