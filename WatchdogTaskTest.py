@@ -40,6 +40,7 @@ class MockComponent(object):
         self.__num = num
         self.__order = order
         self.__beans = beans
+
     def checkBeanField(self, beanName, fldName):
         if self.__beans is None:
             raise Exception("No beans available for \"%s\"" % self.fullName())
