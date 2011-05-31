@@ -348,12 +348,29 @@ class RunData(object):
         return self.__clusterConfigName
 
     def destroy(self):
-        self.stop()
+        savedEx = None
+        try:
+            self.stop()
+        except Exception, ex:
+            if savedEx is None:
+                savedEx = ex
+
         if self.__liveMoniClient is not None:
-            self.__liveMoniClient.close()
+            try:
+                self.__liveMoniClient.close()
+            except Exception, ex:
+                if savedEx is None:
+                    savedEx = ex
         if self.__dashlog is not None:
-            self.__dashlog.close()
+            try:
+                self.__dashlog.close()
+            except Exception, ex:
+                if savedEx is None:
+                    savedEx = ex
             self.__dashlog = None
+
+        if savedEx is not None:
+            raise savedEx
 
     def error(self, msg):
         self.__dashlog.error(msg)
