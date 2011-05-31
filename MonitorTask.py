@@ -46,6 +46,8 @@ class MonitorThread(CnCThread):
                 if msg is not None and msg == "Connection refused":
                     self.__refused += 1
                     break
+                self.__dashlog.error("Ignoring %s:%s: %s" %
+                                     (str(self.__comp), b, exc_string()))
             except:
                 attrs = None
                 self.__dashlog.error("Ignoring %s:%s: %s" %
@@ -97,9 +99,6 @@ class MonitorToLive(object):
     def __init__(self, name, live):
         self.__name = name
         self.__live = live
-
-    def __str__(self):
-        return "MonitorToLive(%s)" % self.__name
 
     def close(self):
         pass
