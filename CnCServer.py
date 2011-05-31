@@ -31,7 +31,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 13001 2011-05-27 22:22:25Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 13011 2011-05-31 23:06:51Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -370,7 +370,7 @@ class DAQPool(object):
     def returnAll(self, killRunning=True):
         """
         Return all runset components to the pool
-        NOTE: This DESTROYS all runsets, even those which are active
+        NOTE: This DESTROYS all runsets, unless there is an active run
         """
         removed = None
         self.__setsLock.acquire()
@@ -1201,6 +1201,9 @@ class CnCServer(DAQPool):
                         copyDir=self.__copyDir, logDir=logDir,
                         quiet=self.__quiet)
 
+        # file leaks are reported after startRun() because dash.log
+        # is created in that method
+        #
         if self.__openFileCount is None:
             self.__openFileCount = openCount
         elif openCount > self.__openFileCount:
