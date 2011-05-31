@@ -111,7 +111,6 @@ class BadMonitorTask(MonitorTask):
 
     @classmethod
     def createThread(cls, c, dashlog, reporter):
-        print "CreThr %s" % c.fullName()
         return BadCloseThread()
 
 class MonitorTaskTest(unittest.TestCase):
@@ -280,13 +279,13 @@ class MonitorTaskTest(unittest.TestCase):
         timer.trigger()
         tsk.check()
 
-        print "NumOpen %d" % tsk.numOpen()
         try:
             tsk.close()
         except Exception, ex:
             if not str(ex).endswith("Forced exception"):
                 raise ex
-        print "NumOpen %d" % tsk.numOpen()
+        self.failUnless(tsk.numOpen() == 0, "%d threads were not closed" %
+                        tsk.numOpen())
 
 if __name__ == '__main__':
     unittest.main()
