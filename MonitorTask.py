@@ -60,7 +60,11 @@ class MonitorThread(CnCThread):
 
     def close(self):
         if self.__reporter is not None:
-            self.__reporter.close()
+            try:
+                self.__reporter.close()
+            except:
+                self.__dashlog.error("Could not close %s monitor thread: %s" %
+                                     (self.__comp, exc_string()))
             self.__reporter = None
 
     def getNewThread(self, now):
@@ -68,6 +72,7 @@ class MonitorThread(CnCThread):
                              now, self.__refused)
         return thrd
 
+    def isClosed(self): return self.__reporter is None
     def isWarned(self): return self.__warned
 
     def refusedCount(self): return self.__refused
@@ -137,7 +142,7 @@ class MonitorTask(CnCTask):
                 c.reloadBeanInfo()
 
                 reporter = self.__createReporter(c, runDir, live, runOptions)
-                self.__threadList[c] = MonitorThread(c, dashlog, reporter)
+                self.__threadList[c] = self.createThread(c, dashlog, reporter)
 
         if period is None: period = self.PERIOD
 
@@ -156,6 +161,10 @@ class MonitorTask(CnCTask):
             return MonitorToLive(comp.fileName(), live)
 
         return None
+
+    @classmethod
+    def createThread(cls, c, dashlog, reporter):
+        return MonitorThread(c, dashlog, reporter)
 
     def _check(self):
         now = None
@@ -176,8 +185,22 @@ class MonitorTask(CnCTask):
                 self.__threadList[c].start()
 
     def close(self):
+        savedEx = None
         for c in self.__threadList.keys():
-            self.__threadList[c].close()
+            try:
+                self.__threadList[c].close()
+            except Exception, ex:
+                if savedEx is None:
+                    savedEx = ex
+
+        if savedEx is not None: raise savedEx
+
+    def numOpen(self):
+        num = 0
+        for c in self.__threadList.keys():
+            if not self.__threadList[c].isClosed():
+                num += 1
+        return num
 
     def waitUntilFinished(self):
         for c in self.__threadList.keys():

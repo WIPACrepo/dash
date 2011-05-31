@@ -88,6 +88,32 @@ class BadComponent(MockComponent):
     def raiseSocketError(self):
         self.__raiseSocketError = True
 
+class BadCloseThread(object):
+    def __init__(self):
+        super(BadCloseThread, self).__init__()
+
+        self.__closed = False
+
+    def close(self):
+        self.__closed = True
+        raise Exception("Forced exception")
+
+    def isAlive(self):
+        return True
+
+    def isClosed(self):
+        return self.__closed
+
+class BadMonitorTask(MonitorTask):
+    def __init__(self, taskMgr, runset, logger, live, rundir, runOpts):
+        super(BadMonitorTask, self).__init__(taskMgr, runset, logger, live,
+                                             rundir, runOpts)
+
+    @classmethod
+    def createThread(cls, c, dashlog, reporter):
+        print "CreThr %s" % c.fullName()
+        return BadCloseThread()
+
 class MonitorTaskTest(unittest.TestCase):
     __temp_dir = None
 
@@ -242,6 +268,25 @@ class MonitorTaskTest(unittest.TestCase):
         compList = [foo, bar, ]
         self.__runTest(compList, timer, taskMgr, logger, live,
                        RunOption.MONI_TO_BOTH, raiseException=True)
+
+    def testFailedClose(self):
+        (timer, taskMgr, logger, live) = self.__createStandardObjects()
+
+        compList = self.__createStandardComponents()
+        runset = MockRunSet(compList)
+
+        tsk = BadMonitorTask(taskMgr, runset, logger, live, self.__temp_dir,
+                             RunOption.MONI_TO_LIVE)
+        timer.trigger()
+        tsk.check()
+
+        print "NumOpen %d" % tsk.numOpen()
+        try:
+            tsk.close()
+        except Exception, ex:
+            if not str(ex).endswith("Forced exception"):
+                raise ex
+        print "NumOpen %d" % tsk.numOpen()
 
 if __name__ == '__main__':
     unittest.main()
