@@ -72,7 +72,7 @@ class ActiveDOMThread(CnCThread):
 
         if self.__sendDetails:
             if not self.__liveMoniClient.sendMoni("stringDOMsInfo", hub_DOMs,
-                                                  Prio.ITS):
+                                                  Prio.EMAIL):
                 self.__dashlog.error("Failed to send active/total DOM report")
 
                 # send the lbm overflow information off to live
