@@ -303,7 +303,7 @@ class TaskManagerTest(unittest.TestCase):
         live.addExpected("LBMOverflows", { "1" : 20, "6" : 20 },
                          Prio.ITS)
         live.addExpected("stringDOMsInfo", {"1":(1,2), "6" : (1,2) },
-                         Prio.ITS)
+                         Prio.EMAIL)
 
         # add radar DOM data
         if self.__firstTime:
