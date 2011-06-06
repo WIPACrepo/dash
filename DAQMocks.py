@@ -880,6 +880,12 @@ class MockLogger(LogChecker):
     def __init__(self, name):
         super(MockLogger, self).__init__('LOG', name)
 
+        self.__err = None
+
+    def _checkError(self):
+        if self.__err is not None:
+            raise Exception(self.__err)
+
     def addAppender(self, app):
         print >>sys.stderr, "Not adding appender %s to MockLogger" % app
 
@@ -907,6 +913,7 @@ class MockLogger(LogChecker):
     def isWarnEnabled(self): return True
 
     def setError(self, msg):
+        self.__err = msg
         raise Exception(msg)
 
     def trace(self, m): self._checkMsg(m)
