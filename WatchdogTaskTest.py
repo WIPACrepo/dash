@@ -41,6 +41,11 @@ class MockComponent(object):
         self.__order = order
         self.__beans = beans
 
+    def __str__(self):
+        if self.__num == 0:
+            return self.__name
+        return "Mock:%s#%d" % (self.__name, self.__num)
+
     def checkBeanField(self, beanName, fldName):
         if self.__beans is None:
             raise Exception("No beans available for \"%s\"" % self.fullName())
@@ -76,12 +81,19 @@ class MockRunSet(object):
     def components(self):
         return self.__compList[:]
 
-class BadRule(WatchdogRule):
+class BadMatchRule(WatchdogRule):
     def initData(self, data, thisComp, components):
         pass
 
     def matches(self, comp):
         raise Exception("FAIL")
+
+class BadInitRule(WatchdogRule):
+    def initData(self, data, thisComp, components):
+        raise Exception("FAIL")
+
+    def matches(self, comp):
+        return comp.name() == "foo"
 
 class BarRule(WatchdogRule):
     def __init__(self, checkVal):
@@ -208,7 +220,7 @@ class WatchdogTaskTest(unittest.TestCase):
 
         logger.checkStatus(1)
 
-    def testBadRule(self):
+    def testBadMatchRule(self):
         timer = MockTimer(1)
         taskMgr = MockTaskManager(timer)
 
@@ -219,10 +231,45 @@ class WatchdogTaskTest(unittest.TestCase):
         logger.addExpectedRegexp("Couldn't create watcher for component" +
                                  " %s#%d: .*" % (foo.name(), foo.num()))
 
-        tsk = WatchdogTask(taskMgr, runset, logger, period=None,
-                           rules=(BadRule(), ))
+        tsk = WatchdogTask(taskMgr, runset, logger,
+                           rules=(BadMatchRule(), ))
 
         logger.checkStatus(1)
+
+    def testBadInitRule(self):
+        timer = MockTimer(1)
+        taskMgr = MockTaskManager(timer)
+
+        fooBeans = {"inBean" : {"inFld" : 0},
+                    "outBean" : {"outFld" : 0},
+                    "threshBean" : {"threshFld" : 0},
+                    }
+
+        foo = MockComponent("foo", 1, 1, beans=fooBeans)
+        runset = MockRunSet([foo, ])
+
+        rules = (BadInitRule(), )
+
+        timer = MockTimer(1)
+        taskMgr = MockTaskManager(timer)
+
+        logger = MockLogger("logger")
+
+        #from DAQMocks import LogChecker; LogChecker.DEBUG = True
+
+        tsk = WatchdogTask(taskMgr, runset, logger, rules=rules)
+
+        logger.checkStatus(5)
+
+        for i in range(1, 4):
+            logger.addExpectedExact("Initialization failure #%d for %s %s" %
+                                    (i, foo.fullName(), str(rules[0])))
+
+            timer.setTimeLeft(0)
+            tsk.check()
+            tsk.waitUntilFinished()
+
+            logger.checkStatus(5)
 
     def testFooInputUnhealthy(self):
         self.__runFooTest(True, False, False)

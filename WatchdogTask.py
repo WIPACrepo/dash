@@ -353,24 +353,43 @@ class WatchData(object):
         return self.__comp.order()
 
 class WatchdogThread(CnCThread):
-    def __init__(self, data, dashlog):
-        self.__data = data
+    def __init__(self, runset, comp, rule, dashlog, data=None, initFail=0):
+        self.__runset = runset
+        self.__comp = comp
+        self.__rule = rule
         self.__dashlog = dashlog
+
+        self.__data = data
+        self.__initFail = initFail
 
         self.__starved = []
         self.__stagnant = []
         self.__threshold = []
 
-        super(WatchdogThread, self).__init__(str(data), dashlog)
+        super(WatchdogThread, self).__init__(self.__comp.fullName() + ":" +
+                                             str(self.__rule), self.__dashlog)
 
     def __str__(self):
-        return str(self.__data)
+        return self.__comp.fullName()
 
     def _run(self):
+        if self.__data is None:
+            try:
+                self.__data = self.__rule.createData(self.__comp,
+                                                     self.__runset.components(),
+                                                     self.__dashlog)
+            except:
+                self.__initFail += 1
+                self.__dashlog.error("Initialization failure #%d for %s %s" %
+                                     (self.__initFail, self.__comp.fullName(),
+                                      self.__rule))
+                return
+
         self.__data.check(self.__starved, self.__stagnant, self.__threshold)
 
     def getNewThread(self):
-        thrd = WatchdogThread(self.__data, self.__dashlog)
+        thrd = WatchdogThread(self.__runset, self.__comp, self.__rule,
+                              self.__dashlog, self.__data, self.__initFail)
         return thrd
 
     def stagnant(self): return self.__stagnant[:]
@@ -395,6 +414,9 @@ class WatchdogRule(object):
     DOM_COMP = DummyComponent("dom")
     DISPATCH_COMP = DummyComponent("dispatch")
 
+    def __str__(self):
+        return type(self).__name__
+
     @classmethod
     def findComp(cls, comps, compName):
         for c in comps:
@@ -402,6 +424,11 @@ class WatchdogRule(object):
                 return c
 
         return None
+
+    def createData(self, thisComp, components, dashlog):
+        data = WatchData(thisComp, dashlog)
+        self.initData(data, thisComp, components)
+        return data
 
     @classmethod
     def initialize(cls, runset):
@@ -540,22 +567,19 @@ class WatchdogTask(CnCTask):
                      SecondaryBuildersRule(),
                      )
 
-        watchData = self.__gatherData(runset, rules)
-        for data in watchData:
-            self.__threadList[data] = self.createThread(data, dashlog)
+        self.__threadList = self.__createThreads(runset, rules, dashlog)
 
-    def __gatherData(self, runset, rules):
-        watchData = []
+    def __createThreads(self, runset, rules, dashlog):
+        threadList = {}
 
         components = runset.components()
         for comp in components:
             try:
                 found = False
-                for r in rules:
-                    if r.matches(comp):
-                        data = WatchData(comp, self.logger())
-                        r.initData(data, comp, components)
-                        watchData.append(data)
+                for rule in rules:
+                    if rule.matches(comp):
+                        threadList[comp] = self.createThread(runset, comp,
+                                                             rule, dashlog)
                         found = True
                         break
                 if not found:
@@ -564,6 +588,7 @@ class WatchdogTask(CnCTask):
             except:
                 self.logError("Couldn't create watcher for component %s: %s" %
                               (comp.fullName(), exc_string()))
+        return threadList
 
         # sort entries by component order
         #
@@ -637,8 +662,8 @@ class WatchdogTask(CnCTask):
     def close(self):
         pass
 
-    def createThread(self, data, dashlog):
-        return WatchdogThread(data, dashlog)
+    def createThread(self, runset, comp, rule, dashlog):
+        return WatchdogThread(runset, comp, rule, dashlog)
 
     def waitUntilFinished(self):
         for c in self.__threadList.keys():
