@@ -110,7 +110,7 @@ class BadMonitorTask(MonitorTask):
                                              rundir, runOpts)
 
     @classmethod
-    def createThread(cls, c, dashlog, reporter):
+    def createThread(cls, comp, runDir, live, runOptions, dashlog):
         return BadCloseThread()
 
 class MonitorTaskTest(unittest.TestCase):
@@ -142,7 +142,9 @@ class MonitorTaskTest(unittest.TestCase):
         tsk = MonitorTask(taskMgr, runset, logger, live, self.__temp_dir,
                           runOpt)
 
-        for i in range(5):
+        #from DAQMocks import LogChecker; LogChecker.DEBUG = True
+
+        for i in range(-1, 5):
             if RunOption.isMoniToLive(runOpt):
                 for c in compList:
                     for b in c.getBeanNames():
@@ -156,11 +158,12 @@ class MonitorTaskTest(unittest.TestCase):
                     if raiseSocketError:
                         if i == 3:
                             errMsg = ("ERROR: Not monitoring %s:" +
-                                      " Connect failed 3 times") % c.fullName()
+                                      " Connect failed %d times") % \
+                                      (c.fullName(), i)
                             logger.addExpectedExact(errMsg)
-                        elif i < 3:
+                        elif i >= 0 and i < 3:
                             c.raiseSocketError()
-                    elif raiseException:
+                    elif i > 0 and raiseException:
                         errMsg = "Ignoring %s:.*: Exception.*$" % c.fullName()
                         logger.addExpectedRegexp(errMsg)
                         c.raiseException()

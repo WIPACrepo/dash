@@ -12,21 +12,40 @@ from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
 class MonitorThread(CnCThread):
-    def __init__(self, comp, dashlog, reporter, now=None, refused=0):
+    def __init__(self, comp, runDir, live, runOptions, dashlog, reporter=None,
+                 now=None, refused=0):
         self.__comp = comp
+        self.__runDir = runDir
+        self.__live = live
+        self.__runOptions = runOptions
         self.__dashlog = dashlog
         self.__reporter = reporter
         self.__now = now
         self.__refused = refused
         self.__warned = False
 
-        # reload MBean info to pick up any dynamically created MBeans
-        self.__comp.reloadBeanInfo()
-
         super(MonitorThread, self).__init__(comp.fullName(), dashlog)
+
+    def __createReporter(self):
+        if RunOption.isMoniToBoth(self.__runOptions) and \
+               self.__live is not None:
+            return MonitorToBoth(self.__runDir, self.__comp.fileName(),
+                                 self.__live)
+        if RunOption.isMoniToFile(self.__runOptions):
+            if self.__runDir is not None:
+                return MonitorToFile(self.__runDir, self.__comp.fileName())
+        if RunOption.isMoniToLive(self.__runOptions) and \
+               self.__live is not None:
+            return MonitorToLive(self.__comp.fileName(), self.__live)
+
+        return None
 
     def _run(self):
         if self.__reporter is None:
+            # reload MBean info to pick up any dynamically created MBeans
+            self.__comp.reloadBeanInfo()
+
+            self.__reporter = self.__createReporter()
             return
 
         bSrt = self.__comp.getBeanNames()
@@ -68,7 +87,8 @@ class MonitorThread(CnCThread):
             self.__reporter = None
 
     def getNewThread(self, now):
-        thrd = MonitorThread(self.__comp, self.__dashlog, self.__reporter,
+        thrd = MonitorThread(self.__comp, self.__runDir, self.__live,
+                             self.__runOptions, self.__dashlog, self.__reporter,
                              now, self.__refused)
         return thrd
 
@@ -141,8 +161,8 @@ class MonitorTask(CnCTask):
                 # refresh MBean info to pick up any new MBeans
                 c.reloadBeanInfo()
 
-                reporter = self.__createReporter(c, runDir, live, runOptions)
-                self.__threadList[c] = self.createThread(c, dashlog, reporter)
+                self.__threadList[c] = self.createThread(c, runDir, live,
+                                                         runOptions, dashlog)
 
         if period is None: period = self.PERIOD
 
@@ -150,21 +170,9 @@ class MonitorTask(CnCTask):
                                           self.DEBUG_BIT, self.NAME,
                                           period)
 
-    @staticmethod
-    def __createReporter(comp, runDir, live, runOptions):
-        if RunOption.isMoniToBoth(runOptions) and live is not None:
-            return MonitorToBoth(runDir, comp.fileName(), live)
-        if RunOption.isMoniToFile(runOptions):
-            if runDir is not None:
-                return MonitorToFile(runDir, comp.fileName())
-        if RunOption.isMoniToLive(runOptions) and live is not None:
-            return MonitorToLive(comp.fileName(), live)
-
-        return None
-
     @classmethod
-    def createThread(cls, c, dashlog, reporter):
-        return MonitorThread(c, dashlog, reporter)
+    def createThread(cls, comp, runDir, live, runOptions, dashlog):
+        return MonitorThread(comp, runDir, live, runOptions, dashlog)
 
     def _check(self):
         now = None
