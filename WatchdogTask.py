@@ -439,7 +439,7 @@ class WatchdogRule(object):
             order = comp.order()
             if type(order) != int:
                 raise TaskException("Expected integer order for %s, not %s" %
-                                    comp.fullName(), type(comp.order()))
+                                    (comp.fullName(), type(comp.order())))
 
             if minOrder is None or order < minOrder:
                 minOrder = order
@@ -589,12 +589,6 @@ class WatchdogTask(CnCTask):
                 self.logError("Couldn't create watcher for component %s: %s" %
                               (comp.fullName(), exc_string()))
         return threadList
-
-        # sort entries by component order
-        #
-        watchData.sort(lambda x,y : cmp(x.order(), y.order()))
-
-        return watchData
 
     def __logUnhealthy(self, errType, badList):
         errStr = None
