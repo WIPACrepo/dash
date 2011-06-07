@@ -46,7 +46,8 @@ class MonitorThread(CnCThread):
             self.__comp.reloadBeanInfo()
 
             self.__reporter = self.__createReporter()
-            return
+            if self.__reporter is None:
+                return
 
         bSrt = self.__comp.getBeanNames()
         bSrt.sort()
