@@ -12,7 +12,7 @@ set_exc_string_encoding("ascii")
 class ActiveDOMThread(CnCThread):
     "A thread which reports the active DOM counts"
     def __init__(self, runset, dashlog, liveMoni, sendDetails):
-        self.__comps = runset.components()
+        self.__runset = runset
         self.__dashlog = dashlog
         self.__liveMoniClient = liveMoni
         self.__sendDetails = sendDetails
@@ -29,7 +29,7 @@ class ActiveDOMThread(CnCThread):
 
         lbm_Overflows_Dict = {}
 
-        for c in self.__comps:
+        for c in self.__runset.components():
             if c.isSource():
 
                 # collect the number of active and total channels
@@ -82,6 +82,10 @@ class ActiveDOMThread(CnCThread):
                 self.__dashog.error("Failed to send lbm overflow data")
 
 
+    def getNewThread(self, sendDetails):
+        thrd = ActiveDOMThread(self.__runset, self.__dashlog,
+                               self.__liveMoniClient, sendDetails)
+        return thrd
 
 class ActiveDOMsTask(CnCTask):
     """
@@ -109,7 +113,7 @@ class ActiveDOMsTask(CnCTask):
         self.__runset = runset
         self.__liveMoniClient = liveMoni
 
-        self.__thread = None
+        self.__thread = ActiveDOMThread(runset, dashlog, liveMoni, False)
         self.__badCount = 0
 
         if self.__liveMoniClient is None:
@@ -139,9 +143,7 @@ class ActiveDOMsTask(CnCTask):
                 sendDetails = True
                 self.__detailTimer.reset()
 
-            self.__thread = \
-                ActiveDOMThread(self.__runset, self.logger(),
-                                self.__liveMoniClient, sendDetails)
+            self.__thread = self.__thread.getNewThread(sendDetails)
             self.__thread.start()
         else:
             self.__badCount += 1

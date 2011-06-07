@@ -15,6 +15,10 @@ class RateThread(CnCThread):
     def _run(self):
         self.__runset.updateRates()
 
+    def getNewThread(self):
+        thrd = RateThread(self.__runset, self.__dashlog)
+        return thrd
+
 class RateTask(CnCTask):
     NAME = "Rate"
     PERIOD = 60
@@ -23,7 +27,7 @@ class RateTask(CnCTask):
     def __init__(self, taskMgr, runset, dashlog, period=None):
         self.__runset = runset
 
-        self.__thread = None
+        self.__thread = RateThread(runset, dashlog)
         self.__badCount = 0
 
         if period is None: period = self.PERIOD
@@ -35,7 +39,7 @@ class RateTask(CnCTask):
         if self.__thread is None or not self.__thread.isAlive():
             self.__badCount = 0
 
-            self.__thread = RateThread(self.__runset, self.logger())
+            self.__thread = self.__thread.getNewThread()
             self.__thread.start()
         else:
             self.__badCount += 1

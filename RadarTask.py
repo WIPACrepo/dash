@@ -27,10 +27,11 @@ class RadarThread(CnCThread):
     RADAR_DOMS = None
 
     def __init__(self, runset, dashlog, liveMoni, samples, duration):
-        self.__comps = runset.components()
+        self.__runset = runset
         self.__dashlog = dashlog
         self.__liveMoniClient = liveMoni
         self.__samples = samples
+        self.__duration = duration
         self.__sampleSleep = float(duration) / float(samples)
 
         super(RadarThread, self).__init__("CnCServer:RadarThread",
@@ -46,7 +47,7 @@ class RadarThread(CnCThread):
         self.RADAR_DOMS = []
 
         for n in strings.keys():
-            for c in self.__comps:
+            for c in self.__runset.components():
                 if len(strings[n]) == 0:
                     break
 
@@ -93,6 +94,11 @@ class RadarThread(CnCThread):
                                               Prio.EMAIL):
             self.__dashlog.error("Failed to send radar DOM report")
 
+    def getNewThread(self):
+        thrd = RadarThread(self.__runset, self.__dashlog, self.__liveMoniClient,
+                           self.__samples, self.__duration)
+        return thrd
+
     @classmethod
     def reset(cls):
         cls.RADAR_DOMS = []
@@ -116,7 +122,8 @@ class RadarTask(CnCTask):
         self.__samples = samples
         self.__duration = duration
 
-        self.__thread = None
+        self.__thread = RadarThread(runset, dashlog, liveMoni, samples,
+                                    duration)
         self.__badCount = 0
 
         if self.__liveMoniClient is None:
@@ -135,10 +142,7 @@ class RadarTask(CnCTask):
 
         if self.__thread is None or not self.__thread.isAlive():
             self.__badCount = 0
-            self.__thread = \
-                RadarThread(self.__runset, self.logger(),
-                            self.__liveMoniClient, self.__samples,
-                            self.__duration)
+            self.__thread = self.__thread.getNewThread()
             self.__thread.start()
         else:
             self.__badCount += 1
