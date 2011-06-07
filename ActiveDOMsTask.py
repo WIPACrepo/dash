@@ -46,13 +46,14 @@ class ActiveDOMThread(CnCThread):
                     continue
 
 
-                # okay, so we are assuming a little about what 
-                # comes out of getMultiBeanFields it looks given 
+                # okay, so we are assuming a little about what
+                # comes out of getMultiBeanFields it looks given
                 # the code in MonitorTasks that it's a dictionary
 
                 activeDoms = beanData["NumberOfActiveAndTotalChannels"]
                 try:
-                    hub_active_doms, hub_total_doms = [ int(a) for a in activeDoms ]
+                    hub_active_doms, hub_total_doms = \
+                                     [ int(a) for a in activeDoms ]
                 except:
                     self.__dashlog.error("Cannot get # active DOMS from" +
                                          " %s string: %s" %
@@ -76,22 +77,25 @@ class ActiveDOMThread(CnCThread):
                 self.__dashlog.error("Failed to send active/total DOM report")
 
                 # send the lbm overflow information off to live
-            if not self.__liveMoniClient.sendMoni("LBMOverflows", 
+            if not self.__liveMoniClient.sendMoni("LBMOverflows",
                                                   lbm_Overflows_Dict, Prio.ITS):
                 self.__dashog.error("Failed to send lbm overflow data")
 
 
 
 class ActiveDOMsTask(CnCTask):
-    """Essentially a timer, so every REPORT_PERIOD a 
-    ActiveDOMsThread is created and run.  This sends three chucks of information
-    off to live: 
+    """
+    Essentially a timer, so every REPORT_PERIOD an ActiveDOMsThread is created
+    and run.  This sends three chunks of information off to live:
+
     'totalDOMS' which is a count of the total number of active doms
-    in the array along with a count of the number of doms ( active or inactive ).
-    'stringDOMsInfo' which is a dictionary relating string number to the number of 
-    active and total number of doms in a string
-    'LBMOverflows' which is a dictionary relating string number to the total number of lbm
-    overflows for a given string
+    in the array along with a count of the number of doms (active or inactive).
+
+    'stringDOMsInfo' which is a dictionary relating string number to the
+    number of active and total number of doms in a string
+
+    'LBMOverflows' which is a dictionary relating string number to the total
+    number of lbm overflows for a given string
     """
     NAME = "ActiveDOM"
     PERIOD = 60
