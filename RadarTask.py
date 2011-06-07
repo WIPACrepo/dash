@@ -93,6 +93,10 @@ class RadarThread(CnCThread):
                                               Prio.EMAIL):
             self.__dashlog.error("Failed to send radar DOM report")
 
+    @classmethod
+    def reset(cls):
+        cls.RADAR_DOMS = []
+
 class RadarTask(CnCTask):
     NAME = "Radar"
     PERIOD = 900
@@ -149,6 +153,7 @@ class RadarTask(CnCTask):
     def _reset(self):
         self.__thread = None
         self.__badCount = 0
+        RadarThread.reset()
 
     def close(self):
         pass
