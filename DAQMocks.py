@@ -574,6 +574,7 @@ class MockComponent(object):
         self.__isBadHub = False
         self.__hangType = 0
         self.__stopping = 0
+        self.__updatedRates = False
 
         self.__beanData = {}
 
@@ -728,6 +729,7 @@ class MockComponent(object):
     def reset(self):
         self.__connected = False
         self.__configured = False
+        self.__updatedRates = False
         self.runNum = None
 
     def resetLogging(self):
@@ -783,6 +785,10 @@ class MockComponent(object):
             self.__stopping = 1
         else:
             self.runNum = None
+
+    def updateRates(self): self.__updatedRates = True
+
+    def wasUpdated(self): return self.__updatedRates
 
 class MockDeployComponent(Component):
     def __init__(self, name, id, logLevel, jvm, jvmArgs):
@@ -859,6 +865,9 @@ class MockIntervalTimer(object):
     def isTime(self, now=None):
         self.__gotTime = True
         return self.__isTime
+
+    def name(self):
+        return self.__name
 
     def reset(self):
         self.__isTime = False
@@ -1216,7 +1225,6 @@ class MockRunConfigFile(object):
     def createDOM(mbid):
         return SimDOMXML(mbid)
 
-
 class MockXMLRPC(object):
     LOUD = False
 
@@ -1530,3 +1538,67 @@ class RunXMLValidator(TestCase):
                 os.remove("run.xml")
             except:
                 pass
+
+class MockRunSet(object):
+    def __init__(self, comps):
+        self.__comps = comps
+        self.__running = False
+
+    def components(self): return self.__comps[:]
+    def isRunning(self): return self.__running
+    def startRunning(self): self.__running = True
+    def stopRunning(self): self.__running = False
+
+    def updateRates(self):
+        for c in self.__comps:
+            c.updateRates()
+
+class MockTaskManager(object):
+    def __init__(self):
+        self.__timerDict = {}
+        self.__error = False
+
+    def addIntervalTimer(self, timer):
+        if self.__timerDict.has_key(timer.name()):
+            raise Exception("Cannot add multiple timers named \"%s\"" %
+                            timer.name())
+        self.__timerDict[timer.name()] = timer
+
+    def createIntervalTimer(self, name, period):
+        if not self.__timerDict.has_key(name):
+            raise Exception("Cannot find timer named \"%s\"" % name)
+        return self.__timerDict[name]
+
+    def hasError(self):
+        return self.__error
+
+    def setError(self):
+        self.__error = True
+
+class MockLiveMoni(object):
+    def __init__(self):
+        self.__expMoni = {}
+
+    def addExpected(self, var, val, prio):
+        if not self.__expMoni.has_key(var):
+            self.__expMoni[var] = []
+        self.__expMoni[var].append((val, prio))
+
+    def hasAllMoni(self):
+        return len(self.__expMoni) == 0
+
+    def sendMoni(self, var, val, prio, time=datetime.datetime.now()):
+        if not self.__expMoni.has_key(var):
+            raise Exception(("Unexpected live monitor data" +
+                             " (var=%s, val=%s, prio=%d)") % (var, val, prio))
+
+        expData = self.__expMoni[var].pop(0)
+        if len(self.__expMoni[var]) == 0:
+            del self.__expMoni[var]
+
+        if val != expData[0] or prio != expData[1]:
+            raise Exception(("Expected live monitor data (var=%s, val=%s," +
+                             " prio=%d), not (var=%s, val=%s, prio=%d)") %
+                            (var, expData[0], expData[1], var, val, prio))
+
+        return True

@@ -4,82 +4,8 @@ import unittest
 
 from WatchdogTask import WatchdogRule, WatchdogTask
 
-from DAQMocks import MockLogger
-
-class MockTimer(object):
-    def __init__(self, period):
-        self.__period = period
-        self.__timeLeft = period
-
-    def reset(self):
-        self.__timeLeft = self.__period
-
-    def setTimeLeft(self, val):
-        self.__timeLeft = val
-
-    def timeLeft(self):
-        return self.__timeLeft
-
-class MockTaskManager(object):
-    def __init__(self, timer):
-        self.__timer = timer
-        self.__error = False
-
-    def createIntervalTimer(self, name, period):
-        return self.__timer
-
-    def hasError(self):
-        return self.__error
-
-    def setError(self):
-        self.__error = True
-
-class MockComponent(object):
-    def __init__(self, name, num, order, beans=None):
-        self.__name = name
-        self.__num = num
-        self.__order = order
-        self.__beans = beans
-
-    def __str__(self):
-        if self.__num == 0:
-            return self.__name
-        return "Mock:%s#%d" % (self.__name, self.__num)
-
-    def checkBeanField(self, beanName, fldName):
-        if self.__beans is None:
-            raise Exception("No beans available for \"%s\"" % self.fullName())
-        if not self.__beans.has_key(beanName):
-            raise Exception("Unknown \"%s\" bean \"%s\"" %
-                            (self.fullName(), beanName))
-        if not self.__beans[beanName].has_key(fldName):
-            raise Exception("Unknown \"%s\" bean \"%s\" field \"%s\"" %
-                            (self.fullName(), beanName, fldName))
-        return self.__beans[beanName][fldName]
-
-    def fullName(self): return "%s#%d" % (self.__name, self.__num)
-
-    def getSingleBeanField(self, beanName, fldName):
-        return self.checkBeanField(beanName, fldName)
-
-    def getMultiBeanFields(self, beanName, fldList):
-        results = {}
-        for f in fldList:
-            results[f] = self.checkBeanField(beanName, f)
-        return results
-
-    def isSource(self): return self.__name.find("Hub") > 0
-    def isBuilder(self): return self.__name.find("Builder") > 0
-    def name(self): return self.__name
-    def num(self): return self.__num
-    def order(self): return self.__order
-
-class MockRunSet(object):
-    def __init__(self, compList):
-        self.__compList = compList[:]
-
-    def components(self):
-        return self.__compList[:]
+from DAQMocks import MockComponent, MockIntervalTimer, MockLogger, \
+     MockRunSet, MockTaskManager
 
 class BadMatchRule(WatchdogRule):
     def initData(self, data, thisComp, components):
@@ -132,23 +58,28 @@ class FooRule(WatchdogRule):
         return comp.name() == "foo"
 
 class WatchdogTaskTest(unittest.TestCase):
-    def __runFooTest(self, testIn, testOut, testThresh, barBeans=None):
-        fooBeans = {"inBean" : {"inFld" : 0},
-                    "outBean" : {"outFld" : 0},
-                    "threshBean" : {"threshFld" : 0},
-                    }
+    def __runFooTest(self, testIn, testOut, testThresh, addBarBeans=False):
+        foo = MockComponent("foo", 1)
+        foo.setOrder(1)
+        foo.addBeanData("inBean", "inFld", 0)
+        foo.addBeanData("outBean", "outFld", 0)
+        foo.addBeanData("threshBean", "threshFld", 0)
 
-        foo = MockComponent("foo", 1, 1, beans=fooBeans)
-        bar = MockComponent("bar", 0, 1, beans=barBeans)
+        bar = MockComponent("bar", 0)
+        bar.setOrder(2)
+        if addBarBeans:
+            bar.addBeanData("barBean", "barFld", 0)
+
         runset = MockRunSet([foo, bar, ])
 
         rules=(FooRule(testIn, testOut, testThresh),
-               BarRule(barBeans is not None))
+               BarRule(addBarBeans))
         self.__runTest(runset, rules, testIn, testOut, testThresh, False)
 
     def __runTest(self, runset, rules, testIn, testOut, testThresh, testBoth):
-        timer = MockTimer(1)
-        taskMgr = MockTaskManager(timer)
+        timer = MockIntervalTimer("Watchdog")
+        taskMgr = MockTaskManager()
+        taskMgr.addIntervalTimer(timer)
 
         logger = MockLogger("logger")
 
@@ -156,7 +87,7 @@ class WatchdogTaskTest(unittest.TestCase):
 
         tsk = WatchdogTask(taskMgr, runset, logger, rules=rules)
 
-        timer.setTimeLeft(0)
+        timer.trigger()
         tsk.check()
         tsk.waitUntilFinished()
 
@@ -169,7 +100,7 @@ class WatchdogTaskTest(unittest.TestCase):
             health = WatchdogTask.HEALTH_METER_FULL - i
             if testThresh:
                 health -= 1
-            timer.setTimeLeft(0)
+            timer.trigger()
 
             if testThresh:
                 logger.addExpectedRegexp("Watchdog reports threshold" +
@@ -206,10 +137,13 @@ class WatchdogTaskTest(unittest.TestCase):
         pass
 
     def testUnknownComp(self):
-        timer = MockTimer(1)
-        taskMgr = MockTaskManager(timer)
+        timer = MockIntervalTimer("Watchdog")
+        taskMgr = MockTaskManager()
+        taskMgr.addIntervalTimer(timer)
 
-        foo = MockComponent("foo", 1, 1)
+        foo = MockComponent("foo", 1)
+        foo.setOrder(1)
+
         runset = MockRunSet([foo, ])
 
         logger = MockLogger("logger")
@@ -221,10 +155,13 @@ class WatchdogTaskTest(unittest.TestCase):
         logger.checkStatus(1)
 
     def testBadMatchRule(self):
-        timer = MockTimer(1)
-        taskMgr = MockTaskManager(timer)
+        timer = MockIntervalTimer("Watchdog")
+        taskMgr = MockTaskManager()
+        taskMgr.addIntervalTimer(timer)
 
-        foo = MockComponent("foo", 1, 1)
+        foo = MockComponent("foo", 1)
+        foo.setOrder(1)
+
         runset = MockRunSet([foo, ])
 
         logger = MockLogger("logger")
@@ -237,21 +174,19 @@ class WatchdogTaskTest(unittest.TestCase):
         logger.checkStatus(1)
 
     def testBadInitRule(self):
-        timer = MockTimer(1)
-        taskMgr = MockTaskManager(timer)
+        foo = MockComponent("foo", 1)
+        foo.setOrder(1)
+        foo.addBeanData("inBean", "inFld", 0)
+        foo.addBeanData("outBean", "outFld", 0)
+        foo.addBeanData("threshBean", "threshFld", 0)
 
-        fooBeans = {"inBean" : {"inFld" : 0},
-                    "outBean" : {"outFld" : 0},
-                    "threshBean" : {"threshFld" : 0},
-                    }
-
-        foo = MockComponent("foo", 1, 1, beans=fooBeans)
         runset = MockRunSet([foo, ])
 
         rules = (BadInitRule(), )
 
-        timer = MockTimer(1)
-        taskMgr = MockTaskManager(timer)
+        timer = MockIntervalTimer("Watchdog")
+        taskMgr = MockTaskManager()
+        taskMgr.addIntervalTimer(timer)
 
         logger = MockLogger("logger")
 
@@ -265,7 +200,7 @@ class WatchdogTaskTest(unittest.TestCase):
             logger.addExpectedExact("Initialization failure #%d for %s %s" %
                                     (i, foo.fullName(), str(rules[0])))
 
-            timer.setTimeLeft(0)
+            timer.trigger()
             tsk.check()
             tsk.waitUntilFinished()
 
@@ -284,51 +219,43 @@ class WatchdogTaskTest(unittest.TestCase):
         self.__runFooTest(True, True, True)
 
     def testFooUnhealthyWithBar(self):
-        barBeans = {"barBean" : {"barFld" : 0}, }
-        self.__runFooTest(True, False, False, barBeans)
+        self.__runFooTest(True, False, False, addBarBeans=True)
 
     def testStandard(self):
-        stringBeans = {"sender" : {"NumHitsReceived" : 0,
-                                   "NumReadoutRequestsReceived" : 0,
-                                   "NumReadoutsSent" : 0,
-                                   },
-                       }
-        hub = MockComponent("stringHub", 0, 1, beans=stringBeans)
+        hub = MockComponent("stringHub", 0, 1)
+        hub.addBeanData("sender", "NumHitsReceived", 0)
+        hub.addBeanData("sender", "NumReadoutRequestsReceived", 0)
+        hub.addBeanData("sender", "NumReadoutsSent", 0)
 
-        iiTrigBeans = {"stringHit" : {"RecordsReceived" : 0,
-                                      },
-                       "trigger" : {"RecordsSent" : 0,
-                                    },
-                       }
-        iit = MockComponent("inIceTrigger", 0, 1, beans=iiTrigBeans)
+        iit = MockComponent("inIceTrigger", 0, 1)
+        iit.addBeanData("stringHit", "RecordsReceived", 0)
+        iit.addBeanData("trigger", "RecordsSent", 0)
 
-        gTrigBeans = {"trigger" : {"RecordsReceived" : 0,
-                                    },
-                       "glblTrig" : {"RecordsSent" : 0,
-                                     },
-                      }
-        gt = MockComponent("globalTrigger", 0, 1, beans=gTrigBeans)
+        gt = MockComponent("globalTrigger", 0, 1)
+        gt.addBeanData("trigger", "RecordsReceived", 0)
+        gt.addBeanData("glblTrig", "RecordsSent", 0)
 
-        evtBldrBeans = {"backEnd" : {"NumReadoutsReceived" : 0,
-                                     "NumTriggerRequestsReceived" : 0,
-                                     "NumEventsSent" : 0,
-                                     "NumBadEvents" : 0,
-                                     "DiskAvailable" : 0,
-                                     },
-                        }
-        eb = MockComponent("eventBuilder", 0, 1, beans=evtBldrBeans)
+        eb = MockComponent("eventBuilder", 0, 1)
+        eb.addBeanData("backEnd", "NumReadoutsReceived", 0)
+        eb.addBeanData("backEnd", "NumTriggerRequestsReceived", 0)
+        eb.addBeanData("backEnd", "NumEventsSent", 0)
+        eb.addBeanData("backEnd", "NumBadEvents", 0)
+        eb.addBeanData("backEnd", "DiskAvailable", 0)
 
-        secBldrBeans = {"snBuilder" : {"TotalDispatchedData" : 0,
-                                       "DiskAvailable" : 0,
-                                     },
-                        "moniBuilder" : {"TotalDispatchedData" : 0,
-                                     },
-                        #"tcalBuilder" : {"TotalDispatchedData" : 0,
-                        #             },
-                        }
-        sb = MockComponent("secondaryBuilders", 0, 1, beans=secBldrBeans)
+        sb = MockComponent("secondaryBuilders", 0, 1)
+        sb.addBeanData("snBuilder", "TotalDispatchedData", 0)
+        sb.addBeanData("snBuilder", "DiskAvailable", 0)
+        sb.addBeanData("moniBuilder", "TotalDispatchedData", 0)
+        #sb.addBeanData("tcalBuilder", "TotalDispatchedData", 0)
 
-        runset = MockRunSet([hub, iit, gt, eb, sb, ])
+        compList = [hub, iit, gt, eb, sb, ]
+
+        num = 1
+        for c in compList:
+            c.setOrder(num)
+            num += 1
+
+        runset = MockRunSet(compList)
 
         self.__runTest(runset, None, True, True, True, True)
 

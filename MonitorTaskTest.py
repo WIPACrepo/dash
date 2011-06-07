@@ -6,56 +6,8 @@ from LiveImports import Prio
 from MonitorTask import MonitorTask
 from RunOption import RunOption
 
-from DAQMocks import MockComponent, MockIntervalTimer, MockLogger
-
-class MockTaskManager(object):
-    def __init__(self, timer):
-        self.__timer = timer
-        self.__error = False
-
-    def createIntervalTimer(self, name, period):
-        return self.__timer
-
-    #def hasError(self):
-    #    return self.__error
-
-    #def setError(self):
-    #    self.__error = True
-
-class MockRunSet(object):
-    def __init__(self, compList):
-        self.__compList = compList[:]
-
-    def components(self):
-        return self.__compList[:]
-
-class MockLiveMoni(object):
-    def __init__(self):
-        self.__expMoni = {}
-
-    def addExpected(self, var, val, prio):
-        if not self.__expMoni.has_key(var):
-            self.__expMoni[var] = []
-        self.__expMoni[var].append((val, prio))
-
-    def hasAllMoni(self):
-        return len(self.__expMoni) == 0
-
-    def sendMoni(self, var, val, prio, time=datetime.datetime.now()):
-        if not self.__expMoni.has_key(var):
-            raise Exception(("Unexpected live monitor data" +
-                             " (var=%s, val=%s, prio=%d)") % (var, val, prio))
-
-        expData = self.__expMoni[var].pop(0)
-        if len(self.__expMoni[var]) == 0:
-            del self.__expMoni[var]
-
-        if val != expData[0] or prio != expData[1]:
-            raise Exception(("Expected live monitor data (var=%s, val=%s," +
-                             " prio=%d), not (var=%s, val=%s, prio=%d)") %
-                            (var, expData[0], expData[1], var, val, prio))
-
-        return True
+from DAQMocks import MockComponent, MockIntervalTimer, MockLiveMoni, \
+     MockLogger, MockRunSet, MockTaskManager
 
 class BadComponent(MockComponent):
     def __init__(self, name, num=0):
@@ -127,8 +79,9 @@ class MonitorTaskTest(unittest.TestCase):
         return [foo, bar, ]
 
     def __createStandardObjects(self):
-        timer = MockIntervalTimer("timer")
-        taskMgr = MockTaskManager(timer)
+        timer = MockIntervalTimer("Monitoring")
+        taskMgr = MockTaskManager()
+        taskMgr.addIntervalTimer(timer)
 
         logger = MockLogger("logger")
         live = MockLiveMoni()

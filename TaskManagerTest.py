@@ -8,7 +8,7 @@ from RunOption import RunOption
 from TaskManager import TaskManager
 from WatchdogTask import WatchdogTask
 
-from DAQMocks import MockIntervalTimer
+from DAQMocks import MockIntervalTimer, MockLiveMoni, MockRunSet
 
 class MockComponent(object):
     BEANBAG = {
@@ -148,34 +148,6 @@ class MockComponent(object):
 
     def wasUpdated(self): return self.__updatedRates
 
-class MockLiveMoni(object):
-    def __init__(self):
-        self.__expMoni = {}
-
-    def addExpected(self, var, val, prio):
-        if not self.__expMoni.has_key(var):
-            self.__expMoni[var] = []
-        self.__expMoni[var].append((val, prio))
-
-    def hasAllMoni(self):
-        return len(self.__expMoni) == 0
-
-    def sendMoni(self, var, val, prio, time=datetime.datetime.now()):
-        if not self.__expMoni.has_key(var):
-            raise Exception(("Unexpected live monitor data" +
-                             " (var=%s, val=%s, prio=%d)") % (var, val, prio))
-
-        expData = self.__expMoni[var].pop(0)
-        if len(self.__expMoni[var]) == 0:
-            del self.__expMoni[var]
-
-        if val != expData[0] or prio != expData[1]:
-            raise Exception(("Expected live monitor data (var=%s, val=%s," +
-                             " prio=%d), not (var=%s, val=%s, prio=%d)") %
-                            (var, expData[0], expData[1], var, val, prio))
-
-        return True
-
 class MockLog(object):
     LEVEL_ERROR = "ERROR"
 
@@ -201,20 +173,6 @@ class MockLog(object):
 
     def error(self, msg):
         self.__verifyMsg(self.LEVEL_ERROR, msg)
-
-class MockRunSet(object):
-    def __init__(self, comps):
-        self.__comps = comps
-        self.__running = False
-
-    def components(self): return self.__comps[:]
-    def isRunning(self): return self.__running
-    def startRunning(self): self.__running = True
-    def stopRunning(self): self.__running = False
-
-    def updateRates(self):
-        for c in self.__comps:
-            c.updateRates()
 
 class MockRunConfig(object):
     def __init__(self): pass
