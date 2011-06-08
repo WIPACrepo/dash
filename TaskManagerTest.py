@@ -328,6 +328,11 @@ class TaskManagerTest(unittest.TestCase):
 
         rst = MyTaskManager(runset, dashlog, live, None, runCfg,
                             RunOption.MONI_TO_LIVE)
+
+        dashlog.addExpectedExact(("\t%d physics events (%.2f Hz)," +
+                                  " %d moni events, %d SN events, %d tcals") %
+                                 runset.getRates())
+
         rst.triggerTimers()
         rst.start()
 
@@ -380,6 +385,11 @@ class TaskManagerTest(unittest.TestCase):
                             RunOption.MONI_TO_LIVE)
 
         self.__loadExpected(live, compList, radarString, radarDOM, hitRate)
+
+        dashlog.addExpectedExact(("\t%d physics events (%.2f Hz)," +
+                                  " %d moni events, %d SN events, %d tcals") %
+                                 runset.getRates())
+
         rst.triggerTimers()
 
         rst.start()
@@ -403,6 +413,9 @@ class TaskManagerTest(unittest.TestCase):
                                  " (value=0)")
         dashlog.addExpectedExact("Run is unhealthy (%d checks left)" %
                                  (WatchdogTask.HEALTH_METER_FULL - 1))
+        dashlog.addExpectedExact(("\t%d physics events (%.2f Hz)," +
+                                  " %d moni events, %d SN events, %d tcals") %
+                                 runset.getRates())
 
         rst.triggerTimers()
 

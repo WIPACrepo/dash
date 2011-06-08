@@ -1544,7 +1544,16 @@ class MockRunSet(object):
         self.__comps = comps
         self.__running = False
 
+        self.__numEvts = 10
+        self.__rate = 123.45
+        self.__numMoni = 11
+        self.__numSN = 12
+        self.__numTcal = 13
+
     def components(self): return self.__comps[:]
+    def getRates(self):
+        return (self.__numEvts, self.__rate, self.__numMoni, self.__numSN,
+                self.__numTcal)
     def isRunning(self): return self.__running
     def startRunning(self): self.__running = True
     def stopRunning(self): self.__running = False
@@ -1552,6 +1561,7 @@ class MockRunSet(object):
     def updateRates(self):
         for c in self.__comps:
             c.updateRates()
+        return self.getRates()
 
 class MockTaskManager(object):
     def __init__(self):

@@ -581,19 +581,12 @@ class RunData(object):
     def updateRates(self, comps):
         self.__runStats.updateEventCounts(self.__getRateData(comps), True)
 
-        rateStr = ""
         rate = self.__runStats.rate()
-        if rate == 0.0:
-            rateStr = ""
-        else:
-            rateStr = " (%2.2f Hz)" % rate
 
         (evtTime, numEvts, numMoni, numSN, numTcal) = \
-            self.__runStats.currentData()
+                  self.__runStats.currentData()
 
-        self.__dashlog.error(("\t%s physics events%s, %s moni events," +
-                              " %s SN events, %s tcals")  %
-                             (numEvts, rateStr, numMoni, numSN, numTcal))
+        return (numEvts, rate, numMoni, numSN, numTcal)
 
     def warn(self, msg):
         self.__dashlog.warn(msg)
