@@ -8,7 +8,7 @@ from RunOption import RunOption
 from TaskManager import TaskManager
 from WatchdogTask import WatchdogTask
 
-from DAQMocks import MockIntervalTimer, MockLiveMoni, MockRunSet
+from DAQMocks import MockIntervalTimer, MockLiveMoni, MockLogger, MockRunSet
 
 class MockComponent(object):
     BEANBAG = {
@@ -148,32 +148,6 @@ class MockComponent(object):
 
     def wasUpdated(self): return self.__updatedRates
 
-class MockLog(object):
-    LEVEL_ERROR = "ERROR"
-
-    def __init__(self):
-        self.__expMsgs = {}
-
-    def __verifyMsg(self, level, msg):
-        if not self.__expMsgs.has_key(level):
-            raise Exception("Unexpected %s message: %s" % (level, msg))
-
-        expMsg = self.__expMsgs[level].pop(0)
-        if len(self.__expMsgs[level]) == 0:
-            del self.__expMsgs[level]
-
-        if msg != expMsg:
-            raise Exception("Expected %s message \"%s\", not \"%s\"" %
-                            (level, expMsg, msg))
-
-    def addExpected(self, level, msg):
-        if not self.__expMsgs.has_key(level):
-            self.__expMsgs[level] = []
-        self.__expMsgs[level].append(msg)
-
-    def error(self, msg):
-        self.__verifyMsg(self.LEVEL_ERROR, msg)
-
 class MockRunConfig(object):
     def __init__(self): pass
 
@@ -295,7 +269,7 @@ class TaskManagerTest(unittest.TestCase):
         runset = MockRunSet(compList)
         #runset.startRunning()
 
-        dashlog = MockLog()
+        dashlog = MockLogger("dashlog")
 
         live = MockLiveMoni()
 
@@ -342,7 +316,7 @@ class TaskManagerTest(unittest.TestCase):
         runset = MockRunSet(compList)
         runset.startRunning()
 
-        dashlog = MockLog()
+        dashlog = MockLogger("dashlog")
 
         live = MockLiveMoni()
 
@@ -394,7 +368,7 @@ class TaskManagerTest(unittest.TestCase):
         runset = MockRunSet(compList)
         runset.startRunning()
 
-        dashlog = MockLog()
+        dashlog = MockLogger("dashlog")
 
         live = MockLiveMoni()
 
@@ -423,13 +397,12 @@ class TaskManagerTest(unittest.TestCase):
             time.sleep(0.1)
 
         self.__loadExpected(live, compList, radarString, radarDOM, hitRate)
-        dashlog.addExpected(MockLog.LEVEL_ERROR,
-                            "Watchdog reports threshold components:\n" +
-                            "    secondaryBuilders snBuilder.DiskAvailable" +
-                            " below 1024 (value=0)")
-        dashlog.addExpected(MockLog.LEVEL_ERROR,
-                            "Run is unhealthy (%d checks left)" %
-                            (WatchdogTask.HEALTH_METER_FULL - 1))
+        dashlog.addExpectedExact("Watchdog reports threshold components:\n" +
+                                 "    secondaryBuilders" +
+                                 " snBuilder.DiskAvailable below 1024" +
+                                 " (value=0)")
+        dashlog.addExpectedExact("Run is unhealthy (%d checks left)" %
+                                 (WatchdogTask.HEALTH_METER_FULL - 1))
 
         rst.triggerTimers()
 
