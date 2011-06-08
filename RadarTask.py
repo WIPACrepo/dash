@@ -12,6 +12,9 @@ class RadarDOM(object):
         self.__comp = comp
         self.__beanName = beanName
 
+    def __str__(self):
+        return "%s@hub#%s" % (self.__mbID, self.__string)
+
     def getRate(self):
         return self.__comp.getSingleBeanField(self.__beanName, "HitRate")
 
@@ -23,16 +26,15 @@ class RadarThread(CnCThread):
     # mapping of DOM mainboard ID -> string number
     DOM_MAP = { "48e492170268": 6 }
 
-    # generated list of radar sentinel DOMs
-    RADAR_DOMS = None
-
-    def __init__(self, runset, dashlog, liveMoni, samples, duration):
+    def __init__(self, runset, dashlog, liveMoni, samples, duration,
+                 radarDOMs=None):
         self.__runset = runset
         self.__dashlog = dashlog
         self.__liveMoniClient = liveMoni
         self.__samples = samples
         self.__duration = duration
         self.__sampleSleep = float(duration) / float(samples)
+        self.__radarDOMs = radarDOMs
 
         super(RadarThread, self).__init__("CnCServer:RadarThread",
                                               dashlog)
@@ -44,7 +46,7 @@ class RadarThread(CnCThread):
                 strings[self.DOM_MAP[k]] = []
             strings[self.DOM_MAP[k]].append(k)
 
-        self.RADAR_DOMS = []
+        radarDOMs = []
 
         for n in strings.keys():
             for c in self.__runset.components():
@@ -68,18 +70,20 @@ class RadarThread(CnCThread):
 
                         del strings[n][idx]
 
-                        self.RADAR_DOMS.append(RadarDOM(mbid, n, c, b))
+                        radarDOMs.append(RadarDOM(mbid, n, c, b))
+
+        return radarDOMs
 
     def _run(self):
-        if self.RADAR_DOMS is None:
-            self.__findDOMs()
+        if self.__radarDOMs is None:
+            self.__radarDOMs = self.__findDOMs()
 
-        if len(self.RADAR_DOMS) == 0:
+        if len(self.__radarDOMs) == 0:
             return
 
         rateList = {}
         for i in range(self.__samples):
-            for rdom in self.RADAR_DOMS:
+            for rdom in self.__radarDOMs:
                 rate = rdom.getRate()
 
                 if not rateList.has_key(rdom.mbID()) or \
@@ -96,12 +100,11 @@ class RadarThread(CnCThread):
 
     def getNewThread(self):
         thrd = RadarThread(self.__runset, self.__dashlog, self.__liveMoniClient,
-                           self.__samples, self.__duration)
+                           self.__samples, self.__duration, self.__radarDOMs)
         return thrd
 
-    @classmethod
-    def reset(cls):
-        cls.RADAR_DOMS = []
+    def reset(self):
+        self.__radarDOMs = []
 
 class RadarTask(CnCTask):
     NAME = "Radar"
@@ -155,9 +158,10 @@ class RadarTask(CnCTask):
                 self.endTimer()
 
     def _reset(self):
-        self.__thread = None
+        if self.__thread is not None:
+            self.__thread.reset()
+            self.__thread = None
         self.__badCount = 0
-        RadarThread.reset()
 
     def close(self):
         pass
