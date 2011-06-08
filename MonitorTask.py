@@ -52,6 +52,10 @@ class MonitorThread(CnCThread):
         bSrt = self.__comp.getBeanNames()
         bSrt.sort()
         for b in bSrt:
+            if self.isClosed():
+                # break out of the loop if this thread has been "closed"
+                break
+
             flds = self.__comp.getBeanFields(b)
             try:
                 attrs = self.__comp.getMultiBeanFields(b, flds)
@@ -74,11 +78,12 @@ class MonitorThread(CnCThread):
                                      (str(self.__comp), b, exc_string()))
 
             # report monitoring data
-            if attrs is not None and len(attrs) > 0 and \
-                   self.__reporter is not None:
+            if attrs is not None and len(attrs) > 0 and not self.isClosed():
                 self.__reporter.send(self.__now, b, attrs)
 
     def close(self):
+        super(type(self), self).close()
+
         if self.__reporter is not None:
             try:
                 self.__reporter.close()
@@ -93,7 +98,6 @@ class MonitorThread(CnCThread):
                              now, self.__refused)
         return thrd
 
-    def isClosed(self): return self.__reporter is None
     def isWarned(self): return self.__warned
 
     def refusedCount(self): return self.__refused

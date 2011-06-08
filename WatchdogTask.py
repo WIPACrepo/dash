@@ -200,7 +200,8 @@ class ValueWatcher(Watcher):
         return self.__unchanged == 0
 
     def unhealthyRecord(self, value):
-        if isinstance(value, Exception) and not isinstance(value, TaskException):
+        if isinstance(value, Exception) and \
+               not isinstance(value, TaskException):
             msg = "%s: %s" % (str(self), exc_string())
         else:
             msg = "%s not changing from %s" % (str(self), str(self.__prevValue))
@@ -215,12 +216,17 @@ class WatchData(object):
         self.__outputFields = {}
         self.__thresholdFields = {}
 
+        self.__closed = False
+
     def __str__(self):
         return self.__comp.fullName()
 
     def __checkBeans(self, beanList):
         unhealthy = []
         for b in beanList:
+            if self.__closed:
+                # break out of the loop if this thread has been closed
+                break
             badList = self.__checkValues(beanList[b])
             if badList is not None:
                 unhealthy += badList
@@ -312,17 +318,18 @@ class WatchData(object):
 
     def check(self, starved, stagnant, threshold):
         isOK = True
-        try:
-            badList = self.__checkBeans(self.__inputFields)
-            if badList is not None:
-                starved += badList
+        if not self.__closed:
+            try:
+                badList = self.__checkBeans(self.__inputFields)
+                if badList is not None:
+                    starved += badList
+                    isOK = False
+            except:
+                self.__dashlog.error(self.__comp.fullName() + " inputs: " +
+                                     exc_string())
                 isOK = False
-        except:
-            self.__dashlog.error(self.__comp.fullName() + " inputs: " +
-                                 exc_string())
-            isOK = False
 
-        if isOK:
+        if not self.__closed and isOK:
             # don't report output problems if there are input problems
             #
             try:
@@ -335,19 +342,23 @@ class WatchData(object):
                                      exc_string())
                 isOK = False
 
-        # report threshold problems even if there are other problems
-        #
-        try:
-            badList = self.__checkBeans(self.__thresholdFields)
-            if badList is not None:
-                threshold += badList
+        if not self.__closed:
+            # report threshold problems even if there are other problems
+            #
+            try:
+                badList = self.__checkBeans(self.__thresholdFields)
+                if badList is not None:
+                    threshold += badList
+                    isOK = False
+            except:
+                self.__dashlog.error(self.__comp.fullName() + " thresholds: " +
+                                     exc_string())
                 isOK = False
-        except:
-            self.__dashlog.error(self.__comp.fullName() + " thresholds: " +
-                                 exc_string())
-            isOK = False
 
         return isOK
+
+    def close(self):
+        self.__closed = True
 
     def order(self):
         return self.__comp.order()
@@ -386,6 +397,13 @@ class WatchdogThread(CnCThread):
                 return
 
         self.__data.check(self.__starved, self.__stagnant, self.__threshold)
+
+    def close(self):
+        super(type(self), self).close()
+
+        if self.__data is not None:
+            self.__data.close()
+            self.__data = None
 
     def getNewThread(self):
         thrd = WatchdogThread(self.__runset, self.__comp, self.__rule,
@@ -654,7 +672,15 @@ class WatchdogTask(CnCTask):
                 self.setError()
 
     def close(self):
-        pass
+        savedEx = None
+        for thr in self.__threadList.values():
+            try:
+                thr.close()
+            except Exception, ex:
+                if savedEx is None:
+                    savedEx = ex
+
+        if savedEx is not None: raise savedEx
 
     def createThread(self, runset, comp, rule, dashlog):
         return WatchdogThread(runset, comp, rule, dashlog)

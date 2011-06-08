@@ -10,11 +10,19 @@ class CnCThread(threading.Thread):
         self.__name = name
         self.__log = log
 
+        self.__closed = False
+
         threading.Thread.__init__(self, name=name)
         self.setDaemon(True)
 
     def _run(self):
         raise NotImplementedError()
+
+    def close(self):
+        self.__closed = True
+
+    def isClosed(self):
+        return self.__closed
 
     def run(self):
         try:

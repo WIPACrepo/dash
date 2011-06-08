@@ -68,10 +68,12 @@ class ActiveDOMThread(CnCThread):
                 if self.__sendDetails:
                     hub_DOMs[str(c.num())] = (hub_active_doms, hub_total_doms)
 
-        self.__liveMoniClient.sendMoni("activeDOMs", active_total, Prio.ITS)
-        self.__liveMoniClient.sendMoni("expectedDOMs", total, Prio.ITS)
+        if not self.isClosed():
+            self.__liveMoniClient.sendMoni("activeDOMs", active_total,
+                                           Prio.ITS)
+            self.__liveMoniClient.sendMoni("expectedDOMs", total, Prio.ITS)
 
-        if self.__sendDetails:
+        if not self.isClosed() and self.__sendDetails:
             if not self.__liveMoniClient.sendMoni("stringDOMsInfo", hub_DOMs,
                                                   Prio.EMAIL):
                 self.__dashlog.error("Failed to send active/total DOM report")
@@ -80,7 +82,6 @@ class ActiveDOMThread(CnCThread):
             if not self.__liveMoniClient.sendMoni("LBMOverflows",
                                                   lbm_Overflows_Dict, Prio.ITS):
                 self.__dashog.error("Failed to send lbm overflow data")
-
 
     def getNewThread(self, sendDetails):
         thrd = ActiveDOMThread(self.__runset, self.__dashlog,
@@ -157,11 +158,11 @@ class ActiveDOMsTask(CnCTask):
 
     def _reset(self):
         self.__detailTimer = None
-        self.__thread = None
         self.__badCount = 0
 
     def close(self):
-        pass
+        if self.__thread is not None and self.__thread.isAlive():
+            self.__thread.close()
 
     def waitUntilFinished(self):
         if self.__liveMoniClient is None:

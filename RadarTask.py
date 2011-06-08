@@ -75,6 +75,9 @@ class RadarThread(CnCThread):
         return radarDOMs
 
     def _run(self):
+        if self.__liveMoniClient is None:
+            return
+
         if self.__radarDOMs is None:
             self.__radarDOMs = self.__findDOMs()
 
@@ -94,9 +97,10 @@ class RadarThread(CnCThread):
         for mbID in rateList:
             rateData.append((mbID, rateList[mbID]))
 
-        if not self.__liveMoniClient.sendMoni("radarDOMs", rateData,
-                                              Prio.EMAIL):
-            self.__dashlog.error("Failed to send radar DOM report")
+        if not self.isClosed():
+            if not self.__liveMoniClient.sendMoni("radarDOMs", rateData,
+                                                  Prio.EMAIL):
+                self.__dashlog.error("Failed to send radar DOM report")
 
     def getNewThread(self):
         thrd = RadarThread(self.__runset, self.__dashlog, self.__liveMoniClient,
@@ -104,7 +108,7 @@ class RadarThread(CnCThread):
         return thrd
 
     def reset(self):
-        self.__radarDOMs = []
+        self.__radarDOMs = None
 
 class RadarTask(CnCTask):
     NAME = "Radar"
@@ -143,10 +147,12 @@ class RadarTask(CnCTask):
         if self.__liveMoniClient is None:
             return
 
-        if self.__thread is None or not self.__thread.isAlive():
+        if not self.__thread.isAlive():
             self.__badCount = 0
-            self.__thread = self.__thread.getNewThread()
-            self.__thread.start()
+            thrd = self.__thread.getNewThread()
+            if thrd is not None:
+                self.__thread = thrd
+                self.__thread.start()
         else:
             self.__badCount += 1
             if self.__badCount <= 3:
@@ -158,17 +164,15 @@ class RadarTask(CnCTask):
                 self.endTimer()
 
     def _reset(self):
-        if self.__thread is not None:
-            self.__thread.reset()
-            self.__thread = None
         self.__badCount = 0
+        self.__thread.reset()
 
     def close(self):
-        pass
+        self.__thread.close()
 
     def waitUntilFinished(self):
         if self.__liveMoniClient is None:
             return
 
-        if self.__thread is not None and self.__thread.isAlive():
+        if self.__thread.isAlive():
             self.__thread.join()

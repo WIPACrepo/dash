@@ -55,7 +55,8 @@ class RateTask(CnCTask):
         self.__badCount = 0
 
     def close(self):
-        pass
+        if self.__thread is not None:
+            self.__thread.close()
 
     def waitUntilFinished(self):
         if self.__thread is not None and self.__thread.isAlive():
