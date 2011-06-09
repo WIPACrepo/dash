@@ -241,6 +241,11 @@ class LiveState(object):
                     front == "runlength":
                 # ignore rates
                 return LiveState.PARSE_NORMAL
+            elif front == "Target run stop time" or \
+                 front == "Currently" or \
+                 front == "Time until stop":
+                # ignore run time info
+                return LiveState.PARSE_NORMAL
             elif front == "daqrelease":
                 # ignore DAQ release name
                 return LiveState.PARSE_NORMAL
