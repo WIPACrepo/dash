@@ -4,6 +4,8 @@
 
 import os, socket, subprocess, sys, threading, time
 
+from datetime import datetime
+
 from ClusterDescription import ClusterDescription
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
@@ -188,6 +190,11 @@ class Run(object):
         if self.__lightMode and not self.__mgr.setLightMode(False):
             raise RunException(("Could not set lightMode to dark after run " +
                                 " #%d: %s") % (self.__runNum, self.__runCfg))
+
+        try:
+            self.__mgr.summarize(self.__runNum)
+        except:
+            print "Cannot summarize run %d" % self.__runNum
 
         self.__runNum = 0
 
@@ -518,6 +525,26 @@ class BaseRun(object):
     def stopRun(self):
         """Stop the run"""
         raise NotImplementedError()
+
+    def summarize(self, runNum):
+        summary = self.cncConnection().rpc_run_summary(runNum)
+
+        if summary["startTime"] == "None" or \
+           summary["endTime"] == "None":
+            duration = "???"
+        else:
+            timeFmt = "%Y-%m-%d %H:%M:%S.%f"
+
+            startTime = datetime.strptime(summary["startTime"], timeFmt)
+            endTime = datetime.strptime(summary["endTime"], timeFmt)
+            timediff = endTime - startTime
+
+            duration = timediff.seconds
+            if timediff.days > 0:
+                duration += timediff.days * 60 * 60 * 24
+
+        print "Run %d (%s) %s seconds : %s" % \
+            (summary["num"], summary["config"], duration, summary["result"])
 
     def updateDB(self, runCfg):
         """
