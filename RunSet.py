@@ -1727,7 +1727,8 @@ class RunSet(object):
                               self.__id)
 
     def updateRates(self):
-        if self.__runData is not None:
-            self.__runData.updateRates(self.__set)
+        if self.__runData is None:
+            return None
+        return self.__runData.updateRates(self.__set)
 
 if __name__ == "__main__": pass

@@ -13,17 +13,20 @@ class RateThread(CnCThread):
         super(RateThread, self).__init__("CnCServer:RateThread", dashlog)
 
     def _run(self):
-        (numEvts, rate, numMoni, numSN, numTcal) = self.__runset.updateRates()
-        if not self.isClosed():
-            rateStr = ""
-            if rate == 0.0:
+        rates = self.__runset.updateRates()
+        if rates is not None:
+            (numEvts, rate, numMoni, numSN, numTcal) = rates
+            if not self.isClosed():
                 rateStr = ""
-            else:
-                rateStr = " (%2.2f Hz)" % rate
+                if rate == 0.0:
+                    rateStr = ""
+                else:
+                    rateStr = " (%2.2f Hz)" % rate
 
-            self.__dashlog.error(("\t%s physics events%s, %s moni events," +
-                                  " %s SN events, %s tcals")  %
-                                 (numEvts, rateStr, numMoni, numSN, numTcal))
+                self.__dashlog.error(("\t%s physics events%s, %s moni events," +
+                                      " %s SN events, %s tcals")  %
+                                     (numEvts, rateStr, numMoni, numSN,
+                                      numTcal))
 
     def getNewThread(self):
         thrd = RateThread(self.__runset, self.__dashlog)
