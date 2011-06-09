@@ -37,11 +37,32 @@ class Dash(cmd.Cmd):
 
         raise ValueError("Unknown component \"%s\"" % compName)
 
+    def __findComponentFromString(self, compDict, compStr):
+        compName = None
+        compId = None
+
+        if compStr is not None and compDict is not None:
+            if compDict.has_key(compStr):
+                compName = compStr
+                compId = compDict[compName]
+            else:
+                try:
+                    compId = int(compStr)
+                except ValueError:
+                    compId = None
+
+                if compId is not None:
+                    for c in compDict.keys():
+                        if compDict[c] == compId:
+                            compName = c
+                            break
+
+        return (compName, compId)
 
     def __listAll(self):
         ids = self.__cnc.rpc_runset_list_ids()
         compDict = self.__cnc.rpc_component_list()
-        comps = self.__cnc.rpc_component_list_dicts(compDict.values())
+        comps = self.__cnc.rpc_component_list_dicts(compDict.values(), False)
 
         if len(comps) > 0:
             print "Components:"
@@ -64,7 +85,7 @@ class Dash(cmd.Cmd):
         if idList is None:
             info = self.__cnc.rpc_component_connector_info()
         else:
-            info = self.__cnc.rpc_component_connector_info(idList)
+            info = self.__cnc.rpc_component_connector_info(idList, False)
         print "Details:"
         for cdict in info:
             print "  #%s: %s#%d" % (cdict["id"], cdict["compName"],
@@ -91,31 +112,42 @@ class Dash(cmd.Cmd):
             return
 
         compDict = self.__cnc.rpc_component_list()
+        rsDict = None
 
         for c in args:
             bflds = c.split(".")
 
-            if compDict.has_key(bflds[0]):
-                compName = bflds[0]
-                compId = compDict[compName]
-            else:
-                try:
-                    compId = int(bflds[0])
-                except ValueError:
-                    compId = None
+            print "Find \"%s\" in %s" % (bflds[0], compDict.keys())
+            (compName, compId) = \
+                self.__findComponentFromString(compDict, bflds[0])
+            if compName is None:
+                if rsDict is None:
+                    rsDict = {}
 
-                compName = None
-                if compId is not None:
-                    for c in compDict.keys():
-                        if compDict[c] == compId:
-                            compName = c
-                            break
+                    ids = self.__cnc.rpc_runset_list_ids()
+                    for rsid in ids:
+                        rsComps = self.__cnc.rpc_runset_list(rsid)
 
-                if compName is None:
-                    print >>sys.stderr, "Unknown component \"%s\"" % bflds[0]
+                        rsDict[rsid] = {}
+                        for sub in rsComps:
+                            if sub["compNum"] == 0:
+                                nm = sub["compName"]
+                            else:
+                                nm = sub["compName"] + "#" + \
+                                    str(sub["compNum"])
+                            rsDict[rsid][nm] = sub["id"]
+                        if compName is None:
+                            print "Find \"%s\" in RS#%d %s" % (bflds[0], rsid, rsDict[rsid].keys())
+                            (compName, compId) = \
+                                self.__findComponentFromString(rsDict[rsid],
+                                                               bflds[0])
+
+            if compName is None:
+                print >>sys.stderr, "Unknown component \"%s\"" % bflds[0]
+                return
 
             if len(bflds) == 1:
-                beanList = self.__cnc.rpc_component_list_beans(compId)
+                beanList = self.__cnc.rpc_component_list_beans(compId, True)
 
                 print "%s beans:" % compName
                 for b in beanList:
@@ -126,7 +158,8 @@ class Dash(cmd.Cmd):
             beanName = bflds[1]
             if len(bflds) == 2:
                 fldList = \
-                    self.__cnc.rpc_component_list_bean_fields(compId, beanName)
+                    self.__cnc.rpc_component_list_bean_fields(compId, beanName,
+                                                              True)
 
                 print "%s bean %s fields:" % (compName, beanName)
                 for f in fldList:
@@ -144,6 +177,31 @@ class Dash(cmd.Cmd):
                 return
 
             print >>sys.stderr, "Bad component.bean.field \"%s\"" % c
+
+    def __runCmdClose(self, args):
+        fdList = []
+        for a in args:
+            if a.find("-") < 0:
+                try:
+                    i = int(a)
+                except:
+                    print >>sys.stderr, "Bad file %s" % a
+                    break
+
+                fdList.append(i)
+            else:
+                (a1, a2) = a.split("-")
+                try:
+                    i1 = int(a1)
+                    i2 = int(a2)
+                except:
+                    print >>sys.stderr, "Bad range %s" % a
+                    break
+
+                for i in range(i1, i2 + 1):
+                    fdList.append(i)
+
+        self.__cnc.rpc_close_files(fdList)
 
     def __runCmdList(self, args):
         "List component info"
@@ -174,10 +232,25 @@ class Dash(cmd.Cmd):
 
         self.__printComponentDetails(idList)
 
+    def __runCmdOpenFiles(self, args):
+        "List open files"
+        for of in self.__cnc.rpc_list_open_files():
+            try:
+                print "  %4.4s %6.6s %s%s" % tuple(of)
+            except:
+                print "  ??? %s" % of
+
     def do_bean(self, line):
         "Get bean data"
         try:
             self.__runCmdBean(line.split())
+        except:
+            traceback.print_exc()
+
+    def do_close(self, line):
+        "Close open file"
+        try:
+            self.__runCmdClose(line.split())
         except:
             traceback.print_exc()
 
@@ -195,6 +268,13 @@ class Dash(cmd.Cmd):
     def do_ls(self, args):
         "List component info"
         return self.do_list(args)
+
+    def do_openfiles(self, line):
+        "List open files"
+        try:
+            self.__runCmdOpenFiles(line.split())
+        except:
+            traceback.print_exc()
 
 if __name__ == "__main__":
     Dash().cmdloop()

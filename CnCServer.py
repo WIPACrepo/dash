@@ -11,6 +11,7 @@ from DAQConst import DAQPort
 from DAQLive import DAQLive
 from DAQLog import DAQLog, LogSocketServer
 from DAQRPC import RPCServer
+from ListOpenFiles import ListOpenFiles
 from Process import processList, findProcess
 from RunSet import RunSet
 from RunSetState import RunSetState
@@ -31,7 +32,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 13013 2011-05-31 23:19:45Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 13100 2011-06-09 17:23:17Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -573,6 +574,7 @@ class CnCServer(DAQPool):
                     sys.exit("Couldn't create server socket: %s" % e)
 
         if self.__server:
+            self.__server.register_function(self.rpc_close_files)
             self.__server.register_function(self.rpc_component_connector_info)
             self.__server.register_function(self.rpc_component_count)
             self.__server.register_function(self.rpc_component_get_bean_field)
@@ -583,6 +585,7 @@ class CnCServer(DAQPool):
             self.__server.register_function(self.rpc_component_register)
             self.__server.register_function(self.rpc_cycle_live)
             self.__server.register_function(self.rpc_end_all)
+            self.__server.register_function(self.rpc_list_open_files)
             self.__server.register_function(self.rpc_ping)
             self.__server.register_function(self.rpc_register_component)
             self.__server.register_function(self.rpc_runset_active)
@@ -678,6 +681,44 @@ class CnCServer(DAQPool):
             slst.append(cDict)
 
         return slst
+
+    @classmethod
+    def __listCnCOpenFiles(cls):
+        userList = ListOpenFiles.run(os.getpid())
+
+        if userList is None or len(userList) < 0:
+            raise CnCServerException("No open file list available!")
+
+        if len(userList) > 1:
+            raise CnCServerException(("Expected 1 user from ListOpenFiles," +
+                                      " not %d") % len(userList))
+
+        ofList = []
+        for f in userList[0].files():
+            if isinstance(f.fileDesc(), str) or f.fileDesc() < 3:
+                continue
+
+            ofList.append(f)
+
+        return ofList
+
+    def __reportOpenFiles(self, runNum):
+        try:
+            ofList = self.__listCnCOpenFiles()
+        except:
+            self.__log.error("Cannot list open files: " + exc_string())
+            return
+
+        errmsg = "Open File List\n=============="
+        for f in ofList:
+            if f.protocol() is None:
+                extra = ""
+            else:
+                extra = " (%s)" % f.protocol()
+            errmsg += "\n%4.4s %6.6s %s%s" % \
+                      (f.fileDesc(), f.fileType(), f.name(), extra)
+
+        self.__log.error(errmsg)
 
     def breakRunset(self, runSet):
         hadError = False
@@ -817,6 +858,21 @@ class CnCServer(DAQPool):
                             self.__log.livePort(), verbose=verbose,
                             killWith9=killWith9, eventCheck=eventCheck)
 
+    def rpc_close_files(self, fdList):
+        savedEx = None
+        for fd in fdList:
+            try:
+                os.close(fd)
+                self.__log.error("Manually closed file #%s" % fd)
+            except Exception, ex:
+                if savedEx is None:
+                    savedEx = CnCServerException("Cannot close file #%s: %s" %
+                                                 (fd, exc_string()))
+
+        if savedEx is not None: raise savedEx
+
+        return 1
+
     def rpc_component_connector_info(self, idList=None, getAll=True):
         "list component connector information"
         compList = self.__getComponents(idList, getAll)
@@ -869,16 +925,33 @@ class CnCServer(DAQPool):
 
         return idDict
 
-    def rpc_component_list_beans(self, compId):
+    def rpc_component_list_beans(self, compId, includeRunsetComponents=False):
         for c in self.components():
             if c.id() == compId:
                 return c.getBeanNames()
+
+        if includeRunsetComponents:
+            for rsid in self.listRunsetIDs():
+                rs = self.findRunset(rsid)
+                for c in rs.components():
+                    if c.id() == compId:
+                        return c.getBeanNames()
+
         raise CnCServerException("Unknown component #%d" % compId)
 
-    def rpc_component_list_bean_fields(self, compId, bean):
+    def rpc_component_list_bean_fields(self, compId, bean,
+                                       includeRunsetComponents=False):
         for c in self.components():
             if c.id() == compId:
                 return c.getBeanFields(bean)
+
+        if includeRunsetComponents:
+            for rsid in self.listRunsetIDs():
+                rs = self.findRunset(rsid)
+                for c in rs.components():
+                    if c.id() == compId:
+                        return c.getBeanFields(bean)
+
         raise CnCServerException("Unknown component #%d" % compId)
 
     def rpc_component_list_dicts(self, idList=None, getAll=True):
@@ -969,6 +1042,20 @@ class CnCServer(DAQPool):
         tGroup.wait()
         tGroup.reportErrors(self.__log, "reset")
         return 1
+
+    def rpc_list_open_files(self):
+        "list open files"
+        ofList = self.__listCnCOpenFiles()
+
+        ofVals = []
+        for f in ofList:
+            if f.protocol() is None:
+                extra = ""
+            else:
+                extra = " (%s)" % f.protocol()
+            ofVals.append((f.fileDesc(), f.fileType(), f.name(), extra))
+
+        return ofVals
 
     def rpc_ping(self):
         "remote method for far end to confirm that server is still alive"
@@ -1217,6 +1304,7 @@ class CnCServer(DAQPool):
                              " increased from %d to %d" %
                              (self.__openFileCount, openCount))
             self.__openFileCount = openCount
+            self.__reportOpenFiles(runNum)
 
     def versionInfo(self):
         return self.__versionInfo
