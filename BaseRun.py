@@ -5,6 +5,8 @@
 import os, socket, subprocess, sys, threading, time
 
 from ClusterDescription import ClusterDescription
+from DAQConst import DAQPort
+from DAQRPC import RPCClient
 
 class RunException(Exception): pass
 
@@ -283,6 +285,8 @@ class BaseRun(object):
         self.__showCmd = showCmd
         self.__showCmdOutput = showCmdOutput
 
+        self.__cnc = None
+
         if dbType is not None:
             self.__dbType = dbType
         else:
@@ -290,7 +294,8 @@ class BaseRun(object):
 
         # check for needed executables
         #
-        self.__launchProg = self.findExecutable("Launch program", "DAQLaunch.py")
+        self.__launchProg = \
+                          self.findExecutable("Launch program", "DAQLaunch.py")
 
         self.__updateDBProg = \
             os.path.join(os.environ["HOME"], "offline-db-update",
@@ -352,6 +357,22 @@ class BaseRun(object):
                 return ret.rstrip('\r\n')
         except:
             return None
+
+    def cncConnection(self, abortOnFail=True):
+        if self.__cnc is None:
+            self.__cnc = RPCClient("localhost", DAQPort.CNCSERVER)
+            try:
+                self.__cnc.rpc_ping()
+            except socket.error, err:
+                if err[0] == 61 or err[0] == 111:
+                    self.__cnc = None
+                else:
+                    raise
+
+        if self.__cnc is None and abortOnFail:
+            raise RunException("Cannot connect to CnCServer")
+
+        return self.__cnc
 
     def getLastRunNumber(self):
         "Return the last run number"

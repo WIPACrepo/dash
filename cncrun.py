@@ -26,8 +26,6 @@
 import os, re, socket, subprocess, sys, time
 
 from BaseRun import BaseRun, RunException, StateException
-from DAQConst import DAQPort
-from DAQRPC import RPCClient
 from DefaultDomGeometry import XMLParser
 from RunOption import RunOption
 from RunSetState import RunSetState
@@ -118,30 +116,14 @@ class CnCRun(BaseRun):
         self.__showCmd = showCmd
         self.__showCmdOutput = showCmdOutput
 
-        self.__cnc = None
-        self.__reconnect(False)
+        super(CnCRun, self).__init__(showCmd, showCmdOutput, dbType)
 
         self.__runNumFile = \
             os.path.join(os.environ["HOME"], ".i3live-run")
 
-        super(CnCRun, self).__init__(showCmd, showCmdOutput, dbType)
-
         self.__runSetId = None
         self.__runCfg = None
         self.__runNum = None
-
-    def __reconnect(self, abortOnFail=True):
-        self.__cnc = RPCClient("localhost", DAQPort.CNCSERVER)
-        try:
-            self.__cnc.rpc_ping()
-        except socket.error, err:
-            if err[0] == 61 or err[0] == 111:
-                self.__cnc = None
-            else:
-                raise
-
-        if self.__cnc is None and abortOnFail:
-            raise RunException("Cannot connect to CnCServer")
 
     def __setLastRunNumber(self, runNum, subRunNum):
         "Set the last used run number"
@@ -183,7 +165,9 @@ class CnCRun(BaseRun):
 
         self.__status()
 
-        prevState = self.__cnc.rpc_runset_state(self.__runSetId)
+        cnc = self.cncConnection()
+
+        prevState = cnc.rpc_runset_state(self.__runSetId)
         curState = prevState
 
         if prevState != expState:
@@ -194,7 +178,7 @@ class CnCRun(BaseRun):
             if curState == RunSetState.UNKNOWN:
                 break
 
-            curState = self.__cnc.rpc_runset_state(self.__runSetId)
+            curState = cnc.rpc_runset_state(self.__runSetId)
             if curState != prevState:
                 swTime = int(time.time() - startTime)
                 print "  Switched from %s to %s in %s secs" % \
@@ -228,7 +212,9 @@ class CnCRun(BaseRun):
     def cleanUp(self):
         """Do final cleanup before exiting"""
         if self.__runSetId is not None:
-            self.__cnc.rpc_runset_break(self.__runSetId)
+            cnc = self.cncConnection()
+
+            cnc.rpc_runset_break(self.__runSetId)
             self.__runSetId = None
 
     def flash(self, tm, dataPath):
@@ -248,14 +234,17 @@ class CnCRun(BaseRun):
         runData = self.getLastRunNumber()
         subrun = runData[1] + 1
         self.__setLastRunNumber(runData[0], subrun)
-        self.__cnc.rpc_runset_subrun(self.__runSetId, subrun, data)
+
+        cnc = self.cncConnection()
+
+        cnc.rpc_runset_subrun(self.__runSetId, subrun, data)
 
         # XXX should be monitoring run state during this time
         time.sleep(tm)
 
         subrun += 1
         self.__setLastRunNumber(runData[0], subrun)
-        self.__cnc.rpc_runset_subrun(self.__runSetId, subrun, [])
+        cnc.rpc_runset_subrun(self.__runSetId, subrun, [])
 
     def getLastRunNumber(self):
         "Return the last run number"
@@ -279,40 +268,38 @@ class CnCRun(BaseRun):
         return self.__runNum
 
     def isDead(self, refreshState=False):
-        return self.__cnc is None
+        cnc = self.cncConnection(False)
+        return cnc is None
 
     def isRecovering(self, refreshState=False):
         return False
 
     def isRunning(self, refreshState=False):
-        if self.__cnc is None:
-            self.__reconnect(False)
+        cnc = self.cncConnection(False)
         if self.__runSetId is None:
             return False
         try:
-            state = self.__cnc.rpc_runset_state(self.__runSetId)
+            state = cnc.rpc_runset_state(self.__runSetId)
             return state == RunSetState.RUNNING
         except socket.error:
             return False
 
     def isStopped(self, refreshState=False):
-        if self.__cnc is None:
-            self.__reconnect(False)
-        if self.__cnc is None or self.__runSetId is None:
+        cnc = self.cncConnection(False)
+        if cnc is None or self.__runSetId is None:
             return True
         try:
-            state = self.__cnc.rpc_runset_state(self.__runSetId)
+            state = cnc.rpc_runset_state(self.__runSetId)
             return state == RunSetState.READY
         except socket.error:
             return False
 
     def isStopping(self, refreshState=False):
-        if self.__cnc is None:
-            self.__reconnect(False)
-        if self.__cnc is None or self.__runSetId is None:
+        cnc = self.cncConnection(False)
+        if cnc is None or self.__runSetId is None:
             return False
         try:
-            state = self.__cnc.rpc_runset_state(self.__runSetId)
+            state = cnc.rpc_runset_state(self.__runSetId)
             return state == RunSetState.STOPPING
         except socket.error:
             return False
@@ -340,17 +327,16 @@ class CnCRun(BaseRun):
 
         Return True if the run was started
         """
-        if self.__cnc is None:
-            self.__reconnect()
+        cnc = self.cncConnection()
 
         if self.__runSetId is not None and self.__runCfg is not None and \
                 self.__runCfg != runCfg:
             self.__runCfg = None
-            self.__cnc.rpc_runset_break(self.__runSetId)
+            cnc.rpc_runset_break(self.__runSetId)
             self.__runSetId = None
 
         if self.__runSetId is None:
-            runSetId = self.__cnc.rpc_runset_make(runCfg)
+            runSetId = cnc.rpc_runset_make(runCfg)
             if runSetId < 0:
                 raise RunException("Could not create runset for \"%s\"" %
                                    runCfg)
@@ -363,20 +349,18 @@ class CnCRun(BaseRun):
 
         runOptions = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
 
-        self.__cnc.rpc_runset_start_run(self.__runSetId, self.__runNum,
-                                        runOptions)
+        cnc.rpc_runset_start_run(self.__runSetId, self.__runNum, runOptions)
 
         return True
 
     def state(self):
-        if self.__cnc is None:
-            self.__reconnect(False)
-        if self.__cnc is None:
+        cnc = self.cncConnection(False)
+        if cnc is None:
             return "DEAD"
         if self.__runSetId is None:
             return "STOPPED"
         try:
-            state = self.__cnc.rpc_runset_state(self.__runSetId)
+            state = cnc.rpc_runset_state(self.__runSetId)
             return str(state).upper()
         except:
             return "ERROR"
@@ -386,15 +370,16 @@ class CnCRun(BaseRun):
         if self.__runSetId is None:
             raise RunException("No active run")
 
-        if self.__cnc is None:
-            self.__reconnect()
+        cnc = self.cncConnection()
 
-        self.__cnc.rpc_runset_stop_run(self.__runSetId)
+        cnc.rpc_runset_stop_run(self.__runSetId)
 
     def waitForStopped(self):
         """Wait for the current run to be stopped"""
+        cnc = self.cncConnection()
+
         try:
-            state = self.__cnc.rpc_runset_state(self.__runSetId)
+            state = cnc.rpc_runset_state(self.__runSetId)
         except:
             state = RunSetState.ERROR
 
