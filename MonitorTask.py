@@ -41,6 +41,9 @@ class MonitorThread(CnCThread):
         return None
 
     def _run(self):
+        if self.isClosed():
+            return
+
         if self.__reporter is None:
             # reload MBean info to pick up any dynamically created MBeans
             self.__comp.reloadBeanInfo()

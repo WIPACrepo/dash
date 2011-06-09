@@ -384,6 +384,9 @@ class WatchdogThread(CnCThread):
         return self.__comp.fullName()
 
     def _run(self):
+        if self.isClosed():
+            return
+
         if self.__data is None:
             try:
                 self.__data = self.__rule.createData(self.__comp,
