@@ -19,7 +19,7 @@ from RunStats import PayloadTime, RunStats
 from TaskManager import TaskManager
 from UniqueID import UniqueID
 from utils import ip
-from utils import DashXMLLog
+from utils.DashXMLLog import DashXMLLog, DashXMLLogException
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -793,6 +793,10 @@ class RunSet(object):
             self.__runData.error(msg)
             raise RunSetException(msg)
 
+    @classmethod
+    def __getRunDirectoryPath(cls, logDir, runNum):
+        return os.path.join(logDir, "daqrun%05d" % runNum)
+
     @staticmethod
     def __listComponentsCommaSep(compList, connDict=None):
         """
@@ -1105,7 +1109,7 @@ class RunSet(object):
     def __writeRunXML(self,numEvts, numMoni, numSN, numTcal, firstTime,
                       lastTime, duration, hadError):
 
-        xmlLog = DashXMLLog.DashXMLLog(dir_name=self.__runData.runDirectory())
+        xmlLog = DashXMLLog(dir_name=self.__runData.runDirectory())
 
         xmlLog.setRun(self.__runData.runNumber())
         xmlLog.setConfig(self.__runData.clusterConfigName())
@@ -1120,7 +1124,7 @@ class RunSet(object):
         # write the xml log file to disk
         try:
             xmlLog.writeLog()
-        except DashXMLLog.DashXMLLogException:
+        except DashXMLLogException:
             self.__logger.error("Could not write run xml log file \"%s\"" %
                                 xmlLog.getPath())
 
@@ -1254,7 +1258,7 @@ class RunSet(object):
             raise RunSetException("Log directory \"%s\" does not exist" %
                                   logDir)
 
-        runDir = os.path.join(logDir, "daqrun%05d" % runNum)
+        runDir = self.__getRunDirectoryPath(logDir, runNum)
         if not os.path.exists(runDir):
             os.makedirs(runDir)
         elif not backupExisting:
@@ -1334,6 +1338,14 @@ class RunSet(object):
             return
 
         self.__runData.queueForSpade(duration)
+
+    @classmethod
+    def getRunSummary(cls, logDir, runNum):
+        runDir = cls.__getRunDirectoryPath(logDir, runNum)
+        if not os.path.exists(runDir):
+            raise RunSetException("No run directory found for run %d" % runNum)
+
+        return DashXMLLog.parse(runDir)
 
     def reportRunStart(self, runNum, release, revision, started):
         if self.__runData is not None:
