@@ -32,7 +32,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 13100 2011-06-09 17:23:17Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 13103 2011-06-09 22:14:18Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -588,6 +588,7 @@ class CnCServer(DAQPool):
             self.__server.register_function(self.rpc_list_open_files)
             self.__server.register_function(self.rpc_ping)
             self.__server.register_function(self.rpc_register_component)
+            self.__server.register_function(self.rpc_run_summary)
             self.__server.register_function(self.rpc_runset_active)
             self.__server.register_function(self.rpc_runset_break)
             self.__server.register_function(self.rpc_runset_configname)
@@ -1067,7 +1068,27 @@ class CnCServer(DAQPool):
         return self.rpc_component_register(name, num, host, port, mbeanPort,
                                            connArray)
 
-        "register a component with the server"
+    def rpc_run_summary(self, runNum):
+        "Return run summary information (if available)"
+        rsum = RunSet.getRunSummary(self.__defaultLogDir, runNum)
+        if rsum.getTermCond() == True:
+            termCond = "FAILED"
+        elif rsum.getTermCond() == False:
+            termCond = "SUCCESS"
+        else:
+            termCond = "??%s??" % rsum.getTermCond()
+
+        return {"num" : rsum.getRun(),
+                "config" : rsum.getConfig(),
+                "result" : termCond,
+                "startTime" : str(rsum.getStartTime()),
+                "endTime" : str(rsum.getEndTime()),
+                "numEvents" : rsum.getEvents(),
+                "numMoni" : rsum.getMoni(),
+                "numTcal" : rsum.getTcal(),
+                "numSN" : rsum.getSN(),
+                }
+
     def rpc_runset_active(self):
         "return number of active (running) run sets"
         return self.numActiveSets()
