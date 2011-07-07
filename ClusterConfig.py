@@ -154,16 +154,20 @@ class ClusterConfigParser(XMLFileCache):
             name = node.getAttribute("name")
             if name:
                 if name == "default":
-                    fbJavaDict['jvm'] = \
-                        os.path.expanduser(cls.getElementSingleTagName(node, 'jvm'))
-                    fbJavaDict['jvmArgs'] = \
-                        cls.getElementSingleTagName(node, 'jvmArgs')
+                    jvm = cls.getElementSingleTagName(node, 'jvm')
+                    jvmArgs = cls.getElementSingleTagName(node, 'jvmArgs')
+                    if jvm is None:
+                        fbJavaDict['jvm'] = None
+                    else:
+                        fbJavaDict['jvm'] = os.path.expanduser(jvm)
+                    fbJavaDict['jvmArgs'] = jvmArgs
                 else:
                     defJavaDict[name] = {}
-                    defJavaDict[name]['jvm'] = \
-                        os.path.expanduser(cls.getElementSingleTagName(node, 'jvm'))
-                    defJavaDict[name]['jvmArgs'] = \
-                        cls.getElementSingleTagName(node, 'jvmArgs')
+                    if jvm is None:
+                        defJavaDict[name]['jvm'] = None
+                    else:
+                        defJavaDict[name]['jvm'] = os.path.expanduser(jvm)
+                    defJavaDict[name]['jvmArgs'] = jvmArgs
             else:
                 raise MalformedDeployConfigException(\
                     "Unnamed module found in cluster '%s' in cluster config "
@@ -264,12 +268,14 @@ class ClusterConfigParser(XMLFileCache):
         cluCfg = ClusterConfig(configName, remarks, clusterName)
 
         # Get location of SPADE output
-        logDirForSpade = os.path.expanduser(cls.getValue(cluster[0], "logDirForSpade"))
-        cluCfg.setLogDirForSpade(logDirForSpade)
+        val = cls.getValue(cluster[0], "logDirForSpade")
+        if val is not None:
+            cluCfg.setLogDirForSpade(os.path.expanduser(val))
 
         # Get location of SPADE/logs copies
-        logDirCopies = os.path.expanduser(cls.getValue(cluster[0], "logDirCopies"))
-        cluCfg.setLogDirCopies(logDirCopies)
+        val = cls.getValue(cluster[0], "logDirCopies")
+        if val is not None:
+            cluCfg.setLogDirCopies(os.path.expanduser(val))
 
         # Get default log level
         cluCfg.setDefaultLogLevel(cls.getValue(cluster[0], "defaultLogLevel",
