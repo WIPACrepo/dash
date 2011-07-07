@@ -257,9 +257,9 @@ class CnCRun(BaseRun):
                 m = re.search('(\d+)\s+(\d+)', line)
                 if m:
                     num =int(m.group(1))
-                    subrun = int(m.group(2))
+                    subnum = int(m.group(2))
 
-        return (num, subrun)
+        return (num, subnum)
 
     def getRunNumber(self):
         "Return the current run number"
