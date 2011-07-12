@@ -64,17 +64,19 @@ class MonitorThread(CnCThread):
                 attrs = self.__comp.getMultiBeanFields(b, flds)
                 self.__refused = 0
             except socket.error, se:
-                attrs = None
-                msg = None
+                sockStr = exc_string()
                 try:
                     msg = se[1]
                 except IndexError:
                     msg = None
+
                 if msg is not None and msg == "Connection refused":
                     self.__refused += 1
                     break
+
+                attrs = None
                 self.__dashlog.error("Ignoring %s:%s: %s" %
-                                     (str(self.__comp), b, exc_string()))
+                                     (str(self.__comp), b, sockStr))
             except:
                 attrs = None
                 self.__dashlog.error("Ignoring %s:%s: %s" %
