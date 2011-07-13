@@ -1322,7 +1322,7 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                             raise ProcessError("Unknown value \"%s\" for <%s>" %
                                                (val, gkid.nodeName))
 
-        if fwdIsolatedHits is None:
+        if strict and fwdIsolatedHits is None:
             raise ProcessError("No value specified for <%s>" %
                                topNode.nodeName)
 
