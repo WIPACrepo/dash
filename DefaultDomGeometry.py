@@ -22,6 +22,25 @@ class BadFileError(XMLError): pass
 class XMLParser(object):
 
     @staticmethod
+    def parseBooleanString(valstr):
+        "Return None if the value is not a valid boolean value"
+        if valstr is None:
+            return None
+
+        lstr = valstr.lower()
+        if lstr == "true" or lstr == "yes":
+            return True
+        if lstr == "false" or lstr == "no":
+            return False
+        try:
+            val = int(valstr)
+            return val == 0
+        except:
+            pass
+
+        return None
+
+    @staticmethod
     def getChildText(node):
         "Return the text from this node's child"
         nodeName = "<%s>" % str(node.nodeName)
@@ -55,6 +74,25 @@ class XMLParser(object):
 
         return text
 
+    @staticmethod
+    def getSingleAttribute(node, attrName, strict=True):
+        if node.attributes is None or len(node.attributes) == 0:
+            if strict:
+                raise ProcessError("<%s> node has no attributes" %
+                                   node.nodeName)
+            return None
+
+        if strict and len(node.attributes) != 1:
+            raise ProcessError(("<%s> node has extra" +
+                                " attributes") % node.nodeName)
+        if not node.attributes.has_key(attrName):
+            if strict:
+                raise ProcessError(("<%s> node has no \"%s\" attribute") %
+                                   (node.nodeName, attrName))
+
+            return None
+
+        return node.attributes[attrName].value
 
 class DomGeometryException(Exception): pass
 
