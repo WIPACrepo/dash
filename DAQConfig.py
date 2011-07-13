@@ -1602,7 +1602,7 @@ if __name__ == "__main__":
             print "%s/%s is ok." % (configDir, opt.toCheck)
             status = None
         except:
-            status = "%s/%s is not a valid config: %s [%s]" % \
+            status = "%s/%s is not a valid config: %s" % \
                      (configDir, opt.toCheck, exc_string())
         raise SystemExit(status)
 
