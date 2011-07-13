@@ -60,7 +60,8 @@ class XMLFileCache(object):
         try:
             data = cls.parse(dom, configDir, cfgName, strict)
         except XMLError, xe:
-            raise XMLFileParseError("%s: %s" % (fileName, str(xe)))
+            from exc_string import exc_string
+            raise XMLFileParseError("%s: %s" % (fileName, exc_string()))
         except KeyboardInterrupt:
             raise XMLFileParseError(("Couldn't parse \"%s\":" +
                                      " KeyboardInterrupt") % fileName)
