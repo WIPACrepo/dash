@@ -32,7 +32,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 13103 2011-06-09 22:14:18Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 13174 2011-07-13 19:12:03Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -211,7 +211,7 @@ class DAQPool(object):
         return ids
 
     def makeRunset(self, runConfigDir, runConfigName, runNum, timeout, logger,
-                   forceRestart=True, strict=True):
+                   forceRestart=True, strict=False
         "Build a runset from the specified run configuration"
         logger.info("Loading run configuration \"%s\"" % runConfigName)
         runConfig = DAQConfigParser.load(runConfigName, runConfigDir, strict)
@@ -791,7 +791,7 @@ class CnCServer(DAQPool):
         return (self.__versionInfo["release"], self.__versionInfo["revision"])
 
     def makeRunsetFromRunConfig(self, runConfig, runNum,
-                                timeout=REGISTRATION_TIMEOUT, strict=True):
+                                timeout=REGISTRATION_TIMEOUT, strict=False):
         try:
             runSet = self.makeRunset(self.__runConfigDir, runConfig, runNum,
                                      timeout, self.__log,
@@ -1159,7 +1159,7 @@ class CnCServer(DAQPool):
 
         return self.__listComponentDicts(runSet.components())
 
-    def rpc_runset_make(self, runConfig, runNum=None, strict=True,
+    def rpc_runset_make(self, runConfig, runNum=None, strict=False,
                         timeout=REGISTRATION_TIMEOUT):
         "build a runset from the specified run configuration"
         if self.__runConfigDir is None:
