@@ -340,7 +340,7 @@ class DomConfigParser(XMLParser, XMLFileCache):
         return cls.DEFAULT_DOM_GEOMETRY.getDomIdToDomDict()
 
     @classmethod
-    def __parseChargeHistogram(cls, dom, node):
+    def __parseChargeHistogram(cls, dom, node, strict=False):
         interval = None
         prescale = None
 
@@ -354,7 +354,7 @@ class DomConfigParser(XMLParser, XMLFileCache):
                     interval = int(cls.getChildText(kid))
                 elif kid.nodeName == "prescale":
                     prescale = int(cls.getChildText(kid))
-                else:
+                elif strict:
                     raise ProcessError(("Unknown %s <%s> child <%s>") %
                                        (dom, node.nodeName, kid.nodeName))
 
@@ -365,12 +365,12 @@ class DomConfigParser(XMLParser, XMLFileCache):
         return (interval, prescale)
 
     @classmethod
-    def __parseChargeStamp(cls, dom, node):
+    def __parseChargeStamp(cls, dom, node, strict=False):
         if node.attributes is None or \
                len(node.attributes) == 0:
             raise ProcessError("%s <%s> node has no attributes" %
                                (dom, node.nodeName))
-        if len(node.attributes) > 2:
+        if strict and len(node.attributes) > 2:
             raise ProcessError("%s <%s> node has extra attributes" %
                                (dom, node.nodeName))
         if not node.attributes.has_key("type"):
@@ -385,7 +385,7 @@ class DomConfigParser(XMLParser, XMLFileCache):
                 node.attributes["channel"].value)
 
     @classmethod
-    def __parseDomData(cls, dom, node):
+    def __parseDomData(cls, dom, node, strict=False):
         for kid in node.childNodes:
             if kid.nodeType == Node.TEXT_NODE or \
                    kid.nodeType == Node.COMMENT_NODE:
@@ -393,21 +393,21 @@ class DomConfigParser(XMLParser, XMLFileCache):
 
             if kid.nodeType == Node.ELEMENT_NODE:
                 if kid.nodeName == "format":
-                    cls.__setDomFormat(dom, kid)
+                    cls.__setDomFormat(dom, kid, strict)
                     continue
 
                 if kid.nodeName == "chargeHistogram":
-                    chgHist = cls.__parseChargeHistogram(dom, kid)
+                    chgHist = cls.__parseChargeHistogram(dom, kid, strict)
                     dom.setChargeHistogram(chgHist)
                     continue
 
                 if kid.nodeName == "chargeStamp":
-                    chgStamp = cls.__parseChargeStamp(dom, kid)
+                    chgStamp = cls.__parseChargeStamp(dom, kid, strict)
                     dom.setChargeStamp(chgStamp)
                     continue
 
                 if kid.nodeName == "localCoincidence":
-                    lc = cls.__parseLocalCoincidence(dom, kid)
+                    lc = cls.__parseLocalCoincidence(dom, kid, strict)
                     dom.setLocalCoincidence(lc)
                     continue
 
@@ -416,12 +416,12 @@ class DomConfigParser(XMLParser, XMLFileCache):
                     continue
 
                 if kid.nodeName == "supernovaMode":
-                    mode = cls.__parseSupernovaMode(dom, kid)
+                    mode = cls.__parseSupernovaMode(dom, kid, strict)
                     dom.setSupernovaMode(mode)
                     continue
 
                 if kid.nodeName == "simulation":
-                    sim = cls.__parseSimulation(dom, kid)
+                    sim = cls.__parseSimulation(dom, kid, strict)
                     dom.setSimulation(sim)
                     continue
 
@@ -432,7 +432,7 @@ class DomConfigParser(XMLParser, XMLFileCache):
                 dom.addAttribute(kid.nodeName, cls.getChildText(kid))
 
     @classmethod
-    def __parseLocalCoincidence(cls, dom, node):
+    def __parseLocalCoincidence(cls, dom, node, strict=False):
         lc = LocalCoincidence()
 
         for kid in node.childNodes:
@@ -444,7 +444,7 @@ class DomConfigParser(XMLParser, XMLFileCache):
                 if kid.nodeName == "cableLength":
                     if kid.attributes is None or \
                            len(kid.attributes) == 0:
-                        raise ProcessError("%s %s <%s> node has attributes" %
+                        raise ProcessError("%s %s <%s> node has no attributes" %
                                            (dom, node.nodeName, kid.nodeName))
                     if not kid.attributes.has_key("dir"):
                         raise ProcessError(("%s %s <%s> node is missing" +
@@ -472,7 +472,7 @@ class DomConfigParser(XMLParser, XMLFileCache):
                     lc.addCableLength(dirUp, dist, cableLen)
                     continue
 
-                if kid.attributes is not None and \
+                if strict and kid.attributes is not None and \
                        len(kid.attributes) > 0:
                     raise ProcessError("%s %s <%s> node has attributes" %
                                        (dom, node.nodeName, kid.nodeName))
@@ -481,7 +481,7 @@ class DomConfigParser(XMLParser, XMLFileCache):
         return lc
 
     @classmethod
-    def __parseSimulation(cls, dom, node):
+    def __parseSimulation(cls, dom, node, strict=False):
         sim = KeyValuePairs("simulation")
 
         for kid in node.childNodes:
@@ -490,7 +490,7 @@ class DomConfigParser(XMLParser, XMLFileCache):
                 continue
 
             if kid.nodeType == Node.ELEMENT_NODE:
-                if kid.attributes is not None and \
+                if strict and kid.attributes is not None and \
                        len(kid.attributes) > 0:
                     raise ProcessError("%s <%s> node has attributes" %
                                        (dom, kid.nodeName))
@@ -499,22 +499,10 @@ class DomConfigParser(XMLParser, XMLFileCache):
         return sim
 
     @classmethod
-    def __parseSupernovaMode(cls, dom, node):
-        if node.attributes is None or \
-               len(node.attributes) == 0:
-            raise ProcessError("%s <%s> node has no attributes" %
-                               (dom, node.nodeName))
-        attrName = "enabled"
-        if not node.attributes.has_key(attrName):
-            raise ProcessError("%s <%s> node should have \"%s\" attribute" %
-                               (dom, node.nodeName, attrName))
-
-        eStr = node.attributes[attrName].value.lower()
-        if eStr == "true":
-            enabled = True
-        elif eStr == "false":
-            enabled = False
-        else:
+    def __parseSupernovaMode(cls, dom, node, strict=False):
+        eStr = cls.getSingleAttribute(node, "enabled", strict)
+        enabled = cls.parseBooleanString(eStr)
+        if enabled is None:
             raise ProcessError(("Bad value \"%s\" for %s <%s> \"%s\"" +
                                 " attribute") %
                                (eStr, dom, node.nodeName, attrName))
@@ -532,7 +520,7 @@ class DomConfigParser(XMLParser, XMLFileCache):
                     deadtime = int(cls.getChildText(kid))
                 elif kid.nodeName == "disc":
                     disc = cls.getChildText(kid).strip()
-                else:
+                elif strict:
                     raise ProcessError(("Unknown %s <%s> child <%s>") %
                                        (dom, node.nodeName, kid.nodeName))
 
@@ -543,7 +531,7 @@ class DomConfigParser(XMLParser, XMLFileCache):
         return (enabled, deadtime, disc)
 
     @classmethod
-    def __setDomFormat(cls, dom, node):
+    def __setDomFormat(cls, dom, node, strict=False):
         for kid in node.childNodes:
             if kid.nodeType == Node.TEXT_NODE or \
                    kid.nodeType == Node.COMMENT_NODE:
@@ -554,11 +542,11 @@ class DomConfigParser(XMLParser, XMLFileCache):
                     dom.setDeltaCompressed()
                 elif kid.nodeName == "engineeringFormat":
                     dom.setEngineeringFormat()
-                else:
+                elif strict:
                     print >>sys.stderr, "Unknown format <%s>" % kid.nodeName
 
     @classmethod
-    def parse(cls, dom, configDir, baseName, strict):
+    def parse(cls, dom, configDir, baseName, strict=False):
         dcListList = dom.getElementsByTagName("domConfigList")
         if dcListList is None or len(dcListList) == 0:
             raise ProcessError("No <domConfigList> tag found in %s" % baseName)
@@ -578,30 +566,21 @@ class DomConfigParser(XMLParser, XMLFileCache):
 
             if kid.nodeType == Node.ELEMENT_NODE:
                 if kid.nodeName == "domConfig":
-                    if kid.attributes is None or len(kid.attributes) == 0:
-                        raise ProcessError("<%s> node has no attributes" %
-                                           kid.nodeName)
-                    if not kid.attributes.has_key("mbid"):
-                        raise ProcessError(("<%s> node should have \"mbid\"" +
-                                            " attribute") % kid.nodeName)
-
-                    domId = kid.attributes["mbid"].value
+                    domId = cls.getSingleAttribute(kid, "mbid", strict)
                     if not domIdToDom.has_key(domId):
                         raise ProcessError("Unknown DOM #%d ID %s" %
                                            (domNum, domId))
 
                     domGeom = domIdToDom[domId]
 
-                    #name = kid.attributes["name"].value
-
                     dom = RunDom(long(domId, 16), domGeom.string(),
                                  domGeom.pos(), domGeom.name(), domCfg)
                     if cls.PARSE_DOM_DATA:
-                        cls.__parseDomData(dom, kid)
+                        cls.__parseDomData(dom, kid, strict)
                     domCfg.addDom(dom)
 
                     domNum += 1
-                else:
+                elif strict:
                     raise ProcessError("Unexpected %s child <%s>" %
                                        (dcList.nodeName, kid.nodeName))
                 continue
@@ -735,7 +714,7 @@ class DomConfig(object):
         return self.__stringMap.keys()
 
     @classmethod
-    def omitHubNumber(cls): 
+    def omitHubNumber(cls):
         cls.OMIT_HUB_NUMBER = True
 
     def isCommentedOut(self):
@@ -958,7 +937,7 @@ class DAQConfig(object):
         objs.sort()
         return objs
 
-    def configFile(self): 
+    def configFile(self):
         return self.__fileName
 
     @classmethod
@@ -987,7 +966,7 @@ class DAQConfig(object):
                 break
         return deleted
 
-    def filename(self): 
+    def filename(self):
         return self.__fileName
 
     def getAllDOMs(self):
@@ -1038,7 +1017,7 @@ class DAQConfig(object):
 
         return False
 
-    def monitorPeriod(self): 
+    def monitorPeriod(self):
         return self.__monitorPeriod
 
     def omit(self, hubIdList):
@@ -1263,7 +1242,7 @@ class DAQConfigParser(XMLParser, XMLFileCache):
         raise Exception("Cannot create this object")
 
     @staticmethod
-    def __parseHubFiles(topNode, runCfg):
+    def __parseHubFiles(topNode, runCfg, strict=False):
         hubNodeNum = 0
         for kid in topNode.childNodes:
             if kid.nodeType == Node.TEXT_NODE:
@@ -1291,27 +1270,24 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                                            (idStr, kid.nodeName, hubNodeNum))
 
                     runCfg.addReplayHub(id, kid.attributes["hitFile"].value)
-                else:
+                elif strict:
                     raise ProcessError("Unexpected %s child <%s>" %
                                        (topNode.nodeName, kid.nodeName))
-    
+
 
     @classmethod
-    def __parseSenderOption(cls, topNode, runCfg):
-        if topNode.attributes is None or len(topNode.attributes) == 0:
-            raise ProcessError("<%s> node has no attributes" %
+    def __parseSenderOption(cls, topNode, runCfg, strict=False):
+        val = cls.getSingleAttribute(topNode, "hubId", strict)
+        if val is None:
+            raise ProcessError(("<%s> node has no \"hubId\" attribute") %
                                topNode.nodeName)
-        if len(topNode.attributes) != 1:
-            raise ProcessError("<%s> node has extra attributes" %
-                               topNode.nodeName)
-        attrName = "hubId"
-        if not topNode.attributes.has_key(attrName):
-            raise ProcessError(("<%s> node should have \"%s\"" +
-                                " attribute, not \"%s\"") %
-                               (topNode.nodeName, attrName,
-                                topNode.attributes.keys()[0]))
 
-        hubId = int(topNode.attributes[attrName].value)
+        try:
+            hubId = int(val)
+        except:
+            raise ProcessError("Bad <%s> \"hubId\" value \"%s\"" %
+                               (topNode.nodeName, val))
+
         fwdIsolatedHits = None
 
         for kid in topNode.childNodes:
@@ -1321,8 +1297,10 @@ class DAQConfigParser(XMLParser, XMLFileCache):
 
             if kid.nodeType == Node.ELEMENT_NODE:
                 if kid.nodeName != "sender":
-                    raise ProcessError("Unknown <%s> node under <%s>" %
-                                       (kid.nodeName, topNode.nodeName))
+                    if strict:
+                        raise ProcessError("Unknown <%s> node under <%s>" %
+                                           (kid.nodeName, topNode.nodeName))
+                    continue
 
                 for gkid in kid.childNodes:
                     if gkid.nodeType == Node.TEXT_NODE or \
@@ -1331,18 +1309,18 @@ class DAQConfigParser(XMLParser, XMLFileCache):
 
                     if gkid.nodeType == Node.ELEMENT_NODE:
                         if gkid.nodeName != "forwardIsolatedHitsToTrigger":
-                            raise ProcessError("Unknown <%s> node under <%s>" %
-                                               (gkid.nodeName, kid.nodeName))
+                            if strict:
+                                raise ProcessError(("Unknown <%s> node under" +
+                                                    " <%s>") %
+                                                   (gkid.nodeName,
+                                                    kid.nodeName))
+                            continue
 
-                        val = cls.getChildText(gkid).strip().lower()
-                        if val == "true":
-                            fwdIsolatedHits = True
-                        elif val == "false":
-                            fwdIsolatedHits = False
-                        else:
-                            msg = "Unknown value \"%s\" for <%s>" % \
-                                  (val, gkid.nodeName)
-                            raise ProcessError(msg)
+                        val = cls.getChildText(gkid).strip()
+                        fwdIsolatedHits = cls.parseBooleanString(val)
+                        if fwdIsolatedHits is None:
+                            raise ProcessError("Unknown value \"%s\" for <%s>" %
+                                               (val, gkid.nodeName))
 
         if fwdIsolatedHits is None:
             raise ProcessError("No value specified for <%s>" %
@@ -1385,9 +1363,9 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                                topNode.nodeName)
 
         runCfg.setStrayStream(name, prescale)
-    
+
     @staticmethod
-    def __parseTriggerConfig(configDir, baseName):
+    def __parseTriggerConfig(configDir, baseName, strict=False):
         """Parse a trigger configuration file and return nothing"""
         fileName = os.path.join(configDir, "trigger", baseName)
         if not fileName.endswith(".xml"):
@@ -1405,7 +1383,7 @@ class DAQConfigParser(XMLParser, XMLFileCache):
     @classmethod
     def getClusterConfiguration(cls, configName, doList=False,
                                 useActiveConfig=False, clusterDesc=None,
-                                configDir=None):
+                                configDir=None, strict=False):
         """
         Find and parse the cluster configuration from either the
         run configuration directory or from the old cluster configuration
@@ -1439,7 +1417,7 @@ class DAQConfigParser(XMLParser, XMLFileCache):
             cls.PARSE_DOM_CONFIG = False
             try:
                 try:
-                    runCfg = cls.load(configName, configDir)
+                    runCfg = cls.load(configName, configDir, strict)
                 except XMLFileNotFound:
                     raise xfnf
             finally:
@@ -1449,7 +1427,7 @@ class DAQConfigParser(XMLParser, XMLFileCache):
         return cfg
 
     @classmethod
-    def parse(cls, dom, configDir, fileName, strict=True):
+    def parse(cls, dom, configDir, fileName, strict=False):
         """Parse a run configuration file and return a DAQConfig object"""
         topComment = None
         rcNode = None
@@ -1491,7 +1469,7 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                     if kid.attributes is None or len(kid.attributes) == 0:
                         hub = None
                     else:
-                        if len(kid.attributes) != 1:
+                        if strict and len(kid.attributes) != 1:
                             raise ProcessError(("<%s> node has extra" +
                                                 " attributes") % kid.nodeName)
                         attrName = "hub"
@@ -1519,7 +1497,7 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                     if kid.attributes is None or len(kid.attributes) == 0:
                         raise ProcessError("<%s> node has no attributes" %
                                            kid.nodeName)
-                    if len(kid.attributes) != 1:
+                    if strict and len(kid.attributes) != 1:
                         raise ProcessError("<%s> node has extra attributes" %
                                            kid.nodeName)
                     attrName = "baseDir"
@@ -1531,50 +1509,45 @@ class DAQConfigParser(XMLParser, XMLFileCache):
 
                     runCfg.setReplayBaseDir(kid.attributes[attrName].value)
 
-                    cls.__parseHubFiles(kid, runCfg)
+                    cls.__parseHubFiles(kid, runCfg, strict)
                 elif kid.nodeName == "stringHub":
-                    cls.__parseSenderOption(kid, runCfg)
+                    cls.__parseSenderOption(kid, runCfg, strict)
                 elif kid.nodeName == "runComponent":
-                    if kid.attributes is None or len(kid.attributes) == 0:
-                        raise ProcessError("<%s> node has no attributes" %
-                                           kid.nodeName)
-                    if len(kid.attributes) != 1:
-                        raise ProcessError("<%s> node has extra attributes" %
-                                           kid.nodeName)
-                    if not kid.attributes.has_key("name"):
-                        raise ProcessError(("<%s> node should have \"name\"" +
-                                            " attribute, not \"%s\"") %
-                                           (kid.nodeName,
-                                            kid.attributes.keys()[0]))
-
-                    runCfg.addComponent(kid.attributes["name"].value, strict)
+                    val = cls.getSingleAttribute(kid, "name", strict)
+                    if val is not None:
+                        runCfg.addComponent(kid.attributes["name"].value,
+                                            strict)
                 elif kid.nodeName == "watchdog":
-                    valStr = kid.attributes["period"].value
-                    try:
-                        period = int(valStr)
-                    except:
-                        raise ProcessError(("<%s> node has invalid" +
-                                            " \"period\" value \"%s\"") %
-                                           (kid.nodeName, valStr))
-                    runCfg.setWatchdogPeriod(period)
+                    valStr = cls.getSingleAttribute(kid, "period", strict)
+                    if valStr is not None:
+                        valStr = kid.attributes["period"].value
+                        try:
+                            period = int(valStr)
+                        except:
+                            raise ProcessError(("<%s> node has invalid" +
+                                                " \"period\" value \"%s\"") %
+                                               (kid.nodeName, valStr))
+                        runCfg.setWatchdogPeriod(period)
                 elif kid.nodeName == "monitor":
-                    valStr = kid.attributes["period"].value
-                    try:
-                        period = int(valStr)
-                    except:
-                        raise ProcessError(("<%s> node has invalid" +
-                                            " \"period\" value \"%s\"") %
-                                           (kid.nodeName, valStr))
-                    runCfg.setMonitorPeriod(period)
+                    valStr = cls.getSingleAttribute(kid, "period", strict)
+                    if valStr is not None:
+                        valStr = kid.attributes["period"].value
+                        try:
+                            period = int(valStr)
+                        except:
+                            raise ProcessError(("<%s> node has invalid" +
+                                                " \"period\" value \"%s\"") %
+                                               (kid.nodeName, valStr))
+                        runCfg.setMonitorPeriod(period)
                 elif kid.nodeName == "defaultLogLevel":
                     pass
-                elif kid.nodeName == "stream":
+                elif not strict and kid.nodeName == "stream":
                     if cls.STRAY_STREAM_HACK:
                         cls.__parseStrayStream(kid, runCfg)
                     else:
                         print >>sys.stderr, "Ignoring stray <stream> in %s" % \
                               fileName
-                else:
+                elif strict:
                     raise ProcessError("Unknown runConfig node <%s> in %s" %
                                        (kid.nodeName, fileName))
                 continue
@@ -1590,16 +1563,23 @@ class DAQConfigParser(XMLParser, XMLFileCache):
 
 if __name__ == "__main__":
     import datetime, optparse
+    from exc_string import exc_string
 
     p = optparse.OptionParser()
     p.add_option("-c", "--check-config", type="string", dest="toCheck",
                  action="store", default=None,
                  help="Check whether configuration is valid")
+    p.add_option("-D", "--parse-dom-data", dest="parseDomData",
+                 action="store_true", default=False,
+                 help="Parse DOM configuration files")
     p.add_option("-S", "--not-strict", dest="strict",
                  action="store_false", default=True,
                  help="Do not perform strict checking")
     p.add_option("-m", "--no-host-check", dest="nohostcheck", default=False,
                  help="Disable checking the host type for run permission")
+    p.add_option("-x", "--extended-tests", dest="extended",
+                 action="store_true", default=False,
+                 help="Do extended testing")
     opt, args = p.parse_args()
 
     if not opt.nohostcheck:
@@ -1611,18 +1591,19 @@ if __name__ == "__main__":
             print >>sys.stderr, "Are you sure you are running DAQConfig on the correct host?"
             raise SystemExit
 
-
     configDir  = os.path.join(metaDir, "config")
+
+    if opt.parseDomData:
+        DomConfigParser.parseAllDomData()
 
     if opt.toCheck:
         try:
             DAQConfigParser.load(opt.toCheck, configDir, opt.strict)
             print "%s/%s is ok." % (configDir, opt.toCheck)
             status = None
-        except Exception, e:
-            from exc_string import exc_string
+        except:
             status = "%s/%s is not a valid config: %s [%s]" % \
-                     (configDir, opt.toCheck, e, exc_string())
+                     (configDir, opt.toCheck, exc_string())
         raise SystemExit(status)
 
     # Code for testing:
@@ -1630,21 +1611,31 @@ if __name__ == "__main__":
         args.append("sim5str")
 
     for configName in args:
-        print '-----------------------------------------------------------'
-        print "Config %s" % configName
+        if opt.extended:
+            print '-----------------------------------------------------------'
+            print "Config %s" % configName
         startTime = datetime.datetime.now()
-        dc = DAQConfigParser.load(configName, configDir, opt.strict)
-        diff = datetime.datetime.now() - startTime
-        initTime = float(diff.seconds) + (float(diff.microseconds) / 1000000.0)
+        try:
+            dc = DAQConfigParser.load(configName, configDir, opt.strict)
+        except:
+            print "Could not parse \"%s\": %s" % (configName, exc_string())
+            continue
 
-        comps = dc.components()
-        comps.sort()
-        for comp in comps:
-            print 'Comp %s log %s' % (str(comp), str(comp.logLevel()))
+        if not opt.extended:
+            print "%s is ok" % configName
+        else:
+            diff = datetime.datetime.now() - startTime
+            initTime = float(diff.seconds) + \
+                       (float(diff.microseconds) / 1000000.0)
+            comps = dc.components()
+            comps.sort()
+            for comp in comps:
+                print 'Comp %s log %s' % (str(comp), str(comp.logLevel()))
 
-        startTime = datetime.datetime.now()
-        dc = DAQConfigParser.load(configName, configDir)
-        diff = datetime.datetime.now() - startTime
-        nextTime = float(diff.seconds) + (float(diff.microseconds) / 1000000.0)
-        print "Initial time %.03f, subsequent time: %.03f" % \
-            (initTime, nextTime)
+            startTime = datetime.datetime.now()
+            dc = DAQConfigParser.load(configName, configDir, opt.strict)
+            diff = datetime.datetime.now() - startTime
+            nextTime = float(diff.seconds) + \
+                       (float(diff.microseconds) / 1000000.0)
+            print "Initial time %.03f, subsequent time: %.03f" % \
+                  (initTime, nextTime)
