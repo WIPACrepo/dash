@@ -671,6 +671,8 @@ class MockComponent(object):
         rtnMap = {}
         for f in fieldList:
             rtnMap[f] = self.getSingleBeanField(beanName, f)
+            if isinstance(rtnMap[f], Exception):
+                raise rtnMap[f]
         return rtnMap
 
     def getNonstoppedConnectorsString(self):
@@ -737,6 +739,13 @@ class MockComponent(object):
 
     def setBadHub(self):
         self.__isBadHub = True
+
+    def setBeanData(self, beanName, fieldName, value):
+        if not self.checkBeanField(beanName, fieldName):
+            raise Exception("%c bean %s field %s has not been added" %
+                            (self, beanName, fieldName))
+
+        self.__beanData[beanName][fieldName] = value
 
     def setConfigureWait(self, waitNum):
         self.__configWait = waitNum
