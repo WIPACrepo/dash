@@ -29,6 +29,9 @@ class RateTaskTest(unittest.TestCase):
 
         tsk = RateTask(taskMgr, runset, logger)
 
+        logger.addExpectedRegexp(r"\t\d+ physics events \(\d+\.\d+ Hz\), \d+ moni" +
+                                 r" events, \d+ SN events, \d+ tcals")
+
         timer.trigger()
         left = tsk.check()
         self.assertEqual(timer.waitSecs(), left,
