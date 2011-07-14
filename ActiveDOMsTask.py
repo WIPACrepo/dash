@@ -11,6 +11,8 @@ set_exc_string_encoding("ascii")
 
 class ActiveDOMThread(CnCThread):
     "A thread which reports the active DOM counts"
+    PREV_ACTIVE = {}
+
     def __init__(self, runset, dashlog, liveMoni, sendDetails):
         self.__runset = runset
         self.__dashlog = dashlog
@@ -29,44 +31,51 @@ class ActiveDOMThread(CnCThread):
 
         lbm_Overflows_Dict = {}
 
+        KEY_ACT_TOT = "NumberOfActiveAndTotalChannels"
+        KEY_LBM_OVER = "TotalLBMOverflows"
+
         for c in self.__runset.components():
-            if c.isSource():
+            if not c.isSource():
+                continue
 
-                # collect the number of active and total channels
-                try:
-                    beanData = c.getMultiBeanFields(
-                        "stringhub",
-                        [ "NumberOfActiveAndTotalChannels",
-                          "TotalLBMOverflows" ])
+            # the number of active and total channels and the LBM overflows
+            # are returned as a dictionary of values
+            #
+            try:
+                beanData = c.getMultiBeanFields("stringhub", [ KEY_ACT_TOT,
+                                                               KEY_LBM_OVER ])
+            except Exception:
+                self.__dashlog.error(
+                    "Cannot get ActiveDomsTask bean data from %s: %s" %
+                    (c.fullName(), exc_string()))
+                if not self.PREV_ACTIVE.has_key(c.num()): continue
+                beanData = self.PREV_ACTIVE[c.num()]
 
-                except Exception:
-                    self.__dashlog.error(
-                        "Cannot get ActiveDomsTask bean data from %s: %s" %
-                        (c.fullName(), exc_string()))
-                    continue
+            try:
+                hub_active_doms, hub_total_doms = \
+                                 [ int(a) for a in beanData[KEY_ACT_TOT] ]
+            except:
+                self.__dashlog.error("Cannot get # active DOMS from" +
+                                     " %s string: %s" %
+                                     (c.fullName(), exc_string()))
+                continue
 
+            active_total += hub_active_doms
+            total += hub_total_doms
 
-                # okay, so we are assuming a little about what
-                # comes out of getMultiBeanFields it looks given
-                # the code in MonitorTasks that it's a dictionary
+            lbm_Overflows = beanData[KEY_LBM_OVER]
 
-                activeDoms = beanData["NumberOfActiveAndTotalChannels"]
-                try:
-                    hub_active_doms, hub_total_doms = \
-                                     [ int(a) for a in activeDoms ]
-                except:
-                    self.__dashlog.error("Cannot get # active DOMS from" +
-                                         " %s string: %s" %
-                                         (c.fullName(), exc_string()))
-                    continue
+            lbm_Overflows_Dict[str(c.num())] = lbm_Overflows
 
-                active_total += hub_active_doms
-                total += hub_total_doms
+            if self.__sendDetails:
+                hub_DOMs[str(c.num())] = (hub_active_doms, hub_total_doms)
 
-                lbm_Overflows_Dict[str(c.num())] = beanData["TotalLBMOverflows"]
-
-                if self.__sendDetails:
-                    hub_DOMs[str(c.num())] = (hub_active_doms, hub_total_doms)
+            # cache current results
+            #
+            self.PREV_ACTIVE[c.num()] = {
+                KEY_ACT_TOT : (hub_active_doms, hub_total_doms),
+                KEY_LBM_OVER : lbm_Overflows,
+                }
 
         if not self.isClosed():
             self.__liveMoniClient.sendMoni("activeDOMs", active_total,

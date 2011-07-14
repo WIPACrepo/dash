@@ -119,5 +119,71 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
         tsk.close()
 
+    def testFail(self):
+        rptTimer = MockIntervalTimer("ActiveReport")
+        domTimer = MockIntervalTimer("ActiveDOM")
+
+        taskMgr = MockTaskManager()
+        taskMgr.addIntervalTimer(rptTimer)
+        taskMgr.addIntervalTimer(domTimer)
+
+        numActive = 12
+        numTotal = 20
+        numLBM = 2
+
+        foo = MockComponent("fooHub", 1)
+        foo.addBeanData("stringhub", "NumberOfActiveAndTotalChannels",
+                        (numActive, numTotal))
+        foo.addBeanData("stringhub", "TotalLBMOverflows", numLBM)
+
+        runset = MockRunSet([foo, ])
+
+        logger = MockLogger("logger")
+        live = MockLiveMoni()
+
+        tsk = ActiveDOMsTask(taskMgr, runset, logger, live)
+
+        live.addExpected("activeDOMs", numActive,  Prio.ITS)
+        live.addExpected("expectedDOMs", numTotal,  Prio.ITS)
+
+        domTimer.trigger()
+        left = tsk.check()
+        self.assertEqual(rptTimer.waitSecs(), left,
+                         "Expected %d seconds, not %d" %
+                         (rptTimer.waitSecs(), left))
+
+        tsk.waitUntilFinished()
+
+        logger.checkStatus(4)
+        live.hasAllMoni()
+
+        live.addExpected("stringDOMsInfo", {'1' : (numActive, numTotal)},
+                         Prio.EMAIL)
+        live.addExpected("LBMOverflows", {'1' : numLBM},
+                         Prio.ITS)
+
+        foo.setBeanData("stringhub", "NumberOfActiveAndTotalChannels",
+                        Exception("Simulated error"))
+
+        errMsg = "Cannot get ActiveDomsTask bean data from %s: .*" % \
+                 foo.fullName()
+        logger.addExpectedRegexp(errMsg)
+
+        live.addExpected("activeDOMs", numActive,  Prio.ITS)
+        live.addExpected("expectedDOMs", numTotal,  Prio.ITS)
+
+        domTimer.trigger()
+        left = tsk.check()
+        self.assertEqual(rptTimer.waitSecs(), left,
+                         "Expected %d seconds, not %d" %
+                         (rptTimer.waitSecs(), left))
+
+        tsk.waitUntilFinished()
+
+        logger.checkStatus(4)
+        live.hasAllMoni()
+
+        tsk.close()
+
 if __name__ == '__main__':
     unittest.main()
