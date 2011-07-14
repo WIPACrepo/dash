@@ -51,6 +51,7 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         tsk.waitUntilFinished()
 
         logger.checkStatus(4)
+        live.hasAllMoni()
 
         live.addExpected("stringDOMsInfo", {'1' : (numActive, numTotal)},
                          Prio.EMAIL)
@@ -66,6 +67,7 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         tsk.waitUntilFinished()
 
         logger.checkStatus(4)
+        live.hasAllMoni()
 
         tsk.close()
 
