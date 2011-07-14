@@ -13,6 +13,11 @@ class RateCalcEntry(object):
     def __repr__(self):
         return "RateCalcEntry[%s -> %s]" % (str(self.time), str(self.n))
     def __str__(self): return "%s: %s" % (self.time, self.n)
+    def __cmp__(self, other):
+        val = cmp(self.time, other.time)
+        if val == 0:
+            val = cmp(self.n, other.n)
+        return val
 
 def dt(t0, t1): # Calculate absolute time delta in seconds from datetime objects
     d = t1-t0
