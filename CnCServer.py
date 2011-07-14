@@ -32,7 +32,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 13174 2011-07-13 19:12:03Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 13181 2011-07-14 04:06:35Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -211,7 +211,7 @@ class DAQPool(object):
         return ids
 
     def makeRunset(self, runConfigDir, runConfigName, runNum, timeout, logger,
-                   forceRestart=True, strict=False
+                   forceRestart=True, strict=False):
         "Build a runset from the specified run configuration"
         logger.info("Loading run configuration \"%s\"" % runConfigName)
         runConfig = DAQConfigParser.load(runConfigName, runConfigDir, strict)
