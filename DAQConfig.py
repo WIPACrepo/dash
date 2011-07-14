@@ -566,7 +566,8 @@ class DomConfigParser(XMLParser, XMLFileCache):
 
             if kid.nodeType == Node.ELEMENT_NODE:
                 if kid.nodeName == "domConfig":
-                    domId = cls.getSingleAttribute(kid, "mbid", strict)
+                    domId = cls.getSingleAttribute(kid, "mbid", strict,
+                                                   checkSingle=False)
                     if not domIdToDom.has_key(domId):
                         raise ProcessError("Unknown DOM #%d ID %s" %
                                            (domNum, domId))

@@ -75,14 +75,14 @@ class XMLParser(object):
         return text
 
     @staticmethod
-    def getSingleAttribute(node, attrName, strict=True):
+    def getSingleAttribute(node, attrName, strict=True, checkSingle=True):
         if node.attributes is None or len(node.attributes) == 0:
             if strict:
                 raise ProcessError("<%s> node has no attributes" %
                                    node.nodeName)
             return None
 
-        if strict and len(node.attributes) != 1:
+        if strict and checkSingle and len(node.attributes) != 1:
             raise ProcessError(("<%s> node has extra" +
                                 " attributes") % node.nodeName)
         if not node.attributes.has_key(attrName):
