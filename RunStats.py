@@ -93,7 +93,7 @@ class RunStats(object):
         return self.__physicsRate.rate()
 
     def rateEntries(self):
-        return self.__physicsRate.entries()
+        return self.__physicsRate.entries
 
     def start(self):
         "Initialize statistics for the current run"
