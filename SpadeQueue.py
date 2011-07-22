@@ -73,7 +73,7 @@ def queueForSpade(logger, spadeDir, copyDir, runDir, runNum, runTime,
 
         __writeSpadeSemaphore(spadeDir, spadeBaseName)
 
-        __indicate_daq_logs_queued(spadeDir)
+        __indicate_daq_logs_queued(runDir)
         
         logger.info(("Queued data for SPADE (spadeDir=%s" +
                      ", runDir=%s, runNum=%s)...") %
