@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import datetime, os, socket
+import datetime, os, socket, threading
 
 from CnCTask import CnCTask
 from CnCThread import CnCThread
@@ -23,6 +23,7 @@ class MonitorThread(CnCThread):
         self.__now = now
         self.__refused = refused
         self.__warned = False
+        self.__closeLock = threading.Lock()
 
         super(MonitorThread, self).__init__(comp.fullName(), dashlog)
 
@@ -89,18 +90,20 @@ class MonitorThread(CnCThread):
     def close(self):
         super(type(self), self).close()
 
-        if self.__reporter is not None:
-            try:
-                self.__reporter.close()
-            except:
-                self.__dashlog.error("Could not close %s monitor thread: %s" %
-                                     (self.__comp, exc_string()))
-            self.__reporter = None
+        with self.__closeLock:
+            if self.__reporter is not None:
+                try:
+                    self.__reporter.close()
+                except:
+                    self.__dashlog.error(("Could not close %s monitor" +
+                                          " thread: %s") %
+                                         (self.__comp, exc_string()))
+                self.__reporter = None
 
     def getNewThread(self, now):
         thrd = MonitorThread(self.__comp, self.__runDir, self.__live,
-                             self.__runOptions, self.__dashlog, self.__reporter,
-                             now, self.__refused)
+                             self.__runOptions, self.__dashlog,
+                             self.__reporter, now, self.__refused)
         return thrd
 
     def isWarned(self): return self.__warned
