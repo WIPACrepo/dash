@@ -37,7 +37,7 @@ def validate_dom_config_xml(xml_filename, xsd_real_filename, xsd_sim_filename):
         if xsd_sim.validate(doc_xml):
             return (True, "")
         else:
-            return (False, xsd_sim.error_log)
+            return (False, "%s" % xsd_sim.error_log)
     else:
 
         with open(xsd_real_filename, 'r') as xsd_real_fd:
@@ -47,8 +47,7 @@ def validate_dom_config_xml(xml_filename, xsd_real_filename, xsd_sim_filename):
         if xsd_real.validate(doc_xml):
             return (True, "")
         else:
-            print xsd_real.error_log
-            return (False, xsd_real.error_log)
+            return (False, "%s" % xsd_real.error_log)
 
 
 def validate_xml(xml_filename, xsd_filename):
@@ -73,6 +72,6 @@ def validate_xml(xml_filename, xsd_filename):
     if xsd.validate(doc_xml):
         return (True, "")
     else:
-        return (False, xsd.error_log)
+        return (False, "%s" % xsd.error_log)
 
     
