@@ -90,7 +90,7 @@ class ActiveDOMThread(CnCThread):
                 # send the lbm overflow information off to live
             if not self.__liveMoniClient.sendMoni("LBMOverflows",
                                                   lbm_Overflows_Dict, Prio.ITS):
-                self.__dashog.error("Failed to send lbm overflow data")
+                self.__dashlog.error("Failed to send lbm overflow data")
 
     def getNewThread(self, sendDetails):
         thrd = ActiveDOMThread(self.__runset, self.__dashlog,
