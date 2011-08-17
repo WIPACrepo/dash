@@ -1,4 +1,4 @@
-from validate_configs import validate_xml
+from validate_configs import validate_runconfig
 import glob, os, sys
 
 if __name__ == "__main__":
@@ -28,7 +28,8 @@ if __name__ == "__main__":
             break
 
     for run_config in run_configs:
-        valid, reason = validate_xml(run_config, os.path.join(xsd_path, 'runconfig.xsd'))
+        valid, reason = validate_runconfig(run_config)
+
         if not valid:
             print "File is not valid! (%s)" % run_config
             print "-"*60

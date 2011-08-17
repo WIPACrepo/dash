@@ -1,4 +1,4 @@
-from validate_configs import validate_xml
+from validate_configs import validate_trigger
 import glob, os, sys
 
 if __name__ == "__main__":
@@ -23,7 +23,7 @@ if __name__ == "__main__":
     invalid_found = False
     trigger_configs = glob.glob(os.path.join(trigger_config_path, '*.xml'))
     for trigger_config in trigger_configs:
-        valid, reason = validate_xml(trigger_config, os.path.join(xsd_path, 'trigger.xsd'))
+        valid, reason = validate_trigger(trigger_config)
         if not valid:
             print "File is not valid! (%s)" % trigger_config
             print "-"*60

@@ -1,4 +1,4 @@
-from validate_configs import validate_xml
+from validate_configs import validate_clusterconfig
 import glob, os, sys
 
 if __name__ == "__main__":
@@ -10,9 +10,8 @@ if __name__ == "__main__":
         from locate_pdaq import find_pdaq_trunk
         metaDir = find_pdaq_trunk()
 
-    print "Validating all trigger configuration files"
+    print "Validating all cluster configuration files"
     print "Will only print a status when a corrupt file is found"
-    print "Note that there are some corrupt trigger files, someone put quotes in the wrong place."
     print "-"*60
     print ""
 
@@ -23,7 +22,8 @@ if __name__ == "__main__":
     invalid_found = False
     clustercfg_configs = glob.glob(os.path.join(cluster_config_path, '*.cfg'))
     for clustercfg_config in clustercfg_configs:
-        valid, reason = validate_xml(clustercfg_config, os.path.join(xsd_path, 'clustercfg.xsd'))
+        valid, reason = validate_clusterconfig(clustercfg_config)
+
         if not valid:
             print "File is not valid! (%s)" % clustercfg_config
             print "-"*60

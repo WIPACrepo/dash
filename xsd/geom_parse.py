@@ -1,4 +1,4 @@
-from validate_configs import validate_xml
+from validate_configs import validate_default_dom_geom
 import os,sys
 
 if __name__ == "__main__":
@@ -12,10 +12,8 @@ if __name__ == "__main__":
 
     config_path = os.path.join(metaDir, "config")
     default_dom_geometry_path = os.path.join(config_path, 'default-dom-geometry.xml')
-    geom_xsd_path = os.path.join(config_path, "xsd")
-    geom_xsd_path = os.path.join(geom_xsd_path, "geom.xsd")
     
-    valid, reason = validate_xml(default_dom_geometry_path, geom_xsd_path)
+    valid, reason = validate_default_dom_geom(default_dom_geometry_path)
     if not valid:
         print "File is not valid!"
         print "-"*60
