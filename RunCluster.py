@@ -112,6 +112,7 @@ class RunCluster(CachedConfigName):
 
         self.__logDirForSpade = clusterDesc.logDirForSpade()
         self.__logDirCopies = clusterDesc.logDirCopies()
+        self.__daqLogDir = clusterDesc.daqLogDir()
         self.__defaultLogLevel = clusterDesc.defaultLogLevel()
         self.__defaultJVM = clusterDesc.defaultJVM()
         self.__defaultJVMArgs = clusterDesc.defaultJVMArgs()
@@ -292,6 +293,7 @@ class RunCluster(CachedConfigName):
         return val
 
 
+    def daqLogDir(self) : return self.__daqLogDir
     def defaultLogLevel(self): return self.__defaultLogLevel
     def descName(self): return self.__descName
 
@@ -377,6 +379,8 @@ if __name__ == '__main__':
             print 'SPADE logDir: %s' % runCluster.logDirForSpade()
         if runCluster.logDirCopies() is not None:
             print 'Copied logDir: %s' % runCluster.logDirCopies()
+        if runCluster.daqLogDir() is not None:
+            print 'DAQ logDir: %s' % runCluster.daqLogDir()
         print 'Default log level: %s' % runCluster.defaultLogLevel()
         for node in runCluster.nodes():
             print '  %s@%s logLevel %s' % \

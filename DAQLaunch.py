@@ -43,7 +43,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 12770 2011-03-11 17:27:08Z mnewcomb $"
+SVN_ID = "$Id: DAQLaunch.py 13273 2011-08-17 21:19:48Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -165,7 +165,7 @@ def killJavaComponents(compList, dryRun, verbose, killWith9, parallel=None):
                 print "Error non-zero return code ( %s ) for host: %s, cmd: %s" % (rtn_code, nodeName, cmd)
                 print "Results '%s'" % results
                 print "-"*60
-                    
+
 
 def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
                        livePort, verbose, eventCheck, checkExists=True,
@@ -239,7 +239,7 @@ def startJavaComponents(compList, dryRun, configDir, dashDir, logPort, livePort,
         if not verbose:
             # if we wait during verbose mode, the program hangs
             parallel.wait()
-            
+
             # check for ssh failures here
             cmd_results_dict = parallel.getCmdResults()
             for cmd in cmd_results_dict:
@@ -248,7 +248,7 @@ def startJavaComponents(compList, dryRun, configDir, dashDir, logPort, livePort,
                 if(rtn_code!=0):
                     print "Error non zero return code ( %s ) for host: %s, cmd: %s" % ( rtn_code, nodeName, cmd)
                     print "Results '%s'" % results
-                        
+
 
 def reportAction(action, actionList, ignored):
     "Report which Python daemons were launched/killed and which were ignored"
@@ -442,8 +442,6 @@ if __name__ == "__main__":
         raise SystemExit
 
     configDir = join(metaDir, 'config')
-    logDir    = join(' ', 'mnt', 'data', 'pdaq', 'log').strip()
-    logDirFallBack = join(metaDir, 'log')
     dashDir   = join(metaDir, 'dash')
 
     if not opt.force:
@@ -538,18 +536,23 @@ if __name__ == "__main__":
                 print
 
         spadeDir  = clusterConfig.logDirForSpade()
-        # Assume non-fully-qualified paths are relative to metaproject top dir:
         if not isabs(spadeDir):
+            # non-fully-qualified paths are relative to metaproject top dir:
             spadeDir = join(metaDir, spadeDir)
 
         if not exists(spadeDir) and not opt.dryRun: mkdir(spadeDir)
 
         copyDir   = clusterConfig.logDirCopies()
-        # Assume non-fully-qualified paths are relative to metaproject top dir:
         if copyDir:
+            # non-fully-qualified paths are relative to metaproject top dir:
             if not isabs(copyDir):
                 copyDir = join(metaDir, copyDir)
             if not exists(copyDir) and not opt.dryRun: mkdir(copyDir)
+
+        logDir  = clusterConfig.daqLogDir()
+        if not isabs(logDir):
+            # non-fully-qualified paths are relative to metaproject top dir:
+            logDir = join(metaDir, logDir)
 
         # Set up logDir
         if not exists(logDir):
@@ -557,6 +560,7 @@ if __name__ == "__main__":
                 try:
                     mkdir(logDir)
                 except OSError, (errno, strerror):
+                    logDirFallBack = join(metaDir, "log")
                     if opt.verbose:
                         print "Problem making log dir: '%s' (%s)" % \
                             (logDir, strerror)

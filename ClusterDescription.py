@@ -226,6 +226,7 @@ class ClusterDescription(ConfigXMLBase):
     DBTYPE_PROD = "production"
     DBTYPE_NONE = "none"
 
+    DEFAULT_LOG_DIR = "/mnt/data/pdaq/logs"
     DEFAULT_LOG_LEVEL = "WARN"
 
     def __init__(self, configDir, configName, suffix='.cfg'):
@@ -236,6 +237,7 @@ class ClusterDescription(ConfigXMLBase):
 
         self.__logDirForSpade = None
         self.__logDirCopies = None
+        self.__daqLogDir = None
         self.__defaultLogLevel = self.DEFAULT_LOG_LEVEL
         self.__defaultJVM = None
         self.__defaultJVMArgs = None
@@ -435,6 +437,11 @@ class ClusterDescription(ConfigXMLBase):
 
         return ClusterSimHub(host, num, prio, ifUnused)
 
+    def daqLogDir(self):
+        if self.__daqLogDir is None:
+            return self.DEFAULT_LOG_DIR
+        return self.__daqLogDir
+
     def defaultJVM(self, compName=None):
         return self.__findDefault(compName, 'jvm')
     def defaultJVMArgs(self, compName=None):
@@ -452,6 +459,8 @@ class ClusterDescription(ConfigXMLBase):
                 (prefix, self.__logDirForSpade)
         if self.__logDirCopies is not None:
             print "%s  Copied log directory: %s" % (prefix, self.__logDirCopies)
+        if self.__daqLogDir is not None:
+            print "%s  DAQ log directory: %s" % (prefix, self.__daqLogDir)
         if self.__defaultLogLevel is not None:
             print "%s  Default log level: %s" % (prefix, self.__defaultLogLevel)
         if self.__defaultJVM is not None:
@@ -492,6 +501,10 @@ class ClusterDescription(ConfigXMLBase):
         self.__logDirCopies = self.getValue(cluster, 'logDirCopies')
         if(self.__logDirCopies!=None):
             self.__logDirCopies = os.path.expanduser(self.__logDirCopies)
+
+        self.__daqLogDir = self.getValue(cluster, 'daqLogDir')
+        if(self.__daqLogDir!=None):
+            self.__daqLogDir = os.path.expanduser(self.__daqLogDir)
 
         dfltNodes = cluster.getElementsByTagName('default')
         for node in dfltNodes:
