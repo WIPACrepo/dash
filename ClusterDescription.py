@@ -226,7 +226,8 @@ class ClusterDescription(ConfigXMLBase):
     DBTYPE_PROD = "production"
     DBTYPE_NONE = "none"
 
-    DEFAULT_LOG_DIR = "/mnt/data/pdaq/logs"
+    DEFAULT_DATA_DIR = "/mnt/data/pdaqlocal"
+    DEFAULT_LOG_DIR = "/mnt/data/pdaq/log"
     DEFAULT_LOG_LEVEL = "WARN"
 
     def __init__(self, configDir, configName, suffix='.cfg'):
@@ -237,6 +238,7 @@ class ClusterDescription(ConfigXMLBase):
 
         self.__logDirForSpade = None
         self.__logDirCopies = None
+        self.__daqDataDir = None
         self.__daqLogDir = None
         self.__defaultLogLevel = self.DEFAULT_LOG_LEVEL
         self.__defaultJVM = None
@@ -437,6 +439,11 @@ class ClusterDescription(ConfigXMLBase):
 
         return ClusterSimHub(host, num, prio, ifUnused)
 
+    def daqDataDir(self):
+        if self.__daqDataDir is None:
+            return self.DEFAULT_DATA_DIR
+        return self.__daqDataDir
+
     def daqLogDir(self):
         if self.__daqLogDir is None:
             return self.DEFAULT_LOG_DIR
@@ -459,6 +466,8 @@ class ClusterDescription(ConfigXMLBase):
                 (prefix, self.__logDirForSpade)
         if self.__logDirCopies is not None:
             print "%s  Copied log directory: %s" % (prefix, self.__logDirCopies)
+        if self.__daqDataDir is not None:
+            print "%s  DAQ data directory: %s" % (prefix, self.__daqDataDir)
         if self.__daqLogDir is not None:
             print "%s  DAQ log directory: %s" % (prefix, self.__daqLogDir)
         if self.__defaultLogLevel is not None:
@@ -501,6 +510,10 @@ class ClusterDescription(ConfigXMLBase):
         self.__logDirCopies = self.getValue(cluster, 'logDirCopies')
         if(self.__logDirCopies!=None):
             self.__logDirCopies = os.path.expanduser(self.__logDirCopies)
+
+        self.__daqDataDir = self.getValue(cluster, 'daqDataDir')
+        if(self.__daqDataDir!=None):
+            self.__daqDataDir = os.path.expanduser(self.__daqDataDir)
 
         self.__daqLogDir = self.getValue(cluster, 'daqLogDir')
         if(self.__daqLogDir!=None):

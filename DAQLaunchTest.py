@@ -52,6 +52,7 @@ class DAQLaunchTest(unittest.TestCase):
     def testStartJava(self):
         dryRun = False
         configDir = '/foo/bar'
+        daqDataDir = '/foo/baz'
         logPort = 1234
         jvm = "java"
         jvmArgs = "-server"
@@ -87,13 +88,13 @@ class DAQLaunchTest(unittest.TestCase):
                     for eventCheck in (True, False):
                         parallel = MockParallelShell()
 
-                        parallel.addExpectedJava(comp, configDir, logPort,
-                                                 livePort, verbose, eventCheck,
-                                                 host)
+                        parallel.addExpectedJava(comp, configDir, daqDataDir,
+                                                 logPort, livePort, verbose,
+                                                 eventCheck, host)
 
-                        startJavaProcesses(dryRun, config, configDir, None,
-                                           logPort, livePort, verbose,
-                                           eventCheck=eventCheck,
+                        startJavaProcesses(dryRun, config, configDir,
+                                           daqDataDir, logPort, livePort,
+                                           verbose, eventCheck=eventCheck,
                                            checkExists=checkExists,
                                            parallel=parallel)
 
@@ -136,6 +137,7 @@ class DAQLaunchTest(unittest.TestCase):
     def testLaunch(self):
         dryRun = False
         configDir = '/foo/bar/cfg'
+        daqDataDir = '/foo/bar/data'
         dashDir = '/foo/bar/dash'
         logDir = '/foo/bar/log'
         spadeDir = '/foo/bar/spade'
@@ -176,15 +178,15 @@ class DAQLaunchTest(unittest.TestCase):
                         parallel.addExpectedPython(doCnC, dashDir, configDir,
                                                    logDir, spadeDir, cfgName,
                                                    copyDir, logPort, livePort)
-                        parallel.addExpectedJava(comp, configDir,
+                        parallel.addExpectedJava(comp, configDir, daqDataDir,
                                                  DAQPort.CATCHALL, livePort,
                                                  verbose, evtChk, host)
 
                         dryRun = False
 
                         doLaunch(doCnC, dryRun, verbose, quiet,
-                                 config, dashDir, configDir, logDir, spadeDir,
-                                 copyDir, logPort, livePort,
+                                 config, dashDir, configDir, daqDataDir,
+                                 logDir, spadeDir, copyDir, logPort, livePort,
                                  eventCheck=evtChk, checkExists=checkExists,
                                  startMissing=False, parallel=parallel)
 
@@ -229,6 +231,7 @@ class DAQLaunchTest(unittest.TestCase):
 
     def testCycle(self):
         configDir = '/foo/bar/cfg'
+        daqDataDir = '/foo/bar/data'
         dashDir = '/foo/bar/dash'
         logDir = '/foo/bar/log'
         spadeDir = '/foo/bar/spade'
@@ -273,12 +276,12 @@ class DAQLaunchTest(unittest.TestCase):
                     parallel.addExpectedPython(doCnC, dashDir, configDir,
                                                logDir, spadeDir, cfgName,
                                                copyDir, logPort, livePort)
-                    parallel.addExpectedJava(comp, configDir, DAQPort.CATCHALL,
-                                             livePort, verbose, eventCheck,
-                                             host)
+                    parallel.addExpectedJava(comp, configDir, daqDataDir,
+                                             DAQPort.CATCHALL, livePort,
+                                             verbose, eventCheck, host)
 
-                    cyclePDAQ(dashDir, config, configDir, logDir, spadeDir,
-                              copyDir, logPort, livePort,
+                    cyclePDAQ(dashDir, config, configDir, daqDataDir, logDir,
+                              spadeDir, copyDir, logPort, livePort,
                               eventCheck=eventCheck, checkExists=checkExists,
                               startMissing=False, parallel=parallel)
 

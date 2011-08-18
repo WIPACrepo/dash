@@ -980,7 +980,7 @@ class MockParallelShell(object):
     def add(self, cmd):
         self.__checkCmd(cmd)
 
-    def addExpectedJava(self, comp, configDir, logPort, livePort,
+    def addExpectedJava(self, comp, configDir, daqDataDir, logPort, livePort,
                         verbose, eventCheck, host):
 
         ipAddr = ip.getLocalIpAddr(host)
@@ -1001,6 +1001,7 @@ class MockParallelShell(object):
 
         cmd += ' -jar %s' % jarPath
         cmd += ' -g %s' % configDir
+        if daqDataDir is not None: cmd += ' -d %s' % daqDataDir
         cmd += ' -c %s:%d' % (ipAddr, DAQPort.CNCSERVER)
 
         if logPort is not None:

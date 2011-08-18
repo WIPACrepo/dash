@@ -275,7 +275,7 @@ class MostlyCnCServer(CnCServer):
     APPENDERS = {}
 
     def __init__(self, clusterConfigObject, logPort, livePort, copyDir,
-                 defaultLogDir, runConfigDir, spadeDir):
+                 defaultLogDir, runConfigDir, daqDataDir, spadeDir):
         self.__clusterConfig = clusterConfigObject
         self.__liveOnly = logPort is None and livePort is not None
         self.__logServer = None
@@ -294,6 +294,7 @@ class MostlyCnCServer(CnCServer):
                                               copyDir=copyDir,
                                               defaultLogDir=defaultLogDir,
                                               runConfigDir=runConfigDir,
+                                              daqDataDir=daqDataDir,
                                               spadeDir=spadeDir,
                                               logIP=logIP, logPort=logPort,
                                               liveIP=liveIP, livePort=livePort,
@@ -752,6 +753,7 @@ class IntegrationTest(unittest.TestCase):
     CONFIG_DIR = os.path.abspath('src/test/resources/config')
     CONFIG_NAME = 'simpleConfig'
     COPY_DIR = 'bogus'
+    DATA_DIR = '/tmp'
     SPADE_DIR = '/tmp'
     LOG_DIR = None
     LIVEMONI_ENABLED = False
@@ -861,6 +863,7 @@ class IntegrationTest(unittest.TestCase):
                                              logLevel, comp.jvm(),
                                              comp.jvmArgs())
             pShell.addExpectedJava(deployComp, IntegrationTest.CONFIG_DIR,
+                                   IntegrationTest.DATA_DIR,
                                    DAQPort.CATCHALL, livePort, verbose, False,
                                    host)
 
@@ -886,9 +889,10 @@ class IntegrationTest(unittest.TestCase):
             livePort = DAQPort.I3LIVE
         else:
             livePort = None
+
         self.__cnc = MostlyCnCServer(cluCfg, None, livePort, self.COPY_DIR,
                                      self.LOG_DIR, self.CONFIG_DIR,
-                                     self.SPADE_DIR)
+                                     self.DATA_DIR, self.SPADE_DIR)
         self.__cnc.setDashAppender(dashLog)
 
         if liveRunOnly:
@@ -1043,7 +1047,6 @@ class IntegrationTest(unittest.TestCase):
 
     def __testBody(self, live, cnc, liveLog, appender, dashLog, runOptions,
                    liveRunOnly):
-
         logServer = cnc.getLogServer()
 
         RUNLOG_INFO = False

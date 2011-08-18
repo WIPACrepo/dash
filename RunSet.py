@@ -1283,11 +1283,12 @@ class RunSet(object):
         return TaskManager(self, dashlog, liveMoniClient, runDir, runConfig,
                            runOptions)
 
-    def cycleComponents(self, compList, configDir, dashDir, logPort, livePort,
-                        verbose, killWith9, eventCheck, checkExists=True):
+    def cycleComponents(self, compList, configDir, daqDataDir, logPort,
+                        livePort, verbose, killWith9, eventCheck,
+                        checkExists=True):
         dryRun = False
         killJavaComponents(compList, dryRun, verbose, killWith9)
-        startJavaComponents(compList, dryRun, configDir, dashDir, logPort,
+        startJavaComponents(compList, dryRun, configDir, daqDataDir, logPort,
                             livePort, verbose, eventCheck,
                             checkExists=checkExists)
 
@@ -1398,15 +1399,16 @@ class RunSet(object):
         tGroup.wait()
         tGroup.reportErrors(self.__logger, "resetLogging")
 
-    def restartAllComponents(self, clusterConfig, configDir, dashDir, logPort,
-                             livePort, verbose, killWith9, eventCheck):
+    def restartAllComponents(self, clusterConfig, configDir, daqDataDir,
+                             logPort, livePort, verbose, killWith9,
+                             eventCheck):
         # restarted components are removed from self.__set, so we need to
-        # pass in a copy of self.__set
+        # pass in a copy of self.__set, because we'll need self.__set intact
         self.restartComponents(self.__set[:], clusterConfig, configDir,
-                               dashDir, logPort, livePort, verbose, killWith9,
-                               eventCheck)
+                               daqDataDir, logPort, livePort, verbose,
+                               killWith9, eventCheck)
 
-    def restartComponents(self, compList, clusterConfig, configDir, dashDir,
+    def restartComponents(self, compList, clusterConfig, configDir, daqDataDir,
                           logPort, livePort, verbose, killWith9, eventCheck):
         """
         Remove all components in 'compList' (and which are found in
@@ -1439,10 +1441,10 @@ class RunSet(object):
                                         (comp, exc_string()))
 
         self.__logger.error("Cycling components %s" % cluCfgList)
-        self.cycleComponents(cluCfgList, configDir, dashDir, logPort, livePort,
-                             verbose, killWith9, eventCheck)
+        self.cycleComponents(cluCfgList, configDir, daqDataDir, logPort,
+                             livePort, verbose, killWith9, eventCheck)
 
-    def returnComponents(self, pool, clusterConfig, configDir, dashDir,
+    def returnComponents(self, pool, clusterConfig, configDir, daqDataDir,
                          logPort, livePort, verbose, killWith9, eventCheck):
         badPairs = self.reset()
 
@@ -1452,9 +1454,9 @@ class RunSet(object):
                 self.__logger.error("Restarting %s (state '%s' after reset)" %
                                     (pair[0], pair[1]))
                 badComps.append(pair[0])
-            self.restartComponents(badComps, clusterConfig, configDir, dashDir,
-                                   logPort, livePort, verbose, killWith9,
-                                   eventCheck)
+            self.restartComponents(badComps, clusterConfig, configDir,
+                                   daqDataDir, logPort, livePort, verbose,
+                                   killWith9, eventCheck)
 
         # transfer components back to pool
         #

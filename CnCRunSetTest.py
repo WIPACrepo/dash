@@ -197,8 +197,9 @@ class MyRunSet(RunSet):
                                            runDir, runCfg, moniType)
         return self.__taskMgr
 
-    def cycleComponents(self, compList, configDir, dashDir, logPort, livePort,
-                        verbose, killWith9, eventCheck, checkExists=True):
+    def cycleComponents(self, compList, configDir, daqDataDir, logPort,
+                        livePort, verbose, killWith9, eventCheck,
+                        checkExists=True):
         pass
 
     def getTaskManager(self):
@@ -220,12 +221,13 @@ class MyRunSet(RunSet):
 
 class MostlyCnCServer(CnCServer):
     def __init__(self, clusterConfigObject=None, copyDir=None,
-                 runConfigDir=None, spadeDir=None):
+                 runConfigDir=None, daqDataDir=None, spadeDir=None):
         self.__clusterConfig = clusterConfigObject
         self.__logServer = None
 
         super(MostlyCnCServer, self).__init__(copyDir=copyDir,
                                               runConfigDir=runConfigDir,
+                                              daqDataDir=daqDataDir,
                                               spadeDir=spadeDir,
                                               forceRestart=False,
                                               testOnly=True)
@@ -688,6 +690,7 @@ class CnCRunSetTest(unittest.TestCase):
 
         self.__copyDir = None
         self.__runConfigDir = None
+        self.__daqDataDir = None
         self.__spadeDir = None
 
         RunXMLValidator.setUp()
@@ -700,6 +703,8 @@ class CnCRunSetTest(unittest.TestCase):
             shutil.rmtree(self.__copyDir, ignore_errors=True)
         if self.__runConfigDir is not None:
             shutil.rmtree(self.__runConfigDir, ignore_errors=True)
+        if self.__daqDataDir is not None:
+            shutil.rmtree(self.__daqDataDir, ignore_errors=True)
         if self.__spadeDir is not None:
             shutil.rmtree(self.__spadeDir, ignore_errors=True)
 
@@ -752,6 +757,7 @@ class CnCRunSetTest(unittest.TestCase):
     def testRunIndirect(self):
         self.__copyDir = tempfile.mkdtemp()
         self.__runConfigDir = tempfile.mkdtemp()
+        self.__daqDataDir = tempfile.mkdtemp()
         self.__spadeDir = tempfile.mkdtemp()
 
         comps = [MockComponent("stringHub", self.HUB_NUMBER,
@@ -773,6 +779,7 @@ class CnCRunSetTest(unittest.TestCase):
         self.__cnc = MostlyCnCServer(clusterConfigObject=cluCfg,
                                      copyDir=self.__copyDir,
                                      runConfigDir=self.__runConfigDir,
+                                     daqDataDir=self.__daqDataDir,
                                      spadeDir=self.__spadeDir)
 
         catchall = self.__cnc.getLogServer()

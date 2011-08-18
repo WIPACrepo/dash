@@ -43,7 +43,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 13273 2011-08-17 21:19:48Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 13275 2011-08-18 17:01:02Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -167,15 +167,16 @@ def killJavaComponents(compList, dryRun, verbose, killWith9, parallel=None):
                 print "-"*60
 
 
-def startJavaProcesses(dryRun, clusterConfig, configDir, dashDir, logPort,
+def startJavaProcesses(dryRun, clusterConfig, configDir, daqDataDir, logPort,
                        livePort, verbose, eventCheck, checkExists=True,
                        parallel=None):
     startJavaComponents(__buildComponentList(clusterConfig), dryRun, configDir,
-                        dashDir, logPort, livePort, verbose, eventCheck,
+                        daqDataDir, logPort, livePort, verbose, eventCheck,
                         checkExists, parallel)
 
-def startJavaComponents(compList, dryRun, configDir, dashDir, logPort, livePort,
-                        verbose, eventCheck, checkExists=True, parallel=None):
+def startJavaComponents(compList, dryRun, configDir, daqDataDir, logPort,
+                        livePort, verbose, eventCheck, checkExists=True,
+                        parallel=None):
     if parallel is None:
         parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose, timeout=30)
 
@@ -206,6 +207,7 @@ def startJavaComponents(compList, dryRun, configDir, dashDir, logPort, livePort,
         jvmArgs = comp.jvmArgs()
 
         switches = "-g %s" % configDir
+        switches += " -d %s" % daqDataDir
         switches += " -c %s:%d" % (myIP, DAQPort.CNCSERVER)
         if logPort is not None:
             switches += " -l %s:%d,%s" % (myIP, logPort, comp.logLevel())
@@ -303,8 +305,8 @@ def isRunning(procName, procList):
     return len(pids) > 0
 
 def doLaunch(doCnC, dryRun, verbose, quiet, clusterConfig, dashDir,
-             configDir, logDir, spadeDir, copyDir, logPort, livePort,
-             eventCheck=False, checkExists=True, startMissing=True,
+             configDir, daqDataDir, logDir, spadeDir, copyDir, logPort,
+             livePort, eventCheck=False, checkExists=True, startMissing=True,
              parallel=None, forceRestart=True):
     "Launch components"
     # get a list of the running processes
@@ -324,8 +326,8 @@ def doLaunch(doCnC, dryRun, verbose, quiet, clusterConfig, dashDir,
 
     if doCnC:
         path  = join(dashDir, progName)
-        # enable forceConfig and relaunch options
-        options = " -c %s -o %s -s %s" % (configDir, logDir, spadeDir)
+        options = " -c %s -o %s -q %s -s %s" % \
+            (configDir, logDir, daqDataDir, spadeDir)
         if clusterConfig.descName() is not None:
             options += ' -C ' + clusterConfig.descName()
         if logPort is not None:
@@ -347,7 +349,7 @@ def doLaunch(doCnC, dryRun, verbose, quiet, clusterConfig, dashDir,
     elif not dryRun and not quiet:
         ignored.append(progBase)
 
-    startJavaProcesses(dryRun, clusterConfig, configDir, dashDir,
+    startJavaProcesses(dryRun, clusterConfig, configDir, daqDataDir,
                        DAQPort.CATCHALL, livePort, verbose, eventCheck,
                        checkExists=checkExists, parallel=parallel)
     if verbose and not dryRun: print "DONE with starting Java Processes."
@@ -357,8 +359,8 @@ def doLaunch(doCnC, dryRun, verbose, quiet, clusterConfig, dashDir,
     # remember the active configuration
     clusterConfig.writeCacheFile(True)
 
-def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, copyDir,
-              logPort, livePort, eventCheck=False, checkExists=True,
+def cyclePDAQ(dashDir, clusterConfig, configDir, daqDataDir, logDir, spadeDir,
+              copyDir, logPort, livePort, eventCheck=False, checkExists=True,
               startMissing=True, parallel=None):
     """
     Stop and restart pDAQ programs - can be used when cycling
@@ -373,7 +375,7 @@ def cyclePDAQ(dashDir, clusterConfig, configDir, logDir, spadeDir, copyDir,
     doKill(doCnC, dryRun, dashDir, verbose, quiet, clusterConfig, killWith9,
            parallel)
     doLaunch(doCnC, dryRun, verbose, quiet, clusterConfig, dashDir, configDir,
-             logDir, spadeDir, copyDir, logPort, livePort,
+             daqDataDir, logDir, spadeDir, copyDir, logPort, livePort,
              eventCheck=eventCheck, checkExists=checkExists,
              startMissing=startMissing, parallel=parallel)
 
@@ -539,7 +541,6 @@ if __name__ == "__main__":
         if not isabs(spadeDir):
             # non-fully-qualified paths are relative to metaproject top dir:
             spadeDir = join(metaDir, spadeDir)
-
         if not exists(spadeDir) and not opt.dryRun: mkdir(spadeDir)
 
         copyDir   = clusterConfig.logDirCopies()
@@ -547,7 +548,7 @@ if __name__ == "__main__":
             # non-fully-qualified paths are relative to metaproject top dir:
             if not isabs(copyDir):
                 copyDir = join(metaDir, copyDir)
-            if not exists(copyDir) and not opt.dryRun: mkdir(copyDir)
+        if not exists(copyDir) and not opt.dryRun: mkdir(copyDir)
 
         logDir  = clusterConfig.daqLogDir()
         if not isabs(logDir):
@@ -568,12 +569,20 @@ if __name__ == "__main__":
                     logDir = logDirFallBack
                     if not exists(logDir): mkdir(logDir)
 
+        daqDataDir   = clusterConfig.daqDataDir()
+        if daqDataDir:
+            # non-fully-qualified paths are relative to metaproject top dir:
+            if not isabs(daqDataDir):
+                daqDataDir = join(metaDir, daqDataDir)
+        if not exists(daqDataDir) and not opt.dryRun: mkdir(daqDataDir)
+
         doCnC = True
 
         logPort = None
         livePort = DAQPort.I3LIVE
 
         doLaunch(doCnC, opt.dryRun, opt.verbose, opt.quiet, clusterConfig,
-                 dashDir, configDir, logDir, spadeDir, copyDir, logPort,
-                 livePort, eventCheck=opt.eventCheck, checkExists=True,
-                 startMissing=True, forceRestart=opt.forceRestart)
+                 dashDir, configDir, daqDataDir, logDir, spadeDir, copyDir,
+                 logPort, livePort, eventCheck=opt.eventCheck,
+                 checkExists=True, startMissing=True,
+                 forceRestart=opt.forceRestart)

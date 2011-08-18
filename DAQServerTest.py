@@ -147,14 +147,16 @@ class MockServer(CnCServer):
     APPENDER = MockAppender('server')
 
     def __init__(self, clusterConfigObject=None, copyDir=None,
-                 runConfigDir=None, spadeDir=None, logPort=None, livePort=None,
-                 forceRestart=False, clientLog=None, logFactory=None):
+                 runConfigDir=None, daqDataDir=None, spadeDir=None,
+                 logPort=None, livePort=None, forceRestart=False,
+                 clientLog=None, logFactory=None):
         self.__clusterConfig = clusterConfigObject
         self.__clientLog = clientLog
         self.__logFactory = logFactory
 
         super(MockServer, self).__init__(copyDir=copyDir,
                                          runConfigDir=runConfigDir,
+                                         daqDataDir=daqDataDir,
                                          spadeDir=spadeDir,
                                          logIP='localhost', logPort=logPort,
                                          liveIP='localhost', livePort=livePort,
@@ -223,6 +225,7 @@ class TestDAQServer(unittest.TestCase):
         self.__logFactory = SocketReaderFactory()
 
         self.__runConfigDir = None
+        self.__daqDataDir = None
 
         RunXMLValidator.setUp()
 
@@ -235,6 +238,9 @@ class TestDAQServer(unittest.TestCase):
         if self.__runConfigDir is not None:
             shutil.rmtree(self.__runConfigDir, ignore_errors=True)
             self.__runConfigDir = None
+        if self.__daqDataDir is not None:
+            shutil.rmtree(self.__daqDataDir, ignore_errors=True)
+            self.__daqDataDir = None
 
         MockServer.APPENDER.checkStatus(10)
 
@@ -346,6 +352,7 @@ class TestDAQServer(unittest.TestCase):
 
     def testRunset(self):
         self.__runConfigDir = tempfile.mkdtemp()
+        self.__daqDataDir = tempfile.mkdtemp()
 
         logPort = 21765
 
@@ -367,7 +374,8 @@ class TestDAQServer(unittest.TestCase):
                             compHost)
 
         dc = MockServer(clusterConfigObject=cluCfg, copyDir="copyDir",
-                        runConfigDir=self.__runConfigDir, spadeDir="/tmp",
+                        runConfigDir=self.__runConfigDir,
+                        daqDataDir=self.__daqDataDir, spadeDir="/tmp",
                         logPort=logPort, clientLog=clientLogger,
                         logFactory=self.__logFactory)
 

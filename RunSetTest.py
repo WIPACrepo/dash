@@ -63,8 +63,9 @@ class MyRunSet(RunSet):
                           moniType):
         return FakeTaskManager()
 
-    def cycleComponents(self, compList, configDir, dashDir, logPort, livePort,
-                        verbose, killWith9, eventCheck, checkExists=True):
+    def cycleComponents(self, compList, configDir, daqDataDir, logPort,
+                        livePort, verbose, killWith9, eventCheck,
+                        checkExists=True):
         pass
 
     def queueForSpade(self, duration):

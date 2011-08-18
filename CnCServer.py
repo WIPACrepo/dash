@@ -32,7 +32,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 13181 2011-07-14 04:06:35Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 13275 2011-08-18 17:01:02Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -514,9 +514,10 @@ class CnCServer(DAQPool):
 
     def __init__(self, name="GenericServer", clusterDesc=None, copyDir=None,
                  dashDir=None, defaultLogDir=None, runConfigDir=None,
-                 spadeDir=None, logIP=None, logPort=None, liveIP=None,
-                 livePort=None, restartOnError=True, forceRestart=True,
-                 testOnly=False, quiet=False, defaultRunsetDebug=None):
+                 daqDataDir=None, spadeDir=None, logIP=None, logPort=None,
+                 liveIP=None, livePort=None, restartOnError=True,
+                 forceRestart=True, testOnly=False, quiet=False,
+                 defaultRunsetDebug=None):
         "Create a DAQ command and configuration server"
         self.__name = name
         self.__versionInfo = get_version_info(SVN_ID)
@@ -527,6 +528,7 @@ class CnCServer(DAQPool):
         self.__copyDir = copyDir
         self.__dashDir = os.path.join(metaDir, "dash")
         self.__runConfigDir = runConfigDir
+        self.__daqDataDir = daqDataDir
         self.__spadeDir = spadeDir
         self.__defaultLogDir = defaultLogDir
 
@@ -848,14 +850,14 @@ class CnCServer(DAQPool):
     def restartRunsetComponents(self, rs, verbose=False, killWith9=True,
                                 eventCheck=False):
         rs.restartAllComponents(self.getClusterConfig(), self.__runConfigDir,
-                                self.__dashDir, self.__log.logPort(),
+                                self.__daqDataDir, self.__log.logPort(),
                                 self.__log.livePort(), verbose=verbose,
                                 killWith9=killWith9, eventCheck=eventCheck)
 
     def returnRunsetComponents(self, rs, verbose=False, killWith9=True,
                                eventCheck=False):
         rs.returnComponents(self, self.getClusterConfig(), self.__runConfigDir,
-                            self.__dashDir, self.__log.logPort(),
+                            self.__daqDataDir, self.__log.logPort(),
                             self.__log.livePort(), verbose=verbose,
                             killWith9=killWith9, eventCheck=eventCheck)
 
@@ -1368,6 +1370,9 @@ if __name__ == "__main__":
     p.add_option("-o", "--default-log-dir", type="string", dest="defaultLogDir",
                  action="store", default="/mnt/data/pdaq/log",
                  help="Default directory for pDAQ log/monitoring files")
+    p.add_option("-q", "--data-dir", type="string", dest="daqDataDir",
+                 action="store", default="/mnt/data/pdaqlocal",
+                 help="Directory where physics/tcal/moni/sn files are written")
     p.add_option("-r", "--restart-on-error", dest="restartOnError",
                  action="store_true", default=True,
                  help="Restart components if the run ends in an error")
@@ -1397,6 +1402,11 @@ if __name__ == "__main__":
     if len(pids) > 1:
         sys.exit("ERROR: More than one instance of CnCServer.py" +
                  " is already running!")
+
+    opt.daqDataDir = os.path.abspath(opt.daqDataDir)
+    if not os.path.exists(opt.daqDataDir):
+        sys.exit(("DAQ data directory '%s' doesn't exist!" +
+                  "  Use the -s option,  or -h for help.") % opt.daqDataDir)
 
     opt.spadeDir = os.path.abspath(opt.spadeDir)
     if not os.path.exists(opt.spadeDir):
@@ -1440,11 +1450,11 @@ if __name__ == "__main__":
 
     cnc = CnCServer(clusterDesc=opt.clusterDesc, name="CnCServer",
                     copyDir=opt.copyDir, dashDir=opt.dashDir,
-                    runConfigDir=opt.configDir, spadeDir=opt.spadeDir,
-                    defaultLogDir=opt.defaultLogDir, logIP=logIP,
-                    logPort=logPort, liveIP=liveIP, livePort=livePort,
-                    forceRestart=opt.forceRestart, testOnly=False,
-                    quiet=opt.quiet)
+                    runConfigDir=opt.configDir, daqDataDir=opt.daqDataDir,
+                    spadeDir=opt.spadeDir, defaultLogDir=opt.defaultLogDir,
+                    logIP=logIP, logPort=logPort, liveIP=liveIP,
+                    livePort=livePort, forceRestart=opt.forceRestart,
+                    testOnly=False, quiet=opt.quiet)
     try:
         cnc.run()
     except KeyboardInterrupt:

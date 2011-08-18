@@ -69,8 +69,9 @@ class MostlyRunSet(RunSet):
                           moniType):
         return FakeTaskManager()
 
-    def cycleComponents(self, compList, configDir, dashDir, logPort, livePort,
-                        verbose, killWith9, eventCheck, checkExists=True):
+    def cycleComponents(self, compList, configDir, daqDataDir, logPort,
+                        livePort, verbose, killWith9, eventCheck,
+                        checkExists=True):
         pass
 
     def getLog(self, name):
@@ -87,8 +88,8 @@ class MostlyCnCServer(CnCServer):
     APPENDERS = {}
 
     def __init__(self, clusterConfigObject, copyDir=None, runConfigDir=None,
-                 spadeDir=None, logIP='localhost', logPort=-1,
-                 logFactory=None, forceRestart=False):
+                 daqDataDir=None, spadeDir=None, logIP='localhost',
+                 logPort=-1, logFactory=None, forceRestart=False):
 
         self.__clusterConfig = clusterConfigObject
         self.__logFactory = logFactory
@@ -96,6 +97,7 @@ class MostlyCnCServer(CnCServer):
         super(MostlyCnCServer, self).__init__(name=MostlyCnCServer.SERVER_NAME,
                                               copyDir=copyDir,
                                               runConfigDir=runConfigDir,
+                                              daqDataDir=daqDataDir,
                                               spadeDir=spadeDir,
                                               logIP=logIP, logPort=logPort,
                                               forceRestart=forceRestart,
@@ -283,6 +285,7 @@ class TestCnCServer(unittest.TestCase):
 
         self.__copyDir = tempfile.mkdtemp()
         self.__runConfigDir = tempfile.mkdtemp()
+        self.__daqDataDir = tempfile.mkdtemp()
         self.__spadeDir = tempfile.mkdtemp()
 
         self.comp = None
@@ -313,6 +316,9 @@ class TestCnCServer(unittest.TestCase):
         if self.__runConfigDir is not None:
             shutil.rmtree(self.__runConfigDir, ignore_errors=True)
             self.__runConfigDir = None
+        if self.__daqDataDir is not None:
+            shutil.rmtree(self.__daqDataDir, ignore_errors=True)
+            self.__daqDataDir = None
         if self.__spadeDir is not None:
             shutil.rmtree(self.__spadeDir, ignore_errors=True)
             self.__spadeDir = None
@@ -344,6 +350,7 @@ class TestCnCServer(unittest.TestCase):
         self.cnc = MostlyCnCServer(clusterConfigObject=cluCfg,
                                    copyDir=self.__copyDir,
                                    runConfigDir=self.__runConfigDir,
+                                   daqDataDir=self.__daqDataDir,
                                    spadeDir=self.__spadeDir,
                                    logPort=catchall.getPort(),
                                    logFactory=self.__logFactory,

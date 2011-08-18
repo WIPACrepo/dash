@@ -30,7 +30,7 @@ class RunClusterTest(unittest.TestCase):
     CONFIG_DIR = os.path.abspath('src/test/resources/config')
 
     def __checkCluster(self, clusterName, cfgName, expNodes, spadeDir,
-                       logCopyDir, daqLogDir):
+                       logCopyDir, daqLogDir, daqDataDir):
         cfg = DAQConfigParser.load(cfgName, RunClusterTest.CONFIG_DIR)
 
         cluster = RunCluster(cfg, clusterName, RunClusterTest.CONFIG_DIR)
@@ -66,6 +66,9 @@ class RunClusterTest(unittest.TestCase):
         self.assertEqual(cluster.daqLogDir(), daqLogDir,
                          'DAQ log directory is "%s", not "%s"' %
                          (cluster.daqLogDir(), daqLogDir))
+        self.assertEqual(cluster.daqDataDir(), daqDataDir,
+                         'DAQ data directory is "%s", not "%s"' %
+                         (cluster.daqDataDir(), daqDataDir))
 
     def testClusterFile(self):
         cfg = DAQConfigParser.load("simpleConfig", RunClusterTest.CONFIG_DIR)
@@ -91,11 +94,12 @@ class RunClusterTest(unittest.TestCase):
                     ]
 
         daqLogDir = "logs"
+        daqDataDir = "data"
         spadeDir = 'spade'
         logCopyDir = None
 
         self.__checkCluster("localhost", cfgName, expNodes, spadeDir,
-                            logCopyDir, daqLogDir)
+                            logCopyDir, daqLogDir, daqDataDir)
 
     def testDeploySPTS64(self):
         cfgName = 'simpleConfig'
@@ -110,12 +114,13 @@ class RunClusterTest(unittest.TestCase):
                     DeployData('spts64-stringproc07', 'stringHub', 1005),
                     ]
 
-        daqLogDir = "/mnt/data/pdaq/logs"
+        daqLogDir = "/mnt/data/pdaq/log"
+        daqDataDir = "/mnt/data/pdaqlocal"
         spadeDir = "/mnt/data/spade/pdaq/runs"
         logCopyDir = "/mnt/data/pdaqlocal"
 
         self.__checkCluster("spts64", cfgName, expNodes, spadeDir, logCopyDir,
-                            daqLogDir)
+                            daqLogDir, daqDataDir)
 
     def testDeployTooMany(self):
         cfgName = 'tooManyConfig'
@@ -131,12 +136,13 @@ class RunClusterTest(unittest.TestCase):
                     ]
 
         daqLogDir = "logs"
+        daqDataDir = "/mnt/data/pdaqlocal"
         spadeDir = 'spade'
         logCopyDir = None
 
         try:
             self.__checkCluster("localhost", cfgName, expNodes, spadeDir,
-                                logCopyDir, daqLogDir)
+                                logCopyDir, daqLogDir, daqDataDir)
         except RunClusterError, rce:
             if not str(rce).endswith("out of hubs"):
                 self.fail("Unexpected exception: " + str(rce))
@@ -194,12 +200,13 @@ class RunClusterTest(unittest.TestCase):
                     DeployData('sps-ithub06', 'stringHub', 206),
                     ]
 
-        daqLogDir = "/mnt/data/pdaq/logs"
+        daqLogDir = "/mnt/data/pdaq/log"
+        daqDataDir = "/mnt/data/pdaqlocal"
         spadeDir = "/mnt/data/spade/pdaq/runs"
         logCopyDir = "/mnt/data/pdaqlocal"
 
         self.__checkCluster("sps", cfgName, expNodes, spadeDir, logCopyDir,
-                            daqLogDir)
+                            daqLogDir, daqDataDir)
 
 if __name__ == '__main__':
     unittest.main()

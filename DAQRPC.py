@@ -19,7 +19,7 @@ class RPCClient(xmlrpclib.ServerProxy):
 
 
     def __init__(self, servername, portnum, verbose=0, timeout=TIMEOUT_SECS):
-        
+
         self.servername = servername
         self.portnum    = portnum
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -35,7 +35,7 @@ class RPCClient(xmlrpclib.ServerProxy):
 
     def showStats(self):
         "Return string representation of accumulated statistics"
-        if self.nCalls() == 0: 
+        if self.nCalls() == 0:
             return "None"
 
         results_list = [ "%25s: %s" % (x, self.statDict[x].report()) for x in self.callList() ]
@@ -45,11 +45,11 @@ class RPCClient(xmlrpclib.ServerProxy):
     def nCalls(self):
         "Return number of invocations of RPC method"
         return len(self.statDict)
-    
+
     def callList(self):
         "Return list of registered methods"
         return self.statDict.keys()
-        
+
     def rpccall(self, method, *rest):
         "Wrapper to benchmark speed of various RPC calls"
         if not self.statDict.has_key(method):
@@ -64,9 +64,9 @@ class RPCClient(xmlrpclib.ServerProxy):
             raise NameError("method: '%s' does not exist" % method)
         finally:
             self.statDict[method].tally(datetime.datetime.now()-tstart)
-        
+
         return result
-        
+
 class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
     "Generic class for serving methods to remote objects"
     # also inherited: register_function
@@ -80,7 +80,7 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
 
         DocXMLRPCServer.DocXMLRPCServer.__init__(self, ('', portnum),
                                                  logRequests=False)
-        # note that this has to be AFTER the init above as it can be set to false in the 
+        # note that this has to be AFTER the init above as it can be set to false in the
         #__init__
         self.allow_reuse_address = True
         self.set_server_title("Server Methods")
@@ -88,16 +88,17 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         self.set_server_documentation(documentation)
         self.__is_shut_down = threading.Event()
         self.__running=False
-        
+
     def server_close(self):
-        self.__running = False
-        self.__is_shut_down.wait()
+        if self.__running:
+            self.__running = False
+            self.__is_shut_down.wait()
         DocXMLRPCServer.DocXMLRPCServer.server_close(self)
 
     def get_request(self):
         """Overridden in order to set so_keepalive on client
         sockets."""
-        
+
         (conn, addr) = self.socket.accept()
         conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 
@@ -155,7 +156,7 @@ class RPCStat(object):
                 rms = math.sqrt(x2avg - xavg2)
             except:
                 rms = None
-            
+
             return (self.n, self.min, self.max, avg, rms)
         except ZeroDivisionError:
             return None
@@ -163,7 +164,7 @@ class RPCStat(object):
     def report(self):
         """Return a string representation of the statistics in this class"""
         l = self.summaries()
-        if l == None: 
+        if l == None:
             return "No entries."
         (n, Xmin, Xmax, avg, rms) = l
         return "%d entries, min=%.4f max=%.4f, avg=%.4f, rms=%.4f" % (n,
