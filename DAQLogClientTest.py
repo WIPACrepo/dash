@@ -8,12 +8,12 @@ class TestDAQLogClient(unittest.TestCase):
 
     def checkLog(self, logPath, msgList):
         lines = self.readLog(logPath)
-        self.assertEquals(len(msgList), len(lines), 'Expected %d line, not %d' %
+        self.assertEqual(len(msgList), len(lines), 'Expected %d line, not %d' %
                           (len(msgList), len(lines)))
 
         for i in range(len(msgList)):
             msg = lines[i].rstrip()
-            self.assertEquals(msgList[i], msg,
+            self.assertEqual(msgList[i], msg,
                               'Expected "%s", not "%s"' % (msgList[i], msg))
 
     def readLog(self, logPath):
@@ -59,7 +59,7 @@ class TestDAQLogClient(unittest.TestCase):
         self.collector.close()
 
         lines = self.readLog(logPath)
-        self.assertEquals(1, len(lines), 'Expected 1 line, not %d' % len(lines))
+        self.assertEqual(1, len(lines), 'Expected 1 line, not %d' % len(lines))
 
         prefix = logName + ' ['
 

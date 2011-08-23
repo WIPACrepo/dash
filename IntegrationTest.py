@@ -855,6 +855,7 @@ class IntegrationTest(unittest.TestCase):
 
         pShell.addExpectedPython(doCnC, dashDir, IntegrationTest.CONFIG_DIR,
                                  IntegrationTest.LOG_DIR,
+                                 IntegrationTest.DATA_DIR,
                                  IntegrationTest.SPADE_DIR,
                                  IntegrationTest.CONFIG_NAME,
                                  IntegrationTest.COPY_DIR, logPort, livePort)
@@ -1180,7 +1181,7 @@ class IntegrationTest(unittest.TestCase):
             live.starting({'runNumber':runNum, 'runConfig':configName})
         else:
             id = cnc.rpc_runset_make(configName, runNum)
-            self.assertEquals(setId, id,
+            self.assertEqual(setId, id,
                               "Expected to create runset #%d, not #%d" %
                               (setId, id))
             cnc.rpc_runset_start_run(setId, runNum, RunOption.LOG_TO_FILE)
@@ -1424,16 +1425,16 @@ class IntegrationTest(unittest.TestCase):
         moni = cnc.rpc_runset_monitor_run(setId)
         self.failIf(moni is None, 'rpc_run_monitoring returned None')
         self.failIf(len(moni) == 0, 'rpc_run_monitoring returned no data')
-        self.assertEquals(numEvts, moni['physicsEvents'],
+        self.assertEqual(numEvts, moni['physicsEvents'],
                           'Expected %d physics events, not %d' %
                           (numEvts, moni['physicsEvents']))
-        self.assertEquals(numMoni, moni['moniEvents'],
+        self.assertEqual(numMoni, moni['moniEvents'],
                           'Expected %d moni events, not %d' %
                           (numMoni, moni['moniEvents']))
-        self.assertEquals(numSN, moni['snEvents'],
+        self.assertEqual(numSN, moni['snEvents'],
                           'Expected %d sn events, not %d' %
                           (numSN, moni['snEvents']))
-        self.assertEquals(numTcal, moni['tcalEvents'],
+        self.assertEqual(numTcal, moni['tcalEvents'],
                           'Expected %d tcal events, not %d' %
                           (numTcal, moni['tcalEvents']))
 
@@ -1442,10 +1443,10 @@ class IntegrationTest(unittest.TestCase):
         if liveLog: liveLog.checkStatus(10)
         if logServer: logServer.checkStatus(10)
 
-        RunXMLValidator.validate(runNum, IntegrationTest.CLUSTER_CONFIG,
+        RunXMLValidator.validate(self, runNum, IntegrationTest.CLUSTER_CONFIG,
                                  None, None, numEvts, numMoni, numSN, numTcal,
                                  False)
-
+        
         if RUNLOG_INFO:
             msg = 'Breaking run set...'
             if liveLog and not liveRunOnly: liveLog.addExpectedText(msg)
@@ -1477,7 +1478,7 @@ class IntegrationTest(unittest.TestCase):
                 break
             time.sleep(0.1)
             numTries += 1
-        self.assertEquals(expState, state, 'Should be %s, not %s' %
+        self.assertEqual(expState, state, 'Should be %s, not %s' %
                           (expState, state))
 
     def setUp(self):

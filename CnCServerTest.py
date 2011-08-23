@@ -377,21 +377,21 @@ class TestCnCServer(unittest.TestCase):
         clientLogger.checkStatus(100)
 
         s = self.cnc.rpc_component_list_dicts()
-        self.assertEquals(1, len(s),
+        self.assertEqual(1, len(s),
                           'Expected 1 listed component, not %d' % len(s))
-        self.assertEquals(compName, s[0]["compName"],
+        self.assertEqual(compName, s[0]["compName"],
                           'Expected component %s, not %s' %
                           (compName, s[0]["compName"]))
-        self.assertEquals(compNum, s[0]["compNum"],
+        self.assertEqual(compNum, s[0]["compNum"],
                           'Expected %s #%d, not #%d' %
                           (compName, compNum, s[0]["compNum"]))
-        self.assertEquals(compHost, s[0]["host"],
+        self.assertEqual(compHost, s[0]["host"],
                           'Expected %s#%d host %s, not %s' %
                           (compName, compNum, compHost, s[0]["host"]))
-        self.assertEquals(cmdPort, s[0]["rpcPort"],
+        self.assertEqual(cmdPort, s[0]["rpcPort"],
                           'Expected %s#%d cmdPort %d, not %d' %
                           (compName, compNum, cmdPort, s[0]["rpcPort"]))
-        self.assertEquals(mbeanPort, s[0]["mbeanPort"],
+        self.assertEqual(mbeanPort, s[0]["mbeanPort"],
                           'Expected %s#%d mbeanPort %d, not %d' %
                           (compName, compNum, mbeanPort, s[0]["mbeanPort"]))
 
@@ -416,7 +416,7 @@ class TestCnCServer(unittest.TestCase):
         runNum = 444
 
         setId = self.cnc.rpc_runset_make(runConfig, runNum, strict=False)
-        self.assertEquals('ready', self.comp.getState(),
+        self.assertEqual('ready', self.comp.getState(),
                           'Unexpected state %s' % self.comp.getState())
 
         time.sleep(1)
@@ -428,23 +428,23 @@ class TestCnCServer(unittest.TestCase):
             if compId != rs[0]["id"]:
                 continue
 
-            self.assertEquals(compName, c["compName"],
+            self.assertEqual(compName, c["compName"],
                               "Component#%d name should be \"%s\", not \"%s\"" %
                               (compId, compName, c["compName"]))
-            self.assertEquals(compNum, c["compNum"],
+            self.assertEqual(compNum, c["compNum"],
                               ("Component#%d \"%s\" number should be %d," +
                                "not %d") %
                               (compId, compName, compNum, c["compNum"]))
-            self.assertEquals(compHost, c["host"],
+            self.assertEqual(compHost, c["host"],
                               ("Component#%d \"%s#%d\" host should be" +
                                " \"%s\", not \"%s\"") %
                               (compId, compName, compNum, compHost, c["host"]))
-            self.assertEquals(cmdPort, c["rpcPort"],
+            self.assertEqual(cmdPort, c["rpcPort"],
                               ("Component#%d \"%s#%d\" rpcPort should be" +
                                " \"%s\", not \"%s\"") %
                               (compId, compName, compNum, cmdPort,
                                c["rpcPort"]))
-            self.assertEquals(mbeanPort, c["mbeanPort"],
+            self.assertEqual(mbeanPort, c["mbeanPort"],
                               ("Component#%d \"%s#%d\" mbeanPort should be" +
                                " \"%s\", not \"%s\"") %
                               (compId, compName, compNum, mbeanPort,
@@ -516,7 +516,7 @@ class TestCnCServer(unittest.TestCase):
         clientLogger.checkStatus(100)
         catchall.checkStatus(100)
 
-        RunXMLValidator.validate(runNum, cluCfg.configName(), None, None,
+        RunXMLValidator.validate(self, runNum, cluCfg.configName(), None, None,
                                  numEvts, numMoni, numSN, numTcal, False)
 
         if forceRestart:
@@ -534,7 +534,7 @@ class TestCnCServer(unittest.TestCase):
 
             serverAppender = MostlyCnCServer.APPENDERS['server']
 
-            self.assertEquals(self.cnc.rpc_runset_break(setId), 'OK')
+            self.assertEqual(self.cnc.rpc_runset_break(setId), 'OK')
 
             serverAppender.checkStatus(100)
 

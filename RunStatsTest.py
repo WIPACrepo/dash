@@ -43,26 +43,26 @@ class TestRunStats(unittest.TestCase):
         self.__checkValues("monitorData", expMoni, monData)
 
         rval = rs.rate()
-        self.assertEquals(expRate, rval,
+        self.assertEqual(expRate, rval,
                           "Expected rate %s, not %s" % (expRate, rval))
 
         ent = rs.rateEntries()
         self.assertTrue(isinstance(ent, type(expEntries)),
                         "Expected entry %s, not %s" %
                         (type(expEntries), type(ent)))
-        self.assertEquals(len(ent), len(expEntries),
+        self.assertEqual(len(ent), len(expEntries),
                           ("rateEntries() should return %d entries (%s)," +
                           " not %d (%s)") %
                           (len(expEntries), expEntries, len(ent), ent))
         for idx in xrange(len(ent)):
-            self.assertEquals(expEntries[idx], ent[idx],
+            self.assertEqual(expEntries[idx], ent[idx],
                               "Rate entry #%d should be %s, not %s" %
                               (idx, expEntries[idx], ent[idx]))
 
         rstr = str(rs)
         expStr = "Stats[e%s m%s s%s t%s]" % (expData["events"], expData["moni"],
                                              expData["sn"], expData["tcal"])
-        self.assertEquals(expStr, rstr, "Expected \"%s\", not \"%s\"" %
+        self.assertEqual(expStr, rstr, "Expected \"%s\", not \"%s\"" %
                           (expStr, rstr))
 
     def __checkUpdate(self, rs, upDict, upRate, upEntries, addRate):
@@ -79,17 +79,17 @@ class TestRunStats(unittest.TestCase):
         self.__checkStats(rs, upDict, upRate, upEntries)
 
     def __checkValues(self, methodName, flds, vals):
-        self.assertEquals(len(vals), len(flds),
+        self.assertEqual(len(vals), len(flds),
                           "Expected %d stop() values for %s, not %d" %
                           (len(flds), methodName, len(vals)))
 
         idx = 0
         for nm, val in flds:
-            self.assertEquals(type(val), type(vals[idx]),
+            self.assertEqual(type(val), type(vals[idx]),
                               "Expected %s %s %s (%s), not %s (%s)" %
                               (methodName, nm, val, type(val),
                                vals[idx], type(vals[idx])))
-            self.assertEquals(val, vals[idx],
+            self.assertEqual(val, vals[idx],
                               "Expected %s %s %s, not %s" %
                               (methodName, nm, val, vals[idx]))
             idx += 1

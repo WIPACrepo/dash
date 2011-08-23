@@ -202,22 +202,22 @@ class TestDAQServer(unittest.TestCase):
     def __verifyRegArray(self, rtnArray, expId, logHost, logPort,
                          liveHost, livePort):
         numElem = 6
-        self.assertEquals(numElem, len(rtnArray),
+        self.assertEqual(numElem, len(rtnArray),
                           'Expected %d-element array, not %d elements' %
                           (numElem, len(rtnArray)))
-        self.assertEquals(expId, rtnArray["id"],
+        self.assertEqual(expId, rtnArray["id"],
                           'Registration should return client ID#%d, not %d' %
                           (expId, rtnArray["id"]))
-        self.assertEquals(logHost, rtnArray["logIP"],
+        self.assertEqual(logHost, rtnArray["logIP"],
                           'Registration should return loghost %s, not %s' %
                           (logHost, rtnArray["logIP"]))
-        self.assertEquals(logPort, rtnArray["logPort"],
+        self.assertEqual(logPort, rtnArray["logPort"],
                           'Registration should return logport#%d, not %d' %
                           (logPort, rtnArray["logPort"]))
-        self.assertEquals(liveHost, rtnArray["liveIP"],
+        self.assertEqual(liveHost, rtnArray["liveIP"],
                           'Registration should return livehost %s, not %s' %
                           (liveHost, rtnArray["liveIP"]))
-        self.assertEquals(livePort, rtnArray["livePort"],
+        self.assertEqual(livePort, rtnArray["livePort"],
                           'Registration should return liveport#%d, not %d' %
                           (livePort, rtnArray["livePort"]))
 
@@ -472,7 +472,7 @@ class TestDAQServer(unittest.TestCase):
 
         logger.checkStatus(10)
 
-        RunXMLValidator.validate(runNum, cluCfg.configName(), None, None,
+        RunXMLValidator.validate(self, runNum, cluCfg.configName(), None, None,
                                  0, 0, 0, 0, False)
 
         self.assertEqual(dc.rpc_component_count(), 0)
@@ -480,7 +480,7 @@ class TestDAQServer(unittest.TestCase):
 
         logger.checkStatus(10)
 
-        self.assertEquals(dc.rpc_runset_break(setId), 'OK')
+        self.assertEqual(dc.rpc_runset_break(setId), 'OK')
 
         logger.checkStatus(10)
 

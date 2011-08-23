@@ -1043,12 +1043,13 @@ class MockParallelShell(object):
             self.__addExpected('sleep 2; %spkill -9%s %s' %
                                (sshCmd, pkillOpt, killPat))
 
-    def addExpectedPython(self, doCnC, dashDir, configDir, logDir, spadeDir,
+    def addExpectedPython(self, doCnC, dashDir, configDir, logDir, daqDataDir, spadeDir,
                           cfgName, copyDir, logPort, livePort):
         if doCnC:
             cmd = os.path.join(dashDir, 'CnCServer.py')
             cmd += ' -c %s' % configDir
             cmd += ' -o %s' % logDir
+            cmd += ' -q %s' % daqDataDir
             cmd += ' -s %s' % spadeDir
             if logPort is not None:
                 cmd += ' -l localhost:%d' % logPort
@@ -1056,6 +1057,7 @@ class MockParallelShell(object):
                 cmd += ' -L localhost:%d' % livePort
             cmd += ' -a %s' % copyDir
             cmd += ' -d'
+
             self.__addExpected(cmd)
 
     def addExpectedPythonKill(self, doCnC, dashDir, killWith9):
@@ -1485,43 +1487,7 @@ class SocketWriter(object):
         "Shut down socket to remote server - do this to avoid stale sockets"
         self.socket.close()
 
-class RunXMLValidator(TestCase):
-    def __init__(self, runNum, cfgName, startTime, endTime, numEvts,
-                 numMoni, numSN, numTcal, failed):
-        if not os.path.exists("run.xml"):
-            self.fail("run.xml was not created")
-        run = DashXMLLog.parse()
-        self.assertEquals(run.getRun(), runNum,
-                          "Expected run number %s, not %s" %
-                          (runNum, run.getRun()))
-        self.assertEquals(run.getConfig(), cfgName,
-                          "Expected config \"%s\", not \"%s\"" %
-                          (cfgName, run.getConfig()))
-        if startTime is not None:
-            self.assertEquals(run.getStartTime(), startTime,
-                              "Expected start time %s<%s>, not %s<%s>" %
-                              (startTime, type(startTime),
-                               run.getStartTime(), type(run.getStartTime())))
-        if endTime is not None:
-            self.assertEquals(run.getEndTime(), endTime,
-                              "Expected end time %s<%s>, not %s<%s>" %
-                              (endTime, type(endTime),
-                               run.getEndTime(), type(run.getEndTime())))
-        self.assertEquals(run.getTermCond(), failed,
-                          "Expected terminal condition %s, not %s" %
-                          (failed, run.getTermCond()))
-        self.assertEquals(run.getEvents(), numEvts,
-                          "Expected number of events %s, not %s" %
-                          (numEvts, run.getEvents()))
-        self.assertEquals(run.getMoni(), numMoni,
-                          "Expected number of monitoring events %s, not %s" %
-                          (numMoni, run.getMoni()))
-        self.assertEquals(run.getTcal(), numTcal,
-                          "Expected number of time cal events %s, not %s" %
-                          (numTcal, run.getTcal()))
-        self.assertEquals(run.getSN(), numSN,
-                          "Expected number of supernova events %s, not %s" %
-                          (numSN, run.getSN()))
+class RunXMLValidator:
 
     @classmethod
     def setUp(cls):
@@ -1538,11 +1504,44 @@ class RunXMLValidator(TestCase):
             raise ValueError("Found unexpected run.xml file")
 
     @classmethod
-    def validate(cls, runNum, cfgName, startTime, endTime, numEvts,
+    def validate(cls, test_case, runNum, cfgName, startTime, endTime, numEvts,
                  numMoni, numSN, numTcal, failed):
         try:
-            RunXMLValidator(runNum, cfgName, startTime, endTime, numEvts,
-                            numMoni, numSN, numTcal, failed)
+            if not os.path.exists("run.xml"):
+                test_case.fail("run.xml was not created")
+
+            run = DashXMLLog.parse()
+
+            test_case.assertEqual(run.getRun(), runNum,
+                                  "Expected run number %s, not %s" % (runNum, run.getRun()))
+            test_case.assertEqual(run.getConfig(), cfgName,
+                             "Expected config \"%s\", not \"%s\"" %
+                             (cfgName, run.getConfig()))
+            if startTime is not None:
+                test_case.assertEqual(run.getStartTime(), startTime,
+                                      "Expected start time %s<%s>, not %s<%s>" %
+                                      (startTime, type(startTime),
+                                       run.getStartTime(), type(run.getStartTime())))
+            if endTime is not None:
+                test_case.assertEqual(run.getEndTime(), endTime,
+                                      "Expected end time %s<%s>, not %s<%s>" %
+                                      (endTime, type(endTime),
+                                       run.getEndTime(), type(run.getEndTime())))
+            test_case.assertEqual(run.getTermCond(), failed,
+                                  "Expected terminal condition %s, not %s" %
+                                  (failed, run.getTermCond()))
+            test_case.assertEqual(run.getEvents(), numEvts,
+                                  "Expected number of events %s, not %s" %
+                                  (numEvts, run.getEvents()))
+            test_case.assertEqual(run.getMoni(), numMoni,
+                                  "Expected number of monitoring events %s, not %s" %
+                                  (numMoni, run.getMoni()))
+            test_case.assertEqual(run.getTcal(), numTcal,
+                                  "Expected number of time cal events %s, not %s" %
+                                  (numTcal, run.getTcal()))
+            test_case.assertEqual(run.getSN(), numSN,
+                                  "Expected number of supernova events %s, not %s" %
+                                  (numSN, run.getSN()))
         finally:
             try:
                 os.remove("run.xml")

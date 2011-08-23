@@ -35,7 +35,7 @@ class RunClusterTest(unittest.TestCase):
 
         cluster = RunCluster(cfg, clusterName, RunClusterTest.CONFIG_DIR)
 
-        self.assertEquals(cluster.configName(), cfgName,
+        self.assertEqual(cluster.configName(), cfgName,
                           'Expected config name %s, not %s' %
                           (cfgName, cluster.configName()))
 

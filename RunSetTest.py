@@ -414,7 +414,7 @@ class TestRunSet(unittest.TestCase):
                          (runset.id(), runNum, expState))
         self.assertFalse(runset.stopping(), "RunSet #%d is still stopping")
 
-        RunXMLValidator.validate(runNum, clusterName, None, None,
+        RunXMLValidator.validate(self, runNum, clusterName, None, None,
                                  0, 0, 0, 0, hangType > 1)
 
         if len(components) > 0:

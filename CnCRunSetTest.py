@@ -656,7 +656,7 @@ class CnCRunSetTest(unittest.TestCase):
         logger.checkStatus(5)
         dashLog.checkStatus(5)
 
-        RunXMLValidator.validate(runNum, cluCfg.configName(), None, None,
+        RunXMLValidator.validate(self, runNum, cluCfg.configName(), None, None,
                                  numEvts, numMoni, numSN, numTcal, False)
 
     @staticmethod
@@ -694,6 +694,7 @@ class CnCRunSetTest(unittest.TestCase):
         self.__spadeDir = None
 
         RunXMLValidator.setUp()
+
 
     def tearDown(self):
         if self.__cnc is not None:
@@ -894,7 +895,7 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog.checkStatus(5)
         liveMoni.checkStatus(5)
 
-        RunXMLValidator.validate(runNum, cluCfg.configName(), None, None,
+        RunXMLValidator.validate(self, runNum, cluCfg.configName(), None, None,
                                  numEvts, numMoni, numSN, numTcal, False)
 
         self.__cnc.rpc_runset_break(rsId)

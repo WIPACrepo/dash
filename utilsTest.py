@@ -24,8 +24,8 @@ class TestUtils(unittest.TestCase):
     def test_convertLocalhostToIpAddr(self):
         # test convertLocalhostToIpAddr
         # don't touch a non localhost address
-        self.assertEquals(ip.convertLocalhostToIpAddr('fred'), 'fred')
-        self.assertEquals(ip.convertLocalhostToIpAddr('localhost'),
+        self.assertEqual(ip.convertLocalhostToIpAddr('fred'), 'fred')
+        self.assertEqual(ip.convertLocalhostToIpAddr('localhost'),
                           ip.getLocalIpAddr())
 
 

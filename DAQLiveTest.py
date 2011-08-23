@@ -434,7 +434,7 @@ class DAQLiveTest(unittest.TestCase):
 
         self.failUnless(live.starting(state), "starting failed")
 
-        self.assertEquals("OK", live.subrun(1, ["domA", "dom2", ]))
+        self.assertEqual("OK", live.subrun(1, ["domA", "dom2", ]))
 
 if __name__ == '__main__':
     unittest.main()

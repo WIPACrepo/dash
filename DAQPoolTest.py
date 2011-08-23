@@ -77,7 +77,7 @@ class MyDAQPool(DAQPool):
 class TestDAQPool(unittest.TestCase):
     def __checkRunsetState(self, runset, expState):
         for c in runset.components():
-            self.assertEquals(c.state(), expState,
+            self.assertEqual(c.state(), expState,
                               "Comp %s state should be %s, not %s" %
                               (c.name(), expState, c.state()))
 
@@ -708,7 +708,7 @@ class TestDAQPool(unittest.TestCase):
 
         logger.checkStatus(10)
 
-        RunXMLValidator.validate(runNum, clusterName,
+        RunXMLValidator.validate(self, runNum, clusterName,
                                  PayloadTime.toDateTime(firstTime),
                                  PayloadTime.toDateTime(lastTime),
                                  numEvts, numMoni, numSN, numTcal, False)

@@ -176,8 +176,8 @@ class DAQLaunchTest(unittest.TestCase):
                         parallel = MockParallelShell()
 
                         parallel.addExpectedPython(doCnC, dashDir, configDir,
-                                                   logDir, spadeDir, cfgName,
-                                                   copyDir, logPort, livePort)
+                                                   logDir, daqDataDir, spadeDir, 
+                                                   cfgName, copyDir, logPort, livePort)
                         parallel.addExpectedJava(comp, configDir, daqDataDir,
                                                  DAQPort.CATCHALL, livePort,
                                                  verbose, evtChk, host)
@@ -274,8 +274,8 @@ class DAQLaunchTest(unittest.TestCase):
                                                  verbose, host)
 
                     parallel.addExpectedPython(doCnC, dashDir, configDir,
-                                               logDir, spadeDir, cfgName,
-                                               copyDir, logPort, livePort)
+                                               logDir, daqDataDir, spadeDir, 
+                                               cfgName, copyDir, logPort, livePort)
                     parallel.addExpectedJava(comp, configDir, daqDataDir,
                                              DAQPort.CATCHALL, livePort,
                                              verbose, eventCheck, host)

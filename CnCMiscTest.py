@@ -9,7 +9,7 @@ from DAQMocks import MockComponent
 class TestCnCMisc(unittest.TestCase):
 
     def checkConnectionMap(self, expVal, cMap, key):
-        self.assertEquals(expVal, cMap[key], 'Expected %s "%s", not "%s"' %
+        self.assertEqual(expVal, cMap[key], 'Expected %s "%s", not "%s"' %
                           (key, str(expVal), str(cMap[key])))
 
     def connect(self, inputs):
@@ -35,7 +35,7 @@ class TestCnCMisc(unittest.TestCase):
                 expStr = '%d=>%s' % (port, typeStr)
             else:
                 expStr = '%s=>' % typeStr
-            self.assertEquals(expStr, str(conn),
+            self.assertEqual(expStr, str(conn),
                               'Expected "%s", not "%s"' % (expStr, str(conn)))
 
     def testConnection(self):
@@ -54,7 +54,7 @@ class TestCnCMisc(unittest.TestCase):
 
         expStr = '%s:%s#%d@%s:%d' % (connType, compName, compId, compHost,
                                      connPort)
-        self.assertEquals(expStr, str(ctn),
+        self.assertEqual(expStr, str(ctn),
                           'Expected "%s", not "%s"' % (expStr, str(ctn)))
 
         cMap = ctn.map()
@@ -128,7 +128,7 @@ class TestCnCMisc(unittest.TestCase):
                                " connection") % (key, conn))
 
                 xComp = expMap[key][conn]
-                self.assertEquals(xComp, comp,
+                self.assertEqual(xComp, comp,
                                   ("Expected \"%s\" type \"%s\" to connect to" +
                                    " %s, not %s") % (key, conn, xComp, comp))
 
