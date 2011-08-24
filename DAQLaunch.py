@@ -43,7 +43,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 13275 2011-08-18 17:01:02Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 13287 2011-08-24 22:01:39Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -334,7 +334,7 @@ def doLaunch(doCnC, dryRun, verbose, quiet, clusterConfig, dashDir,
             options += ' -l localhost:%d' % logPort
         if livePort is not None:
             options += ' -L localhost:%d' % livePort
-        if copyDir: options += " -a %s" % copyDir
+        if copyDir is not None: options += " -a %s" % copyDir
         if not forceRestart: options += ' -F'
         if verbose: options += ' &'
         else: options += ' -d'
@@ -544,11 +544,11 @@ if __name__ == "__main__":
         if not exists(spadeDir) and not opt.dryRun: mkdir(spadeDir)
 
         copyDir   = clusterConfig.logDirCopies()
-        if copyDir:
+        if copyDir is not None:
             # non-fully-qualified paths are relative to metaproject top dir:
             if not isabs(copyDir):
                 copyDir = join(metaDir, copyDir)
-        if not exists(copyDir) and not opt.dryRun: mkdir(copyDir)
+            if not exists(copyDir) and not opt.dryRun: mkdir(copyDir)
 
         logDir  = clusterConfig.daqLogDir()
         if not isabs(logDir):
@@ -570,11 +570,11 @@ if __name__ == "__main__":
                     if not exists(logDir): mkdir(logDir)
 
         daqDataDir   = clusterConfig.daqDataDir()
-        if daqDataDir:
+        if daqDataDir is not None:
             # non-fully-qualified paths are relative to metaproject top dir:
             if not isabs(daqDataDir):
                 daqDataDir = join(metaDir, daqDataDir)
-        if not exists(daqDataDir) and not opt.dryRun: mkdir(daqDataDir)
+            if not exists(daqDataDir) and not opt.dryRun: mkdir(daqDataDir)
 
         doCnC = True
 
