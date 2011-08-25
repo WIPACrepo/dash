@@ -26,11 +26,15 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         numActive = 12
         numTotal = 20
         numLBM = 2
+        hit_rate = 50
+        hit_rate_lc = 25
 
         foo = MockComponent("fooHub", 1)
         foo.addBeanData("stringhub", "NumberOfActiveAndTotalChannels",
                         (numActive, numTotal))
         foo.addBeanData("stringhub", "TotalLBMOverflows", numLBM)
+        foo.addBeanData("stringhub", "HitRate", hit_rate)
+        foo.addBeanData("stringhub", "HitRateLC", hit_rate_lc)
 
         runset = MockRunSet([foo, ])
 
@@ -39,8 +43,8 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
         tsk = ActiveDOMsTask(taskMgr, runset, logger, live)
 
-        live.addExpected("activeDOMs", numActive,  Prio.ITS)
-        live.addExpected("expectedDOMs", numTotal,  Prio.ITS)
+        live.addExpected("activeDOMs", numActive,  Prio.EMAIL)
+        live.addExpected("expectedDOMs", numTotal,  Prio.EMAIL)
 
         rptTimer.trigger()
         left = tsk.check()
@@ -57,6 +61,10 @@ class ActiveDOMsTaskTest(unittest.TestCase):
                          Prio.EMAIL)
         live.addExpected("LBMOverflows", {'1' : numLBM},
                          Prio.ITS)
+        live.addExpected("activeDOMs", numActive,  Prio.ITS)
+        live.addExpected("expectedDOMs", numTotal,  Prio.ITS)
+        live.addExpected("slc_rate", hit_rate - hit_rate_lc,Prio.ITS)
+        live.addExpected("hlc_rate", hit_rate_lc,Prio.ITS)
 
         domTimer.trigger()
         left = tsk.check()
@@ -82,11 +90,15 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         numActive = 12
         numTotal = 20
         numLBM = 2
+        hit_rate = 50
+        hit_rate_lc = 25
 
         foo = MockComponent("fooHub", 1)
         foo.addBeanData("stringhub", "NumberOfActiveAndTotalChannels",
                         (numActive, numTotal))
         foo.addBeanData("stringhub", "TotalLBMOverflows", numLBM)
+        foo.addBeanData("stringhub", "HitRate", hit_rate)
+        foo.addBeanData("stringhub", "HitRateLC", hit_rate_lc)
 
         runset = MockRunSet([foo, ])
 
@@ -130,11 +142,15 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         numActive = 12
         numTotal = 20
         numLBM = 2
+        hit_rate = 50
+        hit_rate_lc = 25
 
         foo = MockComponent("fooHub", 1)
         foo.addBeanData("stringhub", "NumberOfActiveAndTotalChannels",
                         (numActive, numTotal))
         foo.addBeanData("stringhub", "TotalLBMOverflows", numLBM)
+        foo.addBeanData("stringhub", "HitRate", hit_rate)
+        foo.addBeanData("stringhub", "HitRateLC", hit_rate_lc)
 
         runset = MockRunSet([foo, ])
 
@@ -143,10 +159,10 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
         tsk = ActiveDOMsTask(taskMgr, runset, logger, live)
 
-        live.addExpected("activeDOMs", numActive,  Prio.ITS)
-        live.addExpected("expectedDOMs", numTotal,  Prio.ITS)
+        live.addExpected("activeDOMs", numActive,  Prio.EMAIL)
+        live.addExpected("expectedDOMs", numTotal,  Prio.EMAIL)
 
-        domTimer.trigger()
+        rptTimer.trigger()
         left = tsk.check()
         self.assertEqual(rptTimer.waitSecs(), left,
                          "Expected %d seconds, not %d" %
@@ -171,6 +187,8 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
         live.addExpected("activeDOMs", numActive,  Prio.ITS)
         live.addExpected("expectedDOMs", numTotal,  Prio.ITS)
+        live.addExpected("slc_rate", hit_rate - hit_rate_lc,Prio.ITS)
+        live.addExpected("hlc_rate", hit_rate_lc,Prio.ITS)
 
         domTimer.trigger()
         left = tsk.check()

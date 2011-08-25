@@ -273,6 +273,8 @@ class CnCRunSetTest(unittest.TestCase):
                         "stringhub" :
                             { "NumberOfActiveAndTotalChannels" : 0,
                               "TotalLBMOverflows" : 0,
+                              "HitRate" : 0,
+                              "HitRateLC" :0,
                               },
                         },
                   "inIceTrigger" :
@@ -361,6 +363,9 @@ class CnCRunSetTest(unittest.TestCase):
         numDOMs = 22
         numTotal = 60
         #totalOverflows = 20
+        hitRate = 50.
+        hitRateLC = 25.
+        
 
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
                            "NumberOfActiveAndTotalChannels",
@@ -369,6 +374,14 @@ class CnCRunSetTest(unittest.TestCase):
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
                            "TotalLBMOverflows",
                            20)
+
+        self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
+                           "HitRateLC",
+                           hitRateLC)
+        self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
+                           "HitRate",
+                           hitRate)
+                           
 
         liveMoni.addExpectedLiveMoni("activeDOMs", numDOMs)
         liveMoni.addExpectedLiveMoni("expectedDOMs", numTotal)

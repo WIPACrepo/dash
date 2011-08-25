@@ -27,12 +27,20 @@ class ActiveDOMThread(CnCThread):
         total = 0
         hub_active_doms = 0
         hub_total_doms = 0
+
+        # hit rate ( in hz )
+        total_rate = 0
+        lc_rate = 0
+        rate_dict = {}
+
         hub_DOMs = {}
 
         lbm_Overflows_Dict = {}
 
         KEY_ACT_TOT = "NumberOfActiveAndTotalChannels"
         KEY_LBM_OVER = "TotalLBMOverflows"
+        KEY_LC_RATE = "HitRateLC"
+        KEY_TOTAL_RATE = "HitRate"
 
         for c in self.__runset.components():
             if not c.isSource():
@@ -40,10 +48,11 @@ class ActiveDOMThread(CnCThread):
 
             # the number of active and total channels and the LBM overflows
             # are returned as a dictionary of values
-            #
             try:
                 beanData = c.getMultiBeanFields("stringhub", [ KEY_ACT_TOT,
-                                                               KEY_LBM_OVER ])
+                                                               KEY_LBM_OVER,
+                                                               KEY_LC_RATE,
+                                                               KEY_TOTAL_RATE])
             except Exception:
                 self.__dashlog.error(
                     "Cannot get ActiveDomsTask bean data from %s: %s" %
@@ -67,6 +76,12 @@ class ActiveDOMThread(CnCThread):
 
             lbm_Overflows_Dict[str(c.num())] = lbm_Overflows
 
+
+            # collect hit rate information
+            lc_rate = float(beanData[KEY_LC_RATE])
+            total_rate = float(beanData[KEY_TOTAL_RATE])
+            rate_dict[str(c.num())] = ( lc_rate, total_rate )
+
             if self.__sendDetails:
                 hub_DOMs[str(c.num())] = (hub_active_doms, hub_total_doms)
 
@@ -75,22 +90,59 @@ class ActiveDOMThread(CnCThread):
             self.PREV_ACTIVE[c.num()] = {
                 KEY_ACT_TOT : (hub_active_doms, hub_total_doms),
                 KEY_LBM_OVER : lbm_Overflows,
+                KEY_LC_RATE : lc_rate,
+                KEY_TOTAL_RATE : total_rate
                 }
 
+        # active doms should be reported over ITS only once every ten minutes
+        # and it should continue to be reported at a one minute interval 
+        # otherwise.  The two should not overlap
         if not self.isClosed():
-            self.__liveMoniClient.sendMoni("activeDOMs", active_total,
-                                           Prio.ITS)
-            self.__liveMoniClient.sendMoni("expectedDOMs", total, Prio.ITS)
+            
+            # if an mbean exception occurs above it's possible to get here
+            # with an empty data dict
+            # we just want to return if we get here and don't have data
+            if len(lbm_Overflows_Dict)==0:
+                return
 
-        if not self.isClosed() and self.__sendDetails:
-            if not self.__liveMoniClient.sendMoni("stringDOMsInfo", hub_DOMs,
-                                                  Prio.EMAIL):
-                self.__dashlog.error("Failed to send active/total DOM report")
+            if not self.__sendDetails:
+                # messages that are to go out every minute and NOT
+                # on the ten minute boundary
+                self.__liveMoniClient.sendMoni("activeDOMs", active_total,
+                                               Prio.EMAIL)
+                self.__liveMoniClient.sendMoni("expectedDOMs", total, Prio.EMAIL)
+
+            else:
+                # messages that are to go out once every ten minutes
+                if not self.__liveMoniClient.sendMoni("stringDOMsInfo", hub_DOMs,
+                                                      Prio.EMAIL):
+                    self.__dashlog.error("Failed to send active/total DOM report")
 
                 # send the lbm overflow information off to live
-            if not self.__liveMoniClient.sendMoni("LBMOverflows",
-                                                  lbm_Overflows_Dict, Prio.ITS):
-                self.__dashlog.error("Failed to send lbm overflow data")
+                if not self.__liveMoniClient.sendMoni("LBMOverflows",
+                                                      lbm_Overflows_Dict, Prio.ITS):
+                    self.__dashlog.error("Failed to send lbm overflow data")
+
+                # active and expected doms is to go out over ITS only once every ten minutes
+                self.__liveMoniClient.sendMoni("activeDOMs", active_total,
+                                               Prio.ITS)
+                self.__liveMoniClient.sendMoni("expectedDOMs", total, Prio.ITS)
+
+                # calculate the total slc / hlc hit rate
+                sum_lc_rate = 0
+                sum_total_rate = 0
+                for lc_rate, total_rate in rate_dict.values():
+                    sum_lc_rate = lc_rate + sum_lc_rate
+                    sum_total_rate = total_rate + sum_total_rate
+
+                hlc_rate = sum_lc_rate
+                slc_rate = sum_total_rate - sum_lc_rate
+                
+                self.__liveMoniClient.sendMoni("slc_rate", slc_rate,
+                                               Prio.ITS)
+                self.__liveMoniClient.sendMoni("hlc_rate", hlc_rate,
+                                               Prio.ITS)
+                
 
     def getNewThread(self, sendDetails):
         thrd = ActiveDOMThread(self.__runset, self.__dashlog,

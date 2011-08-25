@@ -16,7 +16,9 @@ class MockComponent(object):
             { "stringhub" :
                   { "NumberOfActiveChannels" : 2 ,
                     "NumberOfActiveAndTotalChannels" : [1,2],
-                    "TotalLBMOverflows" : 20 },
+                    "TotalLBMOverflows" : 20,
+                    "HitRate" : 50.,
+                    "HitRateLC" : 25., },
               "sender" :
                   { "NumHitsReceived" : 0,
                     "NumReadoutRequestsReceived" : 0,
@@ -191,13 +193,17 @@ class TaskManagerTest(unittest.TestCase):
                          2, Prio.ITS)
         live.addExpected("stringHub-1*stringhub+TotalLBMOverflows",
                          20, Prio.ITS)
-
+        live.addExpected("stringHub-1*stringhub+HitRate", 50, Prio.ITS)
+        live.addExpected("stringHub-1*stringhub+HitRateLC", 25, Prio.ITS)
         live.addExpected("stringHub-1*stringhub+NumberOfActiveAndTotalChannels",
                          [1,2], Prio.ITS)
+
         live.addExpected("stringHub-6*stringhub+NumberOfActiveAndTotalChannels",
                          [1,2], Prio.ITS)
         live.addExpected("stringHub-6*stringhub+TotalLBMOverflows",
                          20, Prio.ITS)
+        live.addExpected("stringHub-6*stringhub+HitRate", 50, Prio.ITS)
+        live.addExpected("stringHub-6*stringhub+HitRateLC", 25, Prio.ITS)
 
         live.addExpected(radarName + "*sender+NumHitsReceived", 0, Prio.ITS)
         live.addExpected(radarName + "*sender+NumReadoutRequestsReceived",
@@ -236,6 +242,8 @@ class TaskManagerTest(unittest.TestCase):
                          Prio.ITS)
         live.addExpected("stringDOMsInfo", {"1":(1,2), "6" : (1,2) },
                          Prio.EMAIL)
+        live.addExpected("slc_rate", 50, Prio.ITS)
+        live.addExpected("hlc_rate", 50, Prio.ITS)
 
         # add radar DOM data
         if self.__firstTime:

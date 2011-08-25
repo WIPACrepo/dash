@@ -15,6 +15,8 @@ from LiveImports import SERVICE_NAME
 from utils import ip
 from utils.DashXMLLog import DashXMLLog
 
+import traceback
+
 if os.environ.has_key("PDAQ_HOME"):
     METADIR = os.environ["PDAQ_HOME"]
 else:
@@ -597,12 +599,14 @@ class MockComponent(object):
         return outStr
 
     def addBeanData(self, beanName, fieldName, value):
+
         if self.checkBeanField(beanName, fieldName):
             raise Exception("Value for %c bean %s field %s already exists" %
                             (self, beanName, fieldName))
 
         if not self.__beanData.has_key(beanName):
             self.__beanData[beanName] = {}
+
         self.__beanData[beanName][fieldName] = value
 
     def addInput(self, name, port, optional=False):
@@ -671,6 +675,7 @@ class MockComponent(object):
         rtnMap = {}
         for f in fieldList:
             rtnMap[f] = self.getSingleBeanField(beanName, f)
+            
             if isinstance(rtnMap[f], Exception):
                 raise rtnMap[f]
         return rtnMap
@@ -741,11 +746,13 @@ class MockComponent(object):
         self.__isBadHub = True
 
     def setBeanData(self, beanName, fieldName, value):
+
         if not self.checkBeanField(beanName, fieldName):
             raise Exception("%c bean %s field %s has not been added" %
                             (self, beanName, fieldName))
 
         self.__beanData[beanName][fieldName] = value
+
 
     def setConfigureWait(self, waitNum):
         self.__configWait = waitNum
@@ -1611,13 +1618,18 @@ class MockLiveMoni(object):
             raise Exception(("Unexpected live monitor data" +
                              " (var=%s, val=%s, prio=%d)") % (var, val, prio))
 
-        expData = self.__expMoni[var].pop(0)
+        expData = None
+        for index, ( val_tmp, prio_tmp) in enumerate(self.__expMoni[var]):
+            if val == val_tmp and prio == prio_tmp:
+                # found the right entry
+                expData = self.__expMoni[var].pop(index)
+                break
+
         if len(self.__expMoni[var]) == 0:
             del self.__expMoni[var]
 
-        if val != expData[0] or prio != expData[1]:
-            raise Exception(("Expected live monitor data (var=%s, val=%s," +
-                             " prio=%d), not (var=%s, val=%s, prio=%d)") %
-                            (var, expData[0], expData[1], var, val, prio))
+        if expData == None:
+                raise Exception(("Expected live monitor data from (%s/%s), not (var=%s, val=%s, prio=%d)") %
+                                (var, self.__expMoni[var], var, val, prio))
 
         return True
