@@ -29,7 +29,11 @@ class CachedFile(object):
         try:
             with open(clusterFile, 'r') as f:
                 ret = f.readline()
-                return ret.rstrip('\r\n')
+                if ret is not None:
+                    ret = ret.rstrip('\r\n')
+                if ret is None or len(ret) == 0:
+                    return None
+                return ret
         except:
             return None
 
