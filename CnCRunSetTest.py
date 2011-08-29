@@ -365,7 +365,7 @@ class CnCRunSetTest(unittest.TestCase):
         #totalOverflows = 20
         hitRate = 50.
         hitRateLC = 25.
-        
+
 
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
                            "NumberOfActiveAndTotalChannels",
@@ -381,7 +381,7 @@ class CnCRunSetTest(unittest.TestCase):
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
                            "HitRate",
                            hitRate)
-                           
+
 
         liveMoni.addExpectedLiveMoni("activeDOMs", numDOMs)
         liveMoni.addExpectedLiveMoni("expectedDOMs", numTotal)
@@ -433,6 +433,11 @@ class CnCRunSetTest(unittest.TestCase):
                            "DataCollectorMonitor-00A", "MainboardId")
         self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
                            "DataCollectorMonitor-00A", "HitRate")
+
+        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "HitRateLC")
+        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "HitRate")
 
         timer.trigger()
 
