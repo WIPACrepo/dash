@@ -1628,7 +1628,7 @@ class MockLiveMoni(object):
         if len(self.__expMoni[var]) == 0:
             del self.__expMoni[var]
 
-        if expData == None:
+        if expData is None:
                 raise Exception(("Expected live monitor data from (%s/%s), not (var=%s, val=%s, prio=%d)") %
                                 (var, self.__expMoni[var], var, val, prio))
 

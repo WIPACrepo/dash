@@ -45,6 +45,8 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
         live.addExpected("activeDOMs", numActive,  Prio.EMAIL)
         live.addExpected("expectedDOMs", numTotal,  Prio.EMAIL)
+        live.addExpected("total_rate", hit_rate, Prio.EMAIL)
+        live.addExpected("total_ratelc", hit_rate_lc, Prio.EMAIL)
 
         rptTimer.trigger()
         left = tsk.check()
@@ -59,12 +61,16 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
         live.addExpected("stringDOMsInfo", {'1' : (numActive, numTotal)},
                          Prio.EMAIL)
+        live.addExpected("stringRateInfo", {'1' : 50 },
+                         Prio.EMAIL)
+        live.addExpected("stringRateLCInfo", { '1' : 25},
+                         Prio.EMAIL)
         live.addExpected("LBMOverflows", {'1' : numLBM},
                          Prio.ITS)
         live.addExpected("activeDOMs", numActive,  Prio.ITS)
         live.addExpected("expectedDOMs", numTotal,  Prio.ITS)
-        live.addExpected("slc_rate", hit_rate - hit_rate_lc,Prio.ITS)
-        live.addExpected("hlc_rate", hit_rate_lc,Prio.ITS)
+        live.addExpected("total_rate", hit_rate, Prio.ITS)
+        live.addExpected("total_ratelc", hit_rate_lc, Prio.ITS)
 
         domTimer.trigger()
         left = tsk.check()
@@ -161,6 +167,8 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
         live.addExpected("activeDOMs", numActive,  Prio.EMAIL)
         live.addExpected("expectedDOMs", numTotal,  Prio.EMAIL)
+        live.addExpected("total_rate", hit_rate, Prio.EMAIL)
+        live.addExpected("total_ratelc", hit_rate_lc, Prio.EMAIL)
 
         rptTimer.trigger()
         left = tsk.check()
@@ -175,6 +183,10 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
         live.addExpected("stringDOMsInfo", {'1' : (numActive, numTotal)},
                          Prio.EMAIL)
+        live.addExpected("stringRateInfo", {'1' : 50 },
+                         Prio.EMAIL)
+        live.addExpected("stringRateLCInfo", { '1' : 25 },
+                         Prio.EMAIL)
         live.addExpected("LBMOverflows", {'1' : numLBM},
                          Prio.ITS)
 
@@ -187,8 +199,8 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
         live.addExpected("activeDOMs", numActive,  Prio.ITS)
         live.addExpected("expectedDOMs", numTotal,  Prio.ITS)
-        live.addExpected("slc_rate", hit_rate - hit_rate_lc,Prio.ITS)
-        live.addExpected("hlc_rate", hit_rate_lc,Prio.ITS)
+        live.addExpected("total_rate", hit_rate, Prio.ITS)
+        live.addExpected("total_ratelc", hit_rate_lc, Prio.ITS)
 
         domTimer.trigger()
         left = tsk.check()

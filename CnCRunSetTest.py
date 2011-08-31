@@ -385,6 +385,8 @@ class CnCRunSetTest(unittest.TestCase):
 
         liveMoni.addExpectedLiveMoni("activeDOMs", numDOMs)
         liveMoni.addExpectedLiveMoni("expectedDOMs", numTotal)
+        liveMoni.addExpectedLiveMoni("total_rate", hitRate)
+        liveMoni.addExpectedLiveMoni("total_ratelc", hitRateLC)
 
         #liveMoni.addExpectedLiveMoni("LBMOverflows", { str(self.HUB_NUMBER): totalOverflows }, "json")
         timer.trigger()

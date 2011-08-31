@@ -238,12 +238,16 @@ class TaskManagerTest(unittest.TestCase):
         # add activeDOM data
         live.addExpected("activeDOMs", 2, Prio.ITS)
         live.addExpected("expectedDOMs", 4, Prio.ITS)
+        live.addExpected("total_rate", 100, Prio.ITS)
+        live.addExpected("total_ratelc", 50, Prio.ITS)
         live.addExpected("LBMOverflows", { "1" : 20, "6" : 20 },
                          Prio.ITS)
         live.addExpected("stringDOMsInfo", {"1":(1,2), "6" : (1,2) },
                          Prio.EMAIL)
-        live.addExpected("slc_rate", 50, Prio.ITS)
-        live.addExpected("hlc_rate", 50, Prio.ITS)
+        live.addExpected("stringRateInfo", {"1": 50, "6" : 50 },
+                         Prio.EMAIL)
+        live.addExpected("stringRateLCInfo", { "1": 25, "6": 25},
+                         Prio.EMAIL)
 
         # add radar DOM data
         if self.__firstTime:

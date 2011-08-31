@@ -29,9 +29,12 @@ class ActiveDOMThread(CnCThread):
         hub_total_doms = 0
 
         # hit rate ( in hz )
+        sum_total_rate = 0
+        sum_lc_rate = 0
         total_rate = 0
         lc_rate = 0
         rate_dict = {}
+        ratelc_dict = {}
 
         hub_DOMs = {}
 
@@ -73,17 +76,24 @@ class ActiveDOMThread(CnCThread):
             total += hub_total_doms
 
             lbm_Overflows = beanData[KEY_LBM_OVER]
-
             lbm_Overflows_Dict[str(c.num())] = lbm_Overflows
 
 
             # collect hit rate information
+            # note that we are rounding rates to 2 decimal points
+            # because we need to conserve space in the stringRateInfo dict
             lc_rate = float(beanData[KEY_LC_RATE])
             total_rate = float(beanData[KEY_TOTAL_RATE])
-            rate_dict[str(c.num())] = ( lc_rate, total_rate )
+
+            sum_lc_rate += lc_rate
+            sum_total_rate += total_rate
+
+            rate_dict[str(c.num())] =  total_rate            
+            ratelc_dict[str(c.num())] = lc_rate
 
             if self.__sendDetails:
                 hub_DOMs[str(c.num())] = (hub_active_doms, hub_total_doms)
+
 
             # cache current results
             #
@@ -108,9 +118,21 @@ class ActiveDOMThread(CnCThread):
             if not self.__sendDetails:
                 # messages that are to go out every minute and NOT
                 # on the ten minute boundary
-                self.__liveMoniClient.sendMoni("activeDOMs", active_total,
-                                               Prio.EMAIL)
-                self.__liveMoniClient.sendMoni("expectedDOMs", total, Prio.EMAIL)
+                if not self.__liveMoniClient.sendMoni("activeDOMs", active_total,
+                                                      Prio.EMAIL):
+                    self.__dashlog.error("Failed to send activeDOMs at email prio")
+
+                    
+                if not self.__liveMoniClient.sendMoni("expectedDOMs", total, Prio.EMAIL):
+                    self.__dashlog.error("Failed to send expectedDOMs at email prio")
+
+                if not self.__liveMoniClient.sendMoni("total_ratelc", sum_lc_rate,
+                                                      Prio.EMAIL):
+                    self.__dashlog.error("Failed to send total_ratelc at email prio")
+
+                if not self.__liveMoniClient.sendMoni("total_rate", sum_total_rate,
+                                                      Prio.EMAIL):
+                    self.__dashlog.error("Failed to send total_rate at email prio")
 
             else:
                 # messages that are to go out once every ten minutes
@@ -124,24 +146,31 @@ class ActiveDOMThread(CnCThread):
                     self.__dashlog.error("Failed to send lbm overflow data")
 
                 # active and expected doms is to go out over ITS only once every ten minutes
-                self.__liveMoniClient.sendMoni("activeDOMs", active_total,
-                                               Prio.ITS)
-                self.__liveMoniClient.sendMoni("expectedDOMs", total, Prio.ITS)
+                if not self.__liveMoniClient.sendMoni("activeDOMs", active_total,
+                                                      Prio.ITS):
+                    self.__dashlog.error("failed to send activeDOMs at its prio")
+                    
+                if not self.__liveMoniClient.sendMoni("expectedDOMs", total, Prio.ITS):
+                    self.__dashlog.error("failed to send expectedDOMs at its prio")
 
-                # calculate the total slc / hlc hit rate
-                sum_lc_rate = 0
-                sum_total_rate = 0
-                for lc_rate, total_rate in rate_dict.values():
-                    sum_lc_rate = lc_rate + sum_lc_rate
-                    sum_total_rate = total_rate + sum_total_rate
+            
+                if not self.__liveMoniClient.sendMoni("stringRateInfo", rate_dict,
+                                                      Prio.EMAIL):
+                    self.__dashlog.error("Failed to send per string rate report")
 
-                hlc_rate = sum_lc_rate
-                slc_rate = sum_total_rate - sum_lc_rate
+                if not self.__liveMoniClient.sendMoni("stringRateLCInfo", ratelc_dict,
+                                                      Prio.EMAIL):
+                    self.__dashlog.error("Failed to send per string rate lc report")
                 
-                self.__liveMoniClient.sendMoni("slc_rate", slc_rate,
-                                               Prio.ITS)
-                self.__liveMoniClient.sendMoni("hlc_rate", hlc_rate,
-                                               Prio.ITS)
+                
+                if not self.__liveMoniClient.sendMoni("total_ratelc", sum_lc_rate,
+                                                      Prio.ITS):
+                    self.__dashlog.error("Failed to send total_ratelc at ITS prio")
+
+                    
+                if not self.__liveMoniClient.sendMoni("total_rate", sum_total_rate,
+                                                      Prio.ITS):
+                    self.__dasahlog.error("Failed to send total_rate at its prio")
                 
 
     def getNewThread(self, sendDetails):
