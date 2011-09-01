@@ -221,6 +221,7 @@ class ClusterDescription(ConfigXMLBase):
     SPS = "sps"
     SPTS = "spts"
     SPTS64 = "spts64"
+    MDFL = "mdfl"
 
     DBTYPE_TEST = "test"
     DBTYPE_PROD = "production"
@@ -577,6 +578,8 @@ class ClusterDescription(ConfigXMLBase):
                 if len(hlist) > 4 and \
                        (hlist[1] == cls.SPTS64 or hlist[1] == cls.SPTS):
                     return hlist[1]
+                if hostname.startswith("mdfl"):
+                    return cls.MDFL
 
         return cls.LOCAL
 
@@ -592,7 +595,7 @@ class ClusterDescription(ConfigXMLBase):
             return cls.DBTYPE_TEST
         if clu == cls.SPS or clu == cls.PDAQ2:
             return cls.DBTYPE_PROD
-        if clu == cls.LOCAL:
+        if clu == cls.LOCAL or clu == cls.MDFL:
             return cls.DBTYPE_NONE
         raise NotImplementedError("Cannot guess database" +
                                      " for cluster \"%s\"" % clu)
