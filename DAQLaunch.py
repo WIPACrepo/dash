@@ -43,7 +43,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 13287 2011-08-24 22:01:39Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 13315 2011-09-01 18:00:48Z dglo $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -326,8 +326,10 @@ def doLaunch(doCnC, dryRun, verbose, quiet, clusterConfig, dashDir,
 
     if doCnC:
         path  = join(dashDir, progName)
-        options = " -c %s -o %s -q %s -s %s" % \
-            (configDir, logDir, daqDataDir, spadeDir)
+        options = " -c %s -o %s -q %s" % \
+            (configDir, logDir, daqDataDir)
+        if spadeDir is not None:
+            options += ' -s ' + spadeDir
         if clusterConfig.descName() is not None:
             options += ' -C ' + clusterConfig.descName()
         if logPort is not None:
@@ -538,10 +540,11 @@ if __name__ == "__main__":
                 print
 
         spadeDir  = clusterConfig.logDirForSpade()
-        if not isabs(spadeDir):
-            # non-fully-qualified paths are relative to metaproject top dir:
-            spadeDir = join(metaDir, spadeDir)
-        if not exists(spadeDir) and not opt.dryRun: mkdir(spadeDir)
+        if spadeDir is not None:
+            if not isabs(spadeDir):
+                # non-fully-qualified paths are relative to metaproject top dir:
+                spadeDir = join(metaDir, spadeDir)
+            if not exists(spadeDir) and not opt.dryRun: mkdir(spadeDir)
 
         copyDir   = clusterConfig.logDirCopies()
         if copyDir is not None:

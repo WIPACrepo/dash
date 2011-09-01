@@ -236,7 +236,7 @@ class RunData(object):
         self.__spadeDir = spadeDir
         self.__copyDir = copyDir
 
-        if not os.path.exists(self.__spadeDir):
+        if self.__spadeDir is not None and not os.path.exists(self.__spadeDir):
             raise RunSetException("SPADE directory %s does not exist" %
                                   self.__spadeDir)
 
@@ -456,10 +456,11 @@ class RunData(object):
             self.__dashlog.error("Not logging to file so cannot queue to SPADE")
             return
 
-        SpadeQueue.queueForSpade(self.__dashlog, self.__spadeDir,
-                                 self.__copyDir, self.__runDir,
-                                 self.__runNumber, datetime.datetime.now(),
-                                 duration)
+        if self.__spadeDir is not None:
+            SpadeQueue.queueForSpade(self.__dashlog, self.__spadeDir,
+                                     self.__copyDir, self.__runDir,
+                                     self.__runNumber, datetime.datetime.now(),
+                                     duration)
 
     def reportRates(self, comps):
         try:
