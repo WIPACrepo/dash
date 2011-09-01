@@ -170,7 +170,7 @@ class ActiveDOMThread(CnCThread):
                     
                 if not self.__liveMoniClient.sendMoni("total_rate", sum_total_rate,
                                                       Prio.ITS):
-                    self.__dasahlog.error("Failed to send total_rate at its prio")
+                    self.__dashlog.error("Failed to send total_rate at its prio")
                 
 
     def getNewThread(self, sendDetails):
