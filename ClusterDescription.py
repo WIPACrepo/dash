@@ -230,6 +230,9 @@ class ClusterDescription(ConfigXMLBase):
     DEFAULT_LOG_DIR = "/mnt/data/pdaq/log"
     DEFAULT_LOG_LEVEL = "WARN"
 
+    DEFAULT_PKGSTAGE_DIR = "/software/stage/pdaq/dependencies/tar"
+    DEFAULT_PKGINSTALL_DIR = "/software/pdaq"
+
     def __init__(self, configDir, configName, suffix='.cfg'):
 
         self.name = None
@@ -240,6 +243,8 @@ class ClusterDescription(ConfigXMLBase):
         self.__logDirCopies = None
         self.__daqDataDir = None
         self.__daqLogDir = None
+        self.__pkgStageDir = None
+        self.__pkgInstallDir = None
         self.__defaultLogLevel = self.DEFAULT_LOG_LEVEL
         self.__defaultJVM = None
         self.__defaultJVMArgs = None
@@ -470,6 +475,12 @@ class ClusterDescription(ConfigXMLBase):
             print "%s  DAQ data directory: %s" % (prefix, self.__daqDataDir)
         if self.__daqLogDir is not None:
             print "%s  DAQ log directory: %s" % (prefix, self.__daqLogDir)
+        if self.__pkgStageDir is not None:
+            print "%s  Package staging directory: %s" % \
+                (prefix, self.__pkgStageDir)
+        if self.__pkgInstallDir is not None:
+            print "%s  Package installation directory: %s" % \
+                (prefix, self.__pkgInstallDir)
         if self.__defaultLogLevel is not None:
             print "%s  Default log level: %s" % (prefix, self.__defaultLogLevel)
         if self.__defaultJVM is not None:
@@ -518,6 +529,14 @@ class ClusterDescription(ConfigXMLBase):
         self.__daqLogDir = self.getValue(cluster, 'daqLogDir')
         if(self.__daqLogDir!=None):
             self.__daqLogDir = os.path.expanduser(self.__daqLogDir)
+
+        self.__pkgStageDir = self.getValue(cluster, 'packageStageDir')
+        if(self.__pkgStageDir!=None):
+            self.__pkgStageDir = os.path.expanduser(self.__pkgStageDir)
+
+        self.__pkgInstallDir = self.getValue(cluster, 'packageInstallDir')
+        if(self.__pkgInstallDir!=None):
+            self.__pkgInstallDir = os.path.expanduser(self.__pkgInstallDir)
 
         dfltNodes = cluster.getElementsByTagName('default')
         for node in dfltNodes:
@@ -600,6 +619,16 @@ class ClusterDescription(ConfigXMLBase):
 
     def logDirForSpade(self): return self.__logDirForSpade
     def logDirCopies(self): return self.__logDirCopies
+
+    def packageStageDir(self):
+        if self.__pkgStageDir is None:
+            return self.DEFAULT_PKGSTAGE_DIR
+        return self.__pkgStageDir
+
+    def packageInstallDir(self):
+        if self.__pkgInstallDir is None:
+            return self.DEFAULT_PKGINSTALL_DIR
+        return self.__pkgInstallDir
 
 if __name__ == '__main__':
     if len(sys.argv) <= 1:
