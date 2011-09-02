@@ -255,4 +255,5 @@ def main():
     for job in jobs:
         print "Job %d: result %s" % (job, p.getResult(job))
 
-if __name__ == "__main__": main()
+if __name__ == "__main__": 
+    main()

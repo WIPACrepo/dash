@@ -10,17 +10,16 @@
 import optparse
 import signal
 import sys
-from time import sleep
+
 from os import environ, mkdir, system
 from os.path import exists, isabs, join
 from utils import ip
 from utils.Machineid import Machineid
 
-from ClusterConfig \
-    import ClusterConfig, ClusterConfigException, ConfigNotFoundException
+from ClusterConfig import ClusterConfigException
 from Component import Component
-from DAQConfig import ConfigNotSpecifiedException, DAQConfig, \
-    DAQConfigException, DAQConfigParser
+from DAQConfig import DAQConfig, DAQConfigParser
+from DAQConfigExceptions import DAQConfigException
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from Process import findProcess, processList
@@ -43,7 +42,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 13315 2011-09-01 18:00:48Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 13324 2011-09-02 22:04:40Z mnewcomb $"
 
 class HostNotFoundForComponent   (Exception): pass
 class ComponentNotFoundInDatabase(Exception): pass
@@ -154,7 +153,7 @@ def killJavaComponents(compList, dryRun, verbose, killWith9, parallel=None):
         # check for ssh failures here
         cmd_results_dict = parallel.getCmdResults()
         for cmd in cmd_results_dict:
-            rtn_code,results = cmd_results_dict[cmd]
+            rtn_code, results = cmd_results_dict[cmd]
             nodeName = "unknown" if cmd not in cmdToHostDict else cmdToHostDict[cmd]
             # pkill return codes
             # 0 -> killed something
@@ -245,7 +244,7 @@ def startJavaComponents(compList, dryRun, configDir, daqDataDir, logPort,
             # check for ssh failures here
             cmd_results_dict = parallel.getCmdResults()
             for cmd in cmd_results_dict:
-                rtn_code,results = cmd_results_dict[cmd]
+                rtn_code, results = cmd_results_dict[cmd]
                 nodeName = "unknown" if cmd not in cmdToHostDict else cmdToHostDict[cmd]
                 if(rtn_code!=0):
                     print "Error non zero return code ( %s ) for host: %s, cmd: %s" % ( rtn_code, nodeName, cmd)
@@ -429,6 +428,10 @@ if __name__ == "__main__":
                  help="just kill everything with extreme (-9) prejudice")
     p.add_option("-m", "--no-host-check", dest="nohostcheck", default=False,
                  help="Disable checking the host type for run permission")
+    p.add_option("-z", "--no-schema-validation", dest="validation",
+                 action="store_false", default=True,
+                 help="Disable schema validation of xml configuration files")
+    
     opt, args = p.parse_args()
 
     if not opt.nohostcheck:
@@ -437,12 +440,12 @@ if __name__ == "__main__":
            ( hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
             # to run daq launch you should either be a control host or
             # a totally unknown host
-            print >>sys.stderr, "Are you sure you are running DAQLaunch on the correct host?"
+            print >> sys.stderr, "Are you sure you are running DAQLaunch on the correct host?"
             raise SystemExit
 
 
     if opt.quiet and opt.verbose:
-        print >>sys.stderr, "Cannot specify both -q(uiet) and -v(erbose)"
+        print >> sys.stderr, "Cannot specify both -q(uiet) and -v(erbose)"
         raise SystemExit
 
     configDir = join(metaDir, 'config')
@@ -474,11 +477,11 @@ if __name__ == "__main__":
                     plural = ''
                 else:
                     plural = 's'
-                print >>sys.stderr, 'Found %d active runset%s:' % \
+                print >> sys.stderr, 'Found %d active runset%s:' % \
                     (numSets, plural)
                 for id in runsets.keys():
-                    print >>sys.stderr, "  %d: %s" % (id, runsets[id])
-                print >>sys.stderr, \
+                    print >> sys.stderr, "  %d: %s" % (id, runsets[id])
+                print >> sys.stderr, \
                     'To force a restart, rerun with the --force option'
                 raise SystemExit
 
@@ -491,10 +494,12 @@ if __name__ == "__main__":
 
         caughtException = False
         try:
+
             activeConfig = \
                 DAQConfigParser.getClusterConfiguration(None, False, True,
                                                         opt.clusterDesc,
-                                                        configDir=configDir)
+                                                        configDir=configDir,
+                                                        validate = opt.validation)
             doKill(doCnC, opt.dryRun, dashDir, opt.verbose, opt.quiet,
                    activeConfig, opt.killWith9)
         except ClusterConfigException:
@@ -502,18 +507,28 @@ if __name__ == "__main__":
         except DAQConfigException:
             caughtException = True
         if caughtException and opt.killOnly:
-            print >>sys.stderr, 'DAQ is not currently active'
+            print >> sys.stderr, 'DAQ is not currently active'
 
         if opt.force:
-            print >>sys.stderr, "Remember to run SpadeQueue.py to recover" + \
+            print >> sys.stderr, "Remember to run SpadeQueue.py to recover" + \
                 " any orphaned data"
 
     if not opt.killOnly:
-        clusterConfig = \
-            DAQConfigParser.getClusterConfiguration(opt.clusterConfigName,
-                                                    opt.doList, False,
-                                                    opt.clusterDesc,
-                                                    configDir=configDir)
+        try:
+
+            clusterConfig = \
+                DAQConfigParser.getClusterConfiguration(opt.clusterConfigName,
+                                                        opt.doList, False,
+                                                        opt.clusterDesc,
+                                                        configDir=configDir,
+                                                        validate = opt.validation)
+        except DAQConfigException, e:
+            print >> sys.stderr, "DAQ Config exception:\n\t%s" % e
+            raise SystemExit
+        except ClusterConfigException, e:
+            print >> sys.stderr, "Cluster Config Exception:\n\t%s" % e
+            raise SystemExit
+
         if opt.doList: raise SystemExit
 
         if opt.verbose:

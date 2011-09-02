@@ -5,13 +5,14 @@ import copy, os, sys
 from xml.dom import Node
 
 from CachedConfigName import CachedConfigName
-from ClusterConfig import ClusterConfigParser, ConfigNotFoundException
+from ClusterConfig import ClusterConfigParser
 from Component import Component
 from DefaultDomGeometry import BadFileError, DefaultDomGeometryReader, \
     ProcessError, XMLParser
 from RunCluster import RunCluster
 from XMLFileCache import XMLFileCache, XMLFileNotFound
 from utils.Machineid import Machineid
+from xsd.validate_configs import validate_configs
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -20,11 +21,11 @@ else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
-class DAQConfigException(Exception): pass
-class BadComponentName(DAQConfigException): pass
-class BadDOMID(DAQConfigException): pass
-class ConfigNotSpecifiedException(DAQConfigException): pass
-class DOMNotInConfigException(DAQConfigException): pass
+from DAQConfigExceptions import DAQConfigException
+from DAQConfigExceptions import BadComponentName
+from DAQConfigExceptions import BadDOMID
+from DAQConfigExceptions import ConfigNotSpecifiedException
+from DAQConfigExceptions import DOMNotInConfigException
 
 class KeyValuePairs(object):
     "Container for a list of key/value pairs extracted from an XML file"
@@ -51,7 +52,7 @@ class KeyValuePairs(object):
     def addAttribute(self, key, val):
         if self.__attr.has_key(key):
             if self.__attr[key] != val:
-                print >>sys.stderr, \
+                print >> sys.stderr, \
                       "Changing <%s> \"%s\" value from \"%s\" to \"%s\"" % \
                       (self.__tag, key, self.__attr[key], val)
         else:
@@ -65,9 +66,9 @@ class KeyValuePairs(object):
         for i in range(indentLevel):
             in1 += indent
 
-        print >>fd, "%s<%s>" % (in1, self.__tag)
+        print >> fd, "%s<%s>" % (in1, self.__tag)
         self.writeAttrs(fd, indent, indentLevel + 1)
-        print >>fd, "%s</%s>" % (in1, self.__tag)
+        print >> fd, "%s</%s>" % (in1, self.__tag)
 
     def writeAttrs(self, fd, indent, indentLevel):
         in1 = ""
@@ -75,7 +76,7 @@ class KeyValuePairs(object):
             in1 += indent
 
         for key in self.__attrOrder:
-            print >>fd, "%s<%s> %s </%s>" % (in1, key, self.__attr[key], key)
+            print >> fd, "%s<%s> %s </%s>" % (in1, key, self.__attr[key], key)
 
 class LocalCoincidence(KeyValuePairs):
     "DOM local coincidence data"
@@ -108,7 +109,7 @@ class LocalCoincidence(KeyValuePairs):
 
         in2 = in1 + indent
 
-        print >>fd, "%s<%s>" % (in1, self.tag())
+        print >> fd, "%s<%s>" % (in1, self.tag())
 
         self.writeAttrs(fd, indent, indentLevel + 1)
 
@@ -119,10 +120,10 @@ class LocalCoincidence(KeyValuePairs):
             else:
                 dirStr = "down"
 
-            print >>fd, ("%s<cableLength dir=\"%s\" dist=\"%d\"> %d" +
+            print >> fd, ("%s<cableLength dir=\"%s\" dist=\"%d\"> %d" +
                          " </cableLength>") % (in2, dirStr, dist, cableLen)
 
-        print >>fd, "%s</%s>" % (in1, self.tag())
+        print >> fd, "%s</%s>" % (in1, self.tag())
 
 class RunDom(object):
     """Minimal details for a single DOM"""
@@ -215,7 +216,7 @@ class RunDom(object):
     def addAttribute(self, key, val):
         if self.__attr.has_key(key):
             if self.__attr[key] != val:
-                print >>sys.stderr, "Changing %s <%s> value from %s to %s" % \
+                print >> sys.stderr, "Changing %s <%s> value from %s to %s" % \
                       (self, key, self.__attr[key], val)
         else:
             self.__attrOrder.append(key)
@@ -269,26 +270,26 @@ class RunDom(object):
         in2 = in1 + indent
         in3 = in2 + indent
 
-        print >>fd, "%s<domConfig mbid=\"%012x\" name=\"%s\">" % \
+        print >> fd, "%s<domConfig mbid=\"%012x\" name=\"%s\">" % \
               (in1, self.__id, self.__name)
         for key in self.__attrOrder:
             if self.__attr.has_key(key):
-                print >>fd, "%s<%s> %s </%s>" % \
+                print >> fd, "%s<%s> %s </%s>" % \
                       (in2, key, self.__attr[key], key)
             elif key == self.ATTR_CHGSTAMP:
                 if len(self.__chargeStamp) == 1:
                     chanStr = ""
                 else:
                     chanStr = " channel=\"%s\"" % self.__chargeStamp[1]
-                print >>fd, "%s<%s type=\"%s\"%s/>" % \
+                print >> fd, "%s<%s type=\"%s\"%s/>" % \
                       (in2, key, self.__chargeStamp[0], chanStr)
             elif key == self.ATTR_CHGHIST:
-                print >>fd, "%s<%s>" % (in2, key)
-                print >>fd, "%s<interval>%d</interval>>" % \
+                print >> fd, "%s<%s>" % (in2, key)
+                print >> fd, "%s<interval>%d</interval>>" % \
                       (in3, self.__chargeHist[0])
-                print >>fd, "%s<prescale>%d</prescale>>" % \
+                print >> fd, "%s<prescale>%d</prescale>>" % \
                       (in3, self.__chargeHist[1])
-                print >>fd, "%s</%s>" % (in2, key)
+                print >> fd, "%s</%s>" % (in2, key)
             elif key == self.ATTR_FORMAT:
                 if self.__format == self.FMT_DELTA:
                     fmtStr = "deltaCompressed"
@@ -297,11 +298,11 @@ class RunDom(object):
                 else:
                     raise ProcessError("Unknown format value %s" %
                                        self.__format)
-                print >>fd, "%s<%s>" % (in2, key)
-                print >>fd, "%s<%s/>" % (in3, fmtStr)
-                print >>fd, "%s</%s>" % (in2, key)
+                print >> fd, "%s<%s>" % (in2, key)
+                print >> fd, "%s<%s/>" % (in3, fmtStr)
+                print >> fd, "%s</%s>" % (in2, key)
             elif key == self.ATTR_ICETOP_MB:
-                print >>fd, "%s<%s/>" % (in2, key)
+                print >> fd, "%s<%s/>" % (in2, key)
             elif key == self.ATTR_LCL_COIN:
                 self.__localCoincidence.write(fd, indent, indentLevel + 1)
             elif key == self.ATTR_SIM:
@@ -312,12 +313,12 @@ class RunDom(object):
                     enStr = "true"
                 else:
                     enStr = "false"
-                print >>fd, "%s<%s enabled=\"%s\">" % (in2, key, enStr)
-                print >>fd, "%s<deadtime> %s </deadtime>" % (in3, deadtime)
-                print >>fd, "%s<disc> %s </disc>" % (in3, disc)
-                print >>fd, "%s</%s>" % (in2, key)
+                print >> fd, "%s<%s enabled=\"%s\">" % (in2, key, enStr)
+                print >> fd, "%s<deadtime> %s </deadtime>" % (in3, deadtime)
+                print >> fd, "%s<disc> %s </disc>" % (in3, disc)
+                print >> fd, "%s</%s>" % (in2, key)
 
-        print >>fd, "%s</domConfig>" % in1
+        print >> fd, "%s</domConfig>" % in1
 
 class DomConfigParser(XMLParser, XMLFileCache):
     "Parse DOM configuration file"
@@ -505,7 +506,7 @@ class DomConfigParser(XMLParser, XMLFileCache):
         if enabled is None:
             raise ProcessError(("Bad value \"%s\" for %s <%s> \"%s\"" +
                                 " attribute") %
-                               (eStr, dom, node.nodeName, attrName))
+                               (eStr, dom, node.nodeName, "enabled"))
 
         deadtime = None
         disc = None
@@ -543,7 +544,7 @@ class DomConfigParser(XMLParser, XMLFileCache):
                 elif kid.nodeName == "engineeringFormat":
                     dom.setEngineeringFormat()
                 elif strict:
-                    print >>sys.stderr, "Unknown format <%s>" % kid.nodeName
+                    print >> sys.stderr, "Unknown format <%s>" % kid.nodeName
 
     @classmethod
     def parse(cls, dom, configDir, baseName, strict=False):
@@ -743,11 +744,11 @@ class DomConfig(object):
             (prefix, indent, nStr, self.__fileName, suffix)
 
     def write(self, fd, indent):
-        print >>fd, "<?xml version='1.0' encoding='UTF-8'?>"
-        print >>fd, "<domConfigList>"
+        print >> fd, "<?xml version='1.0' encoding='UTF-8'?>"
+        print >> fd, "<domConfigList>"
         for dom in self.__domList:
             dom.write(fd, indent, 1)
-        print >>fd, "</domConfigList>"
+        print >> fd, "</domConfigList>"
 
 class StringHub(Component):
     "String hub data from a run configuration file"
@@ -898,11 +899,11 @@ class DAQConfig(object):
         hubs = domCfg.hubs()
         if hub is not None:
             if len(hubs) != 1:
-                print >>sys.stderr, \
+                print >> sys.stderr, \
                           "Expected \"%s\" to be the only hub, not %s" % \
                           (hub, hubs)
             elif hubs[0] != hub:
-                print >>sys.stderr, \
+                print >> sys.stderr, \
                           "Expected \"%s\" to be for hub 0, not %s" % \
                           (hub, hubs[0])
 
@@ -1028,7 +1029,7 @@ class DAQConfig(object):
         error = False
         for h in hubIdList:
             if not self.__stringHubs.has_key(h):
-                print >>sys.stderr, "Hub %s not found in %s" % \
+                print >> sys.stderr, "Hub %s not found in %s" % \
                     (self.getHubName(h), self.__fileName)
                 error = True
             else:
@@ -1042,7 +1043,7 @@ class DAQConfig(object):
                             dfStr = dc.filename()
                         else:
                             dfStr += ", " + dc.filename()
-                    print >>sys.stderr, ("Hub %s is specified in multiple" +
+                    print >> sys.stderr, ("Hub %s is specified in multiple" +
                                          " domConfig files: %s") % \
                                          (self.getHubName(h), dfStr)
                     error = True
@@ -1184,34 +1185,34 @@ class DAQConfig(object):
         """Write this run configuration to the specified file descriptor"""
         indent = "    "
         in2 = indent + indent
-        print >>fd, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+        print >> fd, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
         if self.__topComment is not None:
-            print >>fd, "<!--%s-->" % self.__topComment
-        print >>fd, "<runConfig>"
+            print >> fd, "<!--%s-->" % self.__topComment
+        print >> fd, "<runConfig>"
         for d in self.__domCfgList:
-            print >>fd, d.xml(indent)
+            print >> fd, d.xml(indent)
         for n in self.__domCfgNames:
-            print >>fd, n.xml(indent)
+            print >> fd, n.xml(indent)
         if self.__replayBaseDir is not None:
-            print >>fd, "%s<hubFiles baseDir=\"%s\">" % \
+            print >> fd, "%s<hubFiles baseDir=\"%s\">" % \
                   (indent, self.__replayBaseDir)
             for r in self.__replayHubList:
-                print >>fd, r.xml(in2)
-            print >>fd, "%s</hubFiles>" % indent
-        print >>fd, "%s<triggerConfig>%s</triggerConfig>" % \
+                print >> fd, r.xml(in2)
+            print >> fd, "%s</hubFiles>" % indent
+        print >> fd, "%s<triggerConfig>%s</triggerConfig>" % \
             (indent, self.__trigCfg)
         for c in self.__comps:
             if not c.isHub():
-                print >>fd, "%s<runComponent name=\"%s\"/>" % \
+                print >> fd, "%s<runComponent name=\"%s\"/>" % \
                       (indent, c.name())
 
         if self.__strayStream is not None:
             (name, prescale) = self.__strayStream
             in3 = in2 + indent
 
-            print >>fd, "%s<stream name=\"%s\">" % (in2, name)
-            print >>fd, "%s<prescale>%d</prescale>" % (in3, prescale)
-            print >>fd, "%s</stream>" % in2
+            print >> fd, "%s<stream name=\"%s\">" % (in2, name)
+            print >> fd, "%s<prescale>%d</prescale>" % (in3, prescale)
+            print >> fd, "%s</stream>" % in2
 
         if self.__senderOption is not None:
             (hub, fwdIsolatedHits) = self.__senderOption
@@ -1224,13 +1225,13 @@ class DAQConfig(object):
             in3 = in2 + indent
             in4 = in3 + indent
 
-            print >>fd, "%s<stringHub hubId=\"%d\">" % (in2, hub)
-            print >>fd, "%s<sender>" % in3
-            print >>fd, "%s<%s>%s</%s>" % (in4, fwdName, fwdVal, fwdName)
-            print >>fd, "%s</sender>" % in3
-            print >>fd, "%s</stringHub>" % in2
+            print >> fd, "%s<stringHub hubId=\"%d\">" % (in2, hub)
+            print >> fd, "%s<sender>" % in3
+            print >> fd, "%s<%s>%s</%s>" % (in4, fwdName, fwdVal, fwdName)
+            print >> fd, "%s</sender>" % in3
+            print >> fd, "%s</stringHub>" % in2
 
-        print >>fd, "</runConfig>"
+        print >> fd, "</runConfig>"
 
 class DAQConfigParser(XMLParser, XMLFileCache):
     """Run configuration file parser"""
@@ -1384,17 +1385,20 @@ class DAQConfigParser(XMLParser, XMLFileCache):
     @classmethod
     def getClusterConfiguration(cls, configName, doList=False,
                                 useActiveConfig=False, clusterDesc=None,
-                                configDir=None, strict=False):
+                                configDir=None, strict=False,
+                                validate=True):
         """
         Find and parse the cluster configuration from either the
         run configuration directory or from the old cluster configuration
         directory
         """
+
         if configName is None:
             configName = \
                 CachedConfigName.getConfigToUse(None, False, useActiveConfig)
             if configName is None:
                 raise ConfigNotSpecifiedException("No configuration specified")
+
 
         sepIndex = configName.find('@')
         if sepIndex > 0:
@@ -1416,6 +1420,14 @@ class DAQConfigParser(XMLParser, XMLFileCache):
 
             savedValue = cls.PARSE_DOM_CONFIG
             cls.PARSE_DOM_CONFIG = False
+
+            if validate:
+                (valid, reason) = validate_configs(clusterDesc,
+                                                   configName)
+                
+                if not valid:
+                    raise DAQConfigException(reason)
+
             try:
                 try:
                     runCfg = cls.load(configName, configDir, strict)
@@ -1546,7 +1558,7 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                     if cls.STRAY_STREAM_HACK:
                         cls.__parseStrayStream(kid, runCfg)
                     else:
-                        print >>sys.stderr, "Ignoring stray <stream> in %s" % \
+                        print >> sys.stderr, "Ignoring stray <stream> in %s" % \
                               fileName
                 elif strict:
                     raise ProcessError("Unknown runConfig node <%s> in %s" %
@@ -1589,7 +1601,7 @@ if __name__ == "__main__":
            ( hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
             # to run daq launch you should either be a control host or
             # a totally unknown host
-            print >>sys.stderr, "Are you sure you are running DAQConfig on the correct host?"
+            print >> sys.stderr, "Are you sure you are running DAQConfig on the correct host?"
             raise SystemExit
 
     configDir  = os.path.join(metaDir, "config")

@@ -8,6 +8,8 @@ except ImportError:
     sys.path.append('..')
     from CachedConfigName import CachedConfigName
 
+from ClusterDescription import ClusterDescription
+
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
     META_DIR = os.environ["PDAQ_HOME"]
@@ -21,34 +23,55 @@ else:
 def validate_configs(cluster_xml_filename, runconfig_xml_filename,
                      default_dom_geom_xml_filename = None):
 
-    doc_valid = True
-    reason_list = []
+    # ---------------------------------------------------------
+    # build up a path and validate the default_dom_geometry file
+    dom_geom_xml_path = os.path.join(META_DIR, "config", "default-dom-geometry.xml")
+    (valid, reason) = validate_default_dom_geom(dom_geom_xml_path)
+    if not valid:
+        return (valid, reason)
 
-    cluster_xml_filename = CachedConfigName.getConfigToUse(cluster_xml_filename, False, True)
+
+    # -------------------------------------------------
+    # validate the cluster config
+    # really odd file name rules..  but try to keep it consistent
+    if cluster_xml_filename==None:
+        cluster_xml_filename = ClusterDescription.getClusterFromHostName()
 
     if cluster_xml_filename.endswith('.xml'):
         # old cluster configs not supported
         return (False, "Old style cluster configs not supported '%s'" % cluster_xml_filename)
 
-    # validate the cluster config
-    
-    # really odd file name rules..  but try to keep it consistent
-    if not cluster_xml_filename.endswith('-cluster'):
-        cluster_xml_filename = "%s-cluster" % cluster_xml_filename
+    cluster_xml_filename = os.path.basename(cluster_xml_filename)
+    fname, extension = os.path.splitext(cluster_xml_filename)
+    if not fname.endswith('-cluster'):
+        fname = "%s-cluster" % fname
 
-    # assume the new style cluster config
-    if not cluster_xml_filename.endswith('.cfg'):
-        cluster_xml_filename = "%s.cfg" % cluster_xml_filename
+    if not extension or extension is not 'cfg':
+        extension = 'cfg'
+
+    cluster_xml_filename = "%s.%s" % ( fname, extension)
+
     cluster_xml_filename = os.path.join(META_DIR, 'config', 
                                         os.path.basename(cluster_xml_filename))
-    
+
     (valid, reason ) = validate_clusterconfig(cluster_xml_filename)
     if not valid:
-        doc_valid = False
-        reason_list.append(reason)
+        return (valid, reason)
 
     # validate the run configuration
     # assume an .xml extension for the run config and add if required
+    
+    # RUN configs are cached, not cluster
+    if runconfig_xml_filename is None:
+        runconfig_xml_filename = CachedConfigName.getConfigToUse(
+            runconfig_xml_filename, False, True)
+    
+    # oddly enough some code skips passing in a run config sometimes
+    # just passing in the cluster configuration instead.  so 
+    # be okay with no run config
+    if runconfig_xml_filename is None:
+            return (True, "")
+
     if not runconfig_xml_filename.endswith('.xml'):
         runconfig_xml_filename = "%s.xml" % runconfig_xml_filename
 
@@ -56,25 +79,20 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
                                           os.path.basename(runconfig_xml_filename))
     (valid, reason) = validate_runconfig(runconfig_xml_filename)
     if not valid:
-        doc_valid = False
-        reason_list.append(reason)
+        return (valid, reason)
 
-
-    # build up a path and validate the default_dom_geometry file
-    dom_geom_xml_path = os.path.join(META_DIR, "config", "default-dom-geometry.xml")
-    (valid, reason) = validate_default_dom_geom(dom_geom_xml_path)
-    if not valid:
-        doc_valid = False
-        reason_list.append(reason)
 
     # parse the run config for all domConfigList, and trigger
-    with open(runconfig_xml_filename, 'r') as xml_fd:
-        try:
-            doc_xml = etree.parse(xml_fd)
-        except XMLSyntaxError, e:
-            doc_valid = False
-            reason_list.append("file: '%s', %s" % ( xml_filename, e))
-    
+    try:
+        with open(runconfig_xml_filename, 'r') as xml_fd:
+            try:
+                doc_xml = etree.parse(xml_fd)
+            except XMLSyntaxError, e:
+                return (False, "file: '%s', %s" % ( runconfig_xml_filename, e))
+    except IOError:
+        # cannot open the run config file
+        return (False, "Cannot open runconfig '%s'" % runconfig_xml_filename)
+        
     run_configs = doc_xml.getroot()
 
     dconfigList = run_configs.findall('domConfigList')
@@ -86,8 +104,7 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
         (valid, reason) = validate_dom_config_sps(dom_config_path)
 
         if not valid:
-            doc_valid = False
-            reason_list.append(reason)
+            return (False, reason)
 
     trigConfigList = run_configs.findall('triggerConfig')
     for trigConfig in trigConfigList:
@@ -97,11 +114,10 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
 
         (valid, reason) = validate_trigger(trig_config_path)
         if not valid:
-            doc_valid = False
-            reason_list.append(reason)
+            return (False, reason)
 
+    return (True, "")
 
-    return (doc_valid, "\n".join(reason_list))
 
 def validate_clusterconfig(xml_filename):
     """Check the cluster config files against an xml schema"""
@@ -161,12 +177,15 @@ def _validate_dom_config_xml(xml_filename, xsd_real_filename, xsd_sim_filename):
     configs neither of which is desirable.
     """
 
-    with open(xml_filename, 'r') as xml_fd:
-        try:
-            doc_xml = etree.parse(xml_fd)
-        except XMLSyntaxError, e:
-            return (False, "file: '%s', %s" % (xml_filename, e))
-
+    try:
+        with open(xml_filename, 'r') as xml_fd:
+            try:
+                doc_xml = etree.parse(xml_fd)
+            except XMLSyntaxError, e:
+                return (False, "file: '%s', %s" % (xml_filename, e))
+    except IOError, e:
+        return (False, "Cannot open: %s" % xml_filename)
+        
     found_simulation = False
     
     dom_configs = doc_xml.findall('domConfig')
@@ -244,7 +263,10 @@ def _validate_xml(xml_filename, xsd_filename):
                                     'xsd', 
                                     os.path.basename(xsd_filename))
 
-            xsd_fd = open(xsd_path, 'r')
+            try:
+                xsd_fd = open(xsd_path, 'r')
+            except IOError:
+                return (False, "could not xsd open: '%s'" % xsd_path)
 
         xmlschema_doc = etree.parse(xsd_fd)
     finally:
@@ -253,11 +275,14 @@ def _validate_xml(xml_filename, xsd_filename):
 
     xsd = etree.XMLSchema(xmlschema_doc)
 
-    with open(xml_filename, 'r') as doc_fd:
-        try:
-            doc_xml = etree.parse(doc_fd)
-        except XMLSyntaxError, e:
-            return (False, "file: '%s' %s" % (xml_filename, e))
+    try:
+        with open(xml_filename, 'r') as doc_fd:
+            try:
+                doc_xml = etree.parse(doc_fd)
+            except XMLSyntaxError, e:
+                return (False, "file: '%s' %s" % (xml_filename, e))
+    except IOError:
+        return (False, "Could not open '%s'" % xml_filename)
 
     if xsd.validate(doc_xml):
         return (True, "")

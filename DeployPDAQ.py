@@ -7,6 +7,7 @@
 
 import optparse, os, sys
 
+from DAQConfigExceptions import DAQConfigException
 from ClusterConfig import ClusterConfigException
 from DAQConfig import DAQConfig, DAQConfigParser, XMLFileNotFound
 from ParallelShell import ParallelShell
@@ -30,7 +31,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 12999 2011-05-27 22:17:38Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 13324 2011-09-02 22:04:40Z mnewcomb $"
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -107,6 +108,10 @@ def main():
                  " nice adjustments")
     p.add_option("-m", "--no-host-check", dest="nohostcheck", default=False,
                  help="Disable checking the host type for run permission")
+    p.add_option("-z", "--no-schema-validation", dest="validation",
+                 action="store_false", default=True,
+                 help="Disable schema validation of xml configuration files")
+
     opt, args = p.parse_args()
 
     if not opt.nohostcheck:
@@ -160,10 +165,14 @@ def main():
         cdesc = opt.clusterDesc
         config = \
             DAQConfigParser.getClusterConfiguration(opt.configName, False,
-                                                    clusterDesc=cdesc)
+                                                    clusterDesc=cdesc,
+                                                    validate=opt.validation)
     except XMLFileNotFound:
-        print >>sys.stderr, 'Configuration "%s" not found' % opt.configName
+        print >> sys.stderr, 'Configuration "%s" not found' % opt.configName
         p.print_help()
+        raise SystemExit
+    except DAQConfigException, e:
+        print >> sys.stderr, 'Cluster configuration file problem:\n%s' % e
         raise SystemExit
 
     if traceLevel >= 0:

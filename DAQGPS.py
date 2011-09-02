@@ -9,6 +9,7 @@ from os import environ
 from os.path import join
 
 from DAQConfig import DAQConfigParser
+from DAQConfigExceptions import DAQConfigException
 from ParallelShell import ParallelShell
 
 def main():
@@ -25,11 +26,20 @@ def main():
     p.add_option("-l", "--list-configs", dest="doList",
                  action="store_true", default=False,
                  help="List available configs")
+    p.add_option("-z", "--no-schema-validation", dest="validation",
+                 action="store_false", default=True,
+                 help="Disable schema validation of xml configuration files")
     
     opt, args = p.parse_args()
 
-    config = DAQConfigParser.getClusterConfiguration(opt.clusterConfigName,
-                                                     opt.doList)
+    try:
+        config = DAQConfigParser.getClusterConfiguration(opt.clusterConfigName,
+                                                         opt.doList,
+                                                         validate = opt.validation)
+    except DAQConfigException, e:
+        print >> sys.stderr, "Configuration file problem:\n%s" % e
+        raise SystemExit
+
     if opt.doList: raise SystemExit
 
     hublist = config.getHubNodes()

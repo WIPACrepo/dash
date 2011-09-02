@@ -4,8 +4,9 @@ import os
 
 from xml.dom import minidom
 from DefaultDomGeometry import XMLError
+from DAQConfigExceptions import DAQConfigException
 
-class XMLFileCacheException(Exception): pass
+class XMLFileCacheException(DAQConfigException): pass
 class XMLFileNotFound(XMLFileCacheException): pass
 class XMLFileParseError(XMLFileCacheException): pass
 
@@ -36,7 +37,7 @@ class XMLFileCache(object):
 
         fileName = cls.buildPath(configDir, cfgName)
         if fileName is None:
-            raise XMLFileNotFound("%s in directory %s" % (cfgName, configDir))
+            raise XMLFileNotFound("'%s' not found in directory %s" % (cfgName, configDir))
 
         try:
             fileStat = os.stat(fileName)

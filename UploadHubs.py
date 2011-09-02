@@ -15,6 +15,7 @@ Started November, 2007
 import datetime, optparse, os, popen2, re, select, signal, sys, threading, time
 
 from DAQConfig import DAQConfigParser
+from DAQConfigExceptions import DAQConfigException
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -352,6 +353,9 @@ def main():
                  action="store", default=15,
                  help="Interval (seconds) between status reports during" +
                  " upload (default: 15)")
+    p.add_option("-z", "--no-schema-validation", dest="validation",
+                 action="store_false", default=True,
+                 help="Disable schema validation of xml configuration files")
 
     opt, args = p.parse_args()
 
@@ -367,8 +371,13 @@ def main():
         print usage
         raise SystemExit
 
-    clusterConfig = \
-        DAQConfigParser.getClusterConfiguration(opt.clusterConfigName)
+    try:
+        clusterConfig = \
+            DAQConfigParser.getClusterConfiguration(opt.clusterConfigName,
+                                                    validate = opt.validation)
+    except DAQConfigException, e:
+        print >> sys.stderr, 'Cluster configuration file problem:\n%s' % e
+        raise SystemExit
 
     hublist = clusterConfig.getHubNodes()
 
