@@ -5,7 +5,7 @@ import Daemon, datetime, errno, optparse, os, signal, socket, sys, threading, \
 
 from CnCLogger import CnCLogger
 from CompOp import ComponentOperation, ComponentOperationGroup
-from DAQClient import ComponentName, DAQClient
+from DAQClient import ComponentName, DAQClient, DAQClientState
 from DAQConfig import DAQConfigParser, XMLFileNotFound
 from DAQConst import DAQPort
 from DAQLive import DAQLive
@@ -32,7 +32,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 13333 2011-09-08 20:37:12Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 13334 2011-09-08 21:22:48Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -289,7 +289,7 @@ class DAQPool(object):
 
             for c in bin:
                 state = c.monitor()
-                if state == DAQClient.STATE_DEAD:
+                if state == DAQClientState.DEAD:
                     self.remove(c)
                     try:
                         c.close()
@@ -297,7 +297,7 @@ class DAQPool(object):
                         if logger is not None:
                             logger.error("Could not close %s: %s" %
                                          (c.fullName(), exc_string()))
-                elif state != DAQClient.STATE_MISSING:
+                elif state != DAQClientState.MISSING:
                     count += 1
 
         return count
@@ -676,7 +676,7 @@ class CnCServer(DAQPool):
             if states.has_key(c):
                 stateStr = str(states[c])
             else:
-                stateStr = DAQClient.STATE_DEAD
+                stateStr = DAQClientState.DEAD
 
             cDict = c.map()
             cDict["state"] = stateStr
@@ -891,7 +891,7 @@ class CnCServer(DAQPool):
             if results.has_key(c):
                 result = results[c]
             else:
-                result = DAQClient.STATE_DEAD
+                result = DAQClientState.DEAD
 
             cDict = c.map()
 

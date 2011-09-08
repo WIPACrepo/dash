@@ -4,7 +4,6 @@ import os, socket, sys, threading
 
 from CnCLogger import CnCLogger
 from DAQRPC import RPCClient
-from RunSet import RunSet
 from UniqueID import UniqueID
 
 from exc_string import exc_string, set_exc_string_encoding
@@ -189,6 +188,22 @@ class ComponentName(object):
 
 class DAQClientException(Exception): pass
 
+class DAQClientState(object):
+    # internal state indicating that the client hasn't answered
+    # some number of pings but has not been declared dead
+    #
+    MISSING = 'MIA'
+
+    # internal state indicating that the client is
+    # no longer responding to pings
+    #
+    DEAD = "DEAD"
+
+    # internal state indicating that the client has not answered
+    # an XML-RPC call
+    #
+    HANGING = "hanging"
+
 class DAQClient(ComponentName):
     """DAQ component
     id - internal client ID
@@ -206,16 +221,6 @@ class DAQClient(ComponentName):
     # next component ID
     #
     ID = UniqueID()
-
-    # internal state indicating that the client hasn't answered
-    # some number of pings but has not been declared dead
-    #
-    STATE_MISSING = 'MIA'
-
-    # internal state indicating that the client is
-    # no longer responding to pings
-    #
-    STATE_DEAD = RunSet.STATE_DEAD
 
     def __init__(self, name, num, host, port, mbeanPort, connectors,
                  quiet=False):
@@ -503,9 +508,9 @@ class DAQClient(ComponentName):
         if not state:
             self.__deadCount += 1
             if self.__deadCount < 3:
-                state = DAQClient.STATE_MISSING
+                state = DAQClientState.MISSING
             else:
-                state = DAQClient.STATE_DEAD
+                state = DAQClientState.DEAD
 
         return state
 
@@ -532,7 +537,8 @@ class DAQClient(ComponentName):
         "Terminate component"
         state = self.state()
         if state != "idle" and state != "ready" and \
-                state != self.STATE_MISSING and state != self.STATE_DEAD:
+                state != DAQClientState.MISSING and \
+                state != DAQClientState.DEAD:
             raise DAQClientException("%s state is %s" % (self, state))
 
         self.__log.closeFinal()

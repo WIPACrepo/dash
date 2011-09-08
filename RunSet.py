@@ -6,6 +6,7 @@ import SpadeQueue
 
 from CnCThread import CnCThread
 from CompOp import ComponentOperation, ComponentOperationGroup, Result
+from DAQClient import DAQClientState
 from DAQConfig import DOMNotInConfigException
 from DAQConst import DAQPort
 from DAQLaunch import killJavaComponents, startJavaComponents
@@ -607,7 +608,7 @@ class RunSet(object):
     # True if we've printed a warning about the failed IceCube Live code import
     LIVE_WARNING = False
 
-    STATE_DEAD = "DEAD"
+    STATE_DEAD = DAQClientState.DEAD
 
     # number of seconds between "Waiting for ..." messages during stopRun()
     #

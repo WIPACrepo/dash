@@ -2,7 +2,7 @@
 
 import shutil, tempfile, unittest
 from CnCServer import DAQPool
-from DAQClient import DAQClient
+from DAQClient import DAQClientState
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet, ConnectionException
@@ -745,8 +745,8 @@ class TestDAQPool(unittest.TestCase):
         for c in compList:
             self.assertEqual(c.monitorCount(), 1)
 
-        fooHub.setMonitorState(DAQClient.STATE_DEAD)
-        bazComp.setMonitorState(DAQClient.STATE_MISSING)
+        fooHub.setMonitorState(DAQClientState.DEAD)
+        bazComp.setMonitorState(DAQClientState.MISSING)
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
