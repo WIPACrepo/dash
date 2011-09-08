@@ -739,6 +739,9 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
+        for c in compList:
+            c.setMonitorState("idle")
+
         cnt = mgr.monitorClients()
         self.assertEqual(cnt, len(compList))
 

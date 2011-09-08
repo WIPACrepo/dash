@@ -218,6 +218,10 @@ class DAQClient(ComponentName):
     cmdOrder - order in which start/stop commands are issued
     """
 
+    # maximum number of failed pings before a component is declared dead
+    #
+    MAX_DEAD_COUNT = 3
+
     # next component ID
     #
     ID = UniqueID()
@@ -278,8 +282,16 @@ class DAQClient(ComponentName):
                     extraStr += ' ' + str(c)
             extraStr += ']'
 
-        return "ID#%d %s%s%s%s" % \
-            (self.__id, self.fullName(), hpStr, mbeanStr, extraStr)
+        if self.__deadCount == 0:
+            deadStr = ''
+        else:
+            deadStr = " DEAD#%d" % self.__deadCount
+
+        return "ID#%d %s%s%s%s%s" % \
+            (self.__id, self.fullName(), hpStr, mbeanStr, extraStr, deadStr)
+
+    def addDeadCount(self):
+        self.__deadCount += 1
 
     def checkBeanField(self, bean, field):
         if self.__mbean is not None:
@@ -330,6 +342,9 @@ class DAQClient(ComponentName):
 
     def createMBeanClient(self, host, mbeanPort):
         return MBeanClient(self.fullName(), host, mbeanPort)
+
+    def isDead(self):
+        return self.__deadCount >= self.MAX_DEAD_COUNT
 
     def forcedStop(self):
         "Force component to stop running"
@@ -443,10 +458,6 @@ class DAQClient(ComponentName):
     def mbeanPort(self):
         return self.__mbeanPort
 
-    def monitor(self):
-        "Return the monitoring value"
-        return self.state()
-
     def order(self):
         return self.__cmdOrder
 
@@ -505,12 +516,12 @@ class DAQClient(ComponentName):
             self.__log.error(exc_string())
             state = None
 
-        if not state:
-            self.__deadCount += 1
-            if self.__deadCount < 3:
-                state = DAQClientState.MISSING
-            else:
-                state = DAQClientState.DEAD
+        if state is not None:
+            self.__deadCount = 0
+        elif not self.isDead():
+            state = DAQClientState.MISSING
+        else:
+            state = DAQClientState.DEAD
 
         return state
 

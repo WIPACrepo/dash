@@ -572,11 +572,12 @@ class MockComponent(object):
         self.__configured = False
         self.__configWait = 0;
         self.__monitorCount = 0
-        self.__monitorState = '???'
+        self.__monitorState = None
         self.__isBadHub = False
         self.__hangType = 0
         self.__stopping = 0
         self.__updatedRates = False
+        self.__deadCount = 0
 
         self.__beanData = {}
 
@@ -608,6 +609,9 @@ class MockComponent(object):
             self.__beanData[beanName] = {}
 
         self.__beanData[beanName][fieldName] = value
+
+    def addDeadCount(self):
+        self.__deadCount += 1
 
     def addInput(self, name, port, optional=False):
         if not optional:
@@ -675,7 +679,7 @@ class MockComponent(object):
         rtnMap = {}
         for f in fieldList:
             rtnMap[f] = self.getSingleBeanField(beanName, f)
-            
+
             if isinstance(rtnMap[f], Exception):
                 raise rtnMap[f]
         return rtnMap
@@ -713,10 +717,6 @@ class MockComponent(object):
 
     def monitorCount(self):
         return self.__monitorCount
-
-    def monitor(self):
-        self.__monitorCount += 1
-        return self.__monitorState
 
     def name(self):
         return self.__name
@@ -778,6 +778,10 @@ class MockComponent(object):
         return 100
 
     def state(self):
+        if self.__monitorState is not None:
+            self.__monitorCount += 1
+            return self.__monitorState
+
         if not self.__connected:
             return 'idle'
         if not self.__configured or self.__configWait > 0:

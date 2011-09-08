@@ -609,6 +609,7 @@ class RunSet(object):
     LIVE_WARNING = False
 
     STATE_DEAD = DAQClientState.DEAD
+    STATE_HANGING = DAQClientState.HANGING
 
     # number of seconds between "Waiting for ..." messages during stopRun()
     #
@@ -940,7 +941,7 @@ class RunSet(object):
                     stateStr = str(states[c])
                 else:
                     stateStr = self.STATE_DEAD
-                if stateStr != self.__state:
+                if stateStr != self.__state and stateStr != self.STATE_HANGING:
                     set.remove(c)
                     if c in connDict:
                         del connDict[c]
@@ -1084,7 +1085,7 @@ class RunSet(object):
                     stateStr = str(states[c])
                 else:
                     stateStr = self.STATE_DEAD
-                if stateStr != self.__state:
+                if stateStr != self.__state and stateStr != self.STATE_HANGING:
                     newList.remove(c)
 
             # if one or more components changed state...

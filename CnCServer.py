@@ -32,7 +32,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 13334 2011-09-08 21:22:48Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 13335 2011-09-08 22:25:09Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -280,16 +280,22 @@ class DAQPool(object):
         "check that all components in the pool are still alive"
         count = 0
 
-        for k in self.__pool.keys():
-            try:
-                bin = self.__pool[k]
-            except KeyError:
-                # bin may have been removed by daemon
-                continue
-
+        tGroup = ComponentOperationGroup(ComponentOperation.GET_STATE)
+        for bin in self.__pool.values():
             for c in bin:
-                state = c.monitor()
-                if state == DAQClientState.DEAD:
+                tGroup.start(c, logger, ())
+        tGroup.wait()
+
+        states = tGroup.results()
+        for bin in self.__pool.values():
+            for c in bin:
+                if states.has_key(c):
+                    stateStr = str(states[c])
+                else:
+                    stateStr = DAQClientState.DEAD
+
+                if stateStr == DAQClientState.DEAD or \
+                        (stateStr == DAQClientState.HANGING and c.isDead()):
                     self.remove(c)
                     try:
                         c.close()
@@ -297,7 +303,10 @@ class DAQPool(object):
                         if logger is not None:
                             logger.error("Could not close %s: %s" %
                                          (c.fullName(), exc_string()))
-                elif state != DAQClientState.MISSING:
+                elif stateStr == DAQClientState.MISSING or \
+                        stateStr == DAQClientState.HANGING:
+                    c.addDeadCount()
+                else:
                     count += 1
 
         return count
