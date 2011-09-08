@@ -22,8 +22,7 @@ class TriggerHandler(FakeClient):
         mbeanDict = {}
 
         super(type(self), self).__init__(compName, compNum, connList,
-                                         mbeanDict,
-                                         createXmlRpcServer=True,
+                                         mbeanDict, createXmlRpcServer=True,
                                          addNumericPrefix=False)
 
     def makeTriggerRequest(self, trigType, cfgId, startTime, endTime):
@@ -233,7 +232,6 @@ if __name__ == "__main__":
 
     if opt.firstPort != FakeClient.NEXT_PORT:
         FakeClient.NEXT_PORT = opt.firstPort
-
 
     if len(args) == 0:
         parser.error("Please specify a component to be run")
