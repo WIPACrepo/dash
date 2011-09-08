@@ -469,7 +469,8 @@ class RunData(object):
                 self.__runStats.stop(self.__getRateData(comps))
         except:
             self.__dashlog.error("Could not get event count: " + exc_string())
-            return -1
+            (numEvts, numMoni, numSN, numTcal, firstTime, lastTime) = \
+                (0, 0, 0, 0, None, None)
 
         duration = 0
         if firstTime is None:
