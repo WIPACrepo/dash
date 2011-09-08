@@ -474,6 +474,8 @@ class DAQFakeRun(object):
             try:
                 self.__client.rpc_runset_stop_run(runsetId)
             except:
+                print >>sys.stderr, "Cannot stop run for runset #%d" % runsetId
+                traceback.print_exc()
                 pass
 
     def __runOne(self, compList, runCfgDir, runNum, duration):
@@ -504,6 +506,7 @@ class DAQFakeRun(object):
         try:
             self.__runInternal(runsetId, mockRunCfg, runNum, duration)
         finally:
+            traceback.print_exc()
             self.closeAll(runsetId)
 
     def __waitForComponents(self, numComps):
@@ -528,7 +531,7 @@ class DAQFakeRun(object):
         try:
             self.__client.rpc_runset_break(runsetId)
         except:
-            traceback.print_exc()
+            pass
 
         for lt in self.__logThreads:
             lt.stop()
@@ -615,8 +618,9 @@ class DAQFakeRun(object):
 
         runsetId = self.__client.rpc_runset_make(runCfg, runNum, False)
         if runsetId < 0:
-            raise DAQFakeRunException("Cannot make runset from %s" %
-                                      str(nameList))
+            raise DAQFakeRunException(("Cannot make runset from %s" +
+                                        " (runset ID=%d)") %
+                                        (nameList, runsetId))
 
         return runsetId
 
@@ -711,7 +715,7 @@ if __name__ == "__main__":
 
     if sys.version_info > (2, 3):
         from DumpThreads import DumpThreadsOnSignal
-        DumpThreadsOnSignal()
+        DumpThreadsOnSignal(fd=sys.stderr)
 
     if opt.firstPort != FakeClient.NEXT_PORT:
         FakeClient.NEXT_PORT = opt.firstPort
