@@ -709,6 +709,10 @@ if __name__ == "__main__":
 
     opt, args = parser.parse_args()
 
+    if sys.version_info > (2, 3):
+        from DumpThreads import DumpThreadsOnSignal
+        DumpThreadsOnSignal()
+
     if opt.firstPort != FakeClient.NEXT_PORT:
         FakeClient.NEXT_PORT = opt.firstPort
 
@@ -748,9 +752,6 @@ if __name__ == "__main__":
         DAQConfigParser.getClusterConfiguration(None, useActiveConfig=True)
     except:
         DAQFakeRun.hackActiveConfig("sim-localhost")
-
-    from DumpThreads import DumpThreadsOnSignal
-    DumpThreadsOnSignal()
 
     # create run object and initial run number
     #
