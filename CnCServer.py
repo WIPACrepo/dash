@@ -32,7 +32,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 13335 2011-09-08 22:25:09Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 13336 2011-09-08 22:31:13Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -818,21 +818,28 @@ class CnCServer(DAQPool):
     def monitorLoop(self):
         "Monitor components to ensure they're still alive"
         new = True
+        checkClients = 0
         lastCount = 0
         self.__monitoring = True
         while self.__monitoring:
-            try:
-                count = self.monitorClients(self.__log)
-            except:
-                self.__log.error("Monitoring clients: " + exc_string())
-                count = lastCount
+            # check clients every 5 seconds or so
+            #
+            if checkClients == 5:
+                checkClients = 0
+                try:
+                    count = self.monitorClients(self.__log)
+                except:
+                    self.__log.error("Monitoring clients: " + exc_string())
+                    count = lastCount
 
-            new = (lastCount != count)
-            if new and not self.__quiet:
-                print >>sys.stderr, "%d bins, %d comps" % \
-                    (self.numUnused(), count)
+                new = (lastCount != count)
+                if new and not self.__quiet:
+                    print >>sys.stderr, "%d bins, %d comps" % \
+                        (self.numUnused(), count)
 
-            lastCount = count
+                lastCount = count
+
+            checkClients += 1
 
             problems = self.getRunsetsInErrorState()
             for rs in problems:
