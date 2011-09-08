@@ -157,6 +157,8 @@ class ComponentData(object):
                 "NumberOfActiveChannels" : (0, 0),
                 "NumberOfActiveAndTotalChannels" : ((0, 0), None),
                 "TotalLBMOverflows" : (0, 0),
+                "HitRate" : (0, 0),
+                "HitRateLC" : (0, 0),
                 },
             },
         "inIceTrigger" : {
