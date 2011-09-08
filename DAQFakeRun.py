@@ -19,7 +19,7 @@ class ClientWrapper(threading.Thread):
 
         self.__rpcRunning = False
 
-        super(ClientWrapper, self).__init__(name=str(self))
+        super(type(self), self).__init__(name=str(self))
         self.setDaemon(True)
 
     def __str__(self):
@@ -69,7 +69,7 @@ class LogThread(threading.Thread):
         self.__serving = False
 
         logName = "%s:log#%d" % (self.__compName, self.__port)
-        super(LogThread, self).__init__(name=logName)
+        super(type(self), self).__init__(name=logName)
         self.setDaemon(True)
 
     def stop(self):

@@ -21,10 +21,10 @@ class TriggerHandler(FakeClient):
                     (outputName, Connector.OUTPUT)]
         mbeanDict = {}
 
-        super(TriggerHandler, self).__init__(compName, compNum, connList,
-                                             mbeanDict,
-                                             createXmlRpcServer=True,
-                                             addNumericPrefix=False)
+        super(type(self), self).__init__(compName, compNum, connList,
+                                         mbeanDict,
+                                         createXmlRpcServer=True,
+                                         addNumericPrefix=False)
 
     def makeTriggerRequest(self, trigType, cfgId, startTime, endTime):
         PAYLEN = 104
@@ -97,8 +97,8 @@ class LocalTrigger(TriggerHandler):
         self.__hitCount = 0
         self.__trigCount = 0
 
-        super(LocalTrigger, self).__init__(compName, compNum, inputName,
-                                          self.__outputName, prescale)
+        super(type(self), self).__init__(compName, compNum, inputName,
+                                         self.__outputName, prescale)
 
     def processPayload(self, payType, utc, payload):
         if payType != PayloadType.SIMPLE_HIT:
@@ -124,8 +124,8 @@ class InIceTrigger(TriggerHandler):
 
         self.__outputName = "trigger"
 
-        super(InIceTrigger, self).__init__("inIceTrigger", 0, "stringHit",
-                                          self.__outputName, prescale)
+        super(type(self), self).__init__("inIceTrigger", 0, "stringHit",
+                                         self.__outputName, prescale)
 
 class IceTopTrigger(TriggerHandler):
 
@@ -133,8 +133,8 @@ class IceTopTrigger(TriggerHandler):
 
         self.__outputName = "trigger"
 
-        super(InIceTrigger, self).__init__("iceTopTrigger", 0, "icetopHit",
-                                          self.__outputName, prescale)
+        super(type(self), self).__init__("iceTopTrigger", 0, "icetopHit",
+                                         self.__outputName, prescale)
 
 class GlobalTrigger(TriggerHandler):
 
@@ -147,8 +147,8 @@ class GlobalTrigger(TriggerHandler):
 
         self.__trigCount = 0
 
-        super(GlobalTrigger, self).__init__("globalTrigger", 0, "trigger",
-                                            self.__outputName, prescale)
+        super(type(self), self).__init__("globalTrigger", 0, "trigger",
+                                         self.__outputName, prescale)
 
     def processPayload(self, payType, utc, payload):
         if payType != PayloadType.TRIGGER_REQUEST:
@@ -185,8 +185,8 @@ class TrackEngine(TriggerHandler):
 
         self.__outputName = "trigger"
 
-        super(TrackEngine, self).__init__("trackEngine", 0, "trackEngHit",
-                                          self.__outputName, prescale)
+        super(type(self), self).__init__("trackEngine", 0, "trackEngHit",
+                                         self.__outputName, prescale)
 
     def processData(self, data):
         if self.__outConn is None:
