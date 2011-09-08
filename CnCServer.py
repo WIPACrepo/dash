@@ -32,7 +32,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 13332 2011-09-08 20:30:59Z dglo $"
+SVN_ID  = "$Id: CnCServer.py 13333 2011-09-08 20:37:12Z dglo $"
 
 class CnCServerException(Exception): pass
 
@@ -1406,7 +1406,7 @@ if __name__ == "__main__":
     opt.daqDataDir = os.path.abspath(opt.daqDataDir)
     if not os.path.exists(opt.daqDataDir):
         sys.exit(("DAQ data directory '%s' doesn't exist!" +
-                  "  Use the -1 option, or -h for help.") % opt.daqDataDir)
+                  "  Use the -q option, or -h for help.") % opt.daqDataDir)
 
     if opt.spadeDir is not None:
         opt.spadeDir = os.path.abspath(opt.spadeDir)
