@@ -125,7 +125,12 @@ class MBeanClient(object):
 
     def getAttributes(self, bean, fldList):
         "get the values for a list of MBean fields"
-        attrs = self.__client.mbean.getAttributes(bean, fldList)
+        try:
+            attrs = self.__client.mbean.getAttributes(bean, fldList)
+        except:
+            raise Exception("Cannot get %s mbean \"%s\" attributes %s: %s" %
+                            (self.__compName, bean, fldList, exc_string()))
+
         if type(attrs) == dict and len(attrs) > 0:
             for k in attrs.keys():
                 attrs[k] = self.__unFixValue(attrs[k])
