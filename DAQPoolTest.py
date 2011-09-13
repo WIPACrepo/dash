@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-import shutil, tempfile, unittest
+import shutil
+import tempfile
+import unittest
 from CnCServer import DAQPool
 from DAQClient import DAQClientState
 from LiveImports import LIVE_IMPORT
@@ -13,15 +15,28 @@ from DAQMocks import MockComponent, MockLogger, MockRunConfigFile, \
 
 ACTIVE_WARNING = False
 
+
 class FakeLogger(object):
-    def __init__(self): pass
-    def stopServing(self): pass
+    def __init__(self):
+        pass
+
+    def stopServing(self):
+        pass
+
 
 class FakeTaskManager(object):
-    def __init__(self): pass
-    def reset(self): pass
-    def start(self): pass
-    def stop(self): pass
+    def __init__(self):
+        pass
+
+    def reset(self):
+        pass
+
+    def start(self):
+        pass
+
+    def stop(self):
+        pass
+
 
 class MyRunSet(RunSet):
     def __init__(self, parent, runConfig, compList, logger):
@@ -51,13 +66,14 @@ class MyRunSet(RunSet):
         return FakeTaskManager()
 
     def getLog(self, name):
-        if not self.__logDict.has_key(name):
+        if not name in self.__logDict:
             self.__logDict[name] = MockLogger(name)
 
         return self.__logDict[name]
 
     def queueForSpade(self, duration):
         pass
+
 
 class MyDAQPool(DAQPool):
     def __init__(self):
@@ -73,6 +89,7 @@ class MyDAQPool(DAQPool):
 
     def saveCatchall(self, runDir):
         pass
+
 
 class TestDAQPool(unittest.TestCase):
     def __checkRunsetState(self, runset, expState):

@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-import copy, os, sys
+import copy
+import os
+import sys
 
 from xml.dom import Node
 
@@ -15,7 +17,7 @@ from utils.Machineid import Machineid
 from xsd.validate_configs import validate_configs
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if os.environ.has_key("PDAQ_HOME"):
+if "PDAQ_HOME" in os.environ:
     metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
@@ -26,6 +28,7 @@ from DAQConfigExceptions import BadComponentName
 from DAQConfigExceptions import BadDOMID
 from DAQConfigExceptions import ConfigNotSpecifiedException
 from DAQConfigExceptions import DOMNotInConfigException
+
 
 class KeyValuePairs(object):
     "Container for a list of key/value pairs extracted from an XML file"
@@ -59,7 +62,8 @@ class KeyValuePairs(object):
             self.__attrOrder.append(key)
         self.__attr[key] = val.strip()
 
-    def tag(self): return self.__tag
+    def tag(self):
+        return self.__tag
 
     def write(self, fd, indent, indentLevel):
         in1 = ""
@@ -77,6 +81,7 @@ class KeyValuePairs(object):
 
         for key in self.__attrOrder:
             print >> fd, "%s<%s> %s </%s>" % (in1, key, self.__attr[key], key)
+
 
 class LocalCoincidence(KeyValuePairs):
     "DOM local coincidence data"
@@ -124,6 +129,7 @@ class LocalCoincidence(KeyValuePairs):
                          " </cableLength>") % (in2, dirStr, dist, cableLen)
 
         print >> fd, "%s</%s>" % (in1, self.tag())
+
 
 class RunDom(object):
     """Minimal details for a single DOM"""
@@ -197,7 +203,8 @@ class RunDom(object):
 
         return val
 
-    def __repr__(self):  return str(self)
+    def __repr__(self):
+        return str(self)
 
     def __str__(self):
         return "%012x" % self.__id
@@ -222,15 +229,21 @@ class RunDom(object):
             self.__attrOrder.append(key)
         self.__attr[key] = val.strip()
 
-    def domConfig(self): return self.__domCfg
+    def domConfig(self):
+        return self.__domCfg
 
     def enableIcetopMinBias(self):
         self.__icetopMinBias = True
         self.__attrOrder.append(self.ATTR_ICETOP_MB)
 
-    def id(self): return self.__id
-    def name(self): return self.__name
-    def pos(self): return self.__pos
+    def id(self):
+        return self.__id
+
+    def name(self):
+        return self.__name
+
+    def pos(self):
+        return self.__pos
 
     def setChargeHistogram(self, chgHist):
         self.__chargeHist = chgHist
@@ -260,7 +273,8 @@ class RunDom(object):
         self.__supernovaMode = mode
         self.__attrOrder.append(self.ATTR_SN_MODE)
 
-    def string(self): return self.__string
+    def string(self):
+        return self.__string
 
     def write(self, fd, indent, indentLevel):
         in1 = ""
@@ -319,6 +333,7 @@ class RunDom(object):
                 print >> fd, "%s</%s>" % (in2, key)
 
         print >> fd, "%s</domConfig>" % in1
+
 
 class DomConfigParser(XMLParser, XMLFileCache):
     "Parse DOM configuration file"
@@ -596,6 +611,7 @@ class DomConfigParser(XMLParser, XMLFileCache):
     def parseAllDomData(cls):
         cls.PARSE_DOM_DATA = True
 
+
 class DomConfigName(object):
     "DOM configuration file name and hub"""
 
@@ -610,6 +626,7 @@ class DomConfigName(object):
             hubStr = " hub=\"%d\"" % self.__hub
         return "%s<domConfigList%s>%s</domConfigList>" % \
                (indent, hubStr, self.__fileName)
+
 
 class DomConfig(object):
     """DOM configuration file details"""
@@ -678,7 +695,8 @@ class DomConfig(object):
         """This domconfig file should be commented-out"""
         self.__commentOut = True
 
-    def filename(self): return self.__fileName
+    def filename(self):
+        return self.__fileName
 
     def getAllDOMs(self):
         return self.__domList
@@ -750,6 +768,7 @@ class DomConfig(object):
             dom.write(fd, indent, 1)
         print >> fd, "</domConfigList>"
 
+
 class StringHub(Component):
     "String hub data from a run configuration file"
 
@@ -783,6 +802,7 @@ class StringHub(Component):
     def isInIce(self):
         return (self.id() % 1000) < 200
 
+
 class ReplayHub(Component):
     "Replay hub data from a run configuration file"
 
@@ -803,6 +823,7 @@ class ReplayHub(Component):
 
     def isInIce(self):
         return (self.id() % 1000) < 200
+
 
 class DAQConfig(object):
     """Run configuration data"""
@@ -889,7 +910,7 @@ class DAQConfig(object):
                                    compName)
         else:
             self.__comps.append(Component(compName[:pound],
-                                          int(compName[pound+1:])))
+                                          int(compName[pound + 1:])))
 
     def addDomConfig(self, domCfg, hub=None):
         """Add a DomConfig object"""
@@ -1122,13 +1143,15 @@ class DAQConfig(object):
             configName = \
                 CachedConfigName.getConfigToUse(None, False, True)
 
-
         cfgs = []
 
         for f in os.listdir(configDir):
-            if not f.endswith(".xml"): continue
+            if not f.endswith(".xml"):
+                continue
+
             cfg = os.path.basename(f[:-4])
-            if cfg == 'default-dom-geometry': continue
+            if cfg == 'default-dom-geometry':
+                continue
             cfgs.append(cfg)
 
         cfgs.sort()
@@ -1179,7 +1202,8 @@ class DAQConfig(object):
             raise ProcessError("Found icetop trigger but no icetop hubs in %s" %
                                self.basename())
 
-    def watchdogPeriod(self): return self.__watchdogPeriod
+    def watchdogPeriod(self):
+        return self.__watchdogPeriod
 
     def write(self, fd):
         """Write this run configuration to the specified file descriptor"""
@@ -1233,6 +1257,7 @@ class DAQConfig(object):
 
         print >> fd, "</runConfig>"
 
+
 class DAQConfigParser(XMLParser, XMLFileCache):
     """Run configuration file parser"""
 
@@ -1275,7 +1300,6 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                 elif strict:
                     raise ProcessError("Unexpected %s child <%s>" %
                                        (topNode.nodeName, kid.nodeName))
-
 
     @classmethod
     def __parseSenderOption(cls, topNode, runCfg, strict=False):
@@ -1399,10 +1423,9 @@ class DAQConfigParser(XMLParser, XMLFileCache):
             if configName is None:
                 raise ConfigNotSpecifiedException("No configuration specified")
 
-
         sepIndex = configName.find('@')
         if sepIndex > 0:
-            clusterDesc = configName[sepIndex+1:]
+            clusterDesc = configName[sepIndex + 1:]
             configName = configName[:sepIndex]
 
         if doList:
@@ -1424,7 +1447,7 @@ class DAQConfigParser(XMLParser, XMLFileCache):
             if validate:
                 (valid, reason) = validate_configs(clusterDesc,
                                                    configName)
-                
+
                 if not valid:
                     raise DAQConfigException(reason)
 
@@ -1575,7 +1598,8 @@ class DAQConfigParser(XMLParser, XMLFileCache):
 
 
 if __name__ == "__main__":
-    import datetime, optparse
+    import datetime
+    import optparse
     from exc_string import exc_string
 
     p = optparse.OptionParser()
@@ -1597,14 +1621,14 @@ if __name__ == "__main__":
 
     if not opt.nohostcheck:
         hostid = Machineid()
-        if(not (hostid.is_build_host() or
-           ( hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+        if (not (hostid.is_build_host() or
+           (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
             # to run daq launch you should either be a control host or
             # a totally unknown host
             print >> sys.stderr, "Are you sure you are running DAQConfig on the correct host?"
             raise SystemExit
 
-    configDir  = os.path.join(metaDir, "config")
+    configDir = os.path.join(metaDir, "config")
 
     if opt.parseDomData:
         DomConfigParser.parseAllDomData()

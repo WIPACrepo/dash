@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
-import sys, traceback, unittest
+import sys
+import traceback
+import unittest
 
 from DAQLive import DAQLive, LiveException
 from DAQMocks import MockLogger
+
 
 class MockRunSet(object):
     STATE_UNKNOWN = "unknown"
@@ -33,11 +36,14 @@ class MockRunSet(object):
         return self.__state == self.STATE_RUNNING
 
     def runConfig(self):
-        if self.isDestroyed(): raise Exception("Runset destroyed")
+        if self.isDestroyed():
+            raise Exception("Runset destroyed")
+
         return self.__runCfg
 
     def sendEventCounts(self):
-        if self.isDestroyed(): raise Exception("Runset destroyed")
+        if self.isDestroyed():
+            raise Exception("Runset destroyed")
 
     def setExpectedStopError(self):
         self.__expStopErr = True
@@ -46,20 +52,26 @@ class MockRunSet(object):
         self.__state = newState
 
     def setStopReturnError(self):
-        if self.isDestroyed(): raise Exception("Runset destroyed")
+        if self.isDestroyed():
+            raise Exception("Runset destroyed")
+
         self.__stopReturn = True
 
     def state(self):
         return self.__state
 
     def stopRun(self, hadError=False):
-        if self.isDestroyed(): raise Exception("Runset destroyed")
+        if self.isDestroyed():
+            raise Exception("Runset destroyed")
+
         if hadError != self.__expStopErr:
             raise Exception("Expected 'hadError' to be %s" % self.__expStopErr)
+
         return self.__stopReturn
 
     def subrun(self, id, domList):
         pass
+
 
 class MockCnC(object):
     RELEASE = "rel"
@@ -109,7 +121,8 @@ class MockCnC(object):
                             self.__expRunNum, runNum)
 
     def versionInfo(self):
-        return { "release": self.RELEASE, "repo_rev": self.REPO_REV }
+        return {"release": self.RELEASE, "repo_rev": self.REPO_REV}
+
 
 class DAQLiveTest(unittest.TestCase):
     def __createLive(self, cnc, log):
@@ -176,7 +189,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunConfig(runCfg)
         cnc.setExpectedRunNumber(runNum)
 
-        state = { }
+        state = {}
 
         self.assertRaisesMsg(LiveException("No stateArgs specified"),
                              live.starting, state)
@@ -192,7 +205,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunConfig(runCfg)
         cnc.setExpectedRunNumber(runNum)
 
-        state = { "runNumber": runNum, }
+        state = {"runNumber": runNum}
 
         exc = LiveException("stateArgs does not contain key \"runConfig\"")
         self.assertRaisesMsg(exc, live.starting, state)
@@ -208,7 +221,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunConfig(runCfg)
         cnc.setExpectedRunNumber(runNum)
 
-        state = { "runConfig": runCfg, }
+        state = {"runConfig": runCfg}
 
         exc = LiveException("stateArgs does not contain key \"runNumber\"")
         self.assertRaisesMsg(exc, live.starting, state)
@@ -224,7 +237,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunConfig(runCfg)
         cnc.setExpectedRunNumber(runNum)
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.assertRaisesMsg(LiveException("Cannot create runset for \"%s\"" %
                                            runCfg), live.starting, state)
@@ -241,7 +254,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunNumber(runNum)
         cnc.setRunSet(MockRunSet(runCfg))
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.failUnless(live.starting(state), "starting failed")
 
@@ -266,7 +279,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunNumber(runNum)
         cnc.setRunSet(runSet)
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.failUnless(live.starting(state), "starting failed")
 
@@ -287,7 +300,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunNumber(runNum)
         cnc.setRunSet(MockRunSet(runCfg))
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.failUnless(live.starting(state), "starting failed")
 
@@ -313,7 +326,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunNumber(runNum)
         cnc.setRunSet(runSet)
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.failUnless(live.starting(state), "starting failed")
 
@@ -335,7 +348,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunNumber(runNum)
         cnc.setRunSet(runSet)
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.failUnless(live.starting(state), "starting failed")
 
@@ -358,7 +371,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunNumber(runNum)
         cnc.setRunSet(runSet)
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.failUnless(live.starting(state), "starting failed")
 
@@ -388,7 +401,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunNumber(runNum)
         cnc.setRunSet(runSet)
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.failUnless(live.starting(state), "starting failed")
 
@@ -409,7 +422,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunNumber(runNum)
         cnc.setRunSet(runSet)
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.failUnless(live.starting(state), "starting failed")
 
@@ -430,7 +443,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunNumber(runNum)
         cnc.setRunSet(runSet)
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.failUnless(live.starting(state), "starting failed")
 

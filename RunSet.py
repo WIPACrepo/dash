@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
-import datetime, os, socket, time
+import datetime
+import os
+import socket
+import time
 
 import SpadeQueue
 
@@ -25,9 +28,18 @@ from utils.DashXMLLog import DashXMLLog, DashXMLLogException
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-class RunSetException(Exception): pass
-class ConnectionException(RunSetException): pass
-class InvalidSubrunData(RunSetException): pass
+
+class RunSetException(Exception):
+    pass
+
+
+class ConnectionException(RunSetException):
+    pass
+
+
+class InvalidSubrunData(RunSetException):
+    pass
+
 
 class Connection(object):
     """
@@ -62,6 +74,7 @@ class Connection(object):
         connDict['host'] = self.comp.host()
         connDict['port'] = self.conn.port()
         return connDict
+
 
 class ConnTypeEntry(object):
     """
@@ -168,6 +181,7 @@ class ConnTypeEntry(object):
                     connMap[outComp] = []
                 connMap[outComp].append(entry)
 
+
 class SubrunThread(CnCThread):
     "A thread which starts the subrun in an individual stringHub"
 
@@ -201,6 +215,7 @@ class SubrunThread(CnCThread):
 
     def time(self):
         return self.__time
+
 
 class RunData(object):
     def __init__(self, runSet, runNumber, clusterConfigName, runConfig,
@@ -341,7 +356,7 @@ class RunData(object):
     def __reportEventStart(self):
         if self.__liveMoniClient is not None:
             time = PayloadTime.toDateTime(self.__firstPayTime)
-            data = { "runnum" : self.__runNumber }
+            data = {"runnum": self.__runNumber}
             self.__liveMoniClient.sendMoni("eventstart", data, prio=Prio.SCP,
                                            time=time)
 
@@ -414,19 +429,19 @@ class RunData(object):
             monDict["eventPayloadTime"] = str(payTime)
         monDict["moniEvents"] = numMoni
         if moniTime is None or numMoni == 0:
-            monDict["moniTime" ] = None
+            monDict["moniTime"] = None
         else:
-            monDict["moniTime" ] = str(moniTime)
+            monDict["moniTime"] = str(moniTime)
         monDict["snEvents"] = numSN
         if snTime is None or numSN == 0:
-            monDict["snTime" ] = None
+            monDict["snTime"] = None
         else:
-            monDict["snTime" ] = str(snTime)
+            monDict["snTime"] = str(snTime)
         monDict["tcalEvents"] = numTcal
         if tcalTime is None or numTcal == 0:
-            monDict["tcalTime" ] = None
+            monDict["tcalTime"] = None
         else:
-            monDict["tcalTime" ] = str(tcalTime)
+            monDict["tcalTime"] = str(tcalTime)
 
         return monDict
 
@@ -446,11 +461,14 @@ class RunData(object):
     def info(self, msg):
         self.__dashlog.info(msg)
 
-    def isErrorEnabled(self): return self.__dashlog.isErrorEnabled()
+    def isErrorEnabled(self):
+        return self.__dashlog.isErrorEnabled()
 
-    def isInfoEnabled(self): return self.__dashlog.isInfoEnabled()
+    def isInfoEnabled(self):
+        return self.__dashlog.isInfoEnabled()
 
-    def isWarnEnabled(self): return self.__dashlog.isWarnEnabled()
+    def isWarnEnabled(self):
+        return self.__dashlog.isWarnEnabled()
 
     def queueForSpade(self, duration):
         if self.__logDir is None:
@@ -478,7 +496,7 @@ class RunData(object):
         elif lastTime is None:
             self.__dashlog.error("Ending time is not set")
         else:
-            duration  = (lastTime - firstTime) / 10000000000
+            duration = (lastTime - firstTime) / 10000000000
 
         if duration == 0:
             rateStr = ""
@@ -489,7 +507,8 @@ class RunData(object):
         self.__dashlog.error("%d moni events, %d SN events, %d tcals" %
                              (numMoni, numSN, numTcal))
 
-        return (numEvts, numMoni, numSN, numTcal, firstTime, lastTime, duration)
+        return (numEvts, numMoni, numSN, numTcal, firstTime,
+                lastTime, duration)
 
     def reportRunStart(self, runNum, release, revision, started):
         if self.__liveMoniClient is not None:
@@ -504,10 +523,10 @@ class RunData(object):
         I3Live, but only successful runsets initialize RunData
         """
         time = datetime.datetime.now()
-        data = { "runnum" : runNum,
-                 "release" : release,
-                 "revision" : revision,
-                 "started" : started }
+        data = {"runnum": runNum,
+                "release": release,
+                "revision": revision,
+                "started": started}
         moniClient.sendMoni("runstart", data, prio=Prio.SCP, time=time)
 
     def reportRunStop(self, numEvts, firstPayTime, lastPayTime, hadError):
@@ -522,10 +541,10 @@ class RunData(object):
             else:
                 status = "SUCCESS"
 
-            data = { "runnum" : self.__runNumber,
-                     "runstart" : str(firstDT),
-                     "events" : numEvts,
-                     "status" : status }
+            data = {"runnum": self.__runNumber,
+                    "runstart": str(firstDT),
+                    "events": numEvts,
+                    "status": status}
 
             self.__liveMoniClient.sendMoni("runstop", data, prio=Prio.SCP,
                                            time=lastDT)
@@ -593,6 +612,7 @@ class RunData(object):
 
     def warn(self, msg):
         self.__dashlog.warn(msg)
+
 
 class RunSet(object):
     "A set of components to be used in one or more runs"
@@ -703,12 +723,12 @@ class RunSet(object):
         endSecs = curSecs + timeoutSecs
 
         while (len(srcSet) > 0 or len(otherSet) > 0) and curSecs < endSecs:
-            msgSecs = self.__stopComponents(srcSet, otherSet, connDict, msgSecs)
+            msgSecs = self.__stopComponents(srcSet, otherSet, connDict,
+                                            msgSecs)
             curSecs = time.time()
             self.__logDebug(RunSetDebug.STOP_RUN,
                             "STOPPING WAITCHK - %d secs, %d comps",
                             endSecs - curSecs, len(srcSet) + len(otherSet))
-
 
     def __badStateString(self, badList):
         badStr = []
@@ -818,7 +838,6 @@ class RunSet(object):
                 compStr += c.fullName() + connDict[c]
         return compStr
 
-
     def __logDebug(self, debugBit, *args):
         if (self.__debugBits & debugBit) != debugBit:
             return
@@ -841,7 +860,7 @@ class RunSet(object):
             self.__logger.error('Comp %s cmdOrder is None' % str(x))
             return 1
         else:
-            return y.order()-x.order()
+            return y.order() - x.order()
 
     def __startComponents(self, quiet):
         liveHost = None
@@ -1110,7 +1129,7 @@ class RunSet(object):
                                    " leave %s (%s)") %
                                   (len(waitList), self.__state, waitStr))
 
-    def __writeRunXML(self,numEvts, numMoni, numSN, numTcal, firstTime,
+    def __writeRunXML(self, numEvts, numMoni, numSN, numTcal, firstTime,
                       lastTime, duration, hadError):
 
         xmlLog = DashXMLLog(dir_name=self.__runData.runDirectory())
@@ -1683,7 +1702,8 @@ class RunSet(object):
                     else:
                         sStr = ""
                     self.__runData.warn(("Subrun %d: ignoring missing" +
-                                         " DOM%s %s") % (id, sStr, missingDoms))
+                                         " DOM%s %s") % (id, sStr,
+                                                         missingDoms))
 
                 # newData has any missing DOMs deleted and any string/position
                 # pairs converted to mainboard IDs
@@ -1749,4 +1769,5 @@ class RunSet(object):
             return None
         return self.__runData.updateRates(self.__set)
 
-if __name__ == "__main__": pass
+if __name__ == "__main__":
+    pass

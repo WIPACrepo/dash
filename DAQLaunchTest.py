@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 
-import socket, sys, unittest
+import socket
+import sys
+import unittest
 
 from DAQConst import DAQPort
 from DAQLaunch import compNameJarPartsMap, cyclePDAQ, doKill, doLaunch, \
     killJavaProcesses, startJavaProcesses
 
 from DAQMocks import MockParallelShell, MockDeployComponent
+
 
 class MockNode(object):
     LIST = []
@@ -23,8 +26,12 @@ class MockNode(object):
         self.__comps.append(comp)
         return comp
 
-    def components(self): return self.__comps
-    def hostName(self): return self.__hostName
+    def components(self):
+        return self.__comps
+
+    def hostName(self):
+        return self.__hostName
+
 
 class MockClusterConfig(object):
     def __init__(self, name):
@@ -43,10 +50,12 @@ class MockClusterConfig(object):
     def descName(self):
         return None
 
-    def nodes(self): return self.__nodes[:]
+    def nodes(self):
+        return self.__nodes[:]
 
     def writeCacheFile(self, writeActive):
         pass
+
 
 class DAQLaunchTest(unittest.TestCase):
     def testStartJava(self):
@@ -176,8 +185,9 @@ class DAQLaunchTest(unittest.TestCase):
                         parallel = MockParallelShell()
 
                         parallel.addExpectedPython(doCnC, dashDir, configDir,
-                                                   logDir, daqDataDir, spadeDir, 
-                                                   cfgName, copyDir, logPort, livePort)
+                                                   logDir, daqDataDir,
+                                                   spadeDir, cfgName, copyDir,
+                                                   logPort, livePort)
                         parallel.addExpectedJava(comp, configDir, daqDataDir,
                                                  DAQPort.CATCHALL, livePort,
                                                  verbose, evtChk, host)
@@ -274,8 +284,9 @@ class DAQLaunchTest(unittest.TestCase):
                                                  verbose, host)
 
                     parallel.addExpectedPython(doCnC, dashDir, configDir,
-                                               logDir, daqDataDir, spadeDir, 
-                                               cfgName, copyDir, logPort, livePort)
+                                               logDir, daqDataDir, spadeDir,
+                                               cfgName, copyDir, logPort,
+                                               livePort)
                     parallel.addExpectedJava(comp, configDir, daqDataDir,
                                              DAQPort.CATCHALL, livePort,
                                              verbose, eventCheck, host)
@@ -296,6 +307,7 @@ if __name__ == '__main__':
             s.connect((rmtHost, 56))
             MockNode.LIST.append(rmtHost)
         except:
-            print >>sys.stderr, "Warning: Remote host %s is not valid" % rmtHost
+            print >>sys.stderr, \
+                "Warning: Remote host %s is not valid" % rmtHost
 
     unittest.main()

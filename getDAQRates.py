@@ -3,7 +3,10 @@
 # Produce a report of the hourly and total data rates for all the components
 # in the IceCube DAQ, using data from the pDAQ .moni files.
 
-import os, re, sys, time
+import os
+import re
+import sys
+import time
 
 PRINT_VERBOSE = False
 DATA_ONLY = False
@@ -16,66 +19,67 @@ MONILINE_PAT = re.compile(r'^\s+([^:]+):\s+(.*)$')
 TIMEFMT = '%Y-%m-%d %H:%M:%S'
 
 COMP_FIELDS = {
-    'amandaHub' :
-        { 'moniData' : 'RecordsSent',
-          'snData' : 'RecordsSent',
-          'tcalData' : 'RecordsSent',
-          #'rdoutReq' : 'TotalRecordsReceived',
-          'rdoutReq' : 'RecordsReceived',
-          'rdoutData' : 'RecordsSent' },
-    'stringHub' :
-        { 'sender' : 'NumHitsReceived',
-          'stringHit' : 'RecordsSent',
-          'moniData' : 'RecordsSent',
-          'snData' : 'RecordsSent',
-          'tcalData' : 'RecordsSent',
-          #'rdoutReq' : 'TotalRecordsReceived',
-          'rdoutReq' : 'RecordsReceived',
-          'rdoutData' : 'RecordsSent' },
-    'icetopHub' :
-        { 'sender' : 'NumHitsReceived',
-          'icetopHit' : 'RecordsSent',
-          'moniData' : 'RecordsSent',
-          'snData' : 'RecordsSent',
-          'tcalData' : 'RecordsSent',
-          #'rdoutReq' : 'TotalRecordsReceived',
-          'rdoutReq' : 'RecordsReceived',
-          'rdoutData' : 'RecordsSent' },
-    'inIceTrigger' :
-        { #'stringHit' : 'TotalRecordsReceived',
-        'stringHit' : 'RecordsReceived',
-          'trigger' : 'RecordsSent' },
-    'iceTopTrigger' :
-        { #'icetopHit' : 'TotalRecordsReceived',
-        'icetopHit' : 'RecordsReceived',
-        'trigger' : 'RecordsSent' },
-    'amandaTrigger' :
-        { #'selfContained' : 'TotalRecordsReceived',
-        'selfContained' : 'RecordsReceived',
-          'trigger' : 'RecordsSent' },
-    'globalTrigger' :
-        { #'trigger' : 'TotalRecordsReceived',
-        'trigger' : 'RecordsReceived',
-          'glblTrig' : 'RecordsSent' },
-    'eventBuilder' :
-        { #'glblTrig' : 'TotalRecordsReceived',
-          'glblTrig' : 'RecordsReceived',
-          'rdoutReq' : 'RecordsSent',
-          #'rdoutData' : 'TotalRecordsReceived',
-          'rdoutData' : 'RecordsReceived',
-          'backEnd' : 'NumEventsSent' },
-    'secondaryBuilders' :
-        { #'moniData' : 'TotalRecordsReceived',
-          'moniData' : 'RecordsReceived',
-          'moniBuilder' : 'TotalDispatchedData',
-          #'snData' : 'TotalRecordsReceived',
-          'snData' : 'RecordsReceived',
-          'snBuilder' : 'TotalDispatchedData',
-          #'tcalData' : 'TotalRecordsReceived',
-          'tcalData' : 'RecordsReceived',
-          'tcalBuilder' : 'TotalDispatchedData',
+    'amandaHub':
+        {'moniData': 'RecordsSent',
+         'snData': 'RecordsSent',
+         'tcalData': 'RecordsSent',
+         #'rdoutReq': 'TotalRecordsReceived',
+         'rdoutReq': 'RecordsReceived',
+         'rdoutData': 'RecordsSent'},
+    'stringHub':
+        {'sender': 'NumHitsReceived',
+         'stringHit': 'RecordsSent',
+         'moniData': 'RecordsSent',
+         'snData': 'RecordsSent',
+         'tcalData': 'RecordsSent',
+         #'rdoutReq': 'TotalRecordsReceived',
+         'rdoutReq': 'RecordsReceived',
+         'rdoutData': 'RecordsSent'},
+    'icetopHub':
+        {'sender': 'NumHitsReceived',
+         'icetopHit': 'RecordsSent',
+         'moniData': 'RecordsSent',
+         'snData': 'RecordsSent',
+         'tcalData': 'RecordsSent',
+         # 'rdoutReq': 'TotalRecordsReceived',
+         'rdoutReq': 'RecordsReceived',
+         'rdoutData': 'RecordsSent'},
+    'inIceTrigger':
+        {  # 'stringHit': 'TotalRecordsReceived',
+        'stringHit': 'RecordsReceived',
+        'trigger': 'RecordsSent'},
+    'iceTopTrigger':
+        {  # 'icetopHit': 'TotalRecordsReceived',
+        'icetopHit': 'RecordsReceived',
+        'trigger': 'RecordsSent'},
+    'amandaTrigger':
+        {  # 'selfContained': 'TotalRecordsReceived',
+        'selfContained': 'RecordsReceived',
+        'trigger': 'RecordsSent'},
+    'globalTrigger':
+        {  # 'trigger': 'TotalRecordsReceived',
+        'trigger': 'RecordsReceived',
+        'glblTrig': 'RecordsSent'},
+    'eventBuilder':
+        {  # 'glblTrig': 'TotalRecordsReceived',
+        'glblTrig': 'RecordsReceived',
+        'rdoutReq': 'RecordsSent',
+        # 'rdoutData': 'TotalRecordsReceived',
+        'rdoutData': 'RecordsReceived',
+        'backEnd': 'NumEventsSent'},
+    'secondaryBuilders':
+        {  # 'moniData': 'TotalRecordsReceived',
+          'moniData': 'RecordsReceived',
+          'moniBuilder': 'TotalDispatchedData',
+          # 'snData': 'TotalRecordsReceived',
+          'snData': 'RecordsReceived',
+          'snBuilder': 'TotalDispatchedData',
+          # 'tcalData': 'TotalRecordsReceived',
+          'tcalData': 'RecordsReceived',
+          'tcalBuilder': 'TotalDispatchedData',
           },
 }
+
 
 class Component(object):
     """Component name/number"""
@@ -95,12 +99,12 @@ class Component(object):
                                 fileName)
 
             compName = baseName[:idx]
-            if not COMP_FIELDS.has_key(compName):
+            if not compName in COMP_FIELDS:
                 raise Exception('Unknown component "%s" in "%s"' %
                                 (compName, fileName))
 
             try:
-                compNum = int(baseName[idx+1:-5])
+                compNum = int(baseName[idx + 1: -5])
             except:
                 compNum = 0
 
@@ -130,6 +134,7 @@ class Component(object):
                 self.fullStr = "%s-%d" % (self.name, self.num)
 
         return self.fullStr
+
 
 def computeRates(dataDict):
     """Compute rates from the data saved in the data dictionary"""
@@ -167,6 +172,7 @@ def computeRates(dataDict):
 
     return (totRate, rates)
 
+
 def fixValue(valStr):
     """
     Convert a string containing a single integer or a list of integers
@@ -181,7 +187,7 @@ def fixValue(valStr):
         nxt = valStr.find(',', idx)
         if nxt < idx:
             nxt = valStr.find(']', idx)
-        subStr = valStr[idx+1:nxt]
+        subStr = valStr[idx + 1: nxt]
         try:
             tot += long(subStr)
         except ValueError:
@@ -191,6 +197,7 @@ def fixValue(valStr):
         idx = nxt + 1
 
     return tot
+
 
 def formatRates(rates):
     """format a list of rates"""
@@ -203,6 +210,7 @@ def formatRates(rates):
             rStr += ', '
         rStr += '%.1f' % r
     return rStr + ']'
+
 
 def processDir(dirName):
     """Process all .moni files in the specified directory"""
@@ -222,9 +230,10 @@ def processDir(dirName):
 
     return allData
 
+
 def processFile(fileName, comp):
     """Process the specified file"""
-    if not COMP_FIELDS.has_key(comp.name):
+    if not comp.name in COMP_FIELDS:
         flds = None
     else:
         flds = COMP_FIELDS[comp.name]
@@ -261,38 +270,39 @@ def processFile(fileName, comp):
                                 secLastSaved[secName] = secTime
                             elif vals != '0':
                                 secSeenData[secName] = (secTime, vals)
-                                if not secFirst.has_key(secName):
+                                if not secName in secFirst:
                                     secFirst[secName] = (secTime, vals)
                     continue
 
             m = MONISEC_PAT.match(line)
             if m:
                 nm = m.group(1)
-                if not flds.has_key(nm):
+                if not nm in flds:
                     continue
 
                 secName = nm
                 mSec = float(m.group(3)) / 1000000.0
                 secTime = time.mktime(time.strptime(m.group(2), TIMEFMT)) + mSec
 
-                if not data.has_key(secName):
+                if not secName in data:
                     data[secName] = {}
                     secLastSaved[secName] = 0.0
                     secSeenData[secName] = None
 
     for k in data:
         if TIME_INTERVAL is None and \
-                secFirst.has_key(k) and secFirst[k] is not None:
+                k in secFirst and secFirst[k] is not None:
             (firstTime, firstVals) = secFirst[k]
-            if not data[k].has_key(firstTime):
+            if not firstTime in data[k]:
                 data[k][firstTime] = fixValue(firstVals)
-                
-        if secSeenData.has_key(k) and secSeenData[k] is not None:
+
+        if k in secSeenData and secSeenData[k] is not None:
             (lastTime, lastVals) = secSeenData[k]
-            if not data[k].has_key(lastTime):
+            if not lastTime in data[k]:
                 data[k][lastTime] = fixValue(lastVals)
 
     return data
+
 
 def reportDataRates(allData):
     """Report the DAQ data rates"""
@@ -318,6 +328,7 @@ def reportDataRates(allData):
                   ]
     reportRatesInternal(allData, reportList)
 
+
 def reportMonitorRates(allData):
     """Report the DAQ monitoring rates"""
     print 'Monitoring Rates:'
@@ -325,6 +336,7 @@ def reportMonitorRates(allData):
                   ('icetopHub', 'moniData'), ('secondaryBuilders', 'moniData'),
                   ('secondaryBuilders', 'moniBuilder')]
     reportRatesInternal(allData, reportList)
+
 
 def reportRatesInternal(allData, reportList):
     """Report the rates for the specified set of values"""
@@ -419,6 +431,7 @@ def reportRatesInternal(allData, reportList):
             print ''
             needNL = False
 
+
 def reportSupernovaRates(allData):
     """Report the DAQ supernova rates"""
     print 'Supernova Rates:'
@@ -426,6 +439,7 @@ def reportSupernovaRates(allData):
                   ('icetopHub', 'snData'), ('secondaryBuilders', 'snData'),
                   ('secondaryBuilders', 'snBuilder')]
     reportRatesInternal(allData, reportList)
+
 
 def reportTimeCalRates(allData):
     """Report the DAQ time calibration rates"""
@@ -435,6 +449,7 @@ def reportTimeCalRates(allData):
                   ('secondaryBuilders', 'tcalBuilder')]
     reportRatesInternal(allData, reportList)
 
+
 def reportRates(allData):
     """Report the DAQ rates"""
     if not DATA_ONLY:
@@ -442,6 +457,7 @@ def reportRates(allData):
         reportSupernovaRates(allData)
         reportTimeCalRates(allData)
     reportDataRates(allData)
+
 
 if __name__ == "__main__":
     badArg = False

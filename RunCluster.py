@@ -1,19 +1,26 @@
 #!/usr/bin/env python
 
-import os, os.path, socket, sys, traceback
+import os
+import os.path
+import socket
+import sys
+import traceback
 
 from CachedConfigName import CachedConfigName
 from ClusterDescription import ClusterDescription
 from Component import Component
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if os.environ.has_key("PDAQ_HOME"):
+if "PDAQ_HOME" in os.environ:
     metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
-class RunClusterError(Exception): pass
+
+class RunClusterError(Exception):
+    pass
+
 
 class RunComponent(Component):
     def __init__(self, name, id, logLevel, jvm, jvmArgs, host):
@@ -39,10 +46,18 @@ class RunComponent(Component):
 
         return "%s@%s(%s)" % (nStr, str(self.logLevel()), jStr)
 
-    def host(self): return self.__host
-    def isControlServer(self): return False
-    def jvm(self): return self.__jvm
-    def jvmArgs(self): return self.__jvmArgs
+    def host(self):
+        return self.__host
+
+    def isControlServer(self):
+        return False
+
+    def jvm(self):
+        return self.__jvm
+
+    def jvmArgs(self):
+        return self.__jvmArgs
+
 
 class RunNode(object):
     def __init__(self, hostName, defaultLogLevel, defaultJVM, defaultJVMArgs):
@@ -79,11 +94,18 @@ class RunNode(object):
         self.__comps.append(RunComponent(comp.name(), comp.id(), logLvl, jvm,
                                          jvmArgs, self.__hostName))
 
-    def components(self): return self.__comps[:]
+    def components(self):
+        return self.__comps[:]
 
-    def defaultLogLevel(self): return self.__defaultLogLevel
-    def hostName(self): return self.__hostName
-    def locName(self): return self.__locName
+    def defaultLogLevel(self):
+        return self.__defaultLogLevel
+
+    def hostName(self):
+        return self.__hostName
+
+    def locName(self):
+        return self.__locName
+
 
 class RunCluster(CachedConfigName):
     "Cluster->component mapping generated from a run configuration file"
@@ -131,7 +153,7 @@ class RunCluster(CachedConfigName):
 
     def __addComponent(self, hostMap, host, comp):
         "Add a component to the hostMap dictionary"
-        if not hostMap.has_key(host):
+        if not host in hostMap:
             hostMap[host] = {}
         hostMap[host][str(comp)] = comp
 
@@ -140,7 +162,7 @@ class RunCluster(CachedConfigName):
         for (host, comp) in clusterDesc.listHostComponentPairs():
             if not comp.isHub():
                 continue
-            for h in range(0,len(hubList)):
+            for h in range(0, len(hubList)):
                 if comp.id() == hubList[h].id():
                     self.__addComponent(hostMap, host, comp)
                     del hubList[h]
@@ -277,8 +299,9 @@ class RunCluster(CachedConfigName):
         simList = []
 
         for (host, simHub) in clusterDesc.listHostSimHubPairs():
-            if simHub is None: continue
-            if not simHub.ifUnused or not hostMap.has_key(simHub.host.name):
+            if simHub is None:
+                continue
+            if not simHub.ifUnused or not simHub.host.name in hostMap:
                 simList.append(simHub)
 
         simList.sort(self.__sortByPriority)
@@ -293,11 +316,17 @@ class RunCluster(CachedConfigName):
             val = cmp(x.host.name, y.host.name)
         return val
 
+    def daqDataDir(self):
+        return self.__daqDataDir
 
-    def daqDataDir(self) : return self.__daqDataDir
-    def daqLogDir(self) : return self.__daqLogDir
-    def defaultLogLevel(self): return self.__defaultLogLevel
-    def descName(self): return self.__descName
+    def daqLogDir(self):
+        return self.__daqLogDir
+
+    def defaultLogLevel(self):
+        return self.__defaultLogLevel
+
+    def descName(self):
+        return self.__descName
 
     def getConfigName(self):
         "get the configuration name to write to the cache file"
@@ -320,9 +349,14 @@ class RunCluster(CachedConfigName):
 
         return hostMap.keys()
 
-    def logDirForSpade(self): return self.__logDirForSpade
-    def logDirCopies(self) : return self.__logDirCopies
-    def nodes(self): return self.__nodes[:]
+    def logDirForSpade(self):
+        return self.__logDirForSpade
+
+    def logDirCopies(self):
+        return self.__logDirCopies
+
+    def nodes(self):
+        return self.__nodes[:]
 
 if __name__ == '__main__':
     if len(sys.argv) <= 1:

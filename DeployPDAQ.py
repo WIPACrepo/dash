@@ -5,7 +5,9 @@
 #
 # Deploy valid pDAQ cluster configurations to any cluster
 
-import optparse, os, sys
+import optparse
+import os
+import sys
 
 from DAQConfigExceptions import DAQConfigException
 from ClusterConfig import ClusterConfigException
@@ -18,10 +20,10 @@ SUBDIRS = ("target", "cluster-config", "config", "dash", "src")
 
 # Defaults for a few args
 NICE_ADJ_DEFAULT = 19
-EXPRESS_DEFAULT  = False
+EXPRESS_DEFAULT = False
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if os.environ.has_key("PDAQ_HOME"):
+if "PDAQ_HOME" in os.environ:
     metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
@@ -31,7 +33,8 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 13324 2011-09-02 22:04:40Z mnewcomb $"
+SVN_ID = "$Id: DeployPDAQ.py 13355 2011-09-13 23:05:53Z mnewcomb $"
+
 
 def getUniqueHostNames(config):
     # There's probably a much better way to do this
@@ -40,15 +43,21 @@ def getUniqueHostNames(config):
         retHash[str(node.hostName())] = 1
     return retHash.keys()
 
+
 def getHubType(compID):
-    if compID % 1000 == 0: return "amanda"
-    elif compID % 1000 <= 200: return "in-ice"
-    else: return "icetop"
+    if compID % 1000 == 0:
+        return "amanda"
+    elif compID % 1000 <= 200:
+        return "in-ice"
+    else:
+        return "icetop"
+
 
 def replaceHome(homeDir, curDir):
     if curDir.startswith(homeDir):
         return "~%s" % os.environ["USER"] + curDir[len(homeDir):]
     return curDir
+
 
 def main():
     "Main program"
@@ -117,7 +126,7 @@ def main():
     if not opt.nohostcheck:
         hostid = Machineid()
         if(not (hostid.is_build_host() or
-           ( hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+           (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
             print >>sys.stderr, "Are you sure you are running DeployPDAQ on the correct host?"
             raise SystemExit
 
@@ -134,12 +143,15 @@ def main():
         opt.timeout = None
 
     # dry-run implies we want to see what is happening
-    if opt.dryRun:   opt.quiet = False
+    if opt.dryRun:
+        opt.quiet = False
 
     # Map quiet/verbose to a 2-value tracelevel
     traceLevel = 0
-    if opt.quiet:                 traceLevel = -1
-    if opt.verbose:               traceLevel = 1
+    if opt.quiet:
+        traceLevel = -1
+    if opt.verbose:
+        traceLevel = 1
 
     # DAQ Launch does not allow both quiet and verbose.
     # make the behaviour uniform
@@ -214,6 +226,7 @@ def main():
            opt.dryRun, opt.deepDryRun, opt.undeploy, traceLevel, monitorIval,
            opt.niceAdj, opt.express)
 
+
 def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
            deepDryRun, undeploy, traceLevel, monitorIval=None,
            niceAdj=NICE_ADJ_DEFAULT, express=EXPRESS_DEFAULT):
@@ -239,7 +252,7 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
     # Check if targetDir (the result of a build) is present
     targetDir = os.path.join(pdaqDir, 'target')
     if targetDir.startswith("~"):
-        targetDir = os.path.join(homeDir, targetDir[targetDir.find("/")+1:])
+        targetDir = os.path.join(homeDir, targetDir[targetDir.find("/") + 1:])
     if not undeploy and not os.path.isdir(targetDir):
         print >>sys.stderr, \
             "ERROR: Target dir (%s) does not exist." % (targetDir)
@@ -253,7 +266,8 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
     for nodeName in rsyncNodes:
 
         # Ignore localhost - already "deployed"
-        if nodeName == "localhost": continue
+        if nodeName == "localhost":
+            continue
         if not done and traceLevel > 0:
             print "COMMANDS:"
             done = True
@@ -267,24 +281,24 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
 
         cmdToNodeNameDict[cmd] = nodeName
         if traceLevel > 0:
-            print "  "+cmd
+            print "  " + cmd
         parallel.add(cmd)
 
     parallel.start()
     if parallel.isParallel():
         parallel.wait(monitorIval)
 
-
     if(not dryRun):
         cmd_results_dict = parallel.getCmdResults()
         for cmd in cmd_results_dict:
-            rtn_code,result = cmd_results_dict[cmd]
+            rtn_code, result = cmd_results_dict[cmd]
             nodeName = "unknown" if cmd not in cmdToNodeNameDict else cmdToNodeNameDict[cmd]
-            if(rtn_code!=0):
-                print "-"*60
+            if(rtn_code != 0):
+                print "-" * 60
                 print "Error non-zero return code  ( %d ) for host:%s cmd:%s" % (rtn_code, nodeName, cmd)
-                if(len(result)>0):
+                if(len(result) > 0):
                     print "Results: %s" % result
 
 
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    main()

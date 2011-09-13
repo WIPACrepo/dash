@@ -6,14 +6,17 @@ John Jacobsen, jacobsen@npxdesigns.com
 Started November, 2006
 """
 
-import optparse, os, re, sys
+import optparse
+import os
+import re
+import sys
 from cncrun import CnCRun
 import time
 from datetime import datetime
 from utils.Machineid import Machineid
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if os.environ.has_key("PDAQ_HOME"):
+if "PDAQ_HOME" in os.environ:
     metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
@@ -23,9 +26,12 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 12977 2011-05-17 21:16:09Z mnewcomb $"
+SVN_ID = "$Id: ExpControlSkel.py 13355 2011-09-13 23:05:53Z mnewcomb $"
 
-class DOMArgumentException(Exception): pass
+
+class DOMArgumentException(Exception):
+    pass
+
 
 def updateStatus(oldStatus, newStatus):
     "Show any changes in status on stdout"
@@ -33,9 +39,11 @@ def updateStatus(oldStatus, newStatus):
         print "%s: %s -> %s" % (datetime.now(), oldStatus, newStatus)
     return newStatus
 
+
 def setLastRunNum(runFile, runNum):
     with open(runFile, 'w') as fd:
         print >>fd, runNum
+
 
 def getLastRunNum(runFile):
     try:
@@ -44,6 +52,7 @@ def getLastRunNum(runFile):
             return int(ret.rstrip('\r\n'))
     except:
         return None
+
 
 # stolen from live/misc/util.py
 def getDurationFromString(s):
@@ -68,26 +77,27 @@ def getDurationFromString(s):
     raise ValueError('String "%s" is not a known duration format.  Try'
                      '30sec, 10min, 2days etc.' % s)
 
+
 class SubRunDOM(object):
     def __init__(self, *args):
         if len(args) == 7:
             self.string = args[0]
-            self.pos    = args[1]
+            self.pos = args[1]
             self.bright = args[2]
             self.window = args[3]
-            self.delay  = args[4]
-            self.mask   = args[5]
-            self.rate   = args[6]
-            self.mbid   = None
+            self.delay = args[4]
+            self.mask = args[5]
+            self.rate = args[6]
+            self.mbid = None
         elif len(args) == 6:
             self.string = None
-            self.pos    = None
-            self.mbid   = args[0]
+            self.pos = None
+            self.mbid = args[0]
             self.bright = args[1]
             self.window = args[2]
-            self.delay  = args[3]
-            self.mask   = args[4]
-            self.rate   = args[5]
+            self.delay = args[3]
+            self.mask = args[4]
+            self.rate = args[5]
         else:
             raise DOMArgumentException()
 
@@ -101,41 +111,44 @@ class SubRunDOM(object):
 
     def flasherHash(self):
         if self.mbid != None:
-            return {"MBID"        : self.mbid,
-                    "brightness"  : self.bright,
-                    "window"      : self.window,
-                    "delay"       : self.delay,
-                    "mask"        : str(self.mask),
-                    "rate"        : self.rate }
+            return {"MBID": self.mbid,
+                    "brightness": self.bright,
+                    "window": self.window,
+                    "delay": self.delay,
+                    "mask": str(self.mask),
+                    "rate": self.rate}
         elif self.string != None and self.pos != None:
-            return {"stringHub"   : self.string,
-                    "domPosition" : self.pos,
-                    "brightness"  : self.bright,
-                    "window"      : self.window,
-                    "delay"       : self.delay,
-                    "mask"        : str(self.mask),
-                    "rate"        : self.rate }
+            return {"stringHub": self.string,
+                    "domPosition": self.pos,
+                    "brightness": self.bright,
+                    "window": self.window,
+                    "delay": self.delay,
+                    "mask": str(self.mask),
+                    "rate": self.rate}
         else:
             raise DOMArgumentException()
+
 
 class SubRun:
     FLASH = 1
     DELAY = 2
+
     def __init__(self, type, duration, id):
-        self.type     = type
+        self.type = type
         self.duration = duration
-        self.id       = id
-        self.domlist  = []
+        self.id = id
+        self.domlist = []
 
     def addDOM(self, d):
         #self.domlist.append(SubRunDOM(string, pos,  bright, window, delay,
         #                              mask, rate))
         raise NotImplementedError("source for SubRunDOM class parameters not known")
 
-
     def __str__(self):
         typ = "FLASHER"
-        if self.type == SubRun.DELAY: typ = "DELAY"
+        if self.type == SubRun.DELAY:
+            typ = "DELAY"
+
         s = "SubRun ID=%d TYPE=%s DURATION=%d\n" % (self.id, typ, self.duration)
         if self.type == SubRun.FLASH:
             for m in self.domlist:
@@ -143,11 +156,14 @@ class SubRun:
         return s
 
     def flasherInfo(self):
-        if self.type != SubRun.FLASH: return None
+        if self.type != SubRun.FLASH:
+            return None
+
         return [d.flasherInfo() for d in self.domlist]
 
     def flasherDictList(self):
         return [d.flasherHash() for d in self.domlist]
+
 
 class SubRunSet:
     """This class is not instantiated anywhere, and had some import errors
@@ -183,26 +199,26 @@ class SubRunSet:
             m7 = re.search('^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
             if m7 and sr:
                 string = int(m7.group(1))
-                pos    = int(m7.group(2))
+                pos = int(m7.group(2))
                 bright = int(m7.group(3))
                 window = int(m7.group(4))
-                delay  = int(m7.group(5))
-                mask   = int(m7.group(6), 16)
-                rate   = int(m7.group(7))
+                delay = int(m7.group(5))
+                mask = int(m7.group(6), 16)
+                rate = int(m7.group(7))
                 #sr.addDOM(string, pos,  bright, window, delay, mask, rate)
             elif m6 and sr:
-                mbid   = m6.group(1)
+                mbid = m6.group(1)
                 bright = int(m6.group(2))
                 window = int(m6.group(3))
-                delay  = int(m6.group(4))
-                mask   = int(m6.group(5), 16)
-                rate   = int(m6.group(6))
+                delay = int(m6.group(4))
+                mask = int(m6.group(5), 16)
+                rate = int(m6.group(6))
                 #sr.addDOM(mbid, bright, window, delay, mask, rate)
 
     def __str__(self):
         s = ""
         for l in self.subruns:
-            s += str(l)+"\n"
+            s += str(l) + "\n"
         return s
 
     def next(self):
@@ -210,6 +226,7 @@ class SubRunSet:
             return self.subruns.pop(0)
         except IndexError:
             return None
+
 
 def main():
     "Main program"
@@ -246,14 +263,16 @@ def main():
     if not opt.nohostcheck:
         hostid = Machineid()
         if(not (hostid.is_control_host() or
-           ( hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+           (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
             # to run daq launch you should either be a control host or
             # a totally unknown host
-            print >>sys.stderr, "Are you sure you are running ExpControlSkel on the correct host?"
+            print >>sys.stderr, \
+                "Are you sure you are running ExpControlSkel on the correct host?"
             raise SystemExit
 
-    if opt.runConfig==None:
-        print >>sys.stderr, "You must specify a run configuration ( -c option )"
+    if opt.runConfig == None:
+        print >>sys.stderr, \
+            "You must specify a run configuration ( -c option )"
         raise SystemExit
 
     cnc = CnCRun(showCmd=opt.showCmd, showCmdOutput=opt.showCmdOut)
@@ -271,7 +290,7 @@ def main():
         else:
             #run.start(duration, flashTimes, flashPause, False)
             raise SystemExit("flasher runs with ExpControSkel not implemented")
-        
+
         try:
             try:
                 run.wait()
@@ -282,4 +301,5 @@ def main():
             print >>sys.stderr, "Stopping run..."
             run.finish()
 
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    main()

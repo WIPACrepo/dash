@@ -2,7 +2,16 @@
 #
 # Classes used for pDAQ unit testing
 
-import datetime, os, re, select, socket, sys, tempfile, threading, time
+import datetime
+import os
+import re
+import select
+import socket
+import sys
+import tempfile
+import threading
+import time
+
 from unittest import TestCase
 
 from CnCLogger import CnCLogger
@@ -17,11 +26,12 @@ from utils.DashXMLLog import DashXMLLog
 
 import traceback
 
-if os.environ.has_key("PDAQ_HOME"):
+if "PDAQ_HOME" in os.environ:
     METADIR = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
     METADIR = find_pdaq_trunk()
+
 
 class BaseChecker(object):
     PAT_DAQLOG = re.compile(r'^([^\]]+)\s+\[([^\]]+)\]\s+(.*)$', re.MULTILINE)
@@ -33,6 +43,7 @@ class BaseChecker(object):
 
     def check(self, checker, msg, debug, setError=True):
         raise NotImplementedError()
+
 
 class BaseLiveChecker(BaseChecker):
     def __init__(self, varName):
@@ -115,6 +126,7 @@ class BaseLiveChecker(BaseChecker):
 
         return True
 
+
 class ExactChecker(BaseChecker):
     def __init__(self, text):
         self.__text = text
@@ -134,6 +146,7 @@ class ExactChecker(BaseChecker):
             return False
 
         return True
+
 
 class LiveChecker(BaseLiveChecker):
     def __init__(self, varName, value, varType=None):
@@ -201,6 +214,7 @@ class LiveChecker(BaseLiveChecker):
             return self.__type
         return type(self.__value).__name__
 
+
 class LiveRegexpChecker(BaseLiveChecker):
     def __init__(self, varName, pattern):
         self.__regexp = re.compile(pattern)
@@ -230,6 +244,7 @@ class LiveRegexpChecker(BaseLiveChecker):
     def _getValueType(self):
         return 'str'
 
+
 class RegexpChecker(BaseChecker):
     def __init__(self, pattern):
         self.__regexp = re.compile(pattern)
@@ -252,6 +267,7 @@ class RegexpChecker(BaseChecker):
             return False
 
         return True
+
 
 class RegexpTextChecker(BaseChecker):
     def __init__(self, pattern):
@@ -287,6 +303,7 @@ class RegexpTextChecker(BaseChecker):
 
         return True
 
+
 class TextChecker(BaseChecker):
     def __init__(self, text):
         self.__text = text
@@ -318,6 +335,7 @@ class TextChecker(BaseChecker):
             return False
 
         return True
+
 
 class LogChecker(object):
     DEBUG = False
@@ -444,6 +462,7 @@ class LogChecker(object):
     def setError(self, msg):
         raise NotImplementedError()
 
+
 class MockAppender(LogChecker):
     def __init__(self, name, depth=None):
         super(MockAppender, self).__init__('LOG', name, depth=depth)
@@ -457,6 +476,7 @@ class MockAppender(LogChecker):
     def write(self, m, time=None):
         self._checkMsg(m)
 
+
 class MockClusterComponent(Component):
     def __init__(self, fullname, jvm, jvmArgs, host):
         sep = fullname.rfind("#")
@@ -468,7 +488,7 @@ class MockClusterComponent(Component):
             num = 0
         else:
             name = fullname[:sep]
-            num = int(fullname[sep+1:])
+            num = int(fullname[sep + 1:])
 
         self.__jvm = jvm
         self.__jvmArgs = jvmArgs
@@ -486,9 +506,15 @@ class MockClusterComponent(Component):
             (indent, self.name(), self.id())
         print >>fd, "%s</location>" % indent
 
-    def host(self): return self.__host
-    def jvm(self): return self.__jvm
-    def jvmArgs(self): return self.__jvmArgs
+    def host(self):
+        return self.__host
+
+    def jvm(self):
+        return self.__jvm
+
+    def jvmArgs(self):
+        return self.__jvmArgs
+
 
 class MockClusterNode(object):
     def __init__(self, host):
@@ -501,6 +527,7 @@ class MockClusterNode(object):
     def components(self):
         return self.__comps[:]
 
+
 class MockClusterConfig(object):
     def __init__(self, name):
         self.__configName = name
@@ -510,7 +537,7 @@ class MockClusterConfig(object):
         return "MockClusterConfig(%s)" % self.__configName
 
     def addComponent(self, comp, jvm, jvmArgs, host):
-        if not self.__nodes.has_key(host):
+        if not host in self.__nodes:
             self.__nodes[host] = MockClusterNode(host)
         self.__nodes[host].add(comp, jvm, jvmArgs, host)
 
@@ -520,6 +547,7 @@ class MockClusterConfig(object):
     def nodes(self):
         return self.__nodes.values()
 
+
 class MockCnCLogger(CnCLogger):
     def __init__(self, appender, quiet=False, extraLoud=False):
         #if appender is None: raise Exception('Appender cannot be None')
@@ -527,6 +555,7 @@ class MockCnCLogger(CnCLogger):
 
         super(MockCnCLogger, self).__init__(appender, quiet=quiet,
                                             extraLoud=extraLoud)
+
 
 class MockConnection(object):
     INPUT = "a"
@@ -552,8 +581,12 @@ class MockConnection(object):
         return self.__connCh == self.OPT_INPUT or \
                self.__connCh == self.OPT_OUTPUT
 
-    def name(self): return self.__name
-    def port(self): return self.__port
+    def name(self):
+        return self.__name
+
+    def port(self):
+        return self.__port
+
 
 class MockComponent(object):
     def __init__(self, name, num=0, host='localhost'):
@@ -581,7 +614,8 @@ class MockComponent(object):
 
         self.__beanData = {}
 
-    def __repr__(self): return str(self)
+    def __repr__(self):
+        return str(self)
 
     def __str__(self):
         outStr = self.fullName()
@@ -605,7 +639,7 @@ class MockComponent(object):
             raise Exception("Value for %c bean %s field %s already exists" %
                             (self, beanName, fieldName))
 
-        if not self.__beanData.has_key(beanName):
+        if not beanName in self.__beanData:
             self.__beanData[beanName] = {}
 
         self.__beanData[beanName][fieldName] = value
@@ -628,8 +662,8 @@ class MockComponent(object):
         self.__connectors.append(MockConnection(name, connCh))
 
     def checkBeanField(self, beanName, fieldName):
-        return self.__beanData.has_key(beanName) and \
-            self.__beanData[beanName].has_key(fieldName)
+        return beanName in self.__beanData and \
+            fieldName in self.__beanData[beanName]
 
     def close(self):
         pass
@@ -753,7 +787,6 @@ class MockComponent(object):
 
         self.__beanData[beanName][fieldName] = value
 
-
     def setConfigureWait(self, waitNum):
         self.__configWait = waitNum
 
@@ -806,9 +839,12 @@ class MockComponent(object):
         else:
             self.runNum = None
 
-    def updateRates(self): self.__updatedRates = True
+    def updateRates(self):
+        self.__updatedRates = True
 
-    def wasUpdated(self): return self.__updatedRates
+    def wasUpdated(self):
+        return self.__updatedRates
+
 
 class MockDeployComponent(Component):
     def __init__(self, name, id, logLevel, jvm, jvmArgs):
@@ -817,9 +853,15 @@ class MockDeployComponent(Component):
 
         super(MockDeployComponent, self).__init__(name, id, logLevel)
 
-    def isControlServer(self): return False
-    def jvm(self): return self.__jvm
-    def jvmArgs(self): return self.__jvmArgs
+    def isControlServer(self):
+        return False
+
+    def jvm(self):
+        return self.__jvm
+
+    def jvmArgs(self):
+        return self.__jvmArgs
+
 
 class MockDAQClient(DAQClient):
     def __init__(self, name, num, host, port, mbeanPort, connectors,
@@ -869,6 +911,7 @@ class MockDAQClient(DAQClient):
     def state(self):
         return self.__state
 
+
 class MockIntervalTimer(object):
     def __init__(self, name, waitSecs=1.0):
         self.__name = name
@@ -876,7 +919,8 @@ class MockIntervalTimer(object):
         self.__gotTime = False
         self.__waitSecs = waitSecs
 
-    def __str__(self): return "Timer#%s%s" % \
+    def __str__(self):
+        return "Timer#%s%s" % \
             (self.__name, self.__isTime and "!isTime!" or "")
 
     def gotTime(self):
@@ -905,6 +949,7 @@ class MockIntervalTimer(object):
     def waitSecs(self):
         return self.__waitSecs
 
+
 class MockLogger(LogChecker):
     def __init__(self, name):
         super(MockLogger, self).__init__('LOG', name)
@@ -921,33 +966,46 @@ class MockLogger(LogChecker):
     def close(self):
         pass
 
-    def debug(self, m): self._checkMsg(m)
+    def debug(self, m):
+        self._checkMsg(m)
 
-    def error(self, m): self._checkMsg(m)
+    def error(self, m):
+        self._checkMsg(m)
 
-    def fatal(self, m): self._checkMsg(m)
+    def fatal(self, m):
+        self._checkMsg(m)
 
-    def info(self, m): self._checkMsg(m)
+    def info(self, m):
+        self._checkMsg(m)
 
-    def isDebugEnabled(self): return True
+    def isDebugEnabled(self):
+        return True
 
-    def isErrorEnabled(self): return True
+    def isErrorEnabled(self):
+        return True
 
-    def isFatalEnabled(self): return True
+    def isFatalEnabled(self):
+        return True
 
-    def isInfoEnabled(self): return True
+    def isInfoEnabled(self):
+        return True
 
-    def isTraceEnabled(self): return True
+    def isTraceEnabled(self):
+        return True
 
-    def isWarnEnabled(self): return True
+    def isWarnEnabled(self):
+        return True
 
     def setError(self, msg):
         self.__err = msg
         raise Exception(msg)
 
-    def trace(self, m): self._checkMsg(m)
+    def trace(self, m):
+        self._checkMsg(m)
 
-    def warn(self, m): self._checkMsg(m)
+    def warn(self, m):
+        self._checkMsg(m)
+
 
 class MockParallelShell(object):
     BINDIR = os.path.join(METADIR, 'target', 'pDAQ-%s-dist' % RELEASE, 'bin')
@@ -969,15 +1027,18 @@ class MockParallelShell(object):
         if expLen == 0:
             raise Exception('Did not expect command "%s"' % cmd)
 
-        if self.__debug: print >>sys.stderr, "PSh got: " + cmd
+        if self.__debug:
+            print >>sys.stderr, "PSh got: " + cmd
 
         found = None
         for i in range(expLen):
             if cmd == self.__exp[i]:
                 found = i
-                if self.__debug: print >>sys.stderr, "PSh found cmd"
+                if self.__debug:
+                    print >>sys.stderr, "PSh found cmd"
                 break
-            if self.__debug: print >>sys.stderr, "PSh not: " + self.__exp[i]
+            if self.__debug:
+                print >>sys.stderr, "PSh not: " + self.__exp[i]
 
         if found is None:
             raise Exception('Command not found in expected command list: ' \
@@ -1012,7 +1073,8 @@ class MockParallelShell(object):
 
         cmd += ' -jar %s' % jarPath
         cmd += ' -g %s' % configDir
-        if daqDataDir is not None: cmd += ' -d %s' % daqDataDir
+        if daqDataDir is not None:
+            cmd += ' -d %s' % daqDataDir
         cmd += ' -c %s:%d' % (ipAddr, DAQPort.CNCSERVER)
 
         if logPort is not None:
@@ -1054,8 +1116,8 @@ class MockParallelShell(object):
             self.__addExpected('sleep 2; %spkill -9%s %s' %
                                (sshCmd, pkillOpt, killPat))
 
-    def addExpectedPython(self, doCnC, dashDir, configDir, logDir, daqDataDir, spadeDir,
-                          cfgName, copyDir, logPort, livePort):
+    def addExpectedPython(self, doCnC, dashDir, configDir, logDir, daqDataDir,
+                          spadeDir, cfgName, copyDir, logPort, livePort):
         if doCnC:
             cmd = os.path.join(dashDir, 'CnCServer.py')
             cmd += ' -c %s' % configDir
@@ -1144,8 +1206,8 @@ class MockParallelShell(object):
 
         # commands are in self.__exp
         ret = {}
-        for exp,rtncode in zip(self.__exp, self.__rtnCodes):
-            ret[exp]=(rtncode,"")
+        for exp, rtncode in zip(self.__exp, self.__rtnCodes):
+            ret[exp] = (rtncode, "")
 
         return ret
 
@@ -1153,6 +1215,7 @@ class MockParallelShell(object):
 class MockRPCClient(object):
     def __init__(self, name, num, outLinks=None):
         self.xmlrpc = MockXMLRPC(name, num, outLinks)
+
 
 class MockRunComponent(object):
     def __init__(self, name, id, inetAddr, rpcPort, mbeanPort):
@@ -1165,12 +1228,24 @@ class MockRunComponent(object):
     def __str__(self):
         return "%s#%s" % (str(self.__name), str(self.__id))
 
-    def id(self): return self.__id
-    def inetAddress(self): return self.__inetAddr
-    def isHub(self): return self.__name.endswith("Hub")
-    def mbeanPort(self): return self.__mbeanPort
-    def name(self): return self.__name
-    def rpcPort(self): return self.__rpcPort
+    def id(self):
+        return self.__id
+
+    def inetAddress(self):
+        return self.__inetAddr
+
+    def isHub(self):
+        return self.__name.endswith("Hub")
+
+    def mbeanPort(self):
+        return self.__mbeanPort
+
+    def name(self):
+        return self.__name
+
+    def rpcPort(self):
+        return self.__rpcPort
+
 
 class SimDOMXML(object):
     def __init__(self, mbid):
@@ -1179,6 +1254,7 @@ class SimDOMXML(object):
     def printXML(self, fd, indent):
         print >>fd, "%s<domConfig mbid=\"%s\">" % (indent, self.__mbid)
         print >>fd, "%s</domConfig>"
+
 
 class MockRunConfigFile(object):
     def __init__(self, configDir):
@@ -1232,7 +1308,7 @@ class MockRunConfigFile(object):
             for c in compList:
                 pound = c.rfind("#")
                 if pound > 0:
-                    val = int(c[pound+1:])
+                    val = int(c[pound + 1:])
                     if val == 0:
                         c = c[:pound]
                 print >>fd, "    <runComponent name=\"%s\"/>" % c
@@ -1247,6 +1323,7 @@ class MockRunConfigFile(object):
     @staticmethod
     def createDOM(mbid):
         return SimDOMXML(mbid)
+
 
 class MockXMLRPC(object):
     LOUD = False
@@ -1334,6 +1411,7 @@ class MockXMLRPC(object):
     def stopRun(self):
         pass
 
+
 class SocketReader(LogChecker):
     def __init__(self, name, port, depth=None):
         self.__name = name
@@ -1375,15 +1453,16 @@ class SocketReader(LogChecker):
                     raise Exception("Error on select was detected.")
                 if len(rd) == 0:
                     continue
-                while 1: # Slurp up waiting packets, return to select if EAGAIN
+                while 1:  # Slurp up waiting packets, return to select if EAGAIN
                     try:
                         data = sock.recv(8192, socket.MSG_DONTWAIT)
                     except:
-                        break # Go back to select so we don't busy-wait
+                        break  # Go back to select so we don't busy-wait
                     if not self._checkMsg(data):
                         break
         finally:
-            if sock is not None: sock.close()
+            if sock is not None:
+                sock.close()
             self.__serving = False
 
     def __win_bind(self):
@@ -1410,7 +1489,8 @@ class SocketReader(LogChecker):
         if self.__errMsg is not None:
             raise Exception(self.__errMsg)
 
-    def getPort(self): return self.__port
+    def getPort(self):
+        return self.__port
 
     def serving(self):
         return self.__serving
@@ -1445,6 +1525,7 @@ class SocketReader(LogChecker):
         while not self.__serving:
             time.sleep(.001)
 
+
 class SocketReaderFactory(object):
     def __init__(self):
         self.__logList = []
@@ -1470,6 +1551,7 @@ class SocketReaderFactory(object):
             l.checkStatus(0)
 
         del self.__logList[:]
+
 
 class SocketWriter(object):
     def __init__(self, node, port):
@@ -1497,6 +1579,7 @@ class SocketWriter(object):
     def close(self):
         "Shut down socket to remote server - do this to avoid stale sockets"
         self.socket.close()
+
 
 class RunXMLValidator:
 
@@ -1559,6 +1642,7 @@ class RunXMLValidator:
             except:
                 pass
 
+
 class MockRunSet(object):
     def __init__(self, comps):
         self.__comps = comps
@@ -1570,18 +1654,27 @@ class MockRunSet(object):
         self.__numSN = 12
         self.__numTcal = 13
 
-    def components(self): return self.__comps[:]
+    def components(self):
+        return self.__comps[:]
+
     def getRates(self):
         return (self.__numEvts, self.__rate, self.__numMoni, self.__numSN,
                 self.__numTcal)
-    def isRunning(self): return self.__running
-    def startRunning(self): self.__running = True
-    def stopRunning(self): self.__running = False
+
+    def isRunning(self):
+        return self.__running
+
+    def startRunning(self):
+        self.__running = True
+
+    def stopRunning(self):
+        self.__running = False
 
     def updateRates(self):
         for c in self.__comps:
             c.updateRates()
         return self.getRates()
+
 
 class MockTaskManager(object):
     def __init__(self):
@@ -1589,13 +1682,13 @@ class MockTaskManager(object):
         self.__error = False
 
     def addIntervalTimer(self, timer):
-        if self.__timerDict.has_key(timer.name()):
+        if timer.name() in self.__timerDict:
             raise Exception("Cannot add multiple timers named \"%s\"" %
                             timer.name())
         self.__timerDict[timer.name()] = timer
 
     def createIntervalTimer(self, name, period):
-        if not self.__timerDict.has_key(name):
+        if not name in self.__timerDict:
             raise Exception("Cannot find timer named \"%s\"" % name)
         return self.__timerDict[name]
 
@@ -1605,12 +1698,13 @@ class MockTaskManager(object):
     def setError(self):
         self.__error = True
 
+
 class MockLiveMoni(object):
     def __init__(self):
         self.__expMoni = {}
 
     def addExpected(self, var, val, prio):
-        if not self.__expMoni.has_key(var):
+        if not var in self.__expMoni:
             self.__expMoni[var] = []
         self.__expMoni[var].append((val, prio))
 
@@ -1618,12 +1712,12 @@ class MockLiveMoni(object):
         return len(self.__expMoni) == 0
 
     def sendMoni(self, var, val, prio, time=datetime.datetime.now()):
-        if not self.__expMoni.has_key(var):
+        if not var in self.__expMoni:
             raise Exception(("Unexpected live monitor data" +
                              " (var=%s, val=%s, prio=%d)") % (var, val, prio))
 
         expData = None
-        for index, ( val_tmp, prio_tmp) in enumerate(self.__expMoni[var]):
+        for index, (val_tmp, prio_tmp) in enumerate(self.__expMoni[var]):
             if val == val_tmp and prio == prio_tmp:
                 # found the right entry
                 expData = self.__expMoni[var].pop(index)

@@ -1,15 +1,29 @@
 #!/usr/bin/env python
 
-import os, socket, sys, traceback
+import os
+import socket
+import sys
+import traceback
 
 from xml.dom import minidom, Node
 
 from Component import Component
 
-class XMLError(Exception): pass
-class XMLFileDoesNotExist(XMLError): pass
-class XMLFormatError(XMLError): pass
-class ClusterDescriptionFormatError(XMLFormatError): pass
+
+class XMLError(Exception):
+    pass
+
+
+class XMLFileDoesNotExist(XMLError):
+    pass
+
+
+class XMLFormatError(XMLError):
+    pass
+
+
+class ClusterDescriptionFormatError(XMLFormatError):
+    pass
 
 
 class ConfigXMLBase(object):
@@ -77,7 +91,6 @@ class ConfigXMLBase(object):
 
         return kids[0]
 
-
     def getValue(self, node, name, defaultVal=None):
         if node.attributes is not None and node.attributes.has_key(name):
             return node.attributes[name].value
@@ -87,6 +100,7 @@ class ConfigXMLBase(object):
         except:
             return defaultVal
 
+
 class ControlComponent(Component):
     def __init__(self):
         super(ControlComponent, self).__init__("CnCServer", 0, None)
@@ -94,10 +108,18 @@ class ControlComponent(Component):
     def __str__(self):
         return "CnCServer"
 
-    def isControlServer(self): return True
-    def jvm(self): return None
-    def jvmArgs(self): return None
-    def required(self): return True
+    def isControlServer(self):
+        return True
+
+    def jvm(self):
+        return None
+
+    def jvmArgs(self):
+        return None
+
+    def required(self):
+        return True
+
 
 class ClusterComponent(Component):
     def __init__(self, name, id, logLevel, jvm, jvmArgs, required):
@@ -127,10 +149,18 @@ class ClusterComponent(Component):
         return "%s@%s(%s)%s" % \
             (self.fullName(), str(self.logLevel()), jStr, rStr)
 
-    def isControlServer(self): return False
-    def jvm(self): return self.__jvm
-    def jvmArgs(self): return self.__jvmArgs
-    def required(self): return self.__required
+    def isControlServer(self):
+        return False
+
+    def jvm(self):
+        return self.__jvm
+
+    def jvmArgs(self):
+        return self.__jvmArgs
+
+    def required(self):
+        return self.__required
+
 
 class ClusterSimHub(object):
     def __init__(self, host, number, priority, ifUnused):
@@ -153,6 +183,7 @@ class ClusterSimHub(object):
             val = cmp(x.host.name, y.host.name)
         return val
 
+
 class ClusterHost(object):
     def __init__(self, name):
         self.name = name
@@ -167,7 +198,7 @@ class ClusterHost(object):
         comp = ClusterComponent(name, id, logLevel, jvm, jvmArgs, required)
 
         compKey = str(comp)
-        if self.compMap.has_key(compKey):
+        if compKey in self.compMap:
             errMsg = 'Multiple entries for component "%s" in host "%s"' % \
                 (compKey, self.name)
             raise ClusterDescriptionFormatError(errMsg)
@@ -214,6 +245,7 @@ class ClusterHost(object):
 
     def setControlServer(self):
         self.ctlServer = True
+
 
 class ClusterDescription(ConfigXMLBase):
     LOCAL = "localhost"
@@ -275,8 +307,8 @@ class ClusterDescription(ConfigXMLBase):
     def __findDefault(self, compName, valName):
         if compName is not None and \
                 self.__defaultComponent is not None and \
-                self.__defaultComponent.has_key(compName) and \
-                self.__defaultComponent[compName].has_key(valName):
+                compName in self.__defaultComponent and \
+                valName in self.__defaultComponent[compName]:
             return self.__defaultComponent[compName][valName]
 
         if valName == 'logLevel':
@@ -338,7 +370,7 @@ class ClusterDescription(ConfigXMLBase):
                 self.__defaultLogLevel = self.getChildText(kid)
             elif kid.nodeName == 'jvm':
                 self.__defaultJVM = self.getChildText(kid)
-                if(self.__defaultJVM !=None):
+                if(self.__defaultJVM != None):
                     self.__defaultJVM = os.path.expanduser(self.__defaultJVM)
             elif kid.nodeName == 'jvmArgs':
                 self.__defaultJVMArgs = self.getChildText(kid)
@@ -397,7 +429,7 @@ class ClusterDescription(ConfigXMLBase):
                 host.addSimulatedHub(simHub)
 
             # add host to internal host dictionary
-            if not self.__hostMap.has_key(hostName):
+            if not hostName in self.__hostMap:
                 self.__hostMap[hostName] = host
             else:
                 errMsg = 'Multiple entries for host "%s"' % hostName
@@ -405,7 +437,7 @@ class ClusterDescription(ConfigXMLBase):
 
             for comp in host.getComponents():
                 compKey = str(comp)
-                if self.__compToHost.has_key(compKey):
+                if compKey in self.__compToHost:
                     errMsg = 'Multiple entries for component "%s"' % compKey
                     raise ClusterDescriptionFormatError(errMsg)
                 self.__compToHost[compKey] = host
@@ -457,8 +489,10 @@ class ClusterDescription(ConfigXMLBase):
 
     def defaultJVM(self, compName=None):
         return self.__findDefault(compName, 'jvm')
+
     def defaultJVMArgs(self, compName=None):
         return self.__findDefault(compName, 'jvmArgs')
+
     def defaultLogLevel(self, compName=None):
         return self.__findDefault(compName, 'logLevel')
 
@@ -471,7 +505,8 @@ class ClusterDescription(ConfigXMLBase):
             print "%s  SPADE log directory: %s" % \
                 (prefix, self.__logDirForSpade)
         if self.__logDirCopies is not None:
-            print "%s  Copied log directory: %s" % (prefix, self.__logDirCopies)
+            print "%s  Copied log directory: %s" % (prefix,
+                                                    self.__logDirCopies)
         if self.__daqDataDir is not None:
             print "%s  DAQ data directory: %s" % (prefix, self.__daqDataDir)
         if self.__daqLogDir is not None:
@@ -483,7 +518,8 @@ class ClusterDescription(ConfigXMLBase):
             print "%s  Package installation directory: %s" % \
                 (prefix, self.__pkgInstallDir)
         if self.__defaultLogLevel is not None:
-            print "%s  Default log level: %s" % (prefix, self.__defaultLogLevel)
+            print "%s  Default log level: %s" % (prefix,
+                                                 self.__defaultLogLevel)
         if self.__defaultJVM is not None:
             print "%s  Default Java executable: %s" % \
                 (prefix, self.__defaultJVM)
@@ -494,10 +530,10 @@ class ClusterDescription(ConfigXMLBase):
             print "  Default components:"
             for comp in self.__defaultComponent.keys():
                 print "%s    %s:" % (prefix, comp)
-                if self.__defaultComponent[comp].has_key('jvm'):
+                if 'jvm' in self.__defaultComponent[comp]:
                     print "%s      Java executable: %s" % \
                         (prefix, self.__defaultComponent[comp]['jvm'])
-                if self.__defaultComponent[comp].has_key('jvmArgs'):
+                if 'jvmArgs' in self.__defaultComponent[comp]:
                     print "%s      Java arguments: %s" % \
                         (prefix, self.__defaultComponent[comp]['jvmArgs'])
 
@@ -516,27 +552,27 @@ class ClusterDescription(ConfigXMLBase):
 
         self.__logDirForSpade = self.getValue(cluster, 'logDirForSpade')
         # expand tilde
-        if(self.__logDirForSpade!=None):
+        if(self.__logDirForSpade != None):
             self.__logDirForSpade = os.path.expanduser(self.__logDirForSpade)
 
         self.__logDirCopies = self.getValue(cluster, 'logDirCopies')
-        if(self.__logDirCopies!=None):
+        if(self.__logDirCopies != None):
             self.__logDirCopies = os.path.expanduser(self.__logDirCopies)
 
         self.__daqDataDir = self.getValue(cluster, 'daqDataDir')
-        if(self.__daqDataDir!=None):
+        if(self.__daqDataDir != None):
             self.__daqDataDir = os.path.expanduser(self.__daqDataDir)
 
         self.__daqLogDir = self.getValue(cluster, 'daqLogDir')
-        if(self.__daqLogDir!=None):
+        if(self.__daqLogDir != None):
             self.__daqLogDir = os.path.expanduser(self.__daqLogDir)
 
         self.__pkgStageDir = self.getValue(cluster, 'packageStageDir')
-        if(self.__pkgStageDir!=None):
+        if(self.__pkgStageDir != None):
             self.__pkgStageDir = os.path.expanduser(self.__pkgStageDir)
 
         self.__pkgInstallDir = self.getValue(cluster, 'packageInstallDir')
-        if(self.__pkgInstallDir!=None):
+        if(self.__pkgInstallDir != None):
             self.__pkgInstallDir = os.path.expanduser(self.__pkgInstallDir)
 
         dfltNodes = cluster.getElementsByTagName('default')
@@ -567,7 +603,7 @@ class ClusterDescription(ConfigXMLBase):
         if hostname is not None:
             # SPS is easy
             if hostname.endswith("icecube.southpole.usap.gov"):
-                hname = hostname.split(".",1)[0]
+                hname = hostname.split(".", 1)[0]
                 if hname == "pdaq2":
                     return cls.PDAQ2
                 else:
@@ -620,8 +656,11 @@ class ClusterDescription(ConfigXMLBase):
         for host in self.__hostMap.keys():
             yield (host, self.__hostMap[host].getSimulatedHub())
 
-    def logDirForSpade(self): return self.__logDirForSpade
-    def logDirCopies(self): return self.__logDirCopies
+    def logDirForSpade(self):
+        return self.__logDirForSpade
+
+    def logDirCopies(self):
+        return self.__logDirCopies
 
     def packageStageDir(self):
         if self.__pkgStageDir is None:
@@ -638,7 +677,7 @@ if __name__ == '__main__':
         print >>sys.stderr, 'Usage: %s configXML [configXML ...]' % sys.argv[0]
         sys.exit(1)
 
-    if os.environ.has_key("PDAQ_HOME"):
+    if "PDAQ_HOME" in os.environ:
         metaDir = os.environ["PDAQ_HOME"]
     else:
         from locate_pdaq import find_pdaq_trunk

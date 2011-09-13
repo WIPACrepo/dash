@@ -4,12 +4,13 @@ import unittest
 from RateCalc import dt, RateCalcEntry
 from RunStats import PayloadTime, RunStats
 
+
 class TestRunStats(unittest.TestCase):
-    EMPTY_DICT = {"events" : 0, "eventsTime" : None, "evtPayTime" : None,
-                  "moni" : 0, "moniTime" : None,
-                  "sn" : 0, "snTime" : None,
-                  "tcal" : 0, "tcalTime" : None,
-                  "startTime" : None,
+    EMPTY_DICT = {"events": 0, "eventsTime": None, "evtPayTime": None,
+                  "moni": 0, "moniTime": None,
+                  "sn": 0, "snTime": None,
+                  "tcal": 0, "tcalTime": None,
+                  "startTime": None,
                   }
 
     CURRENT_FIELDS = ("eventsTime", "events", "moni", "sn", "tcal")
@@ -34,7 +35,8 @@ class TestRunStats(unittest.TestCase):
 
     def __checkStats(self, rs, expData, expRate, expEntries):
         curData = rs.currentData()
-        expCur = self.__buildDataList(expData, self.CURRENT_FIELDS, current=True)
+        expCur = self.__buildDataList(expData, self.CURRENT_FIELDS,
+                                      current=True)
         self.__checkValues("currentData", expCur, curData)
 
         monData = rs.monitorData()
@@ -60,8 +62,10 @@ class TestRunStats(unittest.TestCase):
                               (idx, expEntries[idx], ent[idx]))
 
         rstr = str(rs)
-        expStr = "Stats[e%s m%s s%s t%s]" % (expData["events"], expData["moni"],
-                                             expData["sn"], expData["tcal"])
+        expStr = "Stats[e%s m%s s%s t%s]" % (expData["events"],
+                                             expData["moni"],
+                                             expData["sn"],
+                                             expData["tcal"])
         self.assertEqual(expStr, rstr, "Expected \"%s\", not \"%s\"" %
                           (expStr, rstr))
 
@@ -144,7 +148,7 @@ class TestRunStats(unittest.TestCase):
 
         stopFlds = self.__buildDataList(self.EMPTY_DICT, self.STOP_FIELDS,
                                         current=False)
-        self.__checkValues("stopData",stopFlds, evtTup)
+        self.__checkValues("stopData", stopFlds, evtTup)
 
         self.__checkStats(rs, self.EMPTY_DICT, rateEmpty, entriesEmpty)
 
@@ -163,11 +167,11 @@ class TestRunStats(unittest.TestCase):
         valInc = 56
         timeInc = 10000000000L
 
-        upDict = {"events" : 56, "eventsTime" : 123456789L,
-                  "moni" : 17, "moniTime" : 123459876L,
-                  "sn" : 111, "snTime" : 123456666L,
-                  "tcal" : 454, "tcalTime" : 123459999L,
-                  "startTime" : None, "evtPayTime" : 123456890L,
+        upDict = {"events": 56, "eventsTime": 123456789L,
+                  "moni": 17, "moniTime": 123459876L,
+                  "sn": 111, "snTime": 123456666L,
+                  "tcal": 454, "tcalTime": 123459999L,
+                  "startTime": None, "evtPayTime": 123456890L,
                   }
 
         rateList = []
@@ -196,11 +200,11 @@ class TestRunStats(unittest.TestCase):
 
         evtTup = rs.stop(None)
 
-        stopFlds = self.__buildDataList(upDict, self.STOP_FIELDS, current=False)
+        stopFlds = self.__buildDataList(upDict, self.STOP_FIELDS,
+                                        current=False)
         self.__checkValues("stopData", stopFlds, evtTup)
 
         self.__checkStats(rs, upDict, upRate, upEntries)
 
 if __name__ == '__main__':
     unittest.main()
-

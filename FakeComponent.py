@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 
-import struct, sys
+import struct
+import sys
 from CnCServer import Connector
 from FakeClient import FakeClient, FakeClientException
+
 
 class PayloadType(object):
     SIMPLE_HIT = 1
     TRIGGER_REQUEST = 9
+
 
 class TriggerHandler(FakeClient):
 
@@ -63,7 +66,7 @@ class TriggerHandler(FakeClient):
             if pos + 4 > len(data):
                 break
 
-            payLen = struct.unpack(">i", data[pos:pos+4])[0]
+            payLen = struct.unpack(">i", data[pos: pos + 4])[0]
             if payLen == 4:
                 print >>sys.stderr, "%s saw STOPMSG" % self.fullName()
                 break
@@ -76,13 +79,14 @@ class TriggerHandler(FakeClient):
                       "%s expected %d bytes, but only %d are available" % \
                       (self.fullName(), payLen, len(data))
             else:
-                payType, utc = struct.unpack(">iq", data[pos+4:pos+16])
-                self.processPayload(payType, utc, data[pos+16:pos+payLen])
+                payType, utc = struct.unpack(">iq", data[pos + 4: pos + 16])
+                self.processPayload(payType, utc, data[pos + 16: pos + payLen])
 
             pos += payLen
 
     def send(self, data):
         self.__outConn.send(data)
+
 
 class LocalTrigger(TriggerHandler):
 
@@ -117,6 +121,7 @@ class LocalTrigger(TriggerHandler):
                                          startTime, endTime)
             self.send(tr)
 
+
 class InIceTrigger(TriggerHandler):
 
     def __init__(self, prescale=1000):
@@ -126,6 +131,7 @@ class InIceTrigger(TriggerHandler):
         super(type(self), self).__init__("inIceTrigger", 0, "stringHit",
                                          self.__outputName, prescale)
 
+
 class IceTopTrigger(TriggerHandler):
 
     def __init__(self, prescale=1000):
@@ -134,6 +140,7 @@ class IceTopTrigger(TriggerHandler):
 
         super(type(self), self).__init__("iceTopTrigger", 0, "icetopHit",
                                          self.__outputName, prescale)
+
 
 class GlobalTrigger(TriggerHandler):
 
@@ -163,11 +170,11 @@ class GlobalTrigger(TriggerHandler):
 
         elems = []
         for i in range(numReq):
-            elems.append(struct.unpack(">iiqqq", payload[pos:pos+32]))
+            elems.append(struct.unpack(">iiqqq", payload[pos: pos + 32]))
             pos += 32
 
         compLen, compType, numComp = \
-                 struct.unpack(">ihh", payload[pos:pos+8])
+                 struct.unpack(">ihh", payload[pos: pos + 8])
 
         if numComp > 0:
             print >>sys.stderr, "%s ignoring %d composites" % self.fullName()
@@ -175,6 +182,7 @@ class GlobalTrigger(TriggerHandler):
         tr = self.makeTriggerRequest(self.TRIG_TYPE, self.TRIG_CFGID,
                                      startTime, endTime)
         self.__outConn.send(tr)
+
 
 class TrackEngine(TriggerHandler):
 
@@ -203,7 +211,7 @@ class TrackEngine(TriggerHandler):
                 break
 
             major, minor, utc, lcMode = \
-                   struct.unpack(">bbqb", data[pos:pos+self.HIT_LEN])
+                   struct.unpack(">bbqb", data[pos: pos + self.HIT_LEN])
 
             if major == 0 and minor == 0 and utc == 0 and lcMode == 0:
                 print >>sys.stderr, "%s saw STOPMSG" % self.fullName()

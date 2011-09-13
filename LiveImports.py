@@ -23,13 +23,16 @@ except ImportError:
                      makesLight=None, logger=None):
             pass
 
-        def close(self): pass
-        def run(self): pass
+        def close(self):
+            pass
+
+        def run(self):
+            pass
 
     class Prio(object):
-        ITS   = 123
+        ITS = 123
         EMAIL = 444
-        SCP   = 555
+        SCP = 555
         DEBUG = 666
 
     class MoniClient(object):
@@ -42,8 +45,12 @@ except ImportError:
             so DAQRun can detect problems
             """
             return "BOGUS"
-        def close(self): pass
-        def sendMoni(self, name, data, prio=None, time=None): pass
+
+        def close(self):
+            pass
+
+        def sendMoni(self, name, data, prio=None, time=None):
+            pass
 
     # set bogus log level constants
     LOG_FATAL = 32760
@@ -59,4 +66,5 @@ except ImportError:
     # indicate that import failed
     LIVE_IMPORT = False
 
-if __name__ == "__main__": pass
+if __name__ == "__main__":
+    pass

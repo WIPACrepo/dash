@@ -10,24 +10,39 @@ CAUGHT_WARNING = False
 from DAQMocks import MockClusterConfig, MockComponent, MockLogger, \
      RunXMLValidator
 
+
 class FakeLogger(object):
-    def __init__(self): pass
-    def stopServing(self): pass
+    def __init__(self):
+        pass
+
+    def stopServing(self):
+        pass
+
 
 class FakeTaskManager(object):
-    def __init__(self): pass
-    def reset(self): pass
-    def start(self): pass
-    def stop(self): pass
+    def __init__(self):
+        pass
+
+    def reset(self):
+        pass
+
+    def start(self):
+        pass
+
+    def stop(self):
+        pass
+
 
 class FakeRunConfig(object):
     def __init__(self, name):
         self.__name = name
 
-    def basename(self): return self.__name
+    def basename(self):
+        return self.__name
 
     def hasDOM(self, mbid):
         return True
+
 
 class MyParent(object):
     def __init__(self):
@@ -35,6 +50,7 @@ class MyParent(object):
 
     def saveCatchall(self, runDir):
         pass
+
 
 class MyRunSet(RunSet):
     def __init__(self, parent, runConfig, compList, logger):
@@ -71,6 +87,7 @@ class MyRunSet(RunSet):
     def queueForSpade(self, duration):
         pass
 
+
 class TestRunSet(unittest.TestCase):
     def __buildClusterConfig(self, compList, baseName):
         jvm = "java-" + baseName
@@ -99,7 +116,7 @@ class TestRunSet(unittest.TestCase):
         statDict = runset.status()
         self.assertEqual(len(statDict), len(compList))
         for c in compList:
-            self.failUnless(statDict.has_key(c), 'Could not find ' + str(c))
+            self.failUnless(c in statDict, 'Could not find ' + str(c))
             self.assertEqual(statDict[c], expState,
                              "Component %s: %s != expected %s" %
                              (c, statDict[c], expState))
@@ -306,7 +323,6 @@ class TestRunSet(unittest.TestCase):
 
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
-
 
     def __startRun(self, runset, runNum, runConfig, clusterName,
                    runOptions=RunOption.MONI_TO_NONE, versionInfo=None,
@@ -596,7 +612,6 @@ class TestRunSet(unittest.TestCase):
         runset.restartAllComponents(clusterCfg, None, None, None, None,
                                     False, False, False)
 
-
     def testShortStopWithoutStart(self):
         compList = self.__buildCompList(("one", "two", "three"))
         runConfig = FakeRunConfig("XXXrunCfgXXX")
@@ -613,7 +628,6 @@ class TestRunSet(unittest.TestCase):
             if not str(ex).startswith("RunSet #") or \
                not str(ex).endswith(" is not running"):
                 raise ex
-
 
     def testShortStopNormal(self):
         compList = self.__buildCompList(("one", "two", "three"))

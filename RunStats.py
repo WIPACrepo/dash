@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
-import datetime, time
+import datetime
+import time
 
 from RateCalc import RateCalc
+
 
 class PayloadTime(object):
     # number of seconds in 11 months
@@ -37,7 +39,6 @@ class PayloadTime(object):
         return datetime.datetime(ts.tm_year, ts.tm_mon, ts.tm_mday, ts.tm_hour,
                                  ts.tm_min, ts.tm_sec,
                                  int((curTime * 1000000) % 1000000))
-
 
 
 class RunStats(object):
@@ -109,7 +110,8 @@ class RunStats(object):
 
     def updateEventCounts(self, evtData, addRate=False):
         "Gather run statistics"
-        if evtData is None: return None
+        if evtData is None:
+            return None
 
         (numEvts, evtTime, firstPayTime, evtPayTime,
          numMoni, moniTime, numSN, snTime, numTcal, tcalTime) = evtData

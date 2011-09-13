@@ -1,6 +1,14 @@
 #!/usr/bin/env python
 
-import os, shutil, sys, tempfile, threading, time, traceback, unittest, xmlrpclib
+import os
+import shutil
+import sys
+import tempfile
+import threading
+import time
+import traceback
+import unittest
+import xmlrpclib
 
 from CnCServer import CnCServer, CnCServerException
 from DAQClient import DAQClient
@@ -16,6 +24,7 @@ from DAQMocks \
 
 ACTIVE_WARNING = False
 
+
 class MostlyDAQClient(DAQClient):
     def __init__(self, name, num, host, port, mbeanPort, connectors, appender):
         self.__appender = appender
@@ -30,15 +39,28 @@ class MostlyDAQClient(DAQClient):
     def createMBeanClient(self, host, port):
         return None
 
+
 class FakeLogger(object):
-    def __init__(self): pass
-    def stopServing(self): pass
+    def __init__(self):
+        pass
+
+    def stopServing(self):
+        pass
+
 
 class FakeTaskManager(object):
-    def __init__(self): pass
-    def reset(self): pass
-    def start(self): pass
-    def stop(self): pass
+    def __init__(self):
+        pass
+
+    def reset(self):
+        pass
+
+    def start(self):
+        pass
+
+    def stop(self):
+        pass
+
 
 class MostlyRunSet(RunSet):
     def __init__(self, parent, runConfig, compList, logger):
@@ -75,13 +97,14 @@ class MostlyRunSet(RunSet):
         pass
 
     def getLog(self, name):
-        if not self.__logDict.has_key(name):
+        if not name in self.__logDict:
             self.__logDict[name] = MockLogger(name)
 
         return self.__logDict[name]
 
     def queueForSpade(self, duration):
         pass
+
 
 class MostlyCnCServer(CnCServer):
     SERVER_NAME = "MostlyCnC"
@@ -106,7 +129,7 @@ class MostlyCnCServer(CnCServer):
     def createClient(self, name, num, host, port, mbeanPort, connectors):
         key = '%s#%d' % (name, num)
         key = 'server'
-        if not MostlyCnCServer.APPENDERS.has_key(key):
+        if not key in MostlyCnCServer.APPENDERS:
             MostlyCnCServer.APPENDERS[key] = MockAppender('Mock-%s' % key)
 
         return MostlyDAQClient(name, num, host, port, mbeanPort, connectors,
@@ -114,7 +137,7 @@ class MostlyCnCServer(CnCServer):
 
     def createCnCLogger(self, quiet):
         key = 'server'
-        if not MostlyCnCServer.APPENDERS.has_key(key):
+        if not key in MostlyCnCServer.APPENDERS:
             MostlyCnCServer.APPENDERS[key] = MockAppender('Mock-%s' % key)
 
         return MockCnCLogger(MostlyCnCServer.APPENDERS[key], quiet=quiet)
@@ -141,6 +164,7 @@ class MostlyCnCServer(CnCServer):
     def startLiveThread(self):
         return None
 
+
 class RealComponent(object):
     APPENDERS = {}
 
@@ -161,7 +185,8 @@ class RealComponent(object):
                                      'xmlrpc.getVersionInfo')
         self.__cmd.register_function(self.__logTo, 'xmlrpc.logTo')
         self.__cmd.register_function(self.__reset, 'xmlrpc.reset')
-        self.__cmd.register_function(self.__resetLogging, 'xmlrpc.resetLogging')
+        self.__cmd.register_function(self.__resetLogging,
+                                     'xmlrpc.resetLogging')
         self.__cmd.register_function(self.__startRun, 'xmlrpc.startRun')
         self.__cmd.register_function(self.__stopRun, 'xmlrpc.stopRun')
 
@@ -262,7 +287,7 @@ class RealComponent(object):
 
     def createLogger(self, quiet=True):
         key = str(self)
-        if not RealComponent.APPENDERS.has_key(key):
+        if not key in RealComponent.APPENDERS:
             RealComponent.APPENDERS[key] = MockAppender('Mock-%s' % key)
 
         return MockCnCLogger(RealComponent.APPENDERS[key], quiet=quiet)
@@ -272,6 +297,7 @@ class RealComponent(object):
 
     def setExpectedRunLogPort(self, port):
         self.__expRunPort = port
+
 
 class TestCnCServer(unittest.TestCase):
     HUB_NUMBER = 1021
@@ -462,7 +488,6 @@ class TestCnCServer(unittest.TestCase):
         clientLogger.addExpectedExact('Test msg')
         clientLogger.addExpectedText('filename revision date time author')
 
-
         catchall.addExpectedText("Starting run #%d with \"%s\"" %
                                  (runNum, cluCfg.configName()))
 
@@ -486,8 +511,8 @@ class TestCnCServer(unittest.TestCase):
                                      " per-string active DOM stats wil not" +
                                      " be reported")
 
-        self.assertEqual(self.cnc.rpc_runset_start_run(setId, runNum, moniType),
-                         'OK')
+        self.assertEqual(self.cnc.rpc_runset_start_run(setId, runNum,
+                                                       moniType), 'OK')
 
         clientLogger.checkStatus(100)
         catchall.checkStatus(100)
