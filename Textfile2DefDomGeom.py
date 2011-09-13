@@ -12,7 +12,8 @@
 #
 #    wget --user=icecube --ask-password <NEWEST_GEOMETRY_URL>
 
-import optparse, sys
+import optparse
+import sys
 from DefaultDomGeometry import DefaultDomGeometryReader, DomsTxtReader, \
      GeometryFileReader, NicknameReader
 
@@ -40,8 +41,10 @@ if __name__ == "__main__":
 
     opt, args = p.parse_args()
 
-    if opt.domsFile is not None and opt.nicknames is not None:
-        raise SystemExit("Cannot specify both doms.txt and nicknames.txt files")
+    if opt.domsFile is not None and \
+            opt.nicknames is not None:
+        raise SystemExit(
+            "Cannot specify both doms.txt and nicknames.txt files")
 
     if opt.nicknames is not None:
         newGeom = NicknameReader.parse(opt.nicknames)

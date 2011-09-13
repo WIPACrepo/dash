@@ -8,7 +8,10 @@ set_exc_string_encoding("ascii")
 
 from DAQMocks import MockAppender
 
-class MBeanAgentException(Exception): pass
+
+class MBeanAgentException(Exception):
+    pass
+
 
 class MockMBeanAgent(object):
     def __init__(self):
@@ -16,7 +19,7 @@ class MockMBeanAgent(object):
 
     def __validateBean(self, bean):
         self.__validateDict()
-        if not self.__mbeanDict.has_key(bean):
+        if not bean in self.__mbeanDict:
             raise MBeanAgentException("Unknown MBean \"%s\"" % bean)
         if isinstance(self.__mbeanDict[bean], Exception):
             raise self.__mbeanDict[bean]
@@ -24,7 +27,7 @@ class MockMBeanAgent(object):
     def __validateBeanField(self, bean, fld):
         self.__validateDict()
         self.__validateBean(bean)
-        if not self.__mbeanDict[bean].has_key(fld):
+        if not fld in self.__mbeanDict[bean]:
             raise MBeanAgentException("Unknown MBean \"%s\" attribute \"%s\"" %
                                       (bean, fld))
         if isinstance(self.__mbeanDict[bean][fld], Exception):
@@ -49,9 +52,11 @@ class MockMBeanAgent(object):
     def setMBeans(self, mbeanDict):
         self.__mbeanDict = mbeanDict
 
+
 class MockRPCClient(object):
     def __init__(self, host, port, agent):
         self.mbean = agent
+
 
 class MostlyMBeanClient(MBeanClient):
     def __init__(self, compName, host, port, agent):
@@ -60,6 +65,7 @@ class MostlyMBeanClient(MBeanClient):
 
     def createRPCClient(self, host, port):
         return MockRPCClient(host, port, self.__agent)
+
 
 class TestMBeanClient(unittest.TestCase):
     def testFailAndRecover(self):
@@ -81,7 +87,7 @@ class TestMBeanClient(unittest.TestCase):
                                        clientName):
                 self.fail("Unexpected exception: " + exc_string())
 
-        agent.setMBeans({bean : MBeanAgentException("Test fail"), })
+        agent.setMBeans({bean: MBeanAgentException("Test fail"), })
         try:
             client.get(bean, fld)
         except BeanLoadException, ble:
@@ -89,7 +95,7 @@ class TestMBeanClient(unittest.TestCase):
                                        (clientName, [bean, ])):
                 self.fail("Unexpected exception: " + exc_string())
 
-        agent.setMBeans({bean : {fld : val, }, })
+        agent.setMBeans({bean: {fld: val, }, })
         realVal = client.get(bean, fld)
         self.assertEqual(val, realVal, "Expected value \"%s\", not \"%s\"" %
                          (val, realVal))

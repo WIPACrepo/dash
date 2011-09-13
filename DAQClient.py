@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
-import os, socket, sys, threading
+import os
+import socket
+import sys
+import threading
 
 from CnCLogger import CnCLogger
 from DAQRPC import RPCClient
@@ -10,7 +13,7 @@ from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if os.environ.has_key("PDAQ_HOME"):
+if "PDAQ_HOME" in os.environ:
     metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
@@ -20,9 +23,18 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-class MBeanException(Exception): pass
-class BeanFieldNotFoundException(MBeanException): pass
-class BeanLoadException(MBeanException): pass
+
+class MBeanException(Exception):
+    pass
+
+
+class BeanFieldNotFoundException(MBeanException):
+    pass
+
+
+class BeanLoadException(MBeanException):
+    pass
+
 
 class MBeanClient(object):
     def __init__(self, compName, host, port):
@@ -55,7 +67,7 @@ class MBeanClient(object):
                 failed.append(bean)
 
                 # make sure bean has an entry
-                if not self.__beanFields.has_key(bean):
+                if not bean in self.__beanFields:
                     self.__beanFields[bean] = []
 
         if len(failed) > 0:
@@ -76,7 +88,7 @@ class MBeanClient(object):
                 self.__loadLock.release()
 
     @classmethod
-    def __unFixValue(cls,obj):
+    def __unFixValue(cls, obj):
 
         """ Look for numbers masquerading as strings.  If an obj is a
         string and successfully converts to a number, return that
@@ -97,7 +109,6 @@ class MBeanClient(object):
             except ValueError:
                 pass
         return obj
-
 
     def checkBeanField(self, bean, fld):
         "throw an exception if the bean or field does not exist"
@@ -157,6 +168,7 @@ class MBeanClient(object):
         "reload MBean names and fields during the next request"
         self.__loadedInfo = False
 
+
 class ComponentName(object):
     "DAQ component name"
     def __init__(self, name, num):
@@ -191,7 +203,10 @@ class ComponentName(object):
     def num(self):
         return self.__num
 
-class DAQClientException(Exception): pass
+
+class DAQClientException(Exception):
+    pass
+
 
 class DAQClientState(object):
     # internal state indicating that the client hasn't answered
@@ -208,6 +223,7 @@ class DAQClientState(object):
     # an XML-RPC call
     #
     HANGING = "hanging"
+
 
 class DAQClient(ComponentName):
     """DAQ component
@@ -453,12 +469,12 @@ class DAQClient(ComponentName):
                           " %(repo_rev)s") % get_version_info(infoStr))
 
     def map(self):
-        return { "id" : self.__id,
-                 "compName" : self.name(),
-                 "compNum" : self.num(),
-                 "host" : self.__host,
-                 "rpcPort" : self.__port,
-                 "mbeanPort" : self.__mbeanPort }
+        return {"id": self.__id,
+                "compName": self.name(),
+                "compNum": self.num(),
+                "host": self.__host,
+                "rpcPort": self.__port,
+                "mbeanPort": self.__mbeanPort}
 
     def mbeanPort(self):
         return self.__mbeanPort

@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 
-import socket, threading, time, xmlrpclib
+import socket
+import threading
+import time
+import xmlrpclib
 
 from DAQConst import DAQPort
 from DAQRPC import RPCServer
+
 
 class UnknownMethodHandler(object):
     def __init__(self, name, area):
@@ -15,6 +19,7 @@ class UnknownMethodHandler(object):
             (self.__name, self.__area, method, params)
         print "!!! " + errMsg
         raise Exception(errMsg)
+
 
 class Engine(object):
     def __init__(self, name):
@@ -44,6 +49,7 @@ class Engine(object):
     def state(self):
         return "unknown"
 
+
 class InputChannel(threading.Thread):
     def __init__(self, conn, addr, engine):
         self.__conn = conn
@@ -70,6 +76,7 @@ class InputChannel(threading.Thread):
         self.__conn.close()
         self.__engine.removeChannel(self)
         self.__running = False
+
 
 class InputEngine(Engine):
     def __init__(self, name, optional):
@@ -123,6 +130,7 @@ class InputEngine(Engine):
         t.setDaemon(True)
         t.start()
 
+
 class OutputChannel(threading.Thread):
     def __init__(self, host, port, engine):
         self.__host = host
@@ -148,6 +156,7 @@ class OutputChannel(threading.Thread):
         self.__engine.removeChannel(self)
         self.__sock.close()
         self.__sock = None
+
 
 class OutputEngine(Engine):
     def __init__(self, name, optional):
@@ -179,7 +188,10 @@ class OutputEngine(Engine):
     def start(self):
         pass
 
-class FakeClientException(Exception): pass
+
+class FakeClientException(Exception):
+    pass
+
 
 class FakeClient(object):
     NEXT_PORT = 12000
@@ -248,10 +260,10 @@ class FakeClient(object):
         return valDict
 
     def __getMBeanValue(self, bean, attr):
-        if not self.__mbeanDict.has_key(bean):
+        if not bean in self.__mbeanDict:
             raise Exception("Unknown %s MBean \"%s\"" % (self, bean))
 
-        if not self.__mbeanDict[bean].has_key(attr):
+        if not attr in self.__mbeanDict[bean]:
             raise Exception("Unknown %s MBean \"%s\" attribute \"%s\"" %
                             (self, bean, attr))
 
@@ -278,13 +290,13 @@ class FakeClient(object):
     def __listConnStates(self):
         stateList = []
         for conn in self.__connections:
-            stateList.append({"type":conn.name(), "numChan":conn.channels(),
-                               "state":conn.state()})
+            stateList.append({"type": conn.name(), "numChan": conn.channels(),
+                               "state": conn.state()})
 
         return stateList
 
     def __listMBeanGetters(self, bean):
-        if not self.__mbeanDict.has_key(bean):
+        if not bean in self.__mbeanDict:
             raise Exception("Unknown MBean \"%s\" for %s" % (bean, self))
 
         return self.__mbeanDict[bean].keys()
@@ -370,7 +382,8 @@ class FakeClient(object):
                                      'xmlrpc.prepareSubrun')
         self.__cmd.register_function(self.__startSubrun, 'xmlrpc.startSubrun')
         self.__cmd.register_function(self.__reset, 'xmlrpc.reset')
-        self.__cmd.register_function(self.__resetLogging, 'xmlrpc.resetLogging')
+        self.__cmd.register_function(self.__resetLogging,
+                                     'xmlrpc.resetLogging')
         self.__cmd.register_function(self.__startRun, 'xmlrpc.startRun')
         self.__cmd.register_function(self.__stopRun, 'xmlrpc.stopRun')
 

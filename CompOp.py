@@ -1,17 +1,23 @@
 #!/usr/bin/env python
 
-import socket, threading
+import socket
+import threading
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-class ComponentOperationException(Exception): pass
+
+class ComponentOperationException(Exception):
+    pass
+
 
 class Result(object):
     def __init__(self, name):
         self.__name = name
 
-    def __str__(self): return self.__name
+    def __str__(self):
+        return self.__name
+
 
 class ComponentOperation(threading.Thread):
     "Thread used to communicate with a component in a run set"
@@ -88,7 +94,7 @@ class ComponentOperation(threading.Thread):
 
     def __connect(self):
         "Connect the component"
-        if not self.__data.has_key(self.__comp):
+        if not self.__comp in self.__data:
             self.__result = self.__comp.connect()
         else:
             self.__result = self.__comp.connect(self.__data[self.__comp])
@@ -175,9 +181,14 @@ class ComponentOperation(threading.Thread):
             raise ComponentOperationException("Unknown operation %s" %
                                               str(self.__operation))
 
-    def component(self): return self.__comp
-    def isError(self): return self.__error
-    def result(self): return self.__result
+    def component(self):
+        return self.__comp
+
+    def isError(self):
+        return self.__error
+
+    def result(self):
+        return self.__result
 
     def run(self):
         "Main method for thread"
@@ -190,6 +201,7 @@ class ComponentOperation(threading.Thread):
                                              str(self.__comp),
                                              exc_string()))
             self.__error = True
+
 
 class ComponentOperationGroup(object):
     def __init__(self, op):

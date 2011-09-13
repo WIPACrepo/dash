@@ -4,18 +4,19 @@ from utils.DashXMLLog import DashXMLLogException
 from utils.Machineid import Machineid
 import unittest
 
+
 class TestUtils(unittest.TestCase):
     def test_isLoopbackIPAddr(self):
 
         # test isLoopbackIPAddr
-        for x in [ '127.0.0.1', '127.0.1.1', '127.1.1.1']:
+        for x in ['127.0.0.1', '127.0.1.1', '127.1.1.1']:
             self.assertTrue(ip.isLoopbackIPAddr(x))
 
         self.assertFalse(ip.isLoopbackIPAddr('128.0.0.0'))
 
     def test_isValidIPAddr(self):
         # test isValidIPAddr
-        for x in [ '128.1.2', '128.', '58.1.1', '0', None ]:
+        for x in ['128.1.2', '128.', '58.1.1', '0', None]:
             self.assertFalse(ip.isValidIPAddr(x))
 
         # test getLocalIpAddr as well as isValidIpAddr
@@ -27,7 +28,6 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(ip.convertLocalhostToIpAddr('fred'), 'fred')
         self.assertEqual(ip.convertLocalhostToIpAddr('localhost'),
                           ip.getLocalIpAddr())
-
 
     def test_machineid(self):
         a = Machineid("access.spts.icecube.wisc.edu")
@@ -65,8 +65,6 @@ class TestUtils(unittest.TestCase):
         self.assertFalse(a.is_sps_cluster())
         self.assertFalse(a.is_spts_cluster())
         self.assertTrue(a.is_unknown_cluster())
-
-
 
     def test_dashxmllog(self):
         a = DashXMLLog()
@@ -121,5 +119,3 @@ Success
 
 if __name__ == "__main__":
     unittest.main()
-
-

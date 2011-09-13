@@ -570,7 +570,7 @@ class MockComponent(object):
         self.__isSrc = name.endswith("Hub") or name == "amandaTrigger"
         self.__connected = False
         self.__configured = False
-        self.__configWait = 0;
+        self.__configWait = 0
         self.__monitorCount = 0
         self.__monitorState = None
         self.__isBadHub = False

@@ -23,7 +23,12 @@
 #     run.run(clusterConfig, runConfig, numSecs, numRuns)
 #             flashFile, flashTimes, flashPause)
 
-import os, re, socket, subprocess, sys, time
+import os
+import re
+import socket
+import subprocess
+import sys
+import time
 
 from BaseRun import BaseRun, RunException, StateException
 from DefaultDomGeometry import XMLParser
@@ -31,6 +36,7 @@ from RunOption import RunOption
 from RunSetState import RunSetState
 from exc_string import exc_string
 from xml.dom import minidom, Node
+
 
 class FlasherDataParser(XMLParser):
     @classmethod
@@ -111,6 +117,7 @@ class FlasherDataParser(XMLParser):
     def load(cls, dataFile):
         return cls.__loadFlasherData(dataFile)
 
+
 class CnCRun(BaseRun):
     def __init__(self, showCmd=False, showCmdOutput=False, dbType=None):
         self.__showCmd = showCmd
@@ -133,10 +140,12 @@ class CnCRun(BaseRun):
     def __status(self):
         "Print the current DAQ status"
 
-        if not self.__showCmdOutput: return
+        if not self.__showCmdOutput:
+            return
 
         cmd = "DAQStatus.py"
-        if self.__showCmd: print cmd
+        if self.__showCmd:
+            print cmd
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, close_fds=True,
@@ -256,7 +265,7 @@ class CnCRun(BaseRun):
                 line = fd.readline()
                 m = re.search('(\d+)\s+(\d+)', line)
                 if m:
-                    num =int(m.group(1))
+                    num = int(m.group(1))
                     subnum = int(m.group(2))
 
         return (num, subnum)

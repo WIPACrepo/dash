@@ -4,7 +4,8 @@
 # John Jacobsen, NPX Designs, Inc., jacobsen\@npxdesigns.com
 # Started: Fri Jun  1 15:57:10 2007
 
-import sys, optparse
+import sys
+import optparse
 from os import environ
 from os.path import join
 
@@ -12,11 +13,13 @@ from DAQConfig import DAQConfigParser
 from DAQConfigExceptions import DAQConfigException
 from ParallelShell import ParallelShell
 
+
 def main():
     "Main program"
     usage = "%prog [options]"
     p = optparse.OptionParser(usage=usage)
-    p.add_option("-c", "--config-name", type="string", dest="clusterConfigName",
+    p.add_option("-c", "--config-name", type="string",
+                 dest="clusterConfigName",
                  action="store", default=None,
                  help="REQUIRED: Configuration name")
     p.add_option("-n", "--dry-run", dest="dryRun",
@@ -28,23 +31,25 @@ def main():
                  help="List available configs")
     p.add_option("-z", "--no-schema-validation", dest="validation",
                  action="store_false", default=True,
-                 help="Disable schema validation of xml configuration files")
-    
+                 help="Disable schema validation of xml config files")
+
     opt, args = p.parse_args()
 
     try:
-        config = DAQConfigParser.getClusterConfiguration(opt.clusterConfigName,
-                                                         opt.doList,
-                                                         validate = opt.validation)
+        config = DAQConfigParser. \
+            getClusterConfiguration(opt.clusterConfigName,
+                                    opt.doList,
+                                    validate=opt.validation)
     except DAQConfigException, e:
         print >> sys.stderr, "Configuration file problem:\n%s" % e
         raise SystemExit
 
-    if opt.doList: raise SystemExit
+    if opt.doList:
+        raise SystemExit
 
     hublist = config.getHubNodes()
 
-    cmds = ParallelShell(dryRun = opt.dryRun, timeout = 20)
+    cmds = ParallelShell(dryRun=opt.dryRun, timeout=20)
     ids = {}
     for hub in hublist:
         # FIXME - actually implement the right thing here
@@ -62,9 +67,9 @@ def main():
 
         # Parse template:
         # 2 pairs plugged, 2 powered; 4 DOMs communicating, 4 in iceboot
-        #match = re.search(r'(\d+) pairs plugged, (\d+) powered; (\d+) DOMs communicating, (\d+) in iceboot',
+        #match = re.search(r'(\d+) pairs plugged, (\d+) powered;
+        #                  (\d+) DOMs communicating, (\d+) in iceboot',
         #                  result)
 
-            
-if __name__ == "__main__": main()
-
+if __name__ == "__main__":
+    main()

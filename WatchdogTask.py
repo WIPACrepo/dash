@@ -7,12 +7,14 @@ from RunSetDebug import RunSetDebug
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
+
 class UnhealthyRecord(object):
     def __init__(self, msg, order):
         self.__msg = msg
         self.__order = order
 
-    def __repr__(self): return str(self)
+    def __repr__(self):
+        return str(self)
 
     def __str__(self):
         return "#%d: %s" % (self.__order, self.__msg)
@@ -26,8 +28,12 @@ class UnhealthyRecord(object):
             val = cmp(self.__msg, other.__msg)
         return val
 
-    def message(self): return self.__msg
-    def order(self): return self.__order
+    def message(self):
+        return self.__msg
+
+    def order(self):
+        return self.__order
+
 
 class Watcher(object):
     def __init__(self, fullName, beanName, fieldName):
@@ -54,6 +60,7 @@ class Watcher(object):
         if vType == long:
             return int
         return vType
+
 
 class ThresholdWatcher(Watcher):
     def __init__(self, comp, beanName, fieldName, threshold, lessThan):
@@ -99,6 +106,7 @@ class ThresholdWatcher(Watcher):
         else:
             msg = "%s (value=%s)" % (str(self), str(value))
         return UnhealthyRecord(msg, self.__comp.order())
+
 
 class ValueWatcher(Watcher):
     NUM_UNCHANGED = 3
@@ -206,6 +214,7 @@ class ValueWatcher(Watcher):
         else:
             msg = "%s not changing from %s" % (str(self), str(self.__prevValue))
         return UnhealthyRecord(msg, self.__order)
+
 
 class WatchData(object):
     def __init__(self, comp, dashlog):
@@ -363,6 +372,7 @@ class WatchData(object):
     def order(self):
         return self.__comp.order()
 
+
 class WatchdogThread(CnCThread):
     def __init__(self, runset, comp, rule, dashlog, data=None, initFail=0):
         self.__runset = runset
@@ -413,23 +423,39 @@ class WatchdogThread(CnCThread):
                               self.__dashlog, self.__data, self.__initFail)
         return thrd
 
-    def stagnant(self): return self.__stagnant[:]
-    def starved(self): return self.__starved[:]
-    def threshold(self): return self.__threshold[:]
+    def stagnant(self):
+        return self.__stagnant[:]
+
+    def starved(self):
+        return self.__starved[:]
+
+    def threshold(self):
+        return self.__threshold[:]
+
 
 class DummyComponent(object):
     def __init__(self, name):
         self.__name = name
         self.__order = None
 
-    def __str__(self): return self.__name
-    def fullName(self): return self.__name
-    def isBuilder(self): return False
-    def isSource(self): return False
-    def order(self): return self.__order
+    def __str__(self):
+        return self.__name
+
+    def fullName(self):
+        return self.__name
+
+    def isBuilder(self):
+        return False
+
+    def isSource(self):
+        return False
+
+    def order(self):
+        return self.__order
 
     def setOrder(self, num):
         self.__order = num
+
 
 class WatchdogRule(object):
     DOM_COMP = DummyComponent("dom")
@@ -470,6 +496,7 @@ class WatchdogRule(object):
         cls.DOM_COMP.setOrder(minOrder - 1)
         cls.DISPATCH_COMP.setOrder(maxOrder + 1)
 
+
 class StringHubRule(WatchdogRule):
     def initData(self, data, thisComp, components):
         data.addInputValue(self.DOM_COMP, "sender", "NumHitsReceived")
@@ -480,6 +507,7 @@ class StringHubRule(WatchdogRule):
 
     def matches(self, comp):
         return comp.name() == "stringHub" or comp.name() == "replayHub"
+
 
 class LocalTriggerRule(WatchdogRule):
     def initData(self, data, thisComp, components):
@@ -512,6 +540,7 @@ class LocalTriggerRule(WatchdogRule):
                    comp.name() == "simpleTrigger" or \
                    comp.name() == "iceTopTrigger"
 
+
 class GlobalTriggerRule(WatchdogRule):
     def initData(self, data, thisComp, components):
         for trig in ("inIce", "iceTop", "simple"):
@@ -524,6 +553,7 @@ class GlobalTriggerRule(WatchdogRule):
 
     def matches(self, comp):
         return comp.name() == "globalTrigger"
+
 
 class EventBuilderRule(WatchdogRule):
     def initData(self, data, thisComp, components):
@@ -544,6 +574,7 @@ class EventBuilderRule(WatchdogRule):
     def matches(self, comp):
         return comp.name() == "eventBuilder"
 
+
 class SecondaryBuildersRule(WatchdogRule):
     def initData(self, data, thisComp, components):
         data.addThresholdValue("snBuilder", "DiskAvailable", 1024)
@@ -557,6 +588,7 @@ class SecondaryBuildersRule(WatchdogRule):
 
     def matches(self, comp):
         return comp.name() == "secondaryBuilders"
+
 
 class WatchdogTask(CnCTask):
     NAME = "Watchdog"
@@ -572,7 +604,8 @@ class WatchdogTask(CnCTask):
         self.__threadList = {}
         self.__healthMeter = self.HEALTH_METER_FULL
 
-        if period is None: period = self.PERIOD
+        if period is None:
+            period = self.PERIOD
 
         super(WatchdogTask, self).__init__("Watchdog", taskMgr, dashlog,
                                            self.DEBUG_BIT, self.NAME,
@@ -626,7 +659,8 @@ class WatchdogTask(CnCTask):
                 msg = "%s (%s is not UnhealthyRecord)" % (str(bad), type(bad))
             errStr += "    " + msg
 
-        self.logError("Watchdog reports %s components:\n%s" % (errType, errStr))
+        self.logError("Watchdog reports %s components:\n%s" % \
+                          (errType, errStr))
 
     def _check(self):
         hanging = []
@@ -683,7 +717,8 @@ class WatchdogTask(CnCTask):
                 if savedEx is None:
                     savedEx = ex
 
-        if savedEx is not None: raise savedEx
+        if savedEx is not None:
+            raise savedEx
 
     def createThread(self, runset, comp, rule, dashlog):
         return WatchdogThread(runset, comp, rule, dashlog)

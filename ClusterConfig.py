@@ -8,15 +8,24 @@ from Component import Component
 from XMLFileCache import XMLFileCache
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if os.environ.has_key("PDAQ_HOME"):
+if "PDAQ_HOME" in os.environ:
     metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
-class ClusterConfigException(Exception): pass
-class ConfigNotFoundException(ClusterConfigException): pass
-class MalformedDeployConfigException(ClusterConfigException): pass
+
+class ClusterConfigException(Exception):
+    pass
+
+
+class ConfigNotFoundException(ClusterConfigException):
+    pass
+
+
+class MalformedDeployConfigException(ClusterConfigException):
+    pass
+
 
 class ClusterComponent(Component):
     "Record-keeping class for deployed components"
@@ -30,17 +39,25 @@ class ClusterComponent(Component):
     def __str__(self):
         return "%s@%s" % (self.fullName(), self.logLevel())
 
-    def host(self): return self.__host
-    def isControlServer(self): return False
-    def jvm(self): return self.__jvm
-    def jvmArgs(self): return self.__jvmArgs
+    def host(self):
+        return self.__host
+
+    def isControlServer(self):
+        return False
+
+    def jvm(self):
+        return self.__jvm
+
+    def jvmArgs(self):
+        return self.__jvmArgs
+
 
 class ClusterNode(object):
     "Record-keeping class for host targets"
     def __init__(self, locName, hostName):
-        self.__locName  = locName
+        self.__locName = locName
         self.__hostName = hostName
-        self.__comps    = []
+        self.__comps = []
 
     def __cmp__(self, other):
         val = cmp(self.__hostName, other.__hostName)
@@ -48,11 +65,18 @@ class ClusterNode(object):
             val = cmp(self.__locName, other.__locName)
         return val
 
-    def addComp(self, comp): self.__comps.append(comp)
+    def addComp(self, comp):
+        self.__comps.append(comp)
 
-    def components(self): return self.__comps[:]
-    def hostName(self): return self.__hostName
-    def locName(self): return self.__locName
+    def components(self):
+        return self.__comps[:]
+
+    def hostName(self):
+        return self.__hostName
+
+    def locName(self):
+        return self.__locName
+
 
 class ClusterConfig(CachedConfigName):
     def __init__(self, configName, remarks, clusterName):
@@ -74,11 +98,20 @@ class ClusterConfig(CachedConfigName):
         self.__nodes.append(node)
         return node
 
-    def defaultLogLevel(self): return self.__defaultLogLevel
-    def descName(self): return None
-    def logDirCopies(self): return self.__logDirCopies
-    def logDirForSpade(self): return self.__logDirForSpade
-    def nodes(self): return self.__nodes[:]
+    def defaultLogLevel(self):
+        return self.__defaultLogLevel
+
+    def descName(self):
+        return None
+
+    def logDirCopies(self):
+        return self.__logDirCopies
+
+    def logDirForSpade(self):
+        return self.__logDirForSpade
+
+    def nodes(self):
+        return self.__nodes[:]
 
     def setLogDirForSpade(self, logDir):
         self.__logDirForSpade = logDir
@@ -88,6 +121,7 @@ class ClusterConfig(CachedConfigName):
 
     def setDefaultLogLevel(self, logLevel):
         self.__defaultLogLevel = logLevel
+
 
 class ClusterConfigParser(XMLFileCache):
     """
@@ -101,7 +135,8 @@ class ClusterConfigParser(XMLFileCache):
     def __init__(self):
         self.__nodes = []
 
-    def defaultLogLevel(self): return self.GLOBAL_DEFAULT_LOG_LEVEL
+    def defaultLogLevel(self):
+        return self.GLOBAL_DEFAULT_LOG_LEVEL
 
     @classmethod
     def getDefaultJavaInfo(cls, configDir, clusterName):
@@ -200,11 +235,10 @@ class ClusterConfigParser(XMLFileCache):
                     "Expected exactly one %s" % name)
             if len(elems[0].childNodes) != 1:
                 raise MalformedDeployConfigException(\
-                    "Expected exactly one child node of %s" %name)
+                    "Expected exactly one child node of %s" % name)
         elif len(elems) == 0:
             return None
         return elems[0].childNodes[0].data.strip()
-
 
     def getHubNodes(self):
         hublist = []
@@ -224,7 +258,7 @@ class ClusterConfigParser(XMLFileCache):
 
     @classmethod
     def getValue(cls, node, name, defaultVal=None):
-        if node.attributes is not None and node.attributes.has_key(name):
+        if node.attributes is not None and name in node.attributes:
             return node.attributes[name].value
         try:
             return cls.getElementSingleTagName(node, name)
@@ -248,14 +282,17 @@ class ClusterConfigParser(XMLFileCache):
             raise MalformedDeployConfigException(configFile)
 
         icecube = parsed.getElementsByTagName("icecube")
-        if len(icecube) != 1: raise MalformedDeployConfigException(configFile)
+        if len(icecube) != 1:
+            raise MalformedDeployConfigException(configFile)
+
         return configFile, icecube[0]
 
     @classmethod
     def parse(cls, dom, configDir, configName, strict=True):
         "Load the configuration data from the XML-formatted file"
         icecube = dom.getElementsByTagName("icecube")
-        if len(icecube) != 1: raise MalformedDeployConfigException(configName)
+        if len(icecube) != 1:
+            raise MalformedDeployConfigException(configName)
 
         # Get "remarks" string if available
         remarks = cls.getValue(icecube[0], "remarks")
@@ -293,7 +330,7 @@ class ClusterConfigParser(XMLFileCache):
                     "<location> is missing 'name' attribute")
 
             # Get address
-            if nodeXML.attributes.has_key("host"):
+            if "host" in nodeXML.attributes:
                 hostname = nodeXML.attributes["host"].value
             else:
                 address = nodeXML.getElementsByTagName("address")
@@ -328,12 +365,14 @@ class ClusterConfigParser(XMLFileCache):
                 modJvm = cls.getElementSingleTagName(compXML, 'jvm',
                                                      deep=False,
                                                      enforce=False)
-                if modJvm: jvm = modJvm
+                if modJvm:
+                    jvm = modJvm
 
                 modJvmArgs = cls.getElementSingleTagName(compXML, 'jvmArgs',
                                                          deep=False,
                                                          enforce=False)
-                if modJvmArgs: jvmArgs = modJvmArgs
+                if modJvmArgs:
+                    jvmArgs = modJvmArgs
 
                 # Hubs need special ID arg
                 #if compName == HUB_COMP_NAME:
@@ -346,15 +385,16 @@ class ClusterConfigParser(XMLFileCache):
         return cluCfg
 
 if __name__ == "__main__":
-    import datetime, optparse
+    import datetime
+    import optparse
 
     p = optparse.OptionParser()
     p.add_option("-c", "--check-config", type="string", dest="toCheck",
-                 action="store", default= None,
+                 action="store", default=None,
                  help="Check whether configuration is valid")
     opt, args = p.parse_args()
 
-    configDir  = os.path.join(metaDir, "cluster-config", "src", "main", "xml")
+    configDir = os.path.join(metaDir, "cluster-config", "src", "main", "xml")
 
     if opt.toCheck:
         try:

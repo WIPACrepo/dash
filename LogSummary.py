@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 
-import os, re, sys
+import os
+import re
+import sys
 
 DEBUG = False
+
 
 class ComponentLog(object):
     VERSION_INFO = re.compile(r"^(|.*\]\s+)(Version info: )?\S+ \d+" +
@@ -16,7 +19,8 @@ class ComponentLog(object):
         self.__logMsgs = []
 
     def logError(self, msg):
-        if DEBUG: print >>sys.stderr, msg
+        if DEBUG:
+            print >>sys.stderr, msg
         self.__logMsgs.append(msg)
 
     def checkInitialLogMessage(self, line):
@@ -35,7 +39,8 @@ class ComponentLog(object):
 
         return False
 
-    def fileName(self): return self.__fileName
+    def fileName(self):
+        return self.__fileName
 
     def parse(self, path):
         self.logError("Not parsing \"%s\"" % path)
@@ -46,6 +51,7 @@ class ComponentLog(object):
     def reportErrors(self, fd):
         for msg in self.__logMsgs:
             print >>fd, "%s: %s" % (self.__fileName, msg)
+
 
 class CatchallLog(ComponentLog):
     SRVR_PORT = re.compile(r"^(|.*\]\s+)I'm server CnCServer running" +
@@ -221,6 +227,7 @@ class CatchallLog(ComponentLog):
     def report(self, fd, verbose):
         pass
 
+
 class CnCServerLog(ComponentLog):
     WAITCFG = re.compile(r"^(|.*\]\s+)RunSet #(\d+): Waiting for (\S+)" +
                          r" (.*)\s*$")
@@ -242,7 +249,7 @@ class CnCServerLog(ComponentLog):
     def parse(self, path):
         state = self.STATE_INITIAL
 
-        with open(path,'r') as fd:
+        with open(path, 'r') as fd:
             for line in fd:
                 line = line.rstrip()
 
@@ -267,6 +274,7 @@ class CnCServerLog(ComponentLog):
 
     def report(self, fd, verbose):
         pass
+
 
 class DashLog(ComponentLog):
     START_RUN = re.compile(r"^(|.*\]\s+)Starting run (\d+)\.\.\.\s*$")
@@ -470,6 +478,7 @@ class DashLog(ComponentLog):
     def report(self, fd, verbose):
         pass
 
+
 class EventBuilderLog(ComponentLog):
     BOUNDARY = re.compile(r"^(|.*\]\s+)called dataBoundary on (\S+)" +
                           r" with the message: Run(\S+):(\d+)\s*$")
@@ -575,6 +584,7 @@ class EventBuilderLog(ComponentLog):
     def report(self, fd, verbose):
         pass
 
+
 class GlobalTriggerLog(ComponentLog):
     TRIG_CFG = re.compile(r"^(|.*\]\s+)triggerConfig element has: (\S+).*$")
     TRIG_BLDVAL = re.compile(r"^(|.*\]\s+)(\S+) = (\S+).*$")
@@ -623,7 +633,6 @@ class GlobalTriggerLog(ComponentLog):
             return "STOPPED"
 
         return "??%d??" % val
-
 
     def parse(self, path):
         curTrig = None
@@ -763,6 +772,7 @@ class GlobalTriggerLog(ComponentLog):
             for k in self.__trigCnt:
                 print >>fd, "  %s: %d" % (k, self.__trigCnt[k])
 
+
 class LocalTriggerData(object):
     def __init__(self):
         self.__hits = []
@@ -791,6 +801,7 @@ class LocalTriggerData(object):
             return 0.0
 
         return float(self.__total * 100) / total
+
 
 class LocalTriggerLog(ComponentLog):
     TRIG_CFG = re.compile(r"^(|.*\]\s+)triggerConfig element has: (\S+).*$")
@@ -892,7 +903,7 @@ class LocalTriggerLog(ComponentLog):
                         num = int(m.group(2))
                         name = m.group(3)
                         numHits = int(m.group(4))
-                        if not self.__trigData.has_key(name):
+                        if not name in self.__trigData:
                             self.__trigData[name] = LocalTriggerData()
                         self.__trigData[name].setTotal(num)
                         self.__trigData[name].addHits(numHits)
@@ -908,7 +919,7 @@ class LocalTriggerLog(ComponentLog):
                     if m:
                         name = m.group(2)
                         cnt = int(m.group(3))
-                        if not self.__trigData.has_key(name):
+                        if not name in self.__trigData:
                             self.__trigData[name] = LocalTriggerData()
                         self.__trigData[name].setTotal(cnt)
                         continue
@@ -940,7 +951,10 @@ class LocalTriggerLog(ComponentLog):
                      self.__trigData[k].avgHits(), k,
                      str(self.__trigData[k].total()))
 
-class LogParseException(Exception): pass
+
+class LogParseException(Exception):
+    pass
+
 
 class Builder(object):
     STATE_INITIAL = 0
@@ -996,7 +1010,9 @@ class Builder(object):
     def setStopping(self):
         self.__transition(self.STATE_STARTED, self.STATE_STOPPING)
 
-    def state(self): return self.__stateString(self.__state)
+    def state(self):
+        return self.__stateString(self.__state)
+
 
 class SecondaryBuildersLog(ComponentLog):
     RUNNUM = re.compile(r"^(|.*\]\s+)Setting runNumber = (\d+)\s*$")
@@ -1064,7 +1080,7 @@ class SecondaryBuildersLog(ComponentLog):
                                           (name, line))
                             continue
 
-                        if not self.__builder.has_key(name):
+                        if not name in self.__builder:
                             self.__builder[name] = Builder(name)
                         self.__builder[name].setStarting()
                         continue
@@ -1078,7 +1094,7 @@ class SecondaryBuildersLog(ComponentLog):
                                           (name, line))
                             continue
 
-                        if not self.__builder.has_key(name):
+                        if not name in self.__builder:
                             self.__builder[name] = Builder(name)
                         self.__builder[name].setStarted()
                         continue
@@ -1101,7 +1117,7 @@ class SecondaryBuildersLog(ComponentLog):
                                           (name, line))
                             continue
 
-                        if not self.__builder.has_key(name):
+                        if not name in self.__builder:
                             self.__builder[name] = Builder(name)
                         self.__builder[name].setStopping()
                         continue
@@ -1115,7 +1131,7 @@ class SecondaryBuildersLog(ComponentLog):
                                           (name, line))
                             continue
 
-                        if not self.__builder.has_key(name):
+                        if not name in self.__builder:
                             self.__builder[name] = Builder(name)
                         self.__builder[name].setStopped()
                         continue
@@ -1123,7 +1139,7 @@ class SecondaryBuildersLog(ComponentLog):
                     m = self.SPLI_HALT.match(line)
                     if m:
                         name = m.group(2)
-                        if not self.__builder.has_key(name):
+                        if not name in self.__builder:
                             self.__builder[name] = Builder(name)
                         self.__builder[name].setSplicerStopped()
                         continue
@@ -1139,6 +1155,7 @@ class SecondaryBuildersLog(ComponentLog):
             for bldr in self.__builder.values():
                 if not bldr.isInitial():
                     print >>fd, "%s %s" % (str(bldr), bldr.state())
+
 
 class BaseDom(object):
     STATE_INITIAL = 0
@@ -1200,7 +1217,11 @@ class BaseDom(object):
         return "Dom-%d%d%s" % (self.__card, self.__pair, abCh)
 
     def __transition(self, curState, newState):
-        if DEBUG: print >>sys.stderr, "   %s: %s (%s) -> %s" % (str(self), self.__stateString(self.__state), self.__stateString(curState), self.__stateString(newState))
+        if DEBUG:
+            print >>sys.stderr, "   %s: %s (%s) -> %s" % (str(self),
+                                                          self.__stateString(self.__state),
+                                                          self.__stateString(curState),
+                                                          self.__stateString(newState))
         prevState = self.__state
         self.__state = newState
         if prevState != curState:
@@ -1263,11 +1284,14 @@ class BaseDom(object):
     def setStopped(self):
         self.__transition(self.STATE_STOPPING, self.STATE_STOPPED)
 
-    def state(self): return self.__stateString(self.__state)
+    def state(self):
+        return self.__stateString(self.__state)
+
 
 class SimDom(BaseDom):
     def __init__(self, dcName):
         super(SimDom, self).__init__(dcName)
+
 
 class RealDom(BaseDom):
     def __init__(self, dcName, domId, mbRel):
@@ -1279,7 +1303,9 @@ class RealDom(BaseDom):
     def __str__(self):
         return "%12x" % self.__id
 
-    def id(self): return self.__id
+    def id(self):
+        return self.__id
+
 
 class StringHubLog(ComponentLog):
     FOUND_PAIR = re.compile(r"^(|.*\]\s+)Found powered pair on" +
@@ -1341,7 +1367,7 @@ class StringHubLog(ComponentLog):
             ab = "B"
 
         return "(%d, %d, %s)" % (card, pair, ab)
-            
+
     def __getPairNumber(self, card, pair, ab):
         if ab == "A":
             abNum = 0
@@ -1382,7 +1408,9 @@ class StringHubLog(ComponentLog):
             for line in fd:
                 line = line.rstrip()
 
-                if DEBUG: print >>sys.stderr, ":: " + line
+                if DEBUG:
+                    print >>sys.stderr, ":: " + line
+
                 if state == self.STATE_INITIAL:
                     if self.checkInitialLogMessage(line) or \
                             line.find("Resetting logging") >= 0:
@@ -1473,7 +1501,8 @@ class StringHubLog(ComponentLog):
                         continue
 
                 elif state == self.STATE_DCTHREAD:
-                    if DEBUG: print >>sys.stderr, "--InDCThread--"
+                    if DEBUG:
+                        print >>sys.stderr, "--InDCThread--"
                     if line.find("Begin data collection thread") >= 0:
                         numDCThreads += 1
                         continue
@@ -1506,7 +1535,7 @@ class StringHubLog(ComponentLog):
                         if msg.find("Entering run loop") >= 0:
                             continue
 
-                        if not self.__domMap.has_key(cardLoc):
+                        if not cardLoc in self.__domMap:
                             self.logError("Got unknown card \"%s\"" % cardLoc)
                             continue
 
@@ -1618,7 +1647,7 @@ class StringHubLog(ComponentLog):
                         cardLoc = m.group(2)
                         msg = m.group(3)
 
-                        if not self.__domMap.has_key(cardLoc):
+                        if not cardLoc in self.__domMap:
                             self.logError("Got unknown card \"%s\"" % cardLoc)
                             continue
 
@@ -1703,7 +1732,7 @@ class StringHubLog(ComponentLog):
                         cardLoc = m.group(2)
                         msg = m.group(3)
 
-                        if not self.__domMap.has_key(cardLoc):
+                        if not cardLoc in self.__domMap:
                             self.logError("Got unknown card \"%s\"" % cardLoc)
                             continue
 
@@ -1752,6 +1781,7 @@ class StringHubLog(ComponentLog):
                         (self.fileName(), str(dom), dom.getWildTCals(),
                          dom.getTCalFailures())
 
+
 def processDir(dirName, outFD, verbose):
     subdir = []
 
@@ -1767,9 +1797,11 @@ def processDir(dirName, outFD, verbose):
             continue
 
         # ignore MBean output files
-        if f.endswith(".moni"): continue
+        if f.endswith(".moni"):
+            continue
 
         processFile(path, outFD, verbose)
+
 
 def processFile(path, outFD, verbose):
     fileName = os.path.basename(path)

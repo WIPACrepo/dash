@@ -4,6 +4,7 @@ import os
 import sys
 from math import log10
 
+
 def nicknames(f):
     """
     Parse nicknames.txt file and return list of (mbid, domid, name, loc)
@@ -14,17 +15,23 @@ def nicknames(f):
     domlist = []
     while 1:
         s = f.readline()
-        if len(s) == 0: break
-        if s[0] == '#': continue
+
+        if len(s) == 0:
+            break
+        if s[0] == '#':
+            continue
+
         mbid, domid, name, loc, description = s.split(None, 4)
         domlist.append((mbid, domid, name, loc))
     return domlist
-                                                
+
+
 def getName(mbid):
     """
     Return DOM Name for given mbid.
     """
     return dom_db[mbid][2]
+
 
 def getDomId(mbid):
     """
@@ -32,17 +39,20 @@ def getDomId(mbid):
     """
     return dom_db[mbid][1]
 
+
 def getOmKey(mbid):
     """
     Return the deployed location of the DOM with mbid.
     """
     return dom_db[mbid][3]
 
+
 def getByOmKey(omKey):
     """
     Return the database record of a given omKey.
     """
     return dom_db_by_omkey[omKey]
+
 
 def getHV(cursor, domid, gain):
     """
@@ -60,9 +70,11 @@ def getHV(cursor, domid, gain):
         LIMIT 1
         """ % domid
         )
-    if nrow != 1: return None
+    if nrow != 1:
+        return None
     slope, intercept = cursor.fetchone()
-    return 10**((log10(gain) - intercept) / slope)
+    return 10 ** ((log10(gain) - intercept) / slope)
+
 
 def getTriggerThreshold(cursor, domid, type, q):
     nrow = cursor.execute(
@@ -76,7 +88,8 @@ def getTriggerThreshold(cursor, domid, type, q):
         LIMIT 1
         """ % (domid, type)
         )
-    if nrow != 1: return None
+    if nrow != 1:
+        return None
     slope, intercept = cursor.fetchone()
     return (q - intercept) / slope
 
@@ -86,19 +99,19 @@ def createConfig(cursor, mbid, **kwargs):
     Create XML configuration blob
     """
     global dom_db
-    
+
     # Setup defaults
     gain = 1.0E+07
     trigger_mode = "spe"
-    
+
     lc_type = "hard"
 
     omKey = getOmKey(mbid)
     pos = int(omKey[3:5])
 
-    lc_mode    = "up-or-down"
+    lc_mode = "up-or-down"
     lc_tx_mode = "both"
-    
+
     if pos == 1:
         lc_mode = "down"
     elif pos == 60:
@@ -115,50 +128,57 @@ def createConfig(cursor, mbid, **kwargs):
         gain = 5.0E+06
         trigger_mode = "mpe"
     elif pos == 64:     # IceTop LG tank B
-        gain = 5.0E+05 
+        gain = 5.0E+05
         mpeQ = 8.0
         speQ = 1.0
         lc_tx_mode = "none"
 
     # Check for special LC cases
-    if omKey in lc_special_modes: lc_mode = lc_special_modes[omKey]
-    
+    if omKey in lc_special_modes:
+        lc_mode = lc_special_modes[omKey]
+
     lc_span = 1
-    lc_pre_trigger  = 1000
+    lc_pre_trigger = 1000
     lc_post_trigger = 1000
-    sn_deadtime     = 250000
+    sn_deadtime = 250000
     scaler_deadtime = 51200
-    
-    clen_u = { 'up' : (725, 1325, 2125, 2725), 'down' : (550, 1325, 1950, 2725) }
-    clen_t = { 'up' : (550, 1325, 1950, 2725), 'down' : (725, 1325, 2125, 2725) }
+
+    clen_u = {'up': (725, 1325, 2125, 2725), 'down': (550, 1325, 1950, 2725)}
+    clen_t = {'up': (550, 1325, 1950, 2725), 'down': (725, 1325, 2125, 2725)}
 
     domid = getDomId(mbid)
     if domid[0] == 'A' or domid[0] == 'T':
         clen = clen_t
     else:
         clen = clen_u
-        
-    if "gain" in kwargs: gain = kwargs["gain"]
+
+    if "gain" in kwargs:
+        gain = kwargs["gain"]
     mpeQ = 16.0 * gain / 1.0e+7
     speQ = 0.4 * gain / 1.0e+7
     if "engFormat" not in kwargs and "deltaFormat" not in kwargs:
         kwargs["engFormat"] = [(128, 128, 128, 0), 250]
-    if "span" in kwargs: lc_span = kwargs["span"]
-    if "pre_trigger" in kwargs: lc_pre_trigger = kwargs["pre_trigger"]
-    if "post_trigger" in kwargs: lc_post_trigger = kwargs["post_trigger"]
-    
+    if "span" in kwargs:
+        lc_span = kwargs["span"]
+    if "pre_trigger" in kwargs:
+        lc_pre_trigger = kwargs["pre_trigger"]
+    if "post_trigger" in kwargs:
+        lc_post_trigger = kwargs["post_trigger"]
+
     # Calculate the HV
-    if omKey in hv_specials: 
-	dac = hv_specials[omKey]
+    if omKey in hv_specials:
+        dac = hv_specials[omKey]
     else:
-	dac = getHV(cursor, domid, gain)
-    if dac is None: return ""
-    hv  = int(2 * dac)
+        dac = getHV(cursor, domid, gain)
+    if dac is None:
+        return ""
+    hv = int(2 * dac)
     mpeDisc = getTriggerThreshold(cursor, domid, 'mpe', mpeQ)
     speDisc = getTriggerThreshold(cursor, domid, 'spe', speQ)
-    if mpeDisc is None or speDisc is None: return ""
-    
-    txt  = '<domConfig mbid="%s" name="%s">\n' % (mbid, getName(mbid))
+    if mpeDisc is None or speDisc is None:
+        return ""
+
+    txt = '<domConfig mbid="%s" name="%s">\n' % (mbid, getName(mbid))
     txt += '<format>\n'
     if "engFormat" in kwargs:
         txt += '<engineeringFormat>\n'
@@ -168,7 +188,7 @@ def createConfig(cursor, mbid, **kwargs):
             txt += '<samples> %d </samples>\n' % kwargs["engFormat"][0][ch]
             txt += '</atwd>\n'
         txt += '</engineeringFormat>\n'
-    
+
     txt += '</format>\n'
     txt += "<triggerMode> %3s </triggerMode>\n" % trigger_mode
     txt += "<atwd0TriggerBias>         850 </atwd0TriggerBias>\n"
@@ -179,8 +199,10 @@ def createConfig(cursor, mbid, **kwargs):
     txt += "<atwd1RampTop>            2300 </atwd1RampTop>\n"
     txt += "<atwdAnalogRef>           2250 </atwdAnalogRef>\n"
     txt += "<frontEndPedestal>        2130 </frontEndPedestal>\n"
-    txt += "<mpeTriggerDiscriminator> %4d </mpeTriggerDiscriminator>\n" % mpeDisc 
-    txt += "<speTriggerDiscriminator> %4d </speTriggerDiscriminator>\n" % speDisc
+    txt += "<mpeTriggerDiscriminator> %4d </mpeTriggerDiscriminator>\n" % \
+        mpeDisc
+    txt += "<speTriggerDiscriminator> %4d </speTriggerDiscriminator>\n" % \
+        speDisc
     txt += "<fastAdcRef>               800 </fastAdcRef>\n"
     txt += "<internalPulser>             0 </internalPulser>\n"
     txt += "<ledBrightness>           1023 </ledBrightness>\n"
@@ -201,7 +223,8 @@ def createConfig(cursor, mbid, **kwargs):
     txt += "<postTrigger> %4d </postTrigger>\n" % lc_post_trigger
     for d in ("up", "down"):
         for dist in range(4):
-            txt += '<cableLength dir="%s" dist="%d"> %4d </cableLength>\n' % (d, dist+1, clen[d][dist])
+            txt += '<cableLength dir="%s" dist="%d"> %4d </cableLength>\n' % \
+                (d, dist + 1, clen[d][dist])
     txt += "</localCoincidence>\n"
     txt += '<supernovaMode enabled="true">\n'
     txt += "<deadtime> %d </deadtime>\n" % sn_deadtime
@@ -217,23 +240,25 @@ if "NICKNAMES" in os.environ:
     names = nicknames(file(os.environ["NICKNAMES"]))
     for n in names:
         dom_db[n[0]] = n
-        if n[3] != "-": dom_db_by_omkey[n[3]] = n
-        
+        if n[3] != "-":
+            dom_db_by_omkey[n[3]] = n
+
 lc_special_modes = {
-    '29-58' : 'up',     # 29-59 (Nix) is dead
-    '30-22' : 'up',     # 30-23 (Peugeot_505) is dead
-    '30-24' : 'down',   # 30-23 (Peugeot_505) is dead
-    '49-14' : 'up',     # 49-15 (Mercedes_Benz) LC broken to 49-14
-    '50-35' : 'up',     # 50-36 (Ocelot) is dead
-    '50-37' : 'down',   # 50-36 (Ocelot) is dead
-    '59-51' : 'up',     # 59-51 (T_Centraalen) <--> 59-52 (Medborgerplaz) LC broken
-    '59-52' : 'down',   # Ibid.
-    '65-33' : 'up',     # Broken LC between Michael Myers & Williwaw
-    '65-34' : 'down'
+    '29-58': 'up',     # 29-59 (Nix) is dead
+    '30-22': 'up',     # 30-23 (Peugeot_505) is dead
+    '30-24': 'down',   # 30-23 (Peugeot_505) is dead
+    '49-14': 'up',     # 49-15 (Mercedes_Benz) LC broken to 49-14
+    '50-35': 'up',     # 50-36 (Ocelot) is dead
+    '50-37': 'down',   # 50-36 (Ocelot) is dead
+     # 59-51 (T_Centraalen) <--> 59-52 (Medborgerplaz) LC broken
+    '59-51': 'up',
+    '59-52': 'down',   # Ibid.
+    '65-33': 'up',     # Broken LC between Michael Myers & Williwaw
+    '65-34': 'down'
 }
 
 hv_specials = {
-    '21-30' : 1250      # Phenol
+    '21-30': 1250      # Phenol
 }
 
 if __name__ == '__main__':
@@ -244,40 +269,49 @@ if __name__ == '__main__':
     parser = OptionParser()
     parser.add_option("-N", "--nicknames", dest="nicknames", default=None,
                       help="Use alternate nicknames file (don't use $NICKNAMES)")
-    parser.add_option("-H", "--db-host", dest="dbHost", default="sps-testdaq01",
+    parser.add_option("-H", "--db-host", dest="dbHost",
+                      default="sps-testdaq01",
                       help="Specify domprodtest database host name")
     parser.add_option("-u", "--user", dest="user", default="penguin",
                       help="Specify database user")
-    parser.add_option("-p", "--password", dest="passwd", action="store_true", default=False,
+    parser.add_option("-p", "--password", dest="passwd", action="store_true",
+                      default=False,
                       help="Database user will need a password")
-    parser.add_option("-E", "--engineering-readout", dest="engFmt", default="128,128,128,0,250",
-                      help ="Use engineering format readout")
+    parser.add_option("-E", "--engineering-readout", dest="engFmt",
+                      default="128,128,128,0,250",
+                      help="Use engineering format readout")
     parser.add_option("-S", "--lc-span", dest="span", type="int", default=1,
                       help="Set LC span parameter.")
-    parser.add_option("-G", "--gain", dest="gain", type="float", default=1.0E+07,
-		      help="Set PMT gain")
-    
+    parser.add_option("-G", "--gain", dest="gain", type="float",
+                      default=1.0E+07,
+                      help="Set PMT gain")
+
     (opts, args) = parser.parse_args()
-    if len(args) < 1: sys.exit(1)
+    if len(args) < 1:
+        sys.exit(1)
 
     # Extract the engineering format
     vec = opts.engFmt.split(",")
     if len(vec) != 5:
-	print >> sys.stderr, "ERROR: engineering format spec is --E ATWD0,ATWD1,ATWD2,ATWD3,FADC"
-	sys.exit(1)
-    engFmt = (tuple([ int(x) for x in vec[0:4] ]), int(vec[4]))
-        
+        print >> sys.stderr, "ERROR: engineering format spec is --E ATWD0,ATWD1,ATWD2,ATWD3,FADC"
+        sys.exit(1)
+    engFmt = (tuple([int(x) for x in vec[0:4]]), int(vec[4]))
+
     passwd = ""
-    if opts.passwd: getpass("Enter password for user " + opts.user + " on " + opts.dbHost + ": ")
-        
-    db = MySQLdb.connect(host=opts.dbHost, user=opts.user, passwd=passwd, db="domprodtest")
+    if opts.passwd:
+        getpass("Enter password for user " + opts.user + " on " + \
+                    opts.dbHost + ": ")
+
+    db = MySQLdb.connect(host=opts.dbHost, user=opts.user,
+                         passwd=passwd, db="domprodtest")
 
     cmd = re.compile('(\d{1,2})([it])')
     print "<?xml version='1.0' encoding='UTF-8'?>"
     print "<domConfigList>"
     for s in args:
         m = cmd.search(s)
-        if m is None: continue
+        if m is None:
+            continue
         istr = int(m.group(1))
         if m.group(2) == 'i':
             p0 = 1
@@ -285,18 +319,18 @@ if __name__ == '__main__':
         else:
             p0 = 61
             p1 = 65
-        kList = [ "%2.2d-%2.2d" % (istr, pos) for pos in range(p0, p1) ]
-        mbidList = [ ]
+        kList = ["%2.2d-%2.2d" % (istr, pos) for pos in range(p0, p1)]
+        mbidList = []
         for k in kList:
             try:
                 mbid = getByOmKey(k)[0]
                 mbidList.append(mbid)
             except KeyError:
                 print >>sys.stderr, "WARN:", k, "not found in nicknames"
-                
-        for mbid in mbidList: print createConfig(db.cursor(), mbid, 
-						 engFormat=engFmt, 
-						 span=opts.span,
-						 gain=opts.gain)
+
+        for mbid in mbidList:
+            print createConfig(db.cursor(), mbid,
+                               engFormat=engFmt,
+                               span=opts.span,
+                               gain=opts.gain)
     print "</domConfigList>"
-        

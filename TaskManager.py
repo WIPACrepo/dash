@@ -13,6 +13,7 @@ from WatchdogTask import WatchdogTask
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
+
 class TaskManager(threading.Thread):
     "Manage RunSet tasks"
 
@@ -81,7 +82,8 @@ class TaskManager(threading.Thread):
             waitSecs = CnCTask.MAX_TASK_SECS
             for t in self.__tasks:
                 # don't do remaining tasks if stop() has been called
-                if not self.__running: break
+                if not self.__running:
+                    break
 
                 try:
                     taskSecs = t.check()

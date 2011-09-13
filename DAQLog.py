@@ -6,32 +6,43 @@
 #
 # Logging classes
 
-import datetime, os, select, socket, sys, threading, time
+import datetime
+import os
+import select
+import socket
+import sys
+import threading
+import time
+
 from DAQConst import DAQPort
 from LiveImports import MoniClient, Prio, SERVICE_NAME
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-class LogException(Exception): pass
+
+class LogException(Exception):
+    pass
+
 
 class LogSocketServer(object):
     "Create class which logs requests from a remote object to a file"
     "Works nonblocking in a separate thread to guarantee concurrency"
     def __init__(self, port, cname, logpath, quiet=False):
         "Logpath should be fully qualified in case I'm a Daemon"
-        self.__port    = port
-        self.__cname   = cname
+        self.__port = port
+        self.__cname = cname
         self.__logpath = logpath
-        self.__quiet   = quiet
-        self.__thread  = None
+        self.__quiet = quiet
+        self.__thread = None
         self.__outfile = None
         self.__serving = False
 
     def __listener(self):
         """
-        Create listening, non-blocking UDP socket, read from it, and write to file;
-        close socket and end thread if signaled via self.__thread variable.
+        Create listening, non-blocking UDP socket, read from it,
+        and write to file; close socket and end thread if signaled via
+        self.__thread variable.
         """
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -49,16 +60,19 @@ class LogSocketServer(object):
         pe = [sock]
         while self.__thread is not None:
             rd, rw, re = select.select(pr, pw, pe, 0.5)
-            if len(re) != 0: print >>self.__outfile, "Error on select was detected."
-            if len(rd) == 0: continue
-            while 1: # Slurp up waiting packets, return to select if EAGAIN
+            if len(re) != 0:
+                print >>self.__outfile, "Error on select was detected."
+            if len(rd) == 0:
+                continue
+            while 1:  # Slurp up waiting packets, return to select if EAGAIN
                 try:
                     data = sock.recv(8192, socket.MSG_DONTWAIT)
-                    if not self.__quiet: print "%s %s" % (self.__cname, data)
+                    if not self.__quiet:
+                        print "%s %s" % (self.__cname, data)
                     print >>self.__outfile, "%s %s" % (self.__cname, data)
                     self.__outfile.flush()
                 except:
-                    break # Go back to select so we don't busy-wait
+                    break  # Go back to select so we don't busy-wait
         sock.close()
         if self.__logpath:
             self.__outfile.close()
@@ -75,11 +89,13 @@ class LogSocketServer(object):
         self.__serving = True
         while self.__thread is not None:
             data = sock.recv(8192)
-            if not self.__quiet: print "%s %s" % (self.__cname, data)
-            print >>self.__outfile, "%s %s" % (self.__cname, data)
+            if not self.__quiet:
+                print "%s %s" % (self.__cname, data)
+            print >> self.__outfile, "%s %s" % (self.__cname, data)
             self.__outfile.flush()
         sock.close()
-        if self.__logpath: self.__outfile.close()
+        if self.__logpath:
+            self.__outfile.close()
         self.__serving = False
 
     def isServing(self):
@@ -112,6 +128,7 @@ class LogSocketServer(object):
             thread.join()
         self.__outfile.close()
 
+
 class BaseAppender(object):
     def __init__(self, name):
         self.__name = name
@@ -131,6 +148,7 @@ class BaseAppender(object):
 
     def write(self, msg, time=None):
         pass
+
 
 class BaseFileAppender(BaseAppender):
     def __init__(self, name, fd):
@@ -162,6 +180,7 @@ class BaseFileAppender(BaseAppender):
 
         self._write(self.__fd, time, msg)
 
+
 class ConsoleAppender(BaseFileAppender):
     def __init__(self, name):
         "Create a console logger"
@@ -170,6 +189,7 @@ class ConsoleAppender(BaseFileAppender):
     def close_fd(self, fd):
         "Don't close system file handle"
         pass
+
 
 class DAQLog(object):
     TRACE = 1
@@ -224,39 +244,54 @@ class DAQLog(object):
             a.close()
         del self.__appenderList[:]
 
-    def debug(self, msg): self._logmsg(DAQLog.DEBUG, msg)
+    def debug(self, msg):
+        self._logmsg(DAQLog.DEBUG, msg)
 
-    def error(self, msg): self._logmsg(DAQLog.ERROR, msg)
+    def error(self, msg):
+        self._logmsg(DAQLog.ERROR, msg)
 
-    def fatal(self, msg): self._logmsg(DAQLog.FATAL, msg)
+    def fatal(self, msg):
+        self._logmsg(DAQLog.FATAL, msg)
 
-    def hasAppender(self): return len(self.__appenderList) > 0
+    def hasAppender(self):
+        return len(self.__appenderList) > 0
 
-    def info(self, msg): self._logmsg(DAQLog.INFO, msg)
+    def info(self, msg):
+        self._logmsg(DAQLog.INFO, msg)
 
-    def isDebugEnabled(self): return self.__level == DAQLog.DEBUG
+    def isDebugEnabled(self):
+        return self.__level == DAQLog.DEBUG
 
-    def isErrorEnabled(self): return self.__level == DAQLog.ERROR
+    def isErrorEnabled(self):
+        return self.__level == DAQLog.ERROR
 
-    def isFatalEnabled(self): return self.__level == DAQLog.FATAL
+    def isFatalEnabled(self):
+        return self.__level == DAQLog.FATAL
 
-    def isInfoEnabled(self): return self.__level == DAQLog.INFO
+    def isInfoEnabled(self):
+        return self.__level == DAQLog.INFO
 
-    def isTraceEnabled(self): return self.__level == DAQLog.TRACE
+    def isTraceEnabled(self):
+        return self.__level == DAQLog.TRACE
 
-    def isWarnEnabled(self): return self.__level == DAQLog.WARN
+    def isWarnEnabled(self):
+        return self.__level == DAQLog.WARN
 
     def setLevel(self, level):
         self.__level = level
 
-    def trace(self, msg): self._logmsg(DAQLog.TRACE, msg)
+    def trace(self, msg):
+        self._logmsg(DAQLog.TRACE, msg)
 
-    def warn(self, msg): self._logmsg(DAQLog.WARN, msg)
+    def warn(self, msg):
+        self._logmsg(DAQLog.WARN, msg)
+
 
 class FileAppender(BaseFileAppender):
     def __init__(self, name, path):
         "Create a file-based appender"
         super(FileAppender, self).__init__(name, open(path, "w"))
+
 
 class LogSocketAppender(BaseFileAppender):
     "Log to DAQ logging socket"
@@ -276,6 +311,7 @@ class LogSocketAppender(BaseFileAppender):
         except socket.error, se:
             raise LogException('LogSocket %s: %s' % (self.__loc, str(se)))
 
+
 class LiveFormatter(object):
     def __init__(self, service=SERVICE_NAME):
         self.__svc = service
@@ -283,6 +319,7 @@ class LiveFormatter(object):
     def format(self, varName, time, msg, priority=Prio.DEBUG):
         return '%s(%s:%s) %d [%s] %s\n' % \
             (self.__svc, varName, type(msg).__name__, priority, time, msg)
+
 
 class LiveSocketAppender(LogSocketAppender):
     "Log to I3Live logging socket"
@@ -302,7 +339,9 @@ class LiveSocketAppender(LogSocketAppender):
             try:
                 fd.send(self.__fmt.format('log', time, msg, self.__prio))
             except socket.error:
-                raise LogException("%s (Cannot send: %s)" % (msg, exc_string()))
+                raise LogException("%s (Cannot send: %s)" % \
+                                       (msg, exc_string()))
+
 
 class LiveMonitor(object):
     "Send I3Live monitoring data"
@@ -339,7 +378,7 @@ if __name__ == "__main__":
         raise SystemExit
 
     logfile = sys.argv[1]
-    port    = int(sys.argv[2])
+    port = int(sys.argv[2])
 
     if logfile == '-':
         logfile = None

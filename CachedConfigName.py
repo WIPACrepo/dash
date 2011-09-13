@@ -4,18 +4,20 @@
 
 import os
 
-class NoNameException(Exception): 
+
+class NoNameException(Exception):
     pass
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if os.environ.has_key("PDAQ_HOME"):
+if "PDAQ_HOME" in os.environ:
     metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
+
 class CachedFile(object):
-    
+
     @staticmethod
     def __getCachedNamePath(useActiveConfig):
         "get the active or default cluster configuration"
@@ -42,7 +44,7 @@ class CachedFile(object):
     def clearActiveConfig():
         "delete the active cluster name"
         activeName = CachedFile.__getCachedNamePath(True)
-        if os.path.exists(activeName): 
+        if os.path.exists(activeName):
             os.remove(activeName)
 
     @staticmethod
@@ -61,10 +63,10 @@ class CachedFile(object):
     def writeCacheFile(name, writeActiveConfig=False):
         "write this config name to the appropriate cache file"
         cachedNamePath = CachedFile.__getCachedNamePath(writeActiveConfig)
-        
+
         with open(cachedNamePath, 'w') as fd:
             print >> fd, name
-        
+
 
 class CachedConfigName(CachedFile):
     def __init__(self):

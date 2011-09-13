@@ -2,7 +2,13 @@
 #
 # Run standard pDAQ tests
 
-import os, re, socket, stat, subprocess, sys
+import os
+import re
+import socket
+import stat
+import subprocess
+import sys
+
 from ClusterDescription import ClusterDescription
 from cncrun import CnCRun
 from liverun import LiveRun
@@ -12,7 +18,10 @@ from liverun import LiveRun
 FOUR_HR = 14400
 EIGHT_HR = 28800
 
-class PDAQRunException(Exception): pass
+
+class PDAQRunException(Exception):
+    pass
+
 
 class PDAQRun(object):
     "Description of a pDAQ run"
@@ -26,7 +35,8 @@ class PDAQRun(object):
         self.__flashTimes = flashTimes
         self.__flashPause = flashPause
 
-    def clusterConfig(self): return self.__runCfg
+    def clusterConfig(self):
+        return self.__runCfg
 
     def run(self, liveRun, quick):
         if quick and self.__duration > 1200:
@@ -57,6 +67,7 @@ RUN_LIST = (PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
             ###PDAQRun("sim80str-25Hz", FOUR_HR),
             ###PDAQRun("sim80str-25Hz", EIGHT_HR),
             )
+
 
 class Deploy(object):
     DEPLOY_CLEAN = False
@@ -95,7 +106,8 @@ class Deploy(object):
 
     def __runDeploy(self, clusterCfg, arg):
         cmd = "%s -c %s %s" % (self.__deploy, clusterCfg, arg)
-        if self.__showCmd: print cmd
+        if self.__showCmd:
+            print cmd
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
@@ -108,14 +120,16 @@ class Deploy(object):
 
         for line in proc.stdout:
             line = line.rstrip()
-            if self.__showCmdOutput: print '+ ' + line
+            if self.__showCmdOutput:
+                print '+ ' + line
 
             if line == "NODES:":
                 inNodes = True
                 continue
 
             if inNodes:
-                if len(line) == 0: continue
+                if len(line) == 0:
+                    continue
 
                 m = Deploy.NODE_PAT.match(line)
                 if m:
@@ -166,7 +180,8 @@ class Deploy(object):
 
     def deploy(self, clusterConfig):
         "Deploy to the specified cluster"
-        if not self.__showCmd: print "Deploying %s" % clusterConfig
+        if not self.__showCmd:
+            print "Deploying %s" % clusterConfig
         if Deploy.DEPLOY_CLEAN:
             self.__runDeploy(clusterConfig, "--undeploy")
 
@@ -191,7 +206,8 @@ class Deploy(object):
         print "==============================================================="
 
 if __name__ == "__main__":
-    import optparse, signal
+    import optparse
+    import signal
 
     op = optparse.OptionParser()
     op.add_option("-c", "--cncrun", dest="cncrun",
@@ -241,7 +257,7 @@ if __name__ == "__main__":
     # Make sure expected environment variables are set
     #
     for nm in ("HOME", "PDAQ_HOME"):
-        if not os.environ.has_key(nm):
+        if not nm in os.environ:
             raise SystemExit("Environment variable '%s' has not been set" % nm)
 
     # run tests from pDAQ top-level directory
@@ -265,7 +281,8 @@ if __name__ == "__main__":
             from DumpThreads import DumpThreadsOnSignal
             DumpThreadsOnSignal(fd=sys.stderr)
 
-        # always kill running components in case they're from a previous release
+        # always kill running components in case they're from a
+        # previous release
         #
         liveRun.killComponents()
 

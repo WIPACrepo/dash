@@ -5,6 +5,7 @@ import unittest
 from CnCTask import TaskException
 from WatchdogTask import UnhealthyRecord, WatchData
 
+
 class MockBean(object):
     def __init__(self, val):
         self.__val = val
@@ -18,6 +19,7 @@ class MockBean(object):
     def _value(self):
         return self.__val
 
+
 class MockBeanDecreasing(MockBean):
     def __init__(self, val, dec=1):
         self.__dec = dec
@@ -28,6 +30,7 @@ class MockBeanDecreasing(MockBean):
         self._setValue(newVal)
         return newVal
 
+
 class MockBeanIncreasing(MockBean):
     def __init__(self, val, inc=1):
         self.__inc = inc
@@ -37,6 +40,7 @@ class MockBeanIncreasing(MockBean):
         newVal = self._value() + self.__inc
         self._setValue(newVal)
         return newVal
+
 
 class MockBeanStagnant(MockBean):
     def __init__(self, val, countDown):
@@ -52,6 +56,7 @@ class MockBeanStagnant(MockBean):
         self._setValue(val)
         return val
 
+
 class MockBeanTimeBomb(MockBeanIncreasing):
     def __init__(self, val, inc, bombTicks):
         self.__bombTicks = bombTicks
@@ -62,6 +67,7 @@ class MockBeanTimeBomb(MockBeanIncreasing):
             raise Exception("TimeBomb")
         self.__bombTicks -= 1
         return super(MockBeanTimeBomb, self).nextValue()
+
 
 class MockComponent(object):
     def __init__(self, name, num, order, source=False, builder=False):
@@ -76,9 +82,9 @@ class MockComponent(object):
         return self.fullName()
 
     def __checkAddBean(self, name, fldName):
-        if not self.__beanData.has_key(name):
+        if not name in self.__beanData:
             self.__beanData[name] = {}
-        if self.__beanData[name].has_key(fldName):
+        if fldName in self.__beanData[name]:
             raise Exception("Cannot add duplicate bean %s.%s to %s" %
                             (name, fldName, self.fullName()))
 
@@ -99,8 +105,8 @@ class MockComponent(object):
         self.__beanData[name][fldName] = MockBeanTimeBomb(val, inc, bombTicks)
 
     def checkBeanField(self, name, fldName):
-        if not self.__beanData.has_key(name) or \
-           not self.__beanData[name].has_key(fldName):
+        if not name in self.__beanData or \
+           not fldName in self.__beanData[name]:
             raise Exception("Unknown %s bean %s.%s" %
                             (self.fullName(), name, fldName))
 
@@ -127,6 +133,7 @@ class MockComponent(object):
 
     def order(self):
         return self.__order
+
 
 class WatchdogDataTest(unittest.TestCase):
     def testCreate(self):
@@ -239,9 +246,10 @@ class WatchdogDataTest(unittest.TestCase):
                                  (i, len(threshold), threshold))
 
                 if nStarved > 0:
-                    msg = UnhealthyRecord(("%s->%s %s.%s not changing from %d") %
-                                          (other, comp, beanName, inName,
-                                           starveVal + failNum), other.order())
+                    msg = UnhealthyRecord(
+                        ("%s->%s %s.%s not changing from %d") %
+                        (other, comp, beanName, inName,
+                         starveVal + failNum), other.order())
                     self.assertEqual(msg, starved[0],
                                      ("Check #%d starved#1 should be" +
                                       " \"%s\" not \"%s\"") %
@@ -251,7 +259,8 @@ class WatchdogDataTest(unittest.TestCase):
                     msg = UnhealthyRecord(("%s->%s %s.%s not changing" +
                                            " from %d") %
                                           (comp, other, beanName, outName,
-                                           stagnantVal + failNum), comp.order())
+                                           stagnantVal + failNum),
+                                          comp.order())
                     self.assertEqual(msg, stagnant[0],
                                      ("Check #%d stagnant#1 should be" +
                                       " \"%s\" not \"%s\"") %
@@ -259,9 +268,10 @@ class WatchdogDataTest(unittest.TestCase):
 
                 if nThreshold > 0:
                     msg = UnhealthyRecord("%s %s.%s above %d (value=%d)" %
-                                             (comp, beanName, gtName, threshVal,
-                                              threshVal + i - (failNum - 1)),
-                                             comp.order())
+                                          (comp, beanName, gtName,
+                                           threshVal,
+                                           threshVal + i - (failNum - 1)),
+                                           comp.order())
                     self.assertEqual(msg, threshold[0],
                                      ("Check #%d threshold#1 should be" +
                                       " \"%s\" not \"%s\"") %

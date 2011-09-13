@@ -7,6 +7,7 @@ from WatchdogTask import WatchdogRule, WatchdogTask
 from DAQMocks import MockComponent, MockIntervalTimer, MockLogger, \
      MockRunSet, MockTaskManager
 
+
 class BadMatchRule(WatchdogRule):
     def initData(self, data, thisComp, components):
         pass
@@ -14,12 +15,14 @@ class BadMatchRule(WatchdogRule):
     def matches(self, comp):
         raise Exception("FAIL")
 
+
 class BadInitRule(WatchdogRule):
     def initData(self, data, thisComp, components):
         raise Exception("FAIL")
 
     def matches(self, comp):
         return comp.name() == "foo"
+
 
 class BarRule(WatchdogRule):
     def __init__(self, checkVal):
@@ -31,6 +34,7 @@ class BarRule(WatchdogRule):
 
     def matches(self, comp):
         return comp.name() == "bar"
+
 
 class FooRule(WatchdogRule):
     def __init__(self, testIn=True, testOut=True, testThresh=True):
@@ -57,6 +61,7 @@ class FooRule(WatchdogRule):
     def matches(self, comp):
         return comp.name() == "foo"
 
+
 class WatchdogTaskTest(unittest.TestCase):
     def __runFooTest(self, testIn, testOut, testThresh, addBarBeans=False):
         foo = MockComponent("foo", 1)
@@ -72,8 +77,8 @@ class WatchdogTaskTest(unittest.TestCase):
 
         runset = MockRunSet([foo, bar, ])
 
-        rules=(FooRule(testIn, testOut, testThresh),
-               BarRule(addBarBeans))
+        rules = (FooRule(testIn, testOut, testThresh),
+                 BarRule(addBarBeans))
         self.__runTest(runset, rules, testIn, testOut, testThresh, False)
 
     def __runTest(self, runset, rules, testIn, testOut, testThresh, testBoth):

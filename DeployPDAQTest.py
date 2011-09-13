@@ -1,9 +1,14 @@
 #!/usr/bin/env python
 
-import os, socket, sys, tempfile, unittest
+import os
+import socket
+import sys
+import tempfile
+import unittest
 
 from DAQMocks import MockParallelShell, MockDeployComponent
 import DeployPDAQ
+
 
 class MockNode(object):
     def __init__(self, hostName):
@@ -11,6 +16,7 @@ class MockNode(object):
 
     def hostName(self):
         return self.__hostName
+
 
 class MockClusterConfig(object):
     def __init__(self, hosts):
@@ -20,6 +26,7 @@ class MockClusterConfig(object):
 
     def nodes(self):
         return self.__nodes[:]
+
 
 class DeployPDAQTest(unittest.TestCase):
     def __checkDeploy(self, hosts, subdirs, delete, dryRun, deepDryRun,
@@ -61,7 +68,8 @@ class DeployPDAQTest(unittest.TestCase):
 
         subdirs = ("ABC", "DEF")
 
-        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy)
+        self.__checkDeploy(hosts, subdirs, delete,
+                           dryRun, deepDryRun, undeploy)
 
     def testDeployDelete(self):
         delete = True
@@ -73,7 +81,8 @@ class DeployPDAQTest(unittest.TestCase):
 
         subdirs = ("ABC", "DEF")
 
-        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy)
+        self.__checkDeploy(hosts, subdirs, delete,
+                           dryRun, deepDryRun, undeploy)
 
     def testDeployDeepDryRun(self):
         delete = False
@@ -85,7 +94,8 @@ class DeployPDAQTest(unittest.TestCase):
 
         subdirs = ("ABC", "DEF")
 
-        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy)
+        self.__checkDeploy(hosts, subdirs, delete,
+                           dryRun, deepDryRun, undeploy)
 
     def testDeployDD(self):
         delete = True
@@ -97,7 +107,8 @@ class DeployPDAQTest(unittest.TestCase):
 
         subdirs = ("ABC", "DEF")
 
-        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy)
+        self.__checkDeploy(hosts, subdirs, delete,
+                           dryRun, deepDryRun, undeploy)
 
     def testDeployDryRun(self):
         delete = False
@@ -109,7 +120,8 @@ class DeployPDAQTest(unittest.TestCase):
 
         subdirs = ("ABC", "DEF")
 
-        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy)
+        self.__checkDeploy(hosts, subdirs, delete,
+                           dryRun, deepDryRun, undeploy)
 
     def testDeployUndeploy(self):
         delete = False
@@ -121,7 +133,8 @@ class DeployPDAQTest(unittest.TestCase):
 
         subdirs = ("ABC", "DEF")
 
-        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy)
+        self.__checkDeploy(hosts, subdirs, delete,
+                           dryRun, deepDryRun, undeploy)
 
     def testDeployNice(self):
         delete = False
@@ -129,12 +142,13 @@ class DeployPDAQTest(unittest.TestCase):
         deepDryRun = False
         undeploy = False
         niceAdj = 5
-        
+
         hosts = ("foo", "bar")
 
         subdirs = ("ABC", "DEF")
 
-        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy,
+        self.__checkDeploy(hosts, subdirs, delete,
+                           dryRun, deepDryRun, undeploy,
                            niceAdj)
 
     def testDeployExpress(self):
@@ -144,12 +158,13 @@ class DeployPDAQTest(unittest.TestCase):
         undeploy = False
         niceAdj = 5
         express = True
-        
+
         hosts = ("foo", "bar")
 
         subdirs = ("ABC", "DEF")
 
-        self.__checkDeploy(hosts, subdirs, delete, dryRun, deepDryRun, undeploy,
+        self.__checkDeploy(hosts, subdirs, delete,
+                           dryRun, deepDryRun, undeploy,
                            niceAdj, express)
 
 if __name__ == '__main__':

@@ -2,7 +2,12 @@
 #
 # Base class for managing pDAQ runs
 
-import os, socket, subprocess, sys, threading, time
+import os
+import socket
+import subprocess
+import sys
+import threading
+import time
 
 from datetime import datetime
 
@@ -10,11 +15,22 @@ from ClusterDescription import ClusterDescription
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 
-class RunException(Exception): pass
 
-class FlashFileException(RunException): pass
-class LaunchException(RunException): pass
-class StateException(RunException): pass
+class RunException(Exception):
+    pass
+
+
+class FlashFileException(RunException):
+    pass
+
+
+class LaunchException(RunException):
+    pass
+
+
+class StateException(RunException):
+    pass
+
 
 class FlasherThread(threading.Thread):
     "Thread which starts and stops flashers during a run"
@@ -94,6 +110,7 @@ class FlasherThread(threading.Thread):
         # thread must be done now, release the semaphore and return
         #
         self.__sem.release()
+
 
 class Run(object):
     def __init__(self, mgr, clusterCfg, runCfg, flashName):
@@ -280,6 +297,7 @@ class Run(object):
         "wait for run to finish"
         self.__mgr.waitForRun(self.__runNum, self.__duration)
 
+
 class BaseRun(object):
     """User's PATH, used by findExecutable()"""
     PATH = None
@@ -410,7 +428,8 @@ class BaseRun(object):
     def killComponents(self):
         "Kill all pDAQ components"
         cmd = "%s -k" % self.__launchProg
-        if self.__showCmd: print cmd
+        if self.__showCmd:
+            print cmd
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, close_fds=True,
@@ -457,7 +476,8 @@ class BaseRun(object):
 
         for line in proc.stdout:
             line = line.rstrip()
-            if self.__showCmdOutput: print '+ ' + line
+            if self.__showCmdOutput:
+                print '+ ' + line
 
         proc.stdout.close()
 
@@ -568,7 +588,8 @@ class BaseRun(object):
             arg = ""
 
         cmd = "%s %s %s" % (self.__updateDBProg, arg, runCfgPath)
-        if self.__showCmd: print cmd
+        if self.__showCmd:
+            print cmd
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, close_fds=True,
@@ -577,7 +598,8 @@ class BaseRun(object):
 
         for line in proc.stdout:
             line = line.rstrip()
-            if self.__showCmdOutput: print '+ ' + line
+            if self.__showCmdOutput:
+                print '+ ' + line
 
             if line.find("ErrAlreadyExists") > 0:
                 continue

@@ -1,7 +1,15 @@
 #!/usr/bin/env python
 
-import datetime, os, shutil, sys
-import tempfile, threading, time, traceback, unittest, xmlrpclib
+import datetime
+import os
+import shutil
+import sys
+import tempfile
+import threading
+import time
+import traceback
+import unittest
+import xmlrpclib
 
 from CnCServer import CnCServer, Connector
 from DAQClient import DAQClient
@@ -27,12 +35,14 @@ from DAQMocks \
     MockRunConfigFile, RunXMLValidator, SocketReader, SocketReaderFactory, \
     SocketWriter
 
+
 class MostlyLive:
     def __init__(self, port):
         raise NotImplementedError("Missing code")
 
+
 class BeanData(object):
-    DAQ_BEANS = {'stringHub' :
+    DAQ_BEANS = {'stringHub':
                      (('dom', 'sender', 'NumHitsReceived', 'i', 0),
                       ('eventBuilder', 'sender', 'NumReadoutRequestsReceived',
                        'i', 0),
@@ -40,29 +50,29 @@ class BeanData(object):
                       ('stringHub', 'stringhub', 'NumberOfActiveChannels', 't',
                        0),
                       ),
-                 'inIceTrigger' :
+                 'inIceTrigger':
                      (('stringHub', 'stringHit', 'RecordsReceived', 'i', 0),
                       ('globalTrigger', 'trigger', 'RecordsSent', 'o', 0),
                       ),
-                 'simpleTrigger' :
+                 'simpleTrigger':
                      (('stringHub', 'stringHit', 'RecordsReceived', 'i', 0),
                       ('globalTrigger', 'trigger', 'RecordsSent', 'o', 0),
                       ),
-                 'iceTopTrigger' :
+                 'iceTopTrigger':
                      (('stringHub', 'stringHit', 'RecordsReceived', 'i', 0),
                       ('globalTrigger', 'trigger', 'RecordsSent', 'o', 0),
                       ),
-                 'amandaTrigger' :
+                 'amandaTrigger':
                      (('globalTrigger', 'trigger', 'RecordsSent', 'o', 0),
                       ),
-                 'globalTrigger' :
+                 'globalTrigger':
                      (('inIceTrigger', 'trigger', 'RecordsReceived', 'i', 0),
                       ('simpleTrigger', 'trigger', 'RecordsReceived', 'i', 0),
                       ('iceTopTrigger', 'trigger', 'RecordsReceived', 'i', 0),
                       ('amandaTrigger', 'trigger', 'RecordsReceived', 'i', 0),
                       ('eventBuilder', 'glblTrig', 'RecordsSent', 'o', 0),
                       ),
-                 'eventBuilder' :
+                 'eventBuilder':
                      (('stringHub', 'backEnd', 'NumReadoutsReceived', 'i', 0),
                       ('globalTrigger', 'backEnd',
                        'NumTriggerRequestsReceived', 'i', 0),
@@ -76,12 +86,13 @@ class BeanData(object):
                       ('eventBuilder', 'backEnd', 'NumBadEvents',
                        't', 0, False),
                       ),
-                 'secondaryBuilders' :
+                 'secondaryBuilders':
                      (('secondaryBuilders', 'snBuilder', 'DiskAvailable',
                        't', 1024, True),
-                      ('dispatch', 'moniBuilder','TotalDispatchedData',
+                      ('dispatch', 'moniBuilder', 'TotalDispatchedData',
                        'o', 0),
-                       ('dispatch', 'snBuilder', 'TotalDispatchedData', 'o', 0),
+                       ('dispatch', 'snBuilder', 'TotalDispatchedData',
+                        'o', 0),
                       ('dispatch', 'tcalBuilder', 'TotalDispatchedData',
                        'o', 0),
                       ),
@@ -125,14 +136,14 @@ class BeanData(object):
 
     @staticmethod
     def buildBeans(masterList, compName):
-        if not masterList.has_key(compName):
+        if not compName in masterList:
             raise Exception('Unknown component %s' % compName)
 
         mbeans = {}
 
         beanTuples = masterList[compName]
         for t in beanTuples:
-            if not mbeans.has_key(t[1]):
+            if not t[1] in mbeans:
                 mbeans[t[1]] = {}
 
             if len(t) == 5:
@@ -167,6 +178,7 @@ class BeanData(object):
                     (self.__remoteComp, self.__bean, self.__field,
                      str(type(self.__value)))
 
+
 class MostlyTaskManager(TaskManager):
     WAITSECS = 0.25
 
@@ -174,20 +186,22 @@ class MostlyTaskManager(TaskManager):
 
     def __init__(self, runset, dashlog, liveMoniClient, runDir, runCfg,
                  runOptions):
-        super(MostlyTaskManager, self).__init__(runset, dashlog, liveMoniClient,
+        super(MostlyTaskManager, self).__init__(runset, dashlog,
+                                                liveMoniClient,
                                                 runDir, runCfg, runOptions)
 
     def createIntervalTimer(self, name, period):
-        if not self.TIMERS.has_key(name):
+        if not name in self.TIMERS:
             self.TIMERS[name] = MockIntervalTimer(name, self.WAITSECS)
 
         return self.TIMERS[name]
 
     def triggerTimer(self, name):
-        if not self.TIMERS.has_key(name):
+        if not name in self.TIMERS:
             raise Exception("Unknown timer \"%s\"" % name)
 
         self.TIMERS[name].trigger()
+
 
 class MostlyRunSet(RunSet):
     LOGFACTORY = SocketReaderFactory()
@@ -211,7 +225,7 @@ class MostlyRunSet(RunSet):
     @classmethod
     def createComponentLog(cls, runDir, comp, host, port, liveHost, livePort,
                            quiet=True):
-        if cls.LOGDICT.has_key(comp.fullName()):
+        if comp.fullName() in cls.LOGDICT:
             return cls.LOGDICT[comp.fullName()]
 
         expStartMsg = True
@@ -249,7 +263,7 @@ class MostlyRunSet(RunSet):
 
     @classmethod
     def getComponentLog(cls, comp):
-        if cls.LOGDICT.has_key(comp.fullName()):
+        if comp.fullName() in cls.LOGDICT:
             return cls.LOGDICT[comp.fullName()]
         return None
 
@@ -258,6 +272,7 @@ class MostlyRunSet(RunSet):
 
     def queueForSpade(self, duration):
         pass
+
 
 class MostlyDAQClient(DAQClient):
     def __init__(self, name, num, host, port, mbeanPort, connectors, appender):
@@ -269,6 +284,7 @@ class MostlyDAQClient(DAQClient):
 
     def createLogger(self, quiet):
         return MockCnCLogger(self.__appender, quiet)
+
 
 class MostlyCnCServer(CnCServer):
     SERVER_NAME = "MostlyCnC"
@@ -305,7 +321,7 @@ class MostlyCnCServer(CnCServer):
             appender = None
         else:
             key = '%s#%d' % (name, num)
-            if not MostlyCnCServer.APPENDERS.has_key(key):
+            if not key in MostlyCnCServer.APPENDERS:
                 MostlyCnCServer.APPENDERS[key] = MockAppender('Mock-%s' % key)
             appender = MostlyCnCServer.APPENDERS[key]
 
@@ -314,7 +330,7 @@ class MostlyCnCServer(CnCServer):
 
     def createCnCLogger(self, quiet):
         key = 'server'
-        if not MostlyCnCServer.APPENDERS.has_key(key):
+        if not key in MostlyCnCServer.APPENDERS:
             MostlyCnCServer.APPENDERS[key] = \
                 MockAppender('Mock-%s' % key,
                              depth=IntegrationTest.NUM_COMPONENTS)
@@ -358,15 +374,16 @@ class MostlyCnCServer(CnCServer):
     def startLiveThread(self):
         return None
 
+
 class RealComponent(object):
     # Component order, used in the __getOrder() method
-    COMP_ORDER = { 'stringHub' : (50, 50),
-                   'amandaTrigger' : (0, 13),
-                   'iceTopTrigger' : (2, 12),
-                   'inIceTrigger' : (4, 11),
-                   'globalTrigger' : (10, 10),
-                   'eventBuilder' : (30, 2),
-                   'secondaryBuilders' : (32, 0),
+    COMP_ORDER = {'stringHub': (50, 50),
+                  'amandaTrigger': (0, 13),
+                  'iceTopTrigger': (2, 12),
+                  'inIceTrigger': (4, 11),
+                  'globalTrigger': (10, 10),
+                  'eventBuilder': (30, 2),
+                  'secondaryBuilders': (32, 0),
                    }
 
     def __init__(self, name, num, cmdPort, mbeanPort, jvm, jvmArgs,
@@ -387,12 +404,13 @@ class RealComponent(object):
 
         self.__mbeanData = None
 
-        self.__version = {'filename':name, 'revision':'1', 'date':'date',
-                          'time':'time', 'author':'author', 'release':'rel',
-                          'repo_rev':'1234'}
+        self.__version = {'filename': name, 'revision': '1', 'date': 'date',
+                          'time': 'time', 'author': 'author', 'release': 'rel',
+                          'repo_rev': '1234'}
 
         self.__cmd = RPCServer(cmdPort)
-        self.__cmd.register_function(self.__commitSubrun, 'xmlrpc.commitSubrun')
+        self.__cmd.register_function(self.__commitSubrun,
+                                     'xmlrpc.commitSubrun')
         self.__cmd.register_function(self.__configure, 'xmlrpc.configure')
         self.__cmd.register_function(self.__connect, 'xmlrpc.connect')
         self.__cmd.register_function(self.__getState, 'xmlrpc.getState')
@@ -402,7 +420,8 @@ class RealComponent(object):
         self.__cmd.register_function(self.__prepareSubrun,
                                      'xmlrpc.prepareSubrun')
         self.__cmd.register_function(self.__reset, 'xmlrpc.reset')
-        self.__cmd.register_function(self.__resetLogging, 'xmlrpc.resetLogging')
+        self.__cmd.register_function(self.__resetLogging,
+                                     'xmlrpc.resetLogging')
         self.__cmd.register_function(self.__startRun, 'xmlrpc.startRun')
         self.__cmd.register_function(self.__startSubrun, 'xmlrpc.startSubrun')
         self.__cmd.register_function(self.__stopRun, 'xmlrpc.stopRun')
@@ -445,7 +464,8 @@ class RealComponent(object):
 
         return 0
 
-    def __repr__(self): return str(self)
+    def __repr__(self):
+        return str(self)
 
     def __str__(self):
         return '%s#%d' % (self.__name, self.__num)
@@ -489,7 +509,7 @@ class RealComponent(object):
 
     @classmethod
     def __getLaunchOrder(cls, name):
-        if not cls.COMP_ORDER.has_key(name):
+        if not name in cls.COMP_ORDER:
             raise Exception('Unknown component type %s' % name)
         return cls.COMP_ORDER[name][0]
 
@@ -510,13 +530,13 @@ class RealComponent(object):
 
     @classmethod
     def __getStartOrder(cls, name):
-        if not cls.COMP_ORDER.has_key(name):
+        if not name in cls.COMP_ORDER:
             raise Exception('Unknown component type %s' % name)
         return cls.COMP_ORDER[name][1]
 
     @classmethod
     def __getOrder(cls, name):
-        if not cls.COMP_ORDER.has_key(name):
+        if not name in cls.COMP_ORDER:
             raise Exception('Unknown component type %s' % name)
         return cls.COMP_ORDER[name][0]
 
@@ -660,8 +680,11 @@ class RealComponent(object):
 
         return "%s#%d" % (self.__name, self.__num)
 
-    def getCommandPort(self): return self.__cmd.portnum
-    def getId(self): return 999
+    def getCommandPort(self):
+        return self.__cmd.portnum
+
+    def getId(self):
+        return 999
 
     def getMBean(self, bean, fld):
         if self.__mbeanData is None:
@@ -669,17 +692,26 @@ class RealComponent(object):
 
         return self.__mbeanData[bean][fld].getValue()
 
-    def getMBeanPort(self): return self.__mbean.portnum
-    def getName(self): return self.__name
-    def getNumber(self): return self.__num
+    def getMBeanPort(self):
+        return self.__mbean.portnum
+
+    def getName(self):
+        return self.__name
+
+    def getNumber(self):
+        return self.__num
 
     def getState(self):
         return self.__getState()
 
     def isComponent(self, name, num=-1):
         return self.__name == name and (num < 0 or self.__num == num)
-    def jvm(self): return self.__jvm
-    def jvmArgs(self): return self.__jvmArgs
+
+    def jvm(self):
+        return self.__jvm
+
+    def jvmArgs(self):
+        return self.__jvmArgs
 
     def logTo(self, logHost, logPort, liveHost, livePort):
         return self.__logTo(logHost, logPort, liveHost, livePort)
@@ -790,7 +822,7 @@ class IntegrationTest(unittest.TestCase):
                  ('inIceTrigger', 0, 9117, 9217, jvm, '-server'),
                  ('globalTrigger', 0, 9118, 9218, jvm, '-server'),
                  ('eventBuilder', 0, 9119, 9219, jvm, '-server'),
-                 ('secondaryBuilders', 0, 9120, 9220, jvm, '-server'),]
+                 ('secondaryBuilders', 0, 9120, 9220, jvm, '-server')]
 
         if len(comps) != IntegrationTest.NUM_COMPONENTS:
             raise Exception("Expected %d components, not %d" %
@@ -1017,7 +1049,8 @@ class IntegrationTest(unittest.TestCase):
                                                 comp.fullName())
                 logServer.addExpectedExact('Hello from %s' % str(comp))
             if liveLog is not None and not liveRunOnly:
-                liveLog.addExpectedTextRegexp('Registered %s' % comp.fullName())
+                liveLog.addExpectedTextRegexp('Registered %s' %
+                                              comp.fullName())
                 liveLog.addExpectedText('Hello from %s' % str(comp))
             comp.register(self.__getConnectionList(comp.getName()))
 
@@ -1052,19 +1085,25 @@ class IntegrationTest(unittest.TestCase):
 
         RUNLOG_INFO = False
 
-        #import datetime
-        if liveLog: liveLog.checkStatus(10)
-        if appender: appender.checkStatus(10)
-        if dashLog: dashLog.checkStatus(10)
-        if logServer: logServer.checkStatus(10)
+        if liveLog:
+            liveLog.checkStatus(10)
+        if appender:
+            appender.checkStatus(10)
+        if dashLog:
+            dashLog.checkStatus(10)
+        if logServer:
+            logServer.checkStatus(10)
 
         self.__registerComponents(liveLog, logServer, liveRunOnly)
 
         time.sleep(0.4)
 
-        if liveLog: liveLog.checkStatus(10)
-        if appender: appender.checkStatus(10)
-        if logServer: logServer.checkStatus(10)
+        if liveLog:
+            liveLog.checkStatus(10)
+        if appender:
+            appender.checkStatus(10)
+        if logServer:
+            logServer.checkStatus(10)
 
         setId = RunSet.ID.peekNext()
         runNum = 654
@@ -1083,24 +1122,31 @@ class IntegrationTest(unittest.TestCase):
 
             for n in ('in-ice', 'icetop'):
                 msg = 'Configuration includes detector %s' % n
-                if liveLog: liveLog.addExpectedText(msg)
+                if liveLog:
+                    liveLog.addExpectedText(msg)
 
             for c in self.__compList:
                 msg = 'Component list will require %s#%d' % \
                     (c.getName(), c.getNumber())
-                if liveLog: liveLog.addExpectedText(msg)
+                if liveLog:
+                    liveLog.addExpectedText(msg)
 
         for s in ("Loading", "Loaded"):
             msg = '%s run configuration "%s"' % (s, configName)
-            if liveLog and not liveRunOnly: liveLog.addExpectedText(msg)
-            if logServer: logServer.addExpectedText(msg)
+            if liveLog and not liveRunOnly:
+                liveLog.addExpectedText(msg)
+            if logServer:
+                logServer.addExpectedText(msg)
 
         msg = 'Built runset #\d+: .*'
-        if liveLog and not liveRunOnly: liveLog.addExpectedTextRegexp(msg)
-        if logServer: logServer.addExpectedTextRegexp(msg)
+        if liveLog and not liveRunOnly:
+            liveLog.addExpectedTextRegexp(msg)
+        if logServer:
+            logServer.addExpectedTextRegexp(msg)
 
         msg = 'Created Run Set #%d' % setId
-        if liveLog: liveLog.addExpectedText(msg)
+        if liveLog:
+            liveLog.addExpectedText(msg)
 
         msgList = [('Version info: %(filename)s %(revision)s %(date)s' +
                     ' %(time)s %(author)s %(release)s %(repo_rev)s') %
@@ -1113,7 +1159,8 @@ class IntegrationTest(unittest.TestCase):
 
         for msg in msgList:
             #if appender and not liveRunOnly: appender.addExpectedExact(msg)
-            if liveLog: liveLog.addExpectedText(msg)
+            if liveLog:
+                liveLog.addExpectedText(msg)
 
         if dashLog:
             dashLog.addExpectedRegexp(r'Version info: \S+ \d+ \S+ \S+ \S+' +
@@ -1134,8 +1181,10 @@ class IntegrationTest(unittest.TestCase):
 
         if RUNLOG_INFO:
             msg = 'Configuring run set...'
-            if appender and not liveRunOnly: appender.addExpectedExact(msg)
-            if liveLog: liveLog.addExpectedText(msg)
+            if appender and not liveRunOnly:
+                appender.addExpectedExact(msg)
+            if liveLog:
+                liveLog.addExpectedText(msg)
 
             if RunOption.isMoniToFile(runOptions):
                 runDir = os.path.join(IntegrationTest.LOG_DIR,
@@ -1147,12 +1196,15 @@ class IntegrationTest(unittest.TestCase):
                             c.getMBeanPort())
                     if appender and not liveRunOnly:
                         appender.addExpectedExact(msg)
-                    if liveLog: liveLog.addExpectedText(msg)
+                    if liveLog:
+                        liveLog.addExpectedText(msg)
 
         msg = "Starting run #%d with \"%s\"" % \
             (runNum, IntegrationTest.CLUSTER_CONFIG)
-        if liveLog and not liveRunOnly: liveLog.addExpectedText(msg)
-        if logServer: logServer.addExpectedText(msg)
+        if liveLog and not liveRunOnly:
+            liveLog.addExpectedText(msg)
+        if logServer:
+            logServer.addExpectedText(msg)
 
         if dashLog:
             dashLog.addExpectedExact("Starting run %d..." % runNum)
@@ -1168,7 +1220,8 @@ class IntegrationTest(unittest.TestCase):
                 liveLog.addExpectedText('Start #%d on %s' % (runNum, str(c)))
 
         msg = 'Started run %d on run set %d' % (runNum, setId)
-        if liveLog: liveLog.addExpectedText(msg)
+        if liveLog:
+            liveLog.addExpectedText(msg)
 
         startEvtTime = 1001
 
@@ -1178,7 +1231,7 @@ class IntegrationTest(unittest.TestCase):
             liveLog.addExpectedText('Started run %d' % runNum)
 
         if live is not None:
-            live.starting({'runNumber':runNum, 'runConfig':configName})
+            live.starting({'runNumber': runNum, 'runConfig': configName})
         else:
             id = cnc.rpc_runset_make(configName, runNum)
             self.assertEqual(setId, id,
@@ -1188,10 +1241,14 @@ class IntegrationTest(unittest.TestCase):
 
         self.__waitForState(cnc, setId, "running")
 
-        if liveLog: liveLog.checkStatus(10)
-        if appender: appender.checkStatus(500)
-        if dashLog: dashLog.checkStatus(10)
-        if logServer: logServer.checkStatus(10)
+        if liveLog:
+            liveLog.checkStatus(10)
+        if appender:
+            appender.checkStatus(500)
+        if dashLog:
+            dashLog.checkStatus(10)
+        if logServer:
+            logServer.checkStatus(10)
 
         if RunOption.isMoniToLive(runOptions):
             # monitoring values can potentially come in any order
@@ -1210,32 +1267,45 @@ class IntegrationTest(unittest.TestCase):
                                         "json")
         self.__forceMonitoring(cnc, liveLog)
 
-        if liveLog: liveLog.checkStatus(10)
-        if appender: appender.checkStatus(500)
-        if dashLog: dashLog.checkStatus(10)
-        if logServer: logServer.checkStatus(10)
+        if liveLog:
+            liveLog.checkStatus(10)
+        if appender:
+            appender.checkStatus(500)
+        if dashLog:
+            dashLog.checkStatus(10)
+        if logServer:
+            logServer.checkStatus(10)
 
         self.__forceRate(cnc, dashLog)
 
-        if liveLog: liveLog.checkStatus(10)
-        if appender: appender.checkStatus(500)
-        if dashLog: dashLog.checkStatus(10)
-        if logServer: logServer.checkStatus(10)
+        if liveLog:
+            liveLog.checkStatus(10)
+        if appender:
+            appender.checkStatus(500)
+        if dashLog:
+            dashLog.checkStatus(10)
+        if logServer:
+            logServer.checkStatus(10)
 
         self.__forceWatchdog(cnc, dashLog)
 
-        if liveLog: liveLog.checkStatus(10)
-        if appender: appender.checkStatus(500)
-        if dashLog: dashLog.checkStatus(10)
-        if logServer: logServer.checkStatus(10)
+        if liveLog:
+            liveLog.checkStatus(10)
+        if appender:
+            appender.checkStatus(500)
+        if dashLog:
+            dashLog.checkStatus(10)
+        if logServer:
+            logServer.checkStatus(10)
 
         if RunOption.isMoniToLive(runOptions):
             liveLog.setCheckDepth(5)
 
         subRunId = 1
 
-        if liveLog: liveLog.addExpectedText('Starting subrun %d.%d' %
-                                            (runNum, subRunId))
+        if liveLog:
+            liveLog.addExpectedText('Starting subrun %d.%d' %
+                                    (runNum, subRunId))
 
         domList = [['53494d550101', 0, 1, 2, 3, 4],
                    ['1001', '22', 1, 2, 3, 4, 5],
@@ -1260,10 +1330,12 @@ class IntegrationTest(unittest.TestCase):
 
         msg = "Subrun %d: ignoring missing DOM ['#%s']" % \
                    (subRunId, domList[2][0])
-        if dashLog: dashLog.addExpectedExact(msg)
+        if dashLog:
+            dashLog.addExpectedExact(msg)
 
         fmt = 'Subrun %d: flashing DOM (%%s)' % subRunId
-        if dashLog: dashLog.addExpectedExact(fmt % str(rpcFlashList))
+        if dashLog:
+            dashLog.addExpectedExact(fmt % str(rpcFlashList))
 
         for c in self.__compList:
             if not appender or liveRunOnly:
@@ -1276,34 +1348,48 @@ class IntegrationTest(unittest.TestCase):
 
             if c.getName() == 'eventBuilder':
                 msg = 'Prep subrun %d' % subRunId
-                if clog: clog.addExpectedExact(msg)
-                if liveLog: liveLog.addExpectedText(msg)
+                if clog:
+                    clog.addExpectedExact(msg)
+                if liveLog:
+                    liveLog.addExpectedText(msg)
+
             if c.getName() == 'stringHub':
                 msg = 'Start subrun %s' % str(rpcFlashList)
-                if clog: clog.addExpectedExact(msg)
-                if liveLog: liveLog.addExpectedText(msg)
+                if clog:
+                    clog.addExpectedExact(msg)
+                if liveLog:
+                    liveLog.addExpectedText(msg)
+
             if c.getName() == 'eventBuilder':
                 patStr = 'Commit subrun %d: \d+L' % subRunId
-                if clog: clog.addExpectedRegexp(patStr)
-                if liveLog: liveLog.addExpectedTextRegexp(patStr)
+                if clog:
+                    clog.addExpectedRegexp(patStr)
+                if liveLog:
+                    liveLog.addExpectedTextRegexp(patStr)
 
         if live is not None:
             live.subrun(subRunId, domList)
         else:
             cnc.rpc_runset_subrun(setId, subRunId, domList)
 
-        if dashLog: dashLog.checkStatus(10)
-        if appender: appender.checkStatus(10)
-        if liveLog: liveLog.checkStatus(10)
-        if logServer: logServer.checkStatus(10)
+        if dashLog:
+            dashLog.checkStatus(10)
+        if appender:
+            appender.checkStatus(10)
+        if liveLog:
+            liveLog.checkStatus(10)
+        if logServer:
+            logServer.checkStatus(10)
 
         subRunId += 1
 
-        if liveLog: liveLog.addExpectedText('Stopping subrun %d.%d' %
-                                            (runNum, subRunId))
+        if liveLog:
+            liveLog.addExpectedText('Stopping subrun %d.%d' %
+                                    (runNum, subRunId))
 
         msg = 'Subrun %d: stopping flashers' % subRunId
-        if dashLog: dashLog.addExpectedExact(msg)
+        if dashLog:
+            dashLog.addExpectedExact(msg)
 
         for c in self.__compList:
             if not appender or liveRunOnly:
@@ -1316,28 +1402,41 @@ class IntegrationTest(unittest.TestCase):
 
             if c.getName() == 'eventBuilder':
                 msg = 'Prep subrun %d' % subRunId
-                if clog: clog.addExpectedExact(msg)
-                if liveLog: liveLog.addExpectedText(msg)
+                if clog:
+                    clog.addExpectedExact(msg)
+                if liveLog:
+                    liveLog.addExpectedText(msg)
+
             if c.getName() == 'stringHub':
                 msg = 'Start subrun %s' % str([])
-                if clog: clog.addExpectedExact(msg)
-                if liveLog: liveLog.addExpectedText(msg)
+                if clog:
+                    clog.addExpectedExact(msg)
+                if liveLog:
+                    liveLog.addExpectedText(msg)
+
             if c.getName() == 'eventBuilder':
                 patStr = 'Commit subrun %d: \d+L' % subRunId
-                if clog: clog.addExpectedRegexp(patStr)
-                if liveLog: liveLog.addExpectedTextRegexp(patStr)
+                if clog:
+                    clog.addExpectedRegexp(patStr)
+                if liveLog:
+                    liveLog.addExpectedTextRegexp(patStr)
 
         if live is not None:
             live.subrun(subRunId, [])
         else:
             cnc.rpc_runset_subrun(setId, subRunId, [])
 
-        if dashLog: dashLog.checkStatus(10)
-        if appender: appender.checkStatus(10)
-        if liveLog: liveLog.checkStatus(10)
-        if logServer: logServer.checkStatus(10)
+        if dashLog:
+            dashLog.checkStatus(10)
+        if appender:
+            appender.checkStatus(10)
+        if liveLog:
+            liveLog.checkStatus(10)
+        if logServer:
+            logServer.checkStatus(10)
 
-        if liveLog: liveLog.addExpectedText('Stopping run %d' % runNum)
+        if liveLog:
+            liveLog.addExpectedText('Stopping run %d' % runNum)
 
         domTicksPerSec = 10000000000
 
@@ -1361,7 +1460,8 @@ class IntegrationTest(unittest.TestCase):
                            "TotalDispatchedData", numTcal)
 
         msg = 'Stopping run %d' % runNum
-        if liveLog: liveLog.addExpectedText(msg)
+        if liveLog:
+            liveLog.addExpectedText(msg)
 
         for c in self.__compList:
             if not appender or liveRunOnly:
@@ -1373,31 +1473,40 @@ class IntegrationTest(unittest.TestCase):
                                     (c.getName(), c.getNumber()))
 
             msg = 'Stop %s#%d' % (c.getName(), c.getNumber())
-            if clog: clog.addExpectedExact(msg)
-            if liveLog: liveLog.addExpectedText(msg)
+            if clog:
+                clog.addExpectedExact(msg)
+            if liveLog:
+                liveLog.addExpectedText(msg)
 
         patStr = (r'%d physics events collected in -?\d+ seconds' +
                   r'(\s+\(-?\d+\.\d+ Hz\))?') % numEvts
         dashLog.addExpectedRegexp(patStr)
-        if liveLog: liveLog.addExpectedTextRegexp(patStr)
+        if liveLog:
+            liveLog.addExpectedTextRegexp(patStr)
 
         msg = '%d moni events, %d SN events, %d tcals' % \
             (numMoni, numSN, numTcal)
         dashLog.addExpectedExact(msg)
-        if liveLog: liveLog.addExpectedText(msg)
+        if liveLog:
+            liveLog.addExpectedText(msg)
 
         if RUNLOG_INFO:
             msg = 'Stopping component logging'
-            if appender and not liveRunOnly: appender.addExpectedExact(msg)
-            if liveLog: liveLog.addExpectedText(msg)
+            if appender and not liveRunOnly:
+                appender.addExpectedExact(msg)
+            if liveLog:
+                liveLog.addExpectedText(msg)
 
             patStr = 'RPC Call stats:.*'
-            if appender and not liveRunOnly: appender.addExpectedRegexp(patStr)
-            if liveLog: liveLog.addExpectedTextRegexp(patStr)
+            if appender and not liveRunOnly:
+                appender.addExpectedRegexp(patStr)
+            if liveLog:
+                liveLog.addExpectedTextRegexp(patStr)
 
         msg = 'Run terminated SUCCESSFULLY.'
         dashLog.addExpectedExact(msg)
-        if liveLog: liveLog.addExpectedText(msg)
+        if liveLog:
+            liveLog.addExpectedText(msg)
 
         if liveLog:
             liveLog.addExpectedTextRegexp(r"DAQ state is STOPPED after \d+" +
@@ -1417,10 +1526,14 @@ class IntegrationTest(unittest.TestCase):
 
         self.__waitForState(cnc, setId, "ready")
 
-        if dashLog: dashLog.checkStatus(10)
-        if appender: appender.checkStatus(10)
-        if liveLog: liveLog.checkStatus(10)
-        if logServer: logServer.checkStatus(10)
+        if dashLog:
+            dashLog.checkStatus(10)
+        if appender:
+            appender.checkStatus(10)
+        if liveLog:
+            liveLog.checkStatus(10)
+        if logServer:
+            logServer.checkStatus(10)
 
         moni = cnc.rpc_runset_monitor_run(setId)
         self.failIf(moni is None, 'rpc_run_monitoring returned None')
@@ -1438,28 +1551,37 @@ class IntegrationTest(unittest.TestCase):
                           'Expected %d tcal events, not %d' %
                           (numTcal, moni['tcalEvents']))
 
-        if dashLog: dashLog.checkStatus(10)
-        if appender: appender.checkStatus(10)
-        if liveLog: liveLog.checkStatus(10)
-        if logServer: logServer.checkStatus(10)
+        if dashLog:
+            dashLog.checkStatus(10)
+        if appender:
+            appender.checkStatus(10)
+        if liveLog:
+            liveLog.checkStatus(10)
+        if logServer:
+            logServer.checkStatus(10)
 
         RunXMLValidator.validate(self, runNum, IntegrationTest.CLUSTER_CONFIG,
                                  None, None, numEvts, numMoni, numSN, numTcal,
                                  False)
-        
+
         if RUNLOG_INFO:
             msg = 'Breaking run set...'
-            if liveLog and not liveRunOnly: liveLog.addExpectedText(msg)
+            if liveLog and not liveRunOnly:
+                liveLog.addExpectedText(msg)
 
         if live is not None:
             live.release()
         else:
             cnc.rpc_runset_break(setId)
 
-        if dashLog: dashLog.checkStatus(10)
-        if appender: appender.checkStatus(10)
-        if liveLog: liveLog.checkStatus(10)
-        if logServer: logServer.checkStatus(10)
+        if dashLog:
+            dashLog.checkStatus(10)
+        if appender:
+            appender.checkStatus(10)
+        if liveLog:
+            liveLog.checkStatus(10)
+        if logServer:
+            logServer.checkStatus(10)
 
     @staticmethod
     def __waitForEmptyLog(log, errMsg):
@@ -1533,7 +1655,8 @@ class IntegrationTest(unittest.TestCase):
 
                 needHdr = True
                 for t in threading.enumerate():
-                    if t.getName() == "MainThread": continue
+                    if t.getName() == "MainThread":
+                        continue
 
                     if needHdr:
                         print >>sys.stderr, "---- Active threads #%d" % \
@@ -1579,7 +1702,8 @@ class IntegrationTest(unittest.TestCase):
         cnc.run()
 
     def testLiveFinishInMain(self):
-        print "Not running testLiveFinishInMain"; return
+        print "Not running testLiveFinishInMain"
+        return
         #from DAQMocks import LogChecker; LogChecker.DEBUG = True
         if not LIVE_IMPORT:
             print 'Skipping I3Live-related test'
@@ -1602,7 +1726,8 @@ class IntegrationTest(unittest.TestCase):
                        True)
 
     def testZAllLiveFinishInMain(self):
-        print "Not running testZAllLiveFinishInMain"; return
+        print "Not running testZAllLiveFinishInMain"
+        return
         #from DAQMocks import LogChecker; LogChecker.DEBUG = True
         if not LIVE_IMPORT:
             print 'Skipping I3Live-related test'
@@ -1634,7 +1759,8 @@ class IntegrationTest(unittest.TestCase):
                        False)
 
     def testZBothFinishInMain(self):
-        print "Not running testZBothFinishInMain"; return
+        print "Not running testZBothFinishInMain"
+        return
         if not LIVE_IMPORT:
             print 'Skipping I3Live-related test'
             return

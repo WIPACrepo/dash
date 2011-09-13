@@ -1,7 +1,15 @@
 #!/usr/bin/env python
 
-import Daemon, datetime, errno, optparse, os, signal, socket, sys, threading, \
-    time
+import Daemon
+import datetime
+import errno
+import optparse
+import os
+import signal
+import socket
+import sys
+import threading
+import time
 
 from CnCLogger import CnCLogger
 from CompOp import ComponentOperation, ComponentOperationGroup
@@ -22,7 +30,7 @@ from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if os.environ.has_key("PDAQ_HOME"):
+if "PDAQ_HOME" in os.environ:
     metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
@@ -32,9 +40,12 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: CnCServer.py 13336 2011-09-08 22:31:13Z dglo $"
+SVN_ID = "$Id: CnCServer.py 13351 2011-09-13 03:31:27Z mnewcomb $"
 
-class CnCServerException(Exception): pass
+
+class CnCServerException(Exception):
+    pass
+
 
 class DAQPool(object):
     "Pool of DAQClients and RunSets"
@@ -53,7 +64,7 @@ class DAQPool(object):
 
     def __addInternal(self, comp):
         "This method assumes that self.__poolLock has already been acquired"
-        if not self.__pool.has_key(comp.name()):
+        if not comp.name() in self.__pool:
             self.__pool[comp.name()] = []
         self.__pool[comp.name()].append(comp)
 
@@ -74,12 +85,12 @@ class DAQPool(object):
             pound = r.rfind("#")
             if pound > 0:
                 name = r[0:pound]
-                num = int(r[pound+1:])
+                num = int(r[pound + 1:])
             else:
                 dash = r.rfind("-")
                 if dash > 0:
                     name = r[0:dash]
-                    num = int(r[dash+1:])
+                    num = int(r[dash + 1:])
                 else:
                     name = r
                     num = 0
@@ -93,7 +104,7 @@ class DAQPool(object):
             try:
                 for cn in needed:
                     found = False
-                    if self.__pool.has_key(cn.name()) and \
+                    if cn.name() in self.__pool and \
                             len(self.__pool[cn.name()]) > 0:
                         for comp in self.__pool[cn.name()]:
                             if comp.num() == cn.num():
@@ -112,7 +123,7 @@ class DAQPool(object):
             needed = waitList
 
             if len(needed) > 0:
-                if datetime.datetime.now()-tstart >= \
+                if datetime.datetime.now() - tstart >= \
                         datetime.timedelta(seconds=timeout):
                     break
 
@@ -289,7 +300,7 @@ class DAQPool(object):
         states = tGroup.results()
         for bin in self.__pool.values():
             for c in bin:
-                if states.has_key(c):
+                if c in states:
                     stateStr = str(states[c])
                 else:
                     stateStr = DAQClientState.DEAD
@@ -345,7 +356,7 @@ class DAQPool(object):
         "Remove a component from the pool"
         self.__poolLock.acquire()
         try:
-            if self.__pool.has_key(comp.name()):
+            if comp.name() in self.__pool:
                 self.__pool[comp.name()].remove(comp)
                 if len(self.__pool[comp.name()]) == 0:
                     del self.__pool[comp.name()]
@@ -443,8 +454,10 @@ class DAQPool(object):
     def runset(self, num):
         return self.__sets[num]
 
+
 class ThreadedRPCServer(ThreadingMixIn, RPCServer):
     pass
+
 
 class Connector(object):
     "Component connector"
@@ -514,6 +527,7 @@ class Connector(object):
     def port(self):
         "Return connector port number"
         return self.__port
+
 
 class CnCServer(DAQPool):
     "Command and Control Server"
@@ -591,7 +605,8 @@ class CnCServer(DAQPool):
             self.__server.register_function(self.rpc_component_get_bean_field)
             self.__server.register_function(self.rpc_component_list)
             self.__server.register_function(self.rpc_component_list_beans)
-            self.__server.register_function(self.rpc_component_list_bean_fields)
+            self.__server.register_function(
+                self.rpc_component_list_bean_fields)
             self.__server.register_function(self.rpc_component_list_dicts)
             self.__server.register_function(self.rpc_component_register)
             self.__server.register_function(self.rpc_cycle_live)
@@ -651,7 +666,7 @@ class CnCServer(DAQPool):
             compList += self.components()
         else:
             for c in self.components():
-                for i in [j for j,cid in enumerate(idList) if cid == c.id()]:
+                for i in [j for j, cid in enumerate(idList) if cid == c.id()]:
                     compList.append(c)
                     del idList[i]
                     break
@@ -663,7 +678,7 @@ class CnCServer(DAQPool):
                     compList += rs.components()
                 else:
                     for c in rs.components():
-                        for i in [j for j,cid in enumerate(idList)
+                        for i in [j for j, cid in enumerate(idList)
                                   if cid == c.id()]:
                             compList.append(c)
                             del idList[i]
@@ -682,7 +697,7 @@ class CnCServer(DAQPool):
         tGroup.wait()
         states = tGroup.results()
         for c in compList:
-            if states.has_key(c):
+            if c in states:
                 stateStr = str(states[c])
             else:
                 stateStr = DAQClientState.DEAD
@@ -787,9 +802,9 @@ class CnCServer(DAQPool):
         cfgDir = self.__runConfigDir
         try:
             return DAQConfigParser.getClusterConfiguration(None,
-                                                           useActiveConfig=True,
-                                                           clusterDesc=cdesc,
-                                                           configDir=cfgDir)
+                                                      useActiveConfig=True,
+                                                      clusterDesc=cdesc,
+                                                      configDir=cfgDir)
         except XMLFileNotFound:
             if cdesc is None:
                 cdescStr = ""
@@ -888,7 +903,8 @@ class CnCServer(DAQPool):
                     savedEx = CnCServerException("Cannot close file #%s: %s" %
                                                  (fd, exc_string()))
 
-        if savedEx is not None: raise savedEx
+        if savedEx is not None:
+            raise savedEx
 
         return 1
 
@@ -904,7 +920,7 @@ class CnCServer(DAQPool):
 
         slst = []
         for c in compList:
-            if results.has_key(c):
+            if c in results:
                 result = results[c]
             else:
                 result = DAQClientState.DEAD
@@ -1041,12 +1057,12 @@ class CnCServer(DAQPool):
             liveIP = ""
             livePort = 0
 
-        return { "id" : client.id(),
-                 "logIP" : logIP,
-                 "logPort" : logPort,
-                 "liveIP" : liveIP,
-                 "livePort" : livePort,
-                 "serverId" : self.__id }
+        return {"id": client.id(),
+                "logIP": logIP,
+                "logPort": logPort,
+                "liveIP": liveIP,
+                "livePort": livePort,
+                "serverId": self.__id}
 
     def rpc_cycle_live(self):
         "Restart DAQLive thread"
@@ -1096,15 +1112,15 @@ class CnCServer(DAQPool):
         else:
             termCond = "??%s??" % rsum.getTermCond()
 
-        return {"num" : rsum.getRun(),
-                "config" : rsum.getConfig(),
-                "result" : termCond,
-                "startTime" : str(rsum.getStartTime()),
-                "endTime" : str(rsum.getEndTime()),
-                "numEvents" : rsum.getEvents(),
-                "numMoni" : rsum.getMoni(),
-                "numTcal" : rsum.getTcal(),
-                "numSN" : rsum.getSN(),
+        return {"num": rsum.getRun(),
+                "config": rsum.getConfig(),
+                "result": termCond,
+                "startTime": str(rsum.getStartTime()),
+                "endTime": str(rsum.getEndTime()),
+                "numEvents": rsum.getEvents(),
+                "numMoni": rsum.getMoni(),
+                "numTcal": rsum.getTcal(),
+                "numSN": rsum.getSN(),
                 }
 
     def rpc_runset_active(self):
@@ -1383,7 +1399,9 @@ if __name__ == "__main__":
     p.add_option("-L", "--liveLog", type="string", dest="liveLog",
                  action="store", default=None,
                  help="Hostname:port for IceCube Live")
-    p.add_option("-o", "--default-log-dir", type="string", dest="defaultLogDir",
+
+    p.add_option("-o", "--default-log-dir", type="string",
+                 dest="defaultLogDir",
                  action="store", default="/mnt/data/pdaq/log",
                  help="Default directory for pDAQ log/monitoring files")
     p.add_option("-q", "--data-dir", type="string", dest="daqDataDir",
@@ -1450,7 +1468,7 @@ if __name__ == "__main__":
             sys.exit("ERROR: Bad log argument '%s'" % opt.log)
 
         logIP = opt.log[:colon]
-        logPort = int(opt.log[colon+1:])
+        logPort = int(opt.log[colon + 1:])
 
     if opt.liveLog is None:
         liveIP = None
@@ -1461,9 +1479,10 @@ if __name__ == "__main__":
             sys.exit("ERROR: Bad liveLog argument '%s'" % opt.liveLog)
 
         liveIP = opt.liveLog[:colon]
-        livePort = int(opt.liveLog[colon+1:])
+        livePort = int(opt.liveLog[colon + 1:])
 
-    if opt.daemon: Daemon.Daemon().Daemonize()
+    if opt.daemon:
+        Daemon.Daemon().Daemonize()
 
     cnc = CnCServer(clusterDesc=opt.clusterDesc, name="CnCServer",
                     copyDir=opt.copyDir, dashDir=opt.dashDir,

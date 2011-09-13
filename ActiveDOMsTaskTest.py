@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 
-import datetime, unittest
+import datetime
+import unittest
 
 from ActiveDOMsTask import ActiveDOMsTask
 from LiveImports import Prio
 
 from DAQMocks import MockComponent, MockIntervalTimer, MockLiveMoni, \
      MockLogger, MockRunSet, MockTaskManager
+
 
 class ActiveDOMsTaskTest(unittest.TestCase):
     def setUp(self):
@@ -59,13 +61,13 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         logger.checkStatus(4)
         live.hasAllMoni()
 
-        live.addExpected("stringDOMsInfo", {'1' : (numActive, numTotal)},
+        live.addExpected("stringDOMsInfo", {'1': (numActive, numTotal)},
                          Prio.EMAIL)
-        live.addExpected("stringRateInfo", {'1' : 50 },
+        live.addExpected("stringRateInfo", {'1': 50},
                          Prio.EMAIL)
-        live.addExpected("stringRateLCInfo", { '1' : 25},
+        live.addExpected("stringRateLCInfo", {'1': 25},
                          Prio.EMAIL)
-        live.addExpected("LBMOverflows", {'1' : numLBM},
+        live.addExpected("LBMOverflows", {'1': numLBM},
                          Prio.ITS)
         live.addExpected("activeDOMs", numActive,  Prio.ITS)
         live.addExpected("expectedDOMs", numTotal,  Prio.ITS)
@@ -181,13 +183,13 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         logger.checkStatus(4)
         live.hasAllMoni()
 
-        live.addExpected("stringDOMsInfo", {'1' : (numActive, numTotal)},
+        live.addExpected("stringDOMsInfo", {'1': (numActive, numTotal)},
                          Prio.EMAIL)
-        live.addExpected("stringRateInfo", {'1' : 50 },
+        live.addExpected("stringRateInfo", {'1': 50},
                          Prio.EMAIL)
-        live.addExpected("stringRateLCInfo", { '1' : 25 },
+        live.addExpected("stringRateLCInfo", {'1': 25},
                          Prio.EMAIL)
-        live.addExpected("LBMOverflows", {'1' : numLBM},
+        live.addExpected("LBMOverflows", {'1': numLBM},
                          Prio.ITS)
 
         foo.setBeanData("stringhub", "NumberOfActiveAndTotalChannels",

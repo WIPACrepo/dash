@@ -2,10 +2,13 @@
 
 import os
 
-class HostNotFoundException(Exception): pass
+
+class HostNotFoundException(Exception):
+    pass
+
 
 def find_pdaq_trunk():
-    curDir   = os.getcwd()
+    curDir = os.getcwd()
     homePDAQ = os.path.join(os.environ["HOME"], "pDAQ_trunk")
     [parentDir, baseName] = os.path.split(curDir)
     for dir in [curDir, parentDir, homePDAQ]:

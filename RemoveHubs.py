@@ -2,22 +2,25 @@
 #
 # Create a new run configuration without one or more hubs
 
-import os, sys
+import os
+import sys
 from utils import ip
 
 from CreateClusterConfig import ClusterConfigCreator
 from DAQConfig import DAQConfig, DAQConfigParser
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if os.environ.has_key("PDAQ_HOME"):
+if "PDAQ_HOME" in os.environ:
     metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
+
 def createClusterConfigName(fileName, hubIdList):
     configDir = os.path.join(metaDir, "cluster-config", "src", "main", "xml")
     return createConfigName(configDir, fileName, hubIdList)
+
 
 def createConfigName(configDir, fileName, hubIdList):
     """
@@ -33,6 +36,7 @@ def createConfigName(configDir, fileName, hubIdList):
 
     return os.path.join(configDir, baseName + noStr + ".xml")
 
+
 def getHubName(num):
     """Get the standard representation for a hub number"""
     if num > 0 and num < 100:
@@ -40,6 +44,7 @@ def getHubName(num):
     if num > 200 and num < 220:
         return "%02dt" % (num - 200)
     return "?%d?" % num
+
 
 def parseArgs():
     """
@@ -124,12 +129,12 @@ def parseArgs():
     return (forceCreate, runCfgName, cluCfgName, hubIdList)
 
 if __name__ == "__main__":
-    
+
     hostname = ip.getHostNameNoDomain()
-    if(hostname.lower()=="expcont"):
-        print >>sys.stderr, "-"*60
-        print >>sys.stderr, "Warning: Running RemoveHubs.py on expcont"
-        print >>sys.stderr, "-"*60
+    if(hostname.lower() == "expcont"):
+        print >> sys.stderr, "-" * 60
+        print >> sys.stderr, "Warning: Running RemoveHubs.py on expcont"
+        print >> sys.stderr, "-" * 60
 
     (forceCreate, runCfgName, cluCfgName, hubIdList) = parseArgs()
 

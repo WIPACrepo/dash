@@ -6,6 +6,7 @@ from RunSet import ConnTypeEntry, Connection
 
 from DAQMocks import MockComponent
 
+
 class TestCnCMisc(unittest.TestCase):
 
     def checkConnectionMap(self, expVal, cMap, key):
@@ -19,7 +20,7 @@ class TestCnCMisc(unittest.TestCase):
             for cData in data[3:]:
                 conn = Connector(cData[0], cData[1], cData[2])
 
-                if not cDict.has_key(conn.name()):
+                if not conn.name() in cDict:
                     cDict[conn.name()] = ConnTypeEntry(conn.name())
                 cDict[conn.name()].add(conn, comp)
 
@@ -115,7 +116,7 @@ class TestCnCMisc(unittest.TestCase):
 
         for comp in cMap.keys():
             key = str(comp)
-            if not expMap.has_key(key):
+            if not key in expMap:
                 self.fail("Unexpected connection map entry for \"%s\"" % key)
             for entry in cMap[comp]:
                 entryMap = entry.map()
@@ -123,7 +124,7 @@ class TestCnCMisc(unittest.TestCase):
                 conn = entryMap["type"]
                 comp = "%s#%d" % (entryMap["compName"], entryMap["compNum"])
 
-                if not expMap[key].has_key(conn):
+                if not conn in expMap[key]:
                     self.fail(("Component \"%s\" should not have a \"%s\"" +
                                " connection") % (key, conn))
 
