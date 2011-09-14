@@ -7,7 +7,10 @@ from IntervalTimer import IntervalTimer
 from LiveImports import Component, SERVICE_NAME
 from RunOption import RunOption
 
-class LiveException(Exception): pass
+
+class LiveException(Exception):
+    pass
+
 
 class DAQLive(Component):
     "Frequency of monitoring uploads"
@@ -39,7 +42,8 @@ class DAQLive(Component):
 
         return rtnVal
 
-    def runChange(self, stateArgs=None): raise NotImplementedError()
+    def runChange(self, stateArgs=None):
+        raise NotImplementedError()
 
     def running(self, retry=True):
         if self.__runSet is None:

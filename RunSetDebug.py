@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 class RunSetDebug(object):
     ACTDOM_TASK = 0x1
     MONI_TASK = 0x2
@@ -14,12 +15,12 @@ class RunSetDebug(object):
           START_RUN | STOP_RUN
 
     NAME_MAP = {
-        "activeDomsTask" : ACTDOM_TASK,
-        "moniTask" : MONI_TASK,
-        "radarTask" : RADAR_TASK,
-        "rateTask" : RATE_TASK,
-        "watchdogTask" : WATCH_TASK,
-        "startRun" : START_RUN,
-        "stopRun" : STOP_RUN,
-        "all" : ALL,
+        "activeDomsTask": ACTDOM_TASK,
+        "moniTask": MONI_TASK,
+        "radarTask": RADAR_TASK,
+        "rateTask": RATE_TASK,
+        "watchdogTask": WATCH_TASK,
+        "startRun": START_RUN,
+        "stopRun": STOP_RUN,
+        "all": ALL,
         }

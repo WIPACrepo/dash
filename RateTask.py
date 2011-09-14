@@ -4,6 +4,7 @@ from CnCTask import CnCTask
 from CnCThread import CnCThread
 from RunSetDebug import RunSetDebug
 
+
 class RateThread(CnCThread):
     "A thread which reports the current event rates"
     def __init__(self, runset, dashlog):
@@ -32,6 +33,7 @@ class RateThread(CnCThread):
         thrd = RateThread(self.__runset, self.__dashlog)
         return thrd
 
+
 class RateTask(CnCTask):
     NAME = "Rate"
     PERIOD = 60
@@ -43,7 +45,8 @@ class RateTask(CnCTask):
         self.__thread = RateThread(runset, dashlog)
         self.__badCount = 0
 
-        if period is None: period = self.PERIOD
+        if period is None:
+            period = self.PERIOD
 
         super(RateTask, self).__init__("Rate", taskMgr, dashlog,
                                        self.DEBUG_BIT, self.NAME, period)

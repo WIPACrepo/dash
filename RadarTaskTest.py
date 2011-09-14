@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 
-import datetime, unittest
+import datetime
+import unittest
 
 from RadarTask import RadarTask, RadarThread
 from LiveImports import Prio
 
 from DAQMocks import MockComponent, MockIntervalTimer, MockLiveMoni, \
      MockLogger, MockRunSet, MockTaskManager
+
 
 class RadarTaskTest(unittest.TestCase):
     def setUp(self):

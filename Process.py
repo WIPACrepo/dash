@@ -4,6 +4,7 @@ import os
 import re
 from subprocess import Popen, PIPE, STDOUT
 
+
 def processList():
     command = "ps axww"
     p = Popen(command, shell=True, close_fds=True, stdout=PIPE, stderr=STDOUT)
@@ -14,7 +15,8 @@ def processList():
         raise SystemExit
     return [s.strip() for s in output]
 
-def findProcess(name, plist=None): # Iterate over list plist
+
+def findProcess(name, plist=None):  # Iterate over list plist
     if plist is None:
         plist = processList()
     for p in plist:

@@ -1,17 +1,22 @@
 #!/usr/bin/env python
 
-import shutil, sys, tempfile, unittest
+import shutil
+import sys
+import tempfile
+import unittest
 from CnCServer import Connector, DAQPool
 
 from DAQMocks import MockAppender, MockDAQClient, MockLogger, MockRunConfigFile
 
 LOUD = False
 
+
 class MyDAQPool(DAQPool):
     def returnRunsetComponents(self, rs, verbose=False, killWith9=True,
                                eventCheck=False):
         rs.returnComponents(self, None, None, None, None, None, None, None,
                             None)
+
 
 class Node(object):
     IS_OUTPUT = True
@@ -104,10 +109,11 @@ class Node(object):
         else:
             links = self.inLinks
 
-        if not links.has_key(ioType):
+        if not ioType in links:
             links[ioType] = []
 
         links[ioType].append(comp)
+
 
 class ConnectionTest(unittest.TestCase):
     EXP_ID = 1

@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
-import os, unittest
+import os
+import unittest
 from DAQConfig import DAQConfigParser
 from RunCluster import RunCluster, RunClusterError
+
 
 class DeployData(object):
     def __init__(self, host, name, id=0):
@@ -25,6 +27,7 @@ class DeployData(object):
     def matches(self, host, name, id):
         return self.host == host and self.name.lower() == name.lower() and \
             self.id == id
+
 
 class RunClusterTest(unittest.TestCase):
     CONFIG_DIR = os.path.abspath('src/test/resources/config')

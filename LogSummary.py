@@ -222,7 +222,8 @@ class CatchallLog(ComponentLog):
                     if m:
                         continue
 
-                self.logError("State %s: %s" % (self.__stateString(state), line))
+                self.logError("State %s: %s" % \
+                                  (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         pass
@@ -270,7 +271,8 @@ class CnCServerLog(ComponentLog):
                         waitState = m.group(4)
                         continue
 
-                self.logError("State %s: %s" % (self.__stateString(state), line))
+                self.logError("State %s: %s" % \
+                                  (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         pass
@@ -414,7 +416,8 @@ class DashLog(ComponentLog):
                     m = self.WATCHDOG_TIMEOUT.match(line)
                     if m:
                         self.logError("%s RunWatchdog timeout for %s %s" %
-                                      (m.group(1).rstrip(), m.group(2), m.group(3)))
+                                      (m.group(1).rstrip(), m.group(2),
+                                       m.group(3)))
                         continue
 
                     m = self.WATCHDOG_RESET.match(line)
@@ -763,7 +766,8 @@ class GlobalTriggerLog(ComponentLog):
                             line.find("Resetting logging") >= 0:
                         continue
 
-                self.logError("State %s: %s" % (self.__stateString(state), line))
+                self.logError("State %s: %s" % \
+                                  (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         if verbose:
@@ -1148,7 +1152,8 @@ class SecondaryBuildersLog(ComponentLog):
                         state = self.STATE_INITIAL
                         continue
 
-                self.logError("State %s: %s" % (self.__stateString(state), line))
+                self.logError("State %s: %s" % \
+                                  (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         if verbose:
@@ -1438,7 +1443,8 @@ class StringHubLog(ComponentLog):
                             self.__prevRpt.append(("Previous DOM on %s (#%d)," +
                                                    " current DOM on %s (#%d)") %
                                                   (self.__getCardLoc(nextFound),
-                                                   nextFound, self.__getCardLoc(num),
+                                                   nextFound,
+                                                   self.__getCardLoc(num),
                                                    num))
                             nextFound = num + 1
                         totalDOMs += 1
@@ -1446,7 +1452,8 @@ class StringHubLog(ComponentLog):
 
                     m = self.FOUND_PAIR.match(line)
                     if m:
-                        num = self.__getPairNumber(int(m.group(2)), int(m.group(3)),
+                        num = self.__getPairNumber(int(m.group(2)),
+                                                   int(m.group(3)),
                                                    "A")
                         if num != nextFound:
                             self.__prevRpt.append(("Previous pair on %s (#%d)," +
@@ -1694,7 +1701,8 @@ class StringHubLog(ComponentLog):
                                     self.__domMap[cardLoc].setStartRun()
                                 except LogParseException, lpe:
                                     self.logError("WARNING: %s(%s) start run: %s" %
-                                                  (cardLoc, str(self.__domMap[cardLoc]),
+                                                  (cardLoc,
+                                                   str(self.__domMap[cardLoc]),
                                                    str(lpe)))
                                 continue
 
@@ -1760,7 +1768,8 @@ class StringHubLog(ComponentLog):
                     if line.find("Found STOP symbol in stream - shutting down"):
                         continue
 
-                self.logError("State %s: %s" % (self.__stateString(state), line))
+                self.logError("State %s: %s" % \
+                                  (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         if verbose:

@@ -5,6 +5,7 @@ from DAQClient import DAQClient
 
 from DAQMocks import MockAppender, MockCnCLogger
 
+
 class MostlyDAQClient(DAQClient):
     def __init__(self, name, num, host, port, mbeanPort, connectors, appender):
         self.__appender = appender
@@ -21,6 +22,7 @@ class MostlyDAQClient(DAQClient):
 
     def createMBeanClient(self, host, port):
         return None
+
 
 class TestDAQClient(unittest.TestCase):
     def testInit(self):

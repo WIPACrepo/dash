@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
-import datetime, os, socket, threading
+import datetime
+import os
+import socket
+import threading
 
 from CnCTask import CnCTask
 from CnCThread import CnCThread
@@ -10,6 +13,7 @@ from RunSetDebug import RunSetDebug
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
+
 
 class MonitorThread(CnCThread):
     def __init__(self, comp, runDir, live, runOptions, dashlog, reporter=None,
@@ -106,11 +110,15 @@ class MonitorThread(CnCThread):
                              self.__reporter, now, self.__refused)
         return thrd
 
-    def isWarned(self): return self.__warned
+    def isWarned(self):
+        return self.__warned
 
-    def refusedCount(self): return self.__refused
+    def refusedCount(self):
+        return self.__refused
 
-    def setWarned(self): self.__warned = True
+    def setWarned(self):
+        self.__warned = True
+
 
 class MonitorToFile(object):
     def __init__(self, dir, basename):
@@ -133,6 +141,7 @@ class MonitorToFile(object):
         print >>self.__fd
         self.__fd.flush()
 
+
 class MonitorToLive(object):
     def __init__(self, name, live):
         self.__name = name
@@ -146,6 +155,7 @@ class MonitorToLive(object):
             self.__live.sendMoni("%s*%s+%s" % (self.__name, beanName, key),
                                  attrs[key], Prio.ITS, now)
 
+
 class MonitorToBoth(object):
     def __init__(self, dir, basename, live):
         self.__file = MonitorToFile(dir, basename)
@@ -158,6 +168,7 @@ class MonitorToBoth(object):
     def send(self, now, beanName, attrs):
         self.__file.send(now, beanName, attrs)
         self.__live.send(now, beanName, attrs)
+
 
 class MonitorTask(CnCTask):
     NAME = "Monitoring"
@@ -177,7 +188,8 @@ class MonitorTask(CnCTask):
                 self.__threadList[c] = self.createThread(c, runDir, live,
                                                          runOptions, dashlog)
 
-        if period is None: period = self.PERIOD
+        if period is None:
+            period = self.PERIOD
 
         super(MonitorTask, self).__init__("Monitor", taskMgr, dashlog,
                                           self.DEBUG_BIT, self.NAME,
@@ -214,7 +226,8 @@ class MonitorTask(CnCTask):
                 if savedEx is None:
                     savedEx = ex
 
-        if savedEx is not None: raise savedEx
+        if savedEx is not None:
+            raise savedEx
 
     def numOpen(self):
         num = 0

@@ -1,9 +1,14 @@
 #!/usr/bin/env python
 
-import datetime, os, tempfile, time, unittest
+import datetime
+import os
+import tempfile
+import time
+import unittest
 from DAQLog import LogSocketServer
 
 from DAQMocks import SocketWriter
+
 
 class TestDAQLog(unittest.TestCase):
     DIR_PATH = None

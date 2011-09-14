@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-import optparse, sys, time
+import optparse
+import sys
+import time
 from DAQFakeRun import ComponentData, DAQFakeRun, FakeClient
 
 if __name__ == "__main__":
@@ -45,11 +47,11 @@ if __name__ == "__main__":
     else:
         compData = ComponentData.createAll(opt.numHubs, not opt.realNames)
 
-
     if opt.extraHubs <= 0:
         extraData = None
     else:
-        extraData = ComponentData.createHubs(opt.extraHubs, not opt.realNames, False)
+        extraData = ComponentData.createHubs(opt.extraHubs,
+                                             not opt.realNames, False)
 
     from DumpThreads import DumpThreadsOnSignal
     DumpThreadsOnSignal()

@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 
-import cmd, sys, traceback
+import cmd
+import sys
+import traceback
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
+
 
 class Dash(cmd.Cmd):
     CMD_BEAN = "bean"
@@ -10,9 +13,9 @@ class Dash(cmd.Cmd):
     CMD_LS = "ls"
 
     CMDS = {
-        CMD_BEAN : "get bean data",
-        CMD_HELP : "print this message",
-        CMD_LS : "list component info",
+        CMD_BEAN: "get bean data",
+        CMD_HELP: "print this message",
+        CMD_LS: "list component info",
         }
 
     def __init__(self):
@@ -74,7 +77,8 @@ class Dash(cmd.Cmd):
             numIds = len(ids)
             for i in range(numIds):
                 rsid = ids[i]
-                if i > 0: print
+                if i > 0:
+                    print
                 state = self.__cnc.rpc_runset_state(rsid)
                 print "Runset #%d: %s" % (rsid, state)
 
@@ -137,7 +141,8 @@ class Dash(cmd.Cmd):
                                     str(sub["compNum"])
                             rsDict[rsid][nm] = sub["id"]
                         if compName is None:
-                            print "Find \"%s\" in RS#%d %s" % (bflds[0], rsid, rsDict[rsid].keys())
+                            print "Find \"%s\" in RS#%d %s" % \
+                                (bflds[0], rsid, rsDict[rsid].keys())
                             (compName, compId) = \
                                 self.__findComponentFromString(rsDict[rsid],
                                                                bflds[0])

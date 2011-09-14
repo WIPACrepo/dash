@@ -282,7 +282,8 @@ def processFile(fileName, comp):
 
                 secName = nm
                 mSec = float(m.group(3)) / 1000000.0
-                secTime = time.mktime(time.strptime(m.group(2), TIMEFMT)) + mSec
+                secTime = time.mktime(time.strptime(m.group(2),
+                                                    TIMEFMT)) + mSec
 
                 if not secName in data:
                     data[secName] = {}

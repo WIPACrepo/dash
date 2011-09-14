@@ -1,11 +1,15 @@
 #!/usr/bin/env python
 
-import optparse, socket, sys, traceback
+import optparse
+import socket
+import sys
+import traceback
 
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from RunSet import RunSet
 from RunSetDebug import RunSetDebug
+
 
 def parseFlags(flagStr):
     bits = 0
@@ -43,7 +47,7 @@ if __name__ == "__main__":
                   action="store_true", default=False,
                   help="List debugging flags")
 
-    opt,args = op.parse_args()
+    opt, args = op.parse_args()
 
     rpc = RPCClient("localhost", DAQPort.CNCSERVER)
 

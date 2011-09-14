@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 class RunSetState(object):
     """
     These strings should match the state names in
@@ -20,4 +21,5 @@ class RunSetState(object):
     # ERROR is not defined in DAQComponent
     ERROR = "error"
 
-if __name__ == "__main__": pass
+if __name__ == "__main__":
+    pass
