@@ -101,7 +101,8 @@ class ThresholdWatcher(Watcher):
         return True
 
     def unhealthyRecord(self, value):
-        if isinstance(value, Exception) and not isinstance(value, TaskException):
+        if isinstance(value, Exception) and \
+                not isinstance(value, TaskException):
             msg = "%s: %s" % (str(self), exc_string())
         else:
             msg = "%s (value=%s)" % (str(self), str(value))
@@ -212,7 +213,8 @@ class ValueWatcher(Watcher):
                not isinstance(value, TaskException):
             msg = "%s: %s" % (str(self), exc_string())
         else:
-            msg = "%s not changing from %s" % (str(self), str(self.__prevValue))
+            msg = "%s not changing from %s" % (str(self),
+                                               str(self.__prevValue))
         return UnhealthyRecord(msg, self.__order)
 
 
@@ -263,8 +265,9 @@ class WatchData(object):
                 fldList.append(f.fieldName())
 
             try:
-                valMap = self.__comp.getMultiBeanFields(watchList[0].beanName(),
-                                                        fldList)
+                valMap = self.__comp.getMultiBeanFields(
+                    watchList[0].beanName(),
+                    fldList)
             except Exception, ex:
                 fldList = []
                 unhealthy.append(watchList[0].unhealthyRecord(ex))
@@ -399,9 +402,10 @@ class WatchdogThread(CnCThread):
 
         if self.__data is None:
             try:
-                self.__data = self.__rule.createData(self.__comp,
-                                                     self.__runset.components(),
-                                                     self.__dashlog)
+                self.__data = self.__rule.createData(
+                    self.__comp,
+                    self.__runset.components(),
+                    self.__dashlog)
             except:
                 self.__initFail += 1
                 self.__dashlog.error("Initialization failure #%d for %s %s" %

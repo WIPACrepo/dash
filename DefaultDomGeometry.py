@@ -88,6 +88,17 @@ class XMLParser(object):
 
     @staticmethod
     def getSingleAttribute(node, attrName, strict=True, checkSingle=True):
+        """
+        fd.write('node: ', node)
+        fd.write('node.attributes: ', node.attributes)
+        fd.write('attrName: ', attrName)
+        fd.write('node type: ', type(node), '\n')
+        fd.write('attribute type: ', type(node.attributes), '\n')
+        fd.write('attrName type: ', type(attrName), '\n')
+        fd.write('node.attributes.has_key(attrName): ',
+                node.attributes.has_key(attrName))
+        fd.write('attrName in node.attributes: ', attrName in node.attributes)
+        """
         if node.attributes is None or len(node.attributes) == 0:
             if strict:
                 raise ProcessError("<%s> node has no attributes" %
@@ -100,6 +111,30 @@ class XMLParser(object):
 
         # Note..  THIS IS AN ODD line
         # using 'in' does not work here
+        with open('geom-odd.log', 'a+') as fd:
+            fd.write(("node: %s\nattribute:%s\n"
+                      "type(node): %s\ntype(attributes)=%s\n") % \
+                         (node, node.attributes, type(node),
+                          type(node.attributes)))
+
+            fd.write("attrName: %s, type(attrname): %s\n" % \
+                         (attrName, type(attrName)))
+
+            fd.write("len(attributes): %d\n" % len(node.attributes))
+
+            try:
+                fd.write("has_key: %s\n" % \
+                             (not node.attributes.has_key(attrName)))
+            except Exception, e:
+                fd.write("has key exception: %s\n" % e)
+
+            try:
+                fd.write("in: %s\n" % (attrName in node.attributes))
+            except Exception, e:
+                fd.write("in exception: %s\n" % e)
+                fd.write("in exception type: %s\n" % type(e))
+                traceback.print_exc(file=fd)
+
         if not node.attributes.has_key(attrName):
             if strict:
                 raise ProcessError(("<%s> node has no \"%s\" attribute") %
@@ -750,7 +785,8 @@ class DefaultDomGeometryReader(XMLParser):
         try:
             dom = minidom.parse(fileName)
         except Exception, e:
-            raise ProcessError("Couldn't parse \"%s\": %s" % (fileName, str(e)))
+            raise ProcessError("Couldn't parse \"%s\": %s" % (fileName,
+                                                              str(e)))
 
         gList = dom.getElementsByTagName("domGeometry")
         if gList is None or len(gList) != 1:
@@ -814,8 +850,9 @@ class DomsTxtReader(object):
                     strNum = int(strStr)
                     pos = int(posStr)
                 except:
-                    print >>sys.stderr, "Bad location \"%s\" for DOM \"%s\"" % \
-                        (loc, prodId)
+                    print >>sys.stderr, ("Bad location \"%s\" "
+                                         "for DOM \"%s\"") % \
+                                         (loc, prodId)
                     continue
 
                 if pos <= 60:
@@ -876,8 +913,9 @@ class NicknameReader(object):
                     strNum = int(strStr)
                     pos = int(posStr)
                 except:
-                    print >>sys.stderr, "Bad location \"%s\" for DOM \"%s\"" % \
-                        (loc, prodId)
+                    print >>sys.stderr, ("Bad location \"%s\" "
+                                         "for DOM \"%s\"") % \
+                                         (loc, prodId)
                     continue
 
                 if pos <= 60:
@@ -941,7 +979,8 @@ class GeometryFileReader(object):
 
                 m = LINE_PAT.match(line)
                 if not m:
-                    print >>sys.stderr, "Bad geometry line %d: %s" % (linenum, line)
+                    print >>sys.stderr, "Bad geometry line %d: %s" % (linenum,
+                                                                      line)
                     continue
 
                 strStr = m.group(1)
@@ -975,8 +1014,9 @@ class GeometryFileReader(object):
                             cname = "y"
                         else:
                             cname = "z"
-                        print >>sys.stderr, "Bad %s coord \"%s\" on line %d" % \
-                            (cname, cStr, linenum)
+                        print >>sys.stderr, ("Bad %s coord \"%s\" "
+                                             "on line %d") % \
+                                             (cname, cStr, linenum)
                         break
 
                 if len(coords) != 3:

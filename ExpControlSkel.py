@@ -26,7 +26,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 13355 2011-09-13 23:05:53Z mnewcomb $"
+SVN_ID = "$Id: ExpControlSkel.py 13366 2011-09-16 03:33:55Z mnewcomb $"
 
 
 class DOMArgumentException(Exception):
@@ -103,9 +103,11 @@ class SubRunDOM(object):
 
     def flasherInfo(self):
         if self.mbid != None:
-            return (self.mbid, self.bright, self.window, self.delay, self.mask, self.rate)
+            return (self.mbid, self.bright, self.window,
+                    self.delay, self.mask, self.rate)
         elif self.string != None and self.pos != None:
-            return (self.string, self.pos, self.bright, self.window, self.delay, self.mask, self.rate)
+            return (self.string, self.pos, self.bright, self.window,
+                    self.delay, self.mask, self.rate)
         else:
             raise DOMArgumentException()
 
@@ -142,14 +144,17 @@ class SubRun:
     def addDOM(self, d):
         #self.domlist.append(SubRunDOM(string, pos,  bright, window, delay,
         #                              mask, rate))
-        raise NotImplementedError("source for SubRunDOM class parameters not known")
+        raise NotImplementedError(("source for SubRunDOM class"
+                                   "parameters not known"))
 
     def __str__(self):
         typ = "FLASHER"
         if self.type == SubRun.DELAY:
             typ = "DELAY"
 
-        s = "SubRun ID=%d TYPE=%s DURATION=%d\n" % (self.id, typ, self.duration)
+        s = "SubRun ID=%d TYPE=%s DURATION=%d\n" % (self.id,
+                                                    typ,
+                                                    self.duration)
         if self.type == SubRun.FLASH:
             for m in self.domlist:
                 s += "%s\n" % m
@@ -172,9 +177,11 @@ class SubRunSet:
     2/11/2011
     """
     def __init__(self, fileName):
-        """Probably unused.. - consider removing this if no one uses it for a while longer"""
+        """Probably unused.. - consider removing this if no one
+        uses it for a while longer"""
 
-        raise NotImplementedError("calls addDom method that wants one argument and this one has many args")
+        raise NotImplementedError(("calls addDom method that wants"
+                                   "one argument and this one has many args"))
         self.subruns = []
         num = 0
         sr = None
@@ -195,8 +202,10 @@ class SubRunSet:
                 sr = SubRun(SubRun.FLASH, t, num)
                 self.subruns.append(sr)
                 num += 1
-            m6 = re.search('^\s*(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
-            m7 = re.search('^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
+            m6 = re.search(('^\s*(\S+)\s+(\d+)\s+(\d+)\s+'
+                            '(\d+)\s+(\S+)\s+(\d+)\s*$'), l)
+            m7 = re.search(('^\s*(\d+)\s+(\d+)\s+(\d+)\s+'
+                            '(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$'), l)
             if m7 and sr:
                 string = int(m7.group(1))
                 pos = int(m7.group(2))
@@ -267,7 +276,8 @@ def main():
             # to run daq launch you should either be a control host or
             # a totally unknown host
             print >>sys.stderr, \
-                "Are you sure you are running ExpControlSkel on the correct host?"
+                ("Are you sure you are running ExpControlSkel "
+                 "on the correct host?")
             raise SystemExit
 
     if opt.runConfig == None:

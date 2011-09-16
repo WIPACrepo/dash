@@ -197,8 +197,9 @@ class LiveChecker(BaseLiveChecker):
                 name = str(checker)
                 if debug:
                     print >>sys.stderr, '*** %s:LIVE: %s' % (name, valStr)
-                checker.setError('Expected %s live log message "%s", not "%s"' %
-                                 (name, valStr, msg))
+                checker.setError(('Expected %s live log message '
+                                  '"%s", not "%s"') % \
+                                     (name, valStr, msg))
             return False
 
         return True
@@ -1171,8 +1172,8 @@ class MockParallelShell(object):
 
     def check(self):
         if len(self.__exp) > 0:
-            raise Exception('ParallelShell did not receive expected commands:' +
-                            ' %s' % str(self.__exp))
+            raise Exception(('ParallelShell did not receive expected commands:'
+                             ' %s') % str(self.__exp))
 
     def getMetaPath(self, subdir):
         return os.path.join(METADIR, subdir)
@@ -1355,7 +1356,7 @@ class MockXMLRPC(object):
             tmpLinks[k][0:] = self.outLinks[k][0:len(self.outLinks[k])]
 
         for l in list:
-            if not tmpLinks.has_key(l['type']):
+            if not l['type'] in tmpLinks:
                 raise ValueError(('Component %s#%d should not have a "%s"' +
                                   ' connection') %
                                  (self.name, self.num, l['type']))
@@ -1370,9 +1371,13 @@ class MockXMLRPC(object):
                     break
 
             if not comp:
-                raise ValueError(('Component %s#%d should not connect to %s:%s#%d') %
-                                 (self.name, self.num, l['type'], l['compName'],
-                                  l.getCompNum()))
+                raise ValueError(("Component %s#%d "
+                                  "should not connect to %s:%s#%d") % \
+                                     (self.name,
+                                      self.num,
+                                      l['type'],
+                                      l['compName'],
+                                      l.getCompNum()))
 
         if len(tmpLinks) > 0:
             errMsg = 'Component ' + self.name + '#' + str(self.num) + \
@@ -1439,8 +1444,9 @@ class SocketReader(LogChecker):
 
     def __listener(self, sock):
         """
-        Create listening, non-blocking UDP socket, read from it, and write to file;
-        close socket and end thread if signaled via self.__thread variable.
+        Create listening, non-blocking UDP socket, read from it, and write
+        to file; close socket and end thread if signaled via self.__thread
+        variable.
         """
         self.__serving = True
         try:
@@ -1453,7 +1459,8 @@ class SocketReader(LogChecker):
                     raise Exception("Error on select was detected.")
                 if len(rd) == 0:
                     continue
-                while 1:  # Slurp up waiting packets, return to select if EAGAIN
+                # Slurp up waiting packets, return to select if EAGAIN
+                while 1:
                     try:
                         data = sock.recv(8192, socket.MSG_DONTWAIT)
                     except:
@@ -1508,7 +1515,8 @@ class SocketReader(LogChecker):
 
     def startServing(self):
         if self.__thread is not None:
-            raise Exception('Socket reader %s is already running' % self.__name)
+            raise Exception('Socket reader %s is already running' % \
+                                self.__name)
 
         if os.name == "nt":
             sock = self.__win_bind()
@@ -1607,35 +1615,53 @@ class RunXMLValidator:
             run = DashXMLLog.parse()
 
             test_case.assertEqual(run.getRun(), runNum,
-                                  "Expected run number %s, not %s" % (runNum, run.getRun()))
+                                  "Expected run number %s, not %s" % \
+                                      (runNum,
+                                       run.getRun()))
+
             test_case.assertEqual(run.getConfig(), cfgName,
                              "Expected config \"%s\", not \"%s\"" %
                              (cfgName, run.getConfig()))
+
             if startTime is not None:
                 test_case.assertEqual(run.getStartTime(), startTime,
-                                      "Expected start time %s<%s>, not %s<%s>" %
-                                      (startTime, type(startTime),
-                                       run.getStartTime(), type(run.getStartTime())))
+                                      ("Expected start time %s<%s>, "
+                                       "not %s<%s>") % \
+                                          (startTime,
+                                           type(startTime),
+                                           run.getStartTime(),
+                                           type(run.getStartTime())))
             if endTime is not None:
                 test_case.assertEqual(run.getEndTime(), endTime,
-                                      "Expected end time %s<%s>, not %s<%s>" %
-                                      (endTime, type(endTime),
-                                       run.getEndTime(), type(run.getEndTime())))
+                                      ("Expected end time %s<%s>, "
+                                       "not %s<%s>") % \
+                                          (endTime,
+                                           type(endTime),
+                                           run.getEndTime(),
+                                           type(run.getEndTime())))
+
             test_case.assertEqual(run.getTermCond(), failed,
                                   "Expected terminal condition %s, not %s" %
                                   (failed, run.getTermCond()))
+
             test_case.assertEqual(run.getEvents(), numEvts,
                                   "Expected number of events %s, not %s" %
                                   (numEvts, run.getEvents()))
+
             test_case.assertEqual(run.getMoni(), numMoni,
-                                  "Expected number of monitoring events %s, not %s" %
-                                  (numMoni, run.getMoni()))
+                                  ("Expected number of monitoring events %s, "
+                                   "not %s") % \
+                                      (numMoni, run.getMoni()))
+
             test_case.assertEqual(run.getTcal(), numTcal,
-                                  "Expected number of time cal events %s, not %s" %
-                                  (numTcal, run.getTcal()))
+                                  ("Expected number of time cal events %s, "
+                                   "not %s") % \
+                                      (numTcal, run.getTcal()))
+
             test_case.assertEqual(run.getSN(), numSN,
-                                  "Expected number of supernova events %s, not %s" %
-                                  (numSN, run.getSN()))
+                                  ("Expected number of supernova events %s, "
+                                   "not %s") % \
+                                      (numSN, run.getSN()))
         finally:
             try:
                 os.remove("run.xml")
@@ -1727,7 +1753,8 @@ class MockLiveMoni(object):
             del self.__expMoni[var]
 
         if expData is None:
-                raise Exception(("Expected live monitor data from (%s/%s), not (var=%s, val=%s, prio=%d)") %
+            raise Exception(("Expected live monitor data from (%s/%s), not "
+                             "(var=%s, val=%s, prio=%d)") % \
                                 (var, self.__expMoni[var], var, val, prio))
 
         return True

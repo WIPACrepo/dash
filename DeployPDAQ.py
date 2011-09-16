@@ -33,7 +33,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 13355 2011-09-13 23:05:53Z mnewcomb $"
+SVN_ID = "$Id: DeployPDAQ.py 13366 2011-09-16 03:33:55Z mnewcomb $"
 
 
 def getUniqueHostNames(config):
@@ -86,7 +86,8 @@ def main():
                  " (disables quiet)")
     p.add_option("", "--deep-dry-run", dest="deepDryRun",
                  action="store_true", default=False,
-                 help="Run rsync's with --dry-run (implies verbose and serial)")
+                 help=("Run rsync's with --dry-run "
+                       "(implies verbose and serial)"))
     p.add_option("-p", "--parallel", dest="doParallel",
                  action="store_true", default=True,
                  help="Run rsyncs in parallel (default)")
@@ -127,7 +128,8 @@ def main():
         hostid = Machineid()
         if(not (hostid.is_build_host() or
            (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
-            print >>sys.stderr, "Are you sure you are running DeployPDAQ on the correct host?"
+            print >>sys.stderr, ("Are you sure you are running DeployPDAQ "
+                                 "on the correct host?")
             raise SystemExit
 
     ## Work through options implications ##
@@ -295,7 +297,8 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
             nodeName = "unknown" if cmd not in cmdToNodeNameDict else cmdToNodeNameDict[cmd]
             if(rtn_code != 0):
                 print "-" * 60
-                print "Error non-zero return code  ( %d ) for host:%s cmd:%s" % (rtn_code, nodeName, cmd)
+                print ("Error non-zero return code  ( %d ) "
+                       "for host:%s cmd:%s") % (rtn_code, nodeName, cmd)
                 if(len(result) > 0):
                     print "Results: %s" % result
 

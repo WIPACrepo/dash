@@ -460,8 +460,12 @@ class DomConfigParser(XMLParser, XMLFileCache):
                 if kid.nodeName == "cableLength":
                     if kid.attributes is None or \
                            len(kid.attributes) == 0:
-                        raise ProcessError("%s %s <%s> node has no attributes" %
-                                           (dom, node.nodeName, kid.nodeName))
+                        raise ProcessError(("%s %s <%s> node "
+                                            "has no attributes") % \
+                                               (dom,
+                                                node.nodeName,
+                                                kid.nodeName))
+
                     if not kid.attributes.has_key("dir"):
                         raise ProcessError(("%s %s <%s> node is missing" +
                                             " \"dir\" attribute") %
@@ -1190,17 +1194,24 @@ class DAQConfig(object):
                     ttTrig = True
 
         if iiHub and not iiTrig:
-            raise ProcessError("Found in-ice hubs but no in-ice trigger in %s" %
-                               self.basename())
+            raise ProcessError(("Found in-ice hubs "
+                                "but no in-ice trigger in %s") % \
+                                   self.basename())
+
         if not iiHub and iiTrig:
-            raise ProcessError("Found in-ice trigger but no in-ice hubs in %s" %
-                               self.basename())
+            raise ProcessError(("Found in-ice trigger "
+                                "but no in-ice hubs in %s") % \
+                                   self.basename())
+
         if ttHub and not ttTrig:
-            raise ProcessError("Found icetop hubs but no icetop trigger in %s" %
-                               self.basename())
+            raise ProcessError(("Found icetop hubs "
+                                "but no icetop trigger in %s") % \
+                                   self.basename())
+
         if not ttHub and ttTrig:
-            raise ProcessError("Found icetop trigger but no icetop hubs in %s" %
-                               self.basename())
+            raise ProcessError(("Found icetop trigger "
+                                "but no icetop hubs in %s") % \
+                                   self.basename())
 
     def watchdogPeriod(self):
         return self.__watchdogPeriod
@@ -1336,17 +1347,18 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                     if gkid.nodeType == Node.ELEMENT_NODE:
                         if gkid.nodeName != "forwardIsolatedHitsToTrigger":
                             if strict:
-                                raise ProcessError(("Unknown <%s> node under" +
-                                                    " <%s>") %
-                                                   (gkid.nodeName,
-                                                    kid.nodeName))
+                                raise ProcessError(("Unknown <%s> node under"
+                                                    " <%s>") % \
+                                                       (gkid.nodeName,
+                                                        kid.nodeName))
                             continue
 
                         val = cls.getChildText(gkid).strip()
                         fwdIsolatedHits = cls.parseBooleanString(val)
                         if fwdIsolatedHits is None:
-                            raise ProcessError("Unknown value \"%s\" for <%s>" %
-                                               (val, gkid.nodeName))
+                            raise ProcessError(("Unknown value \"%s\" "
+                                                "for <%s>") % \
+                                                   (val, gkid.nodeName))
 
         if strict and fwdIsolatedHits is None:
             raise ProcessError("No value specified for <%s>" %
@@ -1581,8 +1593,9 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                     if cls.STRAY_STREAM_HACK:
                         cls.__parseStrayStream(kid, runCfg)
                     else:
-                        print >> sys.stderr, "Ignoring stray <stream> in %s" % \
-                              fileName
+                        print >> sys.stderr, ("Ignoring stray <stream> "
+                                              "in %s") % \
+                                              fileName
                 elif strict:
                     raise ProcessError("Unknown runConfig node <%s> in %s" %
                                        (kid.nodeName, fileName))
@@ -1625,7 +1638,8 @@ if __name__ == "__main__":
            (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
             # to run daq launch you should either be a control host or
             # a totally unknown host
-            print >> sys.stderr, "Are you sure you are running DAQConfig on the correct host?"
+            print >> sys.stderr, ("Are you sure you are running DAQConfig "
+                                  "on the correct host?")
             raise SystemExit
 
     configDir = os.path.join(metaDir, "config")

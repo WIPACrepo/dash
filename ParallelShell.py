@@ -85,12 +85,17 @@ class PCmd(object):
                                                     state_str,
                                                     self.subproc.pid)
         elif self.subproc.returncode < 0:
-            return "'%s' [%s] terminated (pid was %d) by signal %d" % (self.cmd, state_str, self.subproc.pid, -self.subproc.returncode)
+            return ("'%s' [%s] terminated (pid was %d) "
+                    "by signal %d") % (self.cmd,
+                                       state_str,
+                                       self.subproc.pid,
+                                       -self.subproc.returncode)
         else:
-            return "'%s' [%s] (pid was %d) returned %d " % (self.cmd,
-                                                            state_str,
-                                                            self.subproc.pid,
-                                                            self.subproc.returncode)
+            return "'%s' [%s] (pid was %d) returned %d " % \
+                (self.cmd,
+                 state_str,
+                 self.subproc.pid,
+                 self.subproc.returncode)
 
     def start(self):
         """ Start this command. """
@@ -104,12 +109,15 @@ class PCmd(object):
                 controlop = " "
             else:
                 controlop = ";"
-            self.cmd = "{ %s %c } >%s 2>&1" % (self.cmd, controlop, self.outFile)
+            self.cmd = "{ %s %c } >%s 2>&1" % (self.cmd,
+                                               controlop,
+                                               self.outFile)
 
         if self.subproc != None:
             raise RuntimeError("Attempt to start a running command!")
 
-        # Create a Popen object for running a shell child proc to run the command
+        # Create a Popen object for running a shell child proc to
+        # run the command
         if not self.dryRun:
             self.subproc = subprocess.Popen(self.cmd, shell=True)
 
@@ -137,12 +145,14 @@ class PCmd(object):
         else:  # Handle polling/timeout case
             status = self.subproc.poll()
             if status is None:
-                if datetime.datetime.now() - self.tstart > datetime.timedelta(seconds=self.timeout):
+                if (datetime.datetime.now() - self.tstart > \
+                        datetime.timedelta(seconds=self.timeout)):
                     # Kill child process - note that this may fail
                     # to clean up everything if child has spawned more proc's
                     os.kill(self.subproc.pid, signal.SIGKILL)
                     self.done = True
-                    self.output += "TIMEOUT exceeded (%d seconds)" % self.timeout
+                    self.output += "TIMEOUT exceeded (%d seconds)" % \
+                        self.timeout
                 else:
                     return None  # Not done yet - check back again
 
@@ -159,7 +169,8 @@ class PCmd(object):
                     self.output += l
                 os.unlink(self.outFile)
             except Exception, e:
-                self.output += "Could not read or delete result file %s (%s)!" % (self.outFile, e)
+                self.output += ("Could not read or delete "
+                                "result file %s (%s)!") % (self.outFile, e)
 
         return
 
@@ -169,7 +180,8 @@ class PCmd(object):
 
 class ParallelShell(object):
     """ Class to implement multiple shell commands in parallel. """
-    def __init__(self, parallel=True, dryRun=False, verbose=False, trace=False, timeout=None):
+    def __init__(self, parallel=True, dryRun=False,
+                 verbose=False, trace=False, timeout=None):
         """ Construct a new ParallelShell object for managing multiple
         shell commands to be run in parallel.  The parallel, dryRun,
         verbose and trace options are identical to and used for each
@@ -216,7 +228,9 @@ class ParallelShell(object):
             if not stillWaiting:
                 break
 
-            if monitorIval and datetime.datetime.now() - t > datetime.timedelta(seconds=monitorIval):
+            if monitorIval and \
+                    (datetime.datetime.now() - t > \
+                         datetime.timedelta(seconds=monitorIval)):
                 t = datetime.datetime.now()
                 dt = t - t0
                 print "%d of %d done (%s)." % (nDone, nToDo, str(dt))

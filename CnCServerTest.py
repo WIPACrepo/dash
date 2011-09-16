@@ -455,8 +455,9 @@ class TestCnCServer(unittest.TestCase):
                 continue
 
             self.assertEqual(compName, c["compName"],
-                              "Component#%d name should be \"%s\", not \"%s\"" %
-                              (compId, compName, c["compName"]))
+                              ("Component#%d name should be \"%s\", "
+                               "not \"%s\"") % \
+                                 (compId, compName, c["compName"]))
             self.assertEqual(compNum, c["compNum"],
                               ("Component#%d \"%s\" number should be %d," +
                                "not %d") %

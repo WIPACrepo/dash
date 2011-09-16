@@ -42,7 +42,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 13351 2011-09-13 03:31:27Z mnewcomb $"
+SVN_ID = "$Id: DAQLaunch.py 13366 2011-09-16 03:33:55Z mnewcomb $"
 
 
 class HostNotFoundForComponent   (Exception):
@@ -189,7 +189,8 @@ def killJavaComponents(compList, dryRun, verbose, killWith9, parallel=None):
             # 1 is okay..  expected if nothing is running
             if(rtn_code > 1):
                 print "-" * 60
-                print "Error non-zero return code ( %s ) for host: %s, cmd: %s" % (rtn_code, nodeName, cmd)
+                print ("Error non-zero return code ( %s ) "
+                       "for host: %s, cmd: %s") % (rtn_code, nodeName, cmd)
                 print "Results '%s'" % results
                 print "-" * 60
 
@@ -206,7 +207,8 @@ def startJavaComponents(compList, dryRun, configDir, daqDataDir, logPort,
                         livePort, verbose, eventCheck, checkExists=True,
                         parallel=None):
     if parallel is None:
-        parallel = ParallelShell(dryRun=dryRun, verbose=verbose, trace=verbose, timeout=30)
+        parallel = ParallelShell(dryRun=dryRun, verbose=verbose,
+                                 trace=verbose, timeout=30)
 
     # The dir where all the "executable" jar files are
     binDir = join(metaDir, 'target', 'pDAQ-%s-dist' % RELEASE, 'bin')
@@ -279,7 +281,8 @@ def startJavaComponents(compList, dryRun, configDir, daqDataDir, logPort,
                 rtn_code, results = cmd_results_dict[cmd]
                 nodeName = "unknown" if cmd not in cmdToHostDict else cmdToHostDict[cmd]
                 if(rtn_code != 0):
-                    print "Error non zero return code ( %s ) for host: %s, cmd: %s" % (rtn_code, nodeName, cmd)
+                    print ("Error non zero return code ( %s ) "
+                           "for host: %s, cmd: %s") % (rtn_code, nodeName, cmd)
                     print "Results '%s'" % results
 
 
@@ -433,7 +436,9 @@ if __name__ == "__main__":
     LOGMODE_LIVE = 2
     LOGMODE_BOTH = LOGMODE_OLD | LOGMODE_LIVE
 
-    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s %(release)s %(repo_rev)s" % get_version_info(SVN_ID)
+    ver_info = ("%(filename)s %(revision)s %(date)s %(time)s "
+                "%(author)s %(release)s %(repo_rev)s") % \
+                get_version_info(SVN_ID)
     usage = "%prog [options]\nversion: " + ver_info
     p = optparse.OptionParser(usage=usage, version=ver_info)
 

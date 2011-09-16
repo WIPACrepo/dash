@@ -683,8 +683,12 @@ class CnCRunSetTest(unittest.TestCase):
         else:
             hzStr = " (%2.2f Hz)" % self.__computeRateHz(0, numEvts, duration)
 
-        dashLog.addExpectedExact("%d physics events collected in %d seconds%s" %
-                                 (numEvts, duration, hzStr))
+        dashLog.addExpectedExact(("%d physics events collected "
+                                  "in %d seconds%s") % \
+                                     (numEvts,
+                                      duration,
+                                      hzStr))
+
         dashLog.addExpectedExact("%d moni events, %d SN events, %d tcals" %
                                  (numMoni, numSN, numTcal))
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
@@ -935,8 +939,12 @@ class CnCRunSetTest(unittest.TestCase):
         else:
             hzStr = " (%2.2f Hz)" % self.__computeRateHz(0, numEvts, duration)
 
-        dashLog.addExpectedExact("%d physics events collected in %d seconds%s" %
-                                 (numEvts, duration, hzStr))
+        dashLog.addExpectedExact(("%d physics events collected "
+                                  "in %d seconds%s") % \
+                                     (numEvts,
+                                      duration,
+                                      hzStr))
+
         dashLog.addExpectedExact("%d moni events, %d SN events, %d tcals" %
                                  (numMoni, numSN, numTcal))
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")

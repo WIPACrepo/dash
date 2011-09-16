@@ -92,7 +92,8 @@ class ConfigXMLBase(object):
         return kids[0]
 
     def getValue(self, node, name, defaultVal=None):
-        if node.attributes is not None and node.attributes.has_key(name):
+        if node.attributes is not None and \
+                node.attributes.has_key(name):
             return node.attributes[name].value
 
         try:
@@ -332,7 +333,8 @@ class ClusterDescription(ConfigXMLBase):
         try:
             id = int(idStr)
         except ValueError:
-            errMsg = 'Cluster "%s" host "%s" component "%s" has bad ID "%s"' % \
+            errMsg = ('Cluster "%s" host "%s" component '
+                      '"%s" has bad ID "%s"') % \
                 (clusterName, host.name, name, idStr)
             raise ClusterDescriptionFormatError(errMsg)
 

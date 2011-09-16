@@ -268,7 +268,8 @@ if __name__ == '__main__':
     from optparse import OptionParser
     parser = OptionParser()
     parser.add_option("-N", "--nicknames", dest="nicknames", default=None,
-                      help="Use alternate nicknames file (don't use $NICKNAMES)")
+                      help=("Use alternate nicknames file "
+                            "(don't use $NICKNAMES)"))
     parser.add_option("-H", "--db-host", dest="dbHost",
                       default="sps-testdaq01",
                       help="Specify domprodtest database host name")
@@ -293,7 +294,8 @@ if __name__ == '__main__':
     # Extract the engineering format
     vec = opts.engFmt.split(",")
     if len(vec) != 5:
-        print >> sys.stderr, "ERROR: engineering format spec is --E ATWD0,ATWD1,ATWD2,ATWD3,FADC"
+        print >> sys.stderr, ("ERROR: engineering format "
+                              "spec is --E ATWD0,ATWD1,ATWD2,ATWD3,FADC")
         sys.exit(1)
     engFmt = (tuple([int(x) for x in vec[0:4]]), int(vec[4]))
 

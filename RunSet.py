@@ -472,7 +472,8 @@ class RunData(object):
 
     def queueForSpade(self, duration):
         if self.__logDir is None:
-            self.__dashlog.error("Not logging to file so cannot queue to SPADE")
+            self.__dashlog.error(("Not logging to file "
+                                  "so cannot queue to SPADE"))
             return
 
         if self.__spadeDir is not None:
@@ -1034,7 +1035,8 @@ class RunSet(object):
                                      ComponentOperation.STOP_RUN,
                                      int(RunSet.TIMEOUT_SECS * .75))
             else:
-                self.__attemptToStop(srcSet, otherSet, RunSetState.FORCING_STOP,
+                self.__attemptToStop(srcSet, otherSet,
+                                     RunSetState.FORCING_STOP,
                                      ComponentOperation.FORCED_STOP,
                                      int(RunSet.TIMEOUT_SECS * .25))
             if len(srcSet) == 0 and len(otherSet) == 0:
@@ -1158,7 +1160,7 @@ class RunSet(object):
 
         for comp in self.__set:
             for n in comp.connectors():
-                if not connDict.has_key(n.name()):
+                if not n.name() in connDict:
                     connDict[n.name()] = ConnTypeEntry(n.name())
                 connDict[n.name()].add(n, comp)
 
@@ -1538,7 +1540,7 @@ class RunSet(object):
         for c in self.__set:
             # complain if component has already been added
             #
-            if allComps.has_key(c):
+            if c in allComps:
                 logger.error('Found multiple instances of %s' % str(c))
                 continue
 
@@ -1568,7 +1570,7 @@ class RunSet(object):
 
                 # if we've already ordered this component, skip it
                 #
-                if not allComps.has_key(c):
+                if not c in allComps:
                     continue
 
                 del allComps[c]

@@ -125,12 +125,12 @@ class TestCnCMisc(unittest.TestCase):
                 comp = "%s#%d" % (entryMap["compName"], entryMap["compNum"])
 
                 if not conn in expMap[key]:
-                    self.fail(("Component \"%s\" should not have a \"%s\"" +
+                    self.fail(("Component \"%s\" should not have a \"%s\""
                                " connection") % (key, conn))
 
                 xComp = expMap[key][conn]
                 self.assertEqual(xComp, comp,
-                                  ("Expected \"%s\" type \"%s\" to connect to" +
+                                  ("Expected \"%s\" type \"%s\" to connect to"
                                    " %s, not %s") % (key, conn, xComp, comp))
 
 if __name__ == '__main__':

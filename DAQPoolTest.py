@@ -541,7 +541,8 @@ class TestDAQPool(unittest.TestCase):
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
         except ConnectionException, ce:
-            if str(ce).find("Found 2 %s inputs for 2 outputs" % outputName) < 0:
+            if str(ce).find("Found 2 %s inputs for 2 outputs" % \
+                                outputName) < 0:
                 raise ce
 
         self.assertEqual(mgr.numComponents(), len(compList))

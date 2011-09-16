@@ -263,7 +263,8 @@ def processFile(fileName, comp):
 
                     if flds is None or flds[secName] == name:
                         if TIME_INTERVAL is not None and \
-                                secTime > secLastSaved[secName] + TIME_INTERVAL:
+                                (secTime > \
+                                     secLastSaved[secName] + TIME_INTERVAL):
                             newVal = fixValue(vals)
                             if newVal > 0:
                                 data[secName][secTime] = newVal
