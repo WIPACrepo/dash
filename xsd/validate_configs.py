@@ -11,7 +11,7 @@ except ImportError:
 from ClusterDescription import ClusterDescription
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if os.environ.has_key("PDAQ_HOME"):
+if "PDAQ_HOME" in os.environ:
     META_DIR = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
@@ -127,7 +127,7 @@ def validate_clusterconfig(xml_filename):
 
 def validate_runconfig(xml_filename):
     """Check the runconfig against an xml schema"""
-    (valid, reason) = _validate_xml(xml_filename, 'runconfig.xsd')
+    (valid, reason) = _validate_xml_rng(xml_filename, 'runconfig.rng')
 
     return ( valid, reason )
 
@@ -239,6 +239,53 @@ def _validate_dom_config_xml(xml_filename, xsd_real_filename, xsd_sim_filename):
             return (True, "")
         else:
             return (False, "%s" % xsd_real.error_log)
+
+def _validate_xml_rng(xml_filename, relaxng_filename):
+    """Arguments:
+    xml_filename: path to an xml file
+    rng_filename: path to an rng file used to validate the xml file
+
+    Returns: ( a tuple ) - 
+    (valid, reason) ->
+        valid - is true if the xml file is validated by the schema and false otherwise
+        reason - text describing why the xml file is invalid if it is invalid
+    """
+
+    try:
+        try:
+            relaxng_fd = open(relaxng_filename, 'r')
+        except IOError:
+            # look in the config/xsd directory
+            relaxng_path = os.path.join(META_DIR, 'config', 
+                                        'xsd', 
+                                        os.path.basename(relaxng_filename))
+
+            try:
+                relaxng_fd = open(relaxng_path, 'r')
+            except IOError:
+                return (False, "could not rng open: '%s'" % relaxng_path)
+
+        relaxng_doc = etree.parse(relaxng_fd)
+    finally:
+        if relaxng_fd is not None:
+            relaxng_fd.close()
+
+    relaxng = etree.RelaxNG(relaxng_doc)
+
+    try:
+        with open(xml_filename, 'r') as doc_fd:
+            try:
+                doc_xml = etree.parse(doc_fd)
+            except XMLSyntaxError, e:
+                return (False, "file: '%s' %s" % (xml_filename, e))
+    except IOError:
+        return (False, "Could not open '%s'" % xml_filename)
+
+    if relaxng.validate(doc_xml):
+        return (True, "")
+    else:
+        return (False, "%s" % relaxng.error_log)
+
 
 
 def _validate_xml(xml_filename, xsd_filename):
