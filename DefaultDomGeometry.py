@@ -109,32 +109,6 @@ class XMLParser(object):
             raise ProcessError(("<%s> node has extra" +
                                 " attributes") % node.nodeName)
 
-        # Note..  THIS IS AN ODD line
-        # using 'in' does not work here
-        with open('geom-odd.log', 'a+') as fd:
-            fd.write(("node: %s\nattribute:%s\n"
-                      "type(node): %s\ntype(attributes)=%s\n") % \
-                         (node, node.attributes, type(node),
-                          type(node.attributes)))
-
-            fd.write("attrName: %s, type(attrname): %s\n" % \
-                         (attrName, type(attrName)))
-
-            fd.write("len(attributes): %d\n" % len(node.attributes))
-
-            try:
-                fd.write("has_key: %s\n" % \
-                             (not node.attributes.has_key(attrName)))
-            except Exception, e:
-                fd.write("has key exception: %s\n" % e)
-
-            try:
-                fd.write("in: %s\n" % (attrName in node.attributes))
-            except Exception, e:
-                fd.write("in exception: %s\n" % e)
-                fd.write("in exception type: %s\n" % type(e))
-                traceback.print_exc(file=fd)
-
         if not node.attributes.has_key(attrName):
             if strict:
                 raise ProcessError(("<%s> node has no \"%s\" attribute") %
@@ -268,10 +242,11 @@ class DomGeometry(object):
                    self.__chanId != newChanId:
                     print >>sys.stderr, \
                           "Rewriting %s channel ID from %s to %d" % \
-                          (dom, self.__chanId, newChanId)
+                          (self.__name, self.__chanId, newChanId)
                 self.__chanId = newChanId
             elif verbose and self.__chanId is None:
-                print >>sys.stderr, "Not setting channel ID for %s" % dom
+                print >>sys.stderr, "Not setting channel ID for %s" % \
+                    self.__name
 
         changedString = False
         if (baseNum <= self.MAX_STRING and self.__pos <= 60) or \
