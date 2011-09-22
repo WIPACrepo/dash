@@ -1,7 +1,9 @@
-import sys, os
+import sys
+import os
 import glob
 
 from lxml import etree
+
 
 def validate_real_xml(xml_filename, xsd_real_filename):
 
@@ -15,7 +17,7 @@ def validate_real_xml(xml_filename, xsd_real_filename):
     doc_xml = etree.XML(doc)
 
     real_valid = False
-    
+
     if xsd_real.validate(doc_xml):
         print "valid REAL xml file"
         xsd_real_fd.close()
@@ -26,10 +28,10 @@ def validate_real_xml(xml_filename, xsd_real_filename):
 
 
 def argcollect(xml_filename, arg_dict):
-    
+
     with open(xml_filename, 'r') as doc_fd:
         doc = etree.parse(doc_fd)
-        
+
     root = doc.getroot()
     domConfigs = root.findall('domConfig')
 
@@ -39,7 +41,7 @@ def argcollect(xml_filename, arg_dict):
         for c in localC.getchildren():
             tag = c.tag
             txt = c.text
-            
+
             try:
                 val = float(txt)
             except ValueError:
@@ -56,7 +58,7 @@ def argcollect(xml_filename, arg_dict):
         for c in dconfig.getchildren():
             tag = c.tag
             txt = c.text
-            
+
             try:
                 val = float(txt)
             except ValueError:
@@ -64,25 +66,24 @@ def argcollect(xml_filename, arg_dict):
             except TypeError:
                 continue
 
-            if val<-32000:
-                # filter out the two huge negative 
+            if val < -32000:
+                # filter out the two huge negative
                 # values for the mpe trigger
                 continue
 
-            
             try:
                 arg_dict[tag].append(val)
             except KeyError:
                 arg_dict[tag] = []
                 arg_dict[tag].append(val)
-            
+
     return arg_dict
 
 
 if __name__ == "__main__":
 
     # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-    if os.environ.has_key("PDAQ_HOME"):
+    if "PDAQ_HOME" in os.environ:
         metaDir = os.environ["PDAQ_HOME"]
     else:
         sys.path.append('..')
@@ -99,7 +100,8 @@ if __name__ == "__main__":
 
     for cfg in cfg_files:
         print "validating ", cfg
-        if validate_real_xml(cfg, os.path.join(xsd_path, 'domconfig-real.xsd')):
+        if validate_real_xml(cfg, os.path.join(xsd_path,
+                                               'domconfig-real.xsd')):
             args = argcollect(cfg, args)
 
     print "Dom Configuration Integer Arguments:"
@@ -108,14 +110,9 @@ if __name__ == "__main__":
 
         max_val = max(args[arg_name])
         min_val = min(args[arg_name])
-        avg_val = sum(args[arg_name])/len(args[arg_name])
-
+        avg_val = sum(args[arg_name]) / len(args[arg_name])
 
         print "Argument Named: %s" % arg_name
         print "\tMax value: %.2f" % max_val
         print "\tMin value: %.2f" % min_val
         print "\tAvg value: %.2f" % avg_val
-
-
-
-    

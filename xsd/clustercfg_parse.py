@@ -1,9 +1,11 @@
 from validate_configs import validate_clusterconfig
-import glob, os, sys
+import glob
+import os
+import sys
 
 if __name__ == "__main__":
     # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-    if os.environ.has_key("PDAQ_HOME"):
+    if "PDAQ_HOME" in os.environ:
         metaDir = os.environ["PDAQ_HOME"]
     else:
         sys.path.append('..')
@@ -12,7 +14,7 @@ if __name__ == "__main__":
 
     print "Validating all cluster configuration files"
     print "Will only print a status when a corrupt file is found"
-    print "-"*60
+    print "-" * 60
     print ""
 
     config_path = os.path.join(metaDir, "config")
@@ -26,13 +28,10 @@ if __name__ == "__main__":
 
         if not valid:
             print "File is not valid! (%s)" % clustercfg_config
-            print "-"*60
-            
+            print "-" * 60
             print ""
             print reason
             invalid_found = True
 
     if not invalid_found:
         print "No invalid cluster configuration files found"
-
-    

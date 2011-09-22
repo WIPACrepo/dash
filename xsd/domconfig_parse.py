@@ -1,11 +1,12 @@
 from validate_configs import validate_dom_config_sps, validate_dom_config_spts
-import glob, os, sys
-
+import glob
+import os
+import sys
 
 if __name__ == "__main__":
 
     # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-    if os.environ.has_key("PDAQ_HOME"):
+    if "PDAQ_HOME" in os.environ:
         metaDir = os.environ["PDAQ_HOME"]
     else:
         sys.path.append('..')
@@ -29,13 +30,12 @@ if __name__ == "__main__":
 
             print "File %s is not valid" % cfg
             #print "Reason: %s" % errors
-            invalid_list.append( (cfg, errors) )
+            invalid_list.append((cfg, errors))
 
     print "Printing errors found in sps configuration files:"
     for f, errs in invalid_list:
         print errs
-        print "-"*80
-
+        print "-" * 80
 
     # test the xsd  parsing on all dom config xml files
     print "Checking spts configuration files:"
@@ -50,12 +50,9 @@ if __name__ == "__main__":
 
             print "File %s is not valid" % cfg
             #print "Reason: %s" % errors
-            invalid_list.append( (cfg, errors) )
+            invalid_list.append((cfg, errors))
 
     print "Printing errors found in sps configuration files:"
     for f, errs in invalid_list:
         print errs
-        print "-"*80
-
-
-    
+        print "-" * 80

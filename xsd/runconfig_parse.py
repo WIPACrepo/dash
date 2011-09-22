@@ -1,9 +1,12 @@
 from validate_configs import validate_runconfig
-import glob, os, sys
+import glob
+import os
+import sys
+
 
 if __name__ == "__main__":
     # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-    if os.environ.has_key("PDAQ_HOME"):
+    if "PDAQ_HOME" in os.environ:
         metaDir = os.environ["PDAQ_HOME"]
     else:
         sys.path.append('..')
@@ -23,7 +26,7 @@ if __name__ == "__main__":
     # remove the default dom geometry file from the above list
     for entry in run_configs:
         basename = os.path.basename(entry)
-        if basename=='default-dom-geometry.xml':
+        if basename == 'default-dom-geometry.xml':
             run_configs.remove(entry)
             break
 
@@ -32,14 +35,10 @@ if __name__ == "__main__":
 
         if not valid:
             print "File is not valid! (%s)" % run_config
-            print "-"*60
-            
+            print "-" * 60
             print ""
             print reason
             invalid_found = True
 
-
     if not invalid_found:
         print "No invalid run configuration files found"
-
-    

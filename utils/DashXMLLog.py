@@ -4,16 +4,27 @@ from datetime import datetime
 from xml.dom import minidom
 
 
-class DashXMLLogException(Exception): pass
-class FileNotFoundException(DashXMLLogException): pass
-class MalformedFileException(DashXMLLogException): pass
+class DashXMLLogException(Exception):
+    pass
+
+
+class FileNotFoundException(DashXMLLogException):
+    pass
+
+
+class MalformedFileException(DashXMLLogException):
+    pass
+
 
 class DashXMLLog:
     """
-    This class will generate an xml logging file for dash.  The purpose is to generate this for
-    Kirill.  Apparently he was parsing dash.log and generating a log file.  The parsing would break
-    as people changed the format of the dash.log file.  This code will let you generate an xml log that
-    will meet at least his requirements.  You can add more fields to this with the 'setField' method.
+    This class will generate an xml logging file for dash.
+    The purpose is to generate this for Kirill.
+    Apparently he was parsing dash.log and generating a log file.
+    The parsing would break as people changed the format of the
+    dash.log file.  This code will let you generate an xml log that
+    will meet at least his requirements.  You can add more fields to
+    this with the 'setField' method.
 
     A minimum xml logging file should look like this:
 
@@ -33,7 +44,8 @@ class DashXMLLog:
     </DAQRunlog>
     """
 
-    def __init__(self, dir_name=None, file_name="run.xml", root_elem_name="DAQRunlog",
+    def __init__(self, dir_name=None, file_name="run.xml",
+                 root_elem_name="DAQRunlog",
                  style_sheet_url="/2001/xml/DAQRunlog.xsl"):
         self._dir_name = dir_name
         self._file_name = file_name
@@ -43,10 +55,9 @@ class DashXMLLog:
         self._root_elem_name = root_elem_name
         self._style_sheet_url = style_sheet_url
 
-        self._required_fields = [ "run", "Config", "StartTime", "EndTime",
-                                  "TermCondition", "Events", "Moni", "Tcal",
-                                  "SN" ]
-
+        self._required_fields = ["run", "Config", "StartTime", "EndTime",
+                                 "TermCondition", "Events", "Moni", "Tcal",
+                                 "SN"]
 
     def getPath(self):
         if self._path is None:
@@ -69,7 +80,8 @@ class DashXMLLog:
 
         Args:
             field_name: A text name for this field
-            field_value: A value to associate with this field ( must be formattable by %%s )
+            field_value: A value to associate with this field
+            ( must be formattable by %%s )
 
         Returns:
             Nothing
@@ -85,7 +97,8 @@ class DashXMLLog:
         self._fields[field_name] = field_val
 
     def getField(self, field_name):
-        if not self._fields.has_key(field_name): return None
+        if not self._fields.has_key(field_name):
+            return None
         return self._fields[field_name]
 
     def setRun(self, run_num):
@@ -100,7 +113,8 @@ class DashXMLLog:
     def getRun(self):
         """Get the value for the required 'run' field"""
         fld = self.getField("run")
-        if fld is None: return None
+        if fld is None:
+            return None
         return int(fld)
 
     def setConfig(self, config_name):
@@ -126,7 +140,8 @@ class DashXMLLog:
     def getStartTime(self):
         """Get the start time for this run"""
         fld = self.getField("StartTime")
-        if fld is None: return None
+        if fld is None:
+            return None
         if type(fld) != datetime:
             fld = datetime.strptime(str(fld), "%Y-%m-%d %H:%M:%S.%f")
         return fld
@@ -142,7 +157,8 @@ class DashXMLLog:
     def getEndTime(self):
         """Get the end time for this run"""
         fld = self.getField("EndTime")
-        if fld is None: return None
+        if fld is None:
+            return None
         if type(fld) != datetime:
             fld = datetime.strptime(str(fld), "%Y-%m-%d %H:%M:%S.%f")
         return fld
@@ -163,7 +179,8 @@ class DashXMLLog:
     def getTermCond(self):
         """Get the termination condition for this run"""
         fld = self.getField("TermCondition")
-        if fld is None: return None
+        if fld is None:
+            return None
         if fld == "Failure":
             return True
         if fld == "Success":
@@ -181,7 +198,8 @@ class DashXMLLog:
     def getEvents(self):
         """Get the number of events for this run"""
         fld = self.getField("Events")
-        if fld is None: return None
+        if fld is None:
+            return None
         return int(fld)
 
     def setMoni(self, moni):
@@ -195,7 +213,8 @@ class DashXMLLog:
     def getMoni(self):
         """Get the number of monitoring events for this run"""
         fld = self.getField("Moni")
-        if fld is None: return None
+        if fld is None:
+            return None
         return int(fld)
 
     def setTcal(self, tcal):
@@ -209,7 +228,8 @@ class DashXMLLog:
     def getTcal(self):
         """Get the number of time calibration events for this run"""
         fld = self.getField("Tcal")
-        if fld is None: return None
+        if fld is None:
+            return None
         return int(fld)
 
     def setSN(self, sn):
@@ -223,23 +243,26 @@ class DashXMLLog:
     def getSN(self):
         """Get the number of supernova events for this run"""
         fld = self.getField("SN")
-        if fld is None: return None
+        if fld is None:
+            return None
         return int(fld)
 
     def _build_document(self):
-        """Take the internal fields dictionary, the _root_elem_name, and the style sheet url to build
-        an xml document.
+        """Take the internal fields dictionary, the _root_elem_name,
+        and the style sheet url to build an xml document.
         """
         # check for all required xml fields
         fields_known = self._fields.keys()
         fields_known.sort()
         for requiredKey in self._required_fields:
             if requiredKey not in fields_known:
-                raise DashXMLLogException("Missing Required Field %s" % requiredKey)
+                raise DashXMLLogException(
+                    "Missing Required Field %s" % requiredKey)
 
         doc = minidom.Document()
-        processingInstr = doc.createProcessingInstruction("xml-stylesheet",
-                                                          "type=\"text/xsl\" href=\"%s\"" % self._style_sheet_url)
+        processingInstr = doc.createProcessingInstruction(
+            "xml-stylesheet",
+            "type=\"text/xsl\" href=\"%s\"" % self._style_sheet_url)
         doc.appendChild(processingInstr)
 
         # create the base element
@@ -259,7 +282,8 @@ class DashXMLLog:
         """Build an xml document with stored state and write it to a file
 
         Args:
-            file_name: the name of the file to which we should write the xml log file
+            file_name: the name of the file to which we should write the
+            xml log file
         """
         docStr = self.documentToKirillString()
 
@@ -277,27 +301,28 @@ class DashXMLLog:
 
         return doc.toprettyxml(indent=indent)
 
-
     def documentToKirillString(self):
-        """Apparently some people don't quite know how to download an xml parser so we have to write out xml files in
-        a specific format to fit a broken hand rolled xml parser"""
+        """Apparently some people don't quite know how to download an
+        xml parser so we have to write out xml files in a specific format
+        to fit a broken hand rolled xml parser"""
 
         doc = self._build_document()
 
-        if(doc.encoding==None):
+        if(doc.encoding == None):
             dispStr = "<?xml version=\"1.0\"?>"
         else:
-            dispStr = "<?xml version=\"1.0\" encoding=\"%s\"?>" % (doc.encoding)
+            dispStr = "<?xml version=\"1.0\" encoding=\"%s\"?>" % \
+                (doc.encoding)
 
         # okay here look for any and all processing instructions
         for n in doc.childNodes:
-            if(n.nodeType==doc.PROCESSING_INSTRUCTION_NODE):
-                dispStr="%s\n%s" % (dispStr, n.toxml())
+            if(n.nodeType == doc.PROCESSING_INSTRUCTION_NODE):
+                dispStr = "%s\n%s" % (dispStr, n.toxml())
 
         n = doc.getElementsByTagName(self._root_elem_name)[0]
         dispStr = "%s\n<%s>" % (dispStr, self._root_elem_name)
         for n in n.childNodes:
-            dispStr="%s\n\t%s" % ( dispStr, n.toxml())
+            dispStr = "%s\n\t%s" % (dispStr, n.toxml())
         dispStr = "%s\n</%s>" % (dispStr, self._root_elem_name)
 
         return dispStr
@@ -314,7 +339,8 @@ class DashXMLLog:
         try:
             parsed = minidom.parse(path)
         except Exception, ex:
-            raise MalformedFileException("Bad run file \"%s\": %s" % (path, ex))
+            raise MalformedFileException(
+                "Bad run file \"%s\": %s" % (path, ex))
 
         rootList = parsed.getElementsByTagName("DAQRunlog")
         if len(rootList) == 0:
@@ -350,5 +376,3 @@ if __name__ == "__main__":
     a.setField("ExtraField", 50)
     #print a.documentToString()
     #a.dispLog()
-
-

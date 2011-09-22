@@ -1,9 +1,11 @@
 from validate_configs import validate_trigger
-import glob, os, sys
+import glob
+import os
+import sys
 
 if __name__ == "__main__":
     # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-    if os.environ.has_key("PDAQ_HOME"):
+    if "PDAQ_HOME" in os.environ:
         metaDir = os.environ["PDAQ_HOME"]
     else:
         sys.path.append('..')
@@ -12,8 +14,9 @@ if __name__ == "__main__":
 
     print "Validating all trigger configuration files"
     print "Will only print a status when a corrupt file is found"
-    print "Note that there are some corrupt trigger files, someone put quotes in the wrong place."
-    print "-"*60
+    print ("Note that there are some corrupt trigger files, "
+           "someone put quotes in the wrong place.")
+    print "-" * 60
     print ""
 
     config_path = os.path.join(metaDir, "config")
@@ -26,13 +29,10 @@ if __name__ == "__main__":
         valid, reason = validate_trigger(trigger_config)
         if not valid:
             print "File is not valid! (%s)" % trigger_config
-            print "-"*60
-            
+            print "-" * 60
             print ""
             print reason
             invalid_found = True
 
     if not invalid_found:
         print "No invalid trigger configuration files found"
-
-    
