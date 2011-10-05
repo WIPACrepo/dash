@@ -6,7 +6,6 @@ import os
 import sys
 from utils import ip
 
-from CreateClusterConfig import ClusterConfigCreator
 from DAQConfig import DAQConfig, DAQConfigParser
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
@@ -155,20 +154,3 @@ if __name__ == "__main__":
             with open(newPath, 'w') as fd:
                 newCfg.write(fd)
             print "Created %s" % newPath
-
-            if cluCfgName is not None:
-                cluPath = createClusterConfigName(cluCfgName, hubIdList)
-                if os.path.exists(cluPath):
-                    if forceCreate:
-                        print >>sys.stderr, "WARNING: Overwriting %s" % cluPath
-                    else:
-                        print >>sys.stderr, "WARNING: %s already exists" % \
-                            cluPath
-                        print >>sys.stderr, \
-                            "Specify --force to overwrite this file"
-                        raise SystemExit()
-
-                ccc = ClusterConfigCreator("sps")
-                with open(cluPath, 'w') as fd:
-                    ccc.write(fd, newCfg)
-                print "Created %s" % cluPath
