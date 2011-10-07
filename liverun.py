@@ -15,13 +15,15 @@
 #     # an ordinary run
 #     run.run(clusterConfig, runConfig, numSecs, numRuns)
 #
-#     flashFile = "flash-21.xml"
-#     flashTimes = (30, 30, 20, 15)            # number of seconds
-#     pauseTime = 30                           # number of seconds
+#     flasherData = \
+#         (("flash-21.xml", 30),               # flash string 21 for 30 seconds
+#          (None, 15),                         # wait 15 seconds
+#          ("flash-26-27.xml", 120),           # flash 26 & 27 for 2 minutes
+#          (None, 20),                         # wait 20 seconds
+#          ("flash-21.xml", 30))               # flash string 21 for 30 seconds
 #
 #     # a flasher run
-#     run.run(clusterConfig, runConfig, numSecs, numRuns)
-#             flashFile, flashTimes, flashPause)
+#     run.run(clusterConfig, runConfig, numSecs, numRuns, flasherData)
 
 
 import os
@@ -514,33 +516,36 @@ class LiveRun(BaseRun):
         """Do final cleanup before exiting"""
         pass
 
-    def flash(self, tm, dataPath):
+    def flash(self, dataPath, secs):
         """
         Start flashers for the specified duration with the specified data file
         """
-        cmd = "%s flasher -d %d -f %s" % (self.__liveCmdProg, tm, dataPath)
-        if self.__showCmd:
-            print cmd
-
-        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, close_fds=True,
-                                shell=True)
-        proc.stdin.close()
-
         problem = False
-        for line in proc.stdout:
-            line = line.rstrip()
-            if self.__showCmdOutput:
-                print '+ ' + line
+        if dataPath is None:
+            time.sleep(secs)
+        else:
+            cmd = "%s flasher -d %d -f %s" % (self.__liveCmdProg, secs, dataPath)
+            if self.__showCmd:
+                print cmd
 
-            if line != "OK" and not line.startswith("Starting subrun"):
-                problem = True
-            if problem:
-                print >>sys.stderr, "Flasher: %s" % line
-        proc.stdout.close()
+            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT, close_fds=True,
+                                    shell=True)
+            proc.stdin.close()
 
-        proc.wait()
+            for line in proc.stdout:
+                line = line.rstrip()
+                if self.__showCmdOutput:
+                    print '+ ' + line
+
+                if line != "OK" and not line.startswith("Starting subrun"):
+                    problem = True
+                if problem:
+                    print >>sys.stderr, "Flasher: %s" % line
+            proc.stdout.close()
+
+            proc.wait()
 
         return problem
 

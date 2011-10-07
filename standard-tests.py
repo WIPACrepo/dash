@@ -9,6 +9,7 @@ import stat
 import subprocess
 import sys
 
+from BaseRun import FlasherScript
 from ClusterDescription import ClusterDescription
 from cncrun import CnCRun
 from liverun import LiveRun
@@ -26,14 +27,21 @@ class PDAQRunException(Exception):
 class PDAQRun(object):
     "Description of a pDAQ run"
 
-    def __init__(self, runCfg, duration, numRuns=1, flashName=None,
-                 flashTimes=None, flashPause=60):
+    def __init__(self, runCfg, duration, numRuns=1, flashData=None):
         self.__runCfg = runCfg
         self.__duration = duration
         self.__numRuns = numRuns
-        self.__flashName = flashName
-        self.__flashTimes = flashTimes
-        self.__flashPause = flashPause
+
+        if flashData is None:
+            self.__flashData = None
+        else:
+            self.__flashData = []
+            for pair in flashData:
+                if pair[0] is None:
+                    path = None
+                else:
+                    path = FlasherScript.findDataFile(pair[0])
+                self.__flashData.append((path, pair[1]))
 
     def clusterConfig(self):
         return self.__runCfg
@@ -46,14 +54,14 @@ class PDAQRun(object):
 
         for r in range(self.__numRuns):
             liveRun.run(self.clusterConfig(), self.__runCfg,
-                        duration, self.__flashName, self.__flashTimes,
-                        self.__flashPause, False)
+                        duration, self.__flashData, False)
 
 # configurations to run
 #
-RUN_LIST = (PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
+RUN_LIST = (#PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
             PDAQRun("spts64-dirtydozen-hlc-006", 0, 1,
-                    "flash-21", (60, 45, 120)),
+                     (("flash-21", 60), (None, 10), ("flash-21", 45),
+                        (None, 20), ("flash-21", 120))),
             ###PDAQRun("sim18str-noise25Hz-002", FOUR_HR),
             ###PDAQRun("sim18str-noise25Hz-002", EIGHT_HR),
             ###PDAQRun("sim22str-with-phys-trig-001", FOUR_HR),

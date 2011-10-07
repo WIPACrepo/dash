@@ -3,6 +3,7 @@
 # Base class for managing pDAQ runs
 
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -35,40 +36,35 @@ class StateException(RunException):
 class FlasherThread(threading.Thread):
     "Thread which starts and stops flashers during a run"
 
-    def __init__(self, run, dataPath, times, pauseSecs):
+    def __init__(self, run, dataPairs):
         """
         Create a flasher thread (which has not been started)
 
         run - BaseRun object
-        dataPath - path for flasher description file
-        times -list of flasher durations (in seconds)
-        pauseSecs - number of seconds to pause between flasher sequences
+        dataPairs - pairs of XML_file_name/duration
         """
 
         super(FlasherThread, self).__init__(name="FlasherThread")
         self.setDaemon(True)
 
         self.__run = run
-        self.__dataPath = dataPath
-        self.__times = times
-        self.__pauseSecs = pauseSecs
+        self.__dataPairs = dataPairs
 
         self.__sem = threading.BoundedSemaphore()
 
         self.__running = False
 
     @staticmethod
-    def computeRunDuration(times, pauseSecs):
+    def computeRunDuration(flasherData):
         """
         Compute the number of seconds needed for this flasher run
 
-        times - list of flasher durations (in seconds)
-        pauseSecs - number of seconds to pause between flasher sequences
+        flasherData - list of XML_file_name/duration pairs
         """
         tot = 0
 
-        for tm in times:
-            tot += tm + pauseSecs + 5
+        for pair in flasherData:
+            tot += pair[1] + 5
 
         return tot
 
@@ -85,16 +81,14 @@ class FlasherThread(threading.Thread):
 
     def __runBody(self):
         "Run the flasher sequences"
-        for tm in self.__times:
+        for pair in self.__dataPairs:
             if not self.__running:
                 break
 
-            problem = self.__run.flash(tm, self.__dataPath)
+            problem = self.__run.flash(pair[0], pair[1])
 
             if problem or not self.__running:
                 break
-
-            time.sleep(self.__pauseSecs)
 
     def stopThread(self):
         "Stop the flasher thread"
@@ -112,20 +106,161 @@ class FlasherThread(threading.Thread):
         self.__sem.release()
 
 
+
+class FlasherScript(object):
+    """
+    Read in a flasher script, producing a list of XML_file_name/duration pairs.
+    """
+    @classmethod
+    def findDataFile(cls, flashFile):
+        """
+        Find a flasher file or raise FlashFileException
+
+        flashFile - name of flasher sequence file
+
+        Returns full path for flasher sequence file
+
+        NOTE: Currently, only $PDAQ_HOME/src/test/resources is checked
+        """
+
+        if os.path.exists(flashFile):
+            return flashFile
+
+        path = os.path.join(os.environ["PDAQ_HOME"], "src", "test",
+                            "resources", flashFile)
+        if os.path.exists(path):
+            return path
+
+        if not flashFile.endswith(".xml"):
+            path += ".xml"
+            if os.path.exists(path):
+                return path
+
+        raise FlashFileException("Flash file '%s' not found" % flashFile)
+
+    # stolen from live/misc/util.py
+    @classmethod
+    def __getDurationFromString(cls, s):
+        """
+        Return duration in seconds based on string <s>
+        """
+        m = re.search('^(\d+)$', s)
+        if m:
+            return int(m.group(1))
+        m = re.search('^(\d+)s(?:ec(?:s)?)?$', s)
+        if m:
+            return int(m.group(1))
+        m = re.search('^(\d+)m(?:in(?:s)?)?$', s)
+        if m:
+            return int(m.group(1)) * 60
+        m = re.search('^(\d+)h(?:r(?:s)?)?$', s)
+        if m:
+            return int(m.group(1)) * 3600
+        m = re.search('^(\d+)d(?:ay(?:s)?)?$', s)
+        if m:
+            return int(m.group(1)) * 86400
+        raise FlashFileException(('String "%s" is not a known duration' +
+                                   ' format. Try 30sec, 10min, 2days etc.') % s)
+
+    @classmethod
+    def __parseFlasherOptions(cls, optList):
+        """
+        Parse 'livecmd flasher' options
+        """
+        pairs = []
+        i = 0
+        dur = None
+        fil = None
+        while i < len(optList):
+            if optList[i] == "-d":
+                if dur is not None:
+                    raise FlashFileException("Found multiple durations")
+
+                i += 1
+                dur = cls.__getDurationFromString(optList[i])
+                if fil is not None:
+                    pairs.append((fil, dur))
+                    dur = None
+                    fil = None
+
+            elif optList[i] == "-f":
+                if fil is not None:
+                    raise FlashFileException("Found multiple filenames")
+
+                i += 1
+                fil = cls.findDataFile(optList[i])
+                if dur is not None:
+                    pairs.append((fil, dur))
+                    dur = None
+                    fil = None
+            else:
+                raise FlashFileException("Bad flasher option \"%s\"" %
+                                         optList[i])
+
+            i += 1
+        return pairs
+
+    @classmethod
+    def parse(cls, fd):
+        """
+        Parse a flasher script, producing a list of XML_file_name/duration
+        pairs.
+        """
+        flashData = []
+        fullLine = None
+        for line in fd:
+            line = line.rstrip()
+
+            if fullLine is None:
+                fullLine = line
+            else:
+                fullLine += line
+
+            if fullLine.endswith("\\") and fullLine.find("#") < 0:
+                fullLine = fullLine[:-1]
+                continue
+
+            comment = fullLine.find("#")
+            if comment >= 0:
+                fullLine = fullLine[:comment].rstrip()
+
+            # ignore blank lines
+            #
+            if len(fullLine) == 0:
+                continue
+
+            words = fullLine.split(" ")
+            if len(words) > 2 and words[0] == "livecmd" and \
+                words[1] == "flasher":
+                flashData += cls.__parseFlasherOptions(words[2:])
+            elif len(words) == 2 and words[0] == "sleep":
+                try:
+                    flashData.append((None, int(words[1])))
+                except Exception, ex:
+                    raise FlashFileException("Bad sleep time \"%s\": %s" %
+                                              (words[1], ex))
+            else:
+                raise FlashFileException("Bad flasher line \"%s\"" % fullLine)
+
+            fullLine = None
+
+        return flashData
+
+
 class Run(object):
-    def __init__(self, mgr, clusterCfg, runCfg, flashName):
+    def __init__(self, mgr, clusterCfg, runCfg, flashData=None):
         """
         Manage a single run
 
         mgr - run manager
         clusterCfg - cluster configuration
         runCfg - run configuration
-        flashName - flasher description file name
+        flasherData - list of flasher XML_file_name/duration pairs
         """
         self.__mgr = mgr
         self.__clusterCfg = clusterCfg
         self.__runCfg = runCfg
-        self.__flashData = None
+        self.__flashData = flashData
         self.__runKilled = False
 
         self.__flashThread = None
@@ -159,40 +294,6 @@ class Run(object):
         if self.__runKilled or self.__mgr.isDead():
             self.__mgr.launch(self.__clusterCfg)
 
-        # get absolute path to flasher data file
-        #
-        if flashName is None:
-            self.__flashData = None
-        else:
-            self.__flashData = self.__flashPath(flashName)
-
-    @staticmethod
-    def __flashPath(flashFile):
-        """
-        Find a flasher file or raise FlashFileException
-
-        flashFile - name of flasher sequence file
-
-        Returns full path for flasher sequence file
-
-        NOTE: Currently, only $PDAQ_HOME/src/test/resources is checked
-        """
-
-        if os.path.exists(flashFile):
-            return flashFile
-
-        path = os.path.join(os.environ["PDAQ_HOME"], "src", "test",
-                            "resources", flashFile)
-        if os.path.exists(path):
-            return path
-
-        if not flashFile.endswith(".xml"):
-            path += ".xml"
-            if os.path.exists(path):
-                return path
-
-        raise FlashFileException("Flash file '%s' not found" % flashFile)
-
     def finish(self):
         "clean up after run has ended"
         if not self.__mgr.isStopped(True):
@@ -215,7 +316,7 @@ class Run(object):
 
         self.__runNum = 0
 
-    def start(self, duration, flashTimes=None, flashPause=60, ignoreDB=False):
+    def start(self, duration, ignoreDB=False):
         """
         Start a run
 
@@ -231,12 +332,11 @@ class Run(object):
 
         # if we'll be flashing, build a thread to start/stop flashers
         #
-        self.__lightMode = self.__flashData is not None and \
-            flashTimes is not None
+        self.__lightMode = self.__flashData is not None
         if not self.__lightMode:
             self.__flashThread = None
         else:
-            flashDur = FlasherThread.computeRunDuration(flashTimes, flashPause)
+            flashDur = FlasherThread.computeRunDuration(self.__flashData)
             if flashDur > duration:
                 if duration > 0:
                     print >>sys.stderr, ("Run length was %d secs, but need" +
@@ -244,8 +344,7 @@ class Run(object):
                                          (duration, flashDur)
                 duration = flashDur
 
-            self.__flashThread = FlasherThread(self.__mgr, self.__flashData,
-                                               flashTimes, flashPause)
+            self.__flashThread = FlasherThread(self.__mgr, self.__flashData)
 
         # get the new run number
         #
@@ -354,8 +453,8 @@ class BaseRun(object):
         """Do final cleanup before exiting"""
         raise NotImplementedError()
 
-    def createRun(self, clusterCfg, runCfg, flashName=None):
-        return Run(self, clusterCfg, runCfg, flashName)
+    def createRun(self, clusterCfg, runCfg, flashData=None):
+        return Run(self, clusterCfg, runCfg, flashData)
 
     @classmethod
     def findExecutable(cls, name, cmd):
@@ -368,8 +467,8 @@ class BaseRun(object):
                 return pcmd
         raise SystemExit("%s '%s' does not exist" % (name, cmd))
 
-    def flash(self, tm, data):
-        """Start flashers for the specified duration with the specified data"""
+    def flash(self, filename, secs):
+        """Start flashers with the specified data for the specified duration"""
         raise NotImplementedError()
 
     @staticmethod
@@ -486,8 +585,8 @@ class BaseRun(object):
         # give components a chance to start
         time.sleep(5)
 
-    def run(self, clusterCfg, runCfg, duration, flashName=None,
-            flashTimes=None, flashPause=60, ignoreDB=False):
+    def run(self, clusterCfg, runCfg, duration, flasherData=None,
+            ignoreDB=False):
         """
         Manage a set of runs
 
@@ -495,13 +594,11 @@ class BaseRun(object):
         runCfg - run configuration
         duration - number of seconds to run
         numRuns - number of runs (default=1)
-        flashName - flasher description file name
-        flashTimes - list of times (in seconds) to flash
-        flashPause - number of seconds to pause between flashing
+        flasherData - pairs of (XML file name, duration)
         ignoreDB - False if the database should be checked for this run config
         """
-        run = self.createRun(clusterCfg, runCfg, flashName)
-        run.start(duration, flashTimes, flashPause, ignoreDB)
+        run = self.createRun(clusterCfg, runCfg, flasherData)
+        run.start(duration, ignoreDB)
         try:
             run.wait()
         finally:

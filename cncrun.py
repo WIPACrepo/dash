@@ -13,15 +13,17 @@
 #     numRuns = 1
 #
 #     # an ordinary run
-#     run.run(clusterConfig, runConfig, numSecs, numRuns)
+#     run.start(clusterConfig, runConfig, numSecs, numRuns)
 #
-#     flashFile = "flash-21.xml"
-#     flashTimes = (30, 30, 20, 15)            # number of seconds
-#     pauseTime = 30                           # number of seconds
+#     flasherData = \
+#         (("flash-21.xml", 30),               # flash string 21 for 30 seconds
+#          (None, 15),                         # wait 15 seconds
+#          ("flash-26-27.xml", 120),           # flash 26 & 27 for 2 minutes
+#          (None, 20),                         # wait 20 seconds
+#          ("flash-21.xml", 30))               # flash string 21 for 30 seconds
 #
 #     # a flasher run
-#     run.run(clusterConfig, runConfig, numSecs, numRuns)
-#             flashFile, flashTimes, flashPause)
+#     run.run(clusterConfig, runConfig, numSecs, numRuns, flasherData)
 
 import os
 import re
@@ -38,6 +40,10 @@ from exc_string import exc_string
 from xml.dom import minidom, Node
 
 
+class FlasherDataException(Exception):
+    pass
+
+
 class FlasherDataParser(XMLParser):
     @classmethod
     def __loadFlasherData(cls, dataFile):
@@ -45,15 +51,16 @@ class FlasherDataParser(XMLParser):
         try:
             dom = minidom.parse(dataFile)
         except Exception, e:
-            raise FlasherException("Cannot parse \"%s\": %s" %
-                                   (dataFile, exc_string()))
+            raise FlasherDataException("Cannot parse \"%s\": %s" %
+                                       (dataFile, exc_string()))
 
         fmain = dom.getElementsByTagName("flashers")
         if len(fmain) == 0:
-            raise FlasherException("File \"%s\" has no <flashers>" % dataFile)
+            raise FlasherDataException("File \"%s\" has no <flashers>" %
+                                       dataFile)
         elif len(fmain) > 1:
-            raise FlasherException("File \"%s\" has too many <flashers>" %
-                                   dataFile)
+            raise FlasherDataException("File \"%s\" has too many <flashers>" %
+                                       dataFile)
 
         nodes = fmain[0].getElementsByTagName("flasher")
 
@@ -61,8 +68,8 @@ class FlasherDataParser(XMLParser):
         for n in nodes:
             try:
                 flashList.append(cls.__parseFlasherNode(n))
-            except FlasherException, fe:
-                raise FlasherException("File \"%s\": %s" % (dataFile, fe))
+            except FlasherDataException, fe:
+                raise FlasherDataException("File \"%s\": %s" % (dataFile, fe))
 
         return flashList
 
@@ -102,14 +109,14 @@ class FlasherDataParser(XMLParser):
 
         if hub is None or \
            pos is None:
-            raise FlasherException("Missing stringHub/domPosition" +
-                                   " information")
+            raise FlasherDataException("Missing stringHub/domPosition" +
+                                       " information")
         if bright is None or \
            window is None or \
            delay is None or \
            mask is None or \
            rate is None:
-            raise FlasherException("Bad entry for %s-%s" % (hub, pos))
+            raise FlasherDataException("Bad entry for %s-%s" % (hub, pos))
 
         return (hub, pos, bright, window, delay, mask, rate)
 
@@ -226,7 +233,7 @@ class CnCRun(BaseRun):
             cnc.rpc_runset_break(self.__runSetId)
             self.__runSetId = None
 
-    def flash(self, tm, dataPath):
+    def flash(self, dataPath, secs):
         """
         Start flashers for the specified duration with the specified data file
         """
@@ -234,26 +241,28 @@ class CnCRun(BaseRun):
             print >>sys.stderr, "No active runset!"
             return True
 
-        try:
-            data = FlasherDataParser.load(dataPath)
-        except:
-            print >>sys.stderr, "Cannot flash: " + exc_string()
-            return True
-
-        runData = self.getLastRunNumber()
-        subrun = runData[1] + 1
-        self.__setLastRunNumber(runData[0], subrun)
-
         cnc = self.cncConnection()
 
-        cnc.rpc_runset_subrun(self.__runSetId, subrun, data)
+        if dataPath is not None:
+            try:
+                data = FlasherDataParser.load(dataPath)
+            except:
+                print >>sys.stderr, "Cannot flash: " + exc_string()
+                return True
+
+            runData = self.getLastRunNumber()
+            subrun = runData[1] + 1
+            self.__setLastRunNumber(runData[0], subrun)
+
+            cnc.rpc_runset_subrun(self.__runSetId, subrun, data)
 
         # XXX should be monitoring run state during this time
-        time.sleep(tm)
+        time.sleep(secs)
 
-        subrun += 1
-        self.__setLastRunNumber(runData[0], subrun)
-        cnc.rpc_runset_subrun(self.__runSetId, subrun, [])
+        if dataPath is not None:
+            subrun += 1
+            self.__setLastRunNumber(runData[0], subrun)
+            cnc.rpc_runset_subrun(self.__runSetId, subrun, [])
 
     def getLastRunNumber(self):
         "Return the last run number"
@@ -400,5 +409,5 @@ class CnCRun(BaseRun):
 
 if __name__ == "__main__":
     run = CnCRun(True, True)
-    run.run("spts64-real-21-29", "spts64-dirtydozen-hlc-006", 30,
-            "flash-21.xml", (5, 5), 10)
+    run.run("spts64-dirtydozen-hlc-006", "spts64-dirtydozen-hlc-006", 30,
+            (("flash-21.xml", 5), (None, 10), ("flash-21.xml", 5)))

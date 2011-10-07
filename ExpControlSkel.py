@@ -10,8 +10,9 @@ import optparse
 import os
 import re
 import sys
-from cncrun import CnCRun
 import time
+from BaseRun import FlasherScript
+from cncrun import CnCRun
 from datetime import datetime
 from utils.Machineid import Machineid
 
@@ -26,7 +27,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 13366 2011-09-16 03:33:55Z mnewcomb $"
+SVN_ID = "$Id: ExpControlSkel.py 13374 2011-10-07 21:47:47Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -250,9 +251,9 @@ def main():
     p.add_option("-d", "--duration-seconds", type="string", dest="duration",
                  action="store", default="300",
                  help="Run duration (in seconds)")
-    p.add_option("-f", "--flasher-run", type="string", dest="flasherRun",
+    p.add_option("-f", "--flasher-script", type="string", dest="flasherScript",
                  action="store", default=None,
-                 help="Name of flasher run configuration file")
+                 help="Name of flasher script")
     p.add_option("-n", "--num-runs", type="int", dest="numRuns",
                  action="store", default=10000000,
                  help="Number of runs")
@@ -285,6 +286,12 @@ def main():
             "You must specify a run configuration ( -c option )"
         raise SystemExit
 
+    if opt.flasherScript is None:
+        flashData = None
+    else:
+        with open(opt.flasherScript, "r") as fd:
+            flashData = FlasherScript.parse(fd)
+
     cnc = CnCRun(showCmd=opt.showCmd, showCmdOutput=opt.showCmdOut)
 
     clusterCfg = cnc.getActiveClusterConfig()
@@ -294,12 +301,8 @@ def main():
     duration = getDurationFromString(opt.duration)
 
     for r in range(opt.numRuns):
-        run = cnc.createRun(None, opt.runConfig, flashName=opt.flasherRun)
-        if opt.flasherRun is None:
-            run.start(duration)
-        else:
-            #run.start(duration, flashTimes, flashPause, False)
-            raise SystemExit("flasher runs with ExpControSkel not implemented")
+        run = cnc.createRun(None, opt.runConfig, flashData=flashData)
+        run.start(duration)
 
         try:
             try:
