@@ -58,7 +58,7 @@ class PDAQRun(object):
 
 # configurations to run
 #
-RUN_LIST = (#PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
+RUN_LIST = (PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
             PDAQRun("spts64-dirtydozen-hlc-006", 0, 1,
                      (("flash-21", 60), (None, 10), ("flash-21", 45),
                         (None, 20), ("flash-21", 120))),
