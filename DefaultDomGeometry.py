@@ -126,10 +126,10 @@ class DomGeometryException(Exception):
 class DomGeometry(object):
     "maximum possible DOM position"
     MAX_POSITION = 64
-    "maximum possible DOM position"
+    "maximum SPS string number"
     MAX_STRING = 86
     "maximum possible channel ID"
-    MAX_CHAN_ID = (MAX_STRING + 1) * MAX_POSITION
+    MAX_CHAN_ID = 1000 * MAX_POSITION
     "start of range for icetop hub IDs"
     BASE_ICETOP_HUB_NUM = 200
 
@@ -198,6 +198,13 @@ class DomGeometry(object):
         if self.__desc is None:
             return "-"
         return self.__desc
+
+    def location(self):
+        if self.__origString is not None:
+            strNum = self.__origString
+        else:
+            strNum = self.__string
+        return "%02d-%02d" % (strNum, self.__pos)
 
     def mbid(self):
         return self.__mbid
@@ -469,7 +476,7 @@ class DefaultDomGeometry(object):
                     continue
                 print >>out, "%s%s<dom>" % (indent, indent)
                 if dom.originalString() is not None and \
-                       dom.originalString() < \
+                       (dom.originalString() % 1000) < \
                        DomGeometry.BASE_ICETOP_HUB_NUM and \
                        dom.originalString() != dom.string():
                     print >>out, "%s<originalString>%d</originalString>" % \
@@ -642,6 +649,59 @@ class DefaultDomGeometry(object):
                 if not foundPos:
                     self.addDom(nd)
 
+    def validate(self):
+        names = {}
+        chanIds = {}
+        locs = {}
+        strs = {}
+
+        strKeys = self.__stringToDom.keys()
+        strKeys.sort()
+
+        for strNum in strKeys:
+            for dom in self.__stringToDom[strNum]:
+                if not names.has_key(dom.name()):
+                    names[dom.name()] = dom
+                else:
+                    print >>sys.stderr, "Found DOM \"%s\" at %s and %s" % \
+                        (dom.name(), dom.location(),
+                         names[dom.name()].location())
+
+                if dom.name().startswith("SIM") and \
+                    dom.string() % 1000 >= 200 and dom.string() % 1000 < 299:
+                    domnum = int(dom.name()[3:])
+                    origStr = ((domnum - 1) / 64) + 1001
+                    if dom.originalString() is None:
+                        dom.setOriginalString(origStr)
+                    elif dom.originalString() != origStr:
+                        print >>sys.stderr, \
+                            "DOM %s \"%s\" should have origStr %d, not %d" % \
+                            (dom.location(), dom.name(), origStr,
+                             dom.originalString())
+
+                if not locs.has_key(dom.location()):
+                    locs[dom.location()] = dom
+                else:
+                    print >>sys.stderr, "Position %s holds DOMS %s and %s" % \
+                        (dom.location(), dom.name(),
+                         locs[dom.location()].name())
+
+                if dom.originalString() is not None:
+                    strNum = dom.originalString()
+                else:
+                    strNum = dom.string()
+
+                newId = ((strNum % 1000) * DomGeometry.MAX_POSITION) + \
+                    (dom.pos() - 1)
+                if dom.channelId() is None:
+                    if dom.pos() <= DomGeometry.MAX_POSITION:
+                        print >>sys.stderr, "No channel ID for DOM %s \"%s\"" % \
+                            (dom.location(), dom.name())
+                elif newId != dom.channelId():
+                    print >>sys.stderr, \
+                        "DOM %s \"%s\" should have channel ID %d, not %d" % \
+                        (dom.location(), dom.name(), newId, dom.channelId())
+                    dom.setChannelId(newId)
 
 class DefaultDomGeometryReader(XMLParser):
 
@@ -1040,13 +1100,25 @@ class GeometryFileReader(object):
         return defDomGeom
 
 if __name__ == "__main__":
+    import optparse
+
+    op = optparse.OptionParser()
+    op.add_option("-f", "--file", type="string", dest="inputFile",
+                  action="store", default=None,
+                  help="Name of input file")
+    op.add_option("-o", "--output", type="string", dest="outputFile",
+                  action="store", default=None,
+                  help="Name of file where revised XML file should be written")
+
+    opt, args = op.parse_args()
+
     # read in default-dom-geometry.xml
-    #defDomGeom = DefaultDomGeometryReader.parse()
+    defDomGeom = DefaultDomGeometryReader.parse(fileName=opt.inputFile)
 
-    defDomGeom = DefaultDomGeometryReader.parse()
+    # validate everything
+    defDomGeom.validate()
 
-    # rewrite the 64-DOM strings to 60 DOM strings plus 32 DOM icetop hubs
-    defDomGeom.rewrite()
-
-    # dump the new default-dom-geometry data to sys.stdout
-    defDomGeom.dump()
+    # dump the new default-dom-geometry data
+    if opt.outputFile is not None:
+        with open(opt.outputFile, "w") as fd:
+            defDomGeom.dump(fd)
