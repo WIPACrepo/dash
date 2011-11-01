@@ -100,11 +100,11 @@ class RadarThread(CnCThread):
 
             time.sleep(self.__sampleSleep)
 
-        rateData = []
-        for mbID in rateList:
-            rateData.append((mbID, rateList[mbID]))
-
         if not self.isClosed():
+            rateData = []
+            for mbID in rateList:
+                rateData.append((mbID, rateList[mbID]))
+
             if not self.__liveMoniClient.sendMoni("radarDOMs", rateData,
                                                   Prio.EMAIL):
                 self.__dashlog.error("Failed to send radar DOM report")
