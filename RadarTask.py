@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import time
+
 from CnCTask import CnCTask
 from CnCThread import CnCThread
 from LiveImports import Prio
@@ -95,6 +97,8 @@ class RadarThread(CnCThread):
                 if not rdom.mbID() in rateList or \
                         rateList[rdom.mbID()] < rate:
                     rateList[rdom.mbID()] = rate
+
+                time.sleep(self.__sampleSleep)
 
         rateData = []
         for mbID in rateList:
