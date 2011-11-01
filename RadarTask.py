@@ -131,15 +131,21 @@ class RadarTask(CnCTask):
     RADAR_SAMPLE_DURATION = 120
 
     def __init__(self, taskMgr, runset, dashlog, liveMoni,
-                 samples=RADAR_SAMPLES, duration=RADAR_SAMPLE_DURATION,
+                 samples=None, duration=None,
                  period=None):
         self.__runset = runset
         self.__liveMoniClient = liveMoni
-        self.__samples = samples
-        self.__duration = duration
+        if samples is None:
+            self.__samples = self.RADAR_SAMPLES
+        else:
+            self.__samples = samples
+        if duration is None:
+            self.__duration = self.RADAR_SAMPLE_DURATION
+        else:
+            self.__duration = duration
 
-        self.__thread = RadarThread(runset, dashlog, liveMoni, samples,
-                                    duration)
+        self.__thread = RadarThread(runset, dashlog, liveMoni, self.__samples,
+                                    self.__duration)
         self.__badCount = 0
 
         if self.__liveMoniClient is None:

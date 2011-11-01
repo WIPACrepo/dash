@@ -12,7 +12,8 @@ from DAQMocks import MockComponent, MockIntervalTimer, MockLiveMoni, \
 
 class RadarTaskTest(unittest.TestCase):
     def setUp(self):
-        pass
+        # shorten radar thread
+        RadarTask.RADAR_SAMPLE_DURATION = 1
 
     def tearDown(self):
         pass

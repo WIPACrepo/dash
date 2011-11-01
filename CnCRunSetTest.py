@@ -750,6 +750,9 @@ class CnCRunSetTest(unittest.TestCase):
         self.__daqDataDir = None
         self.__spadeDir = None
 
+        # shorten radar thread
+        RadarTask.RADAR_SAMPLE_DURATION = 1
+
         RunXMLValidator.setUp()
 
     def tearDown(self):

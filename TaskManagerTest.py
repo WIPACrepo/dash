@@ -5,7 +5,7 @@ import time
 import unittest
 
 from LiveImports import Prio
-from RadarTask import RadarThread
+from RadarTask import RadarTask, RadarThread
 from RunOption import RunOption
 from TaskManager import TaskManager
 from WatchdogTask import WatchdogTask
@@ -289,6 +289,9 @@ class TaskManagerTest(unittest.TestCase):
 
     def setUp(self):
         self.__firstTime = True
+
+        # shorten radar thread
+        RadarTask.RADAR_SAMPLE_DURATION = 1
 
     def tearDown(self):
         self.__firstTime = False
