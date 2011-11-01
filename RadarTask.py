@@ -98,7 +98,7 @@ class RadarThread(CnCThread):
                         rateList[rdom.mbID()] < rate:
                     rateList[rdom.mbID()] = rate
 
-                time.sleep(self.__sampleSleep)
+            time.sleep(self.__sampleSleep)
 
         rateData = []
         for mbID in rateList:
