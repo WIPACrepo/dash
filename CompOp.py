@@ -74,7 +74,7 @@ class ComponentOperation(threading.Thread):
         self.__result = None
         self.__error = False
 
-        name = "CnCServer:Comp*%s=%s" % (str(self.__comp), self.__operation)
+        name = "Comp*%s=%s" % (str(self.__comp), self.__operation)
 
         super(ComponentOperation, self).__init__(name=name)
         self.setDaemon(True)
