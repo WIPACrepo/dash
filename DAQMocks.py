@@ -1594,7 +1594,10 @@ class RunXMLValidator:
     @classmethod
     def setUp(cls):
         if os.path.exists("run.xml"):
-            raise ValueError("Found unexpected run.xml file")
+            try:
+                os.remove("run.xml")
+            except:
+                raise ValueError("Cannot remove lingering run.xml file")
 
     @classmethod
     def tearDown(cls):
