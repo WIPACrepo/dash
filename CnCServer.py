@@ -40,7 +40,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 13352 2011-09-13 03:49:37Z mnewcomb $"
+SVN_ID = "$Id: CnCServer.py 13399 2011-11-11 02:39:28Z dglo $"
 
 
 class CnCServerException(Exception):
@@ -1346,7 +1346,7 @@ class CnCServer(DAQPool):
             openCount = 0
 
         runSet.startRun(runNum, self.getClusterConfig().configName(),
-                        runOptions, get_version_info(SVN_ID), self.__spadeDir,
+                        runOptions, self.__versionInfo, self.__spadeDir,
                         copyDir=self.__copyDir, logDir=logDir,
                         quiet=self.__quiet)
 
