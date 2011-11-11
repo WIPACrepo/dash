@@ -113,7 +113,7 @@ class ComponentOperation(threading.Thread):
                                                        self.__data[1])
 
     def __getSingleBeanField(self):
-        "Get the component's current state"
+        "Get a single bean.field value from the component"
         self.__result = self.__comp.getSingleBeanField(self.__data[0],
                                                        self.__data[1])
 
