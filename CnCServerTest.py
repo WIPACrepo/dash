@@ -64,7 +64,7 @@ class FakeTaskManager(object):
 
 class MostlyRunSet(RunSet):
     def __init__(self, parent, runConfig, compList, logger):
-        self.__dashLog = logger
+        self.__dashlog = logger
         self.__logDict = {}
 
         super(MostlyRunSet, self).__init__(parent, runConfig, compList, logger)
@@ -74,7 +74,7 @@ class MostlyRunSet(RunSet):
         return FakeLogger()
 
     def createDashLog(self):
-        return self.__dashLog
+        return self.__dashlog
 
     def createRunData(self, runNum, clusterConfigName, runOptions, versionInfo,
                       spadeDir, copyDir=None, logDir=None):

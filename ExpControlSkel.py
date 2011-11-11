@@ -10,7 +10,6 @@ import optparse
 import os
 import re
 import sys
-import time
 from BaseRun import FlasherScript
 from cncrun import CnCRun
 from datetime import datetime
@@ -27,7 +26,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 13374 2011-10-07 21:47:47Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 13400 2011-11-11 02:44:51Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -276,15 +275,11 @@ def main():
            (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
             # to run daq launch you should either be a control host or
             # a totally unknown host
-            print >>sys.stderr, \
-                ("Are you sure you are running ExpControlSkel "
-                 "on the correct host?")
-            raise SystemExit
+            raise SystemExit("Are you sure you are running ExpControlSkel "
+                             "on the correct host?")
 
     if opt.runConfig == None:
-        print >>sys.stderr, \
-            "You must specify a run configuration ( -c option )"
-        raise SystemExit
+        raise SystemExit("You must specify a run configuration ( -c option )")
 
     if opt.flasherScript is None:
         flashData = None
@@ -300,7 +295,7 @@ def main():
 
     duration = getDurationFromString(opt.duration)
 
-    for r in range(opt.numRuns):
+    for r in xrange(opt.numRuns):
         run = cnc.createRun(None, opt.runConfig, flashData=flashData)
         run.start(duration)
 

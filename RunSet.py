@@ -234,8 +234,11 @@ class RunData(object):
         testing - True if this is called from a unit test
         """
         self.__runNumber = runNumber
+        self.__clusterConfigName = clusterConfigName
         self.__runConfig = runConfig
         self.__runOptions = runOptions
+        self.__spadeDir = spadeDir
+        self.__copyDir = copyDir
 
         if not RunOption.isLogToFile(self.__runOptions):
             self.__logDir = None
@@ -248,9 +251,6 @@ class RunData(object):
             self.__logDir = logDir
             self.__runDir = runSet.createRunDir(self.__logDir,
                                                 self.__runNumber)
-
-        self.__spadeDir = spadeDir
-        self.__copyDir = copyDir
 
         if self.__spadeDir is not None and not os.path.exists(self.__spadeDir):
             raise RunSetException("SPADE directory %s does not exist" %
@@ -267,8 +267,6 @@ class RunData(object):
         self.__dashlog.error("Run configuration: %s" % runConfig.basename())
         self.__dashlog.error("Cluster configuration: %s" % clusterConfigName)
 
-        self.__clusterConfigName = clusterConfigName
-
         self.__taskMgr = None
         self.__liveMoniClient = None
 
@@ -282,7 +280,7 @@ class RunData(object):
     def __getRateData(self, comps):
         nEvts = 0
         evtTime = -1
-        payloadTime = -1
+        lastPayTime = -1
         nMoni = 0
         moniTime = -1
         nSN = 0
@@ -299,7 +297,7 @@ class RunData(object):
                 elif type(evtData) == list or type(evtData) == tuple:
                     nEvts = int(evtData[0])
                     evtTime = datetime.datetime.utcnow()
-                    payloadTime = long(evtData[1])
+                    lastPayTime = long(evtData[1])
 
                 if nEvts > 0 and self.__firstPayTime <= 0:
                     val = self.getSingleBeanField(c, "backEnd",
@@ -333,7 +331,7 @@ class RunData(object):
                             nTCal = num
                             tcalTime = time
 
-        return (nEvts, evtTime, self.__firstPayTime, payloadTime, nMoni,
+        return (nEvts, evtTime, self.__firstPayTime, lastPayTime, nMoni,
                 moniTime, nSN, snTime, nTCal, tcalTime)
 
     def __createDashLog(self):
