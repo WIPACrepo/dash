@@ -8,16 +8,6 @@ from DAQRPC import RPCClient
 
 
 class Dash(cmd.Cmd):
-    CMD_BEAN = "bean"
-    CMD_HELP = "help"
-    CMD_LS = "ls"
-
-    CMDS = {
-        CMD_BEAN: "get bean data",
-        CMD_HELP: "print this message",
-        CMD_LS: "list component info",
-        }
-
     def __init__(self):
         self.__cnc = RPCClient("localhost", DAQPort.CNCSERVER)
 
