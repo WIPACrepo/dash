@@ -615,6 +615,12 @@ class MockComponent(object):
 
         self.__beanData = {}
 
+    def __cmp__(self, other):
+        val = cmp(self.__name, other.__name)
+        if val == 0:
+            val = cmp(self.__num, other.__num)
+        return val
+
     def __repr__(self):
         return str(self)
 
@@ -721,6 +727,31 @@ class MockComponent(object):
 
     def getNonstoppedConnectorsString(self):
         return ""
+
+    def getRunData(self, runnum):
+        if self.__num == 0:
+            if self.__name.startswith("event"):
+                evtData = self.getSingleBeanField("backEnd", "EventData")
+                numEvts = int(evtData[0])
+                lastTime = long(evtData[1])
+
+                val = self.getSingleBeanField("backEnd", "FirstEventTime")
+                firstTime = long(val)
+                return (numEvts, firstTime, lastTime)
+            elif self.__name.startswith("secondary"):
+                for bldr in ("tcal", "sn", "moni"):
+                    val = self.getSingleBeanField(bldr + "Builder",
+                                                  "TotalDispatchedData")
+                    if bldr == "tcal":
+                        numTcal = long(val)
+                    elif bldr == "sn":
+                        numSN = long(val)
+                    elif bldr == "moni":
+                        numMoni = long(val)
+
+                return (numTcal, numSN, numMoni)
+
+        return (None, None, None)
 
     def getSingleBeanField(self, beanName, fieldName):
         if not self.checkBeanField(beanName, fieldName):

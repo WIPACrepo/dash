@@ -24,6 +24,36 @@ sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
 
+def unFixValue(obj):
+    """ Look for numbers masquerading as strings.  If an obj is a
+    string and successfully converts to a number, return that
+    convertion.  If obj is a dict or list, recuse into it
+    converting all such masquerading strings.  All other types are
+    unaltered.  This pairs with the similarly named fix* methods in
+    icecube.daq.juggler.mbean.XMLRPCServer """
+
+    if type(obj) is dict:
+        for k in obj.keys():
+            obj[k] = unFixValue(obj[k])
+    elif type(obj) is list:
+        for i in xrange(0, len(obj)):
+            obj[i] = unFixValue(obj[i])
+    elif type(obj) is tuple:
+        newObj = []
+        for v in obj:
+            newObj.append(unFixValue(v))
+        obj = tuple(newObj)
+    elif type(obj) is str:
+        try:
+            if obj.endswith("L"):
+                return long(obj[:-1])
+            else:
+                return int(obj)
+        except ValueError:
+            pass
+    return obj
+
+
 class MBeanException(Exception):
     pass
 
@@ -87,29 +117,6 @@ class MBeanClient(object):
             finally:
                 self.__loadLock.release()
 
-    @classmethod
-    def __unFixValue(cls, obj):
-
-        """ Look for numbers masquerading as strings.  If an obj is a
-        string and successfully converts to a number, return that
-        convertion.  If obj is a dict or list, recuse into it
-        converting all such masquerading strings.  All other types are
-        unaltered.  This pairs with the similarly named fix* methods in
-        icecube.daq.juggler.mbean.XMLRPCServer """
-
-        if type(obj) is dict:
-            for k in obj.keys():
-                obj[k] = cls.__unFixValue(obj[k])
-        elif type(obj) is list:
-            for i in xrange(0, len(obj)):
-                obj[i] = cls.__unFixValue(obj[i])
-        elif type(obj) is str:
-            try:
-                return int(obj)
-            except ValueError:
-                pass
-        return obj
-
     def checkBeanField(self, bean, fld):
         "throw an exception if the bean or field does not exist"
         self.__lockAndLoad()
@@ -132,7 +139,7 @@ class MBeanClient(object):
         "get the value for a single MBean field"
         self.checkBeanField(bean, fld)
 
-        return self.__unFixValue(self.__client.mbean.get(bean, fld))
+        return unFixValue(self.__client.mbean.get(bean, fld))
 
     def getAttributes(self, bean, fldList):
         "get the values for a list of MBean fields"
@@ -144,7 +151,7 @@ class MBeanClient(object):
 
         if type(attrs) == dict and len(attrs) > 0:
             for k in attrs.keys():
-                attrs[k] = self.__unFixValue(attrs[k])
+                attrs[k] = unFixValue(attrs[k])
         return attrs
 
     def getBeanNames(self):
@@ -419,6 +426,22 @@ class DAQClient(ComponentName):
 
         return csStr
 
+    def getRunData(self, runNum):
+        "Get the run data for the specified run"
+        try:
+            return unFixValue(self.__client.xmlrpc.getRunData(runNum))
+        except:
+            self.__log.error(exc_string())
+            return (None, None, None)
+
+    def getRunNumber(self):
+        "Get the current run number"
+        try:
+            return self.__client.xmlrpc.getRunNumber()
+        except:
+            self.__log.error(exc_string())
+            return None
+
     def getSingleBeanField(self, name, field):
         if self.__mbean is None:
             return None
@@ -561,6 +584,14 @@ class DAQClient(ComponentName):
             if type(evts) == str:
                 evts = long(evts[:-1])
             return evts
+        except:
+            self.__log.error(exc_string())
+            return None
+
+    def switchToNewRun(self, newRun):
+        "Switch to new run"
+        try:
+            return self.__client.xmlrpc.switchToNewRun(newRun)
         except:
             self.__log.error(exc_string())
             return None

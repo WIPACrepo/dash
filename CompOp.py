@@ -41,6 +41,8 @@ class ComponentOperation(threading.Thread):
     GET_CONN_INFO = "GET_CONN_INFO"
     "thread will get multiple component MBean values"
     GET_MULTI_BEAN = "GET_MULTI_BEAN"
+    "thread will get run data from builders"
+    GET_RUN_DATA = "GET_RUN_DATA"
     "thread will get a single component MBean value"
     GET_SINGLE_BEAN = "GET_SINGLE_BEAN"
     "thread will get the component state"
@@ -74,7 +76,7 @@ class ComponentOperation(threading.Thread):
         self.__result = None
         self.__error = False
 
-        name = "Comp*%s=%s" % (str(self.__comp), self.__operation)
+        name = "CompOp*%s=%s" % (str(self.__comp), self.__operation)
 
         super(ComponentOperation, self).__init__(name=name)
         self.setDaemon(True)
@@ -111,6 +113,11 @@ class ComponentOperation(threading.Thread):
         "Get the component's current state"
         self.__result = self.__comp.getMultiBeanFields(self.__data[0],
                                                        self.__data[1])
+
+    def __getRunData(self):
+        "Get the builder's run data"
+        self.__result = self.__comp.getRunData(self.__data[0])
+
 
     def __getSingleBeanField(self):
         "Get a single bean.field value from the component"
@@ -161,6 +168,8 @@ class ComponentOperation(threading.Thread):
             self.__getConnectorInfo()
         elif self.__operation == ComponentOperation.GET_MULTI_BEAN:
             self.__getMultiBeanFields()
+        elif self.__operation == ComponentOperation.GET_RUN_DATA:
+            self.__getRunData()
         elif self.__operation == ComponentOperation.GET_SINGLE_BEAN:
             self.__getSingleBeanField()
         elif self.__operation == ComponentOperation.GET_STATE:
@@ -249,6 +258,7 @@ class ComponentOperationGroup(object):
     def results(self):
         if self.__op != ComponentOperation.GET_CONN_INFO and \
                self.__op != ComponentOperation.GET_MULTI_BEAN and \
+               self.__op != ComponentOperation.GET_RUN_DATA and \
                self.__op != ComponentOperation.GET_SINGLE_BEAN and \
                self.__op != ComponentOperation.GET_STATE:
             raise ComponentOperationException("Cannot get results for" +

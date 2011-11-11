@@ -404,6 +404,7 @@ class RealComponent(object):
         self.__connections = None
 
         self.__mbeanData = None
+        self.__runData = None
 
         self.__version = {'filename': name, 'revision': '1', 'date': 'date',
                           'time': 'time', 'author': 'author', 'release': 'rel',
@@ -414,6 +415,7 @@ class RealComponent(object):
                                      'xmlrpc.commitSubrun')
         self.__cmd.register_function(self.__configure, 'xmlrpc.configure')
         self.__cmd.register_function(self.__connect, 'xmlrpc.connect')
+        self.__cmd.register_function(self.__getRunData, 'xmlrpc.getRunData')
         self.__cmd.register_function(self.__getState, 'xmlrpc.getState')
         self.__cmd.register_function(self.__getVersionString,
                                      'xmlrpc.getVersionInfo')
@@ -499,6 +501,24 @@ class RealComponent(object):
         self.__state = 'connected'
         return 'CONN'
 
+    @classmethod
+    def __fixValue(cls, obj):
+        if type(obj) is dict:
+            for k in obj:
+                obj[k] = cls.__fixValue(obj[k])
+        elif type(obj) is list:
+            for i in xrange(0, len(obj)):
+                obj[i] = cls.__fixValue(obj[i])
+        elif type(obj) is tuple:
+            newObj = []
+            for v in obj:
+                newObj.append(cls.__fixValue(v))
+            obj = tuple(newObj)
+        elif type(obj) is int or type(obj) is long:
+            if obj < xmlrpclib.MININT or obj > xmlrpclib.MAXINT:
+                return str(obj)
+        return obj
+
     def __getAttributes(self, bean, fldList):
         if self.__mbeanData is None:
             self.__mbeanData = BeanData.buildDAQBeans(self.__name)
@@ -519,15 +539,13 @@ class RealComponent(object):
             self.__mbeanData = BeanData.buildDAQBeans(self.__name)
 
         val = self.__mbeanData[bean][fld].getValue()
-        if type(val) == list:
-            for i in range(len(val)):
-                if type(val[i]) == long or val[i] < xmlrpclib.MININT or \
-                        val[i] > xmlrpclib.MAXINT:
-                    val[i] = str(val[i])
-                    if val[i].endswith("L"):
-                        val[i] = val[i][:-1]
 
-        return val
+        return self.__fixValue(val)
+
+    def __getRunData(self, runnum):
+        if self.__runData is None:
+            raise Exception("RunData has not been set")
+        return self.__fixValue(self.__runData)
 
     @classmethod
     def __getStartOrder(cls, name):
@@ -745,6 +763,9 @@ class RealComponent(object):
             self.__mbeanData = BeanData.buildDAQBeans(self.__name)
 
         self.__mbeanData[bean][fld].setValue(val)
+
+    def setRunData(self, val0, val1, val2):
+        self.__runData = (long(val0), long(val1), long(val2))
 
     @staticmethod
     def sortForLaunch(y, x):
@@ -1079,6 +1100,14 @@ class IntegrationTest(unittest.TestCase):
         if not setData:
             raise Exception("Could not find component %s#%d" %
                             (compName, compNum))
+
+    def __setRunData(self, numEvts, startEvtTime, lastEvtTime, numTcal, numSN,
+                     numMoni):
+        for c in self.__compList:
+            if c.getName() == "eventBuilder":
+                c.setRunData(numEvts, startEvtTime, lastEvtTime)
+            elif c.getName() == "secondaryBuilders":
+                c.setRunData(numTcal, numSN, numMoni)
 
     def __testBody(self, live, cnc, liveLog, appender, dashLog, runOptions,
                    liveRunOnly):
@@ -1460,6 +1489,9 @@ class IntegrationTest(unittest.TestCase):
         self.__setBeanData("secondaryBuilders", 0, "tcalBuilder",
                            "TotalDispatchedData", numTcal)
 
+        self.__setRunData(numEvts, startEvtTime, lastEvtTime, numTcal, numSN,
+                          numMoni)
+
         msg = 'Stopping run %d' % runNum
         if liveLog:
             liveLog.addExpectedText(msg)
@@ -1535,6 +1567,8 @@ class IntegrationTest(unittest.TestCase):
             liveLog.checkStatus(10)
         if logServer:
             logServer.checkStatus(10)
+
+        cnc.updateRates(setId)
 
         moni = cnc.rpc_runset_monitor_run(setId)
         self.failIf(moni is None, 'rpc_run_monitoring returned None')

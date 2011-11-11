@@ -324,6 +324,14 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
+    def __sortCmp(self, x, y):
+        if y.order() is None:
+            return -1
+        elif x.order() is None:
+            return 1
+        else:
+            return y.order() - x.order()
+
     def __startRun(self, runset, runNum, runConfig, clusterName,
                    runOptions=RunOption.MONI_TO_NONE, versionInfo=None,
                    spadeDir="/tmp", copyDir=None, logDir=None,
@@ -371,17 +379,17 @@ class TestRunSet(unittest.TestCase):
         logger.DEBUG = True
         expState = "stopping"
 
+        compList = components
+        if compList is not None:
+            compList.sort(lambda x, y: self.__sortCmp(y, x))
+
         hangStr = None
         hangList = []
         if hangType > 0:
             for c in components:
                 if c.isHanging():
-                    hangList.append(c)
-                    if hangStr is None:
-                        hangStr = ''
-                    else:
-                        hangStr += ', '
-                    hangStr += c.fullName()
+                    hangList.append(c.fullName())
+            hangStr = ", ".join(hangList)
 
         if hangType > 0:
             if len(hangList) < len(components):
@@ -397,8 +405,6 @@ class TestRunSet(unittest.TestCase):
                                      " Forcing %d component%s to stop: %s") %
                                     (runset.id(), runNum, "forcingStop",
                                      len(hangList), plural, hangStr))
-
-        logger.addExpectedExact("Starting time is not set")
 
         logger.addExpectedExact("0 physics events collected in 0 seconds")
         logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
@@ -517,8 +523,11 @@ class TestRunSet(unittest.TestCase):
                                 (compList[0].fullName(),
                                  clusterCfg.configName()))
 
+        cycleList = compList[1:]
+        cycleList.sort()
+
         errMsg = None
-        for c in compList[1:]:
+        for c in cycleList:
             if errMsg is None:
                 errMsg = "Cycling components [" + c.fullName()
             else:
@@ -550,6 +559,8 @@ class TestRunSet(unittest.TestCase):
 
         logger.addExpectedExact("Cannot remove component %s from RunSet #%d" %
                                 (extraComp.fullName(), runset.id()))
+
+        longList.sort()
 
         errMsg = None
         for c in longList:

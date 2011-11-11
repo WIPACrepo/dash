@@ -76,8 +76,9 @@ class TestRunStats(unittest.TestCase):
         rtnData = rs.updateEventCounts(upData, addRate=addRate)
 
         upFlds = []
-        for idx in xrange(len(self.UPDATE_FIELDS)):
-            upFlds.append((self.UPDATE_FIELDS[idx], upData[idx]))
+        for idx in xrange(len(self.STOP_FIELDS)):
+            upFlds.append((self.STOP_FIELDS[idx],
+                            upDict[self.STOP_FIELDS[idx]]))
         self.__checkValues("updateData", upFlds, rtnData)
 
         self.__checkStats(rs, upDict, upRate, upEntries)
@@ -120,7 +121,9 @@ class TestRunStats(unittest.TestCase):
 
         self.__checkStats(rs, self.EMPTY_DICT, rateEmpty, entriesEmpty)
 
-        evtTup = rs.stop(None)
+        noEvtData = (None, None, None, None, None, None, None, None, None,
+                     None)
+        evtTup = rs.updateEventCounts(noEvtData)
 
         stopFlds = self.__buildDataList(self.EMPTY_DICT, self.STOP_FIELDS,
                                         current=False)
@@ -144,7 +147,9 @@ class TestRunStats(unittest.TestCase):
 
         self.__checkStats(rs, self.EMPTY_DICT, rateEmpty, entriesEmpty)
 
-        evtTup = rs.stop(None)
+        noEvtData = (None, None, None, None, None, None, None, None, None,
+                     None)
+        evtTup = rs.updateEventCounts(noEvtData)
 
         stopFlds = self.__buildDataList(self.EMPTY_DICT, self.STOP_FIELDS,
                                         current=False)
@@ -198,7 +203,9 @@ class TestRunStats(unittest.TestCase):
 
             self.__checkUpdate(rs, upDict, upRate, upEntries, addRate=(i > 0))
 
-        evtTup = rs.stop(None)
+        noEvtData = (None, None, None, None, None, None, None, None, None,
+                     None)
+        evtTup = rs.updateEventCounts(noEvtData)
 
         stopFlds = self.__buildDataList(upDict, self.STOP_FIELDS,
                                         current=False)

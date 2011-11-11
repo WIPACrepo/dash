@@ -481,8 +481,6 @@ class TestDAQServer(unittest.TestCase):
         logger.checkStatus(10)
         clientLogger.checkStatus(10)
 
-        logger.addExpectedText("Starting time is not set")
-
         logger.addExpectedText("0 physics events collected in 0 seconds")
         logger.addExpectedText("0 moni events, 0 SN events, 0 tcals")
         logger.addExpectedText("Run terminated SUCCESSFULLY")

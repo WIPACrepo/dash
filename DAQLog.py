@@ -78,6 +78,11 @@ class LogSocketServer(object):
             self.__outfile.close()
         self.__serving = False
 
+    def __openPath(self, path):
+        if path is None:
+            return sys.stdout
+        return open(path, "a")
+
     def __win_listener(self):
         """
         Windows version of listener - no select().
@@ -106,10 +111,7 @@ class LogSocketServer(object):
 
     def startServing(self):
         "Creates listener thread, prepares file for output, and returns"
-        if self.__logpath:
-            self.__outfile = open(self.__logpath, "a")
-        else:
-            self.__outfile = sys.stdout
+        self.__outfile = self.__openPath(self.__logpath)
         if os.name == "nt":
             self.__thread = threading.Thread(target=self.__win_listener,
                                              name=self.__logpath)
@@ -119,6 +121,20 @@ class LogSocketServer(object):
         self.__serving = False
         self.__thread.setDaemon(True)
         self.__thread.start()
+
+    def setOutput(self, newPath):
+        "Change logging output file.  Send to sys.stdout if path is None"
+        oldFD = self.__outfile
+        self.__outfile = self.__openPath(newPath)
+        try:
+            if oldFD is not None:
+                oldFD.close()
+        except:
+            pass
+
+        # rename the thread
+        #
+        self.__thread.name = newPath
 
     def stopServing(self):
         "Signal listening thread to exit; wait for thread to finish"

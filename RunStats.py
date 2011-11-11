@@ -100,14 +100,6 @@ class RunStats(object):
         "Initialize statistics for the current run"
         pass
 
-    def stop(self, evtData):
-        "Gather and return end-of-run statistics"
-        # get final event counts
-        self.updateEventCounts(evtData)
-
-        return (self.__numEvts, self.__numMoni, self.__numSN, self.__numTcal,
-                self.__startPayTime, self.__evtPayTime)
-
     def updateEventCounts(self, evtData, addRate=False):
         "Gather run statistics"
         if evtData is None:
@@ -133,4 +125,5 @@ class RunStats(object):
             if addRate:
                 self.__addRate(self.__evtPayTime, self.__numEvts)
 
-        return evtData
+        return (self.__numEvts, self.__numMoni, self.__numSN, self.__numTcal,
+                self.__startPayTime, self.__evtPayTime)

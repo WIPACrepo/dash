@@ -27,6 +27,7 @@ class TaskManager(threading.Thread):
         self.__tasks = self.__createAllTasks(live, runDir, runCfg, runOptions)
 
         self.__running = False
+        self.__stopping = False
         self.__flag = threading.Condition()
 
         super(TaskManager, self).__init__(name="TaskManager")
@@ -78,11 +79,11 @@ class TaskManager(threading.Thread):
 
     def __run(self):
         self.__running = True
-        while self.__running:
+        while not self.__stopping:
             waitSecs = CnCTask.MAX_TASK_SECS
             for t in self.__tasks:
                 # don't do remaining tasks if stop() has been called
-                if not self.__running:
+                if self.__stopping:
                     break
 
                 try:
@@ -101,12 +102,22 @@ class TaskManager(threading.Thread):
             finally:
                 self.__flag.release()
 
+        self.__running = False
+
         for t in self.__tasks:
             t.close()
+
+        self.__stopping = False
 
     @classmethod
     def createIntervalTimer(cls, name, period):
         return IntervalTimer(name, period, startTriggered=True)
+
+    def isRunning(self):
+        return self.__running
+
+    def isStopped(self):
+        return not self.__running and not self.__stopping
 
     def reset(self):
         for t in self.__tasks:
@@ -127,10 +138,10 @@ class TaskManager(threading.Thread):
         self.__runset.setError()
 
     def stop(self):
-        if self.__running:
+        if self.__running and not self.__stopping:
             self.__flag.acquire()
             try:
-                self.__running = False
+                self.__stopping = True
                 self.__flag.notify()
             finally:
                 self.__flag.release()

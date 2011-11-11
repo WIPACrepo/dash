@@ -115,6 +115,29 @@ class MockComponent(object):
 
         return valMap
 
+    def getRunData(self, runnum):
+        if self.__num == 0:
+            if self.__name.startswith("event"):
+                evtData = self.__beanData["backEnd"]["EventData"]
+                numEvts = int(evtData[0])
+                lastTime = long(evtData[1])
+
+                val = self.__beanData["backEnd"]["FirstEventTime"]
+                firstTime = long(val)
+                return (numEvts, firstTime, lastTime)
+            elif self.__name.startswith("secondary"):
+                for bldr in ("tcalBuilder", "snBuilder", "moniBuilder"):
+                    val = self.__beanData[bldr]["TotalDispatchedData"]
+                    if bldr == "tcalBuilder":
+                        numTcal = long(val)
+                    elif bldr == "snBuilder":
+                        numSN = long(val)
+                    elif bldr == "moniBuilder":
+                        numMoni = long(val)
+
+                return (numTcal, numSN, numMoni)
+        return (None, None, None)
+
     def getSingleBeanField(self, beanName, fieldName):
         if not beanName in self.__beanData:
             raise ValueError("Unknown %s bean \"%s\"" % (str(self), beanName))

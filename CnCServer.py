@@ -40,7 +40,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 13399 2011-11-11 02:39:28Z dglo $"
+SVN_ID = "$Id: CnCServer.py 13401 2011-11-11 04:23:13Z dglo $"
 
 
 class CnCServerException(Exception):
@@ -272,14 +272,13 @@ class DAQPool(object):
                 runSet.setOrder(connMap, logger)
                 runSet.configure()
             except:
-                runSet.reportRunStart(runNum, release, revision, False)
+                runSet.reportRunStartFailure(runNum, release, revision)
                 if not forceRestart:
                     self.returnRunset(runSet, logger)
                 else:
                     self.restartRunset(runSet, logger)
                 raise
 
-            runSet.reportRunStart(runNum, release, revision, True)
             setComps = []
             for c in runSet.components():
                 setComps.append(c.fullName())
@@ -629,6 +628,7 @@ class CnCServer(DAQPool):
             self.__server.register_function(self.rpc_runset_state)
             self.__server.register_function(self.rpc_runset_stop_run)
             self.__server.register_function(self.rpc_runset_subrun)
+            self.__server.register_function(self.rpc_runset_switch_run)
             self.__server.register_function(self.rpc_version)
 
         if sys.version_info > (2, 3):
@@ -1290,6 +1290,17 @@ class CnCServer(DAQPool):
 
         return "OK"
 
+    def rpc_runset_switch_run(self, id, runNum):
+        "switch the specified runset to a new run number"
+        runSet = self.findRunset(id)
+
+        if not runSet:
+            raise CnCServerException('Could not find runset#%d' % id)
+
+        runSet.switchRun(runNum)
+
+        return "OK"
+
     def rpc_version(self):
         "return the CnCServer release/revision info"
         return self.__versionInfo
@@ -1361,6 +1372,17 @@ class CnCServer(DAQPool):
                              (self.__openFileCount, openCount))
             self.__openFileCount = openCount
             self.__reportOpenFiles(runNum)
+
+    def updateRates(self, id):
+        """
+        This is a convenience method to allow unit tests to force rate updates
+        """
+        runSet = self.findRunset(id)
+
+        if not runSet:
+            raise CnCServerException('Could not find runset#%d' % id)
+
+        return runSet.updateRates()
 
     def versionInfo(self):
         return self.__versionInfo
