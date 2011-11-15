@@ -9,6 +9,13 @@ from xml.dom import minidom, Node
 
 from Component import Component
 
+# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+if "PDAQ_HOME" in os.environ:
+    metaDir = os.environ["PDAQ_HOME"]
+else:
+    from locate_pdaq import find_pdaq_trunk
+    metaDir = find_pdaq_trunk()
+
 
 class XMLError(Exception):
     pass
@@ -267,7 +274,7 @@ class ClusterDescription(ConfigXMLBase):
     DEFAULT_PKGSTAGE_DIR = "/software/stage/pdaq/dependencies/tar"
     DEFAULT_PKGINSTALL_DIR = "/software/pdaq"
 
-    def __init__(self, configDir, configName, suffix='.cfg'):
+    def __init__(self, configDir=None, configName=None, suffix='.cfg'):
 
         self.name = None
         self.__hostMap = None
@@ -283,6 +290,12 @@ class ClusterDescription(ConfigXMLBase):
         self.__defaultJVM = None
         self.__defaultJVMArgs = None
         self.__defaultComponent = None
+
+        if configName is None:
+            configName = self.getClusterFromHostName()
+
+        if configDir is None:
+             configDir = os.path.abspath(os.path.join(metaDir, 'config'))
 
         try:
             super(ClusterDescription, self).__init__(configDir, configName,

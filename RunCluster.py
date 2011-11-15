@@ -118,7 +118,7 @@ class RunCluster(CachedConfigName):
             name = name[:-4]
         self.setConfigName(name)
 
-        clusterDesc = self.__getClusterDescription(descrName, configDir)
+        clusterDesc = ClusterDescription(configDir, descrName)
         self.__descName = clusterDesc.configName()
 
         hostMap = {}
@@ -283,16 +283,6 @@ class RunCluster(CachedConfigName):
             if comp.isHub():
                 hubList.append(comp)
         return hubList
-
-    def __getClusterDescription(self, name, configDir):
-        "Get the appropriate cluster description"
-        if name is None:
-            name = ClusterDescription.getClusterFromHostName()
-
-        if configDir is None:
-            configDir = os.path.abspath(os.path.join(metaDir, 'config'))
-
-        return ClusterDescription(configDir, name)
 
     def __getSortedSimHubs(self, clusterDesc, hostMap):
         "Get list of simulation hubs, sorted by priority"
