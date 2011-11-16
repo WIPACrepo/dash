@@ -172,7 +172,7 @@ class MostlyCnCServer(CnCServer):
 class RealComponent(object):
     APPENDERS = {}
 
-    def __init__(self, name, num, cmdPort, mbeanPort, verbose=False):
+    def __init__(self, name, num, cmdPort, mbeanPort, connArray, verbose=False):
         self.__name = name
         self.__num = num
 
@@ -230,7 +230,7 @@ class RealComponent(object):
                                            DAQPort.CNCSERVER, verbose=verbose)
         regData = self.__cnc.rpc_component_register(self.__name, self.__num,
                                                     'localhost', cmdPort,
-                                                    mbeanPort, [])
+                                                    mbeanPort, connArray)
 
         self.__id = regData["id"]
         self.__expRunPort = regData["logPort"]
@@ -565,9 +565,9 @@ class TestCnCServer(unittest.TestCase):
 
         clientPort = DAQPort.RUNCOMP_BASE
 
-        compData = [('stringHub', self.HUB_NUMBER),
-                    ('inIceTrigger', 0),
-                    ('eventBuilder', 0), ]
+        compData = [('stringHub', self.HUB_NUMBER, (("hit", "o", 1), )),
+                    ('inIceTrigger', 0, (("hit", "i", 2), ("trig", "o", 3), )),
+                    ('eventBuilder', 0, (("trig", "i", 4), )), ]
         compHost = 'localhost'
 
         cluCfg = MockClusterConfig("clusterFoo")
@@ -605,7 +605,7 @@ class TestCnCServer(unittest.TestCase):
                 fullName = "%s#%d" % (cd[0], cd[1])
             catchall.addExpectedText('Registered %s' % fullName)
 
-            comp = RealComponent(cd[0], cd[1], basePort, basePort + 1)
+            comp = RealComponent(cd[0], cd[1], basePort, basePort + 1, cd[2])
 
             logs[comp.fullName()] = self.createLog(comp.fullName(),
                                                    baseLogPort, False)
@@ -644,11 +644,6 @@ class TestCnCServer(unittest.TestCase):
                              'Expected %s mbeanPort %d, not %d' %
                              (comp.fullName(), comp.mbeanPort(),
                               d["mbeanPort"]))
-
-        for comp in self.comps:
-            connErr = "No connection map entry for ID#%d %s .*" % \
-                (comp.id(), comp.fullName())
-            catchall.addExpectedTextRegexp(connErr)
 
         rcFile = MockRunConfigFile(self.__runConfigDir)
 
@@ -770,9 +765,10 @@ class TestCnCServer(unittest.TestCase):
                 rateTracker.updateRunData(self.cnc, setId, self.comps)
 
             for comp in self.comps:
-                log = logs[comp.fullName()]
-                log.addExpectedExact('Switch %s to run#%d' %
-                                     (comp.fullName(), runNum + 1))
+                if not comp.isHub():
+                    log = logs[comp.fullName()]
+                    log.addExpectedExact('Switch %s to run#%d' %
+                                         (comp.fullName(), runNum + 1))
 
             dashlog.addExpectedRegexp(r"Version info: \S+ \d+" +
                                       r" \S+ \S+ \S+ \S+ \d+\S*")
