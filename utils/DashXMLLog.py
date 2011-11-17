@@ -59,6 +59,16 @@ class DashXMLLog:
                                  "TermCondition", "Events", "Moni", "Tcal",
                                  "SN"]
 
+    def __parseDateTime(self, fld):
+        if fld is None:
+            return None
+        if type(fld) == datetime:
+            return fld
+        try:
+            return datetime.strptime(str(fld), "%Y-%m-%d %H:%M:%S.%f")
+        except ValueError:
+            return datetime.strptime(str(fld), "%Y-%m-%d %H:%M:%S")
+
     def getPath(self):
         if self._path is None:
             if self._dir_name is not None:
@@ -139,12 +149,7 @@ class DashXMLLog:
 
     def getStartTime(self):
         """Get the start time for this run"""
-        fld = self.getField("StartTime")
-        if fld is None:
-            return None
-        if type(fld) != datetime:
-            fld = datetime.strptime(str(fld), "%Y-%m-%d %H:%M:%S.%f")
-        return fld
+        return self.__parseDateTime(self.getField("StartTime"))
 
     def setEndTime(self, end_time):
         """Set the end time for this run
@@ -156,12 +161,7 @@ class DashXMLLog:
 
     def getEndTime(self):
         """Get the end time for this run"""
-        fld = self.getField("EndTime")
-        if fld is None:
-            return None
-        if type(fld) != datetime:
-            fld = datetime.strptime(str(fld), "%Y-%m-%d %H:%M:%S.%f")
-        return fld
+        return self.__parseDateTime(self.getField("EndTime"))
 
     def setTermCond(self, had_error):
         """Set the termination condition for this run
@@ -357,7 +357,11 @@ class DashXMLLog:
             for kid in node.childNodes:
                 if kid.nodeType != minidom.Node.TEXT_NODE:
                     continue
-                runXML.setField(node.tagName, kid.nodeValue.strip())
+                val = kid.nodeValue.strip()
+                if val == "None":
+                    val = None
+                runXML.setField(node.tagName, val)
+
 
         return runXML
 
