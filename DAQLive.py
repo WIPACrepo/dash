@@ -4,7 +4,7 @@ import sys
 
 from DAQConst import DAQPort
 from IntervalTimer import IntervalTimer
-from LiveImports import Component, SERVICE_NAME
+from LiveImports import Component, LIVE_IMPORT, SERVICE_NAME
 from RunOption import RunOption
 
 
@@ -17,6 +17,9 @@ class DAQLive(Component):
     MONI_PERIOD = 60
 
     def __init__(self, cnc, logger):
+        if not LIVE_IMPORT:
+            raise LiveException("Cannot import I3Live code")
+
         self.__cnc = cnc
         self.__log = logger
 

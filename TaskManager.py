@@ -17,14 +17,15 @@ set_exc_string_encoding("ascii")
 class TaskManager(threading.Thread):
     "Manage RunSet tasks"
 
-    def __init__(self, runset, dashlog, live, runDir, runCfg, runOptions):
+    def __init__(self, runset, dashlog, liveMoni, runDir, runCfg, runOptions):
         if dashlog is None:
             raise TaskException("Dash logfile cannot be None")
 
         self.__runset = runset
         self.__dashlog = dashlog
 
-        self.__tasks = self.__createAllTasks(live, runDir, runCfg, runOptions)
+        self.__tasks = self.__createAllTasks(liveMoni, runDir, runCfg,
+                                             runOptions)
 
         self.__running = False
         self.__stopping = False
@@ -33,7 +34,7 @@ class TaskManager(threading.Thread):
         super(TaskManager, self).__init__(name="TaskManager")
         self.setDaemon(True)
 
-    def __createAllTasks(self, live, runDir, runCfg, runOptions):
+    def __createAllTasks(self, liveMoni, runDir, runCfg, runOptions):
         """
         This method exists solely to make it easy to detect
         errors in the task constructors.
@@ -43,7 +44,7 @@ class TaskManager(threading.Thread):
         taskNum = 0
         while True:
             try:
-                task = self.__createTask(taskNum, live, runDir,
+                task = self.__createTask(taskNum, liveMoni, runDir,
                                          runCfg, runOptions)
                 if task is None:
                     break
@@ -55,25 +56,26 @@ class TaskManager(threading.Thread):
 
         return taskList
 
-    def __createTask(self, taskNum, live, runDir, runCfg, runOptions):
+    def __createTask(self, taskNum, liveMoni, runDir, runCfg, runOptions):
         """
         Create a single task.  There's nothing magic about 'taskNum',
         it's just a convenient way to iterate through all the task
         constructors.
         """
         if taskNum == 0:
-            return MonitorTask(self, self.__runset, self.__dashlog, live,
+            return MonitorTask(self, self.__runset, self.__dashlog, liveMoni,
                                runDir, runOptions,
                                period=runCfg.monitorPeriod())
         elif taskNum == 1:
             return RateTask(self, self.__runset, self.__dashlog)
         elif taskNum == 2:
-            return ActiveDOMsTask(self, self.__runset, self.__dashlog, live)
+            return ActiveDOMsTask(self, self.__runset, self.__dashlog,
+                                  liveMoni)
         elif taskNum == 3:
             return WatchdogTask(self, self.__runset, self.__dashlog,
                                 period=runCfg.watchdogPeriod())
         elif taskNum == 4:
-            return RadarTask(self, self.__runset, self.__dashlog, live)
+            return RadarTask(self, self.__runset, self.__dashlog, liveMoni)
 
         return None
 

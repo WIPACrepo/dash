@@ -16,11 +16,11 @@ set_exc_string_encoding("ascii")
 
 
 class MonitorThread(CnCThread):
-    def __init__(self, comp, runDir, live, runOptions, dashlog, reporter=None,
-                 now=None, refused=0):
+    def __init__(self, comp, runDir, liveMoni, runOptions, dashlog,
+                 reporter=None, now=None, refused=0):
         self.__comp = comp
         self.__runDir = runDir
-        self.__live = live
+        self.__liveMoni = liveMoni
         self.__runOptions = runOptions
         self.__dashlog = dashlog
         self.__reporter = reporter
@@ -33,15 +33,15 @@ class MonitorThread(CnCThread):
 
     def __createReporter(self):
         if RunOption.isMoniToBoth(self.__runOptions) and \
-               self.__live is not None:
+               self.__liveMoni is not None:
             return MonitorToBoth(self.__runDir, self.__comp.fileName(),
-                                 self.__live)
+                                 self.__liveMoni)
         if RunOption.isMoniToFile(self.__runOptions):
             if self.__runDir is not None:
                 return MonitorToFile(self.__runDir, self.__comp.fileName())
         if RunOption.isMoniToLive(self.__runOptions) and \
-               self.__live is not None:
-            return MonitorToLive(self.__comp.fileName(), self.__live)
+               self.__liveMoni is not None:
+            return MonitorToLive(self.__comp.fileName(), self.__liveMoni)
 
         return None
 
@@ -105,7 +105,7 @@ class MonitorThread(CnCThread):
                 self.__reporter = None
 
     def getNewThread(self, now):
-        thrd = MonitorThread(self.__comp, self.__runDir, self.__live,
+        thrd = MonitorThread(self.__comp, self.__runDir, self.__liveMoni,
                              self.__runOptions, self.__dashlog,
                              self.__reporter, now, self.__refused)
         return thrd
@@ -143,23 +143,25 @@ class MonitorToFile(object):
 
 
 class MonitorToLive(object):
-    def __init__(self, name, live):
+    def __init__(self, name, liveMoni):
         self.__name = name
-        self.__live = live
+        self.__liveMoni = liveMoni
 
     def close(self):
         pass
 
     def send(self, now, beanName, attrs):
-        for key in attrs:
-            self.__live.sendMoni("%s*%s+%s" % (self.__name, beanName, key),
-                                 attrs[key], Prio.ITS, now)
+        if self.__liveMoni is not None:
+            for key in attrs:
+                self.__liveMoni.sendMoni("%s*%s+%s" % (self.__name, beanName,
+                                                        key), attrs[key],
+                                                        Prio.ITS, now)
 
 
 class MonitorToBoth(object):
-    def __init__(self, dir, basename, live):
+    def __init__(self, dir, basename, liveMoni):
         self.__file = MonitorToFile(dir, basename)
-        self.__live = MonitorToLive(basename, live)
+        self.__live = MonitorToLive(basename, liveMoni)
 
     def close(self):
         self.__file.close()
@@ -177,7 +179,7 @@ class MonitorTask(CnCTask):
 
     MAX_REFUSED = 3
 
-    def __init__(self, taskMgr, runset, dashlog, live, runDir, runOptions,
+    def __init__(self, taskMgr, runset, dashlog, liveMoni, runDir, runOptions,
                  period=None):
         self.__threadList = {}
         if not RunOption.isMoniToNone(runOptions):
@@ -185,7 +187,7 @@ class MonitorTask(CnCTask):
                 # refresh MBean info to pick up any new MBeans
                 c.reloadBeanInfo()
 
-                self.__threadList[c] = self.createThread(c, runDir, live,
+                self.__threadList[c] = self.createThread(c, runDir, liveMoni,
                                                          runOptions, dashlog)
 
         if period is None:
@@ -196,8 +198,8 @@ class MonitorTask(CnCTask):
                                           period)
 
     @classmethod
-    def createThread(cls, comp, runDir, live, runOptions, dashlog):
-        return MonitorThread(comp, runDir, live, runOptions, dashlog)
+    def createThread(cls, comp, runDir, liveMoni, runOptions, dashlog):
+        return MonitorThread(comp, runDir, liveMoni, runOptions, dashlog)
 
     def _check(self):
         now = None

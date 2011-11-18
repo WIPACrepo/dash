@@ -1,14 +1,20 @@
 #!/usr/bin/env python
 
 try:
-    from live.control.LiveMoni import MoniClient
+    try:
+        from live.control.LiveMoni import MoniClient
+    except ImportError:
+        from live.transport.moniclient import MoniClient
+
     from live.control.component import Component
-    from live.control.log \
-        import LOG_FATAL, LOG_ERROR, LOG_WARN, LOG_INFO, LOG_DEBUG, LOG_TRACE
+
     try:
         from live.transport.Queue import Prio
     except ImportError:
-        from live.transport.prioqueue import Prio
+        try:
+            from live.transport.prioqueue import Prio
+        except ImportError:
+            from live.transport.priorities import Prio
 
     # set pDAQ's I3Live service name
     SERVICE_NAME = "pdaq"
@@ -52,16 +58,8 @@ except ImportError:
         def sendMoni(self, name, data, prio=None, time=None):
             pass
 
-    # set bogus log level constants
-    LOG_FATAL = 32760
-    LOG_ERROR = LOG_FATAL + 1
-    LOG_WARN = LOG_ERROR + 1
-    LOG_INFO = LOG_WARN + 1
-    LOG_DEBUG = LOG_INFO + 1
-    LOG_TRACE = LOG_DEBUG + 1
-
     # set bogus service name
-    SERVICE_NAME = "unimported"
+    SERVICE_NAME = "pdaqFake"
 
     # indicate that import failed
     LIVE_IMPORT = False
