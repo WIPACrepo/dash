@@ -123,7 +123,14 @@ class DAQLive(Component):
         if self.__runSet is None:
             raise LiveException("Cannot stop run; no active runset")
 
-        runNum = stateArgs.get("runNumber", 1)
+        if stateArgs is None or len(stateArgs) == 0:
+            raise LiveException("No stateArgs specified")
+
+        try:
+            key = "runNumber"
+            runNum = stateArgs[key]
+        except KeyError:
+            raise LiveException("stateArgs does not contain key \"%s\"" % key)
 
         self.__runSet.switchRun(runNum)
 
