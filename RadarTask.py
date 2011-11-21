@@ -121,7 +121,7 @@ class RadarThread(CnCThread):
 
 class RadarTask(CnCTask):
     NAME = "Radar"
-    PERIOD = 900
+    PERIOD = 300
     DEBUG_BIT = RunSetDebug.RADAR_TASK
 
     # number of samples per radar check
