@@ -119,6 +119,16 @@ class DAQLive(Component):
 
         return "OK"
 
+    def switchrun(self, stateArgs=None):
+        if self.__runSet is None:
+            raise LiveException("Cannot stop run; no active runset")
+
+        runNum = stateArgs.get("runNumber", 1)
+
+        self.__runSet.switchRun(runNum)
+
+        return "OK"
+
     def version(self):
         "Returns the current pDAQ release name"
         versionInfo = self.__cnc.versionInfo()
