@@ -5,6 +5,7 @@ import os
 import socket
 import tempfile
 import unittest
+import shutil
 
 from LiveImports import Prio
 from MonitorTask import MonitorTask
@@ -245,9 +246,9 @@ class MonitorTaskTest(unittest.TestCase):
 
         try:
             tsk.close()
-        except Exception, ex:
+        except Exception as ex:
             if not str(ex).endswith("Forced exception"):
-                raise ex
+                raise
         self.failUnless(tsk.numOpen() == 0, "%d threads were not closed" %
                         tsk.numOpen())
 

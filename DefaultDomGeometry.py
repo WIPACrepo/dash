@@ -695,13 +695,15 @@ class DefaultDomGeometry(object):
                     (dom.pos() - 1)
                 if dom.channelId() is None:
                     if dom.pos() <= DomGeometry.MAX_POSITION:
-                        print >>sys.stderr, "No channel ID for DOM %s \"%s\"" % \
+                        print >> sys.stderr, \
+                            "No channel ID for DOM %s \"%s\"" % \
                             (dom.location(), dom.name())
                 elif newId != dom.channelId():
-                    print >>sys.stderr, \
+                    print >> sys.stderr, \
                         "DOM %s \"%s\" should have channel ID %d, not %d" % \
                         (dom.location(), dom.name(), newId, dom.channelId())
                     dom.setChannelId(newId)
+
 
 class DefaultDomGeometryReader(XMLParser):
 
@@ -819,7 +821,7 @@ class DefaultDomGeometryReader(XMLParser):
 
         try:
             dom = minidom.parse(fileName)
-        except Exception, e:
+        except Exception as e:
             raise ProcessError("Couldn't parse \"%s\": %s" % (fileName,
                                                               str(e)))
 
@@ -885,9 +887,9 @@ class DomsTxtReader(object):
                     strNum = int(strStr)
                     pos = int(posStr)
                 except:
-                    print >>sys.stderr, ("Bad location \"%s\" "
-                                         "for DOM \"%s\"") % \
-                                         (loc, prodId)
+                    print >> sys.stderr, ("Bad location \"%s\" "
+                                          "for DOM \"%s\"") % \
+                                          (loc, prodId)
                     continue
 
                 if pos <= 60:
@@ -948,9 +950,9 @@ class NicknameReader(object):
                     strNum = int(strStr)
                     pos = int(posStr)
                 except:
-                    print >>sys.stderr, ("Bad location \"%s\" "
-                                         "for DOM \"%s\"") % \
-                                         (loc, prodId)
+                    print >> sys.stderr, ("Bad location \"%s\" "
+                                          "for DOM \"%s\"") % \
+                                          (loc, prodId)
                     continue
 
                 if pos <= 60:
@@ -1027,14 +1029,14 @@ class GeometryFileReader(object):
                 try:
                     strNum = int(strStr)
                 except:
-                    print >>sys.stderr, "Bad string \"%s\" on line %d" % \
+                    print >> sys.stderr, "Bad string \"%s\" on line %d" % \
                         (strStr, linenum)
                     continue
 
                 try:
                     pos = int(posStr)
                 except:
-                    print >>sys.stderr, "Bad position \"%s\" on line %d" % \
+                    print >> sys.stderr, "Bad position \"%s\" on line %d" % \
                         (posStr, linenum)
                     continue
 
@@ -1049,9 +1051,9 @@ class GeometryFileReader(object):
                             cname = "y"
                         else:
                             cname = "z"
-                        print >>sys.stderr, ("Bad %s coord \"%s\" "
-                                             "on line %d") % \
-                                             (cname, cStr, linenum)
+                        print >> sys.stderr, ("Bad %s coord \"%s\" "
+                                              "on line %d") % \
+                                              (cname, cStr, linenum)
                         break
 
                 if len(coords) != 3:

@@ -102,11 +102,11 @@ class WatchdogWatcherTest(unittest.TestCase):
         badVal = "foo"
         try:
             tw.check(badVal)
-        except TaskException, te:
+        except TaskException as te:
             expMsg = " is %s, new value is %s" % \
                 (type(threshVal), type(badVal))
             if str(te).find(expMsg) < 0:
-                raise te
+                raise
 
     def testThresholdUnsupported(self):
         comp = MockComponent("foo", 1, 1)
@@ -118,11 +118,11 @@ class WatchdogWatcherTest(unittest.TestCase):
             tw = ThresholdWatcher(comp, beanName, fldName, threshVal, True)
             try:
                 tw.check(threshVal)
-            except TaskException, te:
+            except TaskException as te:
                 expMsg = "ThresholdWatcher does not support %s" % \
                     type(threshVal)
                 if str(te).find(expMsg) < 0:
-                    raise te
+                    raise
 
     def testThresholdCheck(self):
         comp = MockComponent("foo", 1, 1)
@@ -188,11 +188,11 @@ class WatchdogWatcherTest(unittest.TestCase):
         badVal = "foo"
         try:
             vw.check(badVal)
-        except TaskException, te:
+        except TaskException as te:
             expMsg = " was %s (%s), new type is %s (%s)" % \
                      (type(prevVal), prevVal, type(badVal), badVal)
             if str(te).find(expMsg) < 0:
-                raise te
+                raise
 
     def testValueCheckListSize(self):
         (fcomp, tcomp, uorder) = \
@@ -209,11 +209,11 @@ class WatchdogWatcherTest(unittest.TestCase):
         l2 = lst[:-1]
         try:
             vw.check(l2)
-        except TaskException, te:
+        except TaskException as te:
             expMsg = "Previous %s list had %d entries, new list has %d" % \
                      (vw, len(lst), len(l2))
             if str(te).find(expMsg) < 0:
-                raise te
+                raise
 
     def testValueCheckDecreased(self):
         (fcomp, tcomp, uorder) = \
@@ -229,10 +229,10 @@ class WatchdogWatcherTest(unittest.TestCase):
 
         try:
             vw.check(val - 2)
-        except TaskException, te:
+        except TaskException as te:
             expMsg = "%s DECREASED (%s->%s)" % (vw, val, val - 2)
             if str(te).find(expMsg) < 0:
-                raise te
+                raise
 
     def testValueCheckDecreasedList(self):
         (fcomp, tcomp, uorder) = \
@@ -252,10 +252,10 @@ class WatchdogWatcherTest(unittest.TestCase):
 
         try:
             vw.check(l2)
-        except TaskException, te:
+        except TaskException as te:
             expMsg = "%s DECREASED (%s->%s)" % (vw, lst[0], l2[0])
             if str(te).find(expMsg) < 0:
-                raise te
+                raise
 
     def testValueCheckUnchanged(self):
         (fcomp, tcomp, uorder) = \
@@ -272,10 +272,10 @@ class WatchdogWatcherTest(unittest.TestCase):
         for i in range(4):
             try:
                 vw.check(val)
-            except TaskException, te:
+            except TaskException as te:
                 expMsg = "%s.%s is not changing" % (beanName, fldName)
                 if str(te).find(expMsg) < 0:
-                    raise te
+                    raise
                 sawUnchanged = True
 
         if not sawUnchanged:
@@ -296,10 +296,10 @@ class WatchdogWatcherTest(unittest.TestCase):
         for i in range(4):
             try:
                 vw.check(lst)
-            except TaskException, te:
+            except TaskException as te:
                 expMsg = "At least one %s value is not changing" % vw
                 if str(te).find(expMsg) < 0:
-                    raise te
+                    raise
                 sawUnchanged = True
 
         if not sawUnchanged:
@@ -320,10 +320,10 @@ class WatchdogWatcherTest(unittest.TestCase):
         badVal = {"a": 1, "b": 2}
         try:
             vw.check(badVal)
-        except TaskException, te:
+        except TaskException as te:
             expMsg = "ValueWatcher does not support %s" % type(badVal)
             if str(te).find(expMsg) < 0:
-                raise te
+                raise
 
     def testValueCheck(self):
         (fcomp, tcomp, uorder) = \

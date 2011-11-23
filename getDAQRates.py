@@ -191,7 +191,7 @@ def fixValue(valStr):
         try:
             tot += long(subStr)
         except ValueError:
-            print >>sys.stderr, \
+            print >> sys.stderr, \
                 "Couldn't get integer value for '%s' ('%s' idx %d nxt %d)" % \
                 (subStr, valStr, idx, nxt)
         idx = nxt + 1
@@ -222,8 +222,8 @@ def processDir(dirName):
 
         try:
             comp = Component(entry)
-        except ValueError, msg:
-            print >>sys.stderr, str(msg)
+        except ValueError as msg:
+            print >> sys.stderr, str(msg)
             continue
 
         allData[comp] = processFile(os.path.join(dirName, entry), comp)
@@ -485,18 +485,18 @@ if __name__ == "__main__":
         elif os.path.exists(arg):
             fileList.append(arg)
         else:
-            print >>sys.stderr, 'Unknown argument "%s"' % arg
+            print >> sys.stderr, 'Unknown argument "%s"' % arg
             badArg = True
 
     if len(dirList) > 0 and len(fileList) > 0:
-        print >>sys.stderr, 'Cannot specify both directories and files'
+        print >> sys.stderr, 'Cannot specify both directories and files'
         badArg = True
     elif len(dirList) == 0 and len(fileList) == 0:
-        print >>sys.stderr, 'Please specify a moni file or directory'
+        print >> sys.stderr, 'Please specify a moni file or directory'
         badArg = True
 
     if badArg:
-        print >>sys.stderr, \
+        print >> sys.stderr, \
             ('Usage: %s' +
              ' [-d(ataOnly)]' +
              ' [-i timeInterval ]' +
@@ -509,8 +509,8 @@ if __name__ == "__main__":
         for f in fileList:
             try:
                 comp = Component(f)
-            except ValueError, msg:
-                print >>sys.stderr, str(msg)
+            except ValueError as msg:
+                print >> sys.stderr, str(msg)
                 comp = Component()
 
             allData[comp] = processFile(f, comp)

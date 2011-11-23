@@ -118,7 +118,6 @@ class ComponentOperation(threading.Thread):
         "Get the builder's run data"
         self.__result = self.__comp.getRunData(self.__data[0])
 
-
     def __getSingleBeanField(self):
         "Get a single bean.field value from the component"
         self.__result = self.__comp.getSingleBeanField(self.__data[0],

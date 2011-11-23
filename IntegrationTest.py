@@ -41,6 +41,9 @@ class MostlyLive:
     def __init__(self, port):
         raise NotImplementedError("Missing code")
 
+    def close(self):
+        raise NotImplementedError("Missing code")
+
 
 class BeanData(object):
     DAQ_BEANS = {'stringHub':

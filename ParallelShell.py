@@ -168,7 +168,7 @@ class PCmd(object):
                 for l in file(self.outFile):
                     self.output += l
                 os.unlink(self.outFile)
-            except Exception, e:
+            except Exception as e:
                 self.output += ("Could not read or delete "
                                 "result file %s (%s)!") % (self.outFile, e)
 

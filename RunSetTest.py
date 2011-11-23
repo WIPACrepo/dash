@@ -184,9 +184,9 @@ class TestRunSet(unittest.TestCase):
 
         try:
             stopErr = runset.stopRun()
-        except RunSetException, ve:
+        except RunSetException as ve:
             if not "is not running" in str(ve):
-                raise ve
+                raise
             stopErr = False
 
         self.failIf(stopErr, "stopRun() encountered error")
@@ -212,7 +212,7 @@ class TestRunSet(unittest.TestCase):
             runset.subrun(subrunNum, data)
             if expectError is not None:
                 self.fail("subrun should not have succeeded")
-        except RunSetException, ve:
+        except RunSetException as ve:
             if expectError is None:
                 raise
             if not str(ve).endswith(expectError):
@@ -427,7 +427,7 @@ class TestRunSet(unittest.TestCase):
             try:
                 if not runset.stopRun():
                     self.fail("stopRun() should have failed")
-            except RunSetException, rse:
+            except RunSetException as rse:
                 expMsg = "RunSet #%d run#%d (%s): Could not stop %s" % \
                          (runset.id(), runNum, expState, hangStr)
                 self.assertEqual(str(rse), expMsg, "Bad exception: %s" % rse)
@@ -635,10 +635,10 @@ class TestRunSet(unittest.TestCase):
         try:
             self.failIf(runset.stopRun(), "stopRun() encountered error")
             self.fail("stopRun() on new runset should throw exception")
-        except Exception, ex:
+        except Exception as ex:
             if not str(ex).startswith("RunSet #") or \
                not str(ex).endswith(" is not running"):
-                raise ex
+                raise
 
     def testShortStopNormal(self):
         compList = self.__buildCompList(("one", "two", "three"))

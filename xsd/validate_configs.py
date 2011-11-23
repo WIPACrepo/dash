@@ -89,7 +89,7 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
         with open(runconfig_xml_filename, 'r') as xml_fd:
             try:
                 doc_xml = etree.parse(xml_fd)
-            except XMLSyntaxError, e:
+            except XMLSyntaxError as e:
                 return (False, "file: '%s', %s" % (runconfig_xml_filename, e))
     except IOError:
         # cannot open the run config file
@@ -189,9 +189,9 @@ def _validate_dom_config_xml(xml_filename, xsd_real_filename,
         with open(xml_filename, 'r') as xml_fd:
             try:
                 doc_xml = etree.parse(xml_fd)
-            except XMLSyntaxError, e:
+            except XMLSyntaxError as e:
                 return (False, "file: '%s', %s" % (xml_filename, e))
-    except IOError, e:
+    except IOError:
         return (False, "Cannot open: %s" % xml_filename)
 
     found_simulation = False
@@ -288,7 +288,7 @@ def _validate_xml_rng(xml_filename, relaxng_filename):
         with open(xml_filename, 'r') as doc_fd:
             try:
                 doc_xml = etree.parse(doc_fd)
-            except XMLSyntaxError, e:
+            except XMLSyntaxError as e:
                 return (False, "file: '%s' %s" % (xml_filename, e))
     except IOError:
         return (False, "Could not open '%s'" % xml_filename)
@@ -340,7 +340,7 @@ def _validate_xml(xml_filename, xsd_filename):
         with open(xml_filename, 'r') as doc_fd:
             try:
                 doc_xml = etree.parse(doc_fd)
-            except XMLSyntaxError, e:
+            except XMLSyntaxError as e:
                 return (False, "file: '%s' %s" % (xml_filename, e))
     except IOError:
         return (False, "Could not open '%s'" % xml_filename)

@@ -400,7 +400,7 @@ if __name__ == "__main__":
         try:
             ClusterConfigParser.load(opt.toCheck, configDir)
             print "%s/%s is ok." % (configDir, opt.toCheck)
-        except Exception, e:
+        except Exception as e:
             from exc_string import exc_string
             print "%s/%s is not a valid config: %s [%s]" % \
                 (configDir, opt.toCheck, e, exc_string())

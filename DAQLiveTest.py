@@ -135,7 +135,7 @@ class DAQLiveTest(unittest.TestCase):
     def assertRaisesMsg(self, exc, func, *args, **kwargs):
         try:
             func(*args, **kwargs)
-        except type(exc), ex2:
+        except type(exc) as ex2:
             if exc is None:
                 return
             if str(exc) == str(ex2):

@@ -33,7 +33,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 13366 2011-09-16 03:33:55Z mnewcomb $"
+SVN_ID = "$Id: DeployPDAQ.py 13428 2011-11-23 00:19:39Z mnewcomb $"
 
 
 def getUniqueHostNames(config):
@@ -185,7 +185,7 @@ def main():
         print >> sys.stderr, 'Configuration "%s" not found' % opt.configName
         p.print_help()
         raise SystemExit
-    except DAQConfigException, e:
+    except DAQConfigException as e:
         print >> sys.stderr, 'Cluster configuration file problem:\n%s' % e
         raise SystemExit
 

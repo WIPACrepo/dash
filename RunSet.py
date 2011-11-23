@@ -2,8 +2,8 @@
 
 import datetime
 import os
-import socket
 import time
+import sys
 
 import SpadeQueue
 
@@ -432,27 +432,27 @@ class RunData(object):
         savedEx = None
         try:
             self.stop()
-        except Exception, ex:
-            if savedEx is None:
-                savedEx = ex
+        except:
+            savedEx = sys.exc_info()
 
-        if self.__liveMoniClient is not None:
+        if self.__liveMoniClient:
             try:
                 self.__liveMoniClient.close()
-            except Exception, ex:
-                if savedEx is None:
-                    savedEx = ex
+            except:
+                if not savedEx:
+                    savedEx = sys.exc_info()
             self.__liveMoniClient = None
-        if self.__dashlog is not None:
+
+        if self.__dashlog:
             try:
                 self.__dashlog.close()
-            except Exception, ex:
-                if savedEx is None:
-                    savedEx = ex
+            except:
+                if not savedEx:
+                    savedEx = sys.exc_info()
             self.__dashlog = None
 
-        if savedEx is not None:
-            raise savedEx
+        if savedEx:
+            raise savedEx[0], savedEx[1], savedEx[2]
 
     def error(self, msg):
         self.__dashlog.error(msg)
@@ -1769,7 +1769,6 @@ class RunSet(object):
                 self.__stopLogging()
                 self.__checkStoppedComponents(waitList)
 
-
         return hadError
 
     def stopping(self):
@@ -1795,7 +1794,7 @@ class RunSet(object):
                 # newData has any missing DOMs deleted and any string/position
                 # pairs converted to mainboard IDs
                 data = newData
-            except InvalidSubrunData, inv:
+            except InvalidSubrunData as inv:
                 raise RunSetException("Subrun %d: invalid argument list (%s)" %
                                       (id, inv))
 
@@ -1907,7 +1906,7 @@ class RunSet(object):
 
         # wait for builders to finish switching
         #
-        for i in xrange(240):
+        for _ in xrange(240):
             for c in bldrs:
                 num = c.getRunNumber()
                 if num == newNum:

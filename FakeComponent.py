@@ -2,6 +2,7 @@
 
 import struct
 import sys
+import time
 from CnCServer import Connector
 from FakeClient import FakeClient, FakeClientException
 
@@ -9,6 +10,12 @@ from FakeClient import FakeClient, FakeClientException
 class PayloadType(object):
     SIMPLE_HIT = 1
     TRIGGER_REQUEST = 9
+
+
+class Error(Exception):
+    """Error exception used in this class
+    but not defined"""
+    pass
 
 
 class TriggerHandler(FakeClient):
@@ -19,14 +26,16 @@ class TriggerHandler(FakeClient):
 
         self.__outName = outputName
         self.__outConn = None
+        self.__trigCount = 0
+        self.__hitCount = 0
 
         connList = [(inputName, Connector.INPUT),
                     (outputName, Connector.OUTPUT)]
         mbeanDict = {}
 
-        super(type(self), self).__init__(compName, compNum, connList,
-                                         mbeanDict, createXmlRpcServer=True,
-                                         addNumericPrefix=False)
+        super(TriggerHandler, self).__init__(compName, compNum, connList,
+                                             mbeanDict, createXmlRpcServer=True,
+                                             addNumericPrefix=False)
 
     def makeTriggerRequest(self, trigType, cfgId, startTime, endTime):
         PAYLEN = 104
@@ -49,8 +58,9 @@ class TriggerHandler(FakeClient):
                           endTime, RR_DOM, 8, 0, 0)
 
         if len(rec) != PAYLEN:
-            raise Error("Expected %d-byte payload, not %d bytes" %
-                        (PAYLEN, len(rec)))
+            raise FakeClientException(('Expected %d-byte payload,'
+                                       'not %d bytes') % (PAYLEN,
+                                                          len(rec)))
 
         return rec
 
@@ -100,7 +110,7 @@ class LocalTrigger(TriggerHandler):
         self.__hitCount = 0
         self.__trigCount = 0
 
-        super(type(self), self).__init__(compName, compNum, inputName,
+        super(LocalTrigger, self).__init__(compName, compNum, inputName,
                                          self.__outputName, prescale)
 
     def processPayload(self, payType, utc, payload):
@@ -128,8 +138,8 @@ class InIceTrigger(TriggerHandler):
 
         self.__outputName = "trigger"
 
-        super(type(self), self).__init__("inIceTrigger", 0, "stringHit",
-                                         self.__outputName, prescale)
+        super(InIceTrigger, self).__init__("inIceTrigger", 0, "stringHit",
+                                           self.__outputName, prescale)
 
 
 class IceTopTrigger(TriggerHandler):
@@ -138,8 +148,8 @@ class IceTopTrigger(TriggerHandler):
 
         self.__outputName = "trigger"
 
-        super(type(self), self).__init__("iceTopTrigger", 0, "icetopHit",
-                                         self.__outputName, prescale)
+        super(IceTopTrigger, self).__init__("iceTopTrigger", 0, "icetopHit",
+                                            self.__outputName, prescale)
 
 
 class GlobalTrigger(TriggerHandler):
@@ -153,17 +163,17 @@ class GlobalTrigger(TriggerHandler):
 
         self.__trigCount = 0
 
-        super(type(self), self).__init__("globalTrigger", 0, "trigger",
-                                         self.__outputName, prescale)
+        super(GlobalTrigger, self).__init__("globalTrigger", 0, "trigger",
+                                            self.__outputName, prescale)
 
     def processPayload(self, payType, utc, payload):
         if payType != PayloadType.TRIGGER_REQUEST:
-            print >>sys.stderr, "Unexpected %s payload type %d" % \
-                  (self.fullName(), payType)
+            print >> sys.stderr, "Unexpected %s payload type %d" % \
+                (self.fullName(), payType)
             return
 
         recType, uid, trigType, cfgId, srcId, startTime, endTime, \
-                 rReqType, rReqUid. rReqSrcId, numReq = \
+                 rReqType, rReqUid, rReqSrcId, numReq = \
                  struct.unpack(">hiiiiqqhiii", payload[0:63])
 
         pos = 64
@@ -192,8 +202,8 @@ class TrackEngine(TriggerHandler):
 
         self.__outputName = "trigger"
 
-        super(type(self), self).__init__("trackEngine", 0, "trackEngHit",
-                                         self.__outputName, prescale)
+        super(TrackEngine, self).__init__("trackEngine", 0, "trackEngHit",
+                                          self.__outputName, prescale)
 
     def processData(self, data):
         if self.__outConn is None:
@@ -262,7 +272,7 @@ if __name__ == "__main__":
     while True:
         try:
             comp.register()
-        except FakeClientException, fce:
+        except FakeClientException:
             print >>sys.stderr, "Waiting for CnCServer"
             time.sleep(1)
             continue

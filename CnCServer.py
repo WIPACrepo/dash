@@ -2,7 +2,6 @@
 
 import Daemon
 import datetime
-import errno
 import optparse
 import os
 import signal
@@ -17,7 +16,7 @@ from DAQClient import ComponentName, DAQClient, DAQClientState
 from DAQConfig import DAQConfigParser, XMLFileNotFound
 from DAQConst import DAQPort
 from DAQLive import DAQLive
-from DAQLog import DAQLog, LogSocketServer
+from DAQLog import LogSocketServer
 from DAQRPC import RPCServer
 from ListOpenFiles import ListOpenFiles
 from Process import processList, findProcess
@@ -40,7 +39,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 13401 2011-11-11 04:23:13Z dglo $"
+SVN_ID = "$Id: CnCServer.py 13428 2011-11-23 00:19:39Z mnewcomb $"
 
 
 class CnCServerException(Exception):
@@ -407,18 +406,18 @@ class DAQPool(object):
         for rs in removed:
             try:
                 self.returnRunsetComponents(rs)
-            except Exception, ex:
-                if savedEx is None:
-                    savedEx = ex
+            except:
+                if not savedEx:
+                    savedEx = sys.exc_info()
 
             try:
                 rs.destroy()
-            except Exception, ex:
-                if savedEx is None:
-                    savedEx = ex
+            except:
+                if not savedEx:
+                    savedEx = sys.exc_info()
 
-        if savedEx is not None:
-            raise savedEx
+        if savedEx:
+            raise savedEx[0], savedEx[1], savedEx[2]
 
         return True
 
@@ -433,17 +432,14 @@ class DAQPool(object):
         savedEx = None
         try:
             self.returnRunsetComponents(rs)
-        except Exception, ex:
-            savedEx = ex
+        finally:
+            try:
+                rs.destroy()
+            except:
+                savedEx = sys.exc_info()
 
-        try:
-            rs.destroy()
-        except Exception, ex:
-            if savedEx is None:
-                savedEx = ex
-
-        if savedEx is not None:
-            raise savedEx
+        if savedEx:
+            raise savedEx[0], savedEx[1], savedEx[2]
 
     def returnRunsetComponents(self, rs, verbose=False, killWith9=True,
                                eventCheck=False):
@@ -593,7 +589,7 @@ class CnCServer(DAQPool):
                     self.__server = ThreadedRPCServer(DAQPort.CNCSERVER)
                     #self.__server = RPCServer(DAQPort.CNCSERVER)
                     break
-                except socket.error, e:
+                except socket.error as e:
                     self.__log.error("Couldn't create server socket: %s" % e)
                     sys.exit("Couldn't create server socket: %s" % e)
 
@@ -641,9 +637,9 @@ class CnCServer(DAQPool):
 
     def __closeOnSIGINT(self, signum, frame):
         if self.closeServer(False):
-            print >>sys.stderr, "\nExiting"
+            print >> sys.stderr, "\nExiting"
             sys.exit(0)
-        print >>sys.stderr, "Cannot exit with active runset(s)"
+        print >> sys.stderr, "Cannot exit with active runset(s)"
 
     @staticmethod
     def __countFileDescriptors():
@@ -850,7 +846,7 @@ class CnCServer(DAQPool):
 
                 new = (lastCount != count)
                 if new and not self.__quiet:
-                    print >>sys.stderr, "%d bins, %d comps" % \
+                    print >> sys.stderr, "%d bins, %d comps" % \
                         (self.numUnused(), count)
 
                 lastCount = count
@@ -899,13 +895,14 @@ class CnCServer(DAQPool):
             try:
                 os.close(fd)
                 self.__log.error("Manually closed file #%s" % fd)
-            except Exception, ex:
-                if savedEx is None:
-                    savedEx = CnCServerException("Cannot close file #%s: %s" %
-                                                 (fd, exc_string()))
+            except:
+                if not savedEx:
+                    savedEx = (fd, exc_string())
 
-        if savedEx is not None:
-            raise savedEx
+        if savedEx:
+            raise CnCServerException("Cannot close file #%s: %s" % \
+                                         (savedEx[0],
+                                          savedEx[1]))
 
         return 1
 
@@ -1106,9 +1103,9 @@ class CnCServer(DAQPool):
     def rpc_run_summary(self, runNum):
         "Return run summary information (if available)"
         rsum = RunSet.getRunSummary(self.__defaultLogDir, runNum)
-        if rsum.getTermCond() == True:
+        if rsum.getTermCond():
             termCond = "FAILED"
-        elif rsum.getTermCond() == False:
+        elif not rsum.getTermCond():
             termCond = "SUCCESS"
         else:
             termCond = "??%s??" % rsum.getTermCond()
@@ -1260,22 +1257,23 @@ class CnCServer(DAQPool):
         delayedException = None
         try:
             hadError = runSet.stopRun()
-        except ValueError, ve:
+        except ValueError:
             hadError = True
-            delayedException = ve
+            delayedException = sys.exc_info()
 
         chk = 50
         while runSet.stopping() and chk > 0:
             chk -= 1
             time.sleep(1)
+
         if runSet.stopping():
             raise CnCServerException("Runset#%d is still stopping" % id)
 
         if self.__forceRestart or (hadError and self.__restartOnError):
             self.restartRunset(runSet, self.__log)
 
-        if delayedException is not None:
-            raise delayedException
+        if delayedException:
+            raise delayedException[0], delayedException[1], delayedException[2]
 
         return "OK"
 

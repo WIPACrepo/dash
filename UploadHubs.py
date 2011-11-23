@@ -431,7 +431,7 @@ def main():
         clusterConfig = \
             DAQConfigParser.getClusterConfiguration(opt.clusterConfigName,
                                                     validate=opt.validation)
-    except DAQConfigException, e:
+    except DAQConfigException as e:
         print >> sys.stderr, 'Cluster configuration file problem:\n%s' % e
         raise SystemExit
 

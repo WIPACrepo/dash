@@ -338,7 +338,7 @@ class DashXMLLog:
 
         try:
             parsed = minidom.parse(path)
-        except Exception, ex:
+        except Exception as ex:
             raise MalformedFileException(
                 "Bad run file \"%s\": %s" % (path, ex))
 

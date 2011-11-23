@@ -49,7 +49,7 @@ for ch in ddg.findall("string/dom"):
                         if xN is None:
                                 ElementTree.SubElement(ch, tag)
                         ch.find(tag).text = "%.1f" % gd[loc].__dict__[tag[0]]
-        except TypeError, err:
+        except TypeError:
                 pass
 
 ddg.write(stdout, "UTF-8")

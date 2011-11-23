@@ -42,7 +42,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 13366 2011-09-16 03:33:55Z mnewcomb $"
+SVN_ID = "$Id: DAQLaunch.py 13428 2011-11-23 00:19:39Z mnewcomb $"
 
 
 class HostNotFoundForComponent   (Exception):
@@ -576,10 +576,10 @@ if __name__ == "__main__":
                                                        opt.clusterDesc,
                                                        configDir=configDir,
                                                        validate=opt.validation)
-        except DAQConfigException, e:
+        except DAQConfigException as e:
             print >> sys.stderr, "DAQ Config exception:\n\t%s" % e
             raise SystemExit
-        except ClusterConfigException, e:
+        except ClusterConfigException as e:
             print >> sys.stderr, "Cluster Config Exception:\n\t%s" % e
             raise SystemExit
 
@@ -637,7 +637,7 @@ if __name__ == "__main__":
             if not opt.dryRun:
                 try:
                     mkdir(logDir)
-                except OSError, (errno, strerror):
+                except OSError as (errno, strerror):
                     logDirFallBack = join(metaDir, "log")
                     if opt.verbose:
                         print "Problem making log dir: '%s' (%s)" % \

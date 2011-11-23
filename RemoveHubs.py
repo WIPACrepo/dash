@@ -55,7 +55,7 @@ def parseArgs():
     """
     cfgDir = os.path.join(metaDir, "config")
     if not os.path.exists(cfgDir):
-        print >>sys.stderr, "Cannot find configuration directory"
+        print >> sys.stderr, "Cannot find configuration directory"
 
     cluCfgName = None
     forceCreate = False
@@ -95,7 +95,7 @@ def parseArgs():
                     hubIdList.append(200 + num)
                     continue
                 except:
-                    print >>sys.stderr, "Unknown argument \"%s\"" % s
+                    print >> sys.stderr, "Unknown argument \"%s\"" % s
                     usage = True
                     continue
 
@@ -107,22 +107,22 @@ def parseArgs():
                 hubIdList.append(num)
                 continue
             except:
-                print >>sys.stderr, "Unknown argument \"%s\"" % a
+                print >> sys.stderr, "Unknown argument \"%s\"" % a
                 usage = True
                 continue
 
     if not usage and runCfgName is None:
-        print >>sys.stderr, "No run configuration specified"
+        print >> sys.stderr, "No run configuration specified"
         usage = True
 
     if not usage and len(hubIdList) == 0:
-        print >>sys.stderr, "No hub IDs specified"
+        print >> sys.stderr, "No hub IDs specified"
         usage = True
 
     if usage:
-        print >>sys.stderr, \
+        print >> sys.stderr, \
             "Usage: %s runConfig hubId [hubId ...]" % sys.argv[0]
-        print >>sys.stderr, "  (Hub IDs can be \"6\", \"06\", \"6i\", \"6t\")"
+        print >> sys.stderr, "  (Hub IDs can be \"6\", \"06\", \"6i\", \"6t\")"
         raise SystemExit()
 
     return (forceCreate, runCfgName, cluCfgName, hubIdList)
@@ -141,10 +141,10 @@ if __name__ == "__main__":
     newPath = DAQConfig.createOmitFileName(configDir, runCfgName, hubIdList)
     if os.path.exists(newPath):
         if forceCreate:
-            print >>sys.stderr, "WARNING: Overwriting %s" % newPath
+            print >> sys.stderr, "WARNING: Overwriting %s" % newPath
         else:
-            print >>sys.stderr, "WARNING: %s already exists" % newPath
-            print >>sys.stderr, "Specify --force to overwrite this file"
+            print >> sys.stderr, "WARNING: %s already exists" % newPath
+            print >> sys.stderr, "Specify --force to overwrite this file"
             raise SystemExit()
 
     runCfg = DAQConfigParser.load(runCfgName, configDir)

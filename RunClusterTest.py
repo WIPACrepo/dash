@@ -146,7 +146,7 @@ class RunClusterTest(unittest.TestCase):
         try:
             self.__checkCluster("localhost", cfgName, expNodes, spadeDir,
                                 logCopyDir, daqLogDir, daqDataDir)
-        except RunClusterError, rce:
+        except RunClusterError as rce:
             if not str(rce).endswith("out of hubs"):
                 self.fail("Unexpected exception: " + str(rce))
 

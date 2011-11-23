@@ -50,7 +50,7 @@ class FlasherDataParser(XMLParser):
         """Parse and return data from flasher file"""
         try:
             dom = minidom.parse(dataFile)
-        except Exception, e:
+        except Exception:
             raise FlasherDataException("Cannot parse \"%s\": %s" %
                                        (dataFile, exc_string()))
 
@@ -68,7 +68,7 @@ class FlasherDataParser(XMLParser):
         for n in nodes:
             try:
                 flashList.append(cls.__parseFlasherNode(n))
-            except FlasherDataException, fe:
+            except FlasherDataException as fe:
                 raise FlasherDataException("File \"%s\": %s" % (dataFile, fe))
 
         return flashList

@@ -65,7 +65,7 @@ class XMLFileCache(object):
 
         try:
             dom = minidom.parse(fileName)
-        except Exception, e:
+        except Exception as e:
             raise XMLFileParseError("Couldn't parse \"%s\": %s" %
                                     (fileName, str(e)))
         except KeyboardInterrupt:
@@ -74,7 +74,7 @@ class XMLFileCache(object):
 
         try:
             data = cls.parse(dom, configDir, cfgName, strict)
-        except XMLError, xe:
+        except XMLError:
             from exc_string import exc_string
             raise XMLFileParseError("%s: %s" % (fileName, exc_string()))
         except KeyboardInterrupt:

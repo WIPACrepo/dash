@@ -22,7 +22,8 @@ class MockMBeanAgent(object):
         if not bean in self.__mbeanDict:
             raise MBeanAgentException("Unknown MBean \"%s\"" % bean)
         if isinstance(self.__mbeanDict[bean], Exception):
-            raise self.__mbeanDict[bean]
+            tmp_except = self.__mbeanDict[bean]
+            raise tmp_except
 
     def __validateBeanField(self, bean, fld):
         self.__validateDict()
@@ -82,7 +83,7 @@ class TestMBeanClient(unittest.TestCase):
         agent.setMBeans(MBeanAgentException("Test fail"))
         try:
             client.get(bean, fld)
-        except BeanLoadException, ble:
+        except BeanLoadException as ble:
             if not str(ble).startswith("Cannot get list of %s MBeans: " %
                                        clientName):
                 self.fail("Unexpected exception: " + exc_string())
@@ -90,7 +91,7 @@ class TestMBeanClient(unittest.TestCase):
         agent.setMBeans({bean: MBeanAgentException("Test fail"), })
         try:
             client.get(bean, fld)
-        except BeanLoadException, ble:
+        except BeanLoadException as ble:
             if not str(ble).startswith("Cannot load %s MBeans %s: " %
                                        (clientName, [bean, ])):
                 self.fail("Unexpected exception: " + exc_string())
@@ -129,7 +130,7 @@ class TestMBeanClient(unittest.TestCase):
             pass
 
         try:
-            beanList = client.getBeanField(bean)
+            beanList = client.getBeanFields(bean)
             self.fail("getBeanFields should throw an exception")
         except:
             pass

@@ -350,7 +350,7 @@ class RunCluster(CachedConfigName):
 
 if __name__ == '__main__':
     if len(sys.argv) <= 1:
-        print >>sys.stderr, ('Usage: %s [-C clusterDesc]' +
+        print >> sys.stderr, ('Usage: %s [-C clusterDesc]' +
                              ' configXML [configXML ...]') % sys.argv[0]
         sys.exit(1)
 
@@ -387,14 +387,14 @@ if __name__ == '__main__':
         cfg = DAQConfigParser.load(name, configDir)
         try:
             runCluster = RunCluster(cfg, clusterDesc)
-        except NotImplementedError, ue:
-            print >>sys.stderr, 'For %s:' % name
+        except NotImplementedError:
+            print >> sys.stderr, 'For %s:' % name
             traceback.print_exc()
             continue
         except KeyboardInterrupt:
             break
         except:
-            print >>sys.stderr, 'For %s:' % name
+            print >> sys.stderr, 'For %s:' % name
             traceback.print_exc()
             continue
 

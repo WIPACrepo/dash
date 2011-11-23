@@ -26,7 +26,7 @@ def __copySpadeTarFile(logger, copyDir, spadeBaseName, tarFile):
 
     try:
         os.link(tarFile, copyFile)
-    except OSError, e:
+    except OSError as e:
         if e.errno == 18:  # Cross-device link
             shutil.copyfile(tarFile, copyFile)
         else:

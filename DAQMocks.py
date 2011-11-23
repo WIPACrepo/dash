@@ -1468,7 +1468,7 @@ class SocketReader(LogChecker):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             sock.bind(("", self.__port))
-        except socket.error, e:
+        except socket.error as e:
             raise socket.error('Cannot bind SocketReader to port %d: %s' %
                                (self.__port, str(e)))
         return sock
@@ -1598,7 +1598,7 @@ class SocketWriter(object):
         try:
             self.socket.connect((node, port))
             self.__loc = (node, port)
-        except socket.error, err:
+        except socket.error as err:
             raise socket.error('Cannot connect to %s:%d: %s' %
                                (node, port, str(err)))
 
@@ -1635,7 +1635,7 @@ class RunXMLValidator:
         if os.path.exists("run.xml"):
             try:
                 os.remove("run.xml")
-            except Exception, ex:
+            except Exception as ex:
                 print "Cannot remove run.xml: %s" % ex
             raise ValueError("Found unexpected run.xml file")
 

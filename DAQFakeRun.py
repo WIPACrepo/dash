@@ -5,7 +5,6 @@ import optparse
 import os
 import select
 import socket
-import struct
 import sys
 import threading
 import time
@@ -29,7 +28,7 @@ class ClientWrapper(threading.Thread):
 
         self.__rpcRunning = False
 
-        super(type(self), self).__init__(name=str(self))
+        super(ClientWrapper, self).__init__(name=str(self))
         self.setDaemon(True)
 
     def __str__(self):
@@ -82,7 +81,7 @@ class LogThread(threading.Thread):
         self.__serving = False
 
         logName = "%s:log#%d" % (self.__compName, self.__port)
-        super(type(self), self).__init__(name=logName)
+        super(LogThread, self).__init__(name=logName)
         self.setDaemon(True)
 
     def stop(self):
@@ -113,11 +112,11 @@ class LogThread(threading.Thread):
         while self.__serving:
             try:
                 rd, rw, re = select.select(pr, pw, pe, self.TIMEOUT)
-            except select.error, selerr:
+            except select.error as selerr:
                 if selerr[0] == socket.EBADF:
                     break
                 raise
-            except socket.error, sockerr:
+            except socket.error as sockerr:
                 if sockerr.errno == socket.EBADF:
                     break
                 raise
@@ -532,7 +531,7 @@ class DAQFakeRun(object):
 
         numComps - initial number of components
         """
-        for i in range(10):
+        for _ in range(10):
             num = self.__client.rpc_component_count()
             if num == numComps:
                 break
@@ -651,11 +650,11 @@ class DAQFakeRun(object):
 
         # do all the runs
         #
-        for n in range(numRuns):
+        for _ in range(numRuns):
             # wait for all components to be registered
             #
             numNew = numComps + len(comps)
-            for cc in range(10):
+            for _ in range(10):
                 if self.__client.rpc_component_count() == numNew:
                     break
                 time.sleep(0.1)

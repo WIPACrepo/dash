@@ -172,7 +172,8 @@ class MostlyCnCServer(CnCServer):
 class RealComponent(object):
     APPENDERS = {}
 
-    def __init__(self, name, num, cmdPort, mbeanPort, connArray, verbose=False):
+    def __init__(self, name, num, cmdPort, mbeanPort,
+                 connArray, verbose=False):
         self.__name = name
         self.__num = num
 
@@ -499,6 +500,7 @@ class RateTracker(object):
         RunXMLValidator.validate(testCase, runNum, cluCfgName, None, None,
                                  self.__numEvts, self.__numMoni, self.__numSN,
                                  self.__numTcal, False)
+
 
 class TestCnCServer(unittest.TestCase):
     HUB_NUMBER = 1021

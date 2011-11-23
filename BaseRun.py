@@ -106,7 +106,6 @@ class FlasherThread(threading.Thread):
         self.__sem.release()
 
 
-
 class FlasherScript(object):
     """
     Read in a flasher script, producing a list of XML_file_name/duration pairs.
@@ -159,8 +158,9 @@ class FlasherScript(object):
         m = re.search('^(\d+)d(?:ay(?:s)?)?$', s)
         if m:
             return int(m.group(1)) * 86400
-        raise FlashFileException(('String "%s" is not a known duration' +
-                                   ' format. Try 30sec, 10min, 2days etc.') % s)
+        raise FlashFileException(('String "%s" is not a known duration'
+                                  ' format. Try 30sec, 10min, 2days etc.'
+                                  ) % s)
 
     @classmethod
     def __parseFlasherOptions(cls, optList):
@@ -236,7 +236,7 @@ class FlasherScript(object):
             elif len(words) == 2 and words[0] == "sleep":
                 try:
                     flashData.append((None, int(words[1])))
-                except Exception, ex:
+                except Exception as ex:
                     raise FlashFileException("Bad sleep time \"%s\": %s" %
                                               (words[1], ex))
             else:
@@ -487,7 +487,7 @@ class BaseRun(object):
             self.__cnc = RPCClient("localhost", DAQPort.CNCSERVER)
             try:
                 self.__cnc.rpc_ping()
-            except socket.error, err:
+            except socket.error as err:
                 if err[0] == 61 or err[0] == 111:
                     self.__cnc = None
                 else:

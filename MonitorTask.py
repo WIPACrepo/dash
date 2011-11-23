@@ -4,6 +4,7 @@ import datetime
 import os
 import socket
 import threading
+import sys
 
 from CnCTask import CnCTask
 from CnCThread import CnCThread
@@ -68,14 +69,14 @@ class MonitorThread(CnCThread):
             try:
                 attrs = self.__comp.getMultiBeanFields(b, flds)
                 self.__refused = 0
-            except socket.error, se:
+            except socket.error as se:
                 sockStr = exc_string()
                 try:
                     msg = se[1]
                 except IndexError:
                     msg = None
 
-                if msg is not None and msg == "Connection refused":
+                if msg and msg == "Connection refused":
                     self.__refused += 1
                     break
 
@@ -88,11 +89,11 @@ class MonitorThread(CnCThread):
                                      (str(self.__comp), b, exc_string()))
 
             # report monitoring data
-            if attrs is not None and len(attrs) > 0 and not self.isClosed():
+            if attrs and len(attrs) > 0 and not self.isClosed():
                 self.__reporter.send(self.__now, b, attrs)
 
     def close(self):
-        super(type(self), self).close()
+        super(MonitorThread, self).close()
 
         with self.__closeLock:
             if self.__reporter is not None:
@@ -134,11 +135,11 @@ class MonitorToFile(object):
         if self.__fd is None:
             return
 
-        print >>self.__fd, "%s: %s:" % (beanName, now)
+        print >> self.__fd, "%s: %s:" % (beanName, now)
         for key in attrs:
-            print >>self.__fd, "\t%s: %s" % \
+            print >> self.__fd, "\t%s: %s" % \
                 (key, str(attrs[key]))
-        print >>self.__fd
+        print >> self.__fd
         self.__fd.flush()
 
 
@@ -224,12 +225,12 @@ class MonitorTask(CnCTask):
         for c in self.__threadList.keys():
             try:
                 self.__threadList[c].close()
-            except Exception, ex:
-                if savedEx is None:
-                    savedEx = ex
+            except:
+                if not savedEx:
+                    savedEx = sys.exc_info()
 
-        if savedEx is not None:
-            raise savedEx
+        if savedEx:
+            raise savedEx[0], savedEx[1], savedEx[2]
 
     def numOpen(self):
         num = 0

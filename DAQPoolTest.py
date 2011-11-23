@@ -236,9 +236,9 @@ class TestDAQPool(unittest.TestCase):
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
-        except ConnectionException, ce:
+        except ConnectionException as ce:
             if str(ce).find("No outputs found for %s inputs" % inputName) < 0:
-                raise ce
+                raise
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
@@ -284,9 +284,9 @@ class TestDAQPool(unittest.TestCase):
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
-        except ConnectionException, ce:
+        except ConnectionException as ce:
             if str(ce).find("No outputs found for %s inputs" % inputName) < 0:
-                raise ce
+                raise
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
@@ -334,9 +334,9 @@ class TestDAQPool(unittest.TestCase):
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
-        except ConnectionException, ce:
+        except ConnectionException as ce:
             if str(ce).find("No outputs found for %s inputs" % inputName) < 0:
-                raise ce
+                raise
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
@@ -383,10 +383,10 @@ class TestDAQPool(unittest.TestCase):
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
-        except ConnectionException, ce:
+        except ConnectionException as ce:
             if str(ce).find("No inputs found for %s outputs" %
                             outputName) < 0:
-                raise ce
+                raise
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
@@ -432,10 +432,10 @@ class TestDAQPool(unittest.TestCase):
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
-        except ConnectionException, ce:
+        except ConnectionException as ce:
             if str(ce).find("No inputs found for %s outputs" %
                             outputName) < 0:
-                raise ce
+                raise
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
@@ -483,10 +483,10 @@ class TestDAQPool(unittest.TestCase):
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
-        except ConnectionException, ce:
+        except ConnectionException as ce:
             if str(ce).find("No inputs found for %s outputs" %
                             outputName) < 0:
-                raise ce
+                raise
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
@@ -540,10 +540,10 @@ class TestDAQPool(unittest.TestCase):
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
-        except ConnectionException, ce:
+        except ConnectionException as ce:
             if str(ce).find("Found 2 %s inputs for 2 outputs" % \
                                 outputName) < 0:
-                raise ce
+                raise
 
         self.assertEqual(mgr.numComponents(), len(compList))
 

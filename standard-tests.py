@@ -181,7 +181,7 @@ class Deploy(object):
             if line.startswith("ERROR: "):
                 raise SystemExit("Deploy error: " + line[7:])
 
-            print >>sys.stderr, "Deploy: %s" % line
+            print >> sys.stderr, "Deploy: %s" % line
         proc.stdout.close()
 
         proc.wait()

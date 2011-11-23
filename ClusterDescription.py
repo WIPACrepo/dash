@@ -45,7 +45,7 @@ class ConfigXMLBase(object):
 
         try:
             dom = minidom.parse(fileName)
-        except Exception, e:
+        except Exception as e:
             raise XMLFormatError('%s: %s' % (fileName, str(e)))
 
         self.extractFrom(dom)
@@ -295,12 +295,15 @@ class ClusterDescription(ConfigXMLBase):
             configName = self.getClusterFromHostName()
 
         if configDir is None:
-             configDir = os.path.abspath(os.path.join(metaDir, 'config'))
+            configDir = os.path.abspath(os.path.join(metaDir,
+                                                     'config'))
 
         try:
             super(ClusterDescription, self).__init__(configDir, configName,
                                                      suffix)
-        except XMLFileDoesNotExist, e:
+        except XMLFileDoesNotExist:
+            saved_ex = sys.exc_info()
+
             if not configName.endswith('.cfg'):
                 retryName = configName
             else:
@@ -313,7 +316,7 @@ class ClusterDescription(ConfigXMLBase):
                 super(ClusterDescription, self).__init__(configDir, retryName,
                                                          suffix)
             except XMLFileDoesNotExist:
-                raise e
+                raise saved_ex[0], saved_ex[1], saved_ex[2]
 
     def __str__(self):
         return self.name
@@ -710,14 +713,14 @@ if __name__ == '__main__':
 
         try:
             cluster = ClusterDescription(dirName, baseName)
-        except NotImplementedError, ue:
-            print >>sys.stderr, 'For %s:' % name
+        except NotImplementedError:
+            print >> sys.stderr, 'For %s:' % name
             traceback.print_exc()
             continue
         except KeyboardInterrupt:
             break
         except:
-            print >>sys.stderr, 'For %s:' % name
+            print >> sys.stderr, 'For %s:' % name
             traceback.print_exc()
             continue
 

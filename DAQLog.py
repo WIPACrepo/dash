@@ -239,7 +239,7 @@ class DAQLog(object):
             return "FATAL"
         return "?level=%d?" % self.__level
 
-    def _logmsg(self, level, msg):
+    def _logmsg(self, level, msg, retry=False):
         "This is semi-private so CnCLogger can extend it"
         if level >= self.__level:
             if len(self.__appenderList) == 0:
@@ -324,7 +324,7 @@ class LogSocketAppender(BaseFileAppender):
     def _write(self, fd, time, msg):
         try:
             fd.send("%s %s [%s] %s" % ('-', '-', time, msg))
-        except socket.error, se:
+        except socket.error as se:
             raise LogException('LogSocket %s: %s' % (self.__loc, str(se)))
 
 

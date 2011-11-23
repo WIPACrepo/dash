@@ -1449,7 +1449,9 @@ class DAQConfigParser(XMLParser, XMLFileCache):
 
         try:
             cfg = ClusterConfigParser.load(configName, ccDir)
-        except XMLFileNotFound, xfnf:
+        except XMLFileNotFound:
+            saved_ex = sys.exc_info()
+
             if configDir is None:
                 configDir = os.path.join(metaDir, "config")
 
@@ -1467,7 +1469,7 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                 try:
                     runCfg = cls.load(configName, configDir, strict)
                 except XMLFileNotFound:
-                    raise xfnf
+                    raise saved_ex[0], saved_ex[1], saved_ex[2]
             finally:
                 cls.PARSE_DOM_CONFIG = savedValue
 

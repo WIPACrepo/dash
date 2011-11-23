@@ -3,6 +3,7 @@
 from CnCTask import CnCTask, TaskException
 from CnCThread import CnCThread
 from RunSetDebug import RunSetDebug
+import sys
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -163,9 +164,9 @@ class ValueWatcher(Watcher):
         if newType != list:
             try:
                 cmpEq = self.__compare(self.__prevValue, newValue)
-            except TaskException, te:
+            except TaskException:
                 self.__unchanged = 0
-                raise te
+                raise
 
             if cmpEq:
                 self.__unchanged += 1
@@ -185,9 +186,9 @@ class ValueWatcher(Watcher):
             for i in range(len(newValue)):
                 try:
                     cmpEq = self.__compare(self.__prevValue[i], newValue[i])
-                except TaskException, te:
-                    if tmpEx is None:
-                        tmpEx = te
+                except TaskException:
+                    if not tmpEx:
+                        tmpEx = sys.exc_info()
                     cmpEq = False
 
                 if cmpEq:
@@ -204,7 +205,7 @@ class ValueWatcher(Watcher):
                                          " changing") % str(self))
 
             if tmpEx:
-                raise tmpEx
+                raise tmpEx[0], tmpEx[1], tmpEx[2]
 
         return self.__unchanged == 0
 
@@ -254,7 +255,7 @@ class WatchData(object):
                 val = self.__comp.getSingleBeanField(watchList[0].beanName(),
                                                      watchList[0].fieldName())
                 chkVal = watchList[0].check(val)
-            except Exception, ex:
+            except Exception as ex:
                 unhealthy.append(watchList[0].unhealthyRecord(ex))
                 chkVal = True
             if not chkVal:
@@ -268,7 +269,7 @@ class WatchData(object):
                 valMap = self.__comp.getMultiBeanFields(
                     watchList[0].beanName(),
                     fldList)
-            except Exception, ex:
+            except Exception as ex:
                 fldList = []
                 unhealthy.append(watchList[0].unhealthyRecord(ex))
 
@@ -276,7 +277,7 @@ class WatchData(object):
 
                 try:
                     val = valMap[fldVal]
-                except KeyError, e:
+                except KeyError:
                     self.__dashlog.error("No value found for %s field#%d %s" %
                                          (self.__comp.fullName(), index,
                                           fldVal))
@@ -284,7 +285,7 @@ class WatchData(object):
 
                 try:
                     chkVal = watchList[index].check(val)
-                except Exception, ex:
+                except Exception as ex:
                     unhealthy.append(watchList[index].unhealthyRecord(ex))
                     chkVal = True
                 if not chkVal:
@@ -416,7 +417,7 @@ class WatchdogThread(CnCThread):
         self.__data.check(self.__starved, self.__stagnant, self.__threshold)
 
     def close(self):
-        super(type(self), self).close()
+        super(WatchdogThread, self).close()
 
         if self.__data is not None:
             self.__data.close()
@@ -476,7 +477,14 @@ class WatchdogRule(object):
 
         return None
 
+    def initData(self, data, thisComp, components):
+        raise NotImplementedError(
+            "you where supposed to implemented initData")
+
     def createData(self, thisComp, components, dashlog):
+        """ Note that this class is a base class for lasses
+        that define initData"""
+
         data = WatchData(thisComp, dashlog)
         self.initData(data, thisComp, components)
         return data
@@ -717,12 +725,12 @@ class WatchdogTask(CnCTask):
         for thr in self.__threadList.values():
             try:
                 thr.close()
-            except Exception, ex:
-                if savedEx is None:
-                    savedEx = ex
+            except:
+                if not savedEx:
+                    savedEx = sys.exc_info()
 
-        if savedEx is not None:
-            raise savedEx
+        if savedEx:
+            raise savedEx[0], savedEx[1], savedEx[2]
 
     def createThread(self, runset, comp, rule, dashlog):
         return WatchdogThread(runset, comp, rule, dashlog)

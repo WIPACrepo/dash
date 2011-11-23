@@ -403,7 +403,7 @@ class LiveRun(BaseRun):
             elif line.find("Service pdaq was unreachable on ") >= 0:
                 unreachable = True
             else:
-                print >>sys.stderr, "Control: %s" % line
+                print >> sys.stderr, "Control: %s" % line
         proc.stdout.close()
 
         proc.wait()
@@ -477,7 +477,7 @@ class LiveRun(BaseRun):
             print "Switching from %s to %s" % (prevState, expState)
 
         startTime = time.time()
-        for i in range(numTries):
+        for _ in range(numTries):
             self.__state.check()
 
             curState = self.__state.runState()
@@ -524,7 +524,8 @@ class LiveRun(BaseRun):
         if dataPath is None:
             time.sleep(secs)
         else:
-            cmd = "%s flasher -d %d -f %s" % (self.__liveCmdProg, secs, dataPath)
+            cmd = "%s flasher -d %d -f %s" % (self.__liveCmdProg,
+                                              secs, dataPath)
             if self.__showCmd:
                 print cmd
 
@@ -637,7 +638,7 @@ class LiveRun(BaseRun):
         waitSecs = 10
         numTries = 10
 
-        for i in range(numTries):
+        for _ in range(numTries):
             self.__state.check()
             if self.__state.lightMode() == expMode:
                 break

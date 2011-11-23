@@ -119,7 +119,7 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
             r = []
             try:
                 r, w, e = select.select([self.socket], [], [], self.__timeout)
-            except select.error, err:
+            except select.error as err:
                 # ignore interrupted system calls
                 if err[0] == 4:
                     continue

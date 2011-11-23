@@ -20,7 +20,7 @@ class ComponentLog(object):
 
     def logError(self, msg):
         if DEBUG:
-            print >>sys.stderr, msg
+            print >> sys.stderr, msg
         self.__logMsgs.append(msg)
 
     def checkInitialLogMessage(self, line):
@@ -50,7 +50,7 @@ class ComponentLog(object):
 
     def reportErrors(self, fd):
         for msg in self.__logMsgs:
-            print >>fd, "%s: %s" % (self.__fileName, msg)
+            print >> fd, "%s: %s" % (self.__fileName, msg)
 
 
 class CatchallLog(ComponentLog):
@@ -797,7 +797,7 @@ class GlobalTriggerLog(ComponentLog):
                 (str(self.__totHits), str(self.__totGTEvts),
                  str(self.__merged))
             for k in self.__trigCnt:
-                print >>fd, "  %s: %d" % (k, self.__trigCnt[k])
+                print >> fd, "  %s: %d" % (k, self.__trigCnt[k])
 
 
 class LocalTriggerData(object):
@@ -975,7 +975,7 @@ class LocalTriggerLog(ComponentLog):
                     total += float(self.__trigData[k].total())
 
             for k in self.__trigData.keys():
-                print >>fd, "%5.2f(%d): %s (%s)" % \
+                print >> fd, "%5.2f(%d): %s (%s)" % \
                     (self.__trigData[k].totalPct(total),
                      self.__trigData[k].avgHits(), k,
                      str(self.__trigData[k].total()))
@@ -1185,7 +1185,7 @@ class SecondaryBuildersLog(ComponentLog):
         if verbose:
             for bldr in self.__builder.values():
                 if not bldr.isInitial():
-                    print >>fd, "%s %s" % (str(bldr), bldr.state())
+                    print >> fd, "%s %s" % (str(bldr), bldr.state())
 
 
 class BaseDom(object):
@@ -1584,7 +1584,7 @@ class StringHubLog(ComponentLog):
                         if msg.find("Got CONFIGURE signal") >= 0:
                             try:
                                 self.__domMap[cardLoc].setConfigSignal()
-                            except LogParseException, lpe:
+                            except LogParseException as lpe:
                                 self.logError(("WARNING: %s configure" +
                                                " signal: %s") %
                                               (str(self.__domMap[cardLoc]),
@@ -1599,7 +1599,7 @@ class StringHubLog(ComponentLog):
                                               (m.group(1), cardLoc))
                             try:
                                 self.__domMap[cardLoc].setConfiguring()
-                            except LogParseException, lpe:
+                            except LogParseException as lpe:
                                 self.logError("WARNING: %s configuring: %s" %
                                               (str(self.__domMap[cardLoc]),
                                                str(lpe)))
@@ -1614,7 +1614,7 @@ class StringHubLog(ComponentLog):
                             try:
                                 val = int(m.group(2))
                                 self.__domMap[cardLoc].setConfigFinished(val)
-                            except LogParseException, lpe:
+                            except LogParseException as lpe:
                                 self.logError("WARNING: %s finished cfg: %s" %
                                               (str(self.__domMap[cardLoc]),
                                                str(lpe)))
@@ -1623,7 +1623,7 @@ class StringHubLog(ComponentLog):
                         if msg.find("DOM is configured") >= 0:
                             try:
                                 self.__domMap[cardLoc].setReady()
-                            except LogParseException, lpe:
+                            except LogParseException as lpe:
                                 self.logError("WARNING: %s ready: %s" %
                                               (str(self.__domMap[cardLoc]),
                                                str(lpe)))
@@ -1632,7 +1632,7 @@ class StringHubLog(ComponentLog):
                         if msg.find("DOM is now configured") >= 0:
                             try:
                                 self.__domMap[cardLoc].setSimReady()
-                            except LogParseException, lpe:
+                            except LogParseException as lpe:
                                 self.logError("WARNING: %s ready: %s" %
                                               (str(self.__domMap[cardLoc]),
                                                str(lpe)))
@@ -1697,7 +1697,7 @@ class StringHubLog(ComponentLog):
                         if msg.find("DOM is running") >= 0:
                             try:
                                 self.__domMap[cardLoc].setRunning()
-                            except LogParseException, lpe:
+                            except LogParseException as lpe:
                                 self.logError("WARNING: %s running: %s" %
                                               (str(self.__domMap[cardLoc]),
                                                str(lpe)))
@@ -1708,7 +1708,7 @@ class StringHubLog(ComponentLog):
                                 msg.find("Exited runCore() loop") >= 0:
                             try:
                                 self.__domMap[cardLoc].setStopping()
-                            except LogParseException, lpe:
+                            except LogParseException as lpe:
                                 self.logError("WARNING: %s stopping: %s" %
                                               (str(self.__domMap[cardLoc]),
                                                str(lpe)))
@@ -1735,7 +1735,7 @@ class StringHubLog(ComponentLog):
                                               (m.group(1), cardLoc))
                                 try:
                                     self.__domMap[cardLoc].setStartRun()
-                                except LogParseException, lpe:
+                                except LogParseException as lpe:
                                     self.logError(("WARNING: %s(%s) "
                                                    "start run: %s") % (
                                             cardLoc,
@@ -1786,7 +1786,7 @@ class StringHubLog(ComponentLog):
                                 msg.find("Exited runCore() loop") >= 0:
                             try:
                                 self.__domMap[cardLoc].setStopping()
-                            except LogParseException, lpe:
+                            except LogParseException as lpe:
                                 self.logError("WARNING: %s stopping: %s" %
                                               (str(self.__domMap[cardLoc]),
                                                str(lpe)))
@@ -1795,7 +1795,7 @@ class StringHubLog(ComponentLog):
                         if msg.find("Wrote EOS to streams.") >= 0:
                             try:
                                 self.__domMap[cardLoc].setStopped()
-                            except LogParseException, lpe:
+                            except LogParseException as lpe:
                                 self.logError("WARNING: %s stopped: %s" %
                                               (str(self.__domMap[cardLoc]),
                                                str(lpe)))

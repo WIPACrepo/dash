@@ -102,7 +102,7 @@ class Dash(cmd.Cmd):
     def __runCmdBean(self, args):
         "Get bean data"
         if len(args) == 0:
-            print >>sys.stderr, "Please specify a component.bean.field"
+            print >> sys.stderr, "Please specify a component.bean.field"
             return
 
         compDict = self.__cnc.rpc_component_list()
@@ -138,7 +138,7 @@ class Dash(cmd.Cmd):
                                                                bflds[0])
 
             if compName is None:
-                print >>sys.stderr, "Unknown component \"%s\"" % bflds[0]
+                print >> sys.stderr, "Unknown component \"%s\"" % bflds[0]
                 return
 
             if len(bflds) == 1:
@@ -171,7 +171,7 @@ class Dash(cmd.Cmd):
 
                 return
 
-            print >>sys.stderr, "Bad component.bean.field \"%s\"" % c
+            print >> sys.stderr, "Bad component.bean.field \"%s\"" % c
 
     def __runCmdClose(self, args):
         fdList = []
@@ -180,7 +180,7 @@ class Dash(cmd.Cmd):
                 try:
                     i = int(a)
                 except:
-                    print >>sys.stderr, "Bad file %s" % a
+                    print >> sys.stderr, "Bad file %s" % a
                     break
 
                 fdList.append(i)
@@ -190,7 +190,7 @@ class Dash(cmd.Cmd):
                     i1 = int(a1)
                     i2 = int(a2)
                 except:
-                    print >>sys.stderr, "Bad range %s" % a
+                    print >> sys.stderr, "Bad range %s" % a
                     break
 
                 for i in range(i1, i2 + 1):
@@ -220,7 +220,7 @@ class Dash(cmd.Cmd):
                 try:
                     id = self.__findComponentId(compDict, cstr)
                 except ValueError:
-                    print >>sys.stderr, "Unknown component \"%s\"" % cstr
+                    print >> sys.stderr, "Unknown component \"%s\"" % cstr
                     continue
 
             idList.append(id)

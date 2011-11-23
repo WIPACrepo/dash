@@ -58,7 +58,7 @@ class InputChannel(threading.Thread):
 
         self.__running = False
 
-        super(type(self), self).__init__(name=str(self))
+        super(InputChannel, self).__init__(name=str(self))
         self.setDaemon(True)
 
     def __str__(self):
@@ -85,7 +85,7 @@ class InputEngine(Engine):
 
         self.__sock = None
 
-        super(type(self), self).__init__(name)
+        super(InputEngine, self).__init__(name)
 
     def __str__(self):
         if self.__optional:
@@ -113,14 +113,14 @@ class InputEngine(Engine):
         try:
             self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        except socket.error, err:
+        except socket.error:
             self.__sock = None
             raise
 
         try:
             self.__sock.bind(("localhost", self.__port))
             self.__sock.listen(1)
-        except socket.error, err:
+        except socket.error:
             self.__sock.close()
             self.__sock = None
             raise
@@ -142,11 +142,11 @@ class OutputChannel(threading.Thread):
         try:
             self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.__sock.connect((self.__host, self.__port))
-        except socket.error, err:
+        except socket.error:
             self.__sock = None
             raise
 
-        super(type(self), self).__init__(name=str(self))
+        super(OutputChannel, self).__init__(name=str(self))
         self.setDaemon(True)
 
     def __str__(self):
@@ -162,7 +162,7 @@ class OutputEngine(Engine):
     def __init__(self, name, optional):
         self.__optional = optional
 
-        super(type(self), self).__init__(name)
+        super(OutputEngine, self).__init__(name)
 
     def __str__(self):
         if self.__optional:
@@ -347,7 +347,7 @@ class FakeClient(object):
 
             try:
                 self.__cnc.rpc_ping()
-            except socket.error, err:
+            except socket.error as err:
                 if err[0] == 61 or err[0] == 111:
                     self.__cnc = None
                 else:
