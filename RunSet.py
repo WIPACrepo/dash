@@ -1600,11 +1600,11 @@ class RunSet(object):
 
     def setError(self):
         self.__logDebug(RunSetDebug.STOP_RUN, "SetError %s", self.__runData)
-        try:
-            if self.__state == RunSetState.RUNNING:
+        if self.__state == RunSetState.RUNNING:
+            try:
                 self.stopRun(hadError=True)
-        except:
-            pass
+            except:
+                pass
 
         self.__state = RunSetState.ERROR
 
