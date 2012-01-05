@@ -1760,7 +1760,8 @@ class RunSet(object):
             waitList = self.__stopRunInternal(hadError)
         except:
             hadError = True
-            self.__logger.error("Could not stop run: " + exc_string())
+            self.__logger.error("Could not stop run %s: %s" %
+                                (self, exc_string()))
             raise
         finally:
             self.__stopping = False
