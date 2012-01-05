@@ -201,7 +201,7 @@ class SubrunThread(CnCThread):
             except ValueError:
                 self.__log.error(("Component %s startSubrun returned bad" +
                                   " value \"%s\"") %
-                                 (str(self.__comp), tStr))
+                                 (self.__comp.fullName(), tStr))
                 self.__time = 0
 
     def comp(self):
@@ -1525,18 +1525,20 @@ class RunSet(object):
             if not found:
                 self.__logger.error(("Cannot restart component %s: Not found" +
                                      " in cluster config \"%s\"") %
-                                    (comp, clusterConfig.configName()))
+                                    (comp.fullName(),
+                                     clusterConfig.configName()))
             else:
                 try:
                     self.__set.remove(comp)
                 except ValueError:
                     self.__logger.error(("Cannot remove component %s from" +
-                                         " RunSet #%d") % (comp, self.__id))
+                                         " RunSet #%d") %
+                                        (comp.fullName(), self.__id))
                 try:
                     comp.close()
                 except:
                     self.__logger.error("Close failed for %s: %s" %
-                                        (comp, exc_string()))
+                                        (comp.fullName(), exc_string()))
 
         # sort list into a predictable order for unit tests
         #
@@ -1554,7 +1556,7 @@ class RunSet(object):
         if len(badPairs) > 0:
             for pair in badPairs:
                 self.__logger.error("Restarting %s (state '%s' after reset)" %
-                                    (pair[0], pair[1]))
+                                    (pair[0].fullName(), pair[1]))
                 badComps.append(pair[0])
             self.restartComponents(badComps, clusterConfig, configDir,
                                    daqDataDir, logPort, livePort, verbose,
@@ -1569,7 +1571,7 @@ class RunSet(object):
                 pool.add(comp)
             else:
                 self.__logger.error("Not returning unexpected component %s" %
-                                    comp)
+                                    comp.fullName())
 
         # raise exception if one or more components could not be reset
         #
