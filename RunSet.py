@@ -186,7 +186,7 @@ class SubrunThread(CnCThread):
             except ValueError:
                 self.__log.error(("Component %s startSubrun returned bad" +
                                   " value \"%s\"") %
-                                 (str(self.__comp), tStr))
+                                 (self.__comp.fullName(), tStr))
                 self.__time = 0
 
     def comp(self):
@@ -746,6 +746,23 @@ class RunSet(object):
 
         return slst
 
+    def __checkStoppedComponents(self, waitList):
+        if len(waitList) > 0:
+            self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING rptZombies")
+            waitStr = self.__listComponentsCommaSep(waitList)
+            errStr = '%s: Could not stop %s' % (str(self), waitStr)
+            self.__runData.error(errStr)
+            self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING rptZombies done")
+            raise RunSetException(errStr)
+
+        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING chkReady")
+        badList = self.__checkState(RunSetState.READY)
+        if len(badList) > 0:
+            self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING raiseError")
+            msg = "Could not stop %s" % self.__badStateString(badList)
+            self.__runData.error(msg)
+            raise RunSetException(msg)
+
     def __finalReport(self, waitList, hadError):
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING report")
         (numEvts, numMoni, numSN, numTcal, firstTime, lastTime, duration) = \
@@ -772,26 +789,6 @@ class RunSet(object):
         # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
         # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
         self.queueForSpade(duration)
-
-        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING stopLog")
-        self.__stopLogging()
-        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING stopLog done")
-
-        if len(waitList) > 0:
-            self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING rptZombies")
-            waitStr = self.__listComponentsCommaSep(waitList)
-            errStr = '%s: Could not stop %s' % (str(self), waitStr)
-            self.__runData.error(errStr)
-            self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING rptZombies done")
-            raise RunSetException(errStr)
-
-        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING chkReady")
-        badList = self.__checkState(RunSetState.READY)
-        if len(badList) > 0:
-            self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING raiseError")
-            msg = "Could not stop %s" % self.__badStateString(badList)
-            self.__runData.error(msg)
-            raise RunSetException(msg)
 
     @classmethod
     def __getRunDirectoryPath(cls, logDir, runNum):
@@ -1425,18 +1422,20 @@ class RunSet(object):
             if not found:
                 self.__logger.error(("Cannot restart component %s: Not found" +
                                      " in cluster config \"%s\"") %
-                                    (comp, clusterConfig.configName()))
+                                    (comp.fullName(),
+                                     clusterConfig.configName()))
             else:
                 try:
                     self.__set.remove(comp)
                 except ValueError:
                     self.__logger.error(("Cannot remove component %s from" +
-                                         " RunSet #%d") % (comp, self.__id))
+                                         " RunSet #%d") %
+                                        (comp.fullName(), self.__id))
                 try:
                     comp.close()
                 except:
                     self.__logger.error("Close failed for %s: %s" %
-                                        (comp, exc_string()))
+                                        (comp.fullName(), exc_string()))
 
         self.__logger.error("Cycling components %s" % cluCfgList)
         self.cycleComponents(cluCfgList, configDir, dashDir, logPort, livePort,
@@ -1450,7 +1449,7 @@ class RunSet(object):
         if len(badPairs) > 0:
             for pair in badPairs:
                 self.__logger.error("Restarting %s (state '%s' after reset)" %
-                                    (pair[0], pair[1]))
+                                    (pair[0].fullName(), pair[1]))
                 badComps.append(pair[0])
             self.restartComponents(badComps, clusterConfig, configDir, dashDir,
                                    logPort, livePort, verbose, killWith9,
@@ -1465,7 +1464,7 @@ class RunSet(object):
                 pool.add(comp)
             else:
                 self.__logger.error("Not returning unexpected component %s" %
-                                    comp)
+                                    comp.fullName())
 
         # raise exception if one or more components could not be reset
         #
@@ -1494,11 +1493,11 @@ class RunSet(object):
 
     def setError(self):
         self.__logDebug(RunSetDebug.STOP_RUN, "SetError %s", self.__runData)
-        try:
-            if self.__state == RunSetState.RUNNING:
+        if self.__state == RunSetState.RUNNING:
+            try:
                 self.stopRun(hadError=True)
-        except:
-            pass
+            except:
+                pass
 
         self.__state = RunSetState.ERROR
 
@@ -1649,14 +1648,25 @@ class RunSet(object):
             waitList = self.__stopRunInternal(hadError)
         except:
             hadError = True
-            self.__logger.error("Could not stop run: " + exc_string())
+            self.__logger.error("Could not stop run %s: %s" %
+                                (self, exc_string()))
             raise
         finally:
             self.__stopping = False
             if len(waitList) > 0:
                 hadError = True
             if self.__runData is not None:
-                self.__finalReport(waitList, hadError)
+                try:
+                    self.__finalReport(waitList, hadError)
+                except:
+                    self.__logger.error("Could not finish run %s: %s" %
+                                        (self, exc_string()))
+                try:
+                    self.__stopLogging()
+                except:
+                    self.__logger.error("Could not stop logs for %s: %s" %
+                                        (self, exc_string()))
+                self.__checkStoppedComponents(waitList)
 
         return hadError
 

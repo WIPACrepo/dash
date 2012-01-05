@@ -220,9 +220,15 @@ class DAQLog(object):
         self.close()
 
     def close(self):
+        savedEx = None
         for a in self.__appenderList:
-            a.close()
+            try:
+                a.close()
+            except:
+                savedEx = sys.exc_info()
         del self.__appenderList[:]
+        if savedEx:
+            raise savedEx[0], savedEx[1], savedEx[2]
 
     def debug(self, msg): self._logmsg(DAQLog.DEBUG, msg)
 

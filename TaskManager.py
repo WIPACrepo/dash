@@ -99,8 +99,16 @@ class TaskManager(threading.Thread):
             finally:
                 self.__flag.release()
 
+        savedEx = None
         for t in self.__tasks:
-            t.close()
+            try:
+               t.close()
+            except:
+                if not savedEx:
+                    savedEx = sys.exc_info()
+
+        if savedEx:
+            raise savedEx[0], savedEx[1], savedEx[2]
 
     @classmethod
     def createIntervalTimer(cls, name, period):
