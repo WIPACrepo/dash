@@ -98,18 +98,27 @@ class TaskManager(threading.Thread):
                 if waitSecs > taskSecs:
                     waitSecs = taskSecs
 
-            self.__flag.acquire()
-            try:
-                self.__flag.wait(waitSecs)
-            finally:
-                self.__flag.release()
+            if not self.__stopping:
+                self.__flag.acquire()
+                try:
+                    self.__flag.wait(waitSecs)
+                finally:
+                    self.__flag.release()
 
         self.__running = False
 
+        savedEx = None
         for t in self.__tasks:
-            t.close()
+            try:
+                t.close()
+            except:
+                if not savedEx:
+                    savedEx = sys.exc_info()
 
         self.__stopping = False
+
+        if savedEx:
+            raise savedEx[0], savedEx[1], savedEx[2]
 
     @classmethod
     def createIntervalTimer(cls, name, period):

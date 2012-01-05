@@ -70,7 +70,11 @@ class MockRunSet(object):
         if hadError != self.__expStopErr:
             raise Exception("Expected 'hadError' to be %s" % self.__expStopErr)
 
+        self.__state = self.STATE_READY
         return self.__stopReturn
+
+    def stopping(self):
+        return False
 
     def subrun(self, id, domList):
         pass
@@ -462,8 +466,9 @@ class DAQLiveTest(unittest.TestCase):
         runSet.setExpectedStopError()
         runSet.setStopReturnError()
 
+        log.addExpectedExact("DAQLive stopRun %s returned %s" % (runSet, False))
         log.addExpectedExact("DAQLive recovered %s" % runSet)
-        self.failIf(live.recovering(), "recovering failed")
+        self.failUnless(live.recovering(), "recovering failed")
 
     def testRecovering(self):
         global WARNED
@@ -492,6 +497,7 @@ class DAQLiveTest(unittest.TestCase):
 
         runSet.setExpectedStopError()
 
+        log.addExpectedExact("DAQLive stopRun %s returned %s" % (runSet, True))
         log.addExpectedExact("DAQLive recovered %s" % runSet)
         self.failUnless(live.recovering(), "recovering failed")
 

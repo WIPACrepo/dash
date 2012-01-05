@@ -1768,8 +1768,16 @@ class RunSet(object):
             if len(waitList) > 0:
                 hadError = True
             if self.__runData is not None:
-                self.__finishRun(self.__set, self.__runData, hadError)
-                self.__stopLogging()
+                try:
+                    self.__finishRun(self.__set, self.__runData, hadError)
+                except:
+                    self.__logger.error("Could not finish run %s: %s" %
+                                        (self, exc_string()))
+                try:
+                    self.__stopLogging()
+                except:
+                    self.__logger.error("Could not stop logs for %s: %s" %
+                                        (self, exc_string()))
                 self.__checkStoppedComponents(waitList)
 
         return hadError

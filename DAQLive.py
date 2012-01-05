@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import time
 
 from DAQConst import DAQPort
 from IntervalTimer import IntervalTimer
@@ -40,8 +41,31 @@ class DAQLive(Component):
             if self.__runSet.isDestroyed():
                 self.__runSet = None
             elif not self.__runSet.isReady():
-                rtnVal = not self.__runSet.stopRun(hadError=True)
-                self.__log.error("DAQLive recovered %s" % self.__runSet)
+                if not self.__runSet.stopping():
+                    stopVal = not self.__runSet.stopRun(hadError=True)
+                    self.__log.error("DAQLive stopRun %s returned %s" %
+                                 (self.__runSet, stopVal))
+
+                waitSecs = 5
+                numTries = 12
+                for _ in range(numTries):
+                    if not self.__runSet.stopping():
+                        break
+                    time.sleep(waitSecs)
+                if self.__runSet.isDestroyed():
+                    self.__log.error("DAQLive destroyed %s" % self.__runSet)
+                    self.__runSet = None
+                    rtnVal = True
+                elif self.__runSet.stopping():
+                    self.__log.error("DAQLive giving up on hung %s" %
+                                     self.__runSet)
+                    rtnVal = False
+                elif not self.__runSet.isReady():
+                    self.__log.error("DAQLive cannot recover %s" % self.__runSet)
+                    rtnVal = False
+                else:
+                    self.__log.error("DAQLive recovered %s" % self.__runSet)
+                    rtnVal = True
 
         return rtnVal
 
