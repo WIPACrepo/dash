@@ -24,7 +24,8 @@ COMP_FIELDS = {
           'rdoutReq' : 'RecordsReceived',
           'rdoutData' : 'RecordsSent' },
     'stringHub' :
-        { 'stringHit' : 'RecordsSent',
+        { 'sender' : 'NumHitsReceived',
+          'stringHit' : 'RecordsSent',
           'moniData' : 'RecordsSent',
           'snData' : 'RecordsSent',
           'tcalData' : 'RecordsSent',
@@ -32,7 +33,8 @@ COMP_FIELDS = {
           'rdoutReq' : 'RecordsReceived',
           'rdoutData' : 'RecordsSent' },
     'icetopHub' :
-        { 'icetopHit' : 'RecordsSent',
+        { 'sender' : 'NumHitsReceived',
+          'icetopHit' : 'RecordsSent',
           'moniData' : 'RecordsSent',
           'snData' : 'RecordsSent',
           'tcalData' : 'RecordsSent',
@@ -84,18 +86,18 @@ class Component(object):
             compNum = 0
         else:
             if len(fileName) < 5 or fileName[-5:] != '.moni':
-                raise ValueError('Non-moni filename "%s"' % fileName)
+                raise Exception('Non-moni filename "%s"' % fileName)
 
             baseName = os.path.basename(fileName)
             idx = baseName.rfind('-')
             if idx <= 0:
-                raise ValueError("Didn't find '-' separator in \"%s\"" %
-                                 fileName)
+                raise Exception("Didn't find '-' separator in \"%s\"" %
+                                fileName)
 
             compName = baseName[:idx]
             if not COMP_FIELDS.has_key(compName):
-                raise ValueError('Unknown component "%s" in "%s"' %
-                                 (compName, fileName))
+                raise Exception('Unknown component "%s" in "%s"' %
+                                (compName, fileName))
 
             try:
                 compNum = int(baseName[idx+1:-5])
@@ -206,7 +208,8 @@ def processDir(dirName):
     """Process all .moni files in the specified directory"""
     allData = {}
     for entry in os.listdir(dirName):
-        if entry.endswith('.log') or entry.endswith('.html'):
+        if entry.endswith('.log') or entry.endswith('.html') or \
+               entry.endswith('.xml'):
             continue
 
         try:
@@ -235,47 +238,47 @@ def processFile(fileName, comp):
     secLastSaved = {}
     secSeenData = {}
 
-    fd = open(fileName, 'r')
-    for line in fd:
-        line = line.rstrip()
-        if len(line) == 0:
-            secName = None
-            secTime = None
-            continue
+    with open(fileName, 'r') as fd:
+        for line in fd:
+            line = line.rstrip()
+            if len(line) == 0:
+                secName = None
+                secTime = None
+                continue
 
-        if secName is not None:
-            m = MONILINE_PAT.match(line)
+            if secName is not None:
+                m = MONILINE_PAT.match(line)
+                if m:
+                    name = m.group(1)
+                    vals = m.group(2)
+
+                    if flds is None or flds[secName] == name:
+                        if TIME_INTERVAL is not None and \
+                                secTime > secLastSaved[secName] + TIME_INTERVAL:
+                            newVal = fixValue(vals)
+                            if newVal > 0:
+                                data[secName][secTime] = newVal
+                                secLastSaved[secName] = secTime
+                            elif vals != '0':
+                                secSeenData[secName] = (secTime, vals)
+                                if not secFirst.has_key(secName):
+                                    secFirst[secName] = (secTime, vals)
+                    continue
+
+            m = MONISEC_PAT.match(line)
             if m:
-                name = m.group(1)
-                vals = m.group(2)
+                nm = m.group(1)
+                if not flds.has_key(nm):
+                    continue
 
-                if flds is None or flds[secName] == name:
-                    if TIME_INTERVAL is not None and \
-                            secTime > secLastSaved[secName] + TIME_INTERVAL:
-                        newVal = fixValue(vals)
-                        if newVal > 0:
-                            data[secName][secTime] = newVal
-                            secLastSaved[secName] = secTime
-                    elif vals != '0':
-                        secSeenData[secName] = (secTime, vals)
-                        if not secFirst.has_key(secName):
-                            secFirst[secName] = (secTime, vals)
-                continue
+                secName = nm
+                mSec = float(m.group(3)) / 1000000.0
+                secTime = time.mktime(time.strptime(m.group(2), TIMEFMT)) + mSec
 
-        m = MONISEC_PAT.match(line)
-        if m:
-            nm = m.group(1)
-            if not flds.has_key(nm):
-                continue
-
-            secName = nm
-            mSec = float(m.group(3)) / 1000000.0
-            secTime = time.mktime(time.strptime(m.group(2), TIMEFMT)) + mSec
-
-            if not data.has_key(secName):
-                data[secName] = {}
-                secLastSaved[secName] = 0.0
-                secSeenData[secName] = None
+                if not data.has_key(secName):
+                    data[secName] = {}
+                    secLastSaved[secName] = 0.0
+                    secSeenData[secName] = None
 
     for k in data:
         if TIME_INTERVAL is None and \
@@ -283,7 +286,7 @@ def processFile(fileName, comp):
             (firstTime, firstVals) = secFirst[k]
             if not data[k].has_key(firstTime):
                 data[k][firstTime] = fixValue(firstVals)
-
+                
         if secSeenData.has_key(k) and secSeenData[k] is not None:
             (lastTime, lastVals) = secSeenData[k]
             if not data[k].has_key(lastTime):
@@ -295,8 +298,10 @@ def reportDataRates(allData):
     """Report the DAQ data rates"""
     if not DATA_ONLY:
         print 'Data Rates:'
-    reportList = [('stringHub', 'stringHit'),
+    reportList = [('stringHub', 'sender'),
+                  ('stringHub', 'stringHit'),
                   ('inIceTrigger', 'stringHit'),
+                  ('icetopHub', 'sender'),
                   ('icetopHub', 'icetopHit'),
                   ('iceTopTrigger', 'icetopHit'),
                   ('amandaTrigger', 'selfContained'),
@@ -335,7 +340,7 @@ def reportRatesInternal(allData, reportList):
         isCombined = rptTuple[0].endswith('Hub') or \
             (rptTuple[0].endswith('Trigger') and
              rptTuple[0] != 'globalTrigger' and rptTuple[1] == 'trigger')
-                 
+
         if combinedField is not None:
             if not isCombined or combinedField != rptTuple[1]:
                 if combinedRate is None:

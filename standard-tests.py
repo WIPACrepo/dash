@@ -2,17 +2,19 @@
 #
 # Run standard pDAQ tests
 
-import optparse, os, re, socket, stat, sys
-from liverun import DatabaseType, LiveRun
+import os, re, socket, stat, subprocess, sys
+from ClusterDescription import ClusterDescription
+from cncrun import CnCRun
+from liverun import LiveRun
 
 # times in seconds
 #
 FOUR_HR = 14400
 EIGHT_HR = 28800
 
-class RunDataException(Exception): pass
+class PDAQRunException(Exception): pass
 
-class RunData(object):
+class PDAQRun(object):
     "Description of a pDAQ run"
 
     def __init__(self, runCfg, duration, numRuns=1, flashName=None,
@@ -32,27 +34,28 @@ class RunData(object):
         else:
             duration = self.__duration
 
-        liveRun.run(self.clusterConfig(), self.__runCfg, duration,
-                    self.__numRuns, self.__flashName, self.__flashTimes,
-                    self.__flashPause, False)
+        for r in range(self.__numRuns):
+            liveRun.run(self.clusterConfig(), self.__runCfg,
+                        duration, self.__flashName, self.__flashTimes,
+                        self.__flashPause, False)
 
 # configurations to run
 #
-RUN_LIST = (RunData("spts64-dirtydozen-hlc-006", FOUR_HR),
-            RunData("spts64-dirtydozen-hlc-006", 0, 1,
+RUN_LIST = (PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
+            PDAQRun("spts64-dirtydozen-hlc-006", 0, 1,
                     "flash-21", (60, 45, 120)),
-            ###RunData("sim18str-noise25Hz-002", FOUR_HR),
-            ###RunData("sim18str-noise25Hz-002", EIGHT_HR),
-            ###RunData("sim22str-with-phys-trig-001", FOUR_HR),
-            ###RunData("sim22str-with-phys-trig-001", EIGHT_HR),
-            #RunData("sim40str-25Hz-reduced-trigger", FOUR_HR),
-            #RunData("sim40str-25Hz-reduced-trigger", EIGHT_HR),
-            #RunData("sim60str-mbt23", FOUR_HR),
-            #RunData("sim60str-mbt23", EIGHT_HR),
-            RunData("sim60str-mbt-vt-01", FOUR_HR),
-            RunData("sim60str-mbt-vt-01", EIGHT_HR),
-            ###RunData("sim80str-25Hz", FOUR_HR),
-            ###RunData("sim80str-25Hz", EIGHT_HR),
+            ###PDAQRun("sim18str-noise25Hz-002", FOUR_HR),
+            ###PDAQRun("sim18str-noise25Hz-002", EIGHT_HR),
+            ###PDAQRun("sim22str-with-phys-trig-001", FOUR_HR),
+            ###PDAQRun("sim22str-with-phys-trig-001", EIGHT_HR),
+            #PDAQRun("sim40str-25Hz-reduced-trigger", FOUR_HR),
+            #PDAQRun("sim40str-25Hz-reduced-trigger", EIGHT_HR),
+            #PDAQRun("sim60str-mbt23", FOUR_HR),
+            #PDAQRun("sim60str-mbt23", EIGHT_HR),
+            PDAQRun("sim60str-mbt-vt-01", FOUR_HR),
+            PDAQRun("sim60str-mbt-vt-01", EIGHT_HR),
+            ###PDAQRun("sim80str-25Hz", FOUR_HR),
+            ###PDAQRun("sim80str-25Hz", EIGHT_HR),
             )
 
 class Deploy(object):
@@ -94,13 +97,16 @@ class Deploy(object):
         cmd = "%s -c %s %s" % (self.__deploy, clusterCfg, arg)
         if self.__showCmd: print cmd
 
-        (fi, foe) = os.popen4(cmd)
-        fi.close()
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, close_fds=True,
+                                shell=True)
+        proc.stdin.close()
 
         inNodes = False
         inCmds = False
 
-        for line in foe:
+        for line in proc.stdout:
             line = line.rstrip()
             if self.__showCmdOutput: print '+ ' + line
 
@@ -154,7 +160,9 @@ class Deploy(object):
                 raise SystemExit("Deploy error: " + line[7:])
 
             print >>sys.stderr, "Deploy: %s" % line
-        foe.close()
+        proc.stdout.close()
+
+        proc.wait()
 
     def deploy(self, clusterConfig):
         "Deploy to the specified cluster"
@@ -164,7 +172,8 @@ class Deploy(object):
 
         self.__runDeploy(clusterConfig, "--delete")
 
-    def getUniqueClusterConfigs(self, runList):
+    @staticmethod
+    def getUniqueClusterConfigs(runList):
         "Return a list of the unique elements"
         ccDict = {}
         for data in runList:
@@ -174,7 +183,6 @@ class Deploy(object):
         uniqList.sort()
 
         return uniqList
-    getUniqueClusterConfigs = classmethod(getUniqueClusterConfigs)
 
     def showHome(self):
         "Print the actual pDAQ home directory name"
@@ -183,30 +191,33 @@ class Deploy(object):
         print "==============================================================="
 
 if __name__ == "__main__":
+    import optparse, signal
+
     op = optparse.OptionParser()
-    op.add_option("-d", "--deploy", action="store_true", dest="deploy",
+    op.add_option("-c", "--cncrun", dest="cncrun",
+                  action="store_true", default=False,
+                  help="Control CnC directly instead of using I3Live")
+    op.add_option("-d", "--deploy", dest="deploy",
+                  action="store_true", default=False,
                   help="Deploy the standard tests")
-    op.add_option("-q", "--quick", action="store_true", dest="quick",
+    op.add_option("-q", "--quick", dest="quick",
+                  action="store_true", default=False,
                   help="Reduce 4/8 hour tests to 2/4 minute tests")
-    op.add_option("-r", "--run", action="store_true", dest="run",
+    op.add_option("-r", "--run", dest="run",
+                  action="store_true", default=False,
                   help="Run the standard tests")
-    op.add_option("-S", "--showCheck", action="store_true", dest="showChk",
+    op.add_option("-S", "--showCheck", dest="showChk",
+                  action="store_true", default=False,
                   help="Show the 'livecmd check' commands")
-    op.add_option("-s", "--showCommands", action="store_true", dest="showCmd",
+    op.add_option("-s", "--showCommands", dest="showCmd",
+                  action="store_true", default=False,
                   help="Show the commands used to deploy and/or run")
-    op.add_option("-X", "--showCheckOutput", action="store_true",
-                  dest="showChkOutput",
+    op.add_option("-X", "--showCheckOutput", dest="showChkOutput",
+                  action="store_true", default=False,
                   help="Show the output of the 'livecmd check' commands")
-    op.add_option("-x", "--showCommandOutput", action="store_true",
-                  dest="showCmdOutput",
+    op.add_option("-x", "--showCommandOutput", dest="showCmdOutput",
+                  action="store_true", default=False,
                   help="Show the output of the deploy and/or run commands")
-    op.set_defaults(deploy = False,
-                    quick = False,
-                    run = False,
-                    showChk = False,
-                    showChkOutput = False,
-                    showCmd = False,
-                    showCmdOutput = False)
 
     opt, args = op.parse_args()
 
@@ -215,9 +226,13 @@ if __name__ == "__main__":
         # Use hostname to guess what we're meant to do
         #
         hostName = socket.gethostname()
-        if hostName.startswith("spts64-build64"):
+        cluster = ClusterDescription.getClusterFromHostName(hostName)
+        if cluster == ClusterDescription.SPS:
+            raise SystemExit("Tests should not be run on SPS cluster")
+
+        if hostName.find("access") >= 0 or hostName.find("build") >= 0:
             opt.deploy = True
-        elif hostName.startswith("spts64-expcont"):
+        elif hostName.find("expcont") >= 0:
             opt.run = True
         else:
             raise SystemExit("Please specify --deploy or --run" +
@@ -240,12 +255,23 @@ if __name__ == "__main__":
             deploy.deploy(cfg)
         deploy.showHome()
     if opt.run:
-        liveRun = LiveRun(opt.showCmd, opt.showCmdOutput, opt.showChk,
-                          opt.showChkOutput)
+        if opt.cncrun:
+            liveRun = CnCRun(opt.showCmd, opt.showCmdOutput)
+        else:
+            liveRun = LiveRun(opt.showCmd, opt.showCmdOutput, opt.showChk,
+                              opt.showChkOutput)
+
+        if sys.version_info > (2, 3):
+            from DumpThreads import DumpThreadsOnSignal
+            DumpThreadsOnSignal(fd=sys.stderr)
 
         # always kill running components in case they're from a previous release
         #
         liveRun.killComponents()
+
+        # stop existing runs gracefully on ^C
+        #
+        signal.signal(signal.SIGINT, liveRun.stopOnSIGINT)
 
         for data in RUN_LIST:
             data.run(liveRun, opt.quick)

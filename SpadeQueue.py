@@ -7,88 +7,95 @@ Started: Tue Aug 11 17:25:20 2009
 
 Functions for putting SPADE data in queue, either 'by hand' (when
 run from command line) or programmatically (when imported from, e.g.,
-DAQRun.py)
+RunSet.py)
 """
 
-from os.path    import exists
-from exc_string import exc_string
-from datetime   import datetime
-from tarfile    import TarFile
-from sys        import argv
-from shutil     import move, copyfile
+import datetime, os, shutil, sys, tarfile
 
-def logDirName(runNum):
-    "Get log directory name, not including loggingDir portion of path"
-    return "daqrun%05d" % runNum
+from exc_string import exc_string, set_exc_string_encoding
+set_exc_string_encoding("ascii")
 
-def get_base_prefix(runNum, runTime, runDuration):
-    """
-    >>> get_base_prefix(666, datetime(2009,8,11,22,29,25), 100)
-    'SPS-pDAQ-run-666_20090811_222925_000100'
-    """
-    return "SPS-pDAQ-run-%03d_%04d%02d%02d_%02d%02d%02d_%06d" % \
-           (runNum, runTime.year, runTime.month, runTime.day, runTime.hour,
-            runTime.minute, runTime.second, runDuration)
+def __copySpadeTarFile(logger, copyDir, spadeBaseName, tarFile):
+    copyFile = os.path.join(copyDir, spadeBaseName + ".dat.tar")
+    logger.info("Link or copy %s->%s" % (tarFile, copyFile))
 
-def linkOrCopy(src, dest):
     try:
-        os.link(src, dest)
+        os.link(tarFile, copyFile)
     except OSError, e:
         if e.errno == 18: # Cross-device link
-            copyfile(src, dest)
+            shutil.copyfile(tarFile, copyFile)
         else:
-            raise
+            raise OSError(str(e) + ": Copy %s to %s" % (tarFile, copyFile))
 
-def queue_for_spade(logger, spadeDir, copyDir, logTopLevel,
-                    runNum, runTime, runDuration, moveCatchall=True):
-    """
-    Put tarball of log and moni files in SPADE directory as well as
-    semaphore file to indicate to SPADE to effect the transfer
-    """
-    if not spadeDir: return
-    if not exists(spadeDir): return
-    logger.info(("Queueing data for SPADE (spadeDir=%s, logDir=%s," +
-                " runNum=%d)...") % (spadeDir, logTopLevel, runNum))
-    runDir = logDirName(runNum)
-    basePrefix = get_base_prefix(runNum, runTime, runDuration)
-    try:
-        move_spade_files(logger, copyDir, basePrefix,
-                         logTopLevel, runDir, spadeDir, moveCatchall)
-    except Exception:
-        logger.error("FAILED to queue data for SPADE: %s" % exc_string())
 
-def move_spade_files(logger, copyDir, basePrefix,
-                     logTopLevel, runDir, spadeDir, moveCatchall):
-    tarBall = "%s/%s.dat.tar" % (spadeDir, basePrefix)
-    semFile = "%s/%s.sem"     % (spadeDir, basePrefix)
-    logger.info("Target files are:\n%s\n%s" % (tarBall, semFile))
-    if moveCatchall:
-        move("%s/catchall.log" % logTopLevel, "%s/%s" % (logTopLevel, runDir))
-    tarObj = TarFile(tarBall, "w")
-    tarObj.add("%s/%s" % (logTopLevel, runDir), runDir, True)
+def __touch_file(f):
+    open(f, "w").close()
+
+    
+def __writeSpadeSemaphore(spadeDir, spadeBaseName):
+    semFile = os.path.join(spadeDir, spadeBaseName + ".sem")
+    __touch_file(semFile)
+
+
+def __indicate_daq_logs_queued(spadeDir):
+    __touch_file(os.path.join(spadeDir, "logs-queued"))
+
+                 
+def __writeSpadeTarFile(spadeDir, spadeBaseName, runDir):
+    tarBall = os.path.join(spadeDir, spadeBaseName + ".dat.tar")
+
+    tarObj = tarfile.TarFile(tarBall, "w")
+    tarObj.add(runDir, os.path.basename(runDir), True)
     tarObj.close()
-    if copyDir:
-        copyFile = "%s/%s.dat.tar" % (copyDir, basePrefix)
-        logger.info("Link or copy %s->%s" % (tarBall, copyFile))
-        linkOrCopy(tarBall, copyFile)
-    fd = open(semFile, "w")
-    fd.close()
+
+    return tarBall
+
+
+def queueForSpade(logger, spadeDir, copyDir, runDir, runNum, runTime,
+                  runDuration):
+    if runDir is None or not os.path.exists(runDir):
+        logger.info("Run directory \"%s\" does not exist" % runDir)
+        return
+
+    if spadeDir is None or not os.path.exists(spadeDir):
+        logger.info("SPADE directory \"%s\" does not exist" % spadeDir)
+        return
+
+    try:
+        spadeBaseName = "SPS-pDAQ-run-%03d_%04d%02d%02d_%02d%02d%02d_%06d" % \
+            (runNum, runTime.year, runTime.month, runTime.day,
+             runTime.hour, runTime.minute, runTime.second, runDuration)
+
+        tarFile = __writeSpadeTarFile(spadeDir, spadeBaseName, runDir)
+
+        if copyDir is not None and os.path.exists(copyDir):
+            __copySpadeTarFile(logger, copyDir, spadeBaseName, tarFile)
+
+        __writeSpadeSemaphore(spadeDir, spadeBaseName)
+
+        __indicate_daq_logs_queued(spadeDir)
+        
+        logger.info(("Queued data for SPADE (spadeDir=%s" +
+                     ", runDir=%s, runNum=%s)...") %
+                    (spadeDir, runDir, runNum))
+    except:
+        logger.error("FAILED to queue data for SPADE: " + exc_string())
+
 
 if __name__ == "__main__":
     import logging
-    if len(argv) < 2:
-        print "Must supply run number argument"
+    if len(sys.argv) < 2:
+        print >>sys.stderr, "Usage: %s runNumber" % sys.argv[0]
         raise SystemExit
-    runNum = int(argv[1])
+    runNum = int(sys.argv[1])
     logging.basicConfig()
 
     logger = logging.getLogger("spadeQueue")
     logger.setLevel(logging.DEBUG)
-    queue_for_spade(logger,
-                    "/mnt/data/pdaqlocal/viaTDRSS",
-                    None,
-                    "/mnt/data/pdaq/log",
-                    runNum,
-                    datetime.utcnow(),
-                    0,
-                    moveCatchall=False)
+    queueForSpade(logger,
+                  "/mnt/data/pdaqlocal/viaTDRSS",
+                  None,
+                  "/mnt/data/pdaq/log/daqrun%05d" % runNum,
+                  runNum,
+                  datetime.datetime.utcnow(),
+                  0)

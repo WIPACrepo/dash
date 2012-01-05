@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 
-import os, sys, traceback
+import os, socket, sys, traceback
 
 from xml.dom import minidom, Node
+
+from Component import Component
 
 class XMLError(Exception): pass
 class XMLFileDoesNotExist(XMLError): pass
 class XMLFormatError(XMLError): pass
 class ClusterDescriptionFormatError(XMLFormatError): pass
-class UnimplementedException(Exception): pass
+
 
 class ConfigXMLBase(object):
     def __init__(self, configDir, configName, suffix='.xml'):
@@ -27,19 +29,23 @@ class ConfigXMLBase(object):
 
         self.extractFrom(dom)
 
-        self.configDir = configDir
-        self.configName = configName
+        self.__configDir = configDir
+        self.__configName = configName
+
+    def configName(self):
+        return self.__configName
 
     def extractFrom(self, dom):
-        raise UnimplementedException('extractFrom method is not implemented')
+        raise NotImplementedError('extractFrom method is not implemented')
 
+    @staticmethod
     def getNodeName(node):
         nodeName = '<%s>' % str(node.nodeName)
         if nodeName == '<#document>':
             nodeName = 'top-level'
         return nodeName
-    getNodeName = staticmethod(getNodeName)
 
+    @staticmethod
     def getChildText(node):
         if node.childNodes is None or len(node.childNodes) == 0:
             raise XMLFormatError('No %s child nodes' %
@@ -61,8 +67,7 @@ class ConfigXMLBase(object):
 
         return text
 
-    getChildText = staticmethod(getChildText)
-
+    @staticmethod
     def getSingleChild(node, name):
         kids = node.getElementsByTagName(name)
         if len(kids) < 1:
@@ -72,7 +77,6 @@ class ConfigXMLBase(object):
 
         return kids[0]
 
-    getSingleChild = staticmethod(getSingleChild)
 
     def getValue(self, node, name, defaultVal=None):
         if node.attributes is not None and node.attributes.has_key(name):
@@ -83,31 +87,25 @@ class ConfigXMLBase(object):
         except:
             return defaultVal
 
-class ControlComponent(object):
+class ControlComponent(Component):
     def __init__(self):
-        self.__name = "CnCServer"
+        super(ControlComponent, self).__init__("CnCServer", 0, None)
 
     def __str__(self):
-        return self.__name
+        return "CnCServer"
 
-    def id(self): return 0
     def isControlServer(self): return True
-    def isHub(self): return False
-    def isRealHub(self): return False
     def jvm(self): return None
     def jvmArgs(self): return None
-    def logLevel(self): return None
-    def name(self): return self.__name
     def required(self): return True
 
-class ClusterComponent(object):
+class ClusterComponent(Component):
     def __init__(self, name, id, logLevel, jvm, jvmArgs, required):
-        self.__name = name
-        self.__id = id
-        self.__logLevel = logLevel
         self.__jvm = jvm
         self.__jvmArgs = jvmArgs
         self.__required = required
+
+        super(ClusterComponent, self).__init__(name, id, logLevel)
 
     def __str__(self):
         if self.__jvm is None:
@@ -127,23 +125,11 @@ class ClusterComponent(object):
             rStr = ""
 
         return "%s@%s(%s)%s" % \
-            (self.fullName(), str(self.__logLevel), jStr, rStr)
+            (self.fullName(), str(self.logLevel()), jStr, rStr)
 
-    def fullName(self):
-        if not self.isHub():
-            return self.__name
-        return "%s#%d" % (self.__name, self.__id)
-
-    def id(self): return self.__id
     def isControlServer(self): return False
-
-    def isHub(self):
-        return self.__name.lower().find('hub') >= 0
-
     def jvm(self): return self.__jvm
     def jvmArgs(self): return self.__jvmArgs
-    def logLevel(self): return self.__logLevel
-    def name(self): return self.__name
     def required(self): return self.__required
 
 class ClusterSimHub(object):
@@ -160,13 +146,12 @@ class ClusterSimHub(object):
             uStr = ""
         return "%s*%d^%d%s" % (self.host, self.number, self.priority, uStr)
 
+    @staticmethod
     def sortByPriority(x, y):
         val = cmp(y.priority, x.priority)
         if val == 0:
             val = cmp(x.host.name, y.host.name)
         return val
-
-    sortByPriority = staticmethod(sortByPriority)
 
 class ClusterHost(object):
     def __init__(self, name):
@@ -215,6 +200,9 @@ class ClusterHost(object):
             print "%s  SimHub*%d prio %d%s" % \
                 (prefix, self.simHub.number, self.simHub.priority, uStr)
 
+        if self.ctlServer:
+            print "%s  ControlServer" % prefix
+
     def getComponents(self):
         return self.compMap.values()
 
@@ -228,6 +216,18 @@ class ClusterHost(object):
         self.ctlServer = True
 
 class ClusterDescription(ConfigXMLBase):
+    LOCAL = "localhost"
+    PDAQ2 = "pdaq2"
+    SPS = "sps"
+    SPTS = "spts"
+    SPTS64 = "spts64"
+
+    DBTYPE_TEST = "test"
+    DBTYPE_PROD = "production"
+    DBTYPE_NONE = "none"
+
+    DEFAULT_LOG_LEVEL = "WARN"
+
     def __init__(self, configDir, configName, suffix='.cfg'):
 
         self.name = None
@@ -236,7 +236,7 @@ class ClusterDescription(ConfigXMLBase):
 
         self.__logDirForSpade = None
         self.__logDirCopies = None
-        self.__defaultLogLevel = "INFO"
+        self.__defaultLogLevel = self.DEFAULT_LOG_LEVEL
         self.__defaultJVM = None
         self.__defaultJVMArgs = None
         self.__defaultComponent = None
@@ -256,11 +256,11 @@ class ClusterDescription(ConfigXMLBase):
             try:
                 super(ClusterDescription, self).__init__(configDir, retryName,
                                                          suffix)
-            except XMLFileDoesNotExist, e2:
+            except XMLFileDoesNotExist:
                 raise e
 
     def __str__(self):
-        return self.__name
+        return self.name
 
     def __findDefault(self, compName, valName):
         if compName is not None and \
@@ -291,28 +291,31 @@ class ClusterDescription(ConfigXMLBase):
             id = int(idStr)
         except ValueError:
             errMsg = 'Cluster "%s" host "%s" component "%s" has bad ID "%s"' % \
-                (clusterName, host.name, name)
+                (clusterName, host.name, name, idStr)
             raise ClusterDescriptionFormatError(errMsg)
+
+        reqStr = self.getValue(node, 'required')
+
+        required = False
+        if reqStr is not None:
+            reqStr = reqStr.lower()
+            if reqStr == 'true' or reqStr == '1' or reqStr == 'on':
+                required = True
 
         logLvl = self.getValue(node, 'logLevel')
         if logLvl is None:
             logLvl = self.__findDefault(name, 'logLevel')
 
         jvm = self.getValue(node, 'jvm')
+        if(jvm != None):
+            jvm = os.path.expanduser(jvm)
+
         if jvm is None:
             jvm = self.__findDefault(name, 'jvm')
 
         jvmArgs = self.getValue(node, 'jvmArgs')
         if jvmArgs is None:
             jvmArgs = self.__findDefault(name, 'jvmArgs')
-
-        required = False
-
-        reqStr = self.getValue(node, 'required')
-        if reqStr is not None:
-            reqStr = reqStr.lower()
-            if reqStr == 'true' or reqStr == '1' or reqStr == 'on':
-                required = True
 
         host.addComponent(name, id, logLvl, jvm, jvmArgs, required)
 
@@ -325,13 +328,15 @@ class ClusterDescription(ConfigXMLBase):
                 self.__defaultLogLevel = self.getChildText(kid)
             elif kid.nodeName == 'jvm':
                 self.__defaultJVM = self.getChildText(kid)
+                if(self.__defaultJVM !=None):
+                    self.__defaultJVM = os.path.expanduser(self.__defaultJVM)
             elif kid.nodeName == 'jvmArgs':
                 self.__defaultJVMArgs = self.getChildText(kid)
             elif kid.nodeName == 'component':
                 name = self.getValue(kid, 'name')
                 if name is None:
                     errMsg = ('Cluster "%s" default section has <component>' +
-                              ' node without "name" attribute') % clusterName
+                              ' node without "name" attribute') % self.name
                     raise ClusterDescriptionFormatError(errMsg)
 
                 if self.__defaultComponent is None:
@@ -342,10 +347,58 @@ class ClusterDescription(ConfigXMLBase):
                     if cKid.nodeType != Node.ELEMENT_NODE:
                         continue
 
-                    for valName in ('jvm', 'jvmArgs'):
+                    for valName in ('jvm', 'jvmArgs', 'logLevel'):
                         if cKid.nodeName == valName:
                             self.__defaultComponent[name][valName] = \
                                 self.getChildText(cKid)
+
+    def __parseHostNodes(self, hostNodes):
+        self.__hostMap = {}
+        self.__compToHost = {}
+
+        for node in hostNodes:
+            hostName = self.getValue(node, 'name')
+            if hostName is None:
+                errMsg = ('Cluster "%s" has <host> node without "name"' +
+                          ' attribute') % self.name
+                raise ClusterDescriptionFormatError(errMsg)
+
+            host = ClusterHost(hostName)
+
+            simHub = None
+            for kid in node.childNodes:
+                if kid.nodeType != Node.ELEMENT_NODE:
+                    continue
+
+                if kid.nodeName == 'component':
+                    self.___parseComponentNode(self.name, host, kid)
+                elif kid.nodeName == 'controlServer':
+                    host.setControlServer()
+                elif kid.nodeName == 'simulatedHub':
+                    if simHub is not None:
+                        errMsg = ('Cluster "%s" host "%s" has multiple' +
+                                  ' <simulatedHub> nodes') % (self.name, host)
+                        raise ClusterDescriptionFormatError(errMsg)
+
+                    simHub = self.__parseSimulatedHubNode(self.name, host, kid)
+
+            # if we found a <simulatedHub> node, add it now
+            if simHub is not None:
+                host.addSimulatedHub(simHub)
+
+            # add host to internal host dictionary
+            if not self.__hostMap.has_key(hostName):
+                self.__hostMap[hostName] = host
+            else:
+                errMsg = 'Multiple entries for host "%s"' % hostName
+                raise ClusterDescriptionFormatError(errMsg)
+
+            for comp in host.getComponents():
+                compKey = str(comp)
+                if self.__compToHost.has_key(compKey):
+                    errMsg = 'Multiple entries for component "%s"' % compKey
+                    raise ClusterDescriptionFormatError(errMsg)
+                self.__compToHost[compKey] = host
 
     def __parseSimulatedHubNode(self, clusterName, host, node):
         "Parse a <simulatedHub> node from a run cluster description file"
@@ -432,7 +485,13 @@ class ClusterDescription(ConfigXMLBase):
         self.name = self.getValue(cluster, 'name')
 
         self.__logDirForSpade = self.getValue(cluster, 'logDirForSpade')
+        # expand tilde
+        if(self.__logDirForSpade!=None):
+            self.__logDirForSpade = os.path.expanduser(self.__logDirForSpade)
+
         self.__logDirCopies = self.getValue(cluster, 'logDirCopies')
+        if(self.__logDirCopies!=None):
+            self.__logDirCopies = os.path.expanduser(self.__logDirCopies)
 
         dfltNodes = cluster.getElementsByTagName('default')
         for node in dfltNodes:
@@ -443,48 +502,55 @@ class ClusterDescription(ConfigXMLBase):
             errMsg = 'No hosts defined for cluster "%s"' % self.name
             raise ClusterDescriptionFormatError(errMsg)
 
-        self.__hostMap = {}
-        self.__compToHost = {}
+        self.__parseHostNodes(hostNodes)
 
-        for node in hostNodes:
-            hostName = self.getValue(node, 'name')
-            if hostName is None:
-                errMsg = ('Cluster "%s" has <host> node without "name"' +
-                          ' attribute') % self.name
-                raise ClusterDescriptionFormatError(errMsg)
+    @classmethod
+    def getClusterFromHostName(cls, hostname=None):
+        """
+        Determine the cluster name from 'hostname'.
+        Returned values are "sps", "spts", "spts64", or "localhost".
+        If 'hostname' is not set, the host name of the current machine is used.
+        """
 
-            host = ClusterHost(hostName)
+        if hostname is None:
+            try:
+                hostname = socket.gethostname()
+            except:
+                hostname = None
 
-            simHub = None
-            for kid in node.childNodes:
-                if kid.nodeType != Node.ELEMENT_NODE:
-                    continue
+        if hostname is not None:
+            # SPS is easy
+            if hostname.endswith("icecube.southpole.usap.gov"):
+                hname = hostname.split(".",1)[0]
+                if hname == "pdaq2":
+                    return cls.PDAQ2
+                else:
+                    return cls.SPS
+            # try to identify test systems
+            if hostname.endswith("icecube.wisc.edu"):
+                hlist = hostname.split(".")
+                if len(hlist) > 4 and \
+                       (hlist[1] == cls.SPTS64 or hlist[1] == cls.SPTS):
+                    return hlist[1]
 
-                if kid.nodeName == 'component':
-                    self.___parseComponentNode(self.name, host, kid)
-                elif kid.nodeName == 'controlServer':
-                    host.setControlServer()
-                elif kid.nodeName == 'simulatedHub':
-                    if simHub is not None:
-                        errMsg = ('Cluster "%s" host "%s" has multiple' +
-                                  '<simulatedHub> nodes') % (self.name, host)
-                        raise ClusterDescriptionFormatError(errMsg)
+        return cls.LOCAL
 
-                    simHub = self.__parseSimulatedHubNode(self.name, host, kid)
-
-            # if we found a <simulatedHub> node, add it now
-            if simHub is not None:
-                host.addSimulatedHub(simHub)
-
-            # add host to internal host dictionary
-            self.__hostMap[hostName] = host
-
-            for comp in host.getComponents():
-                compKey = str(comp)
-                if self.__compToHost.has_key(compKey):
-                    errMsg = 'Multiple entries for component "%s"' % compKey
-                    raise ClusterDescriptionFormatError(errMsg)
-                self.__compToHost[compKey] = host
+    @classmethod
+    def getClusterDatabaseType(cls, clu=None):
+        """
+        Determine the database type for the cluster description.
+        'clu' should be one of the ClusterDescription constants
+        """
+        if clu is None:
+            clu = cls.getClusterFromHostName()
+        if clu == cls.SPTS or clu == cls.SPTS64:
+            return cls.DBTYPE_TEST
+        if clu == cls.SPS or clu == cls.PDAQ2:
+            return cls.DBTYPE_PROD
+        if clu == cls.LOCAL:
+            return cls.DBTYPE_NONE
+        raise NotImplementedError("Cannot guess database" +
+                                     " for cluster \"%s\"" % clu)
 
     def getJVM(self, compName):
         return self.__findDefault(compName, 'jvm')
@@ -532,7 +598,7 @@ if __name__ == '__main__':
 
         try:
             cluster = ClusterDescription(dirName, baseName)
-        except UnimplementedException, ue:
+        except NotImplementedError, ue:
             print >>sys.stderr, 'For %s:' % name
             traceback.print_exc()
             continue

@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <runConfig>
-    <domConfigList>SPS-5str-sim-domlist</domConfigList>
+    <domConfigList hub="1001">test-01c</domConfigList>
+    <domConfigList hub="1002">test-02c</domConfigList>
+    <domConfigList hub="1003">test-03c</domConfigList>
+    <domConfigList hub="1004">test-04c</domConfigList>
+    <domConfigList hub="1005">test-05c</domConfigList>
     <triggerConfig>IniceGlobalTest</triggerConfig>
     <runComponent name="inIceTrigger"/>
     <runComponent name="globalTrigger"/>

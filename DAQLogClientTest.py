@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os, tempfile, time, unittest
-from DAQLogClient import FileAppender
+from DAQLog import FileAppender
 
 class TestDAQLogClient(unittest.TestCase):
     DIR_PATH = None
@@ -18,11 +18,10 @@ class TestDAQLogClient(unittest.TestCase):
 
     def readLog(self, logPath):
         lines = []
-        fd = open(logPath, 'r')
-        for line in fd:
-            lines.append(line.rstrip())
-        fd.close()
-        return lines
+        with open(logPath, 'r') as fd:
+            for line in fd:
+                lines.append(line.rstrip())
+            return lines
 
     def setUp(self):
         self.collector = None

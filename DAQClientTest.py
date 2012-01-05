@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import unittest
-from CnCServer import DAQClient
+from DAQClient import DAQClient
 
 from DAQMocks import MockAppender, MockCnCLogger
 
@@ -10,10 +10,17 @@ class MostlyDAQClient(DAQClient):
         self.__appender = appender
 
         super(MostlyDAQClient, self).__init__(name, num, host, port,
-                                              mbeanPort, connectors)
+                                              mbeanPort, connectors,
+                                              quiet=True)
 
-    def createCnCLogger(self, quiet):
+    def createClient(self, host, port):
+        return None
+
+    def createLogger(self, quiet):
         return MockCnCLogger(self.__appender, quiet)
+
+    def createMBeanClient(self, host, port):
+        return None
 
 class TestDAQClient(unittest.TestCase):
     def testInit(self):

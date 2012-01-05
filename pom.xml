@@ -32,6 +32,7 @@
               <directory>.</directory>
               <includes>
                 <include>*.pyc</include>
+		<include>run-*.xml</include>
               </includes>
             </fileset>
           </filesets>

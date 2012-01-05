@@ -3,9 +3,10 @@
 # Create a new run configuration without one or more hubs
 
 import os, sys
+from utils import ip
 
 from CreateClusterConfig import ClusterConfigCreator
-from DAQConfig import DAQConfig
+from DAQConfig import DAQConfig, DAQConfigParser
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -123,6 +124,13 @@ def parseArgs():
     return (forceCreate, runCfgName, cluCfgName, hubIdList)
 
 if __name__ == "__main__":
+    
+    hostname = ip.getHostNameNoDomain()
+    if(hostname.lower()=="expcont"):
+        print >>sys.stderr, "-"*60
+        print >>sys.stderr, "Warning: Running RemoveHubs.py on expcont"
+        print >>sys.stderr, "-"*60
+
     (forceCreate, runCfgName, cluCfgName, hubIdList) = parseArgs()
 
     configDir = os.path.join(metaDir, "config")
@@ -135,13 +143,12 @@ if __name__ == "__main__":
             print >>sys.stderr, "Specify --force to overwrite this file"
             raise SystemExit()
 
-    runCfg = DAQConfig.load(runCfgName)
+    runCfg = DAQConfigParser.load(runCfgName, configDir)
     if runCfg is not None:
         newCfg = runCfg.omit(hubIdList)
         if newCfg is not None:
-            fd = open(newPath, "w")
-            newCfg.write(fd)
-            fd.close()
+            with open(newPath, 'w') as fd:
+                newCfg.write(fd)
             print "Created %s" % newPath
 
             if cluCfgName is not None:
@@ -157,7 +164,6 @@ if __name__ == "__main__":
                         raise SystemExit()
 
                 ccc = ClusterConfigCreator("sps")
-                fd = open(cluPath, "w")
-                ccc.write(fd, newCfg)
-                fd.close()
+                with open(cluPath, 'w') as fd:
+                    ccc.write(fd, newCfg)
                 print "Created %s" % cluPath

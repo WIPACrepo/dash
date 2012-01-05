@@ -1,5 +1,18 @@
 #!/usr/bin/env python
 
+"""
+Process2ndBuild.py
+Jacobsen, back in the 2007's or so
+
+This script is installed on 2ndbuild, collects the output of 2ndbuild
+as it appears on /mnt/data/pdaqlocal, tars them in groups as they
+appear, makes hard links for I3Moni, SNDAQ and SPADE, and puts the
+appropriate semaphors in place.
+
+It should be installed and activated (in cron) by the pDAQ Fabric
+installation procedure.
+"""
+
 import tarfile
 import datetime
 from sys import argv

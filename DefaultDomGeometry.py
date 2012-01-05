@@ -20,7 +20,28 @@ class ProcessError(XMLError): pass
 class BadFileError(XMLError): pass
 
 class XMLParser(object):
-    def getChildText(cls, node):
+
+    @staticmethod
+    def parseBooleanString(valstr):
+        "Return None if the value is not a valid boolean value"
+        if valstr is None:
+            return None
+
+        lstr = valstr.lower()
+        if lstr == "true" or lstr == "yes":
+            return True
+        if lstr == "false" or lstr == "no":
+            return False
+        try:
+            val = int(valstr)
+            return val == 0
+        except:
+            pass
+
+        return None
+
+    @staticmethod
+    def getChildText(node):
         "Return the text from this node's child"
         nodeName = "<%s>" % str(node.nodeName)
         if nodeName == "<#document>":
@@ -52,15 +73,45 @@ class XMLParser(object):
             raise ProcessError("No text child node for %s" % nodeName)
 
         return text
-    getChildText = classmethod(getChildText)
+
+    @staticmethod
+    def getSingleAttribute(node, attrName, strict=True, checkSingle=True):
+        if node.attributes is None or len(node.attributes) == 0:
+            if strict:
+                raise ProcessError("<%s> node has no attributes" %
+                                   node.nodeName)
+            return None
+
+        if strict and checkSingle and len(node.attributes) != 1:
+            raise ProcessError(("<%s> node has extra" +
+                                " attributes") % node.nodeName)
+        if not node.attributes.has_key(attrName):
+            if strict:
+                raise ProcessError(("<%s> node has no \"%s\" attribute") %
+                                   (node.nodeName, attrName))
+
+            return None
+
+        return node.attributes[attrName].value
+
+class DomGeometryException(Exception): pass
 
 class DomGeometry(object):
+    "maximum possible DOM position"
+    MAX_POSITION = 64
+    "maximum possible DOM position"
+    MAX_STRING = 86
+    "maximum possible channel ID"
+    MAX_CHAN_ID = (MAX_STRING + 1) * MAX_POSITION
+    "start of range for icetop hub IDs"
+    BASE_ICETOP_HUB_NUM = 200
+
     "Data for a single DOM"
-    def __init__(self, string, pos, id, name, prod, chanId=None,
+    def __init__(self, string, pos, mbid, name, prod, chanId=None,
                  x=None, y=None, z=None):
         self.__string = string
         self.__pos = pos
-        self.__id = id
+        self.__mbid = mbid
         self.__name = name
         self.__prod = prod
         self.__chanId = chanId
@@ -71,16 +122,17 @@ class DomGeometry(object):
         self.__desc = None
 
         self.__origOrder = None
-        self.__prevString = None
+        self.__origString = None
 
     def __cmp__(self, other):
-        if self.__origOrder is None:
-            if other.__origOrder is not None:
-                return -1
-        elif other.__origOrder is None:
-            return 1
-        elif self.__origOrder != other.__origOrder:
-            return self.__origOrder - other.__origOrder
+        if self.__string > self.MAX_STRING:
+            if self.__origOrder is None:
+                if other.__origOrder is not None:
+                    return -1
+            elif other.__origOrder is None:
+                return 1
+            elif self.__origOrder != other.__origOrder:
+                return self.__origOrder - other.__origOrder
 
         if self.__string is None:
             if other.__string is not None:
@@ -90,13 +142,13 @@ class DomGeometry(object):
         elif self.__string != other.__string:
             return self.__string - other.__string
 
-        if self.__prevString is None:
-            if other.__prevString is not None:
+        if self.__origString is None:
+            if other.__origString is not None:
                 return -1
-        elif other.__prevString is None:
+        elif other.__origString is None:
             return 1
-        elif self.__prevString != other.__prevString:
-            return self.__prevString - other.__prevString
+        elif self.__origString != other.__origString:
+            return self.__origString - other.__origString
 
         if self.__pos is None:
             if other.__pos is not None:
@@ -110,7 +162,7 @@ class DomGeometry(object):
 
     def __str__(self):
         return "%s[%s] %02d-%02d" % \
-            (self.__id, self.__name, self.__string, self.__pos)
+            (self.__mbid, self.__name, self.__string, self.__pos)
 
     def channelId(self): return self.__chanId
 
@@ -119,13 +171,73 @@ class DomGeometry(object):
             return "-"
         return self.__desc
 
-    def id(self): return self.__id
+    def mbid(self): return self.__mbid
     def name(self): return self.__name
     def originalOrder(self): return self.__origOrder
+    def originalString(self): return self.__origString
     def pos(self): return self.__pos
     def prodId(self): return self.__prod
 
-    def setChannelId(self, chanId): self.__chanId = chanId
+    def rewrite(self, verbose=False, rewriteOldIcetop=False):
+        baseNum = self.__string % 1000
+
+        if self.__pos < 1 or self.__pos > self.MAX_POSITION:
+            if verbose:
+                print >>sys.stderr, "Bad position %d for %s" % \
+                      (self.__pos, self)
+            return
+
+        origStr = baseNum
+        if self.__origString is not None:
+            origStr = self.__origString
+
+        if origStr <= self.MAX_STRING or self.__origOrder is not None:
+            if origStr <= self.MAX_STRING:
+                pos = self.__pos - 1
+            else:
+                pos = -1
+
+            if pos >= 0 and origStr <= self.MAX_STRING:
+                newChanId = (origStr * self.MAX_POSITION) + pos
+                if verbose and  self.__chanId is not None and \
+                   self.__chanId != newChanId:
+                    print >>sys.stderr, \
+                          "Rewriting %s channel ID from %s to %d" % \
+                          (dom, self.__chanId, newChanId)
+                self.__chanId = newChanId
+            elif verbose and self.__chanId is None:
+                print >>sys.stderr, "Not setting channel ID for %s" % dom
+
+        changedString = False
+        if (baseNum <= self.MAX_STRING and self.__pos <= 60) or \
+               (baseNum > self.BASE_ICETOP_HUB_NUM and self.__pos > 60) or \
+               (not rewriteOldIcetop and baseNum > self.MAX_STRING and
+                self.__pos > 60):
+            pass
+        else:
+            if self.__pos <= 60:
+                it = baseNum
+            elif rewriteOldIcetop and baseNum > self.MAX_STRING and \
+                     baseNum < self.BASE_ICETOP_HUB_NUM:
+                it = baseNum % 10 + self.BASE_ICETOP_HUB_NUM
+            else:
+                try:
+                    it = DefaultDomGeometry.getIcetopNum(self.__string)
+                except ProcessError:
+                    it = self.__string
+
+            if it != baseNum:
+                it = (self.__string / 1000) * 1000 + (it % 1000)
+                self.setString(it)
+                changedString = True
+
+        return changedString
+
+    def setChannelId(self, chanId):
+        if chanId > self.MAX_CHAN_ID:
+            raise DomGeometryException("Bad channel ID %d for %s" %
+                                       (chanId, self))
+        self.__chanId = chanId
 
     def setDesc(self, desc):
         if desc is None or desc == "-" or desc == "NULL":
@@ -133,33 +245,91 @@ class DomGeometry(object):
         else:
             self.__desc = desc
 
-    def setId(self, id): self.__id = id
+    def setId(self, mbid): self.__mbid = mbid
     def setName(self, name): self.__name = name
     def setOriginalOrder(self, num): self.__origOrder = num
-    def setPos(self, pos): self.__pos = pos
+    def setOriginalString(self, num): self.__origString = num
+
+    def setPos(self, pos):
+        if pos < 1 or pos > self.MAX_POSITION:
+            raise DomGeometryException("Bad position %d for %s" % (pos, self))
+        self.__pos = pos
+
     def setProdId(self, prod): self.__prod = prod
 
     def setString(self, strNum):
-        self.__prevString = self.__string
+        tmpNum = self.__string
         self.__string = strNum
+        if self.__origString is not None:
+            raise DomGeometryException(("Cannot overwrite original string %d" +
+                                        " with %d for %s") %
+                                       (self.__origString, tmpNum, self))
+        self.__origString = tmpNum
+
+    def setX(self, coord): self.__x = coord
+    def setY(self, coord): self.__y = coord
+    def setZ(self, coord): self.__z = coord
 
     def string(self): return self.__string
+
+    def update(self, dom, verbose=False):
+        "Copy missing info from DOM argument"
+        if self.__mbid is None:
+            self.__mbid = dom.__mbid
+        elif verbose and dom.__string < self.BASE_ICETOP_HUB_NUM and \
+                 dom.__mbid is not None and self.__mbid != dom.__mbid:
+            print >>sys.stderr, \
+                  "Not changing DOM %s MBID from \"%s\" to \"%s\"" % \
+                  (self, self.__mbid, dom.__mbid)
+
+        if self.__name is None:
+            self.__name = dom.__name
+        elif verbose and dom.__string < self.BASE_ICETOP_HUB_NUM and \
+                 dom.__name is not None and self.__name != dom.__name:
+            print >>sys.stderr, \
+                  "Not changing DOM %s name from \"%s\" to \"%s\"" % \
+                  (self, self.__name, dom.__name)
+
+        if self.__prod is None:
+            self.__prod = dom.__prod
+        elif verbose and dom.__string < self.BASE_ICETOP_HUB_NUM and \
+                 dom.__prod is not None and self.__prod != dom.__prod:
+            print >>sys.stderr, \
+                  "Not changing DOM %s prodID from \"%s\" to \"%s\"" % \
+                  (self, self.__prod, dom.__prod)
+
+        if self.__chanId is None:
+            self.__chanId = dom.__chanId
+        elif verbose and dom.__string < self.BASE_ICETOP_HUB_NUM and \
+                 dom.__chanId is not None and self.__chanId != dom.__chanId:
+            print >>sys.stderr, \
+                  "Not changing DOM %s channel ID from %d to %d" % \
+                  (self, self.__chanId, dom.__chanId)
+
+        if self.__origString is None:
+            self.__origString = dom.__origString
+        elif verbose and dom.__origString is not None and \
+                 self.__origString != dom.__origString:
+            print >>sys.stderr, \
+                  "Not changing DOM %s original string from %d to %d" % \
+                  (self, self.__origString, dom.__origString)
 
     def validate(self):
         if self.__pos is None:
             if self.__name is not None:
                 dname = self.__name
-            elif id is None:
-                dname = self.__id
+            elif self.__mbid is not None:
+                dname = self.__mbid
             else:
                 raise ProcessError("Blank DOM entry")
 
             raise ProcessError("DOM %s is missing ID in string %s" % dname)
-        if self.__id is None:
-            raise ProcessError("DOM pos %d is missing ID in string %s" %
+        if self.__mbid is None:
+            raise ProcessError("DOM pos %d is missing MBID in string %s" %
                                (self.__pos, self.__string))
         if self.__name is None:
-            raise ProcessError("DOM %s is missing ID in string %s" % self.__id)
+            raise ProcessError("DOM %s is missing name in string %s" %
+                               self.__mbid)
 
     def x(self): return self.__x
     def y(self): return self.__y
@@ -175,15 +345,16 @@ class DefaultDomGeometry(object):
         self.__stringToDom[dom.string()].append(dom)
 
         if self.__translateDoms:
-            mbId = dom.id()
-            if self.__domIdToDom.has_key(mbId):
-                oldNum = self.__domIdToDom[mbId].string()
-                if oldNum != dom.string():
-                    print >>sys.stderr, ("DOM %s belongs to both" +
-                                         " string %d and %d") % \
-                                         (mbId, oldNum, dom.string())
+            mbid = dom.mbid()
+            if mbid is not None:
+                if self.__domIdToDom.has_key(mbid):
+                    oldNum = self.__domIdToDom[mbid].string()
+                    if oldNum != dom.string():
+                        print >>sys.stderr, ("DOM %s belongs to both" +
+                                             " string %d and %d") % \
+                                             (mbid, oldNum, dom.string())
 
-            self.__domIdToDom[mbId] = dom
+                self.__domIdToDom[mbid] = dom
 
     def addString(self, stringNum, errorOnMulti=True):
         if not self.__stringToDom.has_key(stringNum):
@@ -194,68 +365,84 @@ class DefaultDomGeometry(object):
 
     def deleteDom(self, stringNum, dom):
         for i in range(len(self.__stringToDom[stringNum])):
-            if dom == self.__stringToDom[stringNum][i]:
+            cur = self.__stringToDom[stringNum][i]
+            found = False
+            if dom.pos() == cur.pos() and dom.pos() <= 60:
+                found = True
+            elif dom.mbid() is not None and cur.mbid() is not None and \
+                     dom.mbid() == cur.mbid():
+                found = True
+            elif dom.prodId() is not None and cur.prodId() is not None and \
+                     dom.prodId() == cur.prodId():
+                found = True
+
+            if found:
                 del self.__stringToDom[stringNum][i]
                 return
 
-        print >>sys.stderr, "Could not delete %s from string %d" % \
-            (dom, stringNum)
+        if dom.mbid() is not None or dom.name() is not None:
+            print >>sys.stderr, "Could not delete %s from string %d" % \
+                  (dom, stringNum)
 
-    def dump(self):
+    def dump(self, out=sys.stdout):
         "Dump the string->DOM dictionary in default-dom-geometry format"
         strList = self.__stringToDom.keys()
         strList.sort()
 
-        print "<?xml version=\"1.0\"?>"
-        print "<domGeometry>"
+        indent = "  "
+        domIndent = indent + indent + indent
+
+        print >>out, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+        print >>out, "<domGeometry>"
         for s in strList:
             domList = self.__stringToDom[s]
             if len(domList) == 0:
                 continue
 
-            print "   <string>"
-            print "      <number>%02d</number>" % s
+            print >>out, "%s<string>" % indent
+            print >>out, "%s%s<number>%d</number>" % (indent, indent, s)
 
             domList.sort()
             for dom in domList:
-                print "     <dom>"
+                if dom.mbid() is None and dom.name() is None and \
+                       dom.prodId() is None:
+                    continue
+                print >>out, "%s%s<dom>" % (indent, indent)
+                if dom.originalString() is not None and \
+                       dom.originalString() < \
+                       DomGeometry.BASE_ICETOP_HUB_NUM and \
+                       dom.originalString() != dom.string():
+                    print >>out, "%s<originalString>%d</originalString>" % \
+                          (domIndent, dom.originalString())
                 if dom.pos() is not None:
-                    if s % 1000 == 1:
-                        print "        <position>%d</position>" % dom.pos()
-                    else:
-                        print "        <position>%02d</position>" % dom.pos()
+                    print >>out, "%s<position>%d</position>" % \
+                          (domIndent, dom.pos())
                 if dom.channelId() is not None:
-                    print "        <channelId>%s</channelId>" % dom.channelId()
-                if dom.id() is not None:
-                    print "        <mainBoardId>%s</mainBoardId>" % dom.id()
+                    print >>out, "%s<channelId>%d</channelId>" % \
+                          (domIndent, dom.channelId())
+                if dom.mbid() is not None:
+                    print >>out, "%s<mainBoardId>%s</mainBoardId>" % \
+                          (domIndent, dom.mbid())
                 if dom.name() is not None:
-                    print "        <name>%s</name>" % dom.name()
+                    print >>out, "%s<name>%s</name>" % (domIndent, dom.name())
                 if dom.prodId() is not None:
-                    print "        <productionId>%s</productionId>" % dom.prodId()
+                    print >>out, "%s<productionId>%s</productionId>" % \
+                          (domIndent, dom.prodId())
                 if dom.x() is not None:
-                    if dom.x() == 0.0:
-                        xStr = "0.0"
-                    else:
-                        xStr = "%4.2f" % dom.x()
-                    print "        <xCoordinate>%s</xCoordinate>" % xStr
+                    print >>out, "%s<xCoordinate>%3.2f</xCoordinate>" % \
+                          (domIndent, dom.x())
                 if dom.y() is not None:
-                    if dom.y() == 0.0:
-                        yStr = "0.0"
-                    else:
-                        yStr = "%4.2f" % dom.y()
-                    print "        <yCoordinate>%s</yCoordinate>" % yStr
+                    print >>out, "%s<yCoordinate>%3.2f</yCoordinate>" % \
+                          (domIndent, dom.y())
                 if dom.z() is not None:
-                    if dom.z() == 0.0:
-                        zStr = "0.0"
-                    else:
-                        zStr = "%4.2f" % dom.z()
-                    print "        <zCoordinate>%s</zCoordinate>" % zStr
-                print "     </dom>"
+                    print >>out, "%s<zCoordinate>%3.2f</zCoordinate>" % \
+                          (domIndent, dom.z())
+                print >>out, "%s%s</dom>" % (indent, indent)
 
-            print "   </string>"
-        print "</domGeometry>"
+            print >>out, "%s</string>" % indent
+        print >>out, "</domGeometry>"
 
-    def dumpNicknames(self):
+    def dumpNicknames(self, out=sys.stdout):
         "Dump the DOM data in nicknames.txt format"
         allDoms = []
         for s in self.__stringToDom:
@@ -264,8 +451,13 @@ class DefaultDomGeometry(object):
 
         allDoms.sort(cmp=lambda x,y : cmp(x.name(), y.name()))
 
-        print "mbid\tthedomid\tthename\tlocation\texplanation"
+        print >>out, "mbid\tthedomid\tthename\tlocation\texplanation"
         for dom in allDoms:
+            if dom.prodId() is None:
+                continue
+            if dom.string() >= 1000:
+                continue
+
             name = dom.name().encode("iso-8859-1")
 
             try:
@@ -273,22 +465,37 @@ class DefaultDomGeometry(object):
             except:
                 desc = "-"
 
-            print "%s\t%s\t%s\t%02d-%02d\t%s" % \
-                (dom.id(), dom.prodId(), name, dom.string(), dom.pos(), desc)
+            if dom.originalString() is None:
+                strNum = dom.string()
+            else:
+                strNum = dom.originalString()
 
-    def getDom(self, strNum, pos):
+            print >>out, "%s\t%s\t%s\t%02d-%02d\t%s" % \
+                (dom.mbid(), dom.prodId(), name, strNum, dom.pos(), desc)
+
+    def getDom(self, strNum, pos, prodId=None, origNum=None):
         if self.__stringToDom.has_key(strNum):
             for dom in self.__stringToDom[strNum]:
                 if dom.pos() == pos:
-                    return dom
+                    if origNum is not None:
+                        if dom.originalString() is not None and \
+                           dom.originalString() == origNum:
+                            return dom
 
+                    if prodId is not None:
+                        if dom.prodId() == prodId:
+                            return dom
+
+                    if prodId is None and origNum is None:
+                        return dom
         return None
-        
+
     def getDomIdToDomDict(self):
         "Get the DOM ID -> DOM object dictionary"
         return self.__domIdToDom
 
-    def getIcetopNum(cls, strNum):
+    @staticmethod
+    def getIcetopNum(strNum):
         "Translate the in-ice string number to the corresponding icetop hub"
         if strNum % 1000 == 0 or strNum >= 2000: return strNum
         if strNum > 1000: return ((((strNum % 100) + 7)) / 8) + 1200
@@ -296,28 +503,21 @@ class DefaultDomGeometry(object):
         if strNum in [46, 55, 56, 65, 72, 73, 77, 78]: return 201
         if strNum in [38, 39, 48, 58, 64, 66, 71, 74]: return 202
         if strNum in [30, 40, 47, 49, 50, 57, 59, 67]: return 203
-        if strNum in [4,  11, 27, 10, 5,  18, 20, 36]: return 204
+        if strNum in [4,  5,  10, 11, 18, 20, 27, 36]: return 204
         if strNum in [45, 54, 62, 63, 69, 70, 75, 76]: return 205
         if strNum in [21, 29, 44, 52, 53, 60, 61, 68]: return 206
-        if strNum in [26, 6,  12, 9,  3,   2, 13, 17]: return 207
-        if strNum in [19, 37, 28]: return 208  
-        if strNum in [41, 32, 24, 15, 35, 25, 8, 16]: return 209
-        if strNum in [42, 43, 33, 34, 23, 51]: return 210
+        if strNum in [2,  3,  6,  9,  12, 13, 17, 26]: return 207
+        if strNum in [19, 28, 37]: return 208
+        if strNum in [8,  15, 16, 24, 25, 32, 35, 41]: return 209
+        if strNum in [23, 33, 34, 42, 43, 51]: return 210
+        if strNum in [1,  7,  14, 22, 31, 79, 80, 81]: return 211
         raise ProcessError("Could not find icetop hub for string %d" % strNum)
-    getIcetopNum = classmethod(getIcetopNum)
 
     def getStringToDomDict(self):
         "Get the string number -> DOM object dictionary"
         return self.__stringToDom
 
-    def mergeMissing(self, oldDomGeom):
-        keys = self.__stringToDom.keys()
-
-        for s in oldDomGeom.__stringToDom:
-            if not s in keys:
-                self.__stringToDom[s] = oldDomGeom.__stringToDom[s]
-
-    def rewrite(self, rewriteOldIcetop=True):
+    def rewrite(self, verbose=False, rewriteOldIcetop=False):
         """
         Rewrite default-dom-geometry from 64 DOMs per string hub to
         60 DOMs per string hub and 32 DOMs per icetop hub
@@ -330,46 +530,34 @@ class DefaultDomGeometry(object):
             domList = self.__stringToDom[s][:]
 
             for dom in domList:
-                if dom.pos() < 1 or dom.pos() > 64:
-                    print >>sys.stderr, "Bad position %d for %s" % \
-                        (dom.pos(), dom)
-                else:
-                    if baseNum < 200:
-                        pos = dom.pos() - 1
-                    elif dom.originalOrder() is not None:
-                        pos = dom.originalOrder()
-                    dom.setChannelId((baseNum * 64) + pos)
+                if dom.rewrite(verbose=verbose,
+                               rewriteOldIcetop=rewriteOldIcetop):
+                    self.deleteDom(s, dom)
 
-                if (baseNum <= 80 and dom.pos() <= 60) or \
-                        (baseNum > 200 and dom.pos() > 60) or \
-                        (not rewriteOldIcetop and baseNum > 80 and \
-                             dom.pos() > 60):
-                    pass
-                else:
-                    if dom.pos() <= 60:
-                        it = baseNum
-                    elif rewriteOldIcetop and baseNum > 80 and baseNum < 200:
-                        it = baseNum % 10 + 200
-                    else:
-                        try:
-                            it = DefaultDomGeometry.getIcetopNum(s)
-                        except ProcessError:
-                            print >>sys.stderr, \
-                                "Dropping %d-%d: Unknown icetop hub" % \
-                                (s, dom.pos())
-                            self.deleteDom(s, dom)
-                            it = s
+                    self.addString(dom.string(), errorOnMulti=False)
+                    self.addDom(dom)
 
-                    if it != baseNum:
-                        self.deleteDom(s, dom)
+    def update(self, newDomGeom, verbose=False):
+        "Copy missing string, DOM, or DOM info from 'newDomGeom'"
+        keys = self.__stringToDom.keys()
 
-                        it = (s / 1000) * 1000 + (it % 1000)
-                        dom.setString(it)
-
-                        self.addString(it, errorOnMulti=False)
-                        self.addDom(dom)
+        for s in newDomGeom.__stringToDom:
+            if not s in keys:
+                self.__stringToDom[s] = newDomGeom.__stringToDom[s]
+                continue
+            for nd in newDomGeom.__stringToDom[s]:
+                foundPos = False
+                for dom in self.__stringToDom[s]:
+                    if dom.pos() == nd.pos():
+                        foundPos = True
+                        if dom.mbid() == nd.mbid():
+                            dom.update(nd, verbose=verbose)
+                if not foundPos:
+                    self.addDom(nd)
 
 class DefaultDomGeometryReader(XMLParser):
+
+    @classmethod
     def __parseDomNode(cls, stringNum, node):
         "Extract a single DOM's data from the default-dom-geometry XML tree"
         if node.attributes is not None and len(node.attributes) > 0:
@@ -377,13 +565,15 @@ class DefaultDomGeometryReader(XMLParser):
                                node.nodeName)
 
         pos = None
-        id = None
+        mbid = None
         name = None
         prod = None
         chanId = None
         x = None
         y = None
         z = None
+
+        origStr = None
 
         for kid in node.childNodes:
             if kid.nodeType == Node.TEXT_NODE:
@@ -396,19 +586,21 @@ class DefaultDomGeometryReader(XMLParser):
                 if kid.nodeName == "position":
                     pos = int(cls.getChildText(kid))
                 elif kid.nodeName == "mainBoardId":
-                    id = cls.getChildText(kid)
+                    mbid = cls.getChildText(kid)
                 elif kid.nodeName == "name":
                     name = cls.getChildText(kid)
                 elif kid.nodeName == "productionId":
                     prod = cls.getChildText(kid)
                 elif kid.nodeName == "channelId":
-                    chanId = cls.getChildText(kid)
+                    chanId = int(cls.getChildText(kid))
                 elif kid.nodeName == "xCoordinate":
                     x = float(cls.getChildText(kid))
                 elif kid.nodeName == "yCoordinate":
                     y = float(cls.getChildText(kid))
                 elif kid.nodeName == "zCoordinate":
                     z = float(cls.getChildText(kid))
+                elif kid.nodeName == "originalString":
+                    origStr = int(cls.getChildText(kid))
                 else:
                     raise ProcessError("Unexpected %s child <%s>" %
                                        (node.nodeName, kid.nodeName))
@@ -417,12 +609,14 @@ class DefaultDomGeometryReader(XMLParser):
             raise ProcessError("Found unknown %s node <%s>" %
                                (node.nodeName, kid.nodeName))
 
-        dom = DomGeometry(stringNum, pos, id, name, prod, chanId, x, y, z)
+        dom = DomGeometry(stringNum, pos, mbid, name, prod, chanId, x, y, z)
+        if origStr is not None:
+            dom.setOriginalString(origStr)
         dom.validate()
 
         return dom
-    __parseDomNode = classmethod(__parseDomNode)
 
+    @classmethod
     def __parseStringNode(cls, geom, node):
         "Extract data from a default-dom-geometry <string> node tree"
         if node.attributes is not None and len(node.attributes) > 0:
@@ -464,8 +658,8 @@ class DefaultDomGeometryReader(XMLParser):
 
         if stringNum is None:
             raise ProcessError("String is missing number")
-    __parseStringNode = classmethod(__parseStringNode)
 
+    @classmethod
     def parse(cls, fileName=None, translateDoms=False):
         if fileName is None:
             fileName = os.path.join(metaDir, "config",
@@ -507,10 +701,77 @@ class DefaultDomGeometryReader(XMLParser):
         dom.unlink()
 
         return geom
-    parse = classmethod(parse)
+
+
+class DomsTxtReader(object):
+    "Read Mark Krasberg's doms.txt file"
+
+    @staticmethod
+    def parse(fileName=None, defDomGeom=None):
+        "Parse a doms.txt file"
+        if fileName is None:
+            fileName = os.path.join(metaDir, "config", "doms.txt")
+
+        if not os.path.exists(fileName):
+            raise BadFileError("Cannot read doms.txt file \"%s\"" %
+                               fileName)
+
+        with open(fileName, 'r') as fd:
+            newGeom = defDomGeom is None
+            if newGeom:
+                defDomGeom = DefaultDomGeometry()
+
+            for line in fd:
+                line = line.rstrip()
+                if len(line) == 0:
+                    continue
+
+                #(mbid, prodId, name, loc, desc) = re.split("\s+", line, 4)
+                (loc, prodId, name, mbid) = re.split("\s+", line, 3)
+                if mbid == "mbid":
+                    continue
+
+                try:
+                    (strStr, posStr) = re.split("-", loc)
+                    strNum = int(strStr)
+                    pos = int(posStr)
+                except:
+                    print >>sys.stderr, "Bad location \"%s\" for DOM \"%s\"" % \
+                        (loc, prodId)
+                    continue
+
+                if pos <= 60:
+                    origStr = None
+                else:
+                    origStr = strNum
+                    strNum = DefaultDomGeometry.getIcetopNum(origStr)
+
+                defDomGeom.addString(strNum, errorOnMulti=False)
+
+                if newGeom:
+                    dom = None
+                else:
+                    dom = defDomGeom.getDom(strNum, pos, prodId)
+
+                if dom is None:
+                    dom = DomGeometry(strNum, pos, mbid, name, prodId)
+                    dom.validate()
+
+                    defDomGeom.addDom(dom)
+
+                if origStr is not None:
+                    if dom.originalString() is None or \
+                            dom.originalString() != origStr:
+                        dom.setOriginalString(origStr)
+
+        return defDomGeom
+
 
 class NicknameReader(object):
-    def parse(cls, fileName=None, geom=None):
+    "Read Mark Krasberg's nicknames.txt file"
+
+    @staticmethod
+    def parse(fileName=None, defDomGeom=None):
         if fileName is None:
             fileName = os.path.join(metaDir, "config", "nicknames.txt")
 
@@ -518,47 +779,171 @@ class NicknameReader(object):
             raise BadFileError("Cannot read nicknames file \"%s\"" %
                                fileName)
 
-        fd = open(fileName, "r")
-
-        newGeom = geom is None
-        if newGeom:
-            geom = DefaultDomGeometry()
-
-        for line in fd:
-            line = line.rstrip()
-            if len(line) == 0:
-                continue
-
-            (id, prodId, name, loc, desc) = re.split("\s+", line, 4)
-            if id == "mbid":
-                continue
-
-            try:
-                (strStr, posStr) = re.split("-", loc)
-                strNum = int(strStr)
-                pos = int(posStr)
-            except:
-                print >>sys.stderr, "Bad location \"%s\" for DOM \"%s\"" % \
-                    (loc, prodId)
-                continue
-
-            geom.addString(strNum, errorOnMulti=False)
-
+        with open(fileName, 'r') as fd:
+            newGeom = defDomGeom is None
             if newGeom:
-                oldDom = None
-            else:
-                oldDom = geom.getDom(strNum, pos)
+                defDomGeom = DefaultDomGeometry()
 
-            if oldDom is not None:
-                oldDom.setDesc(desc)
-            else:
-                dom = DomGeometry(strNum, pos, id, name, prodId)
-                dom.validate()
+            for line in fd:
+                line = line.rstrip()
+                if len(line) == 0:
+                    continue
 
-                geom.addDom(dom)
+                (mbid, prodId, name, loc, desc) = re.split("\s+", line, 4)
+                if mbid == "mbid":
+                    continue
 
-        return geom
-    parse = classmethod(parse)
+                try:
+                    (strStr, posStr) = re.split("-", loc)
+                    strNum = int(strStr)
+                    pos = int(posStr)
+                except:
+                    print >>sys.stderr, "Bad location \"%s\" for DOM \"%s\"" % \
+                        (loc, prodId)
+                    continue
+
+                if pos <= 60:
+                    origStr = None
+                else:
+                    origStr = strNum
+                    strNum = DefaultDomGeometry.getIcetopNum(origStr)
+
+                defDomGeom.addString(strNum, errorOnMulti=False)
+
+                if newGeom:
+                    dom = None
+                else:
+                    dom = defDomGeom.getDom(strNum, pos, prodId)
+
+                if dom is not None:
+                    if desc != "-":
+                        dom.setDesc(desc)
+                else:
+                    dom = DomGeometry(strNum, pos, mbid, name, prodId)
+                    dom.validate()
+
+                    defDomGeom.addDom(dom)
+
+                if origStr is not None:
+                    if dom.originalString() is None or \
+                            dom.originalString() != origStr:
+                        dom.setOriginalString(origStr)
+
+        return defDomGeom
+
+class GeometryFileReader(object):
+    """Read IceCube geometry settings (from "Geometry releases" wiki page)"""
+
+    @staticmethod
+    def parse(fileName=None, defDomGeom=None, minCoordDiff=0.000001):
+        "Parse text file containing IceCube geometry settings"
+
+        if fileName is None:
+            raise BadFileError("No geometry file specified")
+
+        if not os.path.exists(fileName):
+            raise BadFileError("Cannot read geometry file \"%s\"" % fileName)
+
+        with open(fileName, 'r') as fd:
+            newGeom = defDomGeom is None
+            if newGeom:
+                defDomGeom = DefaultDomGeometry()
+
+            LINE_PAT = re.compile(r"^\s*(\d+)\s+(\d+)\s+(-*\d+\.\d+)" +
+                                  r"\s+(-*\d+\.\d+)\s+(-*\d+\.\d+)\s*$")
+
+            linenum = 0
+            for line in fd:
+                line = line.rstrip()
+                linenum += 1
+
+                if len(line) == 0:
+                    continue
+
+                m = LINE_PAT.match(line)
+                if not m:
+                    print >>sys.stderr, "Bad geometry line %d: %s" % (linenum, line)
+                    continue
+
+                strStr = m.group(1)
+                posStr = m.group(2)
+                xStr = m.group(3)
+                yStr = m.group(4)
+                zStr = m.group(5)
+
+                try:
+                    strNum = int(strStr)
+                except:
+                    print >>sys.stderr, "Bad string \"%s\" on line %d" % \
+                        (strStr, linenum)
+                    continue
+
+                try:
+                    pos = int(posStr)
+                except:
+                    print >>sys.stderr, "Bad position \"%s\" on line %d" % \
+                        (posStr, linenum)
+                    continue
+
+                coords = []
+                for cStr in (xStr, yStr, zStr):
+                    try:
+                        coords.append(float(cStr))
+                    except:
+                        if len(coords) == 0:
+                            cname = "x"
+                        elif len(coords) == 1:
+                            cname = "y"
+                        else:
+                            cname = "z"
+                        print >>sys.stderr, "Bad %s coord \"%s\" on line %d" % \
+                            (cname, cStr, linenum)
+                        break
+
+                if len(coords) != 3:
+                    continue
+
+                if pos <= 60:
+                    origStr = None
+                else:
+                    origStr = strNum
+                    strNum = DefaultDomGeometry.getIcetopNum(origStr)
+
+                defDomGeom.addString(strNum, errorOnMulti=False)
+
+                if newGeom:
+                    dom = None
+                else:
+                    dom = defDomGeom.getDom(strNum, pos, origNum=origStr)
+
+                if dom is None:
+                    dom = DomGeometry(strNum, pos, None, None, None)
+
+                    defDomGeom.addDom(dom)
+
+                if origStr is not None:
+                    if dom.originalString() is None or \
+                            dom.originalString() != origStr:
+                        dom.setOriginalString(origStr)
+
+                (x, y, z) = coords
+
+                if dom.x() is None or \
+                        (minCoordDiff is not None and \
+                             abs(dom.x() - x) > minCoordDiff):
+                    dom.setX(x)
+                if y is not None:
+                    if dom.y() is None or \
+                            (minCoordDiff is not None and \
+                                 abs(dom.y() - y) > minCoordDiff):
+                        dom.setY(y)
+                if z is not None:
+                    if dom.z() is None or \
+                            (minCoordDiff is not None and \
+                                 abs(dom.z() - z) > minCoordDiff):
+                        dom.setZ(z)
+
+        return defDomGeom
 
 if __name__ == "__main__":
     # read in default-dom-geometry.xml

@@ -6,28 +6,24 @@ John Jacobsen, jacobsen@npxdesigns.com
 Started November, 2006
 """
 
-from DAQRunIface import DAQRunIface
-from DAQConst import DAQPort
-from os.path import join, exists
-from os import environ
-from datetime import *
-from re import search
-import optparse
+import optparse, os, re, sys
+from cncrun import CnCRun
 import time
-import sys
+from datetime import datetime
+from utils.Machineid import Machineid
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if environ.has_key("PDAQ_HOME"):
-    metaDir = environ["PDAQ_HOME"]
+if os.environ.has_key("PDAQ_HOME"):
+    metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
 # add meta-project python dir to Python library search path
-sys.path.append(join(metaDir, 'src', 'main', 'python'))
+sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 4024 2009-04-03 21:03:29Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 12977 2011-05-17 21:16:09Z mnewcomb $"
 
 class DOMArgumentException(Exception): pass
 
@@ -38,27 +34,41 @@ def updateStatus(oldStatus, newStatus):
     return newStatus
 
 def setLastRunNum(runFile, runNum):
-    fd = open(runFile, 'w')
-    print >>fd, runNum
-    fd.close()
-    
+    with open(runFile, 'w') as fd:
+        print >>fd, runNum
+
 def getLastRunNum(runFile):
     try:
-        f = open(runFile, "r")
-        ret = f.readline()
-        f.close()
-        return int(ret.rstrip('\r\n'))
+        with open(runFile, 'r') as f:
+            ret = f.readline()
+            return int(ret.rstrip('\r\n'))
     except:
         return None
 
-def showXML(daqruniface):
-    try:
-        print daqruniface.getSummary()
-    except KeyboardInterrupt: raise
-    except Exception, e:
-        print "getSummary failed: %s" % e
+# stolen from live/misc/util.py
+def getDurationFromString(s):
+    """
+    Return duration in seconds based on string <s>
+    """
+    m = re.search('^(\d+)$', s)
+    if m:
+        return int(m.group(1))
+    m = re.search('^(\d+)s(?:ec(?:s)?)?$', s)
+    if m:
+        return int(m.group(1))
+    m = re.search('^(\d+)m(?:in(?:s)?)?$', s)
+    if m:
+        return int(m.group(1)) * 60
+    m = re.search('^(\d+)h(?:r(?:s)?)?$', s)
+    if m:
+        return int(m.group(1)) * 3600
+    m = re.search('^(\d+)d(?:ay(?:s)?)?$', s)
+    if m:
+        return int(m.group(1)) * 86400
+    raise ValueError('String "%s" is not a known duration format.  Try'
+                     '30sec, 10min, 2days etc.' % s)
 
-class DOM:
+class SubRunDOM(object):
     def __init__(self, *args):
         if len(args) == 7:
             self.string = args[0]
@@ -80,7 +90,7 @@ class DOM:
             self.rate   = args[5]
         else:
             raise DOMArgumentException()
-        
+
     def flasherInfo(self):
         if self.mbid != None:
             return (self.mbid, self.bright, self.window, self.delay, self.mask, self.rate)
@@ -107,7 +117,7 @@ class DOM:
                     "rate"        : self.rate }
         else:
             raise DOMArgumentException()
-                    
+
 class SubRun:
     FLASH = 1
     DELAY = 2
@@ -116,10 +126,13 @@ class SubRun:
         self.duration = duration
         self.id       = id
         self.domlist  = []
-        
+
     def addDOM(self, d):
-        self.domlist.append(d)
-        
+        #self.domlist.append(SubRunDOM(string, pos,  bright, window, delay,
+        #                              mask, rate))
+        raise NotImplementedError("source for SubRunDOM class parameters not known")
+
+
     def __str__(self):
         typ = "FLASHER"
         if self.type == SubRun.DELAY: typ = "DELAY"
@@ -135,30 +148,39 @@ class SubRun:
 
     def flasherDictList(self):
         return [d.flasherHash() for d in self.domlist]
-                
+
 class SubRunSet:
+    """This class is not instantiated anywhere, and had some import errors
+    in it.  It's probably not been used in a long time.  Consider removing
+    this if no one uses it for a while longer.
+    2/11/2011
+    """
     def __init__(self, fileName):
+        """Probably unused.. - consider removing this if no one uses it for a while longer"""
+
+        raise NotImplementedError("calls addDom method that wants one argument and this one has many args")
         self.subruns = []
         num = 0
         sr = None
+        # NOTE THIS IS A FILE DESCRIPTOR LEAK
         for l in open(fileName).readlines():
             # Look for bare "delay lines"
-            m = search(r'delay (\d+)', l)
+            m = re.search(r'delay (\d+)', l)
             if m:
                 t = int(m.group(1))
                 self.subruns.append(SubRun(SubRun.DELAY, t, num))
                 num += 1
                 sr = None
                 continue
-            
-            m = search(r'flash (\d+)', l)
+
+            m = re.search(r'flash (\d+)', l)
             if m:
                 t = int(m.group(1))
                 sr = SubRun(SubRun.FLASH, t, num)
                 self.subruns.append(sr)
                 num += 1
-            m6 = search('^\s*(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
-            m7 = search('^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
+            m6 = re.search('^\s*(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
+            m7 = re.search('^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$', l)
             if m7 and sr:
                 string = int(m7.group(1))
                 pos    = int(m7.group(2))
@@ -167,7 +189,7 @@ class SubRunSet:
                 delay  = int(m7.group(5))
                 mask   = int(m7.group(6), 16)
                 rate   = int(m7.group(7))
-                sr.addDOM(DOM(string, pos,  bright, window, delay, mask, rate))
+                #sr.addDOM(string, pos,  bright, window, delay, mask, rate)
             elif m6 and sr:
                 mbid   = m6.group(1)
                 bright = int(m6.group(2))
@@ -175,8 +197,8 @@ class SubRunSet:
                 delay  = int(m6.group(4))
                 mask   = int(m6.group(5), 16)
                 rate   = int(m6.group(6))
-                sr.addDOM(DOM(mbid, bright, window, delay, mask, rate))
-                
+                #sr.addDOM(mbid, bright, window, delay, mask, rate)
+
     def __str__(self):
         s = ""
         for l in self.subruns:
@@ -196,154 +218,68 @@ def main():
     usage = "%prog [options]\nversion: " + ver_info
     p = optparse.OptionParser(usage=usage, version=ver_info)
 
-    p.add_option("-c", "--config-name",      action="store", type="string", dest="configName")
-    p.add_option("-d", "--duration-seconds", action="store", type="int",    dest="duration")
-    p.add_option("-f", "--flasher-run",      action="store", type="string", dest="flasherRun")
-    p.add_option("-n", "--num-runs",         action="store", type="int",    dest="numRuns")
-    p.add_option("-p", "--remote-port",      action="store", type="int",    dest="portNum")
-    p.add_option("-r", "--remote-node",      action="store", type="string", dest="nodeName")
-    p.add_option("-s", "--starting-run",     action="store", type="int",    dest="startRunNum",
-                 help="Run number to start with")
-    
-    p.add_option("-x", "--show-status-xml",  action="store_true",           dest="showXML")
-    p.set_defaults(nodeName    = "localhost",
-                   numRuns     = 10000000,
-                   portNum     = DAQPort.DAQRUN,
-                   duration    = 300,
-                   flasherRun  = None,
-                   showXML     = False,
-                   startRunNum = None,
-                   configName  = "hub1001sim")
+    p.add_option("-c", "--config-name",  type="string", dest="runConfig",
+                 action="store", default=None,
+                 help="Run configuration name")
+    p.add_option("-d", "--duration-seconds", type="string", dest="duration",
+                 action="store", default="300",
+                 help="Run duration (in seconds)")
+    p.add_option("-f", "--flasher-run", type="string", dest="flasherRun",
+                 action="store", default=None,
+                 help="Name of flasher run configuration file")
+    p.add_option("-n", "--num-runs", type="int", dest="numRuns",
+                 action="store", default=10000000,
+                 help="Number of runs")
+    p.add_option("-r", "--remote-host", type="string", dest="remoteHost",
+                 action="store", default="localhost",
+                 help="Name of host on which CnCServer is running")
+    p.add_option("-s", "--showCommands", dest="showCmd",
+                 action="store_true", default=False,
+                 help="Show the commands used to deploy and/or run")
+    p.add_option("-x", "--showCommandOutput", dest="showCmdOut",
+                 action="store_true", default=False,
+                 help="Show the output of the deploy and/or run commands")
+    p.add_option("-m", "--no-host-check", dest="nohostcheck", default=False,
+                 help="Disable checking the host type for run permission")
     opt, args = p.parse_args()
 
-    runFile = join(environ[ "HOME" ], ".last_pdaq_run")
-    
-    startRunNum = 1
-    lastRunNum = getLastRunNum(runFile)
-    if lastRunNum != None: startRunNum = lastRunNum + 1
-    if opt.startRunNum: startRunNum = opt.startRunNum
+    if not opt.nohostcheck:
+        hostid = Machineid()
+        if(not (hostid.is_control_host() or
+           ( hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+            # to run daq launch you should either be a control host or
+            # a totally unknown host
+            print >>sys.stderr, "Are you sure you are running ExpControlSkel on the correct host?"
+            raise SystemExit
 
-    if startRunNum < 1: raise Exception("Starting run number must be > 0, got %s!" % startRunNum);
-    
-    # Connect to DAQ run server
-    daqiface     = DAQRunIface(opt.nodeName, opt.portNum)
-
-    # Check for valid flasher input file
-    if opt.flasherRun and not exists(opt.flasherRun):
-        print "Flasher file '%s' doesn't exist!" % opt.flasherRun
-        raise SystemExit
-    
-    # Check for valid confuration name
-    if not daqiface.isValidConfig(opt.configName):
-        print "Run configuration %s does not exist or is not valid!" % opt.configName
+    if opt.runConfig==None:
+        print >>sys.stderr, "You must specify a run configuration ( -c option )"
         raise SystemExit
 
-    sleeptime    = 0.4
-    xmlIval      = 5
-    state        = None
-    txml         = datetime.now()
-    runNum       = startRunNum
-    startTime    = None
-    lastStateChg = None
-    thisSubRun   = None
-    subRunSet    = None
+    cnc = CnCRun(showCmd=opt.showCmd, showCmdOutput=opt.showCmdOut)
 
-    try:
-        while True:
-            tnow = datetime.now()
+    clusterCfg = cnc.getActiveClusterConfig()
+    if clusterCfg is None:
+        raise SystemExit("Cannot determine cluster configuration")
 
-            if state == None: # Get a well-defined state (probably STOPPED)
-                state = updateStatus(state, daqiface.getState())
-                
-            if opt.showXML and (not txml or tnow-txml > timedelta(seconds=xmlIval)):
-                showXML(daqiface)
-                txml = tnow
+    duration = getDurationFromString(opt.duration)
 
-            if state == "STOPPED": # Try to start run
-                if runNum >= startRunNum + opt.numRuns: break
-                subRunSet = None # Reset state of subruns
-                print "Starting run %d..." % runNum
-                setLastRunNum(runFile, runNum)
-                try:
-                    daqiface.start(runNum, opt.configName)
-                    startTime = datetime.now()
-                    runNum += 1
-                    state = updateStatus(state, daqiface.getState())
-                except Exception, e:
-                    print "Failed transition: %s" % e
-                    state = "ERROR"
-            if state == "STARTING" or state == "RECOVERING" or state == "STOPPING":
-                time.sleep(1)
-                state = updateStatus(state, daqiface.getState())
-            if state == "RUNNING":
-                
-                doStop = False
-                if not startTime or tnow-startTime > timedelta(seconds=opt.duration):
-                    doStop = True
+    for r in range(opt.numRuns):
+        run = cnc.createRun(None, opt.runConfig, flashName=opt.flasherRun)
+        if opt.flasherRun is None:
+            run.start(duration)
+        else:
+            #run.start(duration, flashTimes, flashPause, False)
+            raise SystemExit("flasher runs with ExpControSkel not implemented")
+        
+        try:
+            try:
+                run.wait()
+            except KeyboardInterrupt:
+                print "Run interrupted by user"
+                break
+        finally:
+            print >>sys.stderr, "Stopping run..."
+            run.finish()
 
-                if opt.flasherRun:
-                    if lastStateChg == None: lastStateChg = tnow
-                    # Prep subruns 
-                    if subRunSet == None:
-                        subRunSet = SubRunSet(opt.flasherRun)
-                        thisSubRun = subRunSet.next()
-                        if thisSubRun.type == SubRun.FLASH:
-                            print str(thisSubRun.flasherDictList())
-                            status = daqiface.flasher(thisSubRun.id, thisSubRun.flasherDictList())
-                            if status == 0: print "WARNING: flasher op failed, check pDAQ logs!"
-                        else:
-                            pass # Don't explicitly send signal if first transition
-                                 # is a delay
-                    # Handle transitions            
-                    dt = tnow - lastStateChg
-                    if dt > timedelta(seconds=thisSubRun.duration):
-                        print "-- subrun state change --"
-                        thisSubRun = subRunSet.next()
-                        if thisSubRun == None:
-                            doStop = True
-                        elif thisSubRun.type == SubRun.FLASH:
-                            print str(thisSubRun.flasherDictList())
-                            status = daqiface.flasher(thisSubRun.id, thisSubRun.flasherDictList())
-                            if status == 0: print "WARNING: flasher op failed, check pDAQ logs!"
-                        else:
-                            status = daqiface.flasher(thisSubRun.id, [])
-                            if status == 0: print "WARNING: flasher op failed, check pDAQ logs!"
-                        lastStateChg = tnow
-
-                if doStop:
-                    try:
-                        daqiface.stop()
-                        state = updateStatus(state, daqiface.getState())
-                        continue
-                    except Exception, e:
-                        print "Failed transition: %s" % e
-                        state = "ERROR"
-                    time.sleep(1)
-
-                time.sleep(sleeptime)
-                state = updateStatus(state, daqiface.getState())
-
-            if state == "ERROR":
-                try:
-                    daqiface.recover()
-                    state = updateStatus(state, daqiface.getState())
-                except Exception, e:
-                    print "Failed transition: %s" % e
-                    raise SystemExit
-                
-    except KeyboardInterrupt:
-        print "\nInterrupted... sending stop signal..."
-        daqiface.stop()
-        while True:
-            time.sleep(1)
-            state = updateStatus(state, daqiface.getState())
-            if state == "STOPPED": break
-            if state != "STOPPING": daqiface.stop()
-    print "Done."
-
-    if opt.showXML:
-        showXML(daqiface)
-            
-    daqiface.release()
-    
 if __name__ == "__main__": main()

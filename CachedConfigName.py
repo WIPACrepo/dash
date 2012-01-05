@@ -2,7 +2,9 @@
 #
 # Deal with the various configuration name caches
 
-import os, sys
+import os
+
+class NoNameException(Exception): pass
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -11,51 +13,69 @@ else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
-class CachedConfigName(object):
-    def __init__(self):
-        "Initialize instance variables"
-        self.configName = None
-
-    def __getCachedNamePath(self, useActiveConfig):
+class CachedFile(object):
+    
+    @staticmethod
+    def __getCachedNamePath(useActiveConfig):
         "get the active or default cluster configuration"
         if useActiveConfig:
             return os.path.join(os.environ["HOME"], ".active")
         return os.path.join(metaDir, 'config', ".config")
 
-    def __readCacheFile(self, useActiveConfig):
+    @staticmethod
+    def __readCacheFile(useActiveConfig):
         "read the cached cluster name"
-        clusterFile = self.__getCachedNamePath(useActiveConfig)
+        clusterFile = CachedFile.__getCachedNamePath(useActiveConfig)
         try:
-            f = open(clusterFile, "r")
-            ret = f.readline()
-            f.close()
-            return ret.rstrip('\r\n')
+            with open(clusterFile, 'r') as f:
+                ret = f.readline()
+                return ret.rstrip('\r\n')
         except:
             return None
 
-    def clearActiveConfig(self):
+    @staticmethod
+    def clearActiveConfig():
         "delete the active cluster name"
-        activeName = self.__getCachedNamePath(True)
+        activeName = CachedFile.__getCachedNamePath(True)
         if os.path.exists(activeName): os.remove(activeName)
 
-    def getConfigToUse(self, cmdlineConfig, useFallbackConfig, useActiveConfig):
+    @staticmethod
+    def getConfigToUse(cmdlineConfig, useFallbackConfig, useActiveConfig):
         "Determine the name of the configuration to use"
         if cmdlineConfig is not None:
             cfg = cmdlineConfig
         else:
-            cfg = self.__readCacheFile(useActiveConfig)
+            cfg = CachedFile.__readCacheFile(useActiveConfig)
             if cfg is None and useFallbackConfig:
                 cfg = 'sim-localhost'
 
         return cfg
 
-    def getConfigName(self):
+    @staticmethod
+    def writeCacheFile(name, writeActiveConfig=False):
+        "write this config name to the appropriate cache file"
+        cachedNamePath = CachedFile.__getCachedNamePath(writeActiveConfig)
+        
+        with open(cachedNamePath, 'w') as fd:
+            print >>fd, name
+        
+
+class CachedConfigName(CachedFile):
+    def __init__(self):
+        "Initialize instance variables"
+        self.__configName = None
+
+    def configName(self):
         "get the configuration name to write to the cache file"
-        return self.configName
+        return self.__configName
+
+    def setConfigName(self, name):
+        self.__configName = name
 
     def writeCacheFile(self, writeActiveConfig=False):
         "write this config name to the appropriate cache file"
-        cachedNamePath = self.__getCachedNamePath(writeActiveConfig)
-        fd = open(cachedNamePath, 'w')
-        print >>fd, self.getConfigName()
-        fd.close()
+        if self.__configName is None:
+            raise NoNameException("Configuration name has not been set")
+
+        super(CachedConfigName, self).writeCacheFile(self.__configName,
+                                                     writeActiveConfig)

@@ -2,7 +2,7 @@
 
 import os, unittest
 
-from DAQConfig import DAQConfig
+from DAQConfig import DAQConfigParser
 
 class DAQConfigTest(unittest.TestCase):
     def initPDAQHome(self):
@@ -18,7 +18,8 @@ class DAQConfigTest(unittest.TestCase):
 
     def lookup(self, cfg, dataList):
         for data in dataList:
-            self.assert_(cfg.hasDOM(data[0]), "Didn't find mbid " + data[0])
+            self.assertTrue(cfg.hasDOM(data[0]),
+                            "Didn't find mbid " + data[0])
 
         for data in dataList:
             try:
@@ -40,7 +41,7 @@ class DAQConfigTest(unittest.TestCase):
 
     def testListsSim5(self):
         metaDir = self.initPDAQHome()
-        cfg = DAQConfig.load("simpleConfig", metaDir + "/config")
+        cfg = DAQConfigParser.load("simpleConfig", metaDir + "/config")
 
         expected = ['eventBuilder', 'globalTrigger', 'inIceTrigger',
                     'secondaryBuilders', 'stringHub#1001', 'stringHub#1002',
@@ -54,13 +55,13 @@ class DAQConfigTest(unittest.TestCase):
 
         for c in comps:
             try:
-                expected.index(c.fullname())
+                expected.index(c.fullName())
             except:
                 self.fail('Unexpected component "%s"' % c)
 
     def testLookupSim5(self):
         metaDir = self.initPDAQHome()
-        cfg = DAQConfig.load("simpleConfig", metaDir + "/config")
+        cfg = DAQConfigParser.load("simpleConfig", metaDir + "/config")
 
         dataList = (('53494d550101', 'Nicholson_Baker', 1001, 1),
                     ('53494d550120', 'SIM0020', 1001, 20),
@@ -87,7 +88,7 @@ class DAQConfigTest(unittest.TestCase):
 
     def testListsSpsIC40IT6(self):
         metaDir = self.initPDAQHome()
-        cfg = DAQConfig.load("sps-IC40-IT6-AM-Revert-IceTop-V029",
+        cfg = DAQConfigParser.load("sps-IC40-IT6-AM-Revert-IceTop-V029",
                                   metaDir + "/config")
 
         expected = ['amandaTrigger', 'eventBuilder', 'globalTrigger',
@@ -116,13 +117,13 @@ class DAQConfigTest(unittest.TestCase):
 
         for c in comps:
             try:
-                expected.index(c.fullname())
+                expected.index(c.fullName())
             except:
                 self.fail('Unexpected component "%s"' % c)
 
     def testLookupSpsIC40IT6(self):
         metaDir = self.initPDAQHome()
-        cfg = DAQConfig.load("sps-IC40-IT6-AM-Revert-IceTop-V029",
+        cfg = DAQConfigParser.load("sps-IC40-IT6-AM-Revert-IceTop-V029",
                                   metaDir + "/config")
 
         dataList = (('737d355af587', 'Bat', 21, 1),
@@ -134,9 +135,31 @@ class DAQConfigTest(unittest.TestCase):
 
         self.lookup(cfg, dataList)
 
+    def testDumpDOMs(self):
+        metaDir = self.initPDAQHome()
+        cfg = DAQConfigParser.load("sps-IC40-IT6-AM-Revert-IceTop-V029",
+                                  metaDir + "/config")
+
+        for d in cfg.getAllDOMs():
+            mbid = str(d)
+            if len(mbid) != 12 or mbid.startswith(" "):
+                self.fail("DOM %s(%s) has bad MBID" % (mbid, d.name()))
+            n = 0
+            if str(d).startswith("0"):
+                n += 1
+                nmid = cfg.getIDbyName(d.name())
+                if nmid != mbid:
+                    self.fail("Bad IDbyName value \"%s\" for \"%s\"" %
+                              (nmid, mbid))
+
+                newid = cfg.getIDbyStringPos(d.string(), d.pos())
+                if newid.startswith(" ") or len(newid) != 12:
+                    self.fail("Bad IDbyStringPos value \"%s\" for \"%s\" %d" %
+                              (newid, mbid, n))
+
     def testReplay(self):
         metaDir = self.initPDAQHome()
-        cfg = DAQConfig.load("replay-ic22-it4", metaDir + "/config")
+        cfg = DAQConfigParser.load("replay-ic22-it4", metaDir + "/config")
 
         expected = ['eventBuilder', 'globalTrigger', 'iceTopTrigger',
                     'inIceTrigger',
@@ -147,8 +170,8 @@ class DAQConfigTest(unittest.TestCase):
                     'replayHub#57', 'replayHub#58', 'replayHub#59',
                     'replayHub#65', 'replayHub#66', 'replayHub#67',
                     'replayHub#72', 'replayHub#73', 'replayHub#74',
-                    'replayHub#78', 'replayHub#81', 'replayHub#82',
-                    'replayHub#83', 'replayHub#84']
+                    'replayHub#78', 'replayHub#201', 'replayHub#202',
+                    'replayHub#203', 'replayHub#204']
         comps = cfg.components()
 
         self.assertEqual(len(expected), len(comps),
@@ -157,7 +180,7 @@ class DAQConfigTest(unittest.TestCase):
 
         for c in comps:
             try:
-                expected.index(c.fullname())
+                expected.index(c.fullName())
             except:
                 self.fail('Unexpected component "%s"' % c)
 

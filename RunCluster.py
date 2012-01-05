@@ -2,7 +2,9 @@
 
 import os, os.path, socket, sys, traceback
 
-from ClusterDescription import ClusterDescription, UnimplementedException
+from CachedConfigName import CachedConfigName
+from ClusterDescription import ClusterDescription
+from Component import Component
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if os.environ.has_key("PDAQ_HOME"):
@@ -11,33 +13,18 @@ else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
-# add 'cluster-config' to Python library search path
-#
-sys.path.append(os.path.join(metaDir, 'cluster-config'))
-
-from ClusterConfig import CachedConfigName
-
 class RunClusterError(Exception): pass
 
-class RunComponent(object):
-    def __init__(self, name, id, logLevel, jvm, jvmArgs):
-        self.__name = name
-        self.__id = id
-        self.__logLevel = logLevel
+class RunComponent(Component):
+    def __init__(self, name, id, logLevel, jvm, jvmArgs, host):
         self.__jvm = jvm
         self.__jvmArgs = jvmArgs
+        self.__host = host
 
-    def __cmp__(self, other):
-        val = cmp(self.__name, other.__name)
-        if val == 0:
-            val = cmp(self.__id, other.__id)
-        return val
+        super(RunComponent, self).__init__(name, id, logLevel)
 
     def __str__(self):
-        if not self.isHub():
-            nStr = self.__name
-        else:
-            nStr = '%s#%d' % (self.__name, self.__id)
+        nStr = self.fullName()
 
         if self.__jvm is None:
             if self.__jvmArgs is None:
@@ -50,25 +37,12 @@ class RunComponent(object):
             else:
                 jStr = "%s | %s" % (self.__jvm, self.__jvmArgs)
 
-        return "%s@%s(%s)" % (nStr, str(self.__logLevel), jStr)
+        return "%s@%s(%s)" % (nStr, str(self.logLevel()), jStr)
 
-    def fullName(self):
-        if not self.isHub():
-            return self.__name
-        return "%s#%d" % (self.__name, self.__id)
-
-    def id(self): return self.__id
-
-    def isBuilder(self):
-        return self.__name.lower().endswith('builder')
-
-    def isHub(self):
-        return self.__name.lower().find('hub') >= 0
-
+    def host(self): return self.__host
+    def isControlServer(self): return False
     def jvm(self): return self.__jvm
     def jvmArgs(self): return self.__jvmArgs
-    def logLevel(self): return self.__logLevel
-    def name(self): return self.__name
 
 class RunNode(object):
     def __init__(self, hostName, defaultLogLevel, defaultJVM, defaultJVMArgs):
@@ -103,7 +77,7 @@ class RunNode(object):
         else:
             jvmArgs = self.__defaultJVMArgs
         self.__comps.append(RunComponent(comp.name(), comp.id(), logLvl, jvm,
-                                         jvmArgs))
+                                         jvmArgs, self.__hostName))
 
     def components(self): return self.__comps[:]
 
@@ -117,17 +91,17 @@ class RunCluster(CachedConfigName):
         "Create a cluster->component mapping from a run configuration file"
         super(RunCluster, self).__init__()
 
-        self.configName = os.path.basename(cfg.configFile())
-        if self.configName.endswith('.xml'):
-            self.configName = self.configName[:-4]
+        name = os.path.basename(cfg.configFile())
+        if name.endswith('.xml'):
+            name = name[:-4]
+        self.setConfigName(name)
 
-        hubList = self.__extractHubs(cfg)
-
-        clusterDesc = self.__getClusterDescription(descrName, hubList,
-                                                   configDir)
-        self.__descName = clusterDesc.configName
+        clusterDesc = self.__getClusterDescription(descrName, configDir)
+        self.__descName = clusterDesc.configName()
 
         hostMap = {}
+
+        hubList = self.__extractHubs(cfg)
 
         self.__addRequired(clusterDesc, hostMap)
         self.__addTriggers(clusterDesc, hubList, hostMap)
@@ -135,8 +109,6 @@ class RunCluster(CachedConfigName):
             self.__addRealHubs(clusterDesc, hubList, hostMap)
             if len(hubList) > 0:
                 self.__addSimHubs(clusterDesc, hubList, hostMap)
-
-        #self.__copyConfigLogLevel(cfg, hostMap)
 
         self.__logDirForSpade = clusterDesc.logDirForSpade()
         self.__logDirCopies = clusterDesc.logDirCopies()
@@ -146,6 +118,14 @@ class RunCluster(CachedConfigName):
 
         self.__nodes = []
         self.__convertToNodes(hostMap)
+
+    def __str__(self):
+        nodeStr = ""
+        for n in self.__nodes:
+            if len(nodeStr) > 0:
+                nodeStr += " "
+            nodeStr += "%s*%d" % (n.hostName(), len(n.components()))
+        return self.configName() + "[" + nodeStr + "]"
 
     def __addComponent(self, hostMap, host, comp):
         "Add a component to the hostMap dictionary"
@@ -186,16 +166,23 @@ class RunCluster(CachedConfigName):
 
         hubNum = 0
         for hub in hubList:
-            assigned = False
-            while not assigned:
+            looped = False
+            while True:
                 if hubAlloc[hubNum] < simList[hubNum].number:
                     hubAlloc[hubNum] += 1
-                    assigned = True
+                    hubNum += 1
+                    if hubNum >= len(hubAlloc):
+                        hubNum = 0
+                    break
 
                 # move to next host
                 hubNum += 1
                 if hubNum >= len(hubAlloc):
+                    if looped:
+                        raise RunClusterError(("Cannot assign hub %s;" +
+                                               " out of hubs") % hub)
                     hubNum = 0
+                    looped = True
 
         allocMap = {}
         for i in range(len(simList)):
@@ -220,7 +207,7 @@ class RunCluster(CachedConfigName):
                     lvl = logLevel
 
                 comp = RunComponent(hubComp.name(), hubComp.id(), lvl, jvm,
-                                    jvmArgs)
+                                    jvmArgs, host)
                 self.__addComponent(hostMap, host, comp)
                 hubNum += 1
 
@@ -234,7 +221,7 @@ class RunCluster(CachedConfigName):
             id = hub.id() % 1000
             if id == 0:
                 needAmanda = True
-            elif id < 80:
+            elif id < 200:
                 needInice = True
             else:
                 needIcetop = True
@@ -265,20 +252,6 @@ class RunCluster(CachedConfigName):
             for compKey in hostMap[host].keys():
                 node.addComponent(hostMap[host][compKey])
 
-    def __copyConfigLogLevel(self, cfg, hostMap):
-        "Copy any run configuration log levels to cluster components"
-        compMap = {}
-        for comp in cfg.components():
-            compMap[comp.fullname().lower()] = obj
-
-        for host in hostMap.keys():
-            for hostKey in hostMap[host].keys():
-                compKey = hostKey.lower()
-                if compMap.has_key(compKey) and \
-                        compMap[compKey].logLevel() is not None:
-                    lvl = compMap[compKey].logLevel()
-                    hostMap[host][hostKey].setLogLevel(lvl)
-
     def __extractHubs(self, cfg):
         "build a list of hub components used by the run configuration"
         hubList = []
@@ -287,10 +260,10 @@ class RunCluster(CachedConfigName):
                 hubList.append(comp)
         return hubList
 
-    def __getClusterDescription(self, name, hubList, configDir):
+    def __getClusterDescription(self, name, configDir):
         "Get the appropriate cluster description"
         if name is None:
-            name = self.__guessDescriptionName(hubList)
+            name = ClusterDescription.getClusterFromHostName()
 
         if configDir is None:
             configDir = os.path.abspath(os.path.join(metaDir, 'config'))
@@ -310,30 +283,7 @@ class RunCluster(CachedConfigName):
 
         return simList
 
-    def __guessDescriptionName(self, hubList):
-        """
-        Guess the cluster description file name, using the list of hubs
-        and the host name of the current machine
-        """
-
-        try:
-            hostname = socket.gethostname()
-        except:
-            hostname = None
-
-        if hostname is not None:
-            # SPS is easy
-            if hostname.endswith("icecube.southpole.usap.gov"):
-                return "sps"
-            # try to identify test systems
-            if hostname.endswith("icecube.wisc.edu"):
-                hlist = hostname.split(".")
-                if len(hlist) > 4 and \
-                       (hlist[1] == "spts64" or hlist[1] == "spts"):
-                    return hlist[1]
-
-        return "localhost"
-
+    @staticmethod
     def __sortByPriority(x, y):
         "Sort simulated hub nodes by priority"
         val = cmp(y.priority, x.priority)
@@ -341,7 +291,6 @@ class RunCluster(CachedConfigName):
             val = cmp(x.host.name, y.host.name)
         return val
 
-    __sortByPriority = staticmethod(__sortByPriority)
 
     def defaultLogLevel(self): return self.__defaultLogLevel
     def descName(self): return self.__descName
@@ -349,8 +298,8 @@ class RunCluster(CachedConfigName):
     def getConfigName(self):
         "get the configuration name to write to the cache file"
         if self.__descName is None:
-            return self.configName
-        return '%s@%s' % (self.configName, self.__descName)
+            return self.configName()
+        return '%s@%s' % (self.configName(), self.__descName)
 
     def getHubNodes(self):
         "Get a list of nodes on which hub components are running"
@@ -367,8 +316,6 @@ class RunCluster(CachedConfigName):
 
         return hostMap.keys()
 
-    def hostName(self): return self.__hostName
-    def locName(self): return self.__locName
     def logDirForSpade(self): return self.__logDirForSpade
     def logDirCopies(self) : return self.__logDirCopies
     def nodes(self): return self.__nodes[:]
@@ -381,8 +328,9 @@ if __name__ == '__main__':
 
     configDir = os.path.abspath(os.path.join(metaDir, 'config'))
 
-    from DAQConfig import DAQConfig
+    from DAQConfig import DAQConfigParser
 
+    nameList = []
     grabDesc = False
     clusterDesc = None
 
@@ -393,6 +341,8 @@ if __name__ == '__main__':
             continue
 
         if name.startswith('-C'):
+            if clusterDesc is not None:
+                raise Exception("Cannot specify multiple cluster descriptions")
             if len(name) > 2:
                 clusterDesc = name[2:]
             else:
@@ -403,10 +353,13 @@ if __name__ == '__main__':
             # ignore
             continue
 
-        cfg = DAQConfig.load(name, configDir)
+        nameList.append(name)
+
+    for name in nameList:
+        cfg = DAQConfigParser.load(name, configDir)
         try:
             runCluster = RunCluster(cfg, clusterDesc)
-        except UnimplementedException, ue:
+        except NotImplementedError, ue:
             print >>sys.stderr, 'For %s:' % name
             traceback.print_exc()
             continue
@@ -418,10 +371,12 @@ if __name__ == '__main__':
             continue
 
         print 'RunCluster: %s (%s)' % \
-            (runCluster.configName, runCluster.descName())
+            (runCluster.configName(), runCluster.descName())
         print '--------------------'
-        print 'SPADE logDir: %s' % runCluster.logDirForSpade()
-        print 'Copied logDir: %s' % runCluster.logDirCopies()
+        if runCluster.logDirForSpade() is not None:
+            print 'SPADE logDir: %s' % runCluster.logDirForSpade()
+        if runCluster.logDirCopies() is not None:
+            print 'Copied logDir: %s' % runCluster.logDirCopies()
         print 'Default log level: %s' % runCluster.defaultLogLevel()
         for node in runCluster.nodes():
             print '  %s@%s logLevel %s' % \

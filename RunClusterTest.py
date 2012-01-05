@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 import os, unittest
-from DAQConfig import DAQConfig
-from RunCluster import RunCluster
+from DAQConfig import DAQConfigParser
+from RunCluster import RunCluster, RunClusterError
 
 class DeployData(object):
     def __init__(self, host, name, id=0):
@@ -31,13 +31,13 @@ class RunClusterTest(unittest.TestCase):
 
     def __checkCluster(self, clusterName, cfgName, expNodes, spadeDir,
                        logCopyDir):
-        cfg = DAQConfig.load(cfgName, RunClusterTest.CONFIG_DIR)
+        cfg = DAQConfigParser.load(cfgName, RunClusterTest.CONFIG_DIR)
 
         cluster = RunCluster(cfg, clusterName, RunClusterTest.CONFIG_DIR)
 
-        self.assertEquals(cluster.configName, cfgName,
+        self.assertEquals(cluster.configName(), cfgName,
                           'Expected config name %s, not %s' %
-                          (cfgName, cluster.configName))
+                          (cfgName, cluster.configName()))
 
         for node in cluster.nodes():
             for comp in node.components():
@@ -65,7 +65,7 @@ class RunClusterTest(unittest.TestCase):
                          (cluster.logDirCopies(), logCopyDir))
 
     def testClusterFile(self):
-        cfg = DAQConfig.load("simpleConfig", RunClusterTest.CONFIG_DIR)
+        cfg = DAQConfigParser.load("simpleConfig", RunClusterTest.CONFIG_DIR)
 
         cluster = RunCluster(cfg, "localhost", RunClusterTest.CONFIG_DIR)
 
@@ -75,6 +75,7 @@ class RunClusterTest(unittest.TestCase):
         cluster.writeCacheFile(True)
 
     def testDeployLocalhost(self):
+        cfgName = 'simpleConfig'
         expNodes = [DeployData('localhost', 'inIceTrigger'),
                     DeployData('localhost', 'globalTrigger'),
                     DeployData('localhost', 'eventBuilder'),
@@ -86,8 +87,7 @@ class RunClusterTest(unittest.TestCase):
                     DeployData('localhost', 'stringHub', 1005),
                     ]
 
-        self.__checkCluster("localhost", "simpleConfig", expNodes, "spade",
-                            None)
+        self.__checkCluster("localhost", cfgName, expNodes, "spade", None)
 
     def testDeploySPTS64(self):
         cfgName = 'simpleConfig'
@@ -107,6 +107,28 @@ class RunClusterTest(unittest.TestCase):
 
         self.__checkCluster("spts64", cfgName, expNodes,
                             "/mnt/data/spade/pdaq/runs", "/mnt/data/pdaqlocal")
+
+    def testDeployTooMany(self):
+        cfgName = 'tooManyConfig'
+        expNodes = [DeployData('spts64-iitrigger', 'inIceTrigger'),
+                    DeployData('spts64-gtrigger', 'globalTrigger'),
+                    DeployData('spts64-evbuilder', 'eventBuilder'),
+                    DeployData('spts64-expcont', 'SecondaryBuilders'),
+                    DeployData('spts64-stringproc01', 'stringHub', 1001),
+                    DeployData('spts64-stringproc02', 'stringHub', 1002),
+                    DeployData('spts64-stringproc03', 'stringHub', 1003),
+                    DeployData('spts64-stringproc06', 'stringHub', 1004),
+                    DeployData('spts64-stringproc07', 'stringHub', 1005),
+                    ]
+
+        spadeDir = 'spade'
+        logCopyDir = None
+
+        try:
+            self.__checkCluster("localhost", cfgName, expNodes, "spade", None)
+        except RunClusterError, rce:
+            if not str(rce).endswith("out of hubs"):
+                self.fail("Unexpected exception: " + str(rce))
 
     def testDeploySPS(self):
         cfgName = 'sps-IC40-IT6-Revert-IceTop-V029'
