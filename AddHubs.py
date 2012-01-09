@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Create a new run configuration without one or more hubs
+# Create a new run configuration with only the specified hub(s)
 
 import os
 import sys
@@ -112,13 +112,14 @@ if __name__ == "__main__":
     hostname = ip.getHostNameNoDomain()
     if(hostname.lower() == "expcont"):
         print >> sys.stderr, "-" * 60
-        print >> sys.stderr, "Warning: Running RemoveHubs.py on expcont"
+        print >> sys.stderr, "Warning: Running AddHubs.py on expcont"
         print >> sys.stderr, "-" * 60
 
     (forceCreate, runCfgName, cluCfgName, hubIdList) = parseArgs()
 
     configDir = os.path.join(metaDir, "config")
-    newPath = DAQConfig.createOmitFileName(configDir, runCfgName, hubIdList)
+    newPath = DAQConfig.createOmitFileName(configDir, runCfgName, hubIdList,
+                                           keepList=True)
     if os.path.exists(newPath):
         if forceCreate:
             print >> sys.stderr, "WARNING: Overwriting %s" % newPath
@@ -129,7 +130,7 @@ if __name__ == "__main__":
 
     runCfg = DAQConfigParser.load(runCfgName, configDir)
     if runCfg is not None:
-        newCfg = runCfg.omit(hubIdList)
+        newCfg = runCfg.omit(hubIdList, keepList=True)
         if newCfg is not None:
             with open(newPath, 'w') as fd:
                 newCfg.write(fd)
