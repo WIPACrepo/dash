@@ -942,20 +942,24 @@ class DAQConfig(object):
         return self.__fileName
 
     @classmethod
-    def createOmitFileName(cls, configDir, fileName, hubIdList):
+    def createOmitFileName(cls, configDir, fileName, hubIdList, keepList=False):
         """
-        Create a new file name from the original name
-        and the list of omitted hubs
+        Create a new file name from the original name and the list of hubs.
         """
         baseName = os.path.basename(fileName)
         if baseName.endswith(".xml"):
             baseName = baseName[:-4]
 
-        noStr = ""
+        if keepList:
+            xStr = "-only"
+            joinStr = "-"
+        else:
+            xStr = ""
+            joinStr = "-no"
         for h in hubIdList:
-            noStr += "-no" + cls.getHubName(h)
+            xStr += joinStr + cls.getHubName(h)
 
-        return os.path.join(configDir, baseName + noStr + ".xml")
+        return os.path.join(configDir, baseName + xStr + ".xml")
 
     def deleteDomConfig(self, domCfg):
         "Return True if the dom configuration was found and deleted"
@@ -1021,8 +1025,11 @@ class DAQConfig(object):
     def monitorPeriod(self):
         return self.__monitorPeriod
 
-    def omit(self, hubIdList):
-        """Create a new run configuration which omits the specified hubs"""
+    def omit(self, hubIdList, keepList=False):
+        """
+        Create a new run configuration which omits the specified hubs.
+        If 'keepList' is True, omit all hubs which are NOT in the list
+        """
         omitMap = {}
 
         error = False
@@ -1058,7 +1065,10 @@ class DAQConfig(object):
                 newCfg.addComponent(c.name(), True)
         newCfg.setTriggerConfig(self.__trigCfg)
         for dc in self.__domCfgList:
-            if not omitMap.has_key(dc):
+            omit = omitMap.has_key(dc)
+            if keepList:
+                omit = not omit
+            if not omit:
                 newCfg.addDomConfig(dc)
             else:
                 dup = copy.copy(dc)
