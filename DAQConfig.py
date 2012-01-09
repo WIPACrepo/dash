@@ -925,12 +925,12 @@ class DAQConfig(object):
         if hub is not None:
             if len(hubs) != 1:
                 print >> sys.stderr, \
-                          "Expected \"%s\" to be the only hub, not %s" % \
-                          (hub, hubs)
+                          "%s: Expected \"%s\" to be the only hub, not %s" % \
+                          (self.__fileName, hub, hubs)
             elif hubs[0] != hub:
                 print >> sys.stderr, \
-                          "Expected \"%s\" to be for hub 0, not %s" % \
-                          (hub, hubs[0])
+                          "%s: Expected \"%s\" to be for hub 0, not %s" % \
+                          (self.__fileName, hub, hubs[0])
 
         for s in hubs:
             if not self.__stringHubs.has_key(s):
@@ -1002,6 +1002,12 @@ class DAQConfig(object):
             dlist += dc.getAllDOMs()
         return dlist
 
+    def getDomConfigNames(self):
+        flist = []
+        for dc in self.__domCfgList:
+            flist.append(dc.basename())
+        return flist
+
     @staticmethod
     def getHubName(num):
         """Get the standard representation for a hub number"""
@@ -1028,6 +1034,9 @@ class DAQConfig(object):
 
         raise DOMNotInConfigException("Cannot find string %d pos %d" %
                                       (string, pos))
+
+    def getTriggerConfigName(self):
+        return self.__trigCfg
 
     def hasDOM(self, domid):
         if type(domid) != int and type(domid) != long:
