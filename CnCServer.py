@@ -39,7 +39,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 13428 2011-11-23 00:19:39Z mnewcomb $"
+SVN_ID = "$Id: CnCServer.py 13526 2012-02-28 21:09:12Z dglo $"
 
 
 class CnCServerException(Exception):
@@ -301,7 +301,7 @@ class DAQPool(object):
                 if c in states:
                     stateStr = str(states[c])
                 else:
-                    stateStr = DAQClientState.DEAD
+                    stateStr = DAQClientState.MISSING
 
                 if stateStr == DAQClientState.DEAD or \
                         (stateStr == DAQClientState.HANGING and c.isDead()):
