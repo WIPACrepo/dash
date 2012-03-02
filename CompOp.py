@@ -273,7 +273,7 @@ class ComponentOperationGroup(object):
             results[t.component()] = result
         return results
 
-    def wait(self, reps=4, waitSecs=2):
+    def wait(self, waitSecs=2, reps=4):
         """
         Wait for all the threads to finish
         reps - number of times to loop before deciding threads are hung
