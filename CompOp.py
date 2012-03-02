@@ -51,10 +51,12 @@ class ComponentOperation(threading.Thread):
     RESET_COMP = "RESET_COMP"
     "thread will reset the component's logging"
     RESET_LOGGING = "RESET_LOGGING"
-    "thread will stop the component's logging"
-    STOP_LOGGING = "STOP_LOGGING"
     "thread will start the component running"
     START_RUN = "START_RUN"
+    "thread will start a subrun on the component"
+    START_SUBRUN = "START_SUBRUN"
+    "thread will stop the component's logging"
+    STOP_LOGGING = "STOP_LOGGING"
     "thread will stop the running component"
     STOP_RUN = "STOP_RUN"
     "thread will terminate the component"
@@ -139,6 +141,10 @@ class ComponentOperation(threading.Thread):
         "Start the component running"
         self.__result = self.__comp.startRun(self.__data[0])
 
+    def __startSubrun(self):
+        "Start a subrun on the component"
+        self.__result = self.__comp.startSubrun(self.__data[0])
+
     def __stopLogging(self):
         "Stop logging for the component"
         self.__data[self.__comp].stopServing()
@@ -179,6 +185,8 @@ class ComponentOperation(threading.Thread):
             self.__resetLogging()
         elif self.__operation == ComponentOperation.START_RUN:
             self.__startRun()
+        elif self.__operation == ComponentOperation.START_SUBRUN:
+            self.__startSubrun()
         elif self.__operation == ComponentOperation.STOP_LOGGING:
             self.__stopLogging()
         elif self.__operation == ComponentOperation.STOP_RUN:
@@ -259,7 +267,8 @@ class ComponentOperationGroup(object):
                self.__op != ComponentOperation.GET_MULTI_BEAN and \
                self.__op != ComponentOperation.GET_RUN_DATA and \
                self.__op != ComponentOperation.GET_SINGLE_BEAN and \
-               self.__op != ComponentOperation.GET_STATE:
+               self.__op != ComponentOperation.GET_STATE and \
+               self.__op != ComponentOperation.START_SUBRUN:
             raise ComponentOperationException("Cannot get results for" +
                                               " operation %s" % self.__op)
         results = {}
@@ -276,8 +285,8 @@ class ComponentOperationGroup(object):
     def wait(self, waitSecs=2, reps=4):
         """
         Wait for all the threads to finish
-        reps - number of times to loop before deciding threads are hung
         waitSecs - total number of seconds to wait
+        reps - number of times to loop before deciding threads are hung
         NOTE:
         if all threads are hung, max wait time is (#threads * waitSecs * reps)
         """

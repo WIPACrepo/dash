@@ -182,41 +182,6 @@ class ConnTypeEntry(object):
                 connMap[outComp].append(entry)
 
 
-class SubrunThread(CnCThread):
-    "A thread which starts the subrun in an individual stringHub"
-
-    def __init__(self, comp, data, log):
-        self.__comp = comp
-        self.__data = data
-        self.__log = log
-        self.__time = None
-
-        super(SubrunThread, self).__init__(comp.fullName() + ":subrun", log)
-
-    def _run(self):
-        tStr = self.__comp.startSubrun(self.__data)
-        if tStr is not None:
-            try:
-                self.__time = long(tStr)
-            except ValueError:
-                self.__log.error(("Component %s startSubrun returned bad" +
-                                  " value \"%s\"") %
-                                 (self.__comp.fullName(), tStr))
-                self.__time = 0
-
-    def comp(self):
-        return self.__comp
-
-    def finished(self):
-        return self.__time is not None
-
-    def fullName(self):
-        return self.__comp.fullName()
-
-    def time(self):
-        return self.__time
-
-
 class RunData(object):
     def __init__(self, runSet, runNumber, clusterConfigName, runConfig,
                  runOptions, versionInfo, spadeDir, copyDir, logDir, testing):
@@ -1821,25 +1786,27 @@ class RunSet(object):
             if c.isBuilder():
                 c.prepareSubrun(id)
 
-        shThreads = []
+        hubs = []
+        tGroup = ComponentOperationGroup(ComponentOperation.START_SUBRUN)
         for c in self.__set:
             if c.isSource():
-                thread = SubrunThread(c, data, self.__runData)
-                thread.start()
-                shThreads.append(thread)
+                tGroup.start(c, self.__runData, (data, ))
+                hubs.append(c)
+        tGroup.wait(20)
+        tGroup.reportErrors(self.__runData, "startSubrun")
 
         badComps = []
 
         latestTime = None
-        while len(shThreads) > 0:
-            time.sleep(0.1)
-            for thread in shThreads:
-                if not thread.isAlive():
-                    if not thread.finished():
-                        badComps.append(thread.comp())
-                    elif latestTime is None or thread.time() > latestTime:
-                        latestTime = thread.time()
-                    shThreads.remove(thread)
+        r = tGroup.results()
+        for c in hubs:
+            result = r[c]
+            if result is None or \
+                result == ComponentOperation.RESULT_HANGING or \
+                result == ComponentOperation.RESULT_ERROR:
+                badComps.append(c)
+            elif latestTime is None or result > latestTime:
+                latestTime = result
 
         if latestTime is None:
             raise RunSetException("Couldn't start subrun on any string hubs")
