@@ -10,10 +10,9 @@
 #     clusterConfig = "spts64-real-21-29"
 #     runConfig = "spts64-dirtydozen-hlc-006"
 #     numSecs = 60                             # number of seconds
-#     numRuns = 1
 #
 #     # an ordinary run
-#     run.start(clusterConfig, runConfig, numSecs, numRuns)
+#     run.start(clusterConfig, runConfig, numSecs)
 #
 #     flasherData = \
 #         (("flash-21.xml", 30),               # flash string 21 for 30 seconds
@@ -23,7 +22,7 @@
 #          ("flash-21.xml", 30))               # flash string 21 for 30 seconds
 #
 #     # a flasher run
-#     run.run(clusterConfig, runConfig, numSecs, numRuns, flasherData)
+#     run.run(clusterConfig, runConfig, numSecs, flasherData)
 
 import os
 import re
@@ -166,7 +165,8 @@ class CnCRun(BaseRun):
 
         proc.wait()
 
-    def __waitForState(self, expState, numTries, numErrors=0, waitSecs=10):
+    def __waitForState(self, expState, numTries, numErrors=0, waitSecs=10,
+                       verbose=False):
         """
         Wait for the specified state
 
@@ -186,19 +186,20 @@ class CnCRun(BaseRun):
         prevState = cnc.rpc_runset_state(self.__runSetId)
         curState = prevState
 
-        if prevState != expState:
+        if verbose and prevState != expState:
             print "Switching from %s to %s" % (prevState, expState)
 
         startTime = time.time()
-        for i in range(numTries):
+        for _ in range(numTries):
             if curState == RunSetState.UNKNOWN:
                 break
 
             curState = cnc.rpc_runset_state(self.__runSetId)
             if curState != prevState:
-                swTime = int(time.time() - startTime)
-                print "  Switched from %s to %s in %s secs" % \
-                    (prevState, curState, swTime)
+                if verbose:
+                    swTime = int(time.time() - startTime)
+                    print "  Switched from %s to %s in %s secs" % \
+                        (prevState, curState, swTime)
 
                 prevState = curState
                 startTime = time.time()
@@ -334,7 +335,8 @@ class CnCRun(BaseRun):
             print >>sys.stderr, "Not setting light mode!!!"
         return True
 
-    def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False):
+    def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False,
+                 verbose=False):
         """
         Start a run
 
@@ -342,6 +344,7 @@ class CnCRun(BaseRun):
         duration - number of seconds for run
         numRuns - number of runs (default=1)
         ignoreDB - don't check the database for this run config
+        verbose - print more details of run transitions
 
         Return True if the run was started
         """
@@ -392,7 +395,7 @@ class CnCRun(BaseRun):
 
         cnc.rpc_runset_stop_run(self.__runSetId)
 
-    def waitForStopped(self):
+    def waitForStopped(self, verbose=False):
         """Wait for the current run to be stopped"""
         cnc = self.cncConnection()
 
@@ -405,9 +408,9 @@ class CnCRun(BaseRun):
             self.__runSetId = None
             return True
 
-        return self.__waitForState(RunSetState.READY, 10)
+        return self.__waitForState(RunSetState.READY, 10, verbose=verbose)
 
 if __name__ == "__main__":
     run = CnCRun(True, True)
     run.run("spts64-dirtydozen-hlc-006", "spts64-dirtydozen-hlc-006", 30,
-            (("flash-21.xml", 5), (None, 10), ("flash-21.xml", 5)))
+            (("flash-21.xml", 5), (None, 10), ("flash-21.xml", 5)), verbose=True)

@@ -10,10 +10,9 @@
 #     clusterConfig = "spts64-real-21-29"
 #     runConfig = "spts64-dirtydozen-hlc-006"
 #     numSecs = 60                             # number of seconds
-#     numRuns = 1
 #
 #     # an ordinary run
-#     run.run(clusterConfig, runConfig, numSecs, numRuns)
+#     run.run(clusterConfig, runConfig, numSecs)
 #
 #     flasherData = \
 #         (("flash-21.xml", 30),               # flash string 21 for 30 seconds
@@ -23,7 +22,7 @@
 #          ("flash-21.xml", 30))               # flash string 21 for 30 seconds
 #
 #     # a flasher run
-#     run.run(clusterConfig, runConfig, numSecs, numRuns, flasherData)
+#     run.run(clusterConfig, runConfig, numSecs, flasherData)
 
 
 import os
@@ -459,7 +458,7 @@ class LiveRun(BaseRun):
         return not problem
 
     def __waitForState(self, initState, expState, numTries, numErrors=0,
-                       waitSecs=10):
+                       waitSecs=10, verbose=False):
         """
         Wait for the specified state
 
@@ -470,21 +469,22 @@ class LiveRun(BaseRun):
                     there is a problem
         waitSecs - number of seconds to wait on each "try"
         """
-        prevState = self.__state.runState()
+        prevState = self.state()
         curState = prevState
 
-        if prevState != expState:
+        if verbose and prevState != expState:
             print "Switching from %s to %s" % (prevState, expState)
 
         startTime = time.time()
         for _ in range(numTries):
             self.__state.check()
 
-            curState = self.__state.runState()
+            curState = self.state()
             if curState != prevState:
-                swTime = int(time.time() - startTime)
-                print "  Switched from %s to %s in %s secs" % \
-                    (prevState, curState, swTime)
+                if verbose:
+                    swTime = int(time.time() - startTime)
+                    print "  Switched from %s to %s in %s secs" % \
+                        (prevState, curState, swTime)
 
                 prevState = curState
                 startTime = time.time()
@@ -655,7 +655,8 @@ class LiveRun(BaseRun):
 
         return True
 
-    def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False):
+    def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False,
+                 verbose=False):
         """
         Tell I3Live to start a run
 
@@ -663,6 +664,7 @@ class LiveRun(BaseRun):
         duration - number of seconds for run
         numRuns - number of runs (default=1)
         ignoreDB - tell I3Live to not check the database for this run config
+        verbose - print more details of run transitions
 
         Return True if the run was started
         """
@@ -679,7 +681,7 @@ class LiveRun(BaseRun):
             return False
 
         if not self.__waitForState(LiveRunState.STOPPED, LiveRunState.STARTING,
-                                   10, 6):
+                                   10, 6, verbose=verbose):
             try:
                 runNum = self.getRunNumber()
                 str = "Run %d did not start" % runNum
@@ -688,7 +690,7 @@ class LiveRun(BaseRun):
             raise RunException(str)
 
         return self.__waitForState(LiveRunState.STARTING, LiveRunState.RUNNING,
-                                   18, 0)
+                                   18, 0, verbose=verbose)
 
     def state(self):
         return self.__state.runState()
@@ -699,16 +701,17 @@ class LiveRun(BaseRun):
         if not self.__runBasicCommand("StopRun", cmd):
             return False
 
-    def waitForStopped(self):
+    def waitForStopped(self, verbose=False):
         if self.__state.runState() != LiveRunState.STOPPING and \
                 self.__state.runState() != LiveRunState.STOPPED:
             if not self.__waitForState(self.__state.runState(),
-                                       LiveRunState.STOPPING, 60, 0):
+                                       LiveRunState.STOPPING, 60, 0,
+                                       verbose=verbose):
                 return False
         return self.__waitForState(LiveRunState.STOPPING, LiveRunState.STOPPED,
-                                   60, 0)
+                                   60, 0, verbose=verbose)
 
 if __name__ == "__main__":
     run = LiveRun(True, True)
     run.run("spts64-real-21-29", "spts64-dirtydozen-hlc-006", 60,
-            "flash-21.xml", (10, 10), 10)
+            "flash-21.xml", (10, 10), 10, verbose=True)

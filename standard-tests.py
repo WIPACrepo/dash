@@ -46,15 +46,16 @@ class PDAQRun(object):
     def clusterConfig(self):
         return self.__runCfg
 
-    def run(self, liveRun, quick):
+    def run(self, runmgr, quick, verbose=False):
         if quick and self.__duration > 1200:
             duration = self.__duration / 120
         else:
             duration = self.__duration
 
         for r in range(self.__numRuns):
-            liveRun.run(self.clusterConfig(), self.__runCfg,
-                        duration, self.__flashData, False)
+            runmgr.run(self.clusterConfig(), self.__runCfg,
+                        duration, self.__flashData, ignoreDB=False,
+                        verbose=verbose)
 
 # configurations to run
 #
@@ -236,6 +237,9 @@ if __name__ == "__main__":
     op.add_option("-s", "--showCommands", dest="showCmd",
                   action="store_true", default=False,
                   help="Show the commands used to deploy and/or run")
+    op.add_option("-v", "--verbose", dest="verbose",
+                  action="store_true", default=False,
+                  help="Print more details of run transitions")
     op.add_option("-X", "--showCheckOutput", dest="showChkOutput",
                   action="store_true", default=False,
                   help="Show the output of the 'livecmd check' commands")
@@ -280,9 +284,9 @@ if __name__ == "__main__":
         deploy.showHome()
     if opt.run:
         if opt.cncrun:
-            liveRun = CnCRun(opt.showCmd, opt.showCmdOutput)
+            runmgr = CnCRun(opt.showCmd, opt.showCmdOutput)
         else:
-            liveRun = LiveRun(opt.showCmd, opt.showCmdOutput, opt.showChk,
+            runmgr = LiveRun(opt.showCmd, opt.showCmdOutput, opt.showChk,
                               opt.showChkOutput)
 
         if sys.version_info > (2, 3):
@@ -292,11 +296,11 @@ if __name__ == "__main__":
         # always kill running components in case they're from a
         # previous release
         #
-        liveRun.killComponents()
+        runmgr.killComponents()
 
         # stop existing runs gracefully on ^C
         #
-        signal.signal(signal.SIGINT, liveRun.stopOnSIGINT)
+        signal.signal(signal.SIGINT, runmgr.stopOnSIGINT)
 
         for data in RUN_LIST:
-            data.run(liveRun, opt.quick)
+            data.run(runmgr, opt.quick, opt.verbose)

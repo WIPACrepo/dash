@@ -16,6 +16,9 @@ from ClusterDescription import ClusterDescription
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 
+from exc_string import exc_string, set_exc_string_encoding
+set_exc_string_encoding("ascii")
+
 
 class RunException(Exception):
     pass
@@ -294,12 +297,13 @@ class Run(object):
         if self.__runKilled or self.__mgr.isDead():
             self.__mgr.launch(self.__clusterCfg)
 
-    def finish(self):
+    def finish(self, verbose=False):
         "clean up after run has ended"
         if not self.__mgr.isStopped(True):
             self.__mgr.stopRun()
 
-        if not self.__mgr.isStopped(True) and not self.__mgr.waitForStopped():
+        if not self.__mgr.isStopped(True) and \
+            not self.__mgr.waitForStopped(verbose=verbose):
             raise RunException("Run %d did not stop" % self.__runNum)
 
         if self.__flashThread is not None:
@@ -312,11 +316,13 @@ class Run(object):
         try:
             self.__mgr.summarize(self.__runNum)
         except:
-            print "Cannot summarize run %d" % self.__runNum
+            print "Cannot summarize run %d: %s" % \
+                (self.__runNum, exc_string())
+        print
 
         self.__runNum = 0
 
-    def start(self, duration, ignoreDB=False):
+    def start(self, duration, ignoreDB=False, verbose=False):
         """
         Start a run
 
@@ -360,7 +366,8 @@ class Run(object):
 
         # start the run
         #
-        if not self.__mgr.startRun(self.__runCfg, duration, 1, ignoreDB):
+        if not self.__mgr.startRun(self.__runCfg, duration, 1, ignoreDB,
+                                   verbose=verbose):
             raise RunException("Could not start run #%d: %s" %
                                (self.__runNum, self.__runCfg))
 
@@ -586,23 +593,23 @@ class BaseRun(object):
         time.sleep(5)
 
     def run(self, clusterCfg, runCfg, duration, flasherData=None,
-            ignoreDB=False):
+            ignoreDB=False, verbose=False):
         """
         Manage a set of runs
 
         clusterCfg - cluster configuration
         runCfg - run configuration
         duration - number of seconds to run
-        numRuns - number of runs (default=1)
         flasherData - pairs of (XML file name, duration)
         ignoreDB - False if the database should be checked for this run config
+        verbose - provide additional details of the run
         """
         run = self.createRun(clusterCfg, runCfg, flasherData)
-        run.start(duration, ignoreDB)
+        run.start(duration, ignoreDB, verbose=verbose)
         try:
             run.wait()
         finally:
-            run.finish()
+            run.finish(verbose=verbose)
 
     def setLightMode(self, isLID):
         """
@@ -614,7 +621,8 @@ class BaseRun(object):
         """
         raise NotImplementedError()
 
-    def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False):
+    def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False,
+                 verbose=False):
         """
         Start a run
 
@@ -622,6 +630,7 @@ class BaseRun(object):
         duration - number of seconds for run
         numRuns - number of runs (default=1)
         ignoreDB - don't check the database for this run config
+        verbose - print more details of run transitions
 
         Return True if the run was started
         """
@@ -635,7 +644,7 @@ class BaseRun(object):
         print "Caught signal, stopping run"
         if self.isRunning(True):
             self.stopRun()
-            self.waitForStopped()
+            self.waitForStopped(verbose=True)
         print "Exiting"
         raise SystemExit
 
@@ -745,6 +754,6 @@ class BaseRun(object):
 
             time.sleep(waitSecs)
 
-    def waitForStopped(self):
+    def waitForStopped(self, verbose=False):
         """Wait for the current run to be stopped"""
         raise NotImplementedError()
