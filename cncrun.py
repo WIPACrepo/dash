@@ -12,7 +12,7 @@
 #     numSecs = 60                             # number of seconds
 #
 #     # an ordinary run
-#     run.start(clusterConfig, runConfig, numSecs)
+#     run.run(clusterConfig, runConfig, numSecs)
 #
 #     flasherData = \
 #         (("flash-21.xml", 30),               # flash string 21 for 30 seconds

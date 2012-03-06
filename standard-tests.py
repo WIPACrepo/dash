@@ -54,8 +54,8 @@ class PDAQRun(object):
 
         for r in range(self.__numRuns):
             runmgr.run(self.clusterConfig(), self.__runCfg,
-                        duration, self.__flashData, ignoreDB=False,
-                        verbose=verbose)
+                       duration, self.__flashData, ignoreDB=False,
+                       verbose=verbose)
 
 # configurations to run
 #
@@ -287,7 +287,7 @@ if __name__ == "__main__":
             runmgr = CnCRun(opt.showCmd, opt.showCmdOutput)
         else:
             runmgr = LiveRun(opt.showCmd, opt.showCmdOutput, opt.showChk,
-                              opt.showChkOutput)
+                             opt.showChkOutput)
 
         if sys.version_info > (2, 3):
             from DumpThreads import DumpThreadsOnSignal
