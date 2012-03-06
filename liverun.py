@@ -714,4 +714,5 @@ class LiveRun(BaseRun):
 if __name__ == "__main__":
     run = LiveRun(True, True)
     run.run("spts64-real-21-29", "spts64-dirtydozen-hlc-006", 60,
-            "flash-21.xml", (10, 10), 10, verbose=True)
+            (("flash-21.xml", 10), (None, 10), ("flash-21.xml", 5)),
+            verbose=True)
