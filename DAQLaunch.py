@@ -16,7 +16,6 @@ from os.path import exists, isabs, join
 from utils import ip
 from utils.Machineid import Machineid
 
-from ClusterConfig import ClusterConfigException
 from Component import Component
 from DAQConfig import DAQConfig, DAQConfigParser
 from DAQConfigExceptions import DAQConfigException
@@ -42,7 +41,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 13428 2011-11-23 00:19:39Z mnewcomb $"
+SVN_ID = "$Id: DAQLaunch.py 13550 2012-03-08 23:12:05Z dglo $"
 
 
 class HostNotFoundForComponent   (Exception):
@@ -556,8 +555,6 @@ if __name__ == "__main__":
                                                        validate=opt.validation)
             doKill(doCnC, opt.dryRun, dashDir, opt.verbose, opt.quiet,
                    activeConfig, opt.killWith9)
-        except ClusterConfigException:
-            caughtException = True
         except DAQConfigException:
             caughtException = True
         if caughtException and opt.killOnly:
@@ -578,9 +575,6 @@ if __name__ == "__main__":
                                                        validate=opt.validation)
         except DAQConfigException as e:
             print >> sys.stderr, "DAQ Config exception:\n\t%s" % e
-            raise SystemExit
-        except ClusterConfigException as e:
-            print >> sys.stderr, "Cluster Config Exception:\n\t%s" % e
             raise SystemExit
 
         if opt.doList:

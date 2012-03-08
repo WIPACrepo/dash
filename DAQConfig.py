@@ -7,7 +7,6 @@ import sys
 from xml.dom import Node
 
 from CachedConfigName import CachedConfigName
-from ClusterConfig import ClusterConfigParser
 from Component import Component
 from DefaultDomGeometry import BadFileError, DefaultDomGeometryReader, \
     ProcessError, XMLParser
@@ -832,8 +831,6 @@ class ReplayHub(Component):
 class DAQConfig(object):
     """Run configuration data"""
 
-    LIST_CLUSTER_CONFIGS = False
-
     def __init__(self, fileName):
         self.__fileName = fileName
 
@@ -1152,11 +1149,7 @@ class DAQConfig(object):
     @classmethod
     def showList(cls, configDir, configName):
         if configDir is None:
-            if cls.LIST_CLUSTER_CONFIGS:
-                configDir = os.path.join(metaDir, "cluster-config", "src",
-                                         "main", "xml")
-            else:
-                configDir = os.path.join(metaDir, "config")
+            configDir = os.path.join(metaDir, "config")
 
         if not os.path.exists(configDir):
             raise DAQConfigException("Could not find config dir %s" %
@@ -1463,37 +1456,23 @@ class DAQConfigParser(XMLParser, XMLFileCache):
             DAQConfig.showList(configDir, configName)
             return
 
-        ccDir = \
-            os.path.join(metaDir, 'cluster-config', 'src', 'main', 'xml')
+        if configDir is None:
+            configDir = os.path.join(metaDir, "config")
+
+        if validate:
+            (valid, reason) = validate_configs(clusterDesc, configName)
+
+            if not valid:
+                raise DAQConfigException(reason)
 
         try:
-            cfg = ClusterConfigParser.load(configName, ccDir)
-        except XMLFileNotFound:
-            saved_ex = sys.exc_info()
-
-            if configDir is None:
-                configDir = os.path.join(metaDir, "config")
-
             savedValue = cls.PARSE_DOM_CONFIG
             cls.PARSE_DOM_CONFIG = False
+            runCfg = cls.load(configName, configDir, strict)
+        finally:
+            cls.PARSE_DOM_CONFIG = savedValue
 
-            if validate:
-                (valid, reason) = validate_configs(clusterDesc,
-                                                   configName)
-
-                if not valid:
-                    raise DAQConfigException(reason)
-
-            try:
-                try:
-                    runCfg = cls.load(configName, configDir, strict)
-                except XMLFileNotFound:
-                    raise saved_ex[0], saved_ex[1], saved_ex[2]
-            finally:
-                cls.PARSE_DOM_CONFIG = savedValue
-
-            cfg = RunCluster(runCfg, clusterDesc, configDir)
-        return cfg
+        return RunCluster(runCfg, clusterDesc, configDir)
 
     @classmethod
     def parse(cls, dom, configDir, fileName, strict=False):
