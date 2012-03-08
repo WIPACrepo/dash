@@ -5,10 +5,10 @@ import tempfile
 import unittest
 from CnCServer import DAQPool
 from DAQClient import DAQClientState
+from DAQTime import PayloadTime
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet, ConnectionException
-from RunStats import PayloadTime
 
 from DAQMocks import MockComponent, MockLogger, MockRunConfigFile, \
      RunXMLValidator

@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 import unittest
+from DAQTime import PayloadTime
 from RateCalc import dt, RateCalcEntry
-from RunStats import PayloadTime, RunStats
+from RunStats import RunStats
 
 
 class TestRunStats(unittest.TestCase):

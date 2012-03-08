@@ -10,13 +10,13 @@ from CnCServer import CnCServer, CnCServerException
 from DAQConst import DAQPort
 from DAQMocks import MockClusterConfig, MockIntervalTimer, MockLogger, \
     MockRunConfigFile, RunXMLValidator, SocketReader
+from DAQTime import PayloadTime
 from LiveImports import LIVE_IMPORT
 from MonitorTask import MonitorTask
 from RadarTask import RadarTask, RadarThread
 from RateTask import RateTask
 from RunOption import RunOption
 from RunSet import RunSet, RunSetException
-from RunStats import PayloadTime
 from TaskManager import TaskManager
 from WatchdogTask import WatchdogTask
 

@@ -15,11 +15,12 @@ from DAQConst import DAQPort
 from DAQLaunch import killJavaComponents, startJavaComponents
 from DAQLog import DAQLog, FileAppender, LiveSocketAppender, LogSocketServer
 from DAQRPC import RPCClient
+from DAQTime import PayloadTime
 from LiveImports import LIVE_IMPORT, MoniClient, Prio
 from RunOption import RunOption
 from RunSetDebug import RunSetDebug
 from RunSetState import RunSetState
-from RunStats import PayloadTime, RunStats
+from RunStats import RunStats
 from TaskManager import TaskManager
 from UniqueID import UniqueID
 from utils import ip
