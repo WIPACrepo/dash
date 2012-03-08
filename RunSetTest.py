@@ -191,6 +191,11 @@ class TestRunSet(unittest.TestCase):
 
         self.failIf(stopErr, "stopRun() encountered error")
 
+        for comp in compList:
+            if comp.isSource():
+                comp.addBeanData("stringhub", "LatestFirstChannelHitTime", 10)
+                comp.addBeanData("stringhub", "NumberOfNonZombies", 1)
+
         self.__startRun(runset, runNum, runConfig, clusterName,
                         components=compList, logger=logger)
 
@@ -221,6 +226,10 @@ class TestRunSet(unittest.TestCase):
 
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
+
+        for comp in compList:
+            if comp.isSource():
+                comp.addBeanData("stringhub", "EarliestLastChannelHitTime", 10)
 
         self.__stopRun(runset, runNum, clusterName, components=compList,
                        logger=logger)
@@ -300,10 +309,19 @@ class TestRunSet(unittest.TestCase):
             CAUGHT_WARNING = True
             logger.addExpectedRegexp(r"^Cannot import IceCube Live.*")
 
+        for comp in compList:
+            if comp.isSource():
+                comp.addBeanData("stringhub", "LatestFirstChannelHitTime", 10)
+                comp.addBeanData("stringhub", "NumberOfNonZombies", 1)
+
         self.__startRun(runset, runNum, runConfig, clusterName,
                         components=compList, logger=logger)
 
         expState = "stopping"
+
+        for comp in compList:
+            if comp.isSource():
+                comp.addBeanData("stringhub", "EarliestLastChannelHitTime", 10)
 
         self.__stopRun(runset, runNum, clusterName, components=compList,
                        logger=logger, hangType=hangType)

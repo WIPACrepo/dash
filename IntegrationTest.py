@@ -46,6 +46,11 @@ class MostlyLive:
 
 
 class BeanData(object):
+    TYPE_INPUT = 'i'
+    TYPE_OUTPUT = 'o'
+    TYPE_STATIC = 's'
+    TYPE_THRESHOLD = 't'
+
     DAQ_BEANS = {'stringHub':
                      (('dom', 'sender', 'NumHitsReceived', 'i', 0),
                       ('eventBuilder', 'sender', 'NumReadoutRequestsReceived',
@@ -53,6 +58,12 @@ class BeanData(object):
                       ('eventBuilder', 'sender', 'NumReadoutsSent', 'o', 0),
                       ('stringHub', 'stringhub', 'NumberOfActiveChannels', 't',
                        0),
+                      ('stringHub', 'stringhub', 'NumberOfNonZombies', 's',
+                       10),
+                      ('stringHub', 'stringhub', 'LatestFirstChannelHitTime',
+                       'i', 1),
+                      ('stringHub', 'stringhub', 'EarliestLastChannelHitTime',
+                       'i', 1),
                       ),
                  'inIceTrigger':
                      (('stringHub', 'stringHit', 'RecordsReceived', 'i', 0),
@@ -101,11 +112,6 @@ class BeanData(object):
                        'o', 0),
                       ),
                  }
-
-    TYPE_INPUT = 'i'
-    TYPE_OUTPUT = 'o'
-    TYPE_STATIC = 's'
-    TYPE_THRESHOLD = 't'
 
     def __init__(self, remoteComp, bean, field, watchType, val=0,
                  increasing=True):
@@ -409,6 +415,8 @@ class RealComponent(object):
         self.__mbeanData = None
         self.__runData = None
 
+        self.__lastGoodTime = None
+
         self.__version = {'filename': name, 'revision': '1', 'date': 'date',
                           'time': 'time', 'author': 'author', 'release': 'rel',
                           'repo_rev': '1234'}
@@ -428,6 +436,8 @@ class RealComponent(object):
         self.__cmd.register_function(self.__reset, 'xmlrpc.reset')
         self.__cmd.register_function(self.__resetLogging,
                                      'xmlrpc.resetLogging')
+        self.__cmd.register_function(self.__setLastGoodTime,
+                                     'xmlrpc.setLastGoodTime')
         self.__cmd.register_function(self.__startRun, 'xmlrpc.startRun')
         self.__cmd.register_function(self.__startSubrun, 'xmlrpc.startSubrun')
         self.__cmd.register_function(self.__stopRun, 'xmlrpc.stopRun')
@@ -629,6 +639,10 @@ class RealComponent(object):
         self.__logger = None
 
         return 'RLOG'
+
+    def __setLastGoodTime(self, payTime):
+        self.__lastGoodTime = payTime
+        return "OK"
 
     def __startRun(self, runNum):
         #self.__log('Start #%d on %s' % (runNum, str(self)))
@@ -1394,7 +1408,7 @@ class IntegrationTest(unittest.TestCase):
                     liveLog.addExpectedText(msg)
 
             if c.getName() == 'eventBuilder':
-                patStr = 'Commit subrun %d: \d+L' % subRunId
+                patStr = 'Commit subrun %d: \d+' % subRunId
                 if clog:
                     clog.addExpectedRegexp(patStr)
                 if liveLog:
@@ -1448,7 +1462,7 @@ class IntegrationTest(unittest.TestCase):
                     liveLog.addExpectedText(msg)
 
             if c.getName() == 'eventBuilder':
-                patStr = 'Commit subrun %d: \d+L' % subRunId
+                patStr = 'Commit subrun %d: \d+' % subRunId
                 if clog:
                     clog.addExpectedRegexp(patStr)
                 if liveLog:

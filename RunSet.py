@@ -183,6 +183,192 @@ class ConnTypeEntry(object):
                 connMap[outComp].append(entry)
 
 
+class GoodTimeThread(CnCThread):
+    """
+    A thread which queries all hubs for either the latest first hit time
+    or the earliest last hit time
+    """
+
+    def __init__(self, srcSet, otherSet, data, log, threadName=None):
+        """
+        Create the thread
+
+        srcSet - list of sources (stringHubs) in the runset
+        otherSet - list of non-sources in the runset
+        data - RunData for the run
+        log - log file for the runset
+        """
+        self.__srcSet = srcSet
+        self.__otherSet = otherSet
+        self.__data = data
+        self.__log = log
+
+        self.__timeDict = {}
+        self.__time = None
+
+        super(GoodTimeThread, self).__init__(threadName, log)
+
+    def _run(self):
+        "Gather good hit time data from all hubs"
+        badComps = {}
+
+        goodTime = None
+        while goodTime is None:
+            goodTime = self.__fetchTime(badComps)
+            if goodTime is None:
+                time.sleep(0.01)
+
+        if len(badComps) > 0:
+            self.__log.error("Couldn't find %s for %s" %
+                             (self.moniname(),
+                              self.__listComponentsCommaSep(badComps.keys())))
+
+        self.__data.reportGoodTime(self.moniname(), goodTime)
+        for c in self.__otherSet:
+            if c.isBuilder():
+                self.notifyBuilder(c, goodTime)
+        self.__time = goodTime
+
+    def __fetchTime(self, badComps):
+        """
+        Query all hubs which haven't yet reported a time
+        """
+        zombieFld = "NumberOfNonZombies"
+
+        tGroup = ComponentOperationGroup(ComponentOperation.GET_GOOD_TIME)
+        for c in self.__srcSet:
+            if not c in self.__timeDict:
+                tGroup.start(c, self.__log, (zombieFld, self.beanfield()))
+        tGroup.wait()
+        tGroup.reportErrors(self.__log, "getGoodTimes")
+
+        missing = False
+
+        rList = tGroup.results()
+        for c in self.__srcSet:
+            if c in self.__timeDict:
+                continue
+
+            result = rList[c]
+            if result is None or \
+                result == ComponentOperation.RESULT_HANGING or \
+                result == ComponentOperation.RESULT_ERROR:
+                badComps[c] = 1
+                continue
+
+            numDoms = result[zombieFld]
+            val = result[self.beanfield()]
+
+            if numDoms == 0:
+                self.__timeDict[c] = -1L
+                continue
+
+            if val <= 0L:
+                missing = True
+                continue
+
+            self.__timeDict[c] = val
+
+        goodTime = None
+        if not missing:
+            for c in self.__timeDict:
+                val = self.__timeDict[c]
+                if val < 0L:
+                    continue
+
+                if goodTime is None or self.isBetter(goodTime, val):
+                    goodTime = val
+
+            if goodTime is None:
+                goodTime = 0L
+
+        return goodTime
+
+    def beanfield(self):
+        "Return the name of the 'stringhub' MBean field"
+        raise NotImplementedError("Unimplemented")
+
+    def finished(self):
+        "Return True if the thread has finished"
+        return self.__time is not None
+
+    def isBetter(self, oldval, newval):
+        "Return True if 'newval' is better than 'oldval'"
+        raise NotImplementedError("Unimplemented")
+
+    def moniname(self):
+        "Return the name of the value sent to I3Live"
+        raise NotImplementedError("Unimplemented")
+
+    def notifyBuilder(self, bldr):
+        "Notify the builder of the good time"
+        raise NotImplementedError("Unimplemented")
+
+    def time(self):
+        "Return the latest first hit marking the start of good data taking"
+        return self.__time
+
+
+class FirstGoodTimeThread(GoodTimeThread):
+    def __init__(self, srcSet, otherSet, data, log):
+        """
+        Create the thread
+
+        srcSet - list of sources (stringHubs) in the runset
+        otherSet - list of non-sources in the runset
+        data - RunData for the run
+        log - log file for the runset
+        """
+        super(FirstGoodTimeThread, self).__init__(srcSet, otherSet, data, log,
+                                                  "FirstGoodTimeThread")
+
+    def beanfield(self):
+        "Return the name of the 'stringhub' MBean field"
+        return "LatestFirstChannelHitTime"
+
+    def isBetter(self, oldval, newval):
+        "Return True if 'newval' is better than 'oldval'"
+        return oldval < newval
+
+    def moniname(self):
+        "Return the name of the value sent to I3Live"
+        return "firstGoodTime"
+
+    def notifyBuilder(self, bldr, payTime):
+        "Notify the builder of the good time"
+        bldr.setFirstGoodTime(payTime)
+
+
+class LastGoodTimeThread(GoodTimeThread):
+    def __init__(self, srcSet, otherSet, data, log):
+        """
+        Create the thread
+
+        srcSet - list of sources (stringHubs) in the runset
+        otherSet - list of non-sources in the runset
+        data - RunData for the run
+        log - log file for the runset
+        """
+        super(LastGoodTimeThread, self).__init__(srcSet, otherSet, data, log,
+                                                 "LastGoodTimeThread")
+
+    def beanfield(self):
+        "Return the name of the 'stringhub' MBean field"
+        return "EarliestLastChannelHitTime"
+
+    def isBetter(self, oldval, newval):
+        "Return True if 'newval' is better than 'oldval'"
+        return oldval > newval
+
+    def moniname(self):
+        "Return the name of the value sent to I3Live"
+        return "lastGoodTime"
+
+    def notifyBuilder(self, bldr, payTime):
+        "Notify the builder of the good time"
+        bldr.setLastGoodTime(payTime)
+
+
 class RunData(object):
     def __init__(self, runSet, runNumber, clusterConfigName, runConfig,
                  runOptions, versionInfo, spadeDir, copyDir, logDir, testing):
@@ -278,6 +464,19 @@ class RunData(object):
             log.addAppender(app)
 
         return log
+
+    def __createLiveMoniClient(self):
+        if LIVE_IMPORT:
+            moniClient = MoniClient("pdaq", "localhost", DAQPort.I3LIVE)
+        else:
+            moniClient = None
+            if not RunSet.LIVE_WARNING:
+                RunSet.LIVE_WARNING = True
+                self.__dashlog.error("Cannot import IceCube Live code, so" +
+                                    " per-string active DOM stats wil not" +
+                                    " be reported")
+
+        return moniClient
 
     def __getRateData(self, comps):
         nEvts = 0
@@ -394,6 +593,9 @@ class RunData(object):
     def clusterConfigName(self):
         return self.__clusterConfigName
 
+    def connectToI3Live(self):
+        self.__liveMoniClient = self.__createLiveMoniClient()
+
     def destroy(self):
         savedEx = None
         try:
@@ -465,17 +667,6 @@ class RunData(object):
         return duration
 
     def finishSetup(self, runSet, startTime):
-        if LIVE_IMPORT:
-            self.__liveMoniClient = MoniClient("pdaq", "localhost",
-                                               DAQPort.I3LIVE)
-        else:
-            self.__liveMoniClient = None
-            if not RunSet.LIVE_WARNING:
-                RunSet.LIVE_WARNING = True
-                self.__dashlog.error("Cannot import IceCube Live code, so" +
-                                    " per-string active DOM stats wil not" +
-                                    " be reported")
-
         # tell I3Live that we're starting a run
         #
         if self.__liveMoniClient is not None:
@@ -527,6 +718,19 @@ class RunData(object):
             monDict["tcalTime"] = str(tcalTime)
 
         return monDict
+
+    def getMultiBeanFields(self, comp, bean, fldList):
+        tGroup = ComponentOperationGroup(ComponentOperation.GET_MULTI_BEAN)
+        tGroup.start(comp, self.__dashlog, (bean, fldList))
+        tGroup.wait(10)
+
+        r = tGroup.results()
+        if not r.has_key(comp):
+            result = ComponentOperation.RESULT_ERROR
+        else:
+            result = r[comp]
+
+        return result
 
     def getRunData(self, comps):
         nEvts = 0
@@ -600,6 +804,13 @@ class RunData(object):
                                      self.__copyDir, self.__runDir,
                                      self.__runNumber, datetime.datetime.now(),
                                      duration)
+
+    def reportGoodTime(self, name, payTime):
+        if self.__liveMoniClient is not None:
+            time = PayloadTime.toDateTime(payTime)
+            data = {"runnum": self.__runNumber}
+            self.__liveMoniClient.sendMoni(name, data, prio=Prio.SCP,
+                                           time=time)
 
     @classmethod
     def reportRunStartClass(self, moniClient, runNum, release, revision,
@@ -979,6 +1190,12 @@ class RunSet(object):
         for c in otherSet:
             c.startRun(self.__runData.runNumber())
 
+        # start thread to find latest first time from hubs
+        #
+        goodThread = FirstGoodTimeThread(srcSet[:], otherSet[:],
+                                         self.__runData, self.__runData)
+        goodThread.start()
+
         # start sources in parallel
         #
         self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP startSrcs")
@@ -1001,6 +1218,15 @@ class RunSet(object):
                                    " components: %s") %
                                   (self.__id, self.__runData.runNumber(),
                                    self.__badStateString(badList)))
+
+        for i in xrange(20):
+            if not goodThread.isAlive():
+                break
+            time.sleep(0.5)
+
+        if goodThread.isAlive():
+            raise RunSetException("Could not get runset#%d latest first time" %
+                                  self.__id)
 
         self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP done")
 
@@ -1090,6 +1316,12 @@ class RunSet(object):
         # stop from front to back
         #
         otherSet.sort(lambda x, y: self.__sortCmp(y, x))
+
+        # start thread to find earliest last time from hubs
+        #
+        goodThread = LastGoodTimeThread(srcSet[:], otherSet[:],
+                                        self.__runData, self.__runData)
+        goodThread.start()
 
         for i in range(0, 2):
             self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING phase %d", i)
@@ -1678,6 +1910,7 @@ class RunSet(object):
         #
         startTime = datetime.datetime.now()
 
+        self.__runData.connectToI3Live()
         self.__logDebug(RunSetDebug.START_RUN, "STARTING startComps")
         self.__startComponents(quiet)
         self.__logDebug(RunSetDebug.START_RUN, "STARTING finishSetup")
@@ -1818,7 +2051,7 @@ class RunSet(object):
 
         for c in self.__set:
             if c.isBuilder():
-                c.commitSubrun(id, repr(latestTime))
+                c.commitSubrun(id, latestTime)
 
     def subrunEvents(self, subrunNumber):
         "Get the number of events in the specified subrun"

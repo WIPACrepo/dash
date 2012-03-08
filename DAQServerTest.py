@@ -56,6 +56,19 @@ class TinyClient(object):
             return self.__name
         return "%s#%d" % (self.__name, self.__num)
 
+    def getMultiBeanFields(self, beanname, fldlist):
+        if beanname != "stringhub":
+            raise Exception("Unknown bean \"%s\"" % beanname)
+        rtndict = {}
+        for fld in fldlist:
+            if fld == "LatestFirstChannelHitTime" or \
+                fld == "NumberOfNonZombies" or \
+                fld == "EarliestLastChannelHitTime":
+                rtndict[fld] = 10
+            else:
+                raise Exception("Unknown beanField \"%s.%s\"" % (beanname, fld))
+        return rtndict
+
     def id(self):
         return self.__id
 

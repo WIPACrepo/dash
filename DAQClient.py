@@ -531,6 +531,20 @@ class DAQClient(ComponentName):
         self.__log.resetLog()
         return self.__client.xmlrpc.resetLogging()
 
+    def setFirstGoodTime(self, payTime):
+        "Set the first time where all hubs have reported a hit"
+        try:
+            self.__client.xmlrpc.setFirstGoodTime(str(payTime) + "L")
+        except:
+            self.__log.error(exc_string())
+
+    def setLastGoodTime(self, payTime):
+        "Set the last time where all hubs have reported a hit"
+        try:
+            self.__client.xmlrpc.setLastGoodTime(str(payTime) + "L")
+        except:
+            self.__log.error(exc_string())
+
     def setOrder(self, orderNum):
         self.__cmdOrder = orderNum
 

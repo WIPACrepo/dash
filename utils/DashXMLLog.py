@@ -1,7 +1,9 @@
 import os
 
+import re
 from datetime import datetime
 from xml.dom import minidom
+from DAQTime import DAQDateTime
 
 
 class DashXMLLogException(Exception):
@@ -44,6 +46,9 @@ class DashXMLLog:
     </DAQRunlog>
     """
 
+    DATE_PAT = re.compile(r"(\d\d\d\d)-(\d\d)-(\d\d)\s+" +
+                          r"(\d\d?):(\d\d):(\d\d)(\.(\d+))?")
+
     def __init__(self, dir_name=None, file_name="run.xml",
                  root_elem_name="DAQRunlog",
                  style_sheet_url="/2001/xml/DAQRunlog.xsl"):
@@ -62,12 +67,24 @@ class DashXMLLog:
     def __parseDateTime(self, fld):
         if fld is None:
             return None
-        if type(fld) == datetime:
+        if type(fld) == DAQDateTime or type(fld) == datetime:
             return fld
-        try:
-            return datetime.strptime(str(fld), "%Y-%m-%d %H:%M:%S.%f")
-        except ValueError:
-            return datetime.strptime(str(fld), "%Y-%m-%d %H:%M:%S")
+        m = self.DATE_PAT.match(str(fld))
+        if not m:
+            raise ValueError("Unparseable date string \"%s\"" % fld)
+        dtflds = []
+        for i in xrange(6):
+            dtflds.append(int(m.group(i+1)))
+        if m.group(8) is None:
+            subsec = 0
+        else:
+            ss = m.group(8)
+            if len(ss) > 10:
+                raise ValueError("Bad subseconds for date string \"%s\"" % fld)
+            ss += "0" * (10 - len(ss))
+            dtflds.append(int(ss))
+        return DAQDateTime(dtflds[0], dtflds[1], dtflds[2], dtflds[3],
+                           dtflds[4], dtflds[5], dtflds[6])
 
     def getPath(self):
         if self._path is None:

@@ -182,6 +182,12 @@ class MockComponent(object):
             self.__beanData[beanName] = {}
         self.__beanData[beanName][fieldName] = value
 
+    def setFirstGoodTime(self, payTime):
+        pass
+
+    def setLastGoodTime(self, payTime):
+        pass
+
     def setOrder(self, order):
         self.__order = order
 
@@ -334,6 +340,9 @@ class CnCRunSetTest(unittest.TestCase):
                              "TotalLBMOverflows": 0,
                              "HitRate": 0,
                              "HitRateLC": 0,
+                             "LatestFirstChannelHitTime": -1,
+                             "EarliestLastChannelHitTime": -1,
+                             "NumberOfNonZombies": 60,
                              },
                         },
                   "inIceTrigger":
@@ -475,10 +484,10 @@ class CnCRunSetTest(unittest.TestCase):
         self.__addLiveMoni(comps, liveMoni, "eventBuilder", 0, "backEnd",
                            "NumEventsSent")
 
-        self.__addLiveMoni(comps, liveMoni, "stringHub", 21, "stringhub",
-                           "NumberOfActiveAndTotalChannels")
-        self.__addLiveMoni(comps, liveMoni, "stringHub", 21, "stringhub",
-                           "TotalLBMOverflows")
+        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "NumberOfActiveAndTotalChannels")
+        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "TotalLBMOverflows")
         self.__addLiveMoni(comps, liveMoni, "eventBuilder", 0, "backEnd",
                            "DiskAvailable")
         self.__addLiveMoni(comps, liveMoni, "eventBuilder", 0, "backEnd",
@@ -496,6 +505,13 @@ class CnCRunSetTest(unittest.TestCase):
                            "stringhub", "HitRateLC")
         self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
                            "stringhub", "HitRate")
+
+        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "EarliestLastChannelHitTime")
+        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "LatestFirstChannelHitTime")
+        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "NumberOfNonZombies")
 
         timer.trigger()
 
@@ -667,6 +683,9 @@ class CnCRunSetTest(unittest.TestCase):
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
 
+        self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "LatestFirstChannelHitTime", 10)
+
         global ACTIVE_WARNING
         if not LIVE_IMPORT and not ACTIVE_WARNING:
             ACTIVE_WARNING = True
@@ -715,6 +734,9 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog.addExpectedExact("%d moni events, %d SN events, %d tcals" %
                                  (numMoni, numSN, numTcal))
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
+
+        self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "EarliestLastChannelHitTime", 20)
 
         self.failIf(rs.stopRun(), "stopRun() encountered error")
 
@@ -898,10 +920,11 @@ class CnCRunSetTest(unittest.TestCase):
 
         runNum = 345
 
-        (rel, rev) = self.__cnc.getRelease()
-        self.__addRunStartMoni(liveMoni, runNum, rel, rev, True)
-
         rsId = self.__cnc.rpc_runset_make(runConfig, runNum)
+
+        if catchall:
+            catchall.checkStatus(5)
+        liveMoni.checkStatus(5)
 
         rs = self.__cnc.findRunset(rsId)
         self.failIf(rs is None, "Could not find runset #%d" % rsId)
@@ -913,6 +936,15 @@ class CnCRunSetTest(unittest.TestCase):
 
         dashLog = MockLogger("dashLog")
         rs.setDashLog(dashLog)
+
+        self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "LatestFirstChannelHitTime", 10)
+        if LIVE_IMPORT:
+            data = {"runnum": runNum}
+            liveMoni.addExpectedLiveMoni("firstGoodTime", data, "json")
+
+        (rel, rev) = self.__cnc.getRelease()
+        self.__addRunStartMoni(liveMoni, runNum, rel, rev, True)
 
         catchall.addExpectedText("Starting run #%d with \"%s\"" %
                                  (runNum, cluCfg.configName()))
@@ -976,6 +1008,12 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
 
         self.__addRunStopMoni(liveMoni, firstTime, payTime, numEvts, runNum)
+
+        self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "EarliestLastChannelHitTime", 20)
+        if LIVE_IMPORT:
+            data = {"runnum": runNum}
+            liveMoni.addExpectedLiveMoni("lastGoodTime", data, "json")
 
         self.__cnc.rpc_runset_stop_run(rsId)
 

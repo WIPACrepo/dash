@@ -665,6 +665,9 @@ class TestDAQPool(unittest.TestCase):
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
 
+        aComp.addBeanData("stringhub", "LatestFirstChannelHitTime", 10)
+        aComp.addBeanData("stringhub", "NumberOfNonZombies", 1)
+
         global ACTIVE_WARNING
         if not LIVE_IMPORT and not ACTIVE_WARNING:
             ACTIVE_WARNING = True
@@ -710,6 +713,8 @@ class TestDAQPool(unittest.TestCase):
         dashLog.addExpectedExact("%d moni events, %d SN events, %d tcals" %
                                  (numMoni, numSN, numTcal))
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
+
+        aComp.addBeanData("stringhub", "EarliestLastChannelHitTime", 10)
 
         self.failIf(runset.stopRun(), "stopRun() encountered error")
 

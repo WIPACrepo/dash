@@ -822,8 +822,14 @@ class MockComponent(object):
     def setConfigureWait(self, waitNum):
         self.__configWait = waitNum
 
+    def setFirstGoodTime(self, time):
+        self.__firstGoodTime = time
+
     def setHangType(self, hangType):
         self.__hangType = hangType
+
+    def setLastGoodTime(self, time):
+        self.__lastGoodTime = time
 
     def setMonitorState(self, newState):
         self.__monitorState = newState

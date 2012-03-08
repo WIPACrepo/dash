@@ -15,6 +15,7 @@ from datetime import datetime
 from ClusterDescription import ClusterDescription
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
+from DAQTime import PayloadTime
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -659,10 +660,17 @@ class BaseRun(object):
            summary["endTime"] == "None":
             duration = "???"
         else:
-            timeFmt = "%Y-%m-%d %H:%M:%S.%f"
+            try:
+                startTime = PayloadTime.fromString(summary["startTime"])
+            except:
+                raise ValueError("Cannot parse run start time \"%s\": %s" %
+                                 (summary["startTime"], exc_string()))
+            try:
+                endTime = PayloadTime.fromString(summary["endTime"])
+            except:
+                raise ValueError("Cannot parse run start time \"%s\": %s" %
+                                 (summary["startTime"], exc_string()))
 
-            startTime = datetime.strptime(summary["startTime"], timeFmt)
-            endTime = datetime.strptime(summary["endTime"], timeFmt)
             timediff = endTime - startTime
 
             duration = timediff.seconds

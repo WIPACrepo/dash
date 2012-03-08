@@ -39,6 +39,8 @@ class ComponentOperation(threading.Thread):
     FORCED_STOP = "FORCED_STOP"
     "thread will get the component's connector information"
     GET_CONN_INFO = "GET_CONN_INFO"
+    "thread will get first or last good time from hubs"
+    GET_GOOD_TIME = "GET_GOOD_TIME"
     "thread will get multiple component MBean values"
     GET_MULTI_BEAN = "GET_MULTI_BEAN"
     "thread will get run data from builders"
@@ -111,6 +113,11 @@ class ComponentOperation(threading.Thread):
         "Get the component's connector information"
         self.__result = self.__comp.listConnectorStates()
 
+    def __getGoodTime(self):
+        "Get the component's good hit time"
+        self.__result = self.__comp.getMultiBeanFields("stringhub",
+                                                       self.__data)
+
     def __getMultiBeanFields(self):
         "Get the component's current state"
         self.__result = self.__comp.getMultiBeanFields(self.__data[0],
@@ -171,6 +178,8 @@ class ComponentOperation(threading.Thread):
             self.__forcedStop()
         elif self.__operation == ComponentOperation.GET_CONN_INFO:
             self.__getConnectorInfo()
+        elif self.__operation == ComponentOperation.GET_GOOD_TIME:
+            self.__getGoodTime()
         elif self.__operation == ComponentOperation.GET_MULTI_BEAN:
             self.__getMultiBeanFields()
         elif self.__operation == ComponentOperation.GET_RUN_DATA:
@@ -264,6 +273,7 @@ class ComponentOperationGroup(object):
 
     def results(self):
         if self.__op != ComponentOperation.GET_CONN_INFO and \
+               self.__op != ComponentOperation.GET_GOOD_TIME and \
                self.__op != ComponentOperation.GET_MULTI_BEAN and \
                self.__op != ComponentOperation.GET_RUN_DATA and \
                self.__op != ComponentOperation.GET_SINGLE_BEAN and \

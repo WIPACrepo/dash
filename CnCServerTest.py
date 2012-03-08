@@ -201,6 +201,10 @@ class RealComponent(object):
         self.__cmd.register_function(self.__reset, 'xmlrpc.reset')
         self.__cmd.register_function(self.__resetLogging,
                                      'xmlrpc.resetLogging')
+        self.__cmd.register_function(self.__setFirstGoodTime,
+                                     'xmlrpc.setFirstGoodTime')
+        self.__cmd.register_function(self.__setLastGoodTime,
+                                     'xmlrpc.setLastGoodTime')
         self.__cmd.register_function(self.__startRun, 'xmlrpc.startRun')
         self.__cmd.register_function(self.__stopRun, 'xmlrpc.stopRun')
         self.__cmd.register_function(self.__switchToNewRun,
@@ -217,7 +221,7 @@ class RealComponent(object):
                                      'mbean.get')
         self.__mbean.register_function(self.__listMBeans, 'mbean.listMBeans')
         self.__mbean.register_function(self.__getMBeanAttributes,
-                                       'mbean.getMBeanAttributes')
+                                       'mbean.getAttributes')
         self.__mbean.register_function(self.__listMBeanGetters,
                                        'mbean.listGetters')
 
@@ -356,6 +360,12 @@ class RealComponent(object):
         self.__logger = None
 
         return 'RLOG'
+
+    def __setFirstGoodTime(self, payTime):
+        return 'OK'
+
+    def __setLastGoodTime(self, payTime):
+        return 'OK'
 
     def __startRun(self, runNum):
         if self.__logger is None:
@@ -745,6 +755,13 @@ class TestCnCServer(unittest.TestCase):
 
         dashlog.addExpectedExact("Starting run %d..." % runNum)
 
+        for comp in self.comps:
+            if comp.name() == "stringHub":
+                comp.setBeanFieldValue("stringhub", "LatestFirstChannelHitTime",
+                                       10)
+                comp.setBeanFieldValue("stringhub", "NumberOfNonZombies",
+                                       10)
+
         global ACTIVE_WARNING
         if not LIVE_IMPORT and not ACTIVE_WARNING:
             ACTIVE_WARNING = True
@@ -813,6 +830,11 @@ class TestCnCServer(unittest.TestCase):
         rateTracker.addFinalLogMsgs(dashlog)
 
         dashlog.addExpectedExact("Run terminated SUCCESSFULLY.")
+
+        for comp in self.comps:
+            if comp.name() == "stringHub":
+                comp.setBeanFieldValue("stringhub", "EarliestLastChannelHitTime",
+                                       10)
 
         if forceRestart:
             cycleList = self.comps[:]
