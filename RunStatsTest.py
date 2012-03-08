@@ -194,7 +194,7 @@ class TestRunStats(unittest.TestCase):
                 startTime = 123455789L
                 if len(rateList) == 0:
                     rateList.append((PayloadTime.toDateTime(startTime), 1))
-                rateList.append((PayloadTime.toDateTime(upDict["eventsTime"]),
+                rateList.append((PayloadTime.toDateTime(upDict["evtPayTime"]),
                                  upDict["events"]))
                 upRate = self.__calcRate(rateList)
                 upDict["startTime"] = startTime
