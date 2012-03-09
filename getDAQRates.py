@@ -27,7 +27,8 @@ COMP_FIELDS = {
          'rdoutReq': 'RecordsReceived',
          'rdoutData': 'RecordsSent'},
     'stringHub':
-        {'sender': 'NumHitsReceived',
+        {'DOM' : 'NumHits',
+         'sender': 'NumHitsReceived',
          'stringHit': 'RecordsSent',
          'moniData': 'RecordsSent',
          'snData': 'RecordsSent',
@@ -36,7 +37,8 @@ COMP_FIELDS = {
          'rdoutReq': 'RecordsReceived',
          'rdoutData': 'RecordsSent'},
     'icetopHub':
-        {'sender': 'NumHitsReceived',
+        {'DOM' : 'NumHits',
+         'sender': 'NumHitsReceived',
          'icetopHit': 'RecordsSent',
          'moniData': 'RecordsSent',
          'snData': 'RecordsSent',
@@ -256,18 +258,27 @@ def processFile(fileName, comp):
                 continue
 
             if secName is not None:
+                if secName == "IGNORE":
+                    continue
+
                 m = MONILINE_PAT.match(line)
                 if m:
                     name = m.group(1)
                     vals = m.group(2)
 
-                    if flds is None or flds[secName] == name:
-                        if TIME_INTERVAL is not None and \
+                    if flds is None or \
+                        (secName in flds and flds[secName] == name):
+                        if TIME_INTERVAL is None or \
                                 (secTime > \
                                      secLastSaved[secName] + TIME_INTERVAL):
                             newVal = fixValue(vals)
                             if newVal > 0:
-                                data[secName][secTime] = newVal
+                                if secName != "DOM":
+                                    data[secName][secTime] = newVal
+                                elif not secTime in data[secName]:
+                                    data[secName][secTime] = newVal
+                                else:
+                                    data[secName][secTime] += newVal
                                 secLastSaved[secName] = secTime
                             elif vals != '0':
                                 secSeenData[secName] = (secTime, vals)
@@ -279,7 +290,11 @@ def processFile(fileName, comp):
             if m:
                 nm = m.group(1)
                 if not nm in flds:
-                    continue
+                    if nm.startswith("DataCollectorMonitor"):
+                        nm = "DOM"
+                    else:
+                        secName = "IGNORE"
+                        continue
 
                 secName = nm
                 mSec = float(m.group(3)) / 1000000.0
@@ -290,6 +305,10 @@ def processFile(fileName, comp):
                     data[secName] = {}
                     secLastSaved[secName] = 0.0
                     secSeenData[secName] = None
+
+                continue
+
+            print >>sys.stderr, "Bad line: " + line
 
     for k in data:
         if TIME_INTERVAL is None and \
@@ -310,9 +329,11 @@ def reportDataRates(allData):
     """Report the DAQ data rates"""
     if not DATA_ONLY:
         print 'Data Rates:'
-    reportList = [('stringHub', 'sender'),
+    reportList = [('stringHub', 'DOM'),
+                  ('stringHub', 'sender'),
                   ('stringHub', 'stringHit'),
                   ('inIceTrigger', 'stringHit'),
+                  ('icetopHub', 'DOM'),
                   ('icetopHub', 'sender'),
                   ('icetopHub', 'icetopHit'),
                   ('iceTopTrigger', 'icetopHit'),
@@ -329,7 +350,6 @@ def reportDataRates(allData):
                   ('eventBuilder', 'backEnd')
                   ]
     reportRatesInternal(allData, reportList)
-
 
 def reportMonitorRates(allData):
     """Report the DAQ monitoring rates"""
@@ -360,7 +380,7 @@ def reportRatesInternal(allData, reportList):
                 if combinedRate is None:
                     print '    %s.%s: Not enough data' % \
                         (combinedComp, combinedField)
-                elif len(combinedSplit) == 0:
+                elif TIME_INTERVAL is None or len(combinedSplit) == 0:
                     print '    %s.%s: %.1f' % \
                         (combinedComp, combinedField, combinedRate)
                 else:
