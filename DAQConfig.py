@@ -772,6 +772,175 @@ class DomConfig(object):
         print >> fd, "</domConfigList>"
 
 
+class TriggerConfigList(object):
+    def __init__(self, fileName):
+        self.__fileName = fileName
+        self.__list = []
+
+    def __str__(self):
+        return "%s*%d" % (self.__fileName, len(self.__list))
+
+    def list(self):
+        return self.__list
+
+    def addTriggerConfig(self, trigCfg):
+        self.__list.append(trigCfg)
+
+
+class TriggerConfig(object):
+    def __init__(self):
+        self.__type = None
+        self.__id = None
+        self.__src = None
+        self.__name = None
+        self.__params = []
+        self.__readouts = []
+
+    def __str__(self):
+        return "%s<%d>%s => %s" % (self.__name, self.__type, self.sourceName(),
+                                   self.__id)
+
+    def addParameter(self, param):
+        self.__params.append(param)
+
+    def addReadout(self, readout):
+        self.__readouts.append(readout)
+
+    def id(self):
+        return self.__id
+
+    def isComplete(self):
+        return self.__type is not None and \
+            self.__id is not None and \
+            self.__src is not None and \
+            self.__name is not None
+
+    def name(self):
+        return self.__name
+
+    def setId(self, val):
+        self.__id = val
+
+    def setName(self, val):
+        self.__name = val
+
+    def setSource(self, val):
+        self.__src = val
+
+    def setType(self, val):
+        self.__type = val
+
+    def sourceName(self):
+        if self.__src == 4000:
+            return "inIceTrigger"
+        if self.__src == 5000:
+            return "inIceTrigger"
+        if self.__src == 6000:
+            return "globalTrigger"
+        return "??SRC=%d??" % self.__src
+
+    def type(self):
+        return self.__type
+
+class TriggerConfigParser(XMLParser, XMLFileCache):
+    "Parse trigger configuration file"
+
+    def __init__(self):
+        """Use this object's class methods directly"""
+        raise Exception("Cannot create this object")
+
+    @classmethod
+    def __parseParameterConfig(cls, dom, node, strict):
+        name = None
+        value = None
+
+        for kid in node.childNodes:
+            if kid.nodeType == Node.TEXT_NODE or \
+                   kid.nodeType == Node.COMMENT_NODE:
+                continue
+
+            if kid.nodeType == Node.ELEMENT_NODE:
+                if kid.nodeName == "parameterName":
+                    name = cls.getChildText(kid)
+                elif kid.nodeName == "parameterValue":
+                    value = cls.getChildText(kid)
+
+        if name is None or value is None:
+            raise ProcessError(("%s <%s> should specify both parameterName" +
+                                " and parameterValue") % (dom, kid.nodeName))
+
+        return (name, value)
+
+    @classmethod
+    def __parseReadoutConfig(cls, dom, node, strict):
+        pass
+
+    @classmethod
+    def __parseTriggerConfig(cls, dom, node, strict=False):
+
+        cfg = TriggerConfig()
+
+        for kid in node.childNodes:
+            if kid.nodeType == Node.TEXT_NODE or \
+                   kid.nodeType == Node.COMMENT_NODE:
+                continue
+
+            if kid.nodeType == Node.ELEMENT_NODE:
+                if kid.nodeName == "triggerType":
+                    cfg.setType(int(cls.getChildText(kid)))
+                elif kid.nodeName == "triggerConfigId":
+                    cfg.setId(int(cls.getChildText(kid)))
+                elif kid.nodeName == "sourceId":
+                    cfg.setSource(int(cls.getChildText(kid)))
+                elif kid.nodeName == "triggerName":
+                    cfg.setName(cls.getChildText(kid))
+                elif kid.nodeName == "parameterConfig":
+                    param = cls.__parseParameterConfig(dom, kid, strict)
+                    cfg.addParameter(param)
+                elif kid.nodeName == "readoutConfig":
+                    cfg.addReadout(cls.__parseReadoutConfig(dom, kid, strict))
+                elif strict:
+                    raise ProcessError(("Unknown %s <%s> child <%s>") %
+                                       (dom, node.nodeName, kid.nodeName))
+
+        if not cfg.isComplete():
+            raise ProcessError(("%s <%s> should specify triggerType," +
+                                 " triggerConfigId, sourceId, and triggerName") %
+                                 (dom, kid.nodeName))
+
+        return cfg
+
+    @classmethod
+    def parse(cls, dom, configDir, baseName, strict=False):
+        activeList = dom.getElementsByTagName("activeTriggers")
+        if activeList is None or len(activeList) == 0:
+            raise ProcessError("No <activeTriggers> tag found in %s" % baseName)
+        active = activeList[0]
+
+        tcList = TriggerConfigList(baseName)
+
+        for kid in active.childNodes:
+            if kid.nodeType == Node.TEXT_NODE:
+                continue
+
+            if kid.nodeType == Node.COMMENT_NODE:
+                continue
+
+            if kid.nodeType == Node.ELEMENT_NODE:
+                if kid.nodeName == "triggerConfig":
+                    trigCfg = cls.__parseTriggerConfig(dom, kid, strict)
+                    tcList.addTriggerConfig(trigCfg)
+                elif strict:
+                    raise ProcessError("Unexpected %s child <%s>" %
+                                       (dcList.nodeName, kid.nodeName))
+                continue
+
+            raise ProcessError("Found unknown %s node <%s>" %
+                               (active.nodeName, kid.nodeName))
+
+        return tcList
+
+
 class StringHub(Component):
     "String hub data from a run configuration file"
 
