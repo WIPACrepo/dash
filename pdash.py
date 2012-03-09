@@ -17,6 +17,11 @@ class Dash(cmd.Cmd):
 
     @staticmethod
     def __findComponentId(compDict, compName):
+        try:
+            return int(compName)
+        except ValueError:
+            pass
+
         if not compDict.has_key(compName):
             if compName.endswith("#0") or compName.endswith("-0"):
                 compName = compName[:-2]
@@ -111,7 +116,6 @@ class Dash(cmd.Cmd):
         for c in args:
             bflds = c.split(".")
 
-            print "Find \"%s\" in %s" % (bflds[0], compDict.keys())
             (compName, compId) = \
                 self.__findComponentFromString(compDict, bflds[0])
             if compName is None:
@@ -130,12 +134,13 @@ class Dash(cmd.Cmd):
                                 nm = sub["compName"] + "#" + \
                                     str(sub["compNum"])
                             rsDict[rsid][nm] = sub["id"]
-                        if compName is None:
-                            print "Find \"%s\" in RS#%d %s" % \
-                                (bflds[0], rsid, rsDict[rsid].keys())
-                            (compName, compId) = \
-                                self.__findComponentFromString(rsDict[rsid],
-                                                               bflds[0])
+
+                for rsid in rsDist:
+                    (compName, compId) = \
+                               self.__findComponentFromString(rsDict[rsid],
+                                                              bflds[0])
+                    if compName is not None:
+                        break
 
             if compName is None:
                 print >> sys.stderr, "Unknown component \"%s\"" % bflds[0]
@@ -212,18 +217,18 @@ class Dash(cmd.Cmd):
                 break
 
             try:
-                id = int(cstr)
+                compId = int(cstr)
             except ValueError:
                 if compDict is None:
                     compDict = self.__cnc.rpc_component_list()
 
                 try:
-                    id = self.__findComponentId(compDict, cstr)
+                    compId = self.__findComponentId(compDict, cstr)
                 except ValueError:
                     print >> sys.stderr, "Unknown component \"%s\"" % cstr
                     continue
 
-            idList.append(id)
+            idList.append(compId)
 
         self.__printComponentDetails(idList)
 
