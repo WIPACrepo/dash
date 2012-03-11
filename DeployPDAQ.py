@@ -32,7 +32,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 13550 2012-03-08 23:12:05Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 13566 2012-03-11 11:30:54Z kael $"
 
 
 def getUniqueHostNames(config):
@@ -215,7 +215,7 @@ def main():
     if not opt.dryRun:
         config.writeCacheFile()
         if traceLevel >= 0:
-            ver = store_svnversion()
+            ver = store_svnversion(metaDir)
             print "VERSION: %s" % ver
 
     parallel = ParallelShell(parallel=opt.doParallel, dryRun=opt.dryRun,
