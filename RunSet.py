@@ -537,15 +537,19 @@ class RunData(object):
 
     def __reportEventStart(self):
         if self.__liveMoniClient is not None:
-            time = PayloadTime.toDateTime(self.__firstPayTime)
-            data = {"runnum": self.__runNumber}
+            fulltime = PayloadTime.toDateTime(self.__firstPayTime,
+                                              high_precision=True)
+            data = {"runnum": self.__runNumber,
+                    "time" : str(fulltime)}
+
+            monitime = PayloadTime.toDateTime(self.__firstPayTime)
             self.__liveMoniClient.sendMoni("eventstart", data, prio=Prio.SCP,
-                                           time=time)
+                                           time=monitime)
 
     def __reportRunStop(self, numEvts, firstPayTime, lastPayTime, hadError):
         if self.__liveMoniClient is not None:
-            firstDT = PayloadTime.toDateTime(firstPayTime)
-            lastDT = PayloadTime.toDateTime(lastPayTime)
+            firstDT = PayloadTime.toDateTime(firstPayTime, high_precision=True)
+            lastDT = PayloadTime.toDateTime(lastPayTime, high_precision=True)
 
             if hadError is None:
                 status = "UNKNOWN"
@@ -556,11 +560,13 @@ class RunData(object):
 
             data = {"runnum": self.__runNumber,
                     "runstart": str(firstDT),
+                    "runstop": str(lastDT),
                     "events": numEvts,
                     "status": status}
 
+            monitime = PayloadTime.toDateTime(lastPayTime)
             self.__liveMoniClient.sendMoni("runstop", data, prio=Prio.SCP,
-                                           time=lastDT)
+                                           time=monitime)
 
     def __writeRunXML(self, numEvts, numMoni, numSN, numTcal, firstTime,
                       lastTime, duration, hadError):
@@ -700,7 +706,7 @@ class RunData(object):
             monDict["eventPayloadTime"] = None
         else:
             monDict["eventTime"] = str(evtTime)
-            monDict["eventPayloadTime"] = str(payTime)
+            monDict["eventPayloadTicks"] = payTime
         monDict["moniEvents"] = numMoni
         if moniTime is None or numMoni == 0:
             monDict["moniTime"] = None
@@ -807,10 +813,13 @@ class RunData(object):
 
     def reportGoodTime(self, name, payTime):
         if self.__liveMoniClient is not None:
-            time = PayloadTime.toDateTime(payTime)
-            data = {"runnum": self.__runNumber}
+            fulltime = PayloadTime.toDateTime(payTime, high_precision=True)
+            data = {"runnum": self.__runNumber,
+                    "time": str(fulltime)}
+
+            monitime = PayloadTime.toDateTime(payTime)
             self.__liveMoniClient.sendMoni(name, data, prio=Prio.SCP,
-                                           time=time)
+                                           time=monitime)
 
     @classmethod
     def reportRunStartClass(self, moniClient, runNum, release, revision,
@@ -845,38 +854,35 @@ class RunData(object):
         "Report run monitoring quantities"
         if self.__liveMoniClient is not None:
             moniData = self.getEventCounts(state, comps)
-            if False:
-                # send entire dictionary using JSON
-                self.__liveMoniClient.sendMoni("eventRates", moniData,
-                                               Prio.ITS)
-            else:
-                # send discrete messages for each type of event
-                if moniData["eventPayloadTime"] is not None:
-                    val = moniData["eventPayloadTime"]
-                    self.__liveMoniClient.sendMoni("physicsEvents",
-                                                   moniData["physicsEvents"],
-                                                   Prio.ITS,
-                                                   val)
-                if moniData["eventTime"] is not None:
-                    self.__liveMoniClient.sendMoni("walltimeEvents",
-                                                   moniData["physicsEvents"],
-                                                   Prio.EMAIL,
-                                                   moniData["eventTime"])
-                if moniData["moniTime"] is not None:
-                    self.__liveMoniClient.sendMoni("moniEvents",
-                                                   moniData["moniEvents"],
-                                                   Prio.EMAIL,
-                                                   moniData["moniTime"])
-                if moniData["snTime"] is not None:
-                    self.__liveMoniClient.sendMoni("snEvents",
-                                                   moniData["snEvents"],
-                                                   Prio.EMAIL,
-                                                   moniData["snTime"])
-                if moniData["tcalTime"] is not None:
-                    self.__liveMoniClient.sendMoni("tcalEvents",
-                                                   moniData["tcalEvents"],
-                                                   Prio.EMAIL,
-                                                   moniData["tcalTime"])
+
+            # send discrete messages for each type of event
+            if moniData["eventPayloadTicks"] is not None:
+                payTime = moniData["eventPayloadTicks"]
+                monitime = PayloadTime.toDateTime(payTime)
+                self.__liveMoniClient.sendMoni("physicsEvents",
+                                               moniData["physicsEvents"],
+                                               Prio.ITS,
+                                               monitime)
+            if moniData["eventTime"] is not None:
+                self.__liveMoniClient.sendMoni("walltimeEvents",
+                                               moniData["physicsEvents"],
+                                               Prio.EMAIL,
+                                               moniData["eventTime"])
+            if moniData["moniTime"] is not None:
+                self.__liveMoniClient.sendMoni("moniEvents",
+                                               moniData["moniEvents"],
+                                               Prio.EMAIL,
+                                               moniData["moniTime"])
+            if moniData["snTime"] is not None:
+                self.__liveMoniClient.sendMoni("snEvents",
+                                               moniData["snEvents"],
+                                               Prio.EMAIL,
+                                               moniData["snTime"])
+            if moniData["tcalTime"] is not None:
+                self.__liveMoniClient.sendMoni("tcalEvents",
+                                               moniData["tcalEvents"],
+                                               Prio.EMAIL,
+                                               moniData["tcalTime"])
 
     def setDebugBits(self, debugBits):
         if self.__taskMgr is not None:

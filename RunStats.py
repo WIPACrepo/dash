@@ -47,8 +47,7 @@ class RunStats(object):
                 self.__numTcal)
 
     def monitorData(self):
-        evtDT = PayloadTime.toDateTime(self.__evtPayTime)
-        return (self.__numEvts, self.__evtTime, evtDT,
+        return (self.__numEvts, self.__evtTime, self.__evtPayTime,
                 self.__numMoni, self.__moniTime,
                 self.__numSN, self.__snTime,
                 self.__numTcal, self.__tcalTime)

@@ -15,7 +15,7 @@ class TestRunStats(unittest.TestCase):
                   }
 
     CURRENT_FIELDS = ("eventsTime", "events", "moni", "sn", "tcal")
-    MONITOR_FIELDS = ("events", "eventsTime", "evtDate", "moni", "moniTime",
+    MONITOR_FIELDS = ("events", "eventsTime", "evtPayTime", "moni", "moniTime",
                       "sn", "snTime", "tcal", "tcalTime")
     STOP_FIELDS = ("events", "moni", "sn", "tcal", "startTime", "evtPayTime")
     UPDATE_FIELDS = ("events", "eventsTime", "startTime", "evtPayTime",
