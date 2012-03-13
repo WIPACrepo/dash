@@ -68,7 +68,7 @@ class FlasherThread(threading.Thread):
         tot = 0
 
         for pair in flasherData:
-            tot += pair[1] + 5
+            tot += pair[1] + 10
 
         return tot
 
