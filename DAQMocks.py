@@ -612,6 +612,7 @@ class MockComponent(object):
         self.__stopping = 0
         self.__updatedRates = False
         self.__deadCount = 0
+        self.__stopFail = False
 
         self.__beanData = {}
 
@@ -692,7 +693,9 @@ class MockComponent(object):
         return self.__connectors[:]
 
     def forcedStop(self):
-        if self.__stopping == 1:
+        if self.__stopFail:
+            pass
+        elif self.__stopping == 1:
             if self.__hangType != 2:
                 self.runNum = None
                 self.__stopping = 0
@@ -822,6 +825,9 @@ class MockComponent(object):
     def setConfigureWait(self, waitNum):
         self.__configWait = waitNum
 
+    def setStopFail(self):
+        self.__stopFail = True
+
     def setFirstGoodTime(self, time):
         self.__firstGoodTime = time
 
@@ -872,7 +878,7 @@ class MockComponent(object):
         if self.runNum is None:
             raise Exception(self.__name + ' is not running')
 
-        if self.__hangType > 0:
+        if self.__hangType > 0 or self.__stopFail:
             self.__stopping = 1
         else:
             self.runNum = None

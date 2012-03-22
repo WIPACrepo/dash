@@ -39,7 +39,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 13526 2012-02-28 21:09:12Z dglo $"
+SVN_ID = "$Id: CnCServer.py 13593 2012-03-22 16:46:46Z dglo $"
 
 
 class CnCServerException(Exception):
@@ -126,7 +126,8 @@ class DAQPool(object):
                         datetime.timedelta(seconds=timeout):
                     break
 
-                logger.info("Waiting for " + str(needed))
+                logger.info("Waiting for " +
+                            RunSet.listComponentRanges(needed))
                 time.sleep(5)
 
         if len(waitList) == 0:

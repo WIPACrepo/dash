@@ -50,5 +50,8 @@ class Component(object):
     def name(self):
         return self.__name
 
+    def num(self):
+        return self.__id
+
     def setLogLevel(self, lvl):
         self.__logLevel = lvl

@@ -432,6 +432,9 @@ class RealComponent(object):
     def name(self):
         return self.__name
 
+    def num(self):
+        return self.__num
+
     def number(self):
         return self.__num
 
@@ -570,6 +573,54 @@ class TestCnCServer(unittest.TestCase):
             traceback.print_exc()
 
         RunXMLValidator.tearDown()
+
+    def __addRange(rangeStr, rStart, rCurr):
+        if not rangeStr.endswith(" "):
+            rangeStr += ","
+        if rStart == rCurr:
+            rangeStr += "%d" % rCurr
+        else:
+            rangeStr += "%d-%d" % (rStart, rCurr)
+        return rangeStr
+
+    def __listComponentsLegibly(self, comps):
+        cycleList = self.comps[:]
+        cycleList.sort()
+
+        compDict = {}
+        for c in cycleList:
+            if not c.name() in compDict:
+                compDict[c.name()] = []
+            compDict[c.name()].append(c.num())
+
+        strList = []
+        for name in compDict:
+            numList = compDict[name]
+
+            if len(numList) == 1:
+                num = numList[0]
+                if num == 0:
+                    strList.append(name)
+                else:
+                    strList.append("%s#%d" % (name, num))
+                continue
+
+            rangeStr = "name "
+            rStart = None
+            rCurr = None
+            for n in numList:
+                if rCurr == None:
+                    rStart = n
+                    rCurr = n
+                elif rCurr == n - 1:
+                    rCurr = n
+                else:
+                    rangeStr = self.__addRange(rangeStr, rStart, rCurr)
+                    rStart = n
+                    rCurr = n
+                    strList.append(self.__addRange(rangeStr, rStart, rCurr))
+
+        return ", ".join(strList)
 
     def __runEverything(self, forceRestart=False, switchRun=False):
         catchall = self.createLog('master', 18999)
@@ -837,9 +888,8 @@ class TestCnCServer(unittest.TestCase):
                                        10)
 
         if forceRestart:
-            cycleList = self.comps[:]
-            cycleList.sort()
-            catchall.addExpectedText("Cycling components %s" % cycleList)
+            cycleStr = self.__listComponentsLegibly(self.comps)
+            catchall.addExpectedText("Cycling components %s" % cycleStr)
 
         self.assertEqual(self.cnc.rpc_runset_stop_run(setId), 'OK')
 

@@ -221,7 +221,7 @@ class GoodTimeThread(CnCThread):
         if len(badComps) > 0:
             self.__log.error("Couldn't find %s for %s" %
                              (self.moniname(),
-                              self.__listComponentsCommaSep(badComps.keys())))
+                              RunSet.listComponentRanges(badComps.keys())))
 
         self.__data.reportGoodTime(self.moniname(), goodTime)
         for c in self.__otherSet:
@@ -988,7 +988,7 @@ class RunSet(object):
                 plural = "s"
             self.__runData.error('%s: Forcing %d component%s to stop: %s' %
                                  (str(self), len(fullSet), plural,
-                                  self.__listComponentsCommaSep(fullSet)))
+                                  self.listComponentRanges(fullSet)))
 
         # stop sources in parallel
         #
@@ -1026,11 +1026,12 @@ class RunSet(object):
                             "STOPPING WAITCHK - %d secs, %d comps",
                             endSecs - curSecs, len(srcSet) + len(otherSet))
 
-    def __badStateString(self, badList):
-        badStr = []
-        for b in badList:
-            badStr.append(b[0].fullName() + ":" + b[1])
-        return str(badStr)
+    def __badStateString(self, badStates):
+        badList = []
+        for state in badStates:
+            compStr = self.listComponentRanges(badStates[state])
+            badList.append(state + "[" + compStr + "]")
+        return ", ".join(badList)
 
     def __buildStartSets(self):
         """
@@ -1063,46 +1064,54 @@ class RunSet(object):
         """
         If component states match 'newState', set state to 'newState' and
         return an empty list.
-        Otherwise, set state to ERROR and return a list of component/state
-        pairs.
+        Otherwise, set state to ERROR and return a dictionary of states
+        and corresponding lists of components.
         """
-        slst = []
 
         tGroup = ComponentOperationGroup(ComponentOperation.GET_STATE)
         for c in self.__set:
             tGroup.start(c, self.__logger, ())
         tGroup.wait()
         states = tGroup.results()
+
+        stateDict = {}
         for c in self.__set:
             if states.has_key(c):
                 stateStr = str(states[c])
             else:
                 stateStr = self.STATE_DEAD
             if stateStr != newState:
-                slst.append((c, stateStr))
+                if not stateStr in stateDict:
+                    stateDict[stateStr] = []
+                stateDict[stateStr].append(c)
 
-        if len(slst) == 0:
+        if len(stateDict) == 0:
             self.__state = newState
         else:
-            msg = "Failed to transition to %s: %s" % (newState, slst)
+            msg = "Failed to transition to %s:" % newState
+            for stateStr in stateDict:
+                compStr = self.listComponentRanges(stateDict[stateStr])
+                msg += " %s[%s]" % (stateStr, compStr)
+
             if self.__runData is not None:
                 self.__runData.error(msg)
             else:
                 self.__logger.error(msg)
+
             self.__state = RunSetState.ERROR
 
-        return slst
+        return stateDict
 
     def __checkStoppedComponents(self, waitList):
         if len(waitList) > 0:
-            waitStr = self.__listComponentsCommaSep(waitList)
+            waitStr = self.listComponentRanges(waitList)
             errStr = '%s: Could not stop %s' % (str(self), waitStr)
             self.__runData.error(errStr)
             raise RunSetException(errStr)
 
-        badList = self.__checkState(RunSetState.READY)
-        if len(badList) > 0:
-            msg = "Could not stop %s" % self.__badStateString(badList)
+        badStates = self.__checkState(RunSetState.READY)
+        if len(badStates) > 0:
+            msg = "Could not stop %s" % self.__badStateString(badStates)
             self.__runData.error(msg)
             raise RunSetException(msg)
 
@@ -1120,10 +1129,7 @@ class RunSet(object):
         return os.path.join(logDir, "daqrun%05d" % runNum)
 
     @staticmethod
-    def __listComponentsCommaSep(compList, connDict=None):
-        """
-        Concatenate a list of components into a string showing names and IDs
-        """
+    def __listComponentsAndConnections(compList, connDict=None):
         compStr = None
         for c in compList:
             if compStr is None:
@@ -1217,13 +1223,14 @@ class RunSet(object):
         self.__waitForStateChange(self.__runData, 30)
 
         self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP chkRunning")
-        badList = self.__checkState(RunSetState.RUNNING)
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP badList %s", badList)
-        if len(badList) > 0:
+        badStates = self.__checkState(RunSetState.RUNNING)
+        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP badStates %s",
+                        badStates)
+        if len(badStates) > 0:
             raise RunSetException(("Could not start runset#%d run#%d" +
                                    " components: %s") %
                                   (self.__id, self.__runData.runNumber(),
-                                   self.__badStateString(badList)))
+                                   self.__badStateString(badStates)))
 
         for i in xrange(20):
             if not goodThread.isAlive():
@@ -1282,7 +1289,8 @@ class RunSet(object):
             newSecs = time.time()
             if msgSecs is None or \
                    newSecs < (msgSecs + self.WAIT_MSG_PERIOD):
-                waitStr = self.__listComponentsCommaSep(srcSet + otherSet,
+                waitStr = \
+                    self.__listComponentsAndConnections(srcSet + otherSet,
                                                         connDict)
                 self.__runData.info('%s: Waiting for %s %s' %
                                     (str(self), self.__state, waitStr))
@@ -1418,16 +1426,16 @@ class RunSet(object):
             else:
                 waitList = newList
                 if len(waitList) > 0:
-                    waitStr = self.__listComponentsCommaSep(waitList)
+                    waitStr = self.listComponentRanges(waitList)
                     logger.info('%s: Waiting for %s %s' %
-                                       (str(self), self.__state, waitStr))
+                                (str(self), self.__state, waitStr))
 
                 # reset timeout
                 #
                 endSecs = time.time() + timeoutSecs
 
         if len(waitList) > 0:
-            waitStr = self.__listComponentsCommaSep(waitList)
+            waitStr = self.listComponentRanges(waitList)
             raise RunSetException(("Still waiting for %d components to" +
                                    " leave %s (%s)") %
                                   (len(waitList), self.__state, waitStr))
@@ -1490,15 +1498,15 @@ class RunSet(object):
                 break
             self.__logger.info('%s: Waiting for %s: %s' %
                                (str(self), self.__state,
-                                self.__listComponentsCommaSep(waitList)))
+                                self.listComponentRanges(waitList)))
 
             time.sleep(1)
 
         self.__waitForStateChange(self.__logger, 60)
 
-        badList = self.__checkState(RunSetState.READY)
-        if len(badList) > 0:
-            msg = "Could not configure %s" % self.__badStateString(badList)
+        badStates = self.__checkState(RunSetState.READY)
+        if len(badStates) > 0:
+            msg = "Could not configure %s" % self.__badStateString(badStates)
             self.__logger.error(msg)
             raise RunSetException(msg)
 
@@ -1528,10 +1536,10 @@ class RunSet(object):
             # give up after 20 seconds
             pass
 
-        badList = self.__checkState(RunSetState.CONNECTED)
+        badStates = self.__checkState(RunSetState.CONNECTED)
 
-        if errMsg is None and len(badList) != 0:
-            errMsg = "Could not connect %s" % str(badList)
+        if errMsg is None and len(badStates) != 0:
+            errMsg = "Could not connect %s" % self.__badStateString(badStates)
 
         if errMsg:
             raise RunSetException(errMsg)
@@ -1630,6 +1638,68 @@ class RunSet(object):
     def isRunning(self):
         return self.__state == RunSetState.RUNNING
 
+    @staticmethod
+    def listComponentRanges(compList):
+        """
+        Concatenate a list of components into a string showing names and IDs
+        """
+        compDict = {}
+        for c in compList:
+            if not c.name() in compDict:
+                compDict[c.name()] = [c, ]
+            else:
+                compDict[c.name()].append(c)
+
+        hasOrder = True
+
+        pairList = []
+        for k in sorted(compDict.keys(), key=lambda nm: len(compDict[nm]),
+                        reverse=True):
+            if len(compDict[k]) == 1 and compDict[k][0].num() == 0:
+                if not hasOrder:
+                    order = compDict[k][0].name()
+                else:
+                    try:
+                        order = compDict[k][0].order()
+                    except AttributeError:
+                        hasOrder = False
+                        order = compDict[k][0].name()
+                pairList.append((compDict[k][0].name(), order))
+            else:
+                prevNum = None
+                rangeStr = k + "#"
+                inRange = False
+                for c in sorted(compDict[k], key=lambda c: c.num()):
+                    if prevNum is None:
+                        rangeStr += "%d" % c.num()
+                    elif c.num() == prevNum + 1:
+                        if not rangeStr.endswith("-"):
+                            rangeStr += "-"
+                    else:
+                        if rangeStr.endswith("-"):
+                            rangeStr += "%d" % prevNum
+                        rangeStr += ",%d" % c.num()
+                    prevNum = c.num()
+
+                if rangeStr.endswith("-"):
+                    rangeStr += "%d" % prevNum
+
+                if not hasOrder:
+                    order = compDict[k][0].name()
+                else:
+                    try:
+                        order = compDict[k][0].order()
+                    except AttributeError:
+                        hasOrder = False
+                        order = compDict[k][0].name()
+                pairList.append((rangeStr, order))
+
+        strList = []
+        for p in sorted(pairList, key=lambda pair: pair[1]):
+            strList.append(p[0])
+
+        return ", ".join(strList)
+
     def logToDash(self, msg):
         "Used when CnCServer needs to add a log message to dash.log"
         if self.__runData is not None:
@@ -1686,12 +1756,12 @@ class RunSet(object):
             # give up after 60 seconds
             pass
 
-        badList = self.__checkState(RunSetState.IDLE)
+        badStates = self.__checkState(RunSetState.IDLE)
 
         self.__configured = False
         self.__runData = None
 
-        return badList
+        return badStates
 
     def resetLogging(self):
         "Reset logging for all components in the runset"
@@ -1746,22 +1816,22 @@ class RunSet(object):
 
         # sort list into a predictable order for unit tests
         #
-        cluCfgList.sort()
-        self.__logger.error("Cycling components %s" % cluCfgList)
+        compStr = self.listComponentRanges(cluCfgList);
+        self.__logger.error("Cycling components %s" % compStr)
 
         self.cycleComponents(cluCfgList, configDir, daqDataDir, logPort,
                              livePort, verbose, killWith9, eventCheck)
 
     def returnComponents(self, pool, clusterConfig, configDir, daqDataDir,
                          logPort, livePort, verbose, killWith9, eventCheck):
-        badPairs = self.reset()
+        badStates = self.reset()
 
         badComps = []
-        if len(badPairs) > 0:
-            for pair in badPairs:
-                self.__logger.error("Restarting %s (state '%s' after reset)" %
-                                    (pair[0].fullName(), pair[1]))
-                badComps.append(pair[0])
+        if len(badStates) > 0:
+            self.__logger.error("Restarting %s after reset" %
+                                self.__badStateString(badStates))
+            for state in badStates:
+                badComps += badStates[state]
             self.restartComponents(badComps, clusterConfig, configDir,
                                    daqDataDir, logPort, livePort, verbose,
                                    killWith9, eventCheck)
@@ -2053,7 +2123,7 @@ class RunSet(object):
 
         if len(badComps) > 0:
             raise RunSetException("Couldn't start subrun on %s" %
-                                  self.__listComponentsCommaSep(badComps))
+                                  self.listComponentRanges(badComps))
 
         for c in self.__set:
             if c.isBuilder():
