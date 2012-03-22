@@ -643,7 +643,7 @@ class MockComponent(object):
     def addBeanData(self, beanName, fieldName, value):
 
         if self.checkBeanField(beanName, fieldName):
-            raise Exception("Value for %c bean %s field %s already exists" %
+            raise Exception("Value for %s bean %s field %s already exists" %
                             (self, beanName, fieldName))
 
         if not beanName in self.__beanData:
