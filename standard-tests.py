@@ -8,6 +8,7 @@ import socket
 import stat
 import subprocess
 import sys
+import traceback
 
 from BaseRun import FlasherScript
 from ClusterDescription import ClusterDescription
@@ -53,9 +54,12 @@ class PDAQRun(object):
             duration = self.__duration
 
         for r in range(self.__numRuns):
-            runmgr.run(self.clusterConfig(), self.__runCfg,
-                       duration, self.__flashData, ignoreDB=False,
-                       verbose=verbose)
+            try:
+                runmgr.run(self.clusterConfig(), self.__runCfg,
+                           duration, self.__flashData, ignoreDB=False,
+                           verbose=verbose)
+            except:
+                traceback.print_exc()
 
 # configurations to run
 #
