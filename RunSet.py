@@ -703,7 +703,7 @@ class RunData(object):
         monDict["physicsEvents"] = numEvts
         if evtTime is None or numEvts == 0:
             monDict["eventTime"] = None
-            monDict["eventPayloadTime"] = None
+            monDict["eventPayloadTicks"] = None
         else:
             monDict["eventTime"] = str(evtTime)
             monDict["eventPayloadTicks"] = payTime
