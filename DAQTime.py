@@ -60,9 +60,25 @@ class DAQDateTime(object):
 
     def __sub__(self, other):
         delta = self.__dt - other.__dt
+        if delta.microseconds > 0:
+            print >>sys.stderr, "DELTA USEC %s SHOULD BE ZERO" % \
+                delta.microseconds
+
+        days = delta.days
+        secs = delta.seconds
         ticks = self.__daqticks - other.__daqticks
-        usecs = ((delta.microseconds * 100.0)  + float(ticks)) / 100.0
-        return DAQDateTimeDelta(delta.days, delta.seconds, usecs)
+
+        if ticks < 0:
+            if secs == 0:
+                if days > 0:
+                    days -= 1
+                    secs += 60 * 60 * 24
+            if secs > 0:
+                secs -= 1
+                ticks += PayloadTime.TICKS_PER_SECOND
+
+        usecs = float(ticks) / 100.0
+        return DAQDateTimeDelta(days, secs, usecs)
 
     def __str__(self):
         if self.__high_precision:
@@ -86,6 +102,9 @@ class PayloadTime(object):
 
     # regular expression used to parse date/time strings
     TIME_PAT = None
+
+    # number of DAQ ticks in one second
+    TICKS_PER_SECOND = 10000000000
 
     @staticmethod
     def fromString(timestr, high_precision=False):
@@ -138,11 +157,11 @@ class PayloadTime(object):
 
         PayloadTime.PREV_TIME = payTime
 
-        TICKS_PER_SECOND = 10000000000
-        curTime = PayloadTime.TIME_OFFSET + (payTime / float(TICKS_PER_SECOND))
+        curTime = PayloadTime.TIME_OFFSET + \
+            (payTime / float(PayloadTime.TICKS_PER_SECOND))
         ts = time.gmtime(curTime)
 
-        subsec = payTime % TICKS_PER_SECOND
+        subsec = payTime % PayloadTime.TICKS_PER_SECOND
 
         return DAQDateTime(ts.tm_year, ts.tm_mon, ts.tm_mday, ts.tm_hour,
                            ts.tm_min, ts.tm_sec, subsec,

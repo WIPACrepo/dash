@@ -20,7 +20,8 @@ class TestDAQTime(unittest.TestCase):
                          "Expected inverted cmp(%s, %s) to return %s, not %s" %
                          (dt1, dt0, -expResult, result))
 
-    def __dateFormat(self, yr, mon, day, hr, min, sec, usec, high_precision=False):
+    def __dateFormat(self, yr, mon, day, hr, min, sec, usec,
+                     high_precision=False):
         if high_precision:
             subsecstr = "%010d" % usec
         else:
@@ -97,11 +98,17 @@ class TestDAQTime(unittest.TestCase):
         jan2 = time.struct_time((self.CUR_YEAR, 1, 2, 0, 0, 0, 0, 0, -1))
         dayticks = long(calendar.timegm(jan2) - calendar.timegm(jan1)) * \
             self.TICKS_PER_SEC
+
         dt0 = PayloadTime.toDateTime(0)
         dt1 = PayloadTime.toDateTime(dayticks)
+
         expStr = self.__deltaFormat(1, 0, 0, 0, 0)
         self.assertEqual(expStr, str(dt1 - dt0),
                          "Expected delta %s, not %s" % (expStr, dt1 - dt0))
+
+        expStr = self.__deltaFormat(-1, 0, 0, 0, 0)
+        self.assertEqual(expStr, str(dt0 - dt1),
+                         "Expected delta2 %s, not %s" % (expStr, dt0 - dt1))
 
     def testDeltaTwoWeeks(self):
         jan1 = time.struct_time((self.CUR_YEAR, 1, 1, 0, 0, 0, 0, 0, -1))
@@ -109,11 +116,17 @@ class TestDAQTime(unittest.TestCase):
         usec = 101100
         dayticks = long(calendar.timegm(jan15) - calendar.timegm(jan1)) * \
             self.TICKS_PER_SEC + (usec * 100)
+
         dt0 = PayloadTime.toDateTime(0)
         dt1 = PayloadTime.toDateTime(dayticks)
+
         expStr = self.__deltaFormat(14, 3, 2, 1, usec)
         self.assertEqual(expStr, str(dt1 - dt0),
                          "Expected delta %s, not %s" % (expStr, dt1 - dt0))
+
+        expStr = self.__deltaFormat(-15, 20, 57, 58, 99898900)
+        self.assertEqual(expStr, str(dt0 - dt1),
+                         "Expected delta2 %s, not %s" % (expStr, dt0 - dt1))
 
     def testDeltaTwoWeeksHP(self):
         jan1 = time.struct_time((self.CUR_YEAR, 1, 1, 0, 0, 0, 0, 0, -1))
@@ -121,11 +134,17 @@ class TestDAQTime(unittest.TestCase):
         usec = 101100
         dayticks = long(calendar.timegm(jan15) - calendar.timegm(jan1)) * \
             self.TICKS_PER_SEC + (usec * 100)
+
         dt0 = PayloadTime.toDateTime(0, high_precision=True)
         dt1 = PayloadTime.toDateTime(dayticks, high_precision=True)
+
         expStr = self.__deltaFormat(14, 3, 2, 1, usec)
         self.assertEqual(expStr, str(dt1 - dt0),
                          "Expected delta %s, not %s" % (expStr, dt1 - dt0))
+
+        expStr = self.__deltaFormat(-15, 20, 57, 58, 99898900)
+        self.assertEqual(expStr, str(dt0 - dt1),
+                         "Expected delta2 %s, not %s" % (expStr, dt0 - dt1))
 
     def testRepr(self):
         expStr = "DAQDateTime(2012, 1, 10, 10, 19, 23, 987654321)"
