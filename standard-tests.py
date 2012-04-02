@@ -17,6 +17,7 @@ from liverun import LiveRun
 
 # times in seconds
 #
+HALF_HR = 1800
 FOUR_HR = 14400
 EIGHT_HR = 28800
 
@@ -48,10 +49,16 @@ class PDAQRun(object):
         return self.__runCfg
 
     def run(self, runmgr, quick, verbose=False):
-        if quick and self.__duration > 1200:
-            duration = self.__duration / 120
-        else:
+        if not quick:
             duration = self.__duration
+        else:
+            # compute 'quick' duration
+            if self.__duration > 3600:
+                duration = self.__duration / 120
+            elif self.__duration > 1200:
+                duration = self.__duration / 10
+            else:
+                duration = self.__duration
 
         for r in range(self.__numRuns):
             try:
@@ -75,7 +82,8 @@ RUN_LIST = (PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
             #PDAQRun("sim40str-25Hz-reduced-trigger", EIGHT_HR),
             #PDAQRun("sim60str-mbt23", FOUR_HR),
             #PDAQRun("sim60str-mbt23", EIGHT_HR),
-            PDAQRun("sim60str-mbt-vt-01", FOUR_HR),
+            PDAQRun("sim60strIT-mbt-vt-01", HALF_HR),
+            PDAQRun("sim60str-mbt-vt-01", HALF_HR),
             PDAQRun("sim60str-mbt-vt-01", EIGHT_HR),
             ###PDAQRun("sim80str-25Hz", FOUR_HR),
             ###PDAQRun("sim80str-25Hz", EIGHT_HR),
