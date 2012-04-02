@@ -454,7 +454,10 @@ class TestRunSet(unittest.TestCase):
             except RunSetException as rse:
                 expMsg = "RunSet #%d run#%d (%s): Could not stop %s" % \
                          (runset.id(), runNum, expState, hangStr)
-                self.assertEqual(str(rse), expMsg, "Bad exception: %s" % rse)
+                self.assertEqual(str(rse), expMsg,
+                                 "For hangType %d expected exception %s, not %s" %
+                                 (hangType, expMsg, rse))
+            expState = "error"
 
         self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %
                          (runset.id(), runNum, expState))

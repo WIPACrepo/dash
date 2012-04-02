@@ -646,11 +646,13 @@ class RunData(object):
                                             numMoni, time, numSN, time,
                                             numTcal, time))
 
-        if numEvts <= 0:
+        if numEvts is None or numEvts <= 0:
+            if numEvts is None:
+                numEvts = 0
             duration = 0
         else:
             duration = self.__calculateDuration(firstTime, lastTime, hadError)
-            if duration < 0:
+            if duration is None or duration < 0:
                 hadError = True
                 duration = 0
 
@@ -696,11 +698,11 @@ class RunData(object):
     def firstPayTime(self):
         return self.__firstPayTime
 
-    def getEventCounts(self, state, comps):
+    def getEventCounts(self, comps, updateCounts=True):
         "Return monitoring data for the run"
         monDict = {}
 
-        if state == RunSetState.RUNNING:
+        if updateCounts:
             self.__runStats.updateEventCounts(self.__getRateData(comps), True)
         (numEvts, evtTime, payTime, numMoni, moniTime, numSN, snTime,
          numTcal, tcalTime) = self.__runStats.monitorData()
@@ -855,10 +857,10 @@ class RunData(object):
     def runNumber(self):
         return self.__runNumber
 
-    def sendEventCounts(self, state, comps):
+    def sendEventCounts(self, comps, updateCounts=True):
         "Report run monitoring quantities"
         if self.__liveMoniClient is not None:
-            moniData = self.getEventCounts(state, comps)
+            moniData = self.getEventCounts(comps, updateCounts)
 
             # send discrete messages for each type of event
             if moniData["eventPayloadTicks"] is not None:
@@ -1109,15 +1111,24 @@ class RunSet(object):
 
     def __checkStoppedComponents(self, waitList):
         if len(waitList) > 0:
-            waitStr = self.listComponentRanges(waitList)
-            errStr = '%s: Could not stop %s' % (str(self), waitStr)
-            self.__runData.error(errStr)
+            try:
+                waitStr = self.listComponentRanges(waitList)
+                errStr = '%s: Could not stop %s' % (self, waitStr)
+                self.__runData.error(errStr)
+            except:
+                errstr = "%s: Could not stop components (?)" % str(self)
+            self.__state = RunSetState.ERROR
             raise RunSetException(errStr)
 
         badStates = self.__checkState(RunSetState.READY)
         if len(badStates) > 0:
-            msg = "Could not stop %s" % self.__badStateString(badStates)
-            self.__runData.error(msg)
+            try:
+                msg = "%s: Could not stop %s" % \
+                    (self, self.__badStateString(badStates))
+                self.__runData.error(msg)
+            except:
+                msg = "%s: Components in bad states" % str(self)
+            self.__state = RunSetState.ERROR
             raise RunSetException(msg)
 
     def __finishRun(self, comps, runData, hadError):
@@ -1125,9 +1136,7 @@ class RunSet(object):
 
         self.__parent.saveCatchall(runData.runDirectory())
 
-        # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
-        # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
-        self.queueForSpade(duration)
+        return duration
 
     @classmethod
     def __getRunDirectoryPath(cls, logDir, runNum):
@@ -1182,6 +1191,13 @@ class RunSet(object):
         self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP initLogs")
         port = DAQPort.RUNCOMP_BASE
         for c in self.__set:
+            if c in self.__compLog:
+                try:
+                    self.__compLog[c].stopServing()
+                    self.__logger.error("Closed previous log for %s" % c)
+                except:
+                    self.__logger.error(("Could not close previous log" +
+                                         " for %s: %s") % (c, exc_string()))
             self.__compLog[c] = \
                 self.createComponentLog(self.__runData.runDirectory(), c,
                                         host, port, liveHost, livePort,
@@ -1342,17 +1358,18 @@ class RunSet(object):
                                         self.__runData, self.__runData)
         goodThread.start()
 
+        timeout = 20
         for i in range(0, 2):
             self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING phase %d", i)
             if i == 0:
                 self.__attemptToStop(srcSet, otherSet, RunSetState.STOPPING,
                                      ComponentOperation.STOP_RUN,
-                                     int(RunSet.TIMEOUT_SECS * .75))
+                                     int(timeout * .75))
             else:
                 self.__attemptToStop(srcSet, otherSet,
                                      RunSetState.FORCING_STOP,
                                      ComponentOperation.FORCED_STOP,
-                                     int(RunSet.TIMEOUT_SECS * .25))
+                                     int(timeout * .25))
             if len(srcSet) == 0 and len(otherSet) == 0:
                 break
 
@@ -1629,7 +1646,9 @@ class RunSet(object):
         if self.__runData is None:
             return {}
 
-        return self.__runData.getEventCounts(self.__state, self.__set)
+        # only update event counts while RunSet is taking data
+        updateCounts = self.__state == RunSetState.RUNNING
+        return self.__runData.getEventCounts(self.__set, updateCounts)
 
     def id(self):
         return self.__id
@@ -1813,6 +1832,14 @@ class RunSet(object):
                     self.__logger.error(("Cannot remove component %s from" +
                                          " RunSet #%d") %
                                         (comp.fullName(), self.__id))
+
+                # clean up active log thread
+                if comp in self.__compLog:
+                    try:
+                        self.__compLog[comp].stopServing()
+                    except:
+                        pass
+
                 try:
                     comp.close()
                 except:
@@ -1866,7 +1893,8 @@ class RunSet(object):
     def sendEventCounts(self):
         "Report run monitoring quantities"
         if self.__runData is not None:
-            self.__runData.sendEventCounts(self.__state, self.__set)
+            self.__runData.sendEventCounts(self.__set,
+                                           self.__state == RunSetState.RUNNING)
 
     def setDebugBits(self, debugBit):
         if debugBit == 0:
@@ -1884,8 +1912,6 @@ class RunSet(object):
                 self.stopRun(hadError=True)
             except:
                 pass
-
-        self.__state = RunSetState.ERROR
 
     def setOrder(self, connMap, logger):
         "set the order in which components are started/stopped"
@@ -2049,15 +2075,31 @@ class RunSet(object):
                 hadError = True
             if self.__runData is not None:
                 try:
-                    self.__finishRun(self.__set, self.__runData, hadError)
+                    duration = self.__finishRun(self.__set, self.__runData,
+                                                hadError)
                 except:
-                    self.__logger.error("Could not finish run %s: %s" %
+                    duration = 0
+                    self.__logger.error("Could not finish run for %s: %s" %
                                         (self, exc_string()))
                 try:
                     self.__stopLogging()
                 except:
                     self.__logger.error("Could not stop logs for %s: %s" %
                                         (self, exc_string()))
+                try:
+                    self.__runData.sendEventCounts(self.__set, False)
+                except:
+                    self.__logger.error("Could not send event counts" +
+                                        " for %s: %s" % (self, exc_string()))
+
+                # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
+                # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
+                try:
+                    self.queueForSpade(duration)
+                except:
+                    self.__logger.error("Could not queue SPADE files" +
+                                        " for %s: %s" % (self, exc_string()))
+
                 self.__checkStoppedComponents(waitList)
 
         return hadError
@@ -2225,7 +2267,13 @@ class RunSet(object):
         self.__runData = newData
         newData.finishSetup(self, startTime)
 
-        self.__finishRun(self.__set, oldData, False)
+        duration = self.__finishRun(self.__set, oldData, False)
+
+        oldData.sendEventCounts(self.__set, False)
+
+        # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
+        # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
+        self.queueForSpade(duration)
 
     def updateRates(self):
         if self.__runData is None:
