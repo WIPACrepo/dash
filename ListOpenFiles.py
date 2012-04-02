@@ -306,6 +306,12 @@ class RegularFile(StandardFile):
                                           lockStatus)
 
 
+class EventPoll(StandardFile):
+    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
+        super(EventPoll, self).__init__(fileType, fileDesc, accessMode,
+                                        lockStatus)
+
+
 class SystemFile(BaseFile):
     def __init__(self, fileType, fileDesc, accessMode, lockStatus):
         super(SystemFile, self).__init__(fileType, fileDesc, accessMode,
@@ -357,6 +363,8 @@ class ListOpenFiles(object):
             return UnixSocket(fileType, fileDesc, accessMode, lockStatus)
         elif fileType == "unknown":
             return NoFile(fileType, fileDesc, accessMode, lockStatus)
+        elif fileType == "0000":
+            return EventPoll(fileType, fileDesc, accessMode, lockStatus)
 
         raise ListOpenFileException("Found unknown file type \"%s\"" %
                                     fileType)
