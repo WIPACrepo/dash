@@ -572,6 +572,11 @@ class RunData(object):
                       lastTime, duration, hadError):
 
         xmlLog = DashXMLLog(dir_name=self.__runDir)
+        path = xmlLog.getPath()
+        if os.path.exists(path):
+            self.__dashlog.error("Run xml log file \"%s\" already exists!" %
+                                 path)
+            return
 
         xmlLog.setRun(self.__runNumber)
         xmlLog.setConfig(self.__clusterConfigName)
