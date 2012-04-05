@@ -72,16 +72,14 @@ class DAQDateTime(object):
         secs = delta.seconds
         ticks = self.__daqticks - other.__daqticks
 
-        if ticks < 0:
+        usecs = ((delta.microseconds * 10000.0) + float(ticks)) / 10000.0
+        if usecs < 0:
             if secs == 0:
-                if days > 0:
-                    days -= 1
-                    secs += 60 * 60 * 24
-            if secs > 0:
-                secs -= 1
-                ticks += PayloadTime.TICKS_PER_SECOND
+                days -= 1
+                secs += 86400
+            secs -= 1
+            usecs += 1000000
 
-        usecs = float(ticks) / 100.0
         return DAQDateTimeDelta(days, secs, usecs)
 
     def __str__(self):
