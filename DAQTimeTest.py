@@ -147,45 +147,46 @@ class TestDAQTime(unittest.TestCase):
                          "Expected delta2 %s, not %s" % (expStr, dt0 - dt1))
 
     def testRepr(self):
-        expStr = "DAQDateTime(2012, 1, 10, 10, 19, 23, 987654321)"
+        expStr = "DAQDateTime(%d, 1, 10, 10, 19, 23, 987654321)" % \
+            self.CUR_YEAR
         dt = eval(expStr)
         shortStr = expStr[0:-5]+"0000)"
         self.assertEqual(shortStr, repr(dt),
                          "Expected repr %s, not %s" % (shortStr, repr(dt)))
 
     def testReprHP(self):
-        expStr = "DAQDateTime(2012, 1, 10, 10, 19, 23, 987654321," + \
-            " high_precision=True)"
+        expStr = ("DAQDateTime(%d, 1, 10, 10, 19, 23, 987654321," + \
+                  " high_precision=True)") % self.CUR_YEAR
         dt = eval(expStr)
         self.assertEqual(expStr, repr(dt),
                          "Expected repr %s, not %s" % (expStr, repr(dt)))
 
     def testCompareNone(self):
-        dt0 = DAQDateTime(2012, 1, 10, 10, 19, 23, 987654321)
+        dt0 = DAQDateTime(self.CUR_YEAR, 1, 10, 10, 19, 23, 987654321)
         dt1 = None
         self.__checkCompare(dt0, dt1, -1)
 
     def testCompareEqual(self):
-        dt0 = DAQDateTime(2012, 1, 10, 10, 19, 23, 987654321)
-        dt1 = DAQDateTime(2012, 1, 10, 10, 19, 23, 987654321)
+        dt0 = DAQDateTime(self.CUR_YEAR, 1, 10, 10, 19, 23, 987654321)
+        dt1 = DAQDateTime(self.CUR_YEAR, 1, 10, 10, 19, 23, 987654321)
         self.__checkCompare(dt0, dt1, 0)
 
     def testCompareDiffer(self):
-        dt0 = DAQDateTime(2012, 1, 10, 10, 19, 23, 987654321)
-        dt1 = DAQDateTime(2011, 1, 1, 1, 1, 1, 0)
+        dt0 = DAQDateTime(self.CUR_YEAR, 1, 10, 10, 19, 23, 987654321)
+        dt1 = DAQDateTime(self.CUR_YEAR - 1, 1, 1, 1, 1, 1, 0)
         self.__checkCompare(dt0, dt1, 1)
 
     def testFromStringNone(self):
         self.assertEqual(PayloadTime.fromString(None), None)
 
     def testFromString(self):
-        expStr = "DAQDateTime(2012, 1, 10, 10, 19, 23, 987654321)"
+        expStr = "DAQDateTime(%d, 1, 10, 10, 19, 23, 987654321)" % self.CUR_YEAR
         dt0 = eval(expStr)
         dt1 = PayloadTime.fromString(str(dt0))
         self.__checkCompare(dt0, dt1, 0)
 
     def testCompareStringEqual(self):
-        base = "2012-01-10 10:19:23"
+        base = "%04d-01-10 10:19:23" % self.CUR_YEAR
 
         dt0 = PayloadTime.fromString(base + ".0001000000")
         dt1 = PayloadTime.fromString(base + ".0001")
@@ -200,19 +201,19 @@ class TestDAQTime(unittest.TestCase):
         self.__checkCompare(dt0, dt1, 0)
 
     def testCompareStringDiffer(self):
-        base = "2012-01-10 10:19:23"
+        base = "%04d-01-10 10:19:23" % self.CUR_YEAR
         dt0 = PayloadTime.fromString(base + ".000001")
         dt1 = PayloadTime.fromString(base + ".0")
         self.__checkCompare(dt0, dt1, 1)
 
     def testCompareStringDifferHP(self):
-        base = "2012-01-10 10:19:23"
+        base = "%04d-01-10 10:19:23" % self.CUR_YEAR
         dt0 = PayloadTime.fromString(base + ".0000000001", high_precision=True)
         dt1 = PayloadTime.fromString(base + ".0", high_precision=True)
         self.__checkCompare(dt0, dt1, 1)
 
     def testCompareStringDifferMixed(self):
-        base = "2012-01-10 10:19:23"
+        base = "%04d-01-10 10:19:23" % self.CUR_YEAR
         dt0 = PayloadTime.fromString(base + ".0000000001", high_precision=True)
         dt1 = PayloadTime.fromString(base + ".0")
         self.__checkCompare(dt0, dt1, 1)
