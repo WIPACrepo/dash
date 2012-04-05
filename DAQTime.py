@@ -13,12 +13,16 @@ class DAQDateTimeDelta(object):
         self.microseconds = microseconds
 
     def __str__(self):
-        rtnstr = "%d day" % self.days
-        if self.days != 1:
-            rtnstr += "s"
-        rtnstr += ", %d:%02d:%02d" % \
+        if self.days == 0:
+            rtnstr = ""
+        else:
+            rtnstr = "%d day" % self.days
+            if self.days != 1:
+                rtnstr += "s"
+            rtnstr += ", "
+        rtnstr += "%d:%02d:%02d" % \
             (self.seconds / 3600, (self.seconds / 60) % 60, self.seconds % 60)
-        if self.microseconds > 0:
+        if self.microseconds != 0:
             rtnstr += ".%06d" % self.microseconds
         return rtnstr
 
