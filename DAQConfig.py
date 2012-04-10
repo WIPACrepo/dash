@@ -1799,6 +1799,9 @@ if __name__ == "__main__":
     p.add_option("-x", "--extended-tests", dest="extended",
                  action="store_true", default=False,
                  help="Do extended testing")
+    p.add_option("-z", "--no-schema-validation", dest="validation",
+                 action="store_false", default=True,
+                 help="Disable schema validation of xml configuration files")
     opt, args = p.parse_args()
 
     if not opt.nohostcheck:
@@ -1819,6 +1822,12 @@ if __name__ == "__main__":
     if opt.toCheck:
         try:
             DAQConfigParser.load(opt.toCheck, configDir, opt.strict)
+            if opt.validation:
+                (valid, reason) = validate_configs(None, opt.toCheck)
+
+                if not valid:
+                    raise DAQConfigException(reason)
+
             print "%s/%s is ok." % (configDir, opt.toCheck)
             status = None
         except:
@@ -1840,6 +1849,12 @@ if __name__ == "__main__":
         except:
             print "Could not parse \"%s\": %s" % (configName, exc_string())
             continue
+
+        if opt.validation:
+            (valid, reason) = validate_configs(None, configName)
+
+            if not valid:
+                raise DAQConfigException(reason)
 
         if not opt.extended:
             print "%s is ok" % configName
