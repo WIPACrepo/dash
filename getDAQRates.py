@@ -27,7 +27,7 @@ COMP_FIELDS = {
          'rdoutReq': 'RecordsReceived',
          'rdoutData': 'RecordsSent'},
     'stringHub':
-        {'DOM' : 'NumHits',
+        {'DOM': 'NumHits',
          'sender': 'NumHitsReceived',
          'stringHit': 'RecordsSent',
          'moniData': 'RecordsSent',
@@ -37,7 +37,7 @@ COMP_FIELDS = {
          'rdoutReq': 'RecordsReceived',
          'rdoutData': 'RecordsSent'},
     'icetopHub':
-        {'DOM' : 'NumHits',
+        {'DOM': 'NumHits',
          'sender': 'NumHitsReceived',
          'icetopHit': 'RecordsSent',
          'moniData': 'RecordsSent',
@@ -122,6 +122,12 @@ class Component(object):
         self.fullStr = None
         self.hash = None
 
+    def __cmp__(self, other):
+        val = cmp(self.name, other.name)
+        if val == 0:
+            val = cmp(self.num, other.num)
+        return val
+
     def __hash__(self):
         if self.hash is None:
             self.hash = ((hash(self.name) * 100) % sys.maxint) + \
@@ -141,14 +147,13 @@ class Component(object):
 def computeRates(dataDict):
     """Compute rates from the data saved in the data dictionary"""
     keys = dataDict.keys()
-    keys.sort()
 
     prevTime = None
     firstTime = None
 
     rates = []
 
-    for k in keys:
+    for k in sorted(keys):
         if prevTime is None:
             firstTime = k
         else:
@@ -161,6 +166,7 @@ def computeRates(dataDict):
     if len(rates) == 0:
         rates = None
         totRate = None
+    #elif prevTime == firstTime:
     elif len(rates) == 1:
         if float(rates[0]) == 0.0:
             totRate = None
@@ -173,32 +179,6 @@ def computeRates(dataDict):
         totRate = float(totVals) / float(totSecs)
 
     return (totRate, rates)
-
-
-def fixValue(valStr):
-    """
-    Convert a string containing a single integer or a list of integers
-    into a single long value.
-    """
-    if not valStr.startswith('['):
-        return long(valStr)
-
-    tot = 0
-    idx = 0
-    while idx < len(valStr) and valStr[idx] != ']':
-        nxt = valStr.find(',', idx)
-        if nxt < idx:
-            nxt = valStr.find(']', idx)
-        subStr = valStr[idx + 1: nxt]
-        try:
-            tot += long(subStr)
-        except ValueError:
-            print >> sys.stderr, \
-                "Couldn't get integer value for '%s' ('%s' idx %d nxt %d)" % \
-                (subStr, valStr, idx, nxt)
-        idx = nxt + 1
-
-    return tot
 
 
 def formatRates(rates):
@@ -219,7 +199,7 @@ def processDir(dirName):
     allData = {}
     for entry in os.listdir(dirName):
         if entry.endswith('.log') or entry.endswith('.html') or \
-               entry.endswith('.xml'):
+               entry.endswith('.xml') or entry == "logs-queued":
             continue
 
         try:
@@ -233,6 +213,58 @@ def processDir(dirName):
     return allData
 
 
+class Summary(object):
+    def __init__(self):
+        self.__data = {}
+        self.__lastSaved = {}
+
+    def __save(self, name, time, vals):
+        if vals.startswith('['):
+            self.__saveListSum(name, time, vals)
+        else:
+            self.__saveValue(name, time, long(vals))
+
+    def __saveListSum(self, name, time, valStr):
+        tot = 0
+        idx = 0
+        while idx < len(valStr) and valStr[idx] != ']':
+            nxt = valStr.find(',', idx)
+            if nxt < idx:
+                nxt = valStr.find(']', idx)
+            subStr = valStr[idx + 1: nxt]
+            try:
+                tot += long(subStr)
+            except ValueError:
+                print >> sys.stderr, \
+                    ("Couldn't get integer value for '%s'" +
+                     " ('%s' idx %d nxt %d)") % (subStr, valStr, idx, nxt)
+            idx = nxt + 1
+        self.__saveValue(name, time, tot)
+
+    def __saveValue(self, name, time, val):
+        if val > 0:
+            if name != "DOM":
+                self.__data[name][time] = val
+            elif not time in self.__data[name]:
+                self.__data[name][time] = val
+            else:
+                self.__data[name][time] += val
+            self.__lastSaved[name] = time
+
+    def add(self, name, time, vals):
+        if TIME_INTERVAL is None or \
+            (time > self.__lastSaved[name] + TIME_INTERVAL):
+            self.__save(name, time, vals)
+
+    def data(self):
+        return self.__data
+
+    def register(self, name):
+        if not name in self.__data:
+            self.__data[name] = {}
+            self.__lastSaved[name] = 0.0
+
+
 def processFile(fileName, comp):
     """Process the specified file"""
     if not comp.name in COMP_FIELDS:
@@ -240,14 +272,10 @@ def processFile(fileName, comp):
     else:
         flds = COMP_FIELDS[comp.name]
 
-    data = {}
+    sum = Summary()
 
     secName = None
     secTime = None
-
-    secFirst = {}
-    secLastSaved = {}
-    secSeenData = {}
 
     with open(fileName, 'r') as fd:
         for line in fd:
@@ -268,22 +296,7 @@ def processFile(fileName, comp):
 
                     if flds is None or \
                         (secName in flds and flds[secName] == name):
-                        if TIME_INTERVAL is None or \
-                                (secTime > \
-                                     secLastSaved[secName] + TIME_INTERVAL):
-                            newVal = fixValue(vals)
-                            if newVal > 0:
-                                if secName != "DOM":
-                                    data[secName][secTime] = newVal
-                                elif not secTime in data[secName]:
-                                    data[secName][secTime] = newVal
-                                else:
-                                    data[secName][secTime] += newVal
-                                secLastSaved[secName] = secTime
-                            elif vals != '0':
-                                secSeenData[secName] = (secTime, vals)
-                                if not secName in secFirst:
-                                    secFirst[secName] = (secTime, vals)
+                        sum.add(secName, secTime, vals)
                     continue
 
             m = MONISEC_PAT.match(line)
@@ -301,28 +314,13 @@ def processFile(fileName, comp):
                 secTime = time.mktime(time.strptime(m.group(2),
                                                     TIMEFMT)) + mSec
 
-                if not secName in data:
-                    data[secName] = {}
-                    secLastSaved[secName] = 0.0
-                    secSeenData[secName] = None
+                sum.register(secName)
 
                 continue
 
             print >>sys.stderr, "Bad line: " + line
 
-    for k in data:
-        if TIME_INTERVAL is None and \
-                k in secFirst and secFirst[k] is not None:
-            (firstTime, firstVals) = secFirst[k]
-            if not firstTime in data[k]:
-                data[k][firstTime] = fixValue(firstVals)
-
-        if k in secSeenData and secSeenData[k] is not None:
-            (lastTime, lastVals) = secSeenData[k]
-            if not lastTime in data[k]:
-                data[k][lastTime] = fixValue(lastVals)
-
-    return data
+    return sum.data()
 
 
 def reportDataRates(allData):
@@ -350,6 +348,7 @@ def reportDataRates(allData):
                   ('eventBuilder', 'backEnd')
                   ]
     reportRatesInternal(allData, reportList)
+
 
 def reportMonitorRates(allData):
     """Report the DAQ monitoring rates"""
