@@ -205,15 +205,15 @@ class LiveState(object):
         """
         if len(line) == 0 or line.find("controlled by LiveControl") > 0 or \
                 line == "(None)":
-            return LiveState.PARSE_NORMAL
+            return self.PARSE_NORMAL
 
         if line.startswith("Flashing DOMs"):
-            return LiveState.PARSE_FLASH
+            return self.PARSE_FLASH
 
-        if parseState == LiveState.PARSE_FLASH:
-            m = LiveState.DOM_PAT.match(line)
+        if parseState == self.PARSE_FLASH:
+            m = self.DOM_PAT.match(line)
             if m:
-                return LiveState.PARSE_FLASH
+                return self.PARSE_FLASH
 
         if line.find(": ") > 0:
             (front, back) = line.split(": ", 1)
@@ -222,31 +222,31 @@ class LiveState(object):
 
             if front == "DAQ thread":
                 self.__threadState = back
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             elif front == "Run state":
                 self.__runState = LiveRunState.get(back)
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             elif front == "Current run":
-                m = LiveState.RUN_PAT.match(line)
+                m = self.RUN_PAT.match(line)
                 if m:
                     self.__runNum = int(m.group(1))
                     self.__subrunNum = int(m.group(2))
-                    return LiveState.PARSE_NORMAL
+                    return self.PARSE_NORMAL
             elif front == "Light mode":
                 self.__lightMode = LightMode.get(back)
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             elif front == "run":
                 self.__runNum = int(back)
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             elif front == "subrun":
                 self.__subrunNum = int(back)
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             elif front == "config":
                 self.__config = back
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             elif front == "tstart" or front == "tstop":
                 # ignore start/stop times
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             elif front == "physicsEvents" or \
                     front == "physicsEventsTime" or \
                     front == "walltimeEvents" or \
@@ -256,21 +256,21 @@ class LiveState(object):
                     front == "snEvents" or \
                     front == "runlength":
                 # ignore rates
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             elif front == "Target run stop time" or \
                  front == "Currently" or \
                  front == "Time until stop":
                 # ignore run time info
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             elif front == "daqrelease":
                 # ignore DAQ release name
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             else:
                 print >>sys.stderr, "Unknown livecmd pair: \"%s\"/\"%s\"" % \
                       (front, back)
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
 
-        m = LiveState.SVC_PAT.match(line)
+        m = self.SVC_PAT.match(line)
         if m:
             name = m.group(1)
             host = m.group(2)
@@ -284,17 +284,17 @@ class LiveState(object):
             if back == "DIED!":
                 state = LiveRunState.DEAD
             else:
-                m = LiveState.SVCBACK_PAT.match(back)
+                m = self.SVCBACK_PAT.match(back)
                 if m:
                     state = m.group(1)
                     numStarts = int(m.group(2))
 
             svc = LiveService(name, host, port, isAsync, state, numStarts)
             self.__svcDict[name] = svc
-            return LiveState.PARSE_NORMAL
+            return self.PARSE_NORMAL
 
         print >>sys.stderr, "Unknown livecmd line: %s" % line
-        return LiveState.PARSE_NORMAL
+        return self.PARSE_NORMAL
 
     def check(self):
         "Check the current I3Live service states"
@@ -309,7 +309,7 @@ class LiveState(object):
                                 shell=True)
         proc.stdin.close()
 
-        parseState = LiveState.PARSE_NORMAL
+        parseState = self.PARSE_NORMAL
         for line in proc.stdout:
             line = line.rstrip()
             if self.__showCmdOutput:
