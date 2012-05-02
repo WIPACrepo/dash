@@ -152,19 +152,17 @@ class LiveState(object):
     PARSE_NORMAL = 1
     PARSE_FLASH = 2
 
-    def __init__(self, liveCmd=os.path.join(os.environ["HOME"], "bin",
-                                            "livecmd"), showCmd=False,
-                 showCmdOutput=False):
+    def __init__(self,
+                 liveCmd=os.path.join(os.environ["HOME"], "bin", "livecmd"),
+                 runlog=None):
         """
         Create an I3Live service tracker
 
         liveCmd - full path of 'livecmd' executable
-        showCmd - True if commands should be printed before being run
-        showCmdOutput - True if command output should be printed
+        runlog - specialized run logger
         """
         self.__prog = liveCmd
-        self.__showCmd = showCmd
-        self.__showCmdOutput = showCmdOutput
+        self.__runlog = runlog
 
         self.__threadState = None
         self.__runState = LiveRunState.get(LiveRunState.UNKNOWN)
@@ -266,8 +264,8 @@ class LiveState(object):
                 # ignore DAQ release name
                 return self.PARSE_NORMAL
             else:
-                print >>sys.stderr, "Unknown livecmd pair: \"%s\"/\"%s\"" % \
-                      (front, back)
+                self.__runlog.error("Unknown livecmd pair: \"%s\"/\"%s\"" %
+                                    (front, back))
                 return self.PARSE_NORMAL
 
         m = self.SVC_PAT.match(line)
@@ -293,15 +291,14 @@ class LiveState(object):
             self.__svcDict[name] = svc
             return self.PARSE_NORMAL
 
-        print >>sys.stderr, "Unknown livecmd line: %s" % line
+        self.__runlog.error("Unknown livecmd line: %s" % line)
         return self.PARSE_NORMAL
 
     def check(self):
         "Check the current I3Live service states"
 
         cmd = "%s check" % self.__prog
-        if self.__showCmd:
-            print cmd
+        self.__runlog.cmd(cmd)
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
@@ -312,8 +309,7 @@ class LiveState(object):
         parseState = self.PARSE_NORMAL
         for line in proc.stdout:
             line = line.rstrip()
-            if self.__showCmdOutput:
-                print '+ ' + line
+            self.__runlog.cmdout(line)
 
             parseState = self.__parseLine(parseState, line)
         proc.stdout.close()
@@ -348,16 +344,20 @@ class LiveRun(BaseRun):
     "Manage one or more pDAQ runs through IceCube Live"
 
     def __init__(self, showCmd=False, showCmdOutput=False,
-                 showCheck=False, showCheckOutput=False, dbType=None):
+                 showCheck=False, showCheckOutput=False, dbType=None,
+                 logfile=None):
         """
         showCmd - True if commands should be printed before being run
         showCmdOutput - True if command output should be printed
         showCheck - True if 'livecmd check' commands should be printed
         showCheckOutput - True if 'livecmd check' output should be printed
         dbType - DatabaseType value (TEST, PROD, or NONE)
+        logfile - file where all log messages are saved
         """
-        self.__showCmd = showCmd
-        self.__showCmdOutput = showCmdOutput
+
+        super(LiveRun, self).__init__(showCmd, showCmdOutput, dbType, logfile)
+
+        self.__runlog = self.runlog()
 
         # check for needed executables
         #
@@ -365,10 +365,7 @@ class LiveRun(BaseRun):
 
         # build state-checker
         #
-        self.__state = LiveState(self.__liveCmdProg, showCheck,
-                                 showCheckOutput)
-
-        super(LiveRun, self).__init__(showCmd, showCmdOutput, dbType)
+        self.__state = LiveState(self.__liveCmdProg, self.__runlog)
 
     def __controlPDAQ(self, waitSecs, attempts=3):
         """
@@ -379,8 +376,7 @@ class LiveRun(BaseRun):
 
         cmd = "%s control pdaq localhost:%s" % \
             (self.__liveCmdProg, DAQPort.DAQLIVE)
-        if self.__showCmd:
-            print cmd
+        self.__runlog.cmd(cmd)
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
@@ -392,8 +388,7 @@ class LiveRun(BaseRun):
         unreachable = True
         for line in proc.stdout:
             line = line.rstrip()
-            if self.__showCmdOutput:
-                print '+ ' + line
+            self.__runlog.cmdout(line)
 
             if line == "Service pdaq is now being controlled" or \
                     line.find("Synchronous service pdaq was already being" +
@@ -402,7 +397,7 @@ class LiveRun(BaseRun):
             elif line.find("Service pdaq was unreachable on ") >= 0:
                 unreachable = True
             else:
-                print >> sys.stderr, "Control: %s" % line
+                self.__runlog.error("Control: %s" % line)
         proc.stdout.close()
 
         proc.wait()
@@ -432,8 +427,7 @@ class LiveRun(BaseRun):
 
         Return True if there was a problem
         """
-        if self.__showCmd:
-            print cmd
+        self.__runlog.cmd(cmd)
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
@@ -444,8 +438,7 @@ class LiveRun(BaseRun):
         problem = False
         for line in proc.stdout:
             line = line.rstrip()
-            if self.__showCmdOutput:
-                print '+ ' + line
+            self.__runlog.cmdout(line)
 
             if line != "OK":
                 problem = True
@@ -526,8 +519,7 @@ class LiveRun(BaseRun):
         else:
             cmd = "%s flasher -d %d -f %s" % (self.__liveCmdProg,
                                               secs, dataPath)
-            if self.__showCmd:
-                print cmd
+            self.__runlog.cmd(cmd)
 
             proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                     stdout=subprocess.PIPE,
@@ -537,8 +529,7 @@ class LiveRun(BaseRun):
 
             for line in proc.stdout:
                 line = line.rstrip()
-                if self.__showCmdOutput:
-                    print '+ ' + line
+                self.__runlog.cmdout(line)
 
                 if line != "OK" and not line.startswith("Starting subrun"):
                     problem = True
@@ -553,8 +544,7 @@ class LiveRun(BaseRun):
     def getLastRunNumber(self):
         "Return the last run number"
         cmd = "%s lastrun" % self.__liveCmdProg
-        if self.__showCmd:
-            print cmd
+        self.__runlog.cmd(cmd)
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
@@ -565,8 +555,7 @@ class LiveRun(BaseRun):
         num = None
         for line in proc.stdout:
             line = line.rstrip()
-            if self.__showCmdOutput:
-                print '+ ' + line
+            self.__runlog.cmdout(line)
 
             num = int(line)
         proc.stdout.close()

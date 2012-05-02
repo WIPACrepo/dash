@@ -125,11 +125,19 @@ class FlasherDataParser(XMLParser):
 
 
 class CnCRun(BaseRun):
-    def __init__(self, showCmd=False, showCmdOutput=False, dbType=None):
-        self.__showCmd = showCmd
-        self.__showCmdOutput = showCmdOutput
+    def __init__(self, showCmd=False, showCmdOutput=False, dbType=None,
+                 logfile=None):
+        """
+        showCmd - True if commands should be printed before being run
+        showCmdOutput - True if command output should be printed
+        dbType - DatabaseType value (TEST, PROD, or NONE)
+        logfile - file where all log messages are saved
+        """
 
-        super(CnCRun, self).__init__(showCmd, showCmdOutput, dbType)
+        super(CnCRun, self).__init__(showCmd, showCmdOutput, dbType, logfile)
+
+        self.__showCmdOutput = showCmdOutput
+        self.__runlog = self.runlog()
 
         self.__runNumFile = \
             os.path.join(os.environ["HOME"], ".i3live-run")
@@ -150,8 +158,8 @@ class CnCRun(BaseRun):
             return
 
         cmd = "DAQStatus.py"
-        if self.__showCmd:
-            print cmd
+        self.__runlog.cmd(cmd)
+
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, close_fds=True,
@@ -160,7 +168,7 @@ class CnCRun(BaseRun):
 
         for line in proc.stdout:
             line = line.rstrip()
-            print '+ ' + line
+            self.__runlog.cmdout(line)
         proc.stdout.close()
 
         proc.wait()
@@ -187,7 +195,8 @@ class CnCRun(BaseRun):
         curState = prevState
 
         if verbose and prevState != expState:
-            print "Switching from %s to %s" % (prevState, expState)
+            self.__runlog.info("Switching from %s to %s" %
+                               (prevState, expState))
 
         startTime = time.time()
         for _ in range(numTries):
@@ -198,8 +207,8 @@ class CnCRun(BaseRun):
             if curState != prevState:
                 if verbose:
                     swTime = int(time.time() - startTime)
-                    print "  Switched from %s to %s in %s secs" % \
-                        (prevState, curState, swTime)
+                    self.__runlog.info("Switched from %s to %s in %s secs" %
+                                       (prevState, curState, swTime))
 
                 prevState = curState
                 startTime = time.time()
@@ -239,7 +248,7 @@ class CnCRun(BaseRun):
         Start flashers for the specified duration with the specified data file
         """
         if self.__runSetId is None:
-            print >>sys.stderr, "No active runset!"
+            self.__runlog.error("No active runset!")
             return True
 
         cnc = self.cncConnection()
@@ -248,7 +257,7 @@ class CnCRun(BaseRun):
             try:
                 data = FlasherDataParser.load(dataPath)
             except:
-                print >>sys.stderr, "Cannot flash: " + exc_string()
+                self.__runlog.error("Cannot flash: " + exc_string())
                 return True
 
             runData = self.getLastRunNumber()
@@ -332,7 +341,7 @@ class CnCRun(BaseRun):
         Return True if the light mode was set successfully
         """
         if isLID:
-            print >>sys.stderr, "Not setting light mode!!!"
+            self.__runlog.error("Not setting light mode!!!")
         return True
 
     def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False,

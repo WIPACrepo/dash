@@ -317,9 +317,8 @@ class Run(object):
         try:
             self.__mgr.summarize(self.__runNum)
         except:
-            print "Cannot summarize run %d: %s" % \
-                (self.__runNum, exc_string())
-        print
+            self.__mgr.runlog().error("Cannot summarize run %d: %s" % \
+                                      (self.__runNum, exc_string()))
 
         self.__runNum = 0
 
@@ -346,9 +345,9 @@ class Run(object):
             flashDur = FlasherThread.computeRunDuration(self.__flashData)
             if flashDur > duration:
                 if duration > 0:
-                    print >>sys.stderr, ("Run length was %d secs, but need" +
-                                         " %d secs for flashers") % \
-                                         (duration, flashDur)
+                    self.__mgr.runlog().error(("Run length was %d secs, but" +
+                                               " need %d secs for flashers") %
+                                              (duration, flashDur))
                 duration = flashDur
 
             self.__flashThread = FlasherThread(self.__mgr, self.__flashData)
@@ -376,9 +375,9 @@ class Run(object):
         #
         curNum = self.__mgr.getRunNumber()
         if curNum != self.__runNum:
-            print >>sys.stderr, \
-                "  Expected run number %d, but actual number is %s" % \
-                (self.__runNum, curNum)
+            self.__mgr.runlog().error(("Expected run number %d, but actual" +
+                                       " number is %s") %
+                                      (self.__runNum, curNum))
             self.__runNum = curNum
 
         # print run info
@@ -388,8 +387,9 @@ class Run(object):
         else:
             runType = "flasher run"
 
-        print "Started %s %d (%d secs) %s" % \
-            (runType, self.__runNum, duration, self.__runCfg)
+        self.__mgr.runlog().info("Started %s %d (%d secs) %s" %
+                                 (runType, self.__runNum, duration,
+                                  self.__runCfg))
 
         # start flashing
         #
@@ -405,17 +405,62 @@ class Run(object):
         self.__mgr.waitForRun(self.__runNum, self.__duration)
 
 
+class RunLogger(object):
+    def __init__(self, logfile=None, showCmd=False, showCmdOutput=False):
+        """
+        logfile - name of file which log messages are written
+                  (None for sys.stdout/sys.stderr)
+        showCmd - True if commands should be printed before being run
+        showCmdOutput - True if command output should be printed
+        """
+        if logfile is None:
+            self.__fd = None
+        else:
+            self.__fd = open(logfile, "a")
+
+        self.__showCmd = showCmd
+        self.__showCmdOutput = showCmdOutput
+
+    def __logmsg(self, sep, msg):
+        print >>self.__fd, time.strftime("%Y-%m-%d %H:%M:%S") + " " + \
+            sep + " " + msg
+
+    def cmd(self, cmdmsg):
+        if self.__showCmd:
+            print cmdmsg
+            if self.__fd is not None:
+                self.__logmsg("-", cmdmsg)
+
+    def cmdout(self, outmsg):
+        if self.__showCmdOutput:
+            print "+ " + outmsg
+            if self.__fd is not None:
+                self.__logmsg("+", outmsg)
+
+    def error(self, msg):
+        print >>sys.stderr, "!! " + msg
+        if self.__fd is not None:
+            self.__logmsg("[ERROR]", msg)
+
+    def info(self, msg):
+        print " " + msg
+        if self.__fd is not None:
+            self.__logmsg("[INFO]", msg)
+
+
 class BaseRun(object):
     """User's PATH, used by findExecutable()"""
     PATH = None
 
-    def __init__(self, showCmd=False, showCmdOutput=False, dbType=None):
+    def __init__(self, showCmd=False, showCmdOutput=False, dbType=None,
+                 logfile=None):
         """
         showCmd - True if commands should be printed before being run
         showCmdOutput - True if command output should be printed
+        dbType - DatabaseType value (TEST, PROD, or NONE)
+        logfile - file where all log messages are saved
         """
-        self.__showCmd = showCmd
-        self.__showCmdOutput = showCmdOutput
+        self.__runlog = RunLogger(logfile, showCmd, showCmdOutput)
 
         self.__cnc = None
 
@@ -535,8 +580,7 @@ class BaseRun(object):
     def killComponents(self):
         "Kill all pDAQ components"
         cmd = "%s -k" % self.__launchProg
-        if self.__showCmd:
-            print cmd
+        self.__runlog.cmd(cmd)
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, close_fds=True,
@@ -552,7 +596,7 @@ class BaseRun(object):
             elif line.find("DAQ is not currently active") > 0:
                 pass
             elif line.find("To force a restart") < 0:
-                print >>sys.stderr, "KillComponents: %s" % line
+                self.__runlog.error("KillComponents: %s" % line)
         proc.stdout.close()
 
         proc.wait()
@@ -570,10 +614,7 @@ class BaseRun(object):
             raise LaunchException("There is at least one active run")
 
         cmd = "%s -c %s -e &" % (self.__launchProg, clusterCfg)
-        if self.__showCmd:
-            print cmd
-        else:
-            print "Launching %s" % clusterCfg
+        self.__runlog.cmd(cmd)
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
@@ -583,8 +624,7 @@ class BaseRun(object):
 
         for line in proc.stdout:
             line = line.rstrip()
-            if self.__showCmdOutput:
-                print '+ ' + line
+            self.__runlog.cmdout(line)
 
         proc.stdout.close()
 
@@ -611,6 +651,9 @@ class BaseRun(object):
             run.wait()
         finally:
             run.finish(verbose=verbose)
+
+    def runlog(self):
+        return self.__runlog
 
     def setLightMode(self, isLID):
         """
@@ -657,7 +700,7 @@ class BaseRun(object):
         summary = self.cncConnection().rpc_run_summary(runNum)
 
         if summary["startTime"] == "None" or \
-           summary["endTime"] == "None":
+            summary["endTime"] == "None":
             duration = "???"
         else:
             try:
@@ -677,8 +720,9 @@ class BaseRun(object):
             if timediff.days > 0:
                 duration += timediff.days * 60 * 60 * 24
 
-        print "Run %d (%s) %s seconds : %s" % \
-            (summary["num"], summary["config"], duration, summary["result"])
+        self.__runlog.info("Run %d (%s) %s seconds : %s" %
+                           (summary["num"], summary["config"], duration,
+                            summary["result"]))
 
     def updateDB(self, runCfg):
         """
@@ -690,7 +734,7 @@ class BaseRun(object):
             return
 
         if self.__updateDBProg is None:
-            print >>sys.stderr, "Not updating database with \"%s\"" % runCfg
+            self.__runlog.error("Not updating database with \"%s\"" % runCfg)
             return
 
         runCfgPath = os.path.join(self.__configDir, runCfg + ".xml")
@@ -702,8 +746,7 @@ class BaseRun(object):
             arg = ""
 
         cmd = "%s %s %s" % (self.__updateDBProg, arg, runCfgPath)
-        if self.__showCmd:
-            print cmd
+        self.__runlog.cmd(cmd)
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, close_fds=True,
@@ -712,14 +755,13 @@ class BaseRun(object):
 
         for line in proc.stdout:
             line = line.rstrip()
-            if self.__showCmdOutput:
-                print '+ ' + line
+            self.__runlog.cmdout(line)
 
             if line.find("ErrAlreadyExists") > 0:
                 continue
 
             elif line != "xml":
-                print >>sys.stderr, "UpdateDB: %s" % line
+                self.__runlog.error("UpdateDB: %s" % line)
         proc.stdout.close()
 
         proc.wait()
@@ -743,18 +785,17 @@ class BaseRun(object):
             if not self.isRunning():
                 runTime = numWaits * waitSecs
                 if runTime < duration:
-                    print >>sys.stderr, \
-                        ("WARNING: Expected %d second run, but run %d" +
-                         " ended after about %d seconds") % \
-                         (duration, runNum, runTime)
+                    self.__runlog.error(("WARNING: Expected %d second run, " +
+                                         "but run %d ended after %d seconds") %
+                                        (duration, runNum, runTime))
 
                 if self.isStopped(False) or \
                         self.isStopping(False) or \
                         self.isRecovering(False):
                     break
 
-                print >>sys.stderr, "Unexpected run %d state %s" % \
-                    (runNum, self.state())
+                self.__runlog.error("Unexpected run %d state %s" %
+                                    (runNum, self.state()))
 
             numWaits += 1
             if numWaits > numTries:
