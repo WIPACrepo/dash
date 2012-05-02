@@ -83,6 +83,11 @@ class FlasherThread(threading.Thread):
             self.__running = False
             self.__sem.release()
 
+        try:
+            self.__run.stopRun()
+        except:
+            pass
+
     def __runBody(self):
         "Run the flasher sequences"
         for pair in self.__dataPairs:
