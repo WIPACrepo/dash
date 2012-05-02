@@ -125,19 +125,25 @@ class FlasherDataParser(XMLParser):
 
 
 class CnCRun(BaseRun):
-    def __init__(self, showCmd=False, showCmdOutput=False, dbType=None,
-                 logfile=None):
+    def __init__(self, showCmd=False, showCmdOutput=False, dryRun=False,
+                 dbType=None, logfile=None):
         """
         showCmd - True if commands should be printed before being run
         showCmdOutput - True if command output should be printed
+        dryRun - True if commands should only be printed and not executed
         dbType - DatabaseType value (TEST, PROD, or NONE)
         logfile - file where all log messages are saved
         """
 
-        super(CnCRun, self).__init__(showCmd, showCmdOutput, dbType, logfile)
+        super(CnCRun, self).__init__(showCmd, showCmdOutput, dryRun, dbType,
+                                     logfile)
 
         self.__showCmdOutput = showCmdOutput
+        self.__dryRun = dryRun
         self.__runlog = self.runlog()
+
+        # used during dry runs to simulate the runset id
+        self.__fakeRunSet = 1
 
         self.__runNumFile = \
             os.path.join(os.environ["HOME"], ".i3live-run")
@@ -154,7 +160,7 @@ class CnCRun(BaseRun):
     def __status(self):
         "Print the current DAQ status"
 
-        if not self.__showCmdOutput:
+        if not self.__showCmdOutput or self.__dryRun:
             return
 
         cmd = "DAQStatus.py"
@@ -186,6 +192,9 @@ class CnCRun(BaseRun):
         """
         if self.__runSetId is None:
             return False
+
+        if self.__dryRun:
+            return True
 
         self.__status()
 
@@ -238,9 +247,13 @@ class CnCRun(BaseRun):
     def cleanUp(self):
         """Do final cleanup before exiting"""
         if self.__runSetId is not None:
-            cnc = self.cncConnection()
+            if not self.__dryRun:
+                cnc = self.cncConnection()
 
-            cnc.rpc_runset_break(self.__runSetId)
+            if self.__dryRun:
+                print "Break runset#%s" % self.__runSetId
+            else:
+                cnc.rpc_runset_break(self.__runSetId)
             self.__runSetId = None
 
     def flash(self, dataPath, secs):
@@ -251,7 +264,8 @@ class CnCRun(BaseRun):
             self.__runlog.error("No active runset!")
             return True
 
-        cnc = self.cncConnection()
+        if not self.__dryRun:
+            cnc = self.cncConnection()
 
         if dataPath is not None:
             try:
@@ -264,15 +278,23 @@ class CnCRun(BaseRun):
             subrun = runData[1] + 1
             self.__setLastRunNumber(runData[0], subrun)
 
-            cnc.rpc_runset_subrun(self.__runSetId, subrun, data)
+            if self.__dryRun:
+                print "Flash subrun#%d - %s for %s second" % \
+                    (subrun, data[0], data[1])
+            else:
+                cnc.rpc_runset_subrun(self.__runSetId, subrun, data)
 
         # XXX should be monitoring run state during this time
-        time.sleep(secs)
+        if not self.__dryRun:
+            time.sleep(secs)
 
         if dataPath is not None:
             subrun += 1
             self.__setLastRunNumber(runData[0], subrun)
-            cnc.rpc_runset_subrun(self.__runSetId, subrun, [])
+            if self.__dryRun:
+                print "Flash subrun#%d - turn off flashers" % subrun
+            else:
+                cnc.rpc_runset_subrun(self.__runSetId, subrun, [])
 
     def getLastRunNumber(self):
         "Return the last run number"
@@ -357,16 +379,25 @@ class CnCRun(BaseRun):
 
         Return True if the run was started
         """
-        cnc = self.cncConnection()
+        if not self.__dryRun:
+            cnc = self.cncConnection()
 
         if self.__runSetId is not None and self.__runCfg is not None and \
                 self.__runCfg != runCfg:
             self.__runCfg = None
-            cnc.rpc_runset_break(self.__runSetId)
+            if self.__dryRun:
+                print "Break runset #%s" % self.__runSetId
+            else:
+                cnc.rpc_runset_break(self.__runSetId)
             self.__runSetId = None
 
         if self.__runSetId is None:
-            runSetId = cnc.rpc_runset_make(runCfg)
+            if self.__dryRun:
+                runSetId = self.__fakeRunSet
+                self.__fakeRunSet += 1
+                print "Make runset #%d" % runSetId
+            else:
+                runSetId = cnc.rpc_runset_make(runCfg)
             if runSetId < 0:
                 raise RunException("Could not create runset for \"%s\"" %
                                    runCfg)
@@ -379,7 +410,12 @@ class CnCRun(BaseRun):
 
         runOptions = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
 
-        cnc.rpc_runset_start_run(self.__runSetId, self.__runNum, runOptions)
+        if self.__dryRun:
+            print "Start run#%d with runset#%d" % \
+                (self.__runNum, self.__runSetId)
+        else:
+            cnc.rpc_runset_start_run(self.__runSetId, self.__runNum,
+                                     runOptions)
 
         return True
 
@@ -400,9 +436,13 @@ class CnCRun(BaseRun):
         if self.__runSetId is None:
             raise RunException("No active run")
 
-        cnc = self.cncConnection()
+        if not self.__dryRun:
+            cnc = self.cncConnection()
 
-        cnc.rpc_runset_stop_run(self.__runSetId)
+        if self.__dryRun:
+            print "Stop runset#%s" % self.__runSetId
+        else:
+            cnc.rpc_runset_stop_run(self.__runSetId)
 
     def waitForStopped(self, verbose=False):
         """Wait for the current run to be stopped"""

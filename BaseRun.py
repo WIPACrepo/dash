@@ -256,7 +256,7 @@ class FlasherScript(object):
 
 
 class Run(object):
-    def __init__(self, mgr, clusterCfg, runCfg, flashData=None):
+    def __init__(self, mgr, clusterCfg, runCfg, flashData=None, dryRun=False):
         """
         Manage a single run
 
@@ -264,11 +264,14 @@ class Run(object):
         clusterCfg - cluster configuration
         runCfg - run configuration
         flasherData - list of flasher XML_file_name/duration pairs
+        dryRun - True if commands should only be printed and not executed
         """
         self.__mgr = mgr
         self.__clusterCfg = clusterCfg
         self.__runCfg = runCfg
         self.__flashData = flashData
+        self.__dryRun = dryRun
+
         self.__runKilled = False
 
         self.__flashThread = None
@@ -307,7 +310,7 @@ class Run(object):
         if not self.__mgr.isStopped(True):
             self.__mgr.stopRun()
 
-        if not self.__mgr.isStopped(True) and \
+        if not self.__dryRun and not self.__mgr.isStopped(True) and \
             not self.__mgr.waitForStopped(verbose=verbose):
             raise RunException("Run %d did not stop" % self.__runNum)
 
@@ -406,7 +409,8 @@ class Run(object):
 
     def wait(self):
         "wait for run to finish"
-        self.__mgr.waitForRun(self.__runNum, self.__duration)
+        if not self.__dryRun:
+            self.__mgr.waitForRun(self.__runNum, self.__duration)
 
 
 class RunLogger(object):
@@ -456,15 +460,17 @@ class BaseRun(object):
     """User's PATH, used by findExecutable()"""
     PATH = None
 
-    def __init__(self, showCmd=False, showCmdOutput=False, dbType=None,
-                 logfile=None):
+    def __init__(self, showCmd=False, showCmdOutput=False, dryRun=False,
+                 dbType=None, logfile=None):
         """
         showCmd - True if commands should be printed before being run
         showCmdOutput - True if command output should be printed
+        dryRun - True if commands should only be printed and not executed
         dbType - DatabaseType value (TEST, PROD, or NONE)
         logfile - file where all log messages are saved
         """
         self.__runlog = RunLogger(logfile, showCmd, showCmdOutput)
+        self.__dryRun = dryRun
 
         self.__cnc = None
 
@@ -476,7 +482,8 @@ class BaseRun(object):
         # check for needed executables
         #
         self.__launchProg = \
-                          self.findExecutable("Launch program", "DAQLaunch.py")
+            self.findExecutable("Launch program", "DAQLaunch.py",
+                                self.__dryRun)
 
         self.__updateDBProg = \
             os.path.join(os.environ["HOME"], "offline-db-update",
@@ -515,10 +522,10 @@ class BaseRun(object):
         raise NotImplementedError()
 
     def createRun(self, clusterCfg, runCfg, flashData=None):
-        return Run(self, clusterCfg, runCfg, flashData)
+        return Run(self, clusterCfg, runCfg, flashData, dryRun=self.__dryRun)
 
     @classmethod
-    def findExecutable(cls, name, cmd):
+    def findExecutable(cls, name, cmd, dryRun=False):
         """Find 'cmd' in the user's PATH"""
         if cls.PATH is None:
             cls.PATH = os.environ["PATH"].split(":")
@@ -526,6 +533,8 @@ class BaseRun(object):
             pcmd = os.path.join(pdir, cmd)
             if os.path.exists(pcmd):
                 return pcmd
+        if dryRun:
+            return cmd
         raise SystemExit("%s '%s' does not exist" % (name, cmd))
 
     def flash(self, filename, secs):
@@ -589,6 +598,11 @@ class BaseRun(object):
         "Kill all pDAQ components"
         cmd = "%s -k" % self.__launchProg
         self.__runlog.cmd(cmd)
+
+        if self.__dryRun:
+            print cmd
+            return
+
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, close_fds=True,
@@ -618,11 +632,15 @@ class BaseRun(object):
 
         clusterCfg - cluster configuration
         """
-        if self.isRunning():
+        if not self.__dryRun and self.isRunning():
             raise LaunchException("There is at least one active run")
 
         cmd = "%s -c %s -e &" % (self.__launchProg, clusterCfg)
         self.__runlog.cmd(cmd)
+
+        if self.__dryRun:
+            print cmd
+            return
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
@@ -705,6 +723,9 @@ class BaseRun(object):
         raise NotImplementedError()
 
     def summarize(self, runNum):
+        if self.__dryRun:
+            return
+
         summary = self.cncConnection().rpc_run_summary(runNum)
 
         if summary["startTime"] == "None" or \
@@ -755,6 +776,11 @@ class BaseRun(object):
 
         cmd = "%s %s %s" % (self.__updateDBProg, arg, runCfgPath)
         self.__runlog.cmd(cmd)
+
+        if self.__dryRun:
+            print cmd
+            return
+
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, close_fds=True,

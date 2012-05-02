@@ -237,6 +237,9 @@ if __name__ == "__main__":
     op.add_option("-d", "--deploy", dest="deploy",
                   action="store_true", default=False,
                   help="Deploy the standard tests")
+    op.add_option("-n", "--dry-run", dest="dryRun",
+                  action="store_true", default=False,
+                  help="Don't run commands, just print as they would be run")
     op.add_option("-q", "--quick", dest="quick",
                   action="store_true", default=False,
                   help="Reduce 4/8 hour tests to 2/4 minute tests")
@@ -296,10 +299,10 @@ if __name__ == "__main__":
         deploy.showHome()
     if opt.run:
         if opt.cncrun:
-            runmgr = CnCRun(opt.showCmd, opt.showCmdOutput)
+            runmgr = CnCRun(opt.showCmd, opt.showCmdOutput, dryRun=opt.dryRun)
         else:
             runmgr = LiveRun(opt.showCmd, opt.showCmdOutput, opt.showChk,
-                             opt.showChkOutput)
+                             opt.showChkOutput, dryRun=opt.dryRun)
 
         if sys.version_info > (2, 3):
             from DumpThreads import DumpThreadsOnSignal
