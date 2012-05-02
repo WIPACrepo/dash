@@ -129,8 +129,12 @@ class FlasherScript(object):
         if os.path.exists(flashFile):
             return flashFile
 
-        path = os.path.join(os.environ["PDAQ_HOME"], "src", "test",
-                            "resources", flashFile)
+        try:
+            path = os.path.join(os.environ["PDAQ_HOME"], "src", "test",
+                                "resources", flashFile)
+        except KeyError:
+            raise FlashFileException("PDAQ_HOME env var has not been set")
+
         if os.path.exists(path):
             return path
 
@@ -482,7 +486,11 @@ class BaseRun(object):
 
         # make sure run-config directory exists
         #
-        self.__configDir = os.path.join(os.environ["PDAQ_HOME"], "config")
+        try:
+            self.__configDir = os.path.join(os.environ["PDAQ_HOME"], "config")
+        except KeyError:
+            raise SystemExit("PDAQ_HOME env var has not been set")
+
         if not os.path.isdir(self.__configDir):
             raise SystemExit("Run config directory '%s' does not exist" %
                              self.__configDir)
