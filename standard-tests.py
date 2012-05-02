@@ -10,7 +10,7 @@ import subprocess
 import sys
 import traceback
 
-from BaseRun import FlasherScript
+from BaseRun import FlasherShellScript
 from ClusterDescription import ClusterDescription
 from cncrun import CnCRun
 from liverun import LiveRun
@@ -42,7 +42,7 @@ class PDAQRun(object):
                 if pair[0] is None:
                     path = None
                 else:
-                    path = FlasherScript.findDataFile(pair[0])
+                    path = FlasherShellScript.findDataFile(pair[0])
                 self.__flashData.append((path, pair[1]))
 
     def clusterConfig(self):

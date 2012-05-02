@@ -10,7 +10,7 @@ import optparse
 import os
 import re
 import sys
-from BaseRun import FlasherScript
+from BaseRun import FlasherShellScript
 from cncrun import CnCRun
 from datetime import datetime
 from utils.Machineid import Machineid
@@ -26,7 +26,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 13400 2011-11-11 02:44:51Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 13685 2012-05-02 20:51:02Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -285,7 +285,7 @@ def main():
         flashData = None
     else:
         with open(opt.flasherScript, "r") as fd:
-            flashData = FlasherScript.parse(fd)
+            flashData = FlasherShellScript.parse(fd)
 
     cnc = CnCRun(showCmd=opt.showCmd, showCmdOutput=opt.showCmdOut)
 

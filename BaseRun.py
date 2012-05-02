@@ -115,7 +115,7 @@ class FlasherThread(threading.Thread):
         self.__sem.release()
 
 
-class FlasherScript(object):
+class FlasherShellScript(object):
     """
     Read in a flasher script, producing a list of XML_file_name/duration pairs.
     """
