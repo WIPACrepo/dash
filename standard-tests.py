@@ -13,7 +13,7 @@ import traceback
 from BaseRun import FlasherShellScript
 from ClusterDescription import ClusterDescription
 from cncrun import CnCRun
-from liverun import LiveRun
+from liverun import LiveRun, LiveTimeoutException
 
 # times in seconds
 #
@@ -28,6 +28,8 @@ class PDAQRunException(Exception):
 
 class PDAQRun(object):
     "Description of a pDAQ run"
+
+    MAX_TIMEOUTS = 6
 
     def __init__(self, runCfg, duration, numRuns=1, flashData=None):
         self.__runCfg = runCfg
@@ -60,11 +62,22 @@ class PDAQRun(object):
             else:
                 duration = self.__duration
 
+        timeouts = 0
         for r in range(self.__numRuns):
             try:
                 runmgr.run(self.clusterConfig(), self.__runCfg,
                            duration, self.__flashData, ignoreDB=False,
                            verbose=verbose)
+
+                # reset the timeout counter after each successful run
+                timeouts = 0
+            except SystemExit:
+                raise
+            except LiveTimeoutException:
+                traceback.print_exc()
+                timeouts += 1
+                if timeouts > self.MAX_TIMEOUTS:
+                    raise SystemExit("I3Live seems to have gone away")
             except:
                 traceback.print_exc()
 

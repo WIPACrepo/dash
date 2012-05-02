@@ -39,6 +39,10 @@ class LightModeException(RunException):
     pass
 
 
+class LiveTimeoutException(RunException):
+    pass
+
+
 class AbstractState(object):
     "Generic class for keeping track of the current state"
 
@@ -264,6 +268,11 @@ class LiveState(object):
                 return self.PARSE_NORMAL
             elif front == "daqrelease":
                 # ignore DAQ release name
+                return self.PARSE_NORMAL
+            elif front == "check failed" and back.find("timed out") >= 0:
+                self.__runlog.error("I3Live may have died" +
+                                    " (livecmd check returned '%s')" %
+                                    line.rstrip())
                 return self.PARSE_NORMAL
             else:
                 self.__runlog.error("Unknown livecmd pair: \"%s\"/\"%s\"" %
@@ -591,7 +600,12 @@ class LiveRun(BaseRun):
             line = line.rstrip()
             self.__runlog.cmdout(line)
 
-            num = int(line)
+            try:
+                num = int(line)
+            except ValueError:
+                if line.find("timed out") >= 0:
+                    raise LiveTimeoutException("I3Live seems to have died")
+
         proc.stdout.close()
 
         proc.wait()
