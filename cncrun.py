@@ -367,7 +367,7 @@ class CnCRun(BaseRun):
         return True
 
     def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False,
-                 verbose=False):
+                 runMode=None, filterMode=None, verbose=False):
         """
         Start a run
 
@@ -375,6 +375,8 @@ class CnCRun(BaseRun):
         duration - number of seconds for run
         numRuns - number of runs (default=1)
         ignoreDB - don't check the database for this run config
+        runMode - Run mode for 'livecmd'
+        filterMode - Run mode for 'livecmd'
         verbose - print more details of run transitions
 
         Return True if the run was started
@@ -407,6 +409,15 @@ class CnCRun(BaseRun):
 
         self.__runNum = self.getLastRunNumber()[0] + 1
         self.__setLastRunNumber(self.__runNum, 0)
+
+        if runMode is not None:
+            if filterMode is not None:
+                self.__runlog.error("Ignoring run mode %s, filter mode %s" %
+                                    (runMode, filterMode))
+            else:
+                self.__runlog.error("Ignoring run mode %s" % runMode)
+        elif filterMode is not None:
+            self.__runlog.error("Ignoring filter mode %s" % filterMode)
 
         runOptions = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
 
@@ -460,6 +471,7 @@ class CnCRun(BaseRun):
         return self.__waitForState(RunSetState.READY, 10, verbose=verbose)
 
 if __name__ == "__main__":
-    run = CnCRun(True, True)
+    run = CnCRun(True, True, dryRun=False)
     run.run("spts64-dirtydozen-hlc-006", "spts64-dirtydozen-hlc-006", 30,
-            (("flash-21.xml", 5), (None, 10), ("flash-21.xml", 5)), verbose=True)
+            (("flash-21.xml", 5), (None, 10), ("flash-21.xml", 5)),
+            verbose=True)

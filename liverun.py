@@ -682,7 +682,7 @@ class LiveRun(BaseRun):
         return True
 
     def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False,
-                 verbose=False):
+                 runMode=None, filterMode=None, verbose=False):
         """
         Tell I3Live to start a run
 
@@ -690,6 +690,8 @@ class LiveRun(BaseRun):
         duration - number of seconds for run
         numRuns - number of runs (default=1)
         ignoreDB - tell I3Live to not check the database for this run config
+        runMode - Run mode for 'livecmd'
+        filterMode - Run mode for 'livecmd'
         verbose - print more details of run transitions
 
         Return True if the run was started
@@ -697,12 +699,16 @@ class LiveRun(BaseRun):
         if not self.__dryRun and not self.isStopped(True):
             return False
 
+        args = ""
         if ignoreDB or self.ignoreDatabase():
-            iArg = "-i"
-        else:
-            iArg = ""
+            args += " -i"
+        if runMode is not None:
+            args += " -r %s" % runMode
+        if filterMode is not None:
+            args += " -p %s" % filterMode
+
         cmd = "%s start -d %s -n %d -l %d %s daq" % \
-            (self.__liveCmdProg, runCfg, numRuns, duration, iArg)
+            (self.__liveCmdProg, runCfg, numRuns, duration, args)
         if not self.__runBasicCommand("StartRun", cmd):
             return False
 

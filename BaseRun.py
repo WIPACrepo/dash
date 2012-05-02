@@ -334,14 +334,16 @@ class Run(object):
 
         self.__runNum = 0
 
-    def start(self, duration, ignoreDB=False, verbose=False):
+    def start(self, duration, ignoreDB=False, runMode=None, filterMode=None,
+              verbose=False):
         """
         Start a run
 
         duration - number of seconds to run
-        flashTimes - list of times (in seconds) to flash
-        flashPause - number of seconds to pause between flashing
         ignoreDB - False if the database should be checked for this run config
+        runMode - Run mode for 'livecmd'
+        filterMode - Run mode for 'livecmd'
+        verbose - provide additional details of the run
         """
         # write the run configuration to the database
         #
@@ -379,6 +381,7 @@ class Run(object):
         # start the run
         #
         if not self.__mgr.startRun(self.__runCfg, duration, 1, ignoreDB,
+                                   runMode=runMode, filterMode=filterMode,
                                    verbose=verbose):
             raise RunException("Could not start run #%d: %s" %
                                (self.__runNum, self.__runCfg))
@@ -665,7 +668,7 @@ class BaseRun(object):
         time.sleep(5)
 
     def run(self, clusterCfg, runCfg, duration, flasherData=None,
-            ignoreDB=False, verbose=False):
+            ignoreDB=False, runMode=None, filterMode=None, verbose=False):
         """
         Manage a set of runs
 
@@ -674,10 +677,13 @@ class BaseRun(object):
         duration - number of seconds to run
         flasherData - pairs of (XML file name, duration)
         ignoreDB - False if the database should be checked for this run config
+        runMode - Run mode for 'livecmd'
+        filterMode - Run mode for 'livecmd'
         verbose - provide additional details of the run
         """
         run = self.createRun(clusterCfg, runCfg, flasherData)
-        run.start(duration, ignoreDB, verbose=verbose)
+        run.start(duration, ignoreDB, runMode=runMode, filterMode=filterMode,
+                  verbose=verbose)
         try:
             run.wait()
         finally:
