@@ -623,7 +623,8 @@ class BaseRun(object):
 
             if line.startswith("Found "):
                 failLine = line
-            elif line.find("DAQ is not currently active") > 0:
+            elif line.find("DAQ is not currently active") >= 0 or \
+                line.find("Killed CnCServer") >= 0:
                 pass
             elif line.find("To force a restart") < 0:
                 self.__runlog.error("KillComponents: %s" % line)
