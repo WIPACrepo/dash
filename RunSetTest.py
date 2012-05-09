@@ -736,17 +736,21 @@ class TestRunSet(unittest.TestCase):
                                  (runNum, compStr))
         logger.addExpectedExact("Failed to transition to ready: stopping[%s]" %
                                 compStr)
-        logger.addExpectedExact("Could not stop stopping[%s]" % compStr)
+
+        stopErrMsg = "RunSet #%d run#%d (error): Could not stop stopping[%s]" %\
+            (runset.id(), runNum, compStr)
+        logger.addExpectedExact(stopErrMsg)
 
         try:
-            runset.stopRun()
-        except RunSetException, rse:
-            self.assertEqual(str(rse), "Could not stop stopping[%s]" % compStr,
-                             "Unexpected exception")
-
-
-        RunXMLValidator.validate(self, runNum, clusterName, None, None,
-                                 0, 0, 0, 0, False)
+            try:
+                runset.stopRun()
+            except RunSetException, rse:
+                self.assertEqual(str(rse), stopErrMsg,
+                                 "Expected exception %s, not %s" %
+                                 (rse, stopErrMsg))
+        finally:
+            RunXMLValidator.validate(self, runNum, clusterName, None, None,
+                                     0, 0, 0, 0, False)
 
     def testListCompRanges(self):
 
