@@ -83,33 +83,15 @@ class TestUtils(unittest.TestCase):
             expectedDocStr = """<?xml version="1.0" ?>
 <?xml-stylesheet type="text/xsl" href="/2001/xml/DAQRunlog.xsl"?>
 <DAQRunlog>
-<Config>
-sps-IC79-Erik-Changed-TriggerIDs-V151
-</Config>
-<EndTime>
-55584.227695
-</EndTime>
-<Events>
-24494834
-</Events>
-<Moni>
-60499244
-</Moni>
-<SN>
-47624256
-</SN>
-<StartTime>
-55584.113903
-</StartTime>
-<Tcal>
-4653819
-</Tcal>
-<TermCondition>
-Success
-</TermCondition>
-<run>
-117554
-</run>
+<Config>sps-IC79-Erik-Changed-TriggerIDs-V151</Config>
+<EndTime>55584.227695</EndTime>
+<Events>24494834</Events>
+<Moni>60499244</Moni>
+<SN>47624256</SN>
+<StartTime>55584.113903</StartTime>
+<Tcal>4653819</Tcal>
+<TermCondition>Success</TermCondition>
+<run>117554</run>
 </DAQRunlog>
 """
             self.assertEqual(docStr, expectedDocStr)
