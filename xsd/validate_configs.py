@@ -2,6 +2,7 @@ from lxml import etree
 from lxml.etree import XMLSyntaxError
 import os
 import sys
+import glob
 
 try:
     from CachedConfigName import CachedConfigName
@@ -59,6 +60,7 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
     if not valid:
         return (valid, reason)
 
+    # 
     # validate the run configuration
     # assume an .xml extension for the run config and add if required
 
@@ -95,15 +97,23 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
         # cannot open the run config file
         return (False, "Cannot open runconfig '%s'" % runconfig_xml_filename)
 
-    run_configs = doc_xml.getroot()
+    is_sps = True
+    if cluster_xml_filename is not None:
+        if not is_sps_cluster(cluster_xml_filename):
+            is_sps = False
 
+    run_configs = doc_xml.getroot()
+    
     dconfigList = run_configs.findall('domConfigList')
     for dconfig in dconfigList:
         dom_config_txt = "%s.xml" % dconfig.text
         dom_config_path = os.path.join(META_DIR, 'config', 'domconfigs',
                                        dom_config_txt)
 
-        (valid, reason) = validate_dom_config_sps(dom_config_path)
+        if is_sps:
+            (valid, reason) = validate_dom_config_sps(dom_config_path)
+        else:
+            (valid, reason) = validate_dom_config_spts(dom_config_path)
 
         if not valid:
             return (False, reason)
@@ -149,41 +159,64 @@ def validate_trigger(xml_filename):
     return (valid, reason)
 
 
+def is_sps_cluster(cluster_xml_filename):
+    """sps by definition is the most strict validation
+    if we cannot determine the cluster for some reason assume sps"""
+
+    (valid, reason) = validate_clusterconfig(cluster_xml_filename)
+    if not valid:
+        print "cluster config not valid"
+        return True
+            
+    try:
+        with open(cluster_xml_filename, 'r') as xml_fd:
+            try:
+                doc_xml = etree.parse(xml_fd)
+            except XMLSyntaxError as e:
+                print "xml exception on cluster config"
+                return True
+    except IOError:
+        print "io error"
+        return True
+
+    # the cluster attribute is the root element of the cluster
+    # config xml file
+    cluster = doc_xml.getroot()
+    if cluster==None:
+        return True
+    # 'name' is required by the validate_clustercfg code
+    # but be a bit paranoid so check for it
+    if 'name' not in cluster.attrib:
+        print "name nattribute not found"
+        return True
+
+    name = cluster.attrib['name']
+    
+    if name=='sps':
+        return True
+    else:
+        return False
+
+
 def validate_dom_config_sps(xml_filename):
     """Check a dom config file against the appropriate xml schema"""
     (valid, reason) = _validate_dom_config_xml(xml_filename,
-                                               'domconfig-sps.xsd',
-                                               'domconfig-sim.xsd')
+                                               'domconfig-sps.rng')
 
     return (valid, reason)
 
 
 def validate_dom_config_spts(xml_filename):
     """Check a dom config file against the appropriate xml schema"""
+   
     (valid, reason) = _validate_dom_config_xml(xml_filename,
-                                               'domconfig-spts.xsd',
-                                               'domconfig-sim.xsd')
+                                               'domconfig-spts.rng')
 
     return (valid, reason)
 
 
-def _validate_dom_config_xml(xml_filename, xsd_real_filename,
-                             xsd_sim_filename):
-    """
-    This method will look a bit hack'ish.
-    The dom configs for the real doms is a bit problematic as the elements
-    can occur in any order ( probably due to hand editing the files )  This
-    means we have to use xsd:all ( or list all possible orders of arguments -
-    which will be large due to the number of possible elements ).  You cannot
-    use an xsd:all inside a choice as that makes the resulting grammar
-    non-determinisitc.
 
-    So we get around this problem by reading the document in an unvalidated
-    fashion, look for a simulation tag, and then validate the xml file
-    depending on that tag.  Any simplifications I could come up with would
-    require altering the format for the dom config files, or editing all
-    configs neither of which is desirable.
-    """
+def _validate_dom_config_xml(xml_filename, rng_real_filename):
 
     try:
         with open(xml_filename, 'r') as xml_fd:
@@ -194,59 +227,28 @@ def _validate_dom_config_xml(xml_filename, xsd_real_filename,
     except IOError:
         return (False, "Cannot open: %s" % xml_filename)
 
-    found_simulation = False
-
-    dom_configs = doc_xml.findall('domConfig')
-    for dconfig in dom_configs:
-        simulation = dconfig.findall('simulation')
-        if len(simulation) != 0:
-            found_simulation = True
-
-    # now we know the type of the file
-    if found_simulation:
-        xsd_sim_fd = None
+    rng_real_fd = None
+    try:
         try:
-            try:
-                xsd_sim_fd = open(xsd_sim_filename, 'r')
-            except IOError:
-                xsd_sim_path = os.path.join(META_DIR, "config",
-                                            "xsd",
-                                            os.path.basename(xsd_sim_filename))
+            rng_real_fd = open(rng_real_filename, 'r')
+        except IOError:
+            rng_real_path = os.path.join(META_DIR, "config",
+                                         "xsd",
+                                         os.path.basename(rng_real_filename))
+            
+            xsd_real_fd = open(rng_real_path, 'r')
 
-                xsd_sim_fd = open(xsd_sim_path, 'r')
-            xmlschema_doc = etree.parse(xsd_sim_fd)
-        finally:
-            if xsd_sim_fd is not None:
-                xsd_sim_fd.close()
+            rng_doc = etree.parse(xsd_real_fd)
+    finally:
+        if rng_real_fd is not None:
+            rng_real_fd.close()
+                
+    rng_real = etree.RelaxNG(rng_doc)
 
-        xsd_sim = etree.XMLSchema(xmlschema_doc)
-        if xsd_sim.validate(doc_xml):
-            return (True, "")
-        else:
-            return (False, "%s" % xsd_sim.error_log)
+    if rng_real.validate(doc_xml):
+        return (True, "")
     else:
-        xsd_real_fd = None
-        try:
-            try:
-                xsd_real_fd = open(xsd_real_filename, 'r')
-            except IOError:
-                xsd_real_path = os.path.join(META_DIR, "config",
-                                           "xsd",
-                                           os.path.basename(xsd_real_filename))
-
-                xsd_real_fd = open(xsd_real_path, 'r')
-
-            xmlschema_doc = etree.parse(xsd_real_fd)
-        finally:
-            if xsd_real_fd is not None:
-                xsd_real_fd.close()
-
-        xsd_real = etree.XMLSchema(xmlschema_doc)
-
-        if xsd_real.validate(doc_xml):
-            return (True, "")
-        else:
-            return (False, "%s" % xsd_real.error_log)
+        return (False, "%s" % rng_real.error_log)
 
 
 def _validate_xml_rng(xml_filename, relaxng_filename):
@@ -352,12 +354,36 @@ def _validate_xml(xml_filename, xsd_filename):
 
 
 if __name__ == "__main__":
-    print "validate_configs"
-    (valid, reason) = validate_configs('../../config/localhost-cluster.cfg',
-                                       '../../config/sim60str-25Hz.xml')
 
-    if not valid:
-        print "Configuration invalid ( reasons: )"
-        print reason
-    else:
-        print "Configuration is valid"
+    spts_configs = glob.glob('../../config/spts*.xml')
+    print "Validating all sps configuraitons"
+    for config in spts_configs:
+        print ""
+        print "Validating %s" % config
+        (valid, reason) = validate_configs('../../config/spts-cluster.cfg',
+                                           config)
+
+        if not valid:
+            print "Configuration invalid ( reasons: )"
+            print reason
+        else:
+            print "Configuration is valid"
+
+    print "-"*60
+    print "Validating all sps configurations"
+    print "-"*60
+    sps_configs = glob.glob('../../config/sps*.xml')
+    
+    print "validate_configs"
+    print "Validating all sps configuraitons"
+    for config in sps_configs:
+        print ""
+        print "Validating %s" % config
+        (valid, reason) = validate_configs('../../config/sps-cluster.cfg',
+                                           config)
+
+        if not valid:
+            print "Configuration invalid ( reasons: )"
+            print reason
+        else:
+            print "Configuration is valid"

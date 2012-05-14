@@ -15,9 +15,8 @@ if __name__ == "__main__":
 
     config_path = os.path.join(metaDir, "config")
     dom_config_path = os.path.join(config_path, "domconfigs")
-    xsd_path = os.path.join(config_path, "xsd")
 
-    # test the xsd  parsing on all dom config xml files
+    # test the rng validation on all SPS dom config xml files
     print "Checking sps configuration files:"
     invalid_list = []
     cfg_files = glob.glob(os.path.join(dom_config_path, 'sps*.xml'))
@@ -29,15 +28,13 @@ if __name__ == "__main__":
             print "-" * 60
 
             print "File %s is not valid" % cfg
-            #print "Reason: %s" % errors
-            invalid_list.append((cfg, errors))
+            print "Reason: %s" % errors
+            print "-" * 60
+            print "\n" * 2
 
-    print "Printing errors found in sps configuration files:"
-    for f, errs in invalid_list:
-        print errs
-        print "-" * 80
 
-    # test the xsd  parsing on all dom config xml files
+
+    # test the rng parsing on all SPTS dom config xml files
     print "Checking spts configuration files:"
     invalid_list = []
     cfg_files = glob.glob(os.path.join(dom_config_path, 'spts*.xml'))
@@ -49,10 +46,7 @@ if __name__ == "__main__":
             print "-" * 60
 
             print "File %s is not valid" % cfg
-            #print "Reason: %s" % errors
-            invalid_list.append((cfg, errors))
+            print "Reason: %s" % errors
+            print "-" * 60
+            print "\n" * 2
 
-    print "Printing errors found in sps configuration files:"
-    for f, errs in invalid_list:
-        print errs
-        print "-" * 80
