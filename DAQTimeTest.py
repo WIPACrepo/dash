@@ -79,7 +79,8 @@ class TestDAQTime(unittest.TestCase):
         yrsecs = long(calendar.timegm(dec31) - calendar.timegm(jan1))
         yrticks = yrsecs * self.TICKS_PER_SEC + (self.TICKS_PER_SEC - 10000)
         dt = PayloadTime.toDateTime(yrticks)
-        expStr = self.__dateFormat(self.CUR_YEAR, 12, 31, 23, 59, 59, 9999990000)
+        expStr = self.__dateFormat(self.CUR_YEAR, 12, 31, 23, 59, 59,
+                                   9999990000)
         self.assertEqual(expStr, str(dt),
                          "Expected date %s, not %s" % (expStr, dt))
 
@@ -89,8 +90,8 @@ class TestDAQTime(unittest.TestCase):
         yrsecs = long(calendar.timegm(dec31) - calendar.timegm(jan1))
         yrticks = yrsecs * self.TICKS_PER_SEC + (self.TICKS_PER_SEC - 10000)
         dt = PayloadTime.toDateTime(yrticks, high_precision=True)
-        expStr = self.__dateFormat(self.CUR_YEAR, 12, 31, 23, 59, 59, 9999990000,
-                                   high_precision=True)
+        expStr = self.__dateFormat(self.CUR_YEAR, 12, 31, 23, 59, 59,
+                                   9999990000, high_precision=True)
         self.assertEqual(expStr, str(dt),
                          "Expected date %s, not %s" % (expStr, dt))
 
@@ -167,11 +168,25 @@ class TestDAQTime(unittest.TestCase):
         dt1 = DAQDateTime(t1[0], t1[1], t1[2], t1[3], t1[4], t1[5], t1[6])
         dt2 = DAQDateTime(t2[0], t2[1], t2[2], t2[3], t2[4], t2[5], t2[6])
         diff = dt1 - dt2
-        self.assertEqual(expDiff,
-                         (diff.days, diff.seconds, diff.microseconds),
-                         "Expected DAQDateTime diff %d/%d/%d not %d/%d/%d" %
-                         (expDiff[0], expDiff[1], expDiff[2],
-                          diff.days, diff.seconds, diff.microseconds))
+
+        self.assertEqual(expDiff[0], diff.days,
+                         ("DAQDateTime days %d should be %d" +
+                          " (%d/%d/%d vs. %d/%d/%d)") %
+                         (diff.days, expDiff[0], expDiff[0],
+                          expDiff[1], expDiff[2], diff.days, diff.seconds,
+                          diff.microseconds))
+        self.assertEqual(expDiff[1], diff.seconds,
+                         ("DAQDateTime seconds %d should be %d" +
+                          " (%d/%d/%d vs. %d/%d/%d)") %
+                         (diff.seconds, expDiff[1], expDiff[0],
+                          expDiff[1], expDiff[2], diff.days, diff.seconds,
+                          diff.microseconds))
+        self.assertEqual(expDiff[2], diff.microseconds,
+                         ("DAQDateTime microseconds %d should be %d" +
+                          " (%d/%d/%d vs. %d/%d/%d)") %
+                         (diff.microseconds, expDiff[2], expDiff[0],
+                          expDiff[1], expDiff[2], diff.days, diff.seconds,
+                          diff.microseconds))
 
     def testDeltaSecSubsec(self):
         self.__validateDelta((self.CUR_YEAR, 4, 3, 15, 28, 0, 450989000),
@@ -189,10 +204,19 @@ class TestDAQTime(unittest.TestCase):
                              (1, 3720, 986325))
 
     def testRepr(self):
-        expStr = "DAQDateTime(%d, 1, 10, 10, 19, 23, 9876543210)" % \
-            self.CUR_YEAR
+        fmtstr = "DAQDateTime(%d, 1, 10, 10, 19, 23, 987654%04.4d%s)"
+
+        low_digits = 3210
+        if not DAQDateTime.HIGH_PRECISION:
+            short_digits = 0
+            hpStr = ""
+        else:
+            short_digits = low_digits
+            hpStr = ", high_precision=True"
+
+        expStr = fmtstr % (self.CUR_YEAR, low_digits, hpStr)
+        shortStr = fmtstr % (self.CUR_YEAR, short_digits, hpStr)
         dt = eval(expStr)
-        shortStr = expStr[0:-5]+"0000)"
         self.assertEqual(shortStr, repr(dt),
                          "Expected repr %s, not %s" % (shortStr, repr(dt)))
 
@@ -222,7 +246,8 @@ class TestDAQTime(unittest.TestCase):
         self.assertEqual(PayloadTime.fromString(None), None)
 
     def testFromString(self):
-        expStr = "DAQDateTime(%d, 1, 10, 10, 19, 23, 987654321)" % self.CUR_YEAR
+        expStr = "DAQDateTime(%d, 1, 10, 10, 19, 23, 987654321)" % \
+            self.CUR_YEAR
         dt0 = eval(expStr)
         dt1 = PayloadTime.fromString(str(dt0))
         self.__checkCompare(dt0, dt1, 0)

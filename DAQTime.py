@@ -27,10 +27,10 @@ class DAQDateTimeDelta(object):
         return rtnstr
 
 class DAQDateTime(object):
-    HIGH_PRECISION = False
+    HIGH_PRECISION = True
 
     def __init__(self, year, month, day, hour, minute, second, daqticks,
-                 tzinfo=None, high_precision=False):
+                 tzinfo=None, high_precision=HIGH_PRECISION):
         if high_precision:
             self.__daqticks = daqticks
             self.__high_precision = True
@@ -80,7 +80,7 @@ class DAQDateTime(object):
             secs -= 1
             usecs += 1000000
 
-        return DAQDateTimeDelta(days, secs, usecs)
+        return DAQDateTimeDelta(days, secs, long(usecs))
 
     def __str__(self):
         if self.__high_precision:
@@ -109,7 +109,7 @@ class PayloadTime(object):
     TICKS_PER_SECOND = 10000000000
 
     @staticmethod
-    def fromString(timestr, high_precision=False):
+    def fromString(timestr, high_precision=DAQDateTime.HIGH_PRECISION):
         if timestr is None:
             return None
 
