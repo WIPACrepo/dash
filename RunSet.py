@@ -636,7 +636,7 @@ class RunData(object):
     def error(self, msg):
         self.__dashlog.error(msg)
 
-    def finalReport(self, comps, hadError):
+    def finalReport(self, comps, hadError, switching=False):
         (numEvts, firstTime, lastTime, numMoni, numSN, numTcal) = \
             self.getRunData(comps)
 
@@ -667,10 +667,15 @@ class RunData(object):
                              (numMoni, numSN, numTcal))
 
         # report run status
-        if hadError:
-            self.__dashlog.error("Run terminated WITH ERROR.")
+        if not switching:
+            endType = "terminated"
         else:
-            self.__dashlog.error("Run terminated SUCCESSFULLY.")
+            endType = "switched"
+        if hadError:
+            errType = "WITH ERROR"
+        else:
+            errType = "SUCCESSFULLY"
+        self.__dashlog.error("Run %s %s." % (endType, errType))
 
         self.__reportRunStop(numEvts, firstTime, lastTime, hadError)
 
@@ -1131,8 +1136,8 @@ class RunSet(object):
             self.__state = RunSetState.ERROR
             raise RunSetException(msg)
 
-    def __finishRun(self, comps, runData, hadError):
-        duration = runData.finalReport(comps, hadError)
+    def __finishRun(self, comps, runData, hadError, switching=False):
+        duration = runData.finalReport(comps, hadError, switching=switching)
 
         self.__parent.saveCatchall(runData.runDirectory())
 
@@ -2267,7 +2272,7 @@ class RunSet(object):
         self.__runData = newData
         newData.finishSetup(self, startTime)
 
-        duration = self.__finishRun(self.__set, oldData, False)
+        duration = self.__finishRun(self.__set, oldData, False, switching=True)
 
         oldData.sendEventCounts(self.__set, False)
 
