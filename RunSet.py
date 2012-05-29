@@ -1193,7 +1193,7 @@ class RunSet(object):
                 msg = "%s: Could not stop %s" % \
                     (self, self.__badStateString(badStates))
                 self.__runData.error(msg)
-            except Exception, ex:
+            except Exception as ex:
                 msg = "%s: Components in bad states: %s" % (self, ex)
             self.__state = RunSetState.ERROR
             raise RunSetException(msg)

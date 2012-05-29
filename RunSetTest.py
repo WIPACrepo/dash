@@ -744,7 +744,7 @@ class TestRunSet(unittest.TestCase):
         try:
             try:
                 runset.stopRun()
-            except RunSetException, rse:
+            except RunSetException as rse:
                 self.assertEqual(str(rse), stopErrMsg,
                                  "Expected exception %s, not %s" %
                                  (rse, stopErrMsg))
