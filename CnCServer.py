@@ -39,7 +39,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 13718 2012-05-29 21:18:38Z dglo $"
+SVN_ID = "$Id: CnCServer.py 13720 2012-05-29 21:45:09Z dglo $"
 
 
 class CnCServerException(Exception):
@@ -797,10 +797,10 @@ class CnCServer(DAQPool):
         cfgDir = self.__runConfigDir
         try:
             return DAQConfigParser.getClusterConfiguration(None,
-                                                      useActiveConfig=True,
-                                                      clusterDesc=cdesc,
-                                                      configDir=cfgDir,
-                                                      validate=False)
+                                                           useActiveConfig=True,
+                                                           clusterDesc=cdesc,
+                                                           configDir=cfgDir,
+                                                           validate=False)
         except XMLFileNotFound:
             if cdesc is None:
                 cdescStr = ""

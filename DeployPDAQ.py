@@ -32,7 +32,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 13566 2012-03-11 11:30:54Z kael $"
+SVN_ID = "$Id: DeployPDAQ.py 13720 2012-05-29 21:45:09Z dglo $"
 
 
 def getUniqueHostNames(config):
@@ -177,7 +177,7 @@ def main():
     try:
         cdesc = opt.clusterDesc
         config = \
-            DAQConfigParser.getClusterConfiguration(opt.configName, False,
+            DAQConfigParser.getClusterConfiguration(opt.configName,
                                                     clusterDesc=cdesc,
                                                     validate=opt.validation)
     except XMLFileNotFound:

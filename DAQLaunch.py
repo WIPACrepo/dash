@@ -41,7 +41,7 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 13550 2012-03-08 23:12:05Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 13720 2012-05-29 21:45:09Z dglo $"
 
 
 class HostNotFoundForComponent   (Exception):
@@ -548,11 +548,14 @@ if __name__ == "__main__":
 
         caughtException = False
         try:
+            cluDesc = opt.clusterDesc
+            validate = opt.validation
             activeConfig = \
-                DAQConfigParser.getClusterConfiguration(None, False, True,
-                                                       opt.clusterDesc,
-                                                       configDir=configDir,
-                                                       validate=opt.validation)
+                DAQConfigParser.getClusterConfiguration(None,
+                                                        useActiveConfig=True,
+                                                        clusterDesc=cluDesc,
+                                                        configDir=configDir,
+                                                        validate=validate)
             doKill(doCnC, opt.dryRun, dashDir, opt.verbose, opt.quiet,
                    activeConfig, opt.killWith9)
         except DAQConfigException:
@@ -566,13 +569,14 @@ if __name__ == "__main__":
 
     if not opt.killOnly:
         try:
-
+            cluDesc = opt.clusterDesc
+            validate = opt.validation
             clusterConfig = \
                 DAQConfigParser.getClusterConfiguration(opt.clusterConfigName,
-                                                       opt.doList, False,
-                                                       opt.clusterDesc,
-                                                       configDir=configDir,
-                                                       validate=opt.validation)
+                                                        useActiveConfig=False,
+                                                        clusterDesc=cluDesc,
+                                                        configDir=configDir,
+                                                        validate=validate)
         except DAQConfigException as e:
             print >> sys.stderr, "DAQ Config exception:\n\t%s" % e
             raise SystemExit

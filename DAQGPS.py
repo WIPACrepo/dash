@@ -26,9 +26,6 @@ def main():
                  action="store_true", default=False,
                  help="Don't actually run DAQGPS - just print what" +
                  " would be done")
-    p.add_option("-l", "--list-configs", dest="doList",
-                 action="store_true", default=False,
-                 help="List available configs")
     p.add_option("-z", "--no-schema-validation", dest="validation",
                  action="store_false", default=True,
                  help="Disable schema validation of xml config files")
@@ -38,7 +35,6 @@ def main():
     try:
         config = DAQConfigParser. \
             getClusterConfiguration(opt.clusterConfigName,
-                                    opt.doList,
                                     validate=opt.validation)
     except DAQConfigException as e:
         print >> sys.stderr, "Configuration file problem:\n%s" % e

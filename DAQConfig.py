@@ -1600,9 +1600,8 @@ class DAQConfigParser(XMLParser, XMLFileCache):
         return cls.buildPath(configDir, configName) != None
 
     @classmethod
-    def getClusterConfiguration(cls, configName, doList=False,
-                                useActiveConfig=False, clusterDesc=None,
-                                configDir=None, strict=False,
+    def getClusterConfiguration(cls, configName, useActiveConfig=False,
+                                clusterDesc=None, configDir=None, strict=False,
                                 validate=True):
         """
         Find and parse the cluster configuration from either the
@@ -1620,10 +1619,6 @@ class DAQConfigParser(XMLParser, XMLFileCache):
         if sepIndex > 0:
             clusterDesc = configName[sepIndex + 1:]
             configName = configName[:sepIndex]
-
-        if doList:
-            DAQConfig.showList(configDir, configName)
-            return
 
         if configDir is None:
             configDir = os.path.join(metaDir, "config")
