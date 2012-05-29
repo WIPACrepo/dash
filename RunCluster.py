@@ -52,6 +52,10 @@ class RunComponent(Component):
     def isControlServer(self):
         return False
 
+    def isLocalhost(self):
+        return self.__host is not None and \
+            (self.__host == "localhost" or self.__host == "127.0.0.1")
+
     def jvm(self):
         return self.__jvm
 

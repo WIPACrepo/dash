@@ -915,7 +915,7 @@ class IntegrationTest(unittest.TestCase):
 
         logLevel = 'INFO'
 
-        pShell.addExpectedPythonKill(doCnC, dashDir, killWith9)
+        pShell.addExpectedPythonKill(doCnC, killWith9)
 
         launchList = self.__compList[:]
         launchList.sort(RealComponent.sortForLaunch)

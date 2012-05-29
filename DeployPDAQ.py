@@ -20,6 +20,7 @@ SUBDIRS = ("target", "config", "dash", "src")
 # Defaults for a few args
 NICE_ADJ_DEFAULT = 19
 EXPRESS_DEFAULT = False
+TIMEOUT_DEFAULT = 300
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
 if "PDAQ_HOME" in os.environ:
@@ -32,7 +33,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 13720 2012-05-29 21:45:09Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 13722 2012-05-29 21:56:26Z dglo $"
 
 
 def getUniqueHostNames(config):
@@ -98,7 +99,7 @@ def main():
                  help="Run rsyncs serially (overrides parallel and unsets" +
                  " timeout)")
     p.add_option("-t", "--timeout", type="int", dest="timeout",
-                 action="store", default=300,
+                 action="store", default=TIMEOUT_DEFAULT,
                  help="Number of seconds before rsync is terminated")
     p.add_option("-v", "--verbose", dest="verbose",
                  action="store_true", default=False,
@@ -212,25 +213,36 @@ def main():
                 print " ",
             print
 
-    if not opt.dryRun:
-        config.writeCacheFile()
-        if traceLevel >= 0:
-            ver = store_svnversion(metaDir)
-            print "VERSION: %s" % ver
+        ver = store_svnversion(metaDir)
+        print "VERSION: %s" % ver
 
-    parallel = ParallelShell(parallel=opt.doParallel, dryRun=opt.dryRun,
-                             verbose=(traceLevel > 0 or opt.dryRun),
-                             trace=(traceLevel > 0), timeout=opt.timeout)
-
-    pdaqDir = replaceHome(os.environ["HOME"], metaDir)
-    deploy(config, parallel, os.environ["HOME"], pdaqDir, SUBDIRS, opt.delete,
-           opt.dryRun, opt.deepDryRun, opt.undeploy, traceLevel, monitorIval,
-           opt.niceAdj, opt.express)
+    deploy(config, os.environ["HOME"], metaDir, SUBDIRS, opt.delete,
+           opt.dryRun, opt.deepDryRun, opt.undeploy, traceLevel,
+           monitorIval=monitorIval, niceAdj=opt.niceAdj, express=opt.express,
+           doParallel=opt.doParallel, timeout=opt.timeout)
 
 
-def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
+def deploy(config, homeDir, pdaqDir, subdirs, delete, dryRun,
            deepDryRun, undeploy, traceLevel, monitorIval=None,
-           niceAdj=NICE_ADJ_DEFAULT, express=EXPRESS_DEFAULT):
+           niceAdj=NICE_ADJ_DEFAULT, express=EXPRESS_DEFAULT,
+           parallel=None, doParallel=True, timeout=TIMEOUT_DEFAULT):
+    if subdirs is None:
+        subdirs = SUBDIRS
+
+    # convert to a relative path
+    # (~pdaq is a different directory on different machines)
+    pdaqDir = replaceHome(os.environ["HOME"], pdaqDir)
+
+    # record the configuration being deployed so
+    # it gets copied along with everything else
+    if not dryRun:
+        config.writeCacheFile()
+
+    if parallel is None:
+        parallel = ParallelShell(parallel=doParallel, dryRun=dryRun,
+                                 verbose=(traceLevel > 0 or dryRun),
+                                 trace=(traceLevel > 0), timeout=timeout)
+
     # build stub of rsync command
     if express:
         rsyncCmdStub = "rsync"
@@ -254,12 +266,9 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
     targetDir = os.path.join(pdaqDir, 'target')
     if targetDir.startswith("~"):
         targetDir = os.path.join(homeDir, targetDir[targetDir.find("/") + 1:])
-    if not undeploy and not os.path.isdir(targetDir):
-        print >>sys.stderr, \
-            "ERROR: Target dir (%s) does not exist." % (targetDir)
-        print >>sys.stderr, \
-            "ERROR: Did you run 'mvn clean install assembly:assembly'?"
-        raise SystemExit
+    if not undeploy and not os.path.isdir(targetDir) and not dryRun:
+        raise Exception(("Target dir (%s) does not exist.\n" % targetDir) +
+                        "Did you run 'mvn clean install assembly:assembly'?")
 
     cmdToNodeNameDict = {}
 
@@ -281,19 +290,24 @@ def deploy(config, parallel, homeDir, pdaqDir, subdirs, delete, dryRun,
                                    pdaqDir)
 
         cmdToNodeNameDict[cmd] = nodeName
-        if traceLevel > 0:
+        if traceLevel > 0 or dryRun:
             print "  " + cmd
-        parallel.add(cmd)
+        if not dryRun:
+            parallel.add(cmd)
 
-    parallel.start()
-    if parallel.isParallel():
-        parallel.wait(monitorIval)
+    if not dryRun:
+        parallel.start()
+        if parallel.isParallel():
+            parallel.wait(monitorIval)
 
-    if(not dryRun):
+    if not dryRun:
         cmd_results_dict = parallel.getCmdResults()
         for cmd in cmd_results_dict:
             rtn_code, result = cmd_results_dict[cmd]
-            nodeName = "unknown" if cmd not in cmdToNodeNameDict else cmdToNodeNameDict[cmd]
+            if cmd not in cmdToNodeNameDict:
+                nodeName = "unknown"
+            else:
+                nodeName = cmdToNodeNameDict[cmd]
             if(rtn_code != 0):
                 print "-" * 60
                 print ("Error non-zero return code  ( %d ) "

@@ -13,12 +13,21 @@ import time
 from datetime import datetime
 
 from ClusterDescription import ClusterDescription
+from ComponentManager import ComponentManager
+from DAQConfig import DAQConfigException, DAQConfigParser
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from DAQTime import PayloadTime
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
+
+# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+if "PDAQ_HOME" in os.environ:
+    metaDir = os.environ["PDAQ_HOME"]
+else:
+    from locate_pdaq import find_pdaq_trunk
+    metaDir = find_pdaq_trunk()
 
 
 class RunException(Exception):
@@ -134,11 +143,7 @@ class FlasherShellScript(object):
         if os.path.exists(flashFile):
             return flashFile
 
-        try:
-            path = os.path.join(os.environ["PDAQ_HOME"], "src", "test",
-                                "resources", flashFile)
-        except KeyError:
-            raise FlashFileException("PDAQ_HOME env var has not been set")
+        path = os.path.join(metaDir, "src", "test", "resources", flashFile)
 
         if os.path.exists(path):
             return path
@@ -261,19 +266,19 @@ class FlasherShellScript(object):
 
 
 class Run(object):
-    def __init__(self, mgr, clusterCfg, runCfg, flashData=None, dryRun=False):
+    def __init__(self, mgr, clusterCfgName, runCfgName, configDir=None,
+                 clusterDesc=None, flashData=None, dryRun=False):
         """
         Manage a single run
 
         mgr - run manager
-        clusterCfg - cluster configuration
-        runCfg - run configuration
+        clusterCfgName - name of cluster configuration
+        runCfgName - name of run configuration
         flasherData - list of flasher XML_file_name/duration pairs
         dryRun - True if commands should only be printed and not executed
         """
         self.__mgr = mgr
-        self.__clusterCfg = clusterCfg
-        self.__runCfg = runCfg
+        self.__runCfgName = runCfgName
         self.__flashData = flashData
         self.__dryRun = dryRun
 
@@ -281,6 +286,7 @@ class Run(object):
 
         self.__flashThread = None
         self.__lightMode = None
+        self.__clusterCfg = None
 
         # __runNum being 0 is considered a safe initializer as per Dave G.
         # it was None which would cause a TypeError on some
@@ -288,22 +294,33 @@ class Run(object):
         self.__runNum = 0
         self.__duration = None
 
-        if self.__clusterCfg is None:
-            self.__clusterCfg = self.__mgr.getActiveClusterConfig()
-            if self.__clusterCfg is None:
+        activeCfgName = self.__mgr.getActiveClusterConfig()
+        if clusterCfgName is None:
+            clusterCfgName = activeCfgName
+            if clusterCfgName is None:
                 raise RunException("No cluster configuration specified")
 
-        # __runCfg has to be non-null as well otherwise we get an exception
-        if self.__runCfg is None:
+        # __runCfgName has to be non-null as well otherwise we get an exception
+        if self.__runCfgName is None:
             raise RunException("No Run Configuration Specified")
 
         # if pDAQ isn't active or if we need a different cluster config,
         #   kill the current components
         #
-        activeCfg = self.__mgr.getActiveClusterConfig()
-        if activeCfg is None or activeCfg != self.__clusterCfg:
-            self.__mgr.killComponents()
+        if activeCfgName is None or activeCfgName != clusterCfgName:
+            self.__mgr.killComponents(dryRun=self.__dryRun)
             self.__runKilled = True
+
+        try:
+            self.__clusterCfg = \
+                DAQConfigParser.getClusterConfiguration(clusterCfgName,
+                                                        useActiveConfig=False,
+                                                        clusterDesc=clusterDesc,
+                                                        configDir=configDir,
+                                                        validate=False)
+        except DAQConfigException as e:
+            raise LaunchException("Cannot load configuration \"%s\": %s" %
+                                  (clusterConfigName, exc_string()))
 
         # if necessary, launch the desired cluster configuration
         #
@@ -324,12 +341,13 @@ class Run(object):
 
         if self.__lightMode and not self.__mgr.setLightMode(False):
             raise RunException(("Could not set lightMode to dark after run " +
-                                " #%d: %s") % (self.__runNum, self.__runCfg))
+                                " #%d: %s") %
+                                (self.__runNum, self.__runCfgName))
 
         try:
             self.__mgr.summarize(self.__runNum)
         except:
-            self.__mgr.runlog().error("Cannot summarize run %d: %s" % \
+            self.__mgr.logger().error("Cannot summarize run %d: %s" % \
                                       (self.__runNum, exc_string()))
 
         self.__runNum = 0
@@ -348,7 +366,7 @@ class Run(object):
         # write the run configuration to the database
         #
         if not ignoreDB:
-            self.__mgr.updateDB(self.__runCfg)
+            self.__mgr.updateDB(self.__runCfgName)
 
         # if we'll be flashing, build a thread to start/stop flashers
         #
@@ -359,7 +377,7 @@ class Run(object):
             flashDur = FlasherThread.computeRunDuration(self.__flashData)
             if flashDur > duration:
                 if duration > 0:
-                    self.__mgr.runlog().error(("Run length was %d secs, but" +
+                    self.__mgr.logger().error(("Run length was %d secs, but" +
                                                " need %d secs for flashers") %
                                               (duration, flashDur))
                 duration = flashDur
@@ -376,21 +394,21 @@ class Run(object):
         #
         if not self.__mgr.setLightMode(self.__lightMode):
             raise RunException("Could not set lightMode for run #%d: %s" %
-                               (self.__runNum, self.__runCfg))
+                               (self.__runNum, self.__runCfgName))
 
         # start the run
         #
-        if not self.__mgr.startRun(self.__runCfg, duration, 1, ignoreDB,
+        if not self.__mgr.startRun(self.__runCfgName, duration, 1, ignoreDB,
                                    runMode=runMode, filterMode=filterMode,
                                    verbose=verbose):
             raise RunException("Could not start run #%d: %s" %
-                               (self.__runNum, self.__runCfg))
+                               (self.__runNum, self.__runCfgName))
 
         # make sure we've got the correct run number
         #
         curNum = self.__mgr.getRunNumber()
         if curNum != self.__runNum:
-            self.__mgr.runlog().error(("Expected run number %d, but actual" +
+            self.__mgr.logger().error(("Expected run number %d, but actual" +
                                        " number is %s") %
                                       (self.__runNum, curNum))
             self.__runNum = curNum
@@ -402,9 +420,9 @@ class Run(object):
         else:
             runType = "flasher run"
 
-        self.__mgr.runlog().info("Started %s %d (%d secs) %s" %
+        self.__mgr.logger().info("Started %s %d (%d secs) %s" %
                                  (runType, self.__runNum, duration,
-                                  self.__runCfg))
+                                  self.__runCfgName))
 
         # start flashing
         #
@@ -422,36 +440,19 @@ class Run(object):
 
 
 class RunLogger(object):
-    def __init__(self, logfile=None, showCmd=False, showCmdOutput=False):
+    def __init__(self, logfile=None):
         """
         logfile - name of file which log messages are written
                   (None for sys.stdout/sys.stderr)
-        showCmd - True if commands should be printed before being run
-        showCmdOutput - True if command output should be printed
         """
         if logfile is None:
             self.__fd = None
         else:
             self.__fd = open(logfile, "a")
 
-        self.__showCmd = showCmd
-        self.__showCmdOutput = showCmdOutput
-
     def __logmsg(self, sep, msg):
         print >>self.__fd, time.strftime("%Y-%m-%d %H:%M:%S") + " " + \
             sep + " " + msg
-
-    def cmd(self, cmdmsg):
-        if self.__showCmd:
-            print cmdmsg
-            if self.__fd is not None:
-                self.__logmsg("-", cmdmsg)
-
-    def cmdout(self, outmsg):
-        if self.__showCmdOutput:
-            print "+ " + outmsg
-            if self.__fd is not None:
-                self.__logmsg("+", outmsg)
 
     def error(self, msg):
         print >>sys.stderr, "!! " + msg
@@ -477,8 +478,11 @@ class BaseRun(object):
         dbType - DatabaseType value (TEST, PROD, or NONE)
         logfile - file where all log messages are saved
         """
-        self.__runlog = RunLogger(logfile, showCmd, showCmdOutput)
+        self.__showCmd = showCmd
+        self.__showCmdOutput = showCmdOutput
         self.__dryRun = dryRun
+
+        self.__logger = RunLogger(logfile)
 
         self.__cnc = None
 
@@ -489,10 +493,6 @@ class BaseRun(object):
 
         # check for needed executables
         #
-        self.__launchProg = \
-            self.findExecutable("Launch program", "DAQLaunch.py",
-                                self.__dryRun)
-
         self.__updateDBProg = \
             os.path.join(os.environ["HOME"], "offline-db-update",
                          "offline-db-update-config")
@@ -501,10 +501,7 @@ class BaseRun(object):
 
         # make sure run-config directory exists
         #
-        try:
-            self.__configDir = os.path.join(os.environ["PDAQ_HOME"], "config")
-        except KeyError:
-            raise SystemExit("PDAQ_HOME env var has not been set")
+        self.__configDir = os.path.join(metaDir, "config")
 
         if not os.path.isdir(self.__configDir):
             raise SystemExit("Run config directory '%s' does not exist" %
@@ -529,8 +526,11 @@ class BaseRun(object):
         """Do final cleanup before exiting"""
         raise NotImplementedError()
 
-    def createRun(self, clusterCfg, runCfg, flashData=None):
-        return Run(self, clusterCfg, runCfg, flashData, dryRun=self.__dryRun)
+    def createRun(self, clusterCfgName, runCfgName, clusterDesc=None,
+                  flashData=None):
+        return Run(self, clusterCfgName, runCfgName, self.__configDir,
+                   clusterDesc=clusterDesc, flashData=flashData,
+                   dryRun=self.__dryRun)
 
     @classmethod
     def findExecutable(cls, name, cmd, dryRun=False):
@@ -602,38 +602,18 @@ class BaseRun(object):
     def isStopping(self, refreshState=False):
         raise NotImplementedError()
 
-    def killComponents(self):
+    def killComponents(self, dryRun=False):
         "Kill all pDAQ components"
-        cmd = "%s -k" % self.__launchProg
-        self.__runlog.cmd(cmd)
+        cfgDir = os.path.join(metaDir, 'config')
 
-        if self.__dryRun:
-            print cmd
-            return
+        comps = ComponentManager.getActiveComponents(None, configDir=cfgDir,
+                                                     validate=False)
 
-        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, close_fds=True,
-                                shell=True)
-        proc.stdin.close()
+        verbose = False
 
-        failLine = None
-        for line in proc.stdout:
-            line = line.rstrip()
-
-            if line.startswith("Found "):
-                failLine = line
-            elif line.find("DAQ is not currently active") >= 0 or \
-                line.find("Killed CnCServer") >= 0:
-                pass
-            elif line.find("To force a restart") < 0:
-                self.__runlog.error("KillComponents: %s" % line)
-        proc.stdout.close()
-
-        proc.wait()
-
-        if failLine is not None:
-            raise LaunchException("Could not kill components: %s" % failLine)
+        if comps is not None:
+            ComponentManager.kill(comps, verbose=verbose, dryRun=dryRun,
+                                  logger=self.__logger)
 
     def launch(self, clusterCfg):
         """
@@ -644,37 +624,60 @@ class BaseRun(object):
         if not self.__dryRun and self.isRunning():
             raise LaunchException("There is at least one active run")
 
-        cmd = "%s -c %s -e &" % (self.__launchProg, clusterCfg)
-        self.__runlog.cmd(cmd)
+        spadeDir = clusterCfg.logDirForSpade()
+        copyDir = clusterCfg.logDirCopies()
+        logDir = clusterCfg.daqLogDir()
+        daqDataDir = clusterCfg.daqDataDir()
 
-        if self.__dryRun:
-            print cmd
-            return
+        cfgDir = os.path.join(metaDir, 'config')
+        dashDir = os.path.join(metaDir, 'dash')
+        logDirFallback = os.path.join(metaDir, "log")
 
-        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, close_fds=True,
-                                shell=True)
-        proc.stdin.close()
+        doCnC = True
+        verbose = False
+        eventCheck = True
 
-        for line in proc.stdout:
-            line = line.rstrip()
-            self.__runlog.cmdout(line)
+        logPort = None
+        livePort = DAQPort.I3LIVE
 
-        proc.stdout.close()
-
-        proc.wait()
+        self.logCmd("Launch %s" % clusterCfg)
+        ComponentManager.launch(doCnC, dryRun=self.__dryRun, verbose=verbose,
+                                clusterConfig=clusterCfg, dashDir=dashDir,
+                                configDir=cfgDir, daqDataDir=daqDataDir,
+                                logDir=logDir, logDirFallback=logDirFallback,
+                                spadeDir=spadeDir, copyDir=copyDir,
+                                logPort=logPort, livePort=livePort,
+                                eventCheck=eventCheck,
+                                logger=self.__logger)
 
         # give components a chance to start
         time.sleep(5)
 
-    def run(self, clusterCfg, runCfg, duration, flasherData=None,
-            ignoreDB=False, runMode=None, filterMode=None, verbose=False):
+    def logCmd(self, msg):
+        if self.__showCmd:
+            self.__logger.info("% " + msg)
+
+    def logCmdOutput(self, msg):
+        if self.__showCmdOutput:
+            self.__logger.info("%%% " + msg)
+
+    def logError(self, msg):
+        self.__logger.error(msg)
+
+    def logInfo(self, msg):
+        self.__logger.info(msg)
+
+    def logger(self):
+        return self.__logger
+
+    def run(self, clusterCfgName, runCfgName, duration, flashData=None,
+            clusterDesc = None, ignoreDB=False, runMode=None,
+            filterMode=None, verbose=False):
         """
         Manage a set of runs
 
-        clusterCfg - cluster configuration
-        runCfg - run configuration
+        clusterCfgName - cluster configuration
+        runCfgName - name of run configuration
         duration - number of seconds to run
         flasherData - pairs of (XML file name, duration)
         ignoreDB - False if the database should be checked for this run config
@@ -682,16 +685,15 @@ class BaseRun(object):
         filterMode - Run mode for 'livecmd'
         verbose - provide additional details of the run
         """
-        run = self.createRun(clusterCfg, runCfg, flasherData)
+
+        run = self.createRun(clusterCfgName, runCfgName,
+                             clusterDesc=clusterDesc, flashData=flashData)
         run.start(duration, ignoreDB, runMode=runMode, filterMode=filterMode,
                   verbose=verbose)
         try:
             run.wait()
         finally:
             run.finish(verbose=verbose)
-
-    def runlog(self):
-        return self.__runlog
 
     def setLightMode(self, isLID):
         """
@@ -703,12 +705,12 @@ class BaseRun(object):
         """
         raise NotImplementedError()
 
-    def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False,
+    def startRun(self, runCfgName, duration, numRuns=1, ignoreDB=False,
                  verbose=False):
         """
         Start a run
 
-        runCfg - run configuration file name
+        runCfgName - run configuration file name
         duration - number of seconds for run
         numRuns - number of runs (default=1)
         ignoreDB - don't check the database for this run config
@@ -761,24 +763,24 @@ class BaseRun(object):
             if timediff.days > 0:
                 duration += timediff.days * 60 * 60 * 24
 
-        self.__runlog.info("Run %d (%s) %s seconds : %s" %
-                           (summary["num"], summary["config"], duration,
-                            summary["result"]))
+        self.logInfo("Run %d (%s) %s seconds : %s" %
+                     (summary["num"], summary["config"], duration,
+                      summary["result"]))
 
-    def updateDB(self, runCfg):
+    def updateDB(self, runCfgName):
         """
         Add this run configuration to the database
 
-        runCfg - run configuration
+        runCfgName - name of run configuration
         """
         if self.__dbType == ClusterDescription.DBTYPE_NONE:
             return
 
         if self.__updateDBProg is None:
-            self.__runlog.error("Not updating database with \"%s\"" % runCfg)
+            self.logError("Not updating database with \"%s\"" % runCfgName)
             return
 
-        runCfgPath = os.path.join(self.__configDir, runCfg + ".xml")
+        runCfgPath = os.path.join(self.__configDir, runCfgName + ".xml")
         self.checkExists("Run configuration", runCfgPath)
 
         if self.__dbType == ClusterDescription.DBTYPE_TEST:
@@ -787,7 +789,7 @@ class BaseRun(object):
             arg = ""
 
         cmd = "%s %s %s" % (self.__updateDBProg, arg, runCfgPath)
-        self.__runlog.cmd(cmd)
+        self.logCmd(cmd)
 
         if self.__dryRun:
             print cmd
@@ -801,13 +803,13 @@ class BaseRun(object):
 
         for line in proc.stdout:
             line = line.rstrip()
-            self.__runlog.cmdout(line)
+            self.logCmdOutput(line)
 
             if line.find("ErrAlreadyExists") > 0:
                 continue
 
             elif line != "xml":
-                self.__runlog.error("UpdateDB: %s" % line)
+                self.logError("UpdateDB: %s" % line)
         proc.stdout.close()
 
         proc.wait()
@@ -831,17 +833,17 @@ class BaseRun(object):
             if not self.isRunning():
                 runTime = numWaits * waitSecs
                 if runTime < duration:
-                    self.__runlog.error(("WARNING: Expected %d second run, " +
-                                         "but run %d ended after %d seconds") %
-                                        (duration, runNum, runTime))
+                    self.logError(("WARNING: Expected %d second run, " +
+                                   "but run %d ended after %d seconds") %
+                                  (duration, runNum, runTime))
 
                 if self.isStopped(False) or \
                         self.isStopping(False) or \
                         self.isRecovering(False):
                     break
 
-                self.__runlog.error("Unexpected run %d state %s" %
-                                    (runNum, self.state()))
+                self.logError("Unexpected run %d state %s" %
+                              (runNum, self.state()))
 
             numWaits += 1
             if numWaits > numTries:

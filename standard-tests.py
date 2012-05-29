@@ -10,10 +10,16 @@ import subprocess
 import sys
 import traceback
 
+import DeployPDAQ
+
 from BaseRun import FlasherShellScript
 from ClusterDescription import ClusterDescription
+from DAQConfig import DAQConfigException, DAQConfigParser
 from cncrun import CnCRun
 from liverun import LiveRun, LiveTimeoutException
+
+from exc_string import exc_string, set_exc_string_encoding
+set_exc_string_encoding("ascii")
 
 # times in seconds
 #
@@ -31,8 +37,8 @@ class PDAQRun(object):
 
     MAX_TIMEOUTS = 6
 
-    def __init__(self, runCfg, duration, numRuns=1, flashData=None):
-        self.__runCfg = runCfg
+    def __init__(self, runCfgName, duration, numRuns=1, flashData=None):
+        self.__runCfgName = runCfgName
         self.__duration = duration
         self.__numRuns = numRuns
 
@@ -48,9 +54,9 @@ class PDAQRun(object):
                 self.__flashData.append((path, pair[1]))
 
     def clusterConfig(self):
-        return self.__runCfg
+        return self.__runCfgName
 
-    def run(self, runmgr, quick, verbose=False):
+    def run(self, runmgr, quick, clusterDesc=None, verbose=False):
         if not quick:
             duration = self.__duration
         else:
@@ -65,8 +71,9 @@ class PDAQRun(object):
         timeouts = 0
         for r in range(self.__numRuns):
             try:
-                runmgr.run(self.clusterConfig(), self.__runCfg,
-                           duration, self.__flashData, ignoreDB=False,
+                runmgr.run(self.__runCfgName, self.__runCfgName,
+                           duration, flashData=self.__flashData,
+                           clusterDesc=clusterDesc, ignoreDB=False,
                            verbose=verbose)
 
                 # reset the timeout counter after each successful run
@@ -114,17 +121,14 @@ class Deploy(object):
     VERS_PAT = re.compile(r"^VERSION:\s+(\S+)\s*$")
     CMD_PAT = re.compile(r"^\s\s+.*rsync\s+.*$")
 
-    def __init__(self, showCmd, showCmdOutput):
+    def __init__(self, showCmd, showCmdOutput, dryRun, clusterDesc):
         self.__showCmd = showCmd
         self.__showCmdOutput = showCmdOutput
+        self.__dryRun = dryRun
+        self.__clusterDesc = clusterDesc
 
         homePath = os.environ["PDAQ_HOME"]
         self.__pdaqHome = self.__getCurrentLocation(homePath)
-
-        # check for needed executables
-        #
-        self.__deploy = os.path.join(homePath, "dash", "DeployPDAQ.py")
-        self.__checkExists("Deploy program", self.__deploy)
 
     def __checkExists(self, name, path):
         if not os.path.exists(path):
@@ -133,93 +137,42 @@ class Deploy(object):
     def __getCurrentLocation(self, homePath):
         statTuple = os.lstat(homePath)
         if not stat.S_ISLNK(statTuple[stat.ST_MODE]):
-            raise SystemExit("PDAQ_HOME '%s' is not a symlink" %
-                             homePath)
-
+            return homePath
         return os.readlink(homePath)
 
-    def __runDeploy(self, clusterCfg, arg):
-        cmd = "%s -c %s %s" % (self.__deploy, clusterCfg, arg)
-        if self.__showCmd:
-            print cmd
-
-        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, close_fds=True,
-                                shell=True)
-        proc.stdin.close()
-
-        inNodes = False
-        inCmds = False
-
-        for line in proc.stdout:
-            line = line.rstrip()
-            if self.__showCmdOutput:
-                print '+ ' + line
-
-            if line == "NODES:":
-                inNodes = True
-                continue
-
-            if inNodes:
-                if len(line) == 0:
-                    continue
-
-                m = Deploy.NODE_PAT.match(line)
-                if m:
-                    #host = m.group(1)
-                    #compName = m.group(2)
-                    #compId = int(m.group(3))
-                    #strType = m.group(5)
-                    continue
-
-                m = Deploy.COMP_PAT.match(line)
-                if m:
-                    #compName = m.group(1)
-                    #compId = int(m.group(2))
-                    #strType = m.group(4)
-                    continue
-
-                inNodes = False
-
-            if line == "COMMANDS:":
-                inCmds = True
-                continue
-
-            if inCmds:
-                m = Deploy.CMD_PAT.match(line)
-                if m:
-                    continue
-                inCmds = False
-
-            m = Deploy.CFG_PAT.match(line)
-            if m:
-                if clusterCfg != m.group(1):
-                    raise SystemExit("Expected to deploy %s, not %s" %
-                                     (clusterCfg, m.group(1)))
-                continue
-
-            m = Deploy.VERS_PAT.match(line)
-            if m:
-                #version = m.group(1)
-                continue
-
-            if line.startswith("ERROR: "):
-                raise SystemExit("Deploy error: " + line[7:])
-
-            print >> sys.stderr, "Deploy: %s" % line
-        proc.stdout.close()
-
-        proc.wait()
-
-    def deploy(self, clusterConfig):
+    def deploy(self, clusterCfgName):
         "Deploy to the specified cluster"
-        if not self.__showCmd:
-            print "Deploying %s" % clusterConfig
-        if Deploy.DEPLOY_CLEAN:
-            self.__runDeploy(clusterConfig, "--undeploy")
+        try:
+            cluDesc = self.__clusterDesc
+            clusterCfg = \
+                DAQConfigParser.getClusterConfiguration(clusterCfgName,
+                                                        useActiveConfig=False,
+                                                        clusterDesc=cluDesc,
+                                                        configDir=None,
+                                                        validate=False)
+        except DAQConfigException as e:
+            raise LaunchException("Cannot load configuration \"%s\": %s" %
+                                  (clusterCfgName, exc_string()))
 
-        self.__runDeploy(clusterConfig, "--delete")
+        if not self.__showCmd:
+            print "Deploying %s" % clusterCfg
+
+        subdirs = None
+        delete = True
+        deepDryRun = False
+        traceLevel = 0
+
+        if Deploy.DEPLOY_CLEAN:
+            undeploy = True
+
+            DeployPDAQ.deploy(clusterCfg, os.environ["HOME"],
+                              os.environ["PDAQ_HOME"], subdirs, delete,
+                              self.__dryRun, deepDryRun, undeploy, traceLevel)
+
+        undeploy = False
+        DeployPDAQ.deploy(clusterCfg, os.environ["HOME"],
+                          os.environ["PDAQ_HOME"], subdirs, delete,
+                          self.__dryRun, deepDryRun, undeploy, traceLevel)
 
     @staticmethod
     def getUniqueClusterConfigs(runList):
@@ -244,6 +197,9 @@ if __name__ == "__main__":
     import signal
 
     op = optparse.OptionParser()
+    op.add_option("-C", "--cluster-desc", type="string", dest="clusterDesc",
+                  action="store", default=None,
+                  help="Cluster description name")
     op.add_option("-c", "--cncrun", dest="cncrun",
                   action="store_true", default=False,
                   help="Control CnC directly instead of using I3Live")
@@ -305,17 +261,22 @@ if __name__ == "__main__":
     os.chdir(os.environ["PDAQ_HOME"])
 
     if opt.deploy:
-        deploy = Deploy(opt.showCmd, opt.showCmdOutput)
+        deploy = Deploy(opt.showCmd, opt.showCmdOutput, opt.dryRun,
+                        opt.clusterDesc)
         deploy.showHome()
         for cfg in Deploy.getUniqueClusterConfigs(RUN_LIST):
             deploy.deploy(cfg)
         deploy.showHome()
     if opt.run:
         if opt.cncrun:
-            runmgr = CnCRun(opt.showCmd, opt.showCmdOutput, dryRun=opt.dryRun)
+            runmgr = CnCRun(showCmd=opt.showCmd,
+                            showCmdOutput=opt.showCmdOutput, dryRun=opt.dryRun)
         else:
-            runmgr = LiveRun(opt.showCmd, opt.showCmdOutput, opt.showChk,
-                             opt.showChkOutput, dryRun=opt.dryRun)
+            runmgr = LiveRun(showCmd=opt.showCmd,
+                             showCmdOutput=opt.showCmdOutput,
+                             showCheck=opt.showChk,
+                             showCheckOutput=opt.showChkOutput,
+                             dryRun=opt.dryRun)
 
         if sys.version_info > (2, 3):
             from DumpThreads import DumpThreadsOnSignal
@@ -324,11 +285,12 @@ if __name__ == "__main__":
         # always kill running components in case they're from a
         # previous release
         #
-        runmgr.killComponents()
+        runmgr.killComponents(dryRun=opt.dryRun)
 
         # stop existing runs gracefully on ^C
         #
         signal.signal(signal.SIGINT, runmgr.stopOnSIGINT)
 
         for data in RUN_LIST:
-            data.run(runmgr, opt.quick, opt.verbose)
+            data.run(runmgr, opt.quick, clusterDesc=opt.clusterDesc,
+                     verbose=opt.verbose)

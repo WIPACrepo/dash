@@ -27,6 +27,8 @@ class MockClusterConfig(object):
     def nodes(self):
         return self.__nodes[:]
 
+    def writeCacheFile(self):
+        pass
 
 class DeployPDAQTest(unittest.TestCase):
     def __checkDeploy(self, hosts, subdirs, delete, dryRun, deepDryRun,
@@ -52,9 +54,9 @@ class DeployPDAQTest(unittest.TestCase):
 
         traceLevel = -1
 
-        DeployPDAQ.deploy(config, parallel, homeDir, topDir, subdirs, delete,
+        DeployPDAQ.deploy(config, homeDir, topDir, subdirs, delete,
                           dryRun, deepDryRun, undeploy, traceLevel,
-                          niceAdj=niceAdj, express=express)
+                          niceAdj=niceAdj, express=express, parallel=parallel)
 
         parallel.check()
 
@@ -112,7 +114,7 @@ class DeployPDAQTest(unittest.TestCase):
 
     def testDeployDryRun(self):
         delete = False
-        dryRun = True
+        dryRun = False
         deepDryRun = False
         undeploy = False
 
@@ -125,7 +127,7 @@ class DeployPDAQTest(unittest.TestCase):
 
     def testDeployUndeploy(self):
         delete = False
-        dryRun = True
+        dryRun = False
         deepDryRun = False
         undeploy = True
 

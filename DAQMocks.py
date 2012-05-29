@@ -16,10 +16,10 @@ from unittest import TestCase
 
 from CnCLogger import CnCLogger
 from Component import Component
+from ComponentManager import ComponentManager
 from DAQClient import DAQClient
 import DeployPDAQ
 from DAQConst import DAQPort
-from DAQLaunch import RELEASE, getCompJar
 from LiveImports import SERVICE_NAME
 from utils import ip
 from utils.DashXMLLog import DashXMLLog
@@ -891,14 +891,21 @@ class MockComponent(object):
 
 
 class MockDeployComponent(Component):
-    def __init__(self, name, id, logLevel, jvm, jvmArgs):
+    def __init__(self, name, id, logLevel, jvm, jvmArgs, host=None):
         self.__jvm = jvm
         self.__jvmArgs = jvmArgs
+        self.__host = host
 
         super(MockDeployComponent, self).__init__(name, id, logLevel)
 
     def isControlServer(self):
         return False
+
+    def host(self):
+        return self.__host
+
+    def isLocalhost(self):
+        return self.__host is not None and self.__host == "localhost"
 
     def jvm(self):
         return self.__jvm
@@ -1052,7 +1059,8 @@ class MockLogger(LogChecker):
 
 
 class MockParallelShell(object):
-    BINDIR = os.path.join(METADIR, 'target', 'pDAQ-%s-dist' % RELEASE, 'bin')
+    BINDIR = os.path.join(METADIR, 'target', 'pDAQ-%s-dist' %
+                          ComponentManager.RELEASE, 'bin')
 
     def __init__(self, isParallel=True, debug=False):
         self.__exp = []
@@ -1101,7 +1109,7 @@ class MockParallelShell(object):
 
         ipAddr = ip.getLocalIpAddr(host)
         jarPath = os.path.join(MockParallelShell.BINDIR,
-                               getCompJar(comp.name()))
+                               ComponentManager.getComponentJar(comp.name()))
 
         if verbose:
             redir = ''
@@ -1144,7 +1152,7 @@ class MockParallelShell(object):
         if compName.endswith("hub"):
             killPat = "stringhub.componentId=%d" % compId
         else:
-            killPat = getCompJar(compName)
+            killPat = ComponentManager.getComponentJar(compName)
 
         if self.__isLocalhost(host):
             sshCmd = ''
@@ -1177,7 +1185,7 @@ class MockParallelShell(object):
 
             self.__addExpected(cmd)
 
-    def addExpectedPythonKill(self, doCnC, dashDir, killWith9):
+    def addExpectedPythonKill(self, doCnC, killWith9):
         pass
 
     def addExpectedRsync(self, dir, subdirs, delete, dryRun, remoteHost,

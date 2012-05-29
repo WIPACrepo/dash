@@ -140,7 +140,6 @@ class CnCRun(BaseRun):
 
         self.__showCmdOutput = showCmdOutput
         self.__dryRun = dryRun
-        self.__runlog = self.runlog()
 
         # used during dry runs to simulate the runset id
         self.__fakeRunSet = 1
@@ -164,7 +163,7 @@ class CnCRun(BaseRun):
             return
 
         cmd = "DAQStatus.py"
-        self.__runlog.cmd(cmd)
+        self.logCmd(cmd)
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
@@ -174,7 +173,7 @@ class CnCRun(BaseRun):
 
         for line in proc.stdout:
             line = line.rstrip()
-            self.__runlog.cmdout(line)
+            self.logCmdOutput(line)
         proc.stdout.close()
 
         proc.wait()
@@ -204,8 +203,7 @@ class CnCRun(BaseRun):
         curState = prevState
 
         if verbose and prevState != expState:
-            self.__runlog.info("Switching from %s to %s" %
-                               (prevState, expState))
+            self.logInfo("Switching from %s to %s" % (prevState, expState))
 
         startTime = time.time()
         for _ in range(numTries):
@@ -216,8 +214,8 @@ class CnCRun(BaseRun):
             if curState != prevState:
                 if verbose:
                     swTime = int(time.time() - startTime)
-                    self.__runlog.info("Switched from %s to %s in %s secs" %
-                                       (prevState, curState, swTime))
+                    self.logInfo("Switched from %s to %s in %s secs" %
+                                 (prevState, curState, swTime))
 
                 prevState = curState
                 startTime = time.time()
@@ -261,7 +259,7 @@ class CnCRun(BaseRun):
         Start flashers for the specified duration with the specified data file
         """
         if self.__runSetId is None:
-            self.__runlog.error("No active runset!")
+            self.logError("No active runset!")
             return True
 
         if not self.__dryRun:
@@ -271,7 +269,7 @@ class CnCRun(BaseRun):
             try:
                 data = FlasherDataParser.load(dataPath)
             except:
-                self.__runlog.error("Cannot flash: " + exc_string())
+                self.logError("Cannot flash: " + exc_string())
                 return True
 
             runData = self.getLastRunNumber()
@@ -363,7 +361,7 @@ class CnCRun(BaseRun):
         Return True if the light mode was set successfully
         """
         if isLID:
-            self.__runlog.error("Not setting light mode!!!")
+            self.logError("Not setting light mode!!!")
         return True
 
     def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False,
@@ -412,12 +410,12 @@ class CnCRun(BaseRun):
 
         if runMode is not None:
             if filterMode is not None:
-                self.__runlog.error("Ignoring run mode %s, filter mode %s" %
+                self.logError("Ignoring run mode %s, filter mode %s" %
                                     (runMode, filterMode))
             else:
-                self.__runlog.error("Ignoring run mode %s" % runMode)
+                self.logError("Ignoring run mode %s" % runMode)
         elif filterMode is not None:
-            self.__runlog.error("Ignoring filter mode %s" % filterMode)
+            self.logError("Ignoring filter mode %s" % filterMode)
 
         runOptions = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
 

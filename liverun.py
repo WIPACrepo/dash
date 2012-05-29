@@ -158,16 +158,21 @@ class LiveState(object):
 
     def __init__(self,
                  liveCmd=os.path.join(os.environ["HOME"], "bin", "livecmd"),
-                 runlog=None, dryRun=False):
+                 showCheck=False, showCheckOutput=False, logger=None,
+                 dryRun=False):
         """
         Create an I3Live service tracker
 
         liveCmd - full path of 'livecmd' executable
-        runlog - specialized run logger
+        showCheck - True if 'livecmd check' commands should be printed
+        showCheckOutput - True if 'livecmd check' output should be printed
+        logger - specialized run logger
         dryRun - True if commands should only be printed and not executed
         """
         self.__prog = liveCmd
-        self.__runlog = runlog
+        self.__showCheck = showCheck
+        self.__showCheckOutput = showCheckOutput
+        self.__logger = logger
         self.__dryRun = dryRun
 
         self.__threadState = None
@@ -270,12 +275,12 @@ class LiveState(object):
                 # ignore DAQ release name
                 return self.PARSE_NORMAL
             elif front == "check failed" and back.find("timed out") >= 0:
-                self.__runlog.error("I3Live may have died" +
+                self.__logger.error("I3Live may have died" +
                                     " (livecmd check returned '%s')" %
                                     line.rstrip())
                 return self.PARSE_NORMAL
             else:
-                self.__runlog.error("Unknown livecmd pair: \"%s\"/\"%s\"" %
+                self.__logger.error("Unknown livecmd pair: \"%s\"/\"%s\"" %
                                     (front, back))
                 return self.PARSE_NORMAL
 
@@ -302,14 +307,15 @@ class LiveState(object):
             self.__svcDict[name] = svc
             return self.PARSE_NORMAL
 
-        self.__runlog.error("Unknown livecmd line: %s" % line)
+        self.__logger.error("Unknown livecmd line: %s" % line)
         return self.PARSE_NORMAL
 
     def check(self):
         "Check the current I3Live service states"
 
         cmd = "%s check" % self.__prog
-        self.__runlog.cmd(cmd)
+        if self.__showCheck:
+            self.logCmd(cmd)
 
         if self.__dryRun:
             print cmd
@@ -324,7 +330,8 @@ class LiveState(object):
         parseState = self.PARSE_NORMAL
         for line in proc.stdout:
             line = line.rstrip()
-            self.__runlog.cmdout(line)
+            if self.__showCheckOutput:
+                self.logCmdOutput(line)
 
             parseState = self.__parseLine(parseState, line)
         proc.stdout.close()
@@ -375,7 +382,6 @@ class LiveRun(BaseRun):
                                       logfile)
 
         self.__dryRun = dryRun
-        self.__runlog = self.runlog()
 
         # used during dry runs to simulate the run number
         self.__fakeRunNum = 12345
@@ -387,8 +393,9 @@ class LiveRun(BaseRun):
 
         # build state-checker
         #
-        self.__state = LiveState(self.__liveCmdProg, self.__runlog,
-                                 self.__dryRun)
+        self.__state = LiveState(self.__liveCmdProg, showCheck=showCheck,
+                                 showCheckOutput=showCheckOutput,
+                                 logger=self.logger(), dryRun=self.__dryRun)
 
     def __controlPDAQ(self, waitSecs, attempts=3):
         """
@@ -399,7 +406,7 @@ class LiveRun(BaseRun):
 
         cmd = "%s control pdaq localhost:%s" % \
             (self.__liveCmdProg, DAQPort.DAQLIVE)
-        self.__runlog.cmd(cmd)
+        self.logCmd(cmd)
 
         if self.__dryRun:
             print cmd
@@ -415,7 +422,7 @@ class LiveRun(BaseRun):
         unreachable = True
         for line in proc.stdout:
             line = line.rstrip()
-            self.__runlog.cmdout(line)
+            self.logCmdOutput(line)
 
             if line == "Service pdaq is now being controlled" or \
                     line.find("Synchronous service pdaq was already being" +
@@ -424,7 +431,7 @@ class LiveRun(BaseRun):
             elif line.find("Service pdaq was unreachable on ") >= 0:
                 unreachable = True
             else:
-                self.__runlog.error("Control: %s" % line)
+                self.logError("Control: %s" % line)
         proc.stdout.close()
 
         proc.wait()
@@ -454,7 +461,7 @@ class LiveRun(BaseRun):
 
         Return True if there was a problem
         """
-        self.__runlog.cmd(cmd)
+        self.logCmd(cmd)
 
         if self.__dryRun:
             print cmd
@@ -469,12 +476,12 @@ class LiveRun(BaseRun):
         problem = False
         for line in proc.stdout:
             line = line.rstrip()
-            self.__runlog.cmdout(line)
+            self.logCmdOutput(line)
 
             if line != "OK":
                 problem = True
             if problem:
-                self.__runlog.error("%s: %s" % (name, line))
+                self.logError("%s: %s" % (name, line))
         proc.stdout.close()
 
         proc.wait()
@@ -497,8 +504,7 @@ class LiveRun(BaseRun):
         curState = prevState
 
         if verbose and prevState != expState:
-            self.__runlog.info("Switching from %s to %s" %
-                               (prevState, expState))
+            self.logInfo("Switching from %s to %s" % (prevState, expState))
 
         startTime = time.time()
         for _ in range(numTries):
@@ -508,8 +514,8 @@ class LiveRun(BaseRun):
             if curState != prevState:
                 if verbose:
                     swTime = int(time.time() - startTime)
-                    self.__runlog.info("Switched from %s to %s in %s secs" %
-                                       (prevState, curState, swTime))
+                    self.logInfo("Switched from %s to %s in %s secs" %
+                                 (prevState, curState, swTime))
 
                 prevState = curState
                 startTime = time.time()
@@ -552,7 +558,7 @@ class LiveRun(BaseRun):
         else:
             cmd = "%s flasher -d %d -f %s" % (self.__liveCmdProg,
                                               secs, dataPath)
-            self.__runlog.cmd(cmd)
+            self.logCmd(cmd)
 
             if self.__dryRun:
                 print cmd
@@ -566,12 +572,12 @@ class LiveRun(BaseRun):
 
             for line in proc.stdout:
                 line = line.rstrip()
-                self.__runlog.cmdout(line)
+                self.logCmdOutput(line)
 
                 if line != "OK" and not line.startswith("Starting subrun"):
                     problem = True
                 if problem:
-                    self.__runlog.error("Flasher: %s" % line)
+                    self.logError("Flasher: %s" % line)
             proc.stdout.close()
 
             proc.wait()
@@ -581,7 +587,7 @@ class LiveRun(BaseRun):
     def getLastRunNumber(self):
         "Return the last run number"
         cmd = "%s lastrun" % self.__liveCmdProg
-        self.__runlog.cmd(cmd)
+        self.logCmd(cmd)
 
         if self.__dryRun:
             print cmd
@@ -598,7 +604,7 @@ class LiveRun(BaseRun):
         num = None
         for line in proc.stdout:
             line = line.rstrip()
-            self.__runlog.cmdout(line)
+            self.logCmdOutput(line)
 
             try:
                 num = int(line)

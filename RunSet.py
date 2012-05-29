@@ -9,10 +9,10 @@ import SpadeQueue
 
 from CnCThread import CnCThread
 from CompOp import ComponentOperation, ComponentOperationGroup, Result
+from ComponentManager import ComponentManager, listComponentRanges
 from DAQClient import DAQClientState
 from DAQConfig import DOMNotInConfigException
 from DAQConst import DAQPort
-from DAQLaunch import killJavaComponents, startJavaComponents
 from DAQLog import DAQLog, FileAppender, LiveSocketAppender, LogSocketServer
 from DAQRPC import RPCClient
 from DAQTime import PayloadTime
@@ -28,68 +28,6 @@ from utils.DashXMLLog import DashXMLLog, DashXMLLogException
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
-
-
-def listComponentRanges(compList):
-    """
-    Concatenate a list of components into a string showing names and IDs
-    """
-    compDict = {}
-    for c in compList:
-        if not c.name() in compDict:
-            compDict[c.name()] = [c, ]
-        else:
-            compDict[c.name()].append(c)
-
-    hasOrder = True
-
-    pairList = []
-    for k in sorted(compDict.keys(), key=lambda nm: len(compDict[nm]),
-                    reverse=True):
-        if len(compDict[k]) == 1 and compDict[k][0].num() == 0:
-            if not hasOrder:
-                order = compDict[k][0].name()
-            else:
-                try:
-                    order = compDict[k][0].order()
-                except AttributeError:
-                    hasOrder = False
-                    order = compDict[k][0].name()
-            pairList.append((compDict[k][0].name(), order))
-        else:
-            prevNum = None
-            rangeStr = k + "#"
-            inRange = False
-            for c in sorted(compDict[k], key=lambda c: c.num()):
-                if prevNum is None:
-                    rangeStr += "%d" % c.num()
-                elif c.num() == prevNum + 1:
-                    if not rangeStr.endswith("-"):
-                        rangeStr += "-"
-                else:
-                    if rangeStr.endswith("-"):
-                        rangeStr += "%d" % prevNum
-                    rangeStr += ",%d" % c.num()
-                prevNum = c.num()
-
-            if rangeStr.endswith("-"):
-                rangeStr += "%d" % prevNum
-
-            if not hasOrder:
-                order = compDict[k][0].name()
-            else:
-                try:
-                    order = compDict[k][0].order()
-                except AttributeError:
-                    hasOrder = False
-                    order = compDict[k][0].name()
-            pairList.append((rangeStr, order))
-
-    strList = []
-    for p in sorted(pairList, key=lambda pair: pair[1]):
-        strList.append(p[0])
-
-    return ", ".join(strList)
 
 
 class RunSetException(Exception):
@@ -1688,10 +1626,10 @@ class RunSet(object):
                         livePort, verbose, killWith9, eventCheck,
                         checkExists=True):
         dryRun = False
-        killJavaComponents(compList, dryRun, verbose, killWith9)
-        startJavaComponents(compList, dryRun, configDir, daqDataDir, logPort,
-                            livePort, verbose, eventCheck,
-                            checkExists=checkExists)
+        ComponentManager.killComponents(compList, dryRun, verbose, killWith9)
+        ComponentManager.startComponents(compList, dryRun, verbose, configDir,
+                                         daqDataDir, logPort, livePort,
+                                         eventCheck, checkExists=checkExists)
 
     def destroy(self, ignoreComponents=False):
         if not ignoreComponents and len(self.__set) > 0:
