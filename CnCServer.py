@@ -20,7 +20,7 @@ from DAQLog import LogSocketServer
 from DAQRPC import RPCServer
 from ListOpenFiles import ListOpenFiles
 from Process import processList, findProcess
-from RunSet import RunSet
+from RunSet import RunSet, listComponentRanges
 from RunSetState import RunSetState
 from SocketServer import ThreadingMixIn
 from utils import ip
@@ -39,7 +39,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 13605 2012-03-29 17:33:10Z dglo $"
+SVN_ID = "$Id: CnCServer.py 13718 2012-05-29 21:18:38Z dglo $"
 
 
 class CnCServerException(Exception):
@@ -126,8 +126,7 @@ class DAQPool(object):
                         datetime.timedelta(seconds=timeout):
                     break
 
-                logger.info("Waiting for " +
-                            RunSet.listComponentRanges(needed))
+                logger.info("Waiting for " + listComponentRanges(needed))
                 time.sleep(5)
 
         if len(waitList) == 0:
@@ -281,7 +280,7 @@ class DAQPool(object):
 
             logger.info("Built runset #%d: %s" %
                         (runSet.id(),
-                         RunSet.listComponentRanges(runSet.components())))
+                         listComponentRanges(runSet.components())))
 
         return runSet
 

@@ -30,6 +30,68 @@ from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
 
+def listComponentRanges(compList):
+    """
+    Concatenate a list of components into a string showing names and IDs
+    """
+    compDict = {}
+    for c in compList:
+        if not c.name() in compDict:
+            compDict[c.name()] = [c, ]
+        else:
+            compDict[c.name()].append(c)
+
+    hasOrder = True
+
+    pairList = []
+    for k in sorted(compDict.keys(), key=lambda nm: len(compDict[nm]),
+                    reverse=True):
+        if len(compDict[k]) == 1 and compDict[k][0].num() == 0:
+            if not hasOrder:
+                order = compDict[k][0].name()
+            else:
+                try:
+                    order = compDict[k][0].order()
+                except AttributeError:
+                    hasOrder = False
+                    order = compDict[k][0].name()
+            pairList.append((compDict[k][0].name(), order))
+        else:
+            prevNum = None
+            rangeStr = k + "#"
+            inRange = False
+            for c in sorted(compDict[k], key=lambda c: c.num()):
+                if prevNum is None:
+                    rangeStr += "%d" % c.num()
+                elif c.num() == prevNum + 1:
+                    if not rangeStr.endswith("-"):
+                        rangeStr += "-"
+                else:
+                    if rangeStr.endswith("-"):
+                        rangeStr += "%d" % prevNum
+                    rangeStr += ",%d" % c.num()
+                prevNum = c.num()
+
+            if rangeStr.endswith("-"):
+                rangeStr += "%d" % prevNum
+
+            if not hasOrder:
+                order = compDict[k][0].name()
+            else:
+                try:
+                    order = compDict[k][0].order()
+                except AttributeError:
+                    hasOrder = False
+                    order = compDict[k][0].name()
+            pairList.append((rangeStr, order))
+
+    strList = []
+    for p in sorted(pairList, key=lambda pair: pair[1]):
+        strList.append(p[0])
+
+    return ", ".join(strList)
+
+
 class RunSetException(Exception):
     pass
 
@@ -221,7 +283,7 @@ class GoodTimeThread(CnCThread):
         if len(badComps) > 0:
             self.__log.error("Couldn't find %s for %s" %
                              (self.moniname(),
-                              RunSet.listComponentRanges(badComps.keys())))
+                              listComponentRanges(badComps.keys())))
 
         self.__data.reportGoodTime(self.moniname(), goodTime)
         for c in self.__otherSet:
@@ -1000,7 +1062,7 @@ class RunSet(object):
                 plural = "s"
             self.__runData.error('%s: Forcing %d component%s to stop: %s' %
                                  (str(self), len(fullSet), plural,
-                                  self.listComponentRanges(fullSet)))
+                                  listComponentRanges(fullSet)))
 
         # stop sources in parallel
         #
@@ -1041,7 +1103,7 @@ class RunSet(object):
     def __badStateString(self, badStates):
         badList = []
         for state in badStates:
-            compStr = self.listComponentRanges(badStates[state])
+            compStr = listComponentRanges(badStates[state])
             badList.append(state + "[" + compStr + "]")
         return ", ".join(badList)
 
@@ -1102,7 +1164,7 @@ class RunSet(object):
         else:
             msg = "Failed to transition to %s:" % newState
             for stateStr in stateDict:
-                compStr = self.listComponentRanges(stateDict[stateStr])
+                compStr = listComponentRanges(stateDict[stateStr])
                 msg += " %s[%s]" % (stateStr, compStr)
 
             if self.__runData is not None:
@@ -1117,7 +1179,7 @@ class RunSet(object):
     def __checkStoppedComponents(self, waitList):
         if len(waitList) > 0:
             try:
-                waitStr = self.listComponentRanges(waitList)
+                waitStr = listComponentRanges(waitList)
                 errStr = '%s: Could not stop %s' % (self, waitStr)
                 self.__runData.error(errStr)
             except:
@@ -1453,7 +1515,7 @@ class RunSet(object):
             else:
                 waitList = newList
                 if len(waitList) > 0:
-                    waitStr = self.listComponentRanges(waitList)
+                    waitStr = listComponentRanges(waitList)
                     logger.info('%s: Waiting for %s %s' %
                                 (str(self), self.__state, waitStr))
 
@@ -1462,7 +1524,7 @@ class RunSet(object):
                 endSecs = time.time() + timeoutSecs
 
         if len(waitList) > 0:
-            waitStr = self.listComponentRanges(waitList)
+            waitStr = listComponentRanges(waitList)
             raise RunSetException(("Still waiting for %d components to" +
                                    " leave %s (%s)") %
                                   (len(waitList), self.__state, waitStr))
@@ -1525,7 +1587,7 @@ class RunSet(object):
                 break
             self.__logger.info('%s: Waiting for %s: %s' %
                                (str(self), self.__state,
-                                self.listComponentRanges(waitList)))
+                                listComponentRanges(waitList)))
 
             time.sleep(1)
 
@@ -1667,68 +1729,6 @@ class RunSet(object):
     def isRunning(self):
         return self.__state == RunSetState.RUNNING
 
-    @staticmethod
-    def listComponentRanges(compList):
-        """
-        Concatenate a list of components into a string showing names and IDs
-        """
-        compDict = {}
-        for c in compList:
-            if not c.name() in compDict:
-                compDict[c.name()] = [c, ]
-            else:
-                compDict[c.name()].append(c)
-
-        hasOrder = True
-
-        pairList = []
-        for k in sorted(compDict.keys(), key=lambda nm: len(compDict[nm]),
-                        reverse=True):
-            if len(compDict[k]) == 1 and compDict[k][0].num() == 0:
-                if not hasOrder:
-                    order = compDict[k][0].name()
-                else:
-                    try:
-                        order = compDict[k][0].order()
-                    except AttributeError:
-                        hasOrder = False
-                        order = compDict[k][0].name()
-                pairList.append((compDict[k][0].name(), order))
-            else:
-                prevNum = None
-                rangeStr = k + "#"
-                inRange = False
-                for c in sorted(compDict[k], key=lambda c: c.num()):
-                    if prevNum is None:
-                        rangeStr += "%d" % c.num()
-                    elif c.num() == prevNum + 1:
-                        if not rangeStr.endswith("-"):
-                            rangeStr += "-"
-                    else:
-                        if rangeStr.endswith("-"):
-                            rangeStr += "%d" % prevNum
-                        rangeStr += ",%d" % c.num()
-                    prevNum = c.num()
-
-                if rangeStr.endswith("-"):
-                    rangeStr += "%d" % prevNum
-
-                if not hasOrder:
-                    order = compDict[k][0].name()
-                else:
-                    try:
-                        order = compDict[k][0].order()
-                    except AttributeError:
-                        hasOrder = False
-                        order = compDict[k][0].name()
-                pairList.append((rangeStr, order))
-
-        strList = []
-        for p in sorted(pairList, key=lambda pair: pair[1]):
-            strList.append(p[0])
-
-        return ", ".join(strList)
-
     def logToDash(self, msg):
         "Used when CnCServer needs to add a log message to dash.log"
         if self.__runData is not None:
@@ -1853,7 +1853,7 @@ class RunSet(object):
 
         # sort list into a predictable order for unit tests
         #
-        compStr = self.listComponentRanges(cluCfgList);
+        compStr = listComponentRanges(cluCfgList);
         self.__logger.error("Cycling components %s" % compStr)
 
         self.cycleComponents(cluCfgList, configDir, daqDataDir, logPort,
@@ -2175,7 +2175,7 @@ class RunSet(object):
 
         if len(badComps) > 0:
             raise RunSetException("Couldn't start subrun on %s" %
-                                  self.listComponentRanges(badComps))
+                                  listComponentRanges(badComps))
 
         for c in self.__set:
             if c.isBuilder():

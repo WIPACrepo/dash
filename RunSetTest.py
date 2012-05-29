@@ -3,7 +3,7 @@
 import unittest
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
-from RunSet import RunSet, RunSetException
+from RunSet import RunSet, RunSetException, listComponentRanges
 
 CAUGHT_WARNING = False
 
@@ -772,7 +772,7 @@ class TestRunSet(unittest.TestCase):
 
             nextNum += 1
 
-        str = RunSet.listComponentRanges(compList)
+        str = listComponentRanges(compList)
 
         expStr = "fooHub#1,3-5,9-10, barHub#2,6-7,11, zabTrigger, bazBuilder"
         self.assertEqual(str, expStr,
