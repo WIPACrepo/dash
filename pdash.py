@@ -135,7 +135,7 @@ class Dash(cmd.Cmd):
                                     str(sub["compNum"])
                             rsDict[rsid][nm] = sub["id"]
 
-                for rsid in rsDist:
+                for rsid in rsDict:
                     (compName, compId) = \
                                self.__findComponentFromString(rsDict[rsid],
                                                               bflds[0])
