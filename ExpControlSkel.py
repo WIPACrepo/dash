@@ -26,7 +26,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 13685 2012-05-02 20:51:02Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 13721 2012-05-29 21:53:43Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -244,6 +244,9 @@ def main():
     usage = "%prog [options]\nversion: " + ver_info
     p = optparse.OptionParser(usage=usage, version=ver_info)
 
+    p.add_option("-C", "--cluster-desc", type="string", dest="clusterDesc",
+                 action="store", default=None,
+                 help="Cluster description name.")
     p.add_option("-c", "--config-name",  type="string", dest="runConfig",
                  action="store", default=None,
                  help="Run configuration name")
@@ -296,7 +299,8 @@ def main():
     duration = getDurationFromString(opt.duration)
 
     for r in xrange(opt.numRuns):
-        run = cnc.createRun(None, opt.runConfig, flashData=flashData)
+        run = cnc.createRun(None, opt.runConfig, clusterDesc=opt.clusterDesc,
+                            flashData=flashData)
         run.start(duration)
 
         try:
