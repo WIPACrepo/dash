@@ -642,19 +642,24 @@ class RunData(object):
 
         # set end-of-run statistics
         time = datetime.datetime.utcnow()
-        self.__runStats.updateEventCounts((numEvts, time, firstTime, lastTime,
-                                            numMoni, time, numSN, time,
-                                            numTcal, time))
+        (numEvts, numMoni, numSN, numTcal, firstTime, lastTime) = \
+            self.__runStats.updateEventCounts((numEvts, time, firstTime,
+                                               lastTime, numMoni, time,
+                                               numSN, time, numTcal, time))
 
         if numEvts is None or numEvts <= 0:
             if numEvts is None:
+                self.__dashlog.error("Reset numEvts and duration")
                 numEvts = 0
+            else:
+                self.__dashlog.error("Reset duration")
             duration = 0
         else:
             duration = self.__calculateDuration(firstTime, lastTime, hadError)
             if duration is None or duration < 0:
                 hadError = True
                 duration = 0
+                self.__dashlog.error("Cannot calculate duration")
 
         # report rates
         if duration == 0:
