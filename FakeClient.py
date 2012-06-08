@@ -67,21 +67,28 @@ class InputChannel(threading.Thread):
     def close(self):
         self.__running = False
 
+    def processData(self, data):
+        pass
+
     def run(self):
         self.__running = True
         while self.__running:
             data = self.__conn.recv(1024)
             if not data:
                 break
+            self.processData(data)
         self.__conn.close()
         self.__engine.removeChannel(self)
         self.__running = False
 
 
 class InputEngine(Engine):
-    def __init__(self, name, optional):
+    def __init__(self, name, optional, port=None):
         self.__optional = optional
-        self.__port = FakeClient.nextPortNumber()
+        if port is not None:
+            self.__port = port
+        else:
+            self.__port = FakeClient.nextPortNumber()
 
         self.__sock = None
 
@@ -97,9 +104,12 @@ class InputEngine(Engine):
     def acceptLoop(self):
         while True:
             conn, addr = self.__sock.accept()
-            chan = InputChannel(conn, addr, self)
+            chan = self.createChannel(conn, addr)
             self.addChannel(chan)
             chan.start()
+
+    def createChannel(self, conn, addr):
+        return InputChannel(conn, addr, self)
 
     def descriptionChar(self):
         if self.__optional:
