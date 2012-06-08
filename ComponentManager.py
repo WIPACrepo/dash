@@ -202,7 +202,7 @@ class ComponentManager(object):
         comps = []
         if runSetId is not None:
             if runSetId in runsets:
-                comps += cls.__convertDict(runset[runSetId][1])
+                comps += cls.__convertDict(runsets[runSetId][1])
         else:
             comps += cls.__convertDict(unused)
             for rs in runsets:
@@ -563,8 +563,9 @@ class ComponentManager(object):
             javaCmd = comp.jvm()
             jvmArgs = comp.jvmArgs()
 
-            switches = "-g %s" % configDir
-            switches += " -d %s" % daqDataDir
+            jvmArgs += " -Dicecube.daq.component.configDir='%s'" % configDir
+            #switches = "-g %s" % configDir
+            switches = " -d %s" % daqDataDir
             switches += " -c %s:%d" % (myIP, DAQPort.CNCSERVER)
             if logPort is not None:
                 switches += " -l %s:%d,%s" % (myIP, logPort, comp.logLevel())
