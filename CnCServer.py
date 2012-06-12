@@ -39,7 +39,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 13720 2012-05-29 21:45:09Z dglo $"
+SVN_ID = "$Id: CnCServer.py 13756 2012-06-12 23:36:33Z dglo $"
 
 
 class CnCServerException(Exception):
@@ -549,6 +549,8 @@ class CnCServer(DAQPool):
         self.__spadeDir = spadeDir
         self.__defaultLogDir = defaultLogDir
 
+        self.__clusterConfig = None
+
         self.__restartOnError = restartOnError
         self.__forceRestart = forceRestart
         self.__quiet = quiet
@@ -631,8 +633,7 @@ class CnCServer(DAQPool):
             DumpThreadsOnSignal(fd=sys.stderr, logger=self.__log)
 
     def __str__(self):
-        ccfg = self.getClusterConfig()
-        return "%s<%s>" % (self.__name, ccfg.configName())
+        return "%s<%s>" % (self.__name, self.getClusterConfig().configName())
 
     def __closeOnSIGINT(self, signum, frame):
         if self.closeServer(False):
@@ -793,21 +794,25 @@ class CnCServer(DAQPool):
         return CnCLogger(quiet=quiet)
 
     def getClusterConfig(self):
-        cdesc = self.__clusterDesc
-        cfgDir = self.__runConfigDir
-        try:
-            return DAQConfigParser.getClusterConfiguration(None,
-                                                           useActiveConfig=True,
-                                                           clusterDesc=cdesc,
-                                                           configDir=cfgDir,
-                                                           validate=False)
-        except XMLFileNotFound:
-            if cdesc is None:
-                cdescStr = ""
-            else:
-                cdescStr = " for cluster \"%s\"" % cdesc
-            raise CnCServerException("Cannot find cluster configuration" +
-                                     " %s: %s" % (cdescStr, exc_string()))
+        if self.__clusterConfig is None:
+            cdesc = self.__clusterDesc
+            cfgDir = self.__runConfigDir
+            try:
+                cc = DAQConfigParser.getClusterConfiguration(None,
+                                                             useActiveConfig=True,
+                                                             clusterDesc=cdesc,
+                                                             configDir=cfgDir,
+                                                             validate=False)
+                self.__clusterConfig = cc
+            except XMLFileNotFound:
+                if cdesc is None:
+                    cdescStr = ""
+                else:
+                    cdescStr = " for cluster \"%s\"" % cdesc
+                raise CnCServerException("Cannot find cluster configuration" +
+                                         " %s: %s" % (cdescStr, exc_string()))
+
+        return self.__clusterConfig
 
     def getRelease(self):
         return (self.__versionInfo["release"], self.__versionInfo["revision"])
