@@ -1103,7 +1103,7 @@ class MockParallelShell(object):
 
     def add(self, cmd):
         self.__checkCmd(cmd)
-
+        
     def addExpectedJava(self, comp, configDir, daqDataDir, logPort, livePort,
                         verbose, eventCheck, host):
 
@@ -1118,13 +1118,14 @@ class MockParallelShell(object):
 
         cmd = '%s %s' % (comp.jvm(), comp.jvmArgs())
 
+        cmd += " -Dicecube.daq.component.configDir='%s'" % configDir
+
         if comp.isHub():
             cmd += " -Dicecube.daq.stringhub.componentId=%d" % comp.id()
         if eventCheck and comp.isBuilder():
             cmd += ' -Dicecube.daq.eventBuilder.validateEvents'
 
         cmd += ' -jar %s' % jarPath
-        cmd += ' -g %s' % configDir
         if daqDataDir is not None:
             cmd += ' -d %s' % daqDataDir
         cmd += ' -c %s:%d' % (ipAddr, DAQPort.CNCSERVER)

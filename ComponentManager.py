@@ -565,7 +565,7 @@ class ComponentManager(object):
 
             jvmArgs += " -Dicecube.daq.component.configDir='%s'" % configDir
             #switches = "-g %s" % configDir
-            switches = " -d %s" % daqDataDir
+            switches = "-d %s" % daqDataDir
             switches += " -c %s:%d" % (myIP, DAQPort.CNCSERVER)
             if logPort is not None:
                 switches += " -l %s:%d,%s" % (myIP, logPort, comp.logLevel())
