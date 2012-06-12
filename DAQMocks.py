@@ -530,9 +530,10 @@ class MockClusterNode(object):
 
 
 class MockClusterConfig(object):
-    def __init__(self, name):
+    def __init__(self, name, descName="test-cluster"):
         self.__configName = name
         self.__nodes = {}
+        self.__descName = descName
 
     def __repr__(self):
         return "MockClusterConfig(%s)" % self.__configName
@@ -544,6 +545,9 @@ class MockClusterConfig(object):
 
     def configName(self):
         return self.__configName
+
+    def descName(self):
+        return self.__descName
 
     def nodes(self):
         return self.__nodes.values()
@@ -1103,7 +1107,7 @@ class MockParallelShell(object):
 
     def add(self, cmd):
         self.__checkCmd(cmd)
-        
+
     def addExpectedJava(self, comp, configDir, daqDataDir, logPort, livePort,
                         verbose, eventCheck, host):
 

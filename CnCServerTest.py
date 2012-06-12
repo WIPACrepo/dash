@@ -509,8 +509,8 @@ class RateTracker(object):
 
         cnc.updateRates(runsetId)
 
-    def validateRunXML(self, testCase, runNum, cluCfgName):
-        RunXMLValidator.validate(testCase, runNum, cluCfgName, None, None,
+    def validateRunXML(self, testCase, runNum, runConfig):
+        RunXMLValidator.validate(testCase, runNum, runConfig, None, None,
                                  self.__numEvts, self.__numMoni, self.__numSN,
                                  self.__numTcal, False)
 
@@ -789,14 +789,13 @@ class TestCnCServer(unittest.TestCase):
             log.addExpectedText('filename revision date time author')
             baseLogPort += 1
 
-        catchall.addExpectedText("Starting run #%d with \"%s\"" %
-                                 (runNum, cluCfg.configName()))
+        catchall.addExpectedText("Starting run #%d on \"%s\"" %
+                                 (runNum, cluCfg.descName()))
 
         dashlog.addExpectedRegexp(r"Version info: \S+ \d+" +
                                   r" \S+ \S+ \S+ \S+ \d+\S*")
         dashlog.addExpectedExact("Run configuration: %s" % runConfig)
-        dashlog.addExpectedExact("Cluster configuration: %s" %
-                                 cluCfg.configName())
+        dashlog.addExpectedExact("Cluster: %s" % cluCfg.descName())
 
         moniType = RunOption.MONI_TO_NONE
 
@@ -843,8 +842,7 @@ class TestCnCServer(unittest.TestCase):
             dashlog.addExpectedRegexp(r"Version info: \S+ \d+" +
                                       r" \S+ \S+ \S+ \S+ \d+\S*")
             dashlog.addExpectedExact("Run configuration: %s" % runConfig)
-            dashlog.addExpectedExact("Cluster configuration: %s" %
-                                     cluCfg.configName())
+            dashlog.addExpectedExact("Cluster: %s" % cluCfg.descName())
 
             newNum = runNum + 1
 
@@ -853,13 +851,13 @@ class TestCnCServer(unittest.TestCase):
             rateTracker.updateRunData(self.cnc, setId, self.comps)
 
             rateTracker.addFinalLogMsgs(dashlog)
-            dashlog.addExpectedExact("Run terminated SUCCESSFULLY.")
+            dashlog.addExpectedExact("Run switched SUCCESSFULLY.")
 
             self.cnc.rpc_runset_switch_run(setId, newNum)
 
             (numEvts, numMoni, numSN, numTcal) = rateTracker.getTotals()
 
-            rateTracker.validateRunXML(self, runNum, cluCfg.configName())
+            rateTracker.validateRunXML(self, runNum, runConfig)
 
             runNum = newNum
 
@@ -898,7 +896,7 @@ class TestCnCServer(unittest.TestCase):
         for nm in logs:
             logs[nm].checkStatus(100)
 
-        rateTracker.validateRunXML(self, runNum, cluCfg.configName())
+        rateTracker.validateRunXML(self, runNum, runConfig)
 
         if forceRestart:
             try:

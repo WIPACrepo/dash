@@ -39,7 +39,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 13756 2012-06-12 23:36:33Z dglo $"
+SVN_ID = "$Id: CnCServer.py 13757 2012-06-12 23:38:20Z dglo $"
 
 
 class CnCServerException(Exception):
@@ -1358,7 +1358,7 @@ class CnCServer(DAQPool):
             self.__log.error("Cannot count open files: %s" % exc_string())
             openCount = 0
 
-        runSet.startRun(runNum, self.getClusterConfig().configName(),
+        runSet.startRun(runNum, self.getClusterConfig(),
                         runOptions, self.__versionInfo, self.__spadeDir,
                         copyDir=self.__copyDir, logDir=logDir,
                         quiet=self.__quiet)

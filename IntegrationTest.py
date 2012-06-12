@@ -820,7 +820,8 @@ class RealComponent(object):
 
 
 class IntegrationTest(unittest.TestCase):
-    CLUSTER_CONFIG = 'simpleConfig'
+    CLUSTER_CONFIG = 'deadConfig'
+    CLUSTER_DESC = 'non-cluster'
     CONFIG_DIR = os.path.abspath('src/test/resources/config')
     CONFIG_NAME = 'simpleConfig'
     COPY_DIR = 'bogus'
@@ -948,7 +949,8 @@ class IntegrationTest(unittest.TestCase):
 
         self.__createComponents()
 
-        cluCfg = MockClusterConfig(IntegrationTest.CLUSTER_CONFIG)
+        cluCfg = MockClusterConfig(IntegrationTest.CLUSTER_CONFIG,
+                                   IntegrationTest.CLUSTER_DESC)
         for c in self.__compList:
             cluCfg.addComponent(c.fullName(), c.jvm(), c.jvmArgs(),
                                 "localhost")
@@ -1213,8 +1215,8 @@ class IntegrationTest(unittest.TestCase):
             dashLog.addExpectedRegexp(r'Version info: \S+ \d+ \S+ \S+ \S+' +
                                       r' \S+ \d+\S+')
             dashLog.addExpectedExact('Run configuration: %s' % configName)
-            dashLog.addExpectedExact("Cluster configuration: " +
-                                     IntegrationTest.CLUSTER_CONFIG)
+            dashLog.addExpectedExact("Cluster: " +
+                                     IntegrationTest.CLUSTER_DESC)
 
         if liveLog:
             keys = self.__compList[:]
@@ -1246,8 +1248,8 @@ class IntegrationTest(unittest.TestCase):
                     if liveLog:
                         liveLog.addExpectedText(msg)
 
-        msg = "Starting run #%d with \"%s\"" % \
-            (runNum, IntegrationTest.CLUSTER_CONFIG)
+        msg = "Starting run #%d on \"%s\"" % \
+            (runNum, IntegrationTest.CLUSTER_DESC)
         if liveLog and not liveRunOnly:
             liveLog.addExpectedText(msg)
         if logServer:
@@ -1612,7 +1614,7 @@ class IntegrationTest(unittest.TestCase):
         if logServer:
             logServer.checkStatus(10)
 
-        RunXMLValidator.validate(self, runNum, IntegrationTest.CLUSTER_CONFIG,
+        RunXMLValidator.validate(self, runNum, configName,
                                  None, None, numEvts, numMoni, numSN, numTcal,
                                  False)
 

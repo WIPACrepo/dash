@@ -467,8 +467,8 @@ class TestDAQServer(unittest.TestCase):
 
         logger.checkStatus(100)
 
-        logger.addExpectedText("Starting run #%d with \"%s\"" %
-                                (runNum, cluCfg.configName()))
+        logger.addExpectedText("Starting run #%d on \"%s\"" %
+                                (runNum, cluCfg.descName()))
 
         logger.addExpectedTextRegexp(r"Version info: \S+ \d+" +
                                      r" \S+ \S+ \S+ \S+ \d+\S*")
@@ -476,8 +476,7 @@ class TestDAQServer(unittest.TestCase):
                                            r" \S+ \S+ \S+ \S+ \d+\S*")
 
         logger.addExpectedText("Run configuration: %s" % runConfig)
-        logger.addExpectedText("Cluster configuration: %s" %
-                               cluCfg.configName())
+        logger.addExpectedText("Cluster: %s" % cluCfg.descName())
 
         moniType = RunOption.MONI_TO_NONE
 
@@ -504,7 +503,7 @@ class TestDAQServer(unittest.TestCase):
 
         logger.checkStatus(10)
 
-        RunXMLValidator.validate(self, runNum, cluCfg.configName(), None, None,
+        RunXMLValidator.validate(self, runNum, runConfig, None, None,
                                  0, 0, 0, 0, False)
 
         self.assertEqual(dc.rpc_component_count(), 0)

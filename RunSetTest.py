@@ -44,6 +44,14 @@ class FakeRunConfig(object):
         return True
 
 
+class FakeCluster(object):
+    def __init__(self, descName):
+        self.__descName = descName
+
+    def descName(self):
+        return self.__descName
+
+
 class MyParent(object):
     def __init__(self):
         pass
@@ -147,7 +155,7 @@ class TestRunSet(unittest.TestCase):
 
         runConfig = FakeRunConfig("XXXrunSubXXX")
 
-        clusterName = "cluster-foo"
+        cluCfg = FakeCluster("cluster-foo")
 
         runset = MyRunSet(MyParent(), runConfig, compList, logger)
 
@@ -196,7 +204,7 @@ class TestRunSet(unittest.TestCase):
                 comp.addBeanData("stringhub", "LatestFirstChannelHitTime", 10)
                 comp.addBeanData("stringhub", "NumberOfNonZombies", 1)
 
-        self.__startRun(runset, runNum, runConfig, clusterName,
+        self.__startRun(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
 
         self.__checkStatus(runset, compList, expState)
@@ -231,7 +239,7 @@ class TestRunSet(unittest.TestCase):
             if comp.isSource():
                 comp.addBeanData("stringhub", "EarliestLastChannelHitTime", 10)
 
-        self.__stopRun(runset, runNum, clusterName, components=compList,
+        self.__stopRun(runset, runNum, runConfig, components=compList,
                        logger=logger)
 
     def __runTests(self, compList, runNum, hangType=None):
@@ -246,7 +254,7 @@ class TestRunSet(unittest.TestCase):
 
         expId = RunSet.ID.peekNext()
 
-        clusterName = "cluster-foo"
+        cluCfg = FakeCluster("cluster-foo")
 
         runset = MyRunSet(MyParent(), runConfig, compList, logger)
 
@@ -304,7 +312,7 @@ class TestRunSet(unittest.TestCase):
 
         expState = "running"
 
-        self.__startRun(runset, runNum, runConfig, clusterName,
+        self.__startRun(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
 
         expState = "stopping"
@@ -313,7 +321,7 @@ class TestRunSet(unittest.TestCase):
             if comp.isSource():
                 comp.addBeanData("stringhub", "EarliestLastChannelHitTime", 10)
 
-        self.__stopRun(runset, runNum, clusterName, components=compList,
+        self.__stopRun(runset, runNum, runConfig, components=compList,
                        logger=logger, hangType=hangType)
 
         runset.reset()
@@ -340,7 +348,7 @@ class TestRunSet(unittest.TestCase):
         else:
             return y.order() - x.order()
 
-    def __startRun(self, runset, runNum, runConfig, clusterName,
+    def __startRun(self, runset, runNum, runConfig, cluCfg,
                    runOptions=RunOption.MONI_TO_NONE, versionInfo=None,
                    spadeDir="/tmp", copyDir=None, logDir=None,
                    components=None, logger=None):
@@ -373,18 +381,18 @@ class TestRunSet(unittest.TestCase):
 
         expState = "running"
 
-        logger.addExpectedExact("Starting run #%d with \"%s\"" %
-                                (runNum, clusterName))
+        logger.addExpectedExact("Starting run #%d on \"%s\"" %
+                                (runNum, cluCfg.descName()))
         logger.addExpectedExact(("Version info: %(filename)s %(revision)s" +
                                  " %(date)s %(time)s %(author)s %(release)s" +
                                  " %(repo_rev)s") % versionInfo)
 
         logger.addExpectedExact("Run configuration: %s" % runConfig.basename())
-        logger.addExpectedExact("Cluster configuration: %s" % clusterName)
+        logger.addExpectedExact("Cluster: %s" % cluCfg.descName())
 
         logger.addExpectedExact("Starting run %d..." % runNum)
 
-        runset.startRun(runNum, clusterName, runOptions, versionInfo,
+        runset.startRun(runNum, cluCfg, runOptions, versionInfo,
                         spadeDir, copyDir, logDir)
         self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %
                          (runset.id(), runNum, expState))
@@ -398,7 +406,7 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, components, expState)
         logger.checkStatus(10)
 
-    def __stopRun(self, runset, runNum,  clusterName, components=None,
+    def __stopRun(self, runset, runNum, runConfig, components=None,
                   logger=None, hangType=0):
         logger.DEBUG = True
         expState = "stopping"
@@ -457,16 +465,16 @@ class TestRunSet(unittest.TestCase):
                 expMsg = "RunSet #%d run#%d (%s): Could not stop %s" % \
                          (runset.id(), runNum, expState, hangStr)
                 self.assertEqual(str(rse), expMsg,
-                                 "For hangType %d expected exception %s, not %s" %
-                                 (hangType, expMsg, rse))
+                                 ("For hangType %d expected exception %s," +
+                                  " not %s") % (hangType, expMsg, rse))
             expState = "error"
 
         self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %
                          (runset.id(), runNum, expState))
         self.assertFalse(runset.stopping(), "RunSet #%d is still stopping")
 
-        RunXMLValidator.validate(self, runNum, clusterName, None, None,
-                                 0, 0, 0, 0, hangType > 1)
+        RunXMLValidator.validate(self, runNum, runConfig.basename(), None,
+                                 None, 0, 0, 0, 0, hangType > 1)
 
         if len(components) > 0:
             self.failUnless(self.__isCompListConfigured(components),
@@ -675,12 +683,12 @@ class TestRunSet(unittest.TestCase):
         runset.configure()
 
         runNum = 100
-        cluCfgName = "foo"
+        cluCfg = FakeCluster("foo-cluster")
 
-        self.__startRun(runset, runNum, runConfig, cluCfgName,
+        self.__startRun(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
 
-        self.__stopRun(runset, runNum, cluCfgName, components=compList,
+        self.__stopRun(runset, runNum, runConfig, components=compList,
                        logger=logger)
 
     def testShortStopHang(self):
@@ -693,9 +701,9 @@ class TestRunSet(unittest.TestCase):
         runset.configure()
 
         runNum = 100
-        cluCfgName = "foo"
+        cluCfg = FakeCluster("bar-cluster")
 
-        self.__startRun(runset, runNum, runConfig, cluCfgName,
+        self.__startRun(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
 
         hangType = 2
@@ -704,7 +712,7 @@ class TestRunSet(unittest.TestCase):
 
         RunSet.TIMEOUT_SECS = 5
 
-        self.__stopRun(runset, runNum, cluCfgName, components=compList,
+        self.__stopRun(runset, runNum, runConfig, components=compList,
                        logger=logger, hangType=hangType)
 
     def testBadStop(self):
@@ -718,9 +726,9 @@ class TestRunSet(unittest.TestCase):
         runset.configure()
 
         runNum = 543
-        clusterName = "bogusCluster"
+        cluCfg = FakeCluster("bogusCluster")
 
-        self.__startRun(runset, runNum, runConfig, clusterName,
+        self.__startRun(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
 
         for comp in compList:
@@ -741,8 +749,8 @@ class TestRunSet(unittest.TestCase):
         logger.addExpectedExact("Failed to transition to ready: stopping[%s]" %
                                 compStr)
 
-        stopErrMsg = "RunSet #%d run#%d (error): Could not stop stopping[%s]" %\
-            (runset.id(), runNum, compStr)
+        stopErrMsg = ("RunSet #%d run#%d (error): Could not stop" +
+                      " stopping[%s]") % (runset.id(), runNum, compStr)
         logger.addExpectedExact(stopErrMsg)
 
         try:
@@ -753,8 +761,8 @@ class TestRunSet(unittest.TestCase):
                                  "Expected exception %s, not %s" %
                                  (rse, stopErrMsg))
         finally:
-            RunXMLValidator.validate(self, runNum, clusterName, None, None,
-                                     0, 0, 0, 0, False)
+            RunXMLValidator.validate(self, runNum, runConfig.basename(), None,
+                                     None, 0, 0, 0, 0, False)
 
     def testListCompRanges(self):
 

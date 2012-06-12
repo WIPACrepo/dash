@@ -38,6 +38,13 @@ class FakeTaskManager(object):
         pass
 
 
+class FakeCluster(object):
+    def __init__(self, descName):
+        self.__descName = descName
+
+    def descName(self):
+        return self.__descName
+
 class MyRunSet(RunSet):
     def __init__(self, parent, runConfig, compList, logger):
         self.__logDict = {}
@@ -647,21 +654,21 @@ class TestDAQPool(unittest.TestCase):
 
         self.__checkRunsetState(runset, 'ready')
 
-        clusterName = "cluster-foo"
+        clusterCfg = FakeCluster("cluster-foo")
 
         dashLog = runset.getLog("dashLog")
         dashLog.addExpectedRegexp(r"Version info: \S+ \d+ \S+ \S+ \S+ \S+" +
                                   r" \d+\S*")
         dashLog.addExpectedExact("Run configuration: %s" % runConfig)
-        dashLog.addExpectedExact("Cluster configuration: %s" % clusterName)
+        dashLog.addExpectedExact("Cluster: %s" % clusterCfg.descName())
 
         self.__checkRunsetState(runset, 'ready')
 
         runNum = 1
         moniType = RunOption.MONI_TO_NONE
 
-        logger.addExpectedExact("Starting run #%d with \"%s\"" %
-                                (runNum, clusterName))
+        logger.addExpectedExact("Starting run #%d on \"%s\"" %
+                                (runNum, clusterCfg.descName()))
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
 
@@ -687,7 +694,7 @@ class TestDAQPool(unittest.TestCase):
         spadeDir = "/tmp"
         copyDir = None
 
-        runset.startRun(runNum, clusterName, moniType, versionInfo, spadeDir,
+        runset.startRun(runNum, clusterCfg, moniType, versionInfo, spadeDir,
                         copyDir)
 
         self.__checkRunsetState(runset, 'running')
@@ -731,7 +738,7 @@ class TestDAQPool(unittest.TestCase):
 
         logger.checkStatus(10)
 
-        RunXMLValidator.validate(self, runNum, clusterName,
+        RunXMLValidator.validate(self, runNum, runConfig,
                                  PayloadTime.toDateTime(firstTime),
                                  PayloadTime.toDateTime(lastTime),
                                  numEvts, numMoni, numSN, numTcal, False)

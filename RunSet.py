@@ -370,13 +370,13 @@ class LastGoodTimeThread(GoodTimeThread):
 
 
 class RunData(object):
-    def __init__(self, runSet, runNumber, clusterConfigName, runConfig,
+    def __init__(self, runSet, runNumber, clusterConfig, runConfig,
                  runOptions, versionInfo, spadeDir, copyDir, logDir, testing):
         """
         RunData constructor
         runSet - run set which uses this data
         runNum - current run number
-        clusterConfigName - current cluster configuration file name
+        clusterConfig - current cluster configuration
         runConfig - current run configuration
         runOptions - logging/monitoring options
         versionInfo - release and revision info
@@ -386,7 +386,7 @@ class RunData(object):
         testing - True if this is called from a unit test
         """
         self.__runNumber = runNumber
-        self.__clusterConfigName = clusterConfigName
+        self.__clusterConfig = clusterConfig
         self.__runConfig = runConfig
         self.__runOptions = runOptions
         self.__versionInfo = versionInfo
@@ -419,7 +419,7 @@ class RunData(object):
                               " %(date)s %(time)s %(author)s %(release)s" +
                               " %(repo_rev)s") % versionInfo)
         self.__dashlog.error("Run configuration: %s" % runConfig.basename())
-        self.__dashlog.error("Cluster configuration: %s" % clusterConfigName)
+        self.__dashlog.error("Cluster: %s" % clusterConfig.descName())
 
         self.__taskMgr = None
         self.__liveMoniClient = None
@@ -579,7 +579,7 @@ class RunData(object):
             return
 
         xmlLog.setRun(self.__runNumber)
-        xmlLog.setConfig(self.__clusterConfigName)
+        xmlLog.setConfig(self.__runConfig.basename())
         xmlLog.setStartTime(PayloadTime.toDateTime(firstTime))
         xmlLog.setEndTime(PayloadTime.toDateTime(lastTime))
         xmlLog.setEvents(numEvts)
@@ -596,13 +596,10 @@ class RunData(object):
                                  xmlLog.getPath())
 
     def clone(self, runSet, newRun):
-        return RunData(runSet, newRun, self.__clusterConfigName,
+        return RunData(runSet, newRun, self.__clusterConfig,
                        self.__runConfig, self.__runOptions, self.__versionInfo,
                        self.__spadeDir, self.__copyDir, self.__logDir,
                        self.__testing)
-
-    def clusterConfigName(self):
-        return self.__clusterConfigName
 
     def connectToI3Live(self):
         self.__liveMoniClient = self.__createLiveMoniClient()
@@ -1591,9 +1588,9 @@ class RunSet(object):
 
         return sock
 
-    def createRunData(self, runNum, clusterConfigName, runOptions, versionInfo,
+    def createRunData(self, runNum, clusterConfig, runOptions, versionInfo,
                       spadeDir, copyDir, logDir, testing=False):
-        return RunData(self, runNum, clusterConfigName, self.__cfg,
+        return RunData(self, runNum, clusterConfig, self.__cfg,
                        runOptions, versionInfo, spadeDir, copyDir, logDir,
                        testing)
 
@@ -1942,13 +1939,13 @@ class RunSet(object):
     def size(self):
         return len(self.__set)
 
-    def startRun(self, runNum, clusterConfigName, runOptions, versionInfo,
+    def startRun(self, runNum, clusterConfig, runOptions, versionInfo,
                  spadeDir, copyDir=None, logDir=None, quiet=True):
         "Start all components in the runset"
-        self.__logger.error("Starting run #%d with \"%s\"" %
-                            (runNum, clusterConfigName))
+        self.__logger.error("Starting run #%d on \"%s\"" %
+                            (runNum, clusterConfig.descName()))
         self.__logDebug(RunSetDebug.START_RUN, "STARTING %d - %s",
-                        runNum, clusterConfigName)
+                        runNum, clusterConfig.descName())
         if not self.__configured:
             raise RunSetException("RunSet #%d is not configured" % self.__id)
         if not self.__state == RunSetState.READY:
@@ -1956,7 +1953,7 @@ class RunSet(object):
                                   self.__state)
 
         self.__logDebug(RunSetDebug.START_RUN, "STARTING creRunData")
-        self.__runData = self.createRunData(runNum, clusterConfigName,
+        self.__runData = self.createRunData(runNum, clusterConfig,
                                             runOptions, versionInfo,
                                             spadeDir, copyDir, logDir)
         self.__runData.setDebugBits(self.__debugBits)

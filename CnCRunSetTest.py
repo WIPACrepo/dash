@@ -672,14 +672,13 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog = MockLogger("dashLog")
         rs.setDashLog(dashLog)
 
-        logger.addExpectedExact("Starting run #%d with \"%s\"" %
-                                (runNum, cluCfg.configName()))
+        logger.addExpectedExact("Starting run #%d on \"%s\"" %
+                                (runNum, cluCfg.descName()))
 
         dashLog.addExpectedRegexp(r"Version info: \S+ \d+ \S+ \S+ \S+ \S+" +
                                   " \d+\S+")
         dashLog.addExpectedExact("Run configuration: %s" % runConfig)
-        dashLog.addExpectedExact("Cluster configuration: %s" %
-                                 cluCfg.configName())
+        dashLog.addExpectedExact("Cluster: %s" % cluCfg.descName())
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
 
@@ -702,8 +701,8 @@ class CnCRunSetTest(unittest.TestCase):
                        "repo_rev": "1repoRev",
                        }
 
-        rs.startRun(runNum, cluCfg.configName(), RunOption.MONI_TO_NONE,
-                    versionInfo, "/tmp")
+        rs.startRun(runNum, cluCfg, RunOption.MONI_TO_NONE, versionInfo,
+                    "/tmp")
 
         logger.checkStatus(5)
         dashLog.checkStatus(5)
@@ -760,7 +759,7 @@ class CnCRunSetTest(unittest.TestCase):
         logger.checkStatus(5)
         dashLog.checkStatus(5)
 
-        RunXMLValidator.validate(self, runNum, cluCfg.configName(), None, None,
+        RunXMLValidator.validate(self, runNum, runConfig, None, None,
                                  numEvts, numMoni, numSN, numTcal, False)
 
     @staticmethod
@@ -947,14 +946,13 @@ class CnCRunSetTest(unittest.TestCase):
         (rel, rev) = self.__cnc.getRelease()
         self.__addRunStartMoni(liveMoni, runNum, rel, rev, True)
 
-        catchall.addExpectedText("Starting run #%d with \"%s\"" %
-                                 (runNum, cluCfg.configName()))
+        catchall.addExpectedText("Starting run #%d on \"%s\"" %
+                                 (runNum, cluCfg.descName()))
 
         dashLog.addExpectedRegexp(r"Version info: \S+ \d+ \S+ \S+ \S+ \S+" +
                                   " \d+\S+")
         dashLog.addExpectedExact("Run configuration: %s" % runConfig)
-        dashLog.addExpectedExact("Cluster configuration: %s" %
-                                 cluCfg.configName())
+        dashLog.addExpectedExact("Cluster: %s" % cluCfg.descName())
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
 
@@ -1025,7 +1023,7 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog.checkStatus(5)
         liveMoni.checkStatus(5)
 
-        RunXMLValidator.validate(self, runNum, cluCfg.configName(), None, None,
+        RunXMLValidator.validate(self, runNum, runConfig, None, None,
                                  numEvts, numMoni, numSN, numTcal, False)
 
         self.__cnc.rpc_runset_break(rsId)
