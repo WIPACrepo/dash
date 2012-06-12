@@ -129,7 +129,7 @@ class ComponentManager(object):
         comps = []
         for c in compdicts:
             lc = RunComponent(c["compName"], c["compNum"], "??logLevel??",
-                              "??jvm??", "??jvmArgs??", c["host"])
+                              "??jvm??", "??jvmArgs??", c["host"], False)
             comps.append(lc)
         return comps
 
@@ -253,7 +253,7 @@ class ComponentManager(object):
                                                  comp.logLevel(),
                                                  comp.jvm(),
                                                  comp.jvmArgs(),
-                                                 node.hostName()))
+                                                 node.hostName(), False))
         return compList
 
     @classmethod

@@ -23,10 +23,11 @@ class RunClusterError(Exception):
 
 
 class RunComponent(Component):
-    def __init__(self, name, id, logLevel, jvm, jvmArgs, host):
+    def __init__(self, name, id, logLevel, jvm, jvmArgs, host, isServer):
         self.__jvm = jvm
         self.__jvmArgs = jvmArgs
         self.__host = host
+        self.__isServer = isServer
 
         super(RunComponent, self).__init__(name, id, logLevel)
 
@@ -50,7 +51,7 @@ class RunComponent(Component):
         return self.__host
 
     def isControlServer(self):
-        return False
+        return self.__isServer
 
     def isLocalhost(self):
         return self.__host is not None and \
@@ -96,7 +97,8 @@ class RunNode(object):
         else:
             jvmArgs = self.__defaultJVMArgs
         self.__comps.append(RunComponent(comp.name(), comp.id(), logLvl, jvm,
-                                         jvmArgs, self.__hostName))
+                                         jvmArgs, self.__hostName,
+                                         comp.isControlServer()))
 
     def components(self):
         return self.__comps[:]
@@ -235,7 +237,7 @@ class RunCluster(CachedConfigName):
                     lvl = logLevel
 
                 comp = RunComponent(hubComp.name(), hubComp.id(), lvl, jvm,
-                                    jvmArgs, host)
+                                    jvmArgs, host, False)
                 self.__addComponent(hostMap, host, comp)
                 hubNum += 1
 
