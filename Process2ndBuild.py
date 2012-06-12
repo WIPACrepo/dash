@@ -7,23 +7,25 @@ Jacobsen, back in the 2007's or so
 This script is installed on 2ndbuild, collects the output of 2ndbuild
 as it appears on /mnt/data/pdaqlocal, tars them in groups as they
 appear, makes hard links for I3Moni, SNDAQ and SPADE, and puts the
-appropriate semaphors in place.
+appropriate semaphores in place.
 
 It should be installed and activated (in cron) by the pDAQ Fabric
 installation procedure.
 """
 
-import tarfile
 import datetime
-from sys import argv
-from os import popen, listdir, chdir, link, unlink, stat, chmod
-from time import sleep
-from os.path import basename, exists
-from re import search
+import os
+import re
+import tarfile
+import time
+
+
+MAX_FILES_PER_TARBALL = 50
+TARGET_DIR = "/mnt/data/pdaqlocal"
 
 
 def checkForRunningProcesses(progname):
-    c = popen("pgrep -fl 'python .+%s'" % progname, "r")
+    c = os.popen("pgrep -fl 'python .+%s'" % progname, "r")
     l = c.read()
     num = len(l.split('\n'))
     if num < 3:
@@ -32,97 +34,127 @@ def checkForRunningProcesses(progname):
 
 
 def isTargetFile(f):
-    match = search(r'\w+_\d+_\d+_\d+_\d+\.dat', f)
+    match = re.search(r'(\w+)_\d+_\d+_\d+_\d+\.dat', f)
     if match:
+        ftype = match.group(1)
+        if ftype != "moni" and ftype != "sn" and ftype != "tcal":
+            return False
         return True
     return False
 
 
-def main():
-    MAX_FILES_PER_TARBALL = 50
-    targetDir = "/mnt/data/pdaqlocal"
-    chdir(targetDir)
-    # Make sure I'm not already running - so I can auto-restart out of crontab
-    if(checkForRunningProcesses(basename(argv[0]))):
-        raise SystemExit
-
-    while True:
-        try:
-            # Get list of available files, matching target tar pattern:
-            allFiles = listdir(targetDir)
-            matchingFiles = []
-            for f in allFiles:
-                if isTargetFile(f):
-                    matchingFiles.append(f)
-
-            matchingFiles.sort(lambda x, y: (cmp(stat(x)[8], stat(y)[8])))
-
-            # Make list for tarball - restrict total number of files
-            filesToTar = []
-            for f in matchingFiles:
-                if not isTargetFile(f):
-                    continue  # Redundant
-                filesToTar.append(f)
-                if len(filesToTar) >= MAX_FILES_PER_TARBALL:
-                    break
-
-            if len(filesToTar) == 0:
-                raise SystemExit
-
-            print filesToTar
-            t = datetime.datetime.now()
-            dateTag = "%03d_%04d%02d%02d_%02d%02d%02d_%06d" % (0, t.year,
-                                                               t.month, t.day,
-                                                               t.hour,
-                                                               t.minute,
-                                                               t.second, 0)
-            spadeTar = "SPS-pDAQ-2ndBld-%s.dat.tar" % dateTag
-            moniLink = "SPS-pDAQ-2ndBld-%s.mon.tar" % dateTag
-            snLink = "SPS-pDAQ-2ndBld-%s.sn.tar" % dateTag
-            moniSem = "SPS-pDAQ-2ndBld-%s.msem" % dateTag
-            spadeSem = "SPS-pDAQ-2ndBld-%s.sem" % dateTag
-
-            # Create spade tarball
-            print spadeTar
-
-            # Duplicate file: wait for a new second, recalculate everything:
-            if exists(spadeTar):
-                sleep(1)
-                continue
-
-            tarball = tarfile.open(spadeTar, "w")
-            for toAdd in filesToTar:
-                print toAdd
-                tarball.add(toAdd)
-            tarball.close()
-            print "Done."
-
-            # Create moni hard link
-            print moniLink
-            link(spadeTar, moniLink)
-
-            # Create sn hard link
-            print snLink
-            link(spadeTar, snLink)
-            # So that Alex can delete if he's not running as pdaq
-            chmod(snLink, 0666)
-
-            # Create spade .sem
-            f = open(spadeSem, "w")
-            f.close()
-
-            # Create monitoring .msem
-            f = open(moniSem, "w")
-            f.close()
-
-            # Clean up tar'ed files
-            for toAdd in filesToTar:
-                print "Removing %s..." % toAdd
-                unlink(toAdd)
-
-        except KeyboardInterrupt:
+def processFiles(matchingFiles, verbose=False, dryRun=False):
+    # Make list for tarball - restrict total number of files
+    filesToTar = []
+    while len(matchingFiles) > 0:
+        filesToTar.append(matchingFiles[0])
+        del matchingFiles[0]
+        if len(filesToTar) >= MAX_FILES_PER_TARBALL:
             break
+
+    if len(filesToTar) == 0:
+        return False
+
+    if verbose: print "Found %d files" % len(filesToTar)
+    t = datetime.datetime.now()
+    dateTag = "%03d_%04d%02d%02d_%02d%02d%02d_%06d" % \
+        (0, t.year, t.month, t.day, t.hour, t.minute, t.second, 0)
+    front = "SPS-pDAQ-2ndBld-"
+    spadeTar = front + dateTag + ".dat.tar"
+    moniLink = front + dateTag + ".mon.tar"
+    snLink = front + dateTag + ".sn.tar"
+    moniSem = front + dateTag + ".msem"
+    spadeSem = front + dateTag + ".sem"
+
+    # Duplicate file: wait for a new second, recalculate everything:
+    if os.path.exists(spadeTar):
+        time.sleep(1)
+        return True
+
+    # Create temporary tarball
+    tmpTar = "tmp-" + dateTag + ".tar"
+    if verbose: print "Creating temporary tarball"
+    try:
+        if not dryRun: tarball = tarfile.open(tmpTar, "w")
+        for toAdd in filesToTar:
+            if verbose: print "  " + toAdd
+            if not dryRun: tarball.add(toAdd)
+        if not dryRun: tarball.close()
+    except:
+        os.unlink(tmpTar)
+        raise
+    if verbose: print "Done."
+
+    # Rename temporary tarball to SPADE name
+    if verbose: print "Renaming temporary tarball to %s" % spadeTar
+    os.rename(tmpTar, spadeTar)
+
+    # Create moni hard link
+    if verbose: print "MoniLink %s" % moniLink
+    if not dryRun: os.link(spadeTar, moniLink)
+
+    # Create sn hard link
+    if verbose: print "SNLink %s" % snLink
+    if not dryRun: os.link(spadeTar, snLink)
+    # So that SN process can delete if it's not running as pdaq
+    if not dryRun: os.chmod(snLink, 0666)
+
+    # Create spade .sem
+    if not dryRun: f = open(spadeSem, "w")
+    if not dryRun: f.close()
+
+    # Create monitoring .msem
+    if not dryRun: f = open(moniSem, "w")
+    if not dryRun: f.close()
+
+    # Clean up tar'ed files
+    for toAdd in filesToTar:
+        if verbose: print "Removing %s..." % toAdd
+        if not dryRun: os.unlink(toAdd)
+
+    return True
+
+
+def main(verbose=False, dryRun=False):
+    os.chdir(TARGET_DIR)
+
+    # Get list of available files, matching target tar pattern:
+    matchingFiles = []
+    for f in os.listdir(TARGET_DIR):
+        if isTargetFile(f):
+            matchingFiles.append(f)
+
+    matchingFiles.sort(lambda x, y: (cmp(os.stat(x)[8], os.stat(y)[8])))
+
+    running = True
+    while running:
+        try:
+            if not processFiles(matchingFiles, verbose=verbose, dryRun=dryRun):
+                running = False
+        except KeyboardInterrupt:
+            running = False
         #except: pass
 
+
 if __name__ == "__main__":
-    main()
+    import optparse
+    import sys
+
+    # Make sure I'm not already running - so I can auto-restart out of crontab
+    if checkForRunningProcesses(os.path.basename(sys.argv[0])):
+        raise SystemExit
+
+    op = optparse.OptionParser()
+    op.add_option("-n", "--dry-run", dest="dryRun",
+                  action="store_true", default=False,
+                  help="Do not actually do anything")
+    op.add_option("-q", "--quiet", dest="verbose",
+                  action="store_false", default=True,
+                  help="Do not print log of actions to console")
+    op.add_option("-v", "--verbose", dest="verbose",
+                  action="store_true", default=True,
+                  help="Print log of actions to console (default)")
+
+    opt, args = op.parse_args()
+
+    main(verbose=opt.verbose, dryRun=opt.dryRun)
