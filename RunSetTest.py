@@ -430,6 +430,8 @@ class TestRunSet(unittest.TestCase):
                                     (runset.id(), runNum, "forcingStop",
                                      len(hangList), plural, hangStr))
 
+        logger.addExpectedExact("Reset duration")
+
         logger.addExpectedExact("0 physics events collected in 0 seconds")
         logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
 
@@ -725,6 +727,8 @@ class TestRunSet(unittest.TestCase):
             comp.setStopFail()
 
         RunSet.TIMEOUT_SECS = 5
+
+        logger.addExpectedExact("Reset duration")
 
         logger.addExpectedExact("0 physics events collected in 0 seconds")
         logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
