@@ -5,6 +5,7 @@ import datetime
 import time
 import unittest
 from DAQTime import DAQDateTime, PayloadTime
+from leapseconds import leapseconds
 
 class TestDAQTime(unittest.TestCase):
     TICKS_PER_SEC = 10000000000
@@ -74,23 +75,50 @@ class TestDAQTime(unittest.TestCase):
                          "Expected date %s, not %s" % (expStr, dt))
 
     def testPayloadTimeOneYear(self):
-        jan1 = time.struct_time((self.CUR_YEAR, 1, 1, 0, 0, 0, 0, 0, -1))
-        dec31 = time.struct_time((self.CUR_YEAR, 12, 31, 23, 59, 59, 0, 0, -1))
-        yrsecs = long(calendar.timegm(dec31) - calendar.timegm(jan1))
-        yrticks = yrsecs * self.TICKS_PER_SEC + (self.TICKS_PER_SEC - 10000)
+        """ test cannot easily work as calculating the number of seconds in the 
+        current year requires a nist file that passes the end of the year"""
+
+        leapObj = leapseconds.getInstance()
+        jan1_mjd = leapObj.mjd(self.CUR_YEAR, 1, 1.)
+        expiry_mjd = leapObj.get_mjd_expiry()
+        elapsed_seconds = (expiry_mjd - jan1_mjd) * 86400. + \
+            (leapObj.get_tai_offset(expiry_mjd) - leapObj.get_tai_offset(jan1_mjd))
+
+        est = leapObj.mjd_to_timestruct(expiry_mjd)
+        
+        yrsecs = elapsed_seconds
+
+        # the LONG bit is actually important, otherwise we run into floating
+        # point precision issues
+        yrticks = long(yrsecs) * self.TICKS_PER_SEC + (self.TICKS_PER_SEC - 10000)
+
         dt = PayloadTime.toDateTime(yrticks)
-        expStr = self.__dateFormat(self.CUR_YEAR, 12, 31, 23, 59, 59,
+        expStr = self.__dateFormat(self.CUR_YEAR, est.tm_mon, est.tm_mday,
+                                   est.tm_hour, est.tm_min, est.tm_sec,
                                    9999990000)
         self.assertEqual(expStr, str(dt),
                          "Expected date %s, not %s" % (expStr, dt))
 
     def testPayloadTimeOneYearHP(self):
-        jan1 = time.struct_time((self.CUR_YEAR, 1, 1, 0, 0, 0, 0, 0, -1))
-        dec31 = time.struct_time((self.CUR_YEAR, 12, 31, 23, 59, 59, 0, 0, -1))
-        yrsecs = long(calendar.timegm(dec31) - calendar.timegm(jan1))
-        yrticks = yrsecs * self.TICKS_PER_SEC + (self.TICKS_PER_SEC - 10000)
+        """test cannot easily work as calculating the number of seconds in the current
+        year requires a nist that passes the end of the year"""
+
+        leapObj = leapseconds.getInstance()
+        jan1_mjd = leapObj.mjd(self.CUR_YEAR, 1, 1.)
+        expiry_mjd = leapObj.get_mjd_expiry()
+        elapsed_seconds = (expiry_mjd - jan1_mjd) * 86400. + \
+            (leapObj.get_tai_offset(expiry_mjd) - leapObj.get_tai_offset(jan1_mjd))
+
+        est = leapObj.mjd_to_timestruct(expiry_mjd)
+        yrsecs = elapsed_seconds
+
+        # the LONG bit is actually important, otherwise we run into floating
+        # point precision issues
+        yrticks = long(yrsecs) * self.TICKS_PER_SEC + (self.TICKS_PER_SEC - 10000)
         dt = PayloadTime.toDateTime(yrticks, high_precision=True)
-        expStr = self.__dateFormat(self.CUR_YEAR, 12, 31, 23, 59, 59,
+
+        expStr = self.__dateFormat(self.CUR_YEAR, est.tm_mon, est.tm_mday,
+                                   est.tm_hour, est.tm_min, est.tm_sec,
                                    9999990000, high_precision=True)
         self.assertEqual(expStr, str(dt),
                          "Expected date %s, not %s" % (expStr, dt))
