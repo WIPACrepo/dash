@@ -52,7 +52,7 @@ class DAQDateTime(object):
         self.minute = minute
         self.second = second
         self.tzinfo = tzinfo
-        
+
         self.tuple = ( year, month, day, hour, minute, second, 0, 0, -1 )
 
 
@@ -76,7 +76,7 @@ class DAQDateTime(object):
         # compare two date time objects
         if not other:
             return -1
-        
+
         val = cmp(self.tuple[0:6], other.tuple[0:6])
         if val == 0:
             val = cmp(self.__daqticks, other.__daqticks)
@@ -86,7 +86,7 @@ class DAQDateTime(object):
         # assumes that all days are 86400 seconds long
         # not the case in a day containing a leapsecond
         # subtract two date time objects
-        
+
         diff_mjd = self.mjd_day - other.mjd_day
         diff_tai = self.leap.get_tai_offset(self.mjd_day) - \
             self.leap.get_tai_offset(other.mjd_day)
@@ -94,7 +94,7 @@ class DAQDateTime(object):
         diff_seconds = diff_mjd * 3600. * 24. + diff_tai
 
         diff_ticks = self.__daqticks - other.__daqticks
-        
+
         days = int(diff_seconds / 86400)
         # round to the nearest number of seconds
         # otherwise had a lack of precision issue
@@ -117,7 +117,7 @@ class DAQDateTime(object):
             usecs += 1000000
 
         return DAQDateTimeDelta(days, secs, long(usecs))
-    
+
     def __str__(self):
         if self.__high_precision:
             fmt = "%s.%010d"
@@ -134,7 +134,7 @@ class DAQDateTime(object):
                                                    self.second)
 
         return fmt % (timeStr, ticks)
-                                                   
+
 
 class PayloadTime(object):
     # number of seconds in 11 months
@@ -167,9 +167,9 @@ class PayloadTime(object):
         m = PayloadTime.TIME_PAT.match(timestr)
         if not m:
             raise ValueError("Cannot parse date/time '%s'" % timestr)
-        
+
         basefmt = "%Y-%m-%d %H:%M:%S"
-        
+
         pt = time.strptime(m.group(1), basefmt)
 
         if m.group(3) and len(m.group(3)) <= 6:
@@ -177,7 +177,7 @@ class PayloadTime(object):
             temp_str = ".%s" % m.group(3)
             dt = datetime.datetime.strptime(temp_str,
                                             ".%f")
-            ticks = dt.microsecond * 10000 
+            ticks = dt.microsecond * 10000
         else:
             if not m.group(3):
                 ticks = 0
@@ -185,11 +185,11 @@ class PayloadTime(object):
                 ticks = int(m.group(3))
                 for i in xrange(10-len(m.group(3))):
                     ticks *= 10
-                    
+
         return DAQDateTime(pt.tm_year, pt.tm_mon,
                            pt.tm_mday, pt.tm_hour,
                            pt.tm_min, pt.tm_sec,
-                           ticks, 
+                           ticks,
                            high_precision = high_precision)
 
     @staticmethod
@@ -201,7 +201,7 @@ class PayloadTime(object):
         recompute = (PayloadTime.PREV_TIME is None or
                      abs(payTime - PayloadTime.PREV_TIME) >
                      PayloadTime.ELEVEN_MONTHS)
-        
+
         if recompute:
             # note that this is a dangerous
             # bit of code near the new year as the payload
@@ -246,9 +246,9 @@ class PayloadTime(object):
                 return DAQDateTime(ts.tm_year, ts.tm_mon, ts.tm_mday, ts.tm_hour,
                                    ts.tm_min, ts.tm_sec, subsec,
                                    high_precision = high_precision)
-        
-        
-        
+
+
+
 
 
 if __name__ == "__main__":
@@ -259,4 +259,4 @@ if __name__ == "__main__":
 
     print dt0
     print dt1
-    
+
