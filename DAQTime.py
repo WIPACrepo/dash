@@ -1,11 +1,12 @@
+#!/usr/bin/env python
+
 import re
 import calendar
 import time
-import math
 import datetime
 
-
 from leapseconds import leapseconds
+
 
 class DAQDateTimeDelta(object):
     def __init__(self, days, seconds, microseconds):
@@ -103,8 +104,8 @@ class DAQDateTime(object):
         secs = diff_seconds - days * 86400
         secs = round(secs)
 
-        if secs<0:
-            days -=1
+        if secs < 0:
+            days -= 1
             secs += 86400
 
         usecs = float(diff_ticks) / 10000.0
@@ -156,7 +157,7 @@ class PayloadTime(object):
     TIME_TILL_JUNE30 = None
 
     @staticmethod
-    def fromString(timestr, high_precision = True):
+    def fromString(timestr, high_precision = DAQDateTime.HIGH_PRECISION):
         if not timestr:
             return None
 
