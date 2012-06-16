@@ -194,7 +194,7 @@ class PayloadTime(object):
                            high_precision = high_precision)
 
     @staticmethod
-    def toDateTime(payTime, high_precision=False):
+    def toDateTime(payTime, high_precision=DAQDateTime.HIGH_PRECISION):
         if payTime is None:
             return None
 

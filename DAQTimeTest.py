@@ -49,7 +49,7 @@ class TestDAQTime(unittest.TestCase):
         self.assertEqual(PayloadTime.toDateTime(None), None)
 
     def testPayloadTimeZero(self):
-        dt = PayloadTime.toDateTime(0)
+        dt = PayloadTime.toDateTime(0, high_precision=False)
         expStr = self.__dateFormat(self.CUR_YEAR, 1, 1, 0, 0, 0, 0)
         self.assertEqual(expStr, str(dt),
                          "Expected date %s, not %s" % (expStr, dt))
@@ -62,7 +62,7 @@ class TestDAQTime(unittest.TestCase):
                          "Expected date %s, not %s" % (expStr, dt))
 
     def testPayloadTimeOneSec(self):
-        dt = PayloadTime.toDateTime(self.TICKS_PER_SEC)
+        dt = PayloadTime.toDateTime(self.TICKS_PER_SEC, high_precision=False)
         expStr = self.__dateFormat(self.CUR_YEAR, 1, 1, 0, 0, 1, 0)
         self.assertEqual(expStr, str(dt),
                          "Expected date %s, not %s" % (expStr, dt))
@@ -75,7 +75,7 @@ class TestDAQTime(unittest.TestCase):
                          "Expected date %s, not %s" % (expStr, dt))
 
     def testPayloadTimeOneYear(self):
-        """ test cannot easily work as calculating the number of seconds in the 
+        """ test cannot easily work as calculating the number of seconds in the
         current year requires a nist file that passes the end of the year"""
 
         leapObj = leapseconds.getInstance()
@@ -85,14 +85,14 @@ class TestDAQTime(unittest.TestCase):
             (leapObj.get_tai_offset(expiry_mjd) - leapObj.get_tai_offset(jan1_mjd))
 
         est = leapObj.mjd_to_timestruct(expiry_mjd)
-        
+
         yrsecs = elapsed_seconds
 
         # the LONG bit is actually important, otherwise we run into floating
         # point precision issues
         yrticks = long(yrsecs) * self.TICKS_PER_SEC + (self.TICKS_PER_SEC - 10000)
 
-        dt = PayloadTime.toDateTime(yrticks)
+        dt = PayloadTime.toDateTime(yrticks, high_precision=False)
         expStr = self.__dateFormat(self.CUR_YEAR, est.tm_mon, est.tm_mday,
                                    est.tm_hour, est.tm_min, est.tm_sec,
                                    9999990000)
