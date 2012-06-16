@@ -7,10 +7,20 @@ Is present and is named 'leap-seconds.latest'
 """
 
 
-import time
-import calendar
-import re
 import bisect
+import calendar
+import os
+import re
+import time
+
+
+# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+if "PDAQ_HOME" in os.environ:
+    metaDir = os.environ["PDAQ_HOME"]
+else:
+    from locate_pdaq import find_pdaq_trunk
+    metaDir = find_pdaq_trunk()
+
 
 class leapseconds:
     """every calculation that might be of use when it comes to leapseconds"""
@@ -20,7 +30,8 @@ class leapseconds:
     class leapsecondsHelper:
         def __call__(self, *args, **kw):
             if not leapseconds.instance:
-                leapseconds.instance = leapseconds('./leap-seconds.latest')
+                path = os.path.join(metaDir, 'dash', 'leap-seconds.latest')
+                leapseconds.instance = leapseconds(path)
             return leapseconds.instance
 
     getInstance = leapsecondsHelper()
