@@ -30,7 +30,7 @@ class DAQDateTimeDelta(object):
 
 
 class DAQDateTime(object):
-    HIGH_PRECISION = True
+    HIGH_PRECISION = False
 
     def __init__(self, year, month, day, hour, minute, second, daqticks,
                  tzinfo=None, high_precision = HIGH_PRECISION):
