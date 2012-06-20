@@ -284,15 +284,18 @@ class ComponentManager(object):
 
     @classmethod
     def getActiveComponents(cls, clusterDesc, configDir=None, validate=True,
-                            logger=None):
-        # try to extract component info from CnCServer
-        #
-        try:
-            comps = cls.__getCnCComponents()
-            if logger is not None:
-                logger.info("Extracted components from CnCServer")
-        except:
+                            useCnC=False, logger=None):
+        if not useCnC:
             comps = None
+        else:
+            # try to extract component info from CnCServer
+            #
+            try:
+                comps = cls.__getCnCComponents()
+                if logger is not None:
+                    logger.info("Extracted components from CnCServer")
+            except:
+                comps = None
 
         if comps is None:
             comps = cls.__getClusterComponents(clusterDesc,

@@ -405,7 +405,8 @@ class ComponentManagerTest(unittest.TestCase):
 
         comps = ComponentManager.getActiveComponents(clusterDesc,
                                                      configDir=self.CONFIG_DIR,
-                                                     validate=False)
+                                                     validate=False,
+                                                     useCnC=True)
         self.failIf(comps is None,
                     "getActiveComponents should not return None")
 

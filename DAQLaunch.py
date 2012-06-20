@@ -29,7 +29,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 13722 2012-05-29 21:56:26Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 13771 2012-06-20 04:27:56Z dglo $"
 
 
 class ConsoleLogger(object):
@@ -84,6 +84,9 @@ if __name__ == "__main__":
     p.add_option("-n", "--dry-run", dest="dryRun",
                  action="store_true", default=False,
                  help="\"Dry run\" only, don't actually do anything")
+    p.add_option("-S", "--server-kill", dest="serverKill",
+                 action="store_true", default=False,
+                 help="Kill all the components known by the server")
     p.add_option("-s", "--skip-kill", dest="skipKill",
                  action="store_true", default=False,
                  help="Don't kill anything, just launch")
@@ -119,6 +122,8 @@ if __name__ == "__main__":
             ignored.append("--kill-kill")
         if opt.force:
             ignored.append("--force")
+        if opt.serverKill:
+            ignored.append("--server-kill")
     if len(ignored) > 0:
         print >>sys.stderr, "Ignoring " + ", ".join(ignored)
 
@@ -150,6 +155,7 @@ if __name__ == "__main__":
         comps = ComponentManager.getActiveComponents(opt.clusterDesc,
                                                      configDir=cfgDir,
                                                      validate=opt.validation,
+                                                     useCnC=opt.serverKill,
                                                      logger=logger)
 
         if comps is not None:
