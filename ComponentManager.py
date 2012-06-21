@@ -164,31 +164,6 @@ class ComponentManager(object):
         return dirname
 
     @classmethod
-    def __getClusterComponents(cls, clusterDesc, configDir=None,
-                               validate=True, killOnly=False):
-        try:
-            activeConfig = \
-                DAQConfigParser.getClusterConfiguration(None,
-                                                        useActiveConfig=True,
-                                                        clusterDesc=clusterDesc,
-                                                        configDir=configDir,
-                                                        validate=validate)
-        except DAQConfigException as dce:
-            if str(dce).find("RELAXNG") >= 0:
-                exc = sys.exc_info()
-                raise exc[0], exc[1], exc[2]
-            activeConfig = None
-
-        if activeConfig is None:
-            if killOnly:
-                raise SystemExit("DAQ is not currently active")
-            comps = []
-        else:
-            comps = cls.buildComponentList(activeConfig)
-
-        return comps
-
-    @classmethod
     def __getCnCComponents(cls, cncrpc=None, runSetId=None):
         if cncrpc is None:
             cncrpc = RPCClient('localhost', DAQPort.CNCSERVER)
@@ -293,17 +268,40 @@ class ComponentManager(object):
             try:
                 comps = cls.__getCnCComponents()
                 if logger is not None:
-                    logger.info("Extracted components from CnCServer")
+                    logger.info("Extracted active components from CnCServer")
             except:
                 comps = None
 
         if comps is None:
-            comps = cls.__getClusterComponents(clusterDesc,
-                                               configDir=configDir,
-                                               validate=validate,
-                                               killOnly=False)
+            killOnly=False
+
+            try:
+                activeConfig = \
+                    DAQConfigParser.\
+                    getClusterConfiguration(None,
+                                            useActiveConfig=True,
+                                            clusterDesc=clusterDesc,
+                                            configDir=configDir,
+                                            validate=validate)
+            except DAQConfigException as dce:
+                if str(dce).find("RELAXNG") >= 0:
+                    exc = sys.exc_info()
+                    raise exc[0], exc[1], exc[2]
+                activeConfig = None
+
+            if activeConfig is not None:
+                comps = cls.buildComponentList(activeConfig)
+            else:
+                if killOnly:
+                    raise SystemExit("DAQ is not currently active")
+                comps = []
+
             if logger is not None:
-                logger.info("Extracted components from %s" % clusterDesc)
+                if activeConfig is not None:
+                    logger.info("Extracted component list from %s" %
+                                activeConfig.getConfigName())
+                else:
+                    logger.info("No active components found")
 
         return comps
 
