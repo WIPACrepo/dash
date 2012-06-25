@@ -40,6 +40,7 @@ class RadarThread(CnCThread):
         self.__duration = duration
         self.__sampleSleep = float(duration) / float(samples)
         self.__radarDOMs = radarDOMs
+        self.__initialized = radarDOMs is not None
 
         super(RadarThread, self).__init__("CnCServer:RadarThread",
                                               dashlog)
@@ -83,15 +84,19 @@ class RadarThread(CnCThread):
         if self.__liveMoniClient is None:
             return
 
-        if self.__radarDOMs is None:
+        if not self.__initialized:
             self.__radarDOMs = self.__findDOMs()
+            self.__initialized = True
 
-        if len(self.__radarDOMs) == 0:
+        if self.__radarDOMs is None:
             return
 
         rateList = {}
         for i in range(self.__samples):
-            for rdom in self.__radarDOMs:
+            rdoms = self.__radarDOMs
+            if rdoms is None:
+                break
+            for rdom in rdoms:
                 rate = rdom.getRate()
 
                 if not rdom.mbID() in rateList or \
