@@ -671,7 +671,7 @@ class BaseRun(object):
         return self.__logger
 
     def run(self, clusterCfgName, runCfgName, duration, flashData=None,
-            clusterDesc = None, ignoreDB=False, runMode=None,
+            clusterDesc = None, ignoreDB=False, runMode="TestData",
             filterMode=None, verbose=False):
         """
         Manage a set of runs
@@ -688,8 +688,13 @@ class BaseRun(object):
 
         run = self.createRun(clusterCfgName, runCfgName,
                              clusterDesc=clusterDesc, flashData=flashData)
+
+        if filterMode is None and flashData is not None:
+            filterMode = "RandomFiltering"
+
         run.start(duration, ignoreDB, runMode=runMode, filterMode=filterMode,
                   verbose=verbose)
+
         try:
             run.wait()
         finally:
