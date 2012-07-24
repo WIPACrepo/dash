@@ -189,7 +189,13 @@ class GoodTimeThread(CnCThread):
     or the earliest last hit time
     """
 
-    def __init__(self, srcSet, otherSet, data, log, threadName=None):
+    # bean field name holding the number of non-zombie hubs
+    NONZOMBIE_FIELD = "NumberOfNonZombies"
+    # maximum number of attempts to get the time from all hubs
+    MAX_ATTEMPTS = 3
+
+    def __init__(self, srcSet, otherSet, data, log, quickSet=False,
+                 threadName=None):
         """
         Create the thread
 
@@ -197,52 +203,66 @@ class GoodTimeThread(CnCThread):
         otherSet - list of non-sources in the runset
         data - RunData for the run
         log - log file for the runset
+        quickSet - True if time should be passed on as quickly as possible
+        threadName - thread name
         """
         self.__srcSet = srcSet
         self.__otherSet = otherSet
         self.__data = data
         self.__log = log
+        self.__quickSet = quickSet
 
         self.__timeDict = {}
-        self.__time = None
+        self.__badComps = {}
+
+        self.__goodTime = None
+        self.__finalTime = None
 
         super(GoodTimeThread, self).__init__(threadName, log)
 
     def _run(self):
         "Gather good hit time data from all hubs"
-        badComps = {}
-
-        goodTime = None
-        while goodTime is None:
-            goodTime = self.__fetchTime(badComps)
-            if goodTime is None:
+        try:
+            complete = False
+            for i in range(self.MAX_ATTEMPTS):
+                complete = self.__fetchTime()
+                if complete:
+                    # we're done, break out of the loop
+                    break
                 time.sleep(0.01)
+        except:
+            self.__log.error("Couldn't find %s: %s" %
+                             (self.moniname(), exc_string()))
 
-        if len(badComps) > 0:
+        self.__finalTime = self.__goodTime
+
+        if len(self.__badComps) > 0:
             self.__log.error("Couldn't find %s for %s" %
                              (self.moniname(),
-                              listComponentRanges(badComps.keys())))
+                              listComponentRanges(self.__badComps.keys())))
 
-        self.__data.reportGoodTime(self.moniname(), goodTime)
-        for c in self.__otherSet:
-            if c.isBuilder():
-                self.notifyBuilder(c, goodTime)
-        self.__time = goodTime
+        if self.__goodTime is None:
+            goodVal = "unknown"
+        else:
+            goodVal = self.__goodTime
+        self.__data.reportGoodTime(self.moniname(), goodVal)
 
-    def __fetchTime(self, badComps):
+    def __fetchTime(self):
         """
         Query all hubs which haven't yet reported a time
         """
-        zombieFld = "NumberOfNonZombies"
-
         tGroup = ComponentOperationGroup(ComponentOperation.GET_GOOD_TIME)
         for c in self.__srcSet:
             if not c in self.__timeDict:
-                tGroup.start(c, self.__log, (zombieFld, self.beanfield()))
-        tGroup.wait()
-        tGroup.reportErrors(self.__log, "getGoodTimes")
+                tGroup.start(c, self.__log,
+                             (self.NONZOMBIE_FIELD, self.beanfield()))
 
-        missing = False
+        if self.waitForAll():
+            tGroup.wait()
+            tGroup.reportErrors(self.__log, "getGoodTimes")
+
+        complete = True
+        updated = False
 
         rList = tGroup.results()
         for c in self.__srcSet:
@@ -251,46 +271,63 @@ class GoodTimeThread(CnCThread):
 
             result = rList[c]
             if result is None or \
-                result == ComponentOperation.RESULT_HANGING or \
-                result == ComponentOperation.RESULT_ERROR:
-                badComps[c] = 1
+                result == ComponentOperation.RESULT_HANGING:
+                # still waiting for results
+                complete = False
                 continue
 
-            numDoms = result[zombieFld]
-            val = result[self.beanfield()]
+            if result == ComponentOperation.RESULT_ERROR:
+                # component operation failed
+                self.__badComps[c] = 1
+                continue
 
+            if self.__badComps.has_key(c):
+                # got a result from a component which previously failed
+                del self.__badComps[c]
+
+            numDoms = result[self.NONZOMBIE_FIELD]
             if numDoms == 0:
+                # this string has no usable DOMs, record illegal time
                 self.__timeDict[c] = -1L
                 continue
 
-            if val <= 0L:
-                missing = True
+            val = result[self.beanfield()]
+            if val is None or val <= 0L:
+                # No results yet, need to poll again
+                complete = False
                 continue
 
             self.__timeDict[c] = val
+            if self.__goodTime is None or self.isBetter(self.__goodTime, val):
+                # got new good time, tell the builders
+                self.__goodTime = val
+                updated = True
 
-        goodTime = None
-        if not missing:
-            for c in self.__timeDict:
-                val = self.__timeDict[c]
-                if val < 0L:
-                    continue
+        if updated:
+            try:
+                self.__notifyAllBuilders(self.__goodTime)
+            except:
+                self.__log.error("Cannot send %s to builders: %s" %
+                                 (self.moniname(), exc_string()))
 
-                if goodTime is None or self.isBetter(goodTime, val):
-                    goodTime = val
+        return complete
 
-            if goodTime is None:
-                goodTime = 0L
-
-        return goodTime
+    def __notifyAllBuilders(self, goodTime):
+        "Send latest good time to the builders"
+        for c in self.__otherSet:
+            if c.isBuilder():
+                self.notifyBuilder(c, goodTime)
 
     def beanfield(self):
         "Return the name of the 'stringhub' MBean field"
         raise NotImplementedError("Unimplemented")
 
+    def logError(self, msg):
+        self.__log.error(msg)
+
     def finished(self):
         "Return True if the thread has finished"
-        return self.__time is not None
+        return self.__finalTime is not None
 
     def isBetter(self, oldval, newval):
         "Return True if 'newval' is better than 'oldval'"
@@ -305,8 +342,12 @@ class GoodTimeThread(CnCThread):
         raise NotImplementedError("Unimplemented")
 
     def time(self):
-        "Return the latest first hit marking the start of good data taking"
-        return self.__time
+        "Return the time marking the start or end of good data taking"
+        return self.__finalTime
+
+    def waitForAll(self):
+        "Wait for all threads to finish before checking results?"
+        raise NotImplementedError("Unimplemented")
 
 
 class FirstGoodTimeThread(GoodTimeThread):
@@ -320,7 +361,7 @@ class FirstGoodTimeThread(GoodTimeThread):
         log - log file for the runset
         """
         super(FirstGoodTimeThread, self).__init__(srcSet, otherSet, data, log,
-                                                  "FirstGoodTimeThread")
+                                                  threadName="FirstGoodTime")
 
     def beanfield(self):
         "Return the name of the 'stringhub' MBean field"
@@ -328,7 +369,7 @@ class FirstGoodTimeThread(GoodTimeThread):
 
     def isBetter(self, oldval, newval):
         "Return True if 'newval' is better than 'oldval'"
-        return oldval < newval
+        return oldval is None or (newval is not None and oldval < newval)
 
     def moniname(self):
         "Return the name of the value sent to I3Live"
@@ -336,7 +377,14 @@ class FirstGoodTimeThread(GoodTimeThread):
 
     def notifyBuilder(self, bldr, payTime):
         "Notify the builder of the good time"
-        bldr.setFirstGoodTime(payTime)
+        if payTime is None:
+            self.logError("Cannot set first good time to None")
+        else:
+            bldr.setFirstGoodTime(payTime)
+
+    def waitForAll(self):
+        "Wait for all threads to finish before checking results?"
+        return True
 
 
 class LastGoodTimeThread(GoodTimeThread):
@@ -350,7 +398,8 @@ class LastGoodTimeThread(GoodTimeThread):
         log - log file for the runset
         """
         super(LastGoodTimeThread, self).__init__(srcSet, otherSet, data, log,
-                                                 "LastGoodTimeThread")
+                                                 threadName="LastGoodTime",
+                                                 quickSet=True)
 
     def beanfield(self):
         "Return the name of the 'stringhub' MBean field"
@@ -358,7 +407,7 @@ class LastGoodTimeThread(GoodTimeThread):
 
     def isBetter(self, oldval, newval):
         "Return True if 'newval' is better than 'oldval'"
-        return oldval > newval
+        return oldval is None or (newval is not None and oldval > newval)
 
     def moniname(self):
         "Return the name of the value sent to I3Live"
@@ -366,7 +415,14 @@ class LastGoodTimeThread(GoodTimeThread):
 
     def notifyBuilder(self, bldr, payTime):
         "Notify the builder of the good time"
-        bldr.setLastGoodTime(payTime)
+        if payTime is None:
+            self.logError("Cannot set last good time to None")
+        else:
+            bldr.setLastGoodTime(payTime)
+
+    def waitForAll(self):
+        "Wait for all threads to finish before checking results?"
+        return False
 
 
 class RunData(object):
@@ -1793,7 +1849,7 @@ class RunSet(object):
 
         # sort list into a predictable order for unit tests
         #
-        compStr = listComponentRanges(cluCfgList);
+        compStr = listComponentRanges(cluCfgList)
         self.__logger.error("Cycling components %s" % compStr)
 
         self.cycleComponents(cluCfgList, configDir, daqDataDir, logPort,
