@@ -12,7 +12,7 @@ import traceback
 
 import DeployPDAQ
 
-from BaseRun import FlasherShellScript
+from BaseRun import FlasherShellScript, LaunchException
 from ClusterDescription import ClusterDescription
 from DAQConfig import DAQConfigException, DAQConfigParser
 from cncrun import CnCRun
