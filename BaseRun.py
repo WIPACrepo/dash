@@ -762,7 +762,11 @@ class BaseRun(object):
                 raise ValueError("Cannot parse run start time \"%s\": %s" %
                                  (summary["startTime"], exc_string()))
 
-            timediff = endTime - startTime
+            try:
+                timediff = endTime - startTime
+            except:
+                raise ValueError("Cannot get run duration from (%s - %s): %s" %
+                                 (endTime, startTime, exc_string()))
 
             duration = timediff.seconds
             if timediff.days > 0:

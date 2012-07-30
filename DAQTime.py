@@ -89,8 +89,12 @@ class DAQDateTime(object):
         # subtract two date time objects
 
         diff_mjd = self.mjd_day - other.mjd_day
-        diff_tai = self.leap.get_tai_offset(self.mjd_day) - \
-            self.leap.get_tai_offset(other.mjd_day)
+        try:
+            diff_tai = self.leap.get_tai_offset(self.mjd_day) - \
+                self.leap.get_tai_offset(other.mjd_day)
+        except:
+            raise ValueError("Cannot get TAI offset for either %d or %d" %
+                             (self.mjd_day, other.mjd_day))
 
         diff_seconds = diff_mjd * 3600. * 24. + diff_tai
 
