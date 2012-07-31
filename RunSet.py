@@ -192,7 +192,7 @@ class GoodTimeThread(CnCThread):
     # bean field name holding the number of non-zombie hubs
     NONZOMBIE_FIELD = "NumberOfNonZombies"
     # maximum number of attempts to get the time from all hubs
-    MAX_ATTEMPTS = 3
+    MAX_ATTEMPTS = 100
 
     def __init__(self, srcSet, otherSet, data, log, quickSet=False,
                  threadName=None):
@@ -229,7 +229,7 @@ class GoodTimeThread(CnCThread):
                 if complete:
                     # we're done, break out of the loop
                     break
-                time.sleep(0.01)
+                time.sleep(0.1)
         except:
             self.__log.error("Couldn't find %s: %s" %
                              (self.moniname(), exc_string()))
