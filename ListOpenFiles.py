@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 
-import subprocess, sys
+import subprocess
+import sys
 
-class ListOpenFileException(Exception): pass
+
+class ListOpenFileException(Exception):
+    pass
+
 
 class UserInfo(object):
     def __init__(self):
@@ -52,22 +56,41 @@ class UserInfo(object):
         for f in self.__fileList:
             yield f
 
-    def setCommand(self, val): self.__command = val
-    def setParentProcessID(self, val): self.__ppid = val
-    def setProcessGroupID(self, val): self.__pgid = val
-    def setProcessID(self, val): self.__pid = val
-    def setSecurityContext(self, val): self.__secContext = val
-    def setUserID(self, val): self.__uid = val
-    def setUserName(self, val): self.__user = val
+    def setCommand(self, val):
+        self.__command = val
+
+    def setParentProcessID(self, val):
+        self.__ppid = val
+
+    def setProcessGroupID(self, val):
+        self.__pgid = val
+
+    def setProcessID(self, val):
+        self.__pid = val
+
+    def setSecurityContext(self, val):
+        self.__secContext = val
+
+    def setUserID(self, val):
+        self.__uid = val
+
+    def setUserName(self, val):
+        self.__user = val
 
     def command(self):
         if self.__command is None:
             return ""
         return self.__command.split()[0]
 
-    def pid(self): return self.__pid
-    def uid(self): return self.__uid
-    def user(self): return self.__user
+    def pid(self):
+        return self.__pid
+
+    def uid(self):
+        return self.__uid
+
+    def user(self):
+        return self.__user
+
 
 class BaseFile(object):
     def __init__(self, fileType, fileDesc, accessMode, lockStatus):
@@ -96,39 +119,66 @@ class BaseFile(object):
 
         return s
 
-    def accessMode(self): return self.__accessMode
-    def devCharCode(self): return self.__devCharCode
+    def accessMode(self):
+        return self.__accessMode
+
+    def devCharCode(self):
+        return self.__devCharCode
 
     def device(self):
         if self.__devCharCode is None:
             return ""
         return self.__devCharCode
 
-    def fileDesc(self): return self.__fileDesc
-    def fileType(self): return self.__fileType
-    def flags(self): return self.__flags
+    def fileDesc(self):
+        return self.__fileDesc
+
+    def fileType(self):
+        return self.__fileType
+
+    def flags(self):
+        return self.__flags
 
     def inode(self):
         if self.__inode is None:
             return ""
         return self.__inode
 
-    def lockStatus(self): return self.__lockStatus
-    def name(self): return self.__name
-    def offset(self): return self.__offset
-    def protocol(self): return None
+    def lockStatus(self):
+        return self.__lockStatus
+
+    def name(self):
+        return self.__name
+
+    def offset(self):
+        return self.__offset
+
+    def protocol(self):
+        return None
 
     def sizeOffset(self):
         if self.__offset is None:
             return ""
         return self.__offset
 
-    def setDeviceCharacterCode(self, val): self.__devCharCode = val
-    def setFlags(self, val): self.__flags = val
-    def setInode(self, val): self.__inode = val
-    def setLinkCount(self, val): self.__linkCnt = val
-    def setName(self, val): self.__name = val
-    def setOffset(self, val): self.__offset = val
+    def setDeviceCharacterCode(self, val):
+        self.__devCharCode = val
+
+    def setFlags(self, val):
+        self.__flags = val
+
+    def setInode(self, val):
+        self.__inode = val
+
+    def setLinkCount(self, val):
+        self.__linkCnt = val
+
+    def setName(self, val):
+        self.__name = val
+
+    def setOffset(self, val):
+        self.__offset = val
+
 
 class StandardFile(BaseFile):
     def __init__(self, fileType, fileDesc, accessMode, lockStatus):
@@ -143,40 +193,53 @@ class StandardFile(BaseFile):
         return "%d,%d" % (self.__majorMinorDev >> 24,
                           self.__majorMinorDev & 0xffffff)
 
-    def majorMinorDevice(self): return self.__majorMinorDev
+    def majorMinorDevice(self):
+        return self.__majorMinorDev
 
-    def setMajorMinorDevice(self, val): self.__majorMinorDev = int(val, 16)
-    def setSize(self, val): self.__size = val
+    def setMajorMinorDevice(self, val):
+        self.__majorMinorDev = int(val, 16)
+
+    def setSize(self, val):
+        self.__size = val
 
     def sizeOffset(self):
         if self.__size is None:
             return ""
         return str(self.__size)
 
+
 class CharacterFile(StandardFile):
     def __init__(self, fileType, fileDesc, accessMode, lockStatus):
         super(CharacterFile, self).__init__(fileType, fileDesc, accessMode,
                                             lockStatus)
 
-    def device(self): return self.flags()
-    def sizeOffset(self): return super(CharacterFile, self).offset()
+    def device(self):
+        return self.flags()
+
+    def sizeOffset(self):
+        return super(CharacterFile, self).offset()
+
 
 class NoFile(BaseFile):
     def __init__(self, fileType, fileDesc, accessMode, lockStatus):
         super(NoFile, self).__init__(fileType, fileDesc, accessMode,
                                      lockStatus)
 
+
 class Directory(StandardFile):
     def __init__(self, fileType, fileDesc, accessMode, lockStatus):
         super(Directory, self).__init__(fileType, fileDesc, accessMode,
                                         lockStatus)
+
 
 class FIFO(BaseFile):
     def __init__(self, fileType, fileDesc, accessMode, lockStatus):
         super(FIFO, self).__init__(fileType, fileDesc, accessMode, lockStatus)
         self.__majorMinorDev = None
 
-    def setMajorMinorDevice(self, val): self.__majorMinorDev = val
+    def setMajorMinorDevice(self, val):
+        self.__majorMinorDev = val
+
 
 class BaseIP(BaseFile):
     def __init__(self, fileType, fileDesc, accessMode, lockStatus):
@@ -190,7 +253,8 @@ class BaseIP(BaseFile):
             self.__info = []
         self.__info.append(val)
 
-    def inode(self): return self.__proto
+    def inode(self):
+        return self.__proto
 
     def name(self):
         nm = super(BaseIP, self).name()
@@ -201,47 +265,64 @@ class BaseIP(BaseFile):
                 nm += " (%s)" % i[3:]
         return nm
 
-    def protocol(self): return self.__proto
+    def protocol(self):
+        return self.__proto
 
-    def setProtocol(self, val): self.__proto = val
+    def setProtocol(self, val):
+        self.__proto = val
+
 
 class IPv4(BaseIP):
     def __init__(self, fileType, fileDesc, accessMode, lockStatus):
         super(IPv4, self).__init__(fileType, fileDesc, accessMode, lockStatus)
 
+
 class IPv6(BaseIP):
     def __init__(self, fileType, fileDesc, accessMode, lockStatus):
         super(IPv6, self).__init__(fileType, fileDesc, accessMode, lockStatus)
+
 
 class KQueue(BaseFile):
     def __init__(self, fileType, fileDesc, accessMode, lockStatus):
         super(KQueue, self).__init__(fileType, fileDesc, accessMode,
                                      lockStatus)
 
+
 class Pipe(BaseFile):
     def __init__(self, fileType, fileDesc, accessMode, lockStatus):
         super(Pipe, self).__init__(fileType, fileDesc, accessMode, lockStatus)
         self.__size = None
 
+    def setSize(self, val):
+        self.__size = val
 
-    def setSize(self, val): self.__size = val
+    def sizeOffset(self):
+        return self.__size
 
-    def sizeOffset(self): return self.__size
 
 class RegularFile(StandardFile):
     def __init__(self, fileType, fileDesc, accessMode, lockStatus):
         super(RegularFile, self).__init__(fileType, fileDesc, accessMode,
                                           lockStatus)
 
+
+class EventPoll(StandardFile):
+    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
+        super(EventPoll, self).__init__(fileType, fileDesc, accessMode,
+                                        lockStatus)
+
+
 class SystemFile(BaseFile):
     def __init__(self, fileType, fileDesc, accessMode, lockStatus):
         super(SystemFile, self).__init__(fileType, fileDesc, accessMode,
                                          lockStatus)
 
+
 class UnixSocket(BaseFile):
     def __init__(self, fileType, fileDesc, accessMode, lockStatus):
         super(UnixSocket, self).__init__(fileType, fileDesc, accessMode,
                                          lockStatus)
+
 
 class UnknownSocket(BaseFile):
     def __init__(self, fileType, fileDesc, accessMode, lockStatus):
@@ -249,7 +330,9 @@ class UnknownSocket(BaseFile):
                                             lockStatus)
         self.__majorMinorDev = None
 
-    def setMajorMinorDevice(self, val): self.__majorMinorDev = val
+    def setMajorMinorDevice(self, val):
+        self.__majorMinorDev = val
+
 
 class ListOpenFiles(object):
     @classmethod
@@ -280,6 +363,8 @@ class ListOpenFiles(object):
             return UnixSocket(fileType, fileDesc, accessMode, lockStatus)
         elif fileType == "unknown":
             return NoFile(fileType, fileDesc, accessMode, lockStatus)
+        elif fileType == "0000":
+            return EventPoll(fileType, fileDesc, accessMode, lockStatus)
 
         raise ListOpenFileException("Found unknown file type \"%s\"" %
                                     fileType)
@@ -296,7 +381,8 @@ class ListOpenFiles(object):
 
         for line in fd:
             line = line.rstrip()
-            if len(line) == 0: continue
+            if len(line) == 0:
+                continue
 
             if line.startswith("f"):
                 # file descriptor

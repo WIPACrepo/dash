@@ -1,27 +1,49 @@
 #!/usr/bin/env python
 
-import shutil, tempfile, unittest
+import shutil
+import tempfile
+import unittest
 from CnCServer import DAQPool
-from DAQClient import DAQClient
+from DAQClient import DAQClientState
+from DAQTime import PayloadTime
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet, ConnectionException
-from RunStats import PayloadTime
 
 from DAQMocks import MockComponent, MockLogger, MockRunConfigFile, \
      RunXMLValidator
 
 ACTIVE_WARNING = False
 
+
 class FakeLogger(object):
-    def __init__(self): pass
-    def stopServing(self): pass
+    def __init__(self):
+        pass
+
+    def stopServing(self):
+        pass
+
 
 class FakeTaskManager(object):
-    def __init__(self): pass
-    def reset(self): pass
-    def start(self): pass
-    def stop(self): pass
+    def __init__(self):
+        pass
+
+    def reset(self):
+        pass
+
+    def start(self):
+        pass
+
+    def stop(self):
+        pass
+
+
+class FakeCluster(object):
+    def __init__(self, descName):
+        self.__descName = descName
+
+    def descName(self):
+        return self.__descName
 
 class MyRunSet(RunSet):
     def __init__(self, parent, runConfig, compList, logger):
@@ -51,13 +73,14 @@ class MyRunSet(RunSet):
         return FakeTaskManager()
 
     def getLog(self, name):
-        if not self.__logDict.has_key(name):
+        if not name in self.__logDict:
             self.__logDict[name] = MockLogger(name)
 
         return self.__logDict[name]
 
     def queueForSpade(self, duration):
         pass
+
 
 class MyDAQPool(DAQPool):
     def __init__(self):
@@ -74,10 +97,11 @@ class MyDAQPool(DAQPool):
     def saveCatchall(self, runDir):
         pass
 
+
 class TestDAQPool(unittest.TestCase):
     def __checkRunsetState(self, runset, expState):
         for c in runset.components():
-            self.assertEquals(c.state(), expState,
+            self.assertEqual(c.state(), expState,
                               "Comp %s state should be %s, not %s" %
                               (c.name(), expState, c.state()))
 
@@ -219,9 +243,9 @@ class TestDAQPool(unittest.TestCase):
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
-        except ConnectionException, ce:
+        except ConnectionException as ce:
             if str(ce).find("No outputs found for %s inputs" % inputName) < 0:
-                raise ce
+                raise
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
@@ -267,9 +291,9 @@ class TestDAQPool(unittest.TestCase):
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
-        except ConnectionException, ce:
+        except ConnectionException as ce:
             if str(ce).find("No outputs found for %s inputs" % inputName) < 0:
-                raise ce
+                raise
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
@@ -317,9 +341,9 @@ class TestDAQPool(unittest.TestCase):
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
-        except ConnectionException, ce:
+        except ConnectionException as ce:
             if str(ce).find("No outputs found for %s inputs" % inputName) < 0:
-                raise ce
+                raise
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
@@ -366,10 +390,10 @@ class TestDAQPool(unittest.TestCase):
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
-        except ConnectionException, ce:
+        except ConnectionException as ce:
             if str(ce).find("No inputs found for %s outputs" %
                             outputName) < 0:
-                raise ce
+                raise
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
@@ -415,10 +439,10 @@ class TestDAQPool(unittest.TestCase):
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
-        except ConnectionException, ce:
+        except ConnectionException as ce:
             if str(ce).find("No inputs found for %s outputs" %
                             outputName) < 0:
-                raise ce
+                raise
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
@@ -466,10 +490,10 @@ class TestDAQPool(unittest.TestCase):
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
-        except ConnectionException, ce:
+        except ConnectionException as ce:
             if str(ce).find("No inputs found for %s outputs" %
                             outputName) < 0:
-                raise ce
+                raise
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
@@ -523,9 +547,10 @@ class TestDAQPool(unittest.TestCase):
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
                            forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
-        except ConnectionException, ce:
-            if str(ce).find("Found 2 %s inputs for 2 outputs" % outputName) < 0:
-                raise ce
+        except ConnectionException as ce:
+            if str(ce).find("Found 2 %s inputs for 2 outputs" % \
+                                outputName) < 0:
+                raise
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
@@ -629,23 +654,26 @@ class TestDAQPool(unittest.TestCase):
 
         self.__checkRunsetState(runset, 'ready')
 
-        clusterName = "cluster-foo"
+        clusterCfg = FakeCluster("cluster-foo")
 
         dashLog = runset.getLog("dashLog")
         dashLog.addExpectedRegexp(r"Version info: \S+ \d+ \S+ \S+ \S+ \S+" +
                                   r" \d+\S*")
         dashLog.addExpectedExact("Run configuration: %s" % runConfig)
-        dashLog.addExpectedExact("Cluster configuration: %s" % clusterName)
+        dashLog.addExpectedExact("Cluster: %s" % clusterCfg.descName())
 
         self.__checkRunsetState(runset, 'ready')
 
         runNum = 1
         moniType = RunOption.MONI_TO_NONE
 
-        logger.addExpectedExact("Starting run #%d with \"%s\"" %
-                                (runNum, clusterName))
+        logger.addExpectedExact("Starting run #%d on \"%s\"" %
+                                (runNum, clusterCfg.descName()))
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
+
+        aComp.addBeanData("stringhub", "LatestFirstChannelHitTime", 10)
+        aComp.addBeanData("stringhub", "NumberOfNonZombies", 1)
 
         global ACTIVE_WARNING
         if not LIVE_IMPORT and not ACTIVE_WARNING:
@@ -666,7 +694,7 @@ class TestDAQPool(unittest.TestCase):
         spadeDir = "/tmp"
         copyDir = None
 
-        runset.startRun(runNum, clusterName, moniType, versionInfo, spadeDir,
+        runset.startRun(runNum, clusterCfg, moniType, versionInfo, spadeDir,
                         copyDir)
 
         self.__checkRunsetState(runset, 'running')
@@ -693,6 +721,8 @@ class TestDAQPool(unittest.TestCase):
                                  (numMoni, numSN, numTcal))
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
 
+        aComp.addBeanData("stringhub", "EarliestLastChannelHitTime", 10)
+
         self.failIf(runset.stopRun(), "stopRun() encountered error")
 
         self.__checkRunsetState(runset, 'ready')
@@ -708,7 +738,7 @@ class TestDAQPool(unittest.TestCase):
 
         logger.checkStatus(10)
 
-        RunXMLValidator.validate(runNum, clusterName,
+        RunXMLValidator.validate(self, runNum, runConfig,
                                  PayloadTime.toDateTime(firstTime),
                                  PayloadTime.toDateTime(lastTime),
                                  numEvts, numMoni, numSN, numTcal, False)
@@ -739,14 +769,17 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
+        for c in compList:
+            c.setMonitorState("idle")
+
         cnt = mgr.monitorClients()
         self.assertEqual(cnt, len(compList))
 
         for c in compList:
             self.assertEqual(c.monitorCount(), 1)
 
-        fooHub.setMonitorState(DAQClient.STATE_DEAD)
-        bazComp.setMonitorState(DAQClient.STATE_MISSING)
+        fooHub.setMonitorState(DAQClientState.DEAD)
+        bazComp.setMonitorState(DAQClientState.MISSING)
 
         self.assertEqual(mgr.numComponents(), len(compList))
 

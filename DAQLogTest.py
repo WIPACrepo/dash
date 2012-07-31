@@ -1,21 +1,26 @@
 #!/usr/bin/env python
 
-import datetime, os, tempfile, time, unittest
+import datetime
+import os
+import tempfile
+import time
+import unittest
 from DAQLog import LogSocketServer
 
 from DAQMocks import SocketWriter
+
 
 class TestDAQLog(unittest.TestCase):
     DIR_PATH = None
 
     def checkLog(self, logPath, msgList):
         lines = self.readLog(logPath)
-        self.assertEquals(len(msgList), len(lines), 'Expected %d line, not %d' %
+        self.assertEqual(len(msgList), len(lines), 'Expected %d line, not %d' %
                           (len(msgList), len(lines)))
 
         for i in range(len(msgList)):
             msg = lines[i].rstrip()
-            self.assertEquals(msgList[i], msg,
+            self.assertEqual(msgList[i], msg,
                               'Expected "%s", not "%s"' % (msgList[i], msg))
 
     def readLog(self, logPath):

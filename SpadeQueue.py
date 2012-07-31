@@ -10,10 +10,15 @@ run from command line) or programmatically (when imported from, e.g.,
 RunSet.py)
 """
 
-import datetime, os, shutil, sys, tarfile
+import datetime
+import os
+import shutil
+import sys
+import tarfile
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
+
 
 def __copySpadeTarFile(logger, copyDir, spadeBaseName, tarFile):
     copyFile = os.path.join(copyDir, spadeBaseName + ".dat.tar")
@@ -21,8 +26,8 @@ def __copySpadeTarFile(logger, copyDir, spadeBaseName, tarFile):
 
     try:
         os.link(tarFile, copyFile)
-    except OSError, e:
-        if e.errno == 18: # Cross-device link
+    except OSError as e:
+        if e.errno == 18:  # Cross-device link
             shutil.copyfile(tarFile, copyFile)
         else:
             raise OSError(str(e) + ": Copy %s to %s" % (tarFile, copyFile))
@@ -31,7 +36,7 @@ def __copySpadeTarFile(logger, copyDir, spadeBaseName, tarFile):
 def __touch_file(f):
     open(f, "w").close()
 
-    
+
 def __writeSpadeSemaphore(spadeDir, spadeBaseName):
     semFile = os.path.join(spadeDir, spadeBaseName + ".sem")
     __touch_file(semFile)
@@ -40,7 +45,7 @@ def __writeSpadeSemaphore(spadeDir, spadeBaseName):
 def __indicate_daq_logs_queued(spadeDir):
     __touch_file(os.path.join(spadeDir, "logs-queued"))
 
-                 
+
 def __writeSpadeTarFile(spadeDir, spadeBaseName, runDir):
     tarBall = os.path.join(spadeDir, spadeBaseName + ".dat.tar")
 
@@ -74,7 +79,7 @@ def queueForSpade(logger, spadeDir, copyDir, runDir, runNum, runTime,
         __writeSpadeSemaphore(spadeDir, spadeBaseName)
 
         __indicate_daq_logs_queued(runDir)
-        
+
         logger.info(("Queued data for SPADE (spadeDir=%s" +
                      ", runDir=%s, runNum=%s)...") %
                     (spadeDir, runDir, runNum))

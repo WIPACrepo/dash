@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 
+
 class IntervalTimer(object):
     """
     Timer which triggers each time the specified number of seconds has passed.
@@ -36,7 +37,7 @@ class IntervalTimer(object):
         if self.__nextTime is None:
             self.__nextTime = now
 
-        dt  = now - self.__nextTime
+        dt = now - self.__nextTime
 
         secs = dt.seconds + (dt.microseconds * 0.000001)
         return self.__interval - secs

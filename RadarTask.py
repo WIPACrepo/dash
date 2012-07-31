@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
+import time
+
 from CnCTask import CnCTask
 from CnCThread import CnCThread
 from LiveImports import Prio
 from RunSetDebug import RunSetDebug
+
 
 class RadarDOM(object):
     def __init__(self, mbID, string, comp, beanName):
@@ -18,13 +21,15 @@ class RadarDOM(object):
     def getRate(self):
         return self.__comp.getSingleBeanField(self.__beanName, "HitRate")
 
-    def mbID(self): return self.__mbID
+    def mbID(self):
+        return self.__mbID
+
 
 class RadarThread(CnCThread):
     "A thread which reports the hit rate for all radar sentinel DOMs"
 
     # mapping of DOM mainboard ID -> string number
-    DOM_MAP = { "48e492170268": 6 }
+    DOM_MAP = {"48e492170268": 6}
 
     def __init__(self, runset, dashlog, liveMoni, samples, duration,
                  radarDOMs=None):
@@ -42,7 +47,7 @@ class RadarThread(CnCThread):
     def __findDOMs(self):
         strings = {}
         for k in self.DOM_MAP.keys():
-            if not strings.has_key(self.DOM_MAP[k]):
+            if not self.DOM_MAP[k] in strings:
                 strings[self.DOM_MAP[k]] = []
             strings[self.DOM_MAP[k]].append(k)
 
@@ -89,48 +94,58 @@ class RadarThread(CnCThread):
             for rdom in self.__radarDOMs:
                 rate = rdom.getRate()
 
-                if not rateList.has_key(rdom.mbID()) or \
+                if not rdom.mbID() in rateList or \
                         rateList[rdom.mbID()] < rate:
                     rateList[rdom.mbID()] = rate
 
-        rateData = []
-        for mbID in rateList:
-            rateData.append((mbID, rateList[mbID]))
+            time.sleep(self.__sampleSleep)
 
         if not self.isClosed():
+            rateData = []
+            for mbID in rateList:
+                rateData.append((mbID, rateList[mbID]))
+
             if not self.__liveMoniClient.sendMoni("radarDOMs", rateData,
                                                   Prio.EMAIL):
                 self.__dashlog.error("Failed to send radar DOM report")
 
     def getNewThread(self):
-        thrd = RadarThread(self.__runset, self.__dashlog, self.__liveMoniClient,
-                           self.__samples, self.__duration, self.__radarDOMs)
+        thrd = RadarThread(self.__runset, self.__dashlog,
+                           self.__liveMoniClient, self.__samples,
+                           self.__duration, self.__radarDOMs)
         return thrd
 
     def reset(self):
         self.__radarDOMs = None
 
+
 class RadarTask(CnCTask):
     NAME = "Radar"
-    PERIOD = 900
+    PERIOD = 300
     DEBUG_BIT = RunSetDebug.RADAR_TASK
 
     # number of samples per radar check
-    RADAR_SAMPLES    = 8
+    RADAR_SAMPLES = 8
 
     # number of seconds for sampling
     RADAR_SAMPLE_DURATION = 120
 
     def __init__(self, taskMgr, runset, dashlog, liveMoni,
-                 samples=RADAR_SAMPLES, duration=RADAR_SAMPLE_DURATION,
+                 samples=None, duration=None,
                  period=None):
         self.__runset = runset
         self.__liveMoniClient = liveMoni
-        self.__samples = samples
-        self.__duration = duration
+        if samples is None:
+            self.__samples = self.RADAR_SAMPLES
+        else:
+            self.__samples = samples
+        if duration is None:
+            self.__duration = self.RADAR_SAMPLE_DURATION
+        else:
+            self.__duration = duration
 
-        self.__thread = RadarThread(runset, dashlog, liveMoni, samples,
-                                    duration)
+        self.__thread = RadarThread(runset, dashlog, liveMoni, self.__samples,
+                                    self.__duration)
         self.__badCount = 0
 
         if self.__liveMoniClient is None:
@@ -138,7 +153,8 @@ class RadarTask(CnCTask):
             period = None
         else:
             name = self.NAME
-            if period is None: period = self.PERIOD
+            if period is None:
+                period = self.PERIOD
 
         super(RadarTask, self).__init__("Radar", taskMgr, dashlog,
                                         self.DEBUG_BIT, name, period)

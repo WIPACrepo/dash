@@ -10,20 +10,26 @@
 #     clusterConfig = "spts64-real-21-29"
 #     runConfig = "spts64-dirtydozen-hlc-006"
 #     numSecs = 60                             # number of seconds
-#     numRuns = 1
 #
 #     # an ordinary run
-#     run.run(clusterConfig, runConfig, numSecs, numRuns)
+#     run.run(clusterConfig, runConfig, numSecs)
 #
-#     flashFile = "flash-21.xml"
-#     flashTimes = (30, 30, 20, 15)            # number of seconds
-#     pauseTime = 30                           # number of seconds
+#     flasherData = \
+#         (("flash-21.xml", 30),               # flash string 21 for 30 seconds
+#          (None, 15),                         # wait 15 seconds
+#          ("flash-26-27.xml", 120),           # flash 26 & 27 for 2 minutes
+#          (None, 20),                         # wait 20 seconds
+#          ("flash-21.xml", 30))               # flash string 21 for 30 seconds
 #
 #     # a flasher run
-#     run.run(clusterConfig, runConfig, numSecs, numRuns)
-#             flashFile, flashTimes, flashPause)
+#     run.run(clusterConfig, runConfig, numSecs, flasherData)
 
-import os, re, socket, subprocess, sys, time
+import os
+import re
+import socket
+import subprocess
+import sys
+import time
 
 from BaseRun import BaseRun, RunException, StateException
 from DefaultDomGeometry import XMLParser
@@ -32,22 +38,28 @@ from RunSetState import RunSetState
 from exc_string import exc_string
 from xml.dom import minidom, Node
 
+
+class FlasherDataException(Exception):
+    pass
+
+
 class FlasherDataParser(XMLParser):
     @classmethod
     def __loadFlasherData(cls, dataFile):
         """Parse and return data from flasher file"""
         try:
             dom = minidom.parse(dataFile)
-        except Exception, e:
-            raise FlasherException("Cannot parse \"%s\": %s" %
-                                   (dataFile, exc_string()))
+        except Exception:
+            raise FlasherDataException("Cannot parse \"%s\": %s" %
+                                       (dataFile, exc_string()))
 
         fmain = dom.getElementsByTagName("flashers")
         if len(fmain) == 0:
-            raise FlasherException("File \"%s\" has no <flashers>" % dataFile)
+            raise FlasherDataException("File \"%s\" has no <flashers>" %
+                                       dataFile)
         elif len(fmain) > 1:
-            raise FlasherException("File \"%s\" has too many <flashers>" %
-                                   dataFile)
+            raise FlasherDataException("File \"%s\" has too many <flashers>" %
+                                       dataFile)
 
         nodes = fmain[0].getElementsByTagName("flasher")
 
@@ -55,8 +67,8 @@ class FlasherDataParser(XMLParser):
         for n in nodes:
             try:
                 flashList.append(cls.__parseFlasherNode(n))
-            except FlasherException, fe:
-                raise FlasherException("File \"%s\": %s" % (dataFile, fe))
+            except FlasherDataException as fe:
+                raise FlasherDataException("File \"%s\": %s" % (dataFile, fe))
 
         return flashList
 
@@ -96,14 +108,14 @@ class FlasherDataParser(XMLParser):
 
         if hub is None or \
            pos is None:
-            raise FlasherException("Missing stringHub/domPosition" +
-                                   " information")
+            raise FlasherDataException("Missing stringHub/domPosition" +
+                                       " information")
         if bright is None or \
            window is None or \
            delay is None or \
            mask is None or \
            rate is None:
-            raise FlasherException("Bad entry for %s-%s" % (hub, pos))
+            raise FlasherDataException("Bad entry for %s-%s" % (hub, pos))
 
         return (hub, pos, bright, window, delay, mask, rate)
 
@@ -111,12 +123,26 @@ class FlasherDataParser(XMLParser):
     def load(cls, dataFile):
         return cls.__loadFlasherData(dataFile)
 
-class CnCRun(BaseRun):
-    def __init__(self, showCmd=False, showCmdOutput=False, dbType=None):
-        self.__showCmd = showCmd
-        self.__showCmdOutput = showCmdOutput
 
-        super(CnCRun, self).__init__(showCmd, showCmdOutput, dbType)
+class CnCRun(BaseRun):
+    def __init__(self, showCmd=False, showCmdOutput=False, dryRun=False,
+                 dbType=None, logfile=None):
+        """
+        showCmd - True if commands should be printed before being run
+        showCmdOutput - True if command output should be printed
+        dryRun - True if commands should only be printed and not executed
+        dbType - DatabaseType value (TEST, PROD, or NONE)
+        logfile - file where all log messages are saved
+        """
+
+        super(CnCRun, self).__init__(showCmd, showCmdOutput, dryRun, dbType,
+                                     logfile)
+
+        self.__showCmdOutput = showCmdOutput
+        self.__dryRun = dryRun
+
+        # used during dry runs to simulate the runset id
+        self.__fakeRunSet = 1
 
         self.__runNumFile = \
             os.path.join(os.environ["HOME"], ".i3live-run")
@@ -133,10 +159,12 @@ class CnCRun(BaseRun):
     def __status(self):
         "Print the current DAQ status"
 
-        if not self.__showCmdOutput: return
+        if not self.__showCmdOutput or self.__dryRun:
+            return
 
         cmd = "DAQStatus.py"
-        if self.__showCmd: print cmd
+        self.logCmd(cmd)
+
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, close_fds=True,
@@ -145,12 +173,13 @@ class CnCRun(BaseRun):
 
         for line in proc.stdout:
             line = line.rstrip()
-            print '+ ' + line
+            self.logCmdOutput(line)
         proc.stdout.close()
 
         proc.wait()
 
-    def __waitForState(self, expState, numTries, numErrors=0, waitSecs=10):
+    def __waitForState(self, expState, numTries, numErrors=0, waitSecs=10,
+                       verbose=False):
         """
         Wait for the specified state
 
@@ -163,6 +192,9 @@ class CnCRun(BaseRun):
         if self.__runSetId is None:
             return False
 
+        if self.__dryRun:
+            return True
+
         self.__status()
 
         cnc = self.cncConnection()
@@ -170,19 +202,20 @@ class CnCRun(BaseRun):
         prevState = cnc.rpc_runset_state(self.__runSetId)
         curState = prevState
 
-        if prevState != expState:
-            print "Switching from %s to %s" % (prevState, expState)
+        if verbose and prevState != expState:
+            self.logInfo("Switching from %s to %s" % (prevState, expState))
 
         startTime = time.time()
-        for i in range(numTries):
+        for _ in range(numTries):
             if curState == RunSetState.UNKNOWN:
                 break
 
             curState = cnc.rpc_runset_state(self.__runSetId)
             if curState != prevState:
-                swTime = int(time.time() - startTime)
-                print "  Switched from %s to %s in %s secs" % \
-                    (prevState, curState, swTime)
+                if verbose:
+                    swTime = int(time.time() - startTime)
+                    self.logInfo("Switched from %s to %s in %s secs" %
+                                 (prevState, curState, swTime))
 
                 prevState = curState
                 startTime = time.time()
@@ -212,39 +245,54 @@ class CnCRun(BaseRun):
     def cleanUp(self):
         """Do final cleanup before exiting"""
         if self.__runSetId is not None:
-            cnc = self.cncConnection()
+            if not self.__dryRun:
+                cnc = self.cncConnection()
 
-            cnc.rpc_runset_break(self.__runSetId)
+            if self.__dryRun:
+                print "Break runset#%s" % self.__runSetId
+            else:
+                cnc.rpc_runset_break(self.__runSetId)
             self.__runSetId = None
 
-    def flash(self, tm, dataPath):
+    def flash(self, dataPath, secs):
         """
         Start flashers for the specified duration with the specified data file
         """
         if self.__runSetId is None:
-            print >>sys.stderr, "No active runset!"
+            self.logError("No active runset!")
             return True
 
-        try:
-            data = FlasherDataParser.load(dataPath)
-        except:
-            print >>sys.stderr, "Cannot flash: " + exc_string()
-            return True
+        if not self.__dryRun:
+            cnc = self.cncConnection()
 
-        runData = self.getLastRunNumber()
-        subrun = runData[1] + 1
-        self.__setLastRunNumber(runData[0], subrun)
+        if dataPath is not None:
+            try:
+                data = FlasherDataParser.load(dataPath)
+            except:
+                self.logError("Cannot flash: " + exc_string())
+                return True
 
-        cnc = self.cncConnection()
+            runData = self.getLastRunNumber()
+            subrun = runData[1] + 1
+            self.__setLastRunNumber(runData[0], subrun)
 
-        cnc.rpc_runset_subrun(self.__runSetId, subrun, data)
+            if self.__dryRun:
+                print "Flash subrun#%d - %s for %s second" % \
+                    (subrun, data[0], data[1])
+            else:
+                cnc.rpc_runset_subrun(self.__runSetId, subrun, data)
 
         # XXX should be monitoring run state during this time
-        time.sleep(tm)
+        if not self.__dryRun:
+            time.sleep(secs)
 
-        subrun += 1
-        self.__setLastRunNumber(runData[0], subrun)
-        cnc.rpc_runset_subrun(self.__runSetId, subrun, [])
+        if dataPath is not None:
+            subrun += 1
+            self.__setLastRunNumber(runData[0], subrun)
+            if self.__dryRun:
+                print "Flash subrun#%d - turn off flashers" % subrun
+            else:
+                cnc.rpc_runset_subrun(self.__runSetId, subrun, [])
 
     def getLastRunNumber(self):
         "Return the last run number"
@@ -256,7 +304,7 @@ class CnCRun(BaseRun):
                 line = fd.readline()
                 m = re.search('(\d+)\s+(\d+)', line)
                 if m:
-                    num =int(m.group(1))
+                    num = int(m.group(1))
                     subnum = int(m.group(2))
 
         return (num, subnum)
@@ -313,10 +361,11 @@ class CnCRun(BaseRun):
         Return True if the light mode was set successfully
         """
         if isLID:
-            print >>sys.stderr, "Not setting light mode!!!"
+            self.logError("Not setting light mode!!!")
         return True
 
-    def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False):
+    def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False,
+                 runMode=None, filterMode=None, verbose=False):
         """
         Start a run
 
@@ -324,19 +373,31 @@ class CnCRun(BaseRun):
         duration - number of seconds for run
         numRuns - number of runs (default=1)
         ignoreDB - don't check the database for this run config
+        runMode - Run mode for 'livecmd'
+        filterMode - Run mode for 'livecmd'
+        verbose - print more details of run transitions
 
         Return True if the run was started
         """
-        cnc = self.cncConnection()
+        if not self.__dryRun:
+            cnc = self.cncConnection()
 
         if self.__runSetId is not None and self.__runCfg is not None and \
                 self.__runCfg != runCfg:
             self.__runCfg = None
-            cnc.rpc_runset_break(self.__runSetId)
+            if self.__dryRun:
+                print "Break runset #%s" % self.__runSetId
+            else:
+                cnc.rpc_runset_break(self.__runSetId)
             self.__runSetId = None
 
         if self.__runSetId is None:
-            runSetId = cnc.rpc_runset_make(runCfg)
+            if self.__dryRun:
+                runSetId = self.__fakeRunSet
+                self.__fakeRunSet += 1
+                print "Make runset #%d" % runSetId
+            else:
+                runSetId = cnc.rpc_runset_make(runCfg)
             if runSetId < 0:
                 raise RunException("Could not create runset for \"%s\"" %
                                    runCfg)
@@ -347,9 +408,23 @@ class CnCRun(BaseRun):
         self.__runNum = self.getLastRunNumber()[0] + 1
         self.__setLastRunNumber(self.__runNum, 0)
 
+        if runMode is not None:
+            if filterMode is not None:
+                self.logError("Ignoring run mode %s, filter mode %s" %
+                                    (runMode, filterMode))
+            else:
+                self.logError("Ignoring run mode %s" % runMode)
+        elif filterMode is not None:
+            self.logError("Ignoring filter mode %s" % filterMode)
+
         runOptions = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
 
-        cnc.rpc_runset_start_run(self.__runSetId, self.__runNum, runOptions)
+        if self.__dryRun:
+            print "Start run#%d with runset#%d" % \
+                (self.__runNum, self.__runSetId)
+        else:
+            cnc.rpc_runset_start_run(self.__runSetId, self.__runNum,
+                                     runOptions)
 
         return True
 
@@ -370,11 +445,15 @@ class CnCRun(BaseRun):
         if self.__runSetId is None:
             raise RunException("No active run")
 
-        cnc = self.cncConnection()
+        if not self.__dryRun:
+            cnc = self.cncConnection()
 
-        cnc.rpc_runset_stop_run(self.__runSetId)
+        if self.__dryRun:
+            print "Stop runset#%s" % self.__runSetId
+        else:
+            cnc.rpc_runset_stop_run(self.__runSetId)
 
-    def waitForStopped(self):
+    def waitForStopped(self, verbose=False):
         """Wait for the current run to be stopped"""
         cnc = self.cncConnection()
 
@@ -387,9 +466,10 @@ class CnCRun(BaseRun):
             self.__runSetId = None
             return True
 
-        return self.__waitForState(RunSetState.READY, 10)
+        return self.__waitForState(RunSetState.READY, 10, verbose=verbose)
 
 if __name__ == "__main__":
-    run = CnCRun(True, True)
-    run.run("spts64-real-21-29", "spts64-dirtydozen-hlc-006", 30,
-            "flash-21.xml", (5, 5), 10)
+    run = CnCRun(True, True, dryRun=False)
+    run.run("spts64-dirtydozen-hlc-006", "spts64-dirtydozen-hlc-006", 30,
+            (("flash-21.xml", 5), (None, 10), ("flash-21.xml", 5)),
+            verbose=True)

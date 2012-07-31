@@ -1,17 +1,19 @@
 #!/usr/bin/env python
 
-import os, socket, sys, threading
+import os
+import socket
+import sys
+import threading
 
 from CnCLogger import CnCLogger
 from DAQRPC import RPCClient
-from RunSet import RunSet
 from UniqueID import UniqueID
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if os.environ.has_key("PDAQ_HOME"):
+if "PDAQ_HOME" in os.environ:
     metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
@@ -21,9 +23,48 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-class MBeanException(Exception): pass
-class BeanFieldNotFoundException(MBeanException): pass
-class BeanLoadException(MBeanException): pass
+
+def unFixValue(obj):
+    """ Look for numbers masquerading as strings.  If an obj is a
+    string and successfully converts to a number, return that
+    convertion.  If obj is a dict or list, recuse into it
+    converting all such masquerading strings.  All other types are
+    unaltered.  This pairs with the similarly named fix* methods in
+    icecube.daq.juggler.mbean.XMLRPCServer """
+
+    if type(obj) is dict:
+        for k in obj.keys():
+            obj[k] = unFixValue(obj[k])
+    elif type(obj) is list:
+        for i in xrange(0, len(obj)):
+            obj[i] = unFixValue(obj[i])
+    elif type(obj) is tuple:
+        newObj = []
+        for v in obj:
+            newObj.append(unFixValue(v))
+        obj = tuple(newObj)
+    elif type(obj) is str:
+        try:
+            if obj.endswith("L"):
+                return long(obj[:-1])
+            else:
+                return int(obj)
+        except ValueError:
+            pass
+    return obj
+
+
+class MBeanException(Exception):
+    pass
+
+
+class BeanFieldNotFoundException(MBeanException):
+    pass
+
+
+class BeanLoadException(MBeanException):
+    pass
+
 
 class MBeanClient(object):
     def __init__(self, compName, host, port):
@@ -56,7 +97,7 @@ class MBeanClient(object):
                 failed.append(bean)
 
                 # make sure bean has an entry
-                if not self.__beanFields.has_key(bean):
+                if not bean in self.__beanFields:
                     self.__beanFields[bean] = []
 
         if len(failed) > 0:
@@ -75,30 +116,6 @@ class MBeanClient(object):
                     self.__loadBeanInfo()
             finally:
                 self.__loadLock.release()
-
-    @classmethod
-    def __unFixValue(cls,obj):
-
-        """ Look for numbers masquerading as strings.  If an obj is a
-        string and successfully converts to a number, return that
-        convertion.  If obj is a dict or list, recuse into it
-        converting all such masquerading strings.  All other types are
-        unaltered.  This pairs with the similarly named fix* methods in
-        icecube.daq.juggler.mbean.XMLRPCServer """
-
-        if type(obj) is dict:
-            for k in obj.keys():
-                obj[k] = cls.__unFixValue(obj[k])
-        elif type(obj) is list:
-            for i in xrange(0, len(obj)):
-                obj[i] = cls.__unFixValue(obj[i])
-        elif type(obj) is str:
-            try:
-                return int(obj)
-            except ValueError:
-                pass
-        return obj
-
 
     def checkBeanField(self, bean, fld):
         "throw an exception if the bean or field does not exist"
@@ -122,14 +139,19 @@ class MBeanClient(object):
         "get the value for a single MBean field"
         self.checkBeanField(bean, fld)
 
-        return self.__unFixValue(self.__client.mbean.get(bean, fld))
+        return unFixValue(self.__client.mbean.get(bean, fld))
 
     def getAttributes(self, bean, fldList):
         "get the values for a list of MBean fields"
-        attrs = self.__client.mbean.getAttributes(bean, fldList)
+        try:
+            attrs = self.__client.mbean.getAttributes(bean, fldList)
+        except:
+            raise Exception("Cannot get %s mbean \"%s\" attributes %s: %s" %
+                            (self.__compName, bean, fldList, exc_string()))
+
         if type(attrs) == dict and len(attrs) > 0:
             for k in attrs.keys():
-                attrs[k] = self.__unFixValue(attrs[k])
+                attrs[k] = unFixValue(attrs[k])
         return attrs
 
     def getBeanNames(self):
@@ -152,6 +174,7 @@ class MBeanClient(object):
     def reloadBeanInfo(self):
         "reload MBean names and fields during the next request"
         self.__loadedInfo = False
+
 
 class ComponentName(object):
     "DAQ component name"
@@ -187,7 +210,27 @@ class ComponentName(object):
     def num(self):
         return self.__num
 
-class DAQClientException(Exception): pass
+
+class DAQClientException(Exception):
+    pass
+
+
+class DAQClientState(object):
+    # internal state indicating that the client hasn't answered
+    # some number of pings but has not been declared dead
+    #
+    MISSING = 'MIA'
+
+    # internal state indicating that the client is
+    # no longer responding to pings
+    #
+    DEAD = "DEAD"
+
+    # internal state indicating that the client has not answered
+    # an XML-RPC call
+    #
+    HANGING = "hanging"
+
 
 class DAQClient(ComponentName):
     """DAQ component
@@ -203,19 +246,13 @@ class DAQClient(ComponentName):
     cmdOrder - order in which start/stop commands are issued
     """
 
+    # maximum number of failed pings before a component is declared dead
+    #
+    MAX_DEAD_COUNT = 3
+
     # next component ID
     #
     ID = UniqueID()
-
-    # internal state indicating that the client hasn't answered
-    # some number of pings but has not been declared dead
-    #
-    STATE_MISSING = 'MIA'
-
-    # internal state indicating that the client is
-    # no longer responding to pings
-    #
-    STATE_DEAD = RunSet.STATE_DEAD
 
     def __init__(self, name, num, host, port, mbeanPort, connectors,
                  quiet=False):
@@ -273,8 +310,16 @@ class DAQClient(ComponentName):
                     extraStr += ' ' + str(c)
             extraStr += ']'
 
-        return "ID#%d %s%s%s%s" % \
-            (self.__id, self.fullName(), hpStr, mbeanStr, extraStr)
+        if self.__deadCount == 0:
+            deadStr = ''
+        else:
+            deadStr = " DEAD#%d" % self.__deadCount
+
+        return "ID#%d %s%s%s%s%s" % \
+            (self.__id, self.fullName(), hpStr, mbeanStr, extraStr, deadStr)
+
+    def addDeadCount(self):
+        self.__deadCount += 1
 
     def checkBeanField(self, bean, field):
         if self.__mbean is not None:
@@ -325,6 +370,9 @@ class DAQClient(ComponentName):
 
     def createMBeanClient(self, host, mbeanPort):
         return MBeanClient(self.fullName(), host, mbeanPort)
+
+    def isDead(self):
+        return self.__deadCount >= self.MAX_DEAD_COUNT
 
     def forcedStop(self):
         "Force component to stop running"
@@ -378,6 +426,22 @@ class DAQClient(ComponentName):
 
         return csStr
 
+    def getRunData(self, runNum):
+        "Get the run data for the specified run"
+        try:
+            return unFixValue(self.__client.xmlrpc.getRunData(runNum))
+        except:
+            self.__log.error(exc_string())
+            return (None, None, None)
+
+    def getRunNumber(self):
+        "Get the current run number"
+        try:
+            return self.__client.xmlrpc.getRunNumber()
+        except:
+            self.__log.error(exc_string())
+            return None
+
     def getSingleBeanField(self, name, field):
         if self.__mbean is None:
             return None
@@ -428,19 +492,15 @@ class DAQClient(ComponentName):
                           " %(repo_rev)s") % get_version_info(infoStr))
 
     def map(self):
-        return { "id" : self.__id,
-                 "compName" : self.name(),
-                 "compNum" : self.num(),
-                 "host" : self.__host,
-                 "rpcPort" : self.__port,
-                 "mbeanPort" : self.__mbeanPort }
+        return {"id": self.__id,
+                "compName": self.name(),
+                "compNum": self.num(),
+                "host": self.__host,
+                "rpcPort": self.__port,
+                "mbeanPort": self.__mbeanPort}
 
     def mbeanPort(self):
         return self.__mbeanPort
-
-    def monitor(self):
-        "Return the monitoring value"
-        return self.state()
 
     def order(self):
         return self.__cmdOrder
@@ -471,6 +531,20 @@ class DAQClient(ComponentName):
         self.__log.resetLog()
         return self.__client.xmlrpc.resetLogging()
 
+    def setFirstGoodTime(self, payTime):
+        "Set the first time where all hubs have reported a hit"
+        try:
+            self.__client.xmlrpc.setFirstGoodTime(str(payTime) + "L")
+        except:
+            self.__log.error(exc_string())
+
+    def setLastGoodTime(self, payTime):
+        "Set the last time where all hubs have reported a hit"
+        try:
+            self.__client.xmlrpc.setLastGoodTime(str(payTime) + "L")
+        except:
+            self.__log.error(exc_string())
+
     def setOrder(self, orderNum):
         self.__cmdOrder = orderNum
 
@@ -500,12 +574,12 @@ class DAQClient(ComponentName):
             self.__log.error(exc_string())
             state = None
 
-        if not state:
-            self.__deadCount += 1
-            if self.__deadCount < 3:
-                state = DAQClient.STATE_MISSING
-            else:
-                state = DAQClient.STATE_DEAD
+        if state is not None:
+            self.__deadCount = 0
+        elif not self.isDead():
+            state = DAQClientState.MISSING
+        else:
+            state = DAQClientState.DEAD
 
         return state
 
@@ -528,11 +602,20 @@ class DAQClient(ComponentName):
             self.__log.error(exc_string())
             return None
 
+    def switchToNewRun(self, newRun):
+        "Switch to new run"
+        try:
+            return self.__client.xmlrpc.switchToNewRun(newRun)
+        except:
+            self.__log.error(exc_string())
+            return None
+
     def terminate(self):
         "Terminate component"
         state = self.state()
         if state != "idle" and state != "ready" and \
-                state != self.STATE_MISSING and state != self.STATE_DEAD:
+                state != DAQClientState.MISSING and \
+                state != DAQClientState.DEAD:
             raise DAQClientException("%s state is %s" % (self, state))
 
         self.__log.closeFinal()

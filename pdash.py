@@ -1,20 +1,13 @@
 #!/usr/bin/env python
 
-import cmd, sys, traceback
+import cmd
+import sys
+import traceback
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 
+
 class Dash(cmd.Cmd):
-    CMD_BEAN = "bean"
-    CMD_HELP = "help"
-    CMD_LS = "ls"
-
-    CMDS = {
-        CMD_BEAN : "get bean data",
-        CMD_HELP : "print this message",
-        CMD_LS : "list component info",
-        }
-
     def __init__(self):
         self.__cnc = RPCClient("localhost", DAQPort.CNCSERVER)
 
@@ -24,6 +17,11 @@ class Dash(cmd.Cmd):
 
     @staticmethod
     def __findComponentId(compDict, compName):
+        try:
+            return int(compName)
+        except ValueError:
+            pass
+
         if not compDict.has_key(compName):
             if compName.endswith("#0") or compName.endswith("-0"):
                 compName = compName[:-2]
@@ -74,7 +72,8 @@ class Dash(cmd.Cmd):
             numIds = len(ids)
             for i in range(numIds):
                 rsid = ids[i]
-                if i > 0: print
+                if i > 0:
+                    print
                 state = self.__cnc.rpc_runset_state(rsid)
                 print "Runset #%d: %s" % (rsid, state)
 
@@ -108,7 +107,7 @@ class Dash(cmd.Cmd):
     def __runCmdBean(self, args):
         "Get bean data"
         if len(args) == 0:
-            print >>sys.stderr, "Please specify a component.bean.field"
+            print >> sys.stderr, "Please specify a component.bean.field"
             return
 
         compDict = self.__cnc.rpc_component_list()
@@ -117,7 +116,6 @@ class Dash(cmd.Cmd):
         for c in args:
             bflds = c.split(".")
 
-            print "Find \"%s\" in %s" % (bflds[0], compDict.keys())
             (compName, compId) = \
                 self.__findComponentFromString(compDict, bflds[0])
             if compName is None:
@@ -136,14 +134,16 @@ class Dash(cmd.Cmd):
                                 nm = sub["compName"] + "#" + \
                                     str(sub["compNum"])
                             rsDict[rsid][nm] = sub["id"]
-                        if compName is None:
-                            print "Find \"%s\" in RS#%d %s" % (bflds[0], rsid, rsDict[rsid].keys())
-                            (compName, compId) = \
-                                self.__findComponentFromString(rsDict[rsid],
-                                                               bflds[0])
+
+                for rsid in rsDict:
+                    (compName, compId) = \
+                               self.__findComponentFromString(rsDict[rsid],
+                                                              bflds[0])
+                    if compName is not None:
+                        break
 
             if compName is None:
-                print >>sys.stderr, "Unknown component \"%s\"" % bflds[0]
+                print >> sys.stderr, "Unknown component \"%s\"" % bflds[0]
                 return
 
             if len(bflds) == 1:
@@ -176,7 +176,7 @@ class Dash(cmd.Cmd):
 
                 return
 
-            print >>sys.stderr, "Bad component.bean.field \"%s\"" % c
+            print >> sys.stderr, "Bad component.bean.field \"%s\"" % c
 
     def __runCmdClose(self, args):
         fdList = []
@@ -185,7 +185,7 @@ class Dash(cmd.Cmd):
                 try:
                     i = int(a)
                 except:
-                    print >>sys.stderr, "Bad file %s" % a
+                    print >> sys.stderr, "Bad file %s" % a
                     break
 
                 fdList.append(i)
@@ -195,7 +195,7 @@ class Dash(cmd.Cmd):
                     i1 = int(a1)
                     i2 = int(a2)
                 except:
-                    print >>sys.stderr, "Bad range %s" % a
+                    print >> sys.stderr, "Bad range %s" % a
                     break
 
                 for i in range(i1, i2 + 1):
@@ -217,18 +217,18 @@ class Dash(cmd.Cmd):
                 break
 
             try:
-                id = int(cstr)
+                compId = int(cstr)
             except ValueError:
                 if compDict is None:
                     compDict = self.__cnc.rpc_component_list()
 
                 try:
-                    id = self.__findComponentId(compDict, cstr)
+                    compId = self.__findComponentId(compDict, cstr)
                 except ValueError:
-                    print >>sys.stderr, "Unknown component \"%s\"" % cstr
+                    print >> sys.stderr, "Unknown component \"%s\"" % cstr
                     continue
 
-            idList.append(id)
+            idList.append(compId)
 
         self.__printComponentDetails(idList)
 

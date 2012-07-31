@@ -5,6 +5,7 @@ import sys
 from DAQLog import DAQLog, FileAppender, LiveSocketAppender, LogException, \
     LogSocketAppender
 
+
 class LogInfo(object):
     def __init__(self, logHost, logPort, liveHost, livePort):
         self.__logHost = logHost
@@ -32,10 +33,18 @@ class LogInfo(object):
             return 'NoInfo'
         return outStr[1:]
 
-    def logHost(self): return self.__logHost
-    def logPort(self): return self.__logPort
-    def liveHost(self): return self.__liveHost
-    def livePort(self): return self.__livePort
+    def logHost(self):
+        return self.__logHost
+
+    def logPort(self):
+        return self.__logPort
+
+    def liveHost(self):
+        return self.__liveHost
+
+    def livePort(self):
+        return self.__livePort
+
 
 class CnCLogger(DAQLog):
     "CnC logging client"
@@ -78,14 +87,16 @@ class CnCLogger(DAQLog):
         Log a string to stdout and, if available, to the socket logger
         stdout of course will not appear if daemonized.
         """
-        if not self.__quiet: print s
+        if not self.__quiet:
+            print s
+
         try:
             super(CnCLogger, self)._logmsg(level, s)
-        except Exception, ex:
+        except Exception as ex:
             if type(ex) != LogException:
                 if str(ex).find('Connection refused') < 0:
                     raise
-                print >>sys.stderr, 'Lost logging connection to %s' % \
+                print >> sys.stderr, 'Lost logging connection to %s' % \
                       str(self.__logInfo)
             self.resetLog()
             if retry and self.hasAppender():

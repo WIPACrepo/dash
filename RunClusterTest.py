@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
-import os, unittest
+import os
+import unittest
 from DAQConfig import DAQConfigParser
 from RunCluster import RunCluster, RunClusterError
+
 
 class DeployData(object):
     def __init__(self, host, name, id=0):
@@ -26,16 +28,17 @@ class DeployData(object):
         return self.host == host and self.name.lower() == name.lower() and \
             self.id == id
 
+
 class RunClusterTest(unittest.TestCase):
     CONFIG_DIR = os.path.abspath('src/test/resources/config')
 
     def __checkCluster(self, clusterName, cfgName, expNodes, spadeDir,
-                       logCopyDir):
+                       logCopyDir, daqLogDir, daqDataDir):
         cfg = DAQConfigParser.load(cfgName, RunClusterTest.CONFIG_DIR)
 
         cluster = RunCluster(cfg, clusterName, RunClusterTest.CONFIG_DIR)
 
-        self.assertEquals(cluster.configName(), cfgName,
+        self.assertEqual(cluster.configName(), cfgName,
                           'Expected config name %s, not %s' %
                           (cfgName, cluster.configName()))
 
@@ -63,6 +66,12 @@ class RunClusterTest(unittest.TestCase):
         self.assertEqual(cluster.logDirCopies(), logCopyDir,
                          'Log copy directory is "%s", not "%s"' %
                          (cluster.logDirCopies(), logCopyDir))
+        self.assertEqual(cluster.daqLogDir(), daqLogDir,
+                         'DAQ log directory is "%s", not "%s"' %
+                         (cluster.daqLogDir(), daqLogDir))
+        self.assertEqual(cluster.daqDataDir(), daqDataDir,
+                         'DAQ data directory is "%s", not "%s"' %
+                         (cluster.daqDataDir(), daqDataDir))
 
     def testClusterFile(self):
         cfg = DAQConfigParser.load("simpleConfig", RunClusterTest.CONFIG_DIR)
@@ -87,7 +96,13 @@ class RunClusterTest(unittest.TestCase):
                     DeployData('localhost', 'stringHub', 1005),
                     ]
 
-        self.__checkCluster("localhost", cfgName, expNodes, "spade", None)
+        daqLogDir = "logs"
+        daqDataDir = "data"
+        spadeDir = 'spade'
+        logCopyDir = None
+
+        self.__checkCluster("localhost", cfgName, expNodes, spadeDir,
+                            logCopyDir, daqLogDir, daqDataDir)
 
     def testDeploySPTS64(self):
         cfgName = 'simpleConfig'
@@ -102,11 +117,13 @@ class RunClusterTest(unittest.TestCase):
                     DeployData('spts64-stringproc07', 'stringHub', 1005),
                     ]
 
-        spadeDir = 'spade'
-        logCopyDir = None
+        daqLogDir = "/mnt/data/pdaq/log"
+        daqDataDir = "/mnt/data/pdaqlocal"
+        spadeDir = "/mnt/data/spade/pdaq/runs"
+        logCopyDir = "/mnt/data/pdaqlocal"
 
-        self.__checkCluster("spts64", cfgName, expNodes,
-                            "/mnt/data/spade/pdaq/runs", "/mnt/data/pdaqlocal")
+        self.__checkCluster("spts64", cfgName, expNodes, spadeDir, logCopyDir,
+                            daqLogDir, daqDataDir)
 
     def testDeployTooMany(self):
         cfgName = 'tooManyConfig'
@@ -121,12 +138,15 @@ class RunClusterTest(unittest.TestCase):
                     DeployData('spts64-stringproc07', 'stringHub', 1005),
                     ]
 
+        daqLogDir = "logs"
+        daqDataDir = "/mnt/data/pdaqlocal"
         spadeDir = 'spade'
         logCopyDir = None
 
         try:
-            self.__checkCluster("localhost", cfgName, expNodes, "spade", None)
-        except RunClusterError, rce:
+            self.__checkCluster("localhost", cfgName, expNodes, spadeDir,
+                                logCopyDir, daqLogDir, daqDataDir)
+        except RunClusterError as rce:
             if not str(rce).endswith("out of hubs"):
                 self.fail("Unexpected exception: " + str(rce))
 
@@ -183,11 +203,13 @@ class RunClusterTest(unittest.TestCase):
                     DeployData('sps-ithub06', 'stringHub', 206),
                     ]
 
-        spadeDir = 'spade'
-        logCopyDir = None
+        daqLogDir = "/mnt/data/pdaq/log"
+        daqDataDir = "/mnt/data/pdaqlocal"
+        spadeDir = "/mnt/data/spade/pdaq/runs"
+        logCopyDir = "/mnt/data/pdaqlocal"
 
-        self.__checkCluster("sps", cfgName, expNodes,
-                            "/mnt/data/spade/pdaq/runs", "/mnt/data/pdaqlocal")
+        self.__checkCluster("sps", cfgName, expNodes, spadeDir, logCopyDir,
+                            daqLogDir, daqDataDir)
 
 if __name__ == '__main__':
     unittest.main()

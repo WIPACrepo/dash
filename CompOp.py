@@ -1,17 +1,23 @@
 #!/usr/bin/env python
 
-import socket, threading
+import socket
+import threading
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-class ComponentOperationException(Exception): pass
+
+class ComponentOperationException(Exception):
+    pass
+
 
 class Result(object):
     def __init__(self, name):
         self.__name = name
 
-    def __str__(self): return self.__name
+    def __str__(self):
+        return self.__name
+
 
 class ComponentOperation(threading.Thread):
     "Thread used to communicate with a component in a run set"
@@ -33,8 +39,12 @@ class ComponentOperation(threading.Thread):
     FORCED_STOP = "FORCED_STOP"
     "thread will get the component's connector information"
     GET_CONN_INFO = "GET_CONN_INFO"
+    "thread will get first or last good time from hubs"
+    GET_GOOD_TIME = "GET_GOOD_TIME"
     "thread will get multiple component MBean values"
     GET_MULTI_BEAN = "GET_MULTI_BEAN"
+    "thread will get run data from builders"
+    GET_RUN_DATA = "GET_RUN_DATA"
     "thread will get a single component MBean value"
     GET_SINGLE_BEAN = "GET_SINGLE_BEAN"
     "thread will get the component state"
@@ -43,10 +53,12 @@ class ComponentOperation(threading.Thread):
     RESET_COMP = "RESET_COMP"
     "thread will reset the component's logging"
     RESET_LOGGING = "RESET_LOGGING"
-    "thread will stop the component's logging"
-    STOP_LOGGING = "STOP_LOGGING"
     "thread will start the component running"
     START_RUN = "START_RUN"
+    "thread will start a subrun on the component"
+    START_SUBRUN = "START_SUBRUN"
+    "thread will stop the component's logging"
+    STOP_LOGGING = "STOP_LOGGING"
     "thread will stop the running component"
     STOP_RUN = "STOP_RUN"
     "thread will terminate the component"
@@ -68,7 +80,7 @@ class ComponentOperation(threading.Thread):
         self.__result = None
         self.__error = False
 
-        name = "CnCServer:Comp*%s=%s" % (str(self.__comp), self.__operation)
+        name = "CompOp*%s=%s" % (str(self.__comp), self.__operation)
 
         super(ComponentOperation, self).__init__(name=name)
         self.setDaemon(True)
@@ -88,7 +100,7 @@ class ComponentOperation(threading.Thread):
 
     def __connect(self):
         "Connect the component"
-        if not self.__data.has_key(self.__comp):
+        if not self.__comp in self.__data:
             self.__result = self.__comp.connect()
         else:
             self.__result = self.__comp.connect(self.__data[self.__comp])
@@ -101,13 +113,22 @@ class ComponentOperation(threading.Thread):
         "Get the component's connector information"
         self.__result = self.__comp.listConnectorStates()
 
+    def __getGoodTime(self):
+        "Get the component's good hit time"
+        self.__result = self.__comp.getMultiBeanFields("stringhub",
+                                                       self.__data)
+
     def __getMultiBeanFields(self):
         "Get the component's current state"
         self.__result = self.__comp.getMultiBeanFields(self.__data[0],
                                                        self.__data[1])
 
+    def __getRunData(self):
+        "Get the builder's run data"
+        self.__result = self.__comp.getRunData(self.__data[0])
+
     def __getSingleBeanField(self):
-        "Get the component's current state"
+        "Get a single bean.field value from the component"
         self.__result = self.__comp.getSingleBeanField(self.__data[0],
                                                        self.__data[1])
 
@@ -126,6 +147,10 @@ class ComponentOperation(threading.Thread):
     def __startRun(self):
         "Start the component running"
         self.__result = self.__comp.startRun(self.__data[0])
+
+    def __startSubrun(self):
+        "Start a subrun on the component"
+        self.__result = self.__comp.startSubrun(self.__data[0])
 
     def __stopLogging(self):
         "Stop logging for the component"
@@ -153,8 +178,12 @@ class ComponentOperation(threading.Thread):
             self.__forcedStop()
         elif self.__operation == ComponentOperation.GET_CONN_INFO:
             self.__getConnectorInfo()
+        elif self.__operation == ComponentOperation.GET_GOOD_TIME:
+            self.__getGoodTime()
         elif self.__operation == ComponentOperation.GET_MULTI_BEAN:
             self.__getMultiBeanFields()
+        elif self.__operation == ComponentOperation.GET_RUN_DATA:
+            self.__getRunData()
         elif self.__operation == ComponentOperation.GET_SINGLE_BEAN:
             self.__getSingleBeanField()
         elif self.__operation == ComponentOperation.GET_STATE:
@@ -165,6 +194,8 @@ class ComponentOperation(threading.Thread):
             self.__resetLogging()
         elif self.__operation == ComponentOperation.START_RUN:
             self.__startRun()
+        elif self.__operation == ComponentOperation.START_SUBRUN:
+            self.__startSubrun()
         elif self.__operation == ComponentOperation.STOP_LOGGING:
             self.__stopLogging()
         elif self.__operation == ComponentOperation.STOP_RUN:
@@ -175,9 +206,14 @@ class ComponentOperation(threading.Thread):
             raise ComponentOperationException("Unknown operation %s" %
                                               str(self.__operation))
 
-    def component(self): return self.__comp
-    def isError(self): return self.__error
-    def result(self): return self.__result
+    def component(self):
+        return self.__comp
+
+    def isError(self):
+        return self.__error
+
+    def result(self):
+        return self.__result
 
     def run(self):
         "Main method for thread"
@@ -190,6 +226,7 @@ class ComponentOperation(threading.Thread):
                                              str(self.__comp),
                                              exc_string()))
             self.__error = True
+
 
 class ComponentOperationGroup(object):
     def __init__(self, op):
@@ -236,9 +273,12 @@ class ComponentOperationGroup(object):
 
     def results(self):
         if self.__op != ComponentOperation.GET_CONN_INFO and \
+               self.__op != ComponentOperation.GET_GOOD_TIME and \
                self.__op != ComponentOperation.GET_MULTI_BEAN and \
+               self.__op != ComponentOperation.GET_RUN_DATA and \
                self.__op != ComponentOperation.GET_SINGLE_BEAN and \
-               self.__op != ComponentOperation.GET_STATE:
+               self.__op != ComponentOperation.GET_STATE and \
+               self.__op != ComponentOperation.START_SUBRUN:
             raise ComponentOperationException("Cannot get results for" +
                                               " operation %s" % self.__op)
         results = {}
@@ -252,11 +292,11 @@ class ComponentOperationGroup(object):
             results[t.component()] = result
         return results
 
-    def wait(self, reps=4, waitSecs=2):
+    def wait(self, waitSecs=2, reps=4):
         """
         Wait for all the threads to finish
-        reps - number of times to loop before deciding threads are hung
         waitSecs - total number of seconds to wait
+        reps - number of times to loop before deciding threads are hung
         NOTE:
         if all threads are hung, max wait time is (#threads * waitSecs * reps)
         """

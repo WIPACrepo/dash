@@ -1,9 +1,15 @@
 #!/usr/bin/env python
 
-import sys, traceback, unittest
+import sys
+import traceback
+import unittest
 
-from DAQLive import DAQLive, LiveException
+from DAQLive import DAQLive, LIVE_IMPORT, LiveException
 from DAQMocks import MockLogger
+
+
+WARNED = False
+
 
 class MockRunSet(object):
     STATE_UNKNOWN = "unknown"
@@ -33,11 +39,14 @@ class MockRunSet(object):
         return self.__state == self.STATE_RUNNING
 
     def runConfig(self):
-        if self.isDestroyed(): raise Exception("Runset destroyed")
+        if self.isDestroyed():
+            raise Exception("Runset destroyed")
+
         return self.__runCfg
 
     def sendEventCounts(self):
-        if self.isDestroyed(): raise Exception("Runset destroyed")
+        if self.isDestroyed():
+            raise Exception("Runset destroyed")
 
     def setExpectedStopError(self):
         self.__expStopErr = True
@@ -46,14 +55,18 @@ class MockRunSet(object):
         self.__state = newState
 
     def setStopReturnError(self):
-        if self.isDestroyed(): raise Exception("Runset destroyed")
+        if self.isDestroyed():
+            raise Exception("Runset destroyed")
+
         self.__stopReturn = True
 
     def state(self):
         return self.__state
 
     def stopRun(self, hadError=False):
-        if self.isDestroyed(): raise Exception("Runset destroyed")
+        if self.isDestroyed():
+            raise Exception("Runset destroyed")
+
         if hadError != self.__expStopErr:
             raise Exception("Expected 'hadError' to be %s" % self.__expStopErr)
 
@@ -65,6 +78,7 @@ class MockRunSet(object):
 
     def subrun(self, id, domList):
         pass
+
 
 class MockCnC(object):
     RELEASE = "rel"
@@ -114,7 +128,8 @@ class MockCnC(object):
                             self.__expRunNum, runNum)
 
     def versionInfo(self):
-        return { "release": self.RELEASE, "repo_rev": self.REPO_REV }
+        return {"release": self.RELEASE, "repo_rev": self.REPO_REV}
+
 
 class DAQLiveTest(unittest.TestCase):
     def __createLive(self, cnc, log):
@@ -124,7 +139,7 @@ class DAQLiveTest(unittest.TestCase):
     def assertRaisesMsg(self, exc, func, *args, **kwargs):
         try:
             func(*args, **kwargs)
-        except type(exc), ex2:
+        except type(exc) as ex2:
             if exc is None:
                 return
             if str(exc) == str(ex2):
@@ -153,6 +168,14 @@ class DAQLiveTest(unittest.TestCase):
                 traceback.print_exc()
 
     def testVersion(self):
+        if not LIVE_IMPORT:
+            global WARNED
+            if not WARNED:
+                WARNED = True
+                print >>sys.stderr, \
+                    "No I3Live Python code found, cannot run tests"
+            return
+
         cnc = MockCnC()
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
@@ -163,6 +186,14 @@ class DAQLiveTest(unittest.TestCase):
         log.checkStatus(1)
 
     def testStartingNoStateArgs(self):
+        global WARNED
+        if not LIVE_IMPORT:
+            if not WARNED:
+                WARNED = True
+                print >>sys.stderr, \
+                    "No I3Live Python code found, cannot run tests"
+            return
+
         cnc = MockCnC()
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
@@ -171,6 +202,14 @@ class DAQLiveTest(unittest.TestCase):
                              live.starting, None)
 
     def testStartingNoKeys(self):
+        global WARNED
+        if not LIVE_IMPORT:
+            if not WARNED:
+                WARNED = True
+                print >>sys.stderr, \
+                    "No I3Live Python code found, cannot run tests"
+            return
+
         cnc = MockCnC()
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
@@ -181,12 +220,20 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunConfig(runCfg)
         cnc.setExpectedRunNumber(runNum)
 
-        state = { }
+        state = {}
 
         self.assertRaisesMsg(LiveException("No stateArgs specified"),
                              live.starting, state)
 
     def testStartingNoRunCfgKey(self):
+        global WARNED
+        if not LIVE_IMPORT:
+            if not WARNED:
+                WARNED = True
+                print >>sys.stderr, \
+                    "No I3Live Python code found, cannot run tests"
+            return
+
         cnc = MockCnC()
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
@@ -197,12 +244,20 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunConfig(runCfg)
         cnc.setExpectedRunNumber(runNum)
 
-        state = { "runNumber": runNum, }
+        state = {"runNumber": runNum}
 
         exc = LiveException("stateArgs does not contain key \"runConfig\"")
         self.assertRaisesMsg(exc, live.starting, state)
 
     def testStartingNoRunNumKey(self):
+        global WARNED
+        if not LIVE_IMPORT:
+            if not WARNED:
+                WARNED = True
+                print >>sys.stderr, \
+                    "No I3Live Python code found, cannot run tests"
+            return
+
         cnc = MockCnC()
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
@@ -213,12 +268,20 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunConfig(runCfg)
         cnc.setExpectedRunNumber(runNum)
 
-        state = { "runConfig": runCfg, }
+        state = {"runConfig": runCfg}
 
         exc = LiveException("stateArgs does not contain key \"runNumber\"")
         self.assertRaisesMsg(exc, live.starting, state)
 
     def testStartingNoRunSet(self):
+        global WARNED
+        if not LIVE_IMPORT:
+            if not WARNED:
+                WARNED = True
+                print >>sys.stderr, \
+                    "No I3Live Python code found, cannot run tests"
+            return
+
         cnc = MockCnC()
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
@@ -229,12 +292,20 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunConfig(runCfg)
         cnc.setExpectedRunNumber(runNum)
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.assertRaisesMsg(LiveException("Cannot create runset for \"%s\"" %
                                            runCfg), live.starting, state)
 
     def testStarting(self):
+        global WARNED
+        if not LIVE_IMPORT:
+            if not WARNED:
+                WARNED = True
+                print >>sys.stderr, \
+                    "No I3Live Python code found, cannot run tests"
+            return
+
         cnc = MockCnC()
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
@@ -246,11 +317,19 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunNumber(runNum)
         cnc.setRunSet(MockRunSet(runCfg))
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.failUnless(live.starting(state), "starting failed")
 
     def testStoppingNoRunset(self):
+        global WARNED
+        if not LIVE_IMPORT:
+            if not WARNED:
+                WARNED = True
+                print >>sys.stderr, \
+                    "No I3Live Python code found, cannot run tests"
+            return
+
         cnc = MockCnC()
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
@@ -259,6 +338,14 @@ class DAQLiveTest(unittest.TestCase):
         self.assertRaisesMsg(exc, live.stopping)
 
     def testStoppingError(self):
+        global WARNED
+        if not LIVE_IMPORT:
+            if not WARNED:
+                WARNED = True
+                print >>sys.stderr, \
+                    "No I3Live Python code found, cannot run tests"
+            return
+
         cnc = MockCnC()
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
@@ -271,7 +358,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunNumber(runNum)
         cnc.setRunSet(runSet)
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.failUnless(live.starting(state), "starting failed")
 
@@ -281,6 +368,14 @@ class DAQLiveTest(unittest.TestCase):
         self.assertRaisesMsg(exc, live.stopping)
 
     def testStopping(self):
+        global WARNED
+        if not LIVE_IMPORT:
+            if not WARNED:
+                WARNED = True
+                print >>sys.stderr, \
+                    "No I3Live Python code found, cannot run tests"
+            return
+
         cnc = MockCnC()
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
@@ -292,13 +387,21 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunNumber(runNum)
         cnc.setRunSet(MockRunSet(runCfg))
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.failUnless(live.starting(state), "starting failed")
 
         self.failUnless(live.stopping(), "stopping failed")
 
     def testRecoveringNothing(self):
+        global WARNED
+        if not LIVE_IMPORT:
+            if not WARNED:
+                WARNED = True
+                print >>sys.stderr, \
+                    "No I3Live Python code found, cannot run tests"
+            return
+
         cnc = MockCnC()
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
@@ -306,6 +409,14 @@ class DAQLiveTest(unittest.TestCase):
         self.failUnless(live.recovering(), "recovering failed")
 
     def testRecoveringDestroyed(self):
+        global WARNED
+        if not LIVE_IMPORT:
+            if not WARNED:
+                WARNED = True
+                print >>sys.stderr, \
+                    "No I3Live Python code found, cannot run tests"
+            return
+
         cnc = MockCnC()
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
@@ -318,7 +429,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunNumber(runNum)
         cnc.setRunSet(runSet)
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.failUnless(live.starting(state), "starting failed")
 
@@ -328,6 +439,14 @@ class DAQLiveTest(unittest.TestCase):
         self.failUnless(live.recovering(), "recovering failed")
 
     def testRecoveringStopFail(self):
+        global WARNED
+        if not LIVE_IMPORT:
+            if not WARNED:
+                WARNED = True
+                print >>sys.stderr, \
+                    "No I3Live Python code found, cannot run tests"
+            return
+
         cnc = MockCnC()
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
@@ -340,7 +459,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunNumber(runNum)
         cnc.setRunSet(runSet)
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.failUnless(live.starting(state), "starting failed")
 
@@ -352,6 +471,14 @@ class DAQLiveTest(unittest.TestCase):
         self.failUnless(live.recovering(), "recovering failed")
 
     def testRecovering(self):
+        global WARNED
+        if not LIVE_IMPORT:
+            if not WARNED:
+                WARNED = True
+                print >>sys.stderr, \
+                    "No I3Live Python code found, cannot run tests"
+            return
+
         cnc = MockCnC()
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
@@ -364,7 +491,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunNumber(runNum)
         cnc.setRunSet(runSet)
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.failUnless(live.starting(state), "starting failed")
 
@@ -375,6 +502,14 @@ class DAQLiveTest(unittest.TestCase):
         self.failUnless(live.recovering(), "recovering failed")
 
     def testRunningNothing(self):
+        global WARNED
+        if not LIVE_IMPORT:
+            if not WARNED:
+                WARNED = True
+                print >>sys.stderr, \
+                    "No I3Live Python code found, cannot run tests"
+            return
+
         cnc = MockCnC()
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
@@ -383,6 +518,14 @@ class DAQLiveTest(unittest.TestCase):
         self.assertRaisesMsg(exc, live.running)
 
     def testRunningBadState(self):
+        global WARNED
+        if not LIVE_IMPORT:
+            if not WARNED:
+                WARNED = True
+                print >>sys.stderr, \
+                    "No I3Live Python code found, cannot run tests"
+            return
+
         cnc = MockCnC()
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
@@ -395,7 +538,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunNumber(runNum)
         cnc.setRunSet(runSet)
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.failUnless(live.starting(state), "starting failed")
 
@@ -404,6 +547,14 @@ class DAQLiveTest(unittest.TestCase):
         self.assertRaisesMsg(exc, live.running)
 
     def testRunning(self):
+        global WARNED
+        if not LIVE_IMPORT:
+            if not WARNED:
+                WARNED = True
+                print >>sys.stderr, \
+                    "No I3Live Python code found, cannot run tests"
+            return
+
         cnc = MockCnC()
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
@@ -416,7 +567,7 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunNumber(runNum)
         cnc.setRunSet(runSet)
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.failUnless(live.starting(state), "starting failed")
 
@@ -425,6 +576,14 @@ class DAQLiveTest(unittest.TestCase):
         self.failUnless(live.running(), "running failed")
 
     def testSubrun(self):
+        global WARNED
+        if not LIVE_IMPORT:
+            if not WARNED:
+                WARNED = True
+                print >>sys.stderr, \
+                    "No I3Live Python code found, cannot run tests"
+            return
+
         cnc = MockCnC()
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
@@ -437,11 +596,11 @@ class DAQLiveTest(unittest.TestCase):
         cnc.setExpectedRunNumber(runNum)
         cnc.setRunSet(runSet)
 
-        state = { "runConfig": runCfg, "runNumber": runNum }
+        state = {"runConfig": runCfg, "runNumber": runNum}
 
         self.failUnless(live.starting(state), "starting failed")
 
-        self.assertEquals("OK", live.subrun(1, ["domA", "dom2", ]))
+        self.assertEqual("OK", live.subrun(1, ["domA", "dom2", ]))
 
 if __name__ == '__main__':
     unittest.main()

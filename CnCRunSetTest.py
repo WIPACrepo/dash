@@ -1,29 +1,35 @@
 #!/usr/bin/env python
 
-import shutil, tempfile, time, unittest
+import shutil
+import tempfile
+import time
+import unittest
 
 from ActiveDOMsTask import ActiveDOMsTask
 from CnCServer import CnCServer, CnCServerException
 from DAQConst import DAQPort
 from DAQMocks import MockClusterConfig, MockIntervalTimer, MockLogger, \
     MockRunConfigFile, RunXMLValidator, SocketReader
+from DAQTime import PayloadTime
 from LiveImports import LIVE_IMPORT
 from MonitorTask import MonitorTask
 from RadarTask import RadarTask, RadarThread
 from RateTask import RateTask
 from RunOption import RunOption
 from RunSet import RunSet, RunSetException
-from RunStats import PayloadTime
 from TaskManager import TaskManager
 from WatchdogTask import WatchdogTask
 
 ACTIVE_WARNING = False
 
+
 class MockComponentLogger(MockLogger):
     def __init__(self, name):
         super(MockComponentLogger, self).__init__(name)
 
-    def stopServing(self): pass
+    def stopServing(self):
+        pass
+
 
 class MockConn(object):
     def __init__(self, connName, descrCh):
@@ -36,10 +42,15 @@ class MockConn(object):
 
         return "%s->(%s)" % (self.__descrCh, self.__name)
 
-    def isInput(self): return self.__descrCh == "i" or self.__descrCh == "I"
-    def isOptional(self): return self.__descrCh == "I" or self.__descrCh == "O"
+    def isInput(self):
+        return self.__descrCh == "i" or self.__descrCh == "I"
 
-    def name(self): return self.__name
+    def isOptional(self):
+        return self.__descrCh == "I" or self.__descrCh == "O"
+
+    def name(self):
+        return self.__name
+
 
 class MockComponent(object):
     def __init__(self, name, num=0, conn=None):
@@ -55,11 +66,14 @@ class MockComponent(object):
             return self.__name
         return "%s#%d" % (self.__name, self.__num)
 
-    def __repr__(self): return str(self)
+    def __repr__(self):
+        return str(self)
 
-    def checkBeanField(self, beanName, fieldName): pass
+    def checkBeanField(self, beanName, fieldName):
+        pass
 
-    def close(self): pass
+    def close(self):
+        pass
 
     def configure(self, runCfg):
         self.__state = "ready"
@@ -72,12 +86,14 @@ class MockComponent(object):
             return []
         return self.__conn[:]
 
-    def fileName(self): return "%s-%s" % (self.__name, self.__num)
+    def fileName(self):
+        return "%s-%s" % (self.__name, self.__num)
 
-    def fullName(self): return "%s#%s" % (self.__name, self.__num)
+    def fullName(self):
+        return "%s#%s" % (self.__name, self.__num)
 
     def getBeanFields(self, beanName):
-        if not self.__beanData.has_key(beanName):
+        if not beanName in self.__beanData:
             raise ValueError("Unknown %s bean \"%s\"" % (str(self), beanName))
 
         return self.__beanData[beanName].keys()
@@ -86,12 +102,12 @@ class MockComponent(object):
         return self.__beanData.keys()
 
     def getMultiBeanFields(self, beanName, fieldList):
-        if not self.__beanData.has_key(beanName):
+        if not beanName in self.__beanData:
             raise ValueError("Unknown %s bean \"%s\"" % (str(self), beanName))
 
         valMap = {}
         for f in fieldList:
-            if not self.__beanData[beanName].has_key(f):
+            if not f in self.__beanData[beanName]:
                 raise ValueError("Unknown %s bean \"%s\" field \"%s\"" %
                                  (str(self), beanName, f))
 
@@ -99,38 +115,81 @@ class MockComponent(object):
 
         return valMap
 
+    def getRunData(self, runnum):
+        if self.__num == 0:
+            if self.__name.startswith("event"):
+                evtData = self.__beanData["backEnd"]["EventData"]
+                numEvts = int(evtData[0])
+                lastTime = long(evtData[1])
+
+                val = self.__beanData["backEnd"]["FirstEventTime"]
+                firstTime = long(val)
+                return (numEvts, firstTime, lastTime)
+            elif self.__name.startswith("secondary"):
+                for bldr in ("tcalBuilder", "snBuilder", "moniBuilder"):
+                    val = self.__beanData[bldr]["TotalDispatchedData"]
+                    if bldr == "tcalBuilder":
+                        numTcal = long(val)
+                    elif bldr == "snBuilder":
+                        numSN = long(val)
+                    elif bldr == "moniBuilder":
+                        numMoni = long(val)
+
+                return (numTcal, numSN, numMoni)
+        return (None, None, None)
+
     def getSingleBeanField(self, beanName, fieldName):
-        if not self.__beanData.has_key(beanName):
+        if not beanName in self.__beanData:
             raise ValueError("Unknown %s bean \"%s\"" % (str(self), beanName))
-        if not self.__beanData[beanName].has_key(fieldName):
+        if not fieldName in self.__beanData[beanName]:
             raise ValueError("Unknown %s bean \"%s\" field \"%s\"" %
                              (str(self), beanName, fieldName))
 
         return self.__beanData[beanName][fieldName]
 
-    def isBuilder(self): return self.__name.lower().endswith("builder")
+    def isBuilder(self):
+        return self.__name.lower().endswith("builder")
 
     def isComponent(self, name, num=-1):
         return self.__name == name and (num < 0 or self.__num == num)
 
-    def isSource(self): return self.__name.lower().endswith("hub")
-    def reloadBeanInfo(self): pass
-    def logTo(self, host, port, liveHost, livePort): pass
-    def name(self): return self.__name
-    def num(self): return self.__num
-    def order(self): return self.__order
+    def isSource(self):
+        return self.__name.lower().endswith("hub")
+
+    def reloadBeanInfo(self):
+        pass
+
+    def logTo(self, host, port, liveHost, livePort):
+        pass
+
+    def name(self):
+        return self.__name
+
+    def num(self):
+        return self.__num
+
+    def order(self):
+        return self.__order
 
     def reset(self):
         self.__state = "idle"
 
-    def resetLogging(self): pass
+    def resetLogging(self):
+        pass
 
     def setBeanData(self, beanName, fieldName, value):
-        if not self.__beanData.has_key(beanName):
+        if not beanName in self.__beanData:
             self.__beanData[beanName] = {}
         self.__beanData[beanName][fieldName] = value
 
-    def setOrder(self, order): self.__order = order
+    def setFirstGoodTime(self, payTime):
+        pass
+
+    def setLastGoodTime(self, payTime):
+        pass
+
+    def setOrder(self, order):
+        self.__order = order
 
     def startRun(self, runCfg):
         self.__state = "running"
@@ -138,7 +197,9 @@ class MockComponent(object):
     def stopRun(self):
         self.__state = "ready"
 
-    def state(self): return self.__state
+    def state(self):
+        return self.__state
+
 
 class MostlyTaskManager(TaskManager):
     WAITSECS = 0.25
@@ -147,20 +208,22 @@ class MostlyTaskManager(TaskManager):
 
     def __init__(self, runset, dashlog, liveMoniClient, runDir, runCfg,
                  moniType):
-        super(MostlyTaskManager, self).__init__(runset, dashlog, liveMoniClient,
+        super(MostlyTaskManager, self).__init__(runset, dashlog,
+                                                liveMoniClient,
                                                 runDir, runCfg, moniType)
 
     def createIntervalTimer(self, name, period):
-        if not self.TIMERS.has_key(name):
+        if not name in self.TIMERS:
             self.TIMERS[name] = MockIntervalTimer(name, self.WAITSECS)
 
         return self.TIMERS[name]
 
     def getTimer(self, name):
-        if not self.TIMERS.has_key(name):
+        if not name in self.TIMERS:
             return None
 
         return self.TIMERS[name]
+
 
 class MyRunSet(RunSet):
     FAIL_STATE = "fail"
@@ -197,8 +260,9 @@ class MyRunSet(RunSet):
                                            runDir, runCfg, moniType)
         return self.__taskMgr
 
-    def cycleComponents(self, compList, configDir, dashDir, logPort, livePort,
-                        verbose, killWith9, eventCheck, checkExists=True):
+    def cycleComponents(self, compList, configDir, daqDataDir, logPort,
+                        livePort, verbose, killWith9, eventCheck,
+                        checkExists=True):
         pass
 
     def getTaskManager(self):
@@ -212,20 +276,22 @@ class MyRunSet(RunSet):
 
     def reset(self):
         if self.__failReset is not None:
-            return [(self.__failReset, self.FAIL_STATE), ]
-        return []
+            return { self.FAIL_STATE : (self.__failReset, ), }
+        return {}
 
     def setUnresetComponent(self, comp):
         self.__failReset = comp
 
+
 class MostlyCnCServer(CnCServer):
     def __init__(self, clusterConfigObject=None, copyDir=None,
-                 runConfigDir=None, spadeDir=None):
+                 runConfigDir=None, daqDataDir=None, spadeDir=None):
         self.__clusterConfig = clusterConfigObject
         self.__logServer = None
 
         super(MostlyCnCServer, self).__init__(copyDir=copyDir,
                                               runConfigDir=runConfigDir,
+                                              daqDataDir=daqDataDir,
                                               spadeDir=spadeDir,
                                               forceRestart=False,
                                               testOnly=True)
@@ -254,51 +320,57 @@ class MostlyCnCServer(CnCServer):
     def startLiveThread(self):
         return None
 
+
 class CnCRunSetTest(unittest.TestCase):
     HUB_NUMBER = 21
     RADAR_DOM = "737d355af587"
 
-    BEAN_DATA = { "stringHub" :
-                      { "DataCollectorMonitor-00A" :
-                            { "MainboardId" : RADAR_DOM,
-                              "HitRate" : 0.0,
-                              },
-                        "sender" :
-                            { "NumHitsReceived" : 0,
-                              "NumReadoutRequestsReceived" : 0,
-                              "NumReadoutsSent" : 0,
-                              },
-                        "stringhub" :
-                            { "NumberOfActiveAndTotalChannels" : 0,
-                              "TotalLBMOverflows" : 0,
-                              },
+    BEAN_DATA = {"stringHub":
+                      {"DataCollectorMonitor-00A":
+                            {"MainboardId": RADAR_DOM,
+                             "HitRate": 0.0,
+                             },
+                        "sender":
+                            {"NumHitsReceived": 0,
+                             "NumReadoutRequestsReceived": 0,
+                             "NumReadoutsSent": 0,
+                             },
+                        "stringhub":
+                            {"NumberOfActiveAndTotalChannels": 0,
+                             "TotalLBMOverflows": 0,
+                             "HitRate": 0,
+                             "HitRateLC": 0,
+                             "LatestFirstChannelHitTime": -1,
+                             "EarliestLastChannelHitTime": -1,
+                             "NumberOfNonZombies": 60,
+                             },
                         },
-                  "inIceTrigger" :
-                      { "stringHit" :
-                            { "RecordsReceived" : 0,
-                              },
-                        "trigger" :
-                            { "RecordsSent" : 0 },
+                  "inIceTrigger":
+                      {"stringHit":
+                           {"RecordsReceived": 0,
+                            },
+                        "trigger":
+                            {"RecordsSent": 0},
                         },
-                  "globalTrigger" :
-                      { "trigger" :
-                            { "RecordsReceived" : 0,
-                              },
-                        "glblTrig" :
-                            { "RecordsSent" : 0 },
+                  "globalTrigger":
+                      {"trigger":
+                           {"RecordsReceived": 0,
+                            },
+                        "glblTrig":
+                           {"RecordsSent": 0},
                         },
-                  "eventBuilder" :
-                      { "backEnd" :
-                            { "DiskAvailable" : 2048,
-                              "EventData" : 0,
-                              "FirstEventTime" : 0,
-                              "NumBadEvents" : 0,
-                              "NumEventsSent" : 0,
-                              "NumReadoutsReceived" : 0,
-                              "NumTriggerRequestsReceived" : 0,
-                              }
-                        },
-                  "extraComp" : {},
+                  "eventBuilder":
+                      {"backEnd":
+                           {"DiskAvailable": 2048,
+                            "EventData": 0,
+                            "FirstEventTime": 0,
+                            "NumBadEvents": 0,
+                            "NumEventsSent": 0,
+                            "NumReadoutsReceived": 0,
+                            "NumTriggerRequestsReceived": 0,
+                            }
+                       },
+                  "extraComp": {},
                   }
 
     def __addEventStartMoni(self, liveMoni, runNum):
@@ -306,7 +378,7 @@ class CnCRunSetTest(unittest.TestCase):
         if not LIVE_IMPORT:
             return
 
-        data = { "runnum": runNum }
+        data = {"runnum": runNum}
         liveMoni.addExpectedLiveMoni("eventstart", data, "json")
 
     def __addLiveMoni(self, comps, liveMoni, compName, compNum, beanName,
@@ -332,10 +404,10 @@ class CnCRunSetTest(unittest.TestCase):
         if not LIVE_IMPORT:
             return
 
-        data = { "runnum": runNum,
-                 "release" : release,
-                 "revision" : revision,
-                 "started" : True }
+        data = {"runnum": runNum,
+                "release": release,
+                "revision": revision,
+                "started": True}
         liveMoni.addExpectedLiveMoni("runstart", data, "json")
 
     def __addRunStopMoni(self, liveMoni, firstTime, lastTime, numEvts, runNum):
@@ -343,11 +415,11 @@ class CnCRunSetTest(unittest.TestCase):
         if not LIVE_IMPORT:
             return
 
-        data = { "runnum": runNum,
-                 "runstart": str(PayloadTime.toDateTime(firstTime)),
-                 "events" : numEvts,
-                 "status" : "SUCCESS",
-                 }
+        data = {"runnum": runNum,
+                "runstart": str(PayloadTime.toDateTime(firstTime)),
+                "events": numEvts,
+                "status": "SUCCESS"
+                }
         liveMoni.addExpectedLiveMoni("runstop", data, "json")
 
     def __checkActiveDOMsTask(self, comps, rs, liveMoni):
@@ -359,6 +431,8 @@ class CnCRunSetTest(unittest.TestCase):
         numDOMs = 22
         numTotal = 60
         #totalOverflows = 20
+        hitRate = 50.
+        hitRateLC = 25.
 
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
                            "NumberOfActiveAndTotalChannels",
@@ -368,10 +442,18 @@ class CnCRunSetTest(unittest.TestCase):
                            "TotalLBMOverflows",
                            20)
 
+        self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
+                           "HitRateLC",
+                           hitRateLC)
+        self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
+                           "HitRate",
+                           hitRate)
+
         liveMoni.addExpectedLiveMoni("activeDOMs", numDOMs)
         liveMoni.addExpectedLiveMoni("expectedDOMs", numTotal)
+        liveMoni.addExpectedLiveMoni("total_rate", hitRate)
+        liveMoni.addExpectedLiveMoni("total_ratelc", hitRateLC)
 
-        #liveMoni.addExpectedLiveMoni("LBMOverflows", { str(self.HUB_NUMBER): totalOverflows }, "json")
         timer.trigger()
 
         self.__waitForEmptyLog(liveMoni, "Didn't get active DOM message")
@@ -402,10 +484,10 @@ class CnCRunSetTest(unittest.TestCase):
         self.__addLiveMoni(comps, liveMoni, "eventBuilder", 0, "backEnd",
                            "NumEventsSent")
 
-        self.__addLiveMoni(comps, liveMoni, "stringHub", 21, "stringhub",
-                           "NumberOfActiveAndTotalChannels")
-        self.__addLiveMoni(comps, liveMoni, "stringHub", 21, "stringhub",
-                           "TotalLBMOverflows")
+        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "NumberOfActiveAndTotalChannels")
+        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "TotalLBMOverflows")
         self.__addLiveMoni(comps, liveMoni, "eventBuilder", 0, "backEnd",
                            "DiskAvailable")
         self.__addLiveMoni(comps, liveMoni, "eventBuilder", 0, "backEnd",
@@ -418,6 +500,18 @@ class CnCRunSetTest(unittest.TestCase):
                            "DataCollectorMonitor-00A", "MainboardId")
         self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
                            "DataCollectorMonitor-00A", "HitRate")
+
+        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "HitRateLC")
+        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "HitRate")
+
+        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "EarliestLastChannelHitTime")
+        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "LatestFirstChannelHitTime")
+        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "NumberOfNonZombies")
 
         timer.trigger()
 
@@ -485,8 +579,8 @@ class CnCRunSetTest(unittest.TestCase):
     def __checkWatchdogTask(self, comps, rs, dashLog, liveMoni):
         timer = rs.getTaskManager().getTimer(WatchdogTask.NAME)
 
-        self.__setBeanData(comps, "eventBuilder", 0, "backEnd", "DiskAvailable",
-                           0)
+        self.__setBeanData(comps, "eventBuilder", 0, "backEnd",
+                           "DiskAvailable", 0)
 
         timer.trigger()
 
@@ -513,7 +607,7 @@ class CnCRunSetTest(unittest.TestCase):
     @classmethod
     def __loadBeanData(cls, compList):
         for c in compList:
-            if not cls.BEAN_DATA.has_key(c.name()):
+            if not c.name() in cls.BEAN_DATA:
                 raise Exception("No bean data found for %s" % str(c))
 
             for b in cls.BEAN_DATA[c.name()]:
@@ -578,16 +672,18 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog = MockLogger("dashLog")
         rs.setDashLog(dashLog)
 
-        logger.addExpectedExact("Starting run #%d with \"%s\"" %
-                                (runNum, cluCfg.configName()))
+        logger.addExpectedExact("Starting run #%d on \"%s\"" %
+                                (runNum, cluCfg.descName()))
 
         dashLog.addExpectedRegexp(r"Version info: \S+ \d+ \S+ \S+ \S+ \S+" +
                                   " \d+\S+")
         dashLog.addExpectedExact("Run configuration: %s" % runConfig)
-        dashLog.addExpectedExact("Cluster configuration: %s" %
-                                 cluCfg.configName())
+        dashLog.addExpectedExact("Cluster: %s" % cluCfg.descName())
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
+
+        self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "LatestFirstChannelHitTime", 10)
 
         global ACTIVE_WARNING
         if not LIVE_IMPORT and not ACTIVE_WARNING:
@@ -605,8 +701,8 @@ class CnCRunSetTest(unittest.TestCase):
                        "repo_rev": "1repoRev",
                        }
 
-        rs.startRun(runNum, cluCfg.configName(), RunOption.MONI_TO_NONE,
-                    versionInfo, "/tmp")
+        rs.startRun(runNum, cluCfg, RunOption.MONI_TO_NONE, versionInfo,
+                    "/tmp")
 
         logger.checkStatus(5)
         dashLog.checkStatus(5)
@@ -628,11 +724,18 @@ class CnCRunSetTest(unittest.TestCase):
         else:
             hzStr = " (%2.2f Hz)" % self.__computeRateHz(0, numEvts, duration)
 
-        dashLog.addExpectedExact("%d physics events collected in %d seconds%s" %
-                                 (numEvts, duration, hzStr))
+        dashLog.addExpectedExact(("%d physics events collected "
+                                  "in %d seconds%s") % \
+                                     (numEvts,
+                                      duration,
+                                      hzStr))
+
         dashLog.addExpectedExact("%d moni events, %d SN events, %d tcals" %
                                  (numMoni, numSN, numTcal))
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
+
+        self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "EarliestLastChannelHitTime", 20)
 
         self.failIf(rs.stopRun(), "stopRun() encountered error")
 
@@ -641,20 +744,22 @@ class CnCRunSetTest(unittest.TestCase):
 
         if failReset:
             rs.setUnresetComponent(comps[0])
-            logger.addExpectedExact("Restarting %s (state '%s' after reset)" %
-                                    (comps[0], MyRunSet.FAIL_STATE))
-            logger.addExpectedExact("Cycling components [%s]" % comps[0])
+            logger.addExpectedExact("Restarting %s[%s] after reset" %
+                                    (MyRunSet.FAIL_STATE, comps[0]))
+            logger.addExpectedExact("Cycling components %s#%d" %
+                                    (comps[0].name(), comps[0].num()))
         try:
             self.__cnc.returnRunset(rs, logger)
             if failReset:
                 self.fail("returnRunset should not have succeeded")
         except RunSetException:
-            if not failReset: raise
+            if not failReset:
+                raise
 
         logger.checkStatus(5)
         dashLog.checkStatus(5)
 
-        RunXMLValidator.validate(runNum, cluCfg.configName(), None, None,
+        RunXMLValidator.validate(self, runNum, runConfig, None, None,
                                  numEvts, numMoni, numSN, numTcal, False)
 
     @staticmethod
@@ -682,13 +787,16 @@ class CnCRunSetTest(unittest.TestCase):
             time.sleep(0.25)
         log.checkStatus(1)
 
-
     def setUp(self):
         self.__cnc = None
 
         self.__copyDir = None
         self.__runConfigDir = None
+        self.__daqDataDir = None
         self.__spadeDir = None
+
+        # shorten radar thread
+        RadarTask.RADAR_SAMPLE_DURATION = 1
 
         RunXMLValidator.setUp()
 
@@ -700,6 +808,8 @@ class CnCRunSetTest(unittest.TestCase):
             shutil.rmtree(self.__copyDir, ignore_errors=True)
         if self.__runConfigDir is not None:
             shutil.rmtree(self.__runConfigDir, ignore_errors=True)
+        if self.__daqDataDir is not None:
+            shutil.rmtree(self.__daqDataDir, ignore_errors=True)
         if self.__spadeDir is not None:
             shutil.rmtree(self.__spadeDir, ignore_errors=True)
 
@@ -752,6 +862,7 @@ class CnCRunSetTest(unittest.TestCase):
     def testRunIndirect(self):
         self.__copyDir = tempfile.mkdtemp()
         self.__runConfigDir = tempfile.mkdtemp()
+        self.__daqDataDir = tempfile.mkdtemp()
         self.__spadeDir = tempfile.mkdtemp()
 
         comps = [MockComponent("stringHub", self.HUB_NUMBER,
@@ -773,6 +884,7 @@ class CnCRunSetTest(unittest.TestCase):
         self.__cnc = MostlyCnCServer(clusterConfigObject=cluCfg,
                                      copyDir=self.__copyDir,
                                      runConfigDir=self.__runConfigDir,
+                                     daqDataDir=self.__daqDataDir,
                                      spadeDir=self.__spadeDir)
 
         catchall = self.__cnc.getLogServer()
@@ -789,7 +901,8 @@ class CnCRunSetTest(unittest.TestCase):
 
         runCompList = []
         for c in comps:
-            if c.isSource() or c.name() == "extraComp": continue
+            if c.isSource() or c.name() == "extraComp":
+                continue
             runCompList.append(c.fullName())
 
         domList = [MockRunConfigFile.createDOM(self.RADAR_DOM), ]
@@ -807,29 +920,39 @@ class CnCRunSetTest(unittest.TestCase):
 
         runNum = 345
 
-        (rel, rev) = self.__cnc.getRelease()
-        self.__addRunStartMoni(liveMoni, runNum, rel, rev, True)
-
         rsId = self.__cnc.rpc_runset_make(runConfig, runNum)
+
+        if catchall:
+            catchall.checkStatus(5)
+        liveMoni.checkStatus(5)
 
         rs = self.__cnc.findRunset(rsId)
         self.failIf(rs is None, "Could not find runset #%d" % rsId)
 
         time.sleep(1)
 
-        if catchall: catchall.checkStatus(5)
+        if catchall:
+            catchall.checkStatus(5)
 
         dashLog = MockLogger("dashLog")
         rs.setDashLog(dashLog)
 
-        catchall.addExpectedText("Starting run #%d with \"%s\"" %
-                                 (runNum, cluCfg.configName()))
+        self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "LatestFirstChannelHitTime", 10)
+        if LIVE_IMPORT:
+            data = {"runnum": runNum}
+            liveMoni.addExpectedLiveMoni("firstGoodTime", data, "json")
+
+        (rel, rev) = self.__cnc.getRelease()
+        self.__addRunStartMoni(liveMoni, runNum, rel, rev, True)
+
+        catchall.addExpectedText("Starting run #%d on \"%s\"" %
+                                 (runNum, cluCfg.descName()))
 
         dashLog.addExpectedRegexp(r"Version info: \S+ \d+ \S+ \S+ \S+ \S+" +
                                   " \d+\S+")
         dashLog.addExpectedExact("Run configuration: %s" % runConfig)
-        dashLog.addExpectedExact("Cluster configuration: %s" %
-                                 cluCfg.configName())
+        dashLog.addExpectedExact("Cluster: %s" % cluCfg.descName())
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
 
@@ -842,7 +965,8 @@ class CnCRunSetTest(unittest.TestCase):
 
         self.__cnc.rpc_runset_start_run(rsId, runNum, RunOption.MONI_TO_LIVE)
 
-        if catchall: catchall.checkStatus(5)
+        if catchall:
+            catchall.checkStatus(5)
         dashLog.checkStatus(5)
         liveMoni.checkStatus(5)
 
@@ -857,7 +981,8 @@ class CnCRunSetTest(unittest.TestCase):
         self.__checkWatchdogTask(comps, rs, dashLog, liveMoni)
         self.__checkRadarTask(comps, rs, liveMoni)
 
-        if catchall: catchall.checkStatus(5)
+        if catchall:
+            catchall.checkStatus(5)
         dashLog.checkStatus(5)
         liveMoni.checkStatus(5)
 
@@ -871,28 +996,40 @@ class CnCRunSetTest(unittest.TestCase):
         else:
             hzStr = " (%2.2f Hz)" % self.__computeRateHz(0, numEvts, duration)
 
-        dashLog.addExpectedExact("%d physics events collected in %d seconds%s" %
-                                 (numEvts, duration, hzStr))
+        dashLog.addExpectedExact(("%d physics events collected "
+                                  "in %d seconds%s") % \
+                                     (numEvts,
+                                      duration,
+                                      hzStr))
+
         dashLog.addExpectedExact("%d moni events, %d SN events, %d tcals" %
                                  (numMoni, numSN, numTcal))
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
 
         self.__addRunStopMoni(liveMoni, firstTime, payTime, numEvts, runNum)
 
+        self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
+                           "stringhub", "EarliestLastChannelHitTime", 20)
+        if LIVE_IMPORT:
+            data = {"runnum": runNum}
+            liveMoni.addExpectedLiveMoni("lastGoodTime", data, "json")
+
         self.__cnc.rpc_runset_stop_run(rsId)
 
         time.sleep(1)
 
-        if catchall: catchall.checkStatus(5)
+        if catchall:
+            catchall.checkStatus(5)
         dashLog.checkStatus(5)
         liveMoni.checkStatus(5)
 
-        RunXMLValidator.validate(runNum, cluCfg.configName(), None, None,
+        RunXMLValidator.validate(self, runNum, runConfig, None, None,
                                  numEvts, numMoni, numSN, numTcal, False)
 
         self.__cnc.rpc_runset_break(rsId)
 
-        if catchall: catchall.checkStatus(5)
+        if catchall:
+            catchall.checkStatus(5)
         dashLog.checkStatus(5)
         liveMoni.checkStatus(5)
 

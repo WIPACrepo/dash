@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 
-import datetime, unittest
+import datetime
+import unittest
 
 from RateTask import RateTask
 from LiveImports import Prio
 
 from DAQMocks import MockComponent, MockIntervalTimer, \
      MockLogger, MockRunSet, MockTaskManager
+
 
 class RateTaskTest(unittest.TestCase):
     def setUp(self):
@@ -29,8 +31,9 @@ class RateTaskTest(unittest.TestCase):
 
         tsk = RateTask(taskMgr, runset, logger)
 
-        logger.addExpectedRegexp(r"\t\d+ physics events \(\d+\.\d+ Hz\), \d+ moni" +
-                                 r" events, \d+ SN events, \d+ tcals")
+        logger.addExpectedRegexp((r"\t\d+ physics events \(\d+\.\d+ Hz\), "
+                                  r"\d+ moni events, \d+ SN events, "
+                                  r"\d+ tcals"))
 
         timer.trigger()
         left = tsk.check()

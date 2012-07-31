@@ -1,63 +1,68 @@
 #!/usr/bin/env python
 
-import datetime, time, unittest
+import datetime
+import time
+import unittest
 
 from LiveImports import Prio
-from RadarTask import RadarThread
+from RadarTask import RadarTask, RadarThread
 from RunOption import RunOption
 from TaskManager import TaskManager
 from WatchdogTask import WatchdogTask
 
 from DAQMocks import MockIntervalTimer, MockLiveMoni, MockLogger, MockRunSet
 
+
 class MockComponent(object):
     BEANBAG = {
-        "stringHub" :
-            { "stringhub" :
-                  { "NumberOfActiveChannels" : 2 ,
-                    "NumberOfActiveAndTotalChannels" : [1,2],
-                    "TotalLBMOverflows" : 20 },
-              "sender" :
-                  { "NumHitsReceived" : 0,
-                    "NumReadoutRequestsReceived" : 0,
-                    "NumReadoutsSent" : 0,
-                    },
+        "stringHub":
+            {"stringhub":
+                  {"NumberOfActiveChannels": 2,
+                   "NumberOfActiveAndTotalChannels": [1, 2],
+                   "TotalLBMOverflows": 20,
+                   "HitRate": 50.,
+                   "HitRateLC": 25.},
+              "sender":
+                  {"NumHitsReceived": 0,
+                   "NumReadoutRequestsReceived": 0,
+                   "NumReadoutsSent": 0,
+                   },
               },
-        "iceTopTrigger" :
-            { "icetopHit" :
-                  { "RecordsReceived" : 0 },
-              "trigger" :
-                  { "RecordsSent" : 0 },
+        "iceTopTrigger":
+            {"icetopHit":
+                 {"RecordsReceived": 0},
+             "trigger":
+                 {"RecordsSent": 0},
+             },
+        "inIceTrigger":
+            {"stringHit":
+                 {"RecordsReceived": 0},
+             "trigger":
+                  {"RecordsSent": 0},
               },
-        "inIceTrigger" :
-            { "stringHit" :
-                  { "RecordsReceived" : 0 },
-              "trigger" :
-                  { "RecordsSent" : 0 },
+        "globalTrigger":
+            {"trigger":
+                 {"RecordsReceived": 0},
+              "glblTrig":
+                 {"RecordsSent": 0},
               },
-        "globalTrigger" :
-            { "trigger" :
-                  { "RecordsReceived" : 0 },
-              "glblTrig" :
-                  { "RecordsSent" : 0 },
+        "eventBuilder":
+            {"backEnd":
+                  {"DiskAvailable": 2560,
+                   "NumBadEvents": 0,
+                   "NumEventsSent": 0,
+                   "NumReadoutsReceived": 0,
+                   "NumTriggerRequestsReceived": 0,
+                   "NumBytesWritten": 0
+                   },
               },
-        "eventBuilder" :
-            { "backEnd" :
-                  { "DiskAvailable" : 2560,
-                    "NumBadEvents" : 0,
-                    "NumEventsSent" : 0,
-                    "NumReadoutsReceived" : 0,
-                    "NumTriggerRequestsReceived" : 0,
-                    "NumBytesWritten": 0
-                    },
-              },
-        "secondaryBuilders" :
-            { "moniBuilder" :
-                  { "TotalDispatchedData" : 0 },
-              "snBuilder" :
-                  { "TotalDispatchedData" : 0,
-                    "DiskAvailable" : 0,
-                    },
+        "secondaryBuilders":
+            {"moniBuilder":
+                  {"TotalDispatchedData": 0},
+              "snBuilder":
+                  {"TotalDispatchedData": 0,
+                   "DiskAvailable": 0,
+                   },
               }
         }
 
@@ -74,12 +79,12 @@ class MockComponent(object):
         return self.fullName()
 
     def __createBeanData(self):
-        if not self.BEANBAG.has_key(self.__name):
+        if not self.__name in self.BEANBAG:
             raise Exception("No bean data found for %s" % self)
 
         data = {}
         for b in self.BEANBAG[self.__name]:
-            if not data.has_key(b):
+            if not b in data:
                 data[b] = {}
             for f in self.BEANBAG[self.__name][b]:
                 data[b][f] = self.BEANBAG[self.__name][b][f]
@@ -91,13 +96,13 @@ class MockComponent(object):
             raise Exception("Value for %c bean %s field %s already exists" %
                             (self, beanName, fieldName))
 
-        if not self.__beanData.has_key(beanName):
+        if not beanName in self.__beanData:
             self.__beanData[beanName] = {}
         self.__beanData[beanName][fieldName] = value
 
     def checkBeanField(self, beanName, fieldName):
-        return self.__beanData.has_key(beanName) and \
-            self.__beanData[beanName].has_key(fieldName)
+        return beanName in self.__beanData and \
+            fieldName in self.__beanData[beanName]
 
     def fileName(self):
         return "%s-%d" % (self.__name, self.__num)
@@ -132,11 +137,17 @@ class MockComponent(object):
     def isSource(self):
         return self.__name.lower().endswith("hub")
 
-    def reloadBeanInfo(self): pass
+    def reloadBeanInfo(self):
+        pass
 
-    def name(self): return self.__name
-    def num(self): return self.__num
-    def order(self): return self.__order
+    def name(self):
+        return self.__name
+
+    def num(self):
+        return self.__num
+
+    def order(self):
+        return self.__order
 
     def reset(self):
         self.__updatedRates = False
@@ -144,15 +155,23 @@ class MockComponent(object):
     def setOrder(self, num):
         self.__order = num
 
-    def updateRates(self): self.__updatedRates = True
+    def updateRates(self):
+        self.__updatedRates = True
 
-    def wasUpdated(self): return self.__updatedRates
+    def wasUpdated(self):
+        return self.__updatedRates
+
 
 class MockRunConfig(object):
-    def __init__(self): pass
+    def __init__(self):
+        pass
 
-    def monitorPeriod(self): return None
-    def watchdogPeriod(self): return None
+    def monitorPeriod(self):
+        return None
+
+    def watchdogPeriod(self):
+        return None
+
 
 class MyTaskManager(TaskManager):
     def __init__(self, runset, dashlog, live, runDir, runCfg, moniType):
@@ -168,6 +187,7 @@ class MyTaskManager(TaskManager):
     def triggerTimers(self):
         for k in self.__timerDict:
             self.__timerDict[k].trigger()
+
 
 class TaskManagerTest(unittest.TestCase):
     def __addRadarDOMData(self, compList, radarString, radarDOM, hitRate):
@@ -191,13 +211,20 @@ class TaskManagerTest(unittest.TestCase):
                          2, Prio.ITS)
         live.addExpected("stringHub-1*stringhub+TotalLBMOverflows",
                          20, Prio.ITS)
+        live.addExpected("stringHub-1*stringhub+HitRate", 50, Prio.ITS)
+        live.addExpected("stringHub-1*stringhub+HitRateLC", 25, Prio.ITS)
+        live.addExpected(
+            "stringHub-1*stringhub+NumberOfActiveAndTotalChannels",
+            [1, 2], Prio.ITS)
 
-        live.addExpected("stringHub-1*stringhub+NumberOfActiveAndTotalChannels",
-                         [1,2], Prio.ITS)
-        live.addExpected("stringHub-6*stringhub+NumberOfActiveAndTotalChannels",
-                         [1,2], Prio.ITS)
+        live.addExpected(
+            "stringHub-6*stringhub+NumberOfActiveAndTotalChannels",
+            [1, 2], Prio.ITS)
+
         live.addExpected("stringHub-6*stringhub+TotalLBMOverflows",
                          20, Prio.ITS)
+        live.addExpected("stringHub-6*stringhub+HitRate", 50, Prio.ITS)
+        live.addExpected("stringHub-6*stringhub+HitRateLC", 25, Prio.ITS)
 
         live.addExpected(radarName + "*sender+NumHitsReceived", 0, Prio.ITS)
         live.addExpected(radarName + "*sender+NumReadoutRequestsReceived",
@@ -211,16 +238,23 @@ class TaskManagerTest(unittest.TestCase):
         live.addExpected("inIceTrigger-0*stringHit+RecordsReceived",
                          0, Prio.ITS)
         live.addExpected("inIceTrigger-0*trigger+RecordsSent", 0, Prio.ITS)
-        live.addExpected("globalTrigger-0*trigger+RecordsReceived", 0, Prio.ITS)
-        live.addExpected("globalTrigger-0*glblTrig+RecordsSent", 0, Prio.ITS)
+        live.addExpected("globalTrigger-0*trigger+RecordsReceived",
+                         0, Prio.ITS)
+
+        live.addExpected("globalTrigger-0*glblTrig+RecordsSent",
+                         0, Prio.ITS)
         live.addExpected("eventBuilder-0*backEnd+NumTriggerRequestsReceived",
                          0, Prio.ITS)
         live.addExpected("eventBuilder-0*backEnd+NumReadoutsReceived",
                          0, Prio.ITS)
-        live.addExpected("eventBuilder-0*backEnd+NumEventsSent", 0, Prio.ITS)
-        live.addExpected("eventBuilder-0*backEnd+NumBadEvents", 0, Prio.ITS)
-        live.addExpected("eventBuilder-0*backEnd+DiskAvailable", 2560, Prio.ITS)
-        live.addExpected("eventBuilder-0*backEnd+NumBytesWritten", 0, Prio.ITS)
+        live.addExpected("eventBuilder-0*backEnd+NumEventsSent",
+                         0, Prio.ITS)
+        live.addExpected("eventBuilder-0*backEnd+NumBadEvents",
+                         0, Prio.ITS)
+        live.addExpected("eventBuilder-0*backEnd+DiskAvailable",
+                         2560, Prio.ITS)
+        live.addExpected("eventBuilder-0*backEnd+NumBytesWritten",
+                         0, Prio.ITS)
 
         live.addExpected("secondaryBuilders-0*moniBuilder+TotalDispatchedData",
                          0, Prio.ITS)
@@ -232,9 +266,15 @@ class TaskManagerTest(unittest.TestCase):
         # add activeDOM data
         live.addExpected("activeDOMs", 2, Prio.ITS)
         live.addExpected("expectedDOMs", 4, Prio.ITS)
-        live.addExpected("LBMOverflows", { "1" : 20, "6" : 20 },
+        live.addExpected("total_rate", 100, Prio.ITS)
+        live.addExpected("total_ratelc", 50, Prio.ITS)
+        live.addExpected("LBMOverflows", {"1": 20, "6": 20},
                          Prio.ITS)
-        live.addExpected("stringDOMsInfo", {"1":(1,2), "6" : (1,2) },
+        live.addExpected("stringDOMsInfo", {"1": (1, 2), "6": (1, 2)},
+                         Prio.EMAIL)
+        live.addExpected("stringRateInfo", {"1": 50, "6": 50},
+                         Prio.EMAIL)
+        live.addExpected("stringRateLCInfo", {"1": 25, "6": 25},
                          Prio.EMAIL)
 
         # add radar DOM data
@@ -249,6 +289,9 @@ class TaskManagerTest(unittest.TestCase):
 
     def setUp(self):
         self.__firstTime = True
+
+        # shorten radar thread
+        RadarTask.RADAR_SAMPLE_DURATION = 1
 
     def tearDown(self):
         self.__firstTime = False
@@ -287,7 +330,8 @@ class TaskManagerTest(unittest.TestCase):
                 if not live.hasAllMoni():
                     waitForThread = True
 
-            if not waitForThread: break
+            if not waitForThread:
+                break
 
             time.sleep(0.1)
 
@@ -344,7 +388,8 @@ class TaskManagerTest(unittest.TestCase):
                 if not live.hasAllMoni():
                     waitForThread = True
 
-            if not waitForThread: break
+            if not waitForThread:
+                break
 
             time.sleep(0.1)
 
@@ -402,7 +447,8 @@ class TaskManagerTest(unittest.TestCase):
                 if not live.hasAllMoni():
                     waitForThread = True
 
-            if not waitForThread: break
+            if not waitForThread:
+                break
 
             time.sleep(0.1)
 
@@ -427,7 +473,8 @@ class TaskManagerTest(unittest.TestCase):
                 if not live.hasAllMoni():
                     waitForThread = True
 
-            if not waitForThread: break
+            if not waitForThread:
+                break
 
             time.sleep(0.1)
 

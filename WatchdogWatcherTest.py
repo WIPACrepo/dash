@@ -5,6 +5,7 @@ import unittest
 from CnCTask import TaskException
 from WatchdogTask import ThresholdWatcher, ValueWatcher
 
+
 class MockComponent(object):
     def __init__(self, name, num, order, source=False, builder=False):
         self.__name = name
@@ -30,8 +31,10 @@ class MockComponent(object):
     def order(self):
         return self.__order
 
+
 class WatchdogWatcherTest(unittest.TestCase):
-    def __buildValueComps(self, fname, fnum, forder, tname, tnum, torder, bits):
+    def __buildValueComps(self, fname, fnum, forder, tname,
+                          tnum, torder, bits):
         fbldr = False
         fsrc = False
         tbldr = False
@@ -76,7 +79,7 @@ class WatchdogWatcherTest(unittest.TestCase):
                     self.fail("Expected \"%s\", not \"%s\"" % (str(tw), nm))
 
                 uval = 16
-                urec =  tw.unhealthyRecord(uval)
+                urec = tw.unhealthyRecord(uval)
 
                 self.assertEqual(urec.order(), compOrder,
                                  "Expected order %d, not %d" %
@@ -99,10 +102,11 @@ class WatchdogWatcherTest(unittest.TestCase):
         badVal = "foo"
         try:
             tw.check(badVal)
-        except TaskException, te:
-            expMsg = " is %s, new value is %s" % (type(threshVal), type(badVal))
+        except TaskException as te:
+            expMsg = " is %s, new value is %s" % \
+                (type(threshVal), type(badVal))
             if str(te).find(expMsg) < 0:
-                raise te
+                raise
 
     def testThresholdUnsupported(self):
         comp = MockComponent("foo", 1, 1)
@@ -110,14 +114,15 @@ class WatchdogWatcherTest(unittest.TestCase):
         beanName = "bean"
         fldName = "fld"
 
-        for threshVal in ["q", "r"], { "x":1, "y":2}:
+        for threshVal in ["q", "r"], {"x": 1, "y": 2}:
             tw = ThresholdWatcher(comp, beanName, fldName, threshVal, True)
             try:
                 tw.check(threshVal)
-            except TaskException, te:
-                expMsg = "ThresholdWatcher does not support %s" % type(threshVal)
+            except TaskException as te:
+                expMsg = "ThresholdWatcher does not support %s" % \
+                    type(threshVal)
                 if str(te).find(expMsg) < 0:
-                    raise te
+                    raise
 
     def testThresholdCheck(self):
         comp = MockComponent("foo", 1, 1)
@@ -129,8 +134,8 @@ class WatchdogWatcherTest(unittest.TestCase):
         for lt in False, True:
             tw = ThresholdWatcher(comp, beanName, fldName, threshVal, lt)
 
-            for val in threshVal - 5, threshVal - 1, threshVal, threshVal + 1, \
-                    threshVal + 5:
+            for val in threshVal - 5, threshVal - 1, threshVal, \
+                    threshVal + 1, threshVal + 5:
 
                 if lt:
                     cmpVal = val >= threshVal
@@ -151,13 +156,13 @@ class WatchdogWatcherTest(unittest.TestCase):
 
             vw = ValueWatcher(fcomp, tcomp, beanName, fldName)
 
-            nm = "%s->%s %s.%s" % (fcomp.fullName(), tcomp.fullName(), beanName,
-                                   fldName)
+            nm = "%s->%s %s.%s" % (fcomp.fullName(), tcomp.fullName(),
+                                   beanName, fldName)
             if str(vw) != nm:
                 self.fail("Expected \"%s\", not \"%s\"" % (str(vw), nm))
 
             uval = 16
-            urec =  vw.unhealthyRecord(uval)
+            urec = vw.unhealthyRecord(uval)
 
             self.assertEqual(urec.order(), uorder,
                              "Expected order %d, not %d" %
@@ -183,11 +188,11 @@ class WatchdogWatcherTest(unittest.TestCase):
         badVal = "foo"
         try:
             vw.check(badVal)
-        except TaskException, te:
+        except TaskException as te:
             expMsg = " was %s (%s), new type is %s (%s)" % \
                      (type(prevVal), prevVal, type(badVal), badVal)
             if str(te).find(expMsg) < 0:
-                raise te
+                raise
 
     def testValueCheckListSize(self):
         (fcomp, tcomp, uorder) = \
@@ -204,11 +209,11 @@ class WatchdogWatcherTest(unittest.TestCase):
         l2 = lst[:-1]
         try:
             vw.check(l2)
-        except TaskException, te:
+        except TaskException as te:
             expMsg = "Previous %s list had %d entries, new list has %d" % \
                      (vw, len(lst), len(l2))
             if str(te).find(expMsg) < 0:
-                raise te
+                raise
 
     def testValueCheckDecreased(self):
         (fcomp, tcomp, uorder) = \
@@ -224,10 +229,10 @@ class WatchdogWatcherTest(unittest.TestCase):
 
         try:
             vw.check(val - 2)
-        except TaskException, te:
+        except TaskException as te:
             expMsg = "%s DECREASED (%s->%s)" % (vw, val, val - 2)
             if str(te).find(expMsg) < 0:
-                raise te
+                raise
 
     def testValueCheckDecreasedList(self):
         (fcomp, tcomp, uorder) = \
@@ -247,10 +252,10 @@ class WatchdogWatcherTest(unittest.TestCase):
 
         try:
             vw.check(l2)
-        except TaskException, te:
+        except TaskException as te:
             expMsg = "%s DECREASED (%s->%s)" % (vw, lst[0], l2[0])
             if str(te).find(expMsg) < 0:
-                raise te
+                raise
 
     def testValueCheckUnchanged(self):
         (fcomp, tcomp, uorder) = \
@@ -267,15 +272,14 @@ class WatchdogWatcherTest(unittest.TestCase):
         for i in range(4):
             try:
                 vw.check(val)
-            except TaskException, te:
+            except TaskException as te:
                 expMsg = "%s.%s is not changing" % (beanName, fldName)
                 if str(te).find(expMsg) < 0:
-                    raise te
+                    raise
                 sawUnchanged = True
 
         if not sawUnchanged:
             self.fail("Never saw \"unchanged\" exception")
-
 
     def testValueCheckUnchangedList(self):
         (fcomp, tcomp, uorder) = \
@@ -292,10 +296,10 @@ class WatchdogWatcherTest(unittest.TestCase):
         for i in range(4):
             try:
                 vw.check(lst)
-            except TaskException, te:
+            except TaskException as te:
                 expMsg = "At least one %s value is not changing" % vw
                 if str(te).find(expMsg) < 0:
-                    raise te
+                    raise
                 sawUnchanged = True
 
         if not sawUnchanged:
@@ -310,16 +314,16 @@ class WatchdogWatcherTest(unittest.TestCase):
 
         vw = ValueWatcher(fcomp, tcomp, beanName, fldName)
 
-        prevVal = { "a":1, "b":2 }
+        prevVal = {"a": 1, "b": 2}
         vw.check(prevVal)
 
-        badVal = { "a":1, "b":2 }
+        badVal = {"a": 1, "b": 2}
         try:
             vw.check(badVal)
-        except TaskException, te:
+        except TaskException as te:
             expMsg = "ValueWatcher does not support %s" % type(badVal)
             if str(te).find(expMsg) < 0:
-                raise te
+                raise
 
     def testValueCheck(self):
         (fcomp, tcomp, uorder) = \

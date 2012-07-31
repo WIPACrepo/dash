@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-import os, sys
+import os
+import sys
 from datetime import date, datetime, timedelta
 from icecube.daq.nicknames import Nicknames
 from icecube.daq.payload import decode_payload, MonitorRecordPayload
@@ -13,8 +14,8 @@ OMKEY = 3
 NICKNAME = 2
 
 domid = MBID
-year  = date.today().year
-time  = True
+year = date.today().year
+time = True
 
 opts, args = getopt(sys.argv[1:], 'DKNYU:h')
 for o, a in opts:
@@ -26,7 +27,8 @@ for o, a in opts:
     elif o == '-N':
         domid = NICKNAME
     elif o == '-h':
-        print >>sys.stderr, "usage :: DAQDumpMoni.py [-D | -K | -N ] <inputs ...>"
+        print >>sys.stderr, \
+            "usage :: DAQDumpMoni.py [-D | -K | -N ] <inputs ...>"
         sys.exit(1)
     elif o == '-Y':
         year = int(a)
@@ -41,25 +43,28 @@ if domid != MBID:
             "to nicknames.txt file."
         sys.exit(1)
     nick = Nicknames(os.environ["NICKNAMES"])
-    
+
 for arg in args:
     f = open(arg)
     while 1:
         p = decode_payload(f)
-        if p is None: break
+        if p is None:
+            break
         if isinstance(p, MonitorRecordPayload):
             m = p.rec
             if isinstance(m, HardwareMonitorRecord):
                 utc = m.timestamp
-                if time: utc = T0 + timedelta(seconds=1.0E-10*utc)
+                if time:
+                    utc = T0 + timedelta(seconds=1.0E-10 * utc)
                 mbid = m.domid
                 name = mbid
                 try:
-                    if domid != MBID: name = nick.lookup(mbid)[domid]
+                    if domid != MBID:
+                        name = nick.lookup(mbid)[domid]
                 except KeyError:
                     pass
                 spe = m.getSPERate()
-                hv  = m.getHVMonitor()
+                hv = m.getHVMonitor()
                 kpa = '*'
                 try:
                     kpa = '%.1f' % m.getPressure()

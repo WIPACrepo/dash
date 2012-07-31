@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
-import os, unittest
+import os
+import unittest
 
 from DAQConfig import DAQConfigParser
+
 
 class DAQConfigTest(unittest.TestCase):
     def initPDAQHome(self):
@@ -51,7 +53,8 @@ class DAQConfigTest(unittest.TestCase):
 
         self.assertEqual(len(expected), len(comps),
                          "Expected %d components (%s), not %d (%s)" %
-                         (len(expected), str(expected), len(comps), str(comps)))
+                         (len(expected), str(expected), len(comps),
+                          str(comps)))
 
         for c in comps:
             try:
@@ -113,7 +116,8 @@ class DAQConfigTest(unittest.TestCase):
 
         self.assertEqual(len(expected), len(comps),
                          "Expected %d components (%s), not %d (%s)" %
-                         (len(expected), str(expected), len(comps), str(comps)))
+                         (len(expected), str(expected), len(comps),
+                          str(comps)))
 
         for c in comps:
             try:
@@ -176,7 +180,8 @@ class DAQConfigTest(unittest.TestCase):
 
         self.assertEqual(len(expected), len(comps),
                          "Expected %d components (%s), not %d (%s)" %
-                         (len(expected), str(expected), len(comps), str(comps)))
+                         (len(expected), str(expected), len(comps),
+                          str(comps)))
 
         for c in comps:
             try:

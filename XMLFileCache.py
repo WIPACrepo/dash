@@ -4,18 +4,32 @@ import os
 
 from xml.dom import minidom
 from DefaultDomGeometry import XMLError
+from DAQConfigExceptions import DAQConfigException
 
-class XMLFileCacheException(Exception): pass
-class XMLFileNotFound(XMLFileCacheException): pass
-class XMLFileParseError(XMLFileCacheException): pass
+
+class XMLFileCacheException(DAQConfigException):
+    pass
+
+
+class XMLFileNotFound(XMLFileCacheException):
+    pass
+
+
+class XMLFileParseError(XMLFileCacheException):
+    pass
+
 
 class XMLData(object):
     def __init__(self, data, modTime):
         self.__data = data
         self.__modTime = modTime
 
-    def data(self): return self.__data
-    def modTime(self): return self.__modTime
+    def data(self):
+        return self.__data
+
+    def modTime(self):
+        return self.__modTime
+
 
 class XMLFileCache(object):
     "Cached file"
@@ -36,7 +50,8 @@ class XMLFileCache(object):
 
         fileName = cls.buildPath(configDir, cfgName)
         if fileName is None:
-            raise XMLFileNotFound("%s in directory %s" % (cfgName, configDir))
+            raise XMLFileNotFound("'%s' not found in directory %s" % \
+                                      (cfgName, configDir))
 
         try:
             fileStat = os.stat(fileName)
@@ -44,13 +59,13 @@ class XMLFileCache(object):
             raise XMLFileNotFound(fileName)
 
         # Optimize by looking up pre-parsed configurations:
-        if cls.CACHE.has_key(fileName):
+        if fileName in cls.CACHE:
             if cls.CACHE[fileName].modTime() == fileStat.st_mtime:
                 return cls.CACHE[fileName].data()
 
         try:
             dom = minidom.parse(fileName)
-        except Exception, e:
+        except Exception as e:
             raise XMLFileParseError("Couldn't parse \"%s\": %s" %
                                     (fileName, str(e)))
         except KeyboardInterrupt:
@@ -59,7 +74,7 @@ class XMLFileCache(object):
 
         try:
             data = cls.parse(dom, configDir, cfgName, strict)
-        except XMLError, xe:
+        except XMLError:
             from exc_string import exc_string
             raise XMLFileParseError("%s: %s" % (fileName, exc_string()))
         except KeyboardInterrupt:

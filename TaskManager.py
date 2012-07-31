@@ -13,25 +13,28 @@ from WatchdogTask import WatchdogTask
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
+
 class TaskManager(threading.Thread):
     "Manage RunSet tasks"
 
-    def __init__(self, runset, dashlog, live, runDir, runCfg, runOptions):
+    def __init__(self, runset, dashlog, liveMoni, runDir, runCfg, runOptions):
         if dashlog is None:
             raise TaskException("Dash logfile cannot be None")
 
         self.__runset = runset
         self.__dashlog = dashlog
 
-        self.__tasks = self.__createAllTasks(live, runDir, runCfg, runOptions)
+        self.__tasks = self.__createAllTasks(liveMoni, runDir, runCfg,
+                                             runOptions)
 
         self.__running = False
+        self.__stopping = False
         self.__flag = threading.Condition()
 
         super(TaskManager, self).__init__(name="TaskManager")
         self.setDaemon(True)
 
-    def __createAllTasks(self, live, runDir, runCfg, runOptions):
+    def __createAllTasks(self, liveMoni, runDir, runCfg, runOptions):
         """
         This method exists solely to make it easy to detect
         errors in the task constructors.
@@ -41,7 +44,7 @@ class TaskManager(threading.Thread):
         taskNum = 0
         while True:
             try:
-                task = self.__createTask(taskNum, live, runDir,
+                task = self.__createTask(taskNum, liveMoni, runDir,
                                          runCfg, runOptions)
                 if task is None:
                     break
@@ -53,35 +56,37 @@ class TaskManager(threading.Thread):
 
         return taskList
 
-    def __createTask(self, taskNum, live, runDir, runCfg, runOptions):
+    def __createTask(self, taskNum, liveMoni, runDir, runCfg, runOptions):
         """
         Create a single task.  There's nothing magic about 'taskNum',
         it's just a convenient way to iterate through all the task
         constructors.
         """
         if taskNum == 0:
-            return MonitorTask(self, self.__runset, self.__dashlog, live,
+            return MonitorTask(self, self.__runset, self.__dashlog, liveMoni,
                                runDir, runOptions,
                                period=runCfg.monitorPeriod())
         elif taskNum == 1:
             return RateTask(self, self.__runset, self.__dashlog)
         elif taskNum == 2:
-            return ActiveDOMsTask(self, self.__runset, self.__dashlog, live)
+            return ActiveDOMsTask(self, self.__runset, self.__dashlog,
+                                  liveMoni)
         elif taskNum == 3:
             return WatchdogTask(self, self.__runset, self.__dashlog,
                                 period=runCfg.watchdogPeriod())
         elif taskNum == 4:
-            return RadarTask(self, self.__runset, self.__dashlog, live)
+            return RadarTask(self, self.__runset, self.__dashlog, liveMoni)
 
         return None
 
     def __run(self):
         self.__running = True
-        while self.__running:
+        while not self.__stopping:
             waitSecs = CnCTask.MAX_TASK_SECS
             for t in self.__tasks:
                 # don't do remaining tasks if stop() has been called
-                if not self.__running: break
+                if self.__stopping:
+                    break
 
                 try:
                     taskSecs = t.check()
@@ -93,19 +98,24 @@ class TaskManager(threading.Thread):
                 if waitSecs > taskSecs:
                     waitSecs = taskSecs
 
-            self.__flag.acquire()
-            try:
-                self.__flag.wait(waitSecs)
-            finally:
-                self.__flag.release()
+            if not self.__stopping:
+                self.__flag.acquire()
+                try:
+                    self.__flag.wait(waitSecs)
+                finally:
+                    self.__flag.release()
+
+        self.__running = False
 
         savedEx = None
         for t in self.__tasks:
             try:
-               t.close()
+                t.close()
             except:
                 if not savedEx:
                     savedEx = sys.exc_info()
+
+        self.__stopping = False
 
         if savedEx:
             raise savedEx[0], savedEx[1], savedEx[2]
@@ -113,6 +123,12 @@ class TaskManager(threading.Thread):
     @classmethod
     def createIntervalTimer(cls, name, period):
         return IntervalTimer(name, period, startTriggered=True)
+
+    def isRunning(self):
+        return self.__running
+
+    def isStopped(self):
+        return not self.__running and not self.__stopping
 
     def reset(self):
         for t in self.__tasks:
@@ -133,10 +149,10 @@ class TaskManager(threading.Thread):
         self.__runset.setError()
 
     def stop(self):
-        if self.__running:
+        if self.__running and not self.__stopping:
             self.__flag.acquire()
             try:
-                self.__running = False
+                self.__stopping = True
                 self.__flag.notify()
             finally:
                 self.__flag.release()

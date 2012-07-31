@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 
-import signal, sys, threading, traceback
+import signal
+import sys
+import threading
+import traceback
+
 
 class DumpThreadsOnSignal(object):
     def __init__(self, fd=None, logger=None, signum=signal.SIGQUIT):
@@ -32,7 +36,7 @@ class DumpThreadsOnSignal(object):
                 tStr = "Thread #%d" % tId
             else:
                 # changed to get the string representation
-                # of the thread as it has state, name, and 
+                # of the thread as it has state, name, and
                 # such embedded in it
                 tStr = "Thread %s" % thrd
 
@@ -47,10 +51,10 @@ class DumpThreadsOnSignal(object):
                 if line is not None:
                     tStr += "\n    %s" % line.strip()
 
-            if fd is not None: print >>fd, tStr
-            if logger is not None: logger.error(tStr)
-            
+            if fd is not None:
+                print >>fd, tStr
+            if logger is not None:
+                logger.error(tStr)
+
         if fd is not None:
             print >>fd, "---------------------------------------------"
-
-

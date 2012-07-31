@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 class Component(object):
     def __init__(self, name, id, logLevel=None):
         self.__name = name
@@ -16,14 +17,16 @@ class Component(object):
         nStr = self.fullName()
         return nStr
 
-    def __repr__(self): return self.fullName()
+    def __repr__(self):
+        return self.fullName()
 
     def fullName(self):
         if self.__id == 0 and not self.isHub():
             return self.__name
         return "%s#%d" % (self.__name, self.__id)
 
-    def id(self): return self.__id
+    def id(self):
+        return self.__id
 
     def isBuilder(self):
         "Is this an eventBuilder or secondaryBuilder component?"
@@ -41,8 +44,14 @@ class Component(object):
         "Is this a trigger component?"
         return self.__name.lower().find("trigger") >= 0
 
-    def logLevel(self): return self.__logLevel
-    def name(self): return self.__name
+    def logLevel(self):
+        return self.__logLevel
+
+    def name(self):
+        return self.__name
+
+    def num(self):
+        return self.__id
 
     def setLogLevel(self, lvl):
         self.__logLevel = lvl

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 class RunOption(object):
     LOG_TO_NONE = 0x1
     LOG_TO_FILE = 0x2
@@ -22,12 +23,14 @@ class RunOption(object):
 
     @staticmethod
     def isLogToBoth(flags):
-        return RunOption.__isOption(flags, RunOption.LOG_TO_FILE | RunOption.LOG_TO_LIVE)
-    
+        return RunOption.__isOption(flags,
+                                    (RunOption.LOG_TO_FILE | \
+                                         RunOption.LOG_TO_LIVE))
+
     @staticmethod
     def isLogToFile(flags):
         return RunOption.__isOption(flags, RunOption.LOG_TO_FILE)
-    
+
     @staticmethod
     def isLogToLive(flags):
         return RunOption.__isOption(flags, RunOption.LOG_TO_LIVE)
@@ -35,10 +38,12 @@ class RunOption(object):
     @staticmethod
     def isLogToNone(flags):
         return RunOption.__isOption(flags, RunOption.LOG_TO_NONE)
-    
+
     @staticmethod
     def isMoniToBoth(flags):
-        return RunOption.__isOption(flags, RunOption.MONI_TO_FILE | RunOption.MONI_TO_LIVE)
+        return RunOption.__isOption(flags,
+                                    (RunOption.MONI_TO_FILE | \
+                                         RunOption.MONI_TO_LIVE))
 
     @staticmethod
     def isMoniToFile(flags):
@@ -79,4 +84,3 @@ class RunOption(object):
             moniStr = ""
 
         return "RunOption[log(%s)moni(%s)]" % (logStr, moniStr)
-

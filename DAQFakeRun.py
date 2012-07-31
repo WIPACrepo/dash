@@ -1,7 +1,15 @@
 #!/usr/bin/env python
 
-import datetime, optparse, os, select, socket, struct, sys, threading, time, \
-       traceback
+import datetime
+import optparse
+import os
+import select
+import socket
+import sys
+import threading
+import time
+import traceback
+
 from xmlrpclib import ServerProxy
 from CnCServer import Connector
 from DAQConfig import DAQConfigParser
@@ -11,6 +19,7 @@ from RunOption import RunOption
 from utils import ip
 
 LOUD = False
+
 
 class ClientWrapper(threading.Thread):
     def __init__(self, client, rpcPort):
@@ -47,7 +56,10 @@ class ClientWrapper(threading.Thread):
                 break
         raise SystemExit
 
-class DAQFakeRunException(Exception): pass
+
+class DAQFakeRunException(Exception):
+    pass
+
 
 class LogThread(threading.Thread):
     "Log message reader socket"
@@ -100,11 +112,11 @@ class LogThread(threading.Thread):
         while self.__serving:
             try:
                 rd, rw, re = select.select(pr, pw, pe, self.TIMEOUT)
-            except select.error, selerr:
+            except select.error as selerr:
                 if selerr[0] == socket.EBADF:
                     break
                 raise
-            except socket.error, sockerr:
+            except socket.error as sockerr:
                 if sockerr.errno == socket.EBADF:
                     break
                 raise
@@ -123,14 +135,17 @@ class LogThread(threading.Thread):
                     #print >>self.__outfile, "%s %s" % (self.__compName, data)
                     #self.__outfile.flush()
                 except:
-                    break # Go back to select so we don't busy-wait
+                    break  # Go back to select so we don't busy-wait
+
 
 class BeanValue(object):
     def __init__(self, value, delta):
         self.__value = value
         self.__delta = delta
 
-    def get(self): return self.__value
+    def get(self):
+        return self.__value
+
     def update(self):
         val = self.__value
         if self.__delta is not None and type(self.__delta) == int:
@@ -138,66 +153,69 @@ class BeanValue(object):
                 self.__value += self.__delta
         return val
 
+
 class ComponentData(object):
     "Component data used to create simulated components"
 
     RADAR_DOM = "123456789abc"
     __BEAN_DATA = {
-        "stringHub" : {
-            "DataCollectorMonitor-00A" : {
-                "MainboardId" : (RADAR_DOM, None),
-                "HitRate" : (0.0, 0.0),
+        "stringHub": {
+            "DataCollectorMonitor-00A": {
+                "MainboardId": (RADAR_DOM, None),
+                "HitRate": (0.0, 0.0),
                 },
-            "sender" : {
-                "NumHitsReceived" : (0, 10),
-                "NumReadoutRequestsReceived" : (0, 2),
-                "NumReadoutsSent" : (0, 2),
+            "sender": {
+                "NumHitsReceived": (0, 10),
+                "NumReadoutRequestsReceived": (0, 2),
+                "NumReadoutsSent": (0, 2),
                 },
-            "stringhub" : {
-                "NumberOfActiveChannels" : (0, 0),
-                "NumberOfActiveAndTotalChannels" : ((0, 0), None),
-                "TotalLBMOverflows" : (0, 0),
-                },
-            },
-        "inIceTrigger" : {
-            "stringHit" : {
-                "RecordsReceived" : (0, 10),
-                },
-            "trigger" : {
-                "RecordsSent" : (0, 2),
+            "stringhub": {
+                "NumberOfActiveChannels": (0, 0),
+                "NumberOfActiveAndTotalChannels": ((0, 0), None),
+                "TotalLBMOverflows": (0, 0),
+                "HitRate": (0, 0),
+                "HitRateLC": (0, 0),
                 },
             },
-        "globalTrigger" : {
-            "trigger" : {
-                "RecordsReceived" : (0, 2),
+        "inIceTrigger": {
+            "stringHit": {
+                "RecordsReceived": (0, 10),
                 },
-            "glblTrig" : {
-                "RecordsSent" : (0, 2),
-                },
-            },
-        "eventBuilder" : {
-            "backEnd" : {
-                "DiskAvailable" : (2048, None),
-                "EventData" : (0, 1),
-                "FirstEventTime" : (0, None),
-                "NumBadEvents" : (0, None),
-                "NumEventsSent" : (0, 1),
-                "NumReadoutsReceived" : (0, 2),
-                "NumTriggerRequestsReceived" : (0, 2),
+            "trigger": {
+                "RecordsSent": (0, 2),
                 },
             },
-        "secondaryBuilders" : {
-            "moniBuilder" : {
-                "DiskAvailable" : (2048, None),
-                "TotalDispatchedData" : (0, 100),
+        "globalTrigger": {
+            "trigger": {
+                "RecordsReceived": (0, 2),
                 },
-            "snBuilder" : {
-                "DiskAvailable" : (2048, None),
-                "TotalDispatchedData" : (0, 100),
+            "glblTrig": {
+                "RecordsSent": (0, 2),
                 },
-            "tcalBuilder" : {
-                "DiskAvailable" : (2048, None),
-                "TotalDispatchedData" : (0, 100),
+            },
+        "eventBuilder": {
+            "backEnd": {
+                "DiskAvailable": (2048, None),
+                "EventData": (0, 1),
+                "FirstEventTime": (0, None),
+                "NumBadEvents": (0, None),
+                "NumEventsSent": (0, 1),
+                "NumReadoutsReceived": (0, 2),
+                "NumTriggerRequestsReceived": (0, 2),
+                },
+            },
+        "secondaryBuilders": {
+            "moniBuilder": {
+                "DiskAvailable": (2048, None),
+                "TotalDispatchedData": (0, 100),
+                },
+            "snBuilder": {
+                "DiskAvailable": (2048, None),
+                "TotalDispatchedData": (0, 100),
+                },
+            "tcalBuilder": {
+                "DiskAvailable": (2048, None),
+                "TotalDispatchedData": (0, 100),
                 },
             }}
 
@@ -225,7 +243,7 @@ class ComponentData(object):
 
     def __buildMBeanDict(self):
         beanDict = {}
-        if not self.__BEAN_DATA.has_key(self.__compName):
+        if not self.__compName in self.__BEAN_DATA:
             print >>sys.stderr, "No bean data for %s" % self.__compName
         else:
             for bean in self.__BEAN_DATA[self.__compName]:
@@ -274,7 +292,7 @@ class ComponentData(object):
         comps.append(ComponentData("eventBuilder", 0,
                                    [("glblTrig", Connector.INPUT),
                                     ("rdoutReq", Connector.OUTPUT),
-                                    ("rdoutData", Connector.INPUT),],
+                                    ("rdoutData", Connector.INPUT)],
                                    addNumericPrefix))
         comps.append(ComponentData("secondaryBuilders", 0,
                                    [("moniData", Connector.INPUT),
@@ -338,6 +356,7 @@ class ComponentData(object):
         "This component should not register itself so the Java version is used"
         self.__create = False
 
+
 class DAQFakeRun(object):
     "Fake DAQRun"
 
@@ -382,7 +401,6 @@ class DAQFakeRun(object):
     <simulatedHub number="100" priority="1"/>
   </host>
 </cluster>"""
-
 
     @staticmethod
     def __getRunTime(startTime):
@@ -472,6 +490,8 @@ class DAQFakeRun(object):
             try:
                 self.__client.rpc_runset_stop_run(runsetId)
             except:
+                print >>sys.stderr, "Cannot stop run for runset #%d" % runsetId
+                traceback.print_exc()
                 pass
 
     def __runOne(self, compList, runCfgDir, runNum, duration):
@@ -502,6 +522,7 @@ class DAQFakeRun(object):
         try:
             self.__runInternal(runsetId, mockRunCfg, runNum, duration)
         finally:
+            traceback.print_exc()
             self.closeAll(runsetId)
 
     def __waitForComponents(self, numComps):
@@ -510,7 +531,7 @@ class DAQFakeRun(object):
 
         numComps - initial number of components
         """
-        for i in range(10):
+        for _ in range(10):
             num = self.__client.rpc_component_count()
             if num == numComps:
                 break
@@ -526,7 +547,7 @@ class DAQFakeRun(object):
         try:
             self.__client.rpc_runset_break(runsetId)
         except:
-            traceback.print_exc()
+            pass
 
         for lt in self.__logThreads:
             lt.stop()
@@ -539,7 +560,8 @@ class DAQFakeRun(object):
         for cd in compData:
             client = cd.getFakeClient()
             if forkClients:
-                if client.fork() == 0: return
+                if client.fork() == 0:
+                    return
 
             client.start()
             client.register()
@@ -590,7 +612,8 @@ class DAQFakeRun(object):
 
             for c in comps:
                 nm = c.name()
-                if nm == "stringHub": continue
+                if nm == "stringHub":
+                    continue
 
                 if nm == "globalTrigger" or nm == "eventBuilder" or \
                        nm == "secondaryBuilders":
@@ -605,7 +628,6 @@ class DAQFakeRun(object):
             print >>fd, "  </host>"
             print >>fd, "</cluster>"
 
-
     def makeRunset(self, compList, runCfg, runNum):
         nameList = []
         for c in compList:
@@ -613,8 +635,9 @@ class DAQFakeRun(object):
 
         runsetId = self.__client.rpc_runset_make(runCfg, runNum, False)
         if runsetId < 0:
-            raise DAQFakeRunException("Cannot make runset from %s" %
-                                      str(nameList))
+            raise DAQFakeRunException(("Cannot make runset from %s" +
+                                        " (runset ID=%d)") %
+                                        (nameList, runsetId))
 
         return runsetId
 
@@ -627,11 +650,11 @@ class DAQFakeRun(object):
 
         # do all the runs
         #
-        for n in range(numRuns):
+        for _ in range(numRuns):
             # wait for all components to be registered
             #
             numNew = numComps + len(comps)
-            for cc in range(10):
+            for _ in range(10):
                 if self.__client.rpc_component_count() == numNew:
                     break
                 time.sleep(0.1)
@@ -707,6 +730,10 @@ if __name__ == "__main__":
 
     opt, args = parser.parse_args()
 
+    if sys.version_info > (2, 3):
+        from DumpThreads import DumpThreadsOnSignal
+        DumpThreadsOnSignal(fd=sys.stderr)
+
     if opt.firstPort != FakeClient.NEXT_PORT:
         FakeClient.NEXT_PORT = opt.firstPort
 
@@ -746,9 +773,6 @@ if __name__ == "__main__":
         DAQConfigParser.getClusterConfiguration(None, useActiveConfig=True)
     except:
         DAQFakeRun.hackActiveConfig("sim-localhost")
-
-    from DumpThreads import DumpThreadsOnSignal
-    DumpThreadsOnSignal()
 
     # create run object and initial run number
     #

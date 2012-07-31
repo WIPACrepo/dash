@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
-import traceback, unittest
+import traceback
+import unittest
 from CnCLogger import CnCLogger
 
 from DAQMocks import MockAppender, SocketReaderFactory
+
 
 class CnCLoggerTest(unittest.TestCase):
     def createLog(self, name, port):
@@ -165,7 +167,9 @@ class CnCLoggerTest(unittest.TestCase):
             if xl:
                 dLogObj.addExpectedText(("Reset log to LOG=log(%s:%d)" +
                                          " live(%s:%d)") %
-                                        (dfltHost, dfltLog, dfltHost, dfltLive))
+                                        (dfltHost, dfltLog,
+                                         dfltHost, dfltLive))
+
                 dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
                                              " LOG=log(%s:%d) live(%s:%d)" %
                                              (dfltHost, dfltLog, dfltHost,
@@ -233,7 +237,8 @@ class CnCLoggerTest(unittest.TestCase):
                 logObj.addExpectedText("End of log")
                 dLogObj.addExpectedText(("Reset log to LOG=log(%s:%d)" +
                                          " live(%s:%d)") %
-                                        (dfltHost, dfltLog, dfltHost, dfltLive))
+                                        (dfltHost, dfltLog,
+                                         dfltHost, dfltLive))
                 dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
                                              " LOG=log(%s:%d) live(%s:%d)" %
                                              (dfltHost, dfltLog, dfltHost,
@@ -297,7 +302,9 @@ class CnCLoggerTest(unittest.TestCase):
                 liveObj.addExpectedText("End of log")
                 dLogObj.addExpectedText(("Reset log to LOG=log(%s:%d)" +
                                          " live(%s:%d)") %
-                                        (dfltHost, dfltLog, dfltHost, dfltLive))
+                                        (dfltHost, dfltLog,
+                                         dfltHost, dfltLive))
+
                 dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
                                              " LOG=log(%s:%d) live(%s:%d)" %
                                              (dfltHost, dfltLog, dfltHost,
@@ -365,7 +372,9 @@ class CnCLoggerTest(unittest.TestCase):
                 liveObj.addExpectedTextRegexp("End of log")
                 dLogObj.addExpectedText(("Reset log to LOG=log(%s:%d)" +
                                          " live(%s:%d)") %
-                                        (dfltHost, dfltLog, dfltHost, dfltLive))
+                                        (dfltHost, dfltLog,
+                                         dfltHost, dfltLive))
+
                 dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
                                              " LOG=log(%s:%d) live(%s:%d)" %
                                              (dfltHost, dfltLog, dfltHost,

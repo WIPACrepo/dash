@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 
-import datetime, os, socket, tempfile, unittest
+import datetime
+import os
+import socket
+import tempfile
+import unittest
+import shutil
 
 from LiveImports import Prio
 from MonitorTask import MonitorTask
@@ -8,6 +13,7 @@ from RunOption import RunOption
 
 from DAQMocks import MockComponent, MockIntervalTimer, MockLiveMoni, \
      MockLogger, MockRunSet, MockTaskManager
+
 
 class BadComponent(MockComponent):
     def __init__(self, name, num=0):
@@ -40,6 +46,7 @@ class BadComponent(MockComponent):
     def raiseSocketError(self):
         self.__raiseSocketError = True
 
+
 class BadCloseThread(object):
     def __init__(self):
         super(BadCloseThread, self).__init__()
@@ -56,6 +63,7 @@ class BadCloseThread(object):
     def isClosed(self):
         return self.__closed
 
+
 class BadMonitorTask(MonitorTask):
     def __init__(self, taskMgr, runset, logger, live, rundir, runOpts):
         super(BadMonitorTask, self).__init__(taskMgr, runset, logger, live,
@@ -64,6 +72,7 @@ class BadMonitorTask(MonitorTask):
     @classmethod
     def createThread(cls, comp, runDir, live, runOptions, dashlog):
         return BadCloseThread()
+
 
 class MonitorTaskTest(unittest.TestCase):
     __temp_dir = None
@@ -155,7 +164,7 @@ class MonitorTaskTest(unittest.TestCase):
         try:
             shutil.rmtree(self.__temp_dir)
         except:
-            pass # ignore errors
+            pass  # ignore errors
 
     def testBadRunOpt(self):
         (timer, taskMgr, logger, live) = self.__createStandardObjects()
@@ -237,9 +246,9 @@ class MonitorTaskTest(unittest.TestCase):
 
         try:
             tsk.close()
-        except Exception, ex:
+        except Exception as ex:
             if not str(ex).endswith("Forced exception"):
-                raise ex
+                raise
         self.failUnless(tsk.numOpen() == 0, "%d threads were not closed" %
                         tsk.numOpen())
 

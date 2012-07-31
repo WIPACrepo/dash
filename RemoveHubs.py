@@ -2,36 +2,19 @@
 #
 # Create a new run configuration without one or more hubs
 
-import os, sys
+import os
+import sys
 from utils import ip
 
-from CreateClusterConfig import ClusterConfigCreator
 from DAQConfig import DAQConfig, DAQConfigParser
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if os.environ.has_key("PDAQ_HOME"):
+if "PDAQ_HOME" in os.environ:
     metaDir = os.environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
     metaDir = find_pdaq_trunk()
 
-def createClusterConfigName(fileName, hubIdList):
-    configDir = os.path.join(metaDir, "cluster-config", "src", "main", "xml")
-    return createConfigName(configDir, fileName, hubIdList)
-
-def createConfigName(configDir, fileName, hubIdList):
-    """
-    Create a new file name from the original name and the list of omitted hubs
-    """
-    baseName = os.path.basename(fileName)
-    if baseName.endswith(".xml"):
-        baseName = baseName[:-4]
-
-    noStr = ""
-    for h in hubIdList:
-        noStr += "-no" + getHubName(h)
-
-    return os.path.join(configDir, baseName + noStr + ".xml")
 
 def getHubName(num):
     """Get the standard representation for a hub number"""
@@ -40,6 +23,7 @@ def getHubName(num):
     if num > 200 and num < 220:
         return "%02dt" % (num - 200)
     return "?%d?" % num
+
 
 def parseArgs():
     """
@@ -51,7 +35,7 @@ def parseArgs():
     """
     cfgDir = os.path.join(metaDir, "config")
     if not os.path.exists(cfgDir):
-        print >>sys.stderr, "Cannot find configuration directory"
+        print >> sys.stderr, "Cannot find configuration directory"
 
     cluCfgName = None
     forceCreate = False
@@ -91,7 +75,7 @@ def parseArgs():
                     hubIdList.append(200 + num)
                     continue
                 except:
-                    print >>sys.stderr, "Unknown argument \"%s\"" % s
+                    print >> sys.stderr, "Unknown argument \"%s\"" % s
                     usage = True
                     continue
 
@@ -103,33 +87,33 @@ def parseArgs():
                 hubIdList.append(num)
                 continue
             except:
-                print >>sys.stderr, "Unknown argument \"%s\"" % a
+                print >> sys.stderr, "Unknown argument \"%s\"" % a
                 usage = True
                 continue
 
     if not usage and runCfgName is None:
-        print >>sys.stderr, "No run configuration specified"
+        print >> sys.stderr, "No run configuration specified"
         usage = True
 
     if not usage and len(hubIdList) == 0:
-        print >>sys.stderr, "No hub IDs specified"
+        print >> sys.stderr, "No hub IDs specified"
         usage = True
 
     if usage:
-        print >>sys.stderr, \
+        print >> sys.stderr, \
             "Usage: %s runConfig hubId [hubId ...]" % sys.argv[0]
-        print >>sys.stderr, "  (Hub IDs can be \"6\", \"06\", \"6i\", \"6t\")"
+        print >> sys.stderr, "  (Hub IDs can be \"6\", \"06\", \"6i\", \"6t\")"
         raise SystemExit()
 
     return (forceCreate, runCfgName, cluCfgName, hubIdList)
 
 if __name__ == "__main__":
-    
+
     hostname = ip.getHostNameNoDomain()
-    if(hostname.lower()=="expcont"):
-        print >>sys.stderr, "-"*60
-        print >>sys.stderr, "Warning: Running RemoveHubs.py on expcont"
-        print >>sys.stderr, "-"*60
+    if(hostname.lower() == "expcont"):
+        print >> sys.stderr, "-" * 60
+        print >> sys.stderr, "Warning: Running RemoveHubs.py on expcont"
+        print >> sys.stderr, "-" * 60
 
     (forceCreate, runCfgName, cluCfgName, hubIdList) = parseArgs()
 
@@ -137,10 +121,10 @@ if __name__ == "__main__":
     newPath = DAQConfig.createOmitFileName(configDir, runCfgName, hubIdList)
     if os.path.exists(newPath):
         if forceCreate:
-            print >>sys.stderr, "WARNING: Overwriting %s" % newPath
+            print >> sys.stderr, "WARNING: Overwriting %s" % newPath
         else:
-            print >>sys.stderr, "WARNING: %s already exists" % newPath
-            print >>sys.stderr, "Specify --force to overwrite this file"
+            print >> sys.stderr, "WARNING: %s already exists" % newPath
+            print >> sys.stderr, "Specify --force to overwrite this file"
             raise SystemExit()
 
     runCfg = DAQConfigParser.load(runCfgName, configDir)
@@ -150,20 +134,3 @@ if __name__ == "__main__":
             with open(newPath, 'w') as fd:
                 newCfg.write(fd)
             print "Created %s" % newPath
-
-            if cluCfgName is not None:
-                cluPath = createClusterConfigName(cluCfgName, hubIdList)
-                if os.path.exists(cluPath):
-                    if forceCreate:
-                        print >>sys.stderr, "WARNING: Overwriting %s" % cluPath
-                    else:
-                        print >>sys.stderr, "WARNING: %s already exists" % \
-                            cluPath
-                        print >>sys.stderr, \
-                            "Specify --force to overwrite this file"
-                        raise SystemExit()
-
-                ccc = ClusterConfigCreator("sps")
-                with open(cluPath, 'w') as fd:
-                    ccc.write(fd, newCfg)
-                print "Created %s" % cluPath

@@ -5,16 +5,22 @@ import time
 
 from DAQConst import DAQPort
 from IntervalTimer import IntervalTimer
-from LiveImports import Component, SERVICE_NAME
+from LiveImports import Component, LIVE_IMPORT, SERVICE_NAME
 from RunOption import RunOption
 
-class LiveException(Exception): pass
+
+class LiveException(Exception):
+    pass
+
 
 class DAQLive(Component):
     "Frequency of monitoring uploads"
     MONI_PERIOD = 60
 
     def __init__(self, cnc, logger):
+        if not LIVE_IMPORT:
+            raise LiveException("Cannot import I3Live code")
+
         self.__cnc = cnc
         self.__log = logger
 
@@ -63,7 +69,8 @@ class DAQLive(Component):
 
         return rtnVal
 
-    def runChange(self, stateArgs=None): raise NotImplementedError()
+    def runChange(self, stateArgs=None):
+        raise NotImplementedError()
 
     def running(self, retry=True):
         if self.__runSet is None:
@@ -116,8 +123,8 @@ class DAQLive(Component):
             raise LiveException("Cannot stop run; no active runset")
 
         gotError = self.__runSet.stopRun()
-
-        self.__runSet.sendEventCounts()
+        if not self.__runSet.isReady():
+            raise LiveException("%s did not stop" % self.__runSet)
 
         # XXX could get rid of this if 'livecmd' released runsets on exit
         #
@@ -133,6 +140,23 @@ class DAQLive(Component):
             raise LiveException("Cannot stop run; no active runset")
 
         self.__runSet.subrun(subrunId, domList)
+
+        return "OK"
+
+    def switchrun(self, stateArgs=None):
+        if self.__runSet is None:
+            raise LiveException("Cannot stop run; no active runset")
+
+        if stateArgs is None or len(stateArgs) == 0:
+            raise LiveException("No stateArgs specified")
+
+        try:
+            key = "runNumber"
+            runNum = stateArgs[key]
+        except KeyError:
+            raise LiveException("stateArgs does not contain key \"%s\"" % key)
+
+        self.__runSet.switchRun(runNum)
 
         return "OK"
 

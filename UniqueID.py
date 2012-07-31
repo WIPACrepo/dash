@@ -2,6 +2,7 @@
 
 import threading
 
+
 class UniqueID(object):
     "Manage a unique ID among multiple threads"
     def __init__(self, val=1):
@@ -18,6 +19,8 @@ class UniqueID(object):
 
         return rtnVal
 
-    def peekNext(self): return self.__val
+    def peekNext(self):
+        return self.__val
 
-if __name__ == "__main__": pass
+if __name__ == "__main__":
+    pass

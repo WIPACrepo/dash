@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
-class TaskException(Exception): pass
+
+class TaskException(Exception):
+    pass
+
 
 class CnCTask(object):
 
@@ -27,7 +30,8 @@ class CnCTask(object):
     def _check(self):
         raise NotImplementedError()
 
-    def _reset(self): pass
+    def _reset(self):
+        pass
 
     def check(self):
         if not self.__timer:

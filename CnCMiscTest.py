@@ -6,10 +6,11 @@ from RunSet import ConnTypeEntry, Connection
 
 from DAQMocks import MockComponent
 
+
 class TestCnCMisc(unittest.TestCase):
 
     def checkConnectionMap(self, expVal, cMap, key):
-        self.assertEquals(expVal, cMap[key], 'Expected %s "%s", not "%s"' %
+        self.assertEqual(expVal, cMap[key], 'Expected %s "%s", not "%s"' %
                           (key, str(expVal), str(cMap[key])))
 
     def connect(self, inputs):
@@ -19,7 +20,7 @@ class TestCnCMisc(unittest.TestCase):
             for cData in data[3:]:
                 conn = Connector(cData[0], cData[1], cData[2])
 
-                if not cDict.has_key(conn.name()):
+                if not conn.name() in cDict:
                     cDict[conn.name()] = ConnTypeEntry(conn.name())
                 cDict[conn.name()].add(conn, comp)
 
@@ -35,7 +36,7 @@ class TestCnCMisc(unittest.TestCase):
                 expStr = '%d=>%s' % (port, typeStr)
             else:
                 expStr = '%s=>' % typeStr
-            self.assertEquals(expStr, str(conn),
+            self.assertEqual(expStr, str(conn),
                               'Expected "%s", not "%s"' % (expStr, str(conn)))
 
     def testConnection(self):
@@ -54,7 +55,7 @@ class TestCnCMisc(unittest.TestCase):
 
         expStr = '%s:%s#%d@%s:%d' % (connType, compName, compId, compHost,
                                      connPort)
-        self.assertEquals(expStr, str(ctn),
+        self.assertEqual(expStr, str(ctn),
                           'Expected "%s", not "%s"' % (expStr, str(ctn)))
 
         cMap = ctn.map()
@@ -115,7 +116,7 @@ class TestCnCMisc(unittest.TestCase):
 
         for comp in cMap.keys():
             key = str(comp)
-            if not expMap.has_key(key):
+            if not key in expMap:
                 self.fail("Unexpected connection map entry for \"%s\"" % key)
             for entry in cMap[comp]:
                 entryMap = entry.map()
@@ -123,13 +124,13 @@ class TestCnCMisc(unittest.TestCase):
                 conn = entryMap["type"]
                 comp = "%s#%d" % (entryMap["compName"], entryMap["compNum"])
 
-                if not expMap[key].has_key(conn):
-                    self.fail(("Component \"%s\" should not have a \"%s\"" +
+                if not conn in expMap[key]:
+                    self.fail(("Component \"%s\" should not have a \"%s\""
                                " connection") % (key, conn))
 
                 xComp = expMap[key][conn]
-                self.assertEquals(xComp, comp,
-                                  ("Expected \"%s\" type \"%s\" to connect to" +
+                self.assertEqual(xComp, comp,
+                                  ("Expected \"%s\" type \"%s\" to connect to"
                                    " %s, not %s") % (key, conn, xComp, comp))
 
 if __name__ == '__main__':

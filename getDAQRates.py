@@ -3,7 +3,10 @@
 # Produce a report of the hourly and total data rates for all the components
 # in the IceCube DAQ, using data from the pDAQ .moni files.
 
-import os, re, sys, time
+import os
+import re
+import sys
+import time
 
 PRINT_VERBOSE = False
 DATA_ONLY = False
@@ -16,66 +19,69 @@ MONILINE_PAT = re.compile(r'^\s+([^:]+):\s+(.*)$')
 TIMEFMT = '%Y-%m-%d %H:%M:%S'
 
 COMP_FIELDS = {
-    'amandaHub' :
-        { 'moniData' : 'RecordsSent',
-          'snData' : 'RecordsSent',
-          'tcalData' : 'RecordsSent',
-          #'rdoutReq' : 'TotalRecordsReceived',
-          'rdoutReq' : 'RecordsReceived',
-          'rdoutData' : 'RecordsSent' },
-    'stringHub' :
-        { 'sender' : 'NumHitsReceived',
-          'stringHit' : 'RecordsSent',
-          'moniData' : 'RecordsSent',
-          'snData' : 'RecordsSent',
-          'tcalData' : 'RecordsSent',
-          #'rdoutReq' : 'TotalRecordsReceived',
-          'rdoutReq' : 'RecordsReceived',
-          'rdoutData' : 'RecordsSent' },
-    'icetopHub' :
-        { 'sender' : 'NumHitsReceived',
-          'icetopHit' : 'RecordsSent',
-          'moniData' : 'RecordsSent',
-          'snData' : 'RecordsSent',
-          'tcalData' : 'RecordsSent',
-          #'rdoutReq' : 'TotalRecordsReceived',
-          'rdoutReq' : 'RecordsReceived',
-          'rdoutData' : 'RecordsSent' },
-    'inIceTrigger' :
-        { #'stringHit' : 'TotalRecordsReceived',
-        'stringHit' : 'RecordsReceived',
-          'trigger' : 'RecordsSent' },
-    'iceTopTrigger' :
-        { #'icetopHit' : 'TotalRecordsReceived',
-        'icetopHit' : 'RecordsReceived',
-        'trigger' : 'RecordsSent' },
-    'amandaTrigger' :
-        { #'selfContained' : 'TotalRecordsReceived',
-        'selfContained' : 'RecordsReceived',
-          'trigger' : 'RecordsSent' },
-    'globalTrigger' :
-        { #'trigger' : 'TotalRecordsReceived',
-        'trigger' : 'RecordsReceived',
-          'glblTrig' : 'RecordsSent' },
-    'eventBuilder' :
-        { #'glblTrig' : 'TotalRecordsReceived',
-          'glblTrig' : 'RecordsReceived',
-          'rdoutReq' : 'RecordsSent',
-          #'rdoutData' : 'TotalRecordsReceived',
-          'rdoutData' : 'RecordsReceived',
-          'backEnd' : 'NumEventsSent' },
-    'secondaryBuilders' :
-        { #'moniData' : 'TotalRecordsReceived',
-          'moniData' : 'RecordsReceived',
-          'moniBuilder' : 'TotalDispatchedData',
-          #'snData' : 'TotalRecordsReceived',
-          'snData' : 'RecordsReceived',
-          'snBuilder' : 'TotalDispatchedData',
-          #'tcalData' : 'TotalRecordsReceived',
-          'tcalData' : 'RecordsReceived',
-          'tcalBuilder' : 'TotalDispatchedData',
+    'amandaHub':
+        {'moniData': 'RecordsSent',
+         'snData': 'RecordsSent',
+         'tcalData': 'RecordsSent',
+         #'rdoutReq': 'TotalRecordsReceived',
+         'rdoutReq': 'RecordsReceived',
+         'rdoutData': 'RecordsSent'},
+    'stringHub':
+        {'DOM': 'NumHits',
+         'sender': 'NumHitsReceived',
+         'stringHit': 'RecordsSent',
+         'moniData': 'RecordsSent',
+         'snData': 'RecordsSent',
+         'tcalData': 'RecordsSent',
+         #'rdoutReq': 'TotalRecordsReceived',
+         'rdoutReq': 'RecordsReceived',
+         'rdoutData': 'RecordsSent'},
+    'icetopHub':
+        {'DOM': 'NumHits',
+         'sender': 'NumHitsReceived',
+         'icetopHit': 'RecordsSent',
+         'moniData': 'RecordsSent',
+         'snData': 'RecordsSent',
+         'tcalData': 'RecordsSent',
+         # 'rdoutReq': 'TotalRecordsReceived',
+         'rdoutReq': 'RecordsReceived',
+         'rdoutData': 'RecordsSent'},
+    'inIceTrigger':
+        {  # 'stringHit': 'TotalRecordsReceived',
+        'stringHit': 'RecordsReceived',
+        'trigger': 'RecordsSent'},
+    'iceTopTrigger':
+        {  # 'icetopHit': 'TotalRecordsReceived',
+        'icetopHit': 'RecordsReceived',
+        'trigger': 'RecordsSent'},
+    'amandaTrigger':
+        {  # 'selfContained': 'TotalRecordsReceived',
+        'selfContained': 'RecordsReceived',
+        'trigger': 'RecordsSent'},
+    'globalTrigger':
+        {  # 'trigger': 'TotalRecordsReceived',
+        'trigger': 'RecordsReceived',
+        'glblTrig': 'RecordsSent'},
+    'eventBuilder':
+        {  # 'glblTrig': 'TotalRecordsReceived',
+        'glblTrig': 'RecordsReceived',
+        'rdoutReq': 'RecordsSent',
+        # 'rdoutData': 'TotalRecordsReceived',
+        'rdoutData': 'RecordsReceived',
+        'backEnd': 'NumEventsSent'},
+    'secondaryBuilders':
+        {  # 'moniData': 'TotalRecordsReceived',
+          'moniData': 'RecordsReceived',
+          'moniBuilder': 'TotalDispatchedData',
+          # 'snData': 'TotalRecordsReceived',
+          'snData': 'RecordsReceived',
+          'snBuilder': 'TotalDispatchedData',
+          # 'tcalData': 'TotalRecordsReceived',
+          'tcalData': 'RecordsReceived',
+          'tcalBuilder': 'TotalDispatchedData',
           },
 }
+
 
 class Component(object):
     """Component name/number"""
@@ -95,12 +101,12 @@ class Component(object):
                                 fileName)
 
             compName = baseName[:idx]
-            if not COMP_FIELDS.has_key(compName):
+            if not compName in COMP_FIELDS:
                 raise Exception('Unknown component "%s" in "%s"' %
                                 (compName, fileName))
 
             try:
-                compNum = int(baseName[idx+1:-5])
+                compNum = int(baseName[idx + 1: -5])
             except:
                 compNum = 0
 
@@ -115,6 +121,12 @@ class Component(object):
 
         self.fullStr = None
         self.hash = None
+
+    def __cmp__(self, other):
+        val = cmp(self.name, other.name)
+        if val == 0:
+            val = cmp(self.num, other.num)
+        return val
 
     def __hash__(self):
         if self.hash is None:
@@ -131,17 +143,17 @@ class Component(object):
 
         return self.fullStr
 
+
 def computeRates(dataDict):
     """Compute rates from the data saved in the data dictionary"""
     keys = dataDict.keys()
-    keys.sort()
 
     prevTime = None
     firstTime = None
 
     rates = []
 
-    for k in keys:
+    for k in sorted(keys):
         if prevTime is None:
             firstTime = k
         else:
@@ -154,6 +166,7 @@ def computeRates(dataDict):
     if len(rates) == 0:
         rates = None
         totRate = None
+    #elif prevTime == firstTime:
     elif len(rates) == 1:
         if float(rates[0]) == 0.0:
             totRate = None
@@ -167,30 +180,6 @@ def computeRates(dataDict):
 
     return (totRate, rates)
 
-def fixValue(valStr):
-    """
-    Convert a string containing a single integer or a list of integers
-    into a single long value.
-    """
-    if not valStr.startswith('['):
-        return long(valStr)
-
-    tot = 0
-    idx = 0
-    while idx < len(valStr) and valStr[idx] != ']':
-        nxt = valStr.find(',', idx)
-        if nxt < idx:
-            nxt = valStr.find(']', idx)
-        subStr = valStr[idx+1:nxt]
-        try:
-            tot += long(subStr)
-        except ValueError:
-            print >>sys.stderr, \
-                "Couldn't get integer value for '%s' ('%s' idx %d nxt %d)" % \
-                (subStr, valStr, idx, nxt)
-        idx = nxt + 1
-
-    return tot
 
 def formatRates(rates):
     """format a list of rates"""
@@ -204,39 +193,89 @@ def formatRates(rates):
         rStr += '%.1f' % r
     return rStr + ']'
 
+
 def processDir(dirName):
     """Process all .moni files in the specified directory"""
     allData = {}
     for entry in os.listdir(dirName):
         if entry.endswith('.log') or entry.endswith('.html') or \
-               entry.endswith('.xml'):
+               entry.endswith('.xml') or entry == "logs-queued":
             continue
 
         try:
             comp = Component(entry)
-        except ValueError, msg:
-            print >>sys.stderr, str(msg)
+        except ValueError as msg:
+            print >> sys.stderr, str(msg)
             continue
 
         allData[comp] = processFile(os.path.join(dirName, entry), comp)
 
     return allData
 
+
+class Summary(object):
+    def __init__(self):
+        self.__data = {}
+        self.__lastSaved = {}
+
+    def __save(self, name, time, vals):
+        if vals.startswith('['):
+            self.__saveListSum(name, time, vals)
+        else:
+            self.__saveValue(name, time, long(vals))
+
+    def __saveListSum(self, name, time, valStr):
+        tot = 0
+        idx = 0
+        while idx < len(valStr) and valStr[idx] != ']':
+            nxt = valStr.find(',', idx)
+            if nxt < idx:
+                nxt = valStr.find(']', idx)
+            subStr = valStr[idx + 1: nxt]
+            try:
+                tot += long(subStr)
+            except ValueError:
+                print >> sys.stderr, \
+                    ("Couldn't get integer value for '%s'" +
+                     " ('%s' idx %d nxt %d)") % (subStr, valStr, idx, nxt)
+            idx = nxt + 1
+        self.__saveValue(name, time, tot)
+
+    def __saveValue(self, name, time, val):
+        if val > 0:
+            if name != "DOM":
+                self.__data[name][time] = val
+            elif not time in self.__data[name]:
+                self.__data[name][time] = val
+            else:
+                self.__data[name][time] += val
+            self.__lastSaved[name] = time
+
+    def add(self, name, time, vals):
+        if TIME_INTERVAL is None or \
+            (time > self.__lastSaved[name] + TIME_INTERVAL):
+            self.__save(name, time, vals)
+
+    def data(self):
+        return self.__data
+
+    def register(self, name):
+        if not name in self.__data:
+            self.__data[name] = {}
+            self.__lastSaved[name] = 0.0
+
+
 def processFile(fileName, comp):
     """Process the specified file"""
-    if not COMP_FIELDS.has_key(comp.name):
+    if not comp.name in COMP_FIELDS:
         flds = None
     else:
         flds = COMP_FIELDS[comp.name]
 
-    data = {}
+    sum = Summary()
 
     secName = None
     secTime = None
-
-    secFirst = {}
-    secLastSaved = {}
-    secSeenData = {}
 
     with open(fileName, 'r') as fd:
         for line in fd:
@@ -247,60 +286,52 @@ def processFile(fileName, comp):
                 continue
 
             if secName is not None:
+                if secName == "IGNORE":
+                    continue
+
                 m = MONILINE_PAT.match(line)
                 if m:
                     name = m.group(1)
                     vals = m.group(2)
 
-                    if flds is None or flds[secName] == name:
-                        if TIME_INTERVAL is not None and \
-                                secTime > secLastSaved[secName] + TIME_INTERVAL:
-                            newVal = fixValue(vals)
-                            if newVal > 0:
-                                data[secName][secTime] = newVal
-                                secLastSaved[secName] = secTime
-                            elif vals != '0':
-                                secSeenData[secName] = (secTime, vals)
-                                if not secFirst.has_key(secName):
-                                    secFirst[secName] = (secTime, vals)
+                    if flds is None or \
+                        (secName in flds and flds[secName] == name):
+                        sum.add(secName, secTime, vals)
                     continue
 
             m = MONISEC_PAT.match(line)
             if m:
                 nm = m.group(1)
-                if not flds.has_key(nm):
-                    continue
+                if not nm in flds:
+                    if nm.startswith("DataCollectorMonitor"):
+                        nm = "DOM"
+                    else:
+                        secName = "IGNORE"
+                        continue
 
                 secName = nm
                 mSec = float(m.group(3)) / 1000000.0
-                secTime = time.mktime(time.strptime(m.group(2), TIMEFMT)) + mSec
+                secTime = time.mktime(time.strptime(m.group(2),
+                                                    TIMEFMT)) + mSec
 
-                if not data.has_key(secName):
-                    data[secName] = {}
-                    secLastSaved[secName] = 0.0
-                    secSeenData[secName] = None
+                sum.register(secName)
 
-    for k in data:
-        if TIME_INTERVAL is None and \
-                secFirst.has_key(k) and secFirst[k] is not None:
-            (firstTime, firstVals) = secFirst[k]
-            if not data[k].has_key(firstTime):
-                data[k][firstTime] = fixValue(firstVals)
-                
-        if secSeenData.has_key(k) and secSeenData[k] is not None:
-            (lastTime, lastVals) = secSeenData[k]
-            if not data[k].has_key(lastTime):
-                data[k][lastTime] = fixValue(lastVals)
+                continue
 
-    return data
+            print >>sys.stderr, "Bad line: " + line
+
+    return sum.data()
+
 
 def reportDataRates(allData):
     """Report the DAQ data rates"""
     if not DATA_ONLY:
         print 'Data Rates:'
-    reportList = [('stringHub', 'sender'),
+    reportList = [('stringHub', 'DOM'),
+                  ('stringHub', 'sender'),
                   ('stringHub', 'stringHit'),
                   ('inIceTrigger', 'stringHit'),
+                  ('icetopHub', 'DOM'),
                   ('icetopHub', 'sender'),
                   ('icetopHub', 'icetopHit'),
                   ('iceTopTrigger', 'icetopHit'),
@@ -318,6 +349,7 @@ def reportDataRates(allData):
                   ]
     reportRatesInternal(allData, reportList)
 
+
 def reportMonitorRates(allData):
     """Report the DAQ monitoring rates"""
     print 'Monitoring Rates:'
@@ -325,6 +357,7 @@ def reportMonitorRates(allData):
                   ('icetopHub', 'moniData'), ('secondaryBuilders', 'moniData'),
                   ('secondaryBuilders', 'moniBuilder')]
     reportRatesInternal(allData, reportList)
+
 
 def reportRatesInternal(allData, reportList):
     """Report the rates for the specified set of values"""
@@ -346,7 +379,7 @@ def reportRatesInternal(allData, reportList):
                 if combinedRate is None:
                     print '    %s.%s: Not enough data' % \
                         (combinedComp, combinedField)
-                elif len(combinedSplit) == 0:
+                elif TIME_INTERVAL is None or len(combinedSplit) == 0:
                     print '    %s.%s: %.1f' % \
                         (combinedComp, combinedField, combinedRate)
                 else:
@@ -419,6 +452,7 @@ def reportRatesInternal(allData, reportList):
             print ''
             needNL = False
 
+
 def reportSupernovaRates(allData):
     """Report the DAQ supernova rates"""
     print 'Supernova Rates:'
@@ -426,6 +460,7 @@ def reportSupernovaRates(allData):
                   ('icetopHub', 'snData'), ('secondaryBuilders', 'snData'),
                   ('secondaryBuilders', 'snBuilder')]
     reportRatesInternal(allData, reportList)
+
 
 def reportTimeCalRates(allData):
     """Report the DAQ time calibration rates"""
@@ -435,6 +470,7 @@ def reportTimeCalRates(allData):
                   ('secondaryBuilders', 'tcalBuilder')]
     reportRatesInternal(allData, reportList)
 
+
 def reportRates(allData):
     """Report the DAQ rates"""
     if not DATA_ONLY:
@@ -442,6 +478,7 @@ def reportRates(allData):
         reportSupernovaRates(allData)
         reportTimeCalRates(allData)
     reportDataRates(allData)
+
 
 if __name__ == "__main__":
     badArg = False
@@ -467,18 +504,18 @@ if __name__ == "__main__":
         elif os.path.exists(arg):
             fileList.append(arg)
         else:
-            print >>sys.stderr, 'Unknown argument "%s"' % arg
+            print >> sys.stderr, 'Unknown argument "%s"' % arg
             badArg = True
 
     if len(dirList) > 0 and len(fileList) > 0:
-        print >>sys.stderr, 'Cannot specify both directories and files'
+        print >> sys.stderr, 'Cannot specify both directories and files'
         badArg = True
     elif len(dirList) == 0 and len(fileList) == 0:
-        print >>sys.stderr, 'Please specify a moni file or directory'
+        print >> sys.stderr, 'Please specify a moni file or directory'
         badArg = True
 
     if badArg:
-        print >>sys.stderr, \
+        print >> sys.stderr, \
             ('Usage: %s' +
              ' [-d(ataOnly)]' +
              ' [-i timeInterval ]' +
@@ -491,8 +528,8 @@ if __name__ == "__main__":
         for f in fileList:
             try:
                 comp = Component(f)
-            except ValueError, msg:
-                print >>sys.stderr, str(msg)
+            except ValueError as msg:
+                print >> sys.stderr, str(msg)
                 comp = Component()
 
             allData[comp] = processFile(f, comp)

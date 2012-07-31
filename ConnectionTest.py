@@ -1,17 +1,22 @@
 #!/usr/bin/env python
 
-import shutil, sys, tempfile, unittest
+import shutil
+import sys
+import tempfile
+import unittest
 from CnCServer import Connector, DAQPool
 
 from DAQMocks import MockAppender, MockDAQClient, MockLogger, MockRunConfigFile
 
 LOUD = False
 
+
 class MyDAQPool(DAQPool):
     def returnRunsetComponents(self, rs, verbose=False, killWith9=True,
                                eventCheck=False):
         rs.returnComponents(self, None, None, None, None, None, None, None,
                             None)
+
 
 class Node(object):
     IS_OUTPUT = True
@@ -104,10 +109,11 @@ class Node(object):
         else:
             links = self.inLinks
 
-        if not links.has_key(ioType):
+        if not ioType in links:
             links[ioType] = []
 
         links[ioType].append(comp)
+
 
 class ConnectionTest(unittest.TestCase):
     EXP_ID = 1
@@ -157,12 +163,12 @@ class ConnectionTest(unittest.TestCase):
         chkId = ConnectionTest.EXP_ID
         ConnectionTest.EXP_ID += 1
 
-        self.assertEquals(pool.numUnused(), 0)
-        self.assertEquals(pool.numSets(), 1)
-        self.assertEquals(pool.runset(0), runset)
+        self.assertEqual(pool.numUnused(), 0)
+        self.assertEqual(pool.numSets(), 1)
+        self.assertEqual(pool.runset(0), runset)
 
-        self.assertEquals(runset.id(), chkId)
-        self.assertEquals(runset.size(), len(nodeList))
+        self.assertEqual(runset.id(), chkId)
+        self.assertEqual(runset.size(), len(nodeList))
 
         # copy node list
         #
@@ -212,12 +218,12 @@ class ConnectionTest(unittest.TestCase):
 
             # whine if any connectors are left
             #
-            self.assertEquals(len(compConn), 0, 'Found extra connectors in ' +
+            self.assertEqual(len(compConn), 0, 'Found extra connectors in ' +
                               str(compConn))
 
         # whine if any components are left
         #
-        self.assertEquals(len(tmpList), 0, 'Found extra components in ' +
+        self.assertEqual(len(tmpList), 0, 'Found extra components in ' +
                           str(tmpList))
 
         if LOUD:
@@ -228,8 +234,8 @@ class ConnectionTest(unittest.TestCase):
                 nodeLog[key].addExpectedExact('End of log')
                 nodeLog[key].addExpectedExact('Reset log to ?LOG?')
         pool.returnRunset(runset, logger)
-        self.assertEquals(pool.numComponents(), numComps)
-        self.assertEquals(pool.numSets(), 0)
+        self.assertEqual(pool.numComponents(), numComps)
+        self.assertEqual(pool.numSets(), 0)
 
         logger.checkStatus(10)
 

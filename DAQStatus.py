@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
-import optparse, socket, sys
+import optparse
+import socket
+import sys
+
 from os import environ
 from os.path import join
 from DAQConst import DAQPort
@@ -9,7 +12,7 @@ from LiveImports import SERVICE_NAME
 from utils.Machineid import Machineid
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if environ.has_key("PDAQ_HOME"):
+if "PDAQ_HOME" in environ:
     metaDir = environ["PDAQ_HOME"]
 else:
     from locate_pdaq import find_pdaq_trunk
@@ -19,9 +22,10 @@ else:
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID  = "$Id: DAQStatus.py 12744 2011-03-03 22:12:53Z mnewcomb $"
+SVN_ID = "$Id: DAQStatus.py 13355 2011-09-13 23:05:53Z mnewcomb $"
 
 LINE_LENGTH = 78
+
 
 def cmpComp(x, y):
     c = cmp(x["state"], y["state"])
@@ -31,6 +35,7 @@ def cmpComp(x, y):
             c = cmp(x["compNum"], y["compNum"])
 
     return c
+
 
 def dumpComp(comp, numList, indent, indent2):
     """Dump list of component instances, breaking long lists across lines"""
@@ -95,13 +100,15 @@ def dumpComp(comp, numList, indent, indent2):
 
         # after first line, set front string to whitespace
         if not frontCleared:
-            front = " "*len(front)
+            front = " " * len(front)
             frontCleared = True
+
 
 def getPlural(num):
     if num == 1:
         return ""
     return "s"
+
 
 def listTerse(compList, indent, indent2):
     compList.sort(cmpComp)
@@ -123,6 +130,7 @@ def listTerse(compList, indent, indent2):
         numList.append(c["compNum"])
     dumpComp(prevComp, numList, indent, indent2)
 
+
 def listVerbose(compList, indent, indent2, useNumeric=True):
     compList.sort(cmpComp)
 
@@ -132,7 +140,9 @@ def listVerbose(compList, indent, indent2, useNumeric=True):
         else:
             hostName = socket.getfqdn(c["host"])
             idx = hostName.find(".")
-            if idx > 0: hostName = hostName[:idx]
+            if idx > 0:
+                hostName = hostName[:idx]
+
         print "%s%s#%d %s#%d at %s:%d M#%d %s" % \
             (indent, indent2, c["id"], c["compName"], c["compNum"], hostName,
              c["rpcPort"], c["mbeanPort"], c["state"])
@@ -156,13 +166,12 @@ if __name__ == "__main__":
     if not opt.nohostcheck:
         hostid = Machineid()
         if(not (hostid.is_control_host() or
-           ( hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+           (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
             # to run daq launch you should either be a control host or
             # a totally unknown host
-            print >>sys.stderr, "Are you sure you are running DAQStatus on the right host?"
+            print >>sys.stderr, \
+                "Are you sure you are running DAQStatus on the right host?"
             raise SystemExit
-
-
 
     cncrpc = RPCClient("localhost", DAQPort.CNCSERVER)
 

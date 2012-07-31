@@ -1,11 +1,15 @@
 #!/usr/bin/env python
 
-import optparse, socket, sys, traceback
+import optparse
+import socket
+import sys
+import traceback
 
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from RunSet import RunSet
 from RunSetDebug import RunSetDebug
+
 
 def parseFlags(flagStr):
     bits = 0
@@ -43,7 +47,7 @@ if __name__ == "__main__":
                   action="store_true", default=False,
                   help="List debugging flags")
 
-    opt,args = op.parse_args()
+    opt, args = op.parse_args()
 
     rpc = RPCClient("localhost", DAQPort.CNCSERVER)
 
@@ -53,8 +57,8 @@ if __name__ == "__main__":
             print "Run set IDs:"
             for i in idList:
                 print "  %d" % i
-        except socket.error, err:
-            print >>sys.stderr, "Cannot connect to CnCServer"
+        except socket.error:
+            print >> sys.stderr, "Cannot connect to CnCServer"
 
     if opt.listFlags:
         keys = RunSetDebug.NAME_MAP.keys()
@@ -76,14 +80,14 @@ if __name__ == "__main__":
         try:
             id = int(a)
         except ValueError:
-            print >>sys.stderr, "Ignoring bad ID \"%s\"" % a
+            print >> sys.stderr, "Ignoring bad ID \"%s\"" % a
             continue
 
         try:
             print "Runset#%d -> 0x%0x" % (id, bits)
             debugBits = rpc.rpc_runset_debug(id, bits)
-        except socket.error, err:
-            print >>sys.stderr, "Cannot connect to CnCServer"
+        except socket.error:
+            print >> sys.stderr, "Cannot connect to CnCServer"
             break
 
     if debugBits is not None:

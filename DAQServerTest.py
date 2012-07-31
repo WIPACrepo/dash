@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 
-import shutil, socket, tempfile, traceback, unittest
+import shutil
+import socket
+import tempfile
+import traceback
+import unittest
 from CnCServer import CnCServer, CnCServerException
 from DAQClient import DAQClient
 from DAQConst import DAQPort
@@ -12,6 +16,7 @@ from RunSet import RunSet
 from utils import ip
 
 CAUGHT_WARNING = False
+
 
 class TinyClient(object):
     def __init__(self, name, num, host, port, mbeanPort, connectors):
@@ -34,7 +39,8 @@ class TinyClient(object):
         else:
             mStr = ' M#%d' % self.__mbeanPort
         return 'ID#%d %s#%d at %s:%d%s' % \
-            (self.__id, self.__name, self.__num, self.__host, self.__port, mStr)
+            (self.__id, self.__name, self.__num, self.__host, \
+                 self.__port, mStr)
 
     def configure(self, cfgName=None):
         self.__state = 'ready'
@@ -50,6 +56,19 @@ class TinyClient(object):
             return self.__name
         return "%s#%d" % (self.__name, self.__num)
 
+    def getMultiBeanFields(self, beanname, fldlist):
+        if beanname != "stringhub":
+            raise Exception("Unknown bean \"%s\"" % beanname)
+        rtndict = {}
+        for fld in fldlist:
+            if fld == "LatestFirstChannelHitTime" or \
+                fld == "NumberOfNonZombies" or \
+                fld == "EarliestLastChannelHitTime":
+                rtndict[fld] = 10
+            else:
+                raise Exception("Unknown beanField \"%s.%s\"" % (beanname, fld))
+        return rtndict
+
     def id(self):
         return self.__id
 
@@ -64,18 +83,19 @@ class TinyClient(object):
             raise Exception('Cannot log to I3Live')
 
         self.__log = SocketWriter(logIP, logPort)
-        self.__log.write_ts('Start of log at LOG=log(%s:%d)' % (logIP, logPort))
+        self.__log.write_ts('Start of log at LOG=log(%s:%d)' % \
+                                (logIP, logPort))
         self.__log.write_ts('Version info: unknown 000 unknown unknown' +
                             ' unknown BRANCH 0:0')
 
     def map(self):
-        return { "id" : self.__id,
-                 "compName" : self.__name,
-                 "compNum" : self.__num,
-                 "host" : self.__host,
-                 "rpcPort" : self.__port,
-                 "mbeanPort" : self.__mbeanPort,
-                 "state" : self.__state}
+        return {"id": self.__id,
+                "compName": self.__name,
+                "compNum": self.__num,
+                "host": self.__host,
+                "rpcPort": self.__port,
+                "mbeanPort": self.__mbeanPort,
+                "state": self.__state}
 
     def name(self):
         return self.__name
@@ -104,11 +124,20 @@ class TinyClient(object):
     def stopRun(self):
         self.__state = 'ready'
 
+
 class FakeTaskManager(object):
-    def __init__(self): pass
-    def reset(self): pass
-    def start(self): pass
-    def stop(self): pass
+    def __init__(self):
+        pass
+
+    def reset(self):
+        pass
+
+    def start(self):
+        pass
+
+    def stop(self):
+        pass
+
 
 class MockRunSet(RunSet):
     def __init__(self, parent, runConfig, compList, logger, clientLog=None):
@@ -143,18 +172,21 @@ class MockRunSet(RunSet):
     def queueForSpade(self, duration):
         pass
 
+
 class MockServer(CnCServer):
     APPENDER = MockAppender('server')
 
     def __init__(self, clusterConfigObject=None, copyDir=None,
-                 runConfigDir=None, spadeDir=None, logPort=None, livePort=None,
-                 forceRestart=False, clientLog=None, logFactory=None):
+                 runConfigDir=None, daqDataDir=None, spadeDir=None,
+                 logPort=None, livePort=None, forceRestart=False,
+                 clientLog=None, logFactory=None):
         self.__clusterConfig = clusterConfigObject
         self.__clientLog = clientLog
         self.__logFactory = logFactory
 
         super(MockServer, self).__init__(copyDir=copyDir,
                                          runConfigDir=runConfigDir,
+                                         daqDataDir=daqDataDir,
                                          spadeDir=spadeDir,
                                          logIP='localhost', logPort=logPort,
                                          liveIP='localhost', livePort=livePort,
@@ -187,6 +219,7 @@ class MockServer(CnCServer):
     def startLiveThread(self):
         return None
 
+
 class TestDAQServer(unittest.TestCase):
     HUB_NUMBER = 1021
     DOM_MAINBOARD_ID = "53494d552101"
@@ -200,22 +233,22 @@ class TestDAQServer(unittest.TestCase):
     def __verifyRegArray(self, rtnArray, expId, logHost, logPort,
                          liveHost, livePort):
         numElem = 6
-        self.assertEquals(numElem, len(rtnArray),
+        self.assertEqual(numElem, len(rtnArray),
                           'Expected %d-element array, not %d elements' %
                           (numElem, len(rtnArray)))
-        self.assertEquals(expId, rtnArray["id"],
+        self.assertEqual(expId, rtnArray["id"],
                           'Registration should return client ID#%d, not %d' %
                           (expId, rtnArray["id"]))
-        self.assertEquals(logHost, rtnArray["logIP"],
+        self.assertEqual(logHost, rtnArray["logIP"],
                           'Registration should return loghost %s, not %s' %
                           (logHost, rtnArray["logIP"]))
-        self.assertEquals(logPort, rtnArray["logPort"],
+        self.assertEqual(logPort, rtnArray["logPort"],
                           'Registration should return logport#%d, not %d' %
                           (logPort, rtnArray["logPort"]))
-        self.assertEquals(liveHost, rtnArray["liveIP"],
+        self.assertEqual(liveHost, rtnArray["liveIP"],
                           'Registration should return livehost %s, not %s' %
                           (liveHost, rtnArray["liveIP"]))
-        self.assertEquals(livePort, rtnArray["livePort"],
+        self.assertEqual(livePort, rtnArray["livePort"],
                           'Registration should return liveport#%d, not %d' %
                           (livePort, rtnArray["livePort"]))
 
@@ -223,6 +256,7 @@ class TestDAQServer(unittest.TestCase):
         self.__logFactory = SocketReaderFactory()
 
         self.__runConfigDir = None
+        self.__daqDataDir = None
 
         RunXMLValidator.setUp()
 
@@ -235,6 +269,9 @@ class TestDAQServer(unittest.TestCase):
         if self.__runConfigDir is not None:
             shutil.rmtree(self.__runConfigDir, ignore_errors=True)
             self.__runConfigDir = None
+        if self.__daqDataDir is not None:
+            shutil.rmtree(self.__daqDataDir, ignore_errors=True)
+            self.__daqDataDir = None
 
         MockServer.APPENDER.checkStatus(10)
 
@@ -277,13 +314,13 @@ class TestDAQServer(unittest.TestCase):
 
         self.assertEqual(dc.rpc_component_count(), 1)
 
-        fooDict = { "id" : expId,
-                    "compName" : name,
-                    "compNum" : num,
-                    "host" : host,
-                    "rpcPort" : port,
-                    "mbeanPort" : mPort,
-                    "state" : "idle"}
+        fooDict = {"id": expId,
+                   "compName": name,
+                   "compNum": num,
+                   "host": host,
+                   "rpcPort": port,
+                   "mbeanPort": mPort,
+                   "state": "idle"}
         self.assertEqual(dc.rpc_component_list_dicts(), [fooDict, ])
 
         logger.checkStatus(100)
@@ -346,6 +383,7 @@ class TestDAQServer(unittest.TestCase):
 
     def testRunset(self):
         self.__runConfigDir = tempfile.mkdtemp()
+        self.__daqDataDir = tempfile.mkdtemp()
 
         logPort = 21765
 
@@ -367,7 +405,8 @@ class TestDAQServer(unittest.TestCase):
                             compHost)
 
         dc = MockServer(clusterConfigObject=cluCfg, copyDir="copyDir",
-                        runConfigDir=self.__runConfigDir, spadeDir="/tmp",
+                        runConfigDir=self.__runConfigDir,
+                        daqDataDir=self.__daqDataDir, spadeDir="/tmp",
                         logPort=logPort, clientLog=clientLogger,
                         logFactory=self.__logFactory)
 
@@ -428,8 +467,8 @@ class TestDAQServer(unittest.TestCase):
 
         logger.checkStatus(100)
 
-        logger.addExpectedText("Starting run #%d with \"%s\"" %
-                                (runNum, cluCfg.configName()))
+        logger.addExpectedText("Starting run #%d on \"%s\"" %
+                                (runNum, cluCfg.descName()))
 
         logger.addExpectedTextRegexp(r"Version info: \S+ \d+" +
                                      r" \S+ \S+ \S+ \S+ \d+\S*")
@@ -437,8 +476,7 @@ class TestDAQServer(unittest.TestCase):
                                            r" \S+ \S+ \S+ \S+ \d+\S*")
 
         logger.addExpectedText("Run configuration: %s" % runConfig)
-        logger.addExpectedText("Cluster configuration: %s" %
-                               cluCfg.configName())
+        logger.addExpectedText("Cluster: %s" % cluCfg.descName())
 
         moniType = RunOption.MONI_TO_NONE
 
@@ -449,12 +487,13 @@ class TestDAQServer(unittest.TestCase):
 
         logger.addExpectedText("Starting run %d..." % runNum)
 
-        self.assertEqual(dc.rpc_runset_start_run(setId, runNum, moniType), 'OK')
+        self.assertEqual(dc.rpc_runset_start_run(setId, runNum, moniType), \
+                             'OK')
 
         logger.checkStatus(10)
         clientLogger.checkStatus(10)
 
-        logger.addExpectedText("Starting time is not set")
+        logger.addExpectedText("Reset duration")
 
         logger.addExpectedText("0 physics events collected in 0 seconds")
         logger.addExpectedText("0 moni events, 0 SN events, 0 tcals")
@@ -464,7 +503,7 @@ class TestDAQServer(unittest.TestCase):
 
         logger.checkStatus(10)
 
-        RunXMLValidator.validate(runNum, cluCfg.configName(), None, None,
+        RunXMLValidator.validate(self, runNum, runConfig, None, None,
                                  0, 0, 0, 0, False)
 
         self.assertEqual(dc.rpc_component_count(), 0)
@@ -472,7 +511,7 @@ class TestDAQServer(unittest.TestCase):
 
         logger.checkStatus(10)
 
-        self.assertEquals(dc.rpc_runset_break(setId), 'OK')
+        self.assertEqual(dc.rpc_runset_break(setId), 'OK')
 
         logger.checkStatus(10)
 

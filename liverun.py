@@ -10,25 +10,38 @@
 #     clusterConfig = "spts64-real-21-29"
 #     runConfig = "spts64-dirtydozen-hlc-006"
 #     numSecs = 60                             # number of seconds
-#     numRuns = 1
 #
 #     # an ordinary run
-#     run.run(clusterConfig, runConfig, numSecs, numRuns)
+#     run.run(clusterConfig, runConfig, numSecs)
 #
-#     flashFile = "flash-21.xml"
-#     flashTimes = (30, 30, 20, 15)            # number of seconds
-#     pauseTime = 30                           # number of seconds
+#     flasherData = \
+#         (("flash-21.xml", 30),               # flash string 21 for 30 seconds
+#          (None, 15),                         # wait 15 seconds
+#          ("flash-26-27.xml", 120),           # flash 26 & 27 for 2 minutes
+#          (None, 20),                         # wait 20 seconds
+#          ("flash-21.xml", 30))               # flash string 21 for 30 seconds
 #
 #     # a flasher run
-#     run.run(clusterConfig, runConfig, numSecs, numRuns)
-#             flashFile, flashTimes, flashPause)
+#     run.run(clusterConfig, runConfig, numSecs, flasherData)
 
 
-import os, re, subprocess, sys, time
+import os
+import re
+import subprocess
+import sys
+import time
+
 from BaseRun import BaseRun, RunException, StateException
 from DAQConst import DAQPort
 
-class LightModeException(RunException): pass
+
+class LightModeException(RunException):
+    pass
+
+
+class LiveTimeoutException(RunException):
+    pass
+
 
 class AbstractState(object):
     "Generic class for keeping track of the current state"
@@ -55,6 +68,7 @@ class AbstractState(object):
         if state < 0 or state > len(cls.STATES):
             raise StateException("Unknown state #%s" % state)
         return cls.STATES[state]
+
 
 class LiveRunState(AbstractState):
     "I3Live states"
@@ -83,6 +97,7 @@ class LiveRunState(AbstractState):
         UNKNOWN,
         ]
 
+
 class LightMode(AbstractState):
     "I3Live light-in-detector modes"
 
@@ -99,6 +114,7 @@ class LightMode(AbstractState):
         LID,
         UNKNOWN,
         ]
+
 
 class LiveService(object):
     "I3Live service instance"
@@ -121,8 +137,12 @@ class LiveService(object):
         self.__state = LiveRunState.get(state)
         self.__numStarts = numStarts
 
-    def numStarts(self): return self.__numStarts
-    def state(self): return self.__state
+    def numStarts(self):
+        return self.__numStarts
+
+    def state(self):
+        return self.__state
+
 
 class LiveState(object):
     "Track the current I3Live service states"
@@ -136,19 +156,24 @@ class LiveState(object):
     PARSE_NORMAL = 1
     PARSE_FLASH = 2
 
-    def __init__(self, liveCmd=os.path.join(os.environ["HOME"], "bin",
-                                            "livecmd"), showCmd=False,
-                 showCmdOutput=False):
+    def __init__(self,
+                 liveCmd=os.path.join(os.environ["HOME"], "bin", "livecmd"),
+                 showCheck=False, showCheckOutput=False, logger=None,
+                 dryRun=False):
         """
         Create an I3Live service tracker
 
         liveCmd - full path of 'livecmd' executable
-        showCmd - True if commands should be printed before being run
-        showCmdOutput - True if command output should be printed
+        showCheck - True if 'livecmd check' commands should be printed
+        showCheckOutput - True if 'livecmd check' output should be printed
+        logger - specialized run logger
+        dryRun - True if commands should only be printed and not executed
         """
         self.__prog = liveCmd
-        self.__showCmd = showCmd
-        self.__showCmdOutput = showCmdOutput
+        self.__showCheck = showCheck
+        self.__showCheckOutput = showCheckOutput
+        self.__logger = logger
+        self.__dryRun = dryRun
 
         self.__threadState = None
         self.__runState = LiveRunState.get(LiveRunState.UNKNOWN)
@@ -189,15 +214,15 @@ class LiveState(object):
         """
         if len(line) == 0 or line.find("controlled by LiveControl") > 0 or \
                 line == "(None)":
-            return LiveState.PARSE_NORMAL
+            return self.PARSE_NORMAL
 
         if line.startswith("Flashing DOMs"):
-            return LiveState.PARSE_FLASH
+            return self.PARSE_FLASH
 
-        if parseState == LiveState.PARSE_FLASH:
-            m = LiveState.DOM_PAT.match(line)
+        if parseState == self.PARSE_FLASH:
+            m = self.DOM_PAT.match(line)
             if m:
-                return LiveState.PARSE_FLASH
+                return self.PARSE_FLASH
 
         if line.find(": ") > 0:
             (front, back) = line.split(": ", 1)
@@ -206,55 +231,60 @@ class LiveState(object):
 
             if front == "DAQ thread":
                 self.__threadState = back
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             elif front == "Run state":
                 self.__runState = LiveRunState.get(back)
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             elif front == "Current run":
-                m = LiveState.RUN_PAT.match(line)
+                m = self.RUN_PAT.match(line)
                 if m:
                     self.__runNum = int(m.group(1))
                     self.__subrunNum = int(m.group(2))
-                    return LiveState.PARSE_NORMAL
+                    return self.PARSE_NORMAL
             elif front == "Light mode":
                 self.__lightMode = LightMode.get(back)
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             elif front == "run":
                 self.__runNum = int(back)
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             elif front == "subrun":
                 self.__subrunNum = int(back)
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             elif front == "config":
                 self.__config = back
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             elif front == "tstart" or front == "tstop":
                 # ignore start/stop times
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             elif front == "physicsEvents" or \
                     front == "physicsEventsTime" or \
                     front == "walltimeEvents" or \
-                    front =="walltimeEventsTime"  or \
+                    front == "walltimeEventsTime"  or \
                     front == "tcalEvents" or \
                     front == "moniEvents" or \
                     front == "snEvents" or \
                     front == "runlength":
                 # ignore rates
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             elif front == "Target run stop time" or \
                  front == "Currently" or \
                  front == "Time until stop":
                 # ignore run time info
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
             elif front == "daqrelease":
                 # ignore DAQ release name
-                return LiveState.PARSE_NORMAL
+                return self.PARSE_NORMAL
+            elif front == "check failed" and back.find("timed out") >= 0:
+                self.__logger.error("I3Live may have died" +
+                                    " (livecmd check returned '%s')" %
+                                    line.rstrip())
+                return self.PARSE_NORMAL
             else:
-                print >>sys.stderr, "Unknown livecmd pair: \"%s\"/\"%s\"" % \
-                      (front, back)
-                return LiveState.PARSE_NORMAL
+                self.__logger.error("Unknown livecmd pair: \"%s\"/\"%s\"" %
+                                    (front, back))
+                return self.PARSE_NORMAL
 
-        m = LiveState.SVC_PAT.match(line)
+        m = self.SVC_PAT.match(line)
         if m:
             name = m.group(1)
             host = m.group(2)
@@ -268,33 +298,41 @@ class LiveState(object):
             if back == "DIED!":
                 state = LiveRunState.DEAD
             else:
-                m = LiveState.SVCBACK_PAT.match(back)
+                m = self.SVCBACK_PAT.match(back)
                 if m:
                     state = m.group(1)
                     numStarts = int(m.group(2))
 
             svc = LiveService(name, host, port, isAsync, state, numStarts)
             self.__svcDict[name] = svc
-            return LiveState.PARSE_NORMAL
+            return self.PARSE_NORMAL
 
-        print >>sys.stderr, "Unknown livecmd line: %s" % line
-        return LiveState.PARSE_NORMAL
+        self.__logger.error("Unknown livecmd line: %s" % line)
+        return self.PARSE_NORMAL
 
     def check(self):
         "Check the current I3Live service states"
 
         cmd = "%s check" % self.__prog
-        if self.__showCmd: print cmd
+        if self.__showCheck:
+            self.logCmd(cmd)
+
+        if self.__dryRun:
+            print cmd
+            return
+
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, close_fds=True,
                                 shell=True)
         proc.stdin.close()
 
-        parseState = LiveState.PARSE_NORMAL
+        parseState = self.PARSE_NORMAL
         for line in proc.stdout:
             line = line.rstrip()
-            if self.__showCmdOutput: print '+ ' + line
+            if self.__showCheckOutput:
+                self.logCmdOutput(line)
+
             parseState = self.__parseLine(parseState, line)
         proc.stdout.close()
 
@@ -319,34 +357,45 @@ class LiveState(object):
         Return the state string for the specified service
         from the most recent check()
         """
-        if not self.__svcDict.has_key(svcName):
+        if not svcName in self.__svcDict:
             return LiveRunState.UNKNOWN
         return LiveRunState.str(self.__svcDict[svcName].state())
+
 
 class LiveRun(BaseRun):
     "Manage one or more pDAQ runs through IceCube Live"
 
-    def __init__(self, showCmd=False, showCmdOutput=False,
-                 showCheck=False, showCheckOutput=False, dbType=None):
+    def __init__(self, showCmd=False, showCmdOutput=False, showCheck=False,
+                 showCheckOutput=False, dryRun=False, dbType=None,
+                 logfile=None):
         """
         showCmd - True if commands should be printed before being run
         showCmdOutput - True if command output should be printed
         showCheck - True if 'livecmd check' commands should be printed
         showCheckOutput - True if 'livecmd check' output should be printed
+        dryRun - True if commands should only be printed and not executed
         dbType - DatabaseType value (TEST, PROD, or NONE)
+        logfile - file where all log messages are saved
         """
-        self.__showCmd = showCmd
-        self.__showCmdOutput = showCmdOutput
+
+        super(LiveRun, self).__init__(showCmd, showCmdOutput, dryRun, dbType,
+                                      logfile)
+
+        self.__dryRun = dryRun
+
+        # used during dry runs to simulate the run number
+        self.__fakeRunNum = 12345
 
         # check for needed executables
         #
-        self.__liveCmdProg = self.findExecutable("I3Live program", "livecmd")
+        self.__liveCmdProg = self.findExecutable("I3Live program", "livecmd",
+                                                 self.__dryRun)
 
         # build state-checker
         #
-        self.__state = LiveState(self.__liveCmdProg, showCheck, showCheckOutput)
-
-        super(LiveRun, self).__init__(showCmd, showCmdOutput, dbType)
+        self.__state = LiveState(self.__liveCmdProg, showCheck=showCheck,
+                                 showCheckOutput=showCheckOutput,
+                                 logger=self.logger(), dryRun=self.__dryRun)
 
     def __controlPDAQ(self, waitSecs, attempts=3):
         """
@@ -357,7 +406,12 @@ class LiveRun(BaseRun):
 
         cmd = "%s control pdaq localhost:%s" % \
             (self.__liveCmdProg, DAQPort.DAQLIVE)
-        if self.__showCmd: print cmd
+        self.logCmd(cmd)
+
+        if self.__dryRun:
+            print cmd
+            return True
+
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, close_fds=True,
@@ -368,7 +422,8 @@ class LiveRun(BaseRun):
         unreachable = True
         for line in proc.stdout:
             line = line.rstrip()
-            if self.__showCmdOutput: print '+ ' + line
+            self.logCmdOutput(line)
+
             if line == "Service pdaq is now being controlled" or \
                     line.find("Synchronous service pdaq was already being" +
                               " controlled") >= 0:
@@ -376,7 +431,7 @@ class LiveRun(BaseRun):
             elif line.find("Service pdaq was unreachable on ") >= 0:
                 unreachable = True
             else:
-                print >>sys.stderr, "Control: %s" % line
+                self.logError("Control: %s" % line)
         proc.stdout.close()
 
         proc.wait()
@@ -388,7 +443,7 @@ class LiveRun(BaseRun):
             return False
 
         time.sleep(waitSecs)
-        return self.__controlPDAQ(0, attempts=attempts-1)
+        return self.__controlPDAQ(0, attempts=attempts - 1)
 
     def __refreshState(self):
         self.__state.check()
@@ -406,7 +461,12 @@ class LiveRun(BaseRun):
 
         Return True if there was a problem
         """
-        if self.__showCmd: print cmd
+        self.logCmd(cmd)
+
+        if self.__dryRun:
+            print cmd
+            return True
+
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, close_fds=True,
@@ -416,12 +476,12 @@ class LiveRun(BaseRun):
         problem = False
         for line in proc.stdout:
             line = line.rstrip()
-            if self.__showCmdOutput: print '+ ' + line
+            self.logCmdOutput(line)
 
             if line != "OK":
                 problem = True
             if problem:
-                print >>sys.stderr, "%s: %s" % (name, line)
+                self.logError("%s: %s" % (name, line))
         proc.stdout.close()
 
         proc.wait()
@@ -429,7 +489,7 @@ class LiveRun(BaseRun):
         return not problem
 
     def __waitForState(self, initState, expState, numTries, numErrors=0,
-                       waitSecs=10):
+                       waitSecs=10, verbose=False):
         """
         Wait for the specified state
 
@@ -440,21 +500,22 @@ class LiveRun(BaseRun):
                     there is a problem
         waitSecs - number of seconds to wait on each "try"
         """
-        prevState = self.__state.runState()
+        prevState = self.state()
         curState = prevState
 
-        if prevState != expState:
-            print "Switching from %s to %s" % (prevState, expState)
+        if verbose and prevState != expState:
+            self.logInfo("Switching from %s to %s" % (prevState, expState))
 
         startTime = time.time()
-        for i in range(numTries):
+        for _ in range(numTries):
             self.__state.check()
 
-            curState = self.__state.runState()
+            curState = self.state()
             if curState != prevState:
-                swTime = int(time.time() - startTime)
-                print "  Switched from %s to %s in %s secs" % \
-                    (prevState, curState, swTime)
+                if verbose:
+                    swTime = int(time.time() - startTime)
+                    self.logInfo("Switched from %s to %s in %s secs" %
+                                 (prevState, curState, swTime))
 
                 prevState = curState
                 startTime = time.time()
@@ -486,37 +547,54 @@ class LiveRun(BaseRun):
         """Do final cleanup before exiting"""
         pass
 
-    def flash(self, tm, dataPath):
+    def flash(self, dataPath, secs):
         """
         Start flashers for the specified duration with the specified data file
         """
-        cmd = "%s flasher -d %d -f %s" % (self.__liveCmdProg, tm, dataPath)
-        if self.__showCmd: print cmd
-        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, close_fds=True,
-                                shell=True)
-        proc.stdin.close()
-
         problem = False
-        for line in proc.stdout:
-            line = line.rstrip()
-            if self.__showCmdOutput: print '+ ' + line
+        if dataPath is None:
+            if not self.__dryRun:
+                time.sleep(secs)
+        else:
+            cmd = "%s flasher -d %d -f %s" % (self.__liveCmdProg,
+                                              secs, dataPath)
+            self.logCmd(cmd)
 
-            if line != "OK" and not line.startswith("Starting subrun"):
-                problem = True
-            if problem:
-                print >>sys.stderr, "Flasher: %s" % line
-        proc.stdout.close()
+            if self.__dryRun:
+                print cmd
+                return False
 
-        proc.wait()
+            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT, close_fds=True,
+                                    shell=True)
+            proc.stdin.close()
+
+            for line in proc.stdout:
+                line = line.rstrip()
+                self.logCmdOutput(line)
+
+                if line != "OK" and not line.startswith("Starting subrun"):
+                    problem = True
+                if problem:
+                    self.logError("Flasher: %s" % line)
+            proc.stdout.close()
+
+            proc.wait()
 
         return problem
 
     def getLastRunNumber(self):
         "Return the last run number"
         cmd = "%s lastrun" % self.__liveCmdProg
-        if self.__showCmd: print cmd
+        self.logCmd(cmd)
+
+        if self.__dryRun:
+            print cmd
+            runNum = self.__fakeRunNum
+            self.__fakeRunNum += 1
+            return (runNum, 0)
+
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, close_fds=True,
@@ -526,8 +604,14 @@ class LiveRun(BaseRun):
         num = None
         for line in proc.stdout:
             line = line.rstrip()
-            if self.__showCmdOutput: print '+ ' + line
-            num = int(line)
+            self.logCmdOutput(line)
+
+            try:
+                num = int(line)
+            except ValueError:
+                if line.find("timed out") >= 0:
+                    raise LiveTimeoutException("I3Live seems to have died")
+
         proc.stdout.close()
 
         proc.wait()
@@ -536,27 +620,40 @@ class LiveRun(BaseRun):
 
     def getRunNumber(self):
         "Return the current run number"
+        if self.__dryRun:
+            return self.__fakeRunNum
+
         self.__state.check()
         return self.__state.runNumber()
 
     def isDead(self, refreshState=False):
-        if refreshState: self.__refreshState()
+        if refreshState:
+            self.__refreshState()
+
         return self.__state.runState() == LiveRunState.DEAD
 
     def isRecovering(self, refreshState=False):
-        if refreshState: self.__refreshState()
+        if refreshState:
+            self.__refreshState()
+
         return self.__state.runState() == LiveRunState.RECOVERING
 
     def isRunning(self, refreshState=False):
-        if refreshState: self.__refreshState()
+        if refreshState:
+            self.__refreshState()
+
         return self.__state.runState() == LiveRunState.RUNNING
 
     def isStopped(self, refreshState=False):
-        if refreshState: self.__refreshState()
+        if refreshState:
+            self.__refreshState()
+
         return self.__state.runState() == LiveRunState.STOPPED
 
     def isStopping(self, refreshState=False):
-        if refreshState: self.__refreshState()
+        if refreshState:
+            self.__refreshState()
+
         return self.__state.runState() == LiveRunState.STOPPING
 
     def setLightMode(self, isLID):
@@ -573,10 +670,10 @@ class LiveRun(BaseRun):
             expMode = LightMode.DARK
 
         self.__state.check()
-        if self.__state.lightMode() == expMode:
+        if not self.__dryRun and self.__state.lightMode() == expMode:
             return True
 
-        if self.__state.lightMode() == LightMode.LID or \
+        if self.__dryRun or self.__state.lightMode() == LightMode.LID or \
                 self.__state.lightMode() == LightMode.DARK:
             # mode isn't in transition, so start transitioning
             #
@@ -587,9 +684,9 @@ class LiveRun(BaseRun):
         waitSecs = 10
         numTries = 10
 
-        for i in range(numTries):
+        for _ in range(numTries):
             self.__state.check()
-            if self.__state.lightMode() == expMode:
+            if self.__dryRun or self.__state.lightMode() == expMode:
                 break
 
             if not self.__state.lightMode().startswith("changingTo"):
@@ -598,13 +695,14 @@ class LiveRun(BaseRun):
 
             time.sleep(waitSecs)
 
-        if self.__state.lightMode() != expMode:
+        if not self.__dryRun and self.__state.lightMode() != expMode:
             raise LightModeException("I3Live lightMode should be %s, not %s" %
                                      (expMode, self.__state.lightMode()))
 
         return True
 
-    def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False):
+    def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False,
+                 runMode=None, filterMode=None, verbose=False):
         """
         Tell I3Live to start a run
 
@@ -612,23 +710,33 @@ class LiveRun(BaseRun):
         duration - number of seconds for run
         numRuns - number of runs (default=1)
         ignoreDB - tell I3Live to not check the database for this run config
+        runMode - Run mode for 'livecmd'
+        filterMode - Run mode for 'livecmd'
+        verbose - print more details of run transitions
 
         Return True if the run was started
         """
-        if not self.isStopped(True):
+        if not self.__dryRun and not self.isStopped(True):
             return False
 
+        args = ""
         if ignoreDB or self.ignoreDatabase():
-            iArg = "-i"
-        else:
-            iArg = ""
+            args += " -i"
+        if runMode is not None:
+            args += " -r %s" % runMode
+        if filterMode is not None:
+            args += " -p %s" % filterMode
+
         cmd = "%s start -d %s -n %d -l %d %s daq" % \
-            (self.__liveCmdProg, runCfg, numRuns, duration, iArg)
+            (self.__liveCmdProg, runCfg, numRuns, duration, args)
         if not self.__runBasicCommand("StartRun", cmd):
             return False
 
+        if self.__dryRun:
+            return True
+
         if not self.__waitForState(LiveRunState.STOPPED, LiveRunState.STARTING,
-                                   10, 6):
+                                   10, 6, verbose=verbose):
             try:
                 runNum = self.getRunNumber()
                 str = "Run %d did not start" % runNum
@@ -637,7 +745,7 @@ class LiveRun(BaseRun):
             raise RunException(str)
 
         return self.__waitForState(LiveRunState.STARTING, LiveRunState.RUNNING,
-                                   18, 0)
+                                   18, 0, verbose=verbose)
 
     def state(self):
         return self.__state.runState()
@@ -648,16 +756,18 @@ class LiveRun(BaseRun):
         if not self.__runBasicCommand("StopRun", cmd):
             return False
 
-    def waitForStopped(self):
+    def waitForStopped(self, verbose=False):
         if self.__state.runState() != LiveRunState.STOPPING and \
                 self.__state.runState() != LiveRunState.STOPPED:
             if not self.__waitForState(self.__state.runState(),
-                                       LiveRunState.STOPPING, 60, 0):
+                                       LiveRunState.STOPPING, 60, 0,
+                                       verbose=verbose):
                 return False
         return self.__waitForState(LiveRunState.STOPPING, LiveRunState.STOPPED,
-                                   60, 0)
+                                   60, 0, verbose=verbose)
 
 if __name__ == "__main__":
-    run = LiveRun(True, True)
+    run = LiveRun(True, True, dryRun=False)
     run.run("spts64-real-21-29", "spts64-dirtydozen-hlc-006", 60,
-            "flash-21.xml", (10, 10), 10)
+            (("flash-21.xml", 10), (None, 10), ("flash-21.xml", 5)),
+            verbose=True)

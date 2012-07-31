@@ -3,31 +3,54 @@
 import unittest
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
-from RunSet import RunSet, RunSetException
+from RunSet import RunSet, RunSetException, listComponentRanges
 
 CAUGHT_WARNING = False
 
 from DAQMocks import MockClusterConfig, MockComponent, MockLogger, \
      RunXMLValidator
 
+
 class FakeLogger(object):
-    def __init__(self): pass
-    def stopServing(self): pass
+    def __init__(self):
+        pass
+
+    def stopServing(self):
+        pass
+
 
 class FakeTaskManager(object):
-    def __init__(self): pass
-    def reset(self): pass
-    def start(self): pass
-    def stop(self): pass
+    def __init__(self):
+        pass
+
+    def reset(self):
+        pass
+
+    def start(self):
+        pass
+
+    def stop(self):
+        pass
+
 
 class FakeRunConfig(object):
     def __init__(self, name):
         self.__name = name
 
-    def basename(self): return self.__name
+    def basename(self):
+        return self.__name
 
     def hasDOM(self, mbid):
         return True
+
+
+class FakeCluster(object):
+    def __init__(self, descName):
+        self.__descName = descName
+
+    def descName(self):
+        return self.__descName
+
 
 class MyParent(object):
     def __init__(self):
@@ -35,6 +58,7 @@ class MyParent(object):
 
     def saveCatchall(self, runDir):
         pass
+
 
 class MyRunSet(RunSet):
     def __init__(self, parent, runConfig, compList, logger):
@@ -63,12 +87,14 @@ class MyRunSet(RunSet):
                           moniType):
         return FakeTaskManager()
 
-    def cycleComponents(self, compList, configDir, dashDir, logPort, livePort,
-                        verbose, killWith9, eventCheck, checkExists=True):
+    def cycleComponents(self, compList, configDir, daqDataDir, logPort,
+                        livePort, verbose, killWith9, eventCheck,
+                        checkExists=True):
         pass
 
     def queueForSpade(self, duration):
         pass
+
 
 class TestRunSet(unittest.TestCase):
     def __buildClusterConfig(self, compList, baseName):
@@ -98,7 +124,7 @@ class TestRunSet(unittest.TestCase):
         statDict = runset.status()
         self.assertEqual(len(statDict), len(compList))
         for c in compList:
-            self.failUnless(statDict.has_key(c), 'Could not find ' + str(c))
+            self.failUnless(c in statDict, 'Could not find ' + str(c))
             self.assertEqual(statDict[c], expState,
                              "Component %s: %s != expected %s" %
                              (c, statDict[c], expState))
@@ -129,7 +155,7 @@ class TestRunSet(unittest.TestCase):
 
         runConfig = FakeRunConfig("XXXrunSubXXX")
 
-        clusterName = "cluster-foo"
+        cluCfg = FakeCluster("cluster-foo")
 
         runset = MyRunSet(MyParent(), runConfig, compList, logger)
 
@@ -166,14 +192,19 @@ class TestRunSet(unittest.TestCase):
 
         try:
             stopErr = runset.stopRun()
-        except RunSetException, ve:
+        except RunSetException as ve:
             if not "is not running" in str(ve):
-                raise ve
+                raise
             stopErr = False
 
         self.failIf(stopErr, "stopRun() encountered error")
 
-        self.__startRun(runset, runNum, runConfig, clusterName,
+        for comp in compList:
+            if comp.isSource():
+                comp.addBeanData("stringhub", "LatestFirstChannelHitTime", 10)
+                comp.addBeanData("stringhub", "NumberOfNonZombies", 1)
+
+        self.__startRun(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
 
         self.__checkStatus(runset, compList, expState)
@@ -194,7 +225,7 @@ class TestRunSet(unittest.TestCase):
             runset.subrun(subrunNum, data)
             if expectError is not None:
                 self.fail("subrun should not have succeeded")
-        except RunSetException, ve:
+        except RunSetException as ve:
             if expectError is None:
                 raise
             if not str(ve).endswith(expectError):
@@ -204,7 +235,11 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
-        self.__stopRun(runset, runNum, clusterName, components=compList,
+        for comp in compList:
+            if comp.isSource():
+                comp.addBeanData("stringhub", "EarliestLastChannelHitTime", 10)
+
+        self.__stopRun(runset, runNum, runConfig, components=compList,
                        logger=logger)
 
     def __runTests(self, compList, runNum, hangType=None):
@@ -219,7 +254,7 @@ class TestRunSet(unittest.TestCase):
 
         expId = RunSet.ID.peekNext()
 
-        clusterName = "cluster-foo"
+        cluCfg = FakeCluster("cluster-foo")
 
         runset = MyRunSet(MyParent(), runConfig, compList, logger)
 
@@ -277,17 +312,16 @@ class TestRunSet(unittest.TestCase):
 
         expState = "running"
 
-        global CAUGHT_WARNING
-        if not LIVE_IMPORT and not CAUGHT_WARNING:
-            CAUGHT_WARNING = True
-            logger.addExpectedRegexp(r"^Cannot import IceCube Live.*")
-
-        self.__startRun(runset, runNum, runConfig, clusterName,
+        self.__startRun(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
 
         expState = "stopping"
 
-        self.__stopRun(runset, runNum, clusterName, components=compList,
+        for comp in compList:
+            if comp.isSource():
+                comp.addBeanData("stringhub", "EarliestLastChannelHitTime", 10)
+
+        self.__stopRun(runset, runNum, runConfig, components=compList,
                        logger=logger, hangType=hangType)
 
         runset.reset()
@@ -306,11 +340,34 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
+    def __sortCmp(self, x, y):
+        if y.order() is None:
+            return -1
+        elif x.order() is None:
+            return 1
+        else:
+            return y.order() - x.order()
 
-    def __startRun(self, runset, runNum, runConfig, clusterName,
+    def __startRun(self, runset, runNum, runConfig, cluCfg,
                    runOptions=RunOption.MONI_TO_NONE, versionInfo=None,
                    spadeDir="/tmp", copyDir=None, logDir=None,
                    components=None, logger=None):
+
+        global CAUGHT_WARNING
+        if not LIVE_IMPORT and not CAUGHT_WARNING:
+            CAUGHT_WARNING = True
+            logger.addExpectedRegexp(r"^Cannot import IceCube Live.*")
+
+        if components is not None:
+            for comp in components:
+                if comp.isSource():
+                    bean = "stringhub"
+                    for fld in ("LatestFirstChannelHitTime",
+                                "NumberOfNonZombies"):
+                        try:
+                            comp.getSingleBeanField(bean, fld)
+                        except:
+                            comp.addBeanData(bean, fld, 10)
 
         if versionInfo is None:
             versionInfo = {"filename": "fName",
@@ -324,18 +381,18 @@ class TestRunSet(unittest.TestCase):
 
         expState = "running"
 
-        logger.addExpectedExact("Starting run #%d with \"%s\"" %
-                                (runNum, clusterName))
+        logger.addExpectedExact("Starting run #%d on \"%s\"" %
+                                (runNum, cluCfg.descName()))
         logger.addExpectedExact(("Version info: %(filename)s %(revision)s" +
                                  " %(date)s %(time)s %(author)s %(release)s" +
                                  " %(repo_rev)s") % versionInfo)
 
         logger.addExpectedExact("Run configuration: %s" % runConfig.basename())
-        logger.addExpectedExact("Cluster configuration: %s" % clusterName)
+        logger.addExpectedExact("Cluster: %s" % cluCfg.descName())
 
         logger.addExpectedExact("Starting run %d..." % runNum)
 
-        runset.startRun(runNum, clusterName, runOptions, versionInfo,
+        runset.startRun(runNum, cluCfg, runOptions, versionInfo,
                         spadeDir, copyDir, logDir)
         self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %
                          (runset.id(), runNum, expState))
@@ -349,22 +406,22 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, components, expState)
         logger.checkStatus(10)
 
-    def __stopRun(self, runset, runNum,  clusterName, components=None,
+    def __stopRun(self, runset, runNum, runConfig, components=None,
                   logger=None, hangType=0):
         logger.DEBUG = True
         expState = "stopping"
+
+        compList = components
+        if compList is not None:
+            compList.sort(lambda x, y: self.__sortCmp(y, x))
 
         hangStr = None
         hangList = []
         if hangType > 0:
             for c in components:
                 if c.isHanging():
-                    hangList.append(c)
-                    if hangStr is None:
-                        hangStr = ''
-                    else:
-                        hangStr += ', '
-                    hangStr += c.fullName()
+                    hangList.append(c.fullName())
+            hangStr = ", ".join(hangList)
 
         if hangType > 0:
             if len(hangList) < len(components):
@@ -381,7 +438,7 @@ class TestRunSet(unittest.TestCase):
                                     (runset.id(), runNum, "forcingStop",
                                      len(hangList), plural, hangStr))
 
-        logger.addExpectedExact("Starting time is not set")
+        logger.addExpectedExact("Reset duration")
 
         logger.addExpectedExact("0 physics events collected in 0 seconds")
         logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
@@ -404,17 +461,20 @@ class TestRunSet(unittest.TestCase):
             try:
                 if not runset.stopRun():
                     self.fail("stopRun() should have failed")
-            except RunSetException, rse:
+            except RunSetException as rse:
                 expMsg = "RunSet #%d run#%d (%s): Could not stop %s" % \
                          (runset.id(), runNum, expState, hangStr)
-                self.assertEqual(str(rse), expMsg, "Bad exception: %s" % rse)
+                self.assertEqual(str(rse), expMsg,
+                                 ("For hangType %d expected exception %s," +
+                                  " not %s") % (hangType, expMsg, rse))
+            expState = "error"
 
         self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %
                          (runset.id(), runNum, expState))
         self.assertFalse(runset.stopping(), "RunSet #%d is still stopping")
 
-        RunXMLValidator.validate(runNum, clusterName, None, None,
-                                 0, 0, 0, 0, hangType > 1)
+        RunXMLValidator.validate(self, runNum, runConfig.basename(), None,
+                                 None, 0, 0, 0, 0, hangType > 1)
 
         if len(components) > 0:
             self.failUnless(self.__isCompListConfigured(components),
@@ -500,14 +560,16 @@ class TestRunSet(unittest.TestCase):
                                 (compList[0].fullName(),
                                  clusterCfg.configName()))
 
+        cycleList = compList[1:]
+        cycleList.sort()
+
         errMsg = None
-        for c in compList[1:]:
+        for c in cycleList:
             if errMsg is None:
-                errMsg = "Cycling components [" + c.fullName()
+                errMsg = "Cycling components " + c.fullName()
             else:
                 errMsg += ", " + c.fullName()
         if errMsg is not None:
-            errMsg += "]"
             logger.addExpectedExact(errMsg)
 
         runset.restartComponents(compList[:], clusterCfg, None, None, None,
@@ -534,14 +596,15 @@ class TestRunSet(unittest.TestCase):
         logger.addExpectedExact("Cannot remove component %s from RunSet #%d" %
                                 (extraComp.fullName(), runset.id()))
 
+        longList.sort()
+
         errMsg = None
         for c in longList:
             if errMsg is None:
-                errMsg = "Cycling components [" + c.fullName()
+                errMsg = "Cycling components " + c.fullName()
             else:
                 errMsg += ", " + c.fullName()
         if errMsg is not None:
-            errMsg += "]"
             logger.addExpectedExact(errMsg)
 
         runset.restartComponents(longList, clusterCfg, None, None, None,
@@ -561,11 +624,10 @@ class TestRunSet(unittest.TestCase):
         errMsg = None
         for c in compList:
             if errMsg is None:
-                errMsg = "Cycling components [" + c.fullName()
+                errMsg = "Cycling components " + c.fullName()
             else:
                 errMsg += ", " + c.fullName()
         if errMsg is not None:
-            errMsg += "]"
             logger.addExpectedExact(errMsg)
 
         runset.restartComponents(compList[:], clusterCfg, None, None, None,
@@ -585,16 +647,14 @@ class TestRunSet(unittest.TestCase):
         errMsg = None
         for c in compList:
             if errMsg is None:
-                errMsg = "Cycling components [" + c.fullName()
+                errMsg = "Cycling components " + c.fullName()
             else:
                 errMsg += ", " + c.fullName()
         if errMsg is not None:
-            errMsg += "]"
             logger.addExpectedExact(errMsg)
 
         runset.restartAllComponents(clusterCfg, None, None, None, None,
                                     False, False, False)
-
 
     def testShortStopWithoutStart(self):
         compList = self.__buildCompList(("one", "two", "three"))
@@ -608,11 +668,10 @@ class TestRunSet(unittest.TestCase):
         try:
             self.failIf(runset.stopRun(), "stopRun() encountered error")
             self.fail("stopRun() on new runset should throw exception")
-        except Exception, ex:
+        except Exception as ex:
             if not str(ex).startswith("RunSet #") or \
                not str(ex).endswith(" is not running"):
-                raise ex
-
+                raise
 
     def testShortStopNormal(self):
         compList = self.__buildCompList(("one", "two", "three"))
@@ -624,12 +683,12 @@ class TestRunSet(unittest.TestCase):
         runset.configure()
 
         runNum = 100
-        cluCfgName = "foo"
+        cluCfg = FakeCluster("foo-cluster")
 
-        self.__startRun(runset, runNum, runConfig, cluCfgName,
+        self.__startRun(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
 
-        self.__stopRun(runset, runNum, cluCfgName, components=compList,
+        self.__stopRun(runset, runNum, runConfig, components=compList,
                        logger=logger)
 
     def testShortStopHang(self):
@@ -642,9 +701,9 @@ class TestRunSet(unittest.TestCase):
         runset.configure()
 
         runNum = 100
-        cluCfgName = "foo"
+        cluCfg = FakeCluster("bar-cluster")
 
-        self.__startRun(runset, runNum, runConfig, cluCfgName,
+        self.__startRun(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
 
         hangType = 2
@@ -653,8 +712,84 @@ class TestRunSet(unittest.TestCase):
 
         RunSet.TIMEOUT_SECS = 5
 
-        self.__stopRun(runset, runNum, cluCfgName, components=compList,
+        self.__stopRun(runset, runNum, runConfig, components=compList,
                        logger=logger, hangType=hangType)
+
+    def testBadStop(self):
+        compList = self.__buildCompList(("first", "middle", "middle",
+                                         "middle", "middle", "last"))
+        runConfig = FakeRunConfig("XXXrunCfgXXX")
+        logger = MockLogger('foo#0')
+
+        runset = MyRunSet(MyParent(), runConfig, compList, logger)
+
+        runset.configure()
+
+        runNum = 543
+        cluCfg = FakeCluster("bogusCluster")
+
+        self.__startRun(runset, runNum, runConfig, cluCfg,
+                        components=compList, logger=logger)
+
+        for comp in compList:
+            comp.setStopFail()
+
+        RunSet.TIMEOUT_SECS = 5
+
+        logger.addExpectedExact("Reset duration")
+
+        logger.addExpectedExact("0 physics events collected in 0 seconds")
+        logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
+        logger.addExpectedExact("Run terminated SUCCESSFULLY.")
+
+        compStr = "first#1, middle#2-5, last#6"
+        logger.addExpectedExact(("RunSet #1 run#%d (forcingStop):" +
+                                 " Forcing 6 components to stop: %s") %
+                                 (runNum, compStr))
+        logger.addExpectedExact("Failed to transition to ready: stopping[%s]" %
+                                compStr)
+
+        stopErrMsg = ("RunSet #%d run#%d (error): Could not stop" +
+                      " stopping[%s]") % (runset.id(), runNum, compStr)
+        logger.addExpectedExact(stopErrMsg)
+
+        try:
+            try:
+                runset.stopRun()
+            except RunSetException as rse:
+                self.assertEqual(str(rse), stopErrMsg,
+                                 "Expected exception %s, not %s" %
+                                 (rse, stopErrMsg))
+        finally:
+            RunXMLValidator.validate(self, runNum, runConfig.basename(), None,
+                                     None, 0, 0, 0, 0, False)
+
+    def testListCompRanges(self):
+
+        compNames = ("fooHub", "barHub", "fooHub", "fooHub", "fooHub",
+                     "barHub", "barHub", "zabTrigger", "fooHub", "fooHub",
+                     "barHub", "bazBuilder")
+
+        compList = []
+
+        nextNum = 1
+        for name in compNames:
+            if name.endswith("Hub"):
+                num = nextNum
+            else:
+                num = 0
+            c = MockComponent(name, num)
+            c.setOrder(nextNum)
+            compList.append(c)
+
+            nextNum += 1
+
+        str = listComponentRanges(compList)
+
+        expStr = "fooHub#1,3-5,9-10, barHub#2,6-7,11, zabTrigger, bazBuilder"
+        self.assertEqual(str, expStr,
+                         "Expected legible list \"%s\", not \"%s\"" %
+                         (expStr, str))
 
 if __name__ == '__main__':
     unittest.main()
