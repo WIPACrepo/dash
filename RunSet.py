@@ -460,7 +460,7 @@ class RunData(object):
 
         if RunOption.isLogToLive(self.__runOptions):
             app = LiveSocketAppender("localhost", DAQPort.I3LIVE,
-                                     priority=Prio.ITS)
+                                     priority=Prio.EMAIL)
             log.addAppender(app)
 
         return log
