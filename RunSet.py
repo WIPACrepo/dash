@@ -883,13 +883,19 @@ class RunData(object):
 
     def reportGoodTime(self, name, payTime):
         if self.__liveMoniClient is not None:
-            fulltime = PayloadTime.toDateTime(payTime, high_precision=True)
-            data = {"runnum": self.__runNumber,
-                    "time": str(fulltime)}
+            try:
+                fulltime = PayloadTime.toDateTime(payTime, high_precision=True)
+            except:
+                fulltime = None
+                self.__dashlog.error("Cannot report %s: Bad value '%s'" %
+                                     (name, payTime))
+            if fulltime is not None:
+                data = {"runnum": self.__runNumber,
+                        "time": str(fulltime)}
 
-            monitime = PayloadTime.toDateTime(payTime)
-            self.__liveMoniClient.sendMoni(name, data, prio=Prio.SCP,
-                                           time=monitime)
+                monitime = PayloadTime.toDateTime(payTime)
+                self.__liveMoniClient.sendMoni(name, data, prio=Prio.SCP,
+                                               time=monitime)
 
     @classmethod
     def reportRunStartClass(self, moniClient, runNum, release, revision,
