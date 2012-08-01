@@ -253,7 +253,8 @@ class LiveState(object):
             elif front == "config":
                 self.__config = back
                 return self.PARSE_NORMAL
-            elif front == "tstart" or front == "tstop" or front == "tvalid":
+            elif front == "tstart" or front == "tstop" or \
+                front.startswith("t_valid"):
                 # ignore start/stop times
                 return self.PARSE_NORMAL
             elif front == "physicsEvents" or \
