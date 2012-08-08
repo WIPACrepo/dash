@@ -714,6 +714,11 @@ class RunData(object):
                 duration = 0
                 self.__dashlog.error("Cannot calculate duration")
 
+        self.__writeRunXML(numEvts, numMoni, numSN, numTcal, firstTime,
+                           lastTime, duration, hadError)
+
+        self.__reportRunStop(numEvts, firstTime, lastTime, hadError)
+
         # report rates
         if duration == 0:
             rateStr = ""
@@ -734,11 +739,6 @@ class RunData(object):
         else:
             errType = "SUCCESSFULLY"
         self.__dashlog.error("Run %s %s." % (endType, errType))
-
-        self.__reportRunStop(numEvts, firstTime, lastTime, hadError)
-
-        self.__writeRunXML(numEvts, numMoni, numSN, numTcal, firstTime,
-                           lastTime, duration, hadError)
 
         return duration
 
