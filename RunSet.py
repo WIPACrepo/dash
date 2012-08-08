@@ -727,6 +727,9 @@ class RunData(object):
 
         self.__reportRunStop(numEvts, firstTime, lastTime, hadError)
 
+        if switching:
+            self.reportGoodTime("lastGoodTime", lastTime)
+
         # report rates
         if duration == 0:
             rateStr = ""
@@ -1246,6 +1249,31 @@ class RunSet(object):
             logger.error(args[0])
         else:
             logger.error(args[0] % args[1:])
+
+    def __reportFirstGoodTime(self, runData):
+        ebComp = None
+        for c in self.__set:
+            if c.isComponent("eventBuilder"):
+                ebComp = c
+                break
+
+        if ebComp is None:
+            runData.error("Cannot find eventBuilder in %s" % str(self))
+            return
+
+        firstTime = None
+        for i in xrange(5):
+            val = runData.getSingleBeanField(ebComp, "backEnd",
+                                             "FirstEventTime")
+            if type(val) != Result:
+                firstTime = val
+                break
+            time.sleep(0.1)
+        if firstTime is None:
+            runData.error("Couldn't find first good time" +
+                             " for switched run %d" % runNum)
+        else:
+            runData.reportGoodTime("firstGoodTime", firstTime)
 
     def __sortCmp(self, x, y):
         if y.order() is None:
@@ -2279,19 +2307,41 @@ class RunSet(object):
             raise RunSetException("Still waiting for %s to finish switching" %
                                   (bStr))
 
-        # finish run data setup
+        # switch to new run data
         #
         oldData = self.__runData
         self.__runData = newData
-        newData.finishSetup(self, startTime)
 
-        duration = self.__finishRun(self.__set, oldData, False, switching=True)
+        savedEx = None
 
-        oldData.sendEventCounts(self.__set, False)
+        # finish new run data setup
+        #
+        try:
+            newData.finishSetup(self, startTime)
+        except:
+            savedEx = sys.exc_info()
 
-        # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
-        # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
-        self.queueForSpade(duration)
+        try:
+            duration = self.__finishRun(self.__set, oldData, False,
+                                        switching=True)
+
+            oldData.sendEventCounts(self.__set, False)
+
+            # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
+            # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
+            self.queueForSpade(duration)
+        except:
+            if not savedEx:
+                savedEx = sys.exc_info()
+
+        try:
+            self.__reportFirstGoodTime(newData)
+        except:
+            if not savedEx:
+                savedEx = sys.exc_info()
+
+        if savedEx:
+            raise savedEx[0], savedEx[1], savedEx[2]
 
     def updateRates(self):
         if self.__runData is None:
