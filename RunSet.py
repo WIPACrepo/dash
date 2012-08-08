@@ -218,6 +218,8 @@ class GoodTimeThread(CnCThread):
         self.__goodTime = None
         self.__finalTime = None
 
+        self.__stopped = False
+
         super(GoodTimeThread, self).__init__(threadName, log)
 
     def _run(self):
@@ -226,7 +228,7 @@ class GoodTimeThread(CnCThread):
             complete = False
             for i in range(self.MAX_ATTEMPTS):
                 complete = self.__fetchTime()
-                if complete:
+                if complete or self.__stopped:
                     # we're done, break out of the loop
                     break
                 time.sleep(0.1)
@@ -266,6 +268,9 @@ class GoodTimeThread(CnCThread):
 
         rList = tGroup.results()
         for c in self.__srcSet:
+            if self.__stopped:
+                break
+
             if c in self.__timeDict:
                 continue
 
@@ -340,6 +345,9 @@ class GoodTimeThread(CnCThread):
     def notifyBuilder(self, bldr):
         "Notify the builder of the good time"
         raise NotImplementedError("Unimplemented")
+
+    def stop(self):
+        self.__stopped = True
 
     def time(self):
         "Return the time marking the start or end of good data taking"
@@ -1441,6 +1449,9 @@ class RunSet(object):
                                      int(timeout * .25))
             if len(srcSet) == 0 and len(otherSet) == 0:
                 break
+
+        # detector has stopped, no need to get last good time
+        goodThread.stop()
 
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING reset")
         self.__runData.reset()
