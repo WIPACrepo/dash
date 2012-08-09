@@ -21,7 +21,7 @@ class Error(Exception):
 class TriggerHandler(FakeClient):
 
     def __init__(self, compName, compNum, inputName, outputName,
-                 prescale=1000):
+                 prescale=1000, quiet=False):
         self.__prescale = prescale
 
         self.__outName = outputName
@@ -35,7 +35,8 @@ class TriggerHandler(FakeClient):
 
         super(TriggerHandler, self).__init__(compName, compNum, connList,
                                              mbeanDict, createXmlRpcServer=True,
-                                             addNumericPrefix=False)
+                                             addNumericPrefix=False,
+                                             quiet=quiet)
 
     def makeTriggerRequest(self, trigType, cfgId, startTime, endTime):
         PAYLEN = 104

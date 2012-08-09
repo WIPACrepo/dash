@@ -172,6 +172,8 @@ class ComponentData(object):
             "stringhub": {
                 "NumberOfActiveChannels": (0, 0),
                 "NumberOfActiveAndTotalChannels": ((0, 0), None),
+                "NumberOfNonZombies": (60, 60),
+                "LatestFirstChannelHitTime": (12345, 67890),
                 "TotalLBMOverflows": (0, 0),
                 "HitRate": (0, 0),
                 "HitRateLC": (0, 0),
@@ -342,15 +344,18 @@ class ComponentData(object):
         return [ComponentData("foo", 0, [("hit", Connector.OUTPUT)]),
                 ComponentData("bar", 0, [("hit", Connector.INPUT)])]
 
-    def getFakeClient(self):
+    def getFakeClient(self, quiet=False):
         "Create a FakeClient object using this component data"
         return FakeClient(self.__compName, self.__compNum, self.__connList,
                           self.__mbeanDict, self.__create,
-                          self.__addNumericPrefix)
+                          self.__addNumericPrefix, quiet=quiet)
 
     def isComponent(self, name, num=-1):
         "Does this component have the specified name and number?"
         return self.__compName == name and (num < 0 or self.__compNum == num)
+
+    def isFake(self):
+        return self.__create
 
     def useRealComponent(self):
         "This component should not register itself so the Java version is used"
@@ -462,30 +467,45 @@ class DAQFakeRun(object):
                                             [("0123456789abcdef",
                                               0, 1, 2, 3, 4), ])
 
+            doSwitch = True
+
             waitSecs = duration - self.__getRunTime(startTime)
             if waitSecs <= 0.0:
                 waitSlice = 0.0
             else:
-                waitSlice = waitSecs / 3.0
+                if doSwitch:
+                    slices = 6
+                else:
+                    slices = 3
+                waitSlice = waitSecs / float(slices)
                 if waitSlice > 10.0:
                     waitSlice = 10.0
 
-            while waitSecs > 0:
-                time.sleep(waitSlice)
-                try:
-                    numEvts = self.__client.rpc_runset_events(runsetId, -1)
-                except:
-                    numEvts = None
+            for switch in (False, True):
+                if switch and doSwitch:
+                    self.__client.rpc_runset_switch_run(runsetId, runNum + 1)
 
-                runSecs = self.__getRunTime(startTime)
-                if numEvts is not None:
-                    print "RunSet %d had %d events after %.2f secs" % \
-                          (runsetId, numEvts, runSecs)
-                else:
-                    print ("RunSet %d could not get event count after" +
-                           " %.2f secs") % (runsetId, runSecs)
+                reps = 0
+                while waitSecs > 0:
+                    time.sleep(waitSlice)
+                    try:
+                        numEvts = self.__client.rpc_runset_events(runsetId, -1)
+                    except:
+                        numEvts = None
 
-                waitSecs = duration - runSecs
+                    runSecs = self.__getRunTime(startTime)
+                    if numEvts is not None:
+                        print "RunSet %d had %d events after %.2f secs" % \
+                            (runsetId, numEvts, runSecs)
+                    else:
+                        print ("RunSet %d could not get event count after" +
+                               " %.2f secs") % (runsetId, runSecs)
+
+                    waitSecs = duration - runSecs
+
+                    reps += 1
+                    if doSwitch and not switch and reps == 3:
+                        break
         finally:
             try:
                 self.__client.rpc_runset_stop_run(runsetId)
@@ -554,17 +574,19 @@ class DAQFakeRun(object):
         del self.__logThreads[:]
 
     @staticmethod
-    def createComps(compData, forkClients):
+    def createComps(compData, forkClients, quiet=False):
         "create and start components"
         comps = []
         for cd in compData:
-            client = cd.getFakeClient()
-            if forkClients:
-                if client.fork() == 0:
-                    return
+            client = cd.getFakeClient(quiet=quiet)
 
-            client.start()
-            client.register()
+            if cd.isFake():
+                if forkClients:
+                    if client.fork() == 0:
+                        return
+
+                client.start()
+                client.register()
 
             comps.append(client)
         return comps
@@ -712,6 +734,9 @@ if __name__ == "__main__":
     parser.add_option("-p", "--firstPortNumber", type="int", dest="firstPort",
                       action="store", default=FakeClient.NEXT_PORT,
                       help="First port number used for fake components")
+    parser.add_option("-q", "--quiet", dest="quiet",
+                      action="store_true", default=False,
+                      help="Fake components do not announce what they're doing")
     parser.add_option("-R", "--realNames", dest="realNames",
                       action="store_true", default=False,
                       help="Use component names without numeric prefix")
@@ -763,14 +788,18 @@ if __name__ == "__main__":
             elif opt.trackEng and cd.isComponent("trackEngine"):
                 cd.useRealComponent()
 
+    from DumpThreads import DumpThreadsOnSignal
+    DumpThreadsOnSignal()
+
     # create components
     #
-    comps = DAQFakeRun.createComps(compData, opt.forkClients)
+    comps = DAQFakeRun.createComps(compData, opt.forkClients, quiet=opt.quiet)
 
     DAQFakeRun.makeMockClusterConfig(opt.runCfgDir, comps, opt.numHubs)
 
     try:
-        DAQConfigParser.getClusterConfiguration(None, useActiveConfig=True)
+        DAQConfigParser.getClusterConfiguration(None, useActiveConfig=True,
+                                                validate=False)
     except:
         DAQFakeRun.hackActiveConfig("sim-localhost")
 

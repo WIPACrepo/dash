@@ -20,6 +20,9 @@ if __name__ == "__main__":
     parser.add_option("-p", "--firstPortNumber", type="int", dest="firstPort",
                       action="store", default=FakeClient.NEXT_PORT,
                       help="First port number used for fake components")
+    parser.add_option("-q", "--quiet", dest="quiet",
+                      action="store_true", default=False,
+                      help="Fake components do not announce what they're doing")
     parser.add_option("-R", "--realNames", dest="realNames",
                       action="store_true", default=False,
                       help="Use component names without numeric prefix")
@@ -59,9 +62,9 @@ if __name__ == "__main__":
     # create run object and initial run number
     #
     runner = DAQFakeRun()
-    comps = runner.createComps(compData, opt.forkClients)
+    comps = runner.createComps(compData, opt.forkClients, quiet=opt.quiet)
     if extraData is not None:
-        extra = runner.createComps(extraData, opt.forkClients)
+        extra = runner.createComps(extraData, opt.forkClients, quiet=opt.quiet)
 
     mockRunCfg = runner.createMockRunConfig(opt.runCfgDir, comps)
 
