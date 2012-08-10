@@ -2262,6 +2262,7 @@ class RunSet(object):
         # create new run data object
         #
         newData = self.__runData.clone(self, newNum)
+        newData.connectToI3Live()
 
         newData.error("Switching to run %d..." % newNum)
 
