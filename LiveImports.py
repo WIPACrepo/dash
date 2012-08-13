@@ -2,19 +2,19 @@
 
 try:
     try:
-        from live.control.LiveMoni import MoniClient
+        from live.transport.moniclient import MoniClient as MoniClient
     except ImportError:
-        from live.transport.moniclient import MoniClient
+        from live.control.LiveMoni import MoniClient
 
     from live.control.component import Component
 
     try:
-        from live.transport.Queue import Prio
+        from live.transport.priorities import Prio
     except ImportError:
         try:
             from live.transport.prioqueue import Prio
         except ImportError:
-            from live.transport.priorities import Prio
+            from live.transport.Queue import Prio
 
     # set pDAQ's I3Live service name
     SERVICE_NAME = "pdaq"
