@@ -2,7 +2,7 @@
 
 try:
     try:
-        from live.transport.moniclient import MoniClient as MoniClient
+        from live.transport.moniclient import UDPMoniClient as MoniClient
     except ImportError:
         from live.control.LiveMoni import MoniClient
 
