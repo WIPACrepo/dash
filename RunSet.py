@@ -664,6 +664,7 @@ class RunData(object):
 
         xmlLog.setRun(self.__runNumber)
         xmlLog.setConfig(self.__runConfig.basename())
+        xmlLog.setCluster(self.__clusterConfig.descName())
         xmlLog.setStartTime(PayloadTime.toDateTime(firstTime))
         xmlLog.setEndTime(PayloadTime.toDateTime(lastTime))
         xmlLog.setEvents(numEvts)

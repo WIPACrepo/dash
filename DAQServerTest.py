@@ -503,8 +503,8 @@ class TestDAQServer(unittest.TestCase):
 
         logger.checkStatus(10)
 
-        RunXMLValidator.validate(self, runNum, runConfig, None, None,
-                                 0, 0, 0, 0, False)
+        RunXMLValidator.validate(self, runNum, runConfig, cluCfg.descName(),
+                                 None, None, 0, 0, 0, 0, False)
 
         self.assertEqual(dc.rpc_component_count(), 0)
         self.assertEqual(dc.rpc_runset_count(), 1)

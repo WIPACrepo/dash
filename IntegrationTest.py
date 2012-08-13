@@ -1615,8 +1615,8 @@ class IntegrationTest(unittest.TestCase):
             logServer.checkStatus(10)
 
         RunXMLValidator.validate(self, runNum, configName,
-                                 None, None, numEvts, numMoni, numSN, numTcal,
-                                 False)
+                                 IntegrationTest.CLUSTER_DESC, None, None,
+                                 numEvts, numMoni, numSN, numTcal, False)
 
         if RUNLOG_INFO:
             msg = 'Breaking run set...'

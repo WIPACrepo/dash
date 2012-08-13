@@ -1665,8 +1665,8 @@ class RunXMLValidator:
             raise ValueError("Found unexpected run.xml file")
 
     @classmethod
-    def validate(cls, test_case, runNum, cfgName, startTime, endTime, numEvts,
-                 numMoni, numSN, numTcal, failed):
+    def validate(cls, test_case, runNum, cfgName, cluster, startTime, endTime,
+                 numEvts, numMoni, numSN, numTcal, failed):
         try:
             if not os.path.exists("run.xml"):
                 test_case.fail("run.xml was not created")
@@ -1681,6 +1681,10 @@ class RunXMLValidator:
             test_case.assertEqual(run.getConfig(), cfgName,
                              "Expected config \"%s\", not \"%s\"" %
                              (cfgName, run.getConfig()))
+
+            test_case.assertEqual(run.getCluster(), cluster,
+                             "Expected cluster \"%s\", not \"%s\"" %
+                             (cluster, run.getCluster()))
 
             if startTime is not None:
                 test_case.assertEqual(run.getStartTime(), startTime,

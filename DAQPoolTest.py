@@ -739,6 +739,7 @@ class TestDAQPool(unittest.TestCase):
         logger.checkStatus(10)
 
         RunXMLValidator.validate(self, runNum, runConfig,
+                                 clusterCfg.descName(),
                                  PayloadTime.toDateTime(firstTime),
                                  PayloadTime.toDateTime(lastTime),
                                  numEvts, numMoni, numSN, numTcal, False)

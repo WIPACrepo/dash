@@ -759,8 +759,9 @@ class CnCRunSetTest(unittest.TestCase):
         logger.checkStatus(5)
         dashLog.checkStatus(5)
 
-        RunXMLValidator.validate(self, runNum, runConfig, None, None,
-                                 numEvts, numMoni, numSN, numTcal, False)
+        RunXMLValidator.validate(self, runNum, runConfig, cluCfg.descName(),
+                                 None, None, numEvts, numMoni, numSN, numTcal,
+                                 False)
 
     @staticmethod
     def __setBeanData(comps, compName, compNum, beanName, fieldName,
@@ -1023,8 +1024,9 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog.checkStatus(5)
         liveMoni.checkStatus(5)
 
-        RunXMLValidator.validate(self, runNum, runConfig, None, None,
-                                 numEvts, numMoni, numSN, numTcal, False)
+        RunXMLValidator.validate(self, runNum, runConfig, cluCfg.descName(),
+                                 None, None, numEvts, numMoni, numSN, numTcal,
+                                 False)
 
         self.__cnc.rpc_runset_break(rsId)
 

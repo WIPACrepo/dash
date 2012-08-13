@@ -509,10 +509,10 @@ class RateTracker(object):
 
         cnc.updateRates(runsetId)
 
-    def validateRunXML(self, testCase, runNum, runConfig):
-        RunXMLValidator.validate(testCase, runNum, runConfig, None, None,
-                                 self.__numEvts, self.__numMoni, self.__numSN,
-                                 self.__numTcal, False)
+    def validateRunXML(self, testCase, runNum, runConfig, clusterCfg):
+        RunXMLValidator.validate(testCase, runNum, runConfig, clusterCfg,
+                                 None, None, self.__numEvts, self.__numMoni,
+                                 self.__numSN, self.__numTcal, False)
 
 
 class TestCnCServer(unittest.TestCase):
@@ -857,7 +857,8 @@ class TestCnCServer(unittest.TestCase):
 
             (numEvts, numMoni, numSN, numTcal) = rateTracker.getTotals()
 
-            rateTracker.validateRunXML(self, runNum, runConfig)
+            rateTracker.validateRunXML(self, runNum, runConfig,
+                                       cluCfg.descName())
 
             runNum = newNum
 
@@ -896,7 +897,7 @@ class TestCnCServer(unittest.TestCase):
         for nm in logs:
             logs[nm].checkStatus(100)
 
-        rateTracker.validateRunXML(self, runNum, runConfig)
+        rateTracker.validateRunXML(self, runNum, runConfig, cluCfg.descName())
 
         if forceRestart:
             try:
