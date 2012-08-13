@@ -260,53 +260,73 @@ class GoodTimeThread(CnCThread):
                              (self.NONZOMBIE_FIELD, self.beanfield()))
 
         if self.waitForAll():
+            # if we don't need results as soon as possible,
+            # wait for all threads to finish
             tGroup.wait()
             tGroup.reportErrors(self.__log, "getGoodTimes")
 
         complete = True
         updated = False
 
-        rList = tGroup.results()
-        for c in self.__srcSet:
-            if self.__stopped:
+        # wait for up to 1.5 seconds (15 * 0.1) for a result
+        sleepSecs = 0.1
+        sleepReps = 15
+
+        for i in xrange(sleepReps):
+            hanging = False
+
+            rList = tGroup.results()
+            for c in self.__srcSet:
+                if self.__stopped:
+                    # run has been stopped, don't bother checking anymore
+                    break
+
+                if c in self.__timeDict:
+                    # already have a time for this hub
+                    continue
+
+                result = rList[c]
+                if result is None or \
+                    result == ComponentOperation.RESULT_HANGING:
+                    # still waiting for results
+                    complete = False
+                    hanging = True
+                    continue
+
+                if result == ComponentOperation.RESULT_ERROR:
+                    # component operation failed
+                    self.__badComps[c] = 1
+                    continue
+
+                if self.__badComps.has_key(c):
+                    # got a result from a component which previously failed
+                    del self.__badComps[c]
+
+                numDoms = result[self.NONZOMBIE_FIELD]
+                if numDoms == 0:
+                    # this string has no usable DOMs, record illegal time
+                    self.__timeDict[c] = -1L
+                    continue
+
+                val = result[self.beanfield()]
+                if val is None or val <= 0L:
+                    # No results yet, need to poll again
+                    complete = False
+                    continue
+
+                self.__timeDict[c] = val
+                if self.__goodTime is None or \
+                    self.isBetter(self.__goodTime, val):
+                    # got new good time, tell the builders
+                    self.__goodTime = val
+                    updated = True
+
+            if not hanging or self.waitForAll():
+                # we've either got all results or all threads are done
                 break
 
-            if c in self.__timeDict:
-                continue
-
-            result = rList[c]
-            if result is None or \
-                result == ComponentOperation.RESULT_HANGING:
-                # still waiting for results
-                complete = False
-                continue
-
-            if result == ComponentOperation.RESULT_ERROR:
-                # component operation failed
-                self.__badComps[c] = 1
-                continue
-
-            if self.__badComps.has_key(c):
-                # got a result from a component which previously failed
-                del self.__badComps[c]
-
-            numDoms = result[self.NONZOMBIE_FIELD]
-            if numDoms == 0:
-                # this string has no usable DOMs, record illegal time
-                self.__timeDict[c] = -1L
-                continue
-
-            val = result[self.beanfield()]
-            if val is None or val <= 0L:
-                # No results yet, need to poll again
-                complete = False
-                continue
-
-            self.__timeDict[c] = val
-            if self.__goodTime is None or self.isBetter(self.__goodTime, val):
-                # got new good time, tell the builders
-                self.__goodTime = val
-                updated = True
+            # wait a bit more for the threads to finish
+            time.sleep(sleepSecs)
 
         if updated:
             try:
@@ -893,7 +913,10 @@ class RunData(object):
                                      duration)
 
     def reportGoodTime(self, name, payTime):
-        if self.__liveMoniClient is not None:
+        if self.__liveMoniClient is None:
+            #self.__dashlog.error("Not reporting %s; no moni client" % name)
+            pass
+        else:
             try:
                 fulltime = PayloadTime.toDateTime(payTime, high_precision=True)
             except:
