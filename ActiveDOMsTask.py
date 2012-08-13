@@ -163,12 +163,12 @@ class ActiveDOMThread(CnCThread):
                                                       active_total,
                                                       Prio.ITS):
                     self.__dashlog.error(
-                        "failed to send activeDOMs at its prio")
+                        "Failed to send activeDOMs")
 
                 if not self.__liveMoniClient.sendMoni("expectedDOMs",
                                                       total, Prio.ITS):
                     self.__dashlog.error(
-                        "failed to send expectedDOMs at its prio")
+                        "Failed to send expectedDOMs")
 
                 if not self.__liveMoniClient.sendMoni("stringRateInfo",
                                                       rate_dict,
@@ -186,13 +186,13 @@ class ActiveDOMThread(CnCThread):
                                                       sum_lc_rate,
                                                       Prio.ITS):
                     self.__dashlog.error(
-                        "Failed to send total_ratelc at ITS prio")
+                        "Failed to send total_ratelc")
 
                 if not self.__liveMoniClient.sendMoni("total_rate",
                                                       sum_total_rate,
                                                       Prio.ITS):
                     self.__dashlog.error(
-                        "Failed to send total_rate at its prio")
+                        "Failed to send total_rate")
 
     def getNewThread(self, sendDetails):
         thrd = ActiveDOMThread(self.__runset, self.__dashlog,
