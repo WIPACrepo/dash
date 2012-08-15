@@ -7,7 +7,7 @@
 class DAQPort(object):
     "DAQLive port"
     DAQLIVE = 6659
-    "IceCube Live logging/monitoring port"
+    "IceCube Live logging port"
     I3LIVE = 6666
     "CnCServer XML-RPC port"
     CNCSERVER = 8080

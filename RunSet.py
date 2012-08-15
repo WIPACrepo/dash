@@ -16,7 +16,7 @@ from DAQConst import DAQPort
 from DAQLog import DAQLog, FileAppender, LiveSocketAppender, LogSocketServer
 from DAQRPC import RPCClient
 from DAQTime import PayloadTime
-from LiveImports import LIVE_IMPORT, MoniClient, Prio
+from LiveImports import LIVE_IMPORT, MoniClient, MoniPort, Prio
 from RunOption import RunOption
 from RunSetDebug import RunSetDebug
 from RunSetState import RunSetState
@@ -551,7 +551,7 @@ class RunData(object):
 
     def __createLiveMoniClient(self):
         if LIVE_IMPORT:
-            moniClient = MoniClient("pdaq", "localhost", DAQPort.I3LIVE)
+            moniClient = MoniClient("pdaq", "localhost", MoniPort)
         else:
             moniClient = None
             if not RunSet.LIVE_WARNING:

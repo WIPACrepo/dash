@@ -2,9 +2,11 @@
 
 try:
     try:
-        from live.transport.moniclient import UDPMoniClient as MoniClient
+        from live.transport.moniclient import DefaultMoniClient as MoniClient
+        from live.transport.moniclient import default_moni_port as MoniPort
     except ImportError:
         from live.control.LiveMoni import MoniClient
+        MoniPort = 6666
 
     from live.control.component import Component
 
