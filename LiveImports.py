@@ -60,6 +60,8 @@ except ImportError:
         def sendMoni(self, name, data, prio=None, time=None):
             pass
 
+    MoniPort = 6666
+
     # set bogus service name
     SERVICE_NAME = "pdaqFake"
 
