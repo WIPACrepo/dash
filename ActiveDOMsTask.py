@@ -24,6 +24,13 @@ class ActiveDOMThread(CnCThread):
         super(ActiveDOMThread, self).__init__("CnCServer:ActiveDOMThread",
                                               dashlog)
 
+    def __sendMoni(self, name, value, prio):
+        #try:
+        self.__liveMoniClient.sendMoni(name, value, prio)
+        #except:
+        #    self.__dashlog.error("Failed to send %s=%s: %s" %
+        #                         (name, value, exc_string()))
+
     def _run(self):
         active_total = 0
         total = 0
@@ -117,82 +124,28 @@ class ActiveDOMThread(CnCThread):
             if len(lbm_Overflows_Dict) == 0:
                 return
 
+            # priority for standard messages
             if not self.__sendDetails:
-                # messages that are to go out every minute and NOT
-                # on the ten minute boundary
-                if not self.__liveMoniClient.sendMoni("activeDOMs",
-                                                      active_total,
-                                                      Prio.EMAIL):
-                    self.__dashlog.error(
-                        "Failed to send activeDOMs at email prio")
-
-                if not self.__liveMoniClient.sendMoni("expectedDOMs",
-                                                      total, Prio.EMAIL):
-                    self.__dashlog.error(
-                        "Failed to send expectedDOMs at email prio")
-
-                if not self.__liveMoniClient.sendMoni("total_ratelc",
-                                                      sum_lc_rate,
-                                                      Prio.EMAIL):
-                    self.__dashlog.error(
-                        "Failed to send total_ratelc at email prio")
-
-                if not self.__liveMoniClient.sendMoni("total_rate",
-                                                      sum_total_rate,
-                                                      Prio.EMAIL):
-                    self.__dashlog.error(
-                        "Failed to send total_rate at email prio")
-
+                # messages that go out every minute use lower priority
+                prio = Prio.EMAIL
             else:
-                # messages that are to go out once every ten minutes
-                if not self.__liveMoniClient.sendMoni("stringDOMsInfo",
-                                                      hub_DOMs,
-                                                      Prio.EMAIL):
-                    self.__dashlog.error(
-                        "Failed to send active/total DOM report")
+                # use higher priority every 10 minutes to keep North updated
+                prio = Prio.ITS
 
-                # send the lbm overflow information off to live
-                if not self.__liveMoniClient.sendMoni(
-                    "LBMOverflows",
-                    lbm_Overflows_Dict, Prio.ITS):
-                    self.__dashlog.error("Failed to send lbm overflow data")
+            print "ActiveDOMsTask.sendMoni(activeDOMs -> %s)" % active_total
+            self.__sendMoni("activeDOMs", active_total, prio)
+            self.__sendMoni("expectedDOMs", total, prio)
+            self.__sendMoni("total_ratelc", sum_lc_rate, prio)
+            self.__sendMoni("total_rate", sum_total_rate, prio)
 
-                # active and expected doms is to go out over ITS only
-                # once every ten minutes
-                if not self.__liveMoniClient.sendMoni("activeDOMs",
-                                                      active_total,
-                                                      Prio.ITS):
-                    self.__dashlog.error(
-                        "Failed to send activeDOMs")
+            if self.__sendDetails:
+                # important messages that go out every ten minutes
+                self.__sendMoni("LBMOverflows", lbm_Overflows_Dict, Prio.ITS)
 
-                if not self.__liveMoniClient.sendMoni("expectedDOMs",
-                                                      total, Prio.ITS):
-                    self.__dashlog.error(
-                        "Failed to send expectedDOMs")
-
-                if not self.__liveMoniClient.sendMoni("stringRateInfo",
-                                                      rate_dict,
-                                                      Prio.EMAIL):
-                    self.__dashlog.error(
-                        "Failed to send per string rate report")
-
-                if not self.__liveMoniClient.sendMoni("stringRateLCInfo",
-                                                      ratelc_dict,
-                                                      Prio.EMAIL):
-                    self.__dashlog.error(
-                        "Failed to send per string rate lc report")
-
-                if not self.__liveMoniClient.sendMoni("total_ratelc",
-                                                      sum_lc_rate,
-                                                      Prio.ITS):
-                    self.__dashlog.error(
-                        "Failed to send total_ratelc")
-
-                if not self.__liveMoniClient.sendMoni("total_rate",
-                                                      sum_total_rate,
-                                                      Prio.ITS):
-                    self.__dashlog.error(
-                        "Failed to send total_rate")
+                # less urgent messages use lower priority
+                self.__sendMoni("stringDOMsInfo", hub_DOMs, Prio.EMAIL)
+                self.__sendMoni("stringRateInfo", rate_dict, Prio.EMAIL)
+                self.__sendMoni("stringRateLCInfo", ratelc_dict, Prio.EMAIL)
 
     def getNewThread(self, sendDetails):
         thrd = ActiveDOMThread(self.__runset, self.__dashlog,

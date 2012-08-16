@@ -15,7 +15,7 @@ import threading
 import time
 
 from DAQConst import DAQPort
-from LiveImports import LIVE_IMPORT, MoniClient, Prio, SERVICE_NAME
+from LiveImports import LIVE_IMPORT, MoniClient, MoniPort, Prio, SERVICE_NAME
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -367,8 +367,7 @@ class LiveSocketAppender(LogSocketAppender):
 
 class LiveMonitor(object):
     "Send I3Live monitoring data"
-    def __init__(self, node='localhost', port=DAQPort.I3LIVE,
-                 service=SERVICE_NAME):
+    def __init__(self, node='localhost', port=MoniPort, service=SERVICE_NAME):
         if not LIVE_IMPORT:
             self.__client = None
         else:
@@ -390,9 +389,11 @@ class LiveMonitor(object):
 
         self.__clientLock.acquire()
         try:
-            if not self.__client.sendMoni(varName, data, Prio.ITS, time):
-                raise LogException('LiveMonitor %s: cannot send %s data' %
-                                   (str(self.__client), varName))
+            try:
+                self.__client.sendMoni(varName, data, Prio.ITS, time)
+            except:
+                raise LogException('LiveMonitor %s: cannot send %s data: %s' %
+                                   (str(self.__client), varName, exc_string()))
         finally:
             self.__clientLock.release()
 
