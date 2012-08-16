@@ -6,7 +6,6 @@ from ActiveDOMsTask import ActiveDOMsTask
 from CnCTask import CnCTask, TaskException
 from IntervalTimer import IntervalTimer
 from MonitorTask import MonitorTask
-from RadarTask import RadarTask
 from RateTask import RateTask
 from WatchdogTask import WatchdogTask
 
@@ -74,8 +73,6 @@ class TaskManager(threading.Thread):
         elif taskNum == 3:
             return WatchdogTask(self, self.__runset, self.__dashlog,
                                 period=runCfg.watchdogPeriod())
-        elif taskNum == 4:
-            return RadarTask(self, self.__runset, self.__dashlog, liveMoni)
 
         return None
 

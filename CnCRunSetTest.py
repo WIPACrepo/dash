@@ -13,7 +13,6 @@ from DAQMocks import MockClusterConfig, MockIntervalTimer, MockLogger, \
 from DAQTime import PayloadTime
 from LiveImports import LIVE_IMPORT
 from MonitorTask import MonitorTask
-from RadarTask import RadarTask, RadarThread
 from RateTask import RateTask
 from RunOption import RunOption
 from RunSet import RunSet, RunSetException
@@ -323,11 +322,11 @@ class MostlyCnCServer(CnCServer):
 
 class CnCRunSetTest(unittest.TestCase):
     HUB_NUMBER = 21
-    RADAR_DOM = "737d355af587"
+    EXAMPLE_DOM = "737d355af587"
 
     BEAN_DATA = {"stringHub":
                       {"DataCollectorMonitor-00A":
-                            {"MainboardId": RADAR_DOM,
+                            {"MainboardId": EXAMPLE_DOM,
                              "HitRate": 0.0,
                              },
                         "sender":
@@ -519,27 +518,6 @@ class CnCRunSetTest(unittest.TestCase):
 
         liveMoni.checkStatus(5)
 
-    def __checkRadarTask(self, comps, rs, liveMoni):
-        if not LIVE_IMPORT:
-            return
-
-        timer = rs.getTaskManager().getTimer(RadarTask.NAME)
-
-        hitRate = 12.34
-
-        jsonStr = "[[\"%s\", %s]]" % (self.RADAR_DOM, hitRate)
-        liveMoni.addExpectedLiveMoni("radarDOMs", jsonStr,
-                                     "json")
-
-        self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
-                           "DataCollectorMonitor-00A",
-                           "HitRate", hitRate)
-        timer.trigger()
-
-        self.__waitForEmptyLog(liveMoni, "Didn't get radar message")
-
-        liveMoni.checkStatus(5)
-
     def __checkRateTask(self, comps, rs, liveMoni, dashLog, numEvts, payTime,
                         firstTime, runNum):
         timer = rs.getTaskManager().getTimer(RateTask.NAME)
@@ -617,10 +595,6 @@ class CnCRunSetTest(unittest.TestCase):
                     for f in cls.BEAN_DATA[c.name()][b]:
                         c.setBeanData(b, f, cls.BEAN_DATA[c.name()][b][f])
 
-    @classmethod
-    def __loadRadarDOMMap(cls):
-        RadarThread.DOM_MAP[cls.RADAR_DOM] = cls.HUB_NUMBER
-
     def __runDirect(self, failReset):
         self.__copyDir = tempfile.mkdtemp()
         self.__runConfigDir = tempfile.mkdtemp()
@@ -652,7 +626,7 @@ class CnCRunSetTest(unittest.TestCase):
             if c.name() != "stringHub" and c.name() != "extraComp":
                 nameList.append(str(c))
 
-        domList = [MockRunConfigFile.createDOM(self.RADAR_DOM), ]
+        domList = [MockRunConfigFile.createDOM(self.EXAMPLE_DOM), ]
 
         rcFile = MockRunConfigFile(self.__runConfigDir)
         runConfig = rcFile.create(nameList, domList)
@@ -796,9 +770,6 @@ class CnCRunSetTest(unittest.TestCase):
         self.__daqDataDir = None
         self.__spadeDir = None
 
-        # shorten radar thread
-        RadarTask.RADAR_SAMPLE_DURATION = 1
-
         RunXMLValidator.setUp()
 
     def tearDown(self):
@@ -840,7 +811,7 @@ class CnCRunSetTest(unittest.TestCase):
 
         self.__cnc = MostlyCnCServer()
 
-        domList = [MockRunConfigFile.createDOM(self.RADAR_DOM), ]
+        domList = [MockRunConfigFile.createDOM(self.EXAMPLE_DOM), ]
 
         rcFile = MockRunConfigFile(self.__runConfigDir)
         runConfig = rcFile.create([], domList)
@@ -892,8 +863,6 @@ class CnCRunSetTest(unittest.TestCase):
 
         self.__loadBeanData(comps)
 
-        self.__loadRadarDOMMap()
-
         nameList = []
         for c in comps:
             self.__cnc.add(c)
@@ -906,7 +875,7 @@ class CnCRunSetTest(unittest.TestCase):
                 continue
             runCompList.append(c.fullName())
 
-        domList = [MockRunConfigFile.createDOM(self.RADAR_DOM), ]
+        domList = [MockRunConfigFile.createDOM(self.EXAMPLE_DOM), ]
 
         rcFile = MockRunConfigFile(self.__runConfigDir)
         runConfig = rcFile.create(runCompList, domList)
@@ -980,7 +949,6 @@ class CnCRunSetTest(unittest.TestCase):
         self.__checkMonitorTask(comps, rs, liveMoni)
         self.__checkActiveDOMsTask(comps, rs, liveMoni)
         self.__checkWatchdogTask(comps, rs, dashLog, liveMoni)
-        self.__checkRadarTask(comps, rs, liveMoni)
 
         if catchall:
             catchall.checkStatus(5)

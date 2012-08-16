@@ -17,7 +17,6 @@ from DAQConst import DAQPort
 from DAQLog import LiveMonitor
 from DAQRPC import RPCServer
 from LiveImports import Prio, LIVE_IMPORT, SERVICE_NAME
-from RadarTask import RadarTask
 from RunOption import RunOption
 from RunSet import RunSet
 from TaskManager import MonitorTask, RateTask, TaskManager, WatchdogTask
@@ -1671,7 +1670,6 @@ class IntegrationTest(unittest.TestCase):
         self.__compList = None
 
         # shorten radar thread
-        RadarTask.RADAR_SAMPLE_DURATION = 1
 
         RunXMLValidator.setUp()
 

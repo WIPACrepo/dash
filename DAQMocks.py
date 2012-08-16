@@ -1802,7 +1802,7 @@ class MockLiveMoni(object):
 
     def sendMoni(self, var, val, prio, time=datetime.datetime.now()):
         if not var in self.__expMoni:
-            raise Exception(("Unexpected live monitor data" +
+            raise Exception(("Unexpected live monitor data"
                              " (var=%s, val=%s, prio=%d)") % (var, val, prio))
 
         expData = None
@@ -1816,8 +1816,9 @@ class MockLiveMoni(object):
             del self.__expMoni[var]
 
         if expData is None:
-            raise Exception(("Expected live monitor data from (%s/%s), not "
-                             "(var=%s, val=%s, prio=%d)") % \
-                                (var, self.__expMoni[var], var, val, prio))
+            raise Exception(("Expected live monitor data "
+                             " (var=%s, datapairs=%s), not "
+                             "(var=%s, val=%s, prio=%d)") %
+                             (var, self.__expMoni[var], var, val, prio))
 
         return True
