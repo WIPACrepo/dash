@@ -13,6 +13,7 @@ from DAQConfig import DAQConfigParser
 from DAQConfigExceptions import DAQConfigException
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
+from LiveImports import MoniPort
 from ParallelShell import ParallelShell
 from Process import findProcess, processList
 from RunCluster import RunComponent
@@ -572,6 +573,7 @@ class ComponentManager(object):
                 switches += " -l %s:%d,%s" % (myIP, logPort, comp.logLevel())
             if livePort is not None:
                 switches += " -L %s:%d,%s" % (myIP, livePort, comp.logLevel())
+                switches += " -M %s:%d" % (myIP, MoniPort)
             compIO = quietStr
 
             if comp.isHub():

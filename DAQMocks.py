@@ -20,7 +20,7 @@ from ComponentManager import ComponentManager
 from DAQClient import DAQClient
 import DeployPDAQ
 from DAQConst import DAQPort
-from LiveImports import SERVICE_NAME
+from LiveImports import MoniPort, SERVICE_NAME
 from utils import ip
 from utils.DashXMLLog import DashXMLLog
 
@@ -1138,6 +1138,7 @@ class MockParallelShell(object):
             cmd += ' -l %s:%d,%s' % (ipAddr, logPort, comp.logLevel())
         if livePort is not None:
             cmd += ' -L %s:%d,%s' % (ipAddr, livePort, comp.logLevel())
+            cmd += ' -M %s:%d' % (ipAddr, MoniPort)
         cmd += ' %s &' % redir
 
         if not self.__isLocalhost(host):
