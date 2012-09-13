@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 import threading
 
 from ActiveDOMsTask import ActiveDOMsTask

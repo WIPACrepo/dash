@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 
-import datetime
 import unittest
 
 from RateTask import RateTask
-from LiveImports import Prio
 
 from DAQMocks import MockComponent, MockIntervalTimer, \
      MockLogger, MockRunSet, MockTaskManager

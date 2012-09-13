@@ -14,7 +14,6 @@ import sys
 import threading
 import time
 
-from DAQConst import DAQPort
 from LiveImports import LIVE_IMPORT, MoniClient, MoniPort, Prio, SERVICE_NAME
 
 from exc_string import exc_string, set_exc_string_encoding

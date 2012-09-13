@@ -11,7 +11,7 @@ from Component import Component
 from DefaultDomGeometry import BadFileError, DefaultDomGeometryReader, \
     ProcessError, XMLParser
 from RunCluster import RunCluster
-from XMLFileCache import XMLFileCache, XMLFileNotFound
+from XMLFileCache import XMLFileCache
 from utils.Machineid import Machineid
 from xsd.validate_configs import validate_configs
 
@@ -932,7 +932,7 @@ class TriggerConfigParser(XMLParser, XMLFileCache):
                     tcList.addTriggerConfig(trigCfg)
                 elif strict:
                     raise ProcessError("Unexpected %s child <%s>" %
-                                       (dcList.nodeName, kid.nodeName))
+                                       (tcList.nodeName, kid.nodeName))
                 continue
 
             raise ProcessError("Found unknown %s node <%s>" %

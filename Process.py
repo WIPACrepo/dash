@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import os
 import re
 from subprocess import Popen, PIPE, STDOUT
 

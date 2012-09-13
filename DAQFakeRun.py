@@ -21,42 +21,6 @@ from utils import ip
 LOUD = False
 
 
-class ClientWrapper(threading.Thread):
-    def __init__(self, client, rpcPort):
-        self.__client = client
-        self.__rpcPort = rpcPort
-
-        self.__rpcRunning = False
-
-        super(ClientWrapper, self).__init__(name=str(self))
-        self.setDaemon(True)
-
-    def __str__(self):
-        return "Wrap[%s]" % str(self.__client)
-
-    def close(self):
-        self.__rpcRunning = False
-
-    def run(self):
-        try:
-            rpcServer = ReusableXMLRPCServer(self.__rpcPort, 1)
-        except socket.error:
-            raise FakeClientException("Port %d is already being used" %
-                                      self.__rpcPort)
-        #rpcServer.register_introspection_functions()
-        rpcServer.register_function(self.close, 'close')
-        rpcServer.register_function(self.__client.register, 'register')
-        rpcServer.register_function(self.__client.start, 'start')
-
-        self.__rpcRunning = True
-        while self.__rpcRunning:
-            try:
-                rpcServer.handle_request()
-            except:
-                break
-        raise SystemExit
-
-
 class DAQFakeRunException(Exception):
     pass
 

@@ -10,8 +10,6 @@ import sys
 import threading
 import time
 
-from datetime import datetime
-
 from ClusterDescription import ClusterDescription
 from ComponentManager import ComponentManager
 from DAQConfig import DAQConfigException, DAQConfigParser
@@ -318,9 +316,9 @@ class Run(object):
                                                         clusterDesc=clusterDesc,
                                                         configDir=configDir,
                                                         validate=False)
-        except DAQConfigException as e:
+        except DAQConfigException:
             raise LaunchException("Cannot load configuration \"%s\": %s" %
-                                  (clusterConfigName, exc_string()))
+                                  (clusterCfgName, exc_string()))
 
         # if necessary, launch the desired cluster configuration
         #

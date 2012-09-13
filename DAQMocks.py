@@ -12,8 +12,6 @@ import tempfile
 import threading
 import time
 
-from unittest import TestCase
-
 from CnCLogger import CnCLogger
 from Component import Component
 from ComponentManager import ComponentManager
@@ -24,7 +22,6 @@ from LiveImports import MoniPort, SERVICE_NAME
 from utils import ip
 from utils.DashXMLLog import DashXMLLog
 
-import traceback
 
 if "PDAQ_HOME" in os.environ:
     METADIR = os.environ["PDAQ_HOME"]
@@ -80,8 +77,8 @@ class BaseLiveChecker(BaseChecker):
         svcName = m.group(1)
         varName = m.group(2)
         varType = m.group(3)
-        msgPrio = m.group(4)
-        msgTime = m.group(5)
+        #msgPrio = m.group(4)
+        #msgTime = m.group(5)
         msgText = m.group(6)
 
         global SERVICE_NAME

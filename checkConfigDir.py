@@ -45,9 +45,11 @@ class ConfigDirChecker(object):
         for f in self.__processlist:
             if dryrun:
                 print "Not adding %s" % f
+                rtnval = True
             else:
                 rtnval = self.__svn_add(self.__cfgdir, f)
-            self.__added.append(f)
+            if rtnval:
+                self.__added.append(f)
 
     def __checkUsedConfigs(self, used, svnmap):
         """
@@ -228,7 +230,7 @@ class ConfigDirChecker(object):
         proc.stdout.close()
         proc.wait()
         if proc.returncode != 0:
-            print >>sys.stderr, "Failed to SVN ADD %s:" % f
+            print >>sys.stderr, "Failed to SVN ADD %s:" % name
             for line in outlines:
                 print >>sys.stderr, self.INDENT + line
 

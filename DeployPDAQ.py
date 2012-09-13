@@ -10,8 +10,9 @@ import os
 import sys
 
 from DAQConfigExceptions import DAQConfigException
-from DAQConfig import DAQConfig, DAQConfigParser, XMLFileNotFound
+from DAQConfig import DAQConfig, DAQConfigParser
 from ParallelShell import ParallelShell
+from XMLFileCache import XMLFileNotFound
 from utils.Machineid import Machineid
 
 # pdaq subdirectories to be deployed
@@ -33,7 +34,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 13722 2012-05-29 21:56:26Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 13907 2012-09-13 15:08:23Z dglo $"
 
 
 def getUniqueHostNames(config):

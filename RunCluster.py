@@ -2,7 +2,6 @@
 
 import os
 import os.path
-import socket
 import sys
 import traceback
 

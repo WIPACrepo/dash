@@ -28,7 +28,6 @@
 import os
 import re
 import subprocess
-import sys
 import time
 
 from BaseRun import BaseRun, RunException, StateException
@@ -420,7 +419,6 @@ class LiveRun(BaseRun):
         proc.stdin.close()
 
         controlled = False
-        unreachable = True
         for line in proc.stdout:
             line = line.rstrip()
             self.logCmdOutput(line)
@@ -430,7 +428,7 @@ class LiveRun(BaseRun):
                               " controlled") >= 0:
                 controlled = True
             elif line.find("Service pdaq was unreachable on ") >= 0:
-                unreachable = True
+                pass
             else:
                 self.logError("Control: %s" % line)
         proc.stdout.close()

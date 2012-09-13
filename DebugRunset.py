@@ -3,11 +3,9 @@
 import optparse
 import socket
 import sys
-import traceback
 
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
-from RunSet import RunSet
 from RunSetDebug import RunSetDebug
 
 

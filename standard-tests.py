@@ -6,7 +6,6 @@ import os
 import re
 import socket
 import stat
-import subprocess
 import sys
 import traceback
 
@@ -151,7 +150,7 @@ class Deploy(object):
                                                         clusterDesc=cluDesc,
                                                         configDir=None,
                                                         validate=False)
-        except DAQConfigException as e:
+        except DAQConfigException:
             raise LaunchException("Cannot load configuration \"%s\": %s" %
                                   (clusterCfgName, exc_string()))
 

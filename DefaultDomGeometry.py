@@ -7,7 +7,6 @@
 import os
 import re
 import sys
-import traceback
 
 from xml.dom import minidom, Node
 
@@ -620,7 +619,6 @@ class DefaultDomGeometry(object):
         strList.sort()
 
         for s in strList:
-            baseNum = s % 1000
             domList = self.__stringToDom[s][:]
 
             for dom in domList:
@@ -651,9 +649,7 @@ class DefaultDomGeometry(object):
 
     def validate(self):
         names = {}
-        chanIds = {}
         locs = {}
-        strs = {}
 
         strKeys = self.__stringToDom.keys()
         strKeys.sort()

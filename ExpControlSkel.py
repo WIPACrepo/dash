@@ -26,7 +26,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 13721 2012-05-29 21:53:43Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 13907 2012-09-13 15:08:23Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -168,73 +168,6 @@ class SubRun:
 
     def flasherDictList(self):
         return [d.flasherHash() for d in self.domlist]
-
-
-class SubRunSet:
-    """This class is not instantiated anywhere, and had some import errors
-    in it.  It's probably not been used in a long time.  Consider removing
-    this if no one uses it for a while longer.
-    2/11/2011
-    """
-    def __init__(self, fileName):
-        """Probably unused.. - consider removing this if no one
-        uses it for a while longer"""
-
-        raise NotImplementedError(("calls addDom method that wants"
-                                   "one argument and this one has many args"))
-        self.subruns = []
-        num = 0
-        sr = None
-        # NOTE THIS IS A FILE DESCRIPTOR LEAK
-        for l in open(fileName).readlines():
-            # Look for bare "delay lines"
-            m = re.search(r'delay (\d+)', l)
-            if m:
-                t = int(m.group(1))
-                self.subruns.append(SubRun(SubRun.DELAY, t, num))
-                num += 1
-                sr = None
-                continue
-
-            m = re.search(r'flash (\d+)', l)
-            if m:
-                t = int(m.group(1))
-                sr = SubRun(SubRun.FLASH, t, num)
-                self.subruns.append(sr)
-                num += 1
-            m6 = re.search(('^\s*(\S+)\s+(\d+)\s+(\d+)\s+'
-                            '(\d+)\s+(\S+)\s+(\d+)\s*$'), l)
-            m7 = re.search(('^\s*(\d+)\s+(\d+)\s+(\d+)\s+'
-                            '(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$'), l)
-            if m7 and sr:
-                string = int(m7.group(1))
-                pos = int(m7.group(2))
-                bright = int(m7.group(3))
-                window = int(m7.group(4))
-                delay = int(m7.group(5))
-                mask = int(m7.group(6), 16)
-                rate = int(m7.group(7))
-                #sr.addDOM(string, pos,  bright, window, delay, mask, rate)
-            elif m6 and sr:
-                mbid = m6.group(1)
-                bright = int(m6.group(2))
-                window = int(m6.group(3))
-                delay = int(m6.group(4))
-                mask = int(m6.group(5), 16)
-                rate = int(m6.group(6))
-                #sr.addDOM(mbid, bright, window, delay, mask, rate)
-
-    def __str__(self):
-        s = ""
-        for l in self.subruns:
-            s += str(l) + "\n"
-        return s
-
-    def next(self):
-        try:
-            return self.subruns.pop(0)
-        except IndexError:
-            return None
 
 
 def main():

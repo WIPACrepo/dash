@@ -28,7 +28,6 @@ import os
 import re
 import socket
 import subprocess
-import sys
 import time
 
 from BaseRun import BaseRun, RunException, StateException

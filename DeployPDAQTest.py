@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 
 import os
-import socket
-import sys
 import tempfile
 import unittest
 
-from DAQMocks import MockParallelShell, MockDeployComponent
+from DAQMocks import MockParallelShell
 import DeployPDAQ
 
 

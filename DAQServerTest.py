@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import shutil
-import socket
 import tempfile
 import traceback
 import unittest

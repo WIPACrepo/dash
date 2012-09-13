@@ -2,8 +2,7 @@
 
 import sys
 
-from DAQLog import DAQLog, FileAppender, LiveSocketAppender, LogException, \
-    LogSocketAppender
+from DAQLog import DAQLog, LiveSocketAppender, LogException, LogSocketAppender
 
 
 class LogInfo(object):

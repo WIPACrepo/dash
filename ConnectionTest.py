@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import shutil
-import sys
 import tempfile
 import unittest
 from CnCServer import Connector, DAQPool

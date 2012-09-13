@@ -59,7 +59,6 @@ def listComponentRanges(compList):
         else:
             prevNum = None
             rangeStr = k + "#"
-            inRange = False
             for c in sorted(compDict[k], key=lambda c: c.num()):
                 if prevNum is None:
                     rangeStr += "%d" % c.num()

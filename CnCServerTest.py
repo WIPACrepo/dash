@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import os
 import shutil
 import sys
 import tempfile
@@ -625,8 +624,6 @@ class TestCnCServer(unittest.TestCase):
     def __runEverything(self, forceRestart=False, switchRun=False):
         catchall = self.createLog('master', 18999)
         dashlog = MockLogger('dashlog')
-
-        clientPort = DAQPort.RUNCOMP_BASE
 
         compData = [('stringHub', self.HUB_NUMBER, (("hit", "o", 1), )),
                     ('inIceTrigger', 0, (("hit", "i", 2), ("trig", "o", 3), )),

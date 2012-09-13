@@ -1214,7 +1214,7 @@ class RunSet(object):
                 errStr = '%s: Could not stop %s' % (self, waitStr)
                 self.__runData.error(errStr)
             except:
-                errstr = "%s: Could not stop components (?)" % str(self)
+                errStr = "%s: Could not stop components (?)" % str(self)
             self.__state = RunSetState.ERROR
             raise RunSetException(errStr)
 
@@ -1289,7 +1289,7 @@ class RunSet(object):
             time.sleep(0.1)
         if firstTime is None:
             runData.error("Couldn't find first good time" +
-                             " for switched run %d" % runNum)
+                             " for switched run %d" % runData.runNumber())
         else:
             runData.reportGoodTime("firstGoodTime", firstTime)
 
@@ -1743,6 +1743,7 @@ class RunSet(object):
         return TaskManager(self, dashlog, liveMoniClient, runDir, runConfig,
                            runOptions)
 
+    @classmethod
     def cycleComponents(self, compList, configDir, daqDataDir, logPort,
                         livePort, verbose, killWith9, eventCheck,
                         checkExists=True):
@@ -1789,7 +1790,7 @@ class RunSet(object):
         return self.__state == RunSetState.RUNNING
 
     def logToDash(self, msg):
-        "Used when CnCServer needs to add a log message to dash.log"
+        "Used when the runset needs to add a log message to dash.log"
         if self.__runData is not None:
             self.__runData.error(msg)
         else:
