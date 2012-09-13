@@ -6,7 +6,8 @@ import time
 import unittest
 
 from ActiveDOMsTask import ActiveDOMsTask
-from CnCServer import CnCServer, CnCServerException
+from CnCExceptions import CnCServerException
+from CnCServer import CnCServer
 from DAQConst import DAQPort
 from DAQMocks import MockClusterConfig, MockIntervalTimer, MockLogger, \
     MockRunConfigFile, RunXMLValidator, SocketReader

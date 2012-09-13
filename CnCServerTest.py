@@ -9,7 +9,8 @@ import traceback
 import unittest
 import xmlrpclib
 
-from CnCServer import CnCServer, CnCServerException
+from CnCExceptions import CnCServerException
+from CnCServer import CnCServer
 from DAQClient import DAQClient
 from DAQConst import DAQPort
 from DAQRPC import RPCServer

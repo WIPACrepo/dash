@@ -2,10 +2,13 @@
 
 import time
 
+from CnCExceptions import MissingComponentException
 from DAQConst import DAQPort
 from IntervalTimer import IntervalTimer
 from LiveImports import Component, LIVE_IMPORT, SERVICE_NAME
 from RunOption import RunOption
+from exc_string import exc_string, set_exc_string_encoding
+set_exc_string_encoding("ascii")
 
 
 class LiveException(Exception):
@@ -108,9 +111,20 @@ class DAQLive(Component):
         if self.__runSet is not None and not self.__runSet.isDestroyed():
             self.__cnc.breakRunset(self.__runSet)
 
-        self.__runSet = self.__cnc.makeRunsetFromRunConfig(runCfg, runNum)
+        try:
+            self.__runSet = self.__cnc.makeRunsetFromRunConfig(runCfg, runNum)
+        except MissingComponentException as mce:
+            compStrs = [str(x) for x in mce.components()]
+            self.moniClient.sendMoni("missingComponent", compStrs)
+            raise LiveException("Cannot create run #%d runset for \"%s\": %s" %
+                                (runNum, runCfg, str(mce)))
+        except:
+            raise LiveException("Cannot create run #%d runset for \"%s\": %s" %
+                                (runNum, runCfg, exc_string()))
+
         if self.__runSet is None:
-            raise LiveException("Cannot create runset for \"%s\"" % runCfg)
+            raise LiveException("Cannot create run #%d runset for \"%s\"" %
+                                (runNum, runCfg))
 
         runOptions = RunOption.LOG_TO_BOTH | RunOption.MONI_TO_FILE
         self.__cnc.startRun(self.__runSet, runNum, runOptions)

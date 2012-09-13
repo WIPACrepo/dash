@@ -4,7 +4,8 @@ import shutil
 import tempfile
 import traceback
 import unittest
-from CnCServer import CnCServer, CnCServerException
+from CnCExceptions import CnCServerException
+from CnCServer import CnCServer
 from DAQClient import DAQClient
 from DAQConst import DAQPort
 from DAQMocks import MockAppender, MockClusterConfig, MockCnCLogger, \

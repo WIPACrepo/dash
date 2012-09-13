@@ -10,6 +10,7 @@ import sys
 import threading
 import time
 
+from CnCExceptions import CnCServerException, MissingComponentException
 from CnCLogger import CnCLogger
 from CompOp import ComponentOperation, ComponentOperationGroup
 from DAQClient import ComponentName, DAQClient, DAQClientState
@@ -40,11 +41,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 13907 2012-09-13 15:08:23Z dglo $"
-
-
-class CnCServerException(Exception):
-    pass
+SVN_ID = "$Id: CnCServer.py 13916 2012-09-13 22:56:01Z dglo $"
 
 
 class DAQPool(object):
@@ -241,7 +238,7 @@ class DAQPool(object):
             waitList = self.__collectComponents(nameList, compList, logger,
                                                 timeout)
             if waitList is not None:
-                raise CnCServerException("Still waiting for " + str(waitList))
+                raise MissingComponentException(waitList)
         except:
             self.__returnComponents(compList, logger)
             raise
@@ -820,17 +817,10 @@ class CnCServer(DAQPool):
 
     def makeRunsetFromRunConfig(self, runConfig, runNum,
                                 timeout=REGISTRATION_TIMEOUT, strict=False):
-        try:
-            runSet = self.makeRunset(self.__runConfigDir, runConfig, runNum,
+        return self.makeRunset(self.__runConfigDir, runConfig, runNum,
                                      timeout, self.__log,
                                      forceRestart=self.__forceRestart,
                                      strict=strict)
-        except:
-            self.__log.error("While making runset from \"%s\": %s" %
-                             (runConfig, exc_string()))
-            runSet = None
-
-        return runSet
 
     def monitorLoop(self):
         "Monitor components to ensure they're still alive"
@@ -1206,7 +1196,21 @@ class CnCServer(DAQPool):
             raise CnCServerException("Must now specify a run config name," +
                                      " not a list of components")
 
-        runSet = self.makeRunsetFromRunConfig(runConfig, runNum, strict=strict)
+        try:
+            runSet = self.makeRunsetFromRunConfig(runConfig, runNum,
+                                                  strict=strict)
+        except MissingComponentException as mce:
+            self.__log.error("%s while making runset from \"%s\"" %
+                             (str(mce), runConfig))
+            RunSet.cycleComponents(mce.components(), self.__runConfigDir,
+                                   self.__daqDataDir, self.__log.logPort(),
+                                   self.__log.livePort())
+            runSet = None
+        except:
+            self.__log.error("While making runset from \"%s\": %s" %
+                             (runConfig, exc_string()))
+            runSet = None
+
         if runSet is None:
             return -1
 
