@@ -1,3 +1,4 @@
+from lxml import etree, objectify
 from utils import ip
 from utils.DashXMLLog import DashXMLLog
 from utils.DashXMLLog import DashXMLLogException
@@ -6,6 +7,13 @@ import unittest
 
 
 class TestUtils(unittest.TestCase):
+    def normalizeXML(self, xmlStr):
+        tree = etree.fromstring(xmlStr)
+        for element in tree.iter("*"):
+            if element.text is not None:
+                element.text = element.text.strip()
+        return etree.tostring(tree)
+
     def test_isLoopbackIPAddr(self):
 
         # test isLoopbackIPAddr
@@ -81,7 +89,11 @@ class TestUtils(unittest.TestCase):
 
         try:
             docStr = a.documentToString(indent="")
-            expectedDocStr = """<?xml version="1.0" ?>
+        except DashXMLLogException:
+            self.fail("Dash XML Log Code raised an exception")
+
+
+        expectedDocStr = """<?xml version="1.0" ?>
 <?xml-stylesheet type="text/xsl" href="/2001/xml/DAQRunlog.xsl"?>
 <DAQRunlog>
 <Cluster>sps-cluster</Cluster>
@@ -97,10 +109,10 @@ class TestUtils(unittest.TestCase):
 </DAQRunlog>
 """
 
-            self.assertEqual(docStr, expectedDocStr)
-        except DashXMLLogException:
-            self.fail("Dash XML Log Code raised an exception")
+        realStr = self.normalizeXML(docStr)
+        expStr = self.normalizeXML(expectedDocStr)
 
+        self.assertEqual(realStr, expStr)
 
 if __name__ == "__main__":
     unittest.main()
