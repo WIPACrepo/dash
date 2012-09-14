@@ -40,7 +40,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 13926 2012-09-14 20:35:08Z dglo $"
+SVN_ID = "$Id: CnCServer.py 13930 2012-09-14 21:21:59Z dglo $"
 
 
 class DAQPool(object):
@@ -146,12 +146,12 @@ class DAQPool(object):
                                    daqDataDir):
             deadList = []
             for comp in waitList:
-                found = False
                 cluCfg = self.getClusterConfig()
                 if cluCfg is None:
                     logger.error("Cannot restart %s: No cluster config" %
                                  comp.fullName())
                 else:
+                    found = False
                     for node in cluCfg.nodes():
                         for nodeComp in node.components():
                             if comp.name().lower() == nodeComp.name().lower() \
@@ -160,11 +160,10 @@ class DAQPool(object):
                                 found = True
                                 break
 
-                        if not found:
-                            logger.error(("Cannot restart %s: Not found in" +
-                                          " cluster config \"%s\"") %
-                                         (comp.fullName(),
-                                          cluCfg.configName()))
+                    if not found:
+                        logger.error(("Cannot restart %s: Not found in" +
+                                      " cluster config \"%s\"") %
+                                     (comp.fullName(), cluCfg.configName()))
 
             if len(deadList) > 0:
                 self.cycleComponents(deadList, runConfigDir, daqDataDir,
