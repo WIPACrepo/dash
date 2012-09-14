@@ -11,6 +11,7 @@ import xmlrpclib
 
 from CnCExceptions import CnCServerException
 from CnCServer import CnCServer
+from ComponentManager import listComponentRanges
 from DAQClient import DAQClient
 from DAQConst import DAQPort
 from DAQRPC import RPCServer
@@ -90,10 +91,11 @@ class MostlyRunSet(RunSet):
                           moniType):
         return FakeTaskManager()
 
-    def cycleComponents(self, compList, configDir, daqDataDir, logPort,
+    def cycleComponents(self, compList, configDir, daqDataDir, logger, logPort,
                         livePort, verbose, killWith9, eventCheck,
                         checkExists=True):
-        pass
+        compStr = listComponentRanges(compList)
+        logger.error("Cycling components %s" % compStr)
 
     def getLog(self, name):
         if not name in self.__logDict:

@@ -6,7 +6,8 @@ import time
 import unittest
 
 from ActiveDOMsTask import ActiveDOMsTask
-from CnCExceptions import CnCServerException
+from ComponentManager import listComponentRanges
+from CnCExceptions import CnCServerException, MissingComponentException
 from CnCServer import CnCServer
 from DAQConst import DAQPort
 from DAQMocks import MockClusterConfig, MockIntervalTimer, MockLogger, \
@@ -29,6 +30,19 @@ class MockComponentLogger(MockLogger):
 
     def stopServing(self):
         pass
+
+
+class MockLoggerPlusPorts(MockLogger):
+    def __init__(self, name, logPort, livePort):
+        super(MockLoggerPlusPorts, self).__init__(name)
+        self.__logPort = logPort
+        self.__livePort = livePort
+
+    def livePort(self):
+        return self.__livePort
+
+    def logPort(self):
+        return self.__logPort
 
 
 class MockConn(object):
@@ -260,10 +274,12 @@ class MyRunSet(RunSet):
                                            runDir, runCfg, moniType)
         return self.__taskMgr
 
-    def cycleComponents(self, compList, configDir, daqDataDir, logPort,
+    @classmethod
+    def cycleComponents(self, compList, configDir, daqDataDir, logger, logPort,
                         livePort, verbose, killWith9, eventCheck,
                         checkExists=True):
-        pass
+        compStr = listComponentRanges(compList)
+        logger.error("Cycling components %s" % compStr)
 
     def getTaskManager(self):
         return self.__taskMgr
@@ -298,6 +314,13 @@ class MostlyCnCServer(CnCServer):
 
     def createRunset(self, runConfig, compList, logger):
         return MyRunSet(self, runConfig, compList, logger)
+
+    def cycleComponents(self, compList, runConfigDir, daqDataDir, logger,
+                        logPort, livePort, verbose=False, killWith9=False,
+                        eventCheck=False):
+        MyRunSet.cycleComponents(compList, runConfigDir, daqDataDir, logger,
+                                 logPort, livePort, verbose=verbose,
+                                 killWith9=killWith9, eventCheck=eventCheck)
 
     def getClusterConfig(self):
         return self.__clusterConfig
@@ -638,9 +661,11 @@ class CnCRunSetTest(unittest.TestCase):
         logger.addExpectedRegexp(r"Built runset #\d+: .*")
 
         runNum = 321
+        daqDataDir = None
 
         rs = self.__cnc.makeRunset(self.__runConfigDir, runConfig, runNum, 0,
-                                   logger, forceRestart=False, strict=False)
+                                   logger, daqDataDir, forceRestart=False,
+                                   strict=False)
 
         logger.checkStatus(5)
 
@@ -790,6 +815,7 @@ class CnCRunSetTest(unittest.TestCase):
 
     def testEmptyRunset(self):
         self.__runConfigDir = tempfile.mkdtemp()
+        self.__daqDataDir = tempfile.mkdtemp()
 
         self.__cnc = MostlyCnCServer()
 
@@ -805,12 +831,28 @@ class CnCRunSetTest(unittest.TestCase):
 
         self.assertRaises(CnCServerException, self.__cnc.makeRunset,
                           self.__runConfigDir, runConfig, runNum, 0, logger,
-                          forceRestart=False, strict=False)
+                          self.__daqDataDir, forceRestart=False, strict=False)
 
     def testMissingComponent(self):
         self.__runConfigDir = tempfile.mkdtemp()
 
-        self.__cnc = MostlyCnCServer()
+        comps = [MockComponent("stringHub", self.HUB_NUMBER,
+                               (MockConn("stringHit", "o"), )),
+                 MockComponent("inIceTrigger",
+                               conn=(MockConn("stringHit", "i"),
+                                     MockConn("trigger", "o"))),
+                 MockComponent("globalTrigger",
+                               conn=(MockConn("trigger", "i"),
+                                     MockConn("glblTrig", "o"))),
+                 MockComponent("eventBuilder",
+                               conn=(MockConn("glblTrig", "i"), )),
+                 MockComponent("extraComp")]
+
+        cluCfg = MockClusterConfig("clusterMissing")
+        for comp in comps:
+            cluCfg.addComponent(comp.fullName(), "java", "", "localhost")
+
+        self.__cnc = MostlyCnCServer(clusterConfigObject=cluCfg)
 
         domList = [MockRunConfigFile.createDOM(self.EXAMPLE_DOM), ]
 
@@ -818,13 +860,15 @@ class CnCRunSetTest(unittest.TestCase):
         runConfig = rcFile.create([], domList)
         runNum = 456
 
-        logger = MockLogger("main")
+        logger = MockLoggerPlusPorts("main", 10101, 20202)
         logger.addExpectedExact("Loading run configuration \"%s\"" % runConfig)
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
+        logger.addExpectedExact("Cycling components %s#%d" %
+                                (comps[0].name(), comps[0].num()))
 
-        self.assertRaises(CnCServerException, self.__cnc.makeRunset,
+        self.assertRaises(MissingComponentException, self.__cnc.makeRunset,
                           self.__runConfigDir, runConfig, runNum, 0, logger,
-                          forceRestart=False, strict=False)
+                          self.__daqDataDir, forceRestart=False, strict=False)
 
     def testRunDirect(self):
         self.__runDirect(False)
@@ -835,7 +879,6 @@ class CnCRunSetTest(unittest.TestCase):
     def testRunIndirect(self):
         self.__copyDir = tempfile.mkdtemp()
         self.__runConfigDir = tempfile.mkdtemp()
-        self.__daqDataDir = tempfile.mkdtemp()
         self.__spadeDir = tempfile.mkdtemp()
 
         comps = [MockComponent("stringHub", self.HUB_NUMBER,

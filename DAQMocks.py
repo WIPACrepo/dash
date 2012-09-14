@@ -507,6 +507,9 @@ class MockClusterComponent(Component):
     def host(self):
         return self.__host
 
+    def isLocalhost(self):
+        return True
+
     def jvm(self):
         return self.__jvm
 

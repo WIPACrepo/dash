@@ -1744,14 +1744,21 @@ class RunSet(object):
                            runOptions)
 
     @classmethod
-    def cycleComponents(self, compList, configDir, daqDataDir, logPort,
-                        livePort, verbose, killWith9, eventCheck,
+    def cycleComponents(self, compList, configDir, daqDataDir, logger,
+                        logPort, livePort, verbose, killWith9, eventCheck,
                         checkExists=True):
+
+        # sort list into a predictable order for unit tests
+        #
+        compStr = listComponentRanges(compList)
+        logger.error("Cycling components %s" % compStr)
+
         dryRun = False
         ComponentManager.killComponents(compList, dryRun, verbose, killWith9)
         ComponentManager.startComponents(compList, dryRun, verbose, configDir,
-                                         daqDataDir, logPort, livePort,
-                                         eventCheck, checkExists=checkExists)
+                                         daqDataDir, logger.logPort(),
+                                         logger.livePort(), eventCheck,
+                                         checkExists=checkExists)
 
     def destroy(self, ignoreComponents=False):
         if not ignoreComponents and len(self.__set) > 0:
@@ -1911,13 +1918,8 @@ class RunSet(object):
                     self.__logger.error("Close failed for %s: %s" %
                                         (comp.fullName(), exc_string()))
 
-        # sort list into a predictable order for unit tests
-        #
-        compStr = listComponentRanges(cluCfgList)
-        self.__logger.error("Cycling components %s" % compStr)
-
-        self.cycleComponents(cluCfgList, configDir, daqDataDir, logPort,
-                             livePort, verbose, killWith9, eventCheck)
+        self.cycleComponents(cluCfgList, configDir, daqDataDir, self.__logger,
+                             logPort, livePort, verbose, killWith9, eventCheck)
 
     def returnComponents(self, pool, clusterConfig, configDir, daqDataDir,
                          logPort, livePort, verbose, killWith9, eventCheck):

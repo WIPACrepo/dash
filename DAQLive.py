@@ -115,7 +115,10 @@ class DAQLive(Component):
             self.__runSet = self.__cnc.makeRunsetFromRunConfig(runCfg, runNum)
         except MissingComponentException as mce:
             compStrs = [str(x) for x in mce.components()]
-            self.moniClient.sendMoni("missingComponent", compStrs)
+            self.moniClient.sendMoni("missingComponent",
+                                     {"components": compStrs,
+                                      "runConfig": str(runCfg),
+                                      "runNumber": runNum})
             raise LiveException("Cannot create run #%d runset for \"%s\": %s" %
                                 (runNum, runCfg, str(mce)))
         except:

@@ -156,8 +156,11 @@ class ConnectionTest(unittest.TestCase):
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
         logger.addExpectedRegexp(r"Built runset #\d+: .*")
 
+        daqDataDir = None
+
         runset = pool.makeRunset(self.__runConfigDir, runConfig, 0, 0,
-                                 logger, forceRestart=False, strict=False)
+                                 logger, daqDataDir, forceRestart=False,
+                                 strict=False)
 
         chkId = ConnectionTest.EXP_ID
         ConnectionTest.EXP_ID += 1
