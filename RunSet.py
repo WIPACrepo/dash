@@ -1624,9 +1624,16 @@ class RunSet(object):
         return TaskManager(self, dashlog, liveMoniClient, runDir, runConfig,
                            runOptions)
 
-    def cycleComponents(self, compList, configDir, daqDataDir, logPort,
-                        livePort, verbose, killWith9, eventCheck,
+    @classmethod
+    def cycleComponents(self, compList, configDir, daqDataDir, logger,
+                        logPort, livePort, verbose, killWith9, eventCheck,
                         checkExists=True):
+
+        # sort list into a predictable order for unit tests
+        #
+        compStr = listComponentRanges(compList)
+        logger.error("Cycling components %s" % compStr)
+
         dryRun = False
         ComponentManager.killComponents(compList, dryRun, verbose, killWith9)
         ComponentManager.startComponents(compList, dryRun, verbose, configDir,
@@ -1791,13 +1798,8 @@ class RunSet(object):
                     self.__logger.error("Close failed for %s: %s" %
                                         (comp.fullName(), exc_string()))
 
-        # sort list into a predictable order for unit tests
-        #
-        compStr = listComponentRanges(cluCfgList);
-        self.__logger.error("Cycling components %s" % compStr)
-
-        self.cycleComponents(cluCfgList, configDir, daqDataDir, logPort,
-                             livePort, verbose, killWith9, eventCheck)
+        self.cycleComponents(cluCfgList, configDir, daqDataDir, self.__logger,
+                             logPort, livePort, verbose, killWith9, eventCheck)
 
     def returnComponents(self, pool, clusterConfig, configDir, daqDataDir,
                          logPort, livePort, verbose, killWith9, eventCheck):

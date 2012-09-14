@@ -10,6 +10,7 @@ import sys
 import threading
 import time
 
+from CnCExceptions import CnCServerException, MissingComponentException
 from CnCLogger import CnCLogger
 from CompOp import ComponentOperation, ComponentOperationGroup
 from DAQClient import ComponentName, DAQClient, DAQClientState
@@ -39,11 +40,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 13757 2012-06-12 23:38:20Z dglo $"
-
-
-class CnCServerException(Exception):
-    pass
+SVN_ID = "$Id: CnCServer.py 13926 2012-09-14 20:35:08Z dglo $"
 
 
 class DAQPool(object):
@@ -145,6 +142,35 @@ class DAQPool(object):
         finally:
             self.__setsLock.release()
 
+    def __restartMissingComponents(self, waitList, runConfigDir, logger,
+                                   daqDataDir):
+            deadList = []
+            for comp in waitList:
+                found = False
+                cluCfg = self.getClusterConfig()
+                if cluCfg is None:
+                    logger.error("Cannot restart %s: No cluster config" %
+                                 comp.fullName())
+                else:
+                    for node in cluCfg.nodes():
+                        for nodeComp in node.components():
+                            if comp.name().lower() == nodeComp.name().lower() \
+                                and comp.num() == nodeComp.id():
+                                deadList.append(nodeComp)
+                                found = True
+                                break
+
+                        if not found:
+                            logger.error(("Cannot restart %s: Not found in" +
+                                          " cluster config \"%s\"") %
+                                         (comp.fullName(),
+                                          cluCfg.configName()))
+
+            if len(deadList) > 0:
+                self.cycleComponents(deadList, runConfigDir, daqDataDir,
+                                     logger, logger.logPort(),
+                                     logger.livePort())
+
     def __returnComponents(self, compList, logger):
         tGroup = ComponentOperationGroup(ComponentOperation.RESET_COMP)
         for c in compList:
@@ -181,6 +207,13 @@ class DAQPool(object):
 
     def createRunset(self, runConfig, compList, logger):
         return RunSet(self, runConfig, compList, logger)
+
+    def cycleComponents(self, compList, runConfigDir, daqDataDir, logger,
+                        logPort, livePort, verbose=False, killWith9=False,
+                        eventCheck=False):
+        RunSet.cycleComponents(compList, runConfigDir, daqDataDir, logger,
+                               logPort, livePort, verbose, killWith9,
+                               eventCheck)
 
     def findRunset(self, id):
         "Find the runset with the specified ID"
@@ -221,7 +254,7 @@ class DAQPool(object):
         return ids
 
     def makeRunset(self, runConfigDir, runConfigName, runNum, timeout, logger,
-                   forceRestart=True, strict=False):
+                   daqDataDir, forceRestart=True, strict=False):
         "Build a runset from the specified run configuration"
         logger.info("Loading run configuration \"%s\"" % runConfigName)
         runConfig = DAQConfigParser.load(runConfigName, runConfigDir, strict)
@@ -239,11 +272,15 @@ class DAQPool(object):
         try:
             waitList = self.__collectComponents(nameList, compList, logger,
                                                 timeout)
-            if waitList is not None:
-                raise CnCServerException("Still waiting for " + str(waitList))
         except:
             self.__returnComponents(compList, logger)
             raise
+
+        if waitList is not None:
+            self.__returnComponents(compList, logger)
+            self.__restartMissingComponents(waitList, runConfigDir,
+                                            logger, daqDataDir)
+            raise MissingComponentException(waitList)
 
         setAdded = False
         try:
@@ -819,17 +856,9 @@ class CnCServer(DAQPool):
 
     def makeRunsetFromRunConfig(self, runConfig, runNum,
                                 timeout=REGISTRATION_TIMEOUT, strict=False):
-        try:
-            runSet = self.makeRunset(self.__runConfigDir, runConfig, runNum,
-                                     timeout, self.__log,
-                                     forceRestart=self.__forceRestart,
-                                     strict=strict)
-        except:
-            self.__log.error("While making runset from \"%s\": %s" %
-                             (runConfig, exc_string()))
-            runSet = None
-
-        return runSet
+        return self.makeRunset(self.__runConfigDir, runConfig, runNum,
+                               timeout, self.__log, self.__daqDataDir,
+                               forceRestart=self.__forceRestart, strict=strict)
 
     def monitorLoop(self):
         "Monitor components to ensure they're still alive"
@@ -1205,7 +1234,18 @@ class CnCServer(DAQPool):
             raise CnCServerException("Must now specify a run config name," +
                                      " not a list of components")
 
-        runSet = self.makeRunsetFromRunConfig(runConfig, runNum, strict=strict)
+        try:
+            runSet = self.makeRunsetFromRunConfig(runConfig, runNum,
+                                                  strict=strict)
+        except MissingComponentException as mce:
+            self.__log.error("%s while making runset from \"%s\"" %
+                             (str(mce), runConfig))
+            runSet = None
+        except:
+            self.__log.error("While making runset from \"%s\": %s" %
+                             (runConfig, exc_string()))
+            runSet = None
+
         if runSet is None:
             return -1
 

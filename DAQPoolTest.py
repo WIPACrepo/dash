@@ -188,8 +188,10 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
         logger.addExpectedRegexp("Built runset #\d+: .*")
 
+        daqDataDir = None
+
         runset = mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                                forceRestart=False, strict=False)
+                                daqDataDir, forceRestart=False, strict=False)
 
         self.assertEqual(mgr.numComponents(), 0)
 
@@ -239,9 +241,11 @@ class TestDAQPool(unittest.TestCase):
                                 runConfig)
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
 
+        daqDataDir = None
+
         try:
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                           forceRestart=False, strict=False)
+                           daqDataDir, forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
         except ConnectionException as ce:
             if str(ce).find("No outputs found for %s inputs" % inputName) < 0:
@@ -287,9 +291,11 @@ class TestDAQPool(unittest.TestCase):
                                 runConfig)
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
 
+        daqDataDir = None
+
         try:
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                           forceRestart=False, strict=False)
+                           daqDataDir, forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
         except ConnectionException as ce:
             if str(ce).find("No outputs found for %s inputs" % inputName) < 0:
@@ -337,9 +343,11 @@ class TestDAQPool(unittest.TestCase):
                                 runConfig)
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
 
+        daqDataDir = None
+
         try:
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                           forceRestart=False, strict=False)
+                           daqDataDir, forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
         except ConnectionException as ce:
             if str(ce).find("No outputs found for %s inputs" % inputName) < 0:
@@ -386,9 +394,11 @@ class TestDAQPool(unittest.TestCase):
                                 runConfig)
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
 
+        daqDataDir = None
+
         try:
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                           forceRestart=False, strict=False)
+                           daqDataDir, forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
         except ConnectionException as ce:
             if str(ce).find("No inputs found for %s outputs" %
@@ -435,9 +445,11 @@ class TestDAQPool(unittest.TestCase):
                                 runConfig)
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
 
+        daqDataDir = None
+
         try:
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                           forceRestart=False, strict=False)
+                           daqDataDir, forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
         except ConnectionException as ce:
             if str(ce).find("No inputs found for %s outputs" %
@@ -486,9 +498,11 @@ class TestDAQPool(unittest.TestCase):
                                 runConfig)
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
 
+        daqDataDir = None
+
         try:
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                           forceRestart=False, strict=False)
+                           daqDataDir, forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
         except ConnectionException as ce:
             if str(ce).find("No inputs found for %s outputs" %
@@ -543,9 +557,11 @@ class TestDAQPool(unittest.TestCase):
                                 runConfig)
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
 
+        daqDataDir = None
+
         try:
             mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                           forceRestart=False, strict=False)
+                           daqDataDir, forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
         except ConnectionException as ce:
             if str(ce).find("Found 2 %s inputs for 2 outputs" % \
@@ -595,8 +611,10 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
         logger.addExpectedRegexp("Built runset #\d+: .*")
 
+        daqDataDir = None
+
         runset = mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                                forceRestart=False, strict=False)
+                                daqDataDir, forceRestart=False, strict=False)
 
         self.assertEqual(mgr.numComponents(), 0)
 
@@ -646,8 +664,10 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
         logger.addExpectedRegexp("Built runset #\d+: .*")
 
+        daqDataDir = None
+
         runset = mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                                forceRestart=False, strict=False)
+                                daqDataDir, forceRestart=False, strict=False)
 
         self.assertEqual(mgr.numComponents(), 0)
         self.assertEqual(runset.size(), len(compList))

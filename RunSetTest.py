@@ -87,7 +87,8 @@ class MyRunSet(RunSet):
                           moniType):
         return FakeTaskManager()
 
-    def cycleComponents(self, compList, configDir, daqDataDir, logPort,
+    @classmethod
+    def cycleComponents(self, compList, configDir, daqDataDir, logger, logPort,
                         livePort, verbose, killWith9, eventCheck,
                         checkExists=True):
         pass
