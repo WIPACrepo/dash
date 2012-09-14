@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<activeTriggers>
+    <triggerConfig>
+        <triggerType>3</triggerType>
+        <triggerConfigId>-1</triggerConfigId>
+        <sourceId>6000</sourceId>
+        <triggerName>ThroughputTrigger</triggerName>
+    </triggerConfig>
+    <triggerConfig>
+        <triggerType>2</triggerType>
+        <triggerConfigId>0</triggerConfigId>
+        <sourceId>4000</sourceId>
+        <triggerName>MinBiasTrigger</triggerName>
+        <parameterConfig>
+            <parameterName>prescale</parameterName>
+            <parameterValue>10</parameterValue>
+        </parameterConfig>
+        <readoutConfig>
+            <readoutType>0</readoutType>
+            <timeOffset>0</timeOffset>
+            <timeMinus>25000</timeMinus>
+            <timePlus>25000</timePlus>
+        </readoutConfig>
+    </triggerConfig>
+</activeTriggers>

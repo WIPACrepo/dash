@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<activeTriggers configurationId="12">
+    <triggerConfig triggerId="8">
+        <triggerType>3</triggerType>
+        <triggerConfigId>-1</triggerConfigId>
+        <sourceId>6000</sourceId>
+        <triggerName>ThroughputTrigger</triggerName>
+    </triggerConfig>
+    <triggerConfig triggerId="101">
+        <triggerType>2</triggerType>
+        <triggerConfigId>101</triggerConfigId>
+        <sourceId>5000</sourceId>
+        <triggerName>MinBiasTrigger</triggerName>
+        <parameterConfig paramId="101">
+            <parameterName>prescale</parameterName>
+            <parameterValue>10000</parameterValue>
+        </parameterConfig>
+        <readoutConfig readoutId="101">
+            <readoutType>0</readoutType>
+            <timeOffset>0</timeOffset>
+            <timeMinus>25000</timeMinus>
+            <timePlus>25000</timePlus>
+        </readoutConfig>
+    </triggerConfig>
+    <triggerConfig triggerId="102">
+        <triggerType>0</triggerType>
+        <triggerConfigId>102</triggerConfigId>
+        <sourceId>5000</sourceId>
+        <triggerName>SimpleMajorityTrigger</triggerName>
+        <parameterConfig paramId="5">
+            <parameterName>threshold</parameterName>
+            <parameterValue>6</parameterValue>
+        </parameterConfig>
+        <parameterConfig paramId="6">
+            <parameterName>timeWindow</parameterName>
+            <parameterValue>5000</parameterValue>
+        </parameterConfig>
+        <readoutConfig readoutId="102">
+            <readoutType>0</readoutType>
+            <timeOffset>0</timeOffset>
+            <timeMinus>10000</timeMinus>
+            <timePlus>10000</timePlus>
+        </readoutConfig>
+    </triggerConfig>
+    <triggerConfig triggerId="103">
+        <triggerType>2</triggerType>
+        <triggerConfigId>101</triggerConfigId>
+        <sourceId>4000</sourceId>
+        <triggerName>MinBiasTrigger</triggerName>
+        <parameterConfig paramId="101">
+            <parameterName>prescale</parameterName>
+            <parameterValue>10000</parameterValue>
+        </parameterConfig>
+        <readoutConfig readoutId="101">
+            <readoutType>0</readoutType>
+            <timeOffset>0</timeOffset>
+            <timeMinus>25000</timeMinus>
+            <timePlus>25000</timePlus>
+        </readoutConfig>
+    </triggerConfig>
+    <triggerConfig triggerId="104">
+        <triggerType>0</triggerType>
+        <triggerConfigId>103</triggerConfigId>
+        <sourceId>4000</sourceId>
+        <triggerName>SimpleMajorityTrigger</triggerName>
+        <parameterConfig paramId="2">
+            <parameterName>threshold</parameterName>
+            <parameterValue>8</parameterValue>
+        </parameterConfig>
+        <parameterConfig paramId="6">
+            <parameterName>timeWindow</parameterName>
+            <parameterValue>5000</parameterValue>
+        </parameterConfig>
+        <readoutConfig readoutId="102">
+            <readoutType>0</readoutType>
+            <timeOffset>0</timeOffset>
+            <timeMinus>10000</timeMinus>
+            <timePlus>10000</timePlus>
+        </readoutConfig>
+    </triggerConfig>
+    <triggerConfig triggerId="105">
+        <triggerType>7</triggerType>
+        <triggerConfigId>104</triggerConfigId>
+        <sourceId>10000</sourceId>
+        <triggerName>AmandaMFrag20Trigger</triggerName>
+        <readoutConfig readoutId="103">
+            <readoutType>0</readoutType>
+            <timeOffset>-6000</timeOffset>
+            <timeMinus>25000</timeMinus>
+            <timePlus>25000</timePlus>
+        </readoutConfig>
+    </triggerConfig>
+    <triggerConfig triggerId="106">
+        <triggerType>8</triggerType>
+        <triggerConfigId>104</triggerConfigId>
+        <sourceId>10000</sourceId>
+        <triggerName>AmandaVolumeTrigger</triggerName>
+        <readoutConfig readoutId="103">
+            <readoutType>0</readoutType>
+            <timeOffset>-6000</timeOffset>
+            <timeMinus>25000</timeMinus>
+            <timePlus>25000</timePlus>
+        </readoutConfig>
+    </triggerConfig>
+    <triggerConfig triggerId="107">
+        <triggerType>9</triggerType>
+        <triggerConfigId>104</triggerConfigId>
+        <sourceId>10000</sourceId>
+        <triggerName>AmandaM18Trigger</triggerName>
+        <readoutConfig readoutId="103">
+            <readoutType>0</readoutType>
+            <timeOffset>-6000</timeOffset>
+            <timeMinus>25000</timeMinus>
+            <timePlus>25000</timePlus>
+        </readoutConfig>
+    </triggerConfig>
+    <triggerConfig triggerId="108">
+        <triggerType>10</triggerType>
+        <triggerConfigId>104</triggerConfigId>
+        <sourceId>10000</sourceId>
+        <triggerName>AmandaM24Trigger</triggerName>
+        <readoutConfig readoutId="103">
+            <readoutType>0</readoutType>
+            <timeOffset>-6000</timeOffset>
+            <timeMinus>25000</timeMinus>
+            <timePlus>25000</timePlus>
+        </readoutConfig>
+    </triggerConfig>
+    <triggerConfig triggerId="109">
+        <triggerType>11</triggerType>
+        <triggerConfigId>104</triggerConfigId>
+        <sourceId>10000</sourceId>
+        <triggerName>AmandaStringTrigger</triggerName>
+        <readoutConfig readoutId="103">
+            <readoutType>0</readoutType>
+            <timeOffset>-6000</timeOffset>
+            <timeMinus>25000</timeMinus>
+            <timePlus>25000</timePlus>
+        </readoutConfig>
+    </triggerConfig>
+    <triggerConfig triggerId="110">
+        <triggerType>12</triggerType>
+        <triggerConfigId>104</triggerConfigId>
+        <sourceId>10000</sourceId>
+        <triggerName>AmandaRandomTrigger</triggerName>
+        <readoutConfig readoutId="103">
+            <readoutType>0</readoutType>
+            <timeOffset>-6000</timeOffset>
+            <timeMinus>25000</timeMinus>
+            <timePlus>25000</timePlus>
+        </readoutConfig>
+    </triggerConfig>
+    <triggerConfig triggerId="111">
+        <triggerType>13</triggerType>
+        <triggerConfigId>105</triggerConfigId>
+        <sourceId>4000</sourceId>
+        <triggerName>PhysicsMinBiasTrigger</triggerName>
+        <parameterConfig paramId="102">
+            <parameterName>deadtime</parameterName>
+            <parameterValue>5000</parameterValue>
+        </parameterConfig>
+        <parameterConfig paramId="103">
+            <parameterName>prescale</parameterName>
+            <parameterValue>200</parameterValue>
+        </parameterConfig>
+        <readoutConfig readoutId="102">
+            <readoutType>0</readoutType>
+            <timeOffset>0</timeOffset>
+            <timeMinus>10000</timeMinus>
+            <timePlus>10000</timePlus>
+        </readoutConfig>
+    </triggerConfig>
+</activeTriggers>
