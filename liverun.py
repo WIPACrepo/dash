@@ -274,6 +274,9 @@ class LiveState(object):
             elif front == "daqrelease":
                 # ignore DAQ release name
                 return self.PARSE_NORMAL
+            elif front == "Run starts":
+                # ignore run start/switch info
+                return self.PARSE_NORMAL
             elif front == "check failed" and back.find("timed out") >= 0:
                 self.__logger.error("I3Live may have died" +
                                     " (livecmd check returned '%s')" %
