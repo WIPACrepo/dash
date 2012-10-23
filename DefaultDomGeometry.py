@@ -450,6 +450,11 @@ class DefaultDomGeometry(object):
             print >>sys.stderr, "Could not delete %s from string %d" % \
                   (dom, stringNum)
 
+    def doms(self):
+        "Convenience method to list all known DOMs"
+        for domid in self.__domIdToDom:
+            yield self.__domIdToDom[domid]
+
     def dump(self, out=sys.stdout):
         "Dump the string->DOM dictionary in default-dom-geometry format"
         strList = self.__stringToDom.keys()
