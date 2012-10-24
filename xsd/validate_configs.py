@@ -10,14 +10,30 @@ except ImportError:
     sys.path.append('..')
     from CachedConfigName import CachedConfigName
 
+try:
+    from locate_pdaq import find_pdaq_config, find_pdaq_trunk
+except ImportError:
+    sys.path.append('..')
+    from locate_pdaq import find_pdaq_config, find_pdaq_trunk
+
 from ClusterDescription import ClusterDescription
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    META_DIR = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
     META_DIR = find_pdaq_trunk()
+CONFIG_DIR = find_pdaq_config()
+
+
+def _open_schema(path, description):
+    try:
+        return open(path, 'r')
+    except IOError:
+        # look in the schema directory
+        path2 = os.path.join(META_DIR, 'schema', os.path.basename(path))
+
+        try:
+            return open(path2, 'r')
+        except IOError:
+            raise IOError("Could not open %s '%s'" % (description, path))
 
 
 def validate_configs(cluster_xml_filename, runconfig_xml_filename,
@@ -25,7 +41,7 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
 
     # ---------------------------------------------------------
     # build up a path and validate the default_dom_geometry file
-    dom_geom_xml_path = os.path.join(META_DIR, "config",
+    dom_geom_xml_path = os.path.join(CONFIG_DIR,
                                      "default-dom-geometry.xml")
     (valid, reason) = validate_default_dom_geom(dom_geom_xml_path)
     if not valid:
@@ -53,7 +69,7 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
 
     cluster_xml_filename = "%s.%s" % (fname, extension)
 
-    cluster_xml_filename = os.path.join(META_DIR, 'config',
+    cluster_xml_filename = os.path.join(CONFIG_DIR,
                                         os.path.basename(cluster_xml_filename))
 
     (valid, reason) = validate_clusterconfig(cluster_xml_filename)
@@ -79,7 +95,7 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
         runconfig_xml_filename = "%s.xml" % runconfig_xml_filename
 
     runconfig_basename = os.path.basename(runconfig_xml_filename)
-    runconfig_xml_filename = os.path.join(META_DIR, 'config',
+    runconfig_xml_filename = os.path.join(CONFIG_DIR,
                                           runconfig_basename)
 
     (valid, reason) = validate_runconfig(runconfig_xml_filename)
@@ -107,7 +123,7 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
     dconfigList = run_configs.findall('domConfigList')
     for dconfig in dconfigList:
         dom_config_txt = "%s.xml" % dconfig.text
-        dom_config_path = os.path.join(META_DIR, 'config', 'domconfigs',
+        dom_config_path = os.path.join(CONFIG_DIR, 'domconfigs',
                                        dom_config_txt)
 
         if is_sps:
@@ -121,7 +137,7 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
     trigConfigList = run_configs.findall('triggerConfig')
     for trigConfig in trigConfigList:
         trig_config_txt = "%s.xml" % trigConfig.text
-        trig_config_path = os.path.join(META_DIR, 'config', 'trigger',
+        trig_config_path = os.path.join(CONFIG_DIR, 'trigger',
                                         trig_config_txt)
 
         (valid, reason) = validate_trigger(trig_config_path)
@@ -227,21 +243,8 @@ def _validate_dom_config_xml(xml_filename, rng_real_filename):
     except IOError:
         return (False, "Cannot open: %s" % xml_filename)
 
-    rng_real_fd = None
-    try:
-        try:
-            rng_real_fd = open(rng_real_filename, 'r')
-        except IOError:
-            rng_real_path = os.path.join(META_DIR, "config",
-                                         "xsd",
-                                         os.path.basename(rng_real_filename))
-            
-            xsd_real_fd = open(rng_real_path, 'r')
-
-            rng_doc = etree.parse(xsd_real_fd)
-    finally:
-        if rng_real_fd is not None:
-            rng_real_fd.close()
+    with _open_schema(rng_real_filename, "RelaxNG file") as rng_real_fd:
+        rng_doc = etree.parse(rng_real_fd)
                 
     rng_real = etree.RelaxNG(rng_doc)
 
@@ -266,23 +269,10 @@ def _validate_xml_rng(xml_filename, relaxng_filename):
     """
 
     try:
-        try:
-            relaxng_fd = open(relaxng_filename, 'r')
-        except IOError:
-            # look in the config/xsd directory
-            relaxng_path = os.path.join(META_DIR, 'config',
-                                        'xsd',
-                                        os.path.basename(relaxng_filename))
-
-            try:
-                relaxng_fd = open(relaxng_path, 'r')
-            except IOError:
-                return (False, "could not rng open: '%s'" % relaxng_path)
-
+        with _open_schema(relaxng_filename, "RNG schema") as relaxng_fd:
         relaxng_doc = etree.parse(relaxng_fd)
-    finally:
-        if relaxng_fd is not None:
-            relaxng_fd.close()
+    except IOError as e:
+        return (False, str(e))
 
     relaxng = etree.RelaxNG(relaxng_doc)
 
@@ -316,25 +306,11 @@ def _validate_xml(xml_filename, xsd_filename):
     """
 
     # real dom config xsd
-    xsd_fd = None
-    try:
         try:
-            xsd_fd = open(xsd_filename, 'r')
-        except IOError:
-            # look in the config/xsd directory
-            xsd_path = os.path.join(META_DIR, 'config',
-                                    'xsd',
-                                    os.path.basename(xsd_filename))
-
-            try:
-                xsd_fd = open(xsd_path, 'r')
-            except IOError:
-                return (False, "could not xsd open: '%s'" % xsd_path)
-
+        with _open_schema(xsd_filename, "XSD schema") as xsd_fd:
         xmlschema_doc = etree.parse(xsd_fd)
-    finally:
-        if xsd_fd is not None:
-            xsd_fd.close()
+    except IOError as e:
+        return (False, str(e))
 
     xsd = etree.XMLSchema(xmlschema_doc)
 
@@ -355,12 +331,13 @@ def _validate_xml(xml_filename, xsd_filename):
 
 if __name__ == "__main__":
 
-    spts_configs = glob.glob('../../config/spts*.xml')
-    print "Validating all sps configuraitons"
+    spts_configs = glob.glob(os.path.join(CONFIG_DIR, 'spts*.xml'))
+    print "Validating all sps configurations"
     for config in spts_configs:
         print ""
         print "Validating %s" % config
-        (valid, reason) = validate_configs('../../config/spts-cluster.cfg',
+        (valid, reason) = validate_configs(os.path.join(CONFIG_DIR,
+                                                        'spts-cluster.cfg'),
                                            config)
 
         if not valid:
@@ -372,14 +349,15 @@ if __name__ == "__main__":
     print "-"*60
     print "Validating all sps configurations"
     print "-"*60
-    sps_configs = glob.glob('../../config/sps*.xml')
+    sps_configs = glob.glob(os.path.join(CONFIG_DIR, 'sps*.xml'))
     
     print "validate_configs"
-    print "Validating all sps configuraitons"
+    print "Validating all sps configurations"
     for config in sps_configs:
         print ""
         print "Validating %s" % config
-        (valid, reason) = validate_configs('../../config/sps-cluster.cfg',
+        (valid, reason) = validate_configs(os.path.join(CONFIG_DIR,
+                                                        'sps-cluster.cfg'),
                                            config)
 
         if not valid:

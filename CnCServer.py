@@ -25,23 +25,22 @@ from RunSet import RunSet, listComponentRanges
 from RunSetState import RunSetState
 from SocketServer import ThreadingMixIn
 from XMLFileCache import XMLFileNotFound
+from locate_pdaq import find_pdaq_trunk
 from utils import ip
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
+
+# set location of pDAQ trunk
     metaDir = find_pdaq_trunk()
+
 
 # add meta-project python dir to Python library search path
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 13929 2012-09-14 21:20:22Z dglo $"
+SVN_ID = "$Id: CnCServer.py 13974 2012-10-24 17:09:53Z dglo $"
 
 
 class DAQPool(object):

@@ -7,13 +7,7 @@ import sys
 from utils import ip
 
 from DAQConfig import DAQConfig, DAQConfigParser
-
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
+from locate_pdaq import find_pdaq_config
 
 
 def getHubName(num):
@@ -33,7 +27,7 @@ def parseArgs():
         the run configuration name
         the list of hub IDs to be removed
     """
-    cfgDir = os.path.join(metaDir, "config")
+    cfgDir = find_pdaq_config()
     if not os.path.exists(cfgDir):
         print >> sys.stderr, "Cannot find configuration directory"
 
@@ -117,7 +111,7 @@ if __name__ == "__main__":
 
     (forceCreate, runCfgName, cluCfgName, hubIdList) = parseArgs()
 
-    configDir = os.path.join(metaDir, "config")
+    configDir = find_pdaq_config()
     newPath = DAQConfig.createOmitFileName(configDir, runCfgName, hubIdList)
     if os.path.exists(newPath):
         if forceCreate:

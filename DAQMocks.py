@@ -19,15 +19,9 @@ from DAQClient import DAQClient
 import DeployPDAQ
 from DAQConst import DAQPort
 from LiveImports import MoniPort, SERVICE_NAME
+from locate_pdaq import find_pdaq_trunk
 from utils import ip
 from utils.DashXMLLog import DashXMLLog
-
-
-if "PDAQ_HOME" in os.environ:
-    METADIR = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    METADIR = find_pdaq_trunk()
 
 
 class BaseChecker(object):
@@ -1063,7 +1057,7 @@ class MockLogger(LogChecker):
 
 
 class MockParallelShell(object):
-    BINDIR = os.path.join(METADIR, 'target', 'pDAQ-%s-dist' %
+    BINDIR = os.path.join(find_pdaq_trunk(), 'target', 'pDAQ-%s-dist' %
                           ComponentManager.RELEASE, 'bin')
 
     def __init__(self, isParallel=True, debug=False):
@@ -1222,8 +1216,8 @@ class MockParallelShell(object):
         self.__rtnCodes.append(rtnCode)
         self.__results.append(result)
 
-    def addExpectedUndeploy(self, homeDir, pdaqDir, remoteHost):
-        cmd = "ssh %s \"\\rm -rf ~%s/.m2 %s\"" % \
+    def addExpectedUndeploy(self, pdaqDir, remoteHost):
+        cmd = "ssh %s \"\\rm -rf ~%s/config %s\"" % \
             (remoteHost, os.environ["USER"], pdaqDir)
         self.__addExpected(cmd)
 
@@ -1233,7 +1227,7 @@ class MockParallelShell(object):
                              ' %s') % str(self.__exp))
 
     def getMetaPath(self, subdir):
-        return os.path.join(METADIR, subdir)
+        return os.path.join(find_pdaq_trunk(), subdir)
 
     def getResult(self, idx):
         if idx < 0 or idx >= len(self.__results):

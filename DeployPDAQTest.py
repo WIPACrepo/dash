@@ -38,12 +38,15 @@ class DeployPDAQTest(unittest.TestCase):
         homeDir = os.path.join(topDir, "home")
         os.mkdir(homeDir)
 
+        homeCfg = os.path.join(homeDir, "config")
+        os.mkdir(homeCfg)
+
         config = MockClusterConfig(hosts)
 
         parallel = MockParallelShell()
         if undeploy:
             for h in hosts:
-                parallel.addExpectedUndeploy(homeDir, topDir, h)
+                parallel.addExpectedUndeploy(topDir, h)
         else:
             for h in hosts:
                 parallel.addExpectedRsync(topDir, subdirs, delete, deepDryRun,

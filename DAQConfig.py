@@ -12,15 +12,9 @@ from DefaultDomGeometry import BadFileError, DefaultDomGeometryReader, \
     ProcessError, XMLParser
 from RunCluster import RunCluster
 from XMLFileCache import XMLFileCache
+from locate_pdaq import find_pdaq_config
 from utils.Machineid import Machineid
 from xsd.validate_configs import validate_configs
-
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
 
 from DAQConfigExceptions import DAQConfigException
 from DAQConfigExceptions import BadComponentName
@@ -1318,7 +1312,7 @@ class DAQConfig(object):
     @classmethod
     def showList(cls, configDir, configName):
         if configDir is None:
-            configDir = os.path.join(metaDir, "config")
+            configDir = find_pdaq_config()
 
         if not os.path.exists(configDir):
             raise DAQConfigException("Could not find config dir %s" %
@@ -1616,7 +1610,7 @@ class DAQConfigParser(XMLParser, XMLFileCache):
             configName = configName[:sepIndex]
 
         if configDir is None:
-            configDir = os.path.join(metaDir, "config")
+            configDir = find_pdaq_config()
 
         if validate:
             (valid, reason) = validate_configs(clusterDesc, configName)
@@ -1804,7 +1798,7 @@ if __name__ == "__main__":
                                   "on the correct host?")
             raise SystemExit
 
-    configDir = os.path.join(metaDir, "config")
+    configDir = find_pdaq_config()
 
     if opt.parseDomData:
         DomConfigParser.parseAllDomData()

@@ -5,23 +5,15 @@ import sys
 
 
 if __name__ == "__main__":
-    # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-    if "PDAQ_HOME" in os.environ:
-        metaDir = os.environ["PDAQ_HOME"]
-    else:
         sys.path.append('..')
-        from locate_pdaq import find_pdaq_trunk
-        metaDir = find_pdaq_trunk()
+    from locate_pdaq import find_pdaq_config
+    config_path = find_pdaq_config()
 
     print "Validating all runconfig files"
     print ""
 
-    config_path = os.path.join(metaDir, "config")
-    run_config_path = config_path
-    xsd_path = os.path.join(config_path, "xsd")
-
     invalid_found = False
-    run_configs = glob.glob(os.path.join(run_config_path, '*.xml'))
+    run_configs = glob.glob(os.path.join(config_path, '*.xml'))
 
     # remove the default dom geometry file from the above list
     for entry in run_configs:

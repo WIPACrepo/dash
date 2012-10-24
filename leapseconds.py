@@ -13,13 +13,7 @@ import os
 import re
 import time
 
-
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
     from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
 
 
 class leapseconds:
@@ -30,6 +24,7 @@ class leapseconds:
     class leapsecondsHelper:
         def __call__(self, *args, **kw):
             if not leapseconds.instance:
+                metaDir = find_pdaq_trunk()
                 path = os.path.join(metaDir, 'dash', 'leap-seconds.latest')
                 leapseconds.instance = leapseconds(path)
             return leapseconds.instance

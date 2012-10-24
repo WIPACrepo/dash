@@ -10,12 +10,10 @@ import sys
 
 from xml.dom import minidom, Node
 
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
+
+# find pDAQ's run configuration directory
+from locate_pdaq import find_pdaq_config
+configDir = find_pdaq_config()
 
 
 class XMLError(Exception):
@@ -813,8 +811,7 @@ class DefaultDomGeometryReader(XMLParser):
     @classmethod
     def parse(cls, fileName=None, translateDoms=False):
         if fileName is None:
-            fileName = os.path.join(metaDir, "config",
-                                    "default-dom-geometry.xml")
+            fileName = os.path.join(configDir, "default-dom-geometry.xml")
 
         if not os.path.exists(fileName):
             raise BadFileError("Cannot read default dom geometry file \"%s\"" %
@@ -862,7 +859,7 @@ class DomsTxtReader(object):
     def parse(fileName=None, defDomGeom=None):
         "Parse a doms.txt file"
         if fileName is None:
-            fileName = os.path.join(metaDir, "config", "doms.txt")
+            fileName = os.path.join(configDir, "doms.txt")
 
         if not os.path.exists(fileName):
             raise BadFileError("Cannot read doms.txt file \"%s\"" %
@@ -926,7 +923,7 @@ class NicknameReader(object):
     @staticmethod
     def parse(fileName=None, defDomGeom=None):
         if fileName is None:
-            fileName = os.path.join(metaDir, "config", "nicknames.txt")
+            fileName = os.path.join(configDir, "nicknames.txt")
 
         if not os.path.exists(fileName):
             raise BadFileError("Cannot read nicknames file \"%s\"" %

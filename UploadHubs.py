@@ -26,13 +26,6 @@ import time
 from DAQConfig import DAQConfigParser
 from DAQConfigExceptions import DAQConfigException
 
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
-
 
 def hasNonZero(l):
     if not l:

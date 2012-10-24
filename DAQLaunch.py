@@ -17,19 +17,15 @@ from ComponentManager import ComponentManager
 from DAQConfig import DAQConfig, DAQConfigParser
 from DAQConfigExceptions import DAQConfigException
 from DAQConst import DAQPort
+from locate_pdaq import find_pdaq_config, find_pdaq_trunk
 
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
 
 # add meta-project python dir to Python library search path
+metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 13771 2012-06-20 04:27:56Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 13974 2012-10-24 17:09:53Z dglo $"
 
 
 class ConsoleLogger(object):
@@ -146,8 +142,8 @@ if __name__ == "__main__":
         DAQConfig.showList(None, None)
         raise SystemExit
 
-    cfgDir = os.path.join(metaDir, 'config')
-    dashDir = os.path.join(metaDir, 'dash')
+    cfgDir = find_pdaq_config()
+    dashDir = os.path.join(metaDir, "dash")
 
     logger = ConsoleLogger()
 

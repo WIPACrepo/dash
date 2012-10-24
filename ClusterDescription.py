@@ -8,13 +8,7 @@ import traceback
 from xml.dom import minidom, Node
 
 from Component import Component
-
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
     from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
 
 
 class XMLError(Exception):
@@ -295,8 +289,7 @@ class ClusterDescription(ConfigXMLBase):
             configName = self.getClusterFromHostName()
 
         if configDir is None:
-            configDir = os.path.abspath(os.path.join(metaDir,
-                                                     'config'))
+            configDir = find_pdaq_config()
 
         try:
             super(ClusterDescription, self).__init__(configDir, configName,
@@ -695,13 +688,7 @@ if __name__ == '__main__':
         print >>sys.stderr, 'Usage: %s configXML [configXML ...]' % sys.argv[0]
         sys.exit(1)
 
-    if "PDAQ_HOME" in os.environ:
-        metaDir = os.environ["PDAQ_HOME"]
-    else:
-        from locate_pdaq import find_pdaq_trunk
-        metaDir = find_pdaq_trunk()
-
-    configDir = os.path.abspath(os.path.join(metaDir, 'config'))
+    configDir = find_pdaq_config()
 
     for name in sys.argv[1:]:
         dirName = os.path.dirname(name)

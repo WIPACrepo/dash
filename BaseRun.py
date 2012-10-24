@@ -16,16 +16,10 @@ from DAQConfig import DAQConfigException, DAQConfigParser
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from DAQTime import PayloadTime
+from locate_pdaq import find_pdaq_config, find_pdaq_trunk
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
-
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
 
 
 class RunException(Exception):
@@ -141,6 +135,7 @@ class FlasherShellScript(object):
         if os.path.exists(flashFile):
             return flashFile
 
+        metaDir = find_pdaq_trunk()
         path = os.path.join(metaDir, "src", "test", "resources", flashFile)
 
         if os.path.exists(path):
@@ -499,8 +494,7 @@ class BaseRun(object):
 
         # make sure run-config directory exists
         #
-        self.__configDir = os.path.join(metaDir, "config")
-
+        self.__configDir = find_pdaq_config()
         if not os.path.isdir(self.__configDir):
             raise SystemExit("Run config directory '%s' does not exist" %
                              self.__configDir)
@@ -602,7 +596,7 @@ class BaseRun(object):
 
     def killComponents(self, dryRun=False):
         "Kill all pDAQ components"
-        cfgDir = os.path.join(metaDir, 'config')
+        cfgDir = find_pdaq_config()
 
         comps = ComponentManager.getActiveComponents(None, configDir=cfgDir,
                                                      validate=False)
@@ -627,8 +621,9 @@ class BaseRun(object):
         logDir = clusterCfg.daqLogDir()
         daqDataDir = clusterCfg.daqDataDir()
 
-        cfgDir = os.path.join(metaDir, 'config')
-        dashDir = os.path.join(metaDir, 'dash')
+        cfgDir = find_pdaq_config()
+        metaDir = find_pdaq_trunk()
+        dashDir = os.path.join(metaDir, "dash")
         logDirFallback = os.path.join(metaDir, "log")
 
         doCnC = True

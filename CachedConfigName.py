@@ -4,16 +4,11 @@
 
 import os
 
+from locate_pdaq import find_pdaq_config
+
 
 class NoNameException(Exception):
     pass
-
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
 
 
 class CachedFile(object):
@@ -23,7 +18,8 @@ class CachedFile(object):
         "get the active or default cluster configuration"
         if useActiveConfig:
             return os.path.join(os.environ["HOME"], ".active")
-        return os.path.join(metaDir, 'config', ".config")
+        configDir = find_pdaq_config()
+        return os.path.join(configDir, ".config")
 
     @staticmethod
     def __readCacheFile(useActiveConfig):
