@@ -132,7 +132,6 @@ class ActiveDOMThread(CnCThread):
                 # use higher priority every 10 minutes to keep North updated
                 prio = Prio.ITS
 
-            print "ActiveDOMsTask.sendMoni(activeDOMs -> %s)" % active_total
             self.__sendMoni("activeDOMs", active_total, prio)
             self.__sendMoni("expectedDOMs", total, prio)
             self.__sendMoni("total_ratelc", sum_lc_rate, prio)
