@@ -8,7 +8,7 @@ import traceback
 from xml.dom import minidom, Node
 
 from Component import Component
-from locate_pdaq import find_pdaq_trunk
+from locate_pdaq import find_pdaq_config
 
 
 class XMLError(Exception):
