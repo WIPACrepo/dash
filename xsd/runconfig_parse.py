@@ -30,7 +30,9 @@ if __name__ == "__main__":
             run_configs.remove(entry)
             break
 
+    num = 0
     for run_config in run_configs:
+        num += 1
         valid, reason = validate_runconfig(run_config)
 
         if not valid:
@@ -41,4 +43,4 @@ if __name__ == "__main__":
             invalid_found = True
 
     if not invalid_found:
-        print "No invalid run configuration files found"
+        print "No invalid run configuration files found (of %d)" % num
