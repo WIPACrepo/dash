@@ -4,7 +4,7 @@ import os
 import sys
 
 if __name__ == "__main__":
-        sys.path.append('..')
+    sys.path.append('..')
     from locate_pdaq import find_pdaq_config
     config_path = find_pdaq_config()
 

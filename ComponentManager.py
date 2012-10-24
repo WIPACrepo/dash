@@ -18,7 +18,7 @@ from ParallelShell import ParallelShell
 from Process import findProcess, processList
 from RunCluster import RunComponent
 from RunSetState import RunSetState
-    from locate_pdaq import find_pdaq_trunk
+from locate_pdaq import find_pdaq_trunk
 
 
 SVN_ID = "$Id: DAQLaunch.py 13550 2012-03-08 23:12:05Z dglo $"

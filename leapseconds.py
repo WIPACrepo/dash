@@ -13,7 +13,7 @@ import os
 import re
 import time
 
-    from locate_pdaq import find_pdaq_trunk
+from locate_pdaq import find_pdaq_trunk
 
 
 class leapseconds:

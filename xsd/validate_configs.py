@@ -19,7 +19,7 @@ except ImportError:
 from ClusterDescription import ClusterDescription
 
 # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-    META_DIR = find_pdaq_trunk()
+META_DIR = find_pdaq_trunk()
 CONFIG_DIR = find_pdaq_config()
 
 
@@ -76,7 +76,7 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
     if not valid:
         return (valid, reason)
 
-    # 
+    #
     # validate the run configuration
     # assume an .xml extension for the run config and add if required
 
@@ -119,7 +119,7 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
             is_sps = False
 
     run_configs = doc_xml.getroot()
-    
+
     dconfigList = run_configs.findall('domConfigList')
     for dconfig in dconfigList:
         dom_config_txt = "%s.xml" % dconfig.text
@@ -183,7 +183,7 @@ def is_sps_cluster(cluster_xml_filename):
     if not valid:
         print "cluster config not valid"
         return True
-            
+
     try:
         with open(cluster_xml_filename, 'r') as xml_fd:
             try:
@@ -207,7 +207,7 @@ def is_sps_cluster(cluster_xml_filename):
         return True
 
     name = cluster.attrib['name']
-    
+
     if name=='sps':
         return True
     else:
@@ -224,7 +224,7 @@ def validate_dom_config_sps(xml_filename):
 
 def validate_dom_config_spts(xml_filename):
     """Check a dom config file against the appropriate xml schema"""
-   
+
     (valid, reason) = _validate_dom_config_xml(xml_filename,
                                                'domconfig-spts.rng')
 
@@ -245,7 +245,7 @@ def _validate_dom_config_xml(xml_filename, rng_real_filename):
 
     with _open_schema(rng_real_filename, "RelaxNG file") as rng_real_fd:
         rng_doc = etree.parse(rng_real_fd)
-                
+
     rng_real = etree.RelaxNG(rng_doc)
 
     if rng_real.validate(doc_xml):
@@ -270,7 +270,7 @@ def _validate_xml_rng(xml_filename, relaxng_filename):
 
     try:
         with _open_schema(relaxng_filename, "RNG schema") as relaxng_fd:
-        relaxng_doc = etree.parse(relaxng_fd)
+            relaxng_doc = etree.parse(relaxng_fd)
     except IOError as e:
         return (False, str(e))
 
@@ -306,9 +306,9 @@ def _validate_xml(xml_filename, xsd_filename):
     """
 
     # real dom config xsd
-        try:
+    try:
         with _open_schema(xsd_filename, "XSD schema") as xsd_fd:
-        xmlschema_doc = etree.parse(xsd_fd)
+            xmlschema_doc = etree.parse(xsd_fd)
     except IOError as e:
         return (False, str(e))
 
@@ -350,7 +350,7 @@ if __name__ == "__main__":
     print "Validating all sps configurations"
     print "-"*60
     sps_configs = glob.glob(os.path.join(CONFIG_DIR, 'sps*.xml'))
-    
+
     print "validate_configs"
     print "Validating all sps configurations"
     for config in sps_configs:

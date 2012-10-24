@@ -13,7 +13,7 @@ import sys
 from BaseRun import FlasherShellScript
 from cncrun import CnCRun
 from datetime import datetime
-    from locate_pdaq import find_pdaq_trunk
+from locate_pdaq import find_pdaq_trunk
 from utils.Machineid import Machineid
 
 # add meta-project python dir to Python library search path
@@ -21,7 +21,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 13974 2012-10-24 17:09:53Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 13976 2012-10-24 19:26:16Z dglo $"
 
 
 class DOMArgumentException(Exception):

@@ -55,9 +55,9 @@ def find_pdaq_trunk():
         # source tree has 'dash', 'src', and 'StringHub' (and maybe 'target')
         # deployed tree has 'dash', 'src', and 'target'
         if os.path.isdir(os.path.join(dir, 'dash')) and \
-                os.path.isdir(os.path.join(dir, 'src')) and \
-                (os.path.isdir(os.path.join(dir, 'target')) or
-                 os.path.isdir(os.path.join(dir, 'StringHub'))):
+            os.path.isdir(os.path.join(dir, 'src')) and \
+            (os.path.isdir(os.path.join(dir, 'target')) or
+             os.path.isdir(os.path.join(dir, 'StringHub'))):
             METADIR = dir
             return METADIR
 

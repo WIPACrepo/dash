@@ -33,14 +33,14 @@ set_exc_string_encoding("ascii")
 
 
 # set location of pDAQ trunk
-    metaDir = find_pdaq_trunk()
+metaDir = find_pdaq_trunk()
 
 
 # add meta-project python dir to Python library search path
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 13974 2012-10-24 17:09:53Z dglo $"
+SVN_ID = "$Id: CnCServer.py 13976 2012-10-24 19:26:16Z dglo $"
 
 
 class DAQPool(object):
