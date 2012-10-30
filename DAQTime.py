@@ -215,18 +215,26 @@ class PayloadTime(object):
             now = time.gmtime()
             jan1 = time.struct_time((now.tm_year, 1, 1, 0, 0, 0, 0, 0, -1))
             PayloadTime.TIME_OFFSET = calendar.timegm(jan1)
-            july1_tuple = time.struct_time((now.tm_year, 7, 1, 0, 0, 0, 0, 0, -1))
-            PayloadTime.has_leapsecond = leapseconds.getInstance().get_leap_offset(july1_tuple)>0
-            PayloadTime.TIME_TILL_JUNE30 = leapseconds.seconds_till_june30(now.tm_year)
+            july1_tuple = time.struct_time((now.tm_year, 7, 1, 0, 0, 0, 0, 0,
+                                            -1))
             PayloadTime.YEAR = now.tm_year
+            PayloadTime.has_leapsecond = \
+                leapseconds.getInstance().get_leap_offset(july1_tuple)>0
+            if not PayloadTime.has_leapsecond:
+                # no mid-year leap second, so don't need to calculate
+                # seconds until June 30
+                PayloadTime.TIME_TILL_JUNE30 = sys.maxint
+            else:
+                PayloadTime.TIME_TILL_JUNE30 = \
+                    leapseconds.seconds_till_june30(now.tm_year)
 
         PayloadTime.PREV_TIME = payTime
 
-        curSecOffset = (payTime / float(PayloadTime.TICKS_PER_SECOND))
+        curSecOffset = (payTime / long(PayloadTime.TICKS_PER_SECOND))
         subsec = payTime % PayloadTime.TICKS_PER_SECOND
 
-        if curSecOffset < PayloadTime.TIME_TILL_JUNE30 or \
-                not PayloadTime.has_leapsecond:
+        if not PayloadTime.has_leapsecond or \
+                curSecOffset < PayloadTime.TIME_TILL_JUNE30:
             # no possibility of leapseconds to worry about
 
             curTime = curSecOffset + PayloadTime.TIME_OFFSET
@@ -248,20 +256,38 @@ class PayloadTime(object):
                 # assuming we only have to deal with ONE leapsecond
                 ts = time.gmtime(curTime-1)
 
-                return DAQDateTime(ts.tm_year, ts.tm_mon, ts.tm_mday, ts.tm_hour,
-                                   ts.tm_min, ts.tm_sec, subsec,
+                return DAQDateTime(ts.tm_year, ts.tm_mon, ts.tm_mday,
+                                   ts.tm_hour, ts.tm_min, ts.tm_sec, subsec,
                                    high_precision = high_precision)
 
 
-
-
-
 if __name__ == "__main__":
-    # pattern %Y-%m-%d %H:%M:%S
-    base = "2012-01-10 10:19:23"
-    dt0 = PayloadTime.fromString(base+".0001000000")
-    dt1 = PayloadTime.fromString(base+".0001")
+    import optparse
 
-    print dt0
-    print dt1
+    p = optparse.OptionParser()
+
+    opt, args = p.parse_args()
+
+    if len(args) == 0:
+        # pattern %Y-%m-%d %H:%M:%S
+        base = "2012-01-10 10:19:23"
+        dt0 = PayloadTime.fromString(base+".0001000000")
+        dt1 = PayloadTime.fromString(base+".0001")
+
+        print dt0
+        print dt1
+        raise SystemExit()
+
+    for arg in args:
+        try:
+            try:
+                val = long(arg)
+                dt = PayloadTime.toDateTime(val, True)
+            except:
+                dt = PayloadTime.fromString(arg, True)
+            print "%s -> %s" % (arg, dt)
+        except:
+            print "Bad date: " + arg
+            import traceback
+            traceback.print_exc()
 
