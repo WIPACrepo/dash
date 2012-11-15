@@ -18,7 +18,7 @@ except ImportError:
 
 from ClusterDescription import ClusterDescription
 
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+
 META_DIR = find_pdaq_trunk()
 CONFIG_DIR = find_pdaq_config()
 
@@ -33,7 +33,14 @@ def _open_schema(path, description):
         try:
             return open(path2, 'r')
         except IOError:
-            raise IOError("Could not open %s '%s'" % (description, path))
+            # transitional code between Ale_Asylum and Capital
+            # After pDAQ:Brewery:Furthermore has been release, this can go away
+            path3 = os.path.join(CONFIG_DIR, 'xsd', os.path.basename(path))
+
+            try:
+                return open(path3, 'r')
+            except IOError:
+                raise IOError("Could not open %s '%s'" % (description, path))
 
 
 def validate_configs(cluster_xml_filename, runconfig_xml_filename,
