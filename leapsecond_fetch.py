@@ -40,13 +40,19 @@ def fetch_latestleap(host = 'tycho.usno.navy.mil', path='/pub/ntp'):
 
     print "Latest leapsecond file: %s" % latest_file
 
-    print "Checking to see if we already have that file"
-    if os.path.exists(latest_file):
-        print "We already have the latest leapsecond file"
-        print "latest_file: %s" % latest_file
-        return
+    # From the folks at nist:
+    # Levine, Judah Dr. judah.levine@nist.gov via icecube.wisc.edu 
+    # to Matt 
+    # Hello,
+    # The expiration date of the file is changed as I get new information from the 
+    # International Earth Rotation Service (IERS) about future leap seconds. The extension changes
+    # ONLY when a new leap second has been announced. So, if the extension is unchanged, then no new 
+    # leap second is pending. If the expiration date has changed then this is based on new information
+    # from the IERS.
+    #
+    # ANNOYING...  no way to check and see if the file has been updated without fetching it
 
-    print "A new leapsecond file exists, fetching it"
+    print "A fetching: %s" % latest_file 
     ftp.retrbinary('RETR %s' % latest_file, 
                    open(latest_file, 'wb').write)
         
