@@ -554,8 +554,10 @@ class LiveRun(BaseRun):
         Start flashers for the specified duration with the specified data file
         """
         problem = False
-        if dataPath is None:
-            if not self.__dryRun:
+        if dataPath is None or dataPath == "sleep":
+            if self.__dryRun:
+                print "sleep %d" % secs
+            else:
                 time.sleep(secs)
         else:
             cmd = "%s flasher -d %d -f %s" % (self.__liveCmdProg,

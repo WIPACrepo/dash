@@ -41,7 +41,7 @@ class StateException(RunException):
 class FlasherThread(threading.Thread):
     "Thread which starts and stops flashers during a run"
 
-    def __init__(self, run, dataPairs):
+    def __init__(self, run, dataPairs, initialDelay=120, dryRun=False):
         """
         Create a flasher thread (which has not been started)
 
@@ -54,19 +54,24 @@ class FlasherThread(threading.Thread):
 
         self.__run = run
         self.__dataPairs = dataPairs
+        self.__initialDelay = initialDelay
+        self.__dryRun = dryRun
 
         self.__sem = threading.BoundedSemaphore()
 
         self.__running = False
 
     @staticmethod
-    def computeRunDuration(flasherData):
+    def computeRunDuration(flasherData, initialDelay):
         """
         Compute the number of seconds needed for this flasher run
 
         flasherData - list of XML_file_name/duration pairs
         """
-        tot = 0
+        if initialDelay is None:
+            tot = 0
+        else:
+            tot = initialDelay
 
         for pair in flasherData:
             tot += pair[1] + 10
@@ -91,6 +96,15 @@ class FlasherThread(threading.Thread):
 
     def __runBody(self):
         "Run the flasher sequences"
+        if self.__initialDelay is not None and self.__initialDelay > 0:
+            cmd = "sleep %d" % self.__initialDelay
+            self.__run.logCmd(cmd)
+
+            if self.__dryRun:
+                print cmd
+            else:
+                time.sleep(self.__initialDelay)
+
         for pair in self.__dataPairs:
             if not self.__running:
                 break
@@ -291,7 +305,9 @@ class Run(object):
         if clusterCfgName is None:
             clusterCfgName = activeCfgName
             if clusterCfgName is None:
-                raise RunException("No cluster configuration specified")
+                clusterCfgName = runCfgName
+                if clusterCfgName is None:
+                    raise RunException("No cluster configuration specified")
 
         # __runCfgName has to be non-null as well otherwise we get an exception
         if self.__runCfgName is None:
@@ -346,7 +362,7 @@ class Run(object):
         self.__runNum = 0
 
     def start(self, duration, ignoreDB=False, runMode=None, filterMode=None,
-              verbose=False):
+              flasherDelay=None, verbose=False):
         """
         Start a run
 
@@ -354,6 +370,7 @@ class Run(object):
         ignoreDB - False if the database should be checked for this run config
         runMode - Run mode for 'livecmd'
         filterMode - Run mode for 'livecmd'
+        flasherDelay - number of seconds to sleep before starting flashers
         verbose - provide additional details of the run
         """
         # write the run configuration to the database
@@ -367,7 +384,8 @@ class Run(object):
         if not self.__lightMode:
             self.__flashThread = None
         else:
-            flashDur = FlasherThread.computeRunDuration(self.__flashData)
+            flashDur = FlasherThread.computeRunDuration(self.__flashData,
+                                                        flasherDelay)
             if flashDur > duration:
                 if duration > 0:
                     self.__mgr.logger().error(("Run length was %d secs, but" +
@@ -375,7 +393,14 @@ class Run(object):
                                               (duration, flashDur))
                 duration = flashDur
 
-            self.__flashThread = FlasherThread(self.__mgr, self.__flashData)
+            if flasherDelay is None:
+                self.__flashThread = FlasherThread(self.__mgr,
+                                                   self.__flashData,
+                                                   self.__dryRun)
+            else:
+                self.__flashThread = \
+                    FlasherThread(self.__mgr, self.__flashData,
+                                  initialDelay=flasherDelay)
 
         # get the new run number
         #
@@ -664,8 +689,8 @@ class BaseRun(object):
         return self.__logger
 
     def run(self, clusterCfgName, runCfgName, duration, flashData=None,
-            clusterDesc = None, ignoreDB=False, runMode="TestData",
-            filterMode=None, verbose=False):
+            flasherDelay=None, clusterDesc = None, ignoreDB=False,
+            runMode="TestData", filterMode=None, verbose=False):
         """
         Manage a set of runs
 
@@ -673,6 +698,7 @@ class BaseRun(object):
         runCfgName - name of run configuration
         duration - number of seconds to run
         flasherData - pairs of (XML file name, duration)
+        flasherDelay - number of seconds to sleep before starting flashers
         ignoreDB - False if the database should be checked for this run config
         runMode - Run mode for 'livecmd'
         filterMode - Run mode for 'livecmd'
@@ -686,7 +712,7 @@ class BaseRun(object):
             filterMode = "RandomFiltering"
 
         run.start(duration, ignoreDB, runMode=runMode, filterMode=filterMode,
-                  verbose=verbose)
+                  flasherDelay=flasherDelay, verbose=verbose)
 
         try:
             run.wait()
