@@ -1878,6 +1878,9 @@ if __name__ == "__main__":
                  help="Do not perform strict checking")
     p.add_option("-m", "--no-host-check", dest="nohostcheck", default=False,
                  help="Disable checking the host type for run permission")
+    p.add_option("-q", "--quiet", dest="quiet",
+                 action="store_true", default=False,
+                 help="Don't print anything if config is OK")
     p.add_option("-x", "--extended-tests", dest="extended",
                  action="store_true", default=False,
                  help="Do extended testing")
@@ -1910,9 +1913,10 @@ if __name__ == "__main__":
                 if not valid:
                     raise DAQConfigException(reason)
 
-            print "%s/%s is ok." % (configDir, opt.toCheck)
+            if not opt.quiet:
+                print "%s/%s is ok." % (configDir, opt.toCheck)
             status = None
-        except Exception, e:
+        except:
             status = "%s/%s is not a valid config: %s" % \
                      (configDir, opt.toCheck, exc_string())
         raise SystemExit(status)
@@ -1938,7 +1942,8 @@ if __name__ == "__main__":
                 raise DAQConfigException(reason)
 
         if not opt.extended:
-            print "%s is ok" % configName
+            if not opt.quiet:
+                print "%s is ok" % configName
         else:
             diff = datetime.datetime.now() - startTime
             initTime = float(diff.seconds) + \
