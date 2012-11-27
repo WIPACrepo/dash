@@ -57,7 +57,7 @@ class PDAQRun(object):
 
     def run(self, runmgr, quick, clusterDesc=None, ignoreDB=False,
             verbose=False):
-        initialFlasherDelay = 120
+        flasherDelay = 120
         if not quick:
             duration = self.__duration
         else:
@@ -69,14 +69,14 @@ class PDAQRun(object):
             else:
                 duration = self.__duration
 
-            initialFlasherDelay = 30
+            flasherDelay = 30
 
         timeouts = 0
         for r in range(self.__numRuns):
             try:
                 runmgr.run(self.__runCfgName, self.__runCfgName,
                            duration, flashData=self.__flashData,
-                           initialFlasherDelay=120, clusterDesc=clusterDesc,
+                           flasherDelay=120, clusterDesc=clusterDesc,
                            ignoreDB=ignoreDB, verbose=verbose)
 
                 # reset the timeout counter after each successful run
