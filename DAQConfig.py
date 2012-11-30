@@ -926,7 +926,7 @@ class TriggerConfigParser(XMLParser, XMLFileCache):
                     tcList.addTriggerConfig(trigCfg)
                 elif strict:
                     raise ProcessError("Unexpected %s child <%s>" %
-                                       (tcList.nodeName, kid.nodeName))
+                                       (active.nodeName, kid.nodeName))
                 continue
 
             raise ProcessError("Found unknown %s node <%s>" %
@@ -1428,7 +1428,8 @@ class DAQConfig(object):
             print >> fd, "%s<prescale>%d</prescale>" % (in3, prescale)
             print >> fd, "%s</stream>" % in2
 
-        if self.__senderOption is not None or self.__hitSpoolOptions is not None:
+        if self.__senderOption is not None or \
+            self.__hitsSpoolOptions is not None:
 
 
             in3 = in2 + indent
@@ -1446,7 +1447,8 @@ class DAQConfig(object):
                 print >> fd, "%s<%s>%s</%s>" % (in4, fwdName, fwdVal, fwdName)
                 print >> fd, "%s</sender>" % in3
             if self.__hitsSpoolOptions is not None:
-                (enabled, directory, hits, interval) = self.__hitsSpoolOptions
+                (enabled, directory, hits, interval, numFiles) = \
+                    self.__hitsSpoolOptions
                 if enabled:
                     enabledVal = "true"
                 else:
@@ -1455,9 +1457,12 @@ class DAQConfig(object):
                 print >> fd, "%s<hitspool>" % in3
                 print >> fd, "%s<enabled>%s</enabled>" % ( in4, enabledVal )
                 print >> fd, "%s<directory>%s</directory>" % ( in4, directory )
-                print >> fd, "%s<hits>%s</hits>" % ( in4, hits )
+                if hits is not None:
+                    print >> fd, "%s<hits>%s</hits>" % ( in4, hits )
                 if interval is not None:
                     print >> fd, "%s<interval>%s</interval>" % ( in4, interval)
+                if numFiles is not None:
+                    print >> fd, "%s<numFiles>%s</numFiles>" % (in4, numFiles)
                 print >> fd, "%s</hitspool>" % in3
 
             print >> fd, "%s</stringHub>" % in2
@@ -1531,6 +1536,7 @@ class DAQConfigParser(XMLParser, XMLFileCache):
         hitsDirectory = None
         hitsHits = None
         hitsInterval = None
+        hitsNumFiles = None
 
         # look at all the child nodes for the stringhub
         for kid in topNode.childNodes:
@@ -1553,8 +1559,8 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                         if gkid.nodeType == Node.ELEMENT_NODE:
                             if gkid.nodeName != "forwardIsolatedHitsToTrigger":
                                 if strict:
-                                    raise ProcessError(("Unknown <%s> node under"
-                                                        " <%s>") % \
+                                    raise ProcessError(("Unknown <%s> node"
+                                                        " under <%s>") % \
                                                            (gkid.nodeName,
                                                             kid.nodeName))
                                 continue
@@ -1595,10 +1601,11 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                             if gkid.nodeName not in [ "enabled", 
                                                       "directory",
                                                       "hits",
-                                                      "interval"]:
+                                                      "interval",
+                                                      "numFiles"]:
                                 if strict:
-                                    raise ProcessError(("Unknown <%s> node under"
-                                                        " <%s>") % \
+                                    raise ProcessError(("Unknown <%s> node"
+                                                        " under <%s>") % \
                                                            (gkid.nodeName,
                                                             kid.nodeName))
                                 continue
@@ -1631,11 +1638,31 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                                     raise ProcessError(("Unknown value \"%s\" "
                                                         "for <%s>") % \
                                                            (val, gkid.nodeName))
+                            elif gkid.nodeName == "numFiles":
+                                try:
+                                    hitsNumFiles = int(val)
+                                except ValueError:
+                                    raise ProcessError(("Unknown value \"%s\" "
+                                                        "for <%s>") % \
+                                                       (val, gkid.nodeName))
+
                     # the interval tag is optional
-                    if not hitsEnabled or not hitsDirectory or not hitsHits:
-                        raise ProcessError("Missing required hitspooling tags")
+                    if hitsEnabled is None or hitsDirectory is None or \
+                        (hitsHits is None and hitsNumFiles is None):
+                        missing = []
+                        if hitsEnabled is None:
+                            missing.append("enabled")
+                        if hitsDirectory is None:
+                            missing.append("directory")
+                        if hitsHits is None and hitsNumFiles is None:
+                            missing.append("(hits or numFiles)")
+                        raise ProcessError("Missing required hitspooling" +
+                                           " tags: " + ", ".join(missing))
                     
-                    runCfg.setHitsSpoolOption(hubId, (hitsEnabled, hitsDirectory, hitsHits, hitsInterval))
+                    runCfg.setHitsSpoolOption(hubId,
+                                              (hitsEnabled, hitsDirectory,
+                                               hitsHits, hitsInterval,
+                                               hitsNumFiles))
         return
 
 
