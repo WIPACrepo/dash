@@ -313,6 +313,14 @@ class LiveState(object):
         self.__logger.error("Unknown livecmd line: %s" % line)
         return self.PARSE_NORMAL
 
+    def logCmd(self, msg):
+        if self.__showCheck:
+            self.__logger.info("% " + msg)
+
+    def logCmdOutput(self, msg):
+        if self.__showCheckOutput:
+            self.__logger.info("%%% " + msg)
+
     def check(self):
         "Check the current I3Live service states"
 
