@@ -25,7 +25,7 @@ class leapseconds:
         def __call__(self, *args, **kw):
             if not leapseconds.instance:
                 metaDir = find_pdaq_trunk()
-                path = os.path.join(metaDir, 'dash', 'leap-seconds.latest')
+                path = os.path.join(metaDir, 'config/nist', 'leapseconds-latest')
                 leapseconds.instance = leapseconds(path)
             return leapseconds.instance
 
@@ -89,8 +89,10 @@ class leapseconds:
     def seconds_in_year(self, year):
         """ calculate the number of seconds in a given year
         cannot be less than 1972 and cannot pass the expiration of the nist leap file
-
-        >>> a = leapseconds('leap-seconds.latest')
+        
+        >>> p = find_pdaq_trunk()
+        >>> p = os.path.join(p, "config/nist/leapseconds-latest") 
+        >>> a = leapseconds(p)
         >>> a.seconds_in_year(2008)
         31622401L
         >>> a.seconds_in_year(2011)
@@ -253,7 +255,9 @@ class leapseconds:
         This will be used to calculate the elapsed leapseconds
         since the beginning of the year.
 
-        >>> a = leapseconds('leap-seconds.latest')
+        >>> p = find_pdaq_trunk()
+        >>> p = os.path.join(p, "config/nist/leapseconds-latest") 
+        >>> a = leapseconds(p)
         >>> jul1_2012 = leapseconds.mjd(2012, 7, 1.)
         >>> a.get_tai_offset(jul1_2012)
         35
@@ -275,7 +279,9 @@ class leapseconds:
         """ Take the given timestruct and get the number of
         leapseconds since the beginning of the year
 
-        >>> a = leapseconds('leap-seconds.latest')
+        >>> p = find_pdaq_trunk()
+        >>> p = os.path.join(p, "config/nist/leapseconds-latest") 
+        >>> a = leapseconds(p)
         >>> before_leap = time.struct_time((2012, 6, 30, 23, 59, 59, 0, 0, -1))
         >>> a.get_leap_offset(before_leap)
         0
