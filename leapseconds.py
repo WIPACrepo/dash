@@ -253,7 +253,7 @@ class leapseconds:
             return True
         return False
 
-    def get_tai_offset(self, mjd):
+    def get_tai_offset(self, mjd, ignore_exception=False):
         """Calulate the offset from TAI for the given mjd
         This will be used to calculate the elapsed leapseconds
         since the beginning of the year.
@@ -268,7 +268,7 @@ class leapseconds:
 
         # search the __nist_data list to find where
         # mjd 'mjd' lands and get the tai offset at that point
-        if mjd > self.__mjd_expiry:
+        if not ignore_exception and mjd > self.__mjd_expiry:
             raise Exception("mjd data file expired")
 
         position = bisect.bisect_right(self.__nist_mjd, mjd)
@@ -277,7 +277,7 @@ class leapseconds:
 
         raise Exception("tai error")
 
-    def get_leap_offset(self, time_obj):
+    def get_leap_offset(self, time_obj, ignore_exception=False):
         """ Take the given timestruct and get the number of
         leapseconds since the beginning of the year
 
@@ -300,8 +300,8 @@ class leapseconds:
                            time_obj.tm_mon,
                            time_obj.tm_mday)
 
-        jan1_tai = self.get_tai_offset(mjd_jan1)
-        obj_tai = self.get_tai_offset(mjd_obj)
+        jan1_tai = self.get_tai_offset(mjd_jan1, ignore_exception)
+        obj_tai = self.get_tai_offset(mjd_obj, ignore_exception)
 
         leap_offset = obj_tai - jan1_tai
 
@@ -351,6 +351,7 @@ if __name__ == "__main__":
     doctest.testmod()
 
     print "mjd now: ", leapseconds.mjd_now()
+    print "mjd expiry: ", leapseconds.getInstance().get_mjd_expiry()
 
     now = leapseconds.mjd_now()
     dtime = leapseconds.mjd_to_timestruct(now)
