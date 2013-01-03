@@ -28,7 +28,6 @@
 import os
 import re
 import subprocess
-import sys
 import time
 
 from BaseRun import BaseRun, RunException, StateException
@@ -275,6 +274,9 @@ class LiveState(object):
             elif front == "daqrelease":
                 # ignore DAQ release name
                 return self.PARSE_NORMAL
+            elif front == "Run starts":
+                # ignore run start/switch info
+                return self.PARSE_NORMAL
             elif front == "check failed" and back.find("timed out") >= 0:
                 self.__logger.error("I3Live may have died" +
                                     " (livecmd check returned '%s')" %
@@ -310,6 +312,14 @@ class LiveState(object):
 
         self.__logger.error("Unknown livecmd line: %s" % line)
         return self.PARSE_NORMAL
+
+    def logCmd(self, msg):
+        if self.__showCheck:
+            self.__logger.info("% " + msg)
+
+    def logCmdOutput(self, msg):
+        if self.__showCheckOutput:
+            self.__logger.info("%%% " + msg)
 
     def check(self):
         "Check the current I3Live service states"
@@ -420,7 +430,6 @@ class LiveRun(BaseRun):
         proc.stdin.close()
 
         controlled = False
-        unreachable = True
         for line in proc.stdout:
             line = line.rstrip()
             self.logCmdOutput(line)
@@ -430,7 +439,7 @@ class LiveRun(BaseRun):
                               " controlled") >= 0:
                 controlled = True
             elif line.find("Service pdaq was unreachable on ") >= 0:
-                unreachable = True
+                pass
             else:
                 self.logError("Control: %s" % line)
         proc.stdout.close()
@@ -553,8 +562,10 @@ class LiveRun(BaseRun):
         Start flashers for the specified duration with the specified data file
         """
         problem = False
-        if dataPath is None:
-            if not self.__dryRun:
+        if dataPath is None or dataPath == "sleep":
+            if self.__dryRun:
+                print "sleep %d" % secs
+            else:
                 time.sleep(secs)
         else:
             cmd = "%s flasher -d %d -f %s" % (self.__liveCmdProg,

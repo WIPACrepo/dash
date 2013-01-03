@@ -10,24 +10,16 @@ import sys
 import threading
 import time
 
-from datetime import datetime
-
 from ClusterDescription import ClusterDescription
 from ComponentManager import ComponentManager
 from DAQConfig import DAQConfigException, DAQConfigParser
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from DAQTime import PayloadTime
+from locate_pdaq import find_pdaq_config, find_pdaq_trunk
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
-
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
 
 
 class RunException(Exception):
@@ -49,7 +41,7 @@ class StateException(RunException):
 class FlasherThread(threading.Thread):
     "Thread which starts and stops flashers during a run"
 
-    def __init__(self, run, dataPairs):
+    def __init__(self, run, dataPairs, initialDelay=120, dryRun=False):
         """
         Create a flasher thread (which has not been started)
 
@@ -62,19 +54,24 @@ class FlasherThread(threading.Thread):
 
         self.__run = run
         self.__dataPairs = dataPairs
+        self.__initialDelay = initialDelay
+        self.__dryRun = dryRun
 
         self.__sem = threading.BoundedSemaphore()
 
         self.__running = False
 
     @staticmethod
-    def computeRunDuration(flasherData):
+    def computeRunDuration(flasherData, initialDelay):
         """
         Compute the number of seconds needed for this flasher run
 
         flasherData - list of XML_file_name/duration pairs
         """
-        tot = 0
+        if initialDelay is None:
+            tot = 0
+        else:
+            tot = initialDelay
 
         for pair in flasherData:
             tot += pair[1] + 10
@@ -99,6 +96,15 @@ class FlasherThread(threading.Thread):
 
     def __runBody(self):
         "Run the flasher sequences"
+        if self.__initialDelay is not None and self.__initialDelay > 0:
+            cmd = "sleep %d" % self.__initialDelay
+            self.__run.logCmd(cmd)
+
+            if self.__dryRun:
+                print cmd
+            else:
+                time.sleep(self.__initialDelay)
+
         for pair in self.__dataPairs:
             if not self.__running:
                 break
@@ -143,6 +149,7 @@ class FlasherShellScript(object):
         if os.path.exists(flashFile):
             return flashFile
 
+        metaDir = find_pdaq_trunk()
         path = os.path.join(metaDir, "src", "test", "resources", flashFile)
 
         if os.path.exists(path):
@@ -298,7 +305,9 @@ class Run(object):
         if clusterCfgName is None:
             clusterCfgName = activeCfgName
             if clusterCfgName is None:
-                raise RunException("No cluster configuration specified")
+                clusterCfgName = runCfgName
+                if clusterCfgName is None:
+                    raise RunException("No cluster configuration specified")
 
         # __runCfgName has to be non-null as well otherwise we get an exception
         if self.__runCfgName is None:
@@ -318,9 +327,9 @@ class Run(object):
                                                         clusterDesc=clusterDesc,
                                                         configDir=configDir,
                                                         validate=False)
-        except DAQConfigException as e:
+        except DAQConfigException:
             raise LaunchException("Cannot load configuration \"%s\": %s" %
-                                  (clusterConfigName, exc_string()))
+                                  (clusterCfgName, exc_string()))
 
         # if necessary, launch the desired cluster configuration
         #
@@ -353,7 +362,7 @@ class Run(object):
         self.__runNum = 0
 
     def start(self, duration, ignoreDB=False, runMode=None, filterMode=None,
-              verbose=False):
+              flasherDelay=None, verbose=False):
         """
         Start a run
 
@@ -361,6 +370,7 @@ class Run(object):
         ignoreDB - False if the database should be checked for this run config
         runMode - Run mode for 'livecmd'
         filterMode - Run mode for 'livecmd'
+        flasherDelay - number of seconds to sleep before starting flashers
         verbose - provide additional details of the run
         """
         # write the run configuration to the database
@@ -374,7 +384,8 @@ class Run(object):
         if not self.__lightMode:
             self.__flashThread = None
         else:
-            flashDur = FlasherThread.computeRunDuration(self.__flashData)
+            flashDur = FlasherThread.computeRunDuration(self.__flashData,
+                                                        flasherDelay)
             if flashDur > duration:
                 if duration > 0:
                     self.__mgr.logger().error(("Run length was %d secs, but" +
@@ -382,7 +393,14 @@ class Run(object):
                                               (duration, flashDur))
                 duration = flashDur
 
-            self.__flashThread = FlasherThread(self.__mgr, self.__flashData)
+            if flasherDelay is None:
+                self.__flashThread = FlasherThread(self.__mgr,
+                                                   self.__flashData,
+                                                   self.__dryRun)
+            else:
+                self.__flashThread = \
+                    FlasherThread(self.__mgr, self.__flashData,
+                                  initialDelay=flasherDelay)
 
         # get the new run number
         #
@@ -501,8 +519,7 @@ class BaseRun(object):
 
         # make sure run-config directory exists
         #
-        self.__configDir = os.path.join(metaDir, "config")
-
+        self.__configDir = find_pdaq_config()
         if not os.path.isdir(self.__configDir):
             raise SystemExit("Run config directory '%s' does not exist" %
                              self.__configDir)
@@ -604,7 +621,7 @@ class BaseRun(object):
 
     def killComponents(self, dryRun=False):
         "Kill all pDAQ components"
-        cfgDir = os.path.join(metaDir, 'config')
+        cfgDir = find_pdaq_config()
 
         comps = ComponentManager.getActiveComponents(None, configDir=cfgDir,
                                                      validate=False)
@@ -629,8 +646,9 @@ class BaseRun(object):
         logDir = clusterCfg.daqLogDir()
         daqDataDir = clusterCfg.daqDataDir()
 
-        cfgDir = os.path.join(metaDir, 'config')
-        dashDir = os.path.join(metaDir, 'dash')
+        cfgDir = find_pdaq_config()
+        metaDir = find_pdaq_trunk()
+        dashDir = os.path.join(metaDir, "dash")
         logDirFallback = os.path.join(metaDir, "log")
 
         doCnC = True
@@ -671,8 +689,8 @@ class BaseRun(object):
         return self.__logger
 
     def run(self, clusterCfgName, runCfgName, duration, flashData=None,
-            clusterDesc = None, ignoreDB=False, runMode=None,
-            filterMode=None, verbose=False):
+            flasherDelay=None, clusterDesc = None, ignoreDB=False,
+            runMode="TestData", filterMode=None, verbose=False):
         """
         Manage a set of runs
 
@@ -680,6 +698,7 @@ class BaseRun(object):
         runCfgName - name of run configuration
         duration - number of seconds to run
         flasherData - pairs of (XML file name, duration)
+        flasherDelay - number of seconds to sleep before starting flashers
         ignoreDB - False if the database should be checked for this run config
         runMode - Run mode for 'livecmd'
         filterMode - Run mode for 'livecmd'
@@ -688,8 +707,13 @@ class BaseRun(object):
 
         run = self.createRun(clusterCfgName, runCfgName,
                              clusterDesc=clusterDesc, flashData=flashData)
+
+        if filterMode is None and flashData is not None:
+            filterMode = "RandomFiltering"
+
         run.start(duration, ignoreDB, runMode=runMode, filterMode=filterMode,
-                  verbose=verbose)
+                  flasherDelay=flasherDelay, verbose=verbose)
+
         try:
             run.wait()
         finally:
@@ -757,7 +781,11 @@ class BaseRun(object):
                 raise ValueError("Cannot parse run start time \"%s\": %s" %
                                  (summary["startTime"], exc_string()))
 
-            timediff = endTime - startTime
+            try:
+                timediff = endTime - startTime
+            except:
+                raise ValueError("Cannot get run duration from (%s - %s): %s" %
+                                 (endTime, startTime, exc_string()))
 
             duration = timediff.seconds
             if timediff.days > 0:

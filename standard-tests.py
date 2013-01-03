@@ -6,13 +6,12 @@ import os
 import re
 import socket
 import stat
-import subprocess
 import sys
 import traceback
 
 import DeployPDAQ
 
-from BaseRun import FlasherShellScript
+from BaseRun import FlasherShellScript, LaunchException
 from ClusterDescription import ClusterDescription
 from DAQConfig import DAQConfigException, DAQConfigParser
 from cncrun import CnCRun
@@ -56,7 +55,9 @@ class PDAQRun(object):
     def clusterConfig(self):
         return self.__runCfgName
 
-    def run(self, runmgr, quick, clusterDesc=None, verbose=False):
+    def run(self, runmgr, quick, clusterDesc=None, ignoreDB=False,
+            verbose=False):
+        flasherDelay = 120
         if not quick:
             duration = self.__duration
         else:
@@ -68,13 +69,15 @@ class PDAQRun(object):
             else:
                 duration = self.__duration
 
+            flasherDelay = 30
+
         timeouts = 0
         for r in range(self.__numRuns):
             try:
                 runmgr.run(self.__runCfgName, self.__runCfgName,
                            duration, flashData=self.__flashData,
-                           clusterDesc=clusterDesc, ignoreDB=False,
-                           verbose=verbose)
+                           flasherDelay=120, clusterDesc=clusterDesc,
+                           ignoreDB=ignoreDB, verbose=verbose)
 
                 # reset the timeout counter after each successful run
                 timeouts = 0
@@ -150,7 +153,7 @@ class Deploy(object):
                                                         clusterDesc=cluDesc,
                                                         configDir=None,
                                                         validate=False)
-        except DAQConfigException as e:
+        except DAQConfigException:
             raise LaunchException("Cannot load configuration \"%s\": %s" %
                                   (clusterCfgName, exc_string()))
 
@@ -206,6 +209,9 @@ if __name__ == "__main__":
     op.add_option("-d", "--deploy", dest="deploy",
                   action="store_true", default=False,
                   help="Deploy the standard tests")
+    op.add_option("-i", "--ignore-db", dest="ignoreDB",
+                  action="store_true", default=False,
+                  help="Do not update I3OmDb with the run configuration")
     op.add_option("-n", "--dry-run", dest="dryRun",
                   action="store_true", default=False,
                   help="Don't run commands, just print as they would be run")
@@ -293,4 +299,4 @@ if __name__ == "__main__":
 
         for data in RUN_LIST:
             data.run(runmgr, opt.quick, clusterDesc=opt.clusterDesc,
-                     verbose=opt.verbose)
+                     ignoreDB=opt.ignoreDB, verbose=opt.verbose)

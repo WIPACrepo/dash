@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
-import re
 import calendar
-import time
 import datetime
+import re
+import sys
+import time
 
 from leapseconds import leapseconds
 
@@ -30,10 +31,15 @@ class DAQDateTimeDelta(object):
 
 
 class DAQDateTime(object):
+    # if True, calculate DAQ times to 0.1 nanosecond precision
+    # if False, calculate to microsecond precision
     HIGH_PRECISION = False
 
+    # ignore exceptions from leapseconds.get_tai_offset()
+    IGNORE_EXC = True
+
     def __init__(self, year, month, day, hour, minute, second, daqticks,
-                 tzinfo=None, high_precision = HIGH_PRECISION):
+                 tzinfo=None, high_precision=HIGH_PRECISION):
 
         if high_precision:
             self.__daqticks = daqticks
@@ -44,7 +50,7 @@ class DAQDateTime(object):
 
         self.leap = leapseconds.getInstance()
         frac_day = self.leap.frac_day(hour, minute, second)
-        self.mjd_day = self.leap.mjd(year, month, day+frac_day)
+        self.mjd_day = self.leap.mjd(year, month, day + frac_day)
 
         self.year = year
         self.month = month
@@ -54,8 +60,7 @@ class DAQDateTime(object):
         self.second = second
         self.tzinfo = tzinfo
 
-        self.tuple = ( year, month, day, hour, minute, second, 0, 0, -1 )
-
+        self.tuple = (year, month, day, hour, minute, second, 0, 0, -1)
 
     def __repr__(self):
         if not self.tzinfo:
@@ -71,7 +76,6 @@ class DAQDateTime(object):
         return "DAQDateTime(%d, %d, %d, %d, %d, %d, %d%s%s)" % \
             (self.year, self.month, self.day, self.hour,
              self.minute, self.second, self.__daqticks, tzstr, hpstr)
-
 
     def __cmp__(self, other):
         # compare two date time objects
@@ -89,8 +93,8 @@ class DAQDateTime(object):
         # subtract two date time objects
 
         diff_mjd = self.mjd_day - other.mjd_day
-        diff_tai = self.leap.get_tai_offset(self.mjd_day) - \
-            self.leap.get_tai_offset(other.mjd_day)
+        diff_tai = self.leap.get_tai_offset(self.mjd_day, self.IGNORE_EXC) - \
+            self.leap.get_tai_offset(other.mjd_day, self.IGNORE_EXC)
 
         diff_seconds = diff_mjd * 3600. * 24. + diff_tai
 
@@ -157,7 +161,7 @@ class PayloadTime(object):
     TIME_TILL_JUNE30 = None
 
     @staticmethod
-    def fromString(timestr, high_precision = DAQDateTime.HIGH_PRECISION):
+    def fromString(timestr, high_precision=DAQDateTime.HIGH_PRECISION):
         if not timestr:
             return None
 
@@ -184,14 +188,14 @@ class PayloadTime(object):
                 ticks = 0
             else:
                 ticks = int(m.group(3))
-                for i in xrange(10-len(m.group(3))):
+                for i in xrange(10 - len(m.group(3))):
                     ticks *= 10
 
         return DAQDateTime(pt.tm_year, pt.tm_mon,
                            pt.tm_mday, pt.tm_hour,
                            pt.tm_min, pt.tm_sec,
                            ticks,
-                           high_precision = high_precision)
+                           high_precision=high_precision)
 
     @staticmethod
     def toDateTime(payTime, high_precision=DAQDateTime.HIGH_PRECISION):
@@ -211,18 +215,27 @@ class PayloadTime(object):
             now = time.gmtime()
             jan1 = time.struct_time((now.tm_year, 1, 1, 0, 0, 0, 0, 0, -1))
             PayloadTime.TIME_OFFSET = calendar.timegm(jan1)
-            july1_tuple = time.struct_time((now.tm_year, 7, 1, 0, 0, 0, 0, 0, -1))
-            PayloadTime.has_leapsecond = leapseconds.getInstance().get_leap_offset(july1_tuple)>0
-            PayloadTime.TIME_TILL_JUNE30 = leapseconds.seconds_till_june30(now.tm_year)
+            july1_tuple = time.struct_time((now.tm_year, 7, 1, 0, 0, 0, 0, 0,
+                                            -1))
             PayloadTime.YEAR = now.tm_year
+            PayloadTime.has_leapsecond = \
+                leapseconds.getInstance().get_leap_offset(july1_tuple,
+                                                          True) > 0
+            if not PayloadTime.has_leapsecond:
+                # no mid-year leap second, so don't need to calculate
+                # seconds until June 30
+                PayloadTime.TIME_TILL_JUNE30 = sys.maxint
+            else:
+                PayloadTime.TIME_TILL_JUNE30 = \
+                    leapseconds.seconds_till_june30(now.tm_year)
 
         PayloadTime.PREV_TIME = payTime
 
-        curSecOffset = (payTime / float(PayloadTime.TICKS_PER_SECOND))
+        curSecOffset = (payTime / long(PayloadTime.TICKS_PER_SECOND))
         subsec = payTime % PayloadTime.TICKS_PER_SECOND
 
-        if curSecOffset < PayloadTime.TIME_TILL_JUNE30 or \
-                not PayloadTime.has_leapsecond:
+        if not PayloadTime.has_leapsecond or \
+                curSecOffset < PayloadTime.TIME_TILL_JUNE30:
             # no possibility of leapseconds to worry about
 
             curTime = curSecOffset + PayloadTime.TIME_OFFSET
@@ -237,27 +250,44 @@ class PayloadTime(object):
             # did we get a payload time exactly ON the leapsecond
             if curSecOffset == PayloadTime.TIME_TILL_JUNE30:
                 return DAQDateTime(PayloadTime.YEAR, 6, 30, 23, 59, 60,
-                                   subsec, high_precision = high_precision)
+                                   subsec, high_precision=high_precision)
             else:
                 curTime = curSecOffset + PayloadTime.TIME_OFFSET
                 # there was a leapsecond
                 # assuming we only have to deal with ONE leapsecond
-                ts = time.gmtime(curTime-1)
+                ts = time.gmtime(curTime - 1)
 
-                return DAQDateTime(ts.tm_year, ts.tm_mon, ts.tm_mday, ts.tm_hour,
-                                   ts.tm_min, ts.tm_sec, subsec,
-                                   high_precision = high_precision)
-
-
-
+                return DAQDateTime(ts.tm_year, ts.tm_mon, ts.tm_mday,
+                                   ts.tm_hour, ts.tm_min, ts.tm_sec, subsec,
+                                   high_precision=high_precision)
 
 
 if __name__ == "__main__":
-    # pattern %Y-%m-%d %H:%M:%S
-    base = "2012-01-10 10:19:23"
-    dt0 = PayloadTime.fromString(base+".0001000000")
-    dt1 = PayloadTime.fromString(base+".0001")
+    import optparse
 
-    print dt0
-    print dt1
+    p = optparse.OptionParser()
 
+    opt, args = p.parse_args()
+
+    if len(args) == 0:
+        # pattern %Y-%m-%d %H:%M:%S
+        base = "2012-01-10 10:19:23"
+        dt0 = PayloadTime.fromString(base + ".0001000000")
+        dt1 = PayloadTime.fromString(base + ".0001")
+
+        print dt0
+        print dt1
+        raise SystemExit()
+
+    for arg in args:
+        try:
+            try:
+                val = long(arg)
+                dt = PayloadTime.toDateTime(val, True)
+            except:
+                dt = PayloadTime.fromString(arg, True)
+            print "%s -> %s" % (arg, dt)
+        except:
+            print "Bad date: " + arg
+            import traceback
+            traceback.print_exc()
