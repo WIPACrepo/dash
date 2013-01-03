@@ -33,7 +33,7 @@ class DAQDateTime(object):
     HIGH_PRECISION = False
 
     def __init__(self, year, month, day, hour, minute, second, daqticks,
-                 tzinfo=None, high_precision = HIGH_PRECISION):
+                 tzinfo=None, high_precision=HIGH_PRECISION):
 
         if high_precision:
             self.__daqticks = daqticks
@@ -44,7 +44,7 @@ class DAQDateTime(object):
 
         self.leap = leapseconds.getInstance()
         frac_day = self.leap.frac_day(hour, minute, second)
-        self.mjd_day = self.leap.mjd(year, month, day+frac_day)
+        self.mjd_day = self.leap.mjd(year, month, day + frac_day)
 
         self.year = year
         self.month = month
@@ -54,8 +54,7 @@ class DAQDateTime(object):
         self.second = second
         self.tzinfo = tzinfo
 
-        self.tuple = ( year, month, day, hour, minute, second, 0, 0, -1 )
-
+        self.tuple = (year, month, day, hour, minute, second, 0, 0, -1)
 
     def __repr__(self):
         if not self.tzinfo:
@@ -71,7 +70,6 @@ class DAQDateTime(object):
         return "DAQDateTime(%d, %d, %d, %d, %d, %d, %d%s%s)" % \
             (self.year, self.month, self.day, self.hour,
              self.minute, self.second, self.__daqticks, tzstr, hpstr)
-
 
     def __cmp__(self, other):
         # compare two date time objects
@@ -161,7 +159,7 @@ class PayloadTime(object):
     TIME_TILL_JUNE30 = None
 
     @staticmethod
-    def fromString(timestr, high_precision = DAQDateTime.HIGH_PRECISION):
+    def fromString(timestr, high_precision=DAQDateTime.HIGH_PRECISION):
         if not timestr:
             return None
 
@@ -188,14 +186,14 @@ class PayloadTime(object):
                 ticks = 0
             else:
                 ticks = int(m.group(3))
-                for i in xrange(10-len(m.group(3))):
+                for i in xrange(10 - len(m.group(3))):
                     ticks *= 10
 
         return DAQDateTime(pt.tm_year, pt.tm_mon,
                            pt.tm_mday, pt.tm_hour,
                            pt.tm_min, pt.tm_sec,
                            ticks,
-                           high_precision = high_precision)
+                           high_precision=high_precision)
 
     @staticmethod
     def toDateTime(payTime, high_precision=DAQDateTime.HIGH_PRECISION):
@@ -219,7 +217,7 @@ class PayloadTime(object):
                                             -1))
             PayloadTime.YEAR = now.tm_year
             PayloadTime.has_leapsecond = \
-                leapseconds.getInstance().get_leap_offset(july1_tuple)>0
+                leapseconds.getInstance().get_leap_offset(july1_tuple) > 0
             if not PayloadTime.has_leapsecond:
                 # no mid-year leap second, so don't need to calculate
                 # seconds until June 30
@@ -249,16 +247,16 @@ class PayloadTime(object):
             # did we get a payload time exactly ON the leapsecond
             if curSecOffset == PayloadTime.TIME_TILL_JUNE30:
                 return DAQDateTime(PayloadTime.YEAR, 6, 30, 23, 59, 60,
-                                   subsec, high_precision = high_precision)
+                                   subsec, high_precision=high_precision)
             else:
                 curTime = curSecOffset + PayloadTime.TIME_OFFSET
                 # there was a leapsecond
                 # assuming we only have to deal with ONE leapsecond
-                ts = time.gmtime(curTime-1)
+                ts = time.gmtime(curTime - 1)
 
                 return DAQDateTime(ts.tm_year, ts.tm_mon, ts.tm_mday,
                                    ts.tm_hour, ts.tm_min, ts.tm_sec, subsec,
-                                   high_precision = high_precision)
+                                   high_precision=high_precision)
 
 
 if __name__ == "__main__":
@@ -271,8 +269,8 @@ if __name__ == "__main__":
     if len(args) == 0:
         # pattern %Y-%m-%d %H:%M:%S
         base = "2012-01-10 10:19:23"
-        dt0 = PayloadTime.fromString(base+".0001000000")
-        dt1 = PayloadTime.fromString(base+".0001")
+        dt0 = PayloadTime.fromString(base + ".0001000000")
+        dt1 = PayloadTime.fromString(base + ".0001")
 
         print dt0
         print dt1
@@ -290,4 +288,3 @@ if __name__ == "__main__":
             print "Bad date: " + arg
             import traceback
             traceback.print_exc()
-
