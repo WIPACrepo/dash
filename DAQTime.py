@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
-import re
 import calendar
-import time
 import datetime
+import re
+import sys
+import time
 
 from leapseconds import leapseconds
 
