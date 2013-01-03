@@ -25,7 +25,8 @@ class leapseconds:
         def __call__(self, *args, **kw):
             if not leapseconds.instance:
                 metaDir = find_pdaq_trunk()
-                path = os.path.join(metaDir, 'config/nist', 'leapseconds-latest')
+                path = os.path.join(metaDir, 'config/nist',
+                                    'leapseconds-latest')
                 leapseconds.instance = leapseconds(path)
             return leapseconds.instance
 
@@ -37,7 +38,9 @@ class leapseconds:
         self.__parse_nist(leap_filename)
 
     def get_mjd_expiry(self):
-        """Return the modified julian date that the current nist file expires"""
+        """
+        Return the modified julian date that the current nist file expires
+        """
         return self.__mjd_expiry
 
     @staticmethod
@@ -52,7 +55,7 @@ class leapseconds:
 
         jan1_mjd = leapseconds.mjd(year, 1, 1)
         midnight = leapseconds.frac_day(23, 59, 60)
-        june30_1159_mjd = leapseconds.mjd(year, 6, 30+midnight)
+        june30_1159_mjd = leapseconds.mjd(year, 6, 30 + midnight)
 
         return (june30_1159_mjd - jan1_mjd) * 86400
 
@@ -85,10 +88,12 @@ class leapseconds:
         else:
             return 365
 
-
     def seconds_in_year(self, year):
-        """ calculate the number of seconds in a given year
-        cannot be less than 1972 and cannot pass the expiration of the nist leap file
+        """
+        calculate the number of seconds in a given year
+
+        cannot be less than 1972 and cannot pass the expiration of
+        the nist leap file
 
         >>> p = find_pdaq_trunk()
         >>> p = os.path.join(p, "config/nist/leapseconds-latest")
@@ -105,8 +110,7 @@ class leapseconds:
         31622402L
         """
         mjd1 = self.mjd(year, 1, 1)
-        mjd2 = self.mjd(year+1, 1, 1)
-
+        mjd2 = self.mjd(year + 1, 1, 1)
 
         # year cannot be less than 1972
         # mjd2 cannot be > expiry
@@ -116,8 +120,8 @@ class leapseconds:
             raise ValueError(("calculation may not span the"
                               "validity of the nist file"))
 
-        return long((mjd2-mjd1)*3600*24 + \
-                        ( self.get_tai_offset(mjd2) - \
+        return long((mjd2 - mjd1) * 3600 * 24 + \
+                        (self.get_tai_offset(mjd2) - \
                               self.get_tai_offset(mjd1)))
 
     @staticmethod
@@ -177,10 +181,10 @@ class leapseconds:
         # assume that we will never be calculating
         # mjd's before oct 15 1582
 
-        a = int(year / 100 )
-        b = 2 - a + int(a/4)
+        a = int(year / 100)
+        b = 2 - a + int(a / 4)
         c = int(365.25 * year)
-        d = int(30.600 * ( month + 1.0))
+        d = int(30.600 * (month + 1.0))
 
         jd = b + c + d + day + 1720994.5
 
@@ -204,15 +208,15 @@ class leapseconds:
         f = jd % 1
 
         if i > 2299160:
-            a = int((i-1867216.25) / 36524.25)
-            b = i + 1 + a - int(a/4)
+            a = int((i - 1867216.25) / 36524.25)
+            b = i + 1 + a - int(a / 4)
         else:
             b = i
 
         c = b + 1524.
-        d = int((c-122.1)/365.25)
+        d = int((c - 122.1) / 365.25)
         e = int(365.25 * d)
-        g = int( (c-e)/30.6001)
+        g = int((c - e) / 30.6001)
 
         day = c - e + f - int(30.6001 * g)
         if g < 13.5:
@@ -233,7 +237,6 @@ class leapseconds:
         time_str = time.gmtime(gm_epoch)
 
         return time_str
-
 
     def is_expired(self):
         """Returns true if the supplied nist leapsecond file is expired
@@ -270,10 +273,9 @@ class leapseconds:
 
         position = bisect.bisect_right(self.__nist_mjd, mjd)
         if position:
-            return self.__nist_tai[position-1]
+            return self.__nist_tai[position - 1]
 
         raise Exception("tai error")
-
 
     def get_leap_offset(self, time_obj):
         """ Take the given timestruct and get the number of
@@ -304,7 +306,6 @@ class leapseconds:
         leap_offset = obj_tai - jan1_tai
 
         return leap_offset
-
 
     def __parse_nist(self, fname):
         """Assume that the filename passed in points to a nist
@@ -345,7 +346,6 @@ class leapseconds:
         self.__nist_mjd, self.__nist_tai = zip(*nist_data)
 
 
-
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
@@ -356,6 +356,3 @@ if __name__ == "__main__":
     dtime = leapseconds.mjd_to_timestruct(now)
     print "mjd now back to datetime: ", time.strftime("%c", dtime)
     print "time.gmtime(): ", time.strftime("%c", time.gmtime())
-
-
-
