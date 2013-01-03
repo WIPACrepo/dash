@@ -54,7 +54,7 @@ class leapseconds:
         midnight = leapseconds.frac_day(23, 59, 60)
         june30_1159_mjd = leapseconds.mjd(year, 6, 30+midnight)
 
-        return (june30_1159_mjd - jan1_mjd) * 86400 
+        return (june30_1159_mjd - jan1_mjd) * 86400
 
     @staticmethod
     def days_in_year(year):
@@ -89,9 +89,9 @@ class leapseconds:
     def seconds_in_year(self, year):
         """ calculate the number of seconds in a given year
         cannot be less than 1972 and cannot pass the expiration of the nist leap file
-        
+
         >>> p = find_pdaq_trunk()
-        >>> p = os.path.join(p, "config/nist/leapseconds-latest") 
+        >>> p = os.path.join(p, "config/nist/leapseconds-latest")
         >>> a = leapseconds(p)
         >>> a.seconds_in_year(2008)
         31622401L
@@ -119,7 +119,7 @@ class leapseconds:
         return long((mjd2-mjd1)*3600*24 + \
                         ( self.get_tai_offset(mjd2) - \
                               self.get_tai_offset(mjd1)))
-    
+
     @staticmethod
     def ntp_to_mjd(ntp_timestamp):
         """convert an ntp timestamp to a modified julian date
@@ -135,16 +135,16 @@ class leapseconds:
         frac_day = leapseconds.frac_day(__now.tm_hour,
                                         __now.tm_min,
                                         __now.tm_sec)
-        
+
         return leapseconds.mjd(__now.tm_year,
                                __now.tm_mon,
                                __now.tm_mday + frac_day)
-    
+
     @staticmethod
     def frac_day(hour, minute, second):
-        """given the hour minute second calculate the fractional part of 
+        """given the hour minute second calculate the fractional part of
         a day
-        
+
         >>> leapseconds.frac_day(12, 0, 0)
         0.5
         """
@@ -154,7 +154,7 @@ class leapseconds:
         tmp = (tmp + hour) / 24.
 
         return tmp
-    
+
     @staticmethod
     def mjd(year, month, day):
         """Convert the given year, month, and fractional day
@@ -169,7 +169,7 @@ class leapseconds:
         >>> leapseconds.mjd(1985, 2, 17.25)
         46113.25
         """
-    
+
         if month == 1 or month == 2:
             year = year - 1
             month = month + 12
@@ -181,7 +181,7 @@ class leapseconds:
         b = 2 - a + int(a/4)
         c = int(365.25 * year)
         d = int(30.600 * ( month + 1.0))
-        
+
         jd = b + c + d + day + 1720994.5
 
         mjd = jd - 2400000.5
@@ -196,9 +196,9 @@ class leapseconds:
         >>> leapseconds.mjd_to_timestruct(jul1_2012)
         time.struct_time(tm_year=2012, tm_mon=7, tm_mday=1, tm_hour=0, tm_min=0, tm_sec=0, tm_wday=6, tm_yday=183, tm_isdst=0)
         """
-        
+
         jd = mjd + 2400000.5
-        
+
         jd = jd + 0.5
         i = int(jd)
         f = jd % 1
@@ -213,7 +213,7 @@ class leapseconds:
         d = int((c-122.1)/365.25)
         e = int(365.25 * d)
         g = int( (c-e)/30.6001)
-        
+
         day = c - e + f - int(30.6001 * g)
         if g < 13.5:
             m = g - 1
@@ -256,7 +256,7 @@ class leapseconds:
         since the beginning of the year.
 
         >>> p = find_pdaq_trunk()
-        >>> p = os.path.join(p, "config/nist/leapseconds-latest") 
+        >>> p = os.path.join(p, "config/nist/leapseconds-latest")
         >>> a = leapseconds(p)
         >>> jul1_2012 = leapseconds.mjd(2012, 7, 1.)
         >>> a.get_tai_offset(jul1_2012)
@@ -267,20 +267,20 @@ class leapseconds:
         # mjd 'mjd' lands and get the tai offset at that point
         if mjd > self.__mjd_expiry:
             raise Exception("mjd data file expired")
-        
+
         position = bisect.bisect_right(self.__nist_mjd, mjd)
         if position:
             return self.__nist_tai[position-1]
 
         raise Exception("tai error")
 
-    
+
     def get_leap_offset(self, time_obj):
         """ Take the given timestruct and get the number of
         leapseconds since the beginning of the year
 
         >>> p = find_pdaq_trunk()
-        >>> p = os.path.join(p, "config/nist/leapseconds-latest") 
+        >>> p = os.path.join(p, "config/nist/leapseconds-latest")
         >>> a = leapseconds(p)
         >>> before_leap = time.struct_time((2012, 6, 30, 23, 59, 59, 0, 0, -1))
         >>> a.get_leap_offset(before_leap)
@@ -292,7 +292,7 @@ class leapseconds:
         >>> a.get_leap_offset(after_leap)
         1
         """
-        
+
         mjd_jan1 = self.mjd(time_obj.tm_year, 1, 1.)
         mjd_obj = self.mjd(time_obj.tm_year,
                            time_obj.tm_mon,
@@ -302,13 +302,13 @@ class leapseconds:
         obj_tai = self.get_tai_offset(mjd_obj)
 
         leap_offset = obj_tai - jan1_tai
-        
+
         return leap_offset
 
 
     def __parse_nist(self, fname):
         """Assume that the filename passed in points to a nist
-        leapsecond file.  Parse that file looking for data and 
+        leapsecond file.  Parse that file looking for data and
         file expiration information.
         """
 
@@ -320,7 +320,7 @@ class leapseconds:
 
         with open(fname, 'r') as fd:
             for line in fd:
-                        
+
                 if comment_pat.match(line):
                     # is a comment skip
                     continue
@@ -341,10 +341,10 @@ class leapseconds:
                         raise Exception("bad nist data file '%s'" % fname)
 
         nist_data.sort(key=lambda pt: pt[0])
-        
+
         self.__nist_mjd, self.__nist_tai = zip(*nist_data)
 
-    
+
 
 if __name__ == "__main__":
     import doctest
@@ -356,6 +356,6 @@ if __name__ == "__main__":
     dtime = leapseconds.mjd_to_timestruct(now)
     print "mjd now back to datetime: ", time.strftime("%c", dtime)
     print "time.gmtime(): ", time.strftime("%c", time.gmtime())
-    
-    
+
+
 
