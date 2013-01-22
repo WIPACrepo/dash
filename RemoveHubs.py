@@ -37,12 +37,12 @@ def parseArgs():
     if not os.path.exists(cfgDir):
         print >> sys.stderr, "Cannot find configuration directory"
 
-    cluCfgName = None
+    outCfgName = None
     forceCreate = False
     runCfgName = None
     hubIdList = []
 
-    needCluCfgName = False
+    needOutCfgName = False
 
     usage = False
     for a in sys.argv[1:]:
@@ -50,13 +50,13 @@ def parseArgs():
             forceCreate = True
             continue
 
-        if a == "-C":
-            needCluCfgName = True
+        if a == "-o":
+            needOutCfgName = True
             continue
 
-        if needCluCfgName:
-            cluCfgName = a
-            needCluCfgName = False
+        if needOutCfgName:
+            outCfgName = a
+            needOutCfgName = False
             continue
 
         if runCfgName is None:
@@ -101,11 +101,11 @@ def parseArgs():
 
     if usage:
         print >> sys.stderr, \
-            "Usage: %s runConfig hubId [hubId ...]" % sys.argv[0]
+            "Usage: %s [-o output.xml] runConfig hubId [hubId ...]" % sys.argv[0]
         print >> sys.stderr, "  (Hub IDs can be \"6\", \"06\", \"6i\", \"6t\")"
         raise SystemExit()
 
-    return (forceCreate, runCfgName, cluCfgName, hubIdList)
+    return (forceCreate, runCfgName, outCfgName, hubIdList)
 
 if __name__ == "__main__":
 
@@ -115,10 +115,13 @@ if __name__ == "__main__":
         print >> sys.stderr, "Warning: Running RemoveHubs.py on expcont"
         print >> sys.stderr, "-" * 60
 
-    (forceCreate, runCfgName, cluCfgName, hubIdList) = parseArgs()
+    (forceCreate, runCfgName, outCfgName, hubIdList) = parseArgs()
 
     configDir = os.path.join(metaDir, "config")
-    newPath = DAQConfig.createOmitFileName(configDir, runCfgName, hubIdList)
+    if not outCfgName:
+        newPath = DAQConfig.createOmitFileName(configDir, runCfgName, hubIdList)
+    else:
+        newPath = os.path.join(configDir, outCfgName)        
     if os.path.exists(newPath):
         if forceCreate:
             print >> sys.stderr, "WARNING: Overwriting %s" % newPath
