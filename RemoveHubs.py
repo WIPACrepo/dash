@@ -7,7 +7,13 @@ import sys
 from utils import ip
 
 from DAQConfig import DAQConfig, DAQConfigParser
-from locate_pdaq import find_pdaq_config
+
+# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
+if "PDAQ_HOME" in os.environ:
+    metaDir = os.environ["PDAQ_HOME"]
+else:
+    from locate_pdaq import find_pdaq_trunk
+    metaDir = find_pdaq_trunk()
 
 
 def getHubName(num):
@@ -27,16 +33,16 @@ def parseArgs():
         the run configuration name
         the list of hub IDs to be removed
     """
-    cfgDir = find_pdaq_config()
+    cfgDir = os.path.join(metaDir, "config")
     if not os.path.exists(cfgDir):
         print >> sys.stderr, "Cannot find configuration directory"
 
-    cluCfgName = None
+    outCfgName = None
     forceCreate = False
     runCfgName = None
     hubIdList = []
 
-    needCluCfgName = False
+    needOutCfgName = False
 
     usage = False
     for a in sys.argv[1:]:
@@ -44,13 +50,13 @@ def parseArgs():
             forceCreate = True
             continue
 
-        if a == "-C":
-            needCluCfgName = True
+        if a == "-o":
+            needOutCfgName = True
             continue
 
-        if needCluCfgName:
-            cluCfgName = a
-            needCluCfgName = False
+        if needOutCfgName:
+            outCfgName = a
+            needOutCfgName = False
             continue
 
         if runCfgName is None:
@@ -95,11 +101,11 @@ def parseArgs():
 
     if usage:
         print >> sys.stderr, \
-            "Usage: %s runConfig hubId [hubId ...]" % sys.argv[0]
+            "Usage: %s [-o output.xml] runConfig hubId [hubId ...]" % sys.argv[0]
         print >> sys.stderr, "  (Hub IDs can be \"6\", \"06\", \"6i\", \"6t\")"
         raise SystemExit()
 
-    return (forceCreate, runCfgName, cluCfgName, hubIdList)
+    return (forceCreate, runCfgName, outCfgName, hubIdList)
 
 if __name__ == "__main__":
 
@@ -109,10 +115,13 @@ if __name__ == "__main__":
         print >> sys.stderr, "Warning: Running RemoveHubs.py on expcont"
         print >> sys.stderr, "-" * 60
 
-    (forceCreate, runCfgName, cluCfgName, hubIdList) = parseArgs()
+    (forceCreate, runCfgName, outCfgName, hubIdList) = parseArgs()
 
-    configDir = find_pdaq_config()
-    newPath = DAQConfig.createOmitFileName(configDir, runCfgName, hubIdList)
+    configDir = os.path.join(metaDir, "config")
+    if not outCfgName:
+        newPath = DAQConfig.createOmitFileName(configDir, runCfgName, hubIdList)
+    else:
+        newPath = os.path.join(configDir, outCfgName)        
     if os.path.exists(newPath):
         if forceCreate:
             print >> sys.stderr, "WARNING: Overwriting %s" % newPath
