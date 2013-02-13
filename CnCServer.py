@@ -25,7 +25,7 @@ from RunSet import RunSet, listComponentRanges
 from RunSetState import RunSetState
 from SocketServer import ThreadingMixIn
 from XMLFileCache import XMLFileNotFound
-from locate_pdaq import find_pdaq_trunk
+from locate_pdaq import find_pdaq_config, find_pdaq_trunk
 from utils import ip
 
 from exc_string import exc_string, set_exc_string_encoding
@@ -40,7 +40,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 13976 2012-10-24 19:26:16Z dglo $"
+SVN_ID = "$Id: CnCServer.py 14217 2013-02-13 19:19:27Z dglo $"
 
 
 class DAQPool(object):
@@ -1440,7 +1440,7 @@ if __name__ == "__main__":
                  action="store", default=None,
                  help="Cluster description name")
     p.add_option("-c", "--config-dir", type="string", dest="configDir",
-                 action="store", default="/usr/local/icecube/config",
+                 action="store", default=None,
                  help="Directory where run configurations are stored")
     p.add_option("-d", "--daemon", dest="daemon",
                  action="store_true", default=False,
@@ -1548,9 +1548,13 @@ if __name__ == "__main__":
     if opt.daemon:
         Daemon.Daemon().Daemonize()
 
+    if opt.configDir is not None:
+        configDir = opt.configDir
+    else:
+        configDir = find_pdaq_config()
     cnc = CnCServer(clusterDesc=opt.clusterDesc, name="CnCServer",
                     copyDir=opt.copyDir, dashDir=opt.dashDir,
-                    runConfigDir=opt.configDir, daqDataDir=opt.daqDataDir,
+                    runConfigDir=configDir, daqDataDir=opt.daqDataDir,
                     spadeDir=opt.spadeDir, defaultLogDir=opt.defaultLogDir,
                     logIP=logIP, logPort=logPort, liveIP=liveIP,
                     livePort=livePort, forceRestart=opt.forceRestart,
