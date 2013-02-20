@@ -11,16 +11,10 @@ from Component import Component
 from DefaultDomGeometry import BadFileError, DefaultDomGeometryReader, \
     ProcessError, XMLParser
 from RunCluster import RunCluster
-from XMLFileCache import XMLFileCache, XMLFileNotFound
+from XMLFileCache import XMLFileCache
+from locate_pdaq import find_pdaq_config
 from utils.Machineid import Machineid
 from xsd.validate_configs import validate_configs
-
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
 
 from DAQConfigExceptions import DAQConfigException
 from DAQConfigExceptions import BadComponentName
@@ -932,7 +926,7 @@ class TriggerConfigParser(XMLParser, XMLFileCache):
                     tcList.addTriggerConfig(trigCfg)
                 elif strict:
                     raise ProcessError("Unexpected %s child <%s>" %
-                                       (dcList.nodeName, kid.nodeName))
+                                       (active.nodeName, kid.nodeName))
                 continue
 
             raise ProcessError("Found unknown %s node <%s>" %
@@ -1015,6 +1009,7 @@ class DAQConfig(object):
         self.__senderOption = None
         self.__monitorPeriod = None
         self.__watchdogPeriod = None
+        self.__hitsSpoolOptions = None
 
     def __cmp__(self, other):
         val = len(self.__comps) - len(other.__comps)
@@ -1301,6 +1296,9 @@ class DAQConfig(object):
     def setSenderOption(self, hub, fwdIsolatedHits):
         self.__senderOption = (hub, fwdIsolatedHits)
 
+    def setHitsSpoolOption(self, hub, hitspoolOptions):
+        self.__hitsSpoolOptions = (hub, hitspoolOptions)
+
     def setStrayStream(self, name, prescale):
         self.__strayStream = (name, prescale)
 
@@ -1318,7 +1316,7 @@ class DAQConfig(object):
     @classmethod
     def showList(cls, configDir, configName):
         if configDir is None:
-            configDir = os.path.join(metaDir, "config")
+            configDir = find_pdaq_config()
 
         if not os.path.exists(configDir):
             raise DAQConfigException("Could not find config dir %s" %
@@ -1430,21 +1428,43 @@ class DAQConfig(object):
             print >> fd, "%s<prescale>%d</prescale>" % (in3, prescale)
             print >> fd, "%s</stream>" % in2
 
-        if self.__senderOption is not None:
-            (hub, fwdIsolatedHits) = self.__senderOption
-            fwdName = "forwardIsolatedHitsToTrigger"
-            if fwdIsolatedHits:
-                fwdVal = "true"
-            else:
-                fwdVal = "false"
+        if self.__senderOption is not None or \
+            self.__hitsSpoolOptions is not None:
+
 
             in3 = in2 + indent
             in4 = in3 + indent
 
             print >> fd, "%s<stringHub hubId=\"%d\">" % (in2, hub)
-            print >> fd, "%s<sender>" % in3
-            print >> fd, "%s<%s>%s</%s>" % (in4, fwdName, fwdVal, fwdName)
-            print >> fd, "%s</sender>" % in3
+            if self.__senderOption is not None:
+                (hub, fwdIsolatedHits) = self.__senderOption
+                fwdName = "forwardIsolatedHitsToTrigger"
+                if fwdIsolatedHits:
+                    fwdVal = "true"
+                else:
+                    fwdVal = "false"
+                print >> fd, "%s<sender>" % in3
+                print >> fd, "%s<%s>%s</%s>" % (in4, fwdName, fwdVal, fwdName)
+                print >> fd, "%s</sender>" % in3
+            if self.__hitsSpoolOptions is not None:
+                (enabled, directory, hits, interval, numFiles) = \
+                    self.__hitsSpoolOptions
+                if enabled:
+                    enabledVal = "true"
+                else:
+                    enabledVal = "false"
+                    
+                print >> fd, "%s<hitspool>" % in3
+                print >> fd, "%s<enabled>%s</enabled>" % ( in4, enabledVal )
+                print >> fd, "%s<directory>%s</directory>" % ( in4, directory )
+                if hits is not None:
+                    print >> fd, "%s<hits>%s</hits>" % ( in4, hits )
+                if interval is not None:
+                    print >> fd, "%s<interval>%s</interval>" % ( in4, interval)
+                if numFiles is not None:
+                    print >> fd, "%s<numFiles>%s</numFiles>" % (in4, numFiles)
+                print >> fd, "%s</hitspool>" % in3
+
             print >> fd, "%s</stringHub>" % in2
 
         print >> fd, "</runConfig>"
@@ -1494,7 +1514,12 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                                        (topNode.nodeName, kid.nodeName))
 
     @classmethod
-    def __parseSenderOption(cls, topNode, runCfg, strict=False):
+    def __parseStringHubOptions(cls, topNode, runCfg, strict=False):
+        """Used only in run configuration files
+        Assumes that the 'topNode' node is the node for a 'stringHub'.
+        """
+      
+        # check to see if the stringhub line has a 'hubId' attribute
         val = cls.getSingleAttribute(topNode, "hubId", strict)
         if val is None:
             raise ProcessError(("<%s> node has no \"hubId\" attribute") %
@@ -1507,45 +1532,139 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                                (topNode.nodeName, val))
 
         fwdIsolatedHits = None
+        hitsEnabled = None
+        hitsDirectory = None
+        hitsHits = None
+        hitsInterval = None
+        hitsNumFiles = None
 
+        # look at all the child nodes for the stringhub
         for kid in topNode.childNodes:
+            # skip any comments to text nodes
             if kid.nodeType == Node.TEXT_NODE or \
                    kid.nodeType == Node.COMMENT_NODE:
                 continue
-
+        
+            # an actual element node
             if kid.nodeType == Node.ELEMENT_NODE:
-                if kid.nodeName != "sender":
-                    if strict:
-                        raise ProcessError("Unknown <%s> node under <%s>" %
-                                           (kid.nodeName, topNode.nodeName))
-                    continue
-
-                for gkid in kid.childNodes:
-                    if gkid.nodeType == Node.TEXT_NODE or \
-                           gkid.nodeType == Node.COMMENT_NODE:
-                        continue
-
-                    if gkid.nodeType == Node.ELEMENT_NODE:
-                        if gkid.nodeName != "forwardIsolatedHitsToTrigger":
-                            if strict:
-                                raise ProcessError(("Unknown <%s> node under"
-                                                    " <%s>") % \
-                                                       (gkid.nodeName,
-                                                        kid.nodeName))
+                # can be either a 'sender' or a 'hitspool' node
+                # the original code does a CASE SENSITIVE compae
+                if kid.nodeName == 'sender':
+                    # can only have 'forwardIsolatedHitsToTrigger'
+                    for gkid in kid.childNodes:
+                        if gkid.nodeType == Node.TEXT_NODE or \
+                                gkid.nodeType == Node.COMMENT_NODE:
                             continue
 
-                        val = cls.getChildText(gkid).strip()
-                        fwdIsolatedHits = cls.parseBooleanString(val)
-                        if fwdIsolatedHits is None:
-                            raise ProcessError(("Unknown value \"%s\" "
-                                                "for <%s>") % \
-                                                   (val, gkid.nodeName))
+                        if gkid.nodeType == Node.ELEMENT_NODE:
+                            if gkid.nodeName != "forwardIsolatedHitsToTrigger":
+                                if strict:
+                                    raise ProcessError(("Unknown <%s> node"
+                                                        " under <%s>") % \
+                                                           (gkid.nodeName,
+                                                            kid.nodeName))
+                                continue
 
-        if strict and fwdIsolatedHits is None:
-            raise ProcessError("No value specified for <%s>" %
-                               topNode.nodeName)
+                            val = cls.getChildText(gkid).strip()
+                            if fwdIsolatedHits is not None:
+                                raise ProcessError(("Duplicate value \"%s\" "
+                                                    "for <%s>") % \
+                                                       (val, gkid.nodeName))
 
-        runCfg.setSenderOption(hubId, fwdIsolatedHits)
+                            fwdIsolatedHits = cls.parseBooleanString(val)
+                            if fwdIsolatedHits is None:
+                                raise ProcessError(("Unknown value \"%s\" "
+                                                    "for <%s>") % \
+                                                       (val, gkid.nodeName))
+                            
+                            runCfg.setSenderOption(hubId, fwdIsolatedHits)
+
+                elif kid.nodeName == 'hitspool':
+                    # must have one tag of each of the following:
+                    # 'enabled'
+                    # 'directory'
+                    # 'hits'
+                    # optional tag 'interval'
+
+                    if hitsEnabled is not None or \
+                            hitsDirectory is not None or \
+                            hitsHits is not None:
+                        raise ProcessError("Duplicate hitspool information")
+
+                    for gkid in kid.childNodes:
+                        # skip text / comments
+                        if gkid.nodeType == Node.TEXT_NODE or \
+                                gkid.nodeType == Node.COMMENT_NODE:
+                            continue
+                        
+                        if gkid.nodeType == Node.ELEMENT_NODE:
+                            if gkid.nodeName not in [ "enabled", 
+                                                      "directory",
+                                                      "hits",
+                                                      "interval",
+                                                      "numFiles"]:
+                                if strict:
+                                    raise ProcessError(("Unknown <%s> node"
+                                                        " under <%s>") % \
+                                                           (gkid.nodeName,
+                                                            kid.nodeName))
+                                continue
+
+                            val = cls.getChildText(gkid).strip()
+
+                            if gkid.nodeName == "enabled":
+                                hitsEnabled = cls.parseBooleanString(val)
+                                if hitsEnabled is None:
+                                    raise ProcessError(("Unknown value \"%s\" "
+                                                        "for <%s>") % \
+                                                           (val, gkid.nodeName))
+                            elif gkid.nodeName == "directory":
+                                hitsDirectory = val
+                                if hitsDirectory is None:
+                                    raise ProcessError(("Unknown value \"%s\" "
+                                                        "for <%s>") % \
+                                                           (val, gkid.nodeName))
+                            elif gkid.nodeName == "hits":
+                                try:
+                                    hitsHits = int(val)
+                                except ValueError:
+                                    raise ProcessError(("Unknown value \"%s\" "
+                                                        "for <%s>") % \
+                                                           (val, gkid.nodeName))
+                            elif gkid.nodeName == "interval":
+                                try:
+                                    hitsInteval = float(val)
+                                except ValueError:
+                                    raise ProcessError(("Unknown value \"%s\" "
+                                                        "for <%s>") % \
+                                                           (val, gkid.nodeName))
+                            elif gkid.nodeName == "numFiles":
+                                try:
+                                    hitsNumFiles = int(val)
+                                except ValueError:
+                                    raise ProcessError(("Unknown value \"%s\" "
+                                                        "for <%s>") % \
+                                                       (val, gkid.nodeName))
+
+                    # the interval tag is optional
+                    if hitsEnabled is None or hitsDirectory is None or \
+                        (hitsHits is None and hitsNumFiles is None):
+                        missing = []
+                        if hitsEnabled is None:
+                            missing.append("enabled")
+                        if hitsDirectory is None:
+                            missing.append("directory")
+                        if hitsHits is None and hitsNumFiles is None:
+                            missing.append("(hits or numFiles)")
+                        raise ProcessError("Missing required hitspooling" +
+                                           " tags: " + ", ".join(missing))
+                    
+                    runCfg.setHitsSpoolOption(hubId,
+                                              (hitsEnabled, hitsDirectory,
+                                               hitsHits, hitsInterval,
+                                               hitsNumFiles))
+        return
+
 
     @classmethod
     def __parseStrayStream(cls, topNode, runCfg):
@@ -1595,11 +1714,6 @@ class DAQConfigParser(XMLParser, XMLFileCache):
                                fileName)
 
     @classmethod
-    def configExists(cls, configName,
-                     configDir=os.path.join(metaDir, "config")):
-        return cls.buildPath(configDir, configName) != None
-
-    @classmethod
     def getClusterConfiguration(cls, configName, useActiveConfig=False,
                                 clusterDesc=None, configDir=None, strict=False,
                                 validate=True):
@@ -1621,11 +1735,11 @@ class DAQConfigParser(XMLParser, XMLFileCache):
             configName = configName[:sepIndex]
 
         if configDir is None:
-            configDir = os.path.join(metaDir, "config")
+            configDir = find_pdaq_config()
 
         if validate:
             (valid, reason) = validate_configs(clusterDesc, configName)
-
+            
             if not valid:
                 raise DAQConfigException(reason)
 
@@ -1723,7 +1837,7 @@ class DAQConfigParser(XMLParser, XMLFileCache):
 
                     cls.__parseHubFiles(kid, runCfg, strict)
                 elif kid.nodeName == "stringHub":
-                    cls.__parseSenderOption(kid, runCfg, strict)
+                    cls.__parseStringHubOptions(kid, runCfg, strict)
                 elif kid.nodeName == "runComponent":
                     val = cls.getSingleAttribute(kid, "name", strict)
                     if val is not None:
@@ -1791,6 +1905,9 @@ if __name__ == "__main__":
                  help="Do not perform strict checking")
     p.add_option("-m", "--no-host-check", dest="nohostcheck", default=False,
                  help="Disable checking the host type for run permission")
+    p.add_option("-q", "--quiet", dest="quiet",
+                 action="store_true", default=False,
+                 help="Don't print anything if config is OK")
     p.add_option("-x", "--extended-tests", dest="extended",
                  action="store_true", default=False,
                  help="Do extended testing")
@@ -1809,7 +1926,7 @@ if __name__ == "__main__":
                                   "on the correct host?")
             raise SystemExit
 
-    configDir = os.path.join(metaDir, "config")
+    configDir = find_pdaq_config()
 
     if opt.parseDomData:
         DomConfigParser.parseAllDomData()
@@ -1823,7 +1940,8 @@ if __name__ == "__main__":
                 if not valid:
                     raise DAQConfigException(reason)
 
-            print "%s/%s is ok." % (configDir, opt.toCheck)
+            if not opt.quiet:
+                print "%s/%s is ok." % (configDir, opt.toCheck)
             status = None
         except:
             status = "%s/%s is not a valid config: %s" % \
@@ -1847,12 +1965,12 @@ if __name__ == "__main__":
 
         if opt.validation:
             (valid, reason) = validate_configs(None, configName)
-
             if not valid:
                 raise DAQConfigException(reason)
 
         if not opt.extended:
-            print "%s is ok" % configName
+            if not opt.quiet:
+                print "%s is ok" % configName
         else:
             diff = datetime.datetime.now() - startTime
             initTime = float(diff.seconds) + \
