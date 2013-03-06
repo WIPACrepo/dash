@@ -18,13 +18,12 @@ import os
 import re
 import tarfile
 import time
-import fnmatch
 
 
 MAX_FILES_PER_TARBALL = 50
 TARGET_DIR = "/mnt/data/pdaqlocal"
 TARGET_DIR_SN = "/mnt/data/sndata/tmp/"
-TARGET_DIR_SN_BACKUP = TARGET_DIR_SN + "backup/"
+TARGET_DIR_SN_BACKUP = os.path.join(TARGET_DIR_SN, "backup/")
 
 
 def checkForRunningProcesses(progname):
@@ -55,6 +54,7 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
             break
 
     for f in filesToTar:
+        print f
         if "sn_" in f:
             generateHardlinksSN(f, verbose=verbose)
         else:
@@ -125,8 +125,8 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
 
 def generateHardlinksSN(f, verbose):
         if verbose: print "Creating links for %s" % f
-        os.link(f, TARGET_DIR_SN + f)
-        os.link(f, TARGET_DIR_SN_BACKUP + f)
+        os.link(f, os.path.join(TARGET_DIR_SN,f))
+        os.link(f, os.path.join(TARGET_DIR_SN_BACKUP,f))
 
 def main(verbose=False, dryRun=False):
     os.chdir(TARGET_DIR)
