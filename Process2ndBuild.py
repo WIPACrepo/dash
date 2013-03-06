@@ -52,11 +52,6 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
         if len(filesToTar) >= MAX_FILES_PER_TARBALL:
             break
 
-    for f in filesToTar:
-        if "sn_" in f:
-            if verbose: print "SN Raw file to be linked %s" % f
-            generateHardlinksSN(f, verbose=verbose)
-
     if len(filesToTar) == 0:
         return False
 
@@ -83,7 +78,11 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
         if not dryRun: tarball = tarfile.open(tmpTar, "w")
         for toAdd in filesToTar:
             if verbose: print "  " + toAdd
-            if not dryRun: tarball.add(toAdd)
+            if not dryRun:
+                if "sn_" in toAdd:
+                    if verbose: print "SN Raw file to be linked %s" % f
+                    generateHardlinksSN(f, verbose=verbose)
+                tarball.add(toAdd)
         if not dryRun: tarball.close()
     except:
         os.unlink(tmpTar)
@@ -123,22 +122,19 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
 
 
 def generateHardlinksSN(f, verbose):
-        if verbose: print "Creating links for %s" % f
-        try:
+    if verbose: print "Creating links for %s" % f
+    try:
 		os.link(f, os.path.join(TARGET_DIR_SN,f))
-        	os.link(f, os.path.join(TARGET_DIR_SN_BACKUP,f))
+        os.link(f, os.path.join(TARGET_DIR_SN_BACKUP,f))
 	except:
-		pass
+		print "Failure to create link for %s" % f
 
 
 def main(verbose=False, dryRun=False):
     os.chdir(TARGET_DIR)
 
     # Get list of available files, matching target tar pattern:
-    matchingFiles = []
-    for f in os.listdir(TARGET_DIR):
-        if isTargetFile(f):
-            matchingFiles.append(f)
+    matchingFiles = [ f for f in os.listdir(TARGET_DIR) if isTargetFile(f) ]
 
     matchingFiles.sort(lambda x, y: (cmp(os.stat(x)[8], os.stat(y)[8])))
 
