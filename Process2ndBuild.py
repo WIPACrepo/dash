@@ -18,7 +18,7 @@ import datetime
 import os
 import tarfile
 import time
-import fnmatch
+import re 
 
 
 MAX_FILES_PER_TARBALL = 50
@@ -26,6 +26,7 @@ TARGET_DIR = "/mnt/data/pdaqlocal"
 TARGET_DIR_SN = "/mnt/data/sndata/tmp/"
 TARGET_DIR_SN_BACKUP = os.path.join(TARGET_DIR_SN, "backup/")
 
+file_pattern = re.compile(r'(\w+)_\d+_\d+_\d+_\d+\.dat')
 
 def checkForRunningProcesses(progname):
     c = os.popen("pgrep -fl 'python .+%s'" % progname, "r")
@@ -37,11 +38,10 @@ def checkForRunningProcesses(progname):
 
 
 def isTargetFile(f):
-    if fnmatch.fnmatch(f, "sn_*_*_*_*.dat") or fnmatch.fnmatch(f, "moni_*_*_*_*.dat") or fnmatch.fnmatch(f, "tcal_*_*_*_*.dat"):
-        return True
-    else:
-        return False
-
+    match = re.search(file_pattern, f)
+    if match is not None:
+        ftype == match.group(1)
+        return ftype == "sn" or ftype == "moni" or ftype == "tcal"
 
 def processFiles(matchingFiles, verbose=False, dryRun=False):
     # Make list for tarball - restrict total number of files
