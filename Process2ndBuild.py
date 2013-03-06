@@ -37,7 +37,7 @@ def checkForRunningProcesses(progname):
 
 
 def isTargetFile(f):
-    if fnmatch(f, "sn_*_*_*_*.dat") or fnmatch(f, "moni_*_*_*_*.dat") or fnmatch(f, "tcal_*_*_*_*.dat"):
+    if fnmatch.fnmatch(f, "sn_*_*_*_*.dat") or fnmatch.fnmatch(f, "moni_*_*_*_*.dat") or fnmatch.fnmatch(f, "tcal_*_*_*_*.dat"):
         return True
     else:
         return False
