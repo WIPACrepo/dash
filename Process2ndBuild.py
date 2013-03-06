@@ -79,9 +79,10 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
         for toAdd in filesToTar:
             if verbose: print "  " + toAdd
             if not dryRun:
+                # Provide sn_*.dat files to SNDAQ for processing
                 if "sn_" in toAdd:
-                    if verbose: print "SN Raw file to be linked %s" % f
-                    generateHardlinksSN(f, verbose=verbose)
+                    if verbose: print "SN Raw file to be linked %s" % toAdd
+                    generateHardlinksSN(toAdd, verbose=verbose)
                 tarball.add(toAdd)
         if not dryRun: tarball.close()
     except:
@@ -100,10 +101,10 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
         os.link(spadeTar, moniLink)
 
         # Create sn hard link
-        if verbose: print "SNLink %s" % snLink
-        os.link(spadeTar, snLink)
+        #if verbose: print "SNLink %s" % snLink
+        #os.link(spadeTar, snLink)
         # So that SN process can delete if it's not running as pdaq
-        os.chmod(snLink, 0666)
+        #os.chmod(snLink, 0666)
 
         # Create spade .sem
         f = open(spadeSem, "w")
@@ -125,7 +126,9 @@ def generateHardlinksSN(f, verbose):
     if verbose: print "Creating links for %s" % f
     try:
         os.link(f, os.path.join(TARGET_DIR_SN,f))
+        os.chmod(os.path.join(TARGET_DIR_SN,f), 0666)
         os.link(f, os.path.join(TARGET_DIR_SN_BACKUP,f))
+        os.chmod(os.path.join(TARGET_DIR_SN_BACKUP, 0666)
     except:
         print "Failure to create link for %s" % f
 
