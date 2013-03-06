@@ -3,6 +3,7 @@
 """
 Process2ndBuild.py
 Jacobsen, back in the 2007's or so
+Riedel, Modified to push files to SNDAQ, 2013
 
 This script is installed on 2ndbuild, collects the output of 2ndbuild
 as it appears on /mnt/data/pdaqlocal, tars them in groups as they
@@ -15,9 +16,9 @@ installation procedure.
 
 import datetime
 import os
-import re
 import tarfile
 import time
+import fnmatch
 
 
 MAX_FILES_PER_TARBALL = 50
@@ -36,13 +37,11 @@ def checkForRunningProcesses(progname):
 
 
 def isTargetFile(f):
-    match = re.search(r'(\w+)_\d+_\d+_\d+_\d+\.dat', f)
-    if match:
-        ftype = match.group(1)
-        if ftype != "moni" and ftype != "sn" and ftype != "tcal":
-            return False
+    if fnmatch(f, "sn_*_*_*_*.dat") or fnmatch(f, "moni_*_*_*_*.dat") or fnmatch(f, "tcal_*_*_*_*.dat"):
         return True
-    return False
+    else:
+        return False
+
 
 def processFiles(matchingFiles, verbose=False, dryRun=False):
     # Make list for tarball - restrict total number of files
@@ -54,8 +53,8 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
             break
 
     for f in filesToTar:
-        if verbose: print "Files found %s" % f
         if "sn_" in f:
+            if verbose: print "SN Raw file to be linked %s" % f
             generateHardlinksSN(f, verbose=verbose)
 
     if len(filesToTar) == 0:
@@ -95,23 +94,25 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
     if verbose: print "Renaming temporary tarball to %s" % spadeTar
     os.rename(tmpTar, spadeTar)
 
-    # Create moni hard link
-    if verbose: print "MoniLink %s" % moniLink
-    if not dryRun: os.link(spadeTar, moniLink)
+    if not dryRun:
 
-    # Create sn hard link
-    if verbose: print "SNLink %s" % snLink
-    if not dryRun: os.link(spadeTar, snLink)
-    # So that SN process can delete if it's not running as pdaq
-    if not dryRun: os.chmod(snLink, 0666)
+        # Create moni hard link
+        if verbose: print "MoniLink %s" % moniLink
+        os.link(spadeTar, moniLink)
 
-    # Create spade .sem
-    if not dryRun: f = open(spadeSem, "w")
-    if not dryRun: f.close()
+        # Create sn hard link
+        if verbose: print "SNLink %s" % snLink
+        os.link(spadeTar, snLink)
+        # So that SN process can delete if it's not running as pdaq
+        os.chmod(snLink, 0666)
 
-    # Create monitoring .msem
-    if not dryRun: f = open(moniSem, "w")
-    if not dryRun: f.close()
+        # Create spade .sem
+        f = open(spadeSem, "w")
+        f.close()
+
+        # Create monitoring .msem
+        f = open(moniSem, "w")
+        f.close()
 
     # Clean up tar'ed files
     for toAdd in filesToTar:
@@ -128,6 +129,7 @@ def generateHardlinksSN(f, verbose):
         	os.link(f, os.path.join(TARGET_DIR_SN_BACKUP,f))
 	except:
 		pass
+
 
 def main(verbose=False, dryRun=False):
     os.chdir(TARGET_DIR)
