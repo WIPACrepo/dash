@@ -124,10 +124,10 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
 def generateHardlinksSN(f, verbose):
     if verbose: print "Creating links for %s" % f
     try:
-		os.link(f, os.path.join(TARGET_DIR_SN,f))
+        os.link(f, os.path.join(TARGET_DIR_SN,f))
         os.link(f, os.path.join(TARGET_DIR_SN_BACKUP,f))
-	except:
-		print "Failure to create link for %s" % f
+    except:
+        print "Failure to create link for %s" % f
 
 
 def main(verbose=False, dryRun=False):
