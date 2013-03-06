@@ -54,11 +54,9 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
             break
 
     for f in filesToTar:
-        print f
+        if verbose: print "Files found %s" % f
         if "sn_" in f:
             generateHardlinksSN(f, verbose=verbose)
-        else:
-            break
 
     if len(filesToTar) == 0:
         return False
@@ -125,8 +123,11 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
 
 def generateHardlinksSN(f, verbose):
         if verbose: print "Creating links for %s" % f
-        os.link(f, os.path.join(TARGET_DIR_SN,f))
-        os.link(f, os.path.join(TARGET_DIR_SN_BACKUP,f))
+        try:
+		os.link(f, os.path.join(TARGET_DIR_SN,f))
+        	os.link(f, os.path.join(TARGET_DIR_SN_BACKUP,f))
+	except:
+		pass
 
 def main(verbose=False, dryRun=False):
     os.chdir(TARGET_DIR)
