@@ -65,7 +65,7 @@ class DAQConfigTest(unittest.TestCase):
     def testLookupSim5(self):
         metaDir = self.initPDAQHome()
         cfg = DAQConfigParser.load("simpleConfig", metaDir + "/config")
-
+        
         dataList = (('53494d550101', 'Nicholson_Baker', 1001, 1),
                     ('53494d550120', 'SIM0020', 1001, 20),
                     ('53494d550140', 'SIM0040', 1001, 40),
@@ -176,6 +176,7 @@ class DAQConfigTest(unittest.TestCase):
                     'replayHub#72', 'replayHub#73', 'replayHub#74',
                     'replayHub#78', 'replayHub#201', 'replayHub#202',
                     'replayHub#203', 'replayHub#204']
+
         comps = cfg.components()
 
         self.assertEqual(len(expected), len(comps),
