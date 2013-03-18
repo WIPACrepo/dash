@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import os
 import sys
 from xml_dict import xml_dict
@@ -444,7 +445,24 @@ class DAQConfig(ConfigObject):
             except IOError:
                 break
 
-                
+    def __getPeriod(self, name):
+        """Extract a period specification from the configuration"""
+        for key, value in self.other_objs:
+            if key == name:
+                try:
+                    period = int(get_attrib(value, 'period'))
+                    return period
+                except (AttributeError, ValueError):
+                    pass
+        return None
+
+    def monitorPeriod(self):
+        """Return the monitoring period (None if not specified)"""
+        return self.__getPeriod("monitor")
+
+    def watchdogPeriod(self):
+        """return the watchdog period (None if not specified)"""
+        return self.__getPeriod("watchdog")
 
     def configFile(self):
         """added to match the signature of the old code"""
@@ -818,9 +836,8 @@ def main():
             raise SystemExit(status)
 
     # Code for testing:
-
-    if len(args) == 0:
-        args.append("sim5str")
+    #if len(args) == 0:
+    #    args.append("sim5str")
 
     for config_name in args:
         if opt.extended:
@@ -829,7 +846,6 @@ def main():
         start_time = datetime.datetime.now()
         try:
             dc = DAQConfigParser.load(config_name, config_dir, opt.strict)
-            print "DC.comps: ", dc.components()
         except Exception:
             print 'Could not parse "%s": %s' % (config_name, exc_string())
             continue

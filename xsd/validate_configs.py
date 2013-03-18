@@ -205,7 +205,7 @@ def is_sps_cluster(cluster_xml_filename):
     # the cluster attribute is the root element of the cluster
     # config xml file
     cluster = doc_xml.getroot()
-    if cluster==None:
+    if cluster == None:
         return True
     # 'name' is required by the validate_clustercfg code
     # but be a bit paranoid so check for it
@@ -215,7 +215,11 @@ def is_sps_cluster(cluster_xml_filename):
 
     name = cluster.attrib['name']
 
-    if name=='sps':
+    # make the localhost cluster be
+    # equivalent to the sps cluster
+    # This is okay as sps is the most
+    # strict cluster
+    if name == 'sps' or name == 'localhost':
         return True
     else:
         return False
@@ -236,7 +240,6 @@ def validate_dom_config_spts(xml_filename):
                                                'domconfig-spts.rng')
 
     return (valid, reason)
-
 
 
 def _validate_dom_config_xml(xml_filename, rng_real_filename):
@@ -338,24 +341,9 @@ def _validate_xml(xml_filename, xsd_filename):
 
 if __name__ == "__main__":
 
-    spts_configs = glob.glob(os.path.join(CONFIG_DIR, 'spts*.xml'))
+    print "-" * 60
     print "Validating all sps configurations"
-    for config in spts_configs:
-        print ""
-        print "Validating %s" % config
-        (valid, reason) = validate_configs(os.path.join(CONFIG_DIR,
-                                                        'spts-cluster.cfg'),
-                                           config)
-
-        if not valid:
-            print "Configuration invalid ( reasons: )"
-            print reason
-        else:
-            print "Configuration is valid"
-
-    print "-"*60
-    print "Validating all sps configurations"
-    print "-"*60
+    print "-" * 60
     sps_configs = glob.glob(os.path.join(CONFIG_DIR, 'sps*.xml'))
 
     print "validate_configs"
@@ -372,3 +360,20 @@ if __name__ == "__main__":
             print reason
         else:
             print "Configuration is valid"
+
+
+    spts_configs = glob.glob(os.path.join(CONFIG_DIR, 'spts*.xml'))
+    print "Validating all sps configurations"
+    for config in spts_configs:
+        print ""
+        print "Validating %s" % config
+        (valid, reason) = validate_configs(os.path.join(CONFIG_DIR,
+                                                        'spts-cluster.cfg'),
+                                           config)
+
+        if not valid:
+            print "Configuration invalid ( reasons: )"
+            print reason
+        else:
+            print "Configuration is valid"
+
