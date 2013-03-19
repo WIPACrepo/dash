@@ -27,7 +27,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 # get the subversion id tag
-SVN_ID = "$Id: DAQLog.py 14327 2013-03-19 19:05:21Z mnewcomb $"
+SVN_ID = "$Id: DAQLog.py 14328 2013-03-19 19:40:09Z mnewcomb $"
 
 class LogException(Exception):
     pass
@@ -226,7 +226,7 @@ class DAQLog(object):
     def __init__(self, appender=None, level=TRACE):
         self.__level = level
         self.__appenderList = []
-        if appender:
+        if appender is not None:
             self.__appenderList.append(appender)
 
     def __str__(self):
@@ -256,8 +256,7 @@ class DAQLog(object):
                 a.write(msg, level=level)
 
     def addAppender(self, appender):
-        print "Add Appender: ", appender
-        if not appender:
+        if appender is None:
             raise LogException("Cannot add null appender")
         self.__appenderList.append(appender)
 
@@ -268,7 +267,6 @@ class DAQLog(object):
         savedEx = None
         for a in self.__appenderList:
             try:
-                print "Appender: ", a
                 a.close()
             except:
                 savedEx = sys.exc_info()
