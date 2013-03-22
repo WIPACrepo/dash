@@ -525,7 +525,7 @@ class DAQConfig(ConfigObject):
                     dc.xdict)
 
         # stringhubs
-        for shub in self.stringhub_map.items():
+        for shub in self.stringhub_map.values():
             if shub is None:
                 continue
             if (keepList and shub.hub_id in hubIdList) or \
