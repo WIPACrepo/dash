@@ -543,7 +543,7 @@ class RunData(object):
             log.addAppender(app)
 
         if RunOption.isLogToLive(self.__runOptions):
-            app = LiveSocketAppender("localhost", DAQPort.I3LIVE,
+            app = LiveSocketAppender("localhost", DAQPort.I3LIVE_ZMQ,
                                      priority=Prio.EMAIL)
             log.addAppender(app)
 

@@ -25,7 +25,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 13974 2012-10-24 17:09:53Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 14353 2013-03-25 21:41:03Z mnewcomb $"
 
 
 class ConsoleLogger(object):
@@ -211,7 +211,7 @@ if __name__ == "__main__":
         doCnC = True
 
         logPort = None
-        livePort = DAQPort.I3LIVE
+        livePort = DAQPort.I3LIVE_ZMQ
 
         ComponentManager.launch(doCnC, opt.dryRun, opt.verbose, clusterConfig,
                                 dashDir, cfgDir, daqDataDir, logDir,
