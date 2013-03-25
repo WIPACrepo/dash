@@ -366,6 +366,12 @@ class DAQConfig(ConfigObject):
 
         self.filename = filename
 
+    def basename(self):
+        b = os.path.basename(self.filename)
+        if b.endswith(".xml"):
+            b = b[:-4]
+        return b
+
     def validate(self):
         """The syntax of a file is verified with the
         rng validation parser, but there are a few things
