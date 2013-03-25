@@ -25,7 +25,7 @@ from DAQConfigExceptions import DOMNotInConfigException
 
 class FindConfigDir:
     """A utility class to hold the pdaq configuration file
-    directory.  This class is here so the file can be easily overridden 
+    directory.  This class is here so the file can be easily overridden
     and pointed to test configs in dash/src/..."""
     CONFIG_DIR = find_pdaq_config()
 
@@ -193,7 +193,7 @@ class RunDom(dict):
 
         self.__string = dom_geom.string()
         self.__pos = dom_geom.pos()
-        
+
         dict.__init__(self)
 
     def __str__(self):
@@ -208,7 +208,7 @@ class RunDom(dict):
         return cls.DEFAULT_DOM_GEOMETRY.getDomIdToDomDict()
 
     def __getitem__(self, key):
-        """Maybe an odd overloading of a python dictionary, 
+        """Maybe an odd overloading of a python dictionary,
         if you access rundom['X'] you can get the attrib or value
         for that dom."""
         try:
@@ -367,7 +367,7 @@ class DAQConfig(ConfigObject):
         self.filename = filename
 
     def validate(self):
-        """The syntax of a file is verified with the 
+        """The syntax of a file is verified with the
         rng validation parser, but there are a few things
         not validated"""
 
@@ -376,7 +376,7 @@ class DAQConfig(ConfigObject):
                                % self.filename)
 
         if not self.trig_cfg:
-            raise ProcessError("No <triggerConfig> found in %s" 
+            raise ProcessError("No <triggerConfig> found in %s"
                                % self.filename)
 
         in_ice_hub, in_ice_trig, \
@@ -396,19 +396,19 @@ class DAQConfig(ConfigObject):
                     ice_top_trig = True
 
         if in_ice_hub and not in_ice_trig:
-            raise ProcessError("Found in-ice hubs but no in-ice trigger in %s" 
+            raise ProcessError("Found in-ice hubs but no in-ice trigger in %s"
                                % self.filename)
 
         if not in_ice_hub and in_ice_trig:
-            raise ProcessError("Found in-ice trigger but not in-ice hubs in %s" 
+            raise ProcessError("Found in-ice trigger but not in-ice hubs in %s"
                                % self.filename)
 
         if ice_top_hub and not ice_top_trig:
-            raise ProcessError("Found icetop hubs but no icetop trigger in %s" 
+            raise ProcessError("Found icetop hubs but no icetop trigger in %s"
                                % self.filename)
-        
+
         if not ice_top_hub and ice_top_trig:
-            raise ProcessError("Found icetop trigger but no icetop hubs in %s" 
+            raise ProcessError("Found icetop trigger but no icetop hubs in %s"
                                % self.filename)
 
 
@@ -419,14 +419,14 @@ class DAQConfig(ConfigObject):
             config_dir = find_pdaq_config()
 
         if not os.path.exists(config_dir):
-            raise DAQConfigException("Could not find config dir %s" % 
+            raise DAQConfigException("Could not find config dir %s" %
                                      config_dir)
-        
+
         if not config_name:
             config_name = CachedConfigName.getConfigToUse(None, False, True)
-            
+
         cfgs = []
-        
+
         for fname in os.listdir(config_dir):
             cfg = os.path.basename(fname[:-4])
             if fname.endswith(".xml") and cfg!='default-dom-geometry':
@@ -697,7 +697,7 @@ class DAQConfig(ConfigObject):
 
     def getIDbyName(self, name):
         """Search for a dom with the given name
-        and return it's id.  If no match is found 
+        and return it's id.  If no match is found
         throw a DOMNotInConfigException"""
         for dcfg in self.dom_cfgs:
             dom = dcfg.getDOMByName(name)
@@ -805,7 +805,7 @@ def main():
                      help=("Disable schema validation of xml "
                            "configuration files"))
     opt, args = parse.parse_args()
-        
+
     if not opt.nohostcheck:
         hostid = Machineid()
         if (not (hostid.is_build_host() or
@@ -815,18 +815,18 @@ def main():
             print >> sys.stderr, ("Are you sure you are running DAQConfig "
                                   "on the correct host?")
             raise SystemExit
-            
+
     config_dir = find_pdaq_config()
-            
+
     if opt.toCheck:
         try:
             DAQConfigParser.load(opt.toCheck, config_dir, opt.strict)
             if opt.validation:
                 (valid, reason) = validate_configs(None, opt.toCheck)
-                
+
                 if not valid:
                     raise DAQConfigException(reason)
-                
+
             if not opt.quiet:
                 print "%s/%s is ok." % (config_dir, opt.toCheck)
                 status = None
@@ -849,7 +849,7 @@ def main():
         except Exception:
             print 'Could not parse "%s": %s' % (config_name, exc_string())
             continue
-        
+
         if opt.validation:
             (valid, reason) = validate_configs(None, config_name)
             if not valid:
@@ -876,7 +876,7 @@ def main():
                 (init_time, next_time)
 
 
-                
+
 if __name__ == "__main__":
     import datetime
     import optparse
