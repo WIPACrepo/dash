@@ -41,6 +41,18 @@ class DAQConfigTest(unittest.TestCase):
                              'For string %d pos %d, expected %s, not %s' %
                              (data[2], data[3], data[0], dom))
 
+    def testNames(self):
+        cfgDir = os.path.join(self.initPDAQHome(), "config")
+
+        for n in ("simpleConfig", "sps-IC40-IT6-AM-Revert-IceTop-V029"):
+            cfg = DAQConfigParser.load(n, cfgDir)
+            self.assertEqual(n, cfg.basename(),
+                             "Expected %s, not %s" % (n, cfg.basename()))
+            fullname = os.path.join(cfgDir, n + ".xml")
+            self.assertEqual(fullname, cfg.configFile(),
+                             "Expected %s, not %s" %
+                             (fullname, cfg.configFile()))
+
     def testListsSim5(self):
         metaDir = self.initPDAQHome()
         cfg = DAQConfigParser.load("simpleConfig", metaDir + "/config")
@@ -176,6 +188,7 @@ class DAQConfigTest(unittest.TestCase):
                     'replayHub#72', 'replayHub#73', 'replayHub#74',
                     'replayHub#78', 'replayHub#201', 'replayHub#202',
                     'replayHub#203', 'replayHub#204']
+
         comps = cfg.components()
 
         self.assertEqual(len(expected), len(comps),
