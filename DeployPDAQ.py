@@ -15,7 +15,7 @@ from ParallelShell import ParallelShell
 from utils.Machineid import Machineid
 
 # pdaq subdirectories to be deployed
-SUBDIRS = ("target", "config", "dash", "src")
+SUBDIRS = ("target", "config", "dash", "schema", "src")
 
 # Defaults for a few args
 NICE_ADJ_DEFAULT = 19
@@ -33,7 +33,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 13722 2012-05-29 21:56:26Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 14379 2013-04-01 21:46:56Z dglo $"
 
 
 def getUniqueHostNames(config):
