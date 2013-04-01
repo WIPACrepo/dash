@@ -21,7 +21,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 13976 2012-10-24 19:26:16Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 14380 2013-04-01 22:08:36Z mnewcomb $"
 
 
 class DOMArgumentException(Exception):
@@ -97,24 +97,24 @@ class SubRunDOM(object):
             raise DOMArgumentException()
 
     def flasherInfo(self):
-        if self.mbid != None:
+        if self.mbid is not None:
             return (self.mbid, self.bright, self.window,
                     self.delay, self.mask, self.rate)
-        elif self.string != None and self.pos != None:
+        elif self.string is not None and self.pos is not None:
             return (self.string, self.pos, self.bright, self.window,
                     self.delay, self.mask, self.rate)
         else:
             raise DOMArgumentException()
 
     def flasherHash(self):
-        if self.mbid != None:
+        if self.mbid is not None:
             return {"MBID": self.mbid,
                     "brightness": self.bright,
                     "window": self.window,
                     "delay": self.delay,
                     "mask": str(self.mask),
                     "rate": self.rate}
-        elif self.string != None and self.pos != None:
+        elif self.string is not None and self.pos is not None:
             return {"stringHub": self.string,
                     "domPosition": self.pos,
                     "brightness": self.bright,
@@ -209,7 +209,7 @@ def main():
             raise SystemExit("Are you sure you are running ExpControlSkel "
                              "on the correct host?")
 
-    if opt.runConfig == None:
+    if opt.runConfig is None:
         raise SystemExit("You must specify a run configuration ( -c option )")
 
     if opt.flasherScript is None:

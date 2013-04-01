@@ -360,10 +360,9 @@ class ClusterDescription(ConfigXMLBase):
             logLvl = self.__findDefault(name, 'logLevel')
 
         jvm = self.getValue(node, 'jvm')
-        if(jvm != None):
+        if jvm is not None:
             jvm = os.path.expanduser(jvm)
-
-        if jvm is None:
+        else:
             jvm = self.__findDefault(name, 'jvm')
 
         jvmArgs = self.getValue(node, 'jvmArgs')
@@ -381,7 +380,7 @@ class ClusterDescription(ConfigXMLBase):
                 self.__defaultLogLevel = self.getChildText(kid)
             elif kid.nodeName == 'jvm':
                 self.__defaultJVM = self.getChildText(kid)
-                if(self.__defaultJVM != None):
+                if(self.__defaultJVM is not None):
                     self.__defaultJVM = os.path.expanduser(self.__defaultJVM)
             elif kid.nodeName == 'jvmArgs':
                 self.__defaultJVMArgs = self.getChildText(kid)
@@ -563,27 +562,27 @@ class ClusterDescription(ConfigXMLBase):
 
         self.__logDirForSpade = self.getValue(cluster, 'logDirForSpade')
         # expand tilde
-        if(self.__logDirForSpade != None):
+        if(self.__logDirForSpade is not None):
             self.__logDirForSpade = os.path.expanduser(self.__logDirForSpade)
 
         self.__logDirCopies = self.getValue(cluster, 'logDirCopies')
-        if(self.__logDirCopies != None):
+        if(self.__logDirCopies is not None):
             self.__logDirCopies = os.path.expanduser(self.__logDirCopies)
 
         self.__daqDataDir = self.getValue(cluster, 'daqDataDir')
-        if(self.__daqDataDir != None):
+        if(self.__daqDataDir is not None):
             self.__daqDataDir = os.path.expanduser(self.__daqDataDir)
 
         self.__daqLogDir = self.getValue(cluster, 'daqLogDir')
-        if(self.__daqLogDir != None):
+        if(self.__daqLogDir is not None):
             self.__daqLogDir = os.path.expanduser(self.__daqLogDir)
 
         self.__pkgStageDir = self.getValue(cluster, 'packageStageDir')
-        if(self.__pkgStageDir != None):
+        if(self.__pkgStageDir is not None):
             self.__pkgStageDir = os.path.expanduser(self.__pkgStageDir)
 
         self.__pkgInstallDir = self.getValue(cluster, 'packageInstallDir')
-        if(self.__pkgInstallDir != None):
+        if(self.__pkgInstallDir is not None):
             self.__pkgInstallDir = os.path.expanduser(self.__pkgInstallDir)
 
         dfltNodes = cluster.getElementsByTagName('default')

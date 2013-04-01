@@ -230,7 +230,7 @@ class DOMCounter:
         versions = {}
         for d in self.domDict.keys():
             thisVersion = self.getVersion(d)
-            if thisVersion == None:
+            if thisVersion is None:
                 continue
 
             if not thisVersion in versions:

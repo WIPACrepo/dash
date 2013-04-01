@@ -173,7 +173,7 @@ class RPCStat(object):
     def report(self):
         """Return a string representation of the statistics in this class"""
         l = self.summaries()
-        if l == None:
+        if l is None:
             return "No entries."
         (n, Xmin, Xmax, avg, rms) = l
         return "%d entries, min=%.4f max=%.4f, avg=%.4f, rms=%.4f" % (n,
