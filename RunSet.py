@@ -639,10 +639,13 @@ class RunData(object):
 
         # set end-of-run statistics
         time = datetime.datetime.utcnow()
-        (numEvts, numMoni, numSN, numTcal, firstTime, lastTime) = \
+        (numEvts, numMoni, numSN, numTcal, startPayTime, lastTime) = \
             self.__runStats.updateEventCounts((numEvts, time, firstTime,
                                                lastTime, numMoni, time,
                                                numSN, time, numTcal, time))
+        if startPayTime is not None:
+            # starting payload time is more accurate, use it if available
+            firstTime = startPayTime
 
         if numEvts is None or numEvts <= 0:
             if numEvts is None:
