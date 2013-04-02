@@ -14,7 +14,7 @@ from CnCExceptions import CnCServerException, MissingComponentException
 from CnCLogger import CnCLogger
 from CompOp import ComponentOperation, ComponentOperationGroup
 from DAQClient import ComponentName, DAQClient, DAQClientState
-from DAQConfig import DAQConfigParser, XMLFileNotFound
+from DAQConfig import DAQConfigParser
 from DAQConst import DAQPort
 from DAQLive import DAQLive
 from DAQLog import LogSocketServer
@@ -24,6 +24,7 @@ from Process import processList, findProcess
 from RunSet import RunSet, listComponentRanges
 from RunSetState import RunSetState
 from SocketServer import ThreadingMixIn
+from XMLFileCache import XMLFileNotFound
 from utils import ip
 
 from exc_string import exc_string, set_exc_string_encoding
@@ -40,7 +41,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 13930 2012-09-14 21:21:59Z dglo $"
+SVN_ID = "$Id: CnCServer.py 14387 2013-04-02 19:58:40Z dglo $"
 
 
 class DAQPool(object):
