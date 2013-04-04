@@ -1,19 +1,23 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='ASCII'?>
 <runConfig>
-    <domConfigList hub="1001">test-01c</domConfigList>
-    <domConfigList hub="1002">test-02c</domConfigList>
-    <domConfigList hub="1003">test-03c</domConfigList>
-    <domConfigList hub="1004">test-04c</domConfigList>
-    <domConfigList hub="1005">test-05c</domConfigList>
-    <domConfigList hub="1006">test-06c</domConfigList>
-    <domConfigList hub="1007">test-07c</domConfigList>
-    <domConfigList hub="1008">test-08c</domConfigList>
-    <domConfigList hub="1009">test-09c</domConfigList>
-    <domConfigList hub="1010">test-10c</domConfigList>
-    <domConfigList hub="1011">test-11c</domConfigList>
-    <triggerConfig>IniceGlobalTest</triggerConfig>
-    <runComponent name="inIceTrigger"/>
-    <runComponent name="globalTrigger"/>
-    <runComponent name="eventBuilder"/>
-    <runComponent name="secondaryBuilders"/>
+  <hitspool>
+    <enabled>False</enabled>
+  </hitspool>
+  <stringHub hubId="1001" domConfig="test-01c"/>
+  <stringHub hubId="1002" domConfig="test-02c"/>
+  <stringHub hubId="1003" domConfig="test-03c"/>
+  <stringHub hubId="1004" domConfig="test-04c"/>
+  <stringHub hubId="1005" domConfig="test-05c"/>
+  <stringHub hubId="1006" domConfig="test-06c"/>
+  <stringHub hubId="1007" domConfig="test-07c"/>
+  <stringHub hubId="1008" domConfig="test-08c"/>
+  <stringHub hubId="1009" domConfig="test-09c"/>
+  <stringHub hubId="1010" domConfig="test-10c"/>
+  <stringHub hubId="1011" domConfig="test-11c"/>
+  <triggerConfig>IniceGlobalTest</triggerConfig>
+  <runComponent name="inIceTrigger"/>
+  <runComponent name="globalTrigger"/>
+  <runComponent name="eventBuilder"/>
+  <runComponent name="secondaryBuilders"/>
 </runConfig>
+

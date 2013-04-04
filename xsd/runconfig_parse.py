@@ -2,14 +2,24 @@ from validate_configs import validate_runconfig
 import glob
 import os
 import sys
-
+import optparse
 
 if __name__ == "__main__":
-    sys.path.append('..')
-    from locate_pdaq import find_pdaq_config
-    config_path = find_pdaq_config()
+    parse = optparse.OptionParser()
+    parse.add_option("-d", "--config_dir", type="string",
+                     dest="config_dir", action="store",
+                     default=None,
+                     help="Run Config Directory")
+    opt, args = parse.parse_args()
+    
+    if opt.config_dir is not None:
+        config_path = opt.config_dir
+    else:
+        sys.path.append('..')
+        from locate_pdaq import find_pdaq_config
+        config_path = find_pdaq_config()
 
-    print "Validating all runconfig files"
+    print "Validating all runconfig files in %s" % config_path
     print ""
 
     invalid_found = False

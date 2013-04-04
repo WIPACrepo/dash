@@ -165,6 +165,15 @@ def validate_runconfig(xml_filename):
     """Check the runconfig against an xml schema"""
     (valid, reason) = _validate_xml_rng(xml_filename, 'runconfig.rng')
 
+    # add a check here to see if this runconfig is in the old format
+    if not valid:
+        # check the old format
+        (old_valid, old_reason) = _validate_xml_rng(xml_filename,
+                                                    "runconfig-old.rng")
+        if old_valid:
+            return (False, ("%s is an old runconfig, "
+                            "'convert.py' it first") % xml_filename)
+        
     return (valid, reason)
 
 

@@ -7,7 +7,7 @@ import sys
 from utils import ip
 
 from DAQConfig import DAQConfig, DAQConfigParser
-
+from DAQConfig import DAQConfigException
 
 # find pDAQ's run configuration directory
 from locate_pdaq import find_pdaq_config
@@ -124,7 +124,12 @@ if __name__ == "__main__":
             print >> sys.stderr, "Specify --force to overwrite this file"
             raise SystemExit()
 
-    runCfg = DAQConfigParser.load(runCfgName, configDir)
+    try:
+        runCfg = DAQConfigParser.load(runCfgName, configDir)
+    except DAQConfigException as config_exp:
+        print >> sys.stderr, "WARNING: Error parsing %s" % runCfgName
+        raise SystemExit(config_exp)
+
     if runCfg is not None:
         newCfg = runCfg.omit(hubIdList, keepList=True)
         if newCfg is not None:

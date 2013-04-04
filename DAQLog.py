@@ -27,7 +27,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 # get the subversion id tag
-SVN_ID = "$Id: DAQLog.py 14328 2013-03-19 19:40:09Z mnewcomb $"
+SVN_ID = "$Id: DAQLog.py 14396 2013-04-04 17:12:17Z mnewcomb $"
 
 class LogException(Exception):
     pass
@@ -146,7 +146,7 @@ class LogSocketServer(object):
 
     def stopServing(self):
         "Signal listening thread to exit; wait for thread to finish"
-        if self.__thread != None:
+        if self.__thread is not None:
             thread = self.__thread
             self.__thread = None
             thread.join()

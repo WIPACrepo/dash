@@ -279,76 +279,6 @@ class DomConfig(ConfigObject):
             raise AttributeError("File: %s not valid" % filename)
 
 
-class DomConfigList(object):
-    def __init__(self, domcfg_list):
-        self.xdict = domcfg_list
-
-        self.comps = []
-        self.other_objs = []
-        self.run_comps = []
-        self.stringhub_map = {}
-        self.replay_hubs = {}
-
-        try:
-            self.hub_id = get_attrib(domcfg_list, 'hub')
-            self.hub_id = int(self.hub_id)
-        except ValueError:
-            # bad hub_id attribute
-            raise AttributeError("Bad hub id attribute: %s" % self.hub_id)
-        except AttributeError:
-            # couldn't find a hub attribute..  doesn't matter
-            self.hub_id = None
-
-        self.basename = get_value(domcfg_list)
-
-        self.dom_config = DomConfig(self.basename)
-        self.replay_hubs = []
-
-    def getAllDOMs(self):
-        return self.dom_config.rundoms
-
-    def contains_hub(self, hub_id):
-        return hub_id in self.dom_config.string_map
-
-    def getDOMById(self, domid):
-        """get a dom object by the motherboard id"""
-        for entry in self.dom_config.rundoms:
-            if entry.id() == domid:
-                return entry
-        return None
-
-    def getDOMByName(self, name):
-        """get a dom by it's name"""
-        for entry in self.dom_config.rundoms:
-            if entry.name() == name:
-                return entry
-        return None
-
-    def getDOMByStringPos(self, string, pos):
-        """get the dom on a given string and position"""
-        try:
-            for entry in self.dom_config.string_map[string]:
-                if entry.pos() == pos:
-                    return entry
-        except KeyError:
-            pass
-        return None
-
-    def getDOMsByHub(self, hub):
-        """get the dom by a hub id"""
-
-        if hub in self.dom_config.string_map:
-            if len(self.dom_config.string_map[hub]) == 0:
-                return None
-            else:
-                return self.dom_config.string_map[hub]
-        return []
-
-    def hubs(self):
-        """Get a list of hubs referenced in this config"""
-        return self.dom_config.string_map.keys()
-
-
 class DAQConfig(ConfigObject):
     def __init__(self, filename, strict=False):
         self.__comps = []
@@ -367,10 +297,9 @@ class DAQConfig(ConfigObject):
         self.filename = filename
 
     def basename(self):
-        b = os.path.basename(self.filename)
-        if b.endswith(".xml"):
-            b = b[:-4]
-        return b
+        base = os.path.basename(self.filename)
+        base, ext = os.path.splitext(base)
+        return base
 
     def validate(self):
         """The syntax of a file is verified with the
@@ -518,18 +447,7 @@ class DAQConfig(ConfigObject):
                 omit_dict['runConfig']['__children__'][k] = []
             omit_dict['runConfig']['__children__'][k].append(v)
 
-        # domConfigList, stringHub, replayHub can all be affected
-        for dc in self.dom_cfgs:
-            if (keepList and dc.hub_id in hubIdList) or \
-                    (not keepList and dc.hub_id not in hubIdList):
-                # copy
-                if 'domConfigList' \
-                        not in omit_dict['runConfig']['__children__']:
-                    omit_dict['runConfig'][
-                        '__children__']['domConfigList'] = []
-                omit_dict['runConfig']['__children__']['domConfigList'].append(
-                    dc.xdict)
-
+        # stringHub, replayHub can all be affected
         # stringhubs
         for shub in self.stringhub_map.values():
             if shub is None:
@@ -594,6 +512,27 @@ class DAQConfig(ConfigObject):
 
         return os.path.join(config_dir, basename)
 
+    def is_old_runconfig(self):
+        """Check to see if the currently loaded runconfig
+        is in the old format"""
+
+        # no more domConfigList's allowed
+        if 'domConfigList' in self.xdict['runConfig']['__children__']:
+            return True
+
+        # each stringHub must have a 'domConfig' attribute
+        if 'stringHub' in self.xdict['runConfig']['__children__']:
+            hubs = self.xdict['runConfig']['__children__']['stringHub']
+            for hub in hubs:
+                try:
+                    get_attrib(hub, 'domConfig')
+                except AttributeError:
+                    return True
+
+        # passed all origional tests assume new format
+        return False
+
+        
     @ConfigObject.filename.setter
     def filename(self, filename):
         """check for the filename
@@ -612,6 +551,11 @@ class DAQConfig(ConfigObject):
         if 'runConfig' not in self.xdict:
             raise DAQConfigException("Missing required <runConfig> tag")
 
+        if self.is_old_runconfig():
+            raise DAQConfigException(("%s is an old Runconfig, "
+                                      "please 'convert.py' "
+                                      "it first") % filename)
+
         # unique children of the runConfig tag
         for key, val in self.xdict['runConfig']['__children__'].iteritems():
             if not isinstance(key, str):
@@ -626,17 +570,13 @@ class DAQConfig(ConfigObject):
                 for run_comp in val:
                     name = get_attrib(run_comp, "name")
                     self.addComponent(name, False)
-            elif 'domConfigList' in key:
-                # there may be more than one dom config list
-                self.dom_cfgs = []
-                for dcfg_list in val:
-                    domcfg_list = DomConfigList(dcfg_list)
-                    self.dom_cfgs.append(domcfg_list)
             elif 'stringHub' in key:
-                # found a stringhub
                 for strhub_dict in val:
                     str_hub_id = int(get_attrib(strhub_dict, "hubId"))
+                    domConfig = get_attrib(strhub_dict, 'domConfig')
                     if str_hub_id not in self.stringhub_map:
+                        self.dom_cfgs.append(DomConfig(domConfig))
+
                         str_hub = StringHub(strhub_dict, str_hub_id)
                         self.stringhub_map[str_hub_id] = str_hub
                         self.addComponent(str_hub.fullName(), False)
@@ -657,16 +597,9 @@ class DAQConfig(ConfigObject):
                 # an 'OTHER' object
                 self.other_objs.append((key, val))
 
-        # the configuration file is a bit odd, it
-        # assumes stringhubs for any not directly
-        # specified
-        for dcfg_list in self.dom_cfgs:
-            hubs = dcfg_list.hubs()
-            for hId in hubs:
-                if hId not in self.stringhub_map:
-                    strHub = StringHub(None, hId)
-                    self.stringhub_map[hId] = strHub
-                    self.addComponent(strHub.fullName(), False)
+        # previously the config code would create a
+        # stringhub object for any hubs defined in a domconfiglist
+        # this is no longer the case
 
         # if 'STRICT' is specified call the validation
         # routine
@@ -687,10 +620,10 @@ class DAQConfig(ConfigObject):
             raise BadDOMID("Invalid DOM ID \"%s\"" % domid)
 
         for dcfg in self.dom_cfgs:
-            dom = dcfg.getDOMById(domid)
-            if dom is not None:
-                return True
-
+            for entry in dcfg.rundoms:
+                if entry.id() == domid:
+                    return True
+            
         return False
 
     def getAllDOMs(self):
@@ -698,7 +631,7 @@ class DAQConfig(ConfigObject):
 
         dlist = []
         for dcfg in self.dom_cfgs:
-            dlist.extend(dcfg.getAllDOMs())
+            dlist.extend(dcfg.rundoms)
         return dlist
 
     def getIDbyName(self, name):
@@ -706,29 +639,30 @@ class DAQConfig(ConfigObject):
         and return it's id.  If no match is found
         throw a DOMNotInConfigException"""
         for dcfg in self.dom_cfgs:
-            dom = dcfg.getDOMByName(name)
-            if dom is not None:
-                return "%012x" % dom.id()
+            for entry in dcfg.rundoms:
+                if entry.name()==name:
+                    return "%012x" % entry.id()
 
         raise DOMNotInConfigException("Cannot find dom named \"%s\"" % name)
 
     def getIDbyStringPos(self, string, pos):
         """Search for the id of a dom at a given string / position
         In case the dom is not found throw a DOMNotInConfigException"""
+
         for dcfg in self.dom_cfgs:
-            dom = dcfg.getDOMByStringPos(string, pos)
-            if dom is not None:
-                return "%012x" % dom.id()
+            try:
+                for entry in dcfg.string_map[string]:
+                    if entry.pos() == pos:
+                        return "%012x" % entry.id()
+            except KeyError:
+                # ignore KeyError exceptions looking for our given string
+                pass
 
         raise DOMNotInConfigException("Cannot find sting %d pos %d" %
                                       (string, pos))
 
     def getDomConfigNames(self):
-        flist = []
-        for dcfg in self.dom_cfgs:
-            flist.append(dcfg.basename)
-
-        return flist
+        return [ dcfg.basename for dcfg in self.dom_cfgs ]
 
     def getTriggerConfigName(self):
         name = None
@@ -785,7 +719,7 @@ class DAQConfigParser(object):
                 raise DAQConfigException(reason)
 
         # load the run configuration
-        runCfg = DAQConfigParser.parse(configDir, configName, strict=False)
+        runCfg = DAQConfigParser.parse(configDir, configName, strict=strict)
 
         return RunCluster(runCfg, clusterDesc, configDir)
 
@@ -814,7 +748,7 @@ def main():
 
     if not opt.nohostcheck:
         hostid = Machineid()
-        if (not (hostid.is_build_host() or
+        if (not (hostid.is_build_host() or hostid.is_control_host() or
                  (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
             # to run daq launch you should either be a control host or
             # a totally unknown host
@@ -836,6 +770,8 @@ def main():
             if not opt.quiet:
                 print "%s/%s is ok." % (config_dir, opt.toCheck)
                 status = None
+        except DAQConfigException as config_except:
+            raise SystemExit(config_except)
         except:
             status = "%s/%s is not a valid config: %s" % \
                 (config_dir, opt.toCheck, exc_string())

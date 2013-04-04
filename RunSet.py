@@ -362,7 +362,7 @@ class GoodTimeThread(CnCThread):
         "Return the name of the value sent to I3Live"
         raise NotImplementedError("Unimplemented")
 
-    def notifyBuilder(self, bldr):
+    def notifyBuilder(self, bldr, goodTime):
         "Notify the builder of the good time"
         raise NotImplementedError("Unimplemented")
 

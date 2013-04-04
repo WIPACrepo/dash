@@ -34,6 +34,9 @@ class leapseconds:
     def __init__(self, leap_filename):
         self.__mjd_expiry = None
         self.__nist_data = []
+        # not strictly required but quiet code analysis tools
+        self.__nist_tai = None
+        self.__nist_mjd = None
         self.__parse_nist(leap_filename)
 
     def get_mjd_expiry(self):

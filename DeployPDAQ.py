@@ -29,7 +29,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 14378 2013-04-01 21:39:37Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 14396 2013-04-04 17:12:17Z mnewcomb $"
 
 
 def getUniqueHostNames(config):
@@ -182,8 +182,8 @@ def main():
         p.print_help()
         raise SystemExit
     except DAQConfigException as e:
-        print >> sys.stderr, 'Cluster configuration file problem:\n%s' % e
-        raise SystemExit
+        print >> sys.stderr, 'Cluster configuration file problem:'
+        raise SystemExit(e)
 
     if traceLevel >= 0:
         if config.descName() is None:

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='ASCII'?>
 <!-- 
 Run config for SPS - InIce / IceTop and AMANDA h/w + s/w triggers
 This run is 1.0E+07 gain nominal for in-ice PMTs.  The change from
@@ -6,54 +6,58 @@ V012 is migration to the sps-icecube-amanda-008 trigger file which
 has the PhysicsMinBias trigger.
 -->
 <runConfig>
-    <domConfigList>sps-21i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-29i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-30i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-38i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-39i-lc2-pedsub-028</domConfigList>
-    <domConfigList>sps-40i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-44i-lc2-pedsub-028</domConfigList>
-    <domConfigList>sps-45i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-46i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-47i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-48i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-49i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-50i-lc2-pedsub-028</domConfigList>
-    <domConfigList>sps-52i-lc2-pedsub-028</domConfigList>
-    <domConfigList>sps-53i-lc2-pedsub-028</domConfigList>
-    <domConfigList>sps-54i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-55i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-56i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-57i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-58i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-59i-lc2-pedsub-028</domConfigList>
-    <domConfigList>sps-60i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-61i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-62i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-63i-lc2-pedsub-028</domConfigList>
-    <domConfigList>sps-64i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-65i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-66i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-67i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-68i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-69i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-70i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-71i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-72i-lc2-pedsub-028</domConfigList>
-    <domConfigList>sps-73i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-74i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-75i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-76i-lc2-pedsub-028</domConfigList>
-    <domConfigList>sps-77i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-78i-lc2-pedsub-026</domConfigList>
-    <domConfigList>sps-icetop-hlc-pedsub-029</domConfigList>
-    <domConfigList>sps-icetop-IT6-pedsub-029</domConfigList>
-    <domConfigList>sps-amanda-pedsub-028</domConfigList>
-    <triggerConfig>sps-icecube-amanda-008</triggerConfig>
-    <runComponent name="inIceTrigger"/>
-    <runComponent name="iceTopTrigger"/>
-    <runComponent name="globalTrigger"/>
-    <runComponent name="amandaTrigger"/>
-    <runComponent name="eventBuilder"/>
-    <runComponent name="secondaryBuilders"/>
+  <triggerConfig>sps-icecube-amanda-008</triggerConfig>
+  <stringHub hubId="0" domConfig="sps-amanda-pedsub-028"/>
+  <stringHub hubId="21" domConfig="sps-21i-lc2-pedsub-026"/>
+  <stringHub hubId="29" domConfig="sps-29i-lc2-pedsub-026"/>
+  <stringHub hubId="30" domConfig="sps-30i-lc2-pedsub-026"/>
+  <stringHub hubId="38" domConfig="sps-38i-lc2-pedsub-026"/>
+  <stringHub hubId="39" domConfig="sps-39i-lc2-pedsub-028"/>
+  <stringHub hubId="40" domConfig="sps-40i-lc2-pedsub-026"/>
+  <stringHub hubId="44" domConfig="sps-44i-lc2-pedsub-028"/>
+  <stringHub hubId="45" domConfig="sps-45i-lc2-pedsub-026"/>
+  <stringHub hubId="46" domConfig="sps-46i-lc2-pedsub-026"/>
+  <stringHub hubId="47" domConfig="sps-47i-lc2-pedsub-026"/>
+  <stringHub hubId="48" domConfig="sps-48i-lc2-pedsub-026"/>
+  <stringHub hubId="49" domConfig="sps-49i-lc2-pedsub-026"/>
+  <stringHub hubId="50" domConfig="sps-50i-lc2-pedsub-028"/>
+  <stringHub hubId="52" domConfig="sps-52i-lc2-pedsub-028"/>
+  <stringHub hubId="53" domConfig="sps-53i-lc2-pedsub-028"/>
+  <stringHub hubId="54" domConfig="sps-54i-lc2-pedsub-026"/>
+  <stringHub hubId="55" domConfig="sps-55i-lc2-pedsub-026"/>
+  <stringHub hubId="56" domConfig="sps-56i-lc2-pedsub-026"/>
+  <stringHub hubId="57" domConfig="sps-57i-lc2-pedsub-026"/>
+  <stringHub hubId="58" domConfig="sps-58i-lc2-pedsub-026"/>
+  <stringHub hubId="59" domConfig="sps-59i-lc2-pedsub-028"/>
+  <stringHub hubId="60" domConfig="sps-60i-lc2-pedsub-026"/>
+  <stringHub hubId="61" domConfig="sps-61i-lc2-pedsub-026"/>
+  <stringHub hubId="62" domConfig="sps-62i-lc2-pedsub-026"/>
+  <stringHub hubId="63" domConfig="sps-63i-lc2-pedsub-028"/>
+  <stringHub hubId="64" domConfig="sps-64i-lc2-pedsub-026"/>
+  <stringHub hubId="65" domConfig="sps-65i-lc2-pedsub-026"/>
+  <stringHub hubId="66" domConfig="sps-66i-lc2-pedsub-026"/>
+  <stringHub hubId="67" domConfig="sps-67i-lc2-pedsub-026"/>
+  <stringHub hubId="68" domConfig="sps-68i-lc2-pedsub-026"/>
+  <stringHub hubId="69" domConfig="sps-69i-lc2-pedsub-026"/>
+  <stringHub hubId="70" domConfig="sps-70i-lc2-pedsub-026"/>
+  <stringHub hubId="71" domConfig="sps-71i-lc2-pedsub-026"/>
+  <stringHub hubId="72" domConfig="sps-72i-lc2-pedsub-028"/>
+  <stringHub hubId="73" domConfig="sps-73i-lc2-pedsub-026"/>
+  <stringHub hubId="74" domConfig="sps-74i-lc2-pedsub-026"/>
+  <stringHub hubId="75" domConfig="sps-75i-lc2-pedsub-026"/>
+  <stringHub hubId="76" domConfig="sps-76i-lc2-pedsub-028"/>
+  <stringHub hubId="77" domConfig="sps-77i-lc2-pedsub-026"/>
+  <stringHub hubId="78" domConfig="sps-78i-lc2-pedsub-026"/>
+  <runComponent name="inIceTrigger"/>
+  <runComponent name="iceTopTrigger"/>
+  <runComponent name="globalTrigger"/>
+  <runComponent name="amandaTrigger"/>
+  <runComponent name="eventBuilder"/>
+  <runComponent name="secondaryBuilders"/>
+  <hitspool>
+    <enabled>False</enabled>
+  </hitspool>
+  <!-- *-pedsub-029 commented out.  violates the constraint -->
+  <!-- that one string per domConfigList only -->
 </runConfig>
+

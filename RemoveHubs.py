@@ -123,7 +123,12 @@ if __name__ == "__main__":
             print >> sys.stderr, "Specify --force to overwrite this file"
             raise SystemExit()
 
-    runCfg = DAQConfigParser.load(runCfgName, configDir)
+    try:
+        runCfg = DAQConfigParser.load(runCfgName, configDir)
+    except DAQConfigException as config_except:
+        print >> sys.stderr, "WARNING: Error parsing %s" % runCfgName
+        raise SystemExit(config_except)
+
     if runCfg is not None:
         newCfg = runCfg.omit(hubIdList)
         if newCfg is not None:
