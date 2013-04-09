@@ -354,7 +354,6 @@ def main():
         geom_fname = os.path.join(opt.configpath,
                                   'default-dom-geometry.xml')
 
-    print "geom_fname = %s" % geom_fname
     default_dom_geom = DefaultDomGeometryReader.parse(fileName=geom_fname, 
                                                       translateDoms=True)
     domgeom = default_dom_geom.getDomIdToDomDict()
