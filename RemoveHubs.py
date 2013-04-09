@@ -7,6 +7,7 @@ import sys
 from utils import ip
 
 from DAQConfig import DAQConfig, DAQConfigParser
+from DAQConfig import DAQConfigException
 from locate_pdaq import find_pdaq_config
 
 def getHubName(num):
