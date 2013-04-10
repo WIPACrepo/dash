@@ -761,8 +761,6 @@ class DAQConfigParser(object):
             configDir = find_pdaq_config()
 
         if validate:
-            print "daqconfig validate.. ", clusterDesc
-            print "daqconfig validate.. ", configName
             (valid, reason) = validate_configs(clusterDesc, configName)
 
             if not valid:
