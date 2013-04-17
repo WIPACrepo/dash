@@ -13,20 +13,15 @@ import sys
 from BaseRun import FlasherShellScript
 from cncrun import CnCRun
 from datetime import datetime
+from locate_pdaq import find_pdaq_trunk
 from utils.Machineid import Machineid
 
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
-
 # add meta-project python dir to Python library search path
+metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 13721 2012-05-29 21:53:43Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 14426 2013-04-17 15:50:20Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -102,24 +97,24 @@ class SubRunDOM(object):
             raise DOMArgumentException()
 
     def flasherInfo(self):
-        if self.mbid != None:
+        if self.mbid is not None:
             return (self.mbid, self.bright, self.window,
                     self.delay, self.mask, self.rate)
-        elif self.string != None and self.pos != None:
+        elif self.string is not None and self.pos is not None:
             return (self.string, self.pos, self.bright, self.window,
                     self.delay, self.mask, self.rate)
         else:
             raise DOMArgumentException()
 
     def flasherHash(self):
-        if self.mbid != None:
+        if self.mbid is not None:
             return {"MBID": self.mbid,
                     "brightness": self.bright,
                     "window": self.window,
                     "delay": self.delay,
                     "mask": str(self.mask),
                     "rate": self.rate}
-        elif self.string != None and self.pos != None:
+        elif self.string is not None and self.pos is not None:
             return {"stringHub": self.string,
                     "domPosition": self.pos,
                     "brightness": self.bright,
@@ -170,73 +165,6 @@ class SubRun:
         return [d.flasherHash() for d in self.domlist]
 
 
-class SubRunSet:
-    """This class is not instantiated anywhere, and had some import errors
-    in it.  It's probably not been used in a long time.  Consider removing
-    this if no one uses it for a while longer.
-    2/11/2011
-    """
-    def __init__(self, fileName):
-        """Probably unused.. - consider removing this if no one
-        uses it for a while longer"""
-
-        raise NotImplementedError(("calls addDom method that wants"
-                                   "one argument and this one has many args"))
-        self.subruns = []
-        num = 0
-        sr = None
-        # NOTE THIS IS A FILE DESCRIPTOR LEAK
-        for l in open(fileName).readlines():
-            # Look for bare "delay lines"
-            m = re.search(r'delay (\d+)', l)
-            if m:
-                t = int(m.group(1))
-                self.subruns.append(SubRun(SubRun.DELAY, t, num))
-                num += 1
-                sr = None
-                continue
-
-            m = re.search(r'flash (\d+)', l)
-            if m:
-                t = int(m.group(1))
-                sr = SubRun(SubRun.FLASH, t, num)
-                self.subruns.append(sr)
-                num += 1
-            m6 = re.search(('^\s*(\S+)\s+(\d+)\s+(\d+)\s+'
-                            '(\d+)\s+(\S+)\s+(\d+)\s*$'), l)
-            m7 = re.search(('^\s*(\d+)\s+(\d+)\s+(\d+)\s+'
-                            '(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s*$'), l)
-            if m7 and sr:
-                string = int(m7.group(1))
-                pos = int(m7.group(2))
-                bright = int(m7.group(3))
-                window = int(m7.group(4))
-                delay = int(m7.group(5))
-                mask = int(m7.group(6), 16)
-                rate = int(m7.group(7))
-                #sr.addDOM(string, pos,  bright, window, delay, mask, rate)
-            elif m6 and sr:
-                mbid = m6.group(1)
-                bright = int(m6.group(2))
-                window = int(m6.group(3))
-                delay = int(m6.group(4))
-                mask = int(m6.group(5), 16)
-                rate = int(m6.group(6))
-                #sr.addDOM(mbid, bright, window, delay, mask, rate)
-
-    def __str__(self):
-        s = ""
-        for l in self.subruns:
-            s += str(l) + "\n"
-        return s
-
-    def next(self):
-        try:
-            return self.subruns.pop(0)
-        except IndexError:
-            return None
-
-
 def main():
     "Main program"
     ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s "\
@@ -281,7 +209,7 @@ def main():
             raise SystemExit("Are you sure you are running ExpControlSkel "
                              "on the correct host?")
 
-    if opt.runConfig == None:
+    if opt.runConfig is None:
         raise SystemExit("You must specify a run configuration ( -c option )")
 
     if opt.flasherScript is None:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-#
+# Sort all log files from a run, screen out some noise
 
 import os
 import re

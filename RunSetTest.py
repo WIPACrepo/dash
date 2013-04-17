@@ -240,7 +240,7 @@ class TestRunSet(unittest.TestCase):
             if comp.isSource():
                 comp.addBeanData("stringhub", "EarliestLastChannelHitTime", 10)
 
-        self.__stopRun(runset, runNum, runConfig, components=compList,
+        self.__stopRun(runset, runNum, runConfig, cluCfg, components=compList,
                        logger=logger)
 
     def __runTests(self, compList, runNum, hangType=None):
@@ -322,7 +322,7 @@ class TestRunSet(unittest.TestCase):
             if comp.isSource():
                 comp.addBeanData("stringhub", "EarliestLastChannelHitTime", 10)
 
-        self.__stopRun(runset, runNum, runConfig, components=compList,
+        self.__stopRun(runset, runNum, runConfig, cluCfg, components=compList,
                        logger=logger, hangType=hangType)
 
         runset.reset()
@@ -407,7 +407,7 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, components, expState)
         logger.checkStatus(10)
 
-    def __stopRun(self, runset, runNum, runConfig, components=None,
+    def __stopRun(self, runset, runNum, runConfig, cluCfg, components=None,
                   logger=None, hangType=0):
         logger.DEBUG = True
         expState = "stopping"
@@ -474,8 +474,9 @@ class TestRunSet(unittest.TestCase):
                          (runset.id(), runNum, expState))
         self.assertFalse(runset.stopping(), "RunSet #%d is still stopping")
 
-        RunXMLValidator.validate(self, runNum, runConfig.basename(), None,
-                                 None, 0, 0, 0, 0, hangType > 1)
+        RunXMLValidator.validate(self, runNum, runConfig.basename(),
+                                 cluCfg.descName(), None, None, 0, 0, 0, 0,
+                                 hangType > 1)
 
         if len(components) > 0:
             self.failUnless(self.__isCompListConfigured(components),
@@ -689,7 +690,7 @@ class TestRunSet(unittest.TestCase):
         self.__startRun(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
 
-        self.__stopRun(runset, runNum, runConfig, components=compList,
+        self.__stopRun(runset, runNum, runConfig, cluCfg, components=compList,
                        logger=logger)
 
     def testShortStopHang(self):
@@ -713,7 +714,7 @@ class TestRunSet(unittest.TestCase):
 
         RunSet.TIMEOUT_SECS = 5
 
-        self.__stopRun(runset, runNum, runConfig, components=compList,
+        self.__stopRun(runset, runNum, runConfig, cluCfg, components=compList,
                        logger=logger, hangType=hangType)
 
     def testBadStop(self):
@@ -762,8 +763,9 @@ class TestRunSet(unittest.TestCase):
                                  "Expected exception %s, not %s" %
                                  (rse, stopErrMsg))
         finally:
-            RunXMLValidator.validate(self, runNum, runConfig.basename(), None,
-                                     None, 0, 0, 0, 0, False)
+            RunXMLValidator.validate(self, runNum, runConfig.basename(),
+                                     cluCfg.descName(), None, None, 0, 0, 0,
+                                     0, False)
 
     def testListCompRanges(self):
 

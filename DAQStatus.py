@@ -9,20 +9,16 @@ from os.path import join
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from LiveImports import SERVICE_NAME
+from locate_pdaq import find_pdaq_trunk
 from utils.Machineid import Machineid
 
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in environ:
-    metaDir = environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
 
 # add meta-project python dir to Python library search path
+metaDir = find_pdaq_trunk()
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQStatus.py 13355 2011-09-13 23:05:53Z mnewcomb $"
+SVN_ID = "$Id: DAQStatus.py 14426 2013-04-17 15:50:20Z dglo $"
 
 LINE_LENGTH = 78
 

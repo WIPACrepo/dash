@@ -14,10 +14,8 @@ import xmlrpclib
 from CnCServer import CnCServer, Connector
 from DAQClient import DAQClient
 from DAQConst import DAQPort
-from DAQLog import LiveMonitor
 from DAQRPC import RPCServer
 from LiveImports import Prio, LIVE_IMPORT, SERVICE_NAME
-from RadarTask import RadarTask
 from RunOption import RunOption
 from RunSet import RunSet
 from TaskManager import MonitorTask, RateTask, TaskManager, WatchdogTask
@@ -33,8 +31,7 @@ except SystemExit:
 from DAQMocks \
     import MockAppender, MockClusterConfig, MockCnCLogger, \
     MockDeployComponent, MockIntervalTimer, MockParallelShell, \
-    MockRunConfigFile, RunXMLValidator, SocketReader, SocketReaderFactory, \
-    SocketWriter
+    RunXMLValidator, SocketReader, SocketReaderFactory, SocketWriter
 
 
 class MostlyLive:
@@ -601,9 +598,9 @@ class RealComponent(object):
         if self.__logger is not None:
             self.__logger.write(msg)
         if self.__liver is not None:
-            time = datetime.datetime.utcnow()
+            now = datetime.datetime.utcnow()
             self.__liver.write('%s(log:str) %d [%s] %s' %
-                               (SERVICE_NAME, Prio.DEBUG, time, msg))
+                               (SERVICE_NAME, Prio.DEBUG, now, msg))
 
     def __logTo(self, logHost, logPort, liveHost, livePort):
         if logHost == '':
@@ -1615,8 +1612,8 @@ class IntegrationTest(unittest.TestCase):
             logServer.checkStatus(10)
 
         RunXMLValidator.validate(self, runNum, configName,
-                                 None, None, numEvts, numMoni, numSN, numTcal,
-                                 False)
+                                 IntegrationTest.CLUSTER_DESC, None, None,
+                                 numEvts, numMoni, numSN, numTcal, False)
 
         if RUNLOG_INFO:
             msg = 'Breaking run set...'
@@ -1671,7 +1668,6 @@ class IntegrationTest(unittest.TestCase):
         self.__compList = None
 
         # shorten radar thread
-        RadarTask.RADAR_SAMPLE_DURATION = 1
 
         RunXMLValidator.setUp()
 

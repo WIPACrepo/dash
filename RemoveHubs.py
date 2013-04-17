@@ -7,14 +7,8 @@ import sys
 from utils import ip
 
 from DAQConfig import DAQConfig, DAQConfigParser
-
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
-
+from DAQConfig import DAQConfigException
+from locate_pdaq import find_pdaq_config
 
 def getHubName(num):
     """Get the standard representation for a hub number"""
@@ -33,7 +27,7 @@ def parseArgs():
         the run configuration name
         the list of hub IDs to be removed
     """
-    cfgDir = os.path.join(metaDir, "config")
+    cfgDir = find_pdaq_config()
     if not os.path.exists(cfgDir):
         print >> sys.stderr, "Cannot find configuration directory"
 
@@ -117,11 +111,11 @@ if __name__ == "__main__":
 
     (forceCreate, runCfgName, outCfgName, hubIdList) = parseArgs()
 
-    configDir = os.path.join(metaDir, "config")
+    configDir = find_pdaq_config()
     if not outCfgName:
         newPath = DAQConfig.createOmitFileName(configDir, runCfgName, hubIdList)
     else:
-        newPath = os.path.join(configDir, outCfgName)        
+        newPath = os.path.join(configDir, outCfgName)
     if os.path.exists(newPath):
         if forceCreate:
             print >> sys.stderr, "WARNING: Overwriting %s" % newPath
@@ -130,7 +124,12 @@ if __name__ == "__main__":
             print >> sys.stderr, "Specify --force to overwrite this file"
             raise SystemExit()
 
-    runCfg = DAQConfigParser.load(runCfgName, configDir)
+    try:
+        runCfg = DAQConfigParser.load(runCfgName, configDir)
+    except DAQConfigException as config_except:
+        print >> sys.stderr, "WARNING: Error parsing %s" % runCfgName
+        raise SystemExit(config_except)
+
     if runCfg is not None:
         newCfg = runCfg.omit(hubIdList)
         if newCfg is not None:

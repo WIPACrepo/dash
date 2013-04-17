@@ -521,6 +521,13 @@ class StringHubRule(WatchdogRule):
         return comp.name() == "stringHub" or comp.name() == "replayHub"
 
 
+class TrackEngineRule(WatchdogRule):
+    def initData(self, data, thisComp, components):
+        pass
+
+    def matches(self, comp):
+        return comp.name() == "trackEngine"
+
 class LocalTriggerRule(WatchdogRule):
     def initData(self, data, thisComp, components):
         if thisComp.name() == "iceTopTrigger":
@@ -628,6 +635,7 @@ class WatchdogTask(CnCTask):
         if rules is None:
             rules = (StringHubRule(),
                      LocalTriggerRule(),
+                     TrackEngineRule(),
                      GlobalTriggerRule(),
                      EventBuilderRule(),
                      SecondaryBuildersRule(),

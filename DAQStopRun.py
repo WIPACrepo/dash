@@ -6,22 +6,17 @@ import sys
 
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
+from locate_pdaq import find_pdaq_trunk
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
-
 # add meta-project python dir to Python library search path
+metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQStopRun.py 13356 2011-09-14 04:55:06Z mnewcomb $"
+SVN_ID = "$Id: DAQStopRun.py 14426 2013-04-17 15:50:20Z dglo $"
 
 if __name__ == "__main__":
     ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s " \

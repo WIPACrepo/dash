@@ -165,6 +165,14 @@ def validate_runconfig(xml_filename):
     """Check the runconfig against an xml schema"""
     (valid, reason) = _validate_xml_rng(xml_filename, 'runconfig.rng')
 
+    # add a check here to see if this runconfig is in the old format
+    if not valid:
+        # check the old format
+        (old_valid, old_reason) = _validate_xml_rng(xml_filename,
+                                                    "runconfig-old.rng")
+        if old_valid:
+            return (old_valid, old_reason)
+        
     return (valid, reason)
 
 
@@ -188,7 +196,6 @@ def is_sps_cluster(cluster_xml_filename):
 
     (valid, reason) = validate_clusterconfig(cluster_xml_filename)
     if not valid:
-        print "cluster config not valid"
         return True
 
     try:
@@ -196,26 +203,27 @@ def is_sps_cluster(cluster_xml_filename):
             try:
                 doc_xml = etree.parse(xml_fd)
             except XMLSyntaxError as e:
-                print "xml exception on cluster config"
                 return True
     except IOError:
-        print "io error"
         return True
 
     # the cluster attribute is the root element of the cluster
     # config xml file
     cluster = doc_xml.getroot()
-    if cluster==None:
+    if cluster == None:
         return True
     # 'name' is required by the validate_clustercfg code
     # but be a bit paranoid so check for it
     if 'name' not in cluster.attrib:
-        print "name nattribute not found"
         return True
 
     name = cluster.attrib['name']
 
-    if name=='sps':
+    # make the localhost cluster be
+    # equivalent to the sps cluster
+    # This is okay as sps is the most
+    # strict cluster
+    if name == 'sps':
         return True
     else:
         return False
@@ -236,7 +244,6 @@ def validate_dom_config_spts(xml_filename):
                                                'domconfig-spts.rng')
 
     return (valid, reason)
-
 
 
 def _validate_dom_config_xml(xml_filename, rng_real_filename):
@@ -338,24 +345,9 @@ def _validate_xml(xml_filename, xsd_filename):
 
 if __name__ == "__main__":
 
-    spts_configs = glob.glob(os.path.join(CONFIG_DIR, 'spts*.xml'))
+    print "-" * 60
     print "Validating all sps configurations"
-    for config in spts_configs:
-        print ""
-        print "Validating %s" % config
-        (valid, reason) = validate_configs(os.path.join(CONFIG_DIR,
-                                                        'spts-cluster.cfg'),
-                                           config)
-
-        if not valid:
-            print "Configuration invalid ( reasons: )"
-            print reason
-        else:
-            print "Configuration is valid"
-
-    print "-"*60
-    print "Validating all sps configurations"
-    print "-"*60
+    print "-" * 60
     sps_configs = glob.glob(os.path.join(CONFIG_DIR, 'sps*.xml'))
 
     print "validate_configs"
@@ -372,3 +364,20 @@ if __name__ == "__main__":
             print reason
         else:
             print "Configuration is valid"
+
+
+    spts_configs = glob.glob(os.path.join(CONFIG_DIR, 'spts*.xml'))
+    print "Validating all sps configurations"
+    for config in spts_configs:
+        print ""
+        print "Validating %s" % config
+        (valid, reason) = validate_configs(os.path.join(CONFIG_DIR,
+                                                        'spts-cluster.cfg'),
+                                           config)
+
+        if not valid:
+            print "Configuration invalid ( reasons: )"
+            print reason
+        else:
+            print "Configuration is valid"
+

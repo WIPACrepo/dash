@@ -3,6 +3,7 @@
 """
 Process2ndBuild.py
 Jacobsen, back in the 2007's or so
+Riedel, Modified to push files to SNDAQ, 2013
 
 This script is installed on 2ndbuild, collects the output of 2ndbuild
 as it appears on /mnt/data/pdaqlocal, tars them in groups as they
@@ -15,14 +16,17 @@ installation procedure.
 
 import datetime
 import os
-import re
 import tarfile
 import time
+import re 
 
 
 MAX_FILES_PER_TARBALL = 50
 TARGET_DIR = "/mnt/data/pdaqlocal"
+TARGET_DIR_SN = "/mnt/data/sndata/tmp/"
+TARGET_DIR_SN_BACKUP = os.path.join(TARGET_DIR_SN, "backup/")
 
+file_pattern = re.compile(r'(\w+)_\d+_\d+_\d+_\d+\.dat')
 
 def checkForRunningProcesses(progname):
     c = os.popen("pgrep -fl 'python .+%s'" % progname, "r")
@@ -34,14 +38,10 @@ def checkForRunningProcesses(progname):
 
 
 def isTargetFile(f):
-    match = re.search(r'(\w+)_\d+_\d+_\d+_\d+\.dat', f)
-    if match:
-        ftype = match.group(1)
-        if ftype != "moni" and ftype != "sn" and ftype != "tcal":
-            return False
-        return True
-    return False
-
+    match = re.search(file_pattern, f)
+    if match is not None:
+        ftype == match.group(1)
+        return ftype == "sn" or ftype == "moni" or ftype == "tcal"
 
 def processFiles(matchingFiles, verbose=False, dryRun=False):
     # Make list for tarball - restrict total number of files
@@ -78,7 +78,12 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
         if not dryRun: tarball = tarfile.open(tmpTar, "w")
         for toAdd in filesToTar:
             if verbose: print "  " + toAdd
-            if not dryRun: tarball.add(toAdd)
+            if not dryRun:
+                # Provide sn_*.dat files to SNDAQ for processing
+                if "sn_" in toAdd:
+                    if verbose: print "SN Raw file to be linked %s" % toAdd
+                    generateHardlinksSN(toAdd, verbose=verbose)
+                tarball.add(toAdd)
         if not dryRun: tarball.close()
     except:
         os.unlink(tmpTar)
@@ -89,23 +94,25 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
     if verbose: print "Renaming temporary tarball to %s" % spadeTar
     os.rename(tmpTar, spadeTar)
 
-    # Create moni hard link
-    if verbose: print "MoniLink %s" % moniLink
-    if not dryRun: os.link(spadeTar, moniLink)
+    if not dryRun:
 
-    # Create sn hard link
-    if verbose: print "SNLink %s" % snLink
-    if not dryRun: os.link(spadeTar, snLink)
-    # So that SN process can delete if it's not running as pdaq
-    if not dryRun: os.chmod(snLink, 0666)
+        # Create moni hard link
+        if verbose: print "MoniLink %s" % moniLink
+        os.link(spadeTar, moniLink)
 
-    # Create spade .sem
-    if not dryRun: f = open(spadeSem, "w")
-    if not dryRun: f.close()
+        # Create sn hard link
+        #if verbose: print "SNLink %s" % snLink
+        #os.link(spadeTar, snLink)
+        # So that SN process can delete if it's not running as pdaq
+        #os.chmod(snLink, 0666)
 
-    # Create monitoring .msem
-    if not dryRun: f = open(moniSem, "w")
-    if not dryRun: f.close()
+        # Create spade .sem
+        f = open(spadeSem, "w")
+        f.close()
+
+        # Create monitoring .msem
+        f = open(moniSem, "w")
+        f.close()
 
     # Clean up tar'ed files
     for toAdd in filesToTar:
@@ -115,14 +122,22 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
     return True
 
 
+def generateHardlinksSN(f, verbose):
+    if verbose: print "Creating links for %s" % f
+    try:
+        os.link(f, os.path.join(TARGET_DIR_SN,f))
+        os.chmod(os.path.join(TARGET_DIR_SN,f), 0666)
+        os.link(f, os.path.join(TARGET_DIR_SN_BACKUP,f))
+        os.chmod(os.path.join(TARGET_DIR_SN_BACKUP, 0666)
+    except:
+        print "Failure to create link for %s" % f
+
+
 def main(verbose=False, dryRun=False):
     os.chdir(TARGET_DIR)
 
     # Get list of available files, matching target tar pattern:
-    matchingFiles = []
-    for f in os.listdir(TARGET_DIR):
-        if isTargetFile(f):
-            matchingFiles.append(f)
+    matchingFiles = [ f for f in os.listdir(TARGET_DIR) if isTargetFile(f) ]
 
     matchingFiles.sort(lambda x, y: (cmp(os.stat(x)[8], os.stat(y)[8])))
 

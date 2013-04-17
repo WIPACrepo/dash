@@ -12,14 +12,22 @@ import select
 import socket
 import sys
 import threading
-import time
+import time as pytime
 
-from DAQConst import DAQPort
-from LiveImports import LIVE_IMPORT, MoniClient, Prio, SERVICE_NAME
+from LiveImports import LIVE_IMPORT, MoniClient, MoniPort, Prio, SERVICE_NAME
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
+# imports for __main__
+import random
+import optparse
+from locate_pdaq import find_pdaq_trunk
+metaDir = find_pdaq_trunk()
+sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
+from SVNVersionInfo import get_version_info
+# get the subversion id tag
+SVN_ID = "$Id: DAQLog.py 14426 2013-04-17 15:50:20Z dglo $"
 
 class LogException(Exception):
     pass
@@ -61,7 +69,7 @@ class LogSocketServer(object):
         while self.__thread is not None:
             rd, rw, re = select.select(pr, pw, pe, 0.5)
             if len(re) != 0:
-                print >>self.__outfile, "Error on select was detected."
+                print >> self.__outfile, "Error on select was detected."
             if len(rd) == 0:
                 continue
             while 1:  # Slurp up waiting packets, return to select if EAGAIN
@@ -69,7 +77,7 @@ class LogSocketServer(object):
                     data = sock.recv(8192, socket.MSG_DONTWAIT)
                     if not self.__quiet:
                         print "%s %s" % (self.__cname, data)
-                    print >>self.__outfile, "%s %s" % (self.__cname, data)
+                    print >> self.__outfile, "%s %s" % (self.__cname, data)
                     self.__outfile.flush()
                 except:
                     break  # Go back to select so we don't busy-wait
@@ -138,7 +146,7 @@ class LogSocketServer(object):
 
     def stopServing(self):
         "Signal listening thread to exit; wait for thread to finish"
-        if self.__thread != None:
+        if self.__thread is not None:
             thread = self.__thread
             self.__thread = None
             thread.join()
@@ -162,7 +170,7 @@ class BaseAppender(object):
     def getName(self):
         return self.__name
 
-    def write(self, msg, time=None):
+    def write(self, msg, time=None, level=None):
         pass
 
 
@@ -174,7 +182,7 @@ class BaseFileAppender(BaseAppender):
         self.__fd = fd
 
     def _write(self, fd, time, msg):
-        print >>fd, "%s [%s] %s" % (self.getName(), time, msg)
+        print >> fd, "%s [%s] %s" % (self.getName(), time, msg)
         fd.flush()
 
     def close(self):
@@ -186,7 +194,7 @@ class BaseFileAppender(BaseAppender):
         "Close the file descriptor (ConsoleAppender overrides this)"
         fd.close()
 
-    def write(self, msg, time=None):
+    def write(self, msg, time=None, level=None):
         "Write log information to local file"
         if self.__fd is None:
             raise LogException('Appender %s has been closed' % self.getName())
@@ -245,7 +253,7 @@ class DAQLog(object):
             if len(self.__appenderList) == 0:
                 raise LogException("No appenders have been added: " + msg)
             for a in self.__appenderList:
-                a.write(msg)
+                a.write(msg, level=level)
 
     def addAppender(self, appender):
         if appender is None:
@@ -343,32 +351,44 @@ class LiveFormatter(object):
             (self.__svc, varName, type(msg).__name__, priority, time, msg)
 
 
-class LiveSocketAppender(LogSocketAppender):
+class LiveSocketAppender(BaseAppender):
     "Log to I3Live logging socket"
     def __init__(self, node, port, priority=Prio.DEBUG, service=SERVICE_NAME):
-        super(LiveSocketAppender, self).__init__(node, port)
+        super(LiveSocketAppender, self).__init__("LiveSocketAppender")
 
+        self.__client = None
+        if LIVE_IMPORT:
+            self.__client = MoniClient(service, node, port)
+        self.__clientLock = threading.Lock()
         self.__prio = priority
         self.__fmt = LiveFormatter()
 
-    def _getTime(self):
-        return datetime.datetime.utcnow()
+    def close(self):
+        if self.__client:
+            self.__clientLock.acquire()
+            try:
+                self.__client.close()
+                self.__client = None
+            finally:
+                self.__clientLock.release()
 
-    def _write(self, fd, time, msg):
+    def write(self, msg, time=None, level=DAQLog.DEBUG):
         if type(msg) == unicode:
             msg = str(msg)
-        if not msg.startswith('Start of log at '):
-            try:
-                fd.send(self.__fmt.format('log', time, msg, self.__prio))
-            except socket.error:
-                raise LogException("%s (Cannot send: %s)" % \
-                                       (msg, exc_string()))
+
+        self.__clientLock.acquire()
+        try:
+            if not msg.startswith('Start of log at '):
+                if self.__client:
+                    self.__client.sendMoni("log", str(msg), prio=self.__prio,
+                                           time=time)
+        finally:
+            self.__clientLock.release()
 
 
 class LiveMonitor(object):
     "Send I3Live monitoring data"
-    def __init__(self, node='localhost', port=DAQPort.I3LIVE,
-                 service=SERVICE_NAME):
+    def __init__(self, node='localhost', port=MoniPort, service=SERVICE_NAME):
         if not LIVE_IMPORT:
             self.__client = None
         else:
@@ -390,20 +410,38 @@ class LiveMonitor(object):
 
         self.__clientLock.acquire()
         try:
-            if not self.__client.sendMoni(varName, data, Prio.ITS, time):
-                raise LogException('LiveMonitor %s: cannot send %s data' %
-                                   (str(self.__client), varName))
+            try:
+                self.__client.sendMoni(varName, data, Prio.ITS, time)
+            except:
+                raise LogException('LiveMonitor %s: cannot send %s data: %s' %
+                                   (str(self.__client), varName, exc_string()))
         finally:
             self.__clientLock.release()
 
 if __name__ == "__main__":
+    from CnCLogger import CnCLogger
 
-    if len(sys.argv) < 2:
+    ver_info = ("%(filename)s %(revision)s %(date)s %(time)s "
+                "%(author)s %(release)s %(repo_rev)s") % get_version_info(SVN_ID)
+    usage = "%prog [options]\nversion: " + ver_info
+
+    # add the command line option to try logging to live
+    # make it totally optional so if it's not there don't complain
+    p = optparse = optparse.OptionParser(usage=usage, version=ver_info)
+    p.add_option("-L", "--liveLog", type="string", dest="liveLog",
+                 action="store", default=None,
+                 help="Hostname:port for IceCube Live")
+    p.add_option("-M", "--mesg", type="string", dest="logmsg",
+                 action="store", default="",
+                 help="Message to log")
+    opt, args = p.parse_args()
+
+    if len(args) < 2:
         print "Usage: DAQLogServer.py <file> <port>"
         raise SystemExit
 
-    logfile = sys.argv[1]
-    port = int(sys.argv[2])
+    logfile = args[0]
+    port = int(args[1])
 
     if logfile == '-':
         logfile = None
@@ -412,16 +450,44 @@ if __name__ == "__main__":
         filename = logfile
 
     print "Write log messages arriving on port %d to %s." % (port, filename)
-
-    try:
-        logger = LogSocketServer(port, "all-components", logfile)
-        logger.startServing()
+    
+    # if someone specifies a live ip and port connect to it and 
+    # send a few test messages
+    
+    if opt.liveLog:
+    
         try:
-            while 1:
-                time.sleep(1)
-        except:
-            pass
-    finally:
-         # This tells thread to stop if KeyboardInterrupt
-        # If you skip this step you will be unable to control-C
-        logger.stopServing()
+            liveIP, livePort = opt.liveLog.split(':')
+            livePort = int(livePort)
+            print "User specified a live logging destination, try to use it"
+            print "Dest: (%s:%d)" % (liveIP, livePort)
+        except ValueError:
+            sys.exit("ERROR: Bad livelog argument '%s'" % opt.liveLog)
+
+        log = CnCLogger(quiet=False)
+        logServer = LogSocketServer(port, "all-components", logfile)
+        try:
+            logServer.startServing()
+            
+            log.openLog("localhost", port, liveIP, livePort)
+            for idx in xrange(100):
+                msg = "Logging test message (%s) %d" % (opt.logmsg, idx)
+                log.debug(msg)
+                sleep_time = random.uniform(0, 0.5)
+                pytime.sleep(sleep_time)
+                
+        finally:
+            logServer.stopServing()
+    else:
+        try:
+            logger = LogSocketServer(port, "all-components", logfile)
+            logger.startServing()
+            try:
+                while 1:
+                    pytime.sleep(1)
+            except:
+                pass
+        finally:
+            # This tells thread to stop if KeyboardInterrupt
+            # If you skip this step you will be unable to control-C
+            logger.stopServing()

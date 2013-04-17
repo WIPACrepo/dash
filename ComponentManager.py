@@ -13,18 +13,13 @@ from DAQConfig import DAQConfigParser
 from DAQConfigExceptions import DAQConfigException
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
+from LiveImports import MoniPort
 from ParallelShell import ParallelShell
 from Process import findProcess, processList
 from RunCluster import RunComponent
 from RunSetState import RunSetState
+from locate_pdaq import find_pdaq_trunk
 
-
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
 
 SVN_ID = "$Id: DAQLaunch.py 13550 2012-03-08 23:12:05Z dglo $"
 
@@ -58,7 +53,6 @@ def listComponentRanges(compList):
         else:
             prevNum = None
             rangeStr = k + "#"
-            inRange = False
             for c in sorted(compDict[k], key=lambda c: c.num()):
                 if prevNum is None:
                     rangeStr += "%d" % c.num()
@@ -143,6 +137,7 @@ class ComponentManager(object):
             if not os.path.isabs(dirname):
                 # non-fully-qualified paths are relative
                 # to metaproject top dir:
+                metaDir = find_pdaq_trunk()
                 dirname = os.path.join(metaDir, dirname)
             if not os.path.exists(dirname) and not dryRun:
                 try:
@@ -532,6 +527,8 @@ class ComponentManager(object):
             parallel = ParallelShell(dryRun=dryRun, verbose=verbose,
                                      trace=verbose, timeout=30)
 
+        metaDir = find_pdaq_trunk()
+
         # The dir where all the "executable" jar files are
         binDir = os.path.join(metaDir, 'target', 'pDAQ-%s-dist' % cls.RELEASE,
                               'bin')
@@ -572,6 +569,7 @@ class ComponentManager(object):
                 switches += " -l %s:%d,%s" % (myIP, logPort, comp.logLevel())
             if livePort is not None:
                 switches += " -L %s:%d,%s" % (myIP, livePort, comp.logLevel())
+                switches += " -M %s:%d" % (myIP, MoniPort)
             compIO = quietStr
 
             if comp.isHub():

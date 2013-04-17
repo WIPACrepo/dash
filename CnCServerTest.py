@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import os
 import shutil
 import sys
 import tempfile
@@ -512,10 +511,10 @@ class RateTracker(object):
 
         cnc.updateRates(runsetId)
 
-    def validateRunXML(self, testCase, runNum, runConfig):
-        RunXMLValidator.validate(testCase, runNum, runConfig, None, None,
-                                 self.__numEvts, self.__numMoni, self.__numSN,
-                                 self.__numTcal, False)
+    def validateRunXML(self, testCase, runNum, runConfig, clusterCfg):
+        RunXMLValidator.validate(testCase, runNum, runConfig, clusterCfg,
+                                 None, None, self.__numEvts, self.__numMoni,
+                                 self.__numSN, self.__numTcal, False)
 
 
 class TestCnCServer(unittest.TestCase):
@@ -628,8 +627,6 @@ class TestCnCServer(unittest.TestCase):
     def __runEverything(self, forceRestart=False, switchRun=False):
         catchall = self.createLog('master', 18999)
         dashlog = MockLogger('dashlog')
-
-        clientPort = DAQPort.RUNCOMP_BASE
 
         compData = [('stringHub', self.HUB_NUMBER, (("hit", "o", 1), )),
                     ('inIceTrigger', 0, (("hit", "i", 2), ("trig", "o", 3), )),
@@ -860,7 +857,8 @@ class TestCnCServer(unittest.TestCase):
 
             (numEvts, numMoni, numSN, numTcal) = rateTracker.getTotals()
 
-            rateTracker.validateRunXML(self, runNum, runConfig)
+            rateTracker.validateRunXML(self, runNum, runConfig,
+                                       cluCfg.descName())
 
             runNum = newNum
 
@@ -899,7 +897,7 @@ class TestCnCServer(unittest.TestCase):
         for nm in logs:
             logs[nm].checkStatus(100)
 
-        rateTracker.validateRunXML(self, runNum, runConfig)
+        rateTracker.validateRunXML(self, runNum, runConfig, cluCfg.descName())
 
         if forceRestart:
             try:

@@ -6,8 +6,6 @@
 
 import sys
 import optparse
-from os import environ
-from os.path import join
 
 from DAQConfig import DAQConfigParser
 from DAQConfigExceptions import DAQConfigException

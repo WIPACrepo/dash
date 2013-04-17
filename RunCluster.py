@@ -2,20 +2,12 @@
 
 import os
 import os.path
-import socket
 import sys
 import traceback
 
 from CachedConfigName import CachedConfigName
 from ClusterDescription import ClusterDescription
 from Component import Component
-
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
 
 
 class RunClusterError(Exception):
@@ -355,14 +347,15 @@ class RunCluster(CachedConfigName):
         return self.__nodes[:]
 
 if __name__ == '__main__':
+    from DAQConfig import DAQConfigParser
+    from locate_pdaq import find_pdaq_config
+
     if len(sys.argv) <= 1:
         print >> sys.stderr, ('Usage: %s [-C clusterDesc]' +
                              ' configXML [configXML ...]') % sys.argv[0]
         sys.exit(1)
 
-    configDir = os.path.abspath(os.path.join(metaDir, 'config'))
-
-    from DAQConfig import DAQConfigParser
+    configDir = find_pdaq_config()
 
     nameList = []
     grabDesc = False

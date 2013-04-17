@@ -16,7 +16,7 @@ from DAQConst import DAQPort
 from DAQLog import DAQLog, FileAppender, LiveSocketAppender, LogSocketServer
 from DAQRPC import RPCClient
 from DAQTime import PayloadTime
-from LiveImports import LIVE_IMPORT, MoniClient, Prio
+from LiveImports import LIVE_IMPORT, MoniClient, MoniPort, Prio
 from RunOption import RunOption
 from RunSetDebug import RunSetDebug
 from RunSetState import RunSetState
@@ -189,7 +189,13 @@ class GoodTimeThread(CnCThread):
     or the earliest last hit time
     """
 
-    def __init__(self, srcSet, otherSet, data, log, threadName=None):
+    # bean field name holding the number of non-zombie hubs
+    NONZOMBIE_FIELD = "NumberOfNonZombies"
+    # maximum number of attempts to get the time from all hubs
+    MAX_ATTEMPTS = 100
+
+    def __init__(self, srcSet, otherSet, data, log, quickSet=False,
+                 threadName=None):
         """
         Create the thread
 
@@ -197,100 +203,156 @@ class GoodTimeThread(CnCThread):
         otherSet - list of non-sources in the runset
         data - RunData for the run
         log - log file for the runset
+        quickSet - True if time should be passed on as quickly as possible
+        threadName - thread name
         """
         self.__srcSet = srcSet
         self.__otherSet = otherSet
         self.__data = data
         self.__log = log
+        self.__quickSet = quickSet
 
         self.__timeDict = {}
-        self.__time = None
+        self.__badComps = {}
+
+        self.__goodTime = None
+        self.__finalTime = None
+
+        self.__stopped = False
 
         super(GoodTimeThread, self).__init__(threadName, log)
 
     def _run(self):
         "Gather good hit time data from all hubs"
-        badComps = {}
+        try:
+            complete = False
+            for i in range(self.MAX_ATTEMPTS):
+                complete = self.__fetchTime()
+                if complete or self.__stopped:
+                    # we're done, break out of the loop
+                    break
+                time.sleep(0.1)
+        except:
+            self.__log.error("Couldn't find %s: %s" %
+                             (self.moniname(), exc_string()))
 
-        goodTime = None
-        while goodTime is None:
-            goodTime = self.__fetchTime(badComps)
-            if goodTime is None:
-                time.sleep(0.01)
+        self.__finalTime = self.__goodTime
 
-        if len(badComps) > 0:
+        if len(self.__badComps) > 0:
             self.__log.error("Couldn't find %s for %s" %
                              (self.moniname(),
-                              listComponentRanges(badComps.keys())))
+                              listComponentRanges(self.__badComps.keys())))
 
-        self.__data.reportGoodTime(self.moniname(), goodTime)
-        for c in self.__otherSet:
-            if c.isBuilder():
-                self.notifyBuilder(c, goodTime)
-        self.__time = goodTime
+        if self.__goodTime is None:
+            goodVal = "unknown"
+        else:
+            goodVal = self.__goodTime
+        self.__data.reportGoodTime(self.moniname(), goodVal)
 
-    def __fetchTime(self, badComps):
+    def __fetchTime(self):
         """
         Query all hubs which haven't yet reported a time
         """
-        zombieFld = "NumberOfNonZombies"
-
         tGroup = ComponentOperationGroup(ComponentOperation.GET_GOOD_TIME)
         for c in self.__srcSet:
             if not c in self.__timeDict:
-                tGroup.start(c, self.__log, (zombieFld, self.beanfield()))
-        tGroup.wait()
-        tGroup.reportErrors(self.__log, "getGoodTimes")
+                tGroup.start(c, self.__log,
+                             (self.NONZOMBIE_FIELD, self.beanfield()))
 
-        missing = False
+        if self.waitForAll():
+            # if we don't need results as soon as possible,
+            # wait for all threads to finish
+            tGroup.wait()
+            tGroup.reportErrors(self.__log, "getGoodTimes")
 
-        rList = tGroup.results()
-        for c in self.__srcSet:
-            if c in self.__timeDict:
-                continue
+        complete = True
+        updated = False
 
-            result = rList[c]
-            if result is None or \
-                result == ComponentOperation.RESULT_HANGING or \
-                result == ComponentOperation.RESULT_ERROR:
-                badComps[c] = 1
-                continue
+        # wait for up to 1.5 seconds (15 * 0.1) for a result
+        sleepSecs = 0.1
+        sleepReps = 15
 
-            numDoms = result[zombieFld]
-            val = result[self.beanfield()]
+        for i in xrange(sleepReps):
+            hanging = False
 
-            if numDoms == 0:
-                self.__timeDict[c] = -1L
-                continue
+            rList = tGroup.results()
+            for c in self.__srcSet:
+                if self.__stopped:
+                    # run has been stopped, don't bother checking anymore
+                    break
 
-            if val <= 0L:
-                missing = True
-                continue
-
-            self.__timeDict[c] = val
-
-        goodTime = None
-        if not missing:
-            for c in self.__timeDict:
-                val = self.__timeDict[c]
-                if val < 0L:
+                if c in self.__timeDict:
+                    # already have a time for this hub
                     continue
 
-                if goodTime is None or self.isBetter(goodTime, val):
-                    goodTime = val
+                result = rList[c]
+                if result is None or \
+                    result == ComponentOperation.RESULT_HANGING:
+                    # still waiting for results
+                    complete = False
+                    hanging = True
+                    continue
 
-            if goodTime is None:
-                goodTime = 0L
+                if result == ComponentOperation.RESULT_ERROR:
+                    # component operation failed
+                    self.__badComps[c] = 1
+                    continue
 
-        return goodTime
+                if self.__badComps.has_key(c):
+                    # got a result from a component which previously failed
+                    del self.__badComps[c]
+
+                numDoms = result[self.NONZOMBIE_FIELD]
+                if numDoms == 0:
+                    # this string has no usable DOMs, record illegal time
+                    self.__timeDict[c] = -1L
+                    continue
+
+                val = result[self.beanfield()]
+                if val is None or val <= 0L:
+                    # No results yet, need to poll again
+                    complete = False
+                    continue
+
+                self.__timeDict[c] = val
+                if self.__goodTime is None or \
+                    self.isBetter(self.__goodTime, val):
+                    # got new good time, tell the builders
+                    self.__goodTime = val
+                    updated = True
+
+            if not hanging or self.waitForAll():
+                # we've either got all results or all threads are done
+                break
+
+            # wait a bit more for the threads to finish
+            time.sleep(sleepSecs)
+
+        if updated:
+            try:
+                self.__notifyAllBuilders(self.__goodTime)
+            except:
+                self.__log.error("Cannot send %s to builders: %s" %
+                                 (self.moniname(), exc_string()))
+
+        return complete
+
+    def __notifyAllBuilders(self, goodTime):
+        "Send latest good time to the builders"
+        for c in self.__otherSet:
+            if c.isBuilder():
+                self.notifyBuilder(c, goodTime)
 
     def beanfield(self):
         "Return the name of the 'stringhub' MBean field"
         raise NotImplementedError("Unimplemented")
 
+    def logError(self, msg):
+        self.__log.error(msg)
+
     def finished(self):
         "Return True if the thread has finished"
-        return self.__time is not None
+        return self.__finalTime is not None
 
     def isBetter(self, oldval, newval):
         "Return True if 'newval' is better than 'oldval'"
@@ -300,13 +362,20 @@ class GoodTimeThread(CnCThread):
         "Return the name of the value sent to I3Live"
         raise NotImplementedError("Unimplemented")
 
-    def notifyBuilder(self, bldr):
+    def notifyBuilder(self, bldr, goodTime):
         "Notify the builder of the good time"
         raise NotImplementedError("Unimplemented")
 
+    def stop(self):
+        self.__stopped = True
+
     def time(self):
-        "Return the latest first hit marking the start of good data taking"
-        return self.__time
+        "Return the time marking the start or end of good data taking"
+        return self.__finalTime
+
+    def waitForAll(self):
+        "Wait for all threads to finish before checking results?"
+        raise NotImplementedError("Unimplemented")
 
 
 class FirstGoodTimeThread(GoodTimeThread):
@@ -320,7 +389,7 @@ class FirstGoodTimeThread(GoodTimeThread):
         log - log file for the runset
         """
         super(FirstGoodTimeThread, self).__init__(srcSet, otherSet, data, log,
-                                                  "FirstGoodTimeThread")
+                                                  threadName="FirstGoodTime")
 
     def beanfield(self):
         "Return the name of the 'stringhub' MBean field"
@@ -328,7 +397,7 @@ class FirstGoodTimeThread(GoodTimeThread):
 
     def isBetter(self, oldval, newval):
         "Return True if 'newval' is better than 'oldval'"
-        return oldval < newval
+        return oldval is None or (newval is not None and oldval < newval)
 
     def moniname(self):
         "Return the name of the value sent to I3Live"
@@ -336,7 +405,14 @@ class FirstGoodTimeThread(GoodTimeThread):
 
     def notifyBuilder(self, bldr, payTime):
         "Notify the builder of the good time"
-        bldr.setFirstGoodTime(payTime)
+        if payTime is None:
+            self.logError("Cannot set first good time to None")
+        else:
+            bldr.setFirstGoodTime(payTime)
+
+    def waitForAll(self):
+        "Wait for all threads to finish before checking results?"
+        return True
 
 
 class LastGoodTimeThread(GoodTimeThread):
@@ -350,7 +426,8 @@ class LastGoodTimeThread(GoodTimeThread):
         log - log file for the runset
         """
         super(LastGoodTimeThread, self).__init__(srcSet, otherSet, data, log,
-                                                 "LastGoodTimeThread")
+                                                 threadName="LastGoodTime",
+                                                 quickSet=True)
 
     def beanfield(self):
         "Return the name of the 'stringhub' MBean field"
@@ -358,7 +435,7 @@ class LastGoodTimeThread(GoodTimeThread):
 
     def isBetter(self, oldval, newval):
         "Return True if 'newval' is better than 'oldval'"
-        return oldval > newval
+        return oldval is None or (newval is not None and oldval > newval)
 
     def moniname(self):
         "Return the name of the value sent to I3Live"
@@ -366,7 +443,14 @@ class LastGoodTimeThread(GoodTimeThread):
 
     def notifyBuilder(self, bldr, payTime):
         "Notify the builder of the good time"
-        bldr.setLastGoodTime(payTime)
+        if payTime is None:
+            self.logError("Cannot set last good time to None")
+        else:
+            bldr.setLastGoodTime(payTime)
+
+    def waitForAll(self):
+        "Wait for all threads to finish before checking results?"
+        return False
 
 
 class RunData(object):
@@ -459,7 +543,7 @@ class RunData(object):
             log.addAppender(app)
 
         if RunOption.isLogToLive(self.__runOptions):
-            app = LiveSocketAppender("localhost", DAQPort.I3LIVE,
+            app = LiveSocketAppender("localhost", DAQPort.I3LIVE_ZMQ,
                                      priority=Prio.EMAIL)
             log.addAppender(app)
 
@@ -467,7 +551,7 @@ class RunData(object):
 
     def __createLiveMoniClient(self):
         if LIVE_IMPORT:
-            moniClient = MoniClient("pdaq", "localhost", DAQPort.I3LIVE)
+            moniClient = MoniClient("pdaq", "localhost", MoniPort)
         else:
             moniClient = None
             if not RunSet.LIVE_WARNING:
@@ -543,8 +627,7 @@ class RunData(object):
                     "time" : str(fulltime)}
 
             monitime = PayloadTime.toDateTime(self.__firstPayTime)
-            self.__liveMoniClient.sendMoni("eventstart", data, prio=Prio.SCP,
-                                           time=monitime)
+            self.__sendMoni("eventstart", data, prio=Prio.SCP, time=monitime)
 
     def __reportRunStop(self, numEvts, firstPayTime, lastPayTime, hadError):
         if self.__liveMoniClient is not None:
@@ -565,8 +648,14 @@ class RunData(object):
                     "status": status}
 
             monitime = PayloadTime.toDateTime(lastPayTime)
-            self.__liveMoniClient.sendMoni("runstop", data, prio=Prio.SCP,
-                                           time=monitime)
+            self.__sendMoni("runstop", data, prio=Prio.SCP, time=monitime)
+
+    def __sendMoni(self, name, value, prio=None, time=None):
+        try:
+            self.__liveMoniClient.sendMoni(name, value, prio=prio, time=time)
+        except:
+            self.__dashlog.error("Failed to send %s=%s: %s" %
+                                 (name, value, exc_string()))
 
     def __writeRunXML(self, numEvts, numMoni, numSN, numTcal, firstTime,
                       lastTime, duration, hadError):
@@ -580,6 +669,7 @@ class RunData(object):
 
         xmlLog.setRun(self.__runNumber)
         xmlLog.setConfig(self.__runConfig.basename())
+        xmlLog.setCluster(self.__clusterConfig.descName())
         xmlLog.setStartTime(PayloadTime.toDateTime(firstTime))
         xmlLog.setEndTime(PayloadTime.toDateTime(lastTime))
         xmlLog.setEvents(numEvts)
@@ -661,6 +751,14 @@ class RunData(object):
                 duration = 0
                 self.__dashlog.error("Cannot calculate duration")
 
+        self.__writeRunXML(numEvts, numMoni, numSN, numTcal, firstTime,
+                           lastTime, duration, hadError)
+
+        self.__reportRunStop(numEvts, firstTime, lastTime, hadError)
+
+        if switching:
+            self.reportGoodTime("lastGoodTime", lastTime)
+
         # report rates
         if duration == 0:
             rateStr = ""
@@ -681,11 +779,6 @@ class RunData(object):
         else:
             errType = "SUCCESSFULLY"
         self.__dashlog.error("Run %s %s." % (endType, errType))
-
-        self.__reportRunStop(numEvts, firstTime, lastTime, hadError)
-
-        self.__writeRunXML(numEvts, numMoni, numSN, numTcal, firstTime,
-                           lastTime, duration, hadError)
 
         return duration
 
@@ -829,14 +922,22 @@ class RunData(object):
                                      duration)
 
     def reportGoodTime(self, name, payTime):
-        if self.__liveMoniClient is not None:
-            fulltime = PayloadTime.toDateTime(payTime, high_precision=True)
-            data = {"runnum": self.__runNumber,
-                    "time": str(fulltime)}
+        if self.__liveMoniClient is None:
+            #self.__dashlog.error("Not reporting %s; no moni client" % name)
+            pass
+        else:
+            try:
+                fulltime = PayloadTime.toDateTime(payTime, high_precision=True)
+            except:
+                fulltime = None
+                self.__dashlog.error("Cannot report %s: Bad value '%s'" %
+                                     (name, payTime))
+            if fulltime is not None:
+                data = {"runnum": self.__runNumber,
+                        "time": str(fulltime)}
 
-            monitime = PayloadTime.toDateTime(payTime)
-            self.__liveMoniClient.sendMoni(name, data, prio=Prio.SCP,
-                                           time=monitime)
+                monitime = PayloadTime.toDateTime(payTime)
+                self.__sendMoni(name, data, prio=Prio.SCP, time=monitime)
 
     @classmethod
     def reportRunStartClass(self, moniClient, runNum, release, revision,
@@ -876,30 +977,20 @@ class RunData(object):
             if moniData["eventPayloadTicks"] is not None:
                 payTime = moniData["eventPayloadTicks"]
                 monitime = PayloadTime.toDateTime(payTime)
-                self.__liveMoniClient.sendMoni("physicsEvents",
-                                               moniData["physicsEvents"],
-                                               Prio.ITS,
-                                               monitime)
+                self.__sendMoni("physicsEvents", moniData["physicsEvents"],
+                                prio=Prio.ITS, time=monitime)
             if moniData["eventTime"] is not None:
-                self.__liveMoniClient.sendMoni("walltimeEvents",
-                                               moniData["physicsEvents"],
-                                               Prio.EMAIL,
-                                               moniData["eventTime"])
+                self.__sendMoni("walltimeEvents", moniData["physicsEvents"],
+                                prio=Prio.EMAIL, time=moniData["eventTime"])
             if moniData["moniTime"] is not None:
-                self.__liveMoniClient.sendMoni("moniEvents",
-                                               moniData["moniEvents"],
-                                               Prio.EMAIL,
-                                               moniData["moniTime"])
+                self.__sendMoni("moniEvents", moniData["moniEvents"],
+                                prio=Prio.EMAIL, time=moniData["moniTime"])
             if moniData["snTime"] is not None:
-                self.__liveMoniClient.sendMoni("snEvents",
-                                               moniData["snEvents"],
-                                               Prio.EMAIL,
-                                               moniData["snTime"])
+                self.__sendMoni("snEvents", moniData["snEvents"],
+                                prio=Prio.EMAIL, time=moniData["snTime"])
             if moniData["tcalTime"] is not None:
-                self.__liveMoniClient.sendMoni("tcalEvents",
-                                               moniData["tcalEvents"],
-                                               Prio.EMAIL,
-                                               moniData["tcalTime"])
+                self.__sendMoni("tcalEvents", moniData["tcalEvents"],
+                                prio=Prio.EMAIL, time=moniData["tcalTime"])
 
     def setDebugBits(self, debugBits):
         if self.__taskMgr is not None:
@@ -1126,7 +1217,7 @@ class RunSet(object):
                 errStr = '%s: Could not stop %s' % (self, waitStr)
                 self.__runData.error(errStr)
             except:
-                errstr = "%s: Could not stop components (?)" % str(self)
+                errStr = "%s: Could not stop components (?)" % str(self)
             self.__state = RunSetState.ERROR
             raise RunSetException(errStr)
 
@@ -1179,6 +1270,31 @@ class RunSet(object):
             logger.error(args[0])
         else:
             logger.error(args[0] % args[1:])
+
+    def __reportFirstGoodTime(self, runData):
+        ebComp = None
+        for c in self.__set:
+            if c.isComponent("eventBuilder"):
+                ebComp = c
+                break
+
+        if ebComp is None:
+            runData.error("Cannot find eventBuilder in %s" % str(self))
+            return
+
+        firstTime = None
+        for i in xrange(5):
+            val = runData.getSingleBeanField(ebComp, "backEnd",
+                                             "FirstEventTime")
+            if type(val) != Result:
+                firstTime = val
+                break
+            time.sleep(0.1)
+        if firstTime is None:
+            runData.error("Couldn't find first good time" +
+                             " for switched run %d" % runData.runNumber())
+        else:
+            runData.reportGoodTime("firstGoodTime", firstTime)
 
     def __sortCmp(self, x, y):
         if y.order() is None:
@@ -1382,6 +1498,9 @@ class RunSet(object):
                                      int(timeout * .25))
             if len(srcSet) == 0 and len(otherSet) == 0:
                 break
+
+        # detector has stopped, no need to get last good time
+        goodThread.stop()
 
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING reset")
         self.__runData.reset()
@@ -1640,8 +1759,9 @@ class RunSet(object):
         dryRun = False
         ComponentManager.killComponents(compList, dryRun, verbose, killWith9)
         ComponentManager.startComponents(compList, dryRun, verbose, configDir,
-                                         daqDataDir, logPort, livePort,
-                                         eventCheck, checkExists=checkExists)
+                                         daqDataDir, logger.logPort(),
+                                         logger.livePort(), eventCheck,
+                                         checkExists=checkExists)
 
     def destroy(self, ignoreComponents=False):
         if not ignoreComponents and len(self.__set) > 0:
@@ -1680,7 +1800,7 @@ class RunSet(object):
         return self.__state == RunSetState.RUNNING
 
     def logToDash(self, msg):
-        "Used when CnCServer needs to add a log message to dash.log"
+        "Used when the runset needs to add a log message to dash.log"
         if self.__runData is not None:
             self.__runData.error(msg)
         else:
@@ -2166,6 +2286,7 @@ class RunSet(object):
         # create new run data object
         #
         newData = self.__runData.clone(self, newNum)
+        newData.connectToI3Live()
 
         newData.error("Switching to run %d..." % newNum)
 
@@ -2211,19 +2332,41 @@ class RunSet(object):
             raise RunSetException("Still waiting for %s to finish switching" %
                                   (bStr))
 
-        # finish run data setup
+        # switch to new run data
         #
         oldData = self.__runData
         self.__runData = newData
-        newData.finishSetup(self, startTime)
 
-        duration = self.__finishRun(self.__set, oldData, False, switching=True)
+        savedEx = None
 
-        oldData.sendEventCounts(self.__set, False)
+        # finish new run data setup
+        #
+        try:
+            newData.finishSetup(self, startTime)
+        except:
+            savedEx = sys.exc_info()
 
-        # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
-        # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
-        self.queueForSpade(duration)
+        try:
+            duration = self.__finishRun(self.__set, oldData, False,
+                                        switching=True)
+
+            oldData.sendEventCounts(self.__set, False)
+
+            # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
+            # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
+            self.queueForSpade(duration)
+        except:
+            if not savedEx:
+                savedEx = sys.exc_info()
+
+        try:
+            self.__reportFirstGoodTime(newData)
+        except:
+            if not savedEx:
+                savedEx = sys.exc_info()
+
+        if savedEx:
+            raise savedEx[0], savedEx[1], savedEx[2]
 
     def updateRates(self):
         if self.__runData is None:

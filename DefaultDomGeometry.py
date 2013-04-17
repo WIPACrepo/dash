@@ -7,16 +7,13 @@
 import os
 import re
 import sys
-import traceback
 
 from xml.dom import minidom, Node
 
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
+
+# find pDAQ's run configuration directory
+from locate_pdaq import find_pdaq_config
+configDir = find_pdaq_config()
 
 
 class XMLError(Exception):
@@ -451,6 +448,11 @@ class DefaultDomGeometry(object):
             print >>sys.stderr, "Could not delete %s from string %d" % \
                   (dom, stringNum)
 
+    def doms(self):
+        "Convenience method to list all known DOMs"
+        for domid in self.__domIdToDom:
+            yield self.__domIdToDom[domid]
+
     def dump(self, out=sys.stdout):
         "Dump the string->DOM dictionary in default-dom-geometry format"
         strList = self.__stringToDom.keys()
@@ -620,7 +622,6 @@ class DefaultDomGeometry(object):
         strList.sort()
 
         for s in strList:
-            baseNum = s % 1000
             domList = self.__stringToDom[s][:]
 
             for dom in domList:
@@ -651,9 +652,7 @@ class DefaultDomGeometry(object):
 
     def validate(self):
         names = {}
-        chanIds = {}
         locs = {}
-        strs = {}
 
         strKeys = self.__stringToDom.keys()
         strKeys.sort()
@@ -812,8 +811,7 @@ class DefaultDomGeometryReader(XMLParser):
     @classmethod
     def parse(cls, fileName=None, translateDoms=False):
         if fileName is None:
-            fileName = os.path.join(metaDir, "config",
-                                    "default-dom-geometry.xml")
+            fileName = os.path.join(configDir, "default-dom-geometry.xml")
 
         if not os.path.exists(fileName):
             raise BadFileError("Cannot read default dom geometry file \"%s\"" %
@@ -861,7 +859,7 @@ class DomsTxtReader(object):
     def parse(fileName=None, defDomGeom=None):
         "Parse a doms.txt file"
         if fileName is None:
-            fileName = os.path.join(metaDir, "config", "doms.txt")
+            fileName = os.path.join(configDir, "doms.txt")
 
         if not os.path.exists(fileName):
             raise BadFileError("Cannot read doms.txt file \"%s\"" %
@@ -925,7 +923,7 @@ class NicknameReader(object):
     @staticmethod
     def parse(fileName=None, defDomGeom=None):
         if fileName is None:
-            fileName = os.path.join(metaDir, "config", "nicknames.txt")
+            fileName = os.path.join(configDir, "nicknames.txt")
 
         if not os.path.exists(fileName):
             raise BadFileError("Cannot read nicknames file \"%s\"" %

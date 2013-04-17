@@ -371,8 +371,6 @@ class ListOpenFiles(object):
 
     @classmethod
     def __parseOutput(cls, fd):
-        debug = True
-
         tmpInfo = None
         curFile = None
 

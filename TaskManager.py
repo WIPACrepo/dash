@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
+import sys
 import threading
 
 from ActiveDOMsTask import ActiveDOMsTask
 from CnCTask import CnCTask, TaskException
 from IntervalTimer import IntervalTimer
 from MonitorTask import MonitorTask
-from RadarTask import RadarTask
 from RateTask import RateTask
+from TriggerCountTask import TriggerCountTask
 from WatchdogTask import WatchdogTask
 
 from exc_string import exc_string, set_exc_string_encoding
@@ -75,7 +76,8 @@ class TaskManager(threading.Thread):
             return WatchdogTask(self, self.__runset, self.__dashlog,
                                 period=runCfg.watchdogPeriod())
         elif taskNum == 4:
-            return RadarTask(self, self.__runset, self.__dashlog, liveMoni)
+            return TriggerCountTask(self, self.__runset, self.__dashlog,
+                                    liveMoni)
 
         return None
 

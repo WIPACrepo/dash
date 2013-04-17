@@ -34,11 +34,11 @@ class DashXMLLog:
     <?xml-stylesheet type="text/xsl" href="/2011/xml/DAQRunlog.xsl"?>
     <DAQRunlog>
     <run>117554</run>
+    <Cluster>sps</Cluster>
     <Config>sps-IC79-Erik-Changed-TriggerIDs-V151</Config>
     <StartTime>55584.113903</StartTime>
     <EndTime>55584.227695</EndTime>
     <TermCondition>SUCCESS</TermCondition>
-
     <Events>24494834</Events>
     <Moni>60499244</Moni>
     <Tcal>4653819</Tcal>
@@ -60,9 +60,9 @@ class DashXMLLog:
         self._root_elem_name = root_elem_name
         self._style_sheet_url = style_sheet_url
 
-        self._required_fields = ["run", "Config", "StartTime", "EndTime",
-                                 "TermCondition", "Events", "Moni", "Tcal",
-                                 "SN"]
+        self._required_fields = ["run", "Cluster", "Config", "StartTime",
+                                 "EndTime", "TermCondition", "Events", "Moni",
+                                 "Tcal", "SN"]
 
     def __parseDateTime(self, fld):
         if fld is None:
@@ -155,6 +155,18 @@ class DashXMLLog:
     def getConfig(self):
         """Get the name of the config file used for this run"""
         return self.getField("Config")
+
+    def setCluster(self, cluster):
+        """Set the name of the cluster used for this run
+
+        Args:
+            cluster: the name of the cluster for this run
+        """
+        self.setField("Cluster", cluster)
+
+    def getCluster(self):
+        """Get the name of the cluster file used for this run"""
+        return self.getField("Cluster")
 
     def setStartTime(self, start_time):
         """Set the start time for this run

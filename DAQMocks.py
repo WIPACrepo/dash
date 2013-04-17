@@ -12,25 +12,16 @@ import tempfile
 import threading
 import time
 
-from unittest import TestCase
-
 from CnCLogger import CnCLogger
 from Component import Component
 from ComponentManager import ComponentManager
 from DAQClient import DAQClient
 import DeployPDAQ
 from DAQConst import DAQPort
-from LiveImports import SERVICE_NAME
+from LiveImports import MoniPort, SERVICE_NAME
+from locate_pdaq import find_pdaq_trunk
 from utils import ip
 from utils.DashXMLLog import DashXMLLog
-
-import traceback
-
-if "PDAQ_HOME" in os.environ:
-    METADIR = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    METADIR = find_pdaq_trunk()
 
 
 class BaseChecker(object):
@@ -80,8 +71,8 @@ class BaseLiveChecker(BaseChecker):
         svcName = m.group(1)
         varName = m.group(2)
         varType = m.group(3)
-        msgPrio = m.group(4)
-        msgTime = m.group(5)
+        #msgPrio = m.group(4)
+        #msgTime = m.group(5)
         msgText = m.group(6)
 
         global SERVICE_NAME
@@ -1066,7 +1057,7 @@ class MockLogger(LogChecker):
 
 
 class MockParallelShell(object):
-    BINDIR = os.path.join(METADIR, 'target', 'pDAQ-%s-dist' %
+    BINDIR = os.path.join(find_pdaq_trunk(), 'target', 'pDAQ-%s-dist' %
                           ComponentManager.RELEASE, 'bin')
 
     def __init__(self, isParallel=True, debug=False):
@@ -1141,6 +1132,7 @@ class MockParallelShell(object):
             cmd += ' -l %s:%d,%s' % (ipAddr, logPort, comp.logLevel())
         if livePort is not None:
             cmd += ' -L %s:%d,%s' % (ipAddr, livePort, comp.logLevel())
+            cmd += ' -M %s:%d' % (ipAddr, MoniPort)
         cmd += ' %s &' % redir
 
         if not self.__isLocalhost(host):
@@ -1224,8 +1216,8 @@ class MockParallelShell(object):
         self.__rtnCodes.append(rtnCode)
         self.__results.append(result)
 
-    def addExpectedUndeploy(self, homeDir, pdaqDir, remoteHost):
-        cmd = "ssh %s \"\\rm -rf ~%s/.m2 %s\"" % \
+    def addExpectedUndeploy(self, pdaqDir, remoteHost):
+        cmd = "ssh %s \"\\rm -rf ~%s/config %s\"" % \
             (remoteHost, os.environ["USER"], pdaqDir)
         self.__addExpected(cmd)
 
@@ -1235,7 +1227,7 @@ class MockParallelShell(object):
                              ' %s') % str(self.__exp))
 
     def getMetaPath(self, subdir):
-        return os.path.join(METADIR, subdir)
+        return os.path.join(find_pdaq_trunk(), subdir)
 
     def getResult(self, idx):
         if idx < 0 or idx >= len(self.__results):
@@ -1668,8 +1660,8 @@ class RunXMLValidator:
             raise ValueError("Found unexpected run.xml file")
 
     @classmethod
-    def validate(cls, test_case, runNum, cfgName, startTime, endTime, numEvts,
-                 numMoni, numSN, numTcal, failed):
+    def validate(cls, test_case, runNum, cfgName, cluster, startTime, endTime,
+                 numEvts, numMoni, numSN, numTcal, failed):
         try:
             if not os.path.exists("run.xml"):
                 test_case.fail("run.xml was not created")
@@ -1684,6 +1676,10 @@ class RunXMLValidator:
             test_case.assertEqual(run.getConfig(), cfgName,
                              "Expected config \"%s\", not \"%s\"" %
                              (cfgName, run.getConfig()))
+
+            test_case.assertEqual(run.getCluster(), cluster,
+                             "Expected cluster \"%s\", not \"%s\"" %
+                             (cluster, run.getCluster()))
 
             if startTime is not None:
                 test_case.assertEqual(run.getStartTime(), startTime,
@@ -1801,7 +1797,7 @@ class MockLiveMoni(object):
 
     def sendMoni(self, var, val, prio, time=datetime.datetime.now()):
         if not var in self.__expMoni:
-            raise Exception(("Unexpected live monitor data" +
+            raise Exception(("Unexpected live monitor data"
                              " (var=%s, val=%s, prio=%d)") % (var, val, prio))
 
         expData = None
@@ -1815,8 +1811,9 @@ class MockLiveMoni(object):
             del self.__expMoni[var]
 
         if expData is None:
-            raise Exception(("Expected live monitor data from (%s/%s), not "
-                             "(var=%s, val=%s, prio=%d)") % \
-                                (var, self.__expMoni[var], var, val, prio))
+            raise Exception(("Expected live monitor data "
+                             " (var=%s, datapairs=%s), not "
+                             "(var=%s, val=%s, prio=%d)") %
+                             (var, self.__expMoni[var], var, val, prio))
 
         return True

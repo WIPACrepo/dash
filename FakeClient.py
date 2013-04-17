@@ -208,7 +208,8 @@ class FakeClient(object):
     NEXT_PREFIX = 1
 
     def __init__(self, name, num, connList, mbeanDict, create=True,
-                 createXmlRpcServer=False, addNumericPrefix=False):
+                 createXmlRpcServer=False, addNumericPrefix=False,
+                 quiet=False):
         if not addNumericPrefix:
             self.__name = name
         else:
@@ -222,7 +223,13 @@ class FakeClient(object):
         self.__cmdPort = self.nextPortNumber()
         self.__mbeanPort = self.nextPortNumber()
 
+        self.__runNum = 0
+        self.__numEvts = 0
+
         self.__state = "idle"
+        self.__registered = True
+
+        self.__quiet = quiet
 
     def __str__(self):
         return "%s#%d" % (self.__name, self.__num)
@@ -241,7 +248,9 @@ class FakeClient(object):
         return engines
 
     def __commitSubrun(self, subrunNum, latestTime):
-        print "CommitSubrun %s num %d time %s" % (self, subrunNum, latestTime)
+        if not self.__quiet:
+            print "CommitSubrun %s num %d time %s" % (self, subrunNum,
+                                                      latestTime)
         return "CommitSubrun"
 
     def __configure(self, cfgName=None):
@@ -285,6 +294,20 @@ class FakeClient(object):
 
         return val
 
+    def __getEvents(self, subrunNum):
+        if not self.__quiet:
+            print "GetEvents %s subrun %d" % (self, subrunNum)
+        self.__numEvts += 1
+        return self.__numEvts
+
+    def __getRunData(self, runNum):
+        if not self.__quiet:
+            print "GetRunData %s run %d" % (self, runNum)
+        return (long(1), long(2), long(3))
+
+    def __getRunNumber(self):
+        return self.__runNum
+
     def __getState(self):
         return self.__state
 
@@ -315,35 +338,52 @@ class FakeClient(object):
         return self.__mbeanDict.keys()
 
     def __logTo(self, logHost, logPort, liveHost, livePort):
-        print "LogTo %s LOG %s:%d LIVE %s:%d" % \
-            (self, logHost, logPort, liveHost, livePort)
+        if not self.__quiet:
+            print "LogTo %s LOG %s:%d LIVE %s:%d" % \
+                (self, logHost, logPort, liveHost, livePort)
         return False
 
     def __prepareSubrun(self, subrunNum):
-        print "PrepareSubrun %s num %d" % (self, subrunNum)
+        if not self.__quiet:
+            print "PrepareSubrun %s num %d" % (self, subrunNum)
         return "PrepareSubrun"
-
-    def __startSubrun(self, data):
-        print "StartSubrun %s data %s" % (self, data)
-        return 123456789L
 
     def __reset(self):
         self.__state = "idle"
-        print "Reset %s" % self
+        if not self.__quiet:
+            print "Reset %s" % self
         return self.__state
 
     def __resetLogging(self):
-        print "ResetLogging %s" % self
+        if not self.__quiet:
+            print "ResetLogging %s" % self
         return "ResetLogging"
+
+    def __setFirstGoodTime(self, firstTime):
+        if not self.__quiet:
+            print "SetFirstGoodTime %s -> %s" % (self, firstTime)
+        return "SetFirstGoodTime"
 
     def __startRun(self, runNum):
         self.__state = "running"
         return self.__state
 
+    def __startSubrun(self, data):
+        if not self.__quiet:
+            print "StartSubrun %s data %s" % (self, data)
+        return 123456789L
+
     def __stopRun(self):
-        print "StopRun %s" % self
+        if not self.__quiet:
+            print "StopRun %s" % self
         self.__state = "ready"
         return False
+
+    def __switchToNewRun(self, newNum):
+        if not self.__quiet:
+            print "SwitchToNewRun %s newNum %s" % (self, newNum)
+        self.__runNum = newNum
+        return "SwitchToNewRun"
 
     def fullName(self):
         if self.__num == 0:
@@ -351,7 +391,7 @@ class FakeClient(object):
         return "%s#%d" % (self.__name, self.__num)
 
     def monitorServer(self):
-        while True:
+        while self.__registered:
             if self.__cnc is None:
                 break
 
@@ -363,7 +403,10 @@ class FakeClient(object):
                 else:
                     raise
 
-            time.sleep(10)
+            time.sleep(1)
+
+    def name(self):
+        return self.__name
 
     @classmethod
     def nextPortNumber(cls):
@@ -375,6 +418,7 @@ class FakeClient(object):
         self.__cnc.rpc_component_register(self.__name, self.__num, 'localhost',
                                           self.__cmdPort, self.__mbeanPort,
                                           self.__listConnections())
+        self.__registered = True
 
     def start(self):
         self.__cmd = RPCServer(self.__cmdPort)
@@ -382,6 +426,9 @@ class FakeClient(object):
                                      'xmlrpc.commitSubrun')
         self.__cmd.register_function(self.__configure, 'xmlrpc.configure')
         self.__cmd.register_function(self.__connect, 'xmlrpc.connect')
+        self.__cmd.register_function(self.__getEvents, 'xmlrpc.getEvents')
+        self.__cmd.register_function(self.__getRunData, 'xmlrpc.getRunData')
+        self.__cmd.register_function(self.__getRunNumber, 'xmlrpc.getRunNumber')
         self.__cmd.register_function(self.__getState, 'xmlrpc.getState')
         self.__cmd.register_function(self.__getVersionInfo,
                                      'xmlrpc.getVersionInfo')
@@ -391,9 +438,13 @@ class FakeClient(object):
         self.__cmd.register_function(self.__prepareSubrun,
                                      'xmlrpc.prepareSubrun')
         self.__cmd.register_function(self.__startSubrun, 'xmlrpc.startSubrun')
+        self.__cmd.register_function(self.__switchToNewRun,
+                                     'xmlrpc.switchToNewRun')
         self.__cmd.register_function(self.__reset, 'xmlrpc.reset')
         self.__cmd.register_function(self.__resetLogging,
                                      'xmlrpc.resetLogging')
+        self.__cmd.register_function(self.__setFirstGoodTime,
+                                     'xmlrpc.setFirstGoodTime')
         self.__cmd.register_function(self.__startRun, 'xmlrpc.startRun')
         self.__cmd.register_function(self.__stopRun, 'xmlrpc.stopRun')
 

@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 
-import datetime
 import time
 import unittest
 
 from LiveImports import Prio
-from RadarTask import RadarTask, RadarThread
 from RunOption import RunOption
 from TaskManager import TaskManager
 from WatchdogTask import WatchdogTask
@@ -190,16 +188,7 @@ class MyTaskManager(TaskManager):
 
 
 class TaskManagerTest(unittest.TestCase):
-    def __addRadarDOMData(self, compList, radarString, radarDOM, hitRate):
-        for c in compList:
-            if c.isSource() and c.num() == radarString:
-                c.addBeanData("DataCollectorMonitor-XXX", "MainboardId",
-                              radarDOM)
-                c.addBeanData("DataCollectorMonitor-XXX", "HitRate", hitRate)
-
-    def __loadExpected(self, live, compList, radarString, radarDOM, hitRate):
-
-        radarName = "stringHub-%d" % radarString
+    def __loadExpected(self, live, compList, hitRate):
 
         # add monitoring data
         live.addExpected("stringHub-1*sender+NumHitsReceived",
@@ -217,21 +206,6 @@ class TaskManagerTest(unittest.TestCase):
             "stringHub-1*stringhub+NumberOfActiveAndTotalChannels",
             [1, 2], Prio.ITS)
 
-        live.addExpected(
-            "stringHub-6*stringhub+NumberOfActiveAndTotalChannels",
-            [1, 2], Prio.ITS)
-
-        live.addExpected("stringHub-6*stringhub+TotalLBMOverflows",
-                         20, Prio.ITS)
-        live.addExpected("stringHub-6*stringhub+HitRate", 50, Prio.ITS)
-        live.addExpected("stringHub-6*stringhub+HitRateLC", 25, Prio.ITS)
-
-        live.addExpected(radarName + "*sender+NumHitsReceived", 0, Prio.ITS)
-        live.addExpected(radarName + "*sender+NumReadoutRequestsReceived",
-                         0, Prio.ITS)
-        live.addExpected(radarName + "*sender+NumReadoutsSent", 0, Prio.ITS)
-        live.addExpected(radarName + "*stringhub+NumberOfActiveChannels",
-                         2, Prio.ITS)
         live.addExpected("iceTopTrigger-0*icetopHit+RecordsReceived",
                          0, Prio.ITS)
         live.addExpected("iceTopTrigger-0*trigger+RecordsSent", 0, Prio.ITS)
@@ -264,34 +238,21 @@ class TaskManagerTest(unittest.TestCase):
                          0, Prio.ITS)
 
         # add activeDOM data
-        live.addExpected("activeDOMs", 2, Prio.ITS)
-        live.addExpected("expectedDOMs", 4, Prio.ITS)
-        live.addExpected("total_rate", 100, Prio.ITS)
-        live.addExpected("total_ratelc", 50, Prio.ITS)
-        live.addExpected("LBMOverflows", {"1": 20, "6": 20},
+        live.addExpected("activeDOMs", 1, Prio.ITS)
+        live.addExpected("expectedDOMs", 2, Prio.ITS)
+        live.addExpected("total_rate", 50, Prio.ITS)
+        live.addExpected("total_ratelc", 25, Prio.ITS)
+        live.addExpected("LBMOverflows", {"1": 20},
                          Prio.ITS)
-        live.addExpected("stringDOMsInfo", {"1": (1, 2), "6": (1, 2)},
+        live.addExpected("stringDOMsInfo", {"1": (1, 2)},
                          Prio.EMAIL)
-        live.addExpected("stringRateInfo", {"1": 50, "6": 50},
+        live.addExpected("stringRateInfo", {"1": 50},
                          Prio.EMAIL)
-        live.addExpected("stringRateLCInfo", {"1": 25, "6": 25},
+        live.addExpected("stringRateLCInfo", {"1": 25},
                          Prio.EMAIL)
-
-        # add radar DOM data
-        if self.__firstTime:
-            self.__addRadarDOMData(compList, radarString, radarDOM, hitRate)
-            self.__firstTime = False
-        live.addExpected(radarName + "*DataCollectorMonitor-XXX+MainboardId",
-                         radarDOM, Prio.ITS)
-        live.addExpected(radarName + "*DataCollectorMonitor-XXX+HitRate",
-                         hitRate, Prio.ITS)
-        live.addExpected("radarDOMs", [(radarDOM, hitRate), ], Prio.EMAIL)
 
     def setUp(self):
         self.__firstTime = True
-
-        # shorten radar thread
-        RadarTask.RADAR_SAMPLE_DURATION = 1
 
     def tearDown(self):
         self.__firstTime = False
@@ -342,11 +303,7 @@ class TaskManagerTest(unittest.TestCase):
         self.failUnless(live.hasAllMoni(), "Monitoring data was not sent")
 
     def testRunOnce(self):
-        radarDOM = RadarThread.DOM_MAP.keys()[0]
-        radarString = RadarThread.DOM_MAP[radarDOM]
-
         compList = [MockComponent("stringHub", 1),
-                    MockComponent("stringHub", radarString),
                     MockComponent("inIceTrigger", 0),
                     MockComponent("iceTopTrigger", 0),
                     MockComponent("globalTrigger", 0),
@@ -368,7 +325,7 @@ class TaskManagerTest(unittest.TestCase):
 
         hitRate = 12.34
 
-        self.__loadExpected(live, compList, radarString, radarDOM, hitRate)
+        self.__loadExpected(live, compList, hitRate)
 
         rst = MyTaskManager(runset, dashlog, live, None, runCfg,
                             RunOption.MONI_TO_LIVE)
@@ -400,11 +357,7 @@ class TaskManagerTest(unittest.TestCase):
         rst.stop()
 
     def testRunTwice(self):
-        radarDOM = RadarThread.DOM_MAP.keys()[0]
-        radarString = RadarThread.DOM_MAP[radarDOM]
-
         compList = [MockComponent("stringHub", 1),
-                    MockComponent("stringHub", radarString),
                     MockComponent("inIceTrigger", 0),
                     MockComponent("iceTopTrigger", 0),
                     MockComponent("globalTrigger", 0),
@@ -429,7 +382,7 @@ class TaskManagerTest(unittest.TestCase):
         rst = MyTaskManager(runset, dashlog, live, None, runCfg,
                             RunOption.MONI_TO_LIVE)
 
-        self.__loadExpected(live, compList, radarString, radarDOM, hitRate)
+        self.__loadExpected(live, compList, hitRate)
 
         dashlog.addExpectedExact(("\t%d physics events (%.2f Hz)," +
                                   " %d moni events, %d SN events, %d tcals") %
@@ -452,7 +405,7 @@ class TaskManagerTest(unittest.TestCase):
 
             time.sleep(0.1)
 
-        self.__loadExpected(live, compList, radarString, radarDOM, hitRate)
+        self.__loadExpected(live, compList, hitRate)
         dashlog.addExpectedExact("Watchdog reports threshold components:\n" +
                                  "    secondaryBuilders" +
                                  " snBuilder.DiskAvailable below 1024" +

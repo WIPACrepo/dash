@@ -58,7 +58,7 @@ class RunClusterTest(unittest.TestCase):
             if not en.isFound():
                 self.fail('Did not find expected component %s' % str(en))
 
-        hubList = cluster.getHubNodes()
+        #hubList = cluster.getHubNodes()
 
         self.assertEqual(cluster.logDirForSpade(), spadeDir,
                          'SPADE log directory is "%s", not "%s"' %

@@ -23,17 +23,17 @@ def find_pdaq_config():
             CONFIGDIR = dir
             return CONFIGDIR
 
-    dir = os.path.join(find_pdaq_trunk(), "config")
-    if os.path.exists(dir):
-        CONFIGDIR = dir
-        return CONFIGDIR
-
     dir = os.path.join(os.environ["HOME"], "config")
     if os.path.exists(dir):
         CONFIGDIR = dir
         return CONFIGDIR
 
-    raise IOError("Cannot find DAQ configuration directory")
+    dir = os.path.join(find_pdaq_trunk(), "config")
+    if os.path.exists(dir):
+        CONFIGDIR = dir
+        return CONFIGDIR
+
+    raise IOError("Cannot find DAQ configuration directory (PDAQ_CONFIG)")
 
 
 def find_pdaq_trunk():
@@ -61,4 +61,4 @@ def find_pdaq_trunk():
             METADIR = dir
             return METADIR
 
-    raise HostNotFoundException("Cannot find pDAQ trunk")
+    raise HostNotFoundException("Cannot find pDAQ trunk (PDAQ_HOME)")

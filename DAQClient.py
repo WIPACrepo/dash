@@ -8,18 +8,13 @@ import threading
 from CnCLogger import CnCLogger
 from DAQRPC import RPCClient
 from UniqueID import UniqueID
+from locate_pdaq import find_pdaq_trunk
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
-
 # add meta-project python dir to Python library search path
+metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
@@ -391,6 +386,14 @@ class DAQClient(ComponentName):
         if self.__mbean is None:
             return []
         return self.__mbean.getBeanNames()
+
+    def getMoniCounts(self):
+        "Get the trigger counts for detector monitoring"
+        try:
+            return self.__client.xmlrpc.getMoniCounts()
+        except:
+            self.__log.error(exc_string())
+            return None
 
     def getMultiBeanFields(self, name, fieldList):
         if self.__mbean is None:

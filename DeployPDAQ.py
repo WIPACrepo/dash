@@ -13,6 +13,7 @@ from DAQConfigExceptions import DAQConfigException
 from DAQConfig import DAQConfig, DAQConfigParser
 from ParallelShell import ParallelShell
 from XMLFileCache import XMLFileNotFound
+from locate_pdaq import find_pdaq_config, find_pdaq_trunk
 from utils.Machineid import Machineid
 
 # pdaq subdirectories to be deployed
@@ -23,18 +24,12 @@ NICE_ADJ_DEFAULT = 19
 EXPRESS_DEFAULT = False
 TIMEOUT_DEFAULT = 300
 
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    from locate_pdaq import find_pdaq_trunk
-    metaDir = find_pdaq_trunk()
-
 # add meta-project python dir to Python library search path
+metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 14387 2013-04-02 19:58:40Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 14426 2013-04-17 15:50:20Z dglo $"
 
 
 def getUniqueHostNames(config):
@@ -187,8 +182,8 @@ def main():
         p.print_help()
         raise SystemExit
     except DAQConfigException as e:
-        print >> sys.stderr, 'Cluster configuration file problem:\n%s' % e
-        raise SystemExit
+        print >> sys.stderr, 'Cluster configuration file problem:'
+        raise SystemExit(e)
 
     if traceLevel >= 0:
         if config.descName() is None:
@@ -232,7 +227,7 @@ def deploy(config, homeDir, pdaqDir, subdirs, delete, dryRun,
 
     # convert to a relative path
     # (~pdaq is a different directory on different machines)
-    pdaqDir = replaceHome(os.environ["HOME"], pdaqDir)
+    pdaqDir = replaceHome(homeDir, pdaqDir)
 
     # record the configuration being deployed so
     # it gets copied along with everything else
@@ -253,7 +248,22 @@ def deploy(config, homeDir, pdaqDir, subdirs, delete, dryRun,
     rsyncCmdStub += " -azLC%s%s" % (delete and ' --delete' or '',
                                     deepDryRun and ' --dry-run' or '')
 
-    # The 'SRC' arg for the rsync command.  The sh "{}" syntax is used
+    rsyncConfigSrc = None
+    if "config" in subdirs:
+        # The 'SRC' arg for the config rsync command.
+        configDir = find_pdaq_config()
+        cfgSubdir = os.path.join(os.path.expanduser(pdaqDir), "config")
+        if configDir != cfgSubdir:
+            rsyncConfigSrc = configDir
+
+            # config directory is not under pdaqDir
+            # so needs to be removed from subdirs list
+            subtmp = []
+            subtmp += subdirs
+            subtmp.remove("config")
+            subdirs = subtmp
+
+    # The 'SRC' arg for the main rsync command.  The sh "{}" syntax is used
     # here so that only one rsync is required for each node. (Running
     # multiple rsync's in parallel appeared to give rise to race
     # conditions and errors.)
@@ -284,11 +294,14 @@ def deploy(config, homeDir, pdaqDir, subdirs, delete, dryRun,
             done = True
 
         if undeploy:
-            cmd = 'ssh %s "\\rm -rf ~%s/.m2 %s"' % \
+            cmd = 'ssh %s "\\rm -rf ~%s/config %s"' % \
                   (nodeName, os.environ["USER"], pdaqDir)
         else:
             cmd = "%s %s %s:%s" % (rsyncCmdStub, rsyncDeploySrc, nodeName,
                                    pdaqDir)
+            if rsyncConfigSrc is not None:
+                cmd += " && %s %s %s:~%s" % (rsyncCmdStub, rsyncConfigSrc,
+                                            nodeName, os.environ["USER"])
 
         cmdToNodeNameDict[cmd] = nodeName
         if traceLevel > 0 or dryRun:

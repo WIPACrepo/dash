@@ -10,6 +10,7 @@ import sys
 
 
 from DAQConfig import DAQConfigParser
+from locate_pdaq import find_pdaq_config
 
 
 class ConfigDirChecker(object):
@@ -17,6 +18,8 @@ class ConfigDirChecker(object):
     Check pDAQ config directory for unadded/uncommitted files
     """
     INDENT = "    "
+
+    MYSQL_BIN = "/usr/bin/mysql"
 
     def __init__(self, cfgdir=None):
         """
@@ -27,10 +30,13 @@ class ConfigDirChecker(object):
         if cfgdir is not None:
             self.__cfgdir = cfgdir
         else:
-            self.__cfgdir = os.path.join(os.environ["HOME"], "pDAQ_current",
-                                         "config")
+            self.__cfgdir = find_pdaq_config()
         if not os.path.isdir(self.__cfgdir):
             raise Exception("No current pDAQ directory \"%s\"" % self.__cfgdir)
+
+        if not os.path.exists(self.MYSQL_BIN):
+            raise Exception("MySQL executable \"%s\" does not exist" %
+                            self.MYSQL_BIN)
 
         self.__processlist = []
 
@@ -45,9 +51,11 @@ class ConfigDirChecker(object):
         for f in self.__processlist:
             if dryrun:
                 print "Not adding %s" % f
+                rtnval = True
             else:
                 rtnval = self.__svn_add(self.__cfgdir, f)
-            self.__added.append(f)
+            if rtnval:
+                self.__added.append(f)
 
     def __checkUsedConfigs(self, used, svnmap):
         """
@@ -144,7 +152,7 @@ class ConfigDirChecker(object):
         # NOTE: query must end with a semicolon
         query = "select daq_label from run_summary group by daq_label;"
 
-        cmd_args = ("/usr/bin/mysql",
+        cmd_args = (self.MYSQL_BIN,
                     "-h", "dbs",
                     "-u", "pnf",
                     "-D", "I3OmDb",
@@ -228,7 +236,7 @@ class ConfigDirChecker(object):
         proc.stdout.close()
         proc.wait()
         if proc.returncode != 0:
-            print >>sys.stderr, "Failed to SVN ADD %s:" % f
+            print >>sys.stderr, "Failed to SVN ADD %s:" % name
             for line in outlines:
                 print >>sys.stderr, self.INDENT + line
 

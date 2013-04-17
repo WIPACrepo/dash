@@ -113,7 +113,7 @@ class PCmd(object):
                                                controlop,
                                                self.outFile)
 
-        if self.subproc != None:
+        if self.subproc is not None:
             raise RuntimeError("Attempt to start a running command!")
 
         # Create a Popen object for running a shell child proc to

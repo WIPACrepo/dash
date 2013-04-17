@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import datetime
 import os
 import socket
 import tempfile

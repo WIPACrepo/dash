@@ -2,26 +2,28 @@ from validate_configs import validate_runconfig
 import glob
 import os
 import sys
-
+import optparse
 
 if __name__ == "__main__":
-    # Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-    if "PDAQ_HOME" in os.environ:
-        metaDir = os.environ["PDAQ_HOME"]
+    parse = optparse.OptionParser()
+    parse.add_option("-d", "--config_dir", type="string",
+                     dest="config_dir", action="store",
+                     default=None,
+                     help="Run Config Directory")
+    opt, args = parse.parse_args()
+    
+    if opt.config_dir is not None:
+        config_path = opt.config_dir
     else:
         sys.path.append('..')
-        from locate_pdaq import find_pdaq_trunk
-        metaDir = find_pdaq_trunk()
+        from locate_pdaq import find_pdaq_config
+        config_path = find_pdaq_config()
 
-    print "Validating all runconfig files"
+    print "Validating all runconfig files in %s" % config_path
     print ""
 
-    config_path = os.path.join(metaDir, "config")
-    run_config_path = config_path
-    xsd_path = os.path.join(config_path, "xsd")
-
     invalid_found = False
-    run_configs = glob.glob(os.path.join(run_config_path, '*.xml'))
+    run_configs = glob.glob(os.path.join(config_path, '*.xml'))
 
     # remove the default dom geometry file from the above list
     for entry in run_configs:
@@ -30,7 +32,9 @@ if __name__ == "__main__":
             run_configs.remove(entry)
             break
 
+    num = 0
     for run_config in run_configs:
+        num += 1
         valid, reason = validate_runconfig(run_config)
 
         if not valid:
@@ -41,4 +45,4 @@ if __name__ == "__main__":
             invalid_found = True
 
     if not invalid_found:
-        print "No invalid run configuration files found"
+        print "No invalid run configuration files found (of %d)" % num

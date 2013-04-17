@@ -224,8 +224,6 @@ class ComponentManagerTest(unittest.TestCase):
                 node = MockNode(host)
                 node.addComp(compName, compId, logLevel, jvm, jvmArgs)
 
-                cfgName = 'mockCfg'
-
                 for killWith9 in (True, False):
                     parallel = MockParallelShell()
 

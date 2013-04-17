@@ -25,6 +25,8 @@ class RunStats(object):
             (self.__numEvts, self.__numMoni, self.__numSN, self.__numTcal)
 
     def __addRate(self, payTime, numEvts):
+        # XXX: toDateTime can throw an exception for times too far in the
+        # XXX: past or future
         dt = PayloadTime.toDateTime(payTime)
         self.__physicsRate.add(dt, numEvts)
 

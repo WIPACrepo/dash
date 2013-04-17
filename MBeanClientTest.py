@@ -6,8 +6,6 @@ from DAQClient import BeanLoadException, MBeanClient
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-from DAQMocks import MockAppender
-
 
 class MBeanAgentException(Exception):
     pass

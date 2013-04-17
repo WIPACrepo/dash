@@ -2,7 +2,6 @@
 
 import unittest
 
-from CnCTask import TaskException
 from WatchdogTask import UnhealthyRecord, WatchData
 
 

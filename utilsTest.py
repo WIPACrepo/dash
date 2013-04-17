@@ -78,6 +78,7 @@ class TestUtils(unittest.TestCase):
         a = DashXMLLog()
         a.setRun(117554)
         a.setConfig("sps-IC79-Erik-Changed-TriggerIDs-V151")
+        a.setCluster("sps-cluster")
         a.setStartTime(55584.113903)
         a.setEndTime(55584.227695)
         a.setTermCond(False)
@@ -95,6 +96,7 @@ class TestUtils(unittest.TestCase):
         expectedDocStr = """<?xml version="1.0" ?>
 <?xml-stylesheet type="text/xsl" href="/2001/xml/DAQRunlog.xsl"?>
 <DAQRunlog>
+<Cluster>sps-cluster</Cluster>
 <Config>sps-IC79-Erik-Changed-TriggerIDs-V151</Config>
 <EndTime>55584.227695</EndTime>
 <Events>24494834</Events>

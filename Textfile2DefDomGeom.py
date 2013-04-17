@@ -13,7 +13,6 @@
 #    wget --user=icecube --ask-password <NEWEST_GEOMETRY_URL>
 
 import optparse
-import sys
 from DefaultDomGeometry import DefaultDomGeometryReader, DomsTxtReader, \
      GeometryFileReader, NicknameReader
 

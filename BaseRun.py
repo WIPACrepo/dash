@@ -656,7 +656,7 @@ class BaseRun(object):
         eventCheck = True
 
         logPort = None
-        livePort = DAQPort.I3LIVE
+        livePort = DAQPort.I3LIVE_ZMQ
 
         self.logCmd("Launch %s" % clusterCfg)
         ComponentManager.launch(doCnC, dryRun=self.__dryRun, verbose=verbose,
