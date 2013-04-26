@@ -176,12 +176,13 @@ class ConfigDirChecker(object):
 
         return configs
 
-    def __report(self, quiet=False):
+    def __report(self, quiet=False, showUnknown=False):
         """
         Report the results
 
         quiet - if True, print a one-line summary
                 if False, print the names of added, modified, and unknown files
+        showUnknown - if True, don't report unknown files
         """
         needSpaces = False
 
@@ -242,7 +243,7 @@ class ConfigDirChecker(object):
 
         return proc.returncode == 0
 
-    def run(self, dryrun=False, quiet=False):
+    def run(self, dryrun=False, quiet=False, showUnknown=False):
         """
         Check pDAQ config directory and report results
         """
@@ -250,7 +251,7 @@ class ConfigDirChecker(object):
         svnmap = self.__getDirectorySVNStatus(self.__cfgdir)
         self.__checkUsedConfigs(used, svnmap)
         self.__addMissingToSVN(dryrun)
-        self.__report(quiet=quiet)
+        self.__report(quiet=quiet, showUnknown=showUnknown)
 
 
 if __name__ == "__main__":
@@ -266,10 +267,13 @@ if __name__ == "__main__":
     p.add_option("-q", "--quiet", dest="quiet",
                  action="store_true", default=False,
                  help="Don't print final report")
+    p.add_option("-u", "--show-unknown", dest="showUnknown",
+                 action="store_true", default=False,
+                 help="Show unknown configurations")
     p.add_option("-v", "--verbose", dest="verbose",
                  action="store_true", default=False,
                  help="Print a log of all actions")
     opt, args = p.parse_args()
 
     chk = ConfigDirChecker(opt.configdir)
-    chk.run(dryrun=opt.dryrun, quiet=opt.quiet)
+    chk.run(dryrun=opt.dryrun, quiet=opt.quiet, showUnknown=opt.showUnknown)
