@@ -134,5 +134,5 @@ if __name__ == "__main__":
         newCfg = runCfg.omit(hubIdList, keepList=True)
         if newCfg is not None:
             with open(newPath, 'w') as fd:
-                newCfg.write(fd)
+                fd.write(newCfg)
             print "Created %s" % newPath

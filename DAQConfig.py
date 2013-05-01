@@ -506,7 +506,7 @@ class DAQConfig(ConfigObject):
                          }
                         )
 
-        print xml_dict.toString(omit_dict)
+        return xml_dict.toString(omit_dict)
 
     @staticmethod
     def createOmitFileName(config_dir, file_name, hub_id_list, keepList=False):
@@ -525,7 +525,8 @@ class DAQConfig(ConfigObject):
             join_str = "-no"
 
         hub_names = [HubIdUtils.get_hub_name(h) for h in hub_id_list]
-        xstr = "%s%s" % (xstr, join_str.join(hub_names))
+        join_list = [ "%s%s" % (join_str, hub_name) for hub_name in hub_names ]
+        xstr = "%s%s" % (xstr, ''.join(join_list))
 
         return os.path.join(config_dir, baseName + xstr + ".xml")
 
