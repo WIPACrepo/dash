@@ -464,8 +464,9 @@ class DAQConfig(ConfigObject):
                         omit_dict['runConfig'][
                             '__children__']['domConfigList'] = []
                     
+                    dc_fname = os.path.splitext(os.path.basename(dc.filename))[0]
                     tmp_cfg_list = {'__attribs__': {'hub': '%d' % dc.hub_id},
-                                    '__contents__': os.path.basename(dc.filename)}
+                                    '__contents__': dc_fname}
 
                     omit_dict['runConfig'][
                         '__children__']['domConfigList'].append(tmp_cfg_list)
