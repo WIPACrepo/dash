@@ -33,7 +33,7 @@ class DAQDateTimeDelta(object):
 class DAQDateTime(object):
     # if True, calculate DAQ times to 0.1 nanosecond precision
     # if False, calculate to microsecond precision
-    HIGH_PRECISION = False
+    HIGH_PRECISION = True
 
     # ignore exceptions from leapseconds.get_tai_offset()
     IGNORE_EXC = True
