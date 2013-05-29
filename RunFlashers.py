@@ -110,7 +110,9 @@ if __name__ == "__main__":
 
     opt, args = op.parse_args()
 
-    if opt.daqConfig is not None:
+    if opt.daqConfig is None:
+        cfg = None
+    else:
         cfg = opt.daqConfig
 
     # list of flashers is either specified with '-'f or is one of two arguments

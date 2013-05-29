@@ -396,11 +396,12 @@ class Run(object):
             if flasherDelay is None:
                 self.__flashThread = FlasherThread(self.__mgr,
                                                    self.__flashData,
-                                                   self.__dryRun)
+                                                   dryRun=self.__dryRun)
             else:
                 self.__flashThread = \
                     FlasherThread(self.__mgr, self.__flashData,
-                                  initialDelay=flasherDelay)
+                                  initialDelay=flasherDelay,
+                                  dryRun=self.__dryRun)
 
         # get the new run number
         #
