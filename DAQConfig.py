@@ -473,9 +473,10 @@ class DAQConfig(ConfigObject):
                             not in omit_dict['runConfig']['__children__']:
                         omit_dict['runConfig'][
                             '__children__']['domConfigList'] = []
-                   
+
+                    dc_fname = os.path.splitext(os.path.basename(dc.filename))[0]
                     tmp_cfg_list = {'__attribs__': {'hub': '%d' % dc.hub_id},
-                                    '__contents__': os.path.basename(dc.filename)}
+                                    '__contents__': dc_fname}
 
                     omit_dict['runConfig'][
                         '__children__']['domConfigList'].append(tmp_cfg_list)
@@ -516,7 +517,7 @@ class DAQConfig(ConfigObject):
                          }
                         )
 
-        print xml_dict.toString(omit_dict)
+        return xml_dict.toString(omit_dict)
 
     @staticmethod
     def createOmitFileName(config_dir, file_name, hub_id_list, keepList=False):
@@ -535,7 +536,8 @@ class DAQConfig(ConfigObject):
             join_str = "-no"
 
         hub_names = [HubIdUtils.get_hub_name(h) for h in hub_id_list]
-        xstr = "%s%s" % (xstr, join_str.join(hub_names))
+        join_list = [ "%s%s" % (join_str, hub_name) for hub_name in hub_names ]
+        xstr = "%s%s" % (xstr, ''.join(join_list))
 
         return os.path.join(config_dir, baseName + xstr + ".xml")
 
