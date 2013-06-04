@@ -1,11 +1,57 @@
-#!env python
+#!/usr/bin/env python
 
 from ftplib import FTP
 import socket
 import re
 import os
 
-def fetch_latestleap(host = 'tycho.usno.navy.mil', path='/pub/ntp'):
+from leapseconds import leapseconds
+
+def compare_latestleap(latest, filename, verbose=False):
+    # load in the new file
+    try:
+        newleap = leapseconds(filename)
+    except:
+        print "Downloaded NIST file %s is not valid" % filename
+        import traceback
+        traceback.print_exc()
+        return False
+
+    # if latest file does not exist, we're done
+    if not os.path.exists(latest):
+        return True
+
+    # load in the latest file
+    try:
+        oldleap = leapseconds(latest)
+    except:
+        print "Replacing invalid %s" % latest
+        return True
+
+    # compare expiry date/times for new file and installed latest file
+    old_expiry = oldleap.get_mjd_expiry()
+    new_expiry = newleap.get_mjd_expiry()
+    if old_expiry < new_expiry:
+        if verbose:
+            print "Current file expiry (%s) is older than %s expiry (%s)" % \
+                    (old_expiry, filename, new_expiry)
+        return True
+
+    # let user know that the new file is not newer than the installed file
+    if verbose:
+        if old_expiry == new_expiry:
+            print "A leapsecond file with this expiry date" + \
+                    " has already been installed"
+        else:
+            print ("%s has an older expiry date (%s) than the currently" +
+                   " installed version (%s)") % \
+                   (filename, new_expiry, old_expiry)
+
+    return False
+
+
+def fetch_latestleap(host='tycho.usno.navy.mil', path='/pub/ntp',
+                     verbose=False):
     try:
         ftp = FTP(host)
     except socket.error:
@@ -38,31 +84,74 @@ def fetch_latestleap(host = 'tycho.usno.navy.mil', path='/pub/ntp'):
     latest_time = max(times_list)
     latest_file = match_dict[latest_time]
 
-    print "Latest leapsecond file: %s" % latest_file
-
     # From the folks at nist:
-    # Levine, Judah Dr. judah.levine@nist.gov via icecube.wisc.edu 
-    # to Matt 
+    # Levine, Judah Dr. judah.levine@nist.gov via icecube.wisc.edu
+    # to Matt
     # Hello,
-    # The expiration date of the file is changed as I get new information from the 
-    # International Earth Rotation Service (IERS) about future leap seconds. The extension changes
-    # ONLY when a new leap second has been announced. So, if the extension is unchanged, then no new 
-    # leap second is pending. If the expiration date has changed then this is based on new information
-    # from the IERS.
+    # The expiration date of the file is changed as I get new information
+    # from the International Earth Rotation Service (IERS) about future leap
+    # seconds. The extension changes ONLY when a new leap second has been
+    # announced. So, if the extension is unchanged, then no new leap second
+    # is pending. If the expiration date has changed then this is based on
+    # new information from the IERS.
     #
-    # ANNOYING...  no way to check and see if the file has been updated without fetching it
+    # ANNOYING...  no way to check and see if the file has been updated
+    # without fetching it
 
-    print "A fetching: %s" % latest_file 
-    ftp.retrbinary('RETR %s' % latest_file, 
+    if verbose:
+        print "A fetching: %s" % latest_file
+    ftp.retrbinary('RETR %s' % latest_file,
                    open(latest_file, 'wb').write)
-        
-    
     ftp.close()
 
-    print "Fetch complete"
+    if verbose:
+        print "Fetch complete"
+
+    return latest_file
+
+
+def install_latestleap(latest, filename, verbose=False):
+    if os.path.exists(latest) and not os.path.islink(latest):
+        # if 'latest' file is not a symlink, rename the old file
+        # and move the new file in using that name
+        old = latest + ".old"
+        if os.path.exists(old):
+            os.remove(old)
+        if os.path.exists(latest):
+            os.rename(latest, old)
+            if verbose:
+                print "Backed up old %s" % latest
+        os.rename(filename, latest)
+        if verbose:
+            print "Moved %s into place as %s" % (filename, latest)
+    else:
+        # if 'latest' is a symlink, move the new file into the same
+        # directory as 'latest' and point 'latest' at the new file
+        ldir = os.path.dirname(latest)
+        basename = os.path.basename(filename)
+
+        newpath = os.path.join(ldir, basename)
+        if os.path.exists(newpath):
+            os.remove(newpath)
+            if verbose:
+                print "Removed old %s" % newpath
+
+        os.rename(filename, newpath)
+
+        if os.path.exists(latest):
+            os.remove(latest)
+        os.symlink(basename, latest)
+
+        if verbose:
+            print "Moved %s to %s and updated %s symlink" % \
+                    (basename, ldir, os.path.basename(latest))
 
 
 if __name__ == "__main__":
-    fetch_latestleap(host='tycho.usno.navy.mil', path='/pub/ntp')
+    newfile = fetch_latestleap(host='tycho.usno.navy.mil', path='/pub/ntp',
+                               verbose=True)
 
-    
+    latest = leapseconds.get_latest_path()
+
+    if compare_latestleap(latest, newfile, True):
+        install_latestleap(latest, newfile, True)

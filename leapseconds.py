@@ -19,25 +19,35 @@ from locate_pdaq import find_pdaq_config
 class leapseconds:
     """every calculation that might be of use when it comes to leapseconds"""
 
+    LATEST = None
     instance = None
 
     class leapsecondsHelper:
         def __call__(self, *args, **kw):
-            if not leapseconds.instance:
-                configDir = find_pdaq_config()
-                path = os.path.join(configDir, 'nist', 'leapseconds-latest')
-                leapseconds.instance = leapseconds(path)
+            if leapseconds.instance is None:
+                leapseconds.instance = leapseconds()
             return leapseconds.instance
 
     getInstance = leapsecondsHelper()
 
-    def __init__(self, leap_filename):
+    def __init__(self, leap_filename=None):
+        if leap_filename is not None:
+            self.__filename = leap_filename
+        else:
+            self.__filename = self.get_latest_path()
         self.__mjd_expiry = None
         self.__nist_data = []
         # not strictly required but quiet code analysis tools
         self.__nist_tai = None
         self.__nist_mjd = None
-        self.__parse_nist(leap_filename)
+        self.__parse_nist()
+
+    @classmethod
+    def get_latest_path(cls):
+        if cls.LATEST is None:
+            configDir = find_pdaq_config()
+            cls.LATEST = os.path.join(configDir, 'nist', 'leapseconds-latest')
+        return cls.LATEST
 
     def get_mjd_expiry(self):
         """
@@ -271,7 +281,7 @@ class leapseconds:
         # search the __nist_data list to find where
         # mjd 'mjd' lands and get the tai offset at that point
         if not ignore_exception and mjd > self.__mjd_expiry:
-            raise Exception("mjd data file expired")
+            raise Exception("mjd data file %s expired" % self.__filename)
 
         position = bisect.bisect_right(self.__nist_mjd, mjd)
         if position:
@@ -309,9 +319,8 @@ class leapseconds:
 
         return leap_offset
 
-    def __parse_nist(self, fname):
-        """Assume that the filename passed in points to a nist
-        leapsecond file.  Parse that file looking for data and
+    def __parse_nist(self):
+        """Parse the NIST file looking for data and
         file expiration information.
         """
 
@@ -321,27 +330,32 @@ class leapseconds:
 
         nist_data = []
 
-        with open(fname, 'r') as fd:
+        with open(self.__filename, 'r') as fd:
             for line in fd:
 
                 if comment_pat.match(line):
                     # is a comment skip
                     continue
+
+                expiry_match = expiry_pat.match(line)
+                data_match = data_pat.match(line)
+
+                if expiry_match:
+                    expiry_ntp = int(expiry_match.group(1))
+                    self.__mjd_expiry = self.ntp_to_mjd(expiry_ntp)
+                elif data_match:
+                    ntp_stamp = int(data_match.group(1))
+                    tai_offset = int(data_match.group(2))
+
+                    mjd_stamp = self.ntp_to_mjd(ntp_stamp)
+                    nist_data.append((mjd_stamp, tai_offset))
                 else:
-                    expiry_match = expiry_pat.match(line)
-                    data_match = data_pat.match(line)
+                    raise Exception("Bad line '%s' in nist data file '%s'" %
+                                    (line.rstrip(), self.__filename))
 
-                    if expiry_match:
-                        expiry_ntp = int(expiry_match.group(1))
-                        self.__mjd_expiry = self.ntp_to_mjd(expiry_ntp)
-                    elif data_match:
-                        ntp_stamp = int(data_match.group(1))
-                        tai_offset = int(data_match.group(2))
-
-                        mjd_stamp = self.ntp_to_mjd(ntp_stamp)
-                        nist_data.append((mjd_stamp, tai_offset))
-                    else:
-                        raise Exception("bad nist data file '%s'" % fname)
+        if self.__mjd_expiry is None:
+            raise Exception("No expiry found in NIST data file '%s'" %
+                            self.__filename)
 
         nist_data.sort(key=lambda pt: pt[0])
 
