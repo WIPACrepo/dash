@@ -27,7 +27,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 # get the subversion id tag
-SVN_ID = "$Id: DAQLog.py 14426 2013-04-17 15:50:20Z dglo $"
+SVN_ID = "$Id: DAQLog.py 14535 2013-06-04 18:02:27Z dglo $"
 
 class LogException(Exception):
     pass
@@ -450,12 +450,12 @@ if __name__ == "__main__":
         filename = logfile
 
     print "Write log messages arriving on port %d to %s." % (port, filename)
-    
-    # if someone specifies a live ip and port connect to it and 
+
+    # if someone specifies a live ip and port connect to it and
     # send a few test messages
-    
+
     if opt.liveLog:
-    
+
         try:
             liveIP, livePort = opt.liveLog.split(':')
             livePort = int(livePort)
@@ -468,14 +468,14 @@ if __name__ == "__main__":
         logServer = LogSocketServer(port, "all-components", logfile)
         try:
             logServer.startServing()
-            
+
             log.openLog("localhost", port, liveIP, livePort)
             for idx in xrange(100):
                 msg = "Logging test message (%s) %d" % (opt.logmsg, idx)
                 log.debug(msg)
                 sleep_time = random.uniform(0, 0.5)
                 pytime.sleep(sleep_time)
-                
+
         finally:
             logServer.stopServing()
     else:

@@ -1,5 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <domConfigList>
+<!--
 <domConfig mbid='86355672dcee' name='Ziti'>
 <hardwareMonitorInterval> 1 </hardwareMonitorInterval>
 <pedestalSubtract> true </pedestalSubtract>
@@ -4997,6 +4998,7 @@
 </supernovaMode>
 <scalerDeadtime>  51200 </scalerDeadtime>
 </domConfig>
+-->
 
 <domConfig mbid='3681e9662126' name='Dead_Stop'>
 <hardwareMonitorInterval> 1 </hardwareMonitorInterval>

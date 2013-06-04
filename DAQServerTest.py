@@ -281,11 +281,10 @@ class TestDAQServer(unittest.TestCase):
         logPort = 11853
         logger = self.__createLog('file', logPort)
 
-        livePort = 35811
-        liver = self.__createLog('live', livePort, False)
+        liveHost = ''
+        livePort = 0
 
-        dc = MockServer(logPort=logPort, livePort=livePort,
-                        logFactory=self.__logFactory)
+        dc = MockServer(logPort=logPort, logFactory=self.__logFactory)
 
         self.assertEqual(dc.rpc_component_list_dicts(), [])
 
@@ -303,14 +302,13 @@ class TestDAQServer(unittest.TestCase):
             fullName = "%s#%d" % (name, num)
 
         logger.addExpectedText('Registered %s' % fullName)
-        liver.addExpectedText('Registered %s' % fullName)
 
         rtnArray = dc.rpc_component_register(name, num, host, port, mPort, [])
 
         localAddr = self.__getInternetAddress()
 
         self.__verifyRegArray(rtnArray, expId, localAddr, logPort,
-                              localAddr, livePort)
+                              liveHost, livePort)
 
         self.assertEqual(dc.rpc_component_count(), 1)
 
@@ -324,7 +322,6 @@ class TestDAQServer(unittest.TestCase):
         self.assertEqual(dc.rpc_component_list_dicts(), [fooDict, ])
 
         logger.checkStatus(100)
-        liver.checkStatus(100)
 
     def testRegisterWithLog(self):
         logPort = 23456

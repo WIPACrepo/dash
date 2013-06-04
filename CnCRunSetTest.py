@@ -821,8 +821,10 @@ class CnCRunSetTest(unittest.TestCase):
 
         nameList = []
 
+        domList = []
+
         rcFile = MockRunConfigFile(self.__runConfigDir)
-        runConfig = rcFile.create(nameList, [])
+        runConfig = rcFile.create(nameList, domList)
         runNum = 123
 
         logger = MockLogger("main")

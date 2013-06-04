@@ -11,7 +11,7 @@ from WatchdogTask import WatchdogTask
 from DAQMocks import MockIntervalTimer, MockLiveMoni, MockLogger, MockRunSet
 
 
-class MockComponent(object):
+class MockTMComponent(object):
     BEANBAG = {
         "stringHub":
             {"stringhub":
@@ -110,6 +110,9 @@ class MockComponent(object):
 
     def getBeanNames(self):
         return self.__beanData.keys()
+
+    def getMoniCounts(self):
+        return {}
 
     def fullName(self):
         if self.__num == 0:
@@ -258,13 +261,13 @@ class TaskManagerTest(unittest.TestCase):
         self.__firstTime = False
 
     def testNotRun(self):
-        compList = [MockComponent("stringHub", 1),
-                    MockComponent("stringHub", 6),
-                    MockComponent("inIceTrigger", 0),
-                    MockComponent("iceTopTrigger", 0),
-                    MockComponent("globalTrigger", 0),
-                    MockComponent("eventBuilder", 0),
-                    MockComponent("secondaryBuilders", 0)]
+        compList = [MockTMComponent("stringHub", 1),
+                    MockTMComponent("stringHub", 6),
+                    MockTMComponent("inIceTrigger", 0),
+                    MockTMComponent("iceTopTrigger", 0),
+                    MockTMComponent("globalTrigger", 0),
+                    MockTMComponent("eventBuilder", 0),
+                    MockTMComponent("secondaryBuilders", 0)]
 
         orderNum = 1
         for c in compList:
@@ -303,12 +306,12 @@ class TaskManagerTest(unittest.TestCase):
         self.failUnless(live.hasAllMoni(), "Monitoring data was not sent")
 
     def testRunOnce(self):
-        compList = [MockComponent("stringHub", 1),
-                    MockComponent("inIceTrigger", 0),
-                    MockComponent("iceTopTrigger", 0),
-                    MockComponent("globalTrigger", 0),
-                    MockComponent("eventBuilder", 0),
-                    MockComponent("secondaryBuilders", 0)]
+        compList = [MockTMComponent("stringHub", 1),
+                    MockTMComponent("inIceTrigger", 0),
+                    MockTMComponent("iceTopTrigger", 0),
+                    MockTMComponent("globalTrigger", 0),
+                    MockTMComponent("eventBuilder", 0),
+                    MockTMComponent("secondaryBuilders", 0)]
 
         orderNum = 1
         for c in compList:
@@ -357,12 +360,12 @@ class TaskManagerTest(unittest.TestCase):
         rst.stop()
 
     def testRunTwice(self):
-        compList = [MockComponent("stringHub", 1),
-                    MockComponent("inIceTrigger", 0),
-                    MockComponent("iceTopTrigger", 0),
-                    MockComponent("globalTrigger", 0),
-                    MockComponent("eventBuilder", 0),
-                    MockComponent("secondaryBuilders", 0)]
+        compList = [MockTMComponent("stringHub", 1),
+                    MockTMComponent("inIceTrigger", 0),
+                    MockTMComponent("iceTopTrigger", 0),
+                    MockTMComponent("globalTrigger", 0),
+                    MockTMComponent("eventBuilder", 0),
+                    MockTMComponent("secondaryBuilders", 0)]
 
         orderNum = 1
         for c in compList:

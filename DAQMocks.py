@@ -465,7 +465,7 @@ class MockAppender(LogChecker):
     def setError(self, msg):
         raise Exception(msg)
 
-    def write(self, m, time=None):
+    def write(self, m, time=None, level=None):
         self._checkMsg(m)
 
 
@@ -1305,7 +1305,8 @@ class SimDOMXML(object):
 
     def printXML(self, fd, indent):
         print >>fd, "%s<domConfig mbid=\"%s\">" % (indent, self.__mbid)
-        print >>fd, "%s</domConfig>"
+        print >>fd, "%s%s<xxx>xxx</xxx>" % (indent, indent)
+        print >>fd, "%s</domConfig>" % indent
 
 
 class MockRunConfigFile(object):
@@ -1342,6 +1343,7 @@ class MockRunConfigFile(object):
 
         with open(os.path.join(cfgDir, fileName), "w") as fd:
             print >>fd, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+            print >>fd, "<activeTriggers/>"
 
     def create(self, compList, domList):
         path = tempfile.mktemp(suffix=".xml", dir=self.__configDir)

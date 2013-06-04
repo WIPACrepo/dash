@@ -14,7 +14,7 @@ from CnCExceptions import CnCServerException, MissingComponentException
 from CnCLogger import CnCLogger
 from CompOp import ComponentOperation, ComponentOperationGroup
 from DAQClient import ComponentName, DAQClient, DAQClientState
-from DAQConfig import DAQConfigParser
+from DAQConfig import DAQConfigException, DAQConfigParser
 from DAQConst import DAQPort
 from DAQLive import DAQLive
 from DAQLog import LogSocketServer
@@ -40,7 +40,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 14426 2013-04-17 15:50:20Z dglo $"
+SVN_ID = "$Id: CnCServer.py 14535 2013-06-04 18:02:27Z dglo $"
 
 
 class DAQPool(object):
@@ -256,7 +256,11 @@ class DAQPool(object):
                    daqDataDir, forceRestart=True, strict=False):
         "Build a runset from the specified run configuration"
         logger.info("Loading run configuration \"%s\"" % runConfigName)
-        runConfig = DAQConfigParser.load(runConfigName, runConfigDir, strict)
+        try:
+            runConfig = DAQConfigParser.load(runConfigName, runConfigDir, strict)
+        except DAQConfigException, ex:
+            raise CnCServerException("Cannot load %s from %s" %
+                                     (runConfigName, runConfigDir), ex)
         logger.info("Loaded run configuration \"%s\"" % runConfigName)
 
         nameList = []
