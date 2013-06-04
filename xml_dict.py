@@ -1,6 +1,6 @@
 """A set of utilities that aims at making accessing xml files a little easier
-xml_dict will transform an xml file into a python dictionary.  See the 
-associated doctests for xml_fmt or dict_xml_tree for examples of how this 
+xml_dict will transform an xml file into a python dictionary.  See the
+associated doctests for xml_fmt or dict_xml_tree for examples of how this
 works.  The two functions contained here are for accessing attributes or
 values of the root element of the python dictionary passed to them."""
 
@@ -49,7 +49,7 @@ class xml_dict:
 
         To see how to parse the an xml file and get the element tree root
         see the __init__ method above
-        
+
         >>> from StringIO import StringIO
         >>> xml = '<runCfg><domConfigList hub="5">spts-something</domConfigList></runCfg>'
         >>> tree = etree.parse(StringIO(xml), etree.XMLParser(remove_blank_text=True))
@@ -57,7 +57,7 @@ class xml_dict:
         {'runCfg': {'__children__': {'domConfigList': [{'__attribs__': {'hub': '5'},
         '__contents__': 'spts-something'}]}}}
         """
-        
+
         ret = {}
         attribs = dict(parent_element.items())
 
@@ -108,11 +108,11 @@ class xml_dict:
     def dict_xml_tree(elem_dict, root=None):
         """xml_fmt takes an XML file and outputs a specially formatted python
         dictionary.  If you pass that dictionary to this method it will return
-        an lxml element tree.  That can be handed off to 'toString()' to 
+        an lxml element tree.  That can be handed off to 'toString()' to
         reproduce a human readable xml file
 
         >>> xml_d = {'runCfg': {'__children__': {'domConfigList': [{'__attribs__': {'hub': '5'}, '__contents__': 'spts-something'}]}}}
-        >>> xml_dict.toString(xml_d, pretty_print=False) 
+        >>> xml_dict.toString(xml_d, pretty_print=False)
         '<?xml version=\\'1.0\\' encoding=\\'ASCII\\'?>\\n<runCfg><domConfigList hub="5">spts-something</domConfigList></runCfg>'
         """
 

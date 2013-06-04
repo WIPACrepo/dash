@@ -39,8 +39,10 @@ class CnCLoggerTest(unittest.TestCase):
             dc = CnCLogger(self.__appender, quiet=True, extraLoud=xl)
 
             # set up default logger
-            dc.openLog(None, None, dfltHost, dfltPort)
+            dc.openLog(dfltHost, dfltPort, None, None)
 
+            dfltObj.addExpectedText("Start of log at LOG=log(%s:%d)" %
+                                    (dfltHost, dfltPort))
             logObj.addExpectedText("Start of log at LOG=log(%s:%d)" %
                                    (logHost, logPort))
 
@@ -54,18 +56,18 @@ class CnCLoggerTest(unittest.TestCase):
             dfltObj.checkStatus(1000)
 
             if xl:
-                dfltObj.addExpectedText("Reset log to LOG=live(%s:%d)" %
+                dfltObj.addExpectedText("Reset log to LOG=log(%s:%d)" %
                                         (dfltHost, dfltPort))
 
             dc.resetLog()
-            self.failIf(dc.logHost() is not None, "logIP was not cleared")
-            self.failIf(dc.logPort() is not None, "logPort was not cleared")
-            self.assertEqual(dc.liveHost(), dfltHost,
-                             "liveHost should be %s, not %s" %
-                             (dfltHost, dc.liveHost()))
-            self.assertEqual(dc.livePort(), dfltPort,
-                             "livePort should be %s, not %s" %
-                             (dfltPort, dc.livePort()))
+            self.failIf(dc.liveHost() is not None, "logIP was not cleared")
+            self.failIf(dc.livePort() is not None, "logPort was not cleared")
+            self.assertEqual(dc.logHost(), dfltHost,
+                             "logHost should be %s, not %s" %
+                             (dfltHost, dc.logHost()))
+            self.assertEqual(dc.logPort(), dfltPort,
+                             "logPort should be %s, not %s" %
+                             (dfltPort, dc.logPort()))
 
             logObj.checkStatus(1000)
             dfltObj.checkStatus(1000)
@@ -76,10 +78,10 @@ class CnCLoggerTest(unittest.TestCase):
 
         dfltObj = self.createLog("dflt", dfltPort)
 
-        liveHost = "localhost"
-        livePort = 6789
+        logHost = "localhost"
+        logPort = 6789
 
-        liveObj = self.createLog("live", livePort)
+        logObj = self.createLog("log", logPort)
 
         for xl in (False, True):
             dc = CnCLogger(self.__appender, quiet=True, extraLoud=xl)
@@ -91,16 +93,19 @@ class CnCLoggerTest(unittest.TestCase):
             dc.openLog(dfltHost, dfltPort, None, None)
 
             dfltObj.checkStatus(1000)
-            liveObj.checkStatus(1000)
+            logObj.checkStatus(1000)
 
-            dc.openLog(None, None, liveHost, livePort)
-            self.assertEqual(dc.logHost(), None)
-            self.assertEqual(dc.logPort(), None)
-            self.assertEqual(dc.liveHost(), liveHost)
-            self.assertEqual(dc.livePort(), livePort)
+            logObj.addExpectedText("Start of log at LOG=log(%s:%d)" %
+                                    (logHost, logPort))
+
+            dc.openLog(logHost, logPort, None, None)
+            self.assertEqual(dc.liveHost(), None)
+            self.assertEqual(dc.livePort(), None)
+            self.assertEqual(dc.logHost(), logHost)
+            self.assertEqual(dc.logPort(), logPort)
 
             dfltObj.checkStatus(1000)
-            liveObj.checkStatus(1000)
+            logObj.checkStatus(1000)
 
             if xl:
                 dfltObj.addExpectedText("Reset log to LOG=log(%s:%d)" %
@@ -116,7 +121,7 @@ class CnCLoggerTest(unittest.TestCase):
             self.failIf(dc.liveHost() is not None, "liveIP was not cleared")
             self.failIf(dc.livePort() is not None, "livePort was not cleared")
 
-            liveObj.checkStatus(1000)
+            logObj.checkStatus(1000)
             dfltObj.checkStatus(1000)
 
     def testOpenResetBoth(self):
@@ -170,10 +175,11 @@ class CnCLoggerTest(unittest.TestCase):
                                         (dfltHost, dfltLog,
                                          dfltHost, dfltLive))
 
-                dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
-                                             " LOG=log(%s:%d) live(%s:%d)" %
-                                             (dfltHost, dfltLog, dfltHost,
-                                              dfltLive))
+                ### live stuff isn't tested after ZeroMQ monitoring changes
+                #dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
+                #                             " LOG=log(%s:%d) live(%s:%d)" %
+                #                             (dfltHost, dfltLog, dfltHost,
+                #                              dfltLive))
 
             dc.resetLog()
             self.assertEqual(dc.logHost(), dfltHost,
@@ -239,10 +245,11 @@ class CnCLoggerTest(unittest.TestCase):
                                          " live(%s:%d)") %
                                         (dfltHost, dfltLog,
                                          dfltHost, dfltLive))
-                dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
-                                             " LOG=log(%s:%d) live(%s:%d)" %
-                                             (dfltHost, dfltLog, dfltHost,
-                                              dfltLive))
+                ### live stuff isn't tested after ZeroMQ monitoring changes
+                #dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
+                #                             " LOG=log(%s:%d) live(%s:%d)" %
+                #                             (dfltHost, dfltLog, dfltHost,
+                #                              dfltLive))
 
             dc.closeLog()
             self.assertEqual(dc.logHost(), dfltHost,
@@ -299,16 +306,17 @@ class CnCLoggerTest(unittest.TestCase):
             dLiveObj.checkStatus(1000)
 
             if xl:
-                liveObj.addExpectedText("End of log")
+                ### live stuff isn't tested after ZeroMQ monitoring changes
+                #liveObj.addExpectedText("End of log")
                 dLogObj.addExpectedText(("Reset log to LOG=log(%s:%d)" +
                                          " live(%s:%d)") %
                                         (dfltHost, dfltLog,
                                          dfltHost, dfltLive))
 
-                dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
-                                             " LOG=log(%s:%d) live(%s:%d)" %
-                                             (dfltHost, dfltLog, dfltHost,
-                                              dfltLive))
+                #dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
+                #                             " LOG=log(%s:%d) live(%s:%d)" %
+                #                             (dfltHost, dfltLog, dfltHost,
+                #                              dfltLive))
 
             dc.closeLog()
             self.assertEqual(dc.logHost(), dfltHost,
@@ -338,11 +346,10 @@ class CnCLoggerTest(unittest.TestCase):
 
         logHost = "localhost"
         logPort = 12345
-        liveHost = "localhost"
-        livePort = 6789
+        liveHost = ""
+        livePort = 0
 
         logObj = self.createLog("file", logPort)
-        liveObj = self.createLog("live", livePort)
 
         for xl in (False, True):
             dc = CnCLogger(self.__appender, quiet=True, extraLoud=xl)
@@ -357,9 +364,8 @@ class CnCLoggerTest(unittest.TestCase):
             dLogObj.checkStatus(1000)
             dLiveObj.checkStatus(1000)
 
-            logObj.addExpectedText(("Start of log at LOG=log(%s:%d)" +
-                                    " live(%s:%d)") %
-                                   (logHost, logPort, liveHost, livePort))
+            logObj.addExpectedText("Start of log at LOG=log(%s:%d)" %
+                                   (logHost, logPort))
 
             dc.openLog(logHost, logPort, liveHost, livePort)
             self.assertEqual(dc.logHost(), logHost)
@@ -369,16 +375,15 @@ class CnCLoggerTest(unittest.TestCase):
 
             if xl:
                 logObj.addExpectedTextRegexp("End of log")
-                liveObj.addExpectedTextRegexp("End of log")
                 dLogObj.addExpectedText(("Reset log to LOG=log(%s:%d)" +
                                          " live(%s:%d)") %
                                         (dfltHost, dfltLog,
                                          dfltHost, dfltLive))
 
-                dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
-                                             " LOG=log(%s:%d) live(%s:%d)" %
-                                             (dfltHost, dfltLog, dfltHost,
-                                              dfltLive))
+                #dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
+                #                             " LOG=log(%s:%d) live(%s:%d)" %
+                #                             (dfltHost, dfltLog, dfltHost,
+                #                              dfltLive))
 
             dc.closeLog()
             self.assertEqual(dc.logHost(), dfltHost,
@@ -395,7 +400,6 @@ class CnCLoggerTest(unittest.TestCase):
                              (dfltLive, dc.livePort()))
 
             logObj.checkStatus(1000)
-            liveObj.checkStatus(1000)
             dLogObj.checkStatus(1000)
             dLiveObj.checkStatus(1000)
 

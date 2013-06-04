@@ -198,8 +198,8 @@ class RunClusterTest(unittest.TestCase):
                     DeployData('sps-ichub77', 'stringHub', 77),
                     DeployData('sps-ichub78', 'stringHub', 78),
                     DeployData('sps-ithub01', 'stringHub', 201),
-                    DeployData('sps-ithub02', 'stringHub', 202),
-                    DeployData('sps-ithub03', 'stringHub', 203),
+                    #DeployData('sps-ithub02', 'stringHub', 202),
+                    #DeployData('sps-ithub03', 'stringHub', 203),
                     DeployData('sps-ithub06', 'stringHub', 206),
                     ]
 

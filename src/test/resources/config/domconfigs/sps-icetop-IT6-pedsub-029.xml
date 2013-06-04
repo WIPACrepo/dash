@@ -49,6 +49,7 @@
 <scalerDeadtime>  51200 </scalerDeadtime>
 </domConfig>
 
+<!--
 <domConfig mbid='c80b79e1a8b7' name='Uni'>
 <hardwareMonitorInterval> 1 </hardwareMonitorInterval>
 <pedestalSubtract> true </pedestalSubtract>
@@ -5046,5 +5047,6 @@
 </supernovaMode>
 <scalerDeadtime>  51200 </scalerDeadtime>
 </domConfig>
+-->
 
 </domConfigList>
