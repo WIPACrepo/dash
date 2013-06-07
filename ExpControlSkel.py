@@ -10,7 +10,7 @@ import optparse
 import os
 import re
 import sys
-from BaseRun import FlasherShellScript
+from BaseRun import FlasherScript
 from cncrun import CnCRun
 from datetime import datetime
 from locate_pdaq import find_pdaq_trunk
@@ -21,7 +21,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 14380 2013-04-01 22:08:36Z mnewcomb $"
+SVN_ID = "$Id: ExpControlSkel.py 14552 2013-06-07 21:14:08Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -215,8 +215,7 @@ def main():
     if opt.flasherScript is None:
         flashData = None
     else:
-        with open(opt.flasherScript, "r") as fd:
-            flashData = FlasherShellScript.parse(fd)
+        flashData = FlasherScript.parse(opt.flasherScript)
 
     cnc = CnCRun(showCmd=opt.showCmd, showCmdOutput=opt.showCmdOut)
 

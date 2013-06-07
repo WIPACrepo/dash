@@ -11,7 +11,7 @@ import traceback
 
 import DeployPDAQ
 
-from BaseRun import FlasherShellScript, LaunchException
+from BaseRun import FlasherScript, LaunchException
 from ClusterDescription import ClusterDescription
 from DAQConfig import DAQConfigException, DAQConfigParser
 from cncrun import CnCRun
@@ -34,6 +34,12 @@ class PDAQRunException(Exception):
 class PDAQRun(object):
     "Description of a pDAQ run"
 
+    # location of unit test resources directory
+    #
+    TSTRSRC = None
+
+    # maximum number of timeouts
+    #
     MAX_TIMEOUTS = 6
 
     def __init__(self, runCfgName, duration, numRuns=1, flashData=None):
@@ -49,7 +55,14 @@ class PDAQRun(object):
                 if pair[0] is None:
                     path = None
                 else:
-                    path = FlasherShellScript.findDataFile(pair[0])
+                    if self.TSTRSRC is None:
+                        metadir = find_pdaq_trunk()
+                        self.TSTRSRC = os.path.join(metadir, "src", "test",
+                                                   "resources")
+
+                    path = FlasherScript.findDataFile(pair[0],
+                                                      basedir=self.TSTRSRC)
+
                 self.__flashData.append((path, pair[1]))
 
     def clusterConfig(self):
