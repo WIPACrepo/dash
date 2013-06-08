@@ -16,6 +16,7 @@ from ClusterDescription import ClusterDescription
 from DAQConfig import DAQConfigException, DAQConfigParser
 from cncrun import CnCRun
 from liverun import LiveRun, LiveTimeoutException
+from locate_pdaq import find_pdaq_trunk
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
