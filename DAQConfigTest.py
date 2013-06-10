@@ -8,9 +8,19 @@ from DAQConfig import DAQConfigParser
 
 class CommonCode(unittest.TestCase):
     TSTRSRC = None
+    OLDFMT = None
+    NEWFMT = None
 
     @classmethod
-    def getConfigDir(cls, newFormat):
+    def __checkSubdir(self, topdir, subname):
+        subdir = os.path.join(topdir, subname)
+        if not os.path.exists(subdir):
+            cls.fail('No "%s" subdirectory for "%s"' % (subdir, topdir))
+
+        return subdir
+
+    @classmethod
+    def getConfigDir(cls, newFormat=None):
         if cls.TSTRSRC is None:
             curDir = os.getcwd()
             tstRsrc = os.path.join(curDir, 'src', 'test',
@@ -20,14 +30,21 @@ class CommonCode(unittest.TestCase):
             os.environ["PDAQ_HOME"] = tstRsrc
             cls.TSTRSRC = tstRsrc
 
+        # if 'newFormat' is None, return the base config directory
+        if newFormat is None:
+            return cls.TSTRSRC
+
+        # look for the appropriate subdirectory
         if newFormat:
-            subdir = os.path.join(cls.TSTRSRC, 'new_format')
+            if cls.NEWFMT is None:
+                cls.NEWFMT = cls.__checkSubdir(cls.TSTRSRC, 'new_format')
+            subdir = cls.NEWFMT
         else:
-            subdir = os.path.join(cls.TSTRSRC, 'old_format')
+            if cls.OLDFMT is None:
+                cls.OLDFMT = cls.__checkSubdir(cls.TSTRSRC, 'old_format')
+            subdir = cls.OLDFMT
 
-        if not os.path.exists(subdir):
-            cls.fail('No "%s" test config directory' % subdir)
-
+        # return the subdirectory
         return subdir
 
     def lookup(self, cfg, dataList):
@@ -251,7 +268,7 @@ class DAQNewConfigTest(CommonCode):
         self.runReplayTest(True)
 
 
-class DAQConfigTest(CommonCode):
+class DAQOldConfigTest(CommonCode):
     def testNames(self):
         self.runNamesTest(False)
 
@@ -272,6 +289,24 @@ class DAQConfigTest(CommonCode):
 
     def testReplay(self):
         self.runReplayTest(False)
+
+class DAQConfigTest(CommonCode):
+    def testCheckPeriod(self):
+        cfgDir = self.getConfigDir()
+
+        cfg = DAQConfigParser.load("sps-IC40-hitspool", cfgDir)
+
+        expVal = 10
+        self.assertEqual(expVal, cfg.monitorPeriod(),
+                         "Expected monitor period for %s to be %d, not %s" %
+                         (cfg.basename(), expVal, cfg.monitorPeriod()))
+
+        expVal = 25
+        self.assertEqual(expVal, cfg.watchdogPeriod(),
+                         "Expected watchdog period for %s to be %d, not %s" %
+                         (cfg.basename(), expVal, cfg.watchdogPeriod()))
+
+
 
 if __name__ == '__main__':
     unittest.main()

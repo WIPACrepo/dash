@@ -399,12 +399,13 @@ class DAQConfig(ConfigObject):
     def __getPeriod(self, name):
         """Extract a period specification from the configuration"""
         for key, value in self.other_objs:
-            if key == name:
-                try:
-                    period = int(get_attrib(value, 'period'))
-                    return period
-                except (AttributeError, ValueError):
-                    pass
+            if key == name and type(value) == list:
+                for v in value:
+                    try:
+                        period = int(get_attrib(v, 'period'))
+                        return period
+                    except (AttributeError, ValueError):
+                        pass
         return None
 
     def monitorPeriod(self):
