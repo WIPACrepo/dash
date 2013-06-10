@@ -56,7 +56,12 @@ class CommonCode(unittest.TestCase):
     def runNamesTest(self, newFormat):
         cfgDir = self.getConfigDir(newFormat=newFormat)
 
-        for n in ("simpleConfig", "sps-IC40-IT6-AM-Revert-IceTop-V029"):
+        simpledata = ("simpleConfig", 5, "IniceGlobalTest")
+        sps40data = ("sps-IC40-IT6-AM-Revert-IceTop-V029", 41,
+                     "sps-icecube-amanda-008")
+        for data in (simpledata, sps40data):
+            n = data[0]
+
             cfg = DAQConfigParser.load(n, cfgDir)
             self.assertEqual(n, cfg.basename(),
                              "Expected %s, not %s" % (n, cfg.basename()))
@@ -64,6 +69,16 @@ class CommonCode(unittest.TestCase):
             self.assertEqual(fullname, cfg.configFile(),
                              "Expected %s, not %s" %
                              (fullname, cfg.configFile()))
+
+            domnames = cfg.getDomConfigs()
+            self.assertEquals(data[1], len(domnames),
+                              "Expected %s dom names in %s, not %s" %
+                              (data[1], n, len(domnames)))
+
+            trigcfg = cfg.getTriggerConfig()
+            self.assertEquals(data[2], trigcfg.basename(),
+                              "Expected trigger config %s in %s, not %s" %
+                              (data[2], n, trigcfg.basename()))
 
     def runListsSim5Test(self, newFormat):
         cfgDir = self.getConfigDir(newFormat=newFormat)
@@ -239,7 +254,6 @@ class DAQNewConfigTest(CommonCode):
 class DAQConfigTest(CommonCode):
     def testNames(self):
         self.runNamesTest(False)
-
 
     def testListsSim5(self):
         self.runListsSim5Test(False)

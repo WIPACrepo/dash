@@ -77,12 +77,13 @@ class ConfigDirChecker(object):
                 cfg = DAQConfigParser.load(f, self.__cfgdir, False)
 
                 # check that all dom config files have been added
-                for dc in cfg.getDomConfigNames():
-                    full = os.path.join("domconfigs", dc)
+                for dc in cfg.getDomConfigs():
+                    full = os.path.join("domconfigs", dc.filename)
                     self.__checkSVNStatus(full, svnmap)
 
                 # check that trigger config file has been added
-                full = os.path.join("trigger", cfg.getTriggerConfigName())
+                full = os.path.join("trigger",
+                                    cfg.getTriggerConfig().filename)
                 self.__checkSVNStatus(full, svnmap)
 
         # add remaining uncommitted files to the list of unknown files
