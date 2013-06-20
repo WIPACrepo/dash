@@ -35,9 +35,6 @@ class DAQDateTime(object):
     # if False, calculate to microsecond precision
     HIGH_PRECISION = True
 
-    # ignore exceptions from leapseconds.get_tai_offset()
-    IGNORE_EXC = True
-
     def __init__(self, year, month, day, hour, minute, second, daqticks,
                  tzinfo=None, high_precision=HIGH_PRECISION):
 
@@ -93,8 +90,8 @@ class DAQDateTime(object):
         # subtract two date time objects
 
         diff_mjd = self.mjd_day - other.mjd_day
-        diff_tai = self.leap.get_tai_offset(self.mjd_day, self.IGNORE_EXC) - \
-            self.leap.get_tai_offset(other.mjd_day, self.IGNORE_EXC)
+        diff_tai = self.leap.get_tai_offset(self.mjd_day) - \
+            self.leap.get_tai_offset(other.mjd_day)
 
         diff_seconds = diff_mjd * 3600. * 24. + diff_tai
 
@@ -219,8 +216,7 @@ class PayloadTime(object):
                                             -1))
             PayloadTime.YEAR = now.tm_year
             PayloadTime.has_leapsecond = \
-                leapseconds.getInstance().get_leap_offset(july1_tuple,
-                                                          True) > 0
+                leapseconds.getInstance().get_leap_offset(july1_tuple) > 0
             if not PayloadTime.has_leapsecond:
                 # no mid-year leap second, so don't need to calculate
                 # seconds until June 30
