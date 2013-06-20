@@ -71,7 +71,7 @@ class leapseconds:
         mjd_now_v = self.mjd_now()
 
         mjd_diff = expiry_mjd - mjd_now_v 
-        print "Mjd_diff: ", mjd_diff
+
         if mjd_diff <= leapseconds.DAYS_TO_EXPIRY:
             if livemoni_client is not None:
                 # format up an alert message
