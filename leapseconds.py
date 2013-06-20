@@ -12,15 +12,17 @@ import calendar
 import os
 import re
 import time
+import sys
 
 from locate_pdaq import find_pdaq_config
-
+from LiveImports import Prio
 
 class leapseconds:
     """every calculation that might be of use when it comes to leapseconds"""
 
     LATEST = None
     instance = None
+    DAYS_TO_EXPIRY = 14
 
     class leapsecondsHelper:
         def __call__(self, *args, **kw):
@@ -41,6 +43,49 @@ class leapseconds:
         self.__nist_tai = None
         self.__nist_mjd = None
         self.__parse_nist()
+
+    def expiry_check(self, livemoni_client,
+                     limit = None):
+        """
+        Check to see if the nist config file has expired
+        Test assumes that the file is not expired
+
+        >>> p = find_pdaq_config()
+        >>> p = os.path.join(p, "nist", "leapseconds-latest")
+        >>> a = leapseconds(p)
+        >>> m_now = a.mjd_now()
+        >>> m_expiry = a.get_mjd_expiry()
+        >>> diff = m_expiry-m_now
+        >>> live = MockLiveMoni()
+        >>> val = {"condition": "nist leapsecond file approaching expiration",
+        ...        "desc": "run dash/leapsecond-fetch.py and deploy pdaq",
+        ...        "vars": {"days_till_expiration": diff}}
+        >>> live.addExpected("alert", val, Prio.ITS)
+        >>> a.expiry_check(live, limit = diff)
+        """
+
+        if limit is None:
+            limit = leapseconds.DAYS_TO_EXPIRY
+
+        expiry_mjd = self.get_mjd_expiry()
+        mjd_now_v = self.mjd_now()
+
+        mjd_diff = expiry_mjd - mjd_now_v 
+        print "Mjd_diff: ", mjd_diff
+        if mjd_diff <= leapseconds.DAYS_TO_EXPIRY:
+            if livemoni_client is not None:
+                # format up an alert message
+                value = {"condition": "nist leapsecond file approaching expiration",
+                         "desc": "run dash/leapsecond-fetch.py and deploy pdaq",
+                         "vars": {"days_till_expiration": mjd_diff}
+                         }
+                livemoni_client.sendMoni("alert",
+                                         value,
+                                         Prio.ITS)
+            else:
+                print >> sys.stderr, ("Nist leapsecond file has "
+                                      "%d days till expiration") % mjd_diff
+
 
     @classmethod
     def get_latest_path(cls):
@@ -125,12 +170,13 @@ class leapseconds:
         mjd2 = self.mjd(year + 1, 1, 1)
 
         # year cannot be less than 1972
-        # mjd2 cannot be > expiry
         if year < 1972:
             raise ValueError("argument year must be >=1972 was %d" % year)
-        if mjd2 > self.__mjd_expiry:
-            raise ValueError(("calculation may not span the"
-                              "validity of the nist file"))
+        # Note: issue 6247 we should assume that no leap seconds will
+        # occur past the expiry date of the nist file
+        #if mjd2 > self.__mjd_expiry:
+        #    raise ValueError(("calculation may not span the"
+        #                      "validity of the nist file"))
 
         return long((mjd2 - mjd1) * 3600 * 24 + \
                         (self.get_tai_offset(mjd2) - \
@@ -265,7 +311,7 @@ class leapseconds:
             return True
         return False
 
-    def get_tai_offset(self, mjd, ignore_exception=False):
+    def get_tai_offset(self, mjd):
         """Calulate the offset from TAI for the given mjd
         This will be used to calculate the elapsed leapseconds
         since the beginning of the year.
@@ -280,8 +326,10 @@ class leapseconds:
 
         # search the __nist_data list to find where
         # mjd 'mjd' lands and get the tai offset at that point
-        if not ignore_exception and mjd > self.__mjd_expiry:
-            raise Exception("mjd data file %s expired" % self.__filename)
+        # note: Issue 6247 assume that no leap seconds will happen
+        # past the expiration of the nist config file
+        #if not ignore_exception and mjd > self.__mjd_expiry:
+        #    raise Exception("mjd data file %s expired" % self.__filename)
 
         position = bisect.bisect_right(self.__nist_mjd, mjd)
         if position:
@@ -289,7 +337,7 @@ class leapseconds:
 
         raise Exception("tai error")
 
-    def get_leap_offset(self, time_obj, ignore_exception=False):
+    def get_leap_offset(self, time_obj):
         """ Take the given timestruct and get the number of
         leapseconds since the beginning of the year
 
@@ -312,8 +360,8 @@ class leapseconds:
                            time_obj.tm_mon,
                            time_obj.tm_mday)
 
-        jan1_tai = self.get_tai_offset(mjd_jan1, ignore_exception)
-        obj_tai = self.get_tai_offset(mjd_obj, ignore_exception)
+        jan1_tai = self.get_tai_offset(mjd_jan1)
+        obj_tai = self.get_tai_offset(mjd_obj)
 
         leap_offset = obj_tai - jan1_tai
 
@@ -364,6 +412,7 @@ class leapseconds:
 
 if __name__ == "__main__":
     import doctest
+    from DAQMocks import MockLiveMoni
     doctest.testmod()
 
     print "mjd now: ", leapseconds.mjd_now()

@@ -25,6 +25,7 @@ from TaskManager import TaskManager
 from UniqueID import UniqueID
 from utils import ip
 from utils.DashXMLLog import DashXMLLog, DashXMLLogException
+from leapseconds import leapseconds
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -783,8 +784,18 @@ class RunData(object):
         return duration
 
     def finishSetup(self, runSet, startTime):
-        # tell I3Live that we're starting a run
-        #
+        """Called after starting a run reguardless of 
+        a switchrun or a normal run start
+
+        tells I3Live that we're starting a run
+        """
+
+        # sends an alert off to live if the nist leapsecond
+        # file is about to expire
+        # will send a message to stderr if the liveMoniClient 
+        # is None
+        leapseconds.getInstance().expiry_check(self.__liveMoniClient)
+
         if self.__liveMoniClient is not None:
             self.reportRunStartClass(self.__liveMoniClient, self.__runNumber,
                                      self.__versionInfo["release"],
