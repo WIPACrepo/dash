@@ -13,6 +13,9 @@ import os
 import re
 import time
 import sys
+import os.path
+import tempfile
+import datetime
 
 from locate_pdaq import find_pdaq_config
 from LiveImports import Prio
@@ -44,8 +47,53 @@ class leapseconds:
         self.__nist_mjd = None
         self.__parse_nist()
 
+    @classmethod
+    def is_rate_limited(cls, filename=".leapsecond_alertstamp"):
+        """
+        Check a named file in the users home directory looking for a timestamp 
+        indicating the last time when NOT rated limited.  Returns True if not
+        rate limited and false otherwise.
+
+        The first part of the unit tests below gets a temp file name in ~.
+
+        >>> home = os.path.expanduser("~")
+        >>> tmp_fd = tempfile.NamedTemporaryFile(dir=home, delete=False)
+        >>> tmp_name = tmp_fd.name
+        >>> tmp_fd.close()
+        >>> os.unlink(tmp_name)
+        >>> leapseconds.is_rate_limited(filename=tmp_fd.name)
+        False
+        >>> leapseconds.is_rate_limited(filename=tmp_fd.name)
+        True
+        """
+        # get the users home directory
+        home = os.path.expanduser("~")
+        alert_timestamp_fname = os.path.join(home, filename)
+
+        # check to see if the limit file exists
+        try:
+            with open(alert_timestamp_fname, 'r') as fd:
+                tstamp = int(fd.read())
+            diff = time.time() - tstamp
+            max_dt = datetime.timedelta(days=1).total_seconds()
+            if diff < max_dt:
+                return True
+        except IOError:
+            # could not open the alert timestamp file for reading
+            pass
+        except ValueError:
+            # contents of the alert timestamp file is not an int
+            pass
+
+        with open(alert_timestamp_fname, 'w') as fd:
+            fd.write("%d" % time.time())
+
+        return False
+
+
     def expiry_check(self, livemoni_client,
-                     limit = None):
+                     limit = None,
+                     alert_limit = True):
         """
         Check to see if the nist config file has expired
         Test assumes that the file is not expired
@@ -61,7 +109,7 @@ class leapseconds:
         ...        "desc": "run dash/leapsecond-fetch.py and deploy pdaq",
         ...        "vars": {"days_till_expiration": diff}}
         >>> live.addExpected("alert", val, Prio.ITS)
-        >>> a.expiry_check(live, limit = diff)
+        >>> a.expiry_check(live, limit = diff, alert_limit=False)
         """
 
         if limit is None:
@@ -73,6 +121,9 @@ class leapseconds:
         mjd_diff = expiry_mjd - mjd_now_v 
 
         if mjd_diff <= leapseconds.DAYS_TO_EXPIRY:
+            if not alert_limit and not leapseconds.is_rate_limited():
+                return
+
             if livemoni_client is not None:
                 # format up an alert message
                 value = {"condition": "nist leapsecond file approaching expiration",
