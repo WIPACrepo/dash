@@ -279,7 +279,13 @@ if __name__ == "__main__":
         try:
             try:
                 val = long(arg)
-                dt = PayloadTime.toDateTime(val, True)
+                dt = PayloadTime.toDateTime(val, year=opt.year,
+                                            high_precision=True)
+            except IOError, ioe:
+                print "Cannot convert %s" % str(val)
+                import traceback
+                traceback.print_exc()
+                continue
             except:
                 dt = PayloadTime.fromString(arg, True)
             print "%s -> %s" % (arg, dt)
