@@ -254,6 +254,7 @@ class ClusterDescription(ConfigXMLBase):
     PDAQ2 = "pdaq2"
     SPS = "sps"
     SPTS = "spts"
+    SPTSN = "sptsn"
     SPTS64 = "spts64"
     MDFL = "mdfl"
 
@@ -624,6 +625,8 @@ class ClusterDescription(ConfigXMLBase):
                 if len(hlist) > 4 and \
                        (hlist[1] == cls.SPTS64 or hlist[1] == cls.SPTS):
                     return hlist[1]
+                if len(hlist) > 4 and hlist[1] == cls.SPTSN:
+                    return cls.SPTS
                 if hostname.startswith("mdfl"):
                     return cls.MDFL
 
