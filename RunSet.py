@@ -784,7 +784,7 @@ class RunData(object):
         return duration
 
     def finishSetup(self, runSet, startTime):
-        """Called after starting a run reguardless of 
+        """Called after starting a run regardless of 
         a switchrun or a normal run start
 
         tells I3Live that we're starting a run
