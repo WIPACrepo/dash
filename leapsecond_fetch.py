@@ -82,6 +82,7 @@ def fetch_latestleap(host='tycho.usno.navy.mil', path='/pub/ntp',
 
     if len(times_list)==0:
         print "Did not find any leap second files @ ftp://%s%s" % (host, path)
+        ftp.close()
         return
 
     latest_time = max(times_list)
