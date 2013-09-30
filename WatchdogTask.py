@@ -409,9 +409,10 @@ class WatchdogThread(CnCThread):
                     self.__dashlog)
             except:
                 self.__initFail += 1
-                self.__dashlog.error("Initialization failure #%d for %s %s" %
+                self.__dashlog.error(("Initialization failure #%d" +
+                                      " for %s %s: %s") %
                                      (self.__initFail, self.__comp.fullName(),
-                                      self.__rule))
+                                      self.__rule, exc_string()))
                 return
 
         self.__data.check(self.__starved, self.__stagnant, self.__threshold)
@@ -587,6 +588,8 @@ class EventBuilderRule(WatchdogRule):
         if comp is not None:
             data.addInputValue(comp, "backEnd", "NumTriggerRequestsReceived")
         data.addOutputValue(self.DISPATCH_COMP, "backEnd", "NumEventsSent")
+        data.addOutputValue(self.DISPATCH_COMP,
+                            "backEnd", "NumEventsDispatched")
         data.addThresholdValue("backEnd", "DiskAvailable", 1024)
         data.addThresholdValue("backEnd", "NumBadEvents", 0, False)
 
