@@ -565,7 +565,7 @@ class RunData(object):
 
     def __getRateData(self, comps):
         nEvts = 0
-        evtTime = -1
+        wallTime = -1
         lastPayTime = -1
         nMoni = 0
         moniTime = -1
@@ -582,7 +582,7 @@ class RunData(object):
                                          evtData)
                 elif type(evtData) == list or type(evtData) == tuple:
                     nEvts = int(evtData[0])
-                    evtTime = datetime.datetime.utcnow()
+                    wallTime = datetime.datetime.utcnow()
                     lastPayTime = long(evtData[1])
 
                 if nEvts > 0 and self.__firstPayTime <= 0:
@@ -617,7 +617,7 @@ class RunData(object):
                             nTCal = num
                             tcalTime = time
 
-        return (nEvts, evtTime, self.__firstPayTime, lastPayTime, nMoni,
+        return (nEvts, wallTime, self.__firstPayTime, lastPayTime, nMoni,
                 moniTime, nSN, snTime, nTCal, tcalTime)
 
     def __reportEventStart(self):
@@ -784,7 +784,7 @@ class RunData(object):
         return duration
 
     def finishSetup(self, runSet, startTime):
-        """Called after starting a run regardless of 
+        """Called after starting a run regardless of
         a switchrun or a normal run start
 
         tells I3Live that we're starting a run
@@ -792,7 +792,7 @@ class RunData(object):
 
         # sends an alert off to live if the nist leapsecond
         # file is about to expire
-        # will send a message to stderr if the liveMoniClient 
+        # will send a message to stderr if the liveMoniClient
         # is None
         leapseconds.getInstance().expiry_check(self.__liveMoniClient)
 
@@ -818,15 +818,15 @@ class RunData(object):
 
         if updateCounts:
             self.__runStats.updateEventCounts(self.__getRateData(comps), True)
-        (numEvts, evtTime, payTime, numMoni, moniTime, numSN, snTime,
+        (numEvts, wallTime, payTime, numMoni, moniTime, numSN, snTime,
          numTcal, tcalTime) = self.__runStats.monitorData()
 
         monDict["physicsEvents"] = numEvts
-        if evtTime is None or numEvts == 0:
-            monDict["eventTime"] = None
+        if wallTime is None or numEvts == 0:
+            monDict["wallTime"] = None
             monDict["eventPayloadTicks"] = None
         else:
-            monDict["eventTime"] = str(evtTime)
+            monDict["wallTime"] = str(wallTime)
             monDict["eventPayloadTicks"] = payTime
         monDict["moniEvents"] = numMoni
         if moniTime is None or numMoni == 0:
@@ -990,9 +990,9 @@ class RunData(object):
                 monitime = PayloadTime.toDateTime(payTime)
                 self.__sendMoni("physicsEvents", moniData["physicsEvents"],
                                 prio=Prio.ITS, time=monitime)
-            if moniData["eventTime"] is not None:
+            if moniData["wallTime"] is not None:
                 self.__sendMoni("walltimeEvents", moniData["physicsEvents"],
-                                prio=Prio.EMAIL, time=moniData["eventTime"])
+                                prio=Prio.EMAIL, time=moniData["wallTime"])
             if moniData["moniTime"] is not None:
                 self.__sendMoni("moniEvents", moniData["moniEvents"],
                                 prio=Prio.EMAIL, time=moniData["moniTime"])
@@ -1017,7 +1017,7 @@ class RunData(object):
 
         rate = self.__runStats.rate()
 
-        (evtTime, numEvts, numMoni, numSN, numTcal) = \
+        (wallTime, numEvts, numMoni, numSN, numTcal) = \
                   self.__runStats.currentData()
 
         return (numEvts, rate, numMoni, numSN, numTcal)
