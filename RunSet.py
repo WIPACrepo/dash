@@ -471,6 +471,7 @@ class RunData(object):
         testing - True if this is called from a unit test
         """
         self.__runNumber = runNumber
+        self.__subrunNumber = 0
         self.__clusterConfig = clusterConfig
         self.__runConfig = runConfig
         self.__runOptions = runOptions
@@ -1007,9 +1008,15 @@ class RunData(object):
         if self.__taskMgr is not None:
             self.__taskMgr.setDebugBits(debugBits)
 
+    def setSubrunNumber(self, num):
+        self.__subrunNumber = num
+
     def stop(self):
         if self.__taskMgr is not None:
             self.__taskMgr.stop()
+
+    def subrunNumber(self):
+        return self.__subrunNumber
 
     def updateRates(self, comps):
         rateData = self.__getRateData(comps)
@@ -2224,6 +2231,8 @@ class RunSet(object):
             if c.isBuilder():
                 c.prepareSubrun(id)
 
+        self.__runData.setSubrunNumber(-id)
+
         hubs = []
         tGroup = ComponentOperationGroup(ComponentOperation.START_SUBRUN)
         for c in self.__set:
@@ -2256,6 +2265,8 @@ class RunSet(object):
         for c in self.__set:
             if c.isBuilder():
                 c.commitSubrun(id, latestTime)
+
+        self.__runData.setSubrunNumber(id)
 
     def subrunEvents(self, subrunNumber):
         "Get the number of events in the specified subrun"
