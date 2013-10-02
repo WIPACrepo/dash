@@ -511,6 +511,7 @@ class RunData(object):
         self.__liveMoniClient = None
 
         self.__runStats = RunStats()
+        self.__sendCount = 0
 
         self.__firstPayTime = -1
 
@@ -604,6 +605,8 @@ class RunData(object):
                         msg = "Cannot get %sBuilder dispatched data (%s)" % \
                             (bldr, val)
                         self.__dashlog.error(msg)
+                        num = 0
+                        time = None
                     else:
                         num = int(val)
                         time = datetime.datetime.utcnow()
@@ -658,6 +661,28 @@ class RunData(object):
         except:
             self.__dashlog.error("Failed to send %s=%s: %s" %
                                  (name, value, exc_string()))
+
+    def __sendOldCounts(self, moniData):
+        """
+        send unamalgamated messages until I3Live converts to new format
+        """
+        if moniData["eventPayloadTicks"] is not None:
+            payTime = moniData["eventPayloadTicks"]
+            monitime = PayloadTime.toDateTime(payTime)
+            self.__sendMoni("physicsEvents", moniData["physicsEvents"],
+                            prio=Prio.ITS, time=monitime)
+        if moniData["wallTime"] is not None:
+            self.__sendMoni("walltimeEvents", moniData["physicsEvents"],
+                            prio=Prio.EMAIL, time=moniData["wallTime"])
+        if moniData["moniTime"] is not None:
+            self.__sendMoni("moniEvents", moniData["moniEvents"],
+                            prio=Prio.EMAIL, time=moniData["moniTime"])
+        if moniData["snTime"] is not None:
+            self.__sendMoni("snEvents", moniData["snEvents"],
+                            prio=Prio.EMAIL, time=moniData["snTime"])
+        if moniData["tcalTime"] is not None:
+            self.__sendMoni("tcalEvents", moniData["tcalEvents"],
+                            prio=Prio.EMAIL, time=moniData["tcalTime"])
 
     def __writeRunXML(self, numEvts, numMoni, numSN, numTcal, firstTime,
                       lastTime, duration, hadError):
@@ -985,24 +1010,42 @@ class RunData(object):
         if self.__liveMoniClient is not None:
             moniData = self.getEventCounts(comps, updateCounts)
 
-            # send discrete messages for each type of event
+            # send every 5th set of data over ITS
+            self.__sendCount += 1
+            if self.__sendCount % 5 == 0:
+                prio = Prio.ITS
+            else:
+                prio = Prio.EMAIL
+
+            value = {
+                "run": self.__runNumber,
+                "subrun": self.__subrunNumber,
+            }
+
+            # if we don't have a DAQ time, use system time but complain
             if moniData["eventPayloadTicks"] is not None:
-                payTime = moniData["eventPayloadTicks"]
-                monitime = PayloadTime.toDateTime(payTime)
-                self.__sendMoni("physicsEvents", moniData["physicsEvents"],
-                                prio=Prio.ITS, time=monitime)
+                time = PayloadTime.toDateTime(moniData["eventPayloadTicks"])
+            else:
+                time = datetime.datetime.utcnow()
+                self.__dashlog.error("Using system time for initial event" +
+                                     " counts (no event times available)")
+
+            # fill in counts and times
+            value["physicsEvents"] = moniData["physicsEvents"]
             if moniData["wallTime"] is not None:
-                self.__sendMoni("walltimeEvents", moniData["physicsEvents"],
-                                prio=Prio.EMAIL, time=moniData["wallTime"])
-            if moniData["moniTime"] is not None:
-                self.__sendMoni("moniEvents", moniData["moniEvents"],
-                                prio=Prio.EMAIL, time=moniData["moniTime"])
-            if moniData["snTime"] is not None:
-                self.__sendMoni("snEvents", moniData["snEvents"],
-                                prio=Prio.EMAIL, time=moniData["snTime"])
-            if moniData["tcalTime"] is not None:
-                self.__sendMoni("tcalEvents", moniData["tcalEvents"],
-                                prio=Prio.EMAIL, time=moniData["tcalTime"])
+                value["wallTime"] = moniData["wallTime"]
+            for src in ("moni", "sn", "tcal"):
+                eventKey = src + "Events"
+                timeKey = src + "Time"
+                if moniData[timeKey] is not None:
+                    value[eventKey] = moniData[eventKey]
+                    value[timeKey] = moniData[timeKey]
+
+            self.__sendMoni("run_update", value,
+                                prio=prio, time=time)
+
+            # send old data until I3Live handles the 'run_update' data
+            self.__sendOldCounts(moniData)
 
     def setDebugBits(self, debugBits):
         if self.__taskMgr is not None:
