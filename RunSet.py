@@ -971,6 +971,7 @@ class RunData(object):
                                      (name, payTime))
             if fulltime is not None:
                 data = {"runnum": self.__runNumber,
+                        "subrun": self.__subrunNumber,
                         "time": str(fulltime)}
 
                 monitime = PayloadTime.toDateTime(payTime)
