@@ -48,6 +48,7 @@ class MockTMComponent(object):
             {"backEnd":
                   {"DiskAvailable": 2560,
                    "NumBadEvents": 0,
+                   "NumEventsDispatched": 0,
                    "NumEventsSent": 0,
                    "NumReadoutsReceived": 0,
                    "NumTriggerRequestsReceived": 0,
@@ -225,6 +226,8 @@ class TaskManagerTest(unittest.TestCase):
         live.addExpected("eventBuilder-0*backEnd+NumReadoutsReceived",
                          0, Prio.ITS)
         live.addExpected("eventBuilder-0*backEnd+NumEventsSent",
+                         0, Prio.ITS)
+        live.addExpected("eventBuilder-0*backEnd+NumEventsDispatched",
                          0, Prio.ITS)
         live.addExpected("eventBuilder-0*backEnd+NumBadEvents",
                          0, Prio.ITS)

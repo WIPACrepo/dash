@@ -388,6 +388,7 @@ class CnCRunSetTest(unittest.TestCase):
                             "EventData": 0,
                             "FirstEventTime": 0,
                             "NumBadEvents": 0,
+                            "NumEventsDispatched": 0,
                             "NumEventsSent": 0,
                             "NumReadoutsReceived": 0,
                             "NumTriggerRequestsReceived": 0,
