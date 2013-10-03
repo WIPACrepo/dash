@@ -1012,11 +1012,11 @@ class RunData(object):
             moniData = self.getEventCounts(comps, updateCounts)
 
             # send every 5th set of data over ITS
-            self.__sendCount += 1
             if self.__sendCount % 5 == 0:
                 prio = Prio.ITS
             else:
                 prio = Prio.EMAIL
+            self.__sendCount += 1
 
             value = {
                 "run": self.__runNumber,
@@ -1042,8 +1042,7 @@ class RunData(object):
                     value[eventKey] = moniData[eventKey]
                     value[timeKey] = moniData[timeKey]
 
-            self.__sendMoni("run_update", value,
-                                prio=prio, time=time)
+            self.__sendMoni("run_update", value, prio=prio, time=time)
 
             # send old data until I3Live handles the 'run_update' data
             self.__sendOldCounts(moniData)
