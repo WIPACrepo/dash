@@ -21,7 +21,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 14552 2013-06-07 21:14:08Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 14663 2013-10-23 22:01:56Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -33,20 +33,6 @@ def updateStatus(oldStatus, newStatus):
     if oldStatus != newStatus:
         print "%s: %s -> %s" % (datetime.now(), oldStatus, newStatus)
     return newStatus
-
-
-def setLastRunNum(runFile, runNum):
-    with open(runFile, 'w') as fd:
-        print >>fd, runNum
-
-
-def getLastRunNum(runFile):
-    try:
-        with open(runFile, 'r') as f:
-            ret = f.readline()
-            return int(ret.rstrip('\r\n'))
-    except:
-        return None
 
 
 # stolen from live/misc/util.py
