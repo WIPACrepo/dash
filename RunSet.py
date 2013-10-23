@@ -626,12 +626,28 @@ class RunData(object):
 
     def __reportEventStart(self):
         if self.__liveMoniClient is not None:
-            fulltime = PayloadTime.toDateTime(self.__firstPayTime,
-                                              high_precision=True)
+            try:
+                fulltime = PayloadTime.toDateTime(self.__firstPayTime,
+                                                  high_precision=True)
+            except TypeError, err:
+                msg = "Cannot report first time %s<%s>, prevTime is %s<%s>" % \
+                            (self.__firstPayTime, type(self.__firstPayTime),
+                             PayloadTime.PREV_TIME, type(PayloadTime.PREV_TIME))
+                self.__dashlog.error(msg)
+                return
+
             data = {"runnum": self.__runNumber,
                     "time" : str(fulltime)}
 
-            monitime = PayloadTime.toDateTime(self.__firstPayTime)
+            try:
+                monitime = PayloadTime.toDateTime(self.__firstPayTime)
+            except TypeError, err:
+                msg = "Cannot set moni time %s<%s>, prevTime is %s<%s>" % \
+                            (self.__firstPayTime, type(self.__firstPayTime),
+                             PayloadTime.PREV_TIME, type(PayloadTime.PREV_TIME))
+                self.__dashlog.error(msg)
+                return
+
             self.__sendMoni("eventstart", data, prio=Prio.SCP, time=monitime)
 
     def __reportRunStop(self, numEvts, firstPayTime, lastPayTime, hadError):
