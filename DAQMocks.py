@@ -1309,6 +1309,85 @@ class SimDOMXML(object):
         print >>fd, "%s</domConfig>" % indent
 
 
+class MockAlgorithm(object):
+    def __init__(self, srcId, name, trigtype, cfgId):
+        self.__srcId = srcId
+        self.__name = name
+        self.__type = trigtype
+        self.__cfgId = cfgId
+        self.__paramDict = {}
+        self.__readouts = []
+
+    def __printElement(self, fd, indent, tag, val):
+        print >>fd, "%s<%s>%s</%s>" % (indent, tag, val, tag)
+
+    def addParameter(self, name, value):
+        self.__paramDict[name] = value
+
+    def addReadout(self, rdoutType, offset, minus, plus):
+        self.__readouts.append((rdoutType, offset, minus, plus))
+
+    def printXML(self, fd, indent):
+        i2 = indent + "    "
+        print >>fd, "%s<triggerConfig>" % indent
+
+        self.__printElement(fd, i2, "triggerType", self.__type)
+        self.__printElement(fd, i2, "triggerConfigId", self.__cfgId)
+        self.__printElement(fd, i2, "sourceId", self.__srcId)
+        self.__printElement(fd, i2, "triggerName", self.__name)
+
+        for k, v in self.__paramDict:
+            print >>fd, "%s<parameterConfig>"
+            print >>fd, "%s    <parameterName>%s<parameterName>" % (i2, k)
+            print >>fd, "%s    <parameterValue>%s<parameterValue>" % (i2, v)
+            print >>fd, "%s</parameterConfig>"
+
+        for r in self.__readouts:
+            tag = ["readoutType", "timeOffset", "timeMinus", "timePlus"]
+
+            print >>fd, "%s<readoutConfig>"
+            for i in xrange(4):
+                print >>fd, "%s    <%s>%d<%s>" % (i2, tag[i], r[i], tag[i])
+            print >>fd, "%s</readoutConfig>"
+
+        print >>fd, "%s</triggerConfig>" % indent
+
+class MockTriggerConfig(object):
+    def __init__(self, name):
+        self.__name = name
+        self.__algorithms = []
+
+    def add(self, srcId, name, trigtype, cfgId):
+        algo = MockAlgorithm(srcId, name, trigtype, cfgId)
+        self.__algorithms.append(algo)
+        return algo
+
+    def create(self, configDir):
+        cfgDir = os.path.join(configDir, "trigger")
+        if not os.path.exists(cfgDir):
+            os.mkdir(cfgDir)
+
+        fileName = self.__name + ".xml"
+
+        with open(os.path.join(cfgDir, fileName), "w") as fd:
+            print >>fd, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+            if len(self.__algorithms) == 0:
+                print >>fd, "<activeTriggers/>"
+            else:
+                print >>fd, "<activeTriggers>"
+                needNL = False
+                for a in self.__algorithms:
+                    if not needNL:
+                        needNL = True
+                    else:
+                        print >>fd
+                    a.printXML(fd, "    ")
+                print >>fd, "</activeTriggers>"
+
+    def name(self):
+        return self.__name
+
+
 class MockRunConfigFile(object):
     def __init__(self, configDir):
         self.__configDir = configDir
@@ -1331,34 +1410,21 @@ class MockRunConfigFile(object):
                     d.printXML(fd, "  ")
             print >>fd, "</domConfigList>"
 
-    def __makeTriggerConfig(self, cfgName):
-        cfgDir = os.path.join(self.__configDir, "trigger")
-        if not os.path.exists(cfgDir):
-            os.mkdir(cfgDir)
-
-        if cfgName.endswith(".xml"):
-            fileName = cfgName
-        else:
-            fileName = cfgName + ".xml"
-
-        with open(os.path.join(cfgDir, fileName), "w") as fd:
-            print >>fd, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-            print >>fd, "<activeTriggers/>"
-
-    def create(self, compList, domList):
+    def create(self, compList, domList, trigCfg=None):
         path = tempfile.mktemp(suffix=".xml", dir=self.__configDir)
+
+        if trigCfg is None:
+            trigCfg =  MockTriggerConfig("empty-trigger")
+        trigCfg.create(self.__configDir)
 
         domCfg = "empty-dom-config"
         self.__makeDomConfig(domCfg, domList)
-
-        trigCfg = "empty-trigger"
-        self.__makeTriggerConfig(trigCfg)
 
         with open(path, 'w') as fd:
             print >>fd, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
             print >>fd, "<runConfig>"
             print >>fd, "    <domConfigList>%s</domConfigList>" % domCfg
-            print >>fd, "    <triggerConfig>%s</triggerConfig>" % trigCfg
+            print >>fd, "    <triggerConfig>%s</triggerConfig>" % trigCfg.name()
             for c in compList:
                 pound = c.rfind("#")
                 if pound > 0:
