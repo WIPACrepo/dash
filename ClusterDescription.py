@@ -35,7 +35,9 @@ class ConfigXMLBase(object):
         else:
             configName = configName[:-len(suffix)]
         if not os.path.exists(fileName):
-            raise XMLFileDoesNotExist('File "%s" does not exist' % fileName)
+            path = os.path.join(configDir, fileName)
+            if not os.path.exists(path):
+                raise XMLFileDoesNotExist('File "%s" does not exist' % fileName)
 
         try:
             dom = minidom.parse(fileName)
@@ -686,32 +688,36 @@ class ClusterDescription(ConfigXMLBase):
         return self.__pkgInstallDir
 
 if __name__ == '__main__':
-    if len(sys.argv) <= 1:
-        print >>sys.stderr, 'Usage: %s configXML [configXML ...]' % sys.argv[0]
-        sys.exit(1)
-
-    configDir = find_pdaq_config()
-
-    for name in sys.argv[1:]:
-        dirName = os.path.dirname(name)
-        if dirName is None:
-            dirName = configDir
-            baseName = name
+    def tryCluster(configDir, path=None):
+        if path is None:
+            cluster = ClusterDescription(configDir)
         else:
-            baseName = os.path.basename(name)
+            dirName = os.path.dirname(path)
+            if dirName is None or len(dirName) == 0:
+                dirName = configDir
+                baseName = path
+            else:
+                baseName = os.path.basename(path)
 
-        try:
-            cluster = ClusterDescription(dirName, baseName)
-        except NotImplementedError:
-            print >> sys.stderr, 'For %s:' % name
-            traceback.print_exc()
-            continue
-        except KeyboardInterrupt:
-            break
-        except:
-            print >> sys.stderr, 'For %s:' % name
-            traceback.print_exc()
-            continue
+            try:
+                cluster = ClusterDescription(dirName, baseName)
+            except KeyboardInterrupt:
+                return
+            except NotImplementedError:
+                print >> sys.stderr, 'For %s:' % name
+                traceback.print_exc()
+                return
+            except:
+                print >> sys.stderr, 'For %s:' % name
+                traceback.print_exc()
+                return
 
         print 'Saw description %s' % cluster.name
         cluster.dump()
+
+    configDir = find_pdaq_config()
+
+    if len(sys.argv) == 1:
+        tryCluster(configDir)
+    for name in sys.argv[1:]:
+        tryCluster(configDir, name)
