@@ -40,6 +40,7 @@ class leapseconds:
             self.__filename = leap_filename
         else:
             self.__filename = self.get_latest_path()
+        self.__mtime = os.stat(self.__filename).st_mtime
         self.__mjd_expiry = None
         self.__nist_data = []
         # not strictly required but quiet code analysis tools
@@ -50,7 +51,7 @@ class leapseconds:
     @classmethod
     def is_rate_limited(cls, filename=".leapsecond_alertstamp"):
         """
-        Check a named file in the users home directory looking for a timestamp 
+        Check a named file in the users home directory looking for a timestamp
         indicating the last time when NOT rated limited.  Returns True if not
         rate limited and false otherwise.
 
@@ -91,6 +92,39 @@ class leapseconds:
         return False
 
 
+    def reload_check(self, livemoni_client, logger):
+        new_mtime = os.stat(self.__filename).st_mtime
+        if new_mtime == self.__mtime:
+            return False
+
+        try:
+            self.__parse_nist()
+        except Exception, ex:
+            msg = "Cannot reload leapsecond file %s: %s" % (self.__filename, ex)
+            if logger is not None:
+                logger.error(msg)
+            else:
+                print >>sys.stderr, msg
+            return False
+
+        self.__mtime = new_mtime
+
+        expiry_mjd = self.get_mjd_expiry()
+        mjd_now_v = self.mjd_now()
+
+        mjd_diff = expiry_mjd - mjd_now_v
+
+        if livemoni_client is not None:
+            value = {"condition": "nist leapsecond file reloaded",
+                     "desc": "Found updated leapsecond file",
+                     "vars": {"days_till_expiration": mjd_diff}
+            }
+            livemoni_client.sendMoni("alert", value, Prio.ITS)
+
+        if logger is not None:
+            logger.info("Reloaded leapsecond file; %d days until expiration" %
+                        mjd_diff)
+
     def expiry_check(self, livemoni_client,
                      limit = None,
                      alert_limit = True):
@@ -118,7 +152,7 @@ class leapseconds:
         expiry_mjd = self.get_mjd_expiry()
         mjd_now_v = self.mjd_now()
 
-        mjd_diff = expiry_mjd - mjd_now_v 
+        mjd_diff = expiry_mjd - mjd_now_v
 
         if mjd_diff <= leapseconds.DAYS_TO_EXPIRY:
             if not alert_limit and not leapseconds.is_rate_limited():
@@ -134,7 +168,7 @@ class leapseconds:
                                          value,
                                          Prio.ITS)
             else:
-                print >> sys.stderr, ("Nist leapsecond file has "
+                print >> sys.stderr, ("Reloaded nist leapsecond file has "
                                       "%d days till expiration") % mjd_diff
 
 
@@ -428,6 +462,7 @@ class leapseconds:
         data_pat = re.compile('([0-9]+)\s+([0-9]+)')
 
         nist_data = []
+        mjd_expiry = None
 
         with open(self.__filename, 'r') as fd:
             for line in fd:
@@ -441,7 +476,7 @@ class leapseconds:
 
                 if expiry_match:
                     expiry_ntp = int(expiry_match.group(1))
-                    self.__mjd_expiry = self.ntp_to_mjd(expiry_ntp)
+                    mjd_expiry = self.ntp_to_mjd(expiry_ntp)
                 elif data_match:
                     ntp_stamp = int(data_match.group(1))
                     tai_offset = int(data_match.group(2))
@@ -452,12 +487,13 @@ class leapseconds:
                     raise Exception("Bad line '%s' in nist data file '%s'" %
                                     (line.rstrip(), self.__filename))
 
-        if self.__mjd_expiry is None:
+        if mjd_expiry is None:
             raise Exception("No expiry found in NIST data file '%s'" %
                             self.__filename)
 
         nist_data.sort(key=lambda pt: pt[0])
 
+        self.__mjd_expiry = mjd_expiry
         self.__nist_mjd, self.__nist_tai = zip(*nist_data)
 
 

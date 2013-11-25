@@ -832,11 +832,7 @@ class RunData(object):
         tells I3Live that we're starting a run
         """
 
-        # sends an alert off to live if the nist leapsecond
-        # file is about to expire
-        # will send a message to stderr if the liveMoniClient
-        # is None
-        leapseconds.getInstance().expiry_check(self.__liveMoniClient)
+        self.leapsecondsChecks()
 
         if self.__liveMoniClient is not None:
             self.reportRunStartClass(self.__liveMoniClient, self.__runNumber,
@@ -961,6 +957,17 @@ class RunData(object):
 
     def isWarnEnabled(self):
         return self.__dashlog.isWarnEnabled()
+
+    def leapsecondsChecks(self):
+        ls = leapseconds.getInstance()
+
+        ls.reload_check(self.__liveMoniClient, self.__dashlog)
+
+        # sends an alert off to live if the nist leapsecond
+        # file is about to expire
+        # will send a message to stderr if the liveMoniClient
+        # is None
+        ls.expiry_check(self.__liveMoniClient)
 
     def queueForSpade(self, duration):
         if self.__logDir is None:
