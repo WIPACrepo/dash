@@ -125,6 +125,8 @@ class leapseconds:
             logger.info("Reloaded leapsecond file; %d days until expiration" %
                         mjd_diff)
 
+        return True
+
     def expiry_check(self, livemoni_client,
                      limit = None,
                      alert_limit = True):
