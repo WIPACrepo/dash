@@ -103,10 +103,11 @@ def parseArgs():
 
 if __name__ == "__main__":
 
-    hostname = ip.getHostNameNoDomain()
-    if(hostname.lower() == "expcont"):
+    hostid = Machineid()
+    if not hostid.is_build_host():
         print >> sys.stderr, "-" * 60
-        print >> sys.stderr, "Warning: Running RemoveHubs.py on expcont"
+        print >> sys.stderr, \
+            "Warning: RemoveHubs.py should be run on the build machine"
         print >> sys.stderr, "-" * 60
 
     (forceCreate, runCfgName, outCfgName, hubIdList) = parseArgs()
