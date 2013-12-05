@@ -28,17 +28,17 @@ class Machineid:
         else:
             self.cluster_type = self.UNKNOWN_CLUSTER
 
-        # now figure out if this is a build machine
+        # now figure out what type of host this is
         split_host_name = self.hname.split('.', 1)[0]
-        if(split_host_name.lower() in self.BUILD_HOSTS):
+        self.host_type = self.UNKNOWN_HOST
+        for h in self.BUILD_HOSTS:
+            if split_host_name.lower().find(h.lower()) >= 0:
             # we are a build host
-            self.host_type = self.BUILD_HOST
-        elif(split_host_name.lower() in self.CONTROL_HOSTS):
-            # we are a control host
-            self.host_type = self.CONTROL_HOST
-        else:
-            # who knows, we are an unknown
-            self.host_type = self.UNKNOWN_HOST
+                self.host_type = self.BUILD_HOST
+        for h in self.CONTROL_HOSTS:
+            if split_host_name.lower().find(h.lower()) >= 0:
+            # we are a build host
+                self.host_type = self.CONTROL_HOST
 
     def __str__(self):
         """Produces the informal string representation of this class"""
