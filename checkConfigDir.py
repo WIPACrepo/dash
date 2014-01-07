@@ -155,7 +155,7 @@ class ConfigDirChecker(object):
 
         cmd_args = (self.MYSQL_BIN,
                     "-h", "dbs",
-                    "-u", "pnf",
+                    "-u", "i3omdbro",
                     "-D", "I3OmDb",
                     "-e", query)
 
