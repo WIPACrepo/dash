@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='ASCII'?>
+<!-- Customized periods -->
+<runConfig>
+  <monitor period="10"/>
+  <watchdog period="25"/>
+  <hitspool>
+    <directory>/mnt/data/pdaqlocal</directory>
+    <hits>500000</hits>
+    <interval>15.0</interval>
+    <enabled>true</enabled>
+    <numFiles>360</numFiles>
+  </hitspool>
+  <stringHub hubId="1" domConfig="test-01c">
+    <hitspool><numFiles>1920</numFiles></hitspool>
+  </stringHub>
+  <stringHub hubId="2" domConfig="test-02c"/>
+  <stringHub hubId="3" domConfig="test-03c">
+    <hitspool><numFiles>1720</numFiles></hitspool>
+  </stringHub>
+  <stringHub hubId="4" domConfig="test-04c"/>
+  <stringHub hubId="5" domConfig="test-05c">
+    <hitspool><directory>/tmp</directory></hitspool>
+  </stringHub>
+  <triggerConfig>sps-icecube-amanda-008</triggerConfig>
+  <runComponent name="inIceTrigger"/>
+  <runComponent name="iceTopTrigger"/>
+  <runComponent name="globalTrigger"/>
+  <runComponent name="eventBuilder"/>
+  <runComponent name="secondaryBuilders"/>
+</runConfig>
+

@@ -170,7 +170,7 @@ class Dash(cmd.Cmd):
             fldName = bflds[2]
             if len(bflds) == 3:
                 val = self.__cnc.rpc_component_get_bean_field(compId, beanName,
-                                                              fldName)
+                                                              fldName, True)
                 print "%s bean %s field %s: %s" % \
                     (compName, beanName, fldName, val)
 

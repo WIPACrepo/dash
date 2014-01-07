@@ -33,10 +33,7 @@ class DAQDateTimeDelta(object):
 class DAQDateTime(object):
     # if True, calculate DAQ times to 0.1 nanosecond precision
     # if False, calculate to microsecond precision
-    HIGH_PRECISION = False
-
-    # ignore exceptions from leapseconds.get_tai_offset()
-    IGNORE_EXC = True
+    HIGH_PRECISION = True
 
     def __init__(self, year, month, day, hour, minute, second, daqticks,
                  tzinfo=None, high_precision=HIGH_PRECISION):
@@ -93,8 +90,8 @@ class DAQDateTime(object):
         # subtract two date time objects
 
         diff_mjd = self.mjd_day - other.mjd_day
-        diff_tai = self.leap.get_tai_offset(self.mjd_day, self.IGNORE_EXC) - \
-            self.leap.get_tai_offset(other.mjd_day, self.IGNORE_EXC)
+        diff_tai = self.leap.get_tai_offset(self.mjd_day) - \
+            self.leap.get_tai_offset(other.mjd_day)
 
         diff_seconds = diff_mjd * 3600. * 24. + diff_tai
 
@@ -160,6 +157,12 @@ class PayloadTime(object):
     # seconds till jul 30 of this year
     TIME_TILL_JUNE30 = None
 
+    # current year
+    YEAR = None
+
+    # previous payload year
+    PREV_YEAR = None
+
     @staticmethod
     def fromString(timestr, high_precision=DAQDateTime.HIGH_PRECISION):
         if not timestr:
@@ -198,36 +201,41 @@ class PayloadTime(object):
                            high_precision=high_precision)
 
     @staticmethod
-    def toDateTime(payTime, high_precision=DAQDateTime.HIGH_PRECISION):
-        if payTime is None:
+    def toDateTime(payTime, year=None,
+                   high_precision=DAQDateTime.HIGH_PRECISION):
+        if payTime is None or type(payTime) == str:
             return None
+
+        if year is None:
+            if PayloadTime.YEAR is None:
+                now = time.gmtime()
+                PayloadTime.YEAR = now.tm_year
+            year = PayloadTime.YEAR
 
         # recompute start-of-year offset?
         recompute = (PayloadTime.PREV_TIME is None or
+                     PayloadTime.PREV_YEAR is None or
                      abs(payTime - PayloadTime.PREV_TIME) >
-                     PayloadTime.ELEVEN_MONTHS)
+                     PayloadTime.ELEVEN_MONTHS or
+                     PayloadTime.PREV_YEAR != year)
 
         if recompute:
             # note that this is a dangerous
             # bit of code near the new year as the payload
             # times and the system clock are not coming from the same
             # clock, there will be a slight processing delay etc
-            now = time.gmtime()
-            jan1 = time.struct_time((now.tm_year, 1, 1, 0, 0, 0, 0, 0, -1))
+            jan1 = time.struct_time((year, 1, 1, 0, 0, 0, 0, 0, -1))
             PayloadTime.TIME_OFFSET = calendar.timegm(jan1)
-            july1_tuple = time.struct_time((now.tm_year, 7, 1, 0, 0, 0, 0, 0,
-                                            -1))
-            PayloadTime.YEAR = now.tm_year
+            july1_tuple = time.struct_time((year, 7, 1, 0, 0, 0, 0, 0, -1))
             PayloadTime.has_leapsecond = \
-                leapseconds.getInstance().get_leap_offset(july1_tuple,
-                                                          True) > 0
+                leapseconds.getInstance().get_leap_offset(july1_tuple) > 0
             if not PayloadTime.has_leapsecond:
                 # no mid-year leap second, so don't need to calculate
                 # seconds until June 30
                 PayloadTime.TIME_TILL_JUNE30 = sys.maxint
             else:
                 PayloadTime.TIME_TILL_JUNE30 = \
-                    leapseconds.seconds_till_june30(now.tm_year)
+                    leapseconds.seconds_till_june30(year)
 
         PayloadTime.PREV_TIME = payTime
 
@@ -249,7 +257,7 @@ class PayloadTime(object):
 
             # did we get a payload time exactly ON the leapsecond
             if curSecOffset == PayloadTime.TIME_TILL_JUNE30:
-                return DAQDateTime(PayloadTime.YEAR, 6, 30, 23, 59, 60,
+                return DAQDateTime(year, 6, 30, 23, 59, 60,
                                    subsec, high_precision=high_precision)
             else:
                 curTime = curSecOffset + PayloadTime.TIME_OFFSET
@@ -266,7 +274,9 @@ if __name__ == "__main__":
     import optparse
 
     p = optparse.OptionParser()
-
+    p.add_option("-y", "--year", type="int", dest="year",
+                 action="store", default=None,
+                 help="Base year to use when converting DAQ times to strings ")
     opt, args = p.parse_args()
 
     if len(args) == 0:
@@ -283,7 +293,13 @@ if __name__ == "__main__":
         try:
             try:
                 val = long(arg)
-                dt = PayloadTime.toDateTime(val, True)
+                dt = PayloadTime.toDateTime(val, year=opt.year,
+                                            high_precision=True)
+            except IOError, ioe:
+                print "Cannot convert %s" % str(val)
+                import traceback
+                traceback.print_exc()
+                continue
             except:
                 dt = PayloadTime.fromString(arg, True)
             print "%s -> %s" % (arg, dt)

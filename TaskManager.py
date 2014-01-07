@@ -8,6 +8,7 @@ from CnCTask import CnCTask, TaskException
 from IntervalTimer import IntervalTimer
 from MonitorTask import MonitorTask
 from RateTask import RateTask
+from TriggerCountTask import TriggerCountTask
 from WatchdogTask import WatchdogTask
 
 from exc_string import exc_string, set_exc_string_encoding
@@ -74,6 +75,9 @@ class TaskManager(threading.Thread):
         elif taskNum == 3:
             return WatchdogTask(self, self.__runset, self.__dashlog,
                                 period=runCfg.watchdogPeriod())
+        elif taskNum == 4:
+            return TriggerCountTask(self, self.__runset, self.__dashlog,
+                                    liveMoni)
 
         return None
 

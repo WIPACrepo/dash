@@ -18,7 +18,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQStatus.py 14426 2013-04-17 15:50:20Z dglo $"
+SVN_ID = "$Id: DAQStatus.py 13974 2012-10-24 17:09:53Z dglo $"
 
 LINE_LENGTH = 78
 

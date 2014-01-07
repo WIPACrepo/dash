@@ -29,7 +29,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 14426 2013-04-17 15:50:20Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 14396 2013-04-04 17:12:17Z mnewcomb $"
 
 
 def getUniqueHostNames(config):

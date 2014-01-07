@@ -25,6 +25,7 @@ def parseArgs():
     Return a tuple containing:
         a boolean indicating if the file should be overwritten if it exists
         the run configuration name
+        the file name of the output configuration
         the list of hub IDs to be removed
     """
     cfgDir = find_pdaq_config()
@@ -103,10 +104,11 @@ def parseArgs():
 
 if __name__ == "__main__":
 
-    hostname = ip.getHostNameNoDomain()
-    if(hostname.lower() == "expcont"):
+    hostid = Machineid()
+    if not hostid.is_build_host():
         print >> sys.stderr, "-" * 60
-        print >> sys.stderr, "Warning: Running RemoveHubs.py on expcont"
+        print >> sys.stderr, \
+            "Warning: RemoveHubs.py should be run on the build machine"
         print >> sys.stderr, "-" * 60
 
     (forceCreate, runCfgName, outCfgName, hubIdList) = parseArgs()

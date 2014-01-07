@@ -127,20 +127,23 @@ class MonitorToFile(object):
             self.__fd = None
         else:
             self.__fd = open(os.path.join(dir, basename + ".moni"), "w")
+        self.__fdLock = threading.Lock()
 
     def close(self):
-        self.__fd.close()
+        with self.__fdLock:
+            if self.__fd is not None:
+                self.__fd.close()
+                self.__fd = None
 
     def send(self, now, beanName, attrs):
-        if self.__fd is None:
-            return
-
-        print >> self.__fd, "%s: %s:" % (beanName, now)
-        for key in attrs:
-            print >> self.__fd, "\t%s: %s" % \
-                (key, str(attrs[key]))
-        print >> self.__fd
-        self.__fd.flush()
+        with self.__fdLock:
+            if self.__fd is not None:
+                print >> self.__fd, "%s: %s:" % (beanName, now)
+                for key in attrs:
+                    print >> self.__fd, "\t%s: %s" % \
+                        (key, str(attrs[key]))
+                print >> self.__fd
+                self.__fd.flush()
 
 
 class MonitorToLive(object):

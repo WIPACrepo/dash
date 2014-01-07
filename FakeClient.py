@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
+import os
 import socket
+import sys
 import threading
 import time
 import xmlrpclib
@@ -142,19 +144,21 @@ class InputEngine(Engine):
 
 
 class OutputChannel(threading.Thread):
-    def __init__(self, host, port, engine):
+    def __init__(self, host, port, engine, path=None):
         self.__host = host
         self.__port = port
         self.__engine = engine
+        self.__path = path
 
         self.__running = False
 
         try:
             self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.__sock.connect((self.__host, self.__port))
-        except socket.error:
+        except socket.error, err:
             self.__sock = None
-            raise
+            raise Exception("Cannot connect to %s:%d: %s" %
+                            (self.__host, self.__port, err))
 
         super(OutputChannel, self).__init__(name=str(self))
         self.setDaemon(True)
@@ -167,6 +171,26 @@ class OutputChannel(threading.Thread):
         self.__sock.close()
         self.__sock = None
 
+    def run(self):
+        self.__running = True
+        written = 0
+        if self.__path is not None:
+            with open(self.__path, "rb") as fd:
+                print "Writing %s for %s" % (self.__path, self)
+                while self.__running:
+                    try:
+                        data = fd.read(256)
+                        if data is None or len(data) == 0:
+                            break
+
+                        self.__sock.send(data)
+                        written += len(data)
+                    except:
+                        import traceback
+                        traceback.print_exc()
+        self.close()
+        self.__running = False
+        print "Ended %s thread (wrote %d bytes)" % (self.__engine, written)
 
 class OutputEngine(Engine):
     def __init__(self, name, optional):
@@ -181,9 +205,9 @@ class OutputEngine(Engine):
             optStr = ""
         return "%s>>%s" % (self.name(), optStr)
 
-    def connect(self, host, port):
+    def connect(self, host, port, path=None):
         try:
-            chan = OutputChannel(host, port, self)
+            chan = OutputChannel(host, port, self, path=path)
             self.addChannel(chan)
             chan.start()
         except:
@@ -263,7 +287,8 @@ class FakeClient(object):
                 found = False
                 for e in self.__connections:
                     if e.name() == cd["type"]:
-                        e.connect(cd["host"], cd["port"])
+                        path = self.__getOutputDataPath()
+                        e.connect(cd["host"], cd["port"], path=path)
                         found = True
                 if not found:
                     raise Exception("Cannot find \"%s\" output engine \"%s\"" %
@@ -299,6 +324,32 @@ class FakeClient(object):
             print "GetEvents %s subrun %d" % (self, subrunNum)
         self.__numEvts += 1
         return self.__numEvts
+
+    def __getOutputDataPath(self):
+        if self.__name == "inIceTrigger":
+            cname = "iit"
+        elif self.__name == "iceTopTrigger":
+            cname = "itt"
+        elif self.__name == "globalTrigger":
+            cname = "glbl"
+        else:
+            return None
+
+        rchash = "rc217a0bdc2d0253e61c99794f4a3dae80"
+        run = 120151
+        hubs = 40
+        hits = 1000
+
+        fullname = "%s-%s-r%d-h%d-p%d.dat" % \
+                   (rchash, cname, run, hubs, hits)
+
+        path = os.path.join(os.environ["HOME"], "prj", "simplehits", fullname)
+
+        if not os.path.exists(path):
+            print >>sys.stderr, "Cannot write %s for %s" % (path, self)
+            return None
+
+        return path
 
     def __getRunData(self, runNum):
         if not self.__quiet:

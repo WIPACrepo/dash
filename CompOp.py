@@ -255,15 +255,15 @@ class ComponentOperationGroup(object):
                 plural = ""
             else:
                 plural = "s"
-            logger.error(("Thread group contains %d running thread%s" +
-                          " after %s") % (numAlive, plural, method))
+            logger.error(("Thread group %s contains %d running thread%s" +
+                          " after %s") % (self.__op, numAlive, plural, method))
         if numErrors > 0:
             if numErrors == 1:
                 plural = ""
             else:
                 plural = "s"
-            logger.error("Thread group encountered %d error%s during %s" %
-                         (numErrors, plural, method))
+            logger.error("Thread group %s encountered %d error%s during %s" %
+                         (self.__op, numErrors, plural, method))
 
     def start(self, comp, logger, data):
         "Start a thread after adding it to the group"

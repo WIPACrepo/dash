@@ -25,6 +25,7 @@ from TaskManager import TaskManager
 from UniqueID import UniqueID
 from utils import ip
 from utils.DashXMLLog import DashXMLLog, DashXMLLogException
+from leapseconds import leapseconds
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -470,6 +471,7 @@ class RunData(object):
         testing - True if this is called from a unit test
         """
         self.__runNumber = runNumber
+        self.__subrunNumber = 0
         self.__clusterConfig = clusterConfig
         self.__runConfig = runConfig
         self.__runOptions = runOptions
@@ -509,6 +511,7 @@ class RunData(object):
         self.__liveMoniClient = None
 
         self.__runStats = RunStats()
+        self.__sendCount = 0
 
         self.__firstPayTime = -1
 
@@ -564,7 +567,7 @@ class RunData(object):
 
     def __getRateData(self, comps):
         nEvts = 0
-        evtTime = -1
+        wallTime = -1
         lastPayTime = -1
         nMoni = 0
         moniTime = -1
@@ -581,7 +584,7 @@ class RunData(object):
                                          evtData)
                 elif type(evtData) == list or type(evtData) == tuple:
                     nEvts = int(evtData[0])
-                    evtTime = datetime.datetime.utcnow()
+                    wallTime = datetime.datetime.utcnow()
                     lastPayTime = long(evtData[1])
 
                 if nEvts > 0 and self.__firstPayTime <= 0:
@@ -602,6 +605,8 @@ class RunData(object):
                         msg = "Cannot get %sBuilder dispatched data (%s)" % \
                             (bldr, val)
                         self.__dashlog.error(msg)
+                        num = 0
+                        time = None
                     else:
                         num = int(val)
                         time = datetime.datetime.utcnow()
@@ -616,17 +621,33 @@ class RunData(object):
                             nTCal = num
                             tcalTime = time
 
-        return (nEvts, evtTime, self.__firstPayTime, lastPayTime, nMoni,
+        return (nEvts, wallTime, self.__firstPayTime, lastPayTime, nMoni,
                 moniTime, nSN, snTime, nTCal, tcalTime)
 
     def __reportEventStart(self):
         if self.__liveMoniClient is not None:
-            fulltime = PayloadTime.toDateTime(self.__firstPayTime,
-                                              high_precision=True)
+            try:
+                fulltime = PayloadTime.toDateTime(self.__firstPayTime,
+                                                  high_precision=True)
+            except TypeError, err:
+                msg = "Cannot report first time %s<%s>, prevTime is %s<%s>" % \
+                            (self.__firstPayTime, type(self.__firstPayTime),
+                             PayloadTime.PREV_TIME, type(PayloadTime.PREV_TIME))
+                self.__dashlog.error(msg)
+                return
+
             data = {"runnum": self.__runNumber,
                     "time" : str(fulltime)}
 
-            monitime = PayloadTime.toDateTime(self.__firstPayTime)
+            try:
+                monitime = PayloadTime.toDateTime(self.__firstPayTime)
+            except TypeError, err:
+                msg = "Cannot set moni time %s<%s>, prevTime is %s<%s>" % \
+                            (self.__firstPayTime, type(self.__firstPayTime),
+                             PayloadTime.PREV_TIME, type(PayloadTime.PREV_TIME))
+                self.__dashlog.error(msg)
+                return
+
             self.__sendMoni("eventstart", data, prio=Prio.SCP, time=monitime)
 
     def __reportRunStop(self, numEvts, firstPayTime, lastPayTime, hadError):
@@ -656,6 +677,28 @@ class RunData(object):
         except:
             self.__dashlog.error("Failed to send %s=%s: %s" %
                                  (name, value, exc_string()))
+
+    def __sendOldCounts(self, moniData):
+        """
+        send unamalgamated messages until I3Live converts to new format
+        """
+        if moniData["eventPayloadTicks"] is not None:
+            payTime = moniData["eventPayloadTicks"]
+            monitime = PayloadTime.toDateTime(payTime)
+            self.__sendMoni("physicsEvents", moniData["physicsEvents"],
+                            prio=Prio.ITS, time=monitime)
+        if moniData["wallTime"] is not None:
+            self.__sendMoni("walltimeEvents", moniData["physicsEvents"],
+                            prio=Prio.EMAIL, time=moniData["wallTime"])
+        if moniData["moniTime"] is not None:
+            self.__sendMoni("moniEvents", moniData["moniEvents"],
+                            prio=Prio.EMAIL, time=moniData["moniTime"])
+        if moniData["snTime"] is not None:
+            self.__sendMoni("snEvents", moniData["snEvents"],
+                            prio=Prio.EMAIL, time=moniData["snTime"])
+        if moniData["tcalTime"] is not None:
+            self.__sendMoni("tcalEvents", moniData["tcalEvents"],
+                            prio=Prio.EMAIL, time=moniData["tcalTime"])
 
     def __writeRunXML(self, numEvts, numMoni, numSN, numTcal, firstTime,
                       lastTime, duration, hadError):
@@ -783,8 +826,14 @@ class RunData(object):
         return duration
 
     def finishSetup(self, runSet, startTime):
-        # tell I3Live that we're starting a run
-        #
+        """Called after starting a run regardless of
+        a switchrun or a normal run start
+
+        tells I3Live that we're starting a run
+        """
+
+        self.leapsecondsChecks()
+
         if self.__liveMoniClient is not None:
             self.reportRunStartClass(self.__liveMoniClient, self.__runNumber,
                                      self.__versionInfo["release"],
@@ -807,15 +856,15 @@ class RunData(object):
 
         if updateCounts:
             self.__runStats.updateEventCounts(self.__getRateData(comps), True)
-        (numEvts, evtTime, payTime, numMoni, moniTime, numSN, snTime,
+        (numEvts, wallTime, payTime, numMoni, moniTime, numSN, snTime,
          numTcal, tcalTime) = self.__runStats.monitorData()
 
         monDict["physicsEvents"] = numEvts
-        if evtTime is None or numEvts == 0:
-            monDict["eventTime"] = None
+        if wallTime is None or numEvts == 0:
+            monDict["wallTime"] = None
             monDict["eventPayloadTicks"] = None
         else:
-            monDict["eventTime"] = str(evtTime)
+            monDict["wallTime"] = str(wallTime)
             monDict["eventPayloadTicks"] = payTime
         monDict["moniEvents"] = numMoni
         if moniTime is None or numMoni == 0:
@@ -909,6 +958,17 @@ class RunData(object):
     def isWarnEnabled(self):
         return self.__dashlog.isWarnEnabled()
 
+    def leapsecondsChecks(self):
+        ls = leapseconds.getInstance()
+
+        ls.reload_check(self.__liveMoniClient, self.__dashlog)
+
+        # sends an alert off to live if the nist leapsecond
+        # file is about to expire
+        # will send a message to stderr if the liveMoniClient
+        # is None
+        ls.expiry_check(self.__liveMoniClient)
+
     def queueForSpade(self, duration):
         if self.__logDir is None:
             self.__dashlog.error(("Not logging to file "
@@ -934,6 +994,7 @@ class RunData(object):
                                      (name, payTime))
             if fulltime is not None:
                 data = {"runnum": self.__runNumber,
+                        "subrun": self.__subrunNumber,
                         "time": str(fulltime)}
 
                 monitime = PayloadTime.toDateTime(payTime)
@@ -973,32 +1034,55 @@ class RunData(object):
         if self.__liveMoniClient is not None:
             moniData = self.getEventCounts(comps, updateCounts)
 
-            # send discrete messages for each type of event
+            # send every 5th set of data over ITS
+            if self.__sendCount % 5 == 0:
+                prio = Prio.ITS
+            else:
+                prio = Prio.EMAIL
+            self.__sendCount += 1
+
+            value = {
+                "run": self.__runNumber,
+                "subrun": self.__subrunNumber,
+            }
+
+            # if we don't have a DAQ time, use system time but complain
             if moniData["eventPayloadTicks"] is not None:
-                payTime = moniData["eventPayloadTicks"]
-                monitime = PayloadTime.toDateTime(payTime)
-                self.__sendMoni("physicsEvents", moniData["physicsEvents"],
-                                prio=Prio.ITS, time=monitime)
-            if moniData["eventTime"] is not None:
-                self.__sendMoni("walltimeEvents", moniData["physicsEvents"],
-                                prio=Prio.EMAIL, time=moniData["eventTime"])
-            if moniData["moniTime"] is not None:
-                self.__sendMoni("moniEvents", moniData["moniEvents"],
-                                prio=Prio.EMAIL, time=moniData["moniTime"])
-            if moniData["snTime"] is not None:
-                self.__sendMoni("snEvents", moniData["snEvents"],
-                                prio=Prio.EMAIL, time=moniData["snTime"])
-            if moniData["tcalTime"] is not None:
-                self.__sendMoni("tcalEvents", moniData["tcalEvents"],
-                                prio=Prio.EMAIL, time=moniData["tcalTime"])
+                time = PayloadTime.toDateTime(moniData["eventPayloadTicks"])
+            else:
+                time = datetime.datetime.utcnow()
+                self.__dashlog.error("Using system time for initial event" +
+                                     " counts (no event times available)")
+
+            # fill in counts and times
+            value["physicsEvents"] = moniData["physicsEvents"]
+            if moniData["wallTime"] is not None:
+                value["wallTime"] = moniData["wallTime"]
+            for src in ("moni", "sn", "tcal"):
+                eventKey = src + "Events"
+                timeKey = src + "Time"
+                if moniData[timeKey] is not None:
+                    value[eventKey] = moniData[eventKey]
+                    value[timeKey] = moniData[timeKey]
+
+            self.__sendMoni("run_update", value, prio=prio, time=time)
+
+            # send old data until I3Live handles the 'run_update' data
+            self.__sendOldCounts(moniData)
 
     def setDebugBits(self, debugBits):
         if self.__taskMgr is not None:
             self.__taskMgr.setDebugBits(debugBits)
 
+    def setSubrunNumber(self, num):
+        self.__subrunNumber = num
+
     def stop(self):
         if self.__taskMgr is not None:
             self.__taskMgr.stop()
+
+    def subrunNumber(self):
+        return self.__subrunNumber
 
     def updateRates(self, comps):
         rateData = self.__getRateData(comps)
@@ -1006,7 +1090,7 @@ class RunData(object):
 
         rate = self.__runStats.rate()
 
-        (evtTime, numEvts, numMoni, numSN, numTcal) = \
+        (wallTime, numEvts, numMoni, numSN, numTcal) = \
                   self.__runStats.currentData()
 
         return (numEvts, rate, numMoni, numSN, numTcal)
@@ -2213,6 +2297,8 @@ class RunSet(object):
             if c.isBuilder():
                 c.prepareSubrun(id)
 
+        self.__runData.setSubrunNumber(-id)
+
         hubs = []
         tGroup = ComponentOperationGroup(ComponentOperation.START_SUBRUN)
         for c in self.__set:
@@ -2245,6 +2331,8 @@ class RunSet(object):
         for c in self.__set:
             if c.isBuilder():
                 c.commitSubrun(id, latestTime)
+
+        self.__runData.setSubrunNumber(id)
 
     def subrunEvents(self, subrunNumber):
         "Get the number of events in the specified subrun"

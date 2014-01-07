@@ -27,7 +27,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 # get the subversion id tag
-SVN_ID = "$Id: DAQLog.py 14535 2013-06-04 18:02:27Z dglo $"
+SVN_ID = "$Id: DAQLog.py 14537 2013-06-04 18:03:04Z dglo $"
 
 class LogException(Exception):
     pass

@@ -11,11 +11,12 @@ import traceback
 
 import DeployPDAQ
 
-from BaseRun import FlasherShellScript, LaunchException
+from BaseRun import FlasherScript, LaunchException
 from ClusterDescription import ClusterDescription
 from DAQConfig import DAQConfigException, DAQConfigParser
 from cncrun import CnCRun
 from liverun import LiveRun, LiveTimeoutException
+from locate_pdaq import find_pdaq_trunk
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -34,6 +35,12 @@ class PDAQRunException(Exception):
 class PDAQRun(object):
     "Description of a pDAQ run"
 
+    # location of unit test resources directory
+    #
+    TSTRSRC = None
+
+    # maximum number of timeouts
+    #
     MAX_TIMEOUTS = 6
 
     def __init__(self, runCfgName, duration, numRuns=1, flashData=None):
@@ -49,7 +56,14 @@ class PDAQRun(object):
                 if pair[0] is None:
                     path = None
                 else:
-                    path = FlasherShellScript.findDataFile(pair[0])
+                    if self.TSTRSRC is None:
+                        metadir = find_pdaq_trunk()
+                        self.TSTRSRC = os.path.join(metadir, "src", "test",
+                                                   "resources")
+
+                    path = FlasherScript.findDataFile(pair[0],
+                                                      basedir=self.TSTRSRC)
+
                 self.__flashData.append((path, pair[1]))
 
     def clusterConfig(self):
@@ -97,6 +111,10 @@ RUN_LIST = (PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
             PDAQRun("spts64-dirtydozen-hlc-006", 0, 1,
                      (("flash-21", 60), (None, 10), ("flash-21", 45),
                         (None, 20), ("flash-21", 120))),
+            PDAQRun("spts64-dirtydozen-old-hitspool-15s-interval-8h-spool",
+                    HALF_HR),
+            PDAQRun("spts64-dirtydozen-hitspool-15s-interval-8h-spool",
+                    HALF_HR),
             ###PDAQRun("sim18str-noise25Hz-002", FOUR_HR),
             ###PDAQRun("sim18str-noise25Hz-002", EIGHT_HR),
             ###PDAQRun("sim22str-with-phys-trig-001", FOUR_HR),

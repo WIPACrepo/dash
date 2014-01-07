@@ -8,7 +8,7 @@ class RunStats(object):
     def __init__(self):
         self.__startPayTime = None
         self.__numEvts = 0
-        self.__evtTime = None
+        self.__wallTime = None
         self.__evtPayTime = None
         self.__numMoni = 0
         self.__moniTime = None
@@ -34,7 +34,7 @@ class RunStats(object):
         "Clear run-related statistics"
         self.__startPayTime = None
         self.__numEvts = 0
-        self.__evtTime = None
+        self.__wallTime = None
         self.__evtPayTime = None
         self.__numMoni = 0
         self.__moniTime = None
@@ -45,11 +45,11 @@ class RunStats(object):
         self.__physicsRate.reset()
 
     def currentData(self):
-        return (self.__evtTime, self.__numEvts, self.__numMoni, self.__numSN,
+        return (self.__wallTime, self.__numEvts, self.__numMoni, self.__numSN,
                 self.__numTcal)
 
     def monitorData(self):
-        return (self.__numEvts, self.__evtTime, self.__evtPayTime,
+        return (self.__numEvts, self.__wallTime, self.__evtPayTime,
                 self.__numMoni, self.__moniTime,
                 self.__numSN, self.__snTime,
                 self.__numTcal, self.__tcalTime)
@@ -69,7 +69,7 @@ class RunStats(object):
         if evtData is None:
             return None
 
-        (numEvts, evtTime, firstPayTime, evtPayTime,
+        (numEvts, wallTime, firstPayTime, evtPayTime,
          numMoni, moniTime, numSN, snTime, numTcal, tcalTime) = evtData
 
         if addRate and  self.__startPayTime is None and firstPayTime > 0:
@@ -77,11 +77,11 @@ class RunStats(object):
             self.__addRate(self.__startPayTime, 1)
 
         if numEvts >= 0 and evtPayTime > 0:
-            (self.__numEvts, self.__evtTime, self.__evtPayTime,
+            (self.__numEvts, self.__wallTime, self.__evtPayTime,
              self.__numMoni, self.__moniTime,
              self.__numSN, self.__snTime,
              self.__numTcal, self.__tcalTime) = \
-             (numEvts, evtTime, evtPayTime,
+             (numEvts, wallTime, evtPayTime,
               numMoni, moniTime,
               numSN, snTime,
               numTcal, tcalTime)

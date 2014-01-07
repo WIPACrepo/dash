@@ -10,7 +10,7 @@ import optparse
 import os
 import re
 import sys
-from BaseRun import FlasherShellScript
+from BaseRun import FlasherScript
 from cncrun import CnCRun
 from datetime import datetime
 from locate_pdaq import find_pdaq_trunk
@@ -21,7 +21,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 14426 2013-04-17 15:50:20Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 14763 2014-01-07 19:28:22Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -33,20 +33,6 @@ def updateStatus(oldStatus, newStatus):
     if oldStatus != newStatus:
         print "%s: %s -> %s" % (datetime.now(), oldStatus, newStatus)
     return newStatus
-
-
-def setLastRunNum(runFile, runNum):
-    with open(runFile, 'w') as fd:
-        print >>fd, runNum
-
-
-def getLastRunNum(runFile):
-    try:
-        with open(runFile, 'r') as f:
-            ret = f.readline()
-            return int(ret.rstrip('\r\n'))
-    except:
-        return None
 
 
 # stolen from live/misc/util.py
@@ -179,7 +165,7 @@ def main():
                  action="store", default=None,
                  help="Run configuration name")
     p.add_option("-d", "--duration-seconds", type="string", dest="duration",
-                 action="store", default="300",
+                 action="store", default="8h",
                  help="Run duration (in seconds)")
     p.add_option("-f", "--flasher-script", type="string", dest="flasherScript",
                  action="store", default=None,
@@ -215,8 +201,7 @@ def main():
     if opt.flasherScript is None:
         flashData = None
     else:
-        with open(opt.flasherScript, "r") as fd:
-            flashData = FlasherShellScript.parse(fd)
+        flashData = FlasherScript.parse(opt.flasherScript)
 
     cnc = CnCRun(showCmd=opt.showCmd, showCmdOutput=opt.showCmdOut)
 

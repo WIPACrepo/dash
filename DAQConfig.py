@@ -117,6 +117,11 @@ class ConfigObject(object):
         self.xml_runcfg = None
         self.__filename = fname
 
+    def basename(self):
+        base = os.path.basename(self.filename)
+        base, ext = os.path.splitext(base)
+        return base
+
     @property
     def filename(self):
         """Return the filename property.
@@ -314,11 +319,6 @@ class DAQConfig(ConfigObject):
 
         self.filename = filename
 
-    def basename(self):
-        base = os.path.basename(self.filename)
-        base, ext = os.path.splitext(base)
-        return base
-
     def validate(self):
         """The syntax of a file is verified with the
         rng validation parser, but there are a few things
@@ -399,12 +399,13 @@ class DAQConfig(ConfigObject):
     def __getPeriod(self, name):
         """Extract a period specification from the configuration"""
         for key, value in self.other_objs:
-            if key == name:
-                try:
-                    period = int(get_attrib(value, 'period'))
-                    return period
-                except (AttributeError, ValueError):
-                    pass
+            if key == name and type(value) == list:
+                for v in value:
+                    try:
+                        period = int(get_attrib(v, 'period'))
+                        return period
+                    except (AttributeError, ValueError):
+                        pass
         return None
 
     def monitorPeriod(self):
@@ -721,14 +722,11 @@ class DAQConfig(ConfigObject):
         raise DOMNotInConfigException("Cannot find sting %d pos %d" %
                                       (string, pos))
 
-    def getDomConfigNames(self):
-        return [dcfg.basename for dcfg in self.dom_cfgs]
+    def getDomConfigs(self):
+        return self.dom_cfgs
 
-    def getTriggerConfigName(self):
-        name = None
-        if self.trig_cfg:
-            name = self.trig_cfg.filename
-        return name
+    def getTriggerConfig(self):
+        return self.trig_cfg
 
 
 class DAQConfigParser(object):

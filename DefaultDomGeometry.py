@@ -185,8 +185,12 @@ class DomGeometry(object):
         return 0
 
     def __str__(self):
+        if self.__origString is not None:
+            strnum = self.__origString
+        else:
+            strnum = self.__string
         return "%s[%s] %02d-%02d" % \
-            (self.__mbid, self.__name, self.__string, self.__pos)
+            (self.__mbid, self.__name, strnum, self.__pos)
 
     def channelId(self):
         return self.__chanId

@@ -202,7 +202,7 @@ class WatchdogTaskTest(unittest.TestCase):
         logger.checkStatus(5)
 
         for i in range(1, 4):
-            logger.addExpectedExact("Initialization failure #%d for %s %s" %
+            logger.addExpectedRegexp("Initialization failure #%d for %s %s.*" %
                                     (i, foo.fullName(), str(rules[0])))
 
             timer.trigger()
@@ -243,6 +243,7 @@ class WatchdogTaskTest(unittest.TestCase):
         eb = MockComponent("eventBuilder", 0, 1)
         eb.addBeanData("backEnd", "NumReadoutsReceived", 0)
         eb.addBeanData("backEnd", "NumTriggerRequestsReceived", 0)
+        eb.addBeanData("backEnd", "NumEventsDispatched", 0)
         eb.addBeanData("backEnd", "NumEventsSent", 0)
         eb.addBeanData("backEnd", "NumBadEvents", 0)
         eb.addBeanData("backEnd", "DiskAvailable", 0)

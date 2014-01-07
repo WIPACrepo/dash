@@ -58,13 +58,16 @@ def fetch_latestleap(host='tycho.usno.navy.mil', path='/pub/ntp',
         print "Failed to connect to host: '%s'" % host
         return
 
+    if verbose: print "Starting FTP session with %s" % host
     ftp.login()
 
+    if verbose: print "Changing to %s directory %s" % (host, path)
     ftp.cwd(path)
 
+    if verbose: print "Listing %s" % path
     file_list = ftp.nlst()
 
-    # we are only interested in files that match the lattern
+    # we are only interested in files that match the pattern
     # leap-seconds.nnnnnnnn
 
     lsec_pattern = re.compile('^leap-seconds\.([0-9]*)$')
@@ -79,6 +82,7 @@ def fetch_latestleap(host='tycho.usno.navy.mil', path='/pub/ntp',
 
     if len(times_list)==0:
         print "Did not find any leap second files @ ftp://%s%s" % (host, path)
+        ftp.close()
         return
 
     latest_time = max(times_list)

@@ -388,6 +388,7 @@ class CnCRunSetTest(unittest.TestCase):
                             "EventData": 0,
                             "FirstEventTime": 0,
                             "NumBadEvents": 0,
+                            "NumEventsDispatched": 0,
                             "NumEventsSent": 0,
                             "NumReadoutsReceived": 0,
                             "NumTriggerRequestsReceived": 0,
@@ -956,7 +957,7 @@ class CnCRunSetTest(unittest.TestCase):
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
                            "stringhub", "LatestFirstChannelHitTime", 10)
         if LIVE_IMPORT:
-            data = {"runnum": runNum}
+            data = {"runnum": runNum, "subrun": 0}
             liveMoni.addExpectedLiveMoni("firstGoodTime", data, "json")
 
         (rel, rev) = self.__cnc.getRelease()

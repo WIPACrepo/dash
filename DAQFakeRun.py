@@ -13,7 +13,7 @@ import traceback
 from xmlrpclib import ServerProxy
 from CnCServer import Connector
 from DAQConfig import DAQConfigParser
-from DAQMocks import MockRunConfigFile
+from DAQMocks import MockRunConfigFile, MockTriggerConfig
 from FakeClient import FakeClient, FakeClientException
 from RunOption import RunOption
 from utils import ip
@@ -557,6 +557,9 @@ class DAQFakeRun(object):
 
     @classmethod
     def createMockRunConfig(cls, runCfgDir, compList):
+        trigCfg = MockTriggerConfig("global-only")
+        trigCfg.add(6000, "ThroughputTrigger", 3, -1)
+
         cfgFile = MockRunConfigFile(runCfgDir)
 
         nameList = []
@@ -565,7 +568,7 @@ class DAQFakeRun(object):
 
         cls.__createClusterDescriptionFile(runCfgDir)
 
-        return cfgFile.create(nameList, [])
+        return cfgFile.create(nameList, [], trigCfg=trigCfg)
 
     @staticmethod
     def hackActiveConfig(clusterCfg):

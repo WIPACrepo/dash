@@ -25,7 +25,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 14426 2013-04-17 15:50:20Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 14353 2013-03-25 21:41:03Z mnewcomb $"
 
 
 class ConsoleLogger(object):

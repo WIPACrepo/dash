@@ -4,74 +4,11 @@
 # execute a flasher run
 
 import os
+import re
 import sys
 
+from BaseRun import FlasherScript
 from liverun import LiveRun
-
-def isQuote(ch):
-    """Is this character a quote mark?"""
-    return ch == "'" or ch == '"'
-
-def cleanString(text):
-    """remove extra junk around text fields"""
-    if text.startswith("("):
-        text = text[1:]
-    if text.endswith(")"):
-        text = text[:-1]
-    if text.endswith(","):
-        text = text[:-1]
-    if len(text) > 2 and isQuote(text[0]) and isQuote(text[-1]):
-        text = text[1:-1]
-    return text
-
-def getFlasherData(fileName):
-    """
-    Read in a list of flasher-file/duration pairs from the specified file.
-    Be as forgiving as possible about extra cruft, reversed arguments, etc.
-    """
-    pairs = None
-    with open(fileName, "r") as fd:
-        linenum = 0
-        failed = False
-        for line in fd:
-            line = line.rstrip()
-            linenum += 1
-
-            flds = line.split()
-            if len(flds) == 2:
-                name = cleanString(flds[0])
-                durStr = cleanString(flds[1])
-            else:
-                flds = line.split(",")
-                if len(flds) == 2:
-                    name = cleanString(flds[0])
-                    durStr = cleanString(flds[1])
-                elif len(flds) == 3 and len(flds[0]) == 0:
-                    name = cleanString(flds[1])
-                    durStr = cleanString(flds[2])
-                else:
-                    print "Bad line#%d: %s" % (linenum, line)
-                    failed = True
-                    continue
-
-            try:
-                duration = int(durStr)
-            except ValueError:
-                # hmm, maybe the duration is first
-                try:
-                    duration = int(name)
-                    name = durStr
-                except:
-                    print "Bad line#%d: %s" % (linenum, line)
-                    failed = True
-                    continue
-
-            if pairs is None:
-                pairs = []
-            pairs.append((name, duration))
-        if failed:
-            raise SystemExit("Please fix the bad lines in %s" % fileName)
-    return pairs
 
 if __name__ == "__main__":
     import optparse
@@ -120,7 +57,7 @@ if __name__ == "__main__":
     flashPairs = None
     if opt.flasherList is not None:
         flashName = opt.flasherList
-        flashPairs = getFlasherData(opt.flasherList)
+        flashPairs = FlasherScript.parse(opt.flasherList)
         if cfg is None:
             if len(args) == 0:
                 raise SystemExit("No run configuration specified")
@@ -128,17 +65,17 @@ if __name__ == "__main__":
     elif len(args) == 1:
         if flashName is None and cfg is not None:
             flashName = args[0]
-            flashPairs = getFlasherData(args[0])
+            flashPairs = FlasherScript.parse(args[0])
         elif cfg is None and flashName is not None:
             cfg = args[0]
     elif len(args) == 2:
         try:
-            flashPairs = getFlasherData(args[0])
+            flashPairs = FlasherScript.parse(args[0])
             flashName = args[0]
             cfg = args[1]
         except:
             try:
-                flashPairs = getFlasherData(args[1])
+                flashPairs = FlasherScript.parse(args[1])
                 flashName = args[1]
                 cfg = args[0]
             except:

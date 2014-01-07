@@ -130,37 +130,34 @@ class FlasherThread(threading.Thread):
         self.__sem.release()
 
 
-class FlasherShellScript(object):
-    """
-    Read in a flasher script, producing a list of XML_file_name/duration pairs.
-    """
+class FlasherScript(object):
     @classmethod
-    def findDataFile(cls, flashFile):
-        """
-        Find a flasher file or raise FlashFileException
-
-        flashFile - name of flasher sequence file
-
-        Returns full path for flasher sequence file
-
-        NOTE: Currently, only $PDAQ_HOME/src/test/resources is checked
-        """
-
-        if os.path.exists(flashFile):
-            return flashFile
-
-        metaDir = find_pdaq_trunk()
-        path = os.path.join(metaDir, "src", "test", "resources", flashFile)
-
+    def __findFlasherDataFile(cls, dirname, filename):
+        """Find a flasher data file"""
+        path = os.path.join(dirname, filename)
         if os.path.exists(path):
             return path
 
-        if not flashFile.endswith(".xml"):
+        if not filename.endswith(".xml"):
             path += ".xml"
             if os.path.exists(path):
                 return path
 
-        raise FlashFileException("Flash file '%s' not found" % flashFile)
+        return None
+
+    @classmethod
+    def __cleanString(cls, text):
+        """remove extra junk around text fields"""
+        if text.startswith("("):
+            text = text[1:]
+        if text.endswith(")"):
+            text = text[:-1]
+        if text.endswith(","):
+            text = text[:-1]
+        if len(text) > 2 and cls.__isQuote(text[0]) and \
+                cls.__isQuote(text[-1]):
+            text = text[1:-1]
+        return text
 
     # stolen from live/misc/util.py
     @classmethod
@@ -188,7 +185,12 @@ class FlasherShellScript(object):
                                   ) % s)
 
     @classmethod
-    def __parseFlasherOptions(cls, optList):
+    def __isQuote(cls, ch):
+        """Is this character a quote mark?"""
+        return ch == "'" or ch == '"'
+
+    @classmethod
+    def __parseFlasherOptions(cls, optList, basedir=None):
         """
         Parse 'livecmd flasher' options
         """
@@ -213,7 +215,7 @@ class FlasherShellScript(object):
                     raise FlashFileException("Found multiple filenames")
 
                 i += 1
-                fil = cls.findDataFile(optList[i])
+                fil = cls.findDataFile(optList[i], basedir=basedir)
                 if dur is not None:
                     pairs.append((fil, dur))
                     dur = None
@@ -225,49 +227,138 @@ class FlasherShellScript(object):
             i += 1
         return pairs
 
+    """
+    Read in a flasher script, producing a list of XML_file_name/duration pairs.
+    """
     @classmethod
-    def parse(cls, fd):
+    def findDataFile(cls, flashFile, basedir=None):
+        """
+        Find a flasher file or raise FlashFileException
+
+        flashFile - name of flasher sequence file
+        basedir - base directory where data files are located
+
+        Returns full path for flasher sequence file
+
+        NOTE: Currently, only $PDAQ_HOME/src/test/resources is checked
+        """
+
+        if os.path.exists(flashFile):
+            return flashFile
+
+        path = cls.__findFlasherDataFile(basedir, flashFile)
+        if path is not None:
+            return path
+
+        raise FlashFileException("Flash file '%s' not found" % flashFile)
+
+    @classmethod
+    def parse(cls, path):
         """
         Parse a flasher script, producing a list of XML_file_name/duration
         pairs.
         """
-        flashData = []
-        fullLine = None
-        for line in fd:
-            line = line.rstrip()
+        if not os.path.isfile(path):
+            print "Flasher file \"%s\" does not exist" % path
+            return None
 
-            if fullLine is None:
-                fullLine = line
-            else:
-                fullLine += line
-
-            if fullLine.endswith("\\") and fullLine.find("#") < 0:
-                fullLine = fullLine[:-1]
-                continue
-
-            comment = fullLine.find("#")
-            if comment >= 0:
-                fullLine = fullLine[:comment].rstrip()
-
-            # ignore blank lines
-            #
-            if len(fullLine) == 0:
-                continue
-
-            words = fullLine.split(" ")
-            if len(words) > 2 and words[0] == "livecmd" and \
-                words[1] == "flasher":
-                flashData += cls.__parseFlasherOptions(words[2:])
-            elif len(words) == 2 and words[0] == "sleep":
-                try:
-                    flashData.append((None, int(words[1])))
-                except Exception as ex:
-                    raise FlashFileException("Bad sleep time \"%s\": %s" %
-                                              (words[1], ex))
-            else:
-                raise FlashFileException("Bad flasher line \"%s\"" % fullLine)
-
+        basedir = os.path.dirname(path)
+        with open(path, "r") as fd:
+            flashData = []
             fullLine = None
+            linenum = 0
+            failed = False
+            for line in fd:
+                line = line.rstrip()
+
+                # if continued line, glue this onto the previous line
+                #
+                if fullLine is None:
+                    fullLine = line
+                else:
+                    fullLine += line
+
+                #  strip continuation character and wait for rest of line
+                #
+                if fullLine.endswith("\\") and fullLine.find("#") < 0:
+                    fullLine = fullLine[:-1]
+                    continue
+
+                # strip comments
+                #
+                comment = fullLine.find("#")
+                if comment >= 0:
+                    fullLine = fullLine[:comment].rstrip()
+
+                # ignore blank lines
+                #
+                if len(fullLine) == 0:
+                    fullLine = None
+                    continue
+
+                # break it into pieces
+                words = fullLine.split(" ")
+
+                # handle 'livecmd flasher ...'
+                #
+                if len(words) > 2 and words[0] == "livecmd" and \
+                    words[1] == "flasher":
+                    flashData += cls.__parseFlasherOptions(words[2:],
+                                                           basedir=basedir)
+                    fullLine = None
+                    continue
+
+                # handle 'sleep ###'
+                #
+                if len(words) == 2 and words[0] == "sleep":
+                    try:
+                        flashData.append((None, int(words[1])))
+                    except Exception as ex:
+                        print "Bad flasher line#%d: %s (bad sleep time)" % \
+                              (linenum, fullLine)
+                        failed = True
+                    fullLine = None
+                    continue
+
+                if len(words) == 2:
+                    # found 'file duration'
+                    name = cls.__cleanString(words[0])
+                    durStr = cls.__cleanString(words[1])
+                else:
+                    words = fullLine.split(",")
+                    if len(words) == 2:
+                        # found 'file,duration'
+                        name = cls.__cleanString(words[0])
+                        durStr = cls.__cleanString(words[1])
+                    elif len(words) == 3 and len(words[0]) == 0:
+                        # found ',file,duration'
+                        name = cls.__cleanString(words[1])
+                        durStr = cls.__cleanString(words[2])
+                    else:
+                        print "Bad flasher line#%d: %s" % (linenum, line)
+                        failed = True
+                        fullLine = None
+                        continue
+
+                try:
+                    duration = int(durStr)
+                except ValueError:
+                    # hmm, maybe the duration is first
+                    try:
+                        duration = int(name)
+                        name = durStr
+                    except:
+                        print "Bad flasher line#%d: %s" % (linenum, line)
+                        failed = True
+                        fullLine = None
+                        continue
+
+                flashData.append((os.path.join(basedir, name), duration))
+                fullLine = None
+                continue
+
+        if failed:
+            return None
 
         return flashData
 

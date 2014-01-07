@@ -4,7 +4,7 @@
 
 import os
 import sys
-from utils import ip
+from utils.Machineid import Machineid
 
 from DAQConfig import DAQConfig, DAQConfigParser
 from DAQConfig import DAQConfigException
@@ -106,10 +106,11 @@ def parseArgs():
 
 if __name__ == "__main__":
 
-    hostname = ip.getHostNameNoDomain()
-    if(hostname.lower() == "expcont"):
+    hostid = Machineid()
+    if not hostid.is_build_host():
         print >> sys.stderr, "-" * 60
-        print >> sys.stderr, "Warning: Running AddHubs.py on expcont"
+        print >> sys.stderr, \
+            "Warning: AddHubs.py should be run on the build machine"
         print >> sys.stderr, "-" * 60
 
     (forceCreate, runCfgName, cluCfgName, hubIdList) = parseArgs()

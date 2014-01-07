@@ -89,6 +89,7 @@ class BeanData(object):
                       ('globalTrigger', 'backEnd',
                        'NumTriggerRequestsReceived', 'i', 0),
                       ('dispatch', 'backEnd', 'NumEventsSent', 's', 0),
+                      ('dispatch', 'backEnd', 'NumEventsDispatched', 's', 0),
                       ('eventBuilder', 'backEnd', 'DiskAvailable',
                        't', 1024, True),
                       ('eventBuilder', 'backEnd', 'EventData',
@@ -692,6 +693,8 @@ class RealComponent(object):
                         elif fld == "EventData":
                             val = [2, 10000000000]
                         elif fld == "NumEventsSent":
+                            val = 2
+                        elif fld == "NumEventsDispatched":
                             val = 2
                     if val is None:
                         val = self.__mbeanData[bean][fld].getValue()
@@ -1493,6 +1496,8 @@ class IntegrationTest(unittest.TestCase):
         lastEvtTime = startEvtTime + (domTicksPerSec * 3)
 
         self.__setBeanData("eventBuilder", 0, "backEnd", "NumEventsSent",
+                           numEvts)
+        self.__setBeanData("eventBuilder", 0, "backEnd", "NumEventsDispatched",
                            numEvts)
         self.__setBeanData("eventBuilder", 0, "backEnd", "EventData",
                            [numEvts, lastEvtTime])
