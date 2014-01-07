@@ -40,7 +40,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 14661 2013-10-23 22:00:43Z dglo $"
+SVN_ID = "$Id: CnCServer.py 14759 2014-01-07 18:42:14Z dglo $"
 
 
 class DAQPool(object):
@@ -695,6 +695,20 @@ class CnCServer(DAQPool):
 
         return count
 
+    def __findComponentById(self, compId, includeRunsetComponents=False):
+        for c in self.components():
+            if c.id() == compId:
+                return c
+
+        if includeRunsetComponents:
+            for rsid in self.listRunsetIDs():
+                rs = self.findRunset(rsid)
+                for c in rs.components():
+                    if c.id() == compId:
+                        return c
+
+        return None
+
     def __getComponents(self, idList, getAll):
         compList = []
 
@@ -974,10 +988,12 @@ class CnCServer(DAQPool):
         "return number of components currently registered"
         return self.numComponents()
 
-    def rpc_component_get_bean_field(self, compId, bean, field):
-        for c in self.components():
-            if c.id() == compId:
-                return c.getSingleBeanField(bean, field)
+    def rpc_component_get_bean_field(self, compId, bean, field,
+                                     includeRunsetComponents=False):
+        c = self.__findComponentById(compId, includeRunsetComponents)
+        if c is not None:
+            return c.getSingleBeanField(bean, field)
+
         raise CnCServerException("Unknown component #%d" % compId)
 
     def rpc_component_list(self, includeRunsetComponents=False):
@@ -995,31 +1011,17 @@ class CnCServer(DAQPool):
         return idDict
 
     def rpc_component_list_beans(self, compId, includeRunsetComponents=False):
-        for c in self.components():
-            if c.id() == compId:
-                return c.getBeanNames()
-
-        if includeRunsetComponents:
-            for rsid in self.listRunsetIDs():
-                rs = self.findRunset(rsid)
-                for c in rs.components():
-                    if c.id() == compId:
-                        return c.getBeanNames()
+        c = self.__findComponentById(compId, includeRunsetComponents)
+        if c is not None:
+            return c.getBeanNames()
 
         raise CnCServerException("Unknown component #%d" % compId)
 
     def rpc_component_list_bean_fields(self, compId, bean,
                                        includeRunsetComponents=False):
-        for c in self.components():
-            if c.id() == compId:
-                return c.getBeanFields(bean)
-
-        if includeRunsetComponents:
-            for rsid in self.listRunsetIDs():
-                rs = self.findRunset(rsid)
-                for c in rs.components():
-                    if c.id() == compId:
-                        return c.getBeanFields(bean)
+        c = self.__findComponentById(compId, includeRunsetComponents)
+        if c is not None:
+            return c.getBeanFields(bean)
 
         raise CnCServerException("Unknown component #%d" % compId)
 
