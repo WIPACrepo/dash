@@ -5,12 +5,27 @@
 
 import os
 import re
+import smtplib
 import subprocess
 import sys
+import time
 
 
 from DAQConfig import DAQConfigParser
 from locate_pdaq import find_pdaq_config
+
+
+class Ancient(object):
+    def __init__(self, filename, mtime):
+        self.__filename = filename
+        self.__mtime = mtime
+
+    def __cmp__(self, other):
+        return self.__mtime - other.__mtime
+
+    def __str__(self):
+        return "%s (%d days)" % \
+            (self.__filename, self.__mtime / (60 * 60 * 24))
 
 
 class ConfigDirChecker(object):
@@ -19,7 +34,9 @@ class ConfigDirChecker(object):
     """
     INDENT = "    "
 
-    MYSQL_BIN = "/usr/bin/mysql"
+    PATH = None
+    MYSQL_BIN = None
+    SVN_BIN = None
 
     def __init__(self, cfgdir=None):
         """
@@ -34,26 +51,24 @@ class ConfigDirChecker(object):
         if not os.path.isdir(self.__cfgdir):
             raise Exception("No current pDAQ directory \"%s\"" % self.__cfgdir)
 
-        if not os.path.exists(self.MYSQL_BIN):
-            raise Exception("MySQL executable \"%s\" does not exist" %
-                            self.MYSQL_BIN)
+        if self.MYSQL_BIN is None:
+            self.MYSQL_BIN = self.find_executable("mysql")
+        if self.SVN_BIN is None:
+            self.SVN_BIN = self.find_executable("svn")
 
         self.__processlist = []
 
         self.__added = []
         self.__modified = []
         self.__unknown = []
+        self.__ancient = []
 
     def __addMissingToSVN(self, dryrun=False):
         """
         'svn add' uncommitted files
         """
         for f in self.__processlist:
-            if dryrun:
-                print "Not adding %s" % f
-                rtnval = True
-            else:
-                rtnval = self.__svn_add(self.__cfgdir, f)
+            rtnval = self.__svn_add(self.__cfgdir, f, dryrun=dryrun)
             if rtnval:
                 self.__added.append(f)
 
@@ -120,11 +135,89 @@ class ConfigDirChecker(object):
                     "Not handling SVN status type %s for %s" % \
                     (svnmap[path], path)
 
+    def __send_email(self, dryrun=False):
+        intro = ("Subject: Modified run configuration(s) on SPS\n\n" +
+                "Hello daq-dev,\n")
+
+        if len(self.__modified) == 0:
+            modstr = ""
+        else:
+            modstr = \
+                ("There are modified run configuration files in" +
+                 " access:~pdaq/config on SPS.\nPlease check in valid changes" +
+                 " and/or revert modified files.\n\n\t" +
+                 "\n\t".join(self.__modified))
+
+        if len(self.__ancient) == 0:
+            oldstr = ""
+        else:
+            self.__ancient.sort()
+            oldstr = \
+                ("There are run configuration files more than one year old.\n" +
+                 "They should probably be removed.\n\n\t" +
+                 "\n\t".join(str(x) for x in self.__ancient))
+
+        if modstr != "" and oldstr != "":
+            middle = "\n\n\n"
+        else:
+            middle = ""
+
+        fromaddr = "pdaq@icecube.usap.gov"
+        toaddr = "daq-dev@icecube.wisc.edu"
+        body = intro + modstr + middle + oldstr
+
+        if dryrun:
+            print "From: " + fromaddr
+            print "To: " + toaddr
+            print body
+            return
+
+        s = smtplib.SMTP("mail.southpole.usap.gov")
+        s.sendmail(fromaddr, (toaddr, ), body)
+        s.quit()
+
+    def __findAncientUnknown(self):
+        now = time.time()
+        oneYearAgo = now - 60 * 60 * 24 * 365
+
+        viable = []
+        for f in self.__unknown:
+            if f.find("/") >= 0 or not f.endswith(".xml"):
+                continue
+
+            st = os.stat(os.path.join(self.__cfgdir, f))
+            if st.st_mtime < oneYearAgo:
+                self.__ancient.append(Ancient(f, st.st_mtime))
+            else:
+                viable.append(f)
+
+        if len(viable) < len(self.__unknown):
+            self.__unknown = viable
+
+    @classmethod
+    def find_executable(cls, cmd, helptext=None, dryrun=False):
+        "Find 'cmd' in the user's PATH"
+        if cls.PATH is None:
+            cls.PATH = os.environ["PATH"].split(":")
+        for pdir in cls.PATH:
+            pcmd = os.path.join(pdir, cmd)
+            if os.path.exists(pcmd):
+                return pcmd
+        if dryrun:
+            return cmd
+
+        if helptext is None:
+            helptext = ""
+        else:
+            helptext = "; %s" % helptext
+
+        raise SystemExit("'%s' does not exist%s" % (cmd, helptext))
+
     def __getDirectorySVNStatus(self, dir):
         """
         Get the SVN status for all files in the current directory
         """
-        proc = subprocess.Popen(("/usr/bin/svn", "status"),
+        proc = subprocess.Popen((self.SVN_BIN, "status"),
                                 stdout=subprocess.PIPE, cwd=dir)
 
         pat = re.compile(r"^(.)\s+(.*)$")
@@ -177,17 +270,17 @@ class ConfigDirChecker(object):
 
         return configs
 
-    def __report(self, quiet=False, showUnknown=False):
+    def __report(self, verbose=False, showUnknown=False):
         """
         Report the results
 
-        quiet - if True, print a one-line summary
-                if False, print the names of added, modified, and unknown files
+        verbose - if False, print a one-line summary
+                  if True, print the names of added, modified, and unknown files
         showUnknown - if True, don't report unknown files
         """
         needSpaces = False
 
-        if quiet:
+        if not verbose:
             outstr = ""
             for pair in ((len(self.__added), "added"),
                          (len(self.__modified), "modified"),
@@ -216,7 +309,7 @@ class ConfigDirChecker(object):
                 print self.INDENT + f
             needSpaces = True
 
-        if len(self.__unknown) > 0:
+        if showUnknown and len(self.__unknown) > 0:
             if needSpaces:
                 print
                 print
@@ -225,11 +318,15 @@ class ConfigDirChecker(object):
                 print self.INDENT + f
             needSpaces = True
 
-    def __svn_add(self, svndir, name):
+    def __svn_add(self, svndir, name, dryrun=False):
         """
         Add a file to the local SVN repository
         """
-        proc = subprocess.Popen(("/usr/bin/svn", "add", name),
+        if dryrun:
+            print "%s add %s" % (self.SVN_BIN, name)
+            return True
+
+        proc = subprocess.Popen((self.SVN_BIN, "add", name),
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,
                                 cwd=svndir)
@@ -244,7 +341,32 @@ class ConfigDirChecker(object):
 
         return proc.returncode == 0
 
-    def run(self, dryrun=False, quiet=False, showUnknown=False):
+    def __svn_commit(self, svndir, commit_msg, filelist, dryrun=False):
+        """
+        Commit all added/modified files to the master SVN repository
+        """
+        if dryrun:
+            print "%s commit -m\"%s\" %s" % \
+                (self.SVN_BIN, commit_msg, " ".join(filelist))
+            return True
+
+        proc = subprocess.Popen([self.SVN_BIN, "commit", "-m",
+                                 commit_msg] + filelist,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
+                                cwd=svndir)
+
+        outlines = proc.stdout
+        proc.stdout.close()
+        proc.wait()
+        if proc.returncode != 0:
+            print >>sys.stderr, "Failed to SVN COMMIT %s:" % " ".join(filelist)
+            for line in outlines:
+                print >>sys.stderr, self.INDENT + line
+
+        return proc.returncode == 0
+
+    def run(self, dryrun=False, verbose=False, showUnknown=False, commit=False):
         """
         Check pDAQ config directory and report results
         """
@@ -252,29 +374,39 @@ class ConfigDirChecker(object):
         svnmap = self.__getDirectorySVNStatus(self.__cfgdir)
         self.__checkUsedConfigs(used, svnmap)
         self.__addMissingToSVN(dryrun)
-        self.__report(quiet=quiet, showUnknown=showUnknown)
+        self.__findAncientUnknown()
+        if commit:
+            if len(self.__added) > 0:
+                self.__svn_commit(self.__cfgdir, "Check in uncommitted" +
+                                  " run configuration files", self.__added,
+                                  dryrun=dryrun)
+            if len(self.__modified) > 0 or len(self.__ancient) > 0:
+                self.__send_email(dryrun=dryrun)
+        else:
+            self.__report(verbose=verbose, showUnknown=showUnknown)
 
 
 if __name__ == "__main__":
     import optparse
 
     p = optparse.OptionParser()
+    p.add_option("-c", "--commit", dest="commit",
+                 action="store_true", default=False,
+                 help="Commit changes to SVN repo in the North")
     p.add_option("-d", "--config-dir", type="string", dest="configdir",
                  action="store", default=None,
                  help="Location of configuration directory being checked")
     p.add_option("-n", "--dry-run", dest="dryrun",
                  action="store_true", default=False,
                  help="Don't add files to SVN")
-    p.add_option("-q", "--quiet", dest="quiet",
-                 action="store_true", default=False,
-                 help="Don't print final report")
     p.add_option("-u", "--show-unknown", dest="showUnknown",
                  action="store_true", default=False,
-                 help="Show unknown configurations")
+                 help="Print list of all unknown files found in $PDAQ_CONFIG")
     p.add_option("-v", "--verbose", dest="verbose",
                  action="store_true", default=False,
-                 help="Print a log of all actions")
+                 help="Print details of operation")
     opt, args = p.parse_args()
 
     chk = ConfigDirChecker(opt.configdir)
-    chk.run(dryrun=opt.dryrun, quiet=opt.quiet, showUnknown=opt.showUnknown)
+    chk.run(dryrun=opt.dryrun, verbose=opt.verbose, showUnknown=opt.showUnknown,
+            commit=opt.commit)
