@@ -21,7 +21,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: ExpControlSkel.py 14663 2013-10-23 22:01:56Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 14763 2014-01-07 19:28:22Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -165,7 +165,7 @@ def main():
                  action="store", default=None,
                  help="Run configuration name")
     p.add_option("-d", "--duration-seconds", type="string", dest="duration",
-                 action="store", default="300",
+                 action="store", default="8h",
                  help="Run duration (in seconds)")
     p.add_option("-f", "--flasher-script", type="string", dest="flasherScript",
                  action="store", default=None,
