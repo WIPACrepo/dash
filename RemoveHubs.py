@@ -25,6 +25,7 @@ def parseArgs():
     Return a tuple containing:
         a boolean indicating if the file should be overwritten if it exists
         the run configuration name
+        the file name of the output configuration
         the list of hub IDs to be removed
     """
     cfgDir = find_pdaq_config()
