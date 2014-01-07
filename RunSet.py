@@ -809,8 +809,18 @@ class RunData(object):
             rateStr = " (%2.2f Hz)" % (float(numEvts) / float(duration))
         self.__dashlog.error("%d physics events collected in %d seconds%s" %
                              (numEvts, duration, rateStr))
-        self.__dashlog.error("%d moni events, %d SN events, %d tcals" %
-                             (numMoni, numSN, numTcal))
+
+        if numMoni is None and numSN is None and numTcal is None:
+            self.__dashlog.error("!! secondary stream data is not available !!")
+        else:
+            if numMoni is None:
+                numMoni = 0
+            if numSN is None:
+                numSN = 0
+            if numTcal is None:
+                numTcal = 0
+            self.__dashlog.error("%d moni events, %d SN events, %d tcals" %
+                                 (numMoni, numSN, numTcal))
 
         # report run status
         if not switching:
