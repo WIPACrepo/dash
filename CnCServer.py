@@ -40,7 +40,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 14759 2014-01-07 18:42:14Z dglo $"
+SVN_ID = "$Id: CnCServer.py 14769 2014-01-07 21:03:49Z dglo $"
 
 
 class DAQPool(object):
@@ -1063,16 +1063,12 @@ class CnCServer(DAQPool):
                 self.__log.info(errMsg)
                 raise CnCServerException(errMsg)
 
-            if type(d[2]) == int:
-                connPort = d[2]
-            elif type(d[2]) == str:
-                connPort = int(d[2])
-            else:
+            if type(d[2]) != int:
                 errMsg = ("Bad %s#%d connector#%d %s (third element should" +
                           " be int)") % (name, num, n, str(d))
                 self.__log.info(errMsg)
                 raise CnCServerException(errMsg)
-            connectors.append(Connector(d[0], d[1], connPort))
+            connectors.append(Connector(d[0], d[1], d[2]))
 
         client = self.createClient(name, num, host, port, mbeanPort,
                                    connectors)
