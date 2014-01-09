@@ -1262,7 +1262,7 @@ class RunSet(object):
 
         return srcSet, otherSet
 
-    def __checkState(self, newState):
+    def __checkState(self, newState, components=None):
         """
         If component states match 'newState', set state to 'newState' and
         return an empty list.
@@ -1270,14 +1270,17 @@ class RunSet(object):
         and corresponding lists of components.
         """
 
+        if components is None:
+            components = self.__set
+
         tGroup = ComponentOperationGroup(ComponentOperation.GET_STATE)
-        for c in self.__set:
+        for c in components:
             tGroup.start(c, self.__logger, ())
         tGroup.wait()
         states = tGroup.results()
 
         stateDict = {}
-        for c in self.__set:
+        for c in components:
             if states.has_key(c):
                 stateStr = str(states[c])
             else:
@@ -1437,11 +1440,9 @@ class RunSet(object):
 
         self.__state = RunSetState.STARTING
 
-        # start non-sources in order (back to front)
+        # start non-sources
         #
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP startOther")
-        for c in otherSet:
-            c.startRun(self.__runData.runNumber())
+        self.__startSet("NonHubs", otherSet)
 
         # start thread to find latest first time from hubs
         #
@@ -1449,29 +1450,9 @@ class RunSet(object):
                                          self.__runData, self.__runData)
         goodThread.start()
 
-        # start sources in parallel
+        # start sources
         #
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP startSrcs")
-        tGroup = ComponentOperationGroup(ComponentOperation.START_RUN)
-        opData = (self.__runData.runNumber(), )
-        for c in srcSet:
-            tGroup.start(c, self.__runData, opData)
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP waitSrcs")
-        tGroup.wait()
-        tGroup.reportErrors(self.__runData, "startRun")
-
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP waitStChg")
-        self.__waitForStateChange(self.__runData, 30)
-
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP chkRunning")
-        badStates = self.__checkState(RunSetState.RUNNING)
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP badStates %s",
-                        badStates)
-        if len(badStates) > 0:
-            raise RunSetException(("Could not start runset#%d run#%d" +
-                                   " components: %s") %
-                                  (self.__id, self.__runData.runNumber(),
-                                   self.__badStateString(badStates)))
+        self.__startSet("Hubs", srcSet)
 
         for i in xrange(20):
             if not goodThread.isAlive():
@@ -1483,6 +1464,38 @@ class RunSet(object):
                                   self.__id)
 
         self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP done")
+
+    def __startSet(self, setName, components):
+        """
+        Start a set of components and verify that they are running
+        """
+        rstart = datetime.datetime.now()
+        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP start" + setName)
+        tGroup = ComponentOperationGroup(ComponentOperation.START_RUN)
+        opData = (self.__runData.runNumber(), )
+        for c in components:
+            tGroup.start(c, self.__runData, opData)
+        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP wait" + setName)
+        tGroup.wait()
+        tGroup.reportErrors(self.__runData, "start" + setName)
+
+        self.__logDebug(RunSetDebug.START_RUN,
+                        "STARTCOMP wait" + setName + "Chg")
+        self.__waitForStateChange(self.__runData, RunSetState.RUNNING, 30,
+                                  components)
+
+        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP chk" + setName)
+        badStates = self.__checkState(RunSetState.RUNNING, components)
+        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP bad%sStates %s",
+                        (setName, badStates))
+        if len(badStates) > 0:
+            raise RunSetException(("Could not start runset#%d run#%d" +
+                                   " %s components: %s") %
+                                  (self.__id, self.__runData.runNumber(),
+                                   setName, self.__badStateString(badStates)))
+        rend = datetime.datetime.now() - rstart
+        rsecs = float(rend.seconds) + (float(rend.microseconds) / 1000000.0)
+        self.__logger.error("Waited %.3f seconds for %s" % (rsecs, setName))
 
     def __stopComponents(self, srcSet, otherSet, connDict, msgSecs):
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING WAITCHK top")
@@ -1640,13 +1653,17 @@ class RunSet(object):
             doms.append(args)
         return (doms, not_found)
 
-    def __waitForStateChange(self, logger, timeoutSecs=TIMEOUT_SECS):
+    def __waitForStateChange(self, logger, stateName, timeoutSecs=TIMEOUT_SECS,
+                             components=None):
         """
         Wait for state change, with a timeout of timeoutSecs (renewed each time
         any component changes state).  Raise a ValueError if the state change
         fails.
         """
-        waitList = self.__set[:]
+        if components is None:
+            waitList = self.__set[:]
+        else:
+            waitList = components[:]
 
         endSecs = time.time() + timeoutSecs
         while len(waitList) > 0 and time.time() < endSecs:
@@ -1661,7 +1678,7 @@ class RunSet(object):
                     stateStr = str(states[c])
                 else:
                     stateStr = self.STATE_DEAD
-                if stateStr != self.__state and stateStr != self.STATE_HANGING:
+                if stateStr == stateName and stateStr != self.STATE_HANGING:
                     newList.remove(c)
 
             # if one or more components changed state...
@@ -1747,7 +1764,7 @@ class RunSet(object):
 
             time.sleep(1)
 
-        self.__waitForStateChange(self.__logger, 60)
+        self.__waitForStateChange(self.__logger, RunSetState.READY, 60)
 
         badStates = self.__checkState(RunSetState.READY)
         if len(badStates) > 0:
@@ -1776,7 +1793,7 @@ class RunSet(object):
         tGroup.reportErrors(self.__logger, "connect")
 
         try:
-            self.__waitForStateChange(self.__logger, 20)
+            self.__waitForStateChange(self.__logger, RunSetState.CONNECTED, 20)
         except:
             # give up after 20 seconds
             pass
@@ -1944,7 +1961,7 @@ class RunSet(object):
         tGroup.reportErrors(self.__logger, "reset")
 
         try:
-            self.__waitForStateChange(self.__logger, 60)
+            self.__waitForStateChange(self.__logger, RunSetState.IDLE, 60)
         except:
             # give up after 60 seconds
             pass
