@@ -1593,6 +1593,9 @@ class RunSet(object):
 
         timeout = 20
         for i in range(0, 2):
+            if self.__runData is None:
+                break
+
             self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING phase %d", i)
             if i == 0:
                 self.__attemptToStop(srcSet, otherSet, RunSetState.STOPPING,
@@ -1610,7 +1613,8 @@ class RunSet(object):
         goodThread.stop()
 
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING reset")
-        self.__runData.reset()
+        if self.__runData is not None:
+            self.__runData.reset()
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING reset done")
 
         return srcSet + otherSet
