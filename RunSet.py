@@ -987,9 +987,8 @@ class RunData(object):
 
         if self.__spadeDir is not None:
             SpadeQueue.queueForSpade(self.__dashlog, self.__spadeDir,
-                                     self.__copyDir, self.__runDir,
-                                     self.__runNumber, datetime.datetime.now(),
-                                     duration)
+                                     self.__copyDir, self.__logDir,
+                                     self.__runNumber)
 
     def reportGoodTime(self, name, payTime):
         if self.__liveMoniClient is None:
