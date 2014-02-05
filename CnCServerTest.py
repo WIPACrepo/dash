@@ -819,6 +819,9 @@ class TestCnCServer(unittest.TestCase):
                                      " per-string active DOM stats wil not" +
                                      " be reported")
 
+        catchall.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
+        catchall.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for Hubs")
+
         self.assertEqual(self.cnc.rpc_runset_start_run(setId, runNum,
                                                        moniType), 'OK')
 

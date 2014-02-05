@@ -393,6 +393,9 @@ class TestRunSet(unittest.TestCase):
 
         logger.addExpectedExact("Starting run %d..." % runNum)
 
+        logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
+        logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for Hubs")
+
         runset.startRun(runNum, cluCfg, runOptions, versionInfo,
                         spadeDir, copyDir, logDir)
         self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %

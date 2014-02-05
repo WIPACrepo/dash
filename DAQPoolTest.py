@@ -692,6 +692,9 @@ class TestDAQPool(unittest.TestCase):
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
 
+        logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
+        logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for Hubs")
+
         aComp.addBeanData("stringhub", "LatestFirstChannelHitTime", 10)
         aComp.addBeanData("stringhub", "NumberOfNonZombies", 1)
 

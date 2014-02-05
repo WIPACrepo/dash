@@ -1206,10 +1206,12 @@ class IntegrationTest(unittest.TestCase):
         if RUNLOG_INFO:
             msgList.append('Created logger for CnCServer')
 
-        for msg in msgList:
-            #if appender and not liveRunOnly: appender.addExpectedExact(msg)
-            if liveLog:
+        if liveLog:
+            for msg in msgList:
                 liveLog.addExpectedText(msg)
+
+            liveLog.addExpectedRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
+            liveLog.addExpectedRegexp(r"Waited \d+\.\d+ seconds for Hubs")
 
         if dashLog:
             dashLog.addExpectedRegexp(r'Version info: \S+ \d+ \S+ \S+ \S+' +
@@ -1264,6 +1266,11 @@ class IntegrationTest(unittest.TestCase):
                     msg = "Cannot import IceCube Live code, so per-string" + \
                         " active DOM stats wil not be reported"
                     dashLog.addExpectedExact(msg)
+
+        if logServer:
+            logServer.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
+            logServer.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for Hubs")
+
         if liveLog:
             for c in self.__compList:
                 liveLog.addExpectedText('Start #%d on %s' % (runNum, str(c)))

@@ -683,6 +683,9 @@ class CnCRunSetTest(unittest.TestCase):
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
 
+        logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
+        logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for Hubs")
+
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
                            "stringhub", "LatestFirstChannelHitTime", 10)
 
@@ -972,6 +975,9 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog.addExpectedExact("Cluster: %s" % cluCfg.descName())
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
+
+        catchall.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
+        catchall.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for Hubs")
 
         global ACTIVE_WARNING
         if not LIVE_IMPORT and not ACTIVE_WARNING:

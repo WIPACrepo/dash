@@ -484,6 +484,9 @@ class TestDAQServer(unittest.TestCase):
 
         logger.addExpectedText("Starting run %d..." % runNum)
 
+        logger.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
+        logger.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for Hubs")
+
         self.assertEqual(dc.rpc_runset_start_run(setId, runNum, moniType), \
                              'OK')
 
