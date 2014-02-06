@@ -139,7 +139,7 @@ class BaseLog(object):
     DASH_PAT = re.compile(r"^(\S+)\s+\[" + DATE_STR + r"\]\s+(.*)$")
 
     LOGSTART_PAT = re.compile(r"Start of log at .*$")
-    LOGVERS_PAT = re.compile(r"Version info: \S+ \S+ \S+ \S+Z \S+ (\S+) (\S+)")
+    LOGVERS_PAT = re.compile(r"Version info: \S+ \S+ \S+ \S+Z? \S+ (\S+) (\S+)")
 
     def __init__(self, fileName):
         self.__fileName = fileName
