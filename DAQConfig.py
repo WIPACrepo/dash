@@ -96,8 +96,8 @@ class ReplayHub(Component):
     def __init__(self, xdict, base_dir):
         self.base_dir = base_dir
         self.xdict = xdict
-        self.hitFile = get_attrib(xdict, 'hitFile')
-        hub_id = int(get_attrib(xdict, 'id'))
+        self.hitFile = get_attrib(xdict, 'source')
+        hub_id = int(get_attrib(xdict, 'hub'))
 
         super(ReplayHub, self).__init__("replayHub", hub_id)
 
@@ -396,6 +396,22 @@ class DAQConfig(ConfigObject):
             except IOError:
                 break
 
+    def __getBoolean(self, name, attr_name):
+        """Extract a period specification from the configuration"""
+        for key, value in self.other_objs:
+            if key == name and type(value) == list:
+                for v in value:
+                    try:
+                        dstr = get_attrib(v, attr_name)
+                        if dstr is None:
+                            return False
+                        dstr = dstr.lower()
+                        return dstr == "true" or dstr == "yes"
+                    except (AttributeError, ValueError):
+                        pass
+
+        return False
+
     def __getPeriod(self, name):
         """Extract a period specification from the configuration"""
         for key, value in self.other_objs:
@@ -415,6 +431,10 @@ class DAQConfig(ConfigObject):
     def watchdogPeriod(self):
         """return the watchdog period (None if not specified)"""
         return self.__getPeriod("watchdog")
+
+    def updateHitSpoolTimes(self):
+        """Return the monitoring period (None if not specified)"""
+        return not self.__getBoolean("updateHitSpoolTimes", "disabled")
 
     def configFile(self):
         """added to match the signature of the old code"""
@@ -626,13 +646,13 @@ class DAQConfig(ConfigObject):
                         str_hub = StringHub(strhub_dict, str_hub_id)
                         self.stringhub_map[str_hub_id] = str_hub
                         self.addComponent(str_hub.fullName(), False)
-            elif 'hubFiles' in key:
+            elif 'replayFiles' in key:
                 # found a replay hub
                 self.replay_hubs = []
                 for replay_hub in val:
                     try:
                         base_dir = get_attrib(replay_hub, 'baseDir')
-                        for rhub_dict in replay_hub['__children__']['hub']:
+                        for rhub_dict in replay_hub['__children__']['hits']:
                             rh_obj = ReplayHub(rhub_dict, base_dir)
                             self.replay_hubs.append(rh_obj)
                             self.addComponent(rh_obj.fullName(), False)

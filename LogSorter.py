@@ -327,6 +327,14 @@ class StringHubLog(BaseLog):
             lobj.setText("TCAL read failed")
 
 
+class ReplayHubLog(BaseLog):
+    def __init__(self, fileName):
+        super(ReplayHubLog, self).__init__(fileName)
+
+    def _isNoise(self, lobj):
+        return False
+
+
 class LogSorter(object):
     def __init__(self, dir=None, file=None, runNum=None):
         self.__dir = dir
@@ -378,6 +386,8 @@ class LogSorter(object):
             log = CatchallLog(fileName)
         elif fileName.startswith("cncserver"):
             log = CnCServerLog(fileName)
+        elif fileName.startswith("replayHub-"):
+            log = ReplayHubLog(fileName)
         elif fileName.startswith("dash"):
             log = DashLog(fileName, hide_rates)
         else:

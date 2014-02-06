@@ -40,7 +40,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 14759 2014-01-07 18:42:14Z dglo $"
+SVN_ID = "$Id: CnCServer.py 14830 2014-02-06 17:20:27Z dglo $"
 
 
 class DAQPool(object):
@@ -257,7 +257,8 @@ class DAQPool(object):
         "Build a runset from the specified run configuration"
         logger.info("Loading run configuration \"%s\"" % runConfigName)
         try:
-            runConfig = DAQConfigParser.load(runConfigName, runConfigDir, strict)
+            runConfig = DAQConfigParser.load(runConfigName, runConfigDir,
+                                             strict)
         except DAQConfigException, ex:
             raise CnCServerException("Cannot load %s from %s" %
                                      (runConfigName, runConfigDir), ex)
@@ -310,6 +311,8 @@ class DAQPool(object):
                 runSet.connect(connMap, logger)
                 runSet.setOrder(connMap, logger)
                 runSet.configure()
+                if runConfig.updateHitSpoolTimes():
+                    runSet.initReplayHubs()
             except:
                 runSet.reportRunStartFailure(runNum, release, revision)
                 if not forceRestart:

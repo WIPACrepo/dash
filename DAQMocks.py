@@ -611,6 +611,7 @@ class MockComponent(object):
         self.__updatedRates = False
         self.__deadCount = 0
         self.__stopFail = False
+        self.__replayHub = False
 
         self.__beanData = {}
 
@@ -775,6 +776,9 @@ class MockComponent(object):
 
     def isHanging(self):
         return self.__hangType != 0
+
+    def isReplayHub(self):
+        return self.__replayHub
 
     def isSource(self):
         return self.__isSrc
@@ -1288,6 +1292,9 @@ class MockRunComponent(object):
 
     def isHub(self):
         return self.__name.endswith("Hub")
+
+    def isReplay(self):
+        return self.isHub() and self.__name.lower().find("replay") >= 0
 
     def mbeanPort(self):
         return self.__mbeanPort

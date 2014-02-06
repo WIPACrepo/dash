@@ -43,6 +43,8 @@ class ComponentOperation(threading.Thread):
     GET_GOOD_TIME = "GET_GOOD_TIME"
     "thread will get multiple component MBean values"
     GET_MULTI_BEAN = "GET_MULTI_BEAN"
+    "thread will get first hit time from replay hubs"
+    GET_REPLAY_TIME = "GET_REPLAY_TIME"
     "thread will get run data from builders"
     GET_RUN_DATA = "GET_RUN_DATA"
     "thread will get a single component MBean value"
@@ -53,6 +55,8 @@ class ComponentOperation(threading.Thread):
     RESET_COMP = "RESET_COMP"
     "thread will reset the component's logging"
     RESET_LOGGING = "RESET_LOGGING"
+    "thread will set time offset for replay hubs"
+    SET_REPLAY_OFFSET = "SET_REPLAY_OFFSET"
     "thread will start the component running"
     START_RUN = "START_RUN"
     "thread will start a subrun on the component"
@@ -123,6 +127,10 @@ class ComponentOperation(threading.Thread):
         self.__result = self.__comp.getMultiBeanFields(self.__data[0],
                                                        self.__data[1])
 
+    def __getReplayTime(self):
+        "Get the replay hub's first hit time"
+        self.__result = self.__comp.getReplayStartTime()
+
     def __getRunData(self):
         "Get the builder's run data"
         self.__result = self.__comp.getRunData(self.__data[0])
@@ -143,6 +151,10 @@ class ComponentOperation(threading.Thread):
     def __resetLogging(self):
         "Reset logging for the component"
         self.__comp.resetLogging()
+
+    def __setReplayOffset(self):
+        "Set the replay hub's time offset"
+        self.__comp.setReplayOffset(self.__data[0])
 
     def __startRun(self):
         "Start the component running"
@@ -182,6 +194,8 @@ class ComponentOperation(threading.Thread):
             self.__getGoodTime()
         elif self.__operation == ComponentOperation.GET_MULTI_BEAN:
             self.__getMultiBeanFields()
+        elif self.__operation == ComponentOperation.GET_REPLAY_TIME:
+            self.__getReplayTime()
         elif self.__operation == ComponentOperation.GET_RUN_DATA:
             self.__getRunData()
         elif self.__operation == ComponentOperation.GET_SINGLE_BEAN:
@@ -192,6 +206,8 @@ class ComponentOperation(threading.Thread):
             self.__resetComponent()
         elif self.__operation == ComponentOperation.RESET_LOGGING:
             self.__resetLogging()
+        elif self.__operation == ComponentOperation.SET_REPLAY_OFFSET:
+            self.__setReplayOffset()
         elif self.__operation == ComponentOperation.START_RUN:
             self.__startRun()
         elif self.__operation == ComponentOperation.START_SUBRUN:
@@ -275,6 +291,7 @@ class ComponentOperationGroup(object):
         if self.__op != ComponentOperation.GET_CONN_INFO and \
                self.__op != ComponentOperation.GET_GOOD_TIME and \
                self.__op != ComponentOperation.GET_MULTI_BEAN and \
+               self.__op != ComponentOperation.GET_REPLAY_TIME and \
                self.__op != ComponentOperation.GET_RUN_DATA and \
                self.__op != ComponentOperation.GET_SINGLE_BEAN and \
                self.__op != ComponentOperation.GET_STATE and \

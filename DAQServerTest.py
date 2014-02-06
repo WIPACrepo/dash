@@ -75,6 +75,9 @@ class TinyClient(object):
     def isComponent(self, name, num=-1):
         return self.__name == name and (num < 0 or self.__num == num)
 
+    def isReplayHub(self):
+        return False
+
     def isSource(self):
         return True
 

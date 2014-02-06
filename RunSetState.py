@@ -11,6 +11,7 @@ class RunSetState(object):
     CONFIGURING = "configuring"
     CONNECTED = "connected"
     CONNECTING = "connecting"
+    INIT_REPLAY = "initializingReplay"
     READY = "ready"
     STARTING = "starting"
     RUNNING = "running"

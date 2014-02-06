@@ -1335,9 +1335,56 @@ class RunSet(object):
 
         return duration
 
+    def __getReplayHubs(self):
+        "Return the list of replay hubs in this runset"
+        replayHubs = []
+        for c in self.__set:
+            if c.isReplayHub():
+                replayHubs.append(c)
+        return replayHubs
+
     @classmethod
     def __getRunDirectoryPath(cls, logDir, runNum):
         return os.path.join(logDir, "daqrun%05d" % runNum)
+
+    def __internalInitReplay(self, replayHubs):
+        tGroup = ComponentOperationGroup(ComponentOperation.GET_REPLAY_TIME)
+        for c in replayHubs:
+            tGroup.start(c, self.__logger, ())
+        tGroup.wait()
+        tGroup.reportErrors(self.__logger, "getReplayTime")
+
+        # find earliest first hit
+        firsttime = None
+        r = tGroup.results()
+        for c in replayHubs:
+            result = r[c]
+            if result == ComponentOperation.RESULT_HANGING or \
+                result == ComponentOperation.RESULT_ERROR:
+                self.__logger.error("Cannot get first replay time for %s: %s" %
+                                     (c.fullName(), result))
+                continue
+            elif result < 0:
+                self.__logger.error("Got bad replay time for %s: %s" %
+                                     (c.fullName(), result))
+                continue
+            elif firsttime is None or result < firsttime:
+                firsttime = result
+
+        if firsttime is None:
+            raise RunSetException("Couldn't find first replay time")
+
+        # calculate offset
+        yrsecs = 60 * 60 * 24 * 365
+        walltime = long((time.time() % yrsecs) * 10000000000.0)
+        offset = walltime - firsttime
+
+        # set offset on all replay hubs
+        tGroup = ComponentOperationGroup(ComponentOperation.SET_REPLAY_OFFSET)
+        for c in replayHubs:
+            tGroup.start(c, self.__logger, (offset, ))
+        tGroup.wait()
+        tGroup.reportErrors(self.__logger, "setReplayOffset")
 
     @staticmethod
     def __listComponentsAndConnections(compList, connDict=None):
@@ -1903,6 +1950,21 @@ class RunSet(object):
 
     def id(self):
         return self.__id
+
+    def initReplayHubs(self):
+        "Initialize all replay hubs"
+        self.__logDebug(RunSetDebug.START_RUN, "RSInitReplay TOP")
+        replayHubs = self.__getReplayHubs()
+        if len(replayHubs) == 0:
+            return
+
+        prevState = self.__state
+        self.__state = RunSetState.INIT_REPLAY
+
+        try:
+            self.__internalInitReplay(replayHubs)
+        finally:
+            self.__state = prevState
 
     def isDestroyed(self):
         return self.__state == RunSetState.DESTROYED
