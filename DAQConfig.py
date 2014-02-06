@@ -324,7 +324,7 @@ class DAQConfig(ConfigObject):
         rng validation parser, but there are a few things
         not validated"""
 
-        if len(self.stringhub_map) == 0:
+        if len(self.stringhub_map) == 0 and len(self.replay_hubs) == 0:
             raise ProcessError("No doms or replayHubs found in %s"
                                % self.filename)
 
@@ -841,7 +841,7 @@ def main():
     #    args.append("sim5str")
 
     for config_name in args:
-        if opt.extended:
+        if opt.extended and not opt.quiet:
             print '-----------------------------------------------------------'
             print "Config %s" % config_name
         start_time = datetime.datetime.now()
@@ -864,17 +864,19 @@ def main():
             init_time = float(diff.seconds) + \
                 (float(diff.microseconds) / 1000000.0)
             comps = dc.components()
-            comps.sort()
-            for comp in comps:
-                print 'Comp %s log %s' % (str(comp), str(comp.logLevel()))
+            if not opt.quiet:
+                comps.sort()
+                for comp in comps:
+                    print 'Comp %s log %s' % (str(comp), str(comp.logLevel()))
 
             start_time = datetime.datetime.now()
             dc = DAQConfigParser.load(config_name, config_dir, opt.strict)
             diff = datetime.datetime.now() - start_time
             next_time = float(diff.seconds) + \
                 (float(diff.microseconds) / 1000000.0)
-            print "Initial time %.03f, subsequent time: %.03f" % \
-                (init_time, next_time)
+            if not opt.quiet:
+                print "Initial time %.03f, subsequent time: %.03f" % \
+                    (init_time, next_time)
 
 
 if __name__ == "__main__":
