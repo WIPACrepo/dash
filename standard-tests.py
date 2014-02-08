@@ -23,6 +23,7 @@ set_exc_string_encoding("ascii")
 
 # times in seconds
 #
+QUARTER_HR = 900
 HALF_HR = 1800
 FOUR_HR = 14400
 EIGHT_HR = 28800
@@ -128,6 +129,7 @@ RUN_LIST = (PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
             PDAQRun("sim60str-stdtest-01", EIGHT_HR),
             ###PDAQRun("sim80str-25Hz", FOUR_HR),
             ###PDAQRun("sim80str-25Hz", EIGHT_HR),
+            PDAQRun("replay-120151-ic60-it11"", QUARTER_HR),
             )
 
 
