@@ -331,18 +331,18 @@ class GoodTimeThread(CnCThread):
 
         if updated:
             try:
-                self.__notifyAllBuilders(self.__goodTime)
+                self.__notifyComponents(self.__goodTime)
             except:
                 self.__log.error("Cannot send %s to builders: %s" %
                                  (self.moniname(), exc_string()))
 
         return complete
 
-    def __notifyAllBuilders(self, goodTime):
+    def __notifyComponents(self, goodTime):
         "Send latest good time to the builders"
         for c in self.__otherSet:
-            if c.isBuilder():
-                self.notifyBuilder(c, goodTime)
+            if c.isBuilder() or c.isComponent("globalTrigger"):
+                self.notifyComponent(c, goodTime)
 
     def beanfield(self):
         "Return the name of the 'stringhub' MBean field"
@@ -363,7 +363,7 @@ class GoodTimeThread(CnCThread):
         "Return the name of the value sent to I3Live"
         raise NotImplementedError("Unimplemented")
 
-    def notifyBuilder(self, bldr, goodTime):
+    def notifyComponent(self, comp, goodTime):
         "Notify the builder of the good time"
         raise NotImplementedError("Unimplemented")
 
@@ -404,12 +404,12 @@ class FirstGoodTimeThread(GoodTimeThread):
         "Return the name of the value sent to I3Live"
         return "firstGoodTime"
 
-    def notifyBuilder(self, bldr, payTime):
+    def notifyComponent(self, comp, payTime):
         "Notify the builder of the good time"
         if payTime is None:
             self.logError("Cannot set first good time to None")
         else:
-            bldr.setFirstGoodTime(payTime)
+            comp.setFirstGoodTime(payTime)
 
     def waitForAll(self):
         "Wait for all threads to finish before checking results?"
@@ -442,12 +442,12 @@ class LastGoodTimeThread(GoodTimeThread):
         "Return the name of the value sent to I3Live"
         return "lastGoodTime"
 
-    def notifyBuilder(self, bldr, payTime):
+    def notifyComponent(self, comp, payTime):
         "Notify the builder of the good time"
         if payTime is None:
             self.logError("Cannot set last good time to None")
         else:
-            bldr.setLastGoodTime(payTime)
+            comp.setLastGoodTime(payTime)
 
     def waitForAll(self):
         "Wait for all threads to finish before checking results?"

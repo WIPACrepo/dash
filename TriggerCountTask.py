@@ -50,7 +50,7 @@ class TriggerCountThread(CnCThread):
             prio = Prio.EMAIL
 
             for d in cntDicts:
-                self.__sendMoni("trigger_count", d, prio)
+                self.__sendMoni("trigger_rate", d, prio)
 
     def getNewThread(self):
         thrd = TriggerCountThread(self.__runset, self.__dashlog,
@@ -64,7 +64,7 @@ class TriggerCountTask(CnCTask):
     created and run.  This sends separate reports for each algorithm to live.
     """
     NAME = "TriggerCount"
-    PERIOD = 60
+    PERIOD = 600
     DEBUG_BIT = False
 
     def __init__(self, taskMgr, runset, dashlog, liveMoni, period=None):
