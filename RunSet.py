@@ -306,6 +306,8 @@ class GoodTimeThread(CnCThread):
                 numDoms = result[self.NONZOMBIE_FIELD]
                 if numDoms == 0:
                     # this string has no usable DOMs, record illegal time
+                    self.__log.error("No usable DOMs on %s for %s" %
+                                     (c.fullName(), self.moniname()))
                     self.__timeDict[c] = -1L
                     continue
 
