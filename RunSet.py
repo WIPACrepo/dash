@@ -324,7 +324,7 @@ class GoodTimeThread(CnCThread):
                     self.__goodTime = val
                     updated = True
 
-            if not hanging or self.waitForAll():
+            if not hanging or not self.waitForAll():
                 # we've either got all results or all threads are done
                 break
 
