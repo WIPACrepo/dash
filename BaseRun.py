@@ -497,6 +497,9 @@ class Run(object):
         # get the new run number
         #
         runData = self.__mgr.getLastRunNumber()
+        if runData is None or runData[0] is None:
+            raise RunException("Cannot find run number!")
+
         self.__runNum = runData[0] + 1
         self.__duration = duration
 
