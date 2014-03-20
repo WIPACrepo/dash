@@ -1492,15 +1492,15 @@ class RunSet(object):
         #
         self.__startSet("NonHubs", otherSet)
 
+        # start sources
+        #
+        self.__startSet("Hubs", srcSet)
+
         # start thread to find latest first time from hubs
         #
         goodThread = FirstGoodTimeThread(srcSet[:], otherSet[:],
                                          self.__runData, self.__runData)
         goodThread.start()
-
-        # start sources
-        #
-        self.__startSet("Hubs", srcSet)
 
         for i in xrange(20):
             if not goodThread.isAlive():
