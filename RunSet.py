@@ -311,7 +311,10 @@ class GoodTimeThread(CnCThread):
                     self.__timeDict[c] = -1L
                     continue
 
-                val = result[self.beanfield()]
+                if not result.has_key(self.beanfield()):
+                    val = None
+                else:
+                    val = result[self.beanfield()]
                 if val is None or val <= 0L:
                     # No results yet, need to poll again
                     complete = False
