@@ -29,7 +29,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info, store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 14396 2013-04-04 17:12:17Z mnewcomb $"
+SVN_ID = "$Id: DeployPDAQ.py 14912 2014-03-20 17:51:41Z dglo $"
 
 
 def getUniqueHostNames(config):
@@ -310,6 +310,7 @@ def deploy(config, homeDir, pdaqDir, subdirs, delete, dryRun,
             parallel.add(cmd)
 
     if not dryRun:
+        parallel.shuffle()
         parallel.start()
         if parallel.isParallel():
             parallel.wait(monitorIval)

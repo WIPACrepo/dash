@@ -15,12 +15,12 @@ from returning before the commands finish, otherwise the interpreter
 will return while the commands continue to run;
 """
 
+import datetime
+import os
+import random
+import signal
 import subprocess
 import time
-import os
-import os.path
-import datetime
-import signal
 
 
 class TimeoutException(Exception):
@@ -119,6 +119,7 @@ class PCmd(object):
         # Create a Popen object for running a shell child proc to
         # run the command
         if not self.dryRun:
+            time.sleep(0.01)
             self.subproc = subprocess.Popen(self.cmd, shell=True)
 
         if self.verbose:
@@ -199,11 +200,13 @@ class ParallelShell(object):
                                self.verbose, self.trace, self.timeout))
         return len(self.pcmds) - 1  # Start w/ 0
 
+    def shuffle(self):
+        random.shuffle(self.pcmds)
+
     def start(self):
         """ Start all unstarted commands. """
         for c in self.pcmds:
             if c.subproc is None:
-                time.sleep(0.01)
                 c.start()
 
     def wait(self, monitorIval=None):
