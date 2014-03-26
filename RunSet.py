@@ -1648,8 +1648,7 @@ class RunSet(object):
                 if self.__runData is None:
                     break
 
-                self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING phase %d",
-                                    i)
+                self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING phase %d", i)
                 if i == 0:
                     self.__attemptToStop(srcSet, otherSet,
                                          RunSetState.STOPPING,
@@ -1664,7 +1663,11 @@ class RunSet(object):
                     break
         finally:
             # detector has stopped, no need to get last good time
-            goodThread.stop()
+            try:
+                goodThread.stop()
+            except:
+                # ignore problems stopping goodThread
+                pass
 
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING reset")
         if self.__runData is not None:
