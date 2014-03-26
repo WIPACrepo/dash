@@ -1648,18 +1648,18 @@ class RunSet(object):
                 if self.__runData is None:
                     break
 
-                    self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING phase %d",
+                self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING phase %d",
                                     i)
-                    if i == 0:
-                        self.__attemptToStop(srcSet, otherSet,
-                                             RunSetState.STOPPING,
-                                             ComponentOperation.STOP_RUN,
-                                             int(timeout * .75))
-                    else:
-                        self.__attemptToStop(srcSet, otherSet,
-                                             RunSetState.FORCING_STOP,
-                                             ComponentOperation.FORCED_STOP,
-                                             int(timeout * .25))
+                if i == 0:
+                    self.__attemptToStop(srcSet, otherSet,
+                                         RunSetState.STOPPING,
+                                         ComponentOperation.STOP_RUN,
+                                         int(timeout * .75))
+                else:
+                    self.__attemptToStop(srcSet, otherSet,
+                                         RunSetState.FORCING_STOP,
+                                         ComponentOperation.FORCED_STOP,
+                                         int(timeout * .25))
                 if len(srcSet) == 0 and len(otherSet) == 0:
                     break
         finally:
