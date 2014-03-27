@@ -935,7 +935,8 @@ class RunData(object):
         for c in bldrs:
             result = r[c]
             if result == ComponentOperation.RESULT_HANGING or \
-                result == ComponentOperation.RESULT_ERROR:
+                result == ComponentOperation.RESULT_ERROR or \
+                result is None:
                 self.__dashlog.error("Cannot get run data for %s: %s" %
                                      (c.fullName(), result))
             elif type(result) is not list and type(result) is not tuple:

@@ -446,7 +446,7 @@ class DAQClient(ComponentName):
             return unFixValue(self.__client.xmlrpc.getRunData(runNum))
         except:
             self.__log.error(exc_string())
-            return (None, None, None)
+            return None
 
     def getRunNumber(self):
         "Get the current run number"
