@@ -38,6 +38,8 @@ class DashXMLLog:
     <Config>sps-IC79-Erik-Changed-TriggerIDs-V151</Config>
     <StartTime>55584.113903</StartTime>
     <EndTime>55584.227695</EndTime>
+    <FirstGoodTime>55584.123003</FirstGoodTime>
+    <LastGoodTime>55584.216579</LastGoodTime>
     <TermCondition>SUCCESS</TermCondition>
     <Events>24494834</Events>
     <Moni>60499244</Moni>
@@ -61,8 +63,9 @@ class DashXMLLog:
         self._style_sheet_url = style_sheet_url
 
         self._required_fields = ["run", "Cluster", "Config", "StartTime",
-                                 "EndTime", "TermCondition", "Events", "Moni",
-                                 "Tcal", "SN"]
+                                 "EndTime", "FirstGoodTime", "LastGoodTime",
+                                 "TermCondition", "Events", "Moni", "Tcal",
+                                 "SN"]
 
     def __parseDateTime(self, fld):
         if fld is None:
@@ -191,6 +194,30 @@ class DashXMLLog:
     def getEndTime(self):
         """Get the end time for this run"""
         return self.__parseDateTime(self.getField("EndTime"))
+
+    def setFirstGoodTime(self, first_time):
+        """Set the first good time for this run
+
+        Args:
+            first_time: the first good time for this run
+        """
+        self.setField("FirstGoodTime", first_time)
+
+    def getFirstGoodTime(self):
+        """Get the first good time for this run"""
+        return self.__parseDateTime(self.getField("FirstGoodTime"))
+
+    def setLastGoodTime(self, last_time):
+        """Set the last time for this run
+
+        Args:
+            last_time: the last time for this run
+        """
+        self.setField("LastGoodTime", last_time)
+
+    def getLastGoodTime(self):
+        """Get the last time for this run"""
+        return self.__parseDateTime(self.getField("LastGoodTime"))
 
     def setTermCond(self, had_error):
         """Set the termination condition for this run
@@ -400,6 +427,8 @@ if __name__ == "__main__":
     a.setConfig("sps-IC79-Erik-Changed-TriggerIDs-V151")
     a.setStartTime(55584.113903)
     a.setEndTime(55584.227695)
+    a.setFirstGoodTime(55584.113903)
+    a.setLastGoodTime(55584.227695)
     a.setTermCond(False)
     a.setEvents(24494834)
     a.setMoni(60499244)

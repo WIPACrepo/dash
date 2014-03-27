@@ -706,7 +706,7 @@ class RunData(object):
                             prio=Prio.EMAIL, time=moniData["tcalTime"])
 
     def __writeRunXML(self, numEvts, numMoni, numSN, numTcal, firstTime,
-                      lastTime, duration, hadError):
+                      lastTime, firstGood, lastGood, duration, hadError):
 
         xmlLog = DashXMLLog(dir_name=self.__runDir)
         path = xmlLog.getPath()
@@ -720,6 +720,8 @@ class RunData(object):
         xmlLog.setCluster(self.__clusterConfig.descName())
         xmlLog.setStartTime(PayloadTime.toDateTime(firstTime))
         xmlLog.setEndTime(PayloadTime.toDateTime(lastTime))
+        xmlLog.setFirstGoodTime(PayloadTime.toDateTime(firstGood))
+        xmlLog.setLastGoodTime(PayloadTime.toDateTime(lastGood))
         xmlLog.setEvents(numEvts)
         xmlLog.setMoni(numMoni)
         xmlLog.setSN(numSN)
@@ -772,8 +774,8 @@ class RunData(object):
         self.__dashlog.error(msg)
 
     def finalReport(self, comps, hadError, switching=False):
-        (numEvts, firstTime, lastTime, numMoni, numSN, numTcal) = \
-            self.getRunData(comps)
+        (numEvts, firstTime, lastTime, firstGood, lastGood, numMoni, numSN,
+         numTcal) = self.getRunData(comps)
 
         # set end-of-run statistics
         time = datetime.datetime.utcnow()
@@ -800,7 +802,7 @@ class RunData(object):
                 self.__dashlog.error("Cannot calculate duration")
 
         self.__writeRunXML(numEvts, numMoni, numSN, numTcal, firstTime,
-                           lastTime, duration, hadError)
+                           lastTime, firstGood, lastGood, duration, hadError)
 
         self.__reportRunStop(numEvts, firstTime, lastTime, hadError)
 
@@ -916,6 +918,8 @@ class RunData(object):
         nEvts = 0
         firstTime = 0
         lastTime = 0
+        firstGood = 0
+        lastGood = 0
         nMoni = 0
         nSN = 0
         nTCal = 0
@@ -943,11 +947,12 @@ class RunData(object):
                 self.__dashlog.error("Bogus run data for %s: %s" %
                                      (c.fullName(), result))
             elif c.isComponent("eventBuilder"):
-                (nEvts, firstTime, lastTime) = result
+                (nEvts, firstTime, lastTime, firstGood, lastGood) = result
             elif c.isComponent("secondaryBuilders"):
                 (nTCal, nSN, nMoni) = result
 
-        return (nEvts, firstTime, lastTime, nMoni, nSN, nTCal)
+        return (nEvts, firstTime, lastTime, firstGood, lastGood, nMoni, nSN,
+                nTCal)
 
     def getSingleBeanField(self, comp, bean, fldName):
         tGroup = ComponentOperationGroup(ComponentOperation.GET_SINGLE_BEAN)
