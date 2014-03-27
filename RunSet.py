@@ -947,9 +947,23 @@ class RunData(object):
                 self.__dashlog.error("Bogus run data for %s: %s" %
                                      (c.fullName(), result))
             elif c.isComponent("eventBuilder"):
-                (nEvts, firstTime, lastTime, firstGood, lastGood) = result
+                expNum = 5
+                if len(result) == expNum:
+                    (nEvts, firstTime, lastTime, firstGood, lastGood) = result
+                else:
+                    self.__dashlog.error(("Expected %d run data values from" +
+                                          " %s, got %d (%s)") %
+                                         (expNum, c.fullName(), len(result),
+                                          str(result)))
             elif c.isComponent("secondaryBuilders"):
-                (nTCal, nSN, nMoni) = result
+                expNum = 3
+                if len(result) == expNum:
+                    (nTCal, nSN, nMoni) = result
+                else:
+                    self.__dashlog.error(("Expected %d run data values from" +
+                                          " %s, got %d (%s)") %
+                                         (expNum, c.fullName(), len(result),
+                                          str(result)))
 
         return (nEvts, firstTime, lastTime, firstGood, lastGood, nMoni, nSN,
                 nTCal)
