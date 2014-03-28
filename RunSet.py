@@ -193,7 +193,7 @@ class GoodTimeThread(CnCThread):
     # bean field name holding the number of non-zombie hubs
     NONZOMBIE_FIELD = "NumberOfNonZombies"
     # maximum number of attempts to get the time from all hubs
-    MAX_ATTEMPTS = 100
+    MAX_ATTEMPTS = 20
 
     def __init__(self, srcSet, otherSet, data, log, quickSet=False,
                  threadName=None):
@@ -269,12 +269,13 @@ class GoodTimeThread(CnCThread):
         complete = True
         updated = False
 
-        # wait for up to 1.5 seconds (15 * 0.1) for a result
+        # wait for up to half a second for a result
         sleepSecs = 0.1
-        sleepReps = 15
+        sleepReps = 5
 
         for i in xrange(sleepReps):
             hanging = False
+            complete = True
 
             rList = tGroup.results()
             for c in self.__srcSet:
@@ -327,8 +328,12 @@ class GoodTimeThread(CnCThread):
                     self.__goodTime = val
                     updated = True
 
-            if not hanging or not self.waitForAll():
-                # we've either got all results or all threads are done
+            if complete:
+                # quit if we've got all the results
+                break
+
+            if not hanging and not self.waitForAll():
+                # quit if all threads are done or if we don't need to wait
                 break
 
             # wait a bit more for the threads to finish
