@@ -129,7 +129,7 @@ RUN_LIST = (PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
             PDAQRun("sim60str-stdtest-01", EIGHT_HR),
             ###PDAQRun("sim80str-25Hz", FOUR_HR),
             ###PDAQRun("sim80str-25Hz", EIGHT_HR),
-            PDAQRun("replay-120151-ic60-it11"", QUARTER_HR),
+            PDAQRun("replay-123997-full", HALF_HR),
             )
 
 
