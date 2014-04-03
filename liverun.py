@@ -154,6 +154,7 @@ class LiveState(object):
 
     PARSE_NORMAL = 1
     PARSE_FLASH = 2
+    PARSE_ALERTS = 3
 
     def __init__(self,
                  liveCmd=os.path.join(os.environ["HOME"], "bin", "livecmd"),
@@ -223,6 +224,16 @@ class LiveState(object):
             if m:
                 return self.PARSE_FLASH
 
+        if line.startswith("Ongoing Alerts:"):
+            return self.PARSE_ALERTS
+
+        if parseState == self.PARSE_ALERTS:
+            if line.find("(None)") >= 0:
+                return self.PARSE_NORMAL
+
+            self.__logger.error("Ongoing Alert: " + line.rstrip())
+            return self.PARSE_ALERTS
+
         if line.find(": ") > 0:
             (front, back) = line.split(": ", 1)
             front = front.strip()
@@ -276,6 +287,9 @@ class LiveState(object):
                 return self.PARSE_NORMAL
             elif front == "Run starts":
                 # ignore run start/switch info
+                return self.PARSE_NORMAL
+            elif front == "Flashing state":
+                # ignore flashing state
                 return self.PARSE_NORMAL
             elif front == "check failed" and back.find("timed out") >= 0:
                 self.__logger.error("I3Live may have died" +
