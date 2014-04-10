@@ -413,9 +413,12 @@ class LogSorter(object):
             else:
                 cond = "SUCCESS"
 
-            delta = runXML.getEndTime() - runXML.getStartTime()
-            secs = float(delta.seconds) + \
-                (float(delta.microseconds) / 1000000.0)
+            if runXML.getEndTime() is None or runXML.getStartTime() is None:
+                secs = 0
+            else:
+                delta = runXML.getEndTime() - runXML.getStartTime()
+                secs = float(delta.seconds) + \
+                       (float(delta.microseconds) / 1000000.0)
 
         if cond == "ERROR":
             print "-v-v-v-v-v-v-v-v-v-v ERROR v-v-v-v-v-v-v-v-v-v-"
