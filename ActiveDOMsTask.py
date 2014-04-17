@@ -42,8 +42,6 @@ class ActiveDOMThread(CnCThread):
         sum_lc_rate = 0
         total_rate = 0
         lc_rate = 0
-        rate_dict = {}
-        ratelc_dict = {}
 
         hub_DOMs = {}
 
@@ -98,9 +96,6 @@ class ActiveDOMThread(CnCThread):
             sum_lc_rate += lc_rate
             sum_total_rate += total_rate
 
-            rate_dict[str(c.num())] = total_rate
-            ratelc_dict[str(c.num())] = lc_rate
-
             if self.__sendDetails:
                 hub_DOMs[str(c.num())] = (hub_active_doms, hub_total_doms)
 
@@ -132,6 +127,15 @@ class ActiveDOMThread(CnCThread):
                 # use higher priority every 10 minutes to keep North updated
                 prio = Prio.ITS
 
+            dom_update = \
+                      { "activeDOMs": active_total,
+                        "expectedDOMs": total,
+                        "total_ratelc": sum_lc_rate,
+                        "total_rate": sum_total_rate,
+                    }
+            self.__sendMoni("dom_update", dom_update, prio)
+
+            # XXX get rid of these once I3Live uses "dom_update"
             self.__sendMoni("activeDOMs", active_total, prio)
             self.__sendMoni("expectedDOMs", total, prio)
             self.__sendMoni("total_ratelc", sum_lc_rate, prio)
@@ -143,8 +147,6 @@ class ActiveDOMThread(CnCThread):
 
                 # less urgent messages use lower priority
                 self.__sendMoni("stringDOMsInfo", hub_DOMs, Prio.EMAIL)
-                self.__sendMoni("stringRateInfo", rate_dict, Prio.EMAIL)
-                self.__sendMoni("stringRateLCInfo", ratelc_dict, Prio.EMAIL)
 
     def getNewThread(self, sendDetails):
         thrd = ActiveDOMThread(self.__runset, self.__dashlog,
