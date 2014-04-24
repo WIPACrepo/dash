@@ -4,7 +4,7 @@
 
 import os
 import sys
-from utils import ip
+from utils.Machineid import Machineid
 
 from DAQConfig import DAQConfig, DAQConfigParser
 from DAQConfig import DAQConfigException
