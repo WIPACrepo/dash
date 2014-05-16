@@ -1083,6 +1083,7 @@ class RunData(object):
             value = {
                 "run": self.__runNumber,
                 "subrun": self.__subrunNumber,
+                "version": 0,
             }
 
             # if we don't have a DAQ time, use system time but complain
