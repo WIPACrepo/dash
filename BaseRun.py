@@ -445,12 +445,15 @@ class Run(object):
                                 (self.__runNum, self.__runCfgName))
 
         try:
-            self.__mgr.summarize(self.__runNum)
+            rtnval = self.__mgr.summarize(self.__runNum)
         except:
-            self.__mgr.logger().error("Cannot summarize run %d: %s" % \
-                                      (self.__runNum, exc_string()))
+            self.__mgr.logError("Cannot summarize run %d: %s" % \
+                                (self.__runNum, exc_string()))
+            rtnval = False
 
         self.__runNum = 0
+
+        return rtnval
 
     def start(self, duration, ignoreDB=False, runMode=None, filterMode=None,
               flasherDelay=None, verbose=False):
@@ -479,9 +482,9 @@ class Run(object):
                                                         flasherDelay)
             if flashDur > duration:
                 if duration > 0:
-                    self.__mgr.logger().error(("Run length was %d secs, but" +
-                                               " need %d secs for flashers") %
-                                              (duration, flashDur))
+                    self.__mgr.logError(("Run length was %d secs, but" +
+                                         " need %d secs for flashers") %
+                                        (duration, flashDur))
                 duration = flashDur
 
             if flasherDelay is None:
@@ -521,9 +524,8 @@ class Run(object):
         #
         curNum = self.__mgr.getRunNumber()
         if curNum != self.__runNum:
-            self.__mgr.logger().error(("Expected run number %d, but actual" +
-                                       " number is %s") %
-                                      (self.__runNum, curNum))
+            self.__mgr.logError(("Expected run number %d, but actual number" +
+                                 " is %s") % (self.__runNum, curNum))
             self.__runNum = curNum
 
         # print run info
@@ -812,7 +814,7 @@ class BaseRun(object):
         try:
             run.wait()
         finally:
-            run.finish(verbose=verbose)
+            return run.finish(verbose=verbose)
 
     def setLightMode(self, isLID):
         """
@@ -857,7 +859,7 @@ class BaseRun(object):
 
     def summarize(self, runNum):
         if self.__dryRun:
-            return
+            return True
 
         summary = self.cncConnection().rpc_run_summary(runNum)
 
@@ -889,6 +891,8 @@ class BaseRun(object):
         self.logInfo("Run %d (%s) %s seconds : %s" %
                      (summary["num"], summary["config"], duration,
                       summary["result"]))
+
+        return summary["result"].upper() == "SUCCESS"
 
     def updateDB(self, runCfgName):
         """
