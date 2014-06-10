@@ -596,6 +596,7 @@ class BaseRun(object):
         self.__showCmd = showCmd
         self.__showCmdOutput = showCmdOutput
         self.__dryRun = dryRun
+        self.__userStopped = False
 
         self.__logger = RunLogger(logfile)
 
@@ -716,6 +717,9 @@ class BaseRun(object):
     def isStopping(self, refreshState=False):
         raise NotImplementedError()
 
+    def isUserStopped(self, refreshState=False):
+        return self.__userStopped
+
     def killComponents(self, dryRun=False):
         "Kill all pDAQ components"
         cfgDir = find_pdaq_config()
@@ -802,6 +806,9 @@ class BaseRun(object):
         verbose - provide additional details of the run
         """
 
+        if self.__userStopped:
+            return False
+
         run = self.createRun(clusterCfgName, runCfgName,
                              clusterDesc=clusterDesc, flashData=flashData)
 
@@ -846,6 +853,7 @@ class BaseRun(object):
         raise NotImplementedError()
 
     def stopOnSIGINT(self, signal, frame):
+        self.__userStopped = True
         print "Caught signal, stopping run"
         if self.isRunning(True):
             self.stopRun()
