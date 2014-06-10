@@ -86,11 +86,10 @@ class TestUtils(unittest.TestCase):
         a.setMoni(60499244)
         a.setTcal(4653819)
         a.setSN(47624256)
+        a.setFirstGoodTime(55584.123456)
+        a.setLastGoodTime(55584.210987)
 
-        try:
-            docStr = a.documentToString(indent="")
-        except DashXMLLogException:
-            self.fail("Dash XML Log Code raised an exception")
+        docStr = a.documentToString(indent="")
 
 
         expectedDocStr = """<?xml version="1.0" ?>
@@ -100,6 +99,8 @@ class TestUtils(unittest.TestCase):
 <Config>sps-IC79-Erik-Changed-TriggerIDs-V151</Config>
 <EndTime>55584.227695</EndTime>
 <Events>24494834</Events>
+<FirstGoodTime>55584.123456</FirstGoodTime>
+<LastGoodTime>55584.210987</LastGoodTime>
 <Moni>60499244</Moni>
 <SN>47624256</SN>
 <StartTime>55584.113903</StartTime>
