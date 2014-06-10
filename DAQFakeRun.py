@@ -164,6 +164,7 @@ class ComponentData(object):
                 "DiskAvailable": (2048, None),
                 "EventData": (0, 1),
                 "FirstEventTime": (0, None),
+                "GoodTimes": ((0, 0), None),
                 "NumBadEvents": (0, None),
                 "NumEventsSent": (0, 1),
                 "NumReadoutsReceived": (0, 2),

@@ -96,6 +96,8 @@ class BeanData(object):
                        'o', [0, 0, 0]),
                       ('eventBuilder', 'backEnd', 'FirstEventTime',
                        'o', 0, True),
+                      ('eventBuilder', 'backEnd', 'GoodTimes',
+                       'o', (0, 0), True),
                       ('eventBuilder', 'backEnd', 'NumBadEvents',
                        't', 0, False),
                       ),
@@ -688,10 +690,12 @@ class RealComponent(object):
                 else:
                     val = None
                     if bean == "backEnd":
-                        if fld == "FirstEventTime":
-                            val = 1000
-                        elif fld == "EventData":
+                        if fld == "EventData":
                             val = [2, 10000000000]
+                        elif fld == "FirstEventTime":
+                            val = 1000
+                        elif fld == "GoodTimes":
+                            val = [1000, 10000000000]
                         elif fld == "NumEventsSent":
                             val = 2
                         elif fld == "NumEventsDispatched":
@@ -781,8 +785,12 @@ class RealComponent(object):
 
         self.__mbeanData[bean][fld].setValue(val)
 
-    def setRunData(self, val0, val1, val2):
-        self.__runData = (long(val0), long(val1), long(val2))
+    def setRunData(self, val0, val1, val2, val3=None, val4=None):
+        if val3 is None and val4 is None:
+            self.__runData = (long(val0), long(val1), long(val2))
+        else:
+            self.__runData = (long(val0), long(val1), long(val2), long(val3),
+                              long(val4))
 
     @staticmethod
     def sortForLaunch(y, x):
@@ -998,6 +1006,7 @@ class IntegrationTest(unittest.TestCase):
 
         self.__setBeanData("eventBuilder", 0, "backEnd", "EventData", [0, 0])
         self.__setBeanData("eventBuilder", 0, "backEnd", "FirstEventTime", 0)
+        self.__setBeanData("eventBuilder", 0, "backEnd", "GoodTimes", [0, 0])
 
         dashLog.addExpectedRegexp(r"\s+0 physics events, 0 moni events," +
                                   r" 0 SN events, 0 tcals")
@@ -1016,6 +1025,8 @@ class IntegrationTest(unittest.TestCase):
                            [numEvts, curTime])
         self.__setBeanData("eventBuilder", 0, "backEnd", "FirstEventTime",
                            firstTime)
+        self.__setBeanData("eventBuilder", 0, "backEnd", "GoodTimes",
+                           [firstTime, curTime])
 
         duration = (curTime - firstTime) / 10000000000
         if duration <= 0:
@@ -1121,10 +1132,11 @@ class IntegrationTest(unittest.TestCase):
                             (compName, compNum))
 
     def __setRunData(self, numEvts, startEvtTime, lastEvtTime, numTcal, numSN,
-                     numMoni):
+                     numMoni, firstGood, lastGood):
         for c in self.__compList:
             if c.getName() == "eventBuilder":
-                c.setRunData(numEvts, startEvtTime, lastEvtTime)
+                c.setRunData(numEvts, startEvtTime, lastEvtTime, firstGood,
+                             lastGood)
             elif c.getName() == "secondaryBuilders":
                 c.setRunData(numTcal, numSN, numMoni)
 
@@ -1510,6 +1522,8 @@ class IntegrationTest(unittest.TestCase):
                            [numEvts, lastEvtTime])
         self.__setBeanData("eventBuilder", 0, "backEnd", "FirstEventTime",
                            startEvtTime)
+        self.__setBeanData("eventBuilder", 0, "backEnd", "GoodTimes",
+                           (startEvtTime, lastEvtTime))
         self.__setBeanData("secondaryBuilders", 0, "moniBuilder",
                            "TotalDispatchedData", numMoni)
         self.__setBeanData("secondaryBuilders", 0, "snBuilder",
@@ -1518,7 +1532,7 @@ class IntegrationTest(unittest.TestCase):
                            "TotalDispatchedData", numTcal)
 
         self.__setRunData(numEvts, startEvtTime, lastEvtTime, numTcal, numSN,
-                          numMoni)
+                          numMoni, startEvtTime, lastEvtTime)
 
         msg = 'Stopping run %d' % runNum
         if liveLog:

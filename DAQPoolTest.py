@@ -732,6 +732,7 @@ class TestDAQPool(unittest.TestCase):
 
         cComp.addBeanData("backEnd", "FirstEventTime", firstTime)
         cComp.addBeanData("backEnd", "EventData", (numEvts, lastTime))
+        cComp.addBeanData("backEnd", "GoodTimes", (firstTime, lastTime))
 
         monDict = runset.getEventCounts()
         self.assertEqual(monDict["physicsEvents"], numEvts)

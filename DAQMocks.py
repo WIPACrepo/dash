@@ -739,7 +739,11 @@ class MockComponent(object):
 
                 val = self.getSingleBeanField("backEnd", "FirstEventTime")
                 firstTime = long(val)
-                return (numEvts, firstTime, lastTime)
+
+                good = self.getSingleBeanField("backEnd", "GoodTimes")
+                firstGood = long(good[0])
+                lastGood = long(good[1])
+                return (numEvts, firstTime, lastTime, firstGood, lastGood)
             elif self.__name.startswith("secondary"):
                 for bldr in ("tcal", "sn", "moni"):
                     val = self.getSingleBeanField(bldr + "Builder",
@@ -1248,6 +1252,9 @@ class MockParallelShell(object):
 
     def showAll(self):
         raise Exception('SHOWALL')
+
+    def shuffle(self):
+        pass
 
     def start(self):
         pass

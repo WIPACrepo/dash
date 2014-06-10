@@ -450,8 +450,11 @@ class RealComponent(object):
     def setExpectedRunLogPort(self, port):
         self.__expRunPort = port
 
-    def setRunData(self, v1, v2, v3):
-        self.__runData = (long(v1), long(v2), long(v3))
+    def setRunData(self, v1, v2, v3, v4=None, v5=None):
+        if v4 is None and v5 is None:
+            self.__runData = (long(v1), long(v2), long(v3))
+        else:
+            self.__runData = (long(v1), long(v2), long(v3), long(v4), long(v5))
 
 
 class RateTracker(object):
@@ -501,11 +504,13 @@ class RateTracker(object):
         for comp in comps:
             if comp.name() == "eventBuilder":
                 comp.setRunData(self.__numEvts, self.__firstEvtTime,
-                                lastEvtTime)
+                                lastEvtTime, self.__firstEvtTime, lastEvtTime)
                 comp.setBeanFieldValue("backEnd", "EventData",
                                        (self.__numEvts, lastEvtTime))
                 comp.setBeanFieldValue("backEnd", "FirstEventTime",
                                        self.__firstEvtTime)
+                comp.setBeanFieldValue("backEnd", "GoodTimes",
+                                       (self.__firstEvtTime, lastEvtTime))
             elif comp.name() == "secondaryBuilders":
                 comp.setRunData(self.__numTcal, self.__numSN, self.__numMoni)
 
@@ -934,15 +939,18 @@ class TestCnCServer(unittest.TestCase):
         self.cnc.closeServer()
 
     def __setRunData(self, comps, numEvts, firstEvtTime, lastEvtTime, numTcal,
-                     numSN, numMoni):
+                     numSN, numMoni, firstGood, lastGood):
         for comp in comps:
             if comp.name() == "eventBuilder":
                 print >>sys.stderr, "---- Set RunData for %s" % comp.fullName()
-                comp.setRunData(numEvts, firstEvtTime, lastEvtTime)
+                comp.setRunData(numEvts, firstEvtTime, lastEvtTime, firstGood,
+                                lastGood)
                 comp.setBeanFieldValue("backEnd", "EventData",
                                        (numEvts, lastEvtTime))
                 comp.setBeanFieldValue("backEnd", "FirstEventTime",
                                        firstEvtTime)
+                comp.setBeanFieldValue("backEnd", "GoodTimes",
+                                       (firstGood, lastGood))
             elif comp.name() == "secondaryBuilders":
                 print >>sys.stderr, "---- Set RunData for %s" % comp.fullName()
                 comp.setRunData(numTcal, numSN, numMoni)
