@@ -138,7 +138,12 @@ class MockComponent(object):
 
                 val = self.__beanData["backEnd"]["FirstEventTime"]
                 firstTime = long(val)
-                return (numEvts, firstTime, lastTime)
+
+                good = self.__beanData["backEnd"]["GoodTimes"]
+                firstGood = long(good[0])
+                lastGood = long(good[1])
+
+                return (numEvts, firstTime, lastTime, firstGood, lastGood)
             elif self.__name.startswith("secondary"):
                 for bldr in ("tcalBuilder", "snBuilder", "moniBuilder"):
                     val = self.__beanData[bldr]["TotalDispatchedData"]
@@ -390,6 +395,7 @@ class CnCRunSetTest(unittest.TestCase):
                            {"DiskAvailable": 2048,
                             "EventData": 0,
                             "FirstEventTime": 0,
+                            "GoodTimes": (0, 0),
                             "NumBadEvents": 0,
                             "NumEventsDispatched": 0,
                             "NumEventsSent": 0,
@@ -561,6 +567,8 @@ class CnCRunSetTest(unittest.TestCase):
                            [numEvts, payTime])
         self.__setBeanData(comps, "eventBuilder", 0, "backEnd",
                            "FirstEventTime", firstTime)
+        self.__setBeanData(comps, "eventBuilder", 0, "backEnd",
+                           "GoodTimes", (firstTime, payTime))
 
         duration = self.__computeDuration(firstTime, payTime)
         if duration <= 0:
