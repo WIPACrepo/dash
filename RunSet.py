@@ -889,17 +889,17 @@ class RunData(object):
             monDict["wallTime"] = str(wallTime)
             monDict["eventPayloadTicks"] = payTime
         monDict["moniEvents"] = numMoni
-        if moniTime is None or numMoni == 0:
+        if moniTime is None:
             monDict["moniTime"] = None
         else:
             monDict["moniTime"] = str(moniTime)
         monDict["snEvents"] = numSN
-        if snTime is None or numSN == 0:
+        if snTime is None:
             monDict["snTime"] = None
         else:
             monDict["snTime"] = str(snTime)
         monDict["tcalEvents"] = numTcal
-        if tcalTime is None or numTcal == 0:
+        if tcalTime is None:
             monDict["tcalTime"] = None
         else:
             monDict["tcalTime"] = str(tcalTime)
