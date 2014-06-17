@@ -1101,7 +1101,7 @@ class RunData(object):
             for src in ("moni", "sn", "tcal"):
                 eventKey = src + "Events"
                 timeKey = src + "Time"
-                if moniData[timeKey] is not None:
+                if moniData[timeKey] is not None and moniData[timeKey] >= 0:
                     value[eventKey] = moniData[eventKey]
                     value[timeKey] = moniData[timeKey]
 
