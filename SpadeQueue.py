@@ -24,6 +24,10 @@ from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
 
+# save the current run number
+CURRENT_RUN_NUMBER = None
+
+# name of file indicating that logs have been queued
 FILE_MARKER = "logs-queued"
 
 
@@ -75,7 +79,20 @@ def __getRunData(runDir):
     return (time, duration)
 
 
-CURRENT_RUN_NUMBER = None
+def __getSize(runDir, runNum, logger=None):
+    total = 0
+    for f in os.listdir(runDir):
+        path = os.path.join(runDir, f)
+
+        if not os.path.isfile(path):
+            if logger is not None:
+                logger.error("Ignoring run %s subdirectory %s" % (runNum, f))
+            continue
+
+        total += os.path.getsize(path)
+
+    return total
+
 
 def __in_progress(logger, runNum):
     global CURRENT_RUN_NUMBER
@@ -106,8 +123,11 @@ def __in_progress(logger, runNum):
 
         if curNum is None:
             CURRENT_RUN_NUMBER = -1
+        else:
+            CURRENT_RUN_NUMBER = curNum
 
     return CURRENT_RUN_NUMBER == runNum
+
 
 def __indicate_daq_logs_queued(spadeDir, dryRun=False):
     __touch_file(os.path.join(spadeDir, FILE_MARKER), dryRun=dryRun)
@@ -157,6 +177,7 @@ def check_all(logger, spadeDir, copyDir, logDir, dryRun=False, force=False):
 
             queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
                           dryRun=dryRun, force=force)
+
 
 def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
                   deprecatedTime=None, deprecatedDuration=None,
