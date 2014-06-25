@@ -30,6 +30,9 @@ CURRENT_RUN_NUMBER = None
 # name of file indicating that logs have been queued
 FILE_MARKER = "logs-queued"
 
+# 1 GB of log data is too large
+TOO_LARGE = 1024 * 1024 * 1024
+
 
 def __copySpadeTarFile(logger, copyDir, spadeBaseName, tarFile, dryRun=False):
     copyFile = os.path.join(copyDir, spadeBaseName + ".dat.tar")
@@ -133,6 +136,14 @@ def __indicate_daq_logs_queued(spadeDir, dryRun=False):
     __touch_file(os.path.join(spadeDir, FILE_MARKER), dryRun=dryRun)
 
 
+def __sizefmt(size):
+    for x in ('bytes','KB','MB','GB'):
+        if size < 1024.0:
+            return "%3.1f %s" % (size, x)
+        size /= 1024.0
+    return "%3.1f TB" % size
+
+
 def __touch_file(f, dryRun=False):
     if dryRun:
         print "touch %s" % f
@@ -146,6 +157,14 @@ def __writeSpadeSemaphore(spadeDir, spadeBaseName, dryRun=False):
 
 
 def __writeSpadeTarFile(spadeDir, spadeBaseName, runDir, dryRun=False):
+    # ignore huge directories
+    dirsize = __getSize(runDir, runNum, logger=logger)
+    if dirsize >= TOO_LARGE:
+        if logger is not None:
+            logger.error("Not sending %s; %s is too large" %
+                         (runDir, __sizefmt(dirsize)))
+            return None
+
     tarBall = os.path.join(spadeDir, spadeBaseName + ".dat.tar")
 
     if dryRun:
