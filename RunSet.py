@@ -2,6 +2,7 @@
 
 import datetime
 import os
+import threading
 import time
 import sys
 
@@ -525,6 +526,8 @@ class RunData(object):
 
         self.__firstPayTime = -1
 
+        self.__spadeThread = None
+
     def __str__(self):
         return "Run#%d %s" % (self.__runNumber, self.__runStats)
 
@@ -1016,9 +1019,23 @@ class RunData(object):
             return
 
         if self.__spadeDir is not None:
-            SpadeQueue.queueForSpade(self.__dashlog, self.__spadeDir,
-                                     self.__copyDir, self.__logDir,
-                                     self.__runNumber)
+            if self.__spadeThread is not None:
+                if self.__spadeThread.is_alive():
+                    try:
+                        self.__spadeThread.join(0.001)
+                    except:
+                        pass
+                if self.__spadeThread.is_alive():
+                    self.__dashlog.error("Previous SpadeQueue thread is" +
+                                         " still running!!!")
+
+            thrd = threading.Thread(target=SpadeQueue.queueForSpade,
+                                    args=(self.__dashlog, self.__spadeDir,
+                                          self.__copyDir, self.__logDir,
+                                          self.__runNumber))
+            thrd.start()
+
+            self.__spadeThread = thrd
 
     def reportGoodTime(self, name, payTime):
         if self.__liveMoniClient is None:

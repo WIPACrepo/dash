@@ -36,7 +36,7 @@ else:
 sys.path.append(os.path.join(metaDir, 'dash'))
 
 from ClusterDescription import ClusterDescription
-from DAQTime import PayloadTime
+from DAQTime import DAQDateTime, PayloadTime
 from utils.DashXMLLog import DashXMLLog
 
 
@@ -132,6 +132,12 @@ class LogLine(object):
         return self.__text
 
 
+class BadLine(LogLine):
+    def __init__(self, text):
+        super(BadLine, self).__init__("??", None, "ERROR",
+                                      DAQDateTime(0, 0, 0, 0, 0, 0, 0), text)
+
+
 class BaseLog(object):
     DATE_STR = r"(\d+-\d+-\d+ \d+:\d+:\d+\.\d+)"
     LINE_PAT = re.compile(r"^(\S+)\s+(\S+)\s+(\S+)\s+\[" + DATE_STR +
@@ -172,8 +178,7 @@ class BaseLog(object):
         try:
             date = PayloadTime.fromString(dateStr)
         except ValueError, ex:
-            print "%s for \"%s\"" % (ex, line)
-            return None
+            return BadLine(line)
 
         return LogLine(component, className, logLevel, date, text)
 
@@ -214,7 +219,7 @@ class BaseLog(object):
                 elif prevobj is not None:
                     prevobj.append(line)
                 else:
-                    print "?? " + line
+                    log.append(BadLine(line))
 
             if prevobj is not None:
                 self.cleanup(prevobj)
@@ -256,10 +261,10 @@ class DashLog(BaseLog):
     RATES_PAT = re.compile(r"\d+ physics events(\s+\(\d+\.\d+ Hz\))?," +
                            r" \d+ moni events, \d+ SN events, \d+ tcals")
 
-    def __init__(self, fileName, hideRates):
+    def __init__(self, fileName, hide_rates=False):
         super(DashLog, self).__init__(fileName)
 
-        self.__hideRates = hideRates
+        self.__hideRates = hide_rates
 
     def _isNoise(self, lobj):
         if self.__hideRates:
@@ -303,11 +308,11 @@ class SecondaryBuildersLog(BaseLog):
 
 
 class StringHubLog(BaseLog):
-    def __init__(self, fileName, showTCAL, hideSNGaps):
+    def __init__(self, fileName, show_tcal=False, hide_sn_gaps=False):
         super(StringHubLog, self).__init__(fileName)
 
-        self.__showTCAL = showTCAL
-        self.__hideSNGaps = hideSNGaps
+        self.__showTCAL = show_tcal
+        self.__hideSNGaps = hide_sn_gaps
 
     def _isNoise(self, lobj):
         if not self.__showTCAL and \
@@ -336,13 +341,12 @@ class ReplayHubLog(BaseLog):
 
 
 class LogSorter(object):
-    def __init__(self, dir=None, file=None, runNum=None):
-        self.__dir = dir
-        self.__file = file
+    def __init__(self, runDir=None, runNum=None):
+        self.__runDir = runDir
         self.__runNum = runNum
 
-    def __processDir(self, dirName, verbose, show_tcal, hide_rates,
-                     hide_sn_gaps):
+    def __processDir(self, dirName, verbose=False, show_tcal=False,
+                     hide_rates=False, hide_sn_gaps=False):
         log = None
         for f in os.listdir(dirName):
             # ignore MBean output files and run summary files
@@ -354,8 +358,10 @@ class LogSorter(object):
             if not os.path.isfile(path):
                 continue
 
-            flog = self.__processFile(path, verbose, show_tcal, hide_rates,
-                                      hide_sn_gaps)
+            flog = self.__processFile(path, verbose=verbose,
+                                      show_tcal=show_tcal,
+                                      hide_rates=hide_rates,
+                                      hide_sn_gaps=hide_sn_gaps)
             if flog is not None:
                 if log is None:
                     log = flog
@@ -364,15 +370,16 @@ class LogSorter(object):
 
         return log
 
-    def __processFile(self, path, verbose, show_tcal, hide_rates,
-                      hide_sn_gaps):
+    def __processFile(self, path, verbose=False, show_tcal=False,
+                      hide_rates=False, hide_sn_gaps=False):
         fileName = os.path.basename(path)
 
         log = None
         if not fileName.endswith(".log"):
-            print "Ignoring \"%s\"" % path
+            return [BadLine("Ignoring \"%s\"" % path), ]
         elif fileName.startswith("stringHub-"):
-            log = StringHubLog(fileName, show_tcal, hide_sn_gaps)
+            log = StringHubLog(fileName, show_tcal=show_tcal,
+                               hide_sn_gaps=hide_sn_gaps)
         elif fileName.startswith("inIceTrigger-") or \
                 fileName.startswith("iceTopTrigger-"):
             log = LocalTriggerLog(fileName)
@@ -389,19 +396,18 @@ class LogSorter(object):
         elif fileName.startswith("replayHub-"):
             log = ReplayHubLog(fileName)
         elif fileName.startswith("dash"):
-            log = DashLog(fileName, hide_rates)
-        else:
-            print >> sys.stderr, "Unknown log file \"%s\"" % path
-
-        if log is None:
+            log = DashLog(fileName, hide_rates=hide_rates)
+        elif fileName.startswith("combined"):
             return None
+        else:
+            return [BadLine("Unknown log file \"%s\"" % path), ]
 
         return log.parse(path, verbose)
 
-    def dumpRun(self, verbose, show_tcal, hide_rates, hide_sn_gaps):
-        runDir = os.path.join(self.__dir, self.__file)
+    def dumpRun(self, out, verbose=False, show_tcal=False, hide_rates=False,
+                hide_sn_gaps=False):
         try:
-            runXML = DashXMLLog.parse(runDir)
+            runXML = DashXMLLog.parse(self.__runDir)
         except:
             runXML = None
 
@@ -421,34 +427,35 @@ class LogSorter(object):
                        (float(delta.microseconds) / 1000000.0)
 
         if cond == "ERROR":
-            print "-v-v-v-v-v-v-v-v-v-v ERROR v-v-v-v-v-v-v-v-v-v-"
+            print >>out, "-v-v-v-v-v-v-v-v-v-v ERROR v-v-v-v-v-v-v-v-v-v-"
         if runXML is not None:
-            print "Run %s: %s, %d evts, %s secs" % \
+            print >>out, "Run %s: %s, %d evts, %s secs" % \
                 (runXML.getRun(), cond, runXML.getEvents(), secs)
-            print "    %s" % runXML.getConfig()
-            print "    from %s to %s" % \
+            print >>out, "    %s" % runXML.getConfig()
+            print >>out, "    from %s to %s" % \
                 (runXML.getStartTime(), runXML.getEndTime())
-        log = self.__processDir(runDir, verbose, show_tcal, hide_rates,
-                                hide_sn_gaps)
+        log = self.__processDir(self.__runDir, verbose=verbose,
+                                show_tcal=show_tcal, hide_rates=hide_rates,
+                                hide_sn_gaps=hide_sn_gaps)
         log.sort()
         for l in log:
-            print str(l)
+            print >>out, str(l)
         if cond == "ERROR":
-            print "-^-^-^-^-^-^-^-^-^-^ ERROR ^_^_^_^_^_^_^_^_^_^_"
+            print >>out, "-^-^-^-^-^-^-^-^-^-^ ERROR ^_^_^_^_^_^_^_^_^_^_"
 
 if __name__ == "__main__":
     import optparse
 
-    def getDirAndRunnum(arg, rundir):
+    def getDirAndRunnum(topDir, subDir):
         for i in xrange(100):
             if i == 0:
-                fullpath = os.path.join(rundir, arg)
+                fullpath = os.path.join(topDir, subDir)
             elif i == 1:
-                fullpath = arg
+                fullpath = subDir
             elif i == 2:
-                fullpath = os.path.join(rundir, "daqrun" + arg)
+                fullpath = os.path.join(topDir, "daqrun" + subDir)
             elif i == 3:
-                fullpath = "daqrun" + arg
+                fullpath = "daqrun" + subDir
             else:
                 break
 
@@ -459,11 +466,11 @@ if __name__ == "__main__":
                 else:
                     numstr = filename
                 try:
-                    return(os.path.dirname(fullpath), filename, int(numstr))
+                    return(fullpath, int(numstr))
                 except:
                     pass
 
-        return (None, None, None)
+        return (None, None)
 
     p = optparse.OptionParser()
     p.add_option("-d", "--rundir", dest="rundir",
@@ -480,7 +487,7 @@ if __name__ == "__main__":
                  help="Show StringHub TCAL errors")
     p.add_option("-v", "--verbose", dest="verbose",
                  action="store_true", default=False,
-                 help="Print running commentary of program's progress")
+                 help="Include superfluous log lines")
 
     opt, args = p.parse_args()
 
@@ -494,11 +501,11 @@ if __name__ == "__main__":
         runDir = cd.daqLogDir()
 
     for arg in args:
-        (dirname, filename, runnum) = getDirAndRunnum(arg, runDir)
-        if dirname is None or filename is None or runnum is None:
+        (path, runnum) = getDirAndRunnum(runDir, arg)
+        if path is None or runnum is None:
             p.error("Bad run number \"%s\"" % arg)
             continue
 
-        ls = LogSorter(dirname, filename, runnum)
-        ls.dumpRun(opt.verbose, opt.show_tcal, opt.hide_rates,
-                   opt.hide_sn_gaps)
+        ls = LogSorter(path, runnum)
+        ls.dumpRun(sys.stdout, verbose=opt.verbose, show_tcal=opt.show_tcal,
+                   hide_rates=opt.hide_rates, hide_sn_gaps=opt.hide_sn_gaps)
