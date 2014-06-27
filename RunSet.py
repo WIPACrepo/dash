@@ -723,6 +723,8 @@ class RunData(object):
                                  path)
             return
 
+        xmlLog.setVersionInfo(self.__versionInfo["release"],
+                              self.__versionInfo["revision"])
         xmlLog.setRun(self.__runNumber)
         xmlLog.setConfig(self.__runConfig.basename())
         xmlLog.setCluster(self.__clusterConfig.descName())

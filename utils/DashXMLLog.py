@@ -34,6 +34,8 @@ class DashXMLLog:
     <?xml-stylesheet type="text/xsl" href="/2011/xml/DAQRunlog.xsl"?>
     <DAQRunlog>
     <run>117554</run>
+    <Release>Dartmoor</Release>
+    <Revision>0:0</Revision>
     <Cluster>sps</Cluster>
     <Config>sps-IC79-Erik-Changed-TriggerIDs-V151</Config>
     <StartTime>55584.113903</StartTime>
@@ -62,8 +64,9 @@ class DashXMLLog:
         self._root_elem_name = root_elem_name
         self._style_sheet_url = style_sheet_url
 
-        self._required_fields = ["run", "Cluster", "Config", "StartTime",
-                                 "EndTime", "FirstGoodTime", "LastGoodTime",
+        self._required_fields = ["run", "Release", "Revision", "Cluster",
+                                 "Config", "StartTime", "EndTime",
+                                 "FirstGoodTime", "LastGoodTime",
                                  "TermCondition", "Events", "Moni", "Tcal",
                                  "SN"]
 
@@ -302,6 +305,25 @@ class DashXMLLog:
         if fld is None:
             return None
         return int(fld)
+
+    def setVersionInfo(self, rel, rev):
+        """Set the pDAQ release/revision info
+
+        Args:
+            rel: pDAQ release name
+            rev: pDAQ revision information
+        """
+        self.setField("Release", rel)
+        self.setField("Revision", rev)
+
+    def getVersionInfo(self):
+        """Get the release/revision tuple for this run"""
+        rel = self.getField("Release")
+        if rel is not None:
+            rev = self.getField("Revision")
+            if rev is not None:
+                return (rel, rev)
+        return (None, None)
 
     def _build_document(self):
         """Take the internal fields dictionary, the _root_elem_name,

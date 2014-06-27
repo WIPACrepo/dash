@@ -88,6 +88,7 @@ class TestUtils(unittest.TestCase):
         a.setSN(47624256)
         a.setFirstGoodTime(55584.123456)
         a.setLastGoodTime(55584.210987)
+        a.setVersionInfo("RelName", "revA:revB")
 
         docStr = a.documentToString(indent="")
 
@@ -102,6 +103,8 @@ class TestUtils(unittest.TestCase):
 <FirstGoodTime>55584.123456</FirstGoodTime>
 <LastGoodTime>55584.210987</LastGoodTime>
 <Moni>60499244</Moni>
+<Release>RelName</Release>
+<Revision>revA:revB</Revision>
 <SN>47624256</SN>
 <StartTime>55584.113903</StartTime>
 <Tcal>4653819</Tcal>
