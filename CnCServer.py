@@ -40,7 +40,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 14830 2014-02-06 17:20:27Z dglo $"
+SVN_ID = "$Id: CnCServer.py 15059 2014-06-30 16:16:03Z dglo $"
 
 
 class DAQPool(object):
@@ -872,7 +872,7 @@ class CnCServer(DAQPool):
         return self.__clusterConfig
 
     def getRelease(self):
-        return (self.__versionInfo["release"], self.__versionInfo["revision"])
+        return (self.__versionInfo["release"], self.__versionInfo["repo_rev"])
 
     def makeRunsetFromRunConfig(self, runConfig, runNum,
                                 timeout=REGISTRATION_TIMEOUT, strict=False):

@@ -724,7 +724,7 @@ class RunData(object):
             return
 
         xmlLog.setVersionInfo(self.__versionInfo["release"],
-                              self.__versionInfo["revision"])
+                              self.__versionInfo["repo_rev"])
         xmlLog.setRun(self.__runNumber)
         xmlLog.setConfig(self.__runConfig.basename())
         xmlLog.setCluster(self.__clusterConfig.descName())
@@ -864,7 +864,7 @@ class RunData(object):
         if self.__liveMoniClient is not None:
             self.reportRunStartClass(self.__liveMoniClient, self.__runNumber,
                                      self.__versionInfo["release"],
-                                     self.__versionInfo["revision"], True,
+                                     self.__versionInfo["repo_rev"], True,
                                      time=startTime)
 
         self.__taskMgr = runSet.createTaskManager(self.__dashlog,
