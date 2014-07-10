@@ -1425,9 +1425,10 @@ class RunSet(object):
             raise RunSetException("Couldn't find first replay time")
 
         # calculate offset
-        yrsecs = 60 * 60 * 24 * 365
-        walltime = long((time.time() % yrsecs) * 10000000000.0)
-        offset = walltime - firsttime
+        now = time.gmtime()
+        jan1 = time.struct_time((now.tm_year, 1, 1, 0, 0, 0, 0, 0, -1))
+        walltime = (time.mktime(now) - time.mktime(jan1)) * 10000000000
+        offset = long(walltime - firsttime)
 
         # set offset on all replay hubs
         tGroup = ComponentOperationGroup(ComponentOperation.SET_REPLAY_OFFSET)
