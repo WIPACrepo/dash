@@ -1594,6 +1594,32 @@ class RunSet(object):
         rsecs = float(rend.seconds) + (float(rend.microseconds) / 1000000.0)
         self.__logger.error("Waited %.3f seconds for %s" % (rsecs, setName))
 
+    def __logState(self, text, comps):
+        self.__logger.error("================= " + text + " =================")
+        tGroup = ComponentOperationGroup(ComponentOperation.GET_CONN_INFO)
+        for c in comps:
+            tGroup.start(c, self.__logger, ())
+        tGroup.wait()
+        connInfo = tGroup.results()
+
+        for c in comps:
+            if not connInfo.has_key(c):
+                connstr = "???"
+            else:
+                connstr = None
+                for ci in connInfo[c]:
+                    if ci["state"].find("idle") < 0:
+                        if connstr is None:
+                            connstr = ""
+                        else:
+                            connstr += " "
+                        connstr += "%s(%s)#%s" % \
+                                   (ci["type"], ci["state"], ci["numChan"])
+            if connstr is not None:
+                self.__logger.error("%s :: %s: %s" %
+                                    (text, c.fullName(), connstr))
+
+
     def __stopComponents(self, srcSet, otherSet, connDict, msgSecs):
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING WAITCHK top")
         tGroup = ComponentOperationGroup(ComponentOperation.GET_STATE)
@@ -2210,7 +2236,7 @@ class RunSet(object):
 
     def setError(self):
         self.__logDebug(RunSetDebug.STOP_RUN, "SetError %s", self.__runData)
-        if self.__state == RunSetState.RUNNING:
+        if self.__state == RunSetState.RUNNING and not self.__stopping:
             try:
                 self.stopRun(hadError=True)
             except:
