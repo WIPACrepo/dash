@@ -13,8 +13,6 @@ if __name__ == "__main__":
     print "-" * 60
     print ""
 
-    xsd_path = os.path.join(config_path, "xsd")
-
     invalid_found = False
     clustercfg_configs = glob.glob(os.path.join(config_path, '*.cfg'))
     for clustercfg_config in clustercfg_configs:
