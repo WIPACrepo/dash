@@ -842,10 +842,9 @@ class TestCnCServer(unittest.TestCase):
                 rateTracker.updateRunData(self.cnc, setId, self.comps)
 
             for comp in self.comps:
-                if not comp.isHub():
-                    log = logs[comp.fullName()]
-                    log.addExpectedExact('Switch %s to run#%d' %
-                                         (comp.fullName(), runNum + 1))
+                log = logs[comp.fullName()]
+                log.addExpectedExact('Switch %s to run#%d' %
+                                     (comp.fullName(), runNum + 1))
 
             dashlog.addExpectedRegexp(r"Version info: \S+ \d+" +
                                       r" \S+ \S+ \S+ \S+ \d+\S*")

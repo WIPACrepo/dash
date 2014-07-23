@@ -1486,7 +1486,7 @@ class RunSet(object):
             time.sleep(0.1)
         if firstTime is None:
             runData.error("Couldn't find first good time" +
-                             " for switched run %d" % runData.runNumber())
+                          " for switched run %d" % runData.runNumber())
         else:
             runData.reportGoodTime("firstGoodTime", firstTime)
 
@@ -2567,11 +2567,19 @@ class RunSet(object):
         #
         startTime = datetime.datetime.now()
 
-        # switch non-sources to new run
-        # NOTE: sources are not currently switched
+        # switch non-sources in order
         #
         for c in otherSet:
             c.switchToNewRun(newNum)
+
+        # switch sources in parallel
+        #
+        tGroup = ComponentOperationGroup(ComponentOperation.SWITCH_RUN)
+        opData = (newNum, )
+        for c in srcSet:
+            tGroup.start(c, self.__runData, opData)
+        tGroup.wait()
+        tGroup.reportErrors(self.__runData, "switch")
 
         # wait for builders to finish switching
         #

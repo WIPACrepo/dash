@@ -65,6 +65,8 @@ class ComponentOperation(threading.Thread):
     STOP_LOGGING = "STOP_LOGGING"
     "thread will stop the running component"
     STOP_RUN = "STOP_RUN"
+    "thread will switch the component to a new run number"
+    SWITCH_RUN = "SWITCH_RUN"
     "thread will terminate the component"
     TERMINATE = "TERMINATE"
 
@@ -172,6 +174,10 @@ class ComponentOperation(threading.Thread):
         "Stop the running component"
         self.__result = self.__comp.stopRun()
 
+    def __switchRun(self):
+        "Stop the running component"
+        self.__result = self.__comp.switchToNewRun(self.__data[0])
+
     def __terminate(self):
         "Terminate the component"
         self.__comp.terminate()
@@ -216,6 +222,8 @@ class ComponentOperation(threading.Thread):
             self.__stopLogging()
         elif self.__operation == ComponentOperation.STOP_RUN:
             self.__stopRun()
+        elif self.__operation == ComponentOperation.SWITCH_RUN:
+            self.__switchRun()
         elif self.__operation == ComponentOperation.TERMINATE:
             self.__terminate()
         else:
