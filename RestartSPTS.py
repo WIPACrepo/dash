@@ -101,7 +101,9 @@ def startRuns():
     """Start an unlimited set of runs"""
 
     # launch the config
-    rtn = subprocess.call(["DAQLaunch.py", "-c", RUN_CONFIG])
+    launch = os.path.join(os.environ["HOME"], "pDAQ_current", "dash",
+                          "DAQLaunch.py")
+    rtn = subprocess.call([launch, "-c", RUN_CONFIG])
     if rtn != 0:
         raise SystemExit("Failed to launch " + RUN_CONFIG)
 
