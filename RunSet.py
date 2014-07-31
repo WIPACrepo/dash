@@ -1619,6 +1619,27 @@ class RunSet(object):
                 self.__logger.error("%s :: %s: %s" %
                                     (text, c.fullName(), connstr))
 
+    def __removeComponent(self, comp):
+        try:
+            self.__set.remove(comp)
+        except ValueError:
+            self.__logger.error(("Cannot remove component %s from" +
+                                 " RunSet #%d") %
+                                (comp.fullName(), self.__id))
+
+        # clean up active log thread
+        if comp in self.__compLog:
+            try:
+                self.__compLog[comp].stopServing()
+            except:
+                pass
+            del self.__compLog[comp]
+
+        try:
+            comp.close()
+        except:
+            self.__logger.error("Close failed for %s: %s" %
+                                (comp.fullName(), exc_string()))
 
     def __stopComponents(self, srcSet, otherSet, connDict, msgSecs):
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING WAITCHK top")
@@ -1997,8 +2018,7 @@ class RunSet(object):
 
         # sort list into a predictable order for unit tests
         #
-        compStr = listComponentRanges(compList)
-        logger.error("Cycling components %s" % compStr)
+        logger.error("Cycling components %s" % listComponentRanges(compList))
 
         dryRun = False
         ComponentManager.killComponents(compList, dryRun, verbose, killWith9)
@@ -2144,41 +2164,22 @@ class RunSet(object):
         Remove all components in 'compList' (and which are found in
         'clusterConfig') from the runset and restart them
         """
-        cluCfgList = []
+        cluCfgList, missingList = clusterConfig.extractComponents(compList)
+
+        # complain about missing components
+        if len(missingList) > 0:
+            self.__logger.error(("Cannot restart %s: Not found in" +
+                                 " cluster config \"%s\"") %
+                                (listComponentRanges(missingList),
+                                 clusterConfig.descName()))
+
+        # remove remaining components from this runset
         for comp in compList:
-            found = False
-            for node in clusterConfig.nodes():
-                for nodeComp in node.components():
-                    if comp.name().lower() == nodeComp.name().lower() and \
-                            comp.num() == nodeComp.id():
-                        cluCfgList.append(nodeComp)
-                        found = True
-
-            if not found:
-                self.__logger.error(("Cannot restart component %s: Not found" +
-                                     " in cluster config \"%s\"") %
-                                    (comp.fullName(),
-                                     clusterConfig.configName()))
-            else:
-                try:
-                    self.__set.remove(comp)
-                except ValueError:
-                    self.__logger.error(("Cannot remove component %s from" +
-                                         " RunSet #%d") %
-                                        (comp.fullName(), self.__id))
-
-                # clean up active log thread
-                if comp in self.__compLog:
-                    try:
-                        self.__compLog[comp].stopServing()
-                    except:
-                        pass
-
-                try:
-                    comp.close()
-                except:
-                    self.__logger.error("Close failed for %s: %s" %
-                                        (comp.fullName(), exc_string()))
+            for nodeComp in cluCfgList:
+                if comp.name().lower() == nodeComp.name().lower() and \
+                   comp.num() == nodeComp.id():
+                    self.__removeComponent(comp)
+                    break
 
         self.cycleComponents(cluCfgList, configDir, daqDataDir, self.__logger,
                              logPort, livePort, verbose, killWith9, eventCheck)

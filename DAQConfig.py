@@ -772,8 +772,7 @@ class DAQConfigParser(object):
                                 clusterDesc=None, configDir=None, strict=False,
                                 validate=True):
         """
-        Find and parse the cluster configuration from either the run
-        configuration dir
+        Find and parse the cluster configuration
         """
 
         if configName is None:

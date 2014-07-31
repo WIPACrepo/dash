@@ -19,6 +19,7 @@ from DAQClient import DAQClient
 import DeployPDAQ
 from DAQConst import DAQPort
 from LiveImports import MoniPort, SERVICE_NAME
+from RunCluster import RunCluster
 from locate_pdaq import find_pdaq_trunk
 from utils import ip
 from utils.DashXMLLog import DashXMLLog
@@ -542,6 +543,10 @@ class MockClusterConfig(object):
 
     def descName(self):
         return self.__descName
+
+    def extractComponents(self, masterList):
+        return RunCluster.extractComponentsFromNodes(self.__nodes.values(),
+                                                     masterList)
 
     def nodes(self):
         return self.__nodes.values()

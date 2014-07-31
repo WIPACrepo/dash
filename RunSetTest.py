@@ -560,7 +560,7 @@ class TestRunSet(unittest.TestCase):
 
         clusterCfg = self.__buildClusterConfig(compList[1:], baseName)
 
-        logger.addExpectedExact(("Cannot restart component %s: Not found" +
+        logger.addExpectedExact(("Cannot restart %s: Not found" +
                                  " in cluster config \"%s\"") %
                                 (compList[0].fullName(),
                                  clusterCfg.configName()))
