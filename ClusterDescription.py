@@ -88,24 +88,23 @@ class ConfigXMLBase(object):
 
         return text
 
-    @staticmethod
-    def getSingleChild(node, name):
-        kids = node.getElementsByTagName(name)
-        if len(kids) < 1:
-            raise XMLFormatError('No <%s> node found' % name)
-        elif len(kids) > 1:
-            raise XMLFormatError('Multiple <%s> nodes found' % name)
-
-        return kids[0]
-
     @classmethod
     def getValue(cls, node, name, defaultVal=None):
         if node.attributes is not None and \
                 node.attributes.has_key(name):
+            # return named attribute value
             return node.attributes[name].value
 
+        kids = node.getElementsByTagName(name)
+        if len(kids) < 1:
+            # if no named attribute or node, return default value
+            return defaultVal
+
+        if len(kids) > 1:
+            raise XMLFormatError('Multiple <%s> nodes found' % name)
+
         try:
-            return cls.getChildText(cls.getSingleChild(node, name))
+            return cls.getChildText(kids[0])
         except:
             return defaultVal
 
@@ -126,10 +125,13 @@ class ControlComponent(Component):
         super(ControlComponent, self).__init__("CnCServer", 0, None)
 
     def __str__(self):
-        return "CnCServer"
+        return self.name()
 
     def isControlServer(self):
         return True
+
+    def isSimHub(self):
+        return False
 
     def jvm(self):
         return None
@@ -142,12 +144,12 @@ class ControlComponent(Component):
 
 
 class ClusterComponent(Component):
-    def __init__(self, name, id, logLevel, jvm, jvmArgs, required):
+    def __init__(self, name, num, logLevel, jvm, jvmArgs, required):
         self.__jvm = jvm
         self.__jvmArgs = jvmArgs
         self.__required = required
 
-        super(ClusterComponent, self).__init__(name, id, logLevel)
+        super(ClusterComponent, self).__init__(name, num, logLevel)
 
     def __str__(self):
         if self.__jvm is None:
@@ -172,6 +174,9 @@ class ClusterComponent(Component):
     def isControlServer(self):
         return False
 
+    def isSimHub(self):
+        return False
+
     def jvm(self):
         return self.__jvm
 
@@ -182,12 +187,15 @@ class ClusterComponent(Component):
         return self.__required
 
 
-class ClusterSimHub(object):
+class ClusterSimHub(ClusterComponent):
     def __init__(self, host, number, priority, ifUnused):
         self.host = host
         self.number = number
         self.priority = priority
         self.ifUnused = ifUnused
+
+        super(ClusterSimHub, self).__init__("SimHub", 0, None, None, None,
+                                            False)
 
     def __str__(self):
         if self.ifUnused:
@@ -196,12 +204,8 @@ class ClusterSimHub(object):
             uStr = ""
         return "%s*%d^%d%s" % (self.host, self.number, self.priority, uStr)
 
-    @staticmethod
-    def sortByPriority(x, y):
-        val = cmp(y.priority, x.priority)
-        if val == 0:
-            val = cmp(x.host.name, y.host.name)
-        return val
+    def isSimHub(self):
+        return True
 
 
 class ClusterHost(object):
@@ -214,8 +218,8 @@ class ClusterHost(object):
     def __str__(self):
         return self.name
 
-    def addComponent(self, name, id, logLevel, jvm, jvmArgs, required):
-        comp = ClusterComponent(name, id, logLevel, jvm, jvmArgs, required)
+    def addComponent(self, name, num, logLevel, jvm, jvmArgs, required):
+        comp = ClusterComponent(name, num, logLevel, jvm, jvmArgs, required)
 
         compKey = str(comp)
         if compKey in self.compMap:
@@ -270,9 +274,18 @@ class ClusterHost(object):
 class ClusterDefaults(object):
     def __init__(self):
         self.Components = {}
-        self.LogLevel = None
+        self.LogLevel = ClusterDescription.DEFAULT_LOG_LEVEL
         self.JVM = None
         self.JVMArgs = None
+
+    def __str__(self):
+        if not self.Components:
+            cstr = ""
+        else:
+            cstr = ", " + str(self.Components)
+
+        return "ClusterDefaults[logLvl %s, jvm %s, args %s%s]" % \
+            (self.LogLevel, self.JVM, self.JVMArgs, cstr)
 
 
 class ClusterDescription(ConfigXMLBase):
@@ -369,7 +382,7 @@ class ClusterDescription(ConfigXMLBase):
 
         idStr = cls.getValue(node, 'id', '0')
         try:
-            id = int(idStr)
+            num = int(idStr)
         except ValueError:
             errMsg = ('Cluster "%s" host "%s" component '
                       '"%s" has bad ID "%s"') % \
@@ -398,7 +411,7 @@ class ClusterDescription(ConfigXMLBase):
         if jvmArgs is None:
             jvmArgs = cls.__findDefault(defaults, name, 'jvmArgs')
 
-        host.addComponent(name, id, logLvl, jvm, jvmArgs, required)
+        host.addComponent(name, num, logLvl, jvm, jvmArgs, required)
 
     def __parseDefaultNodes(self, defaults, node):
         for kid in node.childNodes:
@@ -420,7 +433,7 @@ class ClusterDescription(ConfigXMLBase):
                               ' node without "name" attribute') % self.name
                     raise ClusterDescriptionFormatError(errMsg)
 
-                if not defaults.Components.has_key(name):
+                if not name in defaults.Components:
                     defaults.Components[name] = {}
 
                 for cKid in kid.childNodes:
@@ -588,7 +601,14 @@ class ClusterDescription(ConfigXMLBase):
 
     def extractFrom(self, dom):
         "Extract all necessary information from a run cluster description file"
-        cluster = self.getSingleChild(dom, 'cluster')
+        cluName = 'cluster'
+        kids = dom.getElementsByTagName(cluName)
+        if len(kids) < 1:
+            raise XMLFormatError('No <%s> node found' % cluName)
+        elif len(kids) > 1:
+            raise XMLFormatError('Multiple <%s> nodes found' % cluName)
+
+        cluster = kids[0]
 
         name = self.getValue(cluster, 'name')
 
@@ -687,14 +707,11 @@ class ClusterDescription(ConfigXMLBase):
         raise NotImplementedError("Cannot guess database" +
                                      " for cluster \"%s\"" % clu)
 
-    def getJVM(self, compName):
-        return self.__findDefault(self.__defaults, compName, 'jvm')
+    def host(self, name):
+        if not name in self.__hostMap:
+            return None
 
-    def getJVMArgs(self, compName):
-        return self.__findDefault(self.__defaults, compName, 'jvmArgs')
-
-    def getLogLevel(self, compName):
-        return self.__findDefault(self.__defaults, compName, 'logLevel')
+        return self.__hostMap[name]
 
     def listHostComponentPairs(self):
         for host in self.__hostMap.keys():
@@ -722,6 +739,15 @@ class ClusterDescription(ConfigXMLBase):
         if self.__pkgInstallDir is None:
             return self.DEFAULT_PKGINSTALL_DIR
         return self.__pkgInstallDir
+
+    def setDefaultJVM(self, value):
+        self.__defaultJVM = value
+
+    def setDefaultJVMArgs(self, value):
+        self.__defaultJVMArgs = value
+
+    def setDefaultLogLevel(self, value):
+        self.__defaultLogLevel = value
 
 if __name__ == '__main__':
     def tryCluster(configDir, path=None):

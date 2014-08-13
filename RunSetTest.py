@@ -563,7 +563,7 @@ class TestRunSet(unittest.TestCase):
         logger.addExpectedExact(("Cannot restart %s: Not found" +
                                  " in cluster config \"%s\"") %
                                 (compList[0].fullName(),
-                                 clusterCfg.configName()))
+                                 clusterCfg.descName()))
 
         cycleList = compList[1:]
         cycleList.sort()
