@@ -239,19 +239,32 @@ def startRuns(verbose=False):
 
 
 if __name__ == "__main__":
+    import optparse
     import socket
 
+    # make sure we're running this on SPTS
     hname = socket.gethostname()
     if not hname.endswith("spts.icecube.wisc.edu"):
         raise SystemExit("This script should only be run on SPTS")
+    elif hname.find("expcont") < 0:
+        raise SystemExit("This script should only be run on expcont")
 
-    verbose = False
+    p = optparse.OptionParser()
+
+    p.add_option("-f", "--force", dest="force",
+                 action="store_true", default=False,
+                 help="kill components even if there is an active run")
+    p.add_option("-v", "--verbose", dest="verbose",
+                 action="store_true", default=False,
+                 help="Log output for all components to terminal")
+
+    opt, args = p.parse_args()
 
     idle_minutes = 2 * 60    # two hours
     if not isPaused():
-        if not isSPTSActive(idle_minutes, verbose=verbose):
+        if opt.force or not isSPTSActive(idle_minutes, verbose=opt.verbose):
             startRuns(verbose=verbose)
-        elif verbose:
+        elif opt.verbose:
             print "SPTS is active"
-    elif verbose:
+    elif opt.verbose:
         print "SPTS is paused"
