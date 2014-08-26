@@ -280,7 +280,7 @@ class MostlyRunSet(RunSet):
     def getTaskManager(self):
         return self.__taskMgr
 
-    def queueForSpade(self, duration):
+    def queueForSpade(self, runData, duration):
         pass
 
 

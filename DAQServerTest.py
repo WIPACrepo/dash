@@ -172,7 +172,7 @@ class MockRunSet(RunSet):
                           moniType):
         return FakeTaskManager()
 
-    def queueForSpade(self, duration):
+    def queueForSpade(self, runData, duration):
         pass
 
 

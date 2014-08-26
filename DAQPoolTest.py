@@ -78,7 +78,7 @@ class MyRunSet(RunSet):
 
         return self.__logDict[name]
 
-    def queueForSpade(self, duration):
+    def queueForSpade(self, runData, duration):
         pass
 
 

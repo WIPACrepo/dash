@@ -103,7 +103,7 @@ class MostlyRunSet(RunSet):
 
         return self.__logDict[name]
 
-    def queueForSpade(self, duration):
+    def queueForSpade(self, runData, duration):
         pass
 
     def switchComponentLog(self, oldLog, runDir, comp):

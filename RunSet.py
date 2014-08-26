@@ -2085,12 +2085,12 @@ class RunSet(object):
         else:
             self.__logger.error(msg)
 
-    def queueForSpade(self, duration):
-        if self.__runData is None:
+    def queueForSpade(self, runData, duration):
+        if runData is None:
             self.__logger.error("No run data; cannot queue for SPADE")
             return
 
-        self.__runData.queueForSpade(duration)
+        runData.queueForSpade(duration)
 
     @classmethod
     def getRunSummary(cls, logDir, runNum):
@@ -2425,7 +2425,7 @@ class RunSet(object):
                 # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
                 # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
                 try:
-                    self.queueForSpade(duration)
+                    self.queueForSpade(self.__runData, duration)
                 except:
                     self.__logger.error("Could not queue SPADE files" +
                                         " for %s: %s" % (self, exc_string()))
@@ -2626,7 +2626,7 @@ class RunSet(object):
 
             # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
             # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
-            self.queueForSpade(duration)
+            self.queueForSpade(oldData, duration)
         except:
             if not savedEx:
                 savedEx = sys.exc_info()

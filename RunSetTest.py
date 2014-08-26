@@ -93,7 +93,7 @@ class MyRunSet(RunSet):
                         checkExists=True):
         pass
 
-    def queueForSpade(self, duration):
+    def queueForSpade(self, runData, duration):
         pass
 
 

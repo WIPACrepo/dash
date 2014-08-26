@@ -295,7 +295,7 @@ class MyRunSet(RunSet):
     def setDashLog(self, dashLog):
         self.__dashLog = dashLog
 
-    def queueForSpade(self, duration):
+    def queueForSpade(self, runData, duration):
         pass
 
     def reset(self):
