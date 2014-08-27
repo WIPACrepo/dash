@@ -263,7 +263,7 @@ if __name__ == "__main__":
     idle_minutes = 2 * 60    # two hours
     if not isPaused():
         if opt.force or not isSPTSActive(idle_minutes, verbose=opt.verbose):
-            startRuns(verbose=verbose)
+            startRuns(verbose=opt.verbose)
         elif opt.verbose:
             print "SPTS is active"
     elif opt.verbose:
