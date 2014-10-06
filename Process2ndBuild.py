@@ -135,7 +135,7 @@ def main(spadeDir, verbose=False, dryRun=False):
 
 
 if __name__ == "__main__":
-    import optparse
+    import argparse
     import sys
 
     from ClusterDescription import ClusterDescription
@@ -144,24 +144,24 @@ if __name__ == "__main__":
     if checkForRunningProcesses(os.path.basename(sys.argv[0])):
         raise SystemExit
 
-    op = optparse.OptionParser()
-    op.add_option("-d", "--spadedir", dest="spadedir",
+    op = argparse.ArgumentParser()
+    op.add_argument("-d", "--spadedir", dest="spadedir",
                   action="store", default=None,
                   help="SPADE directory")
-    op.add_option("-n", "--dry-run", dest="dryRun",
+    op.add_argument("-n", "--dry-run", dest="dryRun",
                   action="store_true", default=False,
                   help="Do not actually do anything")
-    op.add_option("-q", "--quiet", dest="verbose",
+    op.add_argument("-q", "--quiet", dest="verbose",
                   action="store_false", default=True,
                   help="Do not print log of actions to console")
-    op.add_option("-v", "--verbose", dest="verbose",
+    op.add_argument("-v", "--verbose", dest="verbose",
                   action="store_true", default=True,
                   help="Print log of actions to console (default)")
 
-    opt, args = op.parse_args()
+    args = op.parse_args()
 
-    if opt.spadedir is None:
+    if args.spadedir is None:
         cluster = ClusterDescription()
         spadeDir = cluster.logDirForSpade()
 
-    main(spadeDir, verbose=opt.verbose, dryRun=opt.dryRun)
+    main(spadeDir, verbose=args.verbose, dryRun=args.dryRun)
