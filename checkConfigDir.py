@@ -13,6 +13,7 @@ import time
 
 from DAQConfig import DAQConfigParser
 from locate_pdaq import find_pdaq_config
+from utils.Machineid import Machineid
 
 
 class Ancient(object):
@@ -239,7 +240,7 @@ class ConfigDirChecker(object):
 
         return svnmap
 
-    def __getUsedConfigs(self):
+    def __getUsedConfigs(self, dbName):
         """
         Return a list of configurations which have been used in a run
         """
@@ -249,7 +250,7 @@ class ConfigDirChecker(object):
         cmd_args = (self.MYSQL_BIN,
                     "-h", "dbs",
                     "-u", "i3omdbro",
-                    "-D", "I3OmDb",
+                    "-D", dbName,
                     "-e", query)
 
         proc = subprocess.Popen(cmd_args, stdout=subprocess.PIPE)
@@ -366,11 +367,12 @@ class ConfigDirChecker(object):
 
         return proc.returncode == 0
 
-    def run(self, dryrun=False, verbose=False, showUnknown=False, commit=False):
+    def run(self, dbName, dryrun=False, verbose=False, showUnknown=False,
+            commit=False):
         """
         Check pDAQ config directory and report results
         """
-        used = self.__getUsedConfigs()
+        used = self.__getUsedConfigs(dbName)
         svnmap = self.__getDirectorySVNStatus(self.__cfgdir)
         self.__checkUsedConfigs(used, svnmap)
         self.__addMissingToSVN(dryrun)
@@ -387,26 +389,32 @@ class ConfigDirChecker(object):
 
 
 if __name__ == "__main__":
-    import optparse
+    import argparse
 
-    p = optparse.OptionParser()
-    p.add_option("-c", "--commit", dest="commit",
-                 action="store_true", default=False,
-                 help="Commit changes to SVN repo in the North")
-    p.add_option("-d", "--config-dir", type="string", dest="configdir",
-                 action="store", default=None,
-                 help="Location of configuration directory being checked")
-    p.add_option("-n", "--dry-run", dest="dryrun",
-                 action="store_true", default=False,
-                 help="Don't add files to SVN")
-    p.add_option("-u", "--show-unknown", dest="showUnknown",
-                 action="store_true", default=False,
-                 help="Print list of all unknown files found in $PDAQ_CONFIG")
-    p.add_option("-v", "--verbose", dest="verbose",
-                 action="store_true", default=False,
-                 help="Print details of operation")
-    opt, args = p.parse_args()
+    p = argparse.ArgumentParser()
+    p.add_argument("-c", "--commit", dest="commit",
+                   action="store_true", default=False,
+                   help="Commit changes to SVN repo in the North")
+    p.add_argument("-d", "--config-dir", dest="configdir",
+                   help="Location of configuration directory being checked")
+    p.add_argument("-D", "--dbname", dest="dbName",
+                   default="I3OmDb",
+                   help="Name of database to check")
+    p.add_argument("-n", "--dry-run", dest="dryrun",
+                   action="store_true", default=False,
+                   help="Don't add files to SVN")
+    p.add_argument("-u", "--show-unknown", dest="showUnknown",
+                   action="store_true", default=False,
+                   help="Print list of all unknown files found in $PDAQ_CONFIG")
+    p.add_argument("-v", "--verbose", dest="verbose",
+                   action="store_true", default=False,
+                   help="Print details of operation")
+    args = p.parse_args()
 
-    chk = ConfigDirChecker(opt.configdir)
-    chk.run(dryrun=opt.dryrun, verbose=opt.verbose, showUnknown=opt.showUnknown,
-            commit=opt.commit)
+    hostid = Machineid()
+    if not hostid.is_sps_cluster():
+        raise SystemExit("This script should only be run on SPS")
+
+    chk = ConfigDirChecker(args.configdir)
+    chk.run(dbName, dryrun=args.dryrun, verbose=args.verbose,
+            showUnknown=args.showUnknown, commit=args.commit)

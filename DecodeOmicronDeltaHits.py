@@ -6,7 +6,6 @@ John Jacobsen, NPX Designs, Inc., john@mail.npxdesigns.com
 Started: Thu Feb  7 05:26:15 2008
 """
 
-import optparse
 from icecube.daq.util import nextHit
 
 
@@ -34,9 +33,13 @@ def main():
     """
     Print decoded hit output for all files given on command line
     """
-    p = optparse.OptionParser()
-    opt, args = p.parse_args()
-    for f in args:
+    import argparse
+
+    p = argparse.ArgumentParser()
+    p.add_argument("files", nargs="*")
+    args = p.parse_args()
+
+    for f in args.files:
         decode_hits(open(f))
 
 if __name__ == "__main__":

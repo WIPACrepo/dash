@@ -5,7 +5,6 @@
 #
 # Deploy valid pDAQ cluster configurations to any cluster
 
-import optparse
 import os
 import sys
 
@@ -27,195 +26,84 @@ TIMEOUT_DEFAULT = 300
 # add meta-project python dir to Python library search path
 metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
-from SVNVersionInfo import get_version_info, store_svnversion
+from SVNVersionInfo import store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 14912 2014-03-20 17:51:41Z dglo $"
-
-
-def getUniqueHostNames(config):
-    # There's probably a much better way to do this
-    retHash = {}
-    for node in config.nodes():
-        retHash[str(node.hostName())] = 1
-    return retHash.keys()
+SVN_ID = "$Id: DeployPDAQ.py 15170 2014-10-06 21:43:32Z dglo $"
 
 
-def getHubType(compID):
-    if compID % 1000 == 0:
-        return "amanda"
-    elif compID % 1000 <= 200:
-        return "in-ice"
+def add_arguments(parser, config_as_arg=True):
+    parser.add_argument("-C", "--cluster-desc", dest="clusterDesc",
+                        help="Cluster description name")
+    if config_as_arg:
+        parser.add_argument("-c", "--config-name", dest="configName",
+                            required=True,
+                            help="REQUIRED: Configuration name")
     else:
-        return "icetop"
+        parser.add_argument("configName",
+                            help="Run configuration name")
+    parser.add_argument("--delete", dest="delete",
+                        action="store_true", default=True,
+                        help="Run rsync's with --delete")
+    parser.add_argument("--no-delete", dest="delete",
+                        action="store_false", default=True,
+                        help="Run rsync's without --delete")
+    parser.add_argument("-l", "--list-configs", dest="doList",
+                        action="store_true", default=False,
+                        help="List available configs")
+    parser.add_argument("-n", "--dry-run", dest="dryRun",
+                        action="store_true", default=False,
+                        help=("Don't run rsyncs, just print as they would"
+                              " be run (disables quiet)"))
+    parser.add_argument("--deep-dry-run", dest="deepDryRun",
+                        action="store_true", default=False,
+                        help=("Run rsync's with --dry-run"
+                              " (implies verbose and serial)"))
+    parser.add_argument("-p", "--parallel", dest="doParallel",
+                        action="store_true", default=True,
+                        help="Run rsyncs in parallel (default)")
+    parser.add_argument("-q", "--quiet", dest="quiet",
+                        action="store_true", default=False,
+                        help="Run quietly")
+    parser.add_argument("-s", "--serial", dest="doSerial",
+                        action="store_true", default=False,
+                        help=("Run rsyncs serially (overrides parallel"
+                              " and unsets timeout)"))
+    parser.add_argument("-t", "--timeout", type=int, dest="timeout",
+                        default=TIMEOUT_DEFAULT,
+                        help="Number of seconds before rsync is terminated")
+    parser.add_argument("-v", "--verbose", dest="verbose",
+                        action="store_true", default=False,
+                        help="Be chatty")
+    parser.add_argument("--undeploy", dest="undeploy",
+                        action="store_true", default=False,
+                        help=("Remove entire ~pdaq/.m2 and"
+                              " ~pdaq/pDAQ_current dirs on remote nodes"
+                              " - use with caution!"))
+    parser.add_argument("--nice-adj", type=int, dest="niceAdj",
+                        default=NICE_ADJ_DEFAULT,
+                        help="Set nice adjustment for remote rsyncs" +
+                        " [default=%s]" % NICE_ADJ_DEFAULT)
+    parser.add_argument("-E", "--express", dest="express",
+                        action="store_true", default=EXPRESS_DEFAULT,
+                        help="Express rsyncs, unsets and overrides any/all" +
+                        " nice adjustments")
+    parser.add_argument("-m", "--no-host-check", dest="nohostcheck",
+                        default=False,
+                        help=("Disable checking the host type"
+                              " for run permission"))
+    parser.add_argument("-z", "--no-schema-validation", dest="validation",
+                        action="store_false", default=True,
+                        help=("Disable schema validation of xml"
+                              " configuration files"))
 
 
-def replaceHome(homeDir, curDir):
-    if curDir.startswith(homeDir):
-        return "~%s" % os.environ["USER"] + curDir[len(homeDir):]
-    return curDir
-
-
-def main():
-    "Main program"
-    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s " \
-               "%(release)s %(repo_rev)s" % get_version_info(SVN_ID)
-    usage = "%prog [options]\nversion: " + ver_info
-    p = optparse.OptionParser(usage=usage, version=ver_info)
-    p.add_option("-C", "--cluster-desc", type="string", dest="clusterDesc",
-                 action="store", default=None,
-                 help="Cluster description name")
-    p.add_option("-c", "--config-name", type="string", dest="configName",
-                 action="store", default=None,
-                 help="REQUIRED: Configuration name")
-    p.add_option("", "--delete", dest="delete",
-                 action="store_true", default=True,
-                 help="Run rsync's with --delete")
-    p.add_option("", "--no-delete", dest="delete",
-                 action="store_false", default=True,
-                 help="Run rsync's without --delete")
-    p.add_option("-l", "--list-configs", dest="doList",
-                 action="store_true", default=False,
-                 help="List available configs")
-    p.add_option("-n", "--dry-run", dest="dryRun",
-                 action="store_true", default=False,
-                 help="Don't run rsyncs, just print as they would be run" +
-                 " (disables quiet)")
-    p.add_option("", "--deep-dry-run", dest="deepDryRun",
-                 action="store_true", default=False,
-                 help=("Run rsync's with --dry-run "
-                       "(implies verbose and serial)"))
-    p.add_option("-p", "--parallel", dest="doParallel",
-                 action="store_true", default=True,
-                 help="Run rsyncs in parallel (default)")
-    p.add_option("-q", "--quiet", dest="quiet",
-                 action="store_true", default=False,
-                 help="Run quietly")
-    p.add_option("-s", "--serial", dest="doSerial",
-                 action="store_true", default=False,
-                 help="Run rsyncs serially (overrides parallel and unsets" +
-                 " timeout)")
-    p.add_option("-t", "--timeout", type="int", dest="timeout",
-                 action="store", default=TIMEOUT_DEFAULT,
-                 help="Number of seconds before rsync is terminated")
-    p.add_option("-v", "--verbose", dest="verbose",
-                 action="store_true", default=False,
-                 help="Be chatty")
-    p.add_option("", "--undeploy", dest="undeploy",
-                 action="store_true", default=False,
-                 help="Remove entire ~pdaq/.m2 and ~pdaq/pDAQ_current dirs" +
-                 " on remote nodes - use with caution!")
-    p.add_option("", "--nice-adj", type="int", dest="niceAdj",
-                 action="store", default=NICE_ADJ_DEFAULT,
-                 help="Set nice adjustment for remote rsyncs" +
-                 " [default=%default]")
-    p.add_option("-E", "--express", dest="express",
-                 action="store_true", default=EXPRESS_DEFAULT,
-                 help="Express rsyncs, unsets and overrides any/all" +
-                 " nice adjustments")
-    p.add_option("-m", "--no-host-check", dest="nohostcheck", default=False,
-                 help="Disable checking the host type for run permission")
-    p.add_option("-z", "--no-schema-validation", dest="validation",
-                 action="store_false", default=True,
-                 help="Disable schema validation of xml configuration files")
-
-    opt, args = p.parse_args()
-
-    if not opt.nohostcheck:
-        hostid = Machineid()
-        if(not (hostid.is_build_host() or
-           (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
-            print >>sys.stderr, ("Are you sure you are running DeployPDAQ "
-                                 "on the correct host?")
-            raise SystemExit
-
-    ## Work through options implications ##
-    # A deep-dry-run implies verbose and serial
-    if opt.deepDryRun:
-        opt.doSerial = True
-        opt.verbose = True
-        opt.quiet = False
-
-    # Serial overrides parallel and unsets timout
-    if opt.doSerial:
-        opt.doParallel = False
-        opt.timeout = None
-
-    # dry-run implies we want to see what is happening
-    if opt.dryRun:
-        opt.quiet = False
-
-    # Map quiet/verbose to a 2-value tracelevel
-    traceLevel = 0
-    if opt.quiet:
-        traceLevel = -1
-    if opt.verbose:
-        traceLevel = 1
-
-    # DAQ Launch does not allow both quiet and verbose.
-    # make the behaviour uniform
-    if opt.quiet and opt.verbose:
-        print >>sys.stderr, "Cannot specify both -q(uiet) and -v(erbose)"
-        raise SystemExit
-
-    # How often to report count of processes waiting to finish
-    monitorIval = None
-    if traceLevel >= 0 and opt.timeout:
-        monitorIval = max(opt.timeout * 0.01, 2)
-
-    if opt.doList:
-        DAQConfig.showList(None, None)
-        raise SystemExit
-
-    if not opt.configName:
-        print >>sys.stderr, 'No configuration specified'
-        p.print_help()
-        raise SystemExit
-
-    try:
-        cdesc = opt.clusterDesc
-        config = \
-            DAQConfigParser.getClusterConfiguration(opt.configName,
-                                                    clusterDesc=cdesc,
-                                                    validate=opt.validation)
-    except XMLFileNotFound:
-        print >> sys.stderr, 'Configuration "%s" not found' % opt.configName
-        p.print_help()
-        raise SystemExit
-    except DAQConfigException as e:
-        print >> sys.stderr, 'Cluster configuration file problem:'
-        raise SystemExit(e)
-
-    if traceLevel >= 0:
-        if config.descName() is None:
-            print "CLUSTER CONFIG: %s" % config.configName()
-        else:
-            print "CONFIG: %s" % config.configName()
-            print "CLUSTER: %s" % config.descName()
-
-        nodeList = config.nodes()
-        nodeList.sort()
-
-        print "NODES:"
-        for node in nodeList:
-            print "  %s(%s)" % (node.hostName(), node.locName()),
-
-            compList = node.components()
-            compList.sort()
-
-            for comp in compList:
-                print comp.fullName(),
-                if comp.isHub():
-                    print "[%s]" % getHubType(comp.id()),
-                print " ",
-            print
-
-        ver = store_svnversion(metaDir)
-        print "VERSION: %s" % ver
-
-    deploy(config, os.environ["HOME"], metaDir, SUBDIRS, opt.delete,
-           opt.dryRun, opt.deepDryRun, opt.undeploy, traceLevel,
-           monitorIval=monitorIval, niceAdj=opt.niceAdj, express=opt.express,
-           doParallel=opt.doParallel, timeout=opt.timeout)
+def check_running_on_access(prog):
+    "exit the program if it's not running on 'access' on SPS/SPTS"
+    hostid = Machineid()
+    if(not (hostid.is_build_host() or
+            (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+        raise SystemExit("Are you sure you are running"
+                         " %s on the correct host?" % prog)
 
 
 def deploy(config, homeDir, pdaqDir, subdirs, delete, dryRun,
@@ -331,5 +219,129 @@ def deploy(config, homeDir, pdaqDir, subdirs, delete, dryRun,
                     print "Results: %s" % result
 
 
+def getUniqueHostNames(config):
+    # There's probably a much better way to do this
+    retHash = {}
+    for node in config.nodes():
+        retHash[str(node.hostName())] = 1
+    return retHash.keys()
+
+
+def getHubType(compID):
+    if compID % 1000 == 0:
+        return "amanda"
+    elif compID % 1000 <= 200:
+        return "in-ice"
+    else:
+        return "icetop"
+
+
+def replaceHome(homeDir, curDir):
+    if curDir.startswith(homeDir):
+        return "~%s" % os.environ["USER"] + curDir[len(homeDir):]
+    return curDir
+
+
+def run_deploy(args):
+    ## Work through options implications ##
+    if not args.nohostcheck:
+        check_running_on_access("DeployPDAQ")
+
+    # A deep-dry-run implies verbose and serial
+    if args.deepDryRun:
+        args.doSerial = True
+        args.verbose = True
+        args.quiet = False
+
+    # Serial overrides parallel and unsets timout
+    if args.doSerial:
+        args.doParallel = False
+        args.timeout = None
+
+    # dry-run implies we want to see what is happening
+    if args.dryRun:
+        args.quiet = False
+
+    # Map quiet/verbose to a 2-value tracelevel
+    traceLevel = 0
+    if args.quiet:
+        traceLevel = -1
+    if args.verbose:
+        traceLevel = 1
+
+    # DAQ Launch does not allow both quiet and verbose.
+    # make the behaviour uniform
+    if args.quiet and args.verbose:
+        raise SystemExit("Cannot specify both -q(uiet) and -v(erbose)")
+
+    # How often to report count of processes waiting to finish
+    monitorIval = None
+    if traceLevel >= 0 and args.timeout:
+        monitorIval = max(args.timeout * 0.01, 2)
+
+    if args.doList:
+        DAQConfig.showList(None, None)
+        raise SystemExit
+
+    if not args.configName:
+        print >>sys.stderr, 'No configuration specified'
+        p.print_help()
+        raise SystemExit
+
+    try:
+        cdesc = args.clusterDesc
+        config = \
+            DAQConfigParser.getClusterConfiguration(args.configName,
+                                                    clusterDesc=cdesc,
+                                                    validate=args.validation)
+    except XMLFileNotFound:
+        print >> sys.stderr, 'Configuration "%s" not found' % args.configName
+        p.print_help()
+        raise SystemExit
+    except DAQConfigException as e:
+        print >> sys.stderr, 'Cluster configuration file problem:'
+        raise SystemExit(e)
+
+    if traceLevel >= 0:
+        if config.descName() is None:
+            print "CLUSTER CONFIG: %s" % config.configName()
+        else:
+            print "CONFIG: %s" % config.configName()
+            print "CLUSTER: %s" % config.descName()
+
+        nodeList = config.nodes()
+        nodeList.sort()
+
+        print "NODES:"
+        for node in nodeList:
+            print "  %s(%s)" % (node.hostName(), node.locName()),
+
+            compList = node.components()
+            compList.sort()
+
+            for comp in compList:
+                print comp.fullName(),
+                if comp.isHub():
+                    print "[%s]" % getHubType(comp.id()),
+                print " ",
+            print
+
+        ver = store_svnversion(metaDir)
+        print "VERSION: %s" % ver
+
+    deploy(config, os.environ["HOME"], metaDir, SUBDIRS, args.delete,
+           args.dryRun, args.deepDryRun, args.undeploy, traceLevel,
+           monitorIval=monitorIval, niceAdj=args.niceAdj, express=args.express,
+           doParallel=args.doParallel, timeout=args.timeout)
+
+
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    p = argparse.ArgumentParser()
+
+    add_arguments(p)
+
+    ns = p.parse_args()
+
+    run_deploy(ns)

@@ -1,35 +1,23 @@
 #!/usr/bin/env python
 
-import optparse
 import os
 import sys
 
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
-from locate_pdaq import find_pdaq_trunk
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-# add meta-project python dir to Python library search path
-metaDir = find_pdaq_trunk()
-sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
-from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQStopRun.py 13974 2012-10-24 17:09:53Z dglo $"
+def add_arguments(parser):
+    parser.add_argument("-v", "--verbose", dest="verbose",
+                   action="store_true", default=False,
+                   help="Verbose mode")
+    parser.add_argument("runset", nargs="*")
 
-if __name__ == "__main__":
-    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s " \
-               "%(release)s %(repo_rev)s" % get_version_info(SVN_ID)
-    usage = "%prog [options]\nversion: " + ver_info
-    p = optparse.OptionParser(usage=usage, version=ver_info)
 
-    p.add_option("-v", "--verbose", dest="verbose",
-                 action="store_true", default=False,
-                 help="Verbose mode")
-
-    opt, args = p.parse_args()
-
+def stoprun(args):
     stopIds = []
 
     cncrpc = RPCClient("localhost", DAQPort.CNCSERVER)
@@ -43,8 +31,8 @@ if __name__ == "__main__":
         raise SystemExit("There are currently no active runsets")
 
     listRS = False
-    if len(args) > 0:
-        for a in args:
+    if len(args.runset) > 0:
+        for a in args.runset:
             try:
                 n = int(a)
             except:
@@ -78,7 +66,8 @@ if __name__ == "__main__":
             state = "UNKNOWN"
         while True:
             reply = raw_input("Are you sure you want to stop" +
-                              " runset #%d (%s)? " % (rsid, state))
+                              " runset #%d (%s) without 'livecmd'? " %
+                              (rsid, state))
             lreply = reply.strip().lower()
             if lreply == "y" or lreply == "yes":
                 try:
@@ -91,3 +80,15 @@ if __name__ == "__main__":
             elif lreply == "n" or lreply == "no":
                 break
             print >>sys.stderr, "Please answer 'yes' or 'no'"
+
+
+if __name__ == "__main__":
+    import argparse
+
+    p = argparse.ArgumentParser()
+
+    add_arguments(p)
+
+    args = p.parse_args()
+
+    stoprun(args)

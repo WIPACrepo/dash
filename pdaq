@@ -1,0 +1,20 @@
+#!/usr/bin/env python
+#
+# The pdaq ubercommand which invokes all valid subcommands
+
+if __name__ == "__main__":
+    import argparse
+    from pdaq_commands import COMMANDS
+
+    p = argparse.ArgumentParser()
+
+    sub = p.add_subparsers(dest="cmd")
+
+    cmdmap = {}
+    for v in COMMANDS:
+        cmdmap[v.name()] = v
+        v.add_arguments(sub.add_parser(v.name()))
+
+    ns = p.parse_args()
+
+    cmdmap[ns.cmd].run(ns)

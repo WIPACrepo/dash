@@ -3,7 +3,7 @@
 import os
 
 
-class HostNotFoundException(Exception):
+class DirectoryNotFoundException(Exception):
     pass
 
 
@@ -33,7 +33,8 @@ def find_pdaq_config():
         CONFIGDIR = dir
         return CONFIGDIR
 
-    raise IOError("Cannot find DAQ configuration directory (PDAQ_CONFIG)")
+    raise DirectoryNotFoundException("Cannot find DAQ configuration directory"
+                                     " (PDAQ_CONFIG)")
 
 
 def find_pdaq_trunk():
@@ -61,4 +62,4 @@ def find_pdaq_trunk():
             METADIR = dir
             return METADIR
 
-    raise HostNotFoundException("Cannot find pDAQ trunk (PDAQ_HOME)")
+    raise DirectoryNotFoundException("Cannot find pDAQ trunk (PDAQ_HOME)")

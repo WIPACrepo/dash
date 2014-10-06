@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 import os
 import sys
 from xml_dict import xml_dict
@@ -802,29 +803,33 @@ class DAQConfigParser(object):
 
 
 def main():
-    parse = optparse.OptionParser()
-    parse.add_option("-c", "--check-config", type="string", dest="toCheck",
-                     action="store", default=None,
+    import argparse
+    import datetime
+    from exc_string import exc_string
+
+    parse = argparse.ArgumentParser()
+    parse.add_argument("-c", "--check-config", dest="toCheck",
                      help="Check whether configuration is valid")
-    parse.add_option("-S", "--not-strict", dest="strict",
+    parse.add_argument("-S", "--not-strict", dest="strict",
                      action="store_false", default=True,
                      help="Do not perform strict checking")
-    parse.add_option("-m", "--no-host-check", dest="nohostcheck",
+    parse.add_argument("-m", "--no-host-check", dest="nohostcheck",
                      default=False,
                      help="Disable checking the host type for run permission")
-    parse.add_option("-q", "--quiet", dest="quiet",
+    parse.add_argument("-q", "--quiet", dest="quiet",
                      action="store_true", default=False,
                      help="Don't print anything if config is OK")
-    parse.add_option("-x", "--extended-tests", dest="extended",
+    parse.add_argument("-x", "--extended-tests", dest="extended",
                      action="store_true", default=False,
                      help="Do extended testing")
-    parse.add_option("-z", "--no-schema-validation", dest="validation",
+    parse.add_argument("-z", "--no-schema-validation", dest="validation",
                      action="store_false", default=True,
                      help=("Disable schema validation of xml "
                            "configuration files"))
-    opt, args = parse.parse_args()
+    parse.add_argument("xmlfile", nargs="*")
+    args = parse.parse_args()
 
-    if not opt.nohostcheck:
+    if not args.nohostcheck:
         hostid = Machineid()
         if (not (hostid.is_build_host() or hostid.is_control_host() or
                  (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
@@ -836,71 +841,67 @@ def main():
 
     config_dir = find_pdaq_config()
 
-    if opt.toCheck:
+    if args.toCheck:
         try:
-            DAQConfigParser.load(opt.toCheck, config_dir, opt.strict)
-            if opt.validation:
-                (valid, reason) = validate_configs(None, opt.toCheck)
+            DAQConfigParser.load(args.toCheck, config_dir, args.strict)
+            if args.validation:
+                (valid, reason) = validate_configs(None, args.toCheck)
 
                 if not valid:
                     raise DAQConfigException(reason)
 
-            if not opt.quiet:
-                print "%s/%s is ok." % (config_dir, opt.toCheck)
+            if not args.quiet:
+                print "%s/%s is ok." % (config_dir, args.toCheck)
                 status = None
         except DAQConfigException as config_except:
             raise SystemExit(config_except)
         except:
             status = "%s/%s is not a valid config: %s" % \
-                (config_dir, opt.toCheck, exc_string())
+                (config_dir, args.toCheck, exc_string())
             raise SystemExit(status)
 
     # Code for testing:
-    #if len(args) == 0:
-    #    args.append("sim5str")
+    #if len(args.xmlfile) == 0:
+    #    args.xmlfile.append("sim5str")
 
-    for config_name in args:
-        if opt.extended and not opt.quiet:
+    for config_name in args.xmlfile:
+        if args.extended and not args.quiet:
             print '-----------------------------------------------------------'
             print "Config %s" % config_name
         start_time = datetime.datetime.now()
         try:
-            dc = DAQConfigParser.load(config_name, config_dir, opt.strict)
+            dc = DAQConfigParser.load(config_name, config_dir, args.strict)
         except Exception:
             print 'Could not parse "%s": %s' % (config_name, exc_string())
             continue
 
-        if opt.validation:
+        if args.validation:
             (valid, reason) = validate_configs(None, config_name)
             if not valid:
                 raise DAQConfigException(reason)
 
-        if not opt.extended:
-            if not opt.quiet:
+        if not args.extended:
+            if not args.quiet:
                 print "%s is ok" % config_name
         else:
             diff = datetime.datetime.now() - start_time
             init_time = float(diff.seconds) + \
                 (float(diff.microseconds) / 1000000.0)
             comps = dc.components()
-            if not opt.quiet:
+            if not args.quiet:
                 comps.sort()
                 for comp in comps:
                     print 'Comp %s log %s' % (str(comp), str(comp.logLevel()))
 
             start_time = datetime.datetime.now()
-            dc = DAQConfigParser.load(config_name, config_dir, opt.strict)
+            dc = DAQConfigParser.load(config_name, config_dir, args.strict)
             diff = datetime.datetime.now() - start_time
             next_time = float(diff.seconds) + \
                 (float(diff.microseconds) / 1000000.0)
-            if not opt.quiet:
+            if not args.quiet:
                 print "Initial time %.03f, subsequent time: %.03f" % \
                     (init_time, next_time)
 
 
 if __name__ == "__main__":
-    import datetime
-    import optparse
-    from exc_string import exc_string
-
     main()

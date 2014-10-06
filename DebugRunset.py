@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import optparse
 import socket
 import sys
 
@@ -34,22 +33,24 @@ def parseFlags(flagStr):
     return bits
 
 if __name__ == "__main__":
-    op = optparse.OptionParser()
-    op.add_option("-d", "--debugFlags", type="string", dest="debugFlags",
-                  action="store", default=None,
-                  help="List active runset IDs")
-    op.add_option("-l", "--list", dest="list",
-                  action="store_true", default=False,
-                  help="List active runset IDs")
-    op.add_option("-L", "--list-flags", dest="listFlags",
-                  action="store_true", default=False,
-                  help="List debugging flags")
+    import argparse
 
-    opt, args = op.parse_args()
+    op = argparse.ArgumentParser()
+    op.add_argument("-d", "--debugFlags", dest="debugFlags",
+                    help="Debug flags")
+    op.add_argument("-l", "--list", dest="listActive",
+                    action="store_true", default=False,
+                    help="List active runset IDs")
+    op.add_argument("-L", "--list-flags", dest="listFlags",
+                    action="store_true", default=False,
+                    help="List debugging flags")
+    op.add_argument("runset", nargs="*")
+
+    args = op.parse_args()
 
     rpc = RPCClient("localhost", DAQPort.CNCSERVER)
 
-    if opt.list:
+    if args.listActive:
         try:
             idList = rpc.rpc_runset_list_ids()
             print "Run set IDs:"
@@ -58,32 +59,32 @@ if __name__ == "__main__":
         except socket.error:
             print >> sys.stderr, "Cannot connect to CnCServer"
 
-    if opt.listFlags:
+    if args.listFlags:
         keys = RunSetDebug.NAME_MAP.keys()
         keys.sort()
         print "Debugging flags:"
         for k in keys:
             print "  " + k
 
-    if opt.list or opt.listFlags:
+    if args.listActive or args.listFlags:
         raise SystemExit
 
-    if opt.debugFlags is None:
+    if args.debugFlags is None:
         bits = RunSetDebug.ALL
     else:
-        bits = parseFlags(opt.debugFlags)
+        bits = parseFlags(args.debugFlags)
 
     debugBits = None
-    for a in args:
+    for a in args.runset:
         try:
-            id = int(a)
+            rsid = int(a)
         except ValueError:
             print >> sys.stderr, "Ignoring bad ID \"%s\"" % a
             continue
 
         try:
-            print "Runset#%d -> 0x%0x" % (id, bits)
-            debugBits = rpc.rpc_runset_debug(id, bits)
+            print "Runset#%d -> 0x%0x" % (rsid, bits)
+            debugBits = rpc.rpc_runset_debug(rsid, bits)
         except socket.error:
             print >> sys.stderr, "Cannot connect to CnCServer"
             break

@@ -107,25 +107,26 @@ def writeRunConfig(out, basedir, trigcfg, hubs):
     print >>out, '</runConfig>'
 
 if __name__ == "__main__":
-    import optparse
+    import argparse
 
-    op = optparse.OptionParser()
-    op.add_option("-b", "--basename", dest="basename",
-                  action="store", default="replay",
-                  help="Run configuration base file name")
-    op.add_option("-t", "--trigger", dest="trigcfg",
-                  action="store", default="sps-2013-no-physminbias-001",
-                  help="Trigger configuration file name")
-    op.add_option("-x", "--extension", dest="ext",
-                  action="store", default=".dat",
-                  help="Hitspool file extension (defaults to \".dat\")")
+    op = argparse.ArgumentParser()
+    op.add_argument("-b", "--basename", dest="basename",
+                    default="replay",
+                    help="Run configuration base file name")
+    op.add_argument("-t", "--trigger", dest="trigcfg",
+                    default="sps-2013-no-physminbias-001",
+                    help="Trigger configuration file name")
+    op.add_argument("-x", "--extension", dest="ext",
+                    default=".dat",
+                    help="Hitspool file extension (defaults to \".dat\")")
+    op.add_argument("directory", nargs="*")
 
-    opt, args = op.parse_args()
+    args = op.parse_args()
 
-    if opt.ext.startswith("."):
-        ext = opt.ext
+    if args.ext.startswith("."):
+        ext = args.ext
     else:
-        ext = "." + opt.ext
+        ext = "." + args.ext
 
-    for path in args:
-            process(path, ext, opt.basename, opt.trigcfg)
+    for path in args.directory:
+            process(path, ext, args.basename, args.trigcfg)

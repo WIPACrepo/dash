@@ -1104,25 +1104,23 @@ class GeometryFileReader(object):
         return defDomGeom
 
 if __name__ == "__main__":
-    import optparse
+    import argparse
 
-    op = optparse.OptionParser()
-    op.add_option("-f", "--file", type="string", dest="inputFile",
-                  action="store", default=None,
-                  help="Name of input file")
-    op.add_option("-o", "--output", type="string", dest="outputFile",
-                  action="store", default=None,
-                  help="Name of file where revised XML file should be written")
+    op = argparse.ArgumentParser()
+    op.add_argument("-f", "--file", dest="inputFile",
+                    help="Name of input file")
+    op.add_argument("-o", "--output", dest="outputFile",
+                    help="Name of file where revised XML file will be written")
 
-    opt, args = op.parse_args()
+    args = op.parse_args()
 
     # read in default-dom-geometry.xml
-    defDomGeom = DefaultDomGeometryReader.parse(fileName=opt.inputFile)
+    defDomGeom = DefaultDomGeometryReader.parse(fileName=args.inputFile)
 
     # validate everything
     defDomGeom.validate()
 
     # dump the new default-dom-geometry data
-    if opt.outputFile is not None:
-        with open(opt.outputFile, "w") as fd:
+    if args.outputFile is not None:
+        with open(args.outputFile, "w") as fd:
             defDomGeom.dump(fd)

@@ -31,13 +31,14 @@ def getDurationFromString(s):
 
 
 if __name__ == "__main__":
-    import socket
     import subprocess
     import sys
 
-    hname = socket.gethostname()
-    if not hname.endswith("spts.icecube.wisc.edu"):
-        raise SystemExit("This script should only be run on SPTS")
+    from utils.Machineid import Machineid
+
+    hostid = Machineid()
+    if hostid.is_sps_cluster():
+        raise SystemExit("This script should not be run on SPS")
 
     usage = False
     if len(sys.argv) == 1:

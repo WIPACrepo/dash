@@ -2,7 +2,6 @@
 
 import Daemon
 import datetime
-import optparse
 import os
 import signal
 import socket
@@ -40,7 +39,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 15109 2014-07-31 04:13:04Z dglo $"
+SVN_ID = "$Id: CnCServer.py 15170 2014-10-06 21:43:32Z dglo $"
 
 
 class DAQPool(object):
@@ -1439,66 +1438,58 @@ class CnCServer(DAQPool):
         return self.__versionInfo
 
 if __name__ == "__main__":
-    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s "\
-               "%(release)s %(repo_rev)s" % get_version_info(SVN_ID)
-    usage = "%prog [options]\nversion: " + ver_info
-    p = optparse.OptionParser(usage=usage, version=ver_info)
-    p.add_option("-a", "--copy-dir", type="string", dest="copyDir",
-                 action="store", default=None,
-                 help="Directory for copies of files sent to SPADE")
-    p.add_option("-C", "--cluster-desc", type="string", dest="clusterDesc",
-                 action="store", default=None,
-                 help="Cluster description name")
-    p.add_option("-c", "--config-dir", type="string", dest="configDir",
-                 action="store", default=None,
-                 help="Directory where run configurations are stored")
-    p.add_option("-d", "--daemon", dest="daemon",
-                 action="store_true", default=False,
-                 help="Run as a daemon process")
-    p.add_option("-D", "--dashDir", type="string", dest="dashDir",
-                 action="store", default=os.path.join(metaDir, "dash"),
-                 help="Directory holding Python scripts")
-    p.add_option("-f", "--force-restart", dest="forceRestart",
-                 action="store_true", default=True,
-                 help="Force components to restart after every run")
-    p.add_option("-F", "--no-force-restart", dest="forceRestart",
-                 action="store_false", default=True,
-                 help="Don't force components to restart after every run")
-    p.add_option("-k", "--kill", dest="kill",
-                 action="store_true", default=False,
-                 help="Kill running CnCServer instance(s)")
-    p.add_option("-l", "--log", type="string", dest="log",
-                 action="store", default=None,
-                 help="Hostname:port for log server")
-    p.add_option("-L", "--liveLog", type="string", dest="liveLog",
-                 action="store", default=None,
-                 help="Hostname:port for IceCube Live")
+    import argparse
 
-    p.add_option("-o", "--default-log-dir", type="string",
-                 dest="defaultLogDir",
-                 action="store", default="/mnt/data/pdaq/log",
-                 help="Default directory for pDAQ log/monitoring files")
-    p.add_option("-q", "--data-dir", type="string", dest="daqDataDir",
-                 action="store", default="/mnt/data/pdaqlocal",
-                 help="Directory where physics/tcal/moni/sn files are written")
-    p.add_option("-r", "--restart-on-error", dest="restartOnError",
-                 action="store_true", default=True,
-                 help="Restart components if the run ends in an error")
-    p.add_option("-R", "--no-restart-on-error", dest="restartOnError",
-                 action="store_false", default=True,
-                 help="Don't restart components if the run ends in an error")
-    p.add_option("-s", "--spade-dir", type="string", dest="spadeDir",
-                 action="store", default=None,
-                 help="Directory where SPADE will pick up logs/moni files")
-    p.add_option("-v", "--verbose", dest="quiet",
-                 action="store_false", default=True,
-                 help="Write catchall messages to console")
+    p = argparse.ArgumentParser()
+    p.add_argument("-a", "--copy-dir", dest="copyDir",
+                   help="Directory for copies of files sent to SPADE")
+    p.add_argument("-C", "--cluster-desc", dest="clusterDesc",
+                   help="Cluster description name")
+    p.add_argument("-c", "--config-dir", dest="configDir",
+                   help="Directory where run configurations are stored")
+    p.add_argument("-d", "--daemon", dest="daemon",
+                   action="store_true", default=False,
+                   help="Run as a daemon process")
+    p.add_argument("-D", "--dashDir", dest="dashDir",
+                   default=os.path.join(metaDir, "dash"),
+                   help="Directory holding Python scripts")
+    p.add_argument("-f", "--force-restart", dest="forceRestart",
+                   action="store_true", default=True,
+                   help="Force components to restart after every run")
+    p.add_argument("-F", "--no-force-restart", dest="forceRestart",
+                   action="store_false", default=True,
+                   help="Don't force components to restart after every run")
+    p.add_argument("-k", "--kill", dest="kill",
+                   action="store_true", default=False,
+                   help="Kill running CnCServer instance(s)")
+    p.add_argument("-l", "--log", dest="log",
+                   help="Hostname:port for log server")
+    p.add_argument("-L", "--liveLog", dest="liveLog",
+                   help="Hostname:port for IceCube Live")
+    p.add_argument("-o", "--default-log-dir",
+                   dest="defaultLogDir",
+                   default="/mnt/data/pdaq/log",
+                   help="Default directory for pDAQ log/monitoring files")
+    p.add_argument("-q", "--data-dir", dest="daqDataDir",
+                   default="/mnt/data/pdaqlocal",
+                   help="Directory holding physics/tcal/moni/sn files")
+    p.add_argument("-r", "--restart-on-error", dest="restartOnError",
+                   action="store_true", default=True,
+                   help="Restart components if the run ends in an error")
+    p.add_argument("-R", "--no-restart-on-error", dest="restartOnError",
+                   action="store_false", default=True,
+                   help="Don't restart components if the run ends in an error")
+    p.add_argument("-s", "--spade-dir", dest="spadeDir",
+                   help="Directory where SPADE will pick up logs/moni files")
+    p.add_argument("-v", "--verbose", dest="quiet",
+                   action="store_false", default=True,
+                   help="Write catchall messages to console")
 
-    opt, args = p.parse_args()
+    args = p.parse_args()
 
     pids = list(findProcess("CnCServer.py", processList()))
 
-    if opt.kill:
+    if args.kill:
         pid = int(os.getpid())
         for p in pids:
             if pid != p:
@@ -1511,64 +1502,64 @@ if __name__ == "__main__":
         sys.exit("ERROR: More than one instance of CnCServer.py" +
                  " is already running!")
 
-    opt.daqDataDir = os.path.abspath(opt.daqDataDir)
-    if not os.path.exists(opt.daqDataDir):
+    args.daqDataDir = os.path.abspath(args.daqDataDir)
+    if not os.path.exists(args.daqDataDir):
         sys.exit(("DAQ data directory '%s' doesn't exist!" +
-                  "  Use the -q option, or -h for help.") % opt.daqDataDir)
+                  "  Use the -q option, or -h for help.") % args.daqDataDir)
 
-    if opt.spadeDir is not None:
-        opt.spadeDir = os.path.abspath(opt.spadeDir)
-        if not os.path.exists(opt.spadeDir):
+    if args.spadeDir is not None:
+        args.spadeDir = os.path.abspath(args.spadeDir)
+        if not os.path.exists(args.spadeDir):
             sys.exit(("Spade directory '%s' doesn't exist!" +
-                       "  Use the -s option, or -h for help.") % opt.spadeDir)
+                       "  Use the -s option, or -h for help.") % args.spadeDir)
 
-    if opt.copyDir is not None:
-        opt.copyDir = os.path.abspath(opt.copyDir)
-        if not os.path.exists(opt.copyDir):
-            sys.exit("Log copies directory '%s' doesn't exist!" % opt.copyDir)
+    if args.copyDir is not None:
+        args.copyDir = os.path.abspath(args.copyDir)
+        if not os.path.exists(args.copyDir):
+            sys.exit("Log copies directory '%s' doesn't exist!" % args.copyDir)
 
-    if opt.defaultLogDir is not None:
-        opt.defaultLogDir = os.path.abspath(opt.defaultLogDir)
-        if not os.path.exists(opt.defaultLogDir):
+    if args.defaultLogDir is not None:
+        args.defaultLogDir = os.path.abspath(args.defaultLogDir)
+        if not os.path.exists(args.defaultLogDir):
             sys.exit("Default log directory '%s' doesn't exist!" %
-                     opt.defaultLogDir)
+                     args.defaultLogDir)
 
-    if opt.log is None:
+    if args.log is None:
         logIP = None
         logPort = None
     else:
-        colon = opt.log.find(':')
+        colon = args.log.find(':')
         if colon < 0:
-            sys.exit("ERROR: Bad log argument '%s'" % opt.log)
+            sys.exit("ERROR: Bad log argument '%s'" % args.log)
 
-        logIP = opt.log[:colon]
-        logPort = int(opt.log[colon + 1:])
+        logIP = args.log[:colon]
+        logPort = int(args.log[colon + 1:])
 
-    if opt.liveLog is None:
+    if args.liveLog is None:
         liveIP = None
         livePort = None
     else:
-        colon = opt.liveLog.find(':')
+        colon = args.liveLog.find(':')
         if colon < 0:
-            sys.exit("ERROR: Bad liveLog argument '%s'" % opt.liveLog)
+            sys.exit("ERROR: Bad liveLog argument '%s'" % args.liveLog)
 
-        liveIP = opt.liveLog[:colon]
-        livePort = int(opt.liveLog[colon + 1:])
+        liveIP = args.liveLog[:colon]
+        livePort = int(args.liveLog[colon + 1:])
 
-    if opt.daemon:
+    if args.daemon:
         Daemon.Daemon().Daemonize()
 
-    if opt.configDir is not None:
-        configDir = opt.configDir
+    if args.configDir is not None:
+        configDir = args.configDir
     else:
         configDir = find_pdaq_config()
-    cnc = CnCServer(clusterDesc=opt.clusterDesc, name="CnCServer",
-                    copyDir=opt.copyDir, dashDir=opt.dashDir,
-                    runConfigDir=configDir, daqDataDir=opt.daqDataDir,
-                    spadeDir=opt.spadeDir, defaultLogDir=opt.defaultLogDir,
+    cnc = CnCServer(clusterDesc=args.clusterDesc, name="CnCServer",
+                    copyDir=args.copyDir, dashDir=args.dashDir,
+                    runConfigDir=configDir, daqDataDir=args.daqDataDir,
+                    spadeDir=args.spadeDir, defaultLogDir=args.defaultLogDir,
                     logIP=logIP, logPort=logPort, liveIP=liveIP,
-                    livePort=livePort, forceRestart=opt.forceRestart,
-                    testOnly=False, quiet=opt.quiet)
+                    livePort=livePort, forceRestart=args.forceRestart,
+                    testOnly=False, quiet=args.quiet)
     try:
         cnc.run()
     except KeyboardInterrupt:

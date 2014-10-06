@@ -7,7 +7,6 @@
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started January, 2007
 
-import optparse
 import os
 import sys
 
@@ -25,7 +24,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 14353 2013-03-25 21:41:03Z mnewcomb $"
+SVN_ID = "$Id: DAQLaunch.py 15170 2014-10-06 21:43:32Z dglo $"
 
 
 class ConsoleLogger(object):
@@ -38,185 +37,213 @@ class ConsoleLogger(object):
     def info(self, msg):
         print msg
 
+
+def add_arguments_both(parser):
+    parser.add_argument("-9", "--kill-kill", dest="killWith9",
+                        action="store_true", default=False,
+                        help="just kill everything with extreme (-9) prejudice")
+    parser.add_argument("-f", "--force", dest="force",
+                        action="store_true", default=False,
+                        help="kill components even if there is an active run")
+    parser.add_argument("-m", "--no-host-check", dest="nohostcheck",
+                        action="store_true", default=False,
+                        help=("Disable checking the host type for"
+                              " run permission"))
+    parser.add_argument("-n", "--dry-run", dest="dryRun",
+                        action="store_true", default=False,
+                        help="\"Dry run\" only, don't actually do anything")
+    parser.add_argument("-S", "--server-kill", dest="serverKill",
+                        action="store_true", default=False,
+                        help="Kill all the components known by the server")
+    parser.add_argument("-v", "--verbose", dest="verbose",
+                        action="store_true", default=False,
+                        help="Log output for all components to terminal")
+    parser.add_argument("-z", "--no-schema-validation", dest="validation",
+                        action="store_false", default=True,
+                        help=("Disable schema validation of"
+                              " xml configuration files"))
+
+
+def add_arguments_kill(parser):
+    pass
+
+
+def add_arguments_launch(parser, config_as_arg=True):
+    parser.add_argument("-C", "--cluster-desc", dest="clusterDesc",
+                   help="Cluster description name.")
+    if config_as_arg:
+        parser.add_argument("-c", "--config-name", dest="configName",
+                            help="REQUIRED: Configuration name")
+    else:
+        parser.add_argument("configName",
+                            help="Run configuration name")
+    parser.add_argument("-e", "--event-check", dest="eventCheck",
+                   action="store_true", default=False,
+                   help="Event builder will validate events")
+    parser.add_argument("-F", "--no-force-restart", dest="forceRestart",
+                   action="store_false", default=True,
+                   help="Do not force healthy components to restart at run end")
+    parser.add_argument("-s", "--skip-kill", dest="skipKill",
+                   action="store_true", default=False,
+                   help="Don't kill anything, just launch")
+
+
+def add_arguments_old(parser):
+    parser.add_argument("-k", "--kill-only", dest="killOnly",
+                   action="store_true",  default=False,
+                   help="Kill pDAQ components, don't restart")
+    parser.add_argument("-l", "--list-configs", dest="doList",
+                   action="store_true", default=False,
+                   help="List available configs")
+
+
+def check_running_on_expcont(prog):
+    "exit the program if it's not running on 'expcont' on SPS/SPTS"
+    hostid = Machineid()
+    if (not (hostid.is_control_host() or
+            (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+        raise SystemExit("Are you sure you are running" +
+                         " %s on the correct host?" % prog)
+
+
+def check_detector_state():
+    (runsets, active) = ComponentManager.countActiveRunsets()
+    if active > 0:
+        if len(runsets) == 1:
+            plural = ''
+        else:
+            plural = 's'
+        print >> sys.stderr, 'Found %d active runset%s:' % \
+            (len(runsets), plural)
+        for id in runsets.keys():
+            print >> sys.stderr, "  %d: %s" % (id, runsets[id])
+        raise SystemExit('To force a restart, rerun with the --force option')
+
+
+def kill(cfgDir, logger, args):
+    comps = ComponentManager.getActiveComponents(args.clusterDesc,
+                                                 configDir=cfgDir,
+                                                 validate=args.validation,
+                                                 useCnC=args.serverKill,
+                                                 logger=logger)
+
+    if comps is not None:
+        doCnC = True
+
+        ComponentManager.kill(comps, args.verbose, args.dryRun, doCnC,
+                              args.killWith9, logger=logger)
+
+    if args.force:
+        print >> sys.stderr, "Remember to run SpadeQueue.py to recover" + \
+            " any orphaned data"
+
+
+def launch(cfgDir, dashDir, logger, args):
+    try:
+        cluDesc = args.clusterDesc
+        validate = args.validation
+        clusterConfig = \
+            DAQConfigParser.getClusterConfiguration(args.configName,
+                                                    useActiveConfig=False,
+                                                    clusterDesc=cluDesc,
+                                                    configDir=cfgDir,
+                                                    validate=validate)
+    except DAQConfigException as e:
+        print >> sys.stderr, "DAQ Config exception:\n\t%s" % e
+        raise SystemExit
+
+    if args.verbose:
+        print "Version: %(filename)s %(revision)s %(date)s %(time)s " \
+            "%(author)s %(release)s %(repo_rev)s" % \
+            get_version_info(SVN_ID)
+        if clusterConfig.descName() is None:
+            print "CLUSTER CONFIG: %s" % clusterConfig.configName()
+        else:
+            print "CONFIG: %s" % clusterConfig.configName()
+            print "CLUSTER: %s" % clusterConfig.descName()
+
+        nodeList = clusterConfig.nodes()
+        nodeList.sort()
+
+        print "NODES:"
+        for node in nodeList:
+            print "  %s(%s)" % (node.hostName(), node.locName()),
+
+            compList = node.components()
+            compList.sort()
+
+            for comp in compList:
+                print "%s#%d " % (comp.name(), comp.id()),
+            print
+
+    spadeDir = clusterConfig.logDirForSpade()
+    copyDir = clusterConfig.logDirCopies()
+    logDir = clusterConfig.daqLogDir()
+    logDirFallback = os.path.join(metaDir, "log")
+    daqDataDir = clusterConfig.daqDataDir()
+
+    doCnC = True
+
+    logPort = None
+    livePort = DAQPort.I3LIVE_ZMQ
+
+    ComponentManager.launch(doCnC, args.dryRun, args.verbose, clusterConfig,
+                            dashDir, cfgDir, daqDataDir, logDir,
+                            logDirFallback, spadeDir, copyDir, logPort,
+                            livePort, eventCheck=args.eventCheck,
+                            checkExists=True, startMissing=True,
+                            forceRestart=args.forceRestart,
+                            logger=logger)
+
+
 if __name__ == "__main__":
+    import argparse
+
     LOGMODE_OLD = 1
     LOGMODE_LIVE = 2
     LOGMODE_BOTH = LOGMODE_OLD | LOGMODE_LIVE
 
-    ver_info = ("%(filename)s %(revision)s %(date)s %(time)s "
-                "%(author)s %(release)s %(repo_rev)s") % \
-                get_version_info(SVN_ID)
-    usage = "%prog [options]\nversion: " + ver_info
-    p = optparse.OptionParser(usage=usage, version=ver_info)
+    p = argparse.ArgumentParser()
 
-    p.add_option("-9", "--kill-kill", dest="killWith9",
-                 action="store_true", default=False,
-                 help="just kill everything with extreme (-9) prejudice")
-    p.add_option("-C", "--cluster-desc", type="string", dest="clusterDesc",
-                 action="store", default=None,
-                 help="Cluster description name.")
-    p.add_option("-c", "--config-name", type="string",
-                 dest="clusterConfigName",
-                 action="store", default=None,
-                 help="Cluster configuration name, subset of deployed" +
-                 " configuration.")
-    p.add_option("-e", "--event-check", dest="eventCheck",
-                 action="store_true", default=False,
-                 help="Event builder will validate events")
-    p.add_option("-F", "--no-force-restart", dest="forceRestart",
-                 action="store_false", default=True,
-                 help="Do not force healthy components to restart at run end")
-    p.add_option("-f", "--force", dest="force",
-                 action="store_true", default=False,
-                 help="kill components even if there is an active run")
-    p.add_option("-k", "--kill-only", dest="killOnly",
-                 action="store_true",  default=False,
-                 help="Kill pDAQ components, don't restart")
-    p.add_option("-l", "--list-configs", dest="doList",
-                 action="store_true", default=False,
-                 help="List available configs")
-    p.add_option("-m", "--no-host-check", dest="nohostcheck", default=False,
-                 help="Disable checking the host type for run permission")
-    p.add_option("-n", "--dry-run", dest="dryRun",
-                 action="store_true", default=False,
-                 help="\"Dry run\" only, don't actually do anything")
-    p.add_option("-S", "--server-kill", dest="serverKill",
-                 action="store_true", default=False,
-                 help="Kill all the components known by the server")
-    p.add_option("-s", "--skip-kill", dest="skipKill",
-                 action="store_true", default=False,
-                 help="Don't kill anything, just launch")
-    p.add_option("-v", "--verbose", dest="verbose",
-                 action="store_true", default=False,
-                 help="Log output for all components to terminal")
-    p.add_option("-z", "--no-schema-validation", dest="validation",
-                 action="store_false", default=True,
-                 help="Disable schema validation of xml configuration files")
+    add_arguments_kill(p)
+    add_arguments_launch(p)
+    add_arguments_both(p)
+    add_arguments_old(p)
 
-    opt, args = p.parse_args()
-
-    if not opt.nohostcheck:
-        hostid = Machineid()
-        if (not (hostid.is_control_host() or
-           (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
-            # to run daq launch you should either be a control host or
-            # a totally unknown host
-            raise SystemExit("Are you sure you are running DAQLaunch" +
-                             " on the correct host?")
+    args = p.parse_args()
 
     # complain about superfluous options
     ignored = []
-    if opt.killOnly:
-        if opt.skipKill:
+    if args.killOnly:
+        if args.skipKill:
             raise SystemExit("Cannot specify both -k(illOnly) and -s(kipKill")
-        if opt.clusterConfigName is not None:
+        if args.configName is not None:
             ignored.append("--config-name")
-        if opt.eventCheck:
+        if args.eventCheck:
             ignored.append("--event-check")
-    elif opt.skipKill:
-        if opt.killWith9:
+    elif args.skipKill:
+        if args.killWith9:
             ignored.append("--kill-kill")
-        if opt.force:
+        if args.force:
             ignored.append("--force")
-        if opt.serverKill:
+        if args.serverKill:
             ignored.append("--server-kill")
     if len(ignored) > 0:
         print >>sys.stderr, "Ignoring " + ", ".join(ignored)
 
-    if not opt.force:
-        (runsets, active) = ComponentManager.countActiveRunsets()
-        if active > 0:
-            if len(runsets) == 1:
-                plural = ''
-            else:
-                plural = 's'
-            print >> sys.stderr, 'Found %d active runset%s:' % \
-                (len(runsets), plural)
-            for id in runsets.keys():
-                print >> sys.stderr, "  %d: %s" % (id, runsets[id])
-            print >> sys.stderr, \
-                'To force a restart, rerun with the --force option'
-            raise SystemExit
+    if not args.nohostcheck:
+        check_running_on_expcont("DAQLaunch")
 
-    if opt.doList:
-        DAQConfig.showList(None, None)
-        raise SystemExit
+    if not args.force:
+        check_detector_state()
 
     cfgDir = find_pdaq_config()
     dashDir = os.path.join(metaDir, "dash")
 
     logger = ConsoleLogger()
 
-    if not opt.skipKill:
-        comps = ComponentManager.getActiveComponents(opt.clusterDesc,
-                                                     configDir=cfgDir,
-                                                     validate=opt.validation,
-                                                     useCnC=opt.serverKill,
-                                                     logger=logger)
+    if not args.skipKill:
+        kill(cfgDir, logger, args)
 
-        if comps is not None:
-            doCnC = True
-
-            ComponentManager.kill(comps, opt.verbose, opt.dryRun, doCnC,
-                                  opt.killWith9, logger=logger)
-
-        if opt.force:
-            print >> sys.stderr, "Remember to run SpadeQueue.py to recover" + \
-                " any orphaned data"
-
-    if not opt.killOnly:
-        try:
-            cluDesc = opt.clusterDesc
-            validate = opt.validation
-            clusterConfig = \
-                DAQConfigParser.getClusterConfiguration(opt.clusterConfigName,
-                                                        useActiveConfig=False,
-                                                        clusterDesc=cluDesc,
-                                                        configDir=cfgDir,
-                                                        validate=validate)
-        except DAQConfigException as e:
-            print >> sys.stderr, "DAQ Config exception:\n\t%s" % e
-            raise SystemExit
-
-        if opt.verbose:
-            print "Version: %(filename)s %(revision)s %(date)s %(time)s " \
-                "%(author)s %(release)s %(repo_rev)s" % \
-                get_version_info(SVN_ID)
-            if clusterConfig.descName() is None:
-                print "CLUSTER CONFIG: %s" % clusterConfig.configName()
-            else:
-                print "CONFIG: %s" % clusterConfig.configName()
-                print "CLUSTER: %s" % clusterConfig.descName()
-
-            nodeList = clusterConfig.nodes()
-            nodeList.sort()
-
-            print "NODES:"
-            for node in nodeList:
-                print "  %s(%s)" % (node.hostName(), node.locName()),
-
-                compList = node.components()
-                compList.sort()
-
-                for comp in compList:
-                    print "%s#%d " % (comp.name(), comp.id()),
-                print
-
-        spadeDir = clusterConfig.logDirForSpade()
-        copyDir = clusterConfig.logDirCopies()
-        logDir = clusterConfig.daqLogDir()
-        logDirFallback = os.path.join(metaDir, "log")
-        daqDataDir = clusterConfig.daqDataDir()
-
-        doCnC = True
-
-        logPort = None
-        livePort = DAQPort.I3LIVE_ZMQ
-
-        ComponentManager.launch(doCnC, opt.dryRun, opt.verbose, clusterConfig,
-                                dashDir, cfgDir, daqDataDir, logDir,
-                                logDirFallback, spadeDir, copyDir, logPort,
-                                livePort, eventCheck=opt.eventCheck,
-                                checkExists=True, startMissing=True,
-                                forceRestart=opt.forceRestart,
-                                logger=logger)
+    if not args.killOnly:
+        launch(cfgDir, dashDir, logger, args)

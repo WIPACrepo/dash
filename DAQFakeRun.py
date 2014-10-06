@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import datetime
-import optparse
 import os
 import select
 import socket
@@ -667,93 +666,95 @@ class DAQFakeRun(object):
             self.__waitForComponents(numNew)
 
 if __name__ == "__main__":
-    parser = optparse.OptionParser()
+    import argparse
 
-    parser.add_option("-A", "--includeTrackEngine", dest="incTrackEng",
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("-A", "--includeTrackEngine", dest="incTrackEng",
                       action="store_true", default=False,
                       help="Include track engine in full configuration")
-    parser.add_option("-a", "--trackEngine", dest="trackEng",
+    parser.add_argument("-a", "--trackEngine", dest="trackEng",
                       action="store_true", default=False,
                       help="Use existing track engine")
-    parser.add_option("-c", "--config", type="string", dest="runCfgDir",
-                      action="store", default="/tmp/config",
+    parser.add_argument("-c", "--config", dest="runCfgDir",
+                      default="/tmp/config",
                       help="Run configuration directory")
-    parser.add_option("-d", "--duration", type="int", dest="duration",
-                      action="store", default="5",
+    parser.add_argument("-d", "--duration", type=int, dest="duration",
+                      default="5",
                       help="Number of seconds for run")
-    parser.add_option("-e", "--eventBuilder", dest="evtBldr",
+    parser.add_argument("-e", "--eventBuilder", dest="evtBldr",
                       action="store_true", default=False,
                       help="Use existing event builder")
-    parser.add_option("-f", "--forkClients", dest="forkClients",
+    parser.add_argument("-f", "--forkClients", dest="forkClients",
                       action="store_true", default=False,
                       help="Run clients in subprocesses")
-    parser.add_option("-g", "--globalTrigger", dest="glblTrig",
+    parser.add_argument("-g", "--globalTrigger", dest="glblTrig",
                       action="store_true", default=False,
                       help="Use existing global trigger")
-    parser.add_option("-H", "--numberOfHubs", type="int", dest="numHubs",
-                      action="store", default=2,
+    parser.add_argument("-H", "--numberOfHubs", type=int, dest="numHubs",
+                      default=2,
                       help="Number of fake hubs")
-    parser.add_option("-i", "--iniceTrigger", dest="iniceTrig",
+    parser.add_argument("-i", "--iniceTrigger", dest="iniceTrig",
                       action="store_true", default=False,
                       help="Use existing in-ice trigger")
-    parser.add_option("-n", "--numOfRuns", type="int", dest="numRuns",
-                      action="store", default=1,
+    parser.add_argument("-n", "--numOfRuns", type=int, dest="numRuns",
+                      default=1,
                       help="Number of runs")
-    parser.add_option("-p", "--firstPortNumber", type="int", dest="firstPort",
-                      action="store", default=FakeClient.NEXT_PORT,
+    parser.add_argument("-p", "--firstPortNumber", type=int, dest="firstPort",
+                      default=FakeClient.NEXT_PORT,
                       help="First port number used for fake components")
-    parser.add_option("-q", "--quiet", dest="quiet",
+    parser.add_argument("-q", "--quiet", dest="quiet",
                       action="store_true", default=False,
                       help="Fake components do not announce what they're doing")
-    parser.add_option("-R", "--realNames", dest="realNames",
+    parser.add_argument("-R", "--realNames", dest="realNames",
                       action="store_true", default=False,
                       help="Use component names without numeric prefix")
-    parser.add_option("-r", "--runNum", type="int", dest="runNum",
-                      action="store", default=1234,
+    parser.add_argument("-r", "--runNum", type=int, dest="runNum",
+                      default=1234,
                       help="Run number")
-    parser.add_option("-S", "--small", dest="smallCfg",
+    parser.add_argument("-S", "--small", dest="smallCfg",
                       action="store_true", default=False,
                       help="Use canned 3-element configuration")
-    parser.add_option("-T", "--tiny", dest="tinyCfg",
+    parser.add_argument("-T", "--tiny", dest="tinyCfg",
                       action="store_true", default=False,
                       help="Use canned 2-element configuration")
-    parser.add_option("-t", "--icetopTrigger", dest="icetopTrig",
+    parser.add_argument("-t", "--icetopTrigger", dest="icetopTrig",
                       action="store_true", default=False,
                       help="Use existing icetop trigger")
 
-    opt, args = parser.parse_args()
+    args = parser.parse_args()
 
     if sys.version_info > (2, 3):
         from DumpThreads import DumpThreadsOnSignal
         DumpThreadsOnSignal(fd=sys.stderr)
 
-    if opt.firstPort != FakeClient.NEXT_PORT:
-        FakeClient.NEXT_PORT = opt.firstPort
+    if args.firstPort != FakeClient.NEXT_PORT:
+        FakeClient.NEXT_PORT = args.firstPort
 
     # make sure to include trackEngine if user wants to use real track engine
     #
-    if opt.trackEng:
-        opt.incTrackEng = True
+    if args.trackEng:
+        args.incTrackEng = True
 
     # get list of components
     #
-    if opt.tinyCfg:
+    if args.tinyCfg:
         compData = ComponentData.createTiny()
-    elif opt.smallCfg:
+    elif args.smallCfg:
         compData = ComponentData.createSmall()
     else:
-        compData = ComponentData.createAll(opt.numHubs, not opt.realNames,
-                                           includeTrackEngine=opt.incTrackEng)
+        compData = ComponentData.createAll(args.numHubs, not args.realNames,
+                                           includeTrackEngine=args.incTrackEng)
         for cd in compData:
-            if opt.evtBldr and cd.isComponent("eventBuilder"):
+            if args.evtBldr and cd.isComponent("eventBuilder"):
                 cd.useRealComponent()
-            elif opt.glblTrig and cd.isComponent("globalTrigger"):
+            elif args.glblTrig and cd.isComponent("globalTrigger"):
                 cd.useRealComponent()
-            elif opt.iniceTrig and cd.isComponent("iniceTrigger"):
+            elif args.iniceTrig and cd.isComponent("iniceTrigger"):
                 cd.useRealComponent()
-            elif opt.icetopTrig and cd.isComponent("icetopTrigger"):
+            elif args.icetopTrig and cd.isComponent("icetopTrigger"):
                 cd.useRealComponent()
-            elif opt.trackEng and cd.isComponent("trackEngine"):
+            elif args.trackEng and cd.isComponent("trackEngine"):
                 cd.useRealComponent()
 
     from DumpThreads import DumpThreadsOnSignal
@@ -761,9 +762,9 @@ if __name__ == "__main__":
 
     # create components
     #
-    comps = DAQFakeRun.createComps(compData, opt.forkClients, quiet=opt.quiet)
+    comps = DAQFakeRun.createComps(compData, args.forkClients, quiet=args.quiet)
 
-    DAQFakeRun.makeMockClusterConfig(opt.runCfgDir, comps, opt.numHubs)
+    DAQFakeRun.makeMockClusterConfig(args.runCfgDir, comps, args.numHubs)
 
     try:
         DAQConfigParser.getClusterConfiguration(None, useActiveConfig=True,
@@ -775,4 +776,5 @@ if __name__ == "__main__":
     #
     runner = DAQFakeRun()
 
-    runner.runAll(comps, opt.runNum, opt.numRuns, opt.duration, opt.runCfgDir)
+    runner.runAll(comps, args.runNum, args.numRuns, args.duration,
+                  args.runCfgDir)

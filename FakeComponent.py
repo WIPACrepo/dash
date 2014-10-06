@@ -239,25 +239,21 @@ class TrackEngine(TriggerHandler):
             pos += self.HIT_LEN
 
 if __name__ == "__main__":
-    import optparse
+    import argparse
 
-    parser = optparse.OptionParser()
+    parser = argparse.ArgumentParser()
 
-    parser.add_option("-p", "--firstPortNumber", type="int", dest="firstPort",
-                      action="store", default=FakeClient.NEXT_PORT,
-                      help="First port number used for fake components")
+    parser.add_argument("-p", "--firstPortNumber", type=int, dest="firstPort",
+                        default=FakeClient.NEXT_PORT,
+                        help="First port number used for fake components")
+    parser.add_argument("component")
 
-    opt, args = parser.parse_args()
+    args = parser.parse_args()
 
-    if opt.firstPort != FakeClient.NEXT_PORT:
-        FakeClient.NEXT_PORT = opt.firstPort
+    if args.firstPort != FakeClient.NEXT_PORT:
+        FakeClient.NEXT_PORT = args.firstPort
 
-    if len(args) == 0:
-        parser.error("Please specify a component to be run")
-    elif len(args) > 1:
-        parser.error("Please specify only one component to be run")
-
-    lowName = args[0].lower()
+    lowName = args.component.lower()
     if lowName == "trackengine":
         comp = TrackEngine()
     elif lowName == "inicetrigger":
@@ -267,7 +263,7 @@ if __name__ == "__main__":
     elif lowName == "globaltrigger":
         comp = GlobalTrigger()
     else:
-        parser.error("Unknown component \"%s\"" % args[0])
+        parser.error("Unknown component \"%s\"" % args.component)
 
     comp.start()
     while True:

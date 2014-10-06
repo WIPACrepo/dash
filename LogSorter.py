@@ -6,35 +6,6 @@ import os
 import re
 import sys
 
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    metaDir = None
-
-    for p in ("pDAQ_current", "pDAQ_trunk"):
-        homePDAQ = os.path.join(os.environ["HOME"], p)
-        curDir = os.getcwd()
-        [parentDir, baseName] = os.path.split(curDir)
-        for d in [curDir, parentDir, homePDAQ]:
-            # source tree has 'dash', 'src', and 'StringHub' (+ maybe 'target')
-            # deployed tree has 'dash', 'src', and 'target'
-            if os.path.isdir(os.path.join(d, 'dash')) and \
-                    os.path.isdir(os.path.join(d, 'src')) and \
-                    (os.path.isdir(os.path.join(d, 'target')) or
-                     os.path.isdir(os.path.join(d, 'StringHub'))):
-                metaDir = d
-                break
-
-        if metaDir is not None:
-            break
-
-    if metaDir is None:
-        raise Exception("Couldn't find pDAQ trunk")
-
-# add dash dir to Python library search path
-sys.path.append(os.path.join(metaDir, 'dash'))
-
 from ClusterDescription import ClusterDescription
 from DAQTime import DAQDateTime, PayloadTime
 from utils.DashXMLLog import DashXMLLog
@@ -443,69 +414,76 @@ class LogSorter(object):
         if cond == "ERROR":
             print >>out, "-^-^-^-^-^-^-^-^-^-^ ERROR ^_^_^_^_^_^_^_^_^_^_"
 
-if __name__ == "__main__":
-    import optparse
+def add_arguments(parser):
+    parser.add_argument("-d", "--rundir", dest="rundir",
+                        help=("Directory holding pDAQ run monitoring"
+                              " and log files"))
+    parser.add_argument("-r", "--hide-rates", dest="hide_rates",
+                        action="store_true", default=False,
+                        help="Hide pDAQ event rate lines")
+    parser.add_argument("-s", "--hide-sn-gaps", dest="hide_sn_gaps",
+                        action="store_true", default=False,
+                        help="Hide StringHub Supernova gap errors")
+    parser.add_argument("-t", "--show-tcal", dest="show_tcal",
+                        action="store_true", default=False,
+                        help="Show StringHub TCAL errors")
+    parser.add_argument("-v", "--verbose", dest="verbose",
+                        action="store_true", default=False,
+                        help="Include superfluous log lines")
+    parser.add_argument("runNumber", nargs="+")
 
-    def getDirAndRunnum(topDir, subDir):
-        for i in xrange(100):
-            if i == 0:
-                fullpath = os.path.join(topDir, subDir)
-            elif i == 1:
-                fullpath = subDir
-            elif i == 2:
-                fullpath = os.path.join(topDir, "daqrun" + subDir)
-            elif i == 3:
-                fullpath = "daqrun" + subDir
+
+def getDirAndRunnum(topDir, subDir):
+    "Return path to log files and run number for the log files"
+    for i in xrange(100):
+        if i == 0:
+            fullpath = os.path.join(topDir, subDir)
+        elif i == 1:
+            fullpath = subDir
+        elif i == 2:
+            fullpath = os.path.join(topDir, "daqrun" + subDir)
+        elif i == 3:
+            fullpath = "daqrun" + subDir
+        else:
+            break
+
+        if os.path.isdir(fullpath):
+            filename = os.path.basename(fullpath)
+            if filename.startswith("daqrun"):
+                numstr = filename[6:]
             else:
-                break
+                numstr = filename
+            try:
+                return(fullpath, int(numstr))
+            except:
+                pass
 
-            if os.path.isdir(fullpath):
-                filename = os.path.basename(fullpath)
-                if filename.startswith("daqrun"):
-                    numstr = filename[6:]
-                else:
-                    numstr = filename
-                try:
-                    return(fullpath, int(numstr))
-                except:
-                    pass
+    return (None, None)
 
-        return (None, None)
 
-    p = optparse.OptionParser()
-    p.add_option("-d", "--rundir", dest="rundir",
-                 action="store", default=None,
-                 help="Directory holding pDAQ run monitoring and log files")
-    p.add_option("-r", "--hide-rates", dest="hide_rates",
-                 action="store_true", default=False,
-                 help="Hide pDAQ event rate lines")
-    p.add_option("-s", "--hide-sn-gaps", dest="hide_sn_gaps",
-                 action="store_true", default=False,
-                 help="Hide StringHub Supernova gap errors")
-    p.add_option("-t", "--show-tcal", dest="show_tcal",
-                 action="store_true", default=False,
-                 help="Show StringHub TCAL errors")
-    p.add_option("-v", "--verbose", dest="verbose",
-                 action="store_true", default=False,
-                 help="Include superfluous log lines")
-
-    opt, args = p.parse_args()
-
-    if len(args) == 0:
-        raise SystemExit("Please specify one or more run numbers")
-
-    if opt.rundir is not None:
-        runDir = opt.rundir
+def sort_logs(args):
+    if args.rundir is not None:
+        runDir = args.rundir
     else:
         cd = ClusterDescription()
         runDir = cd.daqLogDir()
 
-    for arg in args:
+    for arg in args.runNumber:
         (path, runnum) = getDirAndRunnum(runDir, arg)
         if path is None or runnum is None:
-            p.error("Bad run number \"%s\"" % arg)
+            print >> sys.stderr, "Bad run number \"%s\"" % arg
             continue
 
         ls = LogSorter(path, runnum)
-        ls.dumpRun(sys.stdout, verbose=opt.verbose, show_tcal=opt.show_tcal,
-                   hide_rates=opt.hide_rates, hide_sn_gaps=opt.hide_sn_gaps)
+        ls.dumpRun(sys.stdout, verbose=args.verbose, show_tcal=args.show_tcal,
+                   hide_rates=args.hide_rates, hide_sn_gaps=args.hide_sn_gaps)
+
+
+if __name__ == "__main__":
+    import argparse
+
+    p = argparse.ArgumentParser()
+    add_arguments(p)
+    args = p.parse_args()
+
+    sort_logs(p, args)

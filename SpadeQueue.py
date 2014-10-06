@@ -275,28 +275,28 @@ def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
 
 if __name__ == "__main__":
     import logging
-    import optparse
+    import argparse
 
-    usage = "%prog [ -a | run_number ]"
-    p = optparse.OptionParser(usage=usage)
-    p.add_option("-a", "--check-all", dest="check_all",
-                 action="store_true", default=False,
-                 help="Queue all unqueued daqrun directories")
-    p.add_option("-C", "--no-combine", dest="no_combine",
-                 action="store_true", default=False,
-                 help="Do not created a combined log file")
-    p.add_option("-f", "--force", dest="force",
-                 action="store_true", default=False,
-                 help="Requeue the logs for runs which have already been" +
-                 "queued")
-    p.add_option("-n", "--dry-run", dest="dryRun",
-                 action="store_true", default=False,
-                 help="Don't create any files, just print what would happen")
-    p.add_option("-v", "--verbose", dest="verbose",
-                 action="store_true", default=False,
-                 help="Print running commentary of program's progress")
+    p = argparse.ArgumentParser()
+    p.add_argument("-a", "--check-all", dest="check_all",
+                   action="store_true", default=False,
+                   help="Queue all unqueued daqrun directories")
+    p.add_argument("-C", "--no-combine", dest="no_combine",
+                   action="store_true", default=False,
+                   help="Do not created a combined log file")
+    p.add_argument("-f", "--force", dest="force",
+                   action="store_true", default=False,
+                   help="Requeue the logs for runs which have already been" +
+                   "queued")
+    p.add_argument("-n", "--dry-run", dest="dryRun",
+                   action="store_true", default=False,
+                   help="Don't create any files, just print what would happen")
+    p.add_argument("-v", "--verbose", dest="verbose",
+                   action="store_true", default=False,
+                   help="Print running commentary of program's progress")
+    p.add_argument("runNumber", nargs="*")
 
-    opt, args = p.parse_args()
+    args = p.parse_args()
 
     logging.basicConfig()
 
@@ -308,13 +308,13 @@ if __name__ == "__main__":
     logDir = cluster.daqLogDir()
     copyDir = None
 
-    if opt.check_all or len(args) == 0:
-        check_all(logger, spadeDir, copyDir, logDir, no_combine=opt.no_combine,
-                  force=opt.force, verbose=opt.verbose, dryRun=opt.dryRun)
+    if args.check_all or len(args.runNumber) == 0:
+        check_all(logger, spadeDir, copyDir, logDir, no_combine=args.no_combine,
+                  force=args.force, verbose=args.verbose, dryRun=args.dryRun)
     else:
-        for numstr in args:
+        for numstr in args.runNumber:
             runNum = int(numstr)
 
         queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
-                      no_combine=opt.no_combine, force=opt.force,
-                      verbose=opt.verbose, dryRun=opt.dryRun)
+                      no_combine=args.no_combine, force=args.force,
+                      verbose=args.verbose, dryRun=args.dryRun)
