@@ -31,6 +31,11 @@ NUM_RUNS_NAME = "num_runs"
 NUM_RUNS_FLAG = "-n"
 NUM_RUNS_VALUE = None
 
+# default number of stopless runs
+NUM_STOPLESS_NAME = "num_stopless"
+NUM_STOPLESS_FLAG = None
+NUM_STOPLESS_VALUE = None
+
 # map names to livecmd flags
 CONFIG_DATA = {
     RUN_CONFIG_NAME:
@@ -39,7 +44,43 @@ CONFIG_DATA = {
         { "flag": DURATION_FLAG, "value": DURATION_VALUE },
     NUM_RUNS_NAME:
         { "flag": NUM_RUNS_FLAG, "value": NUM_RUNS_VALUE },
+    NUM_STOPLESS_NAME:
+        { "flag": NUM_STOPLESS_FLAG, "value": NUM_STOPLESS_VALUE },
 }
+
+
+def getLiveDBName():
+    liveConfigName = ".i3live.conf"
+    defaultName = "I3OmDb"
+
+    path = os.path.join(os.environ["HOME"], liveConfigName)
+    if os.path.exists(path):
+        with open(path, "r") as fd:
+            for line in fd:
+                if line.startswith("["):
+                    ridx = line.find("]")
+                    if ridx < 0:
+                        print "Bad section marker \"%s\"" % line.rstrip()
+                        continue
+
+                    section = line[1:ridx]
+                    continue
+
+                if section != "livecontrol":
+                    continue
+
+                pos = line.find("=")
+                if pos < 0:
+                    continue
+
+                if line[:pos].strip() != "dbname":
+                    continue
+
+                return line[pos + 1:].strip()
+
+    print "Cannot find %s, assuming Online DB is %s" % \
+        (liveConfigName, defaultName)
+    return defaultName
 
 
 # stolen from live/misc/util.py
@@ -108,14 +149,13 @@ def isPaused():
     return False
 
 
-def isSPTSActive(timeout_minutes, verbose=False):
+def isSPTSActive(timeout_minutes, dbName="I3OmDb_test", verbose=False):
     """Return True if there is an active run on SPTS"""
 
     DBHOST = "dbs"
     DBUSER = "i3omdbro"
-    DBNAME = "I3OmDb_test"
 
-    db = MySQLdb.connect(DBHOST, DBUSER, "", DBNAME)
+    db = MySQLdb.connect(DBHOST, DBUSER, "", dbName)
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
     try:
         cmd = "select start, stop from run_summary order by start desc limit 1"
@@ -123,7 +163,7 @@ def isSPTSActive(timeout_minutes, verbose=False):
 
         dbRow = cursor.fetchone()
         if dbRow is None:
-            raise SystemExit("Cannot fetch run summary from " + DBNAME)
+            raise SystemExit("Cannot fetch run summary from " + dbName)
 
         now = datetime.datetime.now()
 
@@ -203,13 +243,49 @@ def readConfig(filename, config):
     return success
 
 
-def startRuns(verbose=False):
+def setNumberOfRestarts(numRestarts):
+    cmd = "livecmd runs per restart"
+    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, close_fds=True,
+                            shell=True)
+    proc.stdin.close()
+
+    curNum = None
+    for line in proc.stdout:
+        line = line.rstrip()
+        try:
+            curNum = int(line)
+        except ValueError:
+            raise SystemExit("Bad number '%s' for runs per restart" % line)
+
+    proc.stdout.close()
+    proc.wait()
+
+    if curNum != numRestarts:
+        print "Setting runs per restart to %d" % numRestarts
+        cmd = "livecmd runs per restart %d" % numRestarts
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, close_fds=True,
+                                shell=True)
+        proc.stdin.close()
+        for line in proc.stdout:
+            print line.rstrip()
+        proc.stdout.close()
+        proc.wait()
+
+
+def startRuns(numStopless=None, verbose=False):
     """Start an unlimited set of runs"""
+
+    # if we want continuous runs, make sure to tell Live
+    if numStopless is not None:
+        setNumberOfRestarts(numStopless - 1)
 
     # build the default configuration values
     config = {}
     for k, vdict in CONFIG_DATA.iteritems():
-        if vdict["value"] is not None:
+        if vdict["flag"] is not None and vdict["value"] is not None:
             config[k] = vdict["value"]
 
     # load config values from filesystem
@@ -239,32 +315,39 @@ def startRuns(verbose=False):
 
 
 if __name__ == "__main__":
-    import optparse
-    import socket
+    import argparse
 
-    # make sure we're running this on SPTS
-    hname = socket.gethostname()
-    if not hname.endswith("spts.icecube.wisc.edu"):
-        raise SystemExit("This script should only be run on SPTS")
-    elif hname.find("expcont") < 0:
-        raise SystemExit("This script should only be run on expcont")
+    from utils.Machineid import Machineid
 
-    p = optparse.OptionParser()
+    hostid = Machineid()
+    if hostid.is_sps_cluster():
+        raise SystemExit("This script should not be run on SPS")
+    if hostid.is_build_host():
+        raise SystemExit("This script should not be run on access")
 
-    p.add_option("-f", "--force", dest="force",
-                 action="store_true", default=False,
-                 help="kill components even if there is an active run")
-    p.add_option("-v", "--verbose", dest="verbose",
-                 action="store_true", default=False,
-                 help="Log output for all components to terminal")
+    p = argparse.ArgumentParser()
 
-    opt, args = p.parse_args()
+    p.add_argument("-D", "--dbname", dest="dbName",
+                   help="Name of database to check")
+    p.add_argument("-f", "--force", dest="force",
+                   action="store_true", default=False,
+                   help="kill components even if there is an active run")
+    p.add_argument("-v", "--verbose", dest="verbose",
+                   action="store_true", default=False,
+                   help="Log output for all components to terminal")
+
+    args = p.parse_args()
 
     idle_minutes = 2 * 60    # two hours
-    if not isPaused():
-        if opt.force or not isSPTSActive(idle_minutes, verbose=opt.verbose):
-            startRuns(verbose=opt.verbose)
-        elif opt.verbose:
+    if isPaused():
+        if args.verbose:
+            print "SPTS is paused"
+    else:
+        dbName = args.dbName
+        if dbName is None:
+            dbName = getLiveDBName()
+        if args.force or not isSPTSActive(idle_minutes, dbName=dbName,
+                                          verbose=args.verbose):
+            startRuns(numStopless=NUM_STOPLESS_VALUE, verbose=args.verbose)
+        elif args.verbose:
             print "SPTS is active"
-    elif opt.verbose:
-        print "SPTS is paused"

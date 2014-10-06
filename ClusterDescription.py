@@ -699,13 +699,50 @@ class ClusterDescription(ConfigXMLBase):
         if clu is None:
             clu = cls.getClusterFromHostName()
         if clu == cls.SPTS or clu == cls.SPTS64:
-            return cls.DBTYPE_TEST
+            dbname = cls.getLiveDBName()
+            if dbname is None or dbname == "I3OmDb_test":
+                return cls.DBTYPE_TEST
+            elif dbname == "I3OmDb":
+                return cls.DBTYPE_PROD
+            raise NotImplementedError(("Unknown database \"%s\" for" +
+                                       " cluster \"%s\"") % (dbname, clu))
         if clu == cls.SPS or clu == cls.PDAQ2:
             return cls.DBTYPE_PROD
         if clu == cls.LOCAL or clu == cls.MDFL:
             return cls.DBTYPE_NONE
         raise NotImplementedError("Cannot guess database" +
                                      " for cluster \"%s\"" % clu)
+
+    def getLiveDBName():
+        liveConfigName = ".i3live.conf"
+
+        path = os.path.join(os.environ["HOME"], liveConfigName)
+        if os.path.exists(path):
+            with open(path, "r") as fd:
+                for line in fd:
+                    if line.startswith("["):
+                        ridx = line.find("]")
+                        if ridx < 0:
+                            # ignore line with bad section marker
+                            continue
+
+                        section = line[1:ridx]
+                        continue
+
+                    if section != "livecontrol":
+                        continue
+
+                    pos = line.find("=")
+                    if pos < 0:
+                        continue
+
+                    if line[:pos].strip() != "dbname":
+                        continue
+
+                    return line[pos + 1:].strip()
+
+        return None
+
 
     def host(self, name):
         if not name in self.__hostMap:

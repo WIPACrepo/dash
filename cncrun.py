@@ -125,17 +125,17 @@ class FlasherDataParser(XMLParser):
 
 class CnCRun(BaseRun):
     def __init__(self, showCmd=False, showCmdOutput=False, dryRun=False,
-                 dbType=None, logfile=None):
+                 logfile=None):
         """
         showCmd - True if commands should be printed before being run
         showCmdOutput - True if command output should be printed
         dryRun - True if commands should only be printed and not executed
-        dbType - DatabaseType value (TEST, PROD, or NONE)
         logfile - file where all log messages are saved
         """
 
-        super(CnCRun, self).__init__(showCmd, showCmdOutput, dryRun, dbType,
-                                     logfile)
+        super(CnCRun, self).__init__(showCmd=showCmd,
+                                     showCmdOutput=showCmdOutput,
+                                     dryRun=dryRun, logfile=logfile)
 
         self.__showCmdOutput = showCmdOutput
         self.__dryRun = dryRun
@@ -468,7 +468,7 @@ class CnCRun(BaseRun):
         return self.__waitForState(RunSetState.READY, 10, verbose=verbose)
 
 if __name__ == "__main__":
-    run = CnCRun(True, True, dryRun=False)
+    run = CnCRun(showCmd=True, showCmdOutput=True, dryRun=False)
     run.run("spts64-dirtydozen-hlc-006", "spts64-dirtydozen-hlc-006", 30,
             (("flash-21.xml", 5), (None, 10), ("flash-21.xml", 5)),
             verbose=True)

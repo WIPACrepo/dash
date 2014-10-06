@@ -585,12 +585,11 @@ class BaseRun(object):
     PATH = None
 
     def __init__(self, showCmd=False, showCmdOutput=False, dryRun=False,
-                 dbType=None, logfile=None):
+                 logfile=None):
         """
         showCmd - True if commands should be printed before being run
         showCmdOutput - True if command output should be printed
         dryRun - True if commands should only be printed and not executed
-        dbType - DatabaseType value (TEST, PROD, or NONE)
         logfile - file where all log messages are saved
         """
         self.__showCmd = showCmd
@@ -602,10 +601,7 @@ class BaseRun(object):
 
         self.__cnc = None
 
-        if dbType is not None:
-            self.__dbType = dbType
-        else:
-            self.__dbType = ClusterDescription.getClusterDatabaseType()
+        self.__dbType = ClusterDescription.getClusterDatabaseType()
 
         # check for needed executables
         #

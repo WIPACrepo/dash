@@ -391,20 +391,19 @@ class LiveRun(BaseRun):
     "Manage one or more pDAQ runs through IceCube Live"
 
     def __init__(self, showCmd=False, showCmdOutput=False, showCheck=False,
-                 showCheckOutput=False, dryRun=False, dbType=None,
-                 logfile=None):
+                 showCheckOutput=False, dryRun=False, logfile=None):
         """
         showCmd - True if commands should be printed before being run
         showCmdOutput - True if command output should be printed
         showCheck - True if 'livecmd check' commands should be printed
         showCheckOutput - True if 'livecmd check' output should be printed
         dryRun - True if commands should only be printed and not executed
-        dbType - DatabaseType value (TEST, PROD, or NONE)
         logfile - file where all log messages are saved
         """
 
-        super(LiveRun, self).__init__(showCmd, showCmdOutput, dryRun, dbType,
-                                      logfile)
+        super(LiveRun, self).__init__(showCmd=showCmd,
+                                      showCmdOutput=showCmdOutput,
+                                      dryRun=dryRun, logfile=logfile)
 
         self.__dryRun = dryRun
 
@@ -793,7 +792,7 @@ class LiveRun(BaseRun):
                                    60, 0, verbose=verbose)
 
 if __name__ == "__main__":
-    run = LiveRun(True, True, dryRun=False)
+    run = LiveRun(showCmd=True, showCmdOutput=True, dryRun=False)
     run.run("spts64-real-21-29", "spts64-dirtydozen-hlc-006", 60,
             (("flash-21.xml", 10), (None, 10), ("flash-21.xml", 5)),
             verbose=True)
