@@ -1652,6 +1652,12 @@ class RunSet(object):
 
         changed = False
 
+        logger = None
+        if self.__runData is not None:
+            logger = self.__runData
+        else:
+            logger = self.__logger
+
         # remove stopped components from appropriate dictionary
         #
         states = tGroup.results()
@@ -1690,8 +1696,9 @@ class RunSet(object):
                 waitStr = \
                     self.__listComponentsAndConnections(srcSet + otherSet,
                                                         connDict)
-                self.__runData.info('%s: Waiting for %s %s' %
-                                    (str(self), self.__state, waitStr))
+                if logger is not None:
+                    logger.info('%s: Waiting for %s %s' %
+                                (str(self), self.__state, waitStr))
                 msgSecs = newSecs
 
         return msgSecs
