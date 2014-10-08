@@ -682,7 +682,7 @@ class RunData(object):
                     "status": status}
 
             monitime = PayloadTime.toDateTime(lastPayTime)
-            self.__sendMoni("runstop", data, prio=Prio.SCP, time=monitime)
+            self.__sendMoni("runstop", data, prio=Prio.ITS, time=monitime)
 
     def __sendMoni(self, name, value, prio=None, time=None):
         try:
