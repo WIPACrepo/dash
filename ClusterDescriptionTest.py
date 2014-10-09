@@ -878,6 +878,7 @@ class TestClusterDescription(unittest.TestCase):
                           (errmsg, fmterr))
 
     def testDupSimHubs(self):
+        """duplicate simHub lines at different priorities are allowed"""
         name = "dupsim"
 
         mockComps = []
@@ -894,25 +895,20 @@ class TestClusterDescription(unittest.TestCase):
                 for line in fd:
                     print ":: ", line,
 
-        try:
-            ClusterDescription(self.CFGDIR, name)
-            self.fail("Test %s should not succeed" % name)
-        except ClusterDescriptionFormatError, fmterr:
-            errmsg = ("Cluster \"%s\" host \"%s\" has multiple" +
-                      " <simulatedHub> nodes") % (name, host.name())
-            if not str(fmterr).endswith(errmsg):
-                self.fail("Expected exception \"%s\", not \"%s\"" %
-                          (errmsg, fmterr))
+        ClusterDescription(self.CFGDIR, name)
 
-    def testAddDupSimHub(self):
-        name = "dupsim"
+    def testAddDupPrio(self):
+        """duplicate simHub lines at the same priority are not valid"""
+        name = "dupprio"
 
         mockComps = []
         mock = MockClusterConfigFile(self.CFGDIR, name)
 
         hname = "host1"
         host = mock.addHost(hname)
-        sim = host.addSimHubs(15, 2, ifUnused=True)
+
+        prio = 2
+        sim = host.addSimHubs(15, prio, ifUnused=True)
 
         mock.create()
 
@@ -924,9 +920,10 @@ class TestClusterDescription(unittest.TestCase):
         cd = ClusterDescription(self.CFGDIR, name)
         h = cd.host(hname)
         try:
-            h.addSimulatedHub("xxx")
+            h.addSimulatedHub("xxx", 7, prio, False)
         except ClusterDescriptionFormatError, fmterr:
-            errmsg = "Multiple <simulatedHub> nodes for %s" % hname
+            errmsg = "Multiple <simulatedHub> nodes at prio %d for %s" % \
+                     (prio, hname)
             if not str(fmterr).endswith(errmsg):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))

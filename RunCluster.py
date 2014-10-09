@@ -105,6 +105,19 @@ class RunNode(object):
         return self.__locName
 
 
+class SimAlloc(object):
+    "Temporary class used to assign simHubs to hosts"
+    def __init__(self, host, num):
+        self.host = host
+        self.number = num
+        self.percent = 0.0
+        self.allocated = 0
+
+    def __str__(self):
+        return "%s#%d%%.2f=%d" % (self.host, self.number, self.percent,
+                                  self.allocated)
+
+
 class RunCluster(CachedConfigName):
     "Cluster->component mapping generated from a run configuration file"
     def __init__(self, cfg, descrName=None, configDir=None):
@@ -170,6 +183,14 @@ class RunCluster(CachedConfigName):
                 cls.__addComponent(hostMap, host, comp)
 
     @classmethod
+    def __cmpAlloc(cls, a, b):
+        val = cmp(a.allocated, b.allocated)
+        if val == 0:
+            val = cmp(b.host, a.host)
+
+        return val
+
+    @classmethod
     def __addSimHubs(cls, clusterDesc, hubList, hostMap):
         "Add simulated hubs to hostMap"
         simList = cls.__getSortedSimHubs(clusterDesc, hostMap)
@@ -180,46 +201,55 @@ class RunCluster(CachedConfigName):
             raise RunClusterError("Cannot simulate %s hubs %s" %
                                   (clusterDesc.name, str(missing)))
 
-        hubAlloc = []
-        for i in range(len(simList)):
-            hubAlloc.append(0)
+        hubAlloc = {}
+        maxHubs = 0
+        pctTot = 0.0
+        for sim in simList:
+            if not hubAlloc.has_key(sim.host):
+                hubAlloc[sim.host] = SimAlloc(sim.host, sim.number)
+            # add to the maximum number of hubs for this host
+            hubAlloc[sim.host].number += sim.number
+            maxHubs += sim.number
 
-        hubNum = 0
-        for hub in hubList:
-            looped = False
-            while True:
-                if hubAlloc[hubNum] < simList[hubNum].number:
-                    hubAlloc[hubNum] += 1
-                    hubNum += 1
-                    if hubNum >= len(hubAlloc):
-                        hubNum = 0
+            pct = (10.0 / float(sim.priority)) * float(sim.number)
+            hubAlloc[sim.host].percent += pct
+            pctTot += pct
+
+        # make sure there's enough room for the requested hubs
+        numHubs = len(hubList)
+        if numHubs > maxHubs:
+            raise RunClusterError("Only have space for %d of %d hubs" %
+                                  (numHubs, maxHubs))
+
+        # first stab at allocation: allocate based on percentage
+        tot = 0
+        for v in hubAlloc.values():
+            v.percent /= pctTot
+            v.allocated = int(v.percent * numHubs)
+            tot += v.allocated
+
+        # allocate remainder in order of total capacity
+        if tot < numHubs:
+            for v in sorted(hubAlloc.values(), reverse=True,
+                            cmp=cls.__cmpAlloc):
+                v.allocated += 1
+                tot += 1
+                if tot >= numHubs:
                     break
-
-                # move to next host
-                hubNum += 1
-                if hubNum >= len(hubAlloc):
-                    if looped:
-                        raise RunClusterError(("Cannot assign hub %s;" +
-                                               " out of hubs") % hub)
-                    hubNum = 0
-                    looped = True
-
-        allocMap = {}
-        for i in range(len(simList)):
-            allocMap[simList[i].host.name] = hubAlloc[i]
 
         hubList.sort()
 
-        allocHosts = allocMap.keys()
-        allocHosts.sort()
+        hosts = []
+        for v in sorted(hubAlloc.values(), reverse=True, cmp=cls.__cmpAlloc):
+            hosts.append(v.host)
 
         logLevel = clusterDesc.defaultLogLevel("StringHub")
         jvm = clusterDesc.defaultJVM("StringHub")
         jvmArgs = clusterDesc.defaultJVMArgs("StringHub")
 
         hubNum = 0
-        for host in allocHosts:
-            for i in range(0, allocMap[host]):
+        for host in hosts:
+            for i in xrange(hubAlloc[host].allocated):
                 hubComp = hubList[hubNum]
                 if hubComp.logLevel() is not None:
                     lvl = hubComp.logLevel()
@@ -305,7 +335,7 @@ class RunCluster(CachedConfigName):
     @staticmethod
     def __sortByPriority(x, y):
         "Sort simulated hub nodes by priority"
-        val = cmp(y.priority, x.priority)
+        val = cmp(x.priority, y.priority)
         if val == 0:
             val = cmp(x.host.name, y.host.name)
         return val

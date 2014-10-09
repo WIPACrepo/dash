@@ -25,7 +25,8 @@ class DeployData(object):
         self.found = True
 
     def matches(self, host, name, id):
-        return self.host == host and self.name.lower() == name.lower() and \
+        return self.host == str(host) and \
+            self.name.lower() == name.lower() and \
             self.id == id
 
 
@@ -33,7 +34,7 @@ class RunClusterTest(unittest.TestCase):
     CONFIG_DIR = os.path.abspath('src/test/resources/config')
 
     def __checkCluster(self, clusterName, cfgName, expNodes, spadeDir,
-                       logCopyDir, daqLogDir, daqDataDir):
+                       logCopyDir, daqLogDir, daqDataDir, verbose=False):
         cfg = DAQConfigParser.load(cfgName, RunClusterTest.CONFIG_DIR)
 
         cluster = RunCluster(cfg, clusterName, RunClusterTest.CONFIG_DIR)
@@ -42,10 +43,29 @@ class RunClusterTest(unittest.TestCase):
                           'Expected config name %s, not %s' %
                           (cfgName, cluster.configName()))
 
-        for node in cluster.nodes():
-            for comp in node.components():
+        sortedNodes = cluster.nodes()
+        sortedNodes.sort()
+
+        if verbose:
+            print "=== RC -> %s" % cluster.configName()
+            for n in sortedNodes:
+                print "::  " + str(n)
+                sortedComps = n.components()
+                sortedComps.sort()
+                for c in sortedComps:
+                    print "        " + str(c)
+
+            print "=== EXP"
+            for en in sorted(expNodes, key=lambda x: str(x)):
+                print "::  " + str(en)
+
+        for node in sortedNodes:
+            sortedComps = node.components()
+            sortedComps.sort()
+            for comp in sortedComps:
                 found = False
                 for en in expNodes:
+                    #print "CMP %s/%s#%d <==> %s" % (node.hostName(), comp.name(), comp.id(), en)
                     if en.matches(node.hostName(), comp.name(), comp.id()):
                         found = True
                         en.markFound()
@@ -110,11 +130,11 @@ class RunClusterTest(unittest.TestCase):
                     DeployData('spts64-gtrigger', 'globalTrigger'),
                     DeployData('spts64-evbuilder', 'eventBuilder'),
                     DeployData('spts64-expcont', 'SecondaryBuilders'),
-                    DeployData('spts64-stringproc01', 'stringHub', 1001),
-                    DeployData('spts64-stringproc02', 'stringHub', 1002),
-                    DeployData('spts64-stringproc03', 'stringHub', 1003),
-                    DeployData('spts64-stringproc06', 'stringHub', 1004),
-                    DeployData('spts64-stringproc07', 'stringHub', 1005),
+                    DeployData('spts64-2ndbuild', 'stringHub', 1001),
+                    DeployData('spts64-fpslave01', 'stringHub', 1002),
+                    DeployData('spts64-fpslave02', 'stringHub', 1003),
+                    DeployData('spts64-fpslave03', 'stringHub', 1004),
+                    DeployData('spts64-fpslave04', 'stringHub', 1005),
                     ]
 
         daqLogDir = "/mnt/data/pdaq/log"
@@ -147,7 +167,7 @@ class RunClusterTest(unittest.TestCase):
             self.__checkCluster("localhost", cfgName, expNodes, spadeDir,
                                 logCopyDir, daqLogDir, daqDataDir)
         except RunClusterError as rce:
-            if not str(rce).endswith("out of hubs"):
+            if not str(rce).endswith("Only have space for 11 of 10 hubs"):
                 self.fail("Unexpected exception: " + str(rce))
 
     def testDeploySPS(self):
@@ -209,6 +229,46 @@ class RunClusterTest(unittest.TestCase):
         logCopyDir = "/mnt/data/pdaqlocal"
 
         self.__checkCluster("sps", cfgName, expNodes, spadeDir, logCopyDir,
+                            daqLogDir, daqDataDir)
+
+    @classmethod
+    def __addHubs(cls, nodes, hostname, numToAdd, hubnum):
+        for i in xrange(numToAdd):
+            nodes.append(DeployData(hostname, 'replayHub', hubnum))
+            hubnum += 1
+            if hubnum > 86:
+                if hubnum > 211:
+                    break
+                if hubnum < 200:
+                    hubnum = 201
+
+        return hubnum
+
+    def testDeployReplay(self):
+        cfgName = 'replay-test'
+        expNodes = [DeployData('trigger', 'iceTopTrigger'),
+                    DeployData('trigger', 'iniceTrigger'),
+                    DeployData('trigger', 'globalTrigger'),
+                    DeployData('evbuilder', 'eventBuilder'),
+                    DeployData('expcont', 'CnCServer'),
+                    DeployData('2ndbuild', 'SecondaryBuilders'),
+                    ]
+        hubnum = 1
+        hubnum = self.__addHubs(expNodes, 'daq01', 43, hubnum)
+        hubnum = self.__addHubs(expNodes, 'pdaq2', 17, hubnum)
+        for h in ('fpslave01', 'fpslave02', 'fpslave03'):
+            hubnum = self.__addHubs(expNodes, h, 7, hubnum)
+        hubnum = self.__addHubs(expNodes, 'fpslave04', 6, hubnum)
+        hubnum = self.__addHubs(expNodes, 'ittest2', 6, hubnum)
+        for h in ('fpslave05', 'ittest1'):
+            hubnum = self.__addHubs(expNodes, h, 2, hubnum)
+
+        daqLogDir = "/mnt/data/pdaq/log"
+        daqDataDir = "/mnt/data/pdaqlocal"
+        spadeDir = "/mnt/data/pdaq/spade/runs"
+        logCopyDir = None
+
+        self.__checkCluster("replay", cfgName, expNodes, spadeDir, logCopyDir,
                             daqLogDir, daqDataDir)
 
 if __name__ == '__main__':

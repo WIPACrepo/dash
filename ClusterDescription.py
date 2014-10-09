@@ -212,8 +212,11 @@ class ClusterHost(object):
     def __init__(self, name):
         self.name = name
         self.compMap = {}
-        self.simHub = None
+        self.simHubs = None
         self.ctlServer = False
+
+    def __cmp__(self, other):
+        return cmp(self.name, str(other))
 
     def __str__(self):
         return self.name
@@ -228,11 +231,17 @@ class ClusterHost(object):
             raise ClusterDescriptionFormatError(errMsg)
         self.compMap[compKey] = comp
 
-    def addSimulatedHub(self, simHub):
-        if self.simHub is not None:
-            errMsg = 'Multiple <simulatedHub> nodes for %s' % self.name
-            raise ClusterDescriptionFormatError(errMsg)
-        self.simHub = simHub
+    def addSimulatedHub(self, host, num, prio, ifUnused):
+        newHub = ClusterSimHub(host, num, prio, ifUnused)
+
+        if self.simHubs is None:
+            self.simHubs = []
+        for sh in self.simHubs:
+            if prio == sh.priority:
+                errMsg = 'Multiple <simulatedHub> nodes at prio %d for %s' % \
+                         (prio, self.name)
+                raise ClusterDescriptionFormatError(errMsg)
+        self.simHubs.append(newHub)
 
     def dump(self, prefix=None):
         if prefix is None:
@@ -247,22 +256,20 @@ class ClusterHost(object):
             comp = self.compMap[key]
             print "%s  Comp %s" % (prefix, str(comp))
 
-        if self.simHub is not None:
-            if self.simHub.ifUnused:
-                uStr = " (ifUnused)"
-            else:
-                uStr = ""
-            print "%s  SimHub*%d prio %d%s" % \
-                (prefix, self.simHub.number, self.simHub.priority, uStr)
+        if self.simHubs is not None:
+            for sh in self.simHubs:
+                if sh.ifUnused:
+                    uStr = " (ifUnused)"
+                else:
+                    uStr = ""
+                print "%s  SimHub*%d prio %d%s" % \
+                (prefix, sh.number, sh.priority, uStr)
 
         if self.ctlServer:
             print "%s  ControlServer" % prefix
 
     def getComponents(self):
         return self.compMap.values()
-
-    def getSimulatedHub(self):
-        return self.simHub
 
     def isControlServer(self):
         return self.ctlServer
@@ -459,7 +466,6 @@ class ClusterDescription(ConfigXMLBase):
 
             host = ClusterHost(hostName)
 
-            simHub = None
             for kid in node.childNodes:
                 if kid.nodeType != Node.ELEMENT_NODE:
                     continue
@@ -469,16 +475,9 @@ class ClusterDescription(ConfigXMLBase):
                 elif kid.nodeName == 'controlServer':
                     host.setControlServer()
                 elif kid.nodeName == 'simulatedHub':
-                    if simHub is not None:
-                        errMsg = ('Cluster "%s" host "%s" has multiple' +
-                                  ' <simulatedHub> nodes') % (name, host)
-                        raise ClusterDescriptionFormatError(errMsg)
-
-                    simHub = cls.__parseSimulatedHubNode(name, host, kid)
-
-            # if we found a <simulatedHub> node, add it now
-            if simHub is not None:
-                host.addSimulatedHub(simHub)
+                    simData = cls.__parseSimulatedHubNode(name, host, kid)
+                    host.addSimulatedHub(simData[0], simData[1], simData[2],
+                                         simData[3])
 
             # add host to internal host dictionary
             if not hostName in hostMap:
@@ -530,7 +529,7 @@ class ClusterDescription(ConfigXMLBase):
             ifStr = ifStr.lower()
             ifUnused = ifStr == 'true' or ifStr == '1' or ifStr == 'on'
 
-        return ClusterSimHub(host, num, prio, ifUnused)
+        return (host, num, prio, ifUnused)
 
     def daqDataDir(self):
         if self.__daqDataDir is None:
@@ -759,7 +758,9 @@ class ClusterDescription(ConfigXMLBase):
 
     def listHostSimHubPairs(self):
         for host in self.__hostMap.keys():
-            yield (host, self.__hostMap[host].getSimulatedHub())
+            if self.__hostMap[host].simHubs is not None:
+                for sh in self.__hostMap[host].simHubs:
+                    yield (host, sh)
 
     def logDirForSpade(self):
         return self.__logDirForSpade
