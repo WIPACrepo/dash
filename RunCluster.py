@@ -298,7 +298,7 @@ class RunCluster(CachedConfigName):
 
         nodes = []
         for host in hostKeys:
-            node = RunNode(host, clusterDesc.defaultLogLevel(),
+            node = RunNode(str(host), clusterDesc.defaultLogLevel(),
                            clusterDesc.defaultJVM(),
                            clusterDesc.defaultJVMArgs())
             nodes.append(node)
