@@ -254,14 +254,15 @@ class RunClusterTest(unittest.TestCase):
                     DeployData('2ndbuild', 'SecondaryBuilders'),
                     ]
         hubnum = 1
-        hubnum = self.__addHubs(expNodes, 'daq01', 43, hubnum)
-        hubnum = self.__addHubs(expNodes, 'pdaq2', 17, hubnum)
-        for h in ('fpslave01', 'fpslave02', 'fpslave03'):
+        hubnum = self.__addHubs(expNodes, 'daq01', 44, hubnum)
+        hubnum = self.__addHubs(expNodes, 'pdaq2', 10, hubnum)
+        for h in ('fpslave01', 'fpslave02'):
+            hubnum = self.__addHubs(expNodes, h, 8, hubnum)
+        for h in ('fpslave03', 'fpslave04'):
             hubnum = self.__addHubs(expNodes, h, 7, hubnum)
-        hubnum = self.__addHubs(expNodes, 'fpslave04', 6, hubnum)
-        hubnum = self.__addHubs(expNodes, 'ittest2', 6, hubnum)
+        hubnum = self.__addHubs(expNodes, 'ittest2', 7, hubnum)
         for h in ('fpslave05', 'ittest1'):
-            hubnum = self.__addHubs(expNodes, h, 2, hubnum)
+            hubnum = self.__addHubs(expNodes, h, 3, hubnum)
 
         daqLogDir = "/mnt/data/pdaq/log"
         daqDataDir = "/mnt/data/pdaqlocal"
