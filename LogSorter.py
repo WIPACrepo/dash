@@ -435,6 +435,8 @@ def add_arguments(parser):
 
 def getDirAndRunnum(topDir, subDir):
     "Return path to log files and run number for the log files"
+
+    DIGITS_PAT = re.compile("^.*(\d+)$")
     for i in xrange(100):
         if i == 0:
             fullpath = os.path.join(topDir, subDir)
@@ -447,12 +449,17 @@ def getDirAndRunnum(topDir, subDir):
         else:
             break
 
+        print "PATH " + fullpath
         if os.path.isdir(fullpath):
             filename = os.path.basename(fullpath)
             if filename.startswith("daqrun"):
                 numstr = filename[6:]
             else:
-                numstr = filename
+                m = DIGITS_PAT.match(filename)
+                if m is not None:
+                    numstr = m.group(1)
+                else:
+                    numstr = filename
             try:
                 return(fullpath, int(numstr))
             except:

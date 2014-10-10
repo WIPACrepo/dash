@@ -207,8 +207,9 @@ class RunCluster(CachedConfigName):
         for sim in simList:
             if not hubAlloc.has_key(sim.host):
                 hubAlloc[sim.host] = SimAlloc(sim.host, sim.number)
-            # add to the maximum number of hubs for this host
-            hubAlloc[sim.host].number += sim.number
+            else:
+                # add to the maximum number of hubs for this host
+                hubAlloc[sim.host].number += sim.number
             maxHubs += sim.number
 
             pct = (10.0 / float(sim.priority)) * float(sim.number)
@@ -226,16 +227,29 @@ class RunCluster(CachedConfigName):
         for v in hubAlloc.values():
             v.percent /= pctTot
             v.allocated = int(v.percent * numHubs)
+            if v.allocated > v.number:
+                # if we overallocated based on the percentage,
+                #  adjust down to the maximum number
+                v.allocated = v.number
             tot += v.allocated
 
         # allocate remainder in order of total capacity
-        if tot < numHubs:
+        while tot < numHubs:
+            changed = False
             for v in sorted(hubAlloc.values(), reverse=True,
                             cmp=cls.__cmpAlloc):
+                if v.allocated >= v.number:
+                    continue
+
                 v.allocated += 1
                 tot += 1
+                changed = True
                 if tot >= numHubs:
                     break
+
+            if tot < numHubs and not changed:
+                raise RunClusterException("Only able to allocate"
+                                          " %d of %d hubs" % (tot, numHubs))
 
         hubList.sort()
 

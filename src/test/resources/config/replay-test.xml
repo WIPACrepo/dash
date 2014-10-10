@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<runConfig>
+    <replayFiles baseDir="/net/data2/pdaq/testdata/hitspool/123997">
+        <hits hub="1" source="ichub01" />
+        <hits hub="2" source="ichub02" />
+        <hits hub="3" source="ichub03" />
+        <hits hub="4" source="ichub04" />
+        <hits hub="5" source="ichub05" />
+        <hits hub="6" source="ichub06" />
+        <hits hub="7" source="ichub07" />
+        <hits hub="8" source="ichub08" />
+        <hits hub="9" source="ichub09" />
+        <hits hub="10" source="ichub10" />
+        <hits hub="11" source="ichub11" />
+        <hits hub="12" source="ichub12" />
+        <hits hub="13" source="ichub13" />
+        <hits hub="14" source="ichub14" />
+        <hits hub="15" source="ichub15" />
+        <hits hub="16" source="ichub16" />
+        <hits hub="17" source="ichub17" />
+        <hits hub="18" source="ichub18" />
+        <hits hub="19" source="ichub19" />
+        <hits hub="20" source="ichub20" />
+        <hits hub="21" source="ichub21" />
+        <hits hub="22" source="ichub22" />
+        <hits hub="23" source="ichub23" />
+        <hits hub="24" source="ichub24" />
+        <hits hub="25" source="ichub25" />
+        <hits hub="26" source="ichub26" />
+        <hits hub="27" source="ichub27" />
+        <hits hub="28" source="ichub28" />
+        <hits hub="29" source="ichub29" />
+        <hits hub="30" source="ichub30" />
+        <hits hub="31" source="ichub31" />
+        <hits hub="32" source="ichub32" />
+        <hits hub="33" source="ichub33" />
+        <hits hub="34" source="ichub34" />
+        <hits hub="35" source="ichub35" />
+        <hits hub="36" source="ichub36" />
+        <hits hub="37" source="ichub37" />
+        <hits hub="38" source="ichub38" />
+        <hits hub="39" source="ichub39" />
+        <hits hub="40" source="ichub40" />
+        <hits hub="41" source="ichub41" />
+        <hits hub="42" source="ichub42" />
+        <hits hub="43" source="ichub43" />
+        <hits hub="44" source="ichub44" />
+        <hits hub="45" source="ichub45" />
+        <hits hub="46" source="ichub46" />
+        <hits hub="47" source="ichub47" />
+        <hits hub="48" source="ichub48" />
+        <hits hub="49" source="ichub49" />
+        <hits hub="50" source="ichub50" />
+        <hits hub="51" source="ichub51" />
+        <hits hub="52" source="ichub52" />
+        <hits hub="53" source="ichub53" />
+        <hits hub="54" source="ichub54" />
+        <hits hub="55" source="ichub55" />
+        <hits hub="56" source="ichub56" />
+        <hits hub="57" source="ichub57" />
+        <hits hub="58" source="ichub58" />
+        <hits hub="59" source="ichub59" />
+        <hits hub="60" source="ichub60" />
+        <hits hub="61" source="ichub61" />
+        <hits hub="62" source="ichub62" />
+        <hits hub="63" source="ichub63" />
+        <hits hub="64" source="ichub64" />
+        <hits hub="65" source="ichub65" />
+        <hits hub="66" source="ichub66" />
+        <hits hub="67" source="ichub67" />
+        <hits hub="68" source="ichub68" />
+        <hits hub="69" source="ichub69" />
+        <hits hub="70" source="ichub70" />
+        <hits hub="71" source="ichub71" />
+        <hits hub="72" source="ichub72" />
+        <hits hub="73" source="ichub73" />
+        <hits hub="74" source="ichub74" />
+        <hits hub="75" source="ichub75" />
+        <hits hub="76" source="ichub76" />
+        <hits hub="77" source="ichub77" />
+        <hits hub="78" source="ichub78" />
+        <hits hub="79" source="ichub79" />
+        <hits hub="80" source="ichub80" />
+        <hits hub="81" source="ichub81" />
+        <hits hub="82" source="ichub82" />
+        <hits hub="83" source="ichub83" />
+        <hits hub="84" source="ichub84" />
+        <hits hub="85" source="ichub85" />
+        <hits hub="86" source="ichub86" />
+        <hits hub="201" source="ithub01" />
+        <hits hub="202" source="ithub02" />
+        <hits hub="203" source="ithub03" />
+        <hits hub="204" source="ithub04" />
+        <hits hub="205" source="ithub05" />
+        <hits hub="206" source="ithub06" />
+        <hits hub="207" source="ithub07" />
+        <hits hub="208" source="ithub08" />
+        <hits hub="209" source="ithub09" />
+        <hits hub="210" source="ithub10" />
+        <hits hub="211" source="ithub11" />
+    </replayFiles>
+    <triggerConfig>sps-icecube-amanda-008</triggerConfig>
+    <runComponent name="inIceTrigger"/>
+    <runComponent name="iceTopTrigger"/>
+    <runComponent name="globalTrigger"/>
+    <runComponent name="eventBuilder"/>
+</runConfig>
