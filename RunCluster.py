@@ -220,7 +220,7 @@ class RunCluster(CachedConfigName):
         numHubs = len(hubList)
         if numHubs > maxHubs:
             raise RunClusterError("Only have space for %d of %d hubs" %
-                                  (numHubs, maxHubs))
+                                  (maxHubs, numHubs))
 
         # first stab at allocation: allocate based on percentage
         tot = 0
