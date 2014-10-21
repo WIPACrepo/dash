@@ -691,28 +691,6 @@ class RunData(object):
             self.__dashlog.error("Failed to send %s=%s: %s" %
                                  (name, value, exc_string()))
 
-    def __sendOldCounts(self, moniData):
-        """
-        send unamalgamated messages until I3Live converts to new format
-        """
-        if moniData["eventPayloadTicks"] is not None:
-            payTime = moniData["eventPayloadTicks"]
-            monitime = PayloadTime.toDateTime(payTime)
-            self.__sendMoni("physicsEvents", moniData["physicsEvents"],
-                            prio=Prio.ITS, time=monitime)
-        if moniData["wallTime"] is not None:
-            self.__sendMoni("walltimeEvents", moniData["physicsEvents"],
-                            prio=Prio.EMAIL, time=moniData["wallTime"])
-        if moniData["moniTime"] is not None:
-            self.__sendMoni("moniEvents", moniData["moniEvents"],
-                            prio=Prio.EMAIL, time=moniData["moniTime"])
-        if moniData["snTime"] is not None:
-            self.__sendMoni("snEvents", moniData["snEvents"],
-                            prio=Prio.EMAIL, time=moniData["snTime"])
-        if moniData["tcalTime"] is not None:
-            self.__sendMoni("tcalEvents", moniData["tcalEvents"],
-                            prio=Prio.EMAIL, time=moniData["tcalTime"])
-
     def __writeRunXML(self, numEvts, numMoni, numSN, numTcal, firstTime,
                       lastTime, firstGood, lastGood, duration, hadError):
 
@@ -1125,9 +1103,6 @@ class RunData(object):
                     value[timeKey] = moniData[timeKey]
 
             self.__sendMoni("run_update", value, prio=prio, time=time)
-
-            # send old data until I3Live handles the 'run_update' data
-            self.__sendOldCounts(moniData)
 
     def setDebugBits(self, debugBits):
         if self.__taskMgr is not None:

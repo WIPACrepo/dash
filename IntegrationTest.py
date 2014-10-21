@@ -1588,12 +1588,6 @@ class IntegrationTest(unittest.TestCase):
                                           " seconds")
             liveLog.addExpectedText('Stopped run %d' % runNum)
 
-            liveLog.addExpectedLiveMoni('tcalEvents', numTcal)
-            liveLog.addExpectedLiveMoni('moniEvents', numMoni)
-            liveLog.addExpectedLiveMoni('snEvents', numSN)
-            liveLog.addExpectedLiveMoni('physicsEvents', numEvts)
-            liveLog.addExpectedLiveMoni('walltimeEvents', numEvts)
-
         if live is not None:
             live.stopping()
         else:
