@@ -167,7 +167,7 @@ class RunClusterTest(unittest.TestCase):
             self.__checkCluster("localhost", cfgName, expNodes, spadeDir,
                                 logCopyDir, daqLogDir, daqDataDir)
         except RunClusterError as rce:
-            if not str(rce).endswith("Only have space for 11 of 10 hubs"):
+            if not str(rce).endswith("Only have space for 10 of 11 hubs"):
                 self.fail("Unexpected exception: " + str(rce))
 
     def testDeploySPS(self):
