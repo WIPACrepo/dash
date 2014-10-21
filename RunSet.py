@@ -1669,12 +1669,16 @@ class RunSet(object):
                 else:
                     stateStr = self.STATE_DEAD
                 if stateStr != self.__state and stateStr != self.STATE_HANGING:
+                    self.__logDebug(RunSetDebug.STOP_RUN,
+                                    "STOPPING REMOVE %s (%s)", c, stateStr)
                     set.remove(c)
                     if c in connDict:
                         del connDict[c]
                     changed = True
                 else:
                     csStr = c.getNonstoppedConnectorsString()
+                    self.__logDebug(RunSetDebug.STOP_RUN,
+                                    "STOPPING NOCHG %s -> %s", c, csStr)
                     if not c in connDict:
                         connDict[c] = csStr
                     elif connDict[c] != csStr:
@@ -1759,6 +1763,9 @@ class RunSet(object):
                                          RunSetState.FORCING_STOP,
                                          ComponentOperation.FORCED_STOP,
                                          int(timeout * .25))
+                self.__logDebug(RunSetDebug.STOP_RUN,
+                                "STOPPING phase %d srcSet*%d otherSet[%s]",
+                                i, len(srcSet), str(otherSet))
                 if len(srcSet) == 0 and len(otherSet) == 0:
                     break
         finally:
@@ -2537,8 +2544,11 @@ class RunSet(object):
 
     def switchRun(self, newNum):
         "Switch all components in the runset to a new run"
-        if self.__runData is None or self.__state != RunSetState.RUNNING:
+        if self.__runData is None:
             raise RunSetException("RunSet #%d is not running" % self.__id)
+        if self.__state != RunSetState.RUNNING:
+            raise RunSetException("RunSet #%d is %s, not running" %
+                                  (self.__id, self.__state))
 
         # get list of all builders
         #
@@ -2591,7 +2601,7 @@ class RunSet(object):
 
         # wait for builders to finish switching
         #
-        for _ in xrange(240):
+        for _ in xrange(20):
             for c in bldrs:
                 num = c.getRunNumber()
                 if num == newNum:
@@ -2602,28 +2612,34 @@ class RunSet(object):
 
             time.sleep(0.25)
 
+        # from this point, cache any failures until the end
+        savedEx = None
+
         # if there's a problem...
         #
         if len(bldrs) > 0:
-            bStr = []
+            badBldrs = []
             for c in bldrs:
-                bStr.append(c.fullName())
-            raise RunSetException("Still waiting for %s to finish switching" %
-                                  (bStr))
+                badBldrs.append(c.fullName())
+            self.__state = RunSetState.ERROR
+            try:
+                raise RunSetException("Still waiting for %s to finish"
+                                      " switching" % " ".join(badBldrs))
+            except:
+                savedEx = sys.exc_info()
 
         # switch to new run data
         #
         oldData = self.__runData
         self.__runData = newData
 
-        savedEx = None
-
         # finish new run data setup
         #
         try:
             newData.finishSetup(self, startTime)
         except:
-            savedEx = sys.exc_info()
+            if savedEx is None:
+                savedEx = sys.exc_info()
 
         try:
             duration = self.__finishRun(self.__set, oldData, False,
