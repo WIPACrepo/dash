@@ -35,7 +35,7 @@ class BinTotal(object):
             "configid": self.__cfgId,
             "trigid": self.__trigId,
             "recordingStartTime": self.__start,
-            "recordingEndTime": self.__end,
+            "recordingStopTime": self.__end,
             "value": self.__value
         }
 
@@ -86,7 +86,7 @@ class TriggerCountThread(CnCThread):
                 if not totals.has_key(key):
                     totals[key] = BinTotal(key[0], key[1], key[2], key[3])
                 totals[key].add(d["recordingStartTime"],
-                                d["recordingEndTime"], d["value"])
+                                d["recordingStopTime"], d["value"])
 
             for d in totals.values():
                 self.__sendMoni("trigger_rate", d.moniDict(), prio)
