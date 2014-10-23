@@ -712,7 +712,8 @@ class ClusterDescription(ConfigXMLBase):
         raise NotImplementedError("Cannot guess database" +
                                      " for cluster \"%s\"" % clu)
 
-    def getLiveDBName():
+    @classmethod
+    def getLiveDBName(cls):
         liveConfigName = ".i3live.conf"
 
         path = os.path.join(os.environ["HOME"], liveConfigName)
