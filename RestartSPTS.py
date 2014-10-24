@@ -302,12 +302,12 @@ def startRuns(numStopless=None, verbose=False):
     for k, v in config.iteritems():
         if k == DURATION_NAME:
             v = getDurationFromString(v)
-        if v is not None:
+        if CONFIG_DATA[k]["flag"] is not None and v is not None:
             args.append(CONFIG_DATA[k]["flag"])
             args.append(str(v))
 
     if verbose:
-        print " ".join(args)
+        print str(args)
 
     rtn = subprocess.call(args)
     if rtn != 0:
