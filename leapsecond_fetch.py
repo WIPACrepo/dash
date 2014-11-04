@@ -4,6 +4,7 @@ from ftplib import FTP
 import socket
 import re
 import os
+import shutil
 
 from leapseconds import leapseconds
 
@@ -122,17 +123,24 @@ def install_latestleap(latest, filename, verbose=False):
         if os.path.exists(old):
             os.remove(old)
         if os.path.exists(latest):
-            os.rename(latest, old)
+            shutil.move(latest, old)
             if verbose:
                 print "Backed up old %s" % latest
-        os.rename(filename, latest)
+        shutil.move(filename, latest)
         if verbose:
             print "Moved %s into place as %s" % (filename, latest)
     else:
-        # if 'latest' is a symlink, move the new file into the same
-        # directory as 'latest' and point 'latest' at the new file
+        # if 'latest' doesn't exist or is a symlink, move the new file into
+        # the same directory as 'latest' and point 'latest' at the new file
         ldir = os.path.dirname(latest)
         basename = os.path.basename(filename)
+
+        # if the directory doesn't exist, try to create it
+        if not os.path.exists(ldir):
+            try:
+                os.makedirs(ldir)
+            except Exception, ex:
+                raise SystemExit("Cannot create %s: %s" % (ldir, ex))
 
         newpath = os.path.join(ldir, basename)
         if os.path.exists(newpath):
@@ -140,10 +148,12 @@ def install_latestleap(latest, filename, verbose=False):
             if verbose:
                 print "Removed old %s" % newpath
 
-        os.rename(filename, newpath)
+        shutil.move(filename, newpath)
 
-        if os.path.exists(latest):
+        try:
             os.remove(latest)
+        except:
+            pass # ignore all errors
         os.symlink(basename, latest)
 
         if verbose:
