@@ -14,7 +14,7 @@ from cncrun import CnCRun
 from datetime import datetime
 from utils.Machineid import Machineid
 
-SVN_ID = "$Id: ExpControlSkel.py 15170 2014-10-06 21:43:32Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 15222 2014-11-04 22:46:04Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -128,6 +128,9 @@ def add_arguments(parser, config_as_arg=False):
                         help="Run duration (in seconds)")
     parser.add_argument("-f", "--flasher-script", dest="flasherScript",
                         help="Name of flasher script")
+    parser.add_argument("-l", dest="duration",
+                        default="8h",
+                        help="Run duration (in seconds)")
     parser.add_argument("-n", "--num-runs", type=int, dest="numRuns",
                         default=10000000,
                         help="Number of runs")
