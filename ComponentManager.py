@@ -141,7 +141,7 @@ class ComponentManager(object):
                 dirname = os.path.join(metaDir, dirname)
             if not os.path.exists(dirname) and not dryRun:
                 try:
-                    os.mkdir(dirname)
+                    os.makedirs(dirname)
                 except OSError as (errno, strerror):
                     if fallbackDir is None:
                         einfo = sys.exc_info()
