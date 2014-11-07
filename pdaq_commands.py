@@ -195,7 +195,7 @@ class CmdRun(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
         from ExpControlSkel import add_arguments
-        add_arguments(parser, True)
+        add_arguments(parser, False)
 
     @classmethod
     def cmdtype(cls):
