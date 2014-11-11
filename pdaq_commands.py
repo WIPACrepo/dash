@@ -50,7 +50,7 @@ class BaseCmd(object):
     @classmethod
     def name(cls):
         "Name of this subcommand"
-        raise Exception("Unimplemented")
+        raise NotImplementedError()
 
     @classmethod
     def run(cls, args):
