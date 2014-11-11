@@ -87,7 +87,7 @@ class MonitorTaskTest(unittest.TestCase):
         return [foo, bar, ]
 
     def __createStandardObjects(self):
-        timer = MockIntervalTimer("Monitoring")
+        timer = MockIntervalTimer(MonitorTask.NAME)
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(timer)
 

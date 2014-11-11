@@ -17,8 +17,8 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         pass
 
     def testGood(self):
-        rptTimer = MockIntervalTimer("ActiveReport")
-        domTimer = MockIntervalTimer("ActiveDOM")
+        rptTimer = MockIntervalTimer(ActiveDOMsTask.REPORT_NAME)
+        domTimer = MockIntervalTimer(ActiveDOMsTask.NAME)
 
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(rptTimer)
@@ -94,8 +94,8 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         tsk.close()
 
     def testNoLive(self):
-        rptTimer = MockIntervalTimer("ActiveReport")
-        domTimer = MockIntervalTimer("ActiveDOM")
+        rptTimer = MockIntervalTimer(ActiveDOMsTask.REPORT_NAME)
+        domTimer = MockIntervalTimer(ActiveDOMsTask.NAME)
 
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(rptTimer)
@@ -146,8 +146,8 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         tsk.close()
 
     def testFail(self):
-        rptTimer = MockIntervalTimer("ActiveReport")
-        domTimer = MockIntervalTimer("ActiveDOM")
+        rptTimer = MockIntervalTimer(ActiveDOMsTask.REPORT_NAME)
+        domTimer = MockIntervalTimer(ActiveDOMsTask.NAME)
 
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(rptTimer)
@@ -201,8 +201,8 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         foo.setBeanData("stringhub", "NumberOfActiveAndTotalChannels",
                         Exception("Simulated error"))
 
-        errMsg = "Cannot get ActiveDomsTask bean data from %s: .*" % \
-                 foo.fullName()
+        errMsg = "Cannot get %s bean data from %s: .*" % \
+                 (ActiveDOMsTask.NAME, foo.fullName())
         logger.addExpectedRegexp(errMsg)
 
         live.addExpected("activeDOMs", numActive,  Prio.ITS)

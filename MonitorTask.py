@@ -184,25 +184,28 @@ class MonitorTask(CnCTask):
 
     def __init__(self, taskMgr, runset, dashlog, liveMoni, runDir, runOptions,
                  period=None):
-        self.__threadList = {}
+        if period is None:
+            period = self.PERIOD
+
+        super(MonitorTask, self).__init__(self.NAME, taskMgr, dashlog,
+                                          self.DEBUG_BIT, self.NAME,
+                                          period)
+
+        self.__threadList = self.__createThreads(runset, dashlog, liveMoni,
+                                                 runDir, runOptions)
+
+    def __createThreads(self, runset, dashlog, liveMoni, runDir, runOptions):
+        threadList = {}
+
         if not RunOption.isMoniToNone(runOptions):
             for c in runset.components():
                 # refresh MBean info to pick up any new MBeans
                 c.reloadBeanInfo()
 
-                self.__threadList[c] = self.createThread(c, runDir, liveMoni,
-                                                         runOptions, dashlog)
+                threadList[c] = self.createThread(c, runDir, liveMoni,
+                                                  runOptions, dashlog)
 
-        if period is None:
-            period = self.PERIOD
-
-        super(MonitorTask, self).__init__("Monitor", taskMgr, dashlog,
-                                          self.DEBUG_BIT, self.NAME,
-                                          period)
-
-    @classmethod
-    def createThread(cls, comp, runDir, liveMoni, runOptions, dashlog):
-        return MonitorThread(comp, runDir, liveMoni, runOptions, dashlog)
+        return threadList
 
     def _check(self):
         for c in self.__threadList.keys():
@@ -219,11 +222,15 @@ class MonitorTask(CnCTask):
                 self.__threadList[c] = thrd.getNewThread()
                 self.__threadList[c].start()
 
+    @classmethod
+    def createThread(cls, comp, runDir, liveMoni, runOptions, dashlog):
+        return MonitorThread(comp, runDir, liveMoni, runOptions, dashlog)
+
     def close(self):
         savedEx = None
-        for c in self.__threadList.keys():
+        for thr in self.__threadList.values():
             try:
-                self.__threadList[c].close()
+                thr.close()
             except:
                 if not savedEx:
                     savedEx = sys.exc_info()

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from CnCTask import CnCTask
+from CnCSingleThreadTask import CnCSingleThreadTask
 from CnCThread import CnCThread
 from LiveImports import Prio
 from RunSetDebug import RunSetDebug
@@ -70,8 +70,8 @@ class TriggerCountThread(CnCThread):
                 cntDicts = c.getMoniCounts()
             except Exception:
                 self.__dashlog.error(
-                    "Cannot get TriggerCountTask bean data from %s: %s" %
-                    (c.fullName(), exc_string()))
+                    "Cannot get %s bean data from %s: %s" %
+                    (TriggerCountTask.NAME, c.fullName(), exc_string()))
                 continue
 
         if cntDicts is not None and not self.isClosed():
@@ -91,70 +91,33 @@ class TriggerCountThread(CnCThread):
             for d in totals.values():
                 self.__sendMoni("trigger_rate", d.moniDict(), prio)
 
-    def getNewThread(self):
+    def getNewThread(self, ignored=True):
         thrd = TriggerCountThread(self.__runset, self.__dashlog,
                                   self.__liveMoniClient)
         return thrd
 
 
-class TriggerCountTask(CnCTask):
+class TriggerCountTask(CnCSingleThreadTask):
     """
-    Essentially a timer, so every REPORT_PERIOD a TriggerCountThread is
-    created and run.  This sends separate reports for each algorithm to live.
+    Every PERIOD seconds, send to I3Live a count of the number of requests
+    issues by each trigger algorithm.
     """
     NAME = "TriggerCount"
     PERIOD = 600
     DEBUG_BIT = False
 
-    def __init__(self, taskMgr, runset, dashlog, liveMoni, period=None):
-        self.__runset = runset
-        self.__liveMoniClient = liveMoni
-
-        self.__thread = TriggerCountThread(runset, dashlog, liveMoni)
-        self.__badCount = 0
-
-        if self.__liveMoniClient is None:
-            name = None
-            period = None
-            self.__detailTimer = None
-        else:
-            name = self.NAME
-            if period is None:
-                period = self.PERIOD
-
-        super(TriggerCountTask, self).__init__(name, taskMgr, dashlog,
-                                               self.DEBUG_BIT, name, period)
-
-    def _check(self):
-        if self.__liveMoniClient is None:
-            return
-
-        if self.__thread is None or not self.__thread.isAlive():
-            self.__badCount = 0
-
-            self.__thread = self.__thread.getNewThread()
-            self.__thread.start()
-        else:
-            self.__badCount += 1
-            if self.__badCount <= 3:
-                self.logError("WARNING: TriggerCount thread is hanging (#%d)" %
-                              self.__badCount)
-            else:
-                self.logError("ERROR: TriggerCount monitoring seems to be" +
-                              " stuck, monitoring will not be done")
-                self.endTimer()
-
-    def _reset(self):
-        self.__detailTimer = None
-        self.__badCount = 0
+    def __init__(self, taskMgr, runset, dashlog, liveMoni=None, period=None,
+                 needLiveMoni=True):
+        super(TriggerCountTask, self).__init__(taskMgr, runset, dashlog,
+                                               liveMoni, period, needLiveMoni)
 
     def close(self):
-        if self.__thread is not None and self.__thread.isAlive():
-            self.__thread.close()
+        "Gather on last set of trigger counts after the detector has stopped"
+        self.gatherLast()
 
-    def waitUntilFinished(self):
-        if self.__liveMoniClient is None:
-            return
+    def initializeThread(self, runset, dashlog, liveMoni):
+        return TriggerCountThread(runset, dashlog, liveMoni)
 
-        if self.__thread is not None and self.__thread.isAlive():
-            self.__thread.join()
+    def taskFailed(self):
+        self.logError("ERROR: %s thread seems to be stuck,"
+                      " monitoring will not be done" % self.NAME)

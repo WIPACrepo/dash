@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from CnCTask import CnCTask
+from CnCSingleThreadTask import CnCSingleThreadTask
 from CnCThread import CnCThread
 from LiveImports import Prio
 from RunSetDebug import RunSetDebug
@@ -65,8 +65,8 @@ class ActiveDOMThread(CnCThread):
                                                               KEY_TOTAL_RATE])
             except Exception:
                 self.__dashlog.error(
-                    "Cannot get ActiveDomsTask bean data from %s: %s" %
-                    (c.fullName(), exc_string()))
+                    "Cannot get %s bean data from %s: %s" %
+                    (ActiveDOMsTask.NAME, c.fullName(), exc_string()))
                 if not c.num() in self.PREV_ACTIVE:
                     continue
 
@@ -167,13 +167,13 @@ class ActiveDOMThread(CnCThread):
                 # less urgent messages use lower priority
                 self.__sendMoni("stringDOMsInfo", hub_DOMs, Prio.EMAIL)
 
-    def getNewThread(self, sendDetails):
+    def getNewThread(self, sendDetails=False):
         thrd = ActiveDOMThread(self.__runset, self.__dashlog,
                                self.__liveMoniClient, sendDetails)
         return thrd
 
 
-class ActiveDOMsTask(CnCTask):
+class ActiveDOMsTask(CnCSingleThreadTask):
     """
     Essentially a timer, so every REPORT_PERIOD an ActiveDOMsThread is created
     and run.  This sends three chunks of information off to live:
@@ -187,7 +187,7 @@ class ActiveDOMsTask(CnCTask):
     'LBMOverflows' which is a dictionary relating string number to the total
     number of lbm overflows for a given string
     """
-    NAME = "ActiveDOM"
+    NAME = "ActiveDOMs"
     PERIOD = 60
     DEBUG_BIT = RunSetDebug.ACTDOM_TASK
 
@@ -195,64 +195,17 @@ class ActiveDOMsTask(CnCTask):
     REPORT_NAME = "ActiveReport"
     REPORT_PERIOD = 600
 
-    def __init__(self, taskMgr, runset, dashlog, liveMoni, period=None):
-        self.__runset = runset
-        self.__liveMoniClient = liveMoni
+    def __init__(self, taskMgr, runset, dashlog, liveMoni=None, period=None,
+                 needLiveMoni=True):
+        super(ActiveDOMsTask, self).__init__(taskMgr, runset, dashlog,
+                                             liveMoni, period, needLiveMoni)
 
-        self.__thread = ActiveDOMThread(runset, dashlog, liveMoni, False)
-        self.__badCount = 0
+    def createDetailTimer(self, taskMgr):
+        return taskMgr.createIntervalTimer(self.REPORT_NAME, self.REPORT_PERIOD)
 
-        if self.__liveMoniClient is None:
-            name = None
-            period = None
-            self.__detailTimer = None
-        else:
-            name = self.NAME
-            if period is None:
-                period = self.PERIOD
-            self.__detailTimer = \
-                taskMgr.createIntervalTimer(self.REPORT_NAME,
-                                            self.REPORT_PERIOD)
+    def initializeThread(self, runset, dashlog, liveMoni):
+        return ActiveDOMThread(runset, dashlog, liveMoni, False)
 
-        super(ActiveDOMsTask, self).__init__("ActiveDOMs", taskMgr, dashlog,
-                                             self.DEBUG_BIT, name, period)
-
-    def _check(self):
-        if self.__liveMoniClient is None:
-            return
-
-        if self.__thread is None or not self.__thread.isAlive():
-            self.__badCount = 0
-
-            sendDetails = False
-            if self.__detailTimer is not None and \
-                    self.__detailTimer.isTime():
-                sendDetails = True
-                self.__detailTimer.reset()
-
-            self.__thread = self.__thread.getNewThread(sendDetails)
-            self.__thread.start()
-        else:
-            self.__badCount += 1
-            if self.__badCount <= 3:
-                self.logError("WARNING: Active DOM thread is hanging (#%d)" %
-                              self.__badCount)
-            else:
-                self.logError("ERROR: Active DOM monitoring seems to be" +
-                              " stuck, monitoring will not be done")
-                self.endTimer()
-
-    def _reset(self):
-        self.__detailTimer = None
-        self.__badCount = 0
-
-    def close(self):
-        if self.__thread is not None and self.__thread.isAlive():
-            self.__thread.close()
-
-    def waitUntilFinished(self):
-        if self.__liveMoniClient is None:
-            return
-
-        if self.__thread is not None and self.__thread.isAlive():
-            self.__thread.join()
+    def taskFailed(self):
+        self.logError("ERROR: %s thread seems to be stuck,"
+                      " monitoring will not be done" % self.NAME)

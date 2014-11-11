@@ -82,7 +82,7 @@ class WatchdogTaskTest(unittest.TestCase):
         self.__runTest(runset, rules, testIn, testOut, testThresh, False)
 
     def __runTest(self, runset, rules, testIn, testOut, testThresh, testBoth):
-        timer = MockIntervalTimer("Watchdog")
+        timer = MockIntervalTimer(WatchdogTask.NAME)
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(timer)
 
@@ -142,7 +142,7 @@ class WatchdogTaskTest(unittest.TestCase):
         pass
 
     def testUnknownComp(self):
-        timer = MockIntervalTimer("Watchdog")
+        timer = MockIntervalTimer(WatchdogTask.NAME)
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(timer)
 
@@ -160,7 +160,7 @@ class WatchdogTaskTest(unittest.TestCase):
         logger.checkStatus(1)
 
     def testBadMatchRule(self):
-        timer = MockIntervalTimer("Watchdog")
+        timer = MockIntervalTimer(WatchdogTask.NAME)
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(timer)
 
@@ -189,7 +189,7 @@ class WatchdogTaskTest(unittest.TestCase):
 
         rules = (BadInitRule(), )
 
-        timer = MockIntervalTimer("Watchdog")
+        timer = MockIntervalTimer(WatchdogTask.NAME)
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(timer)
 

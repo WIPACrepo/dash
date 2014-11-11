@@ -628,7 +628,7 @@ class WatchdogTask(CnCTask):
         if period is None:
             period = self.PERIOD
 
-        super(WatchdogTask, self).__init__("Watchdog", taskMgr, dashlog,
+        super(WatchdogTask, self).__init__(self.NAME, taskMgr, dashlog,
                                            self.DEBUG_BIT, self.NAME,
                                            period)
 
@@ -681,8 +681,8 @@ class WatchdogTask(CnCTask):
                 msg = "%s (%s is not UnhealthyRecord)" % (str(bad), type(bad))
             errStr += "    " + msg
 
-        self.logError("Watchdog reports %s components:\n%s" % \
-                          (errType, errStr))
+        self.logError("%s reports %s components:\n%s" %
+                      (self.NAME, errType, errStr))
 
     def _check(self):
         hanging = []
@@ -703,8 +703,8 @@ class WatchdogTask(CnCTask):
 
         healthy = True
         if len(hanging) > 0:
-            self.logError("Watchdog reports hanging components:\n    " + \
-                          listComponentRanges(hanging))
+            self.logError("%s reports hanging components:\n    %s" %
+                          (self.NAME, listComponentRanges(hanging)))
             healthy = False
         if len(starved) > 0:
             self.__logUnhealthy("starved", starved)
@@ -730,6 +730,10 @@ class WatchdogTask(CnCTask):
                 self.logError("Run is not healthy, stopping")
                 self.setError()
 
+    @classmethod
+    def createThread(self, runset, comp, rule, dashlog):
+        return WatchdogThread(runset, comp, rule, dashlog)
+
     def close(self):
         savedEx = None
         for thr in self.__threadList.values():
@@ -741,9 +745,6 @@ class WatchdogTask(CnCTask):
 
         if savedEx:
             raise savedEx[0], savedEx[1], savedEx[2]
-
-    def createThread(self, runset, comp, rule, dashlog):
-        return WatchdogThread(runset, comp, rule, dashlog)
 
     def waitUntilFinished(self):
         for c in self.__threadList.keys():
