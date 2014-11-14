@@ -209,21 +209,21 @@ def check_all(logger, spadeDir, copyDir, logDir, no_combine=False, force=False,
 def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
                   no_combine=False, force=False, verbose=False, dryRun=False):
     if logDir is None or not os.path.exists(logDir):
-        logger.info("Log directory \"%s\" does not exist" % logDir)
+        logger.error("Log directory \"%s\" does not exist" % logDir)
         return
 
     runDir = os.path.join(logDir, "daqrun%05d" % runNum)
     if runDir is None or not os.path.exists(runDir):
-        logger.info("Run directory \"%s\" does not exist" % runDir)
+        logger.error("Run directory \"%s\" does not exist" % runDir)
         return
 
     if spadeDir is None or not os.path.exists(spadeDir):
-        logger.info("SPADE directory \"%s\" does not exist" % spadeDir)
+        logger.error("SPADE directory \"%s\" does not exist" % spadeDir)
         return
 
     if os.path.exists(os.path.join(runDir, FILE_MARKER)) and \
        not force:
-        logger.info(("Logs for run %d have already been queued;" +
+        logger.error(("Logs for run %d have already been queued;" +
                      " Use --force to requeue them") % runNum)
         return
 
@@ -236,6 +236,7 @@ def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
         (runTime, runDuration) = (None, 0)
 
     if not no_combine:
+        logger.error("Writing combined log for run %d" % runNum)
         # if combined log file does not exist, create it
         path = os.path.join(runDir, COMBINED_LOG)
         if not os.path.exists(path):
@@ -246,6 +247,11 @@ def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
                 ls.dumpRun(fd)
             # it's now safe to rename the combined log file
             os.rename(tmppath, path)
+            logger.error("Wrote combined log for run %d" % runNum)
+        else:
+            logger.error("Combined log already exists for run %d" % runNum)
+    else:
+        logger.error("Not writing combined log for run %d" % runNum)
 
     if runTime is None:
         runTime = datetime.datetime.now()
