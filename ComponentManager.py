@@ -397,6 +397,7 @@ class ComponentManager(object):
                     cmdToHostDict[cmd] = comp.host()
 
         if not dryRun:
+            parallel.shuffle()
             parallel.start()
             parallel.wait()
 
@@ -598,6 +599,7 @@ class ComponentManager(object):
         if verbose and not dryRun:
             parallel.showAll()
         if not dryRun:
+            parallel.shuffle()
             parallel.start()
             if not verbose:
                 # if we wait during verbose mode, the program hangs

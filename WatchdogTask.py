@@ -2,6 +2,7 @@
 
 from CnCTask import CnCTask, TaskException
 from CnCThread import CnCThread
+from ComponentManager import listComponentRanges
 from RunSetDebug import RunSetDebug
 import sys
 
@@ -479,12 +480,10 @@ class WatchdogRule(object):
         return None
 
     def initData(self, data, thisComp, components):
-        raise NotImplementedError(
-            "you where supposed to implemented initData")
+        raise NotImplementedError("you were supposed to implement initData")
 
     def createData(self, thisComp, components, dashlog):
-        """ Note that this class is a base class for lasses
-        that define initData"""
+        """This is a base class for classes that define initData"""
 
         data = WatchData(thisComp, dashlog)
         self.initData(data, thisComp, components)
@@ -693,8 +692,7 @@ class WatchdogTask(CnCTask):
 
         for c in self.__threadList.keys():
             if self.__threadList[c].isAlive():
-                hanging.append(UnhealthyRecord(str(self.__threadList[c]),
-                                               c.order()))
+                hanging.append(c)
             else:
                 starved += self.__threadList[c].starved()
                 stagnant += self.__threadList[c].stagnant()
@@ -705,7 +703,8 @@ class WatchdogTask(CnCTask):
 
         healthy = True
         if len(hanging) > 0:
-            self.__logUnhealthy("hanging", hanging)
+            self.logError("Watchdog reports hanging components:\n    " + \
+                          listComponentRanges(hanging))
             healthy = False
         if len(starved) > 0:
             self.__logUnhealthy("starved", starved)

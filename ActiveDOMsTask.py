@@ -42,8 +42,6 @@ class ActiveDOMThread(CnCThread):
         sum_lc_rate = 0
         total_rate = 0
         lc_rate = 0
-        rate_dict = {}
-        ratelc_dict = {}
 
         hub_DOMs = {}
 
@@ -69,37 +67,54 @@ class ActiveDOMThread(CnCThread):
                 self.__dashlog.error(
                     "Cannot get ActiveDomsTask bean data from %s: %s" %
                     (c.fullName(), exc_string()))
-                if not c.num in self.PREV_ACTIVE:
+                if not c.num() in self.PREV_ACTIVE:
                     continue
 
                 beanData = self.PREV_ACTIVE[c.num()]
 
             try:
-                hub_active_doms, hub_total_doms = \
-                                 [int(a) for a in beanData[KEY_ACT_TOT]]
+                hub_active_doms = int(beanData[KEY_ACT_TOT][0])
+                hub_total_doms = int(beanData[KEY_ACT_TOT][1])
             except:
                 self.__dashlog.error("Cannot get # active DOMS from" +
                                      " %s string: %s" %
                                      (c.fullName(), exc_string()))
-                continue
+                # be extra paranoid about using previous value
+                tmp_active = 0
+                tmp_total = 0
+                if self.PREV_ACTIVE[c.num()].has_key(KEY_ACT_TOT):
+                    prevpair = self.PREV_ACTIVE[c.num()][KEY_ACT_TOT]
+                    if len(prevpair) == 2:
+                        try:
+                            tmp_active = int(prevpair[0])
+                            tmp_total = int(prevpair[0])
+                        except:
+                            tmp_active = 0
+                            tmp_total = 0
+                hub_active_doms = tmp_active
+                hub_total_doms = tmp_total
 
             active_total += hub_active_doms
             total += hub_total_doms
 
-            lbm_Overflows = beanData[KEY_LBM_OVER]
+            if beanData.has_key(KEY_LBM_OVER):
+                lbm_Overflows = beanData[KEY_LBM_OVER]
+            else:
+                lbm_Overflows = 0
             lbm_Overflows_Dict[str(c.num())] = lbm_Overflows
 
             # collect hit rate information
             # note that we are rounding rates to 2 decimal points
             # because we need to conserve space in the stringRateInfo dict
-            lc_rate = float(beanData[KEY_LC_RATE])
-            total_rate = float(beanData[KEY_TOTAL_RATE])
+            try:
+                lc_rate = float(beanData[KEY_LC_RATE])
+                total_rate = float(beanData[KEY_TOTAL_RATE])
+            except:
+                lc_rate = 0.0
+                total_rate = 0.0
 
             sum_lc_rate += lc_rate
             sum_total_rate += total_rate
-
-            rate_dict[str(c.num())] = total_rate
-            ratelc_dict[str(c.num())] = lc_rate
 
             if self.__sendDetails:
                 hub_DOMs[str(c.num())] = (hub_active_doms, hub_total_doms)
@@ -113,9 +128,8 @@ class ActiveDOMThread(CnCThread):
                 KEY_TOTAL_RATE: total_rate
                 }
 
-        # active doms should be reported over ITS only once every ten minutes
-        # and it should continue to be reported at a one minute interval
-        # otherwise.  The two should not overlap
+        # active doms should be reported over ITS once every ten minutes
+        # and over email once a minute.  The two should not overlap
         if not self.isClosed():
 
             # if an mbean exception occurs above it's possible to get here
@@ -132,6 +146,15 @@ class ActiveDOMThread(CnCThread):
                 # use higher priority every 10 minutes to keep North updated
                 prio = Prio.ITS
 
+            dom_update = \
+                      { "activeDOMs": active_total,
+                        "expectedDOMs": total,
+                        "total_ratelc": sum_lc_rate,
+                        "total_rate": sum_total_rate,
+                    }
+            self.__sendMoni("dom_update", dom_update, prio)
+
+            # XXX get rid of these once I3Live uses "dom_update"
             self.__sendMoni("activeDOMs", active_total, prio)
             self.__sendMoni("expectedDOMs", total, prio)
             self.__sendMoni("total_ratelc", sum_lc_rate, prio)
@@ -143,8 +166,6 @@ class ActiveDOMThread(CnCThread):
 
                 # less urgent messages use lower priority
                 self.__sendMoni("stringDOMsInfo", hub_DOMs, Prio.EMAIL)
-                self.__sendMoni("stringRateInfo", rate_dict, Prio.EMAIL)
-                self.__sendMoni("stringRateLCInfo", ratelc_dict, Prio.EMAIL)
 
     def getNewThread(self, sendDetails):
         thrd = ActiveDOMThread(self.__runset, self.__dashlog,

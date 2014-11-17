@@ -40,7 +40,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: CnCServer.py 14769 2014-01-07 21:03:49Z dglo $"
+SVN_ID = "$Id: CnCServer.py 15109 2014-07-31 04:13:04Z dglo $"
 
 
 class DAQPool(object):
@@ -144,26 +144,17 @@ class DAQPool(object):
 
     def __restartMissingComponents(self, waitList, runConfigDir, logger,
                                    daqDataDir):
-            deadList = []
-            for comp in waitList:
-                cluCfg = self.getClusterConfig()
-                if cluCfg is None:
-                    logger.error("Cannot restart %s: No cluster config" %
-                                 comp.fullName())
-                else:
-                    found = False
-                    for node in cluCfg.nodes():
-                        for nodeComp in node.components():
-                            if comp.name().lower() == nodeComp.name().lower() \
-                                and comp.num() == nodeComp.id():
-                                deadList.append(nodeComp)
-                                found = True
-                                break
-
-                    if not found:
-                        logger.error(("Cannot restart %s: Not found in" +
-                                      " cluster config \"%s\"") %
-                                     (comp.fullName(), cluCfg.configName()))
+        cluCfg = self.getClusterConfig()
+        if cluCfg is None:
+            logger.error("Cannot restart %s: No cluster config" %
+                         comp.fullName())
+        else:
+            (deadList, missingList) = cluCfg.extractComponents(waitList)
+            if len(missingList) > 0:
+                logger.error(("Cannot restart missing %s: Not found in" +
+                              " cluster config \"%s\"") %
+                             (listComponentRanges(missingList),
+                              cluCfg.configName()))
 
             if len(deadList) > 0:
                 self.cycleComponents(deadList, runConfigDir, daqDataDir,
@@ -257,7 +248,8 @@ class DAQPool(object):
         "Build a runset from the specified run configuration"
         logger.info("Loading run configuration \"%s\"" % runConfigName)
         try:
-            runConfig = DAQConfigParser.load(runConfigName, runConfigDir, strict)
+            runConfig = DAQConfigParser.load(runConfigName, runConfigDir,
+                                             strict)
         except DAQConfigException, ex:
             raise CnCServerException("Cannot load %s from %s" %
                                      (runConfigName, runConfigDir), ex)
@@ -310,6 +302,8 @@ class DAQPool(object):
                 runSet.connect(connMap, logger)
                 runSet.setOrder(connMap, logger)
                 runSet.configure()
+                if runConfig.updateHitSpoolTimes():
+                    runSet.initReplayHubs()
             except:
                 runSet.reportRunStartFailure(runNum, release, revision)
                 if not forceRestart:
@@ -852,11 +846,10 @@ class CnCServer(DAQPool):
             cdesc = self.__clusterDesc
             cfgDir = self.__runConfigDir
             try:
-                cc = DAQConfigParser.getClusterConfiguration(None,
-                                                             useActiveConfig=True,
-                                                             clusterDesc=cdesc,
-                                                             configDir=cfgDir,
-                                                             validate=False)
+                cc = DAQConfigParser.\
+                     getClusterConfiguration(None, useActiveConfig=True,
+                                             clusterDesc=cdesc,
+                                             configDir=cfgDir, validate=False)
                 self.__clusterConfig = cc
             except XMLFileNotFound:
                 if cdesc is None:
@@ -865,11 +858,17 @@ class CnCServer(DAQPool):
                     cdescStr = " for cluster \"%s\"" % cdesc
                 raise CnCServerException("Cannot find cluster configuration" +
                                          " %s: %s" % (cdescStr, exc_string()))
+        else:
+            try:
+                self.__clusterConfig.loadIfChanged()
+            except Exception, ex:
+                self.__log.error("Cannot reload cluster config \"%s\": %s" %
+                                 self.__clusterConfig.descName(), ex)
 
         return self.__clusterConfig
 
     def getRelease(self):
-        return (self.__versionInfo["release"], self.__versionInfo["revision"])
+        return (self.__versionInfo["release"], self.__versionInfo["repo_rev"])
 
     def makeRunsetFromRunConfig(self, runConfig, runNum,
                                 timeout=REGISTRATION_TIMEOUT, strict=False):
@@ -1063,12 +1062,16 @@ class CnCServer(DAQPool):
                 self.__log.info(errMsg)
                 raise CnCServerException(errMsg)
 
-            if type(d[2]) != int:
+            if type(d[2]) == int:
+                connPort = d[2]
+            elif type(d[2]) == str:
+                connPort = int(d[2])
+            else:
                 errMsg = ("Bad %s#%d connector#%d %s (third element should" +
                           " be int)") % (name, num, n, str(d))
                 self.__log.info(errMsg)
                 raise CnCServerException(errMsg)
-            connectors.append(Connector(d[0], d[1], d[2]))
+            connectors.append(Connector(d[0], d[1], connPort))
 
         client = self.createClient(name, num, host, port, mbeanPort,
                                    connectors)

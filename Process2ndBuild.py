@@ -21,7 +21,6 @@ import time
 
 
 MAX_FILES_PER_TARBALL = 50
-TARGET_DIR = "/mnt/data/pdaqlocal"
 
 
 def checkForRunningProcesses(progname):
@@ -35,11 +34,10 @@ def checkForRunningProcesses(progname):
 
 def isTargetFile(f):
     match = re.search(r'(\w+)_\d+_\d+_\d+_\d+\.dat', f)
-    if match:
+    if match is not None:
         ftype = match.group(1)
-        if ftype != "moni" and ftype != "sn" and ftype != "tcal":
-            return False
-        return True
+        if ftype == "moni" or ftype == "sn" or ftype == "tcal":
+            return True
     return False
 
 
@@ -59,12 +57,12 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
     t = datetime.datetime.now()
     dateTag = "%03d_%04d%02d%02d_%02d%02d%02d_%06d" % \
         (0, t.year, t.month, t.day, t.hour, t.minute, t.second, 0)
-    front = "SPS-pDAQ-2ndBld-"
-    spadeTar = front + dateTag + ".dat.tar"
-    moniLink = front + dateTag + ".mon.tar"
-    snLink = front + dateTag + ".sn.tar"
-    moniSem = front + dateTag + ".msem"
-    spadeSem = front + dateTag + ".sem"
+    front = "SPS-pDAQ-2ndBld-" + dateTag
+    spadeTar = front + ".dat.tar"
+    moniLink = front + ".mon.tar"
+    snLink = front + ".sn.tar"
+    moniSem = front + ".msem"
+    spadeSem = front + ".sem"
 
     # Duplicate file: wait for a new second, recalculate everything:
     if os.path.exists(spadeTar):
@@ -87,7 +85,7 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
 
     # Rename temporary tarball to SPADE name
     if verbose: print "Renaming temporary tarball to %s" % spadeTar
-    os.rename(tmpTar, spadeTar)
+    if not dryRun: os.rename(tmpTar, spadeTar)
 
     # Create moni hard link
     if verbose: print "MoniLink %s" % moniLink
@@ -115,12 +113,12 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
     return True
 
 
-def main(verbose=False, dryRun=False):
-    os.chdir(TARGET_DIR)
+def main(spadeDir, verbose=False, dryRun=False):
+    os.chdir(spadeDir)
 
     # Get list of available files, matching target tar pattern:
     matchingFiles = []
-    for f in os.listdir(TARGET_DIR):
+    for f in os.listdir(spadeDir):
         if isTargetFile(f):
             matchingFiles.append(f)
 
@@ -140,11 +138,16 @@ if __name__ == "__main__":
     import optparse
     import sys
 
+    from ClusterDescription import ClusterDescription
+
     # Make sure I'm not already running - so I can auto-restart out of crontab
     if checkForRunningProcesses(os.path.basename(sys.argv[0])):
         raise SystemExit
 
     op = optparse.OptionParser()
+    op.add_option("-d", "--spadedir", dest="spadedir",
+                  action="store", default=None,
+                  help="SPADE directory")
     op.add_option("-n", "--dry-run", dest="dryRun",
                   action="store_true", default=False,
                   help="Do not actually do anything")
@@ -157,4 +160,8 @@ if __name__ == "__main__":
 
     opt, args = op.parse_args()
 
-    main(verbose=opt.verbose, dryRun=opt.dryRun)
+    if opt.spadedir is None:
+        cluster = ClusterDescription()
+        spadeDir = cluster.logDirForSpade()
+
+    main(spadeDir, verbose=opt.verbose, dryRun=opt.dryRun)

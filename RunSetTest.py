@@ -393,6 +393,9 @@ class TestRunSet(unittest.TestCase):
 
         logger.addExpectedExact("Starting run %d..." % runNum)
 
+        logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
+        logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for Hubs")
+
         runset.startRun(runNum, cluCfg, runOptions, versionInfo,
                         spadeDir, copyDir, logDir)
         self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %
@@ -557,10 +560,10 @@ class TestRunSet(unittest.TestCase):
 
         clusterCfg = self.__buildClusterConfig(compList[1:], baseName)
 
-        logger.addExpectedExact(("Cannot restart component %s: Not found" +
+        logger.addExpectedExact(("Cannot restart %s: Not found" +
                                  " in cluster config \"%s\"") %
                                 (compList[0].fullName(),
-                                 clusterCfg.configName()))
+                                 clusterCfg.descName()))
 
         cycleList = compList[1:]
         cycleList.sort()

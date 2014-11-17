@@ -252,10 +252,10 @@ class TaskManagerTest(unittest.TestCase):
                          Prio.ITS)
         live.addExpected("stringDOMsInfo", {"1": (1, 2)},
                          Prio.EMAIL)
-        live.addExpected("stringRateInfo", {"1": 50},
-                         Prio.EMAIL)
-        live.addExpected("stringRateLCInfo", {"1": 25},
-                         Prio.EMAIL)
+
+        live.addExpected("dom_update", {"expectedDOMs": 2, "total_ratelc": 25.0,
+                                        "total_rate": 50.0, "activeDOMs": 1},
+                         Prio.ITS)
 
     def setUp(self):
         self.__firstTime = True

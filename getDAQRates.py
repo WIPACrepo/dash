@@ -46,6 +46,16 @@ COMP_FIELDS = {
          # 'rdoutReq': 'TotalRecordsReceived',
          'rdoutReq': 'RecordsReceived',
          'rdoutData': 'RecordsSent'},
+    'replayHub':
+        {'DOM': 'NumHits',
+         'sender': 'NumHitsReceived',
+         'stringHit': 'RecordsSent',
+         'moniData': 'RecordsSent',
+         'snData': 'RecordsSent',
+         'tcalData': 'RecordsSent',
+         #'rdoutReq': 'TotalRecordsReceived',
+         'rdoutReq': 'RecordsReceived',
+         'rdoutData': 'RecordsSent'},
     'inIceTrigger':
         {  # 'stringHit': 'TotalRecordsReceived',
         'stringHit': 'RecordsReceived',

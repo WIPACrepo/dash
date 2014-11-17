@@ -1,39 +1,36 @@
-<?xml version='1.0' encoding='ASCII'?>
+<?xml version="1.0" encoding="UTF-8"?>
 <runConfig>
-  <hubFiles baseDir="/home/dglo">
-    <!-- <hub id="0" hitFile="HIT-stringHub#0" /> -->
-    <hub id="21" hitFile="HIT-stringHub#21"/>
-    <hub id="29" hitFile="HIT-stringHub#29"/>
-    <hub id="30" hitFile="HIT-stringHub#30"/>
-    <hub id="38" hitFile="HIT-stringHub#38"/>
-    <hub id="39" hitFile="HIT-stringHub#39"/>
-    <hub id="40" hitFile="HIT-stringHub#40"/>
-    <hub id="46" hitFile="HIT-stringHub#46"/>
-    <hub id="47" hitFile="HIT-stringHub#47"/>
-    <hub id="48" hitFile="HIT-stringHub#48"/>
-    <hub id="49" hitFile="HIT-stringHub#49"/>
-    <hub id="50" hitFile="HIT-stringHub#50"/>
-    <hub id="56" hitFile="HIT-stringHub#56"/>
-    <hub id="57" hitFile="HIT-stringHub#57"/>
-    <hub id="58" hitFile="HIT-stringHub#58"/>
-    <hub id="59" hitFile="HIT-stringHub#59"/>
-    <hub id="65" hitFile="HIT-stringHub#65"/>
-    <hub id="66" hitFile="HIT-stringHub#66"/>
-    <hub id="67" hitFile="HIT-stringHub#67"/>
-    <hub id="72" hitFile="HIT-stringHub#72"/>
-    <hub id="73" hitFile="HIT-stringHub#73"/>
-    <hub id="74" hitFile="HIT-stringHub#74"/>
-    <hub id="78" hitFile="HIT-stringHub#78"/>
-    <hub id="201" hitFile="HIT-stringHub#201"/>
-    <hub id="202" hitFile="HIT-stringHub#202"/>
-    <hub id="203" hitFile="HIT-stringHub#203"/>
-    <hub id="204" hitFile="HIT-stringHub#204"/>
-  </hubFiles>
-  <triggerConfig>sps-icecube-amanda-008</triggerConfig>
-  <runComponent name="inIceTrigger"/>
-  <runComponent name="iceTopTrigger"/>
-  <runComponent name="globalTrigger"/>
-  <runComponent name="eventBuilder"/>
-  <!-- <runComponent name="secondaryBuilders"/> -->
+    <replayFiles baseDir="/home/dglo">
+        <hits hub="21" source="HIT-stringHub#21" />
+        <hits hub="29" source="HIT-stringHub#29" />
+        <hits hub="30" source="HIT-stringHub#30" />
+        <hits hub="38" source="HIT-stringHub#38" />
+        <hits hub="39" source="HIT-stringHub#39" />
+        <hits hub="40" source="HIT-stringHub#40" />
+        <hits hub="46" source="HIT-stringHub#46" />
+        <hits hub="47" source="HIT-stringHub#47" />
+        <hits hub="48" source="HIT-stringHub#48" />
+        <hits hub="49" source="HIT-stringHub#49" />
+        <hits hub="50" source="HIT-stringHub#50" />
+        <hits hub="56" source="HIT-stringHub#56" />
+        <hits hub="57" source="HIT-stringHub#57" />
+        <hits hub="58" source="HIT-stringHub#58" />
+        <hits hub="59" source="HIT-stringHub#59" />
+        <hits hub="65" source="HIT-stringHub#65" />
+        <hits hub="66" source="HIT-stringHub#66" />
+        <hits hub="67" source="HIT-stringHub#67" />
+        <hits hub="72" source="HIT-stringHub#72" />
+        <hits hub="73" source="HIT-stringHub#73" />
+        <hits hub="74" source="HIT-stringHub#74" />
+        <hits hub="78" source="HIT-stringHub#78" />
+        <hits hub="201" source="HIT-stringHub#201" />
+        <hits hub="202" source="HIT-stringHub#202" />
+        <hits hub="203" source="HIT-stringHub#203" />
+        <hits hub="204" source="HIT-stringHub#204" />
+    </replayFiles>
+    <triggerConfig>sps-icecube-amanda-008</triggerConfig>
+    <runComponent name="inIceTrigger"/>
+    <runComponent name="iceTopTrigger"/>
+    <runComponent name="globalTrigger"/>
+    <runComponent name="eventBuilder"/>
 </runConfig>
-

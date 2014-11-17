@@ -96,8 +96,8 @@ class ReplayHub(Component):
     def __init__(self, xdict, base_dir):
         self.base_dir = base_dir
         self.xdict = xdict
-        self.hitFile = get_attrib(xdict, 'hitFile')
-        hub_id = int(get_attrib(xdict, 'id'))
+        self.hitFile = get_attrib(xdict, 'source')
+        hub_id = int(get_attrib(xdict, 'hub'))
 
         super(ReplayHub, self).__init__("replayHub", hub_id)
 
@@ -324,7 +324,7 @@ class DAQConfig(ConfigObject):
         rng validation parser, but there are a few things
         not validated"""
 
-        if len(self.stringhub_map) == 0:
+        if len(self.stringhub_map) == 0 and len(self.replay_hubs) == 0:
             raise ProcessError("No doms or replayHubs found in %s"
                                % self.filename)
 
@@ -396,6 +396,22 @@ class DAQConfig(ConfigObject):
             except IOError:
                 break
 
+    def __getBoolean(self, name, attr_name):
+        """Extract a period specification from the configuration"""
+        for key, value in self.other_objs:
+            if key == name and type(value) == list:
+                for v in value:
+                    try:
+                        dstr = get_attrib(v, attr_name)
+                        if dstr is None:
+                            return False
+                        dstr = dstr.lower()
+                        return dstr == "true" or dstr == "yes"
+                    except (AttributeError, ValueError):
+                        pass
+
+        return False
+
     def __getPeriod(self, name):
         """Extract a period specification from the configuration"""
         for key, value in self.other_objs:
@@ -415,6 +431,10 @@ class DAQConfig(ConfigObject):
     def watchdogPeriod(self):
         """return the watchdog period (None if not specified)"""
         return self.__getPeriod("watchdog")
+
+    def updateHitSpoolTimes(self):
+        """Return the monitoring period (None if not specified)"""
+        return not self.__getBoolean("updateHitSpoolTimes", "disabled")
 
     def configFile(self):
         """added to match the signature of the old code"""
@@ -626,13 +646,13 @@ class DAQConfig(ConfigObject):
                         str_hub = StringHub(strhub_dict, str_hub_id)
                         self.stringhub_map[str_hub_id] = str_hub
                         self.addComponent(str_hub.fullName(), False)
-            elif 'hubFiles' in key:
+            elif 'replayFiles' in key:
                 # found a replay hub
                 self.replay_hubs = []
                 for replay_hub in val:
                     try:
                         base_dir = get_attrib(replay_hub, 'baseDir')
-                        for rhub_dict in replay_hub['__children__']['hub']:
+                        for rhub_dict in replay_hub['__children__']['hits']:
                             rh_obj = ReplayHub(rhub_dict, base_dir)
                             self.replay_hubs.append(rh_obj)
                             self.addComponent(rh_obj.fullName(), False)
@@ -752,8 +772,7 @@ class DAQConfigParser(object):
                                 clusterDesc=None, configDir=None, strict=False,
                                 validate=True):
         """
-        Find and parse the cluster configuration from either the run
-        configuration dir
+        Find and parse the cluster configuration
         """
 
         if configName is None:
@@ -841,7 +860,7 @@ def main():
     #    args.append("sim5str")
 
     for config_name in args:
-        if opt.extended:
+        if opt.extended and not opt.quiet:
             print '-----------------------------------------------------------'
             print "Config %s" % config_name
         start_time = datetime.datetime.now()
@@ -864,17 +883,19 @@ def main():
             init_time = float(diff.seconds) + \
                 (float(diff.microseconds) / 1000000.0)
             comps = dc.components()
-            comps.sort()
-            for comp in comps:
-                print 'Comp %s log %s' % (str(comp), str(comp.logLevel()))
+            if not opt.quiet:
+                comps.sort()
+                for comp in comps:
+                    print 'Comp %s log %s' % (str(comp), str(comp.logLevel()))
 
             start_time = datetime.datetime.now()
             dc = DAQConfigParser.load(config_name, config_dir, opt.strict)
             diff = datetime.datetime.now() - start_time
             next_time = float(diff.seconds) + \
                 (float(diff.microseconds) / 1000000.0)
-            print "Initial time %.03f, subsequent time: %.03f" % \
-                (init_time, next_time)
+            if not opt.quiet:
+                print "Initial time %.03f, subsequent time: %.03f" % \
+                    (init_time, next_time)
 
 
 if __name__ == "__main__":

@@ -18,14 +18,13 @@ set_exc_string_encoding("ascii")
 
 class MonitorThread(CnCThread):
     def __init__(self, comp, runDir, liveMoni, runOptions, dashlog,
-                 reporter=None, now=None, refused=0):
+                 reporter=None, refused=0):
         self.__comp = comp
         self.__runDir = runDir
         self.__liveMoni = liveMoni
         self.__runOptions = runOptions
         self.__dashlog = dashlog
         self.__reporter = reporter
-        self.__now = now
         self.__refused = refused
         self.__warned = False
         self.__closeLock = threading.Lock()
@@ -90,7 +89,7 @@ class MonitorThread(CnCThread):
 
             # report monitoring data
             if attrs and len(attrs) > 0 and not self.isClosed():
-                self.__reporter.send(self.__now, b, attrs)
+                self.__reporter.send(datetime.datetime.now(), b, attrs)
 
     def close(self):
         super(MonitorThread, self).close()
@@ -105,10 +104,10 @@ class MonitorThread(CnCThread):
                                          (self.__comp, exc_string()))
                 self.__reporter = None
 
-    def getNewThread(self, now):
+    def getNewThread(self):
         thrd = MonitorThread(self.__comp, self.__runDir, self.__liveMoni,
                              self.__runOptions, self.__dashlog,
-                             self.__reporter, now, self.__refused)
+                             self.__reporter, self.__refused)
         return thrd
 
     def isWarned(self):
@@ -206,7 +205,6 @@ class MonitorTask(CnCTask):
         return MonitorThread(comp, runDir, liveMoni, runOptions, dashlog)
 
     def _check(self):
-        now = None
         for c in self.__threadList.keys():
             thrd = self.__threadList[c]
             if not thrd.isAlive():
@@ -218,9 +216,7 @@ class MonitorTask(CnCTask):
                         self.logError(msg)
                         thrd.setWarned()
                     continue
-                if now is None:
-                    now = datetime.datetime.now()
-                self.__threadList[c] = thrd.getNewThread(now)
+                self.__threadList[c] = thrd.getNewThread()
                 self.__threadList[c].start()
 
     def close(self):

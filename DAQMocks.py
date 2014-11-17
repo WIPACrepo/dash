@@ -19,6 +19,7 @@ from DAQClient import DAQClient
 import DeployPDAQ
 from DAQConst import DAQPort
 from LiveImports import MoniPort, SERVICE_NAME
+from RunCluster import RunCluster
 from locate_pdaq import find_pdaq_trunk
 from utils import ip
 from utils.DashXMLLog import DashXMLLog
@@ -543,6 +544,10 @@ class MockClusterConfig(object):
     def descName(self):
         return self.__descName
 
+    def extractComponents(self, masterList):
+        return RunCluster.extractComponentsFromNodes(self.__nodes.values(),
+                                                     masterList)
+
     def nodes(self):
         return self.__nodes.values()
 
@@ -611,6 +616,7 @@ class MockComponent(object):
         self.__updatedRates = False
         self.__deadCount = 0
         self.__stopFail = False
+        self.__replayHub = False
 
         self.__beanData = {}
 
@@ -738,7 +744,11 @@ class MockComponent(object):
 
                 val = self.getSingleBeanField("backEnd", "FirstEventTime")
                 firstTime = long(val)
-                return (numEvts, firstTime, lastTime)
+
+                good = self.getSingleBeanField("backEnd", "GoodTimes")
+                firstGood = long(good[0])
+                lastGood = long(good[1])
+                return (numEvts, firstTime, lastTime, firstGood, lastGood)
             elif self.__name.startswith("secondary"):
                 for bldr in ("tcal", "sn", "moni"):
                     val = self.getSingleBeanField(bldr + "Builder",
@@ -775,6 +785,9 @@ class MockComponent(object):
 
     def isHanging(self):
         return self.__hangType != 0
+
+    def isReplayHub(self):
+        return self.__replayHub
 
     def isSource(self):
         return self.__isSrc
@@ -1245,6 +1258,9 @@ class MockParallelShell(object):
     def showAll(self):
         raise Exception('SHOWALL')
 
+    def shuffle(self):
+        pass
+
     def start(self):
         pass
 
@@ -1288,6 +1304,9 @@ class MockRunComponent(object):
 
     def isHub(self):
         return self.__name.endswith("Hub")
+
+    def isReplay(self):
+        return self.isHub() and self.__name.lower().find("replay") >= 0
 
     def mbeanPort(self):
         return self.__mbeanPort

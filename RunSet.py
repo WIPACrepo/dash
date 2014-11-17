@@ -2,6 +2,7 @@
 
 import datetime
 import os
+import threading
 import time
 import sys
 
@@ -193,7 +194,7 @@ class GoodTimeThread(CnCThread):
     # bean field name holding the number of non-zombie hubs
     NONZOMBIE_FIELD = "NumberOfNonZombies"
     # maximum number of attempts to get the time from all hubs
-    MAX_ATTEMPTS = 100
+    MAX_ATTEMPTS = 20
 
     def __init__(self, srcSet, otherSet, data, log, quickSet=False,
                  threadName=None):
@@ -269,12 +270,13 @@ class GoodTimeThread(CnCThread):
         complete = True
         updated = False
 
-        # wait for up to 1.5 seconds (15 * 0.1) for a result
+        # wait for up to half a second for a result
         sleepSecs = 0.1
-        sleepReps = 15
+        sleepReps = 5
 
         for i in xrange(sleepReps):
             hanging = False
+            complete = True
 
             rList = tGroup.results()
             for c in self.__srcSet:
@@ -306,10 +308,15 @@ class GoodTimeThread(CnCThread):
                 numDoms = result[self.NONZOMBIE_FIELD]
                 if numDoms == 0:
                     # this string has no usable DOMs, record illegal time
+                    self.__log.error("No usable DOMs on %s for %s" %
+                                     (c.fullName(), self.moniname()))
                     self.__timeDict[c] = -1L
                     continue
 
-                val = result[self.beanfield()]
+                if not result.has_key(self.beanfield()):
+                    val = None
+                else:
+                    val = result[self.beanfield()]
                 if val is None or val <= 0L:
                     # No results yet, need to poll again
                     complete = False
@@ -322,8 +329,12 @@ class GoodTimeThread(CnCThread):
                     self.__goodTime = val
                     updated = True
 
-            if not hanging or self.waitForAll():
-                # we've either got all results or all threads are done
+            if complete:
+                # quit if we've got all the results
+                break
+
+            if not hanging and not self.waitForAll():
+                # quit if all threads are done or if we don't need to wait
                 break
 
             # wait a bit more for the threads to finish
@@ -331,18 +342,18 @@ class GoodTimeThread(CnCThread):
 
         if updated:
             try:
-                self.__notifyAllBuilders(self.__goodTime)
+                self.__notifyComponents(self.__goodTime)
             except:
                 self.__log.error("Cannot send %s to builders: %s" %
                                  (self.moniname(), exc_string()))
 
         return complete
 
-    def __notifyAllBuilders(self, goodTime):
+    def __notifyComponents(self, goodTime):
         "Send latest good time to the builders"
         for c in self.__otherSet:
-            if c.isBuilder():
-                self.notifyBuilder(c, goodTime)
+            if c.isBuilder() or c.isComponent("globalTrigger"):
+                self.notifyComponent(c, goodTime)
 
     def beanfield(self):
         "Return the name of the 'stringhub' MBean field"
@@ -363,7 +374,7 @@ class GoodTimeThread(CnCThread):
         "Return the name of the value sent to I3Live"
         raise NotImplementedError("Unimplemented")
 
-    def notifyBuilder(self, bldr, goodTime):
+    def notifyComponent(self, comp, goodTime):
         "Notify the builder of the good time"
         raise NotImplementedError("Unimplemented")
 
@@ -404,12 +415,12 @@ class FirstGoodTimeThread(GoodTimeThread):
         "Return the name of the value sent to I3Live"
         return "firstGoodTime"
 
-    def notifyBuilder(self, bldr, payTime):
+    def notifyComponent(self, comp, payTime):
         "Notify the builder of the good time"
         if payTime is None:
             self.logError("Cannot set first good time to None")
         else:
-            bldr.setFirstGoodTime(payTime)
+            comp.setFirstGoodTime(payTime)
 
     def waitForAll(self):
         "Wait for all threads to finish before checking results?"
@@ -442,12 +453,12 @@ class LastGoodTimeThread(GoodTimeThread):
         "Return the name of the value sent to I3Live"
         return "lastGoodTime"
 
-    def notifyBuilder(self, bldr, payTime):
+    def notifyComponent(self, comp, payTime):
         "Notify the builder of the good time"
         if payTime is None:
             self.logError("Cannot set last good time to None")
         else:
-            bldr.setLastGoodTime(payTime)
+            comp.setLastGoodTime(payTime)
 
     def waitForAll(self):
         "Wait for all threads to finish before checking results?"
@@ -514,6 +525,8 @@ class RunData(object):
         self.__sendCount = 0
 
         self.__firstPayTime = -1
+
+        self.__spadeThread = None
 
     def __str__(self):
         return "Run#%d %s" % (self.__runNumber, self.__runStats)
@@ -701,7 +714,7 @@ class RunData(object):
                             prio=Prio.EMAIL, time=moniData["tcalTime"])
 
     def __writeRunXML(self, numEvts, numMoni, numSN, numTcal, firstTime,
-                      lastTime, duration, hadError):
+                      lastTime, firstGood, lastGood, duration, hadError):
 
         xmlLog = DashXMLLog(dir_name=self.__runDir)
         path = xmlLog.getPath()
@@ -710,11 +723,15 @@ class RunData(object):
                                  path)
             return
 
+        xmlLog.setVersionInfo(self.__versionInfo["release"],
+                              self.__versionInfo["repo_rev"])
         xmlLog.setRun(self.__runNumber)
         xmlLog.setConfig(self.__runConfig.basename())
         xmlLog.setCluster(self.__clusterConfig.descName())
         xmlLog.setStartTime(PayloadTime.toDateTime(firstTime))
         xmlLog.setEndTime(PayloadTime.toDateTime(lastTime))
+        xmlLog.setFirstGoodTime(PayloadTime.toDateTime(firstGood))
+        xmlLog.setLastGoodTime(PayloadTime.toDateTime(lastGood))
         xmlLog.setEvents(numEvts)
         xmlLog.setMoni(numMoni)
         xmlLog.setSN(numSN)
@@ -767,8 +784,8 @@ class RunData(object):
         self.__dashlog.error(msg)
 
     def finalReport(self, comps, hadError, switching=False):
-        (numEvts, firstTime, lastTime, numMoni, numSN, numTcal) = \
-            self.getRunData(comps)
+        (numEvts, firstTime, lastTime, firstGood, lastGood, numMoni, numSN,
+         numTcal) = self.getRunData(comps)
 
         # set end-of-run statistics
         time = datetime.datetime.utcnow()
@@ -795,7 +812,7 @@ class RunData(object):
                 self.__dashlog.error("Cannot calculate duration")
 
         self.__writeRunXML(numEvts, numMoni, numSN, numTcal, firstTime,
-                           lastTime, duration, hadError)
+                           lastTime, firstGood, lastGood, duration, hadError)
 
         self.__reportRunStop(numEvts, firstTime, lastTime, hadError)
 
@@ -847,7 +864,7 @@ class RunData(object):
         if self.__liveMoniClient is not None:
             self.reportRunStartClass(self.__liveMoniClient, self.__runNumber,
                                      self.__versionInfo["release"],
-                                     self.__versionInfo["revision"], True,
+                                     self.__versionInfo["repo_rev"], True,
                                      time=startTime)
 
         self.__taskMgr = runSet.createTaskManager(self.__dashlog,
@@ -877,17 +894,17 @@ class RunData(object):
             monDict["wallTime"] = str(wallTime)
             monDict["eventPayloadTicks"] = payTime
         monDict["moniEvents"] = numMoni
-        if moniTime is None or numMoni == 0:
+        if moniTime is None:
             monDict["moniTime"] = None
         else:
             monDict["moniTime"] = str(moniTime)
         monDict["snEvents"] = numSN
-        if snTime is None or numSN == 0:
+        if snTime is None:
             monDict["snTime"] = None
         else:
             monDict["snTime"] = str(snTime)
         monDict["tcalEvents"] = numTcal
-        if tcalTime is None or numTcal == 0:
+        if tcalTime is None:
             monDict["tcalTime"] = None
         else:
             monDict["tcalTime"] = str(tcalTime)
@@ -911,6 +928,8 @@ class RunData(object):
         nEvts = 0
         firstTime = 0
         lastTime = 0
+        firstGood = 0
+        lastGood = 0
         nMoni = 0
         nSN = 0
         nTCal = 0
@@ -930,18 +949,34 @@ class RunData(object):
         for c in bldrs:
             result = r[c]
             if result == ComponentOperation.RESULT_HANGING or \
-                result == ComponentOperation.RESULT_ERROR:
+                result == ComponentOperation.RESULT_ERROR or \
+                result is None:
                 self.__dashlog.error("Cannot get run data for %s: %s" %
                                      (c.fullName(), result))
             elif type(result) is not list and type(result) is not tuple:
                 self.__dashlog.error("Bogus run data for %s: %s" %
                                      (c.fullName(), result))
             elif c.isComponent("eventBuilder"):
-                (nEvts, firstTime, lastTime) = result
+                expNum = 5
+                if len(result) == expNum:
+                    (nEvts, firstTime, lastTime, firstGood, lastGood) = result
+                else:
+                    self.__dashlog.error(("Expected %d run data values from" +
+                                          " %s, got %d (%s)") %
+                                         (expNum, c.fullName(), len(result),
+                                          str(result)))
             elif c.isComponent("secondaryBuilders"):
-                (nTCal, nSN, nMoni) = result
+                expNum = 3
+                if len(result) == expNum:
+                    (nTCal, nSN, nMoni) = result
+                else:
+                    self.__dashlog.error(("Expected %d run data values from" +
+                                          " %s, got %d (%s)") %
+                                         (expNum, c.fullName(), len(result),
+                                          str(result)))
 
-        return (nEvts, firstTime, lastTime, nMoni, nSN, nTCal)
+        return (nEvts, firstTime, lastTime, firstGood, lastGood, nMoni, nSN,
+                nTCal)
 
     def getSingleBeanField(self, comp, bean, fldName):
         tGroup = ComponentOperationGroup(ComponentOperation.GET_SINGLE_BEAN)
@@ -986,10 +1021,23 @@ class RunData(object):
             return
 
         if self.__spadeDir is not None:
-            SpadeQueue.queueForSpade(self.__dashlog, self.__spadeDir,
-                                     self.__copyDir, self.__runDir,
-                                     self.__runNumber, datetime.datetime.now(),
-                                     duration)
+            if self.__spadeThread is not None:
+                if self.__spadeThread.is_alive():
+                    try:
+                        self.__spadeThread.join(0.001)
+                    except:
+                        pass
+                if self.__spadeThread.is_alive():
+                    self.__dashlog.error("Previous SpadeQueue thread is" +
+                                         " still running!!!")
+
+            thrd = threading.Thread(target=SpadeQueue.queueForSpade,
+                                    args=(self.__dashlog, self.__spadeDir,
+                                          self.__copyDir, self.__logDir,
+                                          self.__runNumber))
+            thrd.start()
+
+            self.__spadeThread = thrd
 
     def reportGoodTime(self, name, payTime):
         if self.__liveMoniClient is None:
@@ -1054,6 +1102,7 @@ class RunData(object):
             value = {
                 "run": self.__runNumber,
                 "subrun": self.__subrunNumber,
+                "version": 0,
             }
 
             # if we don't have a DAQ time, use system time but complain
@@ -1071,7 +1120,7 @@ class RunData(object):
             for src in ("moni", "sn", "tcal"):
                 eventKey = src + "Events"
                 timeKey = src + "Time"
-                if moniData[timeKey] is not None:
+                if moniData[timeKey] is not None and moniData[timeKey] >= 0:
                     value[eventKey] = moniData[eventKey]
                     value[timeKey] = moniData[timeKey]
 
@@ -1262,7 +1311,7 @@ class RunSet(object):
 
         return srcSet, otherSet
 
-    def __checkState(self, newState):
+    def __checkState(self, newState, components=None):
         """
         If component states match 'newState', set state to 'newState' and
         return an empty list.
@@ -1270,14 +1319,17 @@ class RunSet(object):
         and corresponding lists of components.
         """
 
+        if components is None:
+            components = self.__set
+
         tGroup = ComponentOperationGroup(ComponentOperation.GET_STATE)
-        for c in self.__set:
+        for c in components:
             tGroup.start(c, self.__logger, ())
         tGroup.wait()
         states = tGroup.results()
 
         stateDict = {}
-        for c in self.__set:
+        for c in components:
             if states.has_key(c):
                 stateStr = str(states[c])
             else:
@@ -1333,9 +1385,57 @@ class RunSet(object):
 
         return duration
 
+    def __getReplayHubs(self):
+        "Return the list of replay hubs in this runset"
+        replayHubs = []
+        for c in self.__set:
+            if c.isReplayHub():
+                replayHubs.append(c)
+        return replayHubs
+
     @classmethod
     def __getRunDirectoryPath(cls, logDir, runNum):
         return os.path.join(logDir, "daqrun%05d" % runNum)
+
+    def __internalInitReplay(self, replayHubs):
+        tGroup = ComponentOperationGroup(ComponentOperation.GET_REPLAY_TIME)
+        for c in replayHubs:
+            tGroup.start(c, self.__logger, ())
+        tGroup.wait()
+        tGroup.reportErrors(self.__logger, "getReplayTime")
+
+        # find earliest first hit
+        firsttime = None
+        r = tGroup.results()
+        for c in replayHubs:
+            result = r[c]
+            if result == ComponentOperation.RESULT_HANGING or \
+                result == ComponentOperation.RESULT_ERROR:
+                self.__logger.error("Cannot get first replay time for %s: %s" %
+                                     (c.fullName(), result))
+                continue
+            elif result < 0:
+                self.__logger.error("Got bad replay time for %s: %s" %
+                                     (c.fullName(), result))
+                continue
+            elif firsttime is None or result < firsttime:
+                firsttime = result
+
+        if firsttime is None:
+            raise RunSetException("Couldn't find first replay time")
+
+        # calculate offset
+        now = time.gmtime()
+        jan1 = time.struct_time((now.tm_year, 1, 1, 0, 0, 0, 0, 0, -1))
+        walltime = (time.mktime(now) - time.mktime(jan1)) * 10000000000
+        offset = long(walltime - firsttime)
+
+        # set offset on all replay hubs
+        tGroup = ComponentOperationGroup(ComponentOperation.SET_REPLAY_OFFSET)
+        for c in replayHubs:
+            tGroup.start(c, self.__logger, (offset, ))
+        tGroup.wait()
+        tGroup.reportErrors(self.__logger, "setReplayOffset")
 
     @staticmethod
     def __listComponentsAndConnections(compList, connDict=None):
@@ -1386,7 +1486,7 @@ class RunSet(object):
             time.sleep(0.1)
         if firstTime is None:
             runData.error("Couldn't find first good time" +
-                             " for switched run %d" % runData.runNumber())
+                          " for switched run %d" % runData.runNumber())
         else:
             runData.reportGoodTime("firstGoodTime", firstTime)
 
@@ -1437,41 +1537,19 @@ class RunSet(object):
 
         self.__state = RunSetState.STARTING
 
-        # start non-sources in order (back to front)
+        # start non-sources
         #
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP startOther")
-        for c in otherSet:
-            c.startRun(self.__runData.runNumber())
+        self.__startSet("NonHubs", otherSet)
+
+        # start sources
+        #
+        self.__startSet("Hubs", srcSet)
 
         # start thread to find latest first time from hubs
         #
         goodThread = FirstGoodTimeThread(srcSet[:], otherSet[:],
                                          self.__runData, self.__runData)
         goodThread.start()
-
-        # start sources in parallel
-        #
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP startSrcs")
-        tGroup = ComponentOperationGroup(ComponentOperation.START_RUN)
-        opData = (self.__runData.runNumber(), )
-        for c in srcSet:
-            tGroup.start(c, self.__runData, opData)
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP waitSrcs")
-        tGroup.wait()
-        tGroup.reportErrors(self.__runData, "startRun")
-
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP waitStChg")
-        self.__waitForStateChange(self.__runData, 30)
-
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP chkRunning")
-        badStates = self.__checkState(RunSetState.RUNNING)
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP badStates %s",
-                        badStates)
-        if len(badStates) > 0:
-            raise RunSetException(("Could not start runset#%d run#%d" +
-                                   " components: %s") %
-                                  (self.__id, self.__runData.runNumber(),
-                                   self.__badStateString(badStates)))
 
         for i in xrange(20):
             if not goodThread.isAlive():
@@ -1483,6 +1561,85 @@ class RunSet(object):
                                   self.__id)
 
         self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP done")
+
+    def __startSet(self, setName, components):
+        """
+        Start a set of components and verify that they are running
+        """
+        rstart = datetime.datetime.now()
+        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP start" + setName)
+        tGroup = ComponentOperationGroup(ComponentOperation.START_RUN)
+        opData = (self.__runData.runNumber(), )
+        for c in components:
+            tGroup.start(c, self.__runData, opData)
+        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP wait" + setName)
+        tGroup.wait()
+        tGroup.reportErrors(self.__runData, "start" + setName)
+
+        self.__logDebug(RunSetDebug.START_RUN,
+                        "STARTCOMP wait" + setName + "Chg")
+        self.__waitForStateChange(self.__runData, RunSetState.RUNNING, 30,
+                                  components)
+
+        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP chk" + setName)
+        badStates = self.__checkState(RunSetState.RUNNING, components)
+        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP bad%sStates %s",
+                        (setName, badStates))
+        if len(badStates) > 0:
+            raise RunSetException(("Could not start runset#%d run#%d" +
+                                   " %s components: %s") %
+                                  (self.__id, self.__runData.runNumber(),
+                                   setName, self.__badStateString(badStates)))
+        rend = datetime.datetime.now() - rstart
+        rsecs = float(rend.seconds) + (float(rend.microseconds) / 1000000.0)
+        self.__logger.error("Waited %.3f seconds for %s" % (rsecs, setName))
+
+    def __logState(self, text, comps):
+        self.__logger.error("================= " + text + " =================")
+        tGroup = ComponentOperationGroup(ComponentOperation.GET_CONN_INFO)
+        for c in comps:
+            tGroup.start(c, self.__logger, ())
+        tGroup.wait()
+        connInfo = tGroup.results()
+
+        for c in comps:
+            if not connInfo.has_key(c):
+                connstr = "???"
+            else:
+                connstr = None
+                for ci in connInfo[c]:
+                    if ci["state"].find("idle") < 0:
+                        if connstr is None:
+                            connstr = ""
+                        else:
+                            connstr += " "
+                        connstr += "%s(%s)#%s" % \
+                                   (ci["type"], ci["state"], ci["numChan"])
+            if connstr is not None:
+                self.__logger.error("%s :: %s: %s" %
+                                    (text, c.fullName(), connstr))
+
+    def __removeComponent(self, comp):
+        try:
+            self.__set.remove(comp)
+        except ValueError:
+            self.__logger.error(("Cannot remove component %s from" +
+                                 " RunSet #%d") %
+                                (comp.fullName(), self.__id))
+
+        # clean up active log thread
+        if comp in self.__compLog:
+            try:
+                self.__compLog[comp].stopServing()
+            except:
+                pass
+            del self.__compLog[comp]
+
+        try:
+            comp.close()
+        except:
+            self.__logger.error("Close failed for %s: %s" %
+                                (comp.fullName(), exc_string()))
 
     def __stopComponents(self, srcSet, otherSet, connDict, msgSecs):
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING WAITCHK top")
@@ -1578,26 +1735,36 @@ class RunSet(object):
                                         self.__runData, self.__runData)
         goodThread.start()
 
-        timeout = 20
-        for i in range(0, 2):
-            self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING phase %d", i)
-            if i == 0:
-                self.__attemptToStop(srcSet, otherSet, RunSetState.STOPPING,
-                                     ComponentOperation.STOP_RUN,
-                                     int(timeout * .75))
-            else:
-                self.__attemptToStop(srcSet, otherSet,
-                                     RunSetState.FORCING_STOP,
-                                     ComponentOperation.FORCED_STOP,
-                                     int(timeout * .25))
-            if len(srcSet) == 0 and len(otherSet) == 0:
-                break
+        try:
+            timeout = 20
+            for i in range(0, 2):
+                if self.__runData is None:
+                    break
 
-        # detector has stopped, no need to get last good time
-        goodThread.stop()
+                self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING phase %d", i)
+                if i == 0:
+                    self.__attemptToStop(srcSet, otherSet,
+                                         RunSetState.STOPPING,
+                                         ComponentOperation.STOP_RUN,
+                                         int(timeout * .75))
+                else:
+                    self.__attemptToStop(srcSet, otherSet,
+                                         RunSetState.FORCING_STOP,
+                                         ComponentOperation.FORCED_STOP,
+                                         int(timeout * .25))
+                if len(srcSet) == 0 and len(otherSet) == 0:
+                    break
+        finally:
+            # detector has stopped, no need to get last good time
+            try:
+                goodThread.stop()
+            except:
+                # ignore problems stopping goodThread
+                pass
 
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING reset")
-        self.__runData.reset()
+        if self.__runData is not None:
+            self.__runData.reset()
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING reset done")
 
         return srcSet + otherSet
@@ -1640,13 +1807,17 @@ class RunSet(object):
             doms.append(args)
         return (doms, not_found)
 
-    def __waitForStateChange(self, logger, timeoutSecs=TIMEOUT_SECS):
+    def __waitForStateChange(self, logger, stateName, timeoutSecs=TIMEOUT_SECS,
+                             components=None):
         """
         Wait for state change, with a timeout of timeoutSecs (renewed each time
         any component changes state).  Raise a ValueError if the state change
         fails.
         """
-        waitList = self.__set[:]
+        if components is None:
+            waitList = self.__set[:]
+        else:
+            waitList = components[:]
 
         endSecs = time.time() + timeoutSecs
         while len(waitList) > 0 and time.time() < endSecs:
@@ -1661,7 +1832,7 @@ class RunSet(object):
                     stateStr = str(states[c])
                 else:
                     stateStr = self.STATE_DEAD
-                if stateStr != self.__state and stateStr != self.STATE_HANGING:
+                if stateStr == stateName and stateStr != self.STATE_HANGING:
                     newList.remove(c)
 
             # if one or more components changed state...
@@ -1747,7 +1918,7 @@ class RunSet(object):
 
             time.sleep(1)
 
-        self.__waitForStateChange(self.__logger, 60)
+        self.__waitForStateChange(self.__logger, RunSetState.READY, 60)
 
         badStates = self.__checkState(RunSetState.READY)
         if len(badStates) > 0:
@@ -1776,7 +1947,7 @@ class RunSet(object):
         tGroup.reportErrors(self.__logger, "connect")
 
         try:
-            self.__waitForStateChange(self.__logger, 20)
+            self.__waitForStateChange(self.__logger, RunSetState.CONNECTED, 20)
         except:
             # give up after 20 seconds
             pass
@@ -1847,8 +2018,7 @@ class RunSet(object):
 
         # sort list into a predictable order for unit tests
         #
-        compStr = listComponentRanges(compList)
-        logger.error("Cycling components %s" % compStr)
+        logger.error("Cycling components %s" % listComponentRanges(compList))
 
         dryRun = False
         ComponentManager.killComponents(compList, dryRun, verbose, killWith9)
@@ -1883,6 +2053,21 @@ class RunSet(object):
 
     def id(self):
         return self.__id
+
+    def initReplayHubs(self):
+        "Initialize all replay hubs"
+        self.__logDebug(RunSetDebug.START_RUN, "RSInitReplay TOP")
+        replayHubs = self.__getReplayHubs()
+        if len(replayHubs) == 0:
+            return
+
+        prevState = self.__state
+        self.__state = RunSetState.INIT_REPLAY
+
+        try:
+            self.__internalInitReplay(replayHubs)
+        finally:
+            self.__state = prevState
 
     def isDestroyed(self):
         return self.__state == RunSetState.DESTROYED
@@ -1944,7 +2129,7 @@ class RunSet(object):
         tGroup.reportErrors(self.__logger, "reset")
 
         try:
-            self.__waitForStateChange(self.__logger, 60)
+            self.__waitForStateChange(self.__logger, RunSetState.IDLE, 60)
         except:
             # give up after 60 seconds
             pass
@@ -1979,41 +2164,22 @@ class RunSet(object):
         Remove all components in 'compList' (and which are found in
         'clusterConfig') from the runset and restart them
         """
-        cluCfgList = []
+        cluCfgList, missingList = clusterConfig.extractComponents(compList)
+
+        # complain about missing components
+        if len(missingList) > 0:
+            self.__logger.error(("Cannot restart %s: Not found in" +
+                                 " cluster config \"%s\"") %
+                                (listComponentRanges(missingList),
+                                 clusterConfig.descName()))
+
+        # remove remaining components from this runset
         for comp in compList:
-            found = False
-            for node in clusterConfig.nodes():
-                for nodeComp in node.components():
-                    if comp.name().lower() == nodeComp.name().lower() and \
-                            comp.num() == nodeComp.id():
-                        cluCfgList.append(nodeComp)
-                        found = True
-
-            if not found:
-                self.__logger.error(("Cannot restart component %s: Not found" +
-                                     " in cluster config \"%s\"") %
-                                    (comp.fullName(),
-                                     clusterConfig.configName()))
-            else:
-                try:
-                    self.__set.remove(comp)
-                except ValueError:
-                    self.__logger.error(("Cannot remove component %s from" +
-                                         " RunSet #%d") %
-                                        (comp.fullName(), self.__id))
-
-                # clean up active log thread
-                if comp in self.__compLog:
-                    try:
-                        self.__compLog[comp].stopServing()
-                    except:
-                        pass
-
-                try:
-                    comp.close()
-                except:
-                    self.__logger.error("Close failed for %s: %s" %
-                                        (comp.fullName(), exc_string()))
+            for nodeComp in cluCfgList:
+                if comp.name().lower() == nodeComp.name().lower() and \
+                   comp.num() == nodeComp.id():
+                    self.__removeComponent(comp)
+                    break
 
         self.cycleComponents(cluCfgList, configDir, daqDataDir, self.__logger,
                              logPort, livePort, verbose, killWith9, eventCheck)
@@ -2071,7 +2237,7 @@ class RunSet(object):
 
     def setError(self):
         self.__logDebug(RunSetDebug.STOP_RUN, "SetError %s", self.__runData)
-        if self.__state == RunSetState.RUNNING:
+        if self.__state == RunSetState.RUNNING and not self.__stopping:
             try:
                 self.stopRun(hadError=True)
             except:
@@ -2402,11 +2568,19 @@ class RunSet(object):
         #
         startTime = datetime.datetime.now()
 
-        # switch non-sources to new run
-        # NOTE: sources are not currently switched
+        # switch non-sources in order
         #
         for c in otherSet:
             c.switchToNewRun(newNum)
+
+        # switch sources in parallel
+        #
+        tGroup = ComponentOperationGroup(ComponentOperation.SWITCH_RUN)
+        opData = (newNum, )
+        for c in srcSet:
+            tGroup.start(c, self.__runData, opData)
+        tGroup.wait()
+        tGroup.reportErrors(self.__runData, "switch")
 
         # wait for builders to finish switching
         #

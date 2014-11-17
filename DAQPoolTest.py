@@ -692,6 +692,9 @@ class TestDAQPool(unittest.TestCase):
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
 
+        logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
+        logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for Hubs")
+
         aComp.addBeanData("stringhub", "LatestFirstChannelHitTime", 10)
         aComp.addBeanData("stringhub", "NumberOfNonZombies", 1)
 
@@ -729,6 +732,7 @@ class TestDAQPool(unittest.TestCase):
 
         cComp.addBeanData("backEnd", "FirstEventTime", firstTime)
         cComp.addBeanData("backEnd", "EventData", (numEvts, lastTime))
+        cComp.addBeanData("backEnd", "GoodTimes", (firstTime, lastTime))
 
         monDict = runset.getEventCounts()
         self.assertEqual(monDict["physicsEvents"], numEvts)

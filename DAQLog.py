@@ -19,15 +19,12 @@ from LiveImports import LIVE_IMPORT, MoniClient, MoniPort, Prio, SERVICE_NAME
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-# imports for __main__
-import random
-import optparse
 from locate_pdaq import find_pdaq_trunk
 metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 # get the subversion id tag
-SVN_ID = "$Id: DAQLog.py 14537 2013-06-04 18:03:04Z dglo $"
+SVN_ID = "$Id: DAQLog.py 14923 2014-03-20 22:12:10Z dglo $"
 
 class LogException(Exception):
     pass
@@ -419,6 +416,8 @@ class LiveMonitor(object):
             self.__clientLock.release()
 
 if __name__ == "__main__":
+    import optparse
+
     from CnCLogger import CnCLogger
 
     ver_info = ("%(filename)s %(revision)s %(date)s %(time)s "
@@ -455,6 +454,7 @@ if __name__ == "__main__":
     # send a few test messages
 
     if opt.liveLog:
+        import random
 
         try:
             liveIP, livePort = opt.liveLog.split(':')

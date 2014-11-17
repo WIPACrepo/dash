@@ -138,7 +138,12 @@ class MockComponent(object):
 
                 val = self.__beanData["backEnd"]["FirstEventTime"]
                 firstTime = long(val)
-                return (numEvts, firstTime, lastTime)
+
+                good = self.__beanData["backEnd"]["GoodTimes"]
+                firstGood = long(good[0])
+                lastGood = long(good[1])
+
+                return (numEvts, firstTime, lastTime, firstGood, lastGood)
             elif self.__name.startswith("secondary"):
                 for bldr in ("tcalBuilder", "snBuilder", "moniBuilder"):
                     val = self.__beanData[bldr]["TotalDispatchedData"]
@@ -166,6 +171,9 @@ class MockComponent(object):
 
     def isComponent(self, name, num=-1):
         return self.__name == name and (num < 0 or self.__num == num)
+
+    def isReplayHub(self):
+        return False
 
     def isSource(self):
         return self.__name.lower().endswith("hub")
@@ -387,6 +395,7 @@ class CnCRunSetTest(unittest.TestCase):
                            {"DiskAvailable": 2048,
                             "EventData": 0,
                             "FirstEventTime": 0,
+                            "GoodTimes": (0, 0),
                             "NumBadEvents": 0,
                             "NumEventsDispatched": 0,
                             "NumEventsSent": 0,
@@ -558,6 +567,8 @@ class CnCRunSetTest(unittest.TestCase):
                            [numEvts, payTime])
         self.__setBeanData(comps, "eventBuilder", 0, "backEnd",
                            "FirstEventTime", firstTime)
+        self.__setBeanData(comps, "eventBuilder", 0, "backEnd",
+                           "GoodTimes", (firstTime, payTime))
 
         duration = self.__computeDuration(firstTime, payTime)
         if duration <= 0:
@@ -682,6 +693,9 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog.addExpectedExact("Cluster: %s" % cluCfg.descName())
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
+
+        logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
+        logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for Hubs")
 
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
                            "stringhub", "LatestFirstChannelHitTime", 10)
@@ -972,6 +986,9 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog.addExpectedExact("Cluster: %s" % cluCfg.descName())
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
+
+        catchall.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
+        catchall.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for Hubs")
 
         global ACTIVE_WARNING
         if not LIVE_IMPORT and not ACTIVE_WARNING:

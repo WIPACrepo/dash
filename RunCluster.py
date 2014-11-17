@@ -116,30 +116,24 @@ class RunCluster(CachedConfigName):
             name = name[:-4]
         self.setConfigName(name)
 
-        clusterDesc = ClusterDescription(configDir, descrName)
-        self.__descName = clusterDesc.configName()
+        self.__hubList = self.__extractHubs(cfg)
 
+        self.__clusterDesc = ClusterDescription(configDir, descrName)
+
+        self.__nodes = self.__loadConfig(self.__clusterDesc, self.__hubList)
+
+    @classmethod
+    def __loadConfig(cls, clusterDesc, hubList):
         hostMap = {}
 
-        hubList = self.__extractHubs(cfg)
-
-        self.__addRequired(clusterDesc, hostMap)
-        self.__addTriggers(clusterDesc, hubList, hostMap)
+        cls.__addRequired(clusterDesc, hostMap)
+        cls.__addTriggers(clusterDesc, hubList, hostMap)
         if len(hubList) > 0:
-            self.__addRealHubs(clusterDesc, hubList, hostMap)
+            cls.__addRealHubs(clusterDesc, hubList, hostMap)
             if len(hubList) > 0:
-                self.__addSimHubs(clusterDesc, hubList, hostMap)
+                cls.__addSimHubs(clusterDesc, hubList, hostMap)
 
-        self.__logDirForSpade = clusterDesc.logDirForSpade()
-        self.__logDirCopies = clusterDesc.logDirCopies()
-        self.__daqDataDir = clusterDesc.daqDataDir()
-        self.__daqLogDir = clusterDesc.daqLogDir()
-        self.__defaultLogLevel = clusterDesc.defaultLogLevel()
-        self.__defaultJVM = clusterDesc.defaultJVM()
-        self.__defaultJVMArgs = clusterDesc.defaultJVMArgs()
-
-        self.__nodes = []
-        self.__convertToNodes(hostMap)
+        return cls.__convertToNodes(clusterDesc, hostMap)
 
     def __str__(self):
         nodeStr = ""
@@ -149,32 +143,36 @@ class RunCluster(CachedConfigName):
             nodeStr += "%s*%d" % (n.hostName(), len(n.components()))
         return self.configName() + "[" + nodeStr + "]"
 
-    def __addComponent(self, hostMap, host, comp):
+    @classmethod
+    def __addComponent(cls, hostMap, host, comp):
         "Add a component to the hostMap dictionary"
         if not host in hostMap:
             hostMap[host] = {}
         hostMap[host][str(comp)] = comp
 
-    def __addRealHubs(self, clusterDesc, hubList, hostMap):
+    @classmethod
+    def __addRealHubs(cls, clusterDesc, hubList, hostMap):
         "Add hubs with hard-coded locations to hostMap"
         for (host, comp) in clusterDesc.listHostComponentPairs():
             if not comp.isHub():
                 continue
             for h in range(0, len(hubList)):
                 if comp.id() == hubList[h].id():
-                    self.__addComponent(hostMap, host, comp)
+                    cls.__addComponent(hostMap, host, comp)
                     del hubList[h]
                     break
 
-    def __addRequired(self, clusterDesc, hostMap):
+    @classmethod
+    def __addRequired(cls, clusterDesc, hostMap):
         "Add required components to hostMap"
         for (host, comp) in clusterDesc.listHostComponentPairs():
             if comp.required():
-                self.__addComponent(hostMap, host, comp)
+                cls.__addComponent(hostMap, host, comp)
 
-    def __addSimHubs(self, clusterDesc, hubList, hostMap):
+    @classmethod
+    def __addSimHubs(cls, clusterDesc, hubList, hostMap):
         "Add simulated hubs to hostMap"
-        simList = self.__getSortedSimHubs(clusterDesc, hostMap)
+        simList = cls.__getSortedSimHubs(clusterDesc, hostMap)
         if len(simList) == 0:
             missing = []
             for hub in hubList:
@@ -230,10 +228,11 @@ class RunCluster(CachedConfigName):
 
                 comp = RunComponent(hubComp.name(), hubComp.id(), lvl, jvm,
                                     jvmArgs, host, False)
-                self.__addComponent(hostMap, host, comp)
+                cls.__addComponent(hostMap, host, comp)
                 hubNum += 1
 
-    def __addTriggers(self, clusterDesc, hubList, hostMap):
+    @classmethod
+    def __addTriggers(cls, clusterDesc, hubList, hostMap):
         "Add needed triggers to hostMap"
         needAmanda = False
         needInice = False
@@ -252,29 +251,35 @@ class RunCluster(CachedConfigName):
             if not comp.name().endswith('Trigger'):
                 continue
             if comp.name() == 'amandaTrigger' and needAmanda:
-                self.__addComponent(hostMap, host, comp)
+                cls.__addComponent(hostMap, host, comp)
                 needAmanda = False
             elif comp.name() == 'inIceTrigger' and needInice:
-                self.__addComponent(hostMap, host, comp)
+                cls.__addComponent(hostMap, host, comp)
                 needInice = False
             elif comp.name() == 'iceTopTrigger' and needIcetop:
-                self.__addComponent(hostMap, host, comp)
+                cls.__addComponent(hostMap, host, comp)
                 needIcetop = False
 
-    def __convertToNodes(self, hostMap):
+    @classmethod
+    def __convertToNodes(cls, clusterDesc, hostMap):
         "Convert hostMap to an array of cluster nodes"
         hostKeys = hostMap.keys()
         hostKeys.sort()
 
+        nodes = []
         for host in hostKeys:
-            node = RunNode(host, self.__defaultLogLevel, self.__defaultJVM,
-                           self.__defaultJVMArgs)
-            self.__nodes.append(node)
+            node = RunNode(host, clusterDesc.defaultLogLevel(),
+                           clusterDesc.defaultJVM(),
+                           clusterDesc.defaultJVMArgs())
+            nodes.append(node)
 
             for compKey in hostMap[host].keys():
                 node.addComponent(hostMap[host][compKey])
 
-    def __extractHubs(self, cfg):
+        return nodes
+
+    @classmethod
+    def __extractHubs(cls, cfg):
         "build a list of hub components used by the run configuration"
         hubList = []
         for comp in cfg.components():
@@ -282,7 +287,8 @@ class RunCluster(CachedConfigName):
                 hubList.append(comp)
         return hubList
 
-    def __getSortedSimHubs(self, clusterDesc, hostMap):
+    @classmethod
+    def __getSortedSimHubs(cls, clusterDesc, hostMap):
         "Get list of simulation hubs, sorted by priority"
         simList = []
 
@@ -292,7 +298,7 @@ class RunCluster(CachedConfigName):
             if not simHub.ifUnused or not simHub.host.name in hostMap:
                 simList.append(simHub)
 
-        simList.sort(self.__sortByPriority)
+        simList.sort(cls.__sortByPriority)
 
         return simList
 
@@ -305,22 +311,44 @@ class RunCluster(CachedConfigName):
         return val
 
     def daqDataDir(self):
-        return self.__daqDataDir
+        return self.__clusterDesc.daqDataDir()
 
     def daqLogDir(self):
-        return self.__daqLogDir
+        return self.__clusterDesc.daqLogDir()
 
     def defaultLogLevel(self):
-        return self.__defaultLogLevel
+        return self.__clusterDesc.defaultLogLevel()
 
     def descName(self):
-        return self.__descName
+        return self.__clusterDesc.configName()
+
+    def extractComponents(self, masterList):
+        return self.extractComponentsFromNodes(self.__nodes, masterList)
+
+    @classmethod
+    def extractComponentsFromNodes(cls, nodeList, masterList):
+        foundList = []
+        missingList = []
+        for comp in masterList:
+            found = False
+            for node in nodeList:
+                for nodeComp in node.components():
+                    if comp.name().lower() == nodeComp.name().lower() \
+                       and comp.num() == nodeComp.id():
+                        foundList.append(nodeComp)
+                        found = True
+                        break
+                if found:
+                    break
+            if not found:
+                missingList.append(comp)
+        return (foundList, missingList)
 
     def getConfigName(self):
         "get the configuration name to write to the cache file"
-        if self.__descName is None:
+        if self.__clusterDesc is None:
             return self.configName()
-        return '%s@%s' % (self.configName(), self.__descName)
+        return '%s@%s' % (self.configName(), self.__clusterDesc.configName())
 
     def getHubNodes(self):
         "Get a list of nodes on which hub components are running"
@@ -337,11 +365,17 @@ class RunCluster(CachedConfigName):
 
         return hostMap.keys()
 
+    def loadIfChanged(self):
+        if not self.__clusterDesc.loadIfChanged():
+            return False
+
+        self.__nodes = self.__loadConfig(self.__clusterDesc, self.__hubList)
+
     def logDirForSpade(self):
-        return self.__logDirForSpade
+        return self.__clusterDesc.logDirForSpade()
 
     def logDirCopies(self):
-        return self.__logDirCopies
+        return self.__clusterDesc.logDirCopies()
 
     def nodes(self):
         return self.__nodes[:]

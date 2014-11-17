@@ -23,6 +23,7 @@ set_exc_string_encoding("ascii")
 
 # times in seconds
 #
+QUARTER_HR = 900
 HALF_HR = 1800
 FOUR_HR = 14400
 EIGHT_HR = 28800
@@ -109,12 +110,14 @@ class PDAQRun(object):
 #
 RUN_LIST = (PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
             PDAQRun("spts64-dirtydozen-hlc-006", 0, 1,
-                     (("flash-21", 60), (None, 10), ("flash-21", 45),
-                        (None, 20), ("flash-21", 120))),
+                    (("flash-21", 60), (None, 10), ("flash-21", 45),
+                     (None, 20), ("flash-21", 120))),
             PDAQRun("spts64-dirtydozen-old-hitspool-15s-interval-8h-spool",
                     HALF_HR),
             PDAQRun("spts64-dirtydozen-hitspool-15s-interval-8h-spool",
                     HALF_HR),
+            PDAQRun("spts-dirtydozen-intervals3-snmix-014", 
+                    HALF_HR),            
             ###PDAQRun("sim18str-noise25Hz-002", FOUR_HR),
             ###PDAQRun("sim18str-noise25Hz-002", EIGHT_HR),
             ###PDAQRun("sim22str-with-phys-trig-001", FOUR_HR),
@@ -128,6 +131,7 @@ RUN_LIST = (PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
             PDAQRun("sim60str-stdtest-01", EIGHT_HR),
             ###PDAQRun("sim80str-25Hz", FOUR_HR),
             ###PDAQRun("sim80str-25Hz", EIGHT_HR),
+            PDAQRun("replay-123997-fixed", HALF_HR),
             )
 
 

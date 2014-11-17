@@ -10,6 +10,36 @@ from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
 
+class BinTotal(object):
+    "Total counts for each set of bins"
+    def __init__(self, srcId, cfgId, trigId, runNum):
+        self.__srcId = srcId
+        self.__cfgId = cfgId
+        self.__trigId = trigId
+        self.__runNum = runNum
+        self.__start = None
+        self.__end = None
+        self.__value = 0
+
+    def add(self, startTime, endTime, value):
+        if self.__start is None or startTime < self.__start:
+            self.__start = startTime
+        if self.__end is None or endTime > self.__end:
+            self.__end = endTime
+        self.__value += value
+
+    def moniDict(self):
+        return {
+            "runNumber": self.__runNum,
+            "sourceid": self.__srcId,
+            "configid": self.__cfgId,
+            "trigid": self.__trigId,
+            "recordingStartTime": self.__start,
+            "recordingEndTime": self.__end,
+            "value": self.__value
+        }
+
+
 class TriggerCountThread(CnCThread):
     "A thread which reports the trigger counts"
 
@@ -49,8 +79,17 @@ class TriggerCountThread(CnCThread):
             # messages that go out every minute use should lower priority
             prio = Prio.EMAIL
 
+            totals = {}
             for d in cntDicts:
-                self.__sendMoni("trigger_count", d, prio)
+                key = (d["sourceid"], d["configid"], d["trigid"],
+                       d["runNumber"])
+                if not totals.has_key(key):
+                    totals[key] = BinTotal(key[0], key[1], key[2], key[3])
+                totals[key].add(d["recordingStartTime"],
+                                d["recordingEndTime"], d["value"])
+
+            for d in totals.values():
+                self.__sendMoni("trigger_rate", d.moniDict(), prio)
 
     def getNewThread(self):
         thrd = TriggerCountThread(self.__runset, self.__dashlog,
@@ -64,7 +103,7 @@ class TriggerCountTask(CnCTask):
     created and run.  This sends separate reports for each algorithm to live.
     """
     NAME = "TriggerCount"
-    PERIOD = 60
+    PERIOD = 600
     DEBUG_BIT = False
 
     def __init__(self, taskMgr, runset, dashlog, liveMoni, period=None):

@@ -199,6 +199,9 @@ class ComponentName(object):
     def isHub(self):
         return self.__name.endswith("Hub")
 
+    def isReplayHub(self):
+        return self.isHub() and self.__name.lower().find("replay") >= 0
+
     def name(self):
         return self.__name
 
@@ -429,13 +432,21 @@ class DAQClient(ComponentName):
 
         return csStr
 
+    def getReplayStartTime(self):
+        "Get the earliest time for a replay hub"
+        try:
+            return unFixValue(self.__client.xmlrpc.getReplayStartTime())
+        except:
+            self.__log.error(exc_string())
+            return None
+
     def getRunData(self, runNum):
         "Get the run data for the specified run"
         try:
             return unFixValue(self.__client.xmlrpc.getRunData(runNum))
         except:
             self.__log.error(exc_string())
-            return (None, None, None)
+            return None
 
     def getRunNumber(self):
         "Get the current run number"
@@ -550,6 +561,13 @@ class DAQClient(ComponentName):
 
     def setOrder(self, orderNum):
         self.__cmdOrder = orderNum
+
+    def setReplayOffset(self, offset):
+        "Get the time offset for a replay hub"
+        try:
+            self.__client.xmlrpc.setReplayOffset(str(offset) + "L")
+        except:
+            self.__log.error(exc_string())
 
     def startRun(self, runNum):
         "Start component processing DAQ data"

@@ -75,6 +75,9 @@ class TinyClient(object):
     def isComponent(self, name, num=-1):
         return self.__name == name and (num < 0 or self.__num == num)
 
+    def isReplayHub(self):
+        return False
+
     def isSource(self):
         return True
 
@@ -483,6 +486,9 @@ class TestDAQServer(unittest.TestCase):
             logger.addExpectedTextRegexp(r"^Cannot import IceCube Live.*")
 
         logger.addExpectedText("Starting run %d..." % runNum)
+
+        logger.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
+        logger.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for Hubs")
 
         self.assertEqual(dc.rpc_runset_start_run(setId, runNum, moniType), \
                              'OK')
