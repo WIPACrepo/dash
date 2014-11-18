@@ -30,6 +30,8 @@ class BaseCmd(object):
     CMDTYPE_CC = "Cc"
     # Command completion for "-C cluster"
     CMDTYPE_CONLY = "Conly"
+    # Command completion for directory argument
+    CMDTYPE_DONLY = "Donly"
     # Command completion for file argument
     CMDTYPE_FONLY = "Fonly"
     # Command doesn't require any completion
@@ -291,6 +293,26 @@ class CmdTest(BaseCmd):
         run_tests(args)
 
 
+class CmdWorkspace(BaseCmd):
+    @classmethod
+    def add_arguments(cls, parser):
+        from Workspace import add_arguments
+        add_arguments(parser)
+
+    @classmethod
+    def cmdtype(cls):
+        return cls.CMDTYPE_DONLY
+
+    @classmethod
+    def name(cls):
+        return "workspace"
+
+    @classmethod
+    def run(cls, args):
+        from Workspace import workspace
+        workspace(args)
+
+
 # map keywords to command classes
 COMMANDS = [
     CmdDeploy,
@@ -303,6 +325,7 @@ COMMANDS = [
     CmdStatus,
     CmdStopRun,
     CmdTest,
+    CmdWorkspace,
 ]
 
 
