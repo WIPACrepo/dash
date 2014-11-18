@@ -34,6 +34,8 @@ class BaseCmd(object):
     CMDTYPE_DONLY = "Donly"
     # Command completion for file argument
     CMDTYPE_FONLY = "Fonly"
+    # Command completion for workspace argument
+    CMDTYPE_WS = "WS"
     # Command doesn't require any completion
     CMDTYPE_NONE = "None"
     # Command completion is unknown
@@ -301,7 +303,7 @@ class CmdWorkspace(BaseCmd):
 
     @classmethod
     def cmdtype(cls):
-        return cls.CMDTYPE_DONLY
+        return cls.CMDTYPE_WS
 
     @classmethod
     def name(cls):
