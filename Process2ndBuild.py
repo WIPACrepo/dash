@@ -63,7 +63,6 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
     snLink = front + ".sn.tar"
     moniSem = front + ".msem"
     spadeSem = front + ".sem"
-    moniLink = front + ".mon.tar"
     extraLink = front + ".save.tar"
 
     # Duplicate file: wait for a new second, recalculate everything:
@@ -88,10 +87,6 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
     # Rename temporary tarball to SPADE name
     if verbose: print "Renaming temporary tarball to %s" % spadeTar
     if not dryRun: os.rename(tmpTar, spadeTar)
-
-    # Create moni hard link
-    if verbose: print "MoniLink %s" % moniLink
-    if not dryRun: os.link(spadeTar, moniLink)
 
     # Create moni hard link
     if verbose: print "MoniLink %s" % moniLink
