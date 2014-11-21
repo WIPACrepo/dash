@@ -90,7 +90,7 @@ class CmdDumpData(BaseCmd):
 
     @classmethod
     def cmdtype(cls):
-        return cls.CMDTYPE_NONE
+        return cls.CMDTYPE_FONLY
 
     @classmethod
     def name(cls):
