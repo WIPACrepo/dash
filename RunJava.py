@@ -27,23 +27,36 @@ def add_arguments(parser):
                         help="Fully qualified Java application class")
     parser.add_argument(dest="extra", nargs="*")
 
+
+def buildJarName(name, vers):
+    """Build a versioned jar file name"""
+    return name + "-" + vers + ".jar"
+
+
 def findDAQJars(daqDeps, daqRelease, pdaqHome, distDir, repoDir):
+    """
+    Find pDAQ jar files in all likely places, starting with the current
+    project directory
+    """
     daqRepoSubdir = "edu/wisc/icecube"
 
     jars = []
     for proj in daqDeps:
-        jarname = proj + "-" + daqRelease + ".jar"
+        jarname = buildJarName(proj, daqRelease)
 
+        # check foo/target/foo-X.Y.Z.jar (if we're in top-level project dir)
         projjar = os.path.join(proj, "target", jarname)
         if os.path.exists(projjar):
             jars.append(projjar)
             continue
 
+        # check ../foo/target/foo-X.Y.Z.jar (in case we're in a project subdir)
         tmpjar = os.path.join("..", projjar)
         if os.path.exists(tmpjar):
             jars.append(tmpjar)
             continue
 
+        # check $PDAQHOME/foo/target/foo-X.Y.Z.jar
         if pdaqHome is not None:
             tmpjar = os.path.join(pdaqHome, projjar)
             if os.path.exists(tmpjar):
@@ -51,12 +64,14 @@ def findDAQJars(daqDeps, daqRelease, pdaqHome, distDir, repoDir):
                 continue
 
         if distDir is not None:
+            # check $PDAQHOME/target/pDAQ-X.Y.Z-dist/lib/foo-X.Y.Z.jar
             tmpjar = os.path.join(distDir, jarname)
             if os.path.exists(tmpjar):
                 jars.append(tmpjar)
                 continue
 
         if repoDir is not None:
+            # check ~/.m2/repository/edu/wisc/icecube/foo/X.Y.Z/foo-X.Y.Z.jar
             tmpjar = os.path.join(repoDir, daqRepoSubdir, proj, daqRelease,
                                   jarname)
             if os.path.exists(tmpjar):
@@ -68,32 +83,71 @@ def findDAQJars(daqDeps, daqRelease, pdaqHome, distDir, repoDir):
     return jars
 
 
+def findRepoJar(repoDir, distDir, proj, name, vers):
+    """
+    Find a jar file in the Maven repository which is at or after the version
+    specified by 'vers'
+    """
+    jarname = buildJarName(name, vers)
+
+    projdir = os.path.join(repoDir, proj, name)
+    if os.path.exists(projdir):
+        tmpjar = os.path.join(projdir, vers, jarname)
+        if os.path.exists(tmpjar):
+            return tmpjar
+
+        overs = LooseVersion(vers)
+        for entry in os.listdir(projdir):
+            nvers = LooseVersion(entry)
+            if overs < nvers:
+                tmpjar = os.path.join(projdir, entry, buildJarName(name, entry))
+                if os.path.exists(tmpjar):
+                    import sys
+                    print >>sys.stderr, "WARNING: Using %s version %s" \
+                        " instead of requested %s" % (name, entry, vers)
+                    return tmpjar
+
+    if distDir is not None:
+        tmpjar = os.path.join(distDir, jarname)
+        if os.path.exists(tmpjar):
+            return tmpjar
+
+        overs = LooseVersion(vers)
+        namedash = name + "-"
+        for entry in os.listdir(distDir):
+            if entry.startswith(namedash):
+                jarext = entry.find(".jar")
+                if jarext > 0:
+                    vstr = entry[len(namedash):jarext]
+                    nvers = LooseVersion(vstr)
+                    if overs <= nvers:
+                        print >>sys.stderr, "WARNING: Using %s version %s" \
+                            " instead of requested %s" % (name, vstr, vers)
+                        return os.path.join(distDir, entry)
+
+    raise SystemExit("Cannot find Maven jar file %s" % jarname)
+
+
 def findMavenJars(mavenJars, repoDir, distDir):
+    """
+    Find requested jar files in either the Maven repository or in the
+    pDAQ distribution directory
+    """
     jars = []
     for tup in mavenJars:
         (proj, name, vers) = tup
 
-        jarname = name + "-" + vers + ".jar"
-
-        tmpjar = os.path.join(repoDir, proj, name, vers, jarname)
-        if os.path.exists(tmpjar):
-            jars.append(tmpjar)
-            continue
-
-        if distDir is not None:
-            tmpjar = os.path.join(distDir, jarname)
-            if os.path.exists(tmpjar):
-                jars.append(tmpjar)
-                continue
-
-        raise SystemExit("Cannot find Maven jar file %s" % jarname)
+        jars.append(findRepoJar(repoDir, distDir, proj, name, vers))
 
     return jars
 
 
 def runJava(app, javaArgs, appArgs, daqDeps, mavenDeps, daqRelease=None,
             repoDir=None):
-
+    """
+    Run the Java program after adding all requested pDAQ and external jar
+    files in the CLASSPATH envvar
+    """
     if daqRelease is None:
         daqRelease = "1.0.0-SNAPSHOT"
 
