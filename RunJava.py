@@ -7,6 +7,8 @@
 #        -m log4j:log4j:1.2.7 -m commons-logging:commons-logging:1.0.3 \
 #        icecube.daq.io.PayloadDumper physics_123456_0_0_2511.dat
 
+
+from distutils.version import LooseVersion
 import os
 import subprocess
 
