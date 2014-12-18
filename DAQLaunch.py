@@ -24,7 +24,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 15170 2014-10-06 21:43:32Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 15305 2014-12-18 23:04:08Z dglo $"
 
 
 class ConsoleLogger(object):
@@ -120,11 +120,25 @@ def check_detector_state():
         raise SystemExit('To force a restart, rerun with the --force option')
 
 
-def kill(cfgDir, logger, args):
-    comps = ComponentManager.getActiveComponents(args.clusterDesc,
+def kill(cfgDir, logger, args=None, clusterDesc=None, validation=False,
+         serverKill=False):
+    if args is not None:
+        if clusterDesc is not None or validation is not None or \
+           serverKill is not None:
+            errmsg = "DAQLaunch.kill() called with 'args' and" + \
+                     " values for individual parameters"
+            if logger is not None:
+                logger.error(errmsg)
+            else:
+                print >> sys.stderr, errmsg
+        clusterDesc = args.clusterDesc
+        validation = args.validation
+        serverKill = args.serverKill
+
+    comps = ComponentManager.getActiveComponents(clusterDesc,
                                                  configDir=cfgDir,
-                                                 validate=args.validation,
-                                                 useCnC=args.serverKill,
+                                                 validate=validation,
+                                                 useCnC=serverKill,
                                                  logger=logger)
 
     if comps is not None:
@@ -138,12 +152,32 @@ def kill(cfgDir, logger, args):
             " any orphaned data"
 
 
-def launch(cfgDir, dashDir, logger, args):
-    try:
+def launch(cfgDir, dashDir, logger, args=args, clusterDesc=None,
+           configName=None, validate=False, verbose=False, dryRun=False,
+           eventCheck=False, forceRestart=Dalse):
+    if args is not None:
+        if clusterDesc is not None or configName is not None or \
+           validate is not None or verbose is not None or \
+           dryRun is not None or eventCheck is not None or \
+           forceRestart is not None:
+            errmsg = "DAQLaunch.launch() called with 'args' and" + \
+                     " values for individual parameters"
+            if logger is not None:
+                logger.error(errmsg)
+            else:
+                print >> sys.stderr, errmsg
+
         cluDesc = args.clusterDesc
+        cfgName = args.configName
         validate = args.validation
+        verbose = args.verbose
+        dryRun = args.dryRun
+        eventCheck = args.eventCheck
+        forceRestart = args.forceRestart
+
+    try:
         clusterConfig = \
-            DAQConfigParser.getClusterConfiguration(args.configName,
+            DAQConfigParser.getClusterConfiguration(cfgName,
                                                     useActiveConfig=False,
                                                     clusterDesc=cluDesc,
                                                     configDir=cfgDir,
@@ -152,7 +186,7 @@ def launch(cfgDir, dashDir, logger, args):
         print >> sys.stderr, "DAQ Config exception:\n\t%s" % e
         raise SystemExit
 
-    if args.verbose:
+    if verbose:
         print "Version: %(filename)s %(revision)s %(date)s %(time)s " \
             "%(author)s %(release)s %(repo_rev)s" % \
             get_version_info(SVN_ID)
@@ -187,12 +221,11 @@ def launch(cfgDir, dashDir, logger, args):
     logPort = None
     livePort = DAQPort.I3LIVE_ZMQ
 
-    ComponentManager.launch(doCnC, args.dryRun, args.verbose, clusterConfig,
-                            dashDir, cfgDir, daqDataDir, logDir,
-                            logDirFallback, spadeDir, copyDir, logPort,
-                            livePort, eventCheck=args.eventCheck,
-                            checkExists=True, startMissing=True,
-                            forceRestart=args.forceRestart,
+    ComponentManager.launch(doCnC, dryRun, verbose, clusterConfig, dashDir,
+                            cfgDir, daqDataDir, logDir, logDirFallback,
+                            spadeDir, copyDir, logPort, livePort,
+                            eventCheck=eventCheck, checkExists=True,
+                            startMissing=True, forceRestart=forceRestart,
                             logger=logger)
 
 
@@ -243,7 +276,7 @@ if __name__ == "__main__":
     logger = ConsoleLogger()
 
     if not args.skipKill:
-        kill(cfgDir, logger, args)
+        kill(cfgDir, logger, args=args)
 
     if not args.killOnly:
-        launch(cfgDir, dashDir, logger, args)
+        launch(cfgDir, dashDir, logger, args=args)

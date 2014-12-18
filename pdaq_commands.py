@@ -154,7 +154,7 @@ class CmdKill(BaseCmd):
 
         args.clusterDesc = None
 
-        kill(cfgDir, logger, args)
+        kill(cfgDir, logger, args=args)
 
 
 class CmdLaunch(BaseCmd):
@@ -191,9 +191,9 @@ class CmdLaunch(BaseCmd):
         logger = ConsoleLogger()
 
         if not args.skipKill:
-            kill(cfgDir, logger, args)
+            kill(cfgDir, logger, args=args)
 
-        launch(cfgDir, dashDir, logger, args)
+        launch(cfgDir, dashDir, logger, args=args)
 
 class CmdRun(BaseCmd):
     @classmethod
