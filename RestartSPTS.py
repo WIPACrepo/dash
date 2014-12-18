@@ -10,6 +10,9 @@ import re
 import subprocess
 import time
 
+from locate_pdaq import find_pdaq_config, find_pdaq_trunk
+from DAQLaunch import ConsoleLogger, check_detector_state, \
+    check_running_on_expcont, kill, launch
 
 # location of SPTS restart configuration file
 CONFIG_FILE = os.path.join(os.environ["HOME"], ".spts_restart_config")
@@ -188,19 +191,23 @@ def isSPTSActive(timeout_minutes, dbName="I3OmDb_test", verbose=False):
         cursor.close()
 
 
-def launch(run_config, verbose=False):
+def launchSPTS(run_config, verbose=False):
     """Launch the run configuration"""
 
-    launch = os.path.join(os.environ["HOME"], "pDAQ_current", "dash",
-                          "DAQLaunch.py")
     if run_config is None:
         raise SystemExit("No run configuration specified")
 
-    if verbose:
-        print "Launching %s" % str(run_config)
-    rtn = subprocess.call([launch, "-c", run_config])
-    if rtn != 0:
-        raise SystemExit("Failed to launch " + run_config)
+    check_running_on_expcont("RestartSPTS")
+    check_detector_state()
+
+    metaDir = find_pdaq_trunk()
+    dashDir = os.path.join(metaDir, "dash")
+    cfgDir = find_pdaq_config()
+
+    logger = ConsoleLogger()
+
+    kill(cfgDir, logger)
+    launch(cfgDir, dashDir, logger, configName=str(run_config))
 
 
 def minuteDiff(now, then):
