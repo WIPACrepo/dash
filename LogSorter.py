@@ -493,4 +493,4 @@ if __name__ == "__main__":
     add_arguments(p)
     args = p.parse_args()
 
-    sort_logs(p, args)
+    sort_logs(args)
