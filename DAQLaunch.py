@@ -24,7 +24,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 15305 2014-12-18 23:04:08Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 15324 2014-12-22 20:49:38Z dglo $"
 
 
 class ConsoleLogger(object):
@@ -152,9 +152,9 @@ def kill(cfgDir, logger, args=None, clusterDesc=None, validation=False,
             " any orphaned data"
 
 
-def launch(cfgDir, dashDir, logger, args=args, clusterDesc=None,
+def launch(cfgDir, dashDir, logger, args=None, clusterDesc=None,
            configName=None, validate=False, verbose=False, dryRun=False,
-           eventCheck=False, forceRestart=Dalse):
+           eventCheck=False, forceRestart=False):
     if args is not None:
         if clusterDesc is not None or configName is not None or \
            validate is not None or verbose is not None or \
