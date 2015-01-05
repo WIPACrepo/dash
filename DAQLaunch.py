@@ -24,7 +24,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import get_version_info
 
-SVN_ID = "$Id: DAQLaunch.py 15324 2014-12-22 20:49:38Z dglo $"
+SVN_ID = "$Id: DAQLaunch.py 15329 2015-01-05 16:12:11Z dglo $"
 
 
 class ConsoleLogger(object):
@@ -120,11 +120,14 @@ def check_detector_state():
         raise SystemExit('To force a restart, rerun with the --force option')
 
 
-def kill(cfgDir, logger, args=None, clusterDesc=None, validation=False,
-         serverKill=False):
+def kill(cfgDir, logger, args=None, clusterDesc=None, validation=None,
+         serverKill=None, verbose=None, dryRun=None, killWith9=None,
+         force=None):
     if args is not None:
         if clusterDesc is not None or validation is not None or \
-           serverKill is not None:
+           serverKill is not None or verbose is not None or \
+           dryRun is not None or killWith9 is not None or \
+           force is not None:
             errmsg = "DAQLaunch.kill() called with 'args' and" + \
                      " values for individual parameters"
             if logger is not None:
@@ -134,6 +137,10 @@ def kill(cfgDir, logger, args=None, clusterDesc=None, validation=False,
         clusterDesc = args.clusterDesc
         validation = args.validation
         serverKill = args.serverKill
+        verbose = args.verbose
+        dryRun = args.dryRun
+        killWith9 = args.killWith9
+        force = args.force
 
     comps = ComponentManager.getActiveComponents(clusterDesc,
                                                  configDir=cfgDir,
@@ -142,19 +149,20 @@ def kill(cfgDir, logger, args=None, clusterDesc=None, validation=False,
                                                  logger=logger)
 
     if comps is not None:
-        doCnC = True
+        killCnC = True
 
-        ComponentManager.kill(comps, args.verbose, args.dryRun, doCnC,
-                              args.killWith9, logger=logger)
+        ComponentManager.kill(comps, verbose=verbose, dryRun=dryRun,
+                              killCnC=killCnC, killWith9=killWith9,
+                              logger=logger)
 
-    if args.force:
+    if force:
         print >> sys.stderr, "Remember to run SpadeQueue.py to recover" + \
             " any orphaned data"
 
 
 def launch(cfgDir, dashDir, logger, args=None, clusterDesc=None,
-           configName=None, validate=False, verbose=False, dryRun=False,
-           eventCheck=False, forceRestart=False):
+           configName=None, validate=None, verbose=None, dryRun=None,
+           eventCheck=None, forceRestart=None):
     if args is not None:
         if clusterDesc is not None or configName is not None or \
            validate is not None or verbose is not None or \
@@ -167,8 +175,8 @@ def launch(cfgDir, dashDir, logger, args=None, clusterDesc=None,
             else:
                 print >> sys.stderr, errmsg
 
-        cluDesc = args.clusterDesc
-        cfgName = args.configName
+        clusterDesc = args.clusterDesc
+        configName = args.configName
         validate = args.validation
         verbose = args.verbose
         dryRun = args.dryRun
@@ -177,9 +185,9 @@ def launch(cfgDir, dashDir, logger, args=None, clusterDesc=None,
 
     try:
         clusterConfig = \
-            DAQConfigParser.getClusterConfiguration(cfgName,
+            DAQConfigParser.getClusterConfiguration(configName,
                                                     useActiveConfig=False,
-                                                    clusterDesc=cluDesc,
+                                                    clusterDesc=clusterDesc,
                                                     configDir=cfgDir,
                                                     validate=validate)
     except DAQConfigException as e:

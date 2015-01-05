@@ -299,7 +299,7 @@ def startRuns(numStopless=None, verbose=False):
     if not readConfig(CONFIG_FILE, config):
         raise SystemExit("Failed to read %s" % CONFIG_FILE)
 
-    launch(config[RUN_CONFIG_NAME], verbose=verbose)
+    launchSPTS(config[RUN_CONFIG_NAME], verbose=verbose)
 
     # wait a bit for the launch to finish
     time.sleep(5)
