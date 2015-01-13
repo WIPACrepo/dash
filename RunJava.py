@@ -17,13 +17,16 @@ def add_arguments(parser):
     parser.add_argument("-D", "--repo-dir", dest="repoDir",
                         help="Local Maven repository cache")
     parser.add_argument("-d", "--daq-dependency", dest="daqDeps",
-                        action="append",
+                        action="append", default=[],
                         help="DAQ project dependency")
     parser.add_argument("-m", "--maven-dependency", dest="mavenDeps",
-                        action="append",
+                        action="append", default=[],
                         help="Maven jar dependency")
     parser.add_argument("-r", "--daq-release", dest="daqRelease",
                         help="DAQ Maven release")
+    parser.add_argument("-X", "--extra-java", dest="extraJava",
+                        action="append", default=[],
+                        help="Extra Java arguments")
 
     parser.add_argument(dest="app",
                         help="Fully qualified Java application class")
@@ -35,52 +38,49 @@ def buildJarName(name, vers):
     return name + "-" + vers + ".jar"
 
 
+def findDAQJar(proj, daqRelease):
+    jarname = buildJarName(proj, daqRelease)
+
+    # check foo/target/foo-X.Y.Z.jar (if we're in top-level project dir)
+    projjar = os.path.join(proj, "target", jarname)
+    if os.path.exists(projjar):
+        return projjar
+
+    # check ../foo/target/foo-X.Y.Z.jar (in case we're in a project subdir)
+    tmpjar = os.path.join("..", projjar)
+    if os.path.exists(tmpjar):
+        return tmpjar
+
+    # check $PDAQHOME/foo/target/foo-X.Y.Z.jar
+    if pdaqHome is not None:
+        tmpjar = os.path.join(pdaqHome, projjar)
+        if os.path.exists(tmpjar):
+            return tmpjar
+
+    if distDir is not None:
+        # check $PDAQHOME/target/pDAQ-X.Y.Z-dist/lib/foo-X.Y.Z.jar
+        tmpjar = os.path.join(distDir, jarname)
+        if os.path.exists(tmpjar):
+            return tmpjar
+
+    if repoDir is not None:
+        # check ~/.m2/repository/edu/wisc/icecube/foo/X.Y.Z/foo-X.Y.Z.jar
+        tmpjar = os.path.join(repoDir, "edu/wisc/icecube", proj, daqRelease,
+                              jarname)
+        if os.path.exists(tmpjar):
+            return tmpjar
+
+    raise SystemExit("Cannot find %s jar file %s" % (proj, jarname))
+
 def findDAQJars(daqDeps, daqRelease, pdaqHome, distDir, repoDir):
     """
     Find pDAQ jar files in all likely places, starting with the current
     project directory
     """
-    daqRepoSubdir = "edu/wisc/icecube"
-
     jars = []
-    for proj in daqDeps:
-        jarname = buildJarName(proj, daqRelease)
-
-        # check foo/target/foo-X.Y.Z.jar (if we're in top-level project dir)
-        projjar = os.path.join(proj, "target", jarname)
-        if os.path.exists(projjar):
-            jars.append(projjar)
-            continue
-
-        # check ../foo/target/foo-X.Y.Z.jar (in case we're in a project subdir)
-        tmpjar = os.path.join("..", projjar)
-        if os.path.exists(tmpjar):
-            jars.append(tmpjar)
-            continue
-
-        # check $PDAQHOME/foo/target/foo-X.Y.Z.jar
-        if pdaqHome is not None:
-            tmpjar = os.path.join(pdaqHome, projjar)
-            if os.path.exists(tmpjar):
-                jars.append(tmpjar)
-                continue
-
-        if distDir is not None:
-            # check $PDAQHOME/target/pDAQ-X.Y.Z-dist/lib/foo-X.Y.Z.jar
-            tmpjar = os.path.join(distDir, jarname)
-            if os.path.exists(tmpjar):
-                jars.append(tmpjar)
-                continue
-
-        if repoDir is not None:
-            # check ~/.m2/repository/edu/wisc/icecube/foo/X.Y.Z/foo-X.Y.Z.jar
-            tmpjar = os.path.join(repoDir, daqRepoSubdir, proj, daqRelease,
-                                  jarname)
-            if os.path.exists(tmpjar):
-                jars.append(tmpjar)
-                continue
-
-        raise SystemExit("Cannot find %s jar file %s" % (proj, jarname))
+    if daqDeps is not None:
+        for proj in daqDeps:
+            jars.append(findDAQJar(proj, daqRelease))
 
     return jars
 
@@ -136,10 +136,11 @@ def findMavenJars(mavenJars, repoDir, distDir):
     pDAQ distribution directory
     """
     jars = []
-    for tup in mavenJars:
-        (proj, name, vers) = tup
+    if mavenJars is not None:
+        for tup in mavenJars:
+            (proj, name, vers) = tup
 
-        jars.append(findRepoJar(repoDir, distDir, proj, name, vers))
+            jars.append(findRepoJar(repoDir, distDir, proj, name, vers))
 
     return jars
 
@@ -211,5 +212,8 @@ if __name__ == "__main__":
 
         mavenDeps.append(jtup)
 
-    runJava(args.app, None, args.extra, args.daqDeps, mavenDeps,
+    # fix any extra java arguments
+    for i in range(len(args.extraJava)):
+        args.extraJava[i] = "-X" + args.extraJava[i]
+    runJava(args.app, args.extraJava, args.extra, args.daqDeps, mavenDeps,
             daqRelease=args.daqRelease, repoDir=args.repoDir)
