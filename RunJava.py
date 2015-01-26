@@ -38,7 +38,7 @@ def buildJarName(name, vers):
     return name + "-" + vers + ".jar"
 
 
-def findDAQJar(proj, daqRelease):
+def findDAQJar(proj, daqRelease, pdaqHome, distDir, repoDir):
     jarname = buildJarName(proj, daqRelease)
 
     # check foo/target/foo-X.Y.Z.jar (if we're in top-level project dir)
@@ -80,7 +80,8 @@ def findDAQJars(daqDeps, daqRelease, pdaqHome, distDir, repoDir):
     jars = []
     if daqDeps is not None:
         for proj in daqDeps:
-            jars.append(findDAQJar(proj, daqRelease))
+            jars.append(findDAQJar(proj, daqRelease, pdaqHome, distDir,
+                                   repoDir))
 
     return jars
 
@@ -92,22 +93,24 @@ def findRepoJar(repoDir, distDir, proj, name, vers):
     """
     jarname = buildJarName(name, vers)
 
-    projdir = os.path.join(repoDir, proj, name)
-    if os.path.exists(projdir):
-        tmpjar = os.path.join(projdir, vers, jarname)
-        if os.path.exists(tmpjar):
-            return tmpjar
+    if repoDir is not None:
+        projdir = os.path.join(repoDir, proj, name)
+        if os.path.exists(projdir):
+            tmpjar = os.path.join(projdir, vers, jarname)
+            if os.path.exists(tmpjar):
+                return tmpjar
 
-        overs = LooseVersion(vers)
-        for entry in os.listdir(projdir):
-            nvers = LooseVersion(entry)
-            if overs < nvers:
-                tmpjar = os.path.join(projdir, entry, buildJarName(name, entry))
-                if os.path.exists(tmpjar):
-                    import sys
-                    print >>sys.stderr, "WARNING: Using %s version %s" \
-                        " instead of requested %s" % (name, entry, vers)
-                    return tmpjar
+            overs = LooseVersion(vers)
+            for entry in os.listdir(projdir):
+                nvers = LooseVersion(entry)
+                if overs < nvers:
+                    tmpjar = os.path.join(projdir, entry,
+                                           buildJarName(name, entry))
+                    if os.path.exists(tmpjar):
+                        import sys
+                        print >>sys.stderr, "WARNING: Using %s version %s" \
+                            " instead of requested %s" % (name, entry, vers)
+                        return tmpjar
 
     if distDir is not None:
         tmpjar = os.path.join(distDir, jarname)
@@ -123,6 +126,7 @@ def findRepoJar(repoDir, distDir, proj, name, vers):
                     vstr = entry[len(namedash):jarext]
                     nvers = LooseVersion(vstr)
                     if overs <= nvers:
+                        import sys
                         print >>sys.stderr, "WARNING: Using %s version %s" \
                             " instead of requested %s" % (name, vstr, vers)
                         return os.path.join(distDir, entry)
@@ -155,9 +159,9 @@ def runJava(app, javaArgs, appArgs, daqDeps, mavenDeps, daqRelease=None,
         daqRelease = "1.0.0-SNAPSHOT"
 
     if repoDir is None:
-        repoDir = os.path.join(os.environ["HOME"], ".m2", "repository")
-        if not os.path.exists(repoDir):
-            raise SystemExit("Cannot find Maven repository directory")
+        tmpDir = os.path.join(os.environ["HOME"], ".m2", "repository")
+        if os.path.exists(tmpDir):
+            repoDir = tmpDir
 
     pdaqHome = None
     distDir = None
@@ -166,7 +170,7 @@ def runJava(app, javaArgs, appArgs, daqDeps, mavenDeps, daqRelease=None,
         pdaqHome = os.environ["PDAQ_HOME"]
 
         tmpDir = os.path.join(pdaqHome, "target",
-                              "pDAQ" + daqRelease + "-dist", "lib")
+                              "pDAQ-" + daqRelease + "-dist", "lib")
         if os.path.exists(tmpDir):
             distDir = tmpDir
 
