@@ -279,16 +279,23 @@ class SecondaryBuildersLog(BaseLog):
 
 
 class StringHubLog(BaseLog):
-    def __init__(self, fileName, show_tcal=False, hide_sn_gaps=False):
+    def __init__(self, fileName, show_tcal=False, hide_sn_gaps=False,
+                 show_lbmdebug = False):
         super(StringHubLog, self).__init__(fileName)
 
         self.__showTCAL = show_tcal
         self.__hideSNGaps = hide_sn_gaps
+        self.__showLBMDebug = show_lbmdebug
 
     def _isNoise(self, lobj):
         if not self.__showTCAL and \
             (lobj.text().startswith("Wild TCAL") or
              lobj.text().find("Got IO exception") >= 0):
+            return True
+
+        if not self.__showLBMDebug and \
+            (lobj.text().startswith("HISTORY:") or
+             lobj.text().find("data collection stats") >= 0):
             return True
 
         if self.__hideSNGaps and \
@@ -317,7 +324,8 @@ class LogSorter(object):
         self.__runNum = runNum
 
     def __processDir(self, dirName, verbose=False, show_tcal=False,
-                     hide_rates=False, hide_sn_gaps=False):
+                     hide_rates=False, hide_sn_gaps=False,
+                     show_lbmdebug=False):
         log = None
         for f in os.listdir(dirName):
             # ignore MBean output files and run summary files
@@ -332,7 +340,8 @@ class LogSorter(object):
             flog = self.__processFile(path, verbose=verbose,
                                       show_tcal=show_tcal,
                                       hide_rates=hide_rates,
-                                      hide_sn_gaps=hide_sn_gaps)
+                                      hide_sn_gaps=hide_sn_gaps,
+                                      show_lbmdebug=show_lbmdebug)
             if flog is not None:
                 if log is None:
                     log = flog
@@ -342,7 +351,8 @@ class LogSorter(object):
         return log
 
     def __processFile(self, path, verbose=False, show_tcal=False,
-                      hide_rates=False, hide_sn_gaps=False):
+                      hide_rates=False, hide_sn_gaps=False,
+                      show_lbmdebug=False):
         fileName = os.path.basename(path)
 
         log = None
@@ -350,7 +360,8 @@ class LogSorter(object):
             return [BadLine("Ignoring \"%s\"" % path), ]
         elif fileName.startswith("stringHub-"):
             log = StringHubLog(fileName, show_tcal=show_tcal,
-                               hide_sn_gaps=hide_sn_gaps)
+                               hide_sn_gaps=hide_sn_gaps,
+                               show_lbmdebug=show_lbmdebug)
         elif fileName.startswith("inIceTrigger-") or \
                 fileName.startswith("iceTopTrigger-"):
             log = LocalTriggerLog(fileName)
@@ -376,7 +387,7 @@ class LogSorter(object):
         return log.parse(path, verbose)
 
     def dumpRun(self, out, verbose=False, show_tcal=False, hide_rates=False,
-                hide_sn_gaps=False):
+                hide_sn_gaps=False, show_lbmdebug=False):
         try:
             runXML = DashXMLLog.parse(self.__runDir)
         except:
@@ -407,7 +418,8 @@ class LogSorter(object):
                 (runXML.getStartTime(), runXML.getEndTime())
         log = self.__processDir(self.__runDir, verbose=verbose,
                                 show_tcal=show_tcal, hide_rates=hide_rates,
-                                hide_sn_gaps=hide_sn_gaps)
+                                hide_sn_gaps=hide_sn_gaps,
+                                show_lbmdebug=show_lbmdebug)
         log.sort()
         for l in log:
             print >>out, str(l)
@@ -418,6 +430,9 @@ def add_arguments(parser):
     parser.add_argument("-d", "--rundir", dest="rundir",
                         help=("Directory holding pDAQ run monitoring"
                               " and log files"))
+    parser.add_argument("-l", "--show-lbm-debug", dest="show_lbmdebug",
+                        action="store_true", default=False,
+                        help="Show StringHub LBM debugging messages")
     parser.add_argument("-r", "--hide-rates", dest="hide_rates",
                         action="store_true", default=False,
                         help="Hide pDAQ event rate lines")
@@ -483,7 +498,8 @@ def sort_logs(args):
 
         ls = LogSorter(path, runnum)
         ls.dumpRun(sys.stdout, verbose=args.verbose, show_tcal=args.show_tcal,
-                   hide_rates=args.hide_rates, hide_sn_gaps=args.hide_sn_gaps)
+                   hide_rates=args.hide_rates, hide_sn_gaps=args.hide_sn_gaps,
+                   show_lbmdebug=args.show_lbmdebug)
 
 
 if __name__ == "__main__":
