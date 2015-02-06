@@ -115,6 +115,9 @@ class MockComponent(object):
     def getBeanNames(self):
         return self.__beanData.keys()
 
+    def getMoniCounts(self):
+        return None
+
     def getMultiBeanFields(self, beanName, fieldList):
         if not beanName in self.__beanData:
             raise ValueError("Unknown %s bean \"%s\"" % (str(self), beanName))
