@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import re
 import unittest
 from DAQConfig import DAQConfigParser
 from RunCluster import RunCluster, RunClusterError
@@ -244,8 +245,33 @@ class RunClusterTest(unittest.TestCase):
 
         return hubnum
 
-    def testDeployReplay(self):
-        cfgName = 'replay-test'
+    @classmethod
+    def __addHubsFromRunConfig(cls, nodes, filename):
+        # NOTE: only a fool parses XML code with regexps!
+        HIT_PAT = re.compile(r'^\s*<hits hub="(\d+)" host="(\S+)"\s*/>\s*$')
+
+        path = os.path.join(cls.CONFIG_DIR, filename)
+        if not path.endswith(".xml"):
+            path += ".xml"
+
+        found = False
+        with open(path, "r") as fd:
+            for line in fd:
+                m = HIT_PAT.match(line)
+                if m is None:
+                    continue
+
+                hubnum = int(m.group(1))
+                host = m.group(2)
+
+                nodes.append(DeployData(host, 'replayHub', hubnum))
+                found = True
+
+        if not found:
+            raise Exception("Didn't find any replayHub entries in %s" % path)
+
+    def testDeployOldReplay(self):
+        cfgName = 'replay-oldtest'
         expNodes = [DeployData('trigger', 'iceTopTrigger'),
                     DeployData('trigger', 'iniceTrigger'),
                     DeployData('trigger', 'globalTrigger'),
@@ -263,6 +289,26 @@ class RunClusterTest(unittest.TestCase):
         hubnum = self.__addHubs(expNodes, 'ittest2', 7, hubnum)
         for h in ('fpslave05', 'ittest1'):
             hubnum = self.__addHubs(expNodes, h, 3, hubnum)
+
+        daqLogDir = "/mnt/data/pdaq/log"
+        daqDataDir = "/mnt/data/pdaqlocal"
+        spadeDir = "/mnt/data/pdaq/spade/runs"
+        logCopyDir = None
+
+        self.__checkCluster("replay", cfgName, expNodes, spadeDir, logCopyDir,
+                            daqLogDir, daqDataDir)
+
+    def testDeployReplay(self):
+        cfgName = 'replay-test'
+        expNodes = [DeployData('trigger', 'iceTopTrigger'),
+                    DeployData('trigger', 'iniceTrigger'),
+                    DeployData('trigger', 'globalTrigger'),
+                    DeployData('evbuilder', 'eventBuilder'),
+                    DeployData('expcont', 'CnCServer'),
+                    DeployData('2ndbuild', 'SecondaryBuilders'),
+                    ]
+
+        self.__addHubsFromRunConfig(expNodes, cfgName)
 
         daqLogDir = "/mnt/data/pdaq/log"
         daqDataDir = "/mnt/data/pdaqlocal"

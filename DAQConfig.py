@@ -2,14 +2,11 @@
 
 import os
 import sys
-from xml_dict import xml_dict
-from xml_dict import get_value
-from xml_dict import get_attrib
 
 from DefaultDomGeometry import BadFileError, DefaultDomGeometryReader, \
     ProcessError
 from locate_pdaq import find_pdaq_config
-
+from xml_dict import get_attrib, get_value, xml_dict
 from utils.Machineid import Machineid
 from config.validate_configs import validate_configs
 from RunCluster import RunCluster
@@ -94,11 +91,19 @@ class StringHub(Component):
 class ReplayHub(Component):
     "Replay hub data from a run configuration file"
 
-    def __init__(self, xdict, base_dir):
+    def __init__(self, xdict, base_dir, old_style):
         self.base_dir = base_dir
         self.xdict = xdict
-        self.hitFile = get_attrib(xdict, 'source')
         hub_id = int(get_attrib(xdict, 'hub'))
+        if not old_style:
+            self.host = get_attrib(xdict, 'host')
+            if hub_id < 200:
+                self.hitFile = "ichub%02d" % hub_id
+            else:
+                self.hitFile = "ithub%02d" % (hub_id - 200)
+        else:
+            self.host = None
+            self.hitFile = get_attrib(xdict, 'source')
 
         super(ReplayHub, self).__init__("replayHub", hub_id)
 
@@ -441,17 +446,18 @@ class DAQConfig(ConfigObject):
         """added to match the signature of the old code"""
         return self.filename
 
-    def addComponent(self, compName, strict):
+    def addComponent(self, compName, strict, host=None):
         """Add a component name"""
         pound = compName.rfind("#")
         if pound < 0:
-            self.__comps.append(Component(compName, 0))
+            self.__comps.append(Component(compName, 0, host=host))
         elif strict:
             raise BadComponentName("Found \"#\" in component name \"%s\"" %
                                    compName)
         else:
             self.__comps.append(Component(compName[:pound],
-                                          int(compName[pound + 1:])))
+                                          int(compName[pound + 1:]),
+                                          host=host))
 
     def components(self):
         objs = self.__comps[:]
@@ -651,12 +657,25 @@ class DAQConfig(ConfigObject):
                 # found a replay hub
                 self.replay_hubs = []
                 for replay_hub in val:
+                    old_style = False
                     try:
-                        base_dir = get_attrib(replay_hub, 'baseDir')
+                        # get replay attributes
+                        base_dir = get_attrib(replay_hub, 'dir')
+                    except AttributeError:
+                        try:
+                            # get old-style replay attributes
+                            base_dir = get_attrib(replay_hub, 'baseDir')
+                            old_style = True
+                        except:
+                            # must not be a replay entry
+                            print "Ignoring " + str(replay_hub)
+                            continue
+                    try:
                         for rhub_dict in replay_hub['__children__']['hits']:
-                            rh_obj = ReplayHub(rhub_dict, base_dir)
+                            rh_obj = ReplayHub(rhub_dict, base_dir, old_style)
                             self.replay_hubs.append(rh_obj)
-                            self.addComponent(rh_obj.fullName(), False)
+                            self.addComponent(rh_obj.fullName(), False,
+                                              host=rh_obj.host)
                     except KeyError:
                         # missing keys..
                         pass

@@ -18,10 +18,10 @@ class RunComponent(Component):
     def __init__(self, name, id, logLevel, jvm, jvmArgs, host, isServer):
         self.__jvm = jvm
         self.__jvmArgs = jvmArgs
-        self.__host = host
         self.__isServer = isServer
 
-        super(RunComponent, self).__init__(name, id, logLevel)
+        super(RunComponent, self).__init__(name, id, logLevel=logLevel,
+                                           host=host)
 
     def __str__(self):
         nStr = self.fullName()
@@ -39,15 +39,8 @@ class RunComponent(Component):
 
         return "%s@%s(%s)" % (nStr, str(self.logLevel()), jStr)
 
-    def host(self):
-        return self.__host
-
     def isControlServer(self):
         return self.__isServer
-
-    def isLocalhost(self):
-        return self.__host is not None and \
-            (self.__host == "localhost" or self.__host == "127.0.0.1")
 
     def jvm(self):
         return self.__jvm
@@ -144,7 +137,9 @@ class RunCluster(CachedConfigName):
         if len(hubList) > 0:
             cls.__addRealHubs(clusterDesc, hubList, hostMap)
             if len(hubList) > 0:
-                cls.__addSimHubs(clusterDesc, hubList, hostMap)
+                cls.__addReplayHubs(clusterDesc, hubList, hostMap)
+                if len(hubList) > 0:
+                    cls.__addSimHubs(clusterDesc, hubList, hostMap)
 
         return cls.__convertToNodes(clusterDesc, hostMap)
 
@@ -174,6 +169,30 @@ class RunCluster(CachedConfigName):
                     cls.__addComponent(hostMap, host, comp)
                     del hubList[h]
                     break
+
+    @classmethod
+    def __addReplayHubs(cls, clusterDesc, hubList, hostMap):
+        "Add replay hubs with locations hard-coded in the run config to hostMap"
+
+        logLevel = clusterDesc.defaultLogLevel("StringHub")
+        jvm = clusterDesc.defaultJVM("StringHub")
+        jvmArgs = clusterDesc.defaultJVMArgs("StringHub")
+
+        i = 0
+        while i < len(hubList):
+            hub = hubList[i]
+            if hub.host() is None:
+                i += 1
+                continue
+
+            if hub.logLevel() is not None:
+                lvl = hub.logLevel()
+            else:
+                lvl = logLevel
+            comp = RunComponent(hub.name(), hub.id(), lvl, jvm,
+                                jvmArgs, hub.host(), False)
+            cls.__addComponent(hostMap, hub.host(), comp)
+            del hubList[i]
 
     @classmethod
     def __addRequired(cls, clusterDesc, hostMap):

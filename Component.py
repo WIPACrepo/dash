@@ -2,10 +2,11 @@
 
 
 class Component(object):
-    def __init__(self, name, id, logLevel=None):
+    def __init__(self, name, id, logLevel=None, host=None):
         self.__name = name
         self.__id = id
         self.__logLevel = logLevel
+        self.__host = host
 
     def __cmp__(self, other):
         val = cmp(self.__name, other.__name)
@@ -25,6 +26,9 @@ class Component(object):
             return self.__name
         return "%s#%d" % (self.__name, self.__id)
 
+    def host(self):
+        return self.__host
+
     def id(self):
         return self.__id
 
@@ -35,6 +39,10 @@ class Component(object):
     def isHub(self):
         "Is this a stringHub component?"
         return self.__name.lower().find("hub") >= 0
+
+    def isLocalhost(self):
+        return self.__host is not None and \
+            (self.__host == "localhost" or self.__host == "127.0.0.1")
 
     def isRealHub(self):
         "Is this a stringHub component running at the South Pole?"

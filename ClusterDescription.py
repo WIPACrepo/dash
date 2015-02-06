@@ -122,7 +122,7 @@ class ConfigXMLBase(object):
 
 class ControlComponent(Component):
     def __init__(self):
-        super(ControlComponent, self).__init__("CnCServer", 0, None)
+        super(ControlComponent, self).__init__("CnCServer", 0)
 
     def __str__(self):
         return self.name()
@@ -149,7 +149,7 @@ class ClusterComponent(Component):
         self.__jvmArgs = jvmArgs
         self.__required = required
 
-        super(ClusterComponent, self).__init__(name, num, logLevel)
+        super(ClusterComponent, self).__init__(name, num, logLevel=logLevel)
 
     def __str__(self):
         if self.__jvm is None:
