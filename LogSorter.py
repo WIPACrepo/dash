@@ -379,7 +379,8 @@ class LogSorter(object):
             log = ReplayHubLog(fileName)
         elif fileName.startswith("dash"):
             log = DashLog(fileName, hide_rates=hide_rates)
-        elif fileName.startswith("combined"):
+        elif fileName.startswith("combined") or \
+                fileName.startswith(".combined"):
             return None
         else:
             return [BadLine("Unknown log file \"%s\"" % path), ]
