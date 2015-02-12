@@ -581,7 +581,7 @@ class LiveRun(BaseRun):
             else:
                 time.sleep(secs)
         else:
-            cmd = "%s flasher -d %d -f %s" % (self.__liveCmdProg,
+            cmd = "%s flasher -d %ds -f %s" % (self.__liveCmdProg,
                                               secs, dataPath)
             self.logCmd(cmd)
 
@@ -752,7 +752,7 @@ class LiveRun(BaseRun):
         if filterMode is not None:
             args += " -p %s" % filterMode
 
-        cmd = "%s start -d %s -n %d -l %d %s daq" % \
+        cmd = "%s start -c %s -n %d -l %ds %s daq" % \
             (self.__liveCmdProg, runCfg, numRuns, duration, args)
         if not self.__runBasicCommand("StartRun", cmd):
             return False
