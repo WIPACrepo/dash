@@ -16,7 +16,7 @@ from locate_pdaq import find_pdaq_config, find_pdaq_trunk
 from utils.Machineid import Machineid
 
 # pdaq subdirectories to be deployed
-SUBDIRS = ("target", "config", "dash", "schema", "src")
+SUBDIRS = ("target", "config", "dash", "schema", "src", "PyDOM")
 
 # Defaults for a few args
 NICE_ADJ_DEFAULT = 19
@@ -28,7 +28,7 @@ metaDir = find_pdaq_trunk()
 sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
 from SVNVersionInfo import store_svnversion
 
-SVN_ID = "$Id: DeployPDAQ.py 15170 2014-10-06 21:43:32Z dglo $"
+SVN_ID = "$Id: DeployPDAQ.py 15414 2015-02-13 21:59:27Z dglo $"
 
 
 def add_arguments(parser, config_as_arg=True):
