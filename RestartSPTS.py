@@ -22,12 +22,12 @@ PAUSED_FILE = os.path.join(os.environ["HOME"], ".paused")
 # default run configuration
 RUN_CONFIG_NAME = "run_config"
 RUN_CONFIG_FLAG = "-d"
-RUN_CONFIG_VALUE = "spts64-dirtydozen-hlc-006"
+RUN_CONFIG_VALUE = "replay-125659-local"
 
 # default duration
 DURATION_NAME = "duration"
 DURATION_FLAG = "-l"
-DURATION_VALUE = "8h"
+DURATION_VALUE = "160m"
 
 # default number of runs (None == use livecmd default)
 NUM_RUNS_NAME = "num_runs"
@@ -37,7 +37,7 @@ NUM_RUNS_VALUE = None
 # default number of stopless runs
 NUM_STOPLESS_NAME = "num_stopless"
 NUM_STOPLESS_FLAG = None
-NUM_STOPLESS_VALUE = None
+NUM_STOPLESS_VALUE = 3
 
 # map names to livecmd flags
 CONFIG_DATA = {
@@ -308,7 +308,7 @@ def startRuns(numStopless=None, verbose=False):
     args = ["livecmd", "start", "daq", ]
     for k, v in config.iteritems():
         if k == DURATION_NAME:
-            v = getDurationFromString(v)
+            v = "%ds" % getDurationFromString(v)
         if CONFIG_DATA[k]["flag"] is not None and v is not None:
             args.append(CONFIG_DATA[k]["flag"])
             args.append(str(v))
