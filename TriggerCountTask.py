@@ -61,6 +61,7 @@ class TriggerCountThread(CnCThread):
     def _run(self):
         cntDicts = None
         for c in self.__runset.components():
+            # the global trigger supplies the rate data for all triggers
             if not c.name().lower().startswith("globaltrigger"):
                 continue
 
