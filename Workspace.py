@@ -44,27 +44,32 @@ def workspace(args):
         return
 
     # make sure the target directory exists
+    target = args.directory
     try:
-        tstat = os.lstat(args.directory)
+        tstat = os.lstat(target)
     except OSError:
-        raise SystemExit("%s does not exist" % args.directory)
+        target = os.path.join(home, args.directory)
+        try:
+            tstat = os.lstat(target)
+        except OSError:
+            raise SystemExit("%s does not exist" % args.directory)
 
     if not stat.S_ISDIR(tstat.st_mode):
         raise SystemExit("%s is not a directory" % args.directory)
 
     if cstat is None:
-        os.symlink(args.directory, current)
+        os.symlink(target, current)
         print "%s linked to %s" % (CURRENT, args.directory)
         return
 
     cabs = os.path.realpath(current)
-    tabs = os.path.realpath(args.directory)
+    tabs = os.path.realpath(target)
     if cabs == tabs:
         raise SystemExit("%s already linked to %s" % (current, args.directory))
 
     oldlink = os.readlink(current)
     os.unlink(current)
-    os.symlink(args.directory, current)
+    os.symlink(target, current)
     print "%s moved from %s to %s" % (CURRENT, oldlink, args.directory)
 
 
