@@ -391,6 +391,7 @@ class Run(object):
         # error messages
         self.__runNum = 0
         self.__duration = None
+        self.__numRuns = 0
 
         activeCfgName = self.__mgr.getActiveClusterConfig()
         if clusterCfgName is None:
@@ -455,12 +456,13 @@ class Run(object):
 
         return rtnval
 
-    def start(self, duration, ignoreDB=False, runMode=None, filterMode=None,
-              flasherDelay=None, verbose=False):
+    def start(self, duration, numRuns=1, ignoreDB=False, runMode=None,
+              filterMode=None, flasherDelay=None, verbose=False):
         """
         Start a run
 
         duration - number of seconds to run
+        numRuns - number of sequential runs
         ignoreDB - False if the database should be checked for this run config
         runMode - Run mode for 'livecmd'
         filterMode - Run mode for 'livecmd'
@@ -478,6 +480,10 @@ class Run(object):
         if not self.__lightMode:
             self.__flashThread = None
         else:
+            if numRuns > 1:
+                raise RunException("Only 1 consecutive flasher run allowed" +
+                                   " (%d requested)" % numRuns)
+
             flashDur = FlasherThread.computeRunDuration(self.__flashData,
                                                         flasherDelay)
             if flashDur > duration:
@@ -505,6 +511,7 @@ class Run(object):
 
         self.__runNum = runData[0] + 1
         self.__duration = duration
+        self.__numRuns = numRuns
 
         # set the LID mode
         #
@@ -514,9 +521,9 @@ class Run(object):
 
         # start the run
         #
-        if not self.__mgr.startRun(self.__runCfgName, duration, 1, ignoreDB,
-                                   runMode=runMode, filterMode=filterMode,
-                                   verbose=verbose):
+        if not self.__mgr.startRun(self.__runCfgName, duration, numRuns,
+                                   ignoreDB, runMode=runMode,
+                                   filterMode=filterMode, verbose=verbose):
             raise RunException("Could not start run #%d: %s" %
                                (self.__runNum, self.__runCfgName))
 
@@ -548,10 +555,82 @@ class Run(object):
         "stop run"
         self.__mgr.stop()
 
+    def updateRunNumber(self, num):
+        self.__runNum = num
+
     def wait(self):
         "wait for run to finish"
-        if not self.__dryRun:
-            self.__mgr.waitForRun(self.__runNum, self.__duration)
+
+        if self.__dryRun:
+            return
+
+        logger = self.__mgr.logger()
+
+        # wake up every 'waitSecs' seconds to check run state
+        #
+        waitSecs = 10
+        if waitSecs > self.__duration:
+            waitSecs = self.__duration
+
+        numTries = self.__duration / waitSecs
+        numWaits = 0
+
+        runs = 1
+        while True:
+            if not self.__mgr.isRunning():
+                runTime = numWaits * waitSecs
+                if runTime < self.__duration:
+                    logger.error(("WARNING: Expected %d second run, " +
+                                  "but run %d ended after %d seconds") %
+                                 (self.__duration, self.__runNum, runTime))
+
+                if self.__mgr.isStopped(False) or \
+                        self.__mgr.isStopping(False) or \
+                        self.__mgr.isRecovering(False):
+                    break
+
+                if not self.__mgr.isSwitching(False):
+                    logger.error("Unexpected run %d state %s" %
+                                 (self.__runNum, self.state()))
+
+            numWaits += 1
+            if numWaits > numTries:
+                if runs > self.__numRuns:
+                    # we've finished all the requested runs
+                    break
+                if not self.__mgr.switchRun(self.__runNum + 1):
+                    logger.error("Failed to switch to run %d" %
+                                 (self.__runNum + 1))
+                    break
+
+            curRunNum = self.__mgr.getRunNumber()
+            while self.__runNum < curRunNum:
+                self.__mgr.summarize(self.__runNum)
+                logger.info("Switched from run %d to %d" %
+                            (self.__runNum, curRunNum))
+
+                runTime = numWaits * waitSecs
+                if runTime < self.__duration:
+                    logger.error(("WARNING: Expected %d second run, " +
+                                  "but run %d ended after %d seconds") %
+                                 (self.__duration, self.__runNum, runTime))
+
+                # reset number of waits
+                numWaits = 1
+
+                # increment number of runs and update run number
+                runs += 1
+                self.__runNum += 1
+
+            if runs > self.__numRuns:
+                plural = "" if self.__numRuns == 1 else "s"
+                logger.error("WARNING: Expected %dx%d second run%s but"
+                             " run#%d is active" %
+                             (self.__numRuns, self.__duration, plural,
+                              curRunNum))
+                break
+
+            time.sleep(waitSecs)
 
 
 class RunLogger(object):
@@ -713,6 +792,9 @@ class BaseRun(object):
     def isStopping(self, refreshState=False):
         raise NotImplementedError()
 
+    def isSwitching(self, refreshState=False):
+        raise NotImplementedError()
+
     def isUserStopped(self, refreshState=False):
         return self.__userStopped
 
@@ -785,15 +867,17 @@ class BaseRun(object):
     def logger(self):
         return self.__logger
 
-    def run(self, clusterCfgName, runCfgName, duration, flashData=None,
-            flasherDelay=None, clusterDesc = None, ignoreDB=False,
-            runMode="TestData", filterMode=None, verbose=False):
+    def run(self, clusterCfgName, runCfgName, duration, numRuns=1,
+            flashData=None, flasherDelay=None, clusterDesc = None,
+            ignoreDB=False, runMode="TestData", filterMode=None,
+            verbose=False):
         """
         Manage a set of runs
 
         clusterCfgName - cluster configuration
         runCfgName - name of run configuration
         duration - number of seconds to run
+        numRuns - number of consecutive runs
         flasherData - pairs of (XML file name, duration)
         flasherDelay - number of seconds to sleep before starting flashers
         ignoreDB - False if the database should be checked for this run config
@@ -805,17 +889,26 @@ class BaseRun(object):
         if self.__userStopped:
             return False
 
+        if numRuns > 1:
+            self.setRunsPerRestart(numRuns)
+        else:
+            self.setRunsPerRestart(1)
+
         run = self.createRun(clusterCfgName, runCfgName,
                              clusterDesc=clusterDesc, flashData=flashData)
 
         if filterMode is None and flashData is not None:
             filterMode = "RandomFiltering"
 
-        run.start(duration, ignoreDB, runMode=runMode, filterMode=filterMode,
+        run.start(duration, numRuns=numRuns, ignoreDB=ignoreDB,
+                  runMode=runMode, filterMode=filterMode,
                   flasherDelay=flasherDelay, verbose=verbose)
 
         try:
             run.wait()
+        except:
+            import traceback
+            traceback.print_exc()
         finally:
             return run.finish(verbose=verbose)
 
@@ -827,6 +920,10 @@ class BaseRun(object):
 
         Return True if the light mode was set successfully
         """
+        raise NotImplementedError()
+
+    def setRunsPerRestart(self, num):
+        """Set the number of continuous runs between restarts"""
         raise NotImplementedError()
 
     def startRun(self, runCfgName, duration, numRuns=1, ignoreDB=False,
@@ -898,6 +995,10 @@ class BaseRun(object):
 
         return summary["result"].upper() == "SUCCESS"
 
+    def switchRun(self, runNum):
+        """Switch to a new run number without stopping any components"""
+        raise NotImplementedError()
+
     def updateDB(self, runCfgName):
         """
         Add this run configuration to the database
@@ -944,43 +1045,6 @@ class BaseRun(object):
         proc.stdout.close()
 
         proc.wait()
-
-    def waitForRun(self, runNum, duration):
-        """
-        Wait for the current run to start and stop
-
-        runNum - current run number
-        duration - expected number of seconds this run will last
-        """
-
-        # wake up every 'waitSecs' seconds to check run state
-        #
-        waitSecs = 10
-
-        numTries = duration / waitSecs
-        numWaits = 0
-
-        while True:
-            if not self.isRunning():
-                runTime = numWaits * waitSecs
-                if runTime < duration:
-                    self.logError(("WARNING: Expected %d second run, " +
-                                   "but run %d ended after %d seconds") %
-                                  (duration, runNum, runTime))
-
-                if self.isStopped(False) or \
-                        self.isStopping(False) or \
-                        self.isRecovering(False):
-                    break
-
-                self.logError("Unexpected run %d state %s" %
-                              (runNum, self.state()))
-
-            numWaits += 1
-            if numWaits > numTries:
-                break
-
-            time.sleep(waitSecs)
 
     def waitForStopped(self, verbose=False):
         """Wait for the current run to be stopped"""

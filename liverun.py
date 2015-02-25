@@ -81,6 +81,7 @@ class LiveRunState(AbstractState):
     STARTING = "STARTING"
     STOPPED = "STOPPED"
     STOPPING = "STOPPING"
+    SWITCHRUN = "SWITCHRUN"
     UNKNOWN = "???"
 
     STATES = [
@@ -93,6 +94,7 @@ class LiveRunState(AbstractState):
         STARTING,
         STOPPED,
         STOPPING,
+        SWITCHRUN,
         UNKNOWN,
         ]
 
@@ -527,7 +529,7 @@ class LiveRun(BaseRun):
         curState = prevState
 
         if verbose and prevState != expState:
-            self.logInfo("Switching from %s to %s" % (prevState, expState))
+            self.logInfo("Changing from %s to %s" % (prevState, expState))
 
         startTime = time.time()
         for _ in range(numTries):
@@ -537,7 +539,7 @@ class LiveRun(BaseRun):
             if curState != prevState:
                 if verbose:
                     swTime = int(time.time() - startTime)
-                    self.logInfo("Switched from %s to %s in %s secs" %
+                    self.logInfo("Changed from %s to %s in %s secs" %
                                  (prevState, curState, swTime))
 
                 prevState = curState
@@ -648,8 +650,34 @@ class LiveRun(BaseRun):
         if self.__dryRun:
             return self.__fakeRunNum
 
-        self.__state.check()
+        self.__refreshState()
         return self.__state.runNumber()
+
+    def getRunsPerRestart(self):
+        """Get the number of continuous runs between restarts"""
+        cmd = "livecmd runs per restart"
+        if self.__dryRun:
+            print cmd
+            return 1
+
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, close_fds=True,
+                                shell=True)
+        proc.stdin.close()
+
+        curNum = None
+        for line in proc.stdout:
+            line = line.rstrip()
+            try:
+                curNum = int(line)
+            except ValueError:
+                raise SystemExit("Bad number '%s' for runs per restart" % line)
+
+        proc.stdout.close()
+        proc.wait()
+
+        return curNum
 
     def isDead(self, refreshState=False):
         if refreshState:
@@ -680,6 +708,12 @@ class LiveRun(BaseRun):
             self.__refreshState()
 
         return self.__state.runState() == LiveRunState.STOPPING
+
+    def isSwitching(self, refreshState=False):
+        if refreshState:
+            self.__refreshState()
+
+        return self.__state.runState() == LiveRunState.SWITCHRUN
 
     def setLightMode(self, isLID):
         """
@@ -725,6 +759,28 @@ class LiveRun(BaseRun):
                                      (expMode, self.__state.lightMode()))
 
         return True
+
+    def setRunsPerRestart(self, numRestarts):
+        """Set the number of continuous runs between restarts"""
+        curNum = self.getRunsPerRestart()
+        if curNum == numRestarts:
+            return
+
+        cmd = "livecmd runs per restart %d" % numRestarts
+        if self.__dryRun:
+            print cmd
+            return
+
+        print "Setting runs per restart to %d" % numRestarts
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, close_fds=True,
+                                shell=True)
+        proc.stdin.close()
+        for line in proc.stdout:
+            print line.rstrip()
+        proc.stdout.close()
+        proc.wait()
 
     def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False,
                  runMode=None, filterMode=None, verbose=False):
@@ -780,6 +836,10 @@ class LiveRun(BaseRun):
         cmd = "%s stop daq" % self.__liveCmdProg
         if not self.__runBasicCommand("StopRun", cmd):
             return False
+
+    def switchRun(self, runNum):
+        """Switch to a new run number without stopping any components"""
+        return True # Live handles this automatically
 
     def waitForStopped(self, verbose=False):
         if self.__state.runState() != LiveRunState.STOPPING and \

@@ -86,24 +86,23 @@ class PDAQRun(object):
             flasherDelay = 30
 
         timeouts = 0
-        for r in range(self.__numRuns):
-            try:
-                runmgr.run(self.__runCfgName, self.__runCfgName,
-                           duration, flashData=self.__flashData,
-                           flasherDelay=120, clusterDesc=clusterDesc,
-                           ignoreDB=ignoreDB, verbose=verbose)
+        try:
+            runmgr.run(self.__runCfgName, self.__runCfgName, duration,
+                       numRuns=self.__numRuns, flashData=self.__flashData,
+                       flasherDelay=120, clusterDesc=clusterDesc,
+                       ignoreDB=ignoreDB, verbose=verbose)
 
-                # reset the timeout counter after each successful run
-                timeouts = 0
-            except SystemExit:
-                raise
-            except LiveTimeoutException:
-                traceback.print_exc()
-                timeouts += 1
-                if timeouts > self.MAX_TIMEOUTS:
-                    raise SystemExit("I3Live seems to have gone away")
-            except:
-                traceback.print_exc()
+            # reset the timeout counter after each set of successful runs
+            timeouts = 0
+        except SystemExit:
+            raise
+        except LiveTimeoutException:
+            traceback.print_exc()
+            timeouts += 1
+            if timeouts > self.MAX_TIMEOUTS:
+                raise SystemExit("I3Live seems to have gone away")
+        except:
+            traceback.print_exc()
 
 # configurations to run
 #
@@ -117,20 +116,10 @@ RUN_LIST = (PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
                     HALF_HR),
             PDAQRun("spts-dirtydozen-intervals3-snmix-014",
                     HALF_HR),
-            ###PDAQRun("sim18str-noise25Hz-002", FOUR_HR),
-            ###PDAQRun("sim18str-noise25Hz-002", EIGHT_HR),
-            ###PDAQRun("sim22str-with-phys-trig-001", FOUR_HR),
-            ###PDAQRun("sim22str-with-phys-trig-001", EIGHT_HR),
-            #PDAQRun("sim40str-25Hz-reduced-trigger", FOUR_HR),
-            #PDAQRun("sim40str-25Hz-reduced-trigger", EIGHT_HR),
-            #PDAQRun("sim60str-mbt23", FOUR_HR),
-            #PDAQRun("sim60str-mbt23", EIGHT_HR),
             PDAQRun("sim60strIT-stdtest-01", HALF_HR),
             PDAQRun("sim60str-stdtest-01", HALF_HR),
             PDAQRun("sim60str-stdtest-01", EIGHT_HR),
-            ###PDAQRun("sim80str-25Hz", FOUR_HR),
-            ###PDAQRun("sim80str-25Hz", EIGHT_HR),
-            PDAQRun("replay-123997-fixed", HALF_HR),
+            PDAQRun("replay-125659-local", QUARTER_HR, numRuns=3),
             )
 
 
@@ -272,7 +261,7 @@ def run_tests(args):
             args.run = True
         else:
             raise SystemExit("Please specify --deploy or --run" +
-                             " (unrecognized host %s)" % hostName)
+                             " (unrecognized host %s)" % hostid.hname)
 
     # Make sure expected environment variables are set
     #
@@ -319,3 +308,14 @@ def run_tests(args):
         for data in RUN_LIST:
             data.run(runmgr, args.quick, clusterDesc=args.clusterDesc,
                      ignoreDB=args.ignoreDB, verbose=args.verbose)
+
+
+if __name__ == "__main__":
+    import argparse
+
+    op = argparse.ArgumentParser()
+    add_arguments(op)
+
+    args = op.parse_args()
+
+    run_tests(args)

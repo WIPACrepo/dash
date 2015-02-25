@@ -14,7 +14,7 @@ from cncrun import CnCRun
 from datetime import datetime
 from utils.Machineid import Machineid
 
-SVN_ID = "$Id: ExpControlSkel.py 15223 2014-11-04 22:48:23Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 15445 2015-02-25 14:51:46Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -140,6 +140,10 @@ def add_arguments(parser, config_as_arg=False):
     parser.add_argument("-r", "--remote-host", dest="remoteHost",
                         default="localhost",
                         help="Name of host on which CnCServer is running")
+    parser.add_argument("-R", "--runsPerRestart", type=int,
+                        dest="runsPerRestart",
+                        default=1,
+                        help="Number of runs per restart")
     parser.add_argument("-s", "--showCommands", dest="showCmd",
                         action="store_true", default=False,
                         help="Show the commands used to deploy and/or run")
@@ -210,10 +214,11 @@ def daqrun(args):
 
     duration = getDurationFromString(args.duration)
 
-    for r in xrange(args.numRuns):
+    n = 0
+    while n < args.numRuns:
         run = cnc.createRun(None, args.runConfig, clusterDesc=args.clusterDesc,
                             flashData=flashData)
-        run.start(duration)
+        run.start(duration, numRuns=args.runsPerRestart)
 
         try:
             try:
@@ -224,6 +229,8 @@ def daqrun(args):
         finally:
             print >>sys.stderr, "Stopping run..."
             run.finish()
+
+        n += args.runsPerRestart
 
 
 if __name__ == "__main__":

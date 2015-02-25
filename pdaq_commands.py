@@ -275,7 +275,7 @@ class CmdStopRun(BaseCmd):
         stoprun(args)
 
 
-class CmdTest(BaseCmd):
+class CmdStdTest(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
         from StandardTests import add_arguments
@@ -287,12 +287,18 @@ class CmdTest(BaseCmd):
 
     @classmethod
     def name(cls):
-        return "test"
+        return "stdtest"
 
     @classmethod
     def run(cls, args):
         from StandardTests import run_tests
         run_tests(args)
+
+
+class CmdTest(CmdStdTest):
+    @classmethod
+    def name(cls):
+        return "test"
 
 
 class CmdWorkspace(BaseCmd):
@@ -325,6 +331,7 @@ COMMANDS = [
     CmdRun,
     CmdSortLogs,
     CmdStatus,
+    CmdStdTest,
     CmdStopRun,
     CmdTest,
     CmdWorkspace,

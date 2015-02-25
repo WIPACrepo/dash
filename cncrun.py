@@ -202,7 +202,7 @@ class CnCRun(BaseRun):
         curState = prevState
 
         if verbose and prevState != expState:
-            self.logInfo("Switching from %s to %s" % (prevState, expState))
+            self.logInfo("Changing from %s to %s" % (prevState, expState))
 
         startTime = time.time()
         for _ in range(numTries):
@@ -213,7 +213,7 @@ class CnCRun(BaseRun):
             if curState != prevState:
                 if verbose:
                     swTime = int(time.time() - startTime)
-                    self.logInfo("Switched from %s to %s in %s secs" %
+                    self.logInfo("Changed from %s to %s in %s secs" %
                                  (prevState, curState, swTime))
 
                 prevState = curState
@@ -341,6 +341,9 @@ class CnCRun(BaseRun):
         except socket.error:
             return False
 
+    def isSwitching(self, refreshState=False):
+        return False
+
     def isStopping(self, refreshState=False):
         cnc = self.cncConnection(False)
         if cnc is None or self.__runSetId is None:
@@ -362,6 +365,10 @@ class CnCRun(BaseRun):
         if isLID:
             self.logError("Not setting light mode!!!")
         return True
+
+    def setRunsPerRestart(self, num):
+        """Set the number of continuous runs between restarts"""
+        pass # for non-Live runs, this is driven by BaseRun.waitForRun()
 
     def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False,
                  runMode=None, filterMode=None, verbose=False):
@@ -451,6 +458,22 @@ class CnCRun(BaseRun):
             print "Stop runset#%s" % self.__runSetId
         else:
             cnc.rpc_runset_stop_run(self.__runSetId)
+
+    def switchRun(self, runNum):
+        """Switch to a new run number without stopping any components"""
+        if self.__runSetId is None:
+            raise RunException("No active run")
+
+        if not self.__dryRun:
+            cnc = self.cncConnection()
+
+        if self.__dryRun:
+            print "Switch runset#%s to run#%d" % (self.__runSetId, runNum)
+        else:
+            cnc.rpc_runset_switch_run(self.__runSetId, runNum)
+        self.__runNum = runNum
+
+        return True
 
     def waitForStopped(self, verbose=False):
         """Wait for the current run to be stopped"""
