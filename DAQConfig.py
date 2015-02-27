@@ -670,15 +670,17 @@ class DAQConfig(ConfigObject):
                             # must not be a replay entry
                             print "Ignoring " + str(replay_hub)
                             continue
-                    try:
-                        for rhub_dict in replay_hub['__children__']['hits']:
-                            rh_obj = ReplayHub(rhub_dict, base_dir, old_style)
-                            self.replay_hubs.append(rh_obj)
-                            self.addComponent(rh_obj.fullName(), False,
-                                              host=rh_obj.host)
-                    except KeyError:
-                        # missing keys..
-                        pass
+                    for key in ("data", "hits"):
+                        try:
+                            for rhub_dict in replay_hub['__children__'][key]:
+                                rh_obj = ReplayHub(rhub_dict, base_dir,
+                                                   old_style)
+                                self.replay_hubs.append(rh_obj)
+                                self.addComponent(rh_obj.fullName(), False,
+                                                  host=rh_obj.host)
+                        except KeyError:
+                            # missing keys..
+                            pass
             else:
                 # an 'OTHER' object
                 self.other_objs.append((key, val))
