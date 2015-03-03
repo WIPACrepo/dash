@@ -59,18 +59,17 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
                 "Old style cluster configs not supported '%s'" % \
                     cluster_xml_filename)
 
-    cluster_xml_filename = os.path.basename(cluster_xml_filename)
-    fname, extension = os.path.splitext(cluster_xml_filename)
-    if not fname.endswith('-cluster'):
-        fname = "%s-cluster" % fname
+    basename = os.path.basename(cluster_xml_filename)
 
+    fname, extension = os.path.splitext(basename)
     if not extension or extension is not 'cfg':
         extension = 'cfg'
 
-    cluster_xml_filename = "%s.%s" % (fname, extension)
+    path = os.path.join(CONFIG_DIR, "%s.%s" % (fname, extension))
+    if not os.path.exists(path):
+        path = os.path.join(CONFIG_DIR, "%s-cluster.%s" % (fname, extension))
 
-    cluster_xml_filename = os.path.join(CONFIG_DIR,
-                                        os.path.basename(cluster_xml_filename))
+    cluster_xml_filename = path 
 
     (valid, reason) = validate_clusterconfig(cluster_xml_filename)
     if not valid:
