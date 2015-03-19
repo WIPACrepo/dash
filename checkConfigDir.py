@@ -416,5 +416,5 @@ if __name__ == "__main__":
         raise SystemExit("This script should only be run on SPS")
 
     chk = ConfigDirChecker(args.configdir)
-    chk.run(dbName, dryrun=args.dryrun, verbose=args.verbose,
+    chk.run(args.dbName, dryrun=args.dryrun, verbose=args.verbose,
             showUnknown=args.showUnknown, commit=args.commit)
