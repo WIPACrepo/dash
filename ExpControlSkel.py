@@ -14,7 +14,7 @@ from cncrun import CnCRun
 from datetime import datetime
 from utils.Machineid import Machineid
 
-SVN_ID = "$Id: ExpControlSkel.py 15445 2015-02-25 14:51:46Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 15483 2015-03-27 21:55:45Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -122,7 +122,7 @@ def add_arguments(parser, config_as_arg=False):
                             help="REQUIRED: Configuration name")
     else:
         parser.add_argument("-c", dest="minusC",
-                            action="store_true", default=None,
+                            action="store_true", default=False,
                             help="Ignored, run config is a positional param")
         parser.add_argument("runConfig",
                             help="Run configuration name")
