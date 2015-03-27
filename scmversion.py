@@ -427,14 +427,13 @@ if __name__ == "__main__":
                  help="Location of directory tree being checked")
     opt, args = p.parse_args()
 
+    rev_parent = os.path.dirname(SCM_REV_FILENAME)
+    if not os.path.exists(rev_parent):
+        os.makedirs(rev_parent)
+
     print "STORED -> " + store_scmversion(opt.dir)
 
     info = get_scmversion(opt.dir)
     print str(info)
 
     print get_scmversion_str(info=info)
-
-    os.unlink(SCM_REV_FILENAME)
-
-    info = get_scmversion(opt.dir)
-    print str(info)
