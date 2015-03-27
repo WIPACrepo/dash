@@ -3,11 +3,10 @@
 import os
 import sys
 
-from locate_pdaq import find_pdaq_trunk
+from locate_pdaq import find_pdaq_config, find_pdaq_trunk
 
-# add meta-project python dir to Python library search path
-metaDir = find_pdaq_trunk()
-sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
+# find top pDAQ directory
+PDAQ_HOME = find_pdaq_trunk()
 
 
 class FakeArgParser(object):
@@ -139,7 +138,6 @@ class CmdKill(BaseCmd):
 
     @classmethod
     def run(cls, args):
-        from locate_pdaq import find_pdaq_config
         from DAQLaunch import ConsoleLogger, check_detector_state, \
             check_running_on_expcont, kill
 
@@ -175,7 +173,6 @@ class CmdLaunch(BaseCmd):
 
     @classmethod
     def run(cls, args):
-        from locate_pdaq import find_pdaq_config
         from DAQLaunch import ConsoleLogger, check_detector_state, \
             check_running_on_expcont, kill, launch
 
@@ -186,7 +183,7 @@ class CmdLaunch(BaseCmd):
             check_detector_state()
 
         cfgDir = find_pdaq_config()
-        dashDir = os.path.join(metaDir, "dash")
+        dashDir = os.path.join(PDAQ_HOME, "dash")
 
         logger = ConsoleLogger()
 
@@ -351,7 +348,7 @@ if __name__ == "__main__":
     p.add_argument("-a", dest="arglist", choices=names,
                    help="Print list of arguments for a command")
     p.add_argument("-n", dest="shownames",
-                   action="store_true", default="False",
+                   action="store_true", default=False,
                    help="Print list of all valid command names")
     p.add_argument("-t", dest="cmdtype", choices=names,
                    help="Print command type")

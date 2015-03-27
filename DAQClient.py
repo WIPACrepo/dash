@@ -8,15 +8,10 @@ import threading
 from CnCLogger import CnCLogger
 from DAQRPC import RPCClient
 from UniqueID import UniqueID
-from locate_pdaq import find_pdaq_trunk
+from scmversion import get_scmversion_str
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
-
-# add meta-project python dir to Python library search path
-metaDir = find_pdaq_trunk()
-sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
-from SVNVersionInfo import get_version_info
 
 
 def unFixValue(obj):
@@ -499,11 +494,8 @@ class DAQClient(ComponentName):
             livePort = 0
 
         self.__client.xmlrpc.logTo(logIP, logPort, liveIP, livePort)
-        infoStr = self.__client.xmlrpc.getVersionInfo()
 
-        self.__log.debug(("Version info: %(filename)s %(revision)s" +
-                          " %(date)s %(time)s %(author)s %(release)s" +
-                          " %(repo_rev)s") % get_version_info(infoStr))
+        self.__log.debug("Version info: " + get_scmversion_str())
 
     def map(self):
         return {"id": self.__id,

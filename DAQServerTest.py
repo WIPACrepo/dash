@@ -88,8 +88,7 @@ class TinyClient(object):
         self.__log = SocketWriter(logIP, logPort)
         self.__log.write_ts('Start of log at LOG=log(%s:%d)' % \
                                 (logIP, logPort))
-        self.__log.write_ts('Version info: unknown 000 unknown unknown' +
-                            ' unknown BRANCH 0:0')
+        self.__log.write_ts('Version info: BRANCH 0:0 unknown unknown')
 
     def map(self):
         return {"id": self.__id,
@@ -470,10 +469,8 @@ class TestDAQServer(unittest.TestCase):
         logger.addExpectedText("Starting run #%d on \"%s\"" %
                                 (runNum, cluCfg.descName()))
 
-        logger.addExpectedTextRegexp(r"Version info: \S+ \d+" +
-                                     r" \S+ \S+ \S+ \S+ \d+\S*")
-        clientLogger.addExpectedTextRegexp(r"Version info: \S+ \d+" +
-                                           r" \S+ \S+ \S+ \S+ \d+\S*")
+        logger.addExpectedTextRegexp(r"Version info: \S+ \S+ \S+ \S+")
+        clientLogger.addExpectedTextRegexp(r"Version info: \S+ \S+ \S+ \S+")
 
         logger.addExpectedText("Run configuration: %s" % runConfig)
         logger.addExpectedText("Cluster: %s" % cluCfg.descName())

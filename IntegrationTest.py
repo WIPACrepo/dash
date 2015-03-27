@@ -19,6 +19,7 @@ from LiveImports import Prio, LIVE_IMPORT, SERVICE_NAME
 from RunOption import RunOption
 from RunSet import RunSet
 from TaskManager import MonitorTask, RateTask, TaskManager, WatchdogTask
+from scmversion import get_scmversion_str
 
 ACTIVE_WARNING = False
 
@@ -244,8 +245,7 @@ class MostlyRunSet(RunSet):
 
         #log.addExpectedRegexp('Start #\d+ on \S+#\d+')
         log.addExpectedRegexp(r'Hello from \S+#\d+')
-        log.addExpectedTextRegexp(r'Version info: \S+ \S+ \S+ \S+ \S+' +
-                                  r' \S+ \d+\S+')
+        log.addExpectedTextRegexp(r'Version info: \S+ \S+ \S+ \S+')
 
         comp.logTo(host, port, liveHost, livePort)
 
@@ -369,8 +369,7 @@ class MostlyCnCServer(CnCServer):
 
         msg = "Start of log at LOG=log(localhost:%d)" % port
         self.__logServer.addExpectedText(msg)
-        msg = ("%(filename)s %(revision)s %(date)s %(time)s %(author)s" +
-               " %(release)s %(repo_rev)s") % self.versionInfo()
+        msg = get_scmversion_str(info=self.versionInfo())
         self.__logServer.addExpectedText(msg)
 
         return self.__logServer
@@ -1214,9 +1213,8 @@ class IntegrationTest(unittest.TestCase):
         if liveLog:
             liveLog.addExpectedText(msg)
 
-        msgList = [('Version info: %(filename)s %(revision)s %(date)s' +
-                    ' %(time)s %(author)s %(release)s %(repo_rev)s') %
-                   cnc.versionInfo(),
+        msgList = [('Version info: ' +
+                    get_scmversion_str(info=cnc.versionInfo())),
                    'Starting run %d...' % runNum,
                    'Run configuration: %s' % configName
                    ]
@@ -1231,8 +1229,7 @@ class IntegrationTest(unittest.TestCase):
             liveLog.addExpectedRegexp(r"Waited \d+\.\d+ seconds for Hubs")
 
         if dashLog:
-            dashLog.addExpectedRegexp(r'Version info: \S+ \d+ \S+ \S+ \S+' +
-                                      r' \S+ \d+\S+')
+            dashLog.addExpectedRegexp(r'Version info: \S+ \S+ \S+ \S+')
             dashLog.addExpectedExact('Run configuration: %s' % configName)
             dashLog.addExpectedExact("Cluster: " +
                                      IntegrationTest.CLUSTER_DESC)
@@ -1243,8 +1240,7 @@ class IntegrationTest(unittest.TestCase):
 
             for c in keys:
                 liveLog.addExpectedText('Hello from %s' % str(c))
-                liveLog.addExpectedTextRegexp((r'Version info: %s \S+ \S+' +
-                                               r' \S+ \S+ \S+ \d+\S+') %
+                liveLog.addExpectedTextRegexp(r'Version info: %s \S+ \S+ \S+' %
                                               c.getName())
 
         if RUNLOG_INFO:

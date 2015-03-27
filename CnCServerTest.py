@@ -197,8 +197,8 @@ class RealComponent(object):
         self.__cmd.register_function(self.__getRunNumber,
                                      'xmlrpc.getRunNumber')
         self.__cmd.register_function(self.__getState, 'xmlrpc.getState')
-        self.__cmd.register_function(self.__getVersionInfo,
-                                     'xmlrpc.getVersionInfo')
+        #self.__cmd.register_function(self.__getVersionInfo,
+        #                             'xmlrpc.getVersionInfo')
         self.__cmd.register_function(self.__logTo, 'xmlrpc.logTo')
         self.__cmd.register_function(self.__reset, 'xmlrpc.reset')
         self.__cmd.register_function(self.__resetLogging,
@@ -320,8 +320,8 @@ class RealComponent(object):
     def __getState(self):
         return self.__state
 
-    def __getVersionInfo(self):
-        return '$Id: filename revision date time author xxx'
+    #def __getVersionInfo(self):
+    #    return '$Id: filename revision date time author xxx'
 
     def __listMBeanGetters(self, bean):
         if self.__bean is None or not bean in self.__bean:
@@ -642,7 +642,7 @@ class TestCnCServer(unittest.TestCase):
         for cd in compData:
             cluCfg.addComponent("%s#%d" % (cd[0], cd[1]), "java", "", compHost)
 
-        catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
+        catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+')
 
         self.cnc = MostlyCnCServer(clusterConfigObject=cluCfg,
                                    copyDir=self.__copyDir,
@@ -791,14 +791,13 @@ class TestCnCServer(unittest.TestCase):
             log.addExpectedTextRegexp("Start of log at LOG=log(\S+:%d)" %
                                       baseLogPort)
             log.addExpectedExact('Test msg')
-            log.addExpectedText('filename revision date time author')
+            log.addExpectedTextRegexp('\S+ \S+ \S+ \S+')
             baseLogPort += 1
 
         catchall.addExpectedText("Starting run #%d on \"%s\"" %
                                  (runNum, cluCfg.descName()))
 
-        dashlog.addExpectedRegexp(r"Version info: \S+ \d+" +
-                                  r" \S+ \S+ \S+ \S+ \d+\S*")
+        dashlog.addExpectedRegexp(r"Version info: \S+ \S+ \S+ \S+")
         dashlog.addExpectedExact("Run configuration: %s" % runConfig)
         dashlog.addExpectedExact("Cluster: %s" % cluCfg.descName())
 
@@ -846,8 +845,7 @@ class TestCnCServer(unittest.TestCase):
                 log.addExpectedExact('Switch %s to run#%d' %
                                      (comp.fullName(), runNum + 1))
 
-            dashlog.addExpectedRegexp(r"Version info: \S+ \d+" +
-                                      r" \S+ \S+ \S+ \S+ \d+\S*")
+            dashlog.addExpectedRegexp(r"Version info: \S+ \S+ \S+ \S+")
             dashlog.addExpectedExact("Run configuration: %s" % runConfig)
             dashlog.addExpectedExact("Cluster: %s" % cluCfg.descName())
 

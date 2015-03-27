@@ -17,14 +17,11 @@ from DAQConfig import DAQConfig, DAQConfigParser
 from DAQConfigExceptions import DAQConfigException
 from DAQConst import DAQPort
 from locate_pdaq import find_pdaq_config, find_pdaq_trunk
+from scmversion import get_scmversion_str
 
 
-# add meta-project python dir to Python library search path
-metaDir = find_pdaq_trunk()
-sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
-from SVNVersionInfo import get_version_info
-
-SVN_ID = "$Id: DAQLaunch.py 15329 2015-01-05 16:12:11Z dglo $"
+# find top pDAQ directory
+PDAQ_HOME = find_pdaq_trunk()
 
 
 class ConsoleLogger(object):
@@ -195,9 +192,7 @@ def launch(cfgDir, dashDir, logger, args=None, clusterDesc=None,
         raise SystemExit
 
     if verbose:
-        print "Version: %(filename)s %(revision)s %(date)s %(time)s " \
-            "%(author)s %(release)s %(repo_rev)s" % \
-            get_version_info(SVN_ID)
+        print "Version info: " + get_scmversion_str()
         if clusterConfig.descName() is None:
             print "CLUSTER CONFIG: %s" % clusterConfig.configName()
         else:
@@ -221,7 +216,7 @@ def launch(cfgDir, dashDir, logger, args=None, clusterDesc=None,
     spadeDir = clusterConfig.logDirForSpade()
     copyDir = clusterConfig.logDirCopies()
     logDir = clusterConfig.daqLogDir()
-    logDirFallback = os.path.join(metaDir, "log")
+    logDirFallback = os.path.join(PDAQ_HOME, "log")
     daqDataDir = clusterConfig.daqDataDir()
 
     doCnC = True
@@ -279,7 +274,7 @@ if __name__ == "__main__":
         check_detector_state()
 
     cfgDir = find_pdaq_config()
-    dashDir = os.path.join(metaDir, "dash")
+    dashDir = os.path.join(PDAQ_HOME, "dash")
 
     logger = ConsoleLogger()
 

@@ -4,6 +4,7 @@ import unittest
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet, RunSetException, listComponentRanges
+from scmversion import get_scmversion_str
 
 CAUGHT_WARNING = False
 
@@ -384,9 +385,8 @@ class TestRunSet(unittest.TestCase):
 
         logger.addExpectedExact("Starting run #%d on \"%s\"" %
                                 (runNum, cluCfg.descName()))
-        logger.addExpectedExact(("Version info: %(filename)s %(revision)s" +
-                                 " %(date)s %(time)s %(author)s %(release)s" +
-                                 " %(repo_rev)s") % versionInfo)
+        logger.addExpectedExact("Version info: " +
+                                get_scmversion_str(info=versionInfo))
 
         logger.addExpectedExact("Run configuration: %s" % runConfig.basename())
         logger.addExpectedExact("Cluster: %s" % cluCfg.descName())

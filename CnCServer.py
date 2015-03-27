@@ -25,21 +25,15 @@ from RunSetState import RunSetState
 from SocketServer import ThreadingMixIn
 from XMLFileCache import XMLFileNotFound
 from locate_pdaq import find_pdaq_config, find_pdaq_trunk
+from scmversion import get_scmversion, get_scmversion_str
 from utils import ip
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
 
-# set location of pDAQ trunk
-metaDir = find_pdaq_trunk()
-
-
-# add meta-project python dir to Python library search path
-sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
-from SVNVersionInfo import get_version_info
-
-SVN_ID = "$Id: CnCServer.py 15170 2014-10-06 21:43:32Z dglo $"
+# get location of pDAQ trunk
+PDAQ_HOME = find_pdaq_trunk()
 
 
 class DAQPool(object):
@@ -570,13 +564,13 @@ class CnCServer(DAQPool):
                  defaultRunsetDebug=None):
         "Create a DAQ command and configuration server"
         self.__name = name
-        self.__versionInfo = get_version_info(SVN_ID)
+        self.__versionInfo = get_scmversion()
 
         self.__id = int(time.time())
 
         self.__clusterDesc = clusterDesc
         self.__copyDir = copyDir
-        self.__dashDir = os.path.join(metaDir, "dash")
+        self.__dashDir = os.path.join(PDAQ_HOME, "dash")
         self.__runConfigDir = runConfigDir
         self.__daqDataDir = daqDataDir
         self.__spadeDir = spadeDir
@@ -1357,9 +1351,8 @@ class CnCServer(DAQPool):
 
     def run(self):
         "Start a server"
-        self.__log.info(("%(filename)s %(revision)s %(date)s %(time)s" +
-                         " %(author)s %(release)s %(repo_rev)s") %
-                        self.__versionInfo)
+        self.__log.info("Version info: " +
+                        get_scmversion_str(info=self.__versionInfo))
 
         t = threading.Thread(name="CnCServer", target=self.monitorLoop)
         t.setDaemon(True)
@@ -1451,7 +1444,7 @@ if __name__ == "__main__":
                    action="store_true", default=False,
                    help="Run as a daemon process")
     p.add_argument("-D", "--dashDir", dest="dashDir",
-                   default=os.path.join(metaDir, "dash"),
+                   default=os.path.join(PDAQ_HOME, "dash"),
                    help="Directory holding Python scripts")
     p.add_argument("-f", "--force-restart", dest="forceRestart",
                    action="store_true", default=True,

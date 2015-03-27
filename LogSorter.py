@@ -116,7 +116,8 @@ class BaseLog(object):
     DASH_PAT = re.compile(r"^(\S+)\s+\[" + DATE_STR + r"\]\s+(.*)$")
 
     LOGSTART_PAT = re.compile(r"Start of log at .*$")
-    LOGVERS_PAT = re.compile(r"Version info: \S+ \S+ \S+ \S+Z? \S+ (\S+) (\S+)")
+    OLDVERS_PAT = re.compile(r"Version info: \S+ \S+ \S+ \S+Z? \S+ (\S+) (\S+)")
+    LOGVERS_PAT = re.compile(r"Version info: (\S+) (\S+) \S+ \S+Z?")
 
     def __init__(self, fileName):
         self.__fileName = fileName
@@ -128,11 +129,16 @@ class BaseLog(object):
 
     def __gotVersionInfo(self, lobj):
         m = self.LOGVERS_PAT.match(lobj.text())
-        if not m:
-            return False
+        if m:
+            (self.__relName, self.__relNums) = m.groups()
+            return True
 
-        (self.__relName, self.__relNums) = m.groups()
-        return True
+        m = self.OLDVERS_PAT.match(lobj.text())
+        if m:
+            (self.__relName, self.__relNums) = m.groups()
+            return True
+
+        return False
 
     def __parseLine(self, line):
         m = self.LINE_PAT.match(line)

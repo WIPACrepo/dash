@@ -690,8 +690,7 @@ class CnCRunSetTest(unittest.TestCase):
         logger.addExpectedExact("Starting run #%d on \"%s\"" %
                                 (runNum, cluCfg.descName()))
 
-        dashLog.addExpectedRegexp(r"Version info: \S+ \d+ \S+ \S+ \S+ \S+" +
-                                  " \d+\S+")
+        dashLog.addExpectedRegexp(r"Version info: \S+ \S+ \S+ \S+")
         dashLog.addExpectedExact("Run configuration: %s" % runConfig)
         dashLog.addExpectedExact("Cluster: %s" % cluCfg.descName())
 
@@ -983,8 +982,7 @@ class CnCRunSetTest(unittest.TestCase):
         catchall.addExpectedText("Starting run #%d on \"%s\"" %
                                  (runNum, cluCfg.descName()))
 
-        dashLog.addExpectedRegexp(r"Version info: \S+ \d+ \S+ \S+ \S+ \S+" +
-                                  " \d+\S+")
+        dashLog.addExpectedRegexp(r"Version info: \S+ \S+ \S+ \S+")
         dashLog.addExpectedExact("Run configuration: %s" % runConfig)
         dashLog.addExpectedExact("Cluster: %s" % cluCfg.descName())
 

@@ -13,6 +13,7 @@ from DAQConfig import DAQConfig, DAQConfigParser
 from ParallelShell import ParallelShell
 from XMLFileCache import XMLFileNotFound
 from locate_pdaq import find_pdaq_config, find_pdaq_trunk
+from scmversion import store_scmversion
 from utils.Machineid import Machineid
 
 # pdaq subdirectories to be deployed
@@ -23,12 +24,8 @@ NICE_ADJ_DEFAULT = 19
 EXPRESS_DEFAULT = False
 TIMEOUT_DEFAULT = 300
 
-# add meta-project python dir to Python library search path
-metaDir = find_pdaq_trunk()
-sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
-from SVNVersionInfo import store_svnversion
-
-SVN_ID = "$Id: DeployPDAQ.py 15414 2015-02-13 21:59:27Z dglo $"
+# find top pDAQ directory
+PDAQ_HOME = find_pdaq_trunk()
 
 
 def add_arguments(parser, config_as_arg=True):
@@ -326,10 +323,10 @@ def run_deploy(args):
                 print " ",
             print
 
-        ver = store_svnversion(metaDir)
+        ver = store_scmversion(PDAQ_HOME)
         print "VERSION: %s" % ver
 
-    deploy(config, os.environ["HOME"], metaDir, SUBDIRS, args.delete,
+    deploy(config, os.environ["HOME"], PDAQ_HOME, SUBDIRS, args.delete,
            args.dryRun, args.deepDryRun, args.undeploy, traceLevel,
            monitorIval=monitorIval, niceAdj=args.niceAdj, express=args.express,
            doParallel=args.doParallel, timeout=args.timeout)

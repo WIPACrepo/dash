@@ -677,8 +677,7 @@ class TestDAQPool(unittest.TestCase):
         clusterCfg = FakeCluster("cluster-foo")
 
         dashLog = runset.getLog("dashLog")
-        dashLog.addExpectedRegexp(r"Version info: \S+ \d+ \S+ \S+ \S+ \S+" +
-                                  r" \d+\S*")
+        dashLog.addExpectedRegexp(r"Version info: \S+ \S+ \S+ \S+")
         dashLog.addExpectedExact("Run configuration: %s" % runConfig)
         dashLog.addExpectedExact("Cluster: %s" % clusterCfg.descName())
 

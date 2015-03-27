@@ -19,7 +19,7 @@ except ImportError:
 from ClusterDescription import ClusterDescription
 
 
-META_DIR = find_pdaq_trunk()
+PDAQ_HOME = find_pdaq_trunk()
 CONFIG_DIR = find_pdaq_config()
 
 
@@ -28,7 +28,7 @@ def _open_schema(path, description):
         return open(path, 'r')
     except IOError:
         # look in the schema directory
-        path2 = os.path.join(META_DIR, 'schema', os.path.basename(path))
+        path2 = os.path.join(PDAQ_HOME, 'schema', os.path.basename(path))
 
         try:
             return open(path2, 'r')

@@ -24,9 +24,10 @@ from RunSetState import RunSetState
 from RunStats import RunStats
 from TaskManager import TaskManager
 from UniqueID import UniqueID
+from leapseconds import leapseconds
+from scmversion import get_scmversion_str
 from utils import ip
 from utils.DashXMLLog import DashXMLLog, DashXMLLogException
-from leapseconds import leapseconds
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -512,9 +513,8 @@ class RunData(object):
         else:
             self.__dashlog = runSet.createDashLog()
 
-        self.__dashlog.error(("Version info: %(filename)s %(revision)s" +
-                              " %(date)s %(time)s %(author)s %(release)s" +
-                              " %(repo_rev)s") % versionInfo)
+        self.__dashlog.error("Version info: " +
+                             get_scmversion_str(info=versionInfo))
         self.__dashlog.error("Run configuration: %s" % runConfig.basename())
         self.__dashlog.error("Cluster: %s" % clusterConfig.descName())
 
