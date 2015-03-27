@@ -402,6 +402,9 @@ def store_scmversion(dir):
     and don't write anything to the file.
     """
 
+    if dir is None:
+        dir = PDAQ_HOME
+
     try:
         scmstr = get_scmversion_str(dir)
     except SCMVersionError, e:
