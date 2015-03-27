@@ -23,7 +23,7 @@ RELEASE = 'trunk'
 PDAQ_HOME = find_pdaq_trunk()
 
 # file which caches the revision information
-SCM_REV_FILENAME = os.path.join(PDAQ_HOME, ".deployed_rev")
+SCM_REV_FILENAME = os.path.join(PDAQ_HOME, "target", ".deployed_rev")
 
 # ignore these externals when calculating version information
 #  (once contained ['cluster-config', 'config'] but both directories
