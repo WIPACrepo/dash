@@ -11,10 +11,10 @@ import sys
 from DAQConfigExceptions import DAQConfigException
 from DAQConfig import DAQConfig, DAQConfigParser
 from ParallelShell import ParallelShell
-from XMLFileCache import XMLFileNotFound
 from locate_pdaq import find_pdaq_config, find_pdaq_trunk
 from scmversion import store_scmversion
 from utils.Machineid import Machineid
+from xmlparser import XMLBadFileError
 
 # pdaq subdirectories to be deployed
 SUBDIRS = ("target", "config", "dash", "schema", "src", "PyDOM")
@@ -97,8 +97,8 @@ def add_arguments(parser, config_as_arg=True):
 def check_running_on_access(prog):
     "exit the program if it's not running on 'access' on SPS/SPTS"
     hostid = Machineid()
-    if(not (hostid.is_build_host() or
-            (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+    if not (hostid.is_build_host() or
+            (hostid.is_unknown_host() and hostid.is_unknown_cluster())):
         raise SystemExit("Are you sure you are running"
                          " %s on the correct host?" % prog)
 
@@ -208,11 +208,11 @@ def deploy(config, homeDir, pdaqDir, subdirs, delete, dryRun,
                 nodeName = "unknown"
             else:
                 nodeName = cmdToNodeNameDict[cmd]
-            if(rtn_code != 0):
+            if rtn_code != 0:
                 print "-" * 60
                 print ("Error non-zero return code  ( %d ) "
                        "for host:%s cmd:%s") % (rtn_code, nodeName, cmd)
-                if(len(result) > 0):
+                if len(result) > 0:
                     print "Results: %s" % result
 
 
@@ -291,7 +291,7 @@ def run_deploy(args):
             DAQConfigParser.getClusterConfiguration(args.configName,
                                                     clusterDesc=cdesc,
                                                     validate=args.validation)
-    except XMLFileNotFound:
+    except XMLBadFileError:
         print >> sys.stderr, 'Configuration "%s" not found' % args.configName
         p.print_help()
         raise SystemExit

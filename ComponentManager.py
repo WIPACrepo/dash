@@ -123,7 +123,9 @@ class ComponentManager(object):
         comps = []
         for c in compdicts:
             lc = RunComponent(c["compName"], c["compNum"], "??logLevel??",
-                              "??jvm??", "??jvmArgs??", c["host"], False)
+                              "??jvmPath??", "??jvmServer??", "??jvmHeapInit??",
+                              "??jvmHeapMax??", "??jvmArgs??", "??jvmExtra??",
+                              c["host"], False)
             comps.append(lc)
         return comps
 
@@ -221,8 +223,12 @@ class ComponentManager(object):
                 if not comp.isControlServer():
                     compList.append(RunComponent(comp.name(), comp.id(),
                                                  comp.logLevel(),
-                                                 comp.jvm(),
+                                                 comp.jvmPath(),
+                                                 comp.jvmServer(),
+                                                 comp.jvmHeapInit(),
+                                                 comp.jvmHeapMax(),
                                                  comp.jvmArgs(),
+                                                 comp.jvmExtraArgs(),
                                                  node.hostName(), False))
         return compList
 
@@ -355,7 +361,7 @@ class ComponentManager(object):
                                      trace=verbose, timeout=30)
         cmdToHostDict = {}
         for comp in compList:
-            if comp.jvm() is None:
+            if comp.jvmPath() is None:
                 continue
 
             if comp.isHub():
@@ -548,7 +554,7 @@ class ComponentManager(object):
 
         cmdToHostDict = {}
         for comp in compList:
-            if comp.jvm() is None:
+            if comp.jvmPath() is None:
                 continue
 
             myIP = ip.getLocalIpAddr(comp.host())
@@ -559,10 +565,20 @@ class ComponentManager(object):
                                  (comp.name(), execJar))
                 continue
 
-            javaCmd = comp.jvm()
-            jvmArgs = comp.jvmArgs()
+            jvmPath = comp.jvmPath()
 
-            jvmArgs += " -Dicecube.daq.component.configDir='%s'" % configDir
+            jvmArgs = "-Dicecube.daq.component.configDir='%s'" % configDir
+            if comp.jvmServer() is not None and comp.jvmServer():
+                jvmArgs += " -server"
+            if comp.jvmHeapInit() is not None:
+                jvmArgs += " -Xms" + comp.jvmHeapInit()
+            if comp.jvmHeapMax() is not None:
+                jvmArgs += " -Xmx" + comp.jvmHeapMax()
+            if comp.jvmArgs() is not None:
+                jvmArgs += " " + comp.jvmArgs()
+            if comp.jvmExtraArgs() is not None:
+                jvmArgs += " " + comp.jvmExtraArgs()
+
             #switches = "-g %s" % configDir
             switches = "-d %s" % daqDataDir
             switches += " -c %s:%d" % (myIP, DAQPort.CNCSERVER)
@@ -581,7 +597,7 @@ class ComponentManager(object):
                 jvmArgs += " -Dicecube.daq.eventBuilder.validateEvents"
 
             baseCmd = "%s %s -jar %s %s %s &" % \
-                (javaCmd, jvmArgs, execJar, switches, compIO)
+                (jvmPath, jvmArgs, execJar, switches, compIO)
             if comp.isLocalhost():
                 # Just run it
                 cmd = baseCmd

@@ -3,15 +3,15 @@
 import os
 import sys
 
-from DefaultDomGeometry import BadFileError, DefaultDomGeometryReader, \
-    ProcessError
-from locate_pdaq import find_pdaq_config
-from xml_dict import get_attrib, get_value, xml_dict
-from utils.Machineid import Machineid
-from config.validate_configs import validate_configs
-from RunCluster import RunCluster
-from Component import Component
 from CachedConfigName import CachedConfigName
+from Component import Component
+from DefaultDomGeometry import DefaultDomGeometryReader
+from RunCluster import RunCluster
+from config.validate_configs import validate_configs
+from locate_pdaq import find_pdaq_config
+from utils.Machineid import Machineid
+from xml_dict import get_attrib, get_value, xml_dict
+from xmlparser import XMLBadFileError, XMLFormatError
 
 # config exceptions
 from DAQConfigExceptions import DAQConfigException
@@ -137,12 +137,12 @@ class ConfigObject(object):
     @filename.setter
     def filename(self, filename):
         """Take a config filename, try to find it and parse it.
-        In case the file is not accessible raise the BadFileError"""
+        In case the file is not accessible raise XMLBadFileError"""
         self.__filename = self.find_config(filename)
         try:
             self.xml_runcfg = xml_dict(self.__filename)
         except IOError:
-            raise BadFileError("Cannot read xml file '%s'" % self.__filename)
+            raise XMLBadFileError("Cannot read xml file '%s'" % self.__filename)
         self.xdict = self.xml_runcfg.xml_dict
 
     @filename.deleter
@@ -331,12 +331,12 @@ class DAQConfig(ConfigObject):
         not validated"""
 
         if len(self.stringhub_map) == 0 and len(self.replay_hubs) == 0:
-            raise ProcessError("No doms or replayHubs found in %s"
-                               % self.filename)
+            raise XMLFormatError("No doms or replayHubs found in %s" %
+                                 self.filename)
 
         if not self.trig_cfg:
-            raise ProcessError("No <triggerConfig> found in %s"
-                               % self.filename)
+            raise XMLFormatError("No <triggerConfig> found in %s" %
+                                 self.filename)
 
         in_ice_hub, in_ice_trig, \
             ice_top_hub, ice_top_trig = (False, False, False, False)
@@ -355,20 +355,20 @@ class DAQConfig(ConfigObject):
                     ice_top_trig = True
 
         if in_ice_hub and not in_ice_trig:
-            raise ProcessError("Found in-ice hubs but no in-ice trigger in %s"
-                               % self.filename)
+            raise XMLFormatError("Found in-ice hubs but no in-ice trigger"
+                                 " in %s" % self.filename)
 
         if not in_ice_hub and in_ice_trig:
-            raise ProcessError("Found in-ice trigger but not in-ice hubs in %s"
-                               % self.filename)
+            raise XMLFormatError("Found in-ice trigger but not in-ice hubs"
+                                 " in %s" % self.filename)
 
         if ice_top_hub and not ice_top_trig:
-            raise ProcessError("Found icetop hubs but no icetop trigger in %s"
-                               % self.filename)
+            raise XMLFormatError("Found icetop hubs but no icetop trigger"
+                                 " in %s" % self.filename)
 
         if not ice_top_hub and ice_top_trig:
-            raise ProcessError("Found icetop trigger but no icetop hubs in %s"
-                               % self.filename)
+            raise XMLFormatError("Found icetop trigger but no icetop hubs"
+                                 " in %s" % self.filename)
 
     @classmethod
     def showList(cls, config_dir=None, config_name=None):
@@ -628,7 +628,6 @@ class DAQConfig(ConfigObject):
             elif 'triggerConfig' in key:
                 self.trig_cfg = TriggerConfig(val)
             elif 'runComponent' in key:
-                #self.runComp = RunComponentList(entry)
                 self.run_comps = val
                 self.comps = []
                 for run_comp in val:
@@ -778,14 +777,14 @@ class DAQConfigParser(object):
 
     @classmethod
     def load(cls, file_name, configDir=None, strict=False):
-        if not configDir is None:
+        if configDir is not None:
             FindConfigDir.CONFIG_DIR = configDir
 
         return DAQConfig(file_name, strict)
 
     @classmethod
     def parse(cls, config_dir, file_name, strict=False):
-        if not config_dir is None:
+        if config_dir is not None:
             FindConfigDir.CONFIG_DIR = config_dir
         return DAQConfig(file_name, strict)
 

@@ -14,7 +14,7 @@ from cncrun import CnCRun
 from datetime import datetime
 from utils.Machineid import Machineid
 
-SVN_ID = "$Id: ExpControlSkel.py 15483 2015-03-27 21:55:45Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 15490 2015-04-03 21:30:46Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -191,8 +191,8 @@ def updateStatus(oldStatus, newStatus):
 def daqrun(args):
     if not args.nohostcheck:
         hostid = Machineid()
-        if(not (hostid.is_control_host() or
-           (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+        if not (hostid.is_control_host() or
+                (hostid.is_unknown_host() and hostid.is_unknown_cluster())):
             # to run daq launch you should either be a control host or
             # a totally unknown host
             raise SystemExit("Are you sure you are running ExpControlSkel "

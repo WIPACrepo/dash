@@ -6,7 +6,7 @@ import sys
 import traceback
 
 from CachedConfigName import CachedConfigName
-from ClusterDescription import ClusterDescription
+from ClusterDescription import ClusterDescription, JVMArgs
 from Component import Component
 
 
@@ -15,10 +15,11 @@ class RunClusterError(Exception):
 
 
 class RunComponent(Component):
-    def __init__(self, name, id, logLevel, jvm, jvmArgs, host, isServer):
-        self.__jvm = jvm
-        self.__jvmArgs = jvmArgs
-        self.__isServer = isServer
+    def __init__(self, name, id, logLevel, jvmPath, jvmServer, jvmHeapInit,
+                 jvmHeapMax, jvmArgs, jvmExtra, host, isCtlServer):
+        self.__jvm = JVMArgs(jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
+                             jvmArgs, jvmExtra)
+        self.__isCtlServer = isCtlServer
 
         super(RunComponent, self).__init__(name, id, logLevel=logLevel,
                                            host=host)
@@ -26,36 +27,40 @@ class RunComponent(Component):
     def __str__(self):
         nStr = self.fullName()
 
-        if self.__jvm is None:
-            if self.__jvmArgs is None:
-                jStr = "?"
-            else:
-                jStr = "? | %s" % self.__jvmArgs
-        else:
-            if self.__jvmArgs is None:
-                jStr = self.__jvm
-            else:
-                jStr = "%s | %s" % (self.__jvm, self.__jvmArgs)
-
-        return "%s@%s(%s)" % (nStr, str(self.logLevel()), jStr)
+        return "%s@%s(%s)" % (nStr, str(self.logLevel()), self.__jvm)
 
     def isControlServer(self):
-        return self.__isServer
-
-    def jvm(self):
-        return self.__jvm
+        return self.__isCtlServer
 
     def jvmArgs(self):
-        return self.__jvmArgs
+        return self.__jvm.args()
+
+    def jvmExtraArgs(self):
+        return self.__jvm.extraArgs()
+
+    def jvmHeapInit(self):
+        return self.__jvm.heapInit()
+
+    def jvmHeapMax(self):
+        return self.__jvm.heapMax()
+
+    def jvmPath(self):
+        return self.__jvm.path()
+
+    def jvmServer(self):
+        return self.__jvm.isServer()
 
 
 class RunNode(object):
-    def __init__(self, hostName, defaultLogLevel, defaultJVM, defaultJVMArgs):
+    def __init__(self, hostName, defaultLogLevel, defaultJVMPath,
+                 defaultJVMServer, defaultJVMHeapInit, defaultJVMHeapMax,
+                 defaultJVMArgs, defaultJVMExtraArgs):
         self.__locName = hostName
         self.__hostName = hostName
         self.__defaultLogLevel = defaultLogLevel
-        self.__defaultJVM = defaultJVM
-        self.__defaultJVMArgs = defaultJVMArgs
+        self.__defaultJVM = JVMArgs(defaultJVMPath, defaultJVMServer,
+                                    defaultJVMHeapInit, defaultJVMHeapMax,
+                                    defaultJVMArgs, defaultJVMExtraArgs)
         self.__comps = []
 
     def __cmp__(self, other):
@@ -73,16 +78,34 @@ class RunNode(object):
             logLvl = comp.logLevel()
         else:
             logLvl = self.__defaultLogLevel
-        if comp.jvm() is not None or comp.isControlServer():
-            jvm = comp.jvm()
+        if comp.jvmPath() is not None or comp.isControlServer():
+            jvmPath = comp.jvmPath()
         else:
-            jvm = self.__defaultJVM
+            jvmPath = self.__defaultJVM.path()
+        if comp.jvmServer() is not None or comp.isControlServer():
+            jvmServer = comp.jvmServer()
+        else:
+            jvmServer = self.__defaultJVM.isServer()
+        if comp.jvmHeapInit() is not None or comp.isControlServer():
+            jvmHeapInit = comp.jvmHeapInit()
+        else:
+            jvmHeapInit = self.__defaultJVM.heapInit()
+        if comp.jvmHeapMax() is not None or comp.isControlServer():
+            jvmHeapMax = comp.jvmHeapMax()
+        else:
+            jvmHeapMax = self.__defaultJVM.heapMax()
         if comp.jvmArgs() is not None or comp.isControlServer():
             jvmArgs = comp.jvmArgs()
         else:
-            jvmArgs = self.__defaultJVMArgs
-        self.__comps.append(RunComponent(comp.name(), comp.id(), logLvl, jvm,
-                                         jvmArgs, self.__hostName,
+            jvmArgs = self.__defaultJVM.args()
+        if comp.jvmExtraArgs() is not None or comp.isControlServer():
+            jvmExtra = comp.jvmExtraArgs()
+        else:
+            jvmExtra = self.__defaultJVM.extraArgs()
+        self.__comps.append(RunComponent(comp.name(), comp.id(), logLvl,
+                                         jvmPath, jvmServer, jvmHeapInit,
+                                         jvmHeapMax, jvmArgs, jvmExtra,
+                                         self.__hostName,
                                          comp.isControlServer()))
 
     def components(self):
@@ -175,8 +198,12 @@ class RunCluster(CachedConfigName):
         "Add replay hubs with locations hard-coded in the run config to hostMap"
 
         logLevel = clusterDesc.defaultLogLevel("StringHub")
-        jvm = clusterDesc.defaultJVM("StringHub")
+        jvmPath = clusterDesc.defaultJVMPath("StringHub")
+        jvmServer = clusterDesc.defaultJVMServer("StringHub")
+        jvmHeapInit = clusterDesc.defaultJVMHeapInit("StringHub")
+        jvmHeapMax = clusterDesc.defaultJVMHeapMax("StringHub")
         jvmArgs = clusterDesc.defaultJVMArgs("StringHub")
+        jvmExtra = clusterDesc.defaultJVMExtraArgs("StringHub")
 
         i = 0
         while i < len(hubList):
@@ -189,8 +216,9 @@ class RunCluster(CachedConfigName):
                 lvl = hub.logLevel()
             else:
                 lvl = logLevel
-            comp = RunComponent(hub.name(), hub.id(), lvl, jvm,
-                                jvmArgs, hub.host(), False)
+            comp = RunComponent(hub.name(), hub.id(), lvl, jvmPath, jvmServer,
+                                jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra,
+                                hub.host(), False)
             cls.__addComponent(hostMap, hub.host(), comp)
             del hubList[i]
 
@@ -277,8 +305,12 @@ class RunCluster(CachedConfigName):
             hosts.append(v.host)
 
         logLevel = clusterDesc.defaultLogLevel("StringHub")
-        jvm = clusterDesc.defaultJVM("StringHub")
+        jvmPath = clusterDesc.defaultJVMPath("StringHub")
+        jvmServer = clusterDesc.defaultJVMServer("StringHub")
+        jvmHeapInit = clusterDesc.defaultJVMHeapInit("StringHub")
+        jvmHeapMax = clusterDesc.defaultJVMHeapMax("StringHub")
         jvmArgs = clusterDesc.defaultJVMArgs("StringHub")
+        jvmExtra = clusterDesc.defaultJVMExtraArgs("StringHub")
 
         hubNum = 0
         for host in hosts:
@@ -289,8 +321,9 @@ class RunCluster(CachedConfigName):
                 else:
                     lvl = logLevel
 
-                comp = RunComponent(hubComp.name(), hubComp.id(), lvl, jvm,
-                                    jvmArgs, host, False)
+                comp = RunComponent(hubComp.name(), hubComp.id(), lvl, jvmPath,
+                                    jvmServer, jvmHeapInit, jvmHeapMax,
+                                    jvmArgs, jvmExtra, host, False)
                 cls.__addComponent(hostMap, host, comp)
                 hubNum += 1
 
@@ -332,8 +365,12 @@ class RunCluster(CachedConfigName):
         nodes = []
         for host in hostKeys:
             node = RunNode(str(host), clusterDesc.defaultLogLevel(),
-                           clusterDesc.defaultJVM(),
-                           clusterDesc.defaultJVMArgs())
+                           clusterDesc.defaultJVMPath(),
+                           clusterDesc.defaultJVMServer(),
+                           clusterDesc.defaultJVMHeapInit(),
+                           clusterDesc.defaultJVMHeapMax(),
+                           clusterDesc.defaultJVMArgs(),
+                           clusterDesc.defaultJVMExtraArgs())
             nodes.append(node)
 
             for compKey in hostMap[host].keys():

@@ -117,11 +117,11 @@ def check_detector_state():
         raise SystemExit('To force a restart, rerun with the --force option')
 
 
-def kill(cfgDir, logger, args=None, clusterDesc=None, validation=None,
+def kill(cfgDir, logger, args=None, clusterDesc=None, validate=None,
          serverKill=None, verbose=None, dryRun=None, killWith9=None,
-         force=None):
+         force=None, parallel=None):
     if args is not None:
-        if clusterDesc is not None or validation is not None or \
+        if clusterDesc is not None or validate is not None or \
            serverKill is not None or verbose is not None or \
            dryRun is not None or killWith9 is not None or \
            force is not None:
@@ -132,7 +132,7 @@ def kill(cfgDir, logger, args=None, clusterDesc=None, validation=None,
             else:
                 print >> sys.stderr, errmsg
         clusterDesc = args.clusterDesc
-        validation = args.validation
+        validate = args.validation
         serverKill = args.serverKill
         verbose = args.verbose
         dryRun = args.dryRun
@@ -141,7 +141,7 @@ def kill(cfgDir, logger, args=None, clusterDesc=None, validation=None,
 
     comps = ComponentManager.getActiveComponents(clusterDesc,
                                                  configDir=cfgDir,
-                                                 validate=validation,
+                                                 validate=validate,
                                                  useCnC=serverKill,
                                                  logger=logger)
 
@@ -150,7 +150,7 @@ def kill(cfgDir, logger, args=None, clusterDesc=None, validation=None,
 
         ComponentManager.kill(comps, verbose=verbose, dryRun=dryRun,
                               killCnC=killCnC, killWith9=killWith9,
-                              logger=logger)
+                              logger=logger, parallel=parallel)
 
     if force:
         print >> sys.stderr, "Remember to run SpadeQueue.py to recover" + \
@@ -159,7 +159,7 @@ def kill(cfgDir, logger, args=None, clusterDesc=None, validation=None,
 
 def launch(cfgDir, dashDir, logger, args=None, clusterDesc=None,
            configName=None, validate=None, verbose=None, dryRun=None,
-           eventCheck=None, forceRestart=None):
+           eventCheck=None, parallel=None, forceRestart=None, checkExists=True):
     if args is not None:
         if clusterDesc is not None or configName is not None or \
            validate is not None or verbose is not None or \
@@ -227,9 +227,9 @@ def launch(cfgDir, dashDir, logger, args=None, clusterDesc=None,
     ComponentManager.launch(doCnC, dryRun, verbose, clusterConfig, dashDir,
                             cfgDir, daqDataDir, logDir, logDirFallback,
                             spadeDir, copyDir, logPort, livePort,
-                            eventCheck=eventCheck, checkExists=True,
+                            eventCheck=eventCheck, checkExists=checkExists,
                             startMissing=True, forceRestart=forceRestart,
-                            logger=logger)
+                            logger=logger, parallel=parallel)
 
 
 if __name__ == "__main__":

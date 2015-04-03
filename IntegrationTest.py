@@ -395,13 +395,17 @@ class RealComponent(object):
                   'secondaryBuilders': (32, 0),
                    }
 
-    def __init__(self, name, num, cmdPort, mbeanPort, jvm, jvmArgs,
-                 verbose=False):
+    def __init__(self, name, num, cmdPort, mbeanPort, jvmPath, jvmServer,
+                 jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtraArgs, verbose=False):
         self.__id = None
         self.__name = name
         self.__num = num
-        self.__jvm = jvm
+        self.__jvmPath = jvmPath
+        self.__jvmServer = jvmServer
+        self.__jvmHeapInit = jvmHeapInit
+        self.__jvmHeapMax = jvmHeapMax
         self.__jvmArgs = jvmArgs
+        self.__jvmExtraArgs = jvmExtraArgs
 
         self.__state = 'FOO'
 
@@ -751,11 +755,23 @@ class RealComponent(object):
     def isComponent(self, name, num=-1):
         return self.__name == name and (num < 0 or self.__num == num)
 
-    def jvm(self):
-        return self.__jvm
-
     def jvmArgs(self):
         return self.__jvmArgs
+
+    def jvmExtraArgs(self):
+        return self.__jvmExtraArgs
+
+    def jvmHeapInit(self):
+        return self.__jvmHeapInit
+
+    def jvmHeapMax(self):
+        return self.__jvmHeapMax
+
+    def jvmPath(self):
+        return self.__jvmPath
+
+    def jvmServer(self):
+        return self.__jvmServer
 
     def logTo(self, logHost, logPort, liveHost, livePort):
         return self.__logTo(logHost, logPort, liveHost, livePort)
@@ -862,19 +878,32 @@ class IntegrationTest(unittest.TestCase):
         raise Exception("Unknown component %s-%d" % (compName, compNum))
 
     def __createComponents(self):
-        # Note that these jvm/jvmArg values needs to correspond to
+        # Note that these jvmPath/jvmArg values needs to correspond to
         # what would be used by the config in 'sim-localhost'
-        jvm = 'java'
-        hubJvmArgs = '-server -Xmx512m'
-        comps = [('stringHub', 1001, 9111, 9211, jvm, hubJvmArgs),
-                 ('stringHub', 1002, 9112, 9212, jvm, hubJvmArgs),
-                 ('stringHub', 1003, 9113, 9213, jvm, hubJvmArgs),
-                 ('stringHub', 1004, 9114, 9214, jvm, hubJvmArgs),
-                 ('stringHub', 1005, 9115, 9215, jvm, hubJvmArgs),
-                 ('inIceTrigger', 0, 9117, 9217, jvm, '-server'),
-                 ('globalTrigger', 0, 9118, 9218, jvm, '-server'),
-                 ('eventBuilder', 0, 9119, 9219, jvm, '-server'),
-                 ('secondaryBuilders', 0, 9120, 9220, jvm, '-server')]
+        jvmPath = 'java'
+        jvmServer = True
+        jvmHeapInit = None
+        jvmHeapMax = "512m"
+        jvmArgs = None
+        jvmExtra = None
+        comps = [('stringHub', 1001, 9111, 9211, jvmPath, jvmServer,
+                  jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
+                 ('stringHub', 1002, 9112, 9212, jvmPath, jvmServer,
+                  jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
+                 ('stringHub', 1003, 9113, 9213, jvmPath, jvmServer,
+                  jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
+                 ('stringHub', 1004, 9114, 9214, jvmPath, jvmServer,
+                  jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
+                 ('stringHub', 1005, 9115, 9215, jvmPath, jvmServer,
+                  jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
+                 ('inIceTrigger', 0, 9117, 9217, jvmPath, jvmServer,
+                  jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
+                 ('globalTrigger', 0, 9118, 9218, jvmPath, jvmServer,
+                  jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
+                 ('eventBuilder', 0, 9119, 9219, jvmPath, jvmServer,
+                  jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
+                 ('secondaryBuilders', 0, 9120, 9220, jvmPath, jvmServer,
+                  jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra)]
 
         if len(comps) != IntegrationTest.NUM_COMPONENTS:
             raise Exception("Expected %d components, not %d" %
@@ -883,7 +912,8 @@ class IntegrationTest(unittest.TestCase):
         verbose = False
 
         for c in comps:
-            comp = RealComponent(c[0], c[1], c[2], c[3], c[4], c[5], verbose)
+            comp = RealComponent(c[0], c[1], c[2], c[3], c[4], c[5], c[6],
+                                 c[7], c[8], c[9], verbose)
 
             if self.__compList is None:
                 self.__compList = []
@@ -941,12 +971,16 @@ class IntegrationTest(unittest.TestCase):
                                  IntegrationTest.LOG_DIR,
                                  IntegrationTest.DATA_DIR,
                                  IntegrationTest.SPADE_DIR,
+                                 None,
                                  IntegrationTest.CONFIG_NAME,
                                  IntegrationTest.COPY_DIR, logPort, livePort)
         for comp in launchList:
             deployComp = MockDeployComponent(comp.getName(), comp.getNumber(),
-                                             logLevel, comp.jvm(),
-                                             comp.jvmArgs())
+                                             logLevel, comp.jvmPath(),
+                                             comp.jvmServer(),
+                                             comp.jvmHeapInit(),
+                                             comp.jvmHeapMax(), comp.jvmArgs(),
+                                             comp.jvmExtraArgs())
             pShell.addExpectedJava(deployComp, IntegrationTest.CONFIG_DIR,
                                    IntegrationTest.DATA_DIR,
                                    DAQPort.CATCHALL, livePort, verbose, False,
@@ -964,7 +998,7 @@ class IntegrationTest(unittest.TestCase):
         cluCfg = MockClusterConfig(IntegrationTest.CLUSTER_CONFIG,
                                    IntegrationTest.CLUSTER_DESC)
         for c in self.__compList:
-            cluCfg.addComponent(c.fullName(), c.jvm(), c.jvmArgs(),
+            cluCfg.addComponent(c.fullName(), c.jvmPath(), c.jvmArgs(),
                                 "localhost")
 
         if RunOption.isLogToFile(runOptions) or liveRunOnly:

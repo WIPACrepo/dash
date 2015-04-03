@@ -23,9 +23,9 @@ from Process import processList, findProcess
 from RunSet import RunSet, listComponentRanges
 from RunSetState import RunSetState
 from SocketServer import ThreadingMixIn
-from XMLFileCache import XMLFileNotFound
 from locate_pdaq import find_pdaq_config, find_pdaq_trunk
 from scmversion import get_scmversion, get_scmversion_str
+from xmlparser import XMLBadFileError
 from utils import ip
 
 from exc_string import exc_string, set_exc_string_encoding
@@ -844,7 +844,7 @@ class CnCServer(DAQPool):
                                              clusterDesc=cdesc,
                                              configDir=cfgDir, validate=False)
                 self.__clusterConfig = cc
-            except XMLFileNotFound:
+            except XMLBadFileError:
                 if cdesc is None:
                     cdescStr = ""
                 else:

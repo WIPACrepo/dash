@@ -9,111 +9,12 @@ import re
 import sys
 
 from xml.dom import minidom, Node
+from xmlparser import XMLBadFileError, XMLFormatError, XMLParser
 
 
 # find pDAQ's run configuration directory
 from locate_pdaq import find_pdaq_config
 configDir = find_pdaq_config()
-
-
-class XMLError(Exception):
-    pass
-
-
-class ProcessError(XMLError):
-    pass
-
-
-class BadFileError(XMLError):
-    pass
-
-
-class XMLParser(object):
-
-    @staticmethod
-    def parseBooleanString(valstr):
-        "Return None if the value is not a valid boolean value"
-        if valstr is None:
-            return None
-
-        lstr = valstr.lower()
-        if lstr == "true" or lstr == "yes":
-            return True
-        if lstr == "false" or lstr == "no":
-            return False
-        try:
-            val = int(valstr)
-            return val == 0
-        except:
-            pass
-
-        return None
-
-    @staticmethod
-    def getChildText(node):
-        "Return the text from this node's child"
-        nodeName = "<%s>" % str(node.nodeName)
-        if nodeName == "<#document>":
-            nodeName = "top-level"
-
-        if node.childNodes is None or len(node.childNodes) == 0:
-            raise ProcessError("No %s child nodes" % nodeName)
-
-        text = None
-        for kid in node.childNodes:
-            if kid.nodeType == Node.TEXT_NODE:
-                if text is not None:
-                    raise ProcessError("Found multiple %s text nodes" %
-                                       nodeName)
-                text = kid.nodeValue
-                continue
-
-            if kid.nodeType == Node.COMMENT_NODE:
-                continue
-
-            if kid.nodeType == Node.ELEMENT_NODE:
-                raise ProcessError("Unexpected %s child <%s>" %
-                                   (node.nodeName, kid.nodeName))
-
-            raise ProcessError("Found unknown %s node <%s>" %
-                               (nodeName, kid.nodeName))
-
-        if text is None:
-            raise ProcessError("No text child node for %s" % nodeName)
-
-        return text
-
-    @staticmethod
-    def getSingleAttribute(node, attrName, strict=True, checkSingle=True):
-        """
-        fd.write('node: ', node)
-        fd.write('node.attributes: ', node.attributes)
-        fd.write('attrName: ', attrName)
-        fd.write('node type: ', type(node), '\n')
-        fd.write('attribute type: ', type(node.attributes), '\n')
-        fd.write('attrName type: ', type(attrName), '\n')
-        fd.write('node.attributes.has_key(attrName): ',
-                node.attributes.has_key(attrName))
-        fd.write('attrName in node.attributes: ', attrName in node.attributes)
-        """
-        if node.attributes is None or len(node.attributes) == 0:
-            if strict:
-                raise ProcessError("<%s> node has no attributes" %
-                                   node.nodeName)
-            return None
-
-        if strict and checkSingle and len(node.attributes) != 1:
-            raise ProcessError(("<%s> node has extra" +
-                                " attributes") % node.nodeName)
-
-        if not node.attributes.has_key(attrName):
-            if strict:
-                raise ProcessError(("<%s> node has no \"%s\" attribute") %
-                                   (node.nodeName, attrName))
-
-            return None
-
-        return node.attributes[attrName].value
 
 
 class DomGeometryException(Exception):
@@ -271,7 +172,7 @@ class DomGeometry(object):
             else:
                 try:
                     it = DefaultDomGeometry.getIcetopNum(self.__string)
-                except ProcessError:
+                except XMLFormatError:
                     it = self.__string
 
             if it != baseNum:
@@ -383,15 +284,15 @@ class DomGeometry(object):
             elif self.__mbid is not None:
                 dname = self.__mbid
             else:
-                raise ProcessError("Blank DOM entry")
+                raise XMLFormatError("Blank DOM entry")
 
-            raise ProcessError("DOM %s is missing ID in string %s" % dname)
+            raise XMLFormatError("DOM %s is missing ID in string %s" % dname)
         if self.__mbid is None:
-            raise ProcessError("DOM pos %d is missing MBID in string %s" %
-                               (self.__pos, self.__string))
+            raise XMLFormatError("DOM pos %d is missing MBID in string %s" %
+                                 (self.__pos, self.__string))
         if self.__name is None:
-            raise ProcessError("DOM %s is missing name in string %s" %
-                               self.__mbid)
+            raise XMLFormatError("DOM %s is missing name in string %s" %
+                                 self.__mbid)
 
     def x(self):
         return self.__x
@@ -429,7 +330,7 @@ class DefaultDomGeometry(object):
             self.__stringToDom[stringNum] = []
         elif errorOnMulti:
             errMsg = "Found multiple entries for string %d" % stringNum
-            raise ProcessError(errMsg)
+            raise XMLFormatError(errMsg)
 
     def deleteDom(self, stringNum, dom):
         for i in range(len(self.__stringToDom[stringNum])):
@@ -611,7 +512,7 @@ class DefaultDomGeometry(object):
         if strNum in [1,  7,  14, 22, 31, 79, 80, 81]:
             return 211
 
-        raise ProcessError("Could not find icetop hub for string %d" % strNum)
+        raise XMLFormatError("Could not find icetop hub for string %d" % strNum)
 
     def getStringToDomDict(self):
         "Get the string number -> DOM object dictionary"
@@ -714,8 +615,8 @@ class DefaultDomGeometryReader(XMLParser):
     def __parseDomNode(cls, stringNum, node):
         "Extract a single DOM's data from the default-dom-geometry XML tree"
         if node.attributes is not None and len(node.attributes) > 0:
-            raise ProcessError("<%s> node has unexpected attributes" %
-                               node.nodeName)
+            raise XMLFormatError("<%s> node has unexpected attributes" %
+                                 node.nodeName)
 
         pos = None
         mbid = None
@@ -755,12 +656,12 @@ class DefaultDomGeometryReader(XMLParser):
                 elif kid.nodeName == "originalString":
                     origStr = int(cls.getChildText(kid))
                 else:
-                    raise ProcessError("Unexpected %s child <%s>" %
-                                       (node.nodeName, kid.nodeName))
+                    raise XMLFormatError("Unexpected %s child <%s>" %
+                                         (node.nodeName, kid.nodeName))
                 continue
 
-            raise ProcessError("Found unknown %s node <%s>" %
-                               (node.nodeName, kid.nodeName))
+            raise XMLFormatError("Found unknown %s node <%s>" %
+                                 (node.nodeName, kid.nodeName))
 
         dom = DomGeometry(stringNum, pos, mbid, name, prod, chanId, x, y, z)
         if origStr is not None:
@@ -773,8 +674,8 @@ class DefaultDomGeometryReader(XMLParser):
     def __parseStringNode(cls, geom, node):
         "Extract data from a default-dom-geometry <string> node tree"
         if node.attributes is not None and len(node.attributes) > 0:
-            raise ProcessError("<%s> node has unexpected attributes" %
-                               node.nodeName)
+            raise XMLFormatError("<%s> node has unexpected attributes" %
+                                 node.nodeName)
 
         stringNum = None
         origOrder = 0
@@ -793,8 +694,8 @@ class DefaultDomGeometryReader(XMLParser):
                     origOrder = 0
                 elif kid.nodeName == "dom":
                     if stringNum is None:
-                        raise ProcessError("Found <dom> before <number>" +
-                                           " under <string>")
+                        raise XMLFormatError("Found <dom> before <number>" +
+                                             " under <string>")
                     dom = cls.__parseDomNode(stringNum, kid)
 
                     dom.setOriginalOrder(origOrder)
@@ -802,15 +703,15 @@ class DefaultDomGeometryReader(XMLParser):
 
                     geom.addDom(dom)
                 else:
-                    raise ProcessError("Unexpected %s child <%s>" %
-                                       (node.nodeName, kid.nodeName))
+                    raise XMLFormatError("Unexpected %s child <%s>" %
+                                         (node.nodeName, kid.nodeName))
                 continue
 
-            raise ProcessError("Found unknown %s node <%s>" %
+            raise XMLFormatError("Found unknown %s node <%s>" %
                                (node.nodeName, kid.nodeName))
 
         if stringNum is None:
-            raise ProcessError("String is missing number")
+            raise XMLFormatError("String is missing number")
 
     @classmethod
     def parse(cls, fileName=None, translateDoms=False):
@@ -818,18 +719,18 @@ class DefaultDomGeometryReader(XMLParser):
             fileName = os.path.join(configDir, "default-dom-geometry.xml")
 
         if not os.path.exists(fileName):
-            raise BadFileError("Cannot read default dom geometry file \"%s\"" %
-                               fileName)
+            raise XMLBadFileError("Cannot read default dom geometry file"
+                                  " \"%s\"" % fileName)
 
         try:
             dom = minidom.parse(fileName)
         except Exception as e:
-            raise ProcessError("Couldn't parse \"%s\": %s" % (fileName,
-                                                              str(e)))
+            raise XMLFormatError("Couldn't parse \"%s\": %s" %
+                                 (fileName, str(e)))
 
         gList = dom.getElementsByTagName("domGeometry")
         if gList is None or len(gList) != 1:
-            raise ProcessError("No <domGeometry> tag found in %s" % fileName)
+            raise XMLFormatError("No <domGeometry> tag found in %s" % fileName)
 
         geom = DefaultDomGeometry(translateDoms)
         for kid in gList[0].childNodes:
@@ -843,12 +744,12 @@ class DefaultDomGeometryReader(XMLParser):
                 if kid.nodeName == "string":
                     cls.__parseStringNode(geom, kid)
                 else:
-                    raise ProcessError("Unknown domGeometry node <%s>" %
-                                       kid.nodeName)
+                    raise XMLFormatError("Unknown domGeometry node <%s>" %
+                                         kid.nodeName)
                 continue
 
-            raise ProcessError("Found unknown domGeometry node <%s>" %
-                               kid.nodeName)
+            raise XMLFormatError("Found unknown domGeometry node <%s>" %
+                                 kid.nodeName)
 
         # clean up XML objects
         dom.unlink()
@@ -866,8 +767,8 @@ class DomsTxtReader(object):
             fileName = os.path.join(configDir, "doms.txt")
 
         if not os.path.exists(fileName):
-            raise BadFileError("Cannot read doms.txt file \"%s\"" %
-                               fileName)
+            raise XMLBadFileError("Cannot read doms.txt file \"%s\"" %
+                                  fileName)
 
         with open(fileName, 'r') as fd:
             newGeom = defDomGeom is None
@@ -930,8 +831,8 @@ class NicknameReader(object):
             fileName = os.path.join(configDir, "nicknames.txt")
 
         if not os.path.exists(fileName):
-            raise BadFileError("Cannot read nicknames file \"%s\"" %
-                               fileName)
+            raise XMLBadFileError("Cannot read nicknames file \"%s\"" %
+                                  fileName)
 
         with open(fileName, 'r') as fd:
             newGeom = defDomGeom is None
@@ -995,10 +896,10 @@ class GeometryFileReader(object):
         "Parse text file containing IceCube geometry settings"
 
         if fileName is None:
-            raise BadFileError("No geometry file specified")
+            raise XMLBadFileError("No geometry file specified")
 
         if not os.path.exists(fileName):
-            raise BadFileError("Cannot read geometry file \"%s\"" % fileName)
+            raise XMLBadFileError("Cannot read geometry file \"%s\"" % fileName)
 
         with open(fileName, 'r') as fd:
             newGeom = defDomGeom is None

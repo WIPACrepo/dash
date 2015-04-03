@@ -100,13 +100,13 @@ class MyRunSet(RunSet):
 
 class TestRunSet(unittest.TestCase):
     def __buildClusterConfig(self, compList, baseName):
-        jvm = "java-" + baseName
+        jvmPath = "java-" + baseName
         jvmArgs = "args=" + baseName
 
         clusterCfg = MockClusterConfig("CC-" + baseName)
         for c in compList:
-            clusterCfg.addComponent(c.fullName(), jvm, jvmArgs,
-                                       "host-" + c.fullName())
+            clusterCfg.addComponent(c.fullName(), jvmPath, jvmArgs,
+                                    "host-" + c.fullName())
 
         return clusterCfg
 
