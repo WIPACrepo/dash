@@ -570,13 +570,13 @@ class ComponentManager(object):
             jvmArgs = "-Dicecube.daq.component.configDir='%s'" % configDir
             if comp.jvmServer() is not None and comp.jvmServer():
                 jvmArgs += " -server"
-            if comp.jvmHeapInit() is not None:
+            if comp.jvmHeapInit() is not None and len(comp.jvmHeapInit()) > 0:
                 jvmArgs += " -Xms" + comp.jvmHeapInit()
-            if comp.jvmHeapMax() is not None:
+            if comp.jvmHeapMax() is not None and len(comp.jvmHeapMax()) > 0:
                 jvmArgs += " -Xmx" + comp.jvmHeapMax()
-            if comp.jvmArgs() is not None:
+            if comp.jvmArgs() is not None and len(comp.jvmArgs()) > 0:
                 jvmArgs += " " + comp.jvmArgs()
-            if comp.jvmExtraArgs() is not None:
+            if comp.jvmExtraArgs() is not None and len(comp.jvmExtraArgs()) > 0:
                 jvmArgs += " " + comp.jvmExtraArgs()
 
             #switches = "-g %s" % configDir
