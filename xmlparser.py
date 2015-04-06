@@ -43,13 +43,11 @@ class XMLParser(object):
         return defaultVal
 
     @classmethod
-    def getChildNode(cls, node, name):
+    def getChildNodes(cls, node, name):
         if node.childNodes is not None:
             for kid in node.childNodes:
                 if kid.nodeType == Node.ELEMENT_NODE and kid.nodeName == name:
-                    return kid
-
-        return None
+                    yield kid
 
     @classmethod
     def getChildText(cls, node, strict=False):

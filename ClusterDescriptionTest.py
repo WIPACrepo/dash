@@ -961,6 +961,51 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
+    def testMultiJVM(self):
+        name = "multiJVM"
+
+        hostName = "foo"
+        compName = "fooComp"
+        args = None
+        extra = None
+        heapInit = "2g"
+        heapMax = "4g"
+        path = None
+        server = None
+
+        cluPath = os.path.join(self.CFGDIR, name + "-cluster.cfg")
+        with open(cluPath, "w") as fd:
+            print >>fd, "<cluster name=\"%s\">" % name
+            print >>fd, "  <host name=\"%s\">" % hostName
+            print >>fd, "    <component name=\"%s\">" % compName
+            print >>fd, "      <jvm heapInit=\"xxx\"/>"
+            print >>fd, "      <jvm heapInit=\"%s\"/>" % heapInit
+            print >>fd, "      <jvm heapMax=\"%s\"/>" % heapMax
+            print >>fd, "    </component>"
+            print >>fd, "  </host>"
+            print >>fd, "</cluster>"
+
+        cd = ClusterDescription(self.CFGDIR, name)
+
+        for comp in cd.host(hostName).getComponents():
+            self.assertEqual(args, comp.jvmArgs(),
+                             "Expected %s JVMArgs \"%s\", not \"%s\"" %
+                             (comp.name(), args, comp.jvmArgs()))
+            self.assertEqual(extra, comp.jvmExtraArgs(),
+                             "Expected %s JVMExtra \"%s\", not \"%s\"" %
+                             (comp.name(), extra, comp.jvmExtraArgs()))
+            self.assertEqual(heapInit, comp.jvmHeapInit(),
+                             "Expected %s JVMHeapInit \"%s\", not \"%s\"" %
+                             (comp.name(), heapInit, comp.jvmHeapInit()))
+            self.assertEqual(heapMax, comp.jvmHeapMax(),
+                             "Expected %s JVMHeapMax \"%s\", not \"%s\"" %
+                             (comp.name(), heapMax, comp.jvmHeapMax()))
+            self.assertEqual(path, comp.jvmPath(),
+                             "Expected %s JVMPath \"%s\", not \"%s\"" %
+                             (comp.name(), path, comp.jvmPath()))
+            self.assertEqual(server, comp.jvmServer(),
+                             "Expected %s JVMServer \"%s\", not \"%s\"" %
+                             (comp.name(), server, comp.jvmServer()))
 
 if __name__ == '__main__':
     unittest.main()

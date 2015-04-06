@@ -82,7 +82,7 @@ class JVMArgs(object):
         if self.__heapInit is not None:
             outstr += " ms=" + self.__heapInit
         if self.__heapMax is not None:
-            outstr += " mx=" + self.__heapInit
+            outstr += " mx=" + self.__heapMax
 
         if self.__args is not None:
             outstr += " | " + self.__args
@@ -519,36 +519,37 @@ class ClusterDescription(ConfigXMLBase):
         extraArgs = None
 
         # try to get text from old jvmArgs node
-        argsNode = cls.getChildNode(node, 'jvmArgs')
-        if argsNode is not None:
+        for argsNode in cls.getChildNodes(node, 'jvmArgs'):
             args = cls.getChildText(argsNode)
 
         # look for jvm node
-        jvmNode = cls.getChildNode(node, 'jvm')
-        if jvmNode is not None:
+        for jvmNode in cls.getChildNodes(node, 'jvm'):
+            nodePath = None
             tmpPath = cls.getChildText(jvmNode)
             if tmpPath is not None:
                 tmpPath = tmpPath.strip()
                 if tmpPath != "":
-                    path = os.path.expanduser(tmpPath)
+                    nodePath = os.path.expanduser(tmpPath)
             tmpPath = cls.getAttr(jvmNode, 'path')
             if tmpPath is not None:
-                if path is not None:
+                if nodePath is not None:
                     raise XMLFormatError("%s contains both <jvm path=xxx>"
                                          " and <jvm>xxx</jvm>" % name)
-                path = os.path.expanduser(tmpPath)
+                nodePath = os.path.expanduser(tmpPath)
+            if nodePath is not None:
+                path = nodePath
             tmpSrvr = cls.getAttr(jvmNode, 'server')
             if tmpSrvr is not None:
                 isServer = cls.parseBooleanString(tmpSrvr)
-            heapInit = cls.getAttr(jvmNode, 'heapInit')
-            heapMax = cls.getAttr(jvmNode, 'heapMax')
+            heapInit = cls.getAttr(jvmNode, 'heapInit', defaultVal=heapInit)
+            heapMax = cls.getAttr(jvmNode, 'heapMax', defaultVal=heapMax)
             tmpArgs = cls.getAttr(jvmNode, 'args')
             if tmpArgs is not None:
                 if args is not None:
                     raise XMLFormatError("%s contains both <jvm args=xxx>"
                                          " and <jvmArgs>" % name)
                 args = tmpArgs
-            extraArgs = cls.getAttr(jvmNode, 'extraArgs')
+            extraArgs = cls.getAttr(jvmNode, 'extraArgs', defaultVal=extraArgs)
 
         return (path, isServer, heapInit, heapMax, args, extraArgs)
 
