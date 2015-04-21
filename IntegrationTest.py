@@ -429,8 +429,6 @@ class RealComponent(object):
                                      'xmlrpc.commitSubrun')
         self.__cmd.register_function(self.__configure, 'xmlrpc.configure')
         self.__cmd.register_function(self.__connect, 'xmlrpc.connect')
-        self.__cmd.register_function(self.__getMoniCounts,
-                                     'xmlrpc.getMoniCounts')
         self.__cmd.register_function(self.__getRunData, 'xmlrpc.getRunData')
         self.__cmd.register_function(self.__getState, 'xmlrpc.getState')
         self.__cmd.register_function(self.__getVersionString,
@@ -559,9 +557,6 @@ class RealComponent(object):
         val = self.__mbeanData[bean][fld].getValue()
 
         return self.__fixValue(val)
-
-    def __getMoniCounts(self):
-        return []
 
     def __getRunData(self, runnum):
         if self.__runData is None:

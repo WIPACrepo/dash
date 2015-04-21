@@ -112,9 +112,6 @@ class MockTMComponent(object):
     def getBeanNames(self):
         return self.__beanData.keys()
 
-    def getMoniCounts(self):
-        return {}
-
     def fullName(self):
         if self.__num == 0:
             return self.__name

@@ -385,14 +385,6 @@ class DAQClient(ComponentName):
             return []
         return self.__mbean.getBeanNames()
 
-    def getMoniCounts(self):
-        "Get the trigger counts for detector monitoring"
-        try:
-            return self.__client.xmlrpc.getMoniCounts()
-        except:
-            self.__log.error(exc_string())
-            return None
-
     def getMultiBeanFields(self, name, fieldList):
         if self.__mbean is None:
             return {}
