@@ -297,6 +297,8 @@ def __make_empty_info():
     for f in FIELD_NAMES:
         if f == "release":
             val = RELEASE
+        elif f == "repo_rev":
+            val = "0:0"
         else:
             val = None
         empty[f] = val
