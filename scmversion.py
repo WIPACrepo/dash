@@ -274,16 +274,17 @@ def __get_svn_info(dir):
             low_rev = min(low_rev, int(ver))
             high_rev = max(high_rev, int(ver))
 
+    mods = (modified and "M" or "") + (switched and "S" or "") + \
+           (exported and "E" or "")
+
     spread = high_rev > low_rev
-    repo_rev = "%d%s%s%s%s" % (low_rev,
+    repo_rev = "%d%s%s" % (low_rev,
                                spread and (":" + str(high_rev)) or "",
-                               modified and "M" or "",
-                               switched and "S" or "",
-                               exported and "E" or "")
+                               mods is not None and (":" + mods) or "")
 
     return {
         "release": rel,
-        "repo_rev": repo_rev + (modified and ":M" or ""),
+        "repo_rev": repo_rev,
         "date": date,
         "time": time,
     }
@@ -397,7 +398,7 @@ def get_scmversion_str(dir=None, info=None):
     return rtnstr
 
 
-def store_scmversion(dir):
+def store_scmversion(dir=None):
     """
     Calculate and store the version information in a file for later querying.
     If there is a problem getting the version info, print a warning to stderr
