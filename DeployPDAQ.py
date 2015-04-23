@@ -114,6 +114,10 @@ def deploy(config, homeDir, pdaqDir, subdirs, delete, dryRun,
     # (~pdaq is a different directory on different machines)
     pdaqDir = replaceHome(homeDir, pdaqDir)
 
+    # record the release/revision info
+    if not dryRun:
+        ver = store_scmversion(pdaqDir)
+
     # record the configuration being deployed so
     # it gets copied along with everything else
     if not dryRun:
@@ -322,9 +326,6 @@ def run_deploy(args):
                     print "[%s]" % getHubType(comp.id()),
                 print " ",
             print
-
-        ver = store_scmversion(PDAQ_HOME)
-        print "VERSION: %s" % ver
 
     deploy(config, os.environ["HOME"], PDAQ_HOME, SUBDIRS, args.delete,
            args.dryRun, args.deepDryRun, args.undeploy, traceLevel,
