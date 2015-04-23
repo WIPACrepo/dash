@@ -6,6 +6,7 @@ import unittest
 
 from DAQMocks import MockParallelShell
 import DeployPDAQ
+from scmversion import SCM_REV_FILENAME
 
 
 class MockNode(object):
@@ -60,6 +61,15 @@ class DeployPDAQTest(unittest.TestCase):
                           niceAdj=niceAdj, express=express, parallel=parallel)
 
         parallel.check()
+
+    def setUp(self):
+        parent = os.path.dirname(SCM_REV_FILENAME)
+        if not os.path.exists(parent):
+            try:
+                os.makedirs(parent)
+            except:
+                import traceback
+                traceback.print_exc()
 
     def testDeployMin(self):
         delete = False
