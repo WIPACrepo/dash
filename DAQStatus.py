@@ -162,38 +162,28 @@ def print_status(args):
     try:
         nc = cncrpc.rpc_component_count()
     except:
-        import traceback
-        traceback.print_exc()
         nc = 0
 
     try:
         lc = cncrpc.rpc_component_list_dicts([], False)
     except:
-        import traceback
-        traceback.print_exc()
         lc = []
 
     try:
         ns = cncrpc.rpc_runset_count()
     except:
-        import traceback
-        traceback.print_exc()
         ns = 0
 
     try:
         ids = cncrpc.rpc_runset_list_ids()
     except:
-        import traceback
-        traceback.print_exc()
         ids = []
 
     try:
         versInfo = cncrpc.rpc_version()
         vers = " (%s:%s)" % (versInfo["release"], versInfo["repo_rev"])
     except:
-        import traceback
-        traceback.print_exc()
-        vers = ""
+        vers = " ??"
 
     print "CNC %s:%d%s" % ("localhost", DAQPort.CNCSERVER, vers)
 
