@@ -357,6 +357,10 @@ def get_scmversion(dir=None):
     if dir is None:
         dir = PDAQ_HOME
 
+    expanded = os.path.expanduser(dir)
+    if expanded != dir:
+        dir = expanded
+
     try:
         stuple = __scm_type(dir)
         if stuple[0] == SCM_GIT:
@@ -407,6 +411,10 @@ def store_scmversion(dir=None):
 
     if dir is None:
         dir = PDAQ_HOME
+
+    expanded = os.path.expanduser(dir)
+    if expanded != dir:
+        dir = expanded
 
     try:
         scmstr = get_scmversion_str(dir)
