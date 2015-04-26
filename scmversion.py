@@ -280,7 +280,7 @@ def __get_svn_info(dir):
     spread = high_rev > low_rev
     repo_rev = "%d%s%s" % (low_rev,
                                spread and (":" + str(high_rev)) or "",
-                               mods is not None and (":" + mods) or "")
+                               mods != "" and (":" + mods) or "")
 
     return {
         "release": rel,
