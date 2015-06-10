@@ -17,7 +17,7 @@ from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
 # The release name, 'trunk' for unreleased, development versions
-RELEASE = 'trunk'
+__UNRELEASED = 'trunk'
 
 # find top pDAQ directory
 PDAQ_HOME = find_pdaq_trunk()
@@ -77,7 +77,7 @@ def __get_git_info(dir):
     Gather the Git version info for the specified directory
     """
 
-    rel = RELEASE
+    rel = __UNRELEASED
     repo_rev = None
     modified = False
     date = None
@@ -123,7 +123,7 @@ def __get_hg_info(dir):
     Gather the Mercurial version info for the specified directory
     """
 
-    rel = RELEASE
+    rel = __UNRELEASED
     repo_rev = None
     modified = False
     date = None
@@ -173,13 +173,30 @@ def __get_hg_info(dir):
     }
 
 
+def __get_scmrel_from_homedir():
+    """
+    Try to extract a unique name from the top-level directory name
+    """
+
+    homename = os.path.basename(os.path.realpath(PDAQ_HOME))
+    if homename.lower().startswith("pdaq"):
+        homename = homename[4:]
+        if len(homename) > 2 and (homename[0] == '_' or homename[0] == '-'):
+            homename = homename[1:]
+        lname = homename.lower()
+        if lname != "current" and lname != __UNRELEASED.lower():
+            return homename
+
+    return __UNRELEASED
+
+
 def __get_svn_info(dir):
     """
     Gather the Subversion version info for the specified directory,
     including external project versions
     """
 
-    rel = RELEASE
+    rel = __UNRELEASED
     repo_rev = None
     modified = False
     date = None
@@ -278,9 +295,8 @@ def __get_svn_info(dir):
            (exported and "E" or "")
 
     spread = high_rev > low_rev
-    repo_rev = "%d%s%s" % (low_rev,
-                               spread and (":" + str(high_rev)) or "",
-                               mods != "" and (":" + mods) or "")
+    repo_rev = "%d%s%s" % (low_rev, spread and (":" + str(high_rev)) or "",
+                           mods != "" and (":" + mods) or "")
 
     return {
         "release": rel,
@@ -297,7 +313,7 @@ def __make_empty_info():
     empty = {}
     for f in FIELD_NAMES:
         if f == "release":
-            val = RELEASE
+            val = __UNRELEASED
         elif f == "repo_rev":
             val = "0:0"
         else:
@@ -307,6 +323,11 @@ def __make_empty_info():
 
 
 def __parse_date_time(datestr, fmtstr):
+    """
+    Parse the date string according to the specified format.
+    Return a tuple containing a `Y-M-D` string and an `H:M:S` string
+    with timezone
+    """
     dt = None
     try:
         dt = datetime.strptime(datestr, fmtstr + " %z")
@@ -361,19 +382,20 @@ def get_scmversion(dir=None):
     if expanded != dir:
         dir = expanded
 
+    info = None
     try:
         stuple = __scm_type(dir)
         if stuple[0] == SCM_GIT:
-            return __get_git_info(stuple[1])
+            info = __get_git_info(stuple[1])
         if stuple[0] == SCM_MERCURIAL:
-            return __get_hg_info(stuple[1])
+            info = __get_hg_info(stuple[1])
         if stuple[0] == SCM_SUBVERSION:
-            return __get_svn_info(stuple[1])
+            info = __get_svn_info(stuple[1])
     except (OSError, SCMVersionError), e:
         # Eat the exception and look for the version saved during deployment
         if not os.path.exists(SCM_REV_FILENAME):
             # nothing cached, return an empty dictionary
-            return __make_empty_info()
+            info = __make_empty_info()
         else:
             # Return contents of file written when pdaq was deployed
             line = file(SCM_REV_FILENAME).readlines()[0]
@@ -386,10 +408,21 @@ def get_scmversion(dir=None):
             saved = {}
             for i in xrange(len(FIELD_NAMES)):
                 saved[FIELD_NAMES[i]] = flds[i]
-            return saved
+            info = saved
+
+    if info is not None and info["release"] == __UNRELEASED:
+        info["release"] = __get_scmrel_from_homedir()
+
+    return info
 
 
 def get_scmversion_str(dir=None, info=None):
+    """
+    Extract release, revision, date, and time information for the specified
+    directory from the appropriate source control management system and
+    return a space-separated string of those values
+    """
+
     if info is None:
         info = get_scmversion(dir)
 
