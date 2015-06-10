@@ -33,9 +33,54 @@ def add_arguments(parser):
     parser.add_argument(dest="extra", nargs="*")
 
 
+def buildClassPath(daqDeps, mavenDeps, daqRelease=None, repoDir=None):
+    """
+    Build a list of paths which includes all requested pDAQ and external jar
+    files.
+    """
+    if daqRelease is None:
+        daqRelease = "1.0.0-SNAPSHOT"
+
+    if repoDir is None:
+        tmpDir = os.path.join(os.environ["HOME"], ".m2", "repository")
+        if os.path.exists(tmpDir):
+            repoDir = tmpDir
+
+    pdaqHome = None
+    distDir = None
+
+    if os.environ.has_key("PDAQ_HOME"):
+        pdaqHome = os.environ["PDAQ_HOME"]
+
+        tmpDir = os.path.join(pdaqHome, "target",
+                              "pDAQ-" + daqRelease + "-dist", "lib")
+        if os.path.exists(tmpDir):
+            distDir = tmpDir
+
+    daqjars = findDAQJars(daqDeps, daqRelease, pdaqHome, distDir, repoDir)
+
+    mavenjars = findMavenJars(mavenDeps, repoDir, distDir)
+
+    return daqjars + mavenjars
+
+
 def buildJarName(name, vers):
     """Build a versioned jar file name"""
     return name + "-" + vers + ".jar"
+
+
+def buildJavaCmd(app, javaArgs, appArgs):
+    """
+    Build a command line to run the specified application
+    """
+    cmd = ["java"]
+    if javaArgs is not None and len(javaArgs) > 0:
+        cmd += javaArgs
+    cmd.append(app)
+    if appArgs is not None and len(appArgs) > 0:
+        cmd += appArgs
+
+    return cmd
 
 
 def findDAQJar(proj, daqRelease, pdaqHome, distDir, repoDir):
@@ -155,38 +200,10 @@ def runJava(app, javaArgs, appArgs, daqDeps, mavenDeps, daqRelease=None,
     Run the Java program after adding all requested pDAQ and external jar
     files in the CLASSPATH envvar
     """
-    if daqRelease is None:
-        daqRelease = "1.0.0-SNAPSHOT"
+    clspath = buildClassPath(daqDeps, mavenDeps, daqRelease, repoDir)
+    setClassPath(clspath)
 
-    if repoDir is None:
-        tmpDir = os.path.join(os.environ["HOME"], ".m2", "repository")
-        if os.path.exists(tmpDir):
-            repoDir = tmpDir
-
-    pdaqHome = None
-    distDir = None
-
-    if os.environ.has_key("PDAQ_HOME"):
-        pdaqHome = os.environ["PDAQ_HOME"]
-
-        tmpDir = os.path.join(pdaqHome, "target",
-                              "pDAQ-" + daqRelease + "-dist", "lib")
-        if os.path.exists(tmpDir):
-            distDir = tmpDir
-
-    daqjars = findDAQJars(daqDeps, daqRelease, pdaqHome, distDir, repoDir)
-
-    mavenjars = findMavenJars(mavenDeps, repoDir, distDir)
-
-    setClassPath(daqjars + mavenjars)
-
-    cmd = ["java"]
-    if javaArgs is not None and len(javaArgs) > 0:
-        cmd += javaArgs
-    cmd.append(app)
-    if appArgs is not None and len(appArgs) > 0:
-        cmd += appArgs
-
+    cmd = buildJavaCmd(app, javaArgs, appArgs)
     subprocess.call(cmd)
 
 
