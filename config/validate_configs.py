@@ -45,7 +45,8 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
                                      "default-dom-geometry.xml")
     (valid, reason) = validate_default_dom_geom(dom_geom_xml_path)
     if not valid:
-        return (valid, reason)
+        return (valid, "DefaultDOMGeometry " + dom_geom_xml_path + ": " +
+                str(reason))
 
     # -------------------------------------------------
     # validate the cluster config
@@ -73,7 +74,8 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
 
     (valid, reason) = validate_clusterconfig(cluster_xml_filename)
     if not valid:
-        return (valid, reason)
+        return (valid, "ClusterConfig " + cluster_xml_filename + ": " +
+                str(reason))
 
     #
     # validate the run configuration
@@ -99,7 +101,8 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
 
     (valid, reason) = validate_runconfig(runconfig_xml_filename)
     if not valid:
-        return (valid, reason)
+        return (valid, "RunConfig " + runconfig_xml_filename + ": " +
+                str(reason))
 
     # parse the run config for all domConfigList, and trigger
     try:
@@ -131,7 +134,7 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
             (valid, reason) = validate_dom_config_spts(dom_config_path)
 
         if not valid:
-            return (False, reason)
+            return (False, "DOMConfig " + dom_config_path + ": " + str(reason))
 
     trigConfigList = run_configs.findall('triggerConfig')
     for trigConfig in trigConfigList:
@@ -141,16 +144,15 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
 
         (valid, reason) = validate_trigger(trig_config_path)
         if not valid:
-            return (False, reason)
+            return (False, "TrigConfig " + trig_config_path + ": " +
+                    str(reason))
 
     return (True, "")
 
 
 def validate_clusterconfig(xml_filename):
     """Check the cluster config files against an xml schema"""
-    (valid, reason) = _validate_xml(xml_filename, 'clustercfg.xsd')
-
-    return (valid, reason)
+    return _validate_xml(xml_filename, 'clustercfg.xsd')
 
 
 def validate_runconfig(xml_filename):
@@ -170,16 +172,12 @@ def validate_runconfig(xml_filename):
 
 def validate_default_dom_geom(xml_filename):
     """Check the default dom geometry against the xml schema"""
-    (valid, reason) = _validate_xml(xml_filename, 'geom.xsd')
-
-    return (valid, reason)
+    return _validate_xml(xml_filename, 'geom.xsd')
 
 
 def validate_trigger(xml_filename):
     """Check the trigger config against the xml schema"""
-    (valid, reason) = _validate_xml(xml_filename, 'trigger.xsd')
-
-    return (valid, reason)
+    return _validate_xml(xml_filename, 'trigger.xsd')
 
 
 def is_sps_cluster(cluster_xml_filename):
@@ -223,19 +221,13 @@ def is_sps_cluster(cluster_xml_filename):
 
 def validate_dom_config_sps(xml_filename):
     """Check a dom config file against the appropriate xml schema"""
-    (valid, reason) = _validate_dom_config_xml(xml_filename,
-                                               'domconfig-sps.rng')
-
-    return (valid, reason)
+    return _validate_dom_config_xml(xml_filename, 'domconfig-sps.rng')
 
 
 def validate_dom_config_spts(xml_filename):
     """Check a dom config file against the appropriate xml schema"""
 
-    (valid, reason) = _validate_dom_config_xml(xml_filename,
-                                               'domconfig-spts.rng')
-
-    return (valid, reason)
+    return _validate_dom_config_xml(xml_filename, 'domconfig-spts.rng')
 
 
 def _validate_dom_config_xml(xml_filename, rng_real_filename):
@@ -372,4 +364,3 @@ if __name__ == "__main__":
             print reason
         else:
             print "Configuration is valid"
-
