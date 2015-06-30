@@ -6,6 +6,7 @@
 import os
 import stat
 
+from DeployPDAQ import SUBDIRS
 
 CURRENT = "pDAQ_current"
 
@@ -56,6 +57,16 @@ def workspace(args):
 
     if not stat.S_ISDIR(tstat.st_mode):
         raise SystemExit("%s is not a directory" % args.directory)
+
+    for d in SUBDIRS:
+        if d == "target":
+            # workspace may not yet contain compiled code
+            continue
+
+        path = os.path.join(target, d)
+        if not os.path.exists(path):
+            raise SystemExit("%s is not a pDAQ directory (missing '%s')" %
+                             (target, d))
 
     if cstat is None:
         os.symlink(target, current)
