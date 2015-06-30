@@ -750,7 +750,7 @@ class CnCServer(DAQPool):
     def __listCnCOpenFiles(cls):
         userList = ListOpenFiles.run(os.getpid())
 
-        if userList is None or len(userList) < 0:
+        if userList is None or len(userList) <= 0:
             raise CnCServerException("No open file list available!")
 
         if len(userList) > 1:
