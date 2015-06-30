@@ -116,9 +116,8 @@ RUN_LIST = (PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
                     HALF_HR),
             PDAQRun("spts-dirtydozen-intervals3-snmix-014",
                     HALF_HR),
-            PDAQRun("sim60strIT-stdtest-01", HALF_HR),
-            PDAQRun("sim60str-stdtest-01", HALF_HR),
-            PDAQRun("sim60str-stdtest-01", EIGHT_HR),
+            PDAQRun("random-01", HALF_HR),
+            PDAQRun("random-01", EIGHT_HR),
             PDAQRun("replay-125659-local", QUARTER_HR, numRuns=3),
             )
 

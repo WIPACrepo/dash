@@ -70,13 +70,10 @@ class HubIdUtils:
         return "?%d?" % base_num
 
 
-class StringHub(Component):
-    """String hub data from a run configuration file"""
-    def __init__(self, xdict, hub_id, inferred=False):
-        self.xdict = xdict
-        self.hub_id = int(hub_id)
-        self.inferred = inferred
-        super(StringHub, self).__init__("stringHub", hub_id)
+class HubComponent(Component):
+    """hub data from a run configuration file"""
+    def __init__(self, hub_type, hub_id):
+        super(HubComponent, self).__init__(hub_type, hub_id)
 
     def isDeepCore(self):
         return HubIdUtils.is_deep_core(self.__id)
@@ -88,7 +85,16 @@ class StringHub(Component):
         return HubIdUtils.is_in_ice(self.__id)
 
 
-class ReplayHub(Component):
+class StringHub(HubComponent):
+    """String hub data from a run configuration file"""
+    def __init__(self, xdict, hub_id, inferred=False):
+        self.xdict = xdict
+        self.hub_id = int(hub_id)
+        self.inferred = inferred
+        super(StringHub, self).__init__("stringHub", hub_id)
+
+
+class ReplayHub(HubComponent):
     "Replay hub data from a run configuration file"
 
     def __init__(self, xdict, base_dir, old_style):
@@ -107,14 +113,12 @@ class ReplayHub(Component):
 
         super(ReplayHub, self).__init__("replayHub", hub_id)
 
-    def isDeepCore(self):
-        return HubIdUtils.is_deep_core(self.__id)
 
-    def isIceTop(self):
-        return HubIdUtils.is_icetop(self.__id)
-
-    def isInIce(self):
-        return HubIdUtils.is_in_ice(self.__id)
+class RandomHub(HubComponent):
+    """String hub data from a run configuration file"""
+    def __init__(self, hub_id):
+        self.hub_id = int(hub_id)
+        super(RandomHub, self).__init__("stringHub", hub_id)
 
 
 class ConfigObject(object):
@@ -217,10 +221,14 @@ class RunDom(dict):
     @classmethod
     def __load_dom_id_map(cls):
         if cls.DEFAULT_DOM_GEOMETRY is None:
-            cls.DEFAULT_DOM_GEOMETRY = \
-                DefaultDomGeometryReader.parse(translateDoms=True)
+            cls.__load_geometry()
 
         return cls.DEFAULT_DOM_GEOMETRY.getDomIdToDomDict()
+
+    @classmethod
+    def __load_geometry(cls):
+        cls.DEFAULT_DOM_GEOMETRY = \
+                DefaultDomGeometryReader.parse(translateDoms=True)
 
     def __getitem__(self, key):
         """Maybe an odd overloading of a python dictionary,
@@ -235,6 +243,13 @@ class RunDom(dict):
                 return val
 
             raise attr_err
+
+    @classmethod
+    def string_to_dom_dict(cls):
+        if cls.DEFAULT_DOM_GEOMETRY is None:
+            cls.__load_geometry()
+
+        return cls.DEFAULT_DOM_GEOMETRY.getStringToDomDict()
 
     # Technically not really required, but keep
     # the signature the same for these methods
@@ -279,6 +294,7 @@ class DomConfig(ConfigObject):
         self.string_map = {}
 
         if type(self.xdict) == dict and \
+                self.xdict.has_key('domConfigList') and \
                 type(self.xdict['domConfigList']) == dict and \
                 type(self.xdict['domConfigList']['__children__']) == dict and \
                 type(self.xdict['domConfigList']['__children__']['domConfig']) \
@@ -308,6 +324,64 @@ class DomConfig(ConfigObject):
                                       self.string_map.keys()))
 
 
+class RandomConfig(object):
+    def __init__(self, xdict):
+        self.string_map = {}
+        self.hub_id = None
+
+        str_id, excluded = self.__parseRandomHub(xdict)
+
+        # fetch the list of DOMs for this string
+        str2dom = RunDom.string_to_dom_dict()
+        if not str_id in str2dom:
+            msg = "Unknown random hub %d" % str_id
+            raise DAQConfigException(msg)
+
+        self.hub_id = str_id
+
+        for dom in str2dom[str_id]:
+            if excluded is not None and \
+               dom.mbid() in excluded:
+                continue
+
+            if str_id not in self.string_map:
+                self.string_map[str_id] = []
+                self.string_map[str_id].append(dom)
+
+    def __parseRandomHub(self, xdict):
+        hub_id = None
+        excluded = None
+        for skey, sval in xdict.iteritems():
+            if skey == '__attribs__' and sval.has_key('id'):
+                hub_id = int(sval['id'])
+            elif skey != '__children__' or type(sval) != dict:
+                print "Ignoring randomHub entry %s" % skey
+            else:
+                for k3, v3 in sval.iteritems():
+                    if k3 != 'exclude':
+                        msg = "Unknown randomHub element %s" % k3
+                        raise DAQConfigException(msg)
+
+                    if type(v3) != list or len(v3) != 1 or \
+                       type(v3[0]) != dict or len(v3[0]) != 1 or \
+                       not v3[0].has_key('__attribs__'):
+                        print "Ignoring bogus randomConfig element %s" \
+                            " subelement %s" % (key, k3)
+                        continue
+
+                    for k4, v4 in v3[0]['__attribs__'].iteritems():
+                        if k4 != 'dom':
+                            msg = "Found bogus randomHub <%s> attribute %s" % \
+                                  (k3, k4)
+                            raise DAQConfigException(msg)
+
+                        if excluded is None:
+                            excluded = []
+                            excluded.append(v4)
+
+        return (hub_id, excluded)
+
+
 class DAQConfig(ConfigObject):
     def __init__(self, filename, strict=False):
         self.__comps = []
@@ -319,6 +393,9 @@ class DAQConfig(ConfigObject):
         self.trig_cfg = None
         self.stringhub_map = {}
         self.replay_hubs = []
+        self.random_hubs = []
+        self.noise_rate = None
+        self.excluded_doms = []
         self.strict = strict
 
         super(DAQConfig, self).__init__(filename)
@@ -330,9 +407,10 @@ class DAQConfig(ConfigObject):
         rng validation parser, but there are a few things
         not validated"""
 
-        if len(self.stringhub_map) == 0 and len(self.replay_hubs) == 0:
-            raise XMLFormatError("No doms or replayHubs found in %s" %
-                                 self.filename)
+        if len(self.stringhub_map) == 0 and len(self.replay_hubs) == 0 and \
+           self.excluded_doms is None:
+            raise XMLFormatError("No doms, replayHubs, or excluded DOMs found"
+                                 " in %s" % self.filename)
 
         if not self.trig_cfg:
             raise XMLFormatError("No <triggerConfig> found in %s" %
@@ -625,7 +703,7 @@ class DAQConfig(ConfigObject):
             if not isinstance(key, str):
                 # skip comments
                 continue
-            elif 'triggerConfig' in key:
+            elif key == 'triggerConfig':
                 self.trig_cfg = TriggerConfig(val)
             elif 'runComponent' in key:
                 self.run_comps = val
@@ -633,14 +711,14 @@ class DAQConfig(ConfigObject):
                 for run_comp in val:
                     name = get_attrib(run_comp, "name")
                     self.addComponent(name, False)
-            elif 'domConfigList' in key and is_old_runconfig:
+            elif key == 'domConfigList' and is_old_runconfig:
                 # required for backwards compatibility
                 self.dom_cfgs = []
                 for dcfg in val:
                     dom_config_val = get_value(dcfg)
                     dom_config = DomConfig(dom_config_val)
                     self.dom_cfgs.append(dom_config)
-            elif 'stringHub' in key:
+            elif key == 'stringHub':
                 for strhub_dict in val:
                     str_hub_id = int(get_attrib(strhub_dict, "hubId"))
                     if str_hub_id not in self.stringhub_map:
@@ -652,7 +730,7 @@ class DAQConfig(ConfigObject):
                         str_hub = StringHub(strhub_dict, str_hub_id)
                         self.stringhub_map[str_hub_id] = str_hub
                         self.addComponent(str_hub.fullName(), False)
-            elif 'replayFiles' in key:
+            elif key == 'replayFiles':
                 # found a replay hub
                 self.replay_hubs = []
                 for replay_hub in val:
@@ -680,6 +758,38 @@ class DAQConfig(ConfigObject):
                         except KeyError:
                             # missing keys..
                             pass
+            elif key == 'randomConfig':
+                self.noise_rate = None
+                for v in val:
+                    if type(v) != dict or len(v) == 0 or \
+                       not v.has_key('__children__') or \
+                       type(v['__children__']) != dict:
+                        msg = "Bad randomConfig element %s<%s> in %s" % \
+                              (v, type(v), filename)
+                        raise DAQConfigException(msg)
+
+                    for k2, v2 in v['__children__'].iteritems():
+                        for v2val in v2:
+                            if k2 == 'noiseRate':
+                                self.noise_rate = float(v2val)
+                            elif k2 == 'string':
+                                if type(v2val) != dict:
+                                    msg = "Found bogus randomConfig element" \
+                                        " %s %s" % (k2, type(v2val))
+                                    raise DAQConfigException(msg)
+
+                                dom_config = RandomConfig(v2val)
+                                self.dom_cfgs.append(dom_config)
+
+                                rnd_hub = RandomHub(dom_config.hub_id)
+                                self.stringhub_map[dom_config.hub_id] = rnd_hub
+                                self.addComponent(rnd_hub.fullName(), False)
+                            else:
+                                print "Ignoring " + k2
+
+                if self.noise_rate is None:
+                    raise DAQConfigException("No noise rate in %s"
+                                             " <randomConfig>" % filename)
             else:
                 # an 'OTHER' object
                 self.other_objs.append((key, val))
