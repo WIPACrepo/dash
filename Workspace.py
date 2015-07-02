@@ -62,6 +62,9 @@ def workspace(args):
         if d == "target":
             # workspace may not yet contain compiled code
             continue
+        if d == "config":
+            # workspace SHOULD not contain configuration directory
+            continue
 
         path = os.path.join(target, d)
         if not os.path.exists(path):
