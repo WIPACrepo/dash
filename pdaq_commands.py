@@ -101,6 +101,26 @@ class CmdDumpData(BaseCmd):
         dump_payloads(args)
 
 
+class CmdDumpHSDB(BaseCmd):
+    @classmethod
+    def add_arguments(cls, parser):
+        from DumpHitspoolDB import add_arguments
+        add_arguments(parser)
+
+    @classmethod
+    def cmdtype(cls):
+        return cls.CMDTYPE_FONLY
+
+    @classmethod
+    def name(cls):
+        return "dumphsdb"
+
+    @classmethod
+    def run(cls, args):
+        from DumpHitspoolDB import dump_db
+        dump_db(args)
+
+
 class CmdFlash(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -322,6 +342,7 @@ class CmdWorkspace(BaseCmd):
 COMMANDS = [
     CmdDeploy,
     CmdDumpData,
+    CmdDumpHSDB,
     CmdFlash,
     CmdKill,
     CmdLaunch,
