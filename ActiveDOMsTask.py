@@ -149,6 +149,7 @@ class ActiveDOMThread(CnCThread):
             dom_update = \
                       { "activeDOMs": active_total,
                         "expectedDOMs": total,
+                        "missingDOMs": total - active_total,
                         "total_ratelc": sum_lc_rate,
                         "total_rate": sum_total_rate,
                     }
@@ -157,6 +158,7 @@ class ActiveDOMThread(CnCThread):
             # XXX get rid of these once I3Live uses "dom_update"
             self.__sendMoni("activeDOMs", active_total, prio)
             self.__sendMoni("expectedDOMs", total, prio)
+            self.__sendMoni("missingDOMs", total - active_total, prio)
             self.__sendMoni("total_ratelc", sum_lc_rate, prio)
             self.__sendMoni("total_rate", sum_total_rate, prio)
 
