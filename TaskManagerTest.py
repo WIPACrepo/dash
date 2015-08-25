@@ -243,6 +243,7 @@ class TaskManagerTest(unittest.TestCase):
         # add activeDOM data
         live.addExpected("activeDOMs", 1, Prio.ITS)
         live.addExpected("expectedDOMs", 2, Prio.ITS)
+        live.addExpected("missingDOMs", 1, Prio.ITS)
         live.addExpected("total_rate", 50, Prio.ITS)
         live.addExpected("total_ratelc", 25, Prio.ITS)
         live.addExpected("LBMOverflows", {"1": 20},
@@ -251,7 +252,8 @@ class TaskManagerTest(unittest.TestCase):
                          Prio.EMAIL)
 
         live.addExpected("dom_update", {"expectedDOMs": 2, "total_ratelc": 25.0,
-                                        "total_rate": 50.0, "activeDOMs": 1},
+                                        "total_rate": 50.0, "activeDOMs": 1,
+                                        "missingDOMs": 1},
                          Prio.ITS)
 
     def setUp(self):
