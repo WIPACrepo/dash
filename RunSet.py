@@ -1255,20 +1255,24 @@ class RunSet(object):
 
     def __buildStartSets(self):
         """
-        Return two lists of components.  The first list contains all the
-        sources.  The second contains the other components, sorted in
-        reverse order, from builders backward.
+        Return several lists of components.  The first list contains all the
+        sources.  The second contains the non-builder components, sorted in
+        reverse order.  The final set contains all builders (which are
+        endpoints for the DAQ data streams).
         """
         srcSet = []
-        otherSet = []
+        middleSet = []
+        bldrSet = []
 
         failStr = None
         for c in self.__set:
             if c.order() is not None:
                 if c.isSource():
                     srcSet.append(c)
+                elif c.isBuilder():
+                    bldrSet.append(c)
                 else:
-                    otherSet.append(c)
+                    middleSet.append(c)
             else:
                 if not failStr:
                     failStr = 'No order set for ' + str(c)
@@ -1276,9 +1280,9 @@ class RunSet(object):
                     failStr += ', ' + str(c)
         if failStr:
             raise RunSetException(failStr)
-        otherSet.sort(self.__sortCmp)
+        middleSet.sort(self.__sortCmp)
 
-        return srcSet, otherSet
+        return srcSet, middleSet, bldrSet
 
     def __checkState(self, newState, components=None):
         """
@@ -1494,7 +1498,8 @@ class RunSet(object):
         self.__runData.error("Starting run %d..." % self.__runData.runNumber())
 
         self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP bldSet")
-        srcSet, otherSet = self.__buildStartSets()
+        srcSet, middleSet, bldrSet = self.__buildStartSets()
+        otherSet = bldrSet + middleSet
 
         self.__state = RunSetState.STARTING
 
@@ -2501,15 +2506,20 @@ class RunSet(object):
 
         # get lists of sources and of non-sources sorted back to front
         #
-        srcSet, otherSet = self.__buildStartSets()
+        srcSet, middleSet, bldrSet = self.__buildStartSets()
 
         # record the earliest possible start time
         #
         startTime = datetime.datetime.now()
 
-        # switch non-sources in order
+        # switch builders first
         #
-        for c in otherSet:
+        for c in bldrSet:
+            c.switchToNewRun(newNum)
+
+        # switch non-builders in order
+        #
+        for c in middleSet:
             c.switchToNewRun(newNum)
 
         # switch sources in parallel
@@ -2521,12 +2531,12 @@ class RunSet(object):
         # wait for builders to finish switching
         #
         for _ in xrange(20):
-            for c in bldrs:
+            for c in bldrSet:
                 num = c.getRunNumber()
                 if num == newNum:
-                    bldrs.remove(c)
+                    bldrSet.remove(c)
 
-            if len(bldrs) == 0:
+            if len(bldrSet) == 0:
                 break
 
             time.sleep(0.25)
@@ -2536,9 +2546,9 @@ class RunSet(object):
 
         # if there's a problem...
         #
-        if len(bldrs) > 0:
+        if len(bldrSet) > 0:
             badBldrs = []
-            for c in bldrs:
+            for c in bldrSet:
                 badBldrs.append(c.fullName())
             self.__state = RunSetState.ERROR
             try:
