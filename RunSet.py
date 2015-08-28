@@ -468,7 +468,8 @@ class LastGoodTimeThread(GoodTimeThread):
 
 class RunData(object):
     def __init__(self, runSet, runNumber, clusterConfig, runConfig,
-                 runOptions, versionInfo, spadeDir, copyDir, logDir, testing):
+                 runOptions, versionInfo, spadeDir, copyDir, logDir,
+                 testing=False):
         """
         RunData constructor
         runSet - run set which uses this data
@@ -727,7 +728,7 @@ class RunData(object):
         return RunData(runSet, newRun, self.__clusterConfig,
                        self.__runConfig, self.__runOptions, self.__versionInfo,
                        self.__spadeDir, self.__copyDir, self.__logDir,
-                       self.__testing)
+                       testing=self.__testing)
 
     def connectToI3Live(self):
         self.__liveMoniClient = self.__createLiveMoniClient()
@@ -1968,7 +1969,7 @@ class RunSet(object):
                       spadeDir, copyDir, logDir, testing=False):
         return RunData(self, runNum, clusterConfig, self.__cfg,
                        runOptions, versionInfo, spadeDir, copyDir, logDir,
-                       testing)
+                       testing=testing)
 
     def createRunDir(self, logDir, runNum, backupExisting=True):
         if not os.path.exists(logDir):
