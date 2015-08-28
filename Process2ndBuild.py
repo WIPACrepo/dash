@@ -152,10 +152,10 @@ if __name__ == "__main__":
                   action="store_true", default=False,
                   help="Do not actually do anything")
     op.add_argument("-q", "--quiet", dest="verbose",
-                  action="store_false", default=True,
+                  action="store_false", default=False,
                   help="Do not print log of actions to console")
     op.add_argument("-v", "--verbose", dest="verbose",
-                  action="store_true", default=True,
+                  action="store_true", default=False,
                   help="Print log of actions to console (default)")
 
     args = op.parse_args()
