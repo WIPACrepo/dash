@@ -283,7 +283,7 @@ class TestRunSet(unittest.TestCase):
             if cfgWaitStr is None:
                 break
 
-            logger.addExpectedExact("RunSet #%d (%s): Waiting for %s: %s" %
+            logger.addExpectedExact("RunSet #%d (%s): Waiting for %s %s" %
                                     (expId, expState, expState, cfgWaitStr))
             i += 1
 
@@ -502,7 +502,7 @@ class TestRunSet(unittest.TestCase):
 
     def testSet(self):
         compList = self.__buildCompList(("foo", "bar"))
-        compList[0].setConfigureWait(2)
+        compList[0].setConfigureWait(1)
 
         self.__runTests(compList, 2)
 
@@ -796,6 +796,7 @@ class TestRunSet(unittest.TestCase):
         self.assertEqual(str, expStr,
                          "Expected legible list \"%s\", not \"%s\"" %
                          (expStr, str))
+
 
 if __name__ == '__main__':
     unittest.main()

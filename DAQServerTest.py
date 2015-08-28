@@ -72,6 +72,9 @@ class TinyClient(object):
     def id(self):
         return self.__id
 
+    def isBuilder(self):
+        return False
+
     def isComponent(self, name, num=-1):
         return self.__name == name and (num < 0 or self.__num == num)
 

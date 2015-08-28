@@ -317,6 +317,17 @@ class ComponentOperationGroup(object):
             results[t.component()] = result
         return results
 
+    @staticmethod
+    def runSimple(op, comps, args, logger, errorName=None):
+        tGroup = ComponentOperationGroup(op)
+        for c in comps:
+            tGroup.start(c, logger, args)
+        tGroup.wait()
+        if errorName is not None:
+            tGroup.reportErrors(logger, errorName)
+            return None
+        return tGroup.results()
+
     def wait(self, waitSecs=2, reps=4):
         """
         Wait for all the threads to finish
