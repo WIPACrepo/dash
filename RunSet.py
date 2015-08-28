@@ -2286,7 +2286,8 @@ class RunSet(object):
                 else:
                     for m in connMap[c]:
                         # XXX hack -- ignore source->builder links
-                        if not c.isSource() or not m.comp.isBuilder():
+                        if not c.isSource() or \
+                             m.comp.name().lower() != "eventBuilder":
                             tmp[m.comp] = 1
 
             curLevel = tmp.keys()

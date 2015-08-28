@@ -33,8 +33,8 @@ class Component(object):
         return self.__id
 
     def isBuilder(self):
-        "Is this an eventBuilder or secondaryBuilder component?"
-        return self.__name.lower().endswith("builder")
+        "Is this an eventBuilder or secondaryBuilders component?"
+        return self.__name.lower().find("builder") >= 0
 
     def isHub(self):
         "Is this a stringHub component?"

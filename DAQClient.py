@@ -185,7 +185,7 @@ class ComponentName(object):
 
     def isBuilder(self):
         "Is this an eventBuilder (or debugging fooBuilder)?"
-        return self.__name.endswith("Builder")
+        return self.__name.lower().find("builder") >= 0
 
     def isComponent(self, name, num=-1):
         "Does this component have the specified name and number?"
