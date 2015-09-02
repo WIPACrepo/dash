@@ -151,21 +151,6 @@ class RunCluster(CachedConfigName):
 
         self.__nodes = self.__loadConfig(self.__clusterDesc, self.__hubList)
 
-    @classmethod
-    def __loadConfig(cls, clusterDesc, hubList):
-        hostMap = {}
-
-        cls.__addRequired(clusterDesc, hostMap)
-        cls.__addTriggers(clusterDesc, hubList, hostMap)
-        if len(hubList) > 0:
-            cls.__addRealHubs(clusterDesc, hubList, hostMap)
-            if len(hubList) > 0:
-                cls.__addReplayHubs(clusterDesc, hubList, hostMap)
-                if len(hubList) > 0:
-                    cls.__addSimHubs(clusterDesc, hubList, hostMap)
-
-        return cls.__convertToNodes(clusterDesc, hostMap)
-
     def __str__(self):
         nodeStr = ""
         for n in self.__nodes:
@@ -401,6 +386,21 @@ class RunCluster(CachedConfigName):
         simList.sort(cls.__sortByPriority)
 
         return simList
+
+    @classmethod
+    def __loadConfig(cls, clusterDesc, hubList):
+        hostMap = {}
+
+        cls.__addRequired(clusterDesc, hostMap)
+        cls.__addTriggers(clusterDesc, hubList, hostMap)
+        if len(hubList) > 0:
+            cls.__addRealHubs(clusterDesc, hubList, hostMap)
+            if len(hubList) > 0:
+                cls.__addReplayHubs(clusterDesc, hubList, hostMap)
+                if len(hubList) > 0:
+                    cls.__addSimHubs(clusterDesc, hubList, hostMap)
+
+        return cls.__convertToNodes(clusterDesc, hostMap)
 
     @staticmethod
     def __sortByPriority(x, y):
