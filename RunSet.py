@@ -2113,9 +2113,9 @@ class RunSet(object):
         # complain about missing components
         if len(missingList) > 0:
             self.__logger.error(("Cannot restart %s: Not found in" +
-                                 " cluster config \"%s\"") %
+                                 " cluster config %s") %
                                 (listComponentRanges(missingList),
-                                 clusterConfig.descName()))
+                                 clusterConfig))
 
         # remove remaining components from this runset
         for comp in compList:
@@ -2476,16 +2476,6 @@ class RunSet(object):
         if self.__state != RunSetState.RUNNING:
             raise RunSetException("RunSet #%d is %s, not running" %
                                   (self.__id, self.__state))
-
-        # get list of all builders
-        #
-        bldrs = []
-        for c in self.__set:
-            if c.isBuilder():
-                bldrs.append(c)
-        if len(bldrs) == 0:
-            raise RunSetException("Cannot find any builders in runset#%d" %
-                                  self.__id)
 
         # stop monitoring, watchdog, etc.
         #
