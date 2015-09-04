@@ -1737,12 +1737,17 @@ class RunSet(object):
                 # ignore problems stopping goodThread
                 pass
 
+        finalSet = srcSet + otherSet
+        if len(finalSet) > 0 and self.__runData is not None:
+            self.__runData.error("%s failed for %s" %
+                                 (op, listComponentRanges(finalSet)))
+
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING reset")
         if self.__runData is not None:
             self.__runData.reset()
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING reset done")
 
-        return srcSet + otherSet
+        return finalSet
 
     def __validateSubrunDOMs(self, subrunData):
         """

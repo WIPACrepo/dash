@@ -441,6 +441,8 @@ class TestRunSet(unittest.TestCase):
                                      " Forcing %d component%s to stop: %s") %
                                     (runset.id(), runNum, "forcingStop",
                                      len(hangList), plural, hangStr))
+            if hangType > 1:
+                logger.addExpectedExact("FORCED_STOP failed for " + hangStr)
 
         logger.addExpectedExact("Reset duration")
 
@@ -740,16 +742,18 @@ class TestRunSet(unittest.TestCase):
 
         RunSet.TIMEOUT_SECS = 5
 
+        compStr = "first#1, middle#2-5, last#6"
+
         logger.addExpectedExact("Reset duration")
 
         logger.addExpectedExact("0 physics events collected in 0 seconds")
         logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
         logger.addExpectedExact("Run terminated SUCCESSFULLY.")
 
-        compStr = "first#1, middle#2-5, last#6"
         logger.addExpectedExact(("RunSet #1 run#%d (forcingStop):" +
                                  " Forcing 6 components to stop: %s") %
                                  (runNum, compStr))
+        logger.addExpectedExact("STOP_RUN failed for " + compStr)
         logger.addExpectedExact("Failed to transition to ready: stopping[%s]" %
                                 compStr)
 
