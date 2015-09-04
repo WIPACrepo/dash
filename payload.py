@@ -293,7 +293,9 @@ class DeltaCompressedHit(Payload):
         return "A" if self.atwd_chip == 0 else "B"
 
     def atwd(self, channel):
-        "ATWD values"
+        """
+        ATWD values (note that these are in time-reversed order)
+        """
         if not self.has_atwd:
             raise PayloadException("No available ATWD channels")
 
