@@ -1328,6 +1328,10 @@ class RunSet(object):
         return stateDict
 
     def __checkStoppedComponents(self, waitList):
+        """
+        If one or more components are not stopped and state==READY,
+        throw a RunSetException
+        """
         if len(waitList) > 0:
             try:
                 waitStr = listComponentRanges(waitList)
@@ -1654,10 +1658,10 @@ class RunSet(object):
             newSecs = time.time()
             if msgSecs is None or \
                    newSecs < (msgSecs + self.WAIT_MSG_PERIOD):
-                waitStr = \
-                    self.__listComponentsAndConnections(srcSet + otherSet,
-                                                        connDict)
                 if logger is not None:
+                    waitStr = \
+                        self.__listComponentsAndConnections(srcSet + otherSet,
+                                                            connDict)
                     logger.info('%s: Waiting for %s %s' %
                                 (str(self), self.__state, waitStr))
                 msgSecs = newSecs
@@ -1710,15 +1714,16 @@ class RunSet(object):
 
                 self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING phase %d", i)
                 if i == 0:
-                    self.__attemptToStop(srcSet, otherSet,
-                                         RunSetState.STOPPING,
-                                         ComponentOperation.STOP_RUN,
-                                         int(timeout * .75))
+                    rs_state = RunSetState.STOPPING
+                    op = ComponentOperation.STOP_RUN
+                    op_timeout = int(timeout * .75)
                 else:
-                    self.__attemptToStop(srcSet, otherSet,
-                                         RunSetState.FORCING_STOP,
-                                         ComponentOperation.FORCED_STOP,
-                                         int(timeout * .25))
+                    rs_state = RunSetState.FORCING_STOP
+                    op = ComponentOperation.FORCED_STOP
+                    op_timeout = int(timeout * .25)
+
+                self.__attemptToStop(srcSet, otherSet, rs_state, op, op_timeout)
+
                 self.__logDebug(RunSetDebug.STOP_RUN,
                                 "STOPPING phase %d srcSet*%d otherSet[%s]",
                                 i, len(srcSet), str(otherSet))
@@ -1902,8 +1907,7 @@ class RunSet(object):
             pass
 
         badStates = self.__checkState(RunSetState.CONNECTED)
-
-        if len(badStates) != 0:
+        if len(badStates) > 0:
             errMsg = "Could not connect %s" % self.__badStateString(badStates)
             raise RunSetException(errMsg)
 
@@ -2080,12 +2084,19 @@ class RunSet(object):
             # give up after 60 seconds
             pass
 
+        badComps = []
+
         badStates = self.__checkState(RunSetState.IDLE)
+        if len(badStates) > 0:
+            self.__logger.error("Restarting %s after reset" %
+                                self.__badStateString(badStates))
+            for state in badStates:
+                badComps += badStates[state]
 
         self.__configured = False
         self.__runData = None
 
-        return badStates
+        return badComps
 
     def resetLogging(self):
         "Reset logging for all components in the runset"
@@ -2130,14 +2141,8 @@ class RunSet(object):
 
     def returnComponents(self, pool, clusterConfig, configDir, daqDataDir,
                          logPort, livePort, verbose, killWith9, eventCheck):
-        badStates = self.reset()
-
-        badComps = []
-        if len(badStates) > 0:
-            self.__logger.error("Restarting %s after reset" %
-                                self.__badStateString(badStates))
-            for state in badStates:
-                badComps += badStates[state]
+        badComps = self.reset()
+        if len(badComps) > 0:
             self.restartComponents(badComps, clusterConfig, configDir,
                                    daqDataDir, logPort, livePort, verbose,
                                    killWith9, eventCheck)
@@ -2180,6 +2185,9 @@ class RunSet(object):
             self.__runData.setDebugBits(self.__debugBits)
 
     def setError(self):
+        """
+        Used by WatchdogTask (via TaskManager) to stop the current run
+        """
         self.__logDebug(RunSetDebug.STOP_RUN, "SetError %s", self.__runData)
         if self.__state == RunSetState.RUNNING and not self.__stopping:
             try:
@@ -2373,6 +2381,7 @@ class RunSet(object):
                     self.__logger.error("Could not queue SPADE files" +
                                         " for %s: %s" % (self, exc_string()))
 
+                # throw an exception if any component state is not READY
                 self.__checkStoppedComponents(waitList)
 
         return hadError

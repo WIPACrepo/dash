@@ -300,7 +300,7 @@ class MyRunSet(RunSet):
 
     def reset(self):
         if self.__failReset is not None:
-            return { self.FAIL_STATE : (self.__failReset, ), }
+            return (self.__failReset, )
         return {}
 
     def setUnresetComponent(self, comp):
@@ -758,8 +758,6 @@ class CnCRunSetTest(unittest.TestCase):
 
         if failReset:
             rs.setUnresetComponent(comps[0])
-            logger.addExpectedExact("Restarting %s[%s] after reset" %
-                                    (MyRunSet.FAIL_STATE, comps[0]))
             logger.addExpectedExact("Cycling components %s#%d" %
                                     (comps[0].name(), comps[0].num()))
         try:
