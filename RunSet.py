@@ -1247,8 +1247,25 @@ class RunSet(object):
         endSecs = curSecs + timeoutSecs
 
         while (len(srcSet) > 0 or len(otherSet) > 0) and curSecs < endSecs:
-            msgSecs = self.__stopComponents(srcSet, otherSet, connDict,
-                                            msgSecs)
+            changed = self.__stopComponents(srcSet, otherSet, connDict)
+            if not changed:
+                #
+                # hmmm ... we may be hanging
+                #
+                time.sleep(1)
+            elif len(srcSet) > 0 or len(otherSet) > 0:
+                #
+                # one or more components must have stopped
+                #
+                newSecs = time.time()
+                if msgSecs is None or \
+                   newSecs < (msgSecs + self.WAIT_MSG_PERIOD):
+                    waitStr = self.__connectionString(srcSet + otherSet,
+                                                      connDict)
+                    self.__runData.info('%s: Waiting for %s %s' %
+                                        (str(self), self.__state, waitStr))
+                msgSecs = newSecs
+
             curSecs = time.time()
             self.__logDebug(RunSetDebug.STOP_RUN,
                             "STOPPING WAITCHK - %d secs, %d comps",
@@ -1366,6 +1383,24 @@ class RunSet(object):
             self.__state = RunSetState.ERROR
             raise RunSetException(msg)
 
+    @staticmethod
+    def __connectionString(compList, connDict=None):
+        """
+        Build a string of component names and (if supplied) the states of
+        their connections
+        """
+        compStr = None
+        for c in compList:
+            if compStr is None:
+                compStr = ''
+            else:
+                compStr += ', '
+            if connDict is None or not connDict.has_key(c):
+                compStr += c.fullName()
+            else:
+                compStr += c.fullName() + connDict[c]
+        return compStr
+
     def __finishRun(self, comps, runData, hadError, switching=False):
         """
         Send run stats to Live and stash catchall.log in the run directory
@@ -1467,20 +1502,6 @@ class RunSet(object):
         ComponentOperationGroup.runSimple(ComponentOperation.SET_REPLAY_OFFSET,
                                           replayHubs, (offset, ), self.__logger,
                                           errorName="setReplayOffset")
-
-    @staticmethod
-    def __listComponentsAndConnections(compList, connDict=None):
-        compStr = None
-        for c in compList:
-            if compStr is None:
-                compStr = ''
-            else:
-                compStr += ', '
-            if connDict is None or not connDict.has_key(c):
-                compStr += c.fullName()
-            else:
-                compStr += c.fullName() + connDict[c]
-        return compStr
 
     def __logDebug(self, debugBit, *args):
         if (self.__debugBits & debugBit) != debugBit:
@@ -1669,8 +1690,7 @@ class RunSet(object):
             self.__logger.error("Close failed for %s: %s" %
                                 (comp.fullName(), exc_string()))
 
-    def __stopComponents(self, srcSet, otherSet, connDict, msgSecs):
-        logger = None
+    def __stopComponents(self, srcSet, otherSet, connDict):
         if self.__runData is not None:
             logger = self.__runData
         else:
@@ -1685,8 +1705,8 @@ class RunSet(object):
 
         # remove stopped components from appropriate dictionary
         #
-        for set in (srcSet, otherSet):
-            copy = set[:]
+        for oneset in (srcSet, otherSet):
+            copy = oneset[:]
             for c in copy:
                 if states.has_key(c):
                     stateStr = str(states[c])
@@ -1695,7 +1715,7 @@ class RunSet(object):
                 if stateStr != self.__state and stateStr != self.STATE_HANGING:
                     self.__logDebug(RunSetDebug.STOP_RUN,
                                     "STOPPING REMOVE %s (%s)", c, stateStr)
-                    set.remove(c)
+                    oneset.remove(c)
                     if c in connDict:
                         del connDict[c]
                     changed = True
@@ -1709,27 +1729,7 @@ class RunSet(object):
                         connDict[c] = csStr
                         changed = True
 
-        if not changed:
-            #
-            # hmmm ... we may be hanging
-            #
-            time.sleep(1)
-        elif len(srcSet) > 0 or len(otherSet) > 0:
-            #
-            # one or more components must have stopped
-            #
-            newSecs = time.time()
-            if msgSecs is None or \
-                   newSecs < (msgSecs + self.WAIT_MSG_PERIOD):
-                if logger is not None:
-                    waitStr = \
-                        self.__listComponentsAndConnections(srcSet + otherSet,
-                                                            connDict)
-                    logger.info('%s: Waiting for %s %s' %
-                                (str(self), self.__state, waitStr))
-                msgSecs = newSecs
-
-        return msgSecs
+        return changed
 
     def __stopLogServers(self):
         """
