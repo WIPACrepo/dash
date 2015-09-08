@@ -763,10 +763,6 @@ class RunData(object):
         self.__dashlog.error(msg)
 
     def finalReport(self, comps, hadError, switching=False):
-        """
-        Gather end-of-run statistics and send them to various places
-        (Live, dash.log, run.xml)
-        """
         (numEvts, firstTime, lastTime, firstGood, lastGood, numMoni, numSN,
          numTcal) = self.getRunData(comps)
 
@@ -836,21 +832,20 @@ class RunData(object):
         return duration
 
     def finishSetup(self, runSet, startTime):
-        """
-        Tell Live that we're starting a new run, launch run-related threads
+        """Called after starting a run regardless of
+        a switchrun or a normal run start
+
+        tells I3Live that we're starting a run
         """
 
-        # reload the leapseconds file if it's changed, complain if it's outdated
         self.leapsecondsChecks()
 
-        # send start-of-run message to Live
         if self.__liveMoniClient is not None:
             self.reportRunStartClass(self.__liveMoniClient, self.__runNumber,
                                      self.__versionInfo["release"],
                                      self.__versionInfo["repo_rev"], True,
                                      time=startTime)
 
-        # start housekeeping threads
         self.__taskMgr = runSet.createTaskManager(self.__dashlog,
                                                   self.__liveMoniClient,
                                                   self.__runDir,
@@ -986,17 +981,14 @@ class RunData(object):
         return self.__dashlog.isWarnEnabled()
 
     def leapsecondsChecks(self):
-        """
-        Reload leapseconds file if it's been updated
-        Complain if the leapseconds file is due to expire
-        """
         ls = leapseconds.getInstance()
 
         ls.reload_check(self.__liveMoniClient, self.__dashlog)
 
         # sends an alert off to live if the nist leapsecond
         # file is about to expire
-        # will send a message to stderr if the liveMoniClient is None
+        # will send a message to stderr if the liveMoniClient
+        # is None
         ls.expiry_check(self.__liveMoniClient)
 
     def queueForSpade(self, duration):
@@ -1187,7 +1179,7 @@ class RunSet(object):
         self.__state = RunSetState.IDLE
         self.__runData = None
         self.__compLog = {}
-        self.__stopping = None
+        self.__stopping = False
 
         self.__debugBits = 0x0
 
@@ -1362,56 +1354,11 @@ class RunSet(object):
             raise RunSetException(msg)
 
     def __finishRun(self, comps, runData, hadError, switching=False):
-        """
-        Send run stats to Live and stash catchall.log in the run directory
-        """
-        try:
-            duration = runData.finalReport(comps, hadError, switching=switching)
-        finally:
-            self.__parent.saveCatchall(runData.runDirectory())
+        duration = runData.finalReport(comps, hadError, switching=switching)
+
+        self.__parent.saveCatchall(runData.runDirectory())
 
         return duration
-
-
-    def __finishStop(self, callerName, hadError=False):
-        # try to finish end-of-run reporting and move catchall.log to run dir
-        if self.__runData is None:
-            self.__logger.error("No run data; cannot finish run")
-        else:
-            try:
-                duration = self.__finishRun(self.__set, self.__runData,
-                                            hadError)
-            except:
-                duration = 0
-                self.__logger.error("Could not finish run for %s (%s): %s" %
-                                    (self, callerName, exc_string()))
-
-        # switch from run-specific dash.log to top-level catchall.log
-        try:
-            self.__stopLogging()
-        except:
-            self.__logger.error("Could not stop logs for %s (%s): %s" %
-                                (self, callerName, exc_string()))
-
-        # report event counts to Live
-        if self.__runData is None:
-            self.__logger.error("No run data; cannot send event counts")
-        else:
-            try:
-                self.__runData.sendEventCounts(self.__set, False)
-            except:
-                self.__logger.error("Could not send event counts" +
-                                    " for %s (%s): %s" %
-                                    (self, callerName, exc_string()))
-
-        # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
-        # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
-        try:
-            self.queueForSpade(self.__runData, duration)
-        except:
-            self.__logger.error("Could not queue SPADE files" +
-                                " for %s (%s): %s" %
-                                (self, callerName, exc_string()))
 
     def __getReplayHubs(self):
         "Return the list of replay hubs in this runset"
@@ -2242,14 +2189,14 @@ class RunSet(object):
         if self.__runData is not None:
             self.__runData.setDebugBits(self.__debugBits)
 
-    def setError(self, callerName):
+    def setError(self):
         """
         Used by WatchdogTask (via TaskManager) to stop the current run
         """
         self.__logDebug(RunSetDebug.STOP_RUN, "SetError %s", self.__runData)
-        if self.__state == RunSetState.RUNNING and self.__stopping is None:
+        if self.__state == RunSetState.RUNNING and not self.__stopping:
             try:
-                self.stopRun("SetError", hadError=True)
+                self.stopRun(hadError=True)
             except:
                 pass
 
@@ -2386,44 +2333,66 @@ class RunSet(object):
 
         return setStats
 
-    def stopRun(self, callerName, hadError=False):
+    def stopRun(self, hadError=False):
         """
         Stop all components in the runset
         Return True if an error is encountered while stopping.
         """
-        if self.__stopping is not None:
-            msg = "Ignored %s stopRun() call, stopRun() from %s is active" % \
-                  (callerName, self.__stopping)
+        if self.__stopping:
+            msg = "Ignored extra stopRun() call"
             if self.__runData is not None:
                 self.__runData.error(msg)
             elif self.__logger is not None:
                 self.__logger.error(msg)
             return False
 
-        self.__stopping = callerName
+        self.__stopping = True
         waitList = []
         try:
             waitList = self.__stopRunInternal(hadError)
         except:
             hadError = True
-            self.__logger.error("Could not stop run for %s (%s): %s" %
-                                (self, callerName, exc_string()))
+            self.__logger.error("Could not stop run %s: %s" %
+                                (self, exc_string()))
             raise
         finally:
+            self.__stopping = False
             if len(waitList) > 0:
                 hadError = True
-            try:
-                self.__finishStop(callerName, hadError=hadError)
-            finally:
-                self.__stopping = None
+            if self.__runData is not None:
+                try:
+                    duration = self.__finishRun(self.__set, self.__runData,
+                                                hadError)
+                except:
+                    duration = 0
+                    self.__logger.error("Could not finish run for %s: %s" %
+                                        (self, exc_string()))
+                try:
+                    self.__stopLogging()
+                except:
+                    self.__logger.error("Could not stop logs for %s: %s" %
+                                        (self, exc_string()))
+                try:
+                    self.__runData.sendEventCounts(self.__set, False)
+                except:
+                    self.__logger.error("Could not send event counts" +
+                                        " for %s: %s" % (self, exc_string()))
 
-        # throw an exception if any component state is not READY
-        self.__checkStoppedComponents(waitList)
+                # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
+                # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
+                try:
+                    self.queueForSpade(self.__runData, duration)
+                except:
+                    self.__logger.error("Could not queue SPADE files" +
+                                        " for %s: %s" % (self, exc_string()))
+
+                # throw an exception if any component state is not READY
+                self.__checkStoppedComponents(waitList)
 
         return hadError
 
     def stopping(self):
-        return self.__stopping is not None
+        return self.__stopping
 
     def subrun(self, id, data):
         "Start a subrun with all components in the runset"

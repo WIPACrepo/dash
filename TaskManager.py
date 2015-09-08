@@ -143,8 +143,8 @@ class TaskManager(threading.Thread):
         for t in self.__tasks:
             t.setDebug(debugBits)
 
-    def setError(self, callerName):
-        self.__runset.setError(callerName)
+    def setError(self):
+        self.__runset.setError()
 
     def stop(self):
         if self.__running and not self.__stopping:

@@ -746,8 +746,7 @@ class TestDAQPool(unittest.TestCase):
 
         aComp.addBeanData("stringhub", "EarliestLastChannelHitTime", 10)
 
-        self.failIf(runset.stopRun("TestStartRun"),
-                    "stopRun() encountered error")
+        self.failIf(runset.stopRun(), "stopRun() encountered error")
 
         self.__checkRunsetState(runset, 'ready')
 

@@ -751,7 +751,7 @@ class CnCRunSetTest(unittest.TestCase):
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
                            "stringhub", "EarliestLastChannelHitTime", 20)
 
-        self.failIf(rs.stopRun("RunDirect"), "stopRun() encountered error")
+        self.failIf(rs.stopRun(), "stopRun() encountered error")
 
         logger.checkStatus(5)
         dashLog.checkStatus(5)
