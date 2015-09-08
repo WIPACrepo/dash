@@ -168,6 +168,8 @@ class ComponentOperation(threading.Thread):
 
     def __stopLogging(self):
         "Stop logging for the component"
+        if not self.__comp in self.__data:
+            raise Exception("No log server found for " + str(self.__comp))
         self.__data[self.__comp].stopServing()
 
     def __stopRun(self):

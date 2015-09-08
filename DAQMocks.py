@@ -456,6 +456,12 @@ class LogChecker(object):
     def setError(self, msg):
         raise NotImplementedError()
 
+    @staticmethod
+    def setVerbose(val=True):
+        # NOTE: need to hard-code LogChecker.DEBUG to make sure the correct
+        # class-level DEBUG attribute is set
+        LogChecker.DEBUG = val
+
 
 class MockAppender(LogChecker):
     def __init__(self, name, depth=None):
@@ -2416,7 +2422,7 @@ class MockTaskManager(object):
     def hasError(self):
         return self.__error
 
-    def setError(self):
+    def setError(self, callerName):
         self.__error = True
 
 

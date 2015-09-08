@@ -126,9 +126,9 @@ class CnCSingleThreadTask(CnCTask):
         "Create a new task-specific thread which is run at each interval"
         raise NotImplementedError()
 
-    def stopRunset(self):
+    def stopRunset(self, callerName):
         "Signal the runset that this run has failed"
-        self.__runset.setError()
+        self.__runset.setError(callerName)
 
     def waitUntilFinished(self):
         "If a thread is running, wait until it's finished"

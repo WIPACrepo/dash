@@ -728,7 +728,7 @@ class WatchdogTask(CnCTask):
                                   self.__healthMeter)
             else:
                 self.logError("Run is not healthy, stopping")
-                self.setError()
+                self.setError("WatchdogTask")
 
     @classmethod
     def createThread(self, runset, comp, rule, dashlog):

@@ -88,9 +88,9 @@ class CnCTask(object):
         "Enable debugging messages for this task"
         self.__debug = ((debugBits & self.__debugBit) == self.__debugBit)
 
-    def setError(self):
+    def setError(self, callerName):
         """
         Inform the task manager that this task has encountered an
         unrecoverable error and the run should be stopped
         """
-        self.__taskMgr.setError()
+        self.__taskMgr.setError(callerName)

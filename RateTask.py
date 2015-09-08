@@ -50,4 +50,4 @@ class RateTask(CnCSingleThreadTask):
     def taskFailed(self):
         self.logError("ERROR: %s thread seems to be stuck,"
                       " stopping run" % self.NAME)
-        self.stopRunset()
+        self.stopRunset("RateTask")
