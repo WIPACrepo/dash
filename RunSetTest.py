@@ -193,7 +193,7 @@ class TestRunSet(unittest.TestCase):
         expState = "running"
 
         try:
-            stopErr = runset.stopRun()
+            stopErr = runset.stopRun("SubRun")
         except RunSetException as ve:
             if not "is not running" in str(ve):
                 raise
@@ -309,7 +309,7 @@ class TestRunSet(unittest.TestCase):
 
         logger.addExpectedRegexp("Could not stop run .*")
 
-        self.assertRaises(RunSetException, runset.stopRun)
+        self.assertRaises(RunSetException, runset.stopRun, ("RunTest"))
         logger.checkStatus(10)
 
         expState = "running"
@@ -461,11 +461,11 @@ class TestRunSet(unittest.TestCase):
             logger.addExpectedExact("Run terminated SUCCESSFULLY.")
 
         if hangType < 2:
-            self.failIf(runset.stopRun(), "stopRun() encountered error")
+            self.failIf(runset.stopRun("Test1"), "stopRun() encountered error")
             expState = "ready"
         else:
             try:
-                if not runset.stopRun():
+                if not runset.stopRun("Test2"):
                     self.fail("stopRun() should have failed")
             except RunSetException as rse:
                 expMsg = "RunSet #%d run#%d (%s): Could not stop %s" % \
@@ -672,7 +672,8 @@ class TestRunSet(unittest.TestCase):
         logger.addExpectedRegexp("Could not stop run .* RunSetException.*")
 
         try:
-            self.failIf(runset.stopRun(), "stopRun() encountered error")
+            self.failIf(runset.stopRun("ShortStop"),
+                        "stopRun() encountered error")
             self.fail("stopRun() on new runset should throw exception")
         except Exception as ex:
             if not str(ex).startswith("RunSet #") or \
@@ -763,7 +764,7 @@ class TestRunSet(unittest.TestCase):
 
         try:
             try:
-                runset.stopRun()
+                runset.stopRun("BadStop")
             except RunSetException as rse:
                 self.assertEqual(str(rse), stopErrMsg,
                                  "Expected exception %s, not %s" %

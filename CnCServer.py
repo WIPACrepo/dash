@@ -788,7 +788,7 @@ class CnCServer(DAQPool):
         hadError = False
         if not runSet.isReady():
             try:
-                hadError = runSet.stopRun()
+                hadError = runSet.stopRun("BreakRunset")
             except:
                 self.__log.error("While breaking %s: %s" %
                                  (runSet, exc_string()))
@@ -1302,7 +1302,7 @@ class CnCServer(DAQPool):
 
         delayedException = None
         try:
-            hadError = runSet.stopRun()
+            hadError = runSet.stopRun("RPCStopRun")
         except ValueError:
             hadError = True
             delayedException = sys.exc_info()
