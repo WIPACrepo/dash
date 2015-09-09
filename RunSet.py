@@ -2649,9 +2649,17 @@ class RunSet(object):
         try:
             duration = self.__finishRun(self.__set, oldData, False,
                                         switching=True)
+        except:
+            if not savedEx:
+                savedEx = sys.exc_info()
 
+        try:
             oldData.sendEventCounts(self.__set, False)
+        except:
+            if not savedEx:
+                savedEx = sys.exc_info()
 
+        try:
             # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
             # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
             self.queueForSpade(oldData, duration)
