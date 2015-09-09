@@ -1411,6 +1411,7 @@ class RunSet(object):
         """
         Send run stats to Live and stash catchall.log in the run directory
         """
+        duration = 0
         try:
             duration = runData.finalReport(comps, hadError, switching=switching)
         finally:
