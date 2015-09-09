@@ -492,6 +492,7 @@ class RunData(object):
         self.__spadeDir = spadeDir
         self.__copyDir = copyDir
         self.__testing = testing
+        self.__finished = False
 
         if not RunOption.isLogToFile(self.__runOptions):
             self.__logDir = None
@@ -858,6 +859,9 @@ class RunData(object):
                                                   self.__runOptions)
         self.__taskMgr.start()
 
+    def finished(self):
+        return self.__finished
+
     def firstPayTime(self):
         return self.__firstPayTime
 
@@ -1114,6 +1118,9 @@ class RunData(object):
     def setDebugBits(self, debugBits):
         if self.__taskMgr is not None:
             self.__taskMgr.setDebugBits(debugBits)
+
+    def setFinished(self):
+        self.__finished = True
 
     def setSubrunNumber(self, num):
         self.__subrunNumber = num
@@ -1463,6 +1470,9 @@ class RunSet(object):
             self.__logger.error("Could not queue SPADE files" +
                                 " for %s (%s): %s" %
                                 (self, callerName, exc_string()))
+
+        # note that this run is finished
+        self.__runData.setFinished()
 
     def __getReplayHubs(self):
         "Return the list of replay hubs in this runset"
@@ -2417,6 +2427,10 @@ class RunSet(object):
         Stop all components in the runset
         Return True if an error is encountered while stopping.
         """
+        if self.__runData is not None and self.__runData.finished():
+            self.__logger.error("Not double-stopping %s" % self.__runData)
+            return
+
         if self.__stopping is not None:
             msg = "Ignored %s stopRun() call, stopRun() from %s is active" % \
                   (callerName, self.__stopping)
