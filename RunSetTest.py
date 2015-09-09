@@ -195,7 +195,7 @@ class TestRunSet(unittest.TestCase):
         expState = "running"
 
         try:
-            stopErr = runset.stopRun(stopCaller)
+            stopErr = runset.stopRun(stopCaller, timeout=0)
         except RunSetException as ve:
             if not "is not running" in str(ve):
                 raise
@@ -434,6 +434,7 @@ class TestRunSet(unittest.TestCase):
                                          " Waiting for %s %s") %
                                         (runset.id(), runNum, expState,
                                          expState, hangStr))
+
             if len(hangList) == 1:
                 plural = ""
             else:
@@ -462,11 +463,12 @@ class TestRunSet(unittest.TestCase):
             logger.addExpectedExact("Run terminated SUCCESSFULLY.")
 
         if hangType < 2:
-            self.failIf(runset.stopRun("Test1"), "stopRun() encountered error")
+            self.failIf(runset.stopRun("Test1", timeout=0),
+                        "stopRun() encountered error")
             expState = "ready"
         else:
             try:
-                if not runset.stopRun("Test2"):
+                if not runset.stopRun("Test2", timeout=0):
                     self.fail("stopRun() should have failed")
             except RunSetException as rse:
                 expMsg = "RunSet #%d run#%d (%s): Could not stop %s" % \
@@ -679,7 +681,7 @@ class TestRunSet(unittest.TestCase):
                                 (runset.id(), compStr))
 
         try:
-            self.failIf(runset.stopRun("ShortStop"),
+            self.failIf(runset.stopRun("ShortStop", timeout=0),
                         "stopRun() encountered error")
             self.fail("stopRun() on new runset should throw exception")
         except Exception as ex:
@@ -770,7 +772,7 @@ class TestRunSet(unittest.TestCase):
 
         try:
             try:
-                runset.stopRun("BadStop")
+                runset.stopRun("BadStop", timeout=0)
             except RunSetException as rse:
                 self.assertEqual(str(rse), stopErrMsg,
                                  "Expected exception %s, not %s" %

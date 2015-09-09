@@ -1240,6 +1240,10 @@ class RunSet(object):
             self.__logDebug(RunSetDebug.STOP_RUN,
                             "STOPPING OTHER %s done", c)
 
+        # make sure we run at least once
+        if timeoutSecs == 0:
+            timeoutSecs = 1
+
         connDict = {}
 
         msgSecs = None
@@ -1270,6 +1274,8 @@ class RunSet(object):
             self.__logDebug(RunSetDebug.STOP_RUN,
                             "STOPPING WAITCHK - %d secs, %d comps",
                             endSecs - curSecs, len(srcSet) + len(otherSet))
+
+        return connDict
 
     def __badStateString(self, badStates):
         badList = []
@@ -1747,7 +1753,7 @@ class RunSet(object):
                                           self.__logger,
                                           errorName="stopLogging")
 
-    def __stopRunInternal(self, hadError=False):
+    def __stopRunInternal(self, hadError=False, timeout=20):
         """
         Stop all components in the runset
         Return True if an error is encountered while stopping.
@@ -1779,7 +1785,6 @@ class RunSet(object):
         goodThread.start()
 
         try:
-            timeout = 20
             for i in range(0, 2):
                 if self.__runData is None:
                     break
@@ -1794,7 +1799,8 @@ class RunSet(object):
                     op = ComponentOperation.FORCED_STOP
                     op_timeout = int(timeout * .25)
 
-                self.__attemptToStop(srcSet, otherSet, rs_state, op, op_timeout)
+                connDict = self.__attemptToStop(srcSet, otherSet, rs_state,
+                                                op, op_timeout)
 
                 self.__logDebug(RunSetDebug.STOP_RUN,
                                 "STOPPING phase %d srcSet*%d otherSet[%s]",
@@ -2405,7 +2411,7 @@ class RunSet(object):
 
         return setStats
 
-    def stopRun(self, callerName, hadError=False):
+    def stopRun(self, callerName, hadError=False, timeout=20):
         """
         Stop all components in the runset
         Return True if an error is encountered while stopping.
@@ -2422,7 +2428,8 @@ class RunSet(object):
         self.__stopping = callerName
         waitList = []
         try:
-            waitList = self.__stopRunInternal(hadError)
+            waitList = self.__stopRunInternal(hadError=hadError,
+                                              timeout=timeout)
         except:
             hadError = True
             self.__logger.error("Could not stop run for %s (%s): %s" %
