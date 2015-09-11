@@ -3,6 +3,8 @@
 import socket
 import threading
 
+from DAQClient import BeanTimeoutException
+
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
@@ -245,12 +247,11 @@ class ComponentOperation(threading.Thread):
         "Main method for thread"
         try:
             self.__runOperation()
-        except socket.error:
+        except BeanTimeoutException:
+            self.__log.error("%s(%s): %s" % (str(self.__operation),
+                                             str(self.__comp), exc_string()))
             self.__error = True
         except:
-            self.__log.error("%s(%s): %s" % (str(self.__operation),
-                                             str(self.__comp),
-                                             exc_string()))
             self.__error = True
 
 

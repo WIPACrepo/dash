@@ -1250,9 +1250,6 @@ class MockComponent(object):
                 raise rtnMap[f]
         return rtnMap
 
-    def getNonstoppedConnectorsString(self):
-        return ""
-
     def getRunData(self, runnum):
         if self.__num == 0:
             if self.__name.startswith("event"):
@@ -1309,6 +1306,9 @@ class MockComponent(object):
 
     def isSource(self):
         return self.__isSrc
+
+    def listConnectorStates(self):
+        return ""
 
     def logTo(self, logIP, logPort, liveIP, livePort):
         pass

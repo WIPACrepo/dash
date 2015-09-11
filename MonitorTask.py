@@ -8,6 +8,8 @@ import sys
 
 from CnCTask import CnCTask
 from CnCThread import CnCThread
+from CompOp import ComponentOperation
+from DAQClient import BeanTimeoutException
 from LiveImports import Prio
 from RunOption import RunOption
 from RunSetDebug import RunSetDebug
@@ -28,6 +30,9 @@ class MonitorThread(CnCThread):
         self.__refused = refused
         self.__warned = False
         self.__closeLock = threading.Lock()
+
+        self.__beanKeys = []
+        self.__beanFlds = {}
 
         super(MonitorThread, self).__init__(comp.fullName(), dashlog)
 
@@ -57,31 +62,30 @@ class MonitorThread(CnCThread):
             if self.__reporter is None:
                 return
 
-        bSrt = self.__comp.getBeanNames()
-        bSrt.sort()
-        for b in bSrt:
+            self.__beanKeys = []
+            self.__beanFlds = {}
+
+        if len(self.__beanKeys) == 0:
+            self.__beanKeys = self.__comp.getBeanNames()
+            self.__beanKeys.sort()
+            for b in self.__beanKeys:
+                if self.isClosed():
+                    # give up if this thread has been "closed"
+                    return
+
+                self.__beanFlds[b] = self.__comp.getBeanFields(b)
+
+        for b in self.__beanKeys:
             if self.isClosed():
-                # break out of the loop if this thread has been "closed"
                 break
 
-            flds = self.__comp.getBeanFields(b)
+            flds = self.__beanFlds[b]
             try:
                 attrs = self.__comp.getMultiBeanFields(b, flds)
                 self.__refused = 0
-            except socket.error as se:
-                sockStr = exc_string()
-                try:
-                    msg = se[1]
-                except IndexError:
-                    msg = None
-
-                if msg and msg == "Connection refused":
-                    self.__refused += 1
-                    break
-
-                attrs = None
-                self.__dashlog.error("Ignoring %s:%s: %s" %
-                                     (str(self.__comp), b, sockStr))
+            except BeanTimeoutException:
+                self.__refused += 1
+                break
             except:
                 attrs = None
                 self.__dashlog.error("Ignoring %s:%s: %s" %
@@ -90,6 +94,8 @@ class MonitorThread(CnCThread):
             # report monitoring data
             if attrs and len(attrs) > 0 and not self.isClosed():
                 self.__reporter.send(datetime.datetime.now(), b, attrs)
+
+        return self.__refused
 
     def close(self):
         super(MonitorThread, self).close()

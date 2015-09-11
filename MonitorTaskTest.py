@@ -6,6 +6,7 @@ import tempfile
 import unittest
 import shutil
 
+from DAQClient import BeanTimeoutException
 from LiveImports import Prio
 from MonitorTask import MonitorTask
 from RunOption import RunOption
@@ -32,7 +33,7 @@ class BadComponent(MockComponent):
     def getSingleBeanField(self, beanName, fieldName):
         if self.__raiseSocketError:
             self.__raiseSocketError = False
-            raise socket.error(123, "Connection refused")
+            raise BeanTimeoutException("Mock exception")
         if self.__raiseException:
             self.__raiseException = False
             raise Exception("Mock exception")

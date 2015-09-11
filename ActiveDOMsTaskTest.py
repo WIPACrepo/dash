@@ -204,10 +204,6 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         foo.setBeanData("stringhub", "NumberOfActiveAndTotalChannels",
                         Exception("Simulated error"))
 
-        errMsg = "Cannot get %s bean data from %s: .*" % \
-                 (ActiveDOMsTask.NAME, foo.fullName())
-        logger.addExpectedRegexp(errMsg)
-
         live.addExpected("activeDOMs", numActive,  Prio.ITS)
         live.addExpected("expectedDOMs", numTotal,  Prio.ITS)
         live.addExpected("missingDOMs", numTotal - numActive,  Prio.EMAIL)

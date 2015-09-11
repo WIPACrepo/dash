@@ -195,7 +195,7 @@ class GoodTimeThread(CnCThread):
     # bean field name holding the number of non-zombie hubs
     NONZOMBIE_FIELD = "NumberOfNonZombies"
     # maximum number of attempts to get the time from all hubs
-    MAX_ATTEMPTS = 20
+    MAX_ATTEMPTS = 5
 
     def __init__(self, srcSet, otherSet, data, log, quickSet=False,
                  threadName=None):
@@ -231,7 +231,16 @@ class GoodTimeThread(CnCThread):
             complete = False
             for i in range(self.MAX_ATTEMPTS):
                 complete = self.__fetchTime()
-                if complete or self.__stopped:
+                loud = False
+                if loud and (complete or self.__stopped):
+                    if complete:
+                        status = "complete"
+                    elif self.__stopped:
+                        status = "stopped"
+                    else:
+                        status = "unknown"
+                    self.__log.error("GetGoodTime %s after %d attempts" %
+                                     (status, i))
                     # we're done, break out of the loop
                     break
                 time.sleep(0.1)
@@ -271,9 +280,9 @@ class GoodTimeThread(CnCThread):
         complete = True
         updated = False
 
-        # wait for up to half a second for a result
+        # wait for up to two seconds for a result
         sleepSecs = 0.1
-        sleepReps = 5
+        sleepReps = 20
 
         for i in xrange(sleepReps):
             hanging = False
@@ -749,7 +758,7 @@ class RunData(object):
                     savedEx = sys.exc_info()
             self.__liveMoniClient = None
 
-        if self.__dashlog:
+        if self.__dashlog is not None:
             try:
                 self.__dashlog.close()
             except:
@@ -761,7 +770,8 @@ class RunData(object):
             raise savedEx[0], savedEx[1], savedEx[2]
 
     def error(self, msg):
-        self.__dashlog.error(msg)
+        if self.__dashlog is not None:
+            self.__dashlog.error(msg)
 
     def finalReport(self, comps, hadError, switching=False):
         """
@@ -979,6 +989,9 @@ class RunData(object):
 
     def info(self, msg):
         self.__dashlog.info(msg)
+
+    def isDestroyed(self):
+        return self.__dashlog is not None
 
     def isErrorEnabled(self):
         return self.__dashlog.isErrorEnabled()
@@ -1370,7 +1383,7 @@ class RunSet(object):
         If one or more components are not stopped and state==READY,
         throw a RunSetException
         """
-        if self.__runData is not None:
+        if self.__runData is not None and not self.__runData.isDestroyed():
             logger = self.__runData
         else:
             logger = self.__logger
@@ -1413,6 +1426,31 @@ class RunSet(object):
             else:
                 compStr += c.fullName() + connDict[c]
         return compStr
+
+    @staticmethod
+    def __connectorString(connStates):
+        """
+        Build a string from a component's list of connector states
+        (returned by the remote `listConnectorStates()` method)
+        """
+        csStr = None
+        for cs in connStates:
+            if not cs.has_key("type") or not cs.has_key("state"):
+                continue
+            if cs["state"] == 'idle':
+                continue
+            if csStr is None:
+                csStr = '['
+            else:
+                csStr += ', '
+            csStr += '%s:%s' % (cs["type"], cs["state"])
+
+        if csStr is None:
+            csStr = ''
+        else:
+            csStr += ']'
+
+        return csStr
 
     def __finishRun(self, comps, runData, hadError, switching=False):
         """
@@ -1472,7 +1510,8 @@ class RunSet(object):
                                 (self, callerName, exc_string()))
 
         # note that this run is finished
-        self.__runData.setFinished()
+        if self.__runData is not None:
+            self.__runData.setFinished()
 
     def __getReplayHubs(self):
         "Return the list of replay hubs in this runset"
@@ -1722,6 +1761,7 @@ class RunSet(object):
 
         # remove stopped components from appropriate dictionary
         #
+        badlist = []
         for oneset in (srcSet, otherSet):
             copy = oneset[:]
             for c in copy:
@@ -1737,14 +1777,26 @@ class RunSet(object):
                         del connDict[c]
                     changed = True
                 else:
-                    csStr = c.getNonstoppedConnectorsString()
-                    self.__logDebug(RunSetDebug.STOP_RUN,
-                                    "STOPPING NOCHG %s -> %s", c, csStr)
-                    if not c in connDict:
-                        connDict[c] = csStr
-                    elif connDict[c] != csStr:
-                        connDict[c] = csStr
-                        changed = True
+                    badlist.append(c)
+
+        if len(badlist) > 0:
+            op = ComponentOperation.GET_CONN_INFO
+            allconn = ComponentOperationGroup.runSimple(op, badlist, (),
+                                                        self.__logger)
+            for c in badlist:
+                if not allconn.has_key(c):
+                    csStr = self.STATE_DEAD
+                else:
+                    csDict = allconn[c]
+                    if type(csDict) != dict:
+                        csStr = str(csDict)
+                    else:
+                        csStr = self.__connectorString(csDict)
+                if not c in connDict:
+                    connDict[c] = csStr
+                elif connDict[c] != csStr:
+                    connDict[c] = csStr
+                    changed = True
 
         return changed
 

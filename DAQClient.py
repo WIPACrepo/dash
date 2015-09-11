@@ -4,6 +4,7 @@ import os
 import socket
 import sys
 import threading
+import xmlrpclib
 
 from CnCLogger import CnCLogger
 from DAQRPC import RPCClient
@@ -44,15 +45,19 @@ def unFixValue(obj):
     return obj
 
 
-class MBeanException(Exception):
+class BeanException(Exception):
     pass
 
 
-class BeanFieldNotFoundException(MBeanException):
+class BeanFieldNotFoundException(BeanException):
     pass
 
 
-class BeanLoadException(MBeanException):
+class BeanLoadException(BeanException):
+    pass
+
+
+class BeanTimeoutException(BeanException):
     pass
 
 
@@ -73,6 +78,9 @@ class MBeanClient(object):
         self.__loadedInfo = False
         try:
             self.__beanList = self.__client.mbean.listMBeans()
+        except (socket.error, xmlrpclib.Fault, xmlrpclib.ProtocolError):
+            raise BeanTimeoutException("Cannot get list of %s MBeans" %
+                                       self.__compName)
         except:
             raise BeanLoadException("Cannot get list of %s MBeans: %s " %
                                     (self.__compName, exc_string()))
@@ -80,8 +88,7 @@ class MBeanClient(object):
         failed = []
         for bean in self.__beanList:
             try:
-                self.__beanFields[bean] = \
-                                        self.__client.mbean.listGetters(bean)
+                self.__beanFields[bean] = self.__client.mbean.listGetters(bean)
             except:
                 # don't let a single failure abort remaining fetches,
                 failed.append(bean)
@@ -135,9 +142,14 @@ class MBeanClient(object):
         "get the values for a list of MBean fields"
         try:
             attrs = self.__client.mbean.getAttributes(bean, fldList)
+        except (socket.error, xmlrpclib.Fault, xmlrpclib.ProtocolError):
+            raise BeanTimeoutException("Cannot get %s mbean \"%s\" attributes"
+                                       " %s" % (self.__compName, bean, fldList))
         except:
-            raise Exception("Cannot get %s mbean \"%s\" attributes %s: %s" %
-                            (self.__compName, bean, fldList, exc_string()))
+            raise BeanLoadException("Cannot get %s mbean \"%s\" attributes"
+                                    " %s: (%s) %s" %
+                                    (self.__compName, bean, fldList,
+                                     exc_string()))
 
         if type(attrs) == dict and len(attrs) > 0:
             for k in attrs.keys():
@@ -391,34 +403,6 @@ class DAQClient(ComponentName):
 
         return self.__mbean.getAttributes(name, fieldList)
 
-    def getNonstoppedConnectorsString(self):
-        """
-        Return string describing states of all connectors
-        which have not yet stopped
-        """
-        try:
-            connStates = self.__client.xmlrpc.listConnectorStates()
-        except:
-            self.__log.error(exc_string())
-            connStates = []
-
-        csStr = None
-        for cs in connStates:
-            if cs["state"] == 'idle':
-                continue
-            if csStr is None:
-                csStr = '['
-            else:
-                csStr += ', '
-            csStr += '%s:%s' % (cs["type"], cs["state"])
-
-        if csStr is None:
-            csStr = ''
-        else:
-            csStr += ']'
-
-        return csStr
-
     def getReplayStartTime(self):
         "Get the earliest time for a replay hub"
         try:
@@ -573,7 +557,7 @@ class DAQClient(ComponentName):
         "Get current state"
         try:
             state = self.__client.xmlrpc.getState()
-        except socket.error:
+        except (socket.error, xmlrpclib.Fault, xmlrpclib.ProtocolError):
             state = None
         except:
             self.__log.error(exc_string())
