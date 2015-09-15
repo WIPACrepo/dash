@@ -13,57 +13,65 @@ from DAQMocks import MockIntervalTimer, MockLiveMoni, MockLogger, MockRunSet
 
 class MockTMComponent(object):
     BEANBAG = {
-        "stringHub":
-            {"stringhub":
-                  {"NumberOfActiveChannels": 2,
-                   "NumberOfActiveAndTotalChannels": [1, 2],
-                   "TotalLBMOverflows": 20,
-                   "HitRate": 50.,
-                   "HitRateLC": 25.},
-              "sender":
-                  {"NumHitsReceived": 0,
-                   "NumReadoutRequestsReceived": 0,
-                   "NumReadoutsSent": 0,
-                   },
-              },
-        "iceTopTrigger":
-            {"icetopHit":
-                 {"RecordsReceived": 0},
-             "trigger":
-                 {"RecordsSent": 0},
+        "stringHub": {
+            "stringhub": {
+                "NumberOfActiveChannels": 2,
+                "NumberOfActiveAndTotalChannels": [1, 2],
+                "TotalLBMOverflows": 20,
+                "HitRate": 50.,
+                "HitRateLC": 25.0
+            },
+            "sender": {
+                "NumHitsReceived": 0,
+                "NumReadoutRequestsReceived": 0,
+                "NumReadoutsSent": 0,
+            },
+        },
+        "iceTopTrigger": {
+            "icetopHit": {
+                "RecordsReceived": 0
+            },
+             "trigger": {
+                 "RecordsSent": 0
              },
-        "inIceTrigger":
-            {"stringHit":
-                 {"RecordsReceived": 0},
-             "trigger":
-                  {"RecordsSent": 0},
-              },
-        "globalTrigger":
-            {"trigger":
-                 {"RecordsReceived": 0},
-              "glblTrig":
-                 {"RecordsSent": 0},
-              },
-        "eventBuilder":
-            {"backEnd":
-                  {"DiskAvailable": 2560,
-                   "NumBadEvents": 0,
-                   "NumEventsDispatched": 0,
-                   "NumEventsSent": 0,
-                   "NumReadoutsReceived": 0,
-                   "NumTriggerRequestsReceived": 0,
-                   "NumBytesWritten": 0
-                   },
-              },
-        "secondaryBuilders":
-            {"moniBuilder":
-                  {"TotalDispatchedData": 0},
-              "snBuilder":
-                  {"TotalDispatchedData": 0,
-                   "DiskAvailable": 0,
-                   },
-              }
+        },
+        "inIceTrigger": {
+            "stringHit": {
+                "RecordsReceived": 0
+            },
+            "trigger": {
+                "RecordsSent": 0
+            },
+        },
+        "globalTrigger": {
+            "trigger": {
+                "RecordsReceived": 0
+            },
+            "glblTrig": {
+                "RecordsSent": 0
+            },
+        },
+        "eventBuilder": {
+            "backEnd": {
+                "DiskAvailable": 2560,
+                "NumBadEvents": 0,
+                "NumEventsDispatched": 0,
+                "NumEventsSent": 0,
+                "NumReadoutsReceived": 0,
+                "NumTriggerRequestsReceived": 0,
+                "NumBytesWritten": 0
+            },
+        },
+        "secondaryBuilders": {
+            "moniBuilder": {
+                "TotalDispatchedData": 0
+            },
+            "snBuilder": {
+                "TotalDispatchedData": 0,
+                "DiskAvailable": 0,
+            },
         }
+    }
 
     def __init__(self, name, num):
         self.__name = name
@@ -288,7 +296,7 @@ class TaskManagerTest(unittest.TestCase):
                             RunOption.MONI_TO_LIVE)
         rst.start()
 
-        for i in range(20):
+        for _ in range(20):
             waitForThread = False
             for c in compList:
                 if not c.wasUpdated():
@@ -342,7 +350,7 @@ class TaskManagerTest(unittest.TestCase):
         rst.triggerTimers()
         rst.start()
 
-        for i in range(20):
+        for _ in range(20):
             waitForThread = False
             for c in compList:
                 if not c.wasUpdated():
@@ -397,7 +405,7 @@ class TaskManagerTest(unittest.TestCase):
 
         rst.start()
 
-        for i in range(20):
+        for _ in range(20):
             waitForThread = False
             for c in compList:
                 if not c.wasUpdated():

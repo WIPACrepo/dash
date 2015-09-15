@@ -21,19 +21,19 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
 
     p.add_argument("-d", "--domstxt", dest="domsFile",
-                 help="DOM description file")
+                   help="DOM description file")
     p.add_argument("-g", "--geometry", dest="geomFile",
-                 help="IceCube geometry settings")
+                   help="IceCube geometry settings")
     p.add_argument("-m", "--min-coord-diff", type=float, dest="minCoordDiff",
-                 default=0.00001,
-                 help="Minimum difference before a coordinate is changed")
+                   default=0.00001,
+                   help="Minimum difference before a coordinate is changed")
     p.add_argument("-n", "--nicknames", dest="nicknames",
-                 help="DOM 'nicknames' file")
+                   help="DOM 'nicknames' file")
     p.add_argument("-o", "--olddefdomgeom", dest="oldDefDomGeom",
-                 help="Previous default-dom-geometry file")
+                   help="Previous default-dom-geometry file")
     p.add_argument("-v", "--verbose", dest="verbose",
-                 action="store_true", default=False,
-                 help="Be chatty")
+                   action="store_true", default=False,
+                   help="Be chatty")
 
     args = p.parse_args()
 

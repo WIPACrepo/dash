@@ -2,7 +2,7 @@
 
 from CnCSingleThreadTask import CnCSingleThreadTask
 from CnCThread import CnCThread
-from CompOp import ComponentOperation, ComponentOperationGroup, Result
+from CompOp import ComponentOperation, ComponentOperationGroup
 from LiveImports import Prio
 from RunSetDebug import RunSetDebug
 
@@ -21,16 +21,16 @@ class ActiveDOMThread(CnCThread):
     KEY_LC_RATE = "HitRateLC"
     KEY_TOTAL_RATE = "HitRate"
 
-    def __init__(self, runset, dashlog, liveMoni, sendDetails):
+    def __init__(self, runset, dashlog, liveMoni, send_details):
         self.__runset = runset
         self.__dashlog = dashlog
-        self.__liveMoniClient = liveMoni
-        self.__sendDetails = sendDetails
+        self.__live_moni_client = liveMoni
+        self.__send_details = send_details
 
         super(ActiveDOMThread, self).__init__("CnCServer:ActiveDOMThread",
                                               dashlog)
 
-    def __processResult(self, comp, result, totals, lbm_overflows, hub_DOMs):
+    def __process_result(self, comp, result, totals, lbm_overflows, hub_doms):
         try:
             hub_active_doms = int(result[self.KEY_ACT_TOT][0])
             hub_total_doms = int(result[self.KEY_ACT_TOT][1])
@@ -74,8 +74,8 @@ class ActiveDOMThread(CnCThread):
         totals["lc_rate"] += lc_rate
         totals["total_rate"] += total_rate
 
-        if self.__sendDetails:
-            hub_DOMs[str(comp.num())] = (hub_active_doms, hub_total_doms)
+        if self.__send_details:
+            hub_doms[str(comp.num())] = (hub_active_doms, hub_total_doms)
 
         # cache current results
         #
@@ -86,57 +86,60 @@ class ActiveDOMThread(CnCThread):
             self.KEY_TOTAL_RATE: total_rate
         }
 
-    def __sendMoni(self, name, value, prio):
+    def __send_moni(self, name, value, prio):
         #try:
-        self.__liveMoniClient.sendMoni(name, value, prio)
+        self.__live_moni_client.sendMoni(name, value, prio)
         #except:
         #    self.__dashlog.error("Failed to send %s=%s: %s" %
         #                         (name, value, exc_string()))
 
     def _run(self):
         # build a list of hubs
-        srcSet = []
-        for c in self.__runset.components():
-            if c.isSource():
-                srcSet.append(c)
+        src_set = []
+        for comp in self.__runset.components():
+            if comp.isSource():
+                src_set.append(comp)
 
         # spawn a bunch of threads to fetch hub data
-        beanKeys = (self.KEY_ACT_TOT, self.KEY_LBM_OVER, self.KEY_LC_RATE,
-                    self.KEY_TOTAL_RATE)
-        r = ComponentOperationGroup.runSimple(ComponentOperation.GET_MULTI_BEAN,
-                                              srcSet, ("stringhub", beanKeys),
-                                              self.__dashlog)
+        bean_op = ComponentOperation.GET_MULTI_BEAN
+        bean_keys = (self.KEY_ACT_TOT, self.KEY_LBM_OVER, self.KEY_LC_RATE,
+                     self.KEY_TOTAL_RATE)
+        results = ComponentOperationGroup.runSimple(bean_op, src_set,
+                                                    ("stringhub", bean_keys),
+                                                    self.__dashlog)
 
         # create dictionaries used to accumulate results
-        totals = { "active_doms": 0, "total_doms": 0,
-                   "lc_rate": 0.0, "total_rate": 0.0 }
+        totals = {
+            "active_doms": 0, "total_doms": 0,
+            "lc_rate": 0.0, "total_rate": 0.0
+        }
         lbm_overflows = {}
-        hub_DOMs = {}
+        hub_doms = {}
 
         hanging = []
-        for c in srcSet:
-            if not r.has_key(c):
+        for comp in src_set:
+            if not results.has_key(comp):
                 result = None
             else:
-                result = r[c]
+                result = results[comp]
                 if result == ComponentOperation.RESULT_HANGING or \
                    result == ComponentOperation.RESULT_ERROR:
                     if result == ComponentOperation.RESULT_HANGING:
-                        hanging.append(c.fullName())
+                        hanging.append(comp.fullName())
                     result = None
 
             if result is None:
                 # if we don't have previous data for this component, skip it
-                if not c.num() in self.PREV_ACTIVE:
+                if not comp.num() in self.PREV_ACTIVE:
                     continue
 
                 # use previous datapoint
-                result = self.PREV_ACTIVE[c.num()]
+                result = self.PREV_ACTIVE[comp.num()]
 
             # 'result' should now contain a dictionary with the number of
             # active and total channels and the LBM overflows
 
-            self.__processResult(c, result, totals, lbm_overflows, hub_DOMs)
+            self.__process_result(comp, result, totals, lbm_overflows, hub_doms)
 
         # report hanging components
         if len(hanging) > 0:
@@ -151,7 +154,7 @@ class ActiveDOMThread(CnCThread):
             # and over email once a minute.  The two should not overlap
 
             # priority for standard messages
-            if not self.__sendDetails:
+            if not self.__send_details:
                 # messages that go out every minute use lower priority
                 prio = Prio.EMAIL
             else:
@@ -162,32 +165,32 @@ class ActiveDOMThread(CnCThread):
             total_doms = totals["total_doms"]
             missing_doms = total_doms - active_doms
 
-            dom_update = \
-                      { "activeDOMs": active_doms,
-                        "expectedDOMs": total_doms,
-                        "missingDOMs": missing_doms,
-                        "total_ratelc": totals["lc_rate"],
-                        "total_rate": totals["total_rate"],
-                    }
-            self.__sendMoni("dom_update", dom_update, prio)
+            dom_update = {
+                "activeDOMs": active_doms,
+                "expectedDOMs": total_doms,
+                "missingDOMs": missing_doms,
+                "total_ratelc": totals["lc_rate"],
+                "total_rate": totals["total_rate"],
+            }
+            self.__send_moni("dom_update", dom_update, prio)
 
             # XXX get rid of these once I3Live uses "dom_update"
-            self.__sendMoni("activeDOMs", active_doms, prio)
-            self.__sendMoni("expectedDOMs", total_doms, prio)
-            self.__sendMoni("missingDOMs", missing_doms, prio)
-            self.__sendMoni("total_ratelc", totals["lc_rate"], prio)
-            self.__sendMoni("total_rate", totals["total_rate"], prio)
+            self.__send_moni("activeDOMs", active_doms, prio)
+            self.__send_moni("expectedDOMs", total_doms, prio)
+            self.__send_moni("missingDOMs", missing_doms, prio)
+            self.__send_moni("total_ratelc", totals["lc_rate"], prio)
+            self.__send_moni("total_rate", totals["total_rate"], prio)
 
-            if self.__sendDetails:
+            if self.__send_details:
                 # important messages that go out every ten minutes
-                self.__sendMoni("LBMOverflows", lbm_overflows, Prio.ITS)
+                self.__send_moni("LBMOverflows", lbm_overflows, Prio.ITS)
 
                 # less urgent messages use lower priority
-                self.__sendMoni("stringDOMsInfo", hub_DOMs, Prio.EMAIL)
+                self.__send_moni("stringDOMsInfo", hub_doms, Prio.EMAIL)
 
-    def getNewThread(self, sendDetails=False):
+    def get_new_thread(self, send_details=False):
         thrd = ActiveDOMThread(self.__runset, self.__dashlog,
-                               self.__liveMoniClient, sendDetails)
+                               self.__live_moni_client, send_details)
         return thrd
 
 

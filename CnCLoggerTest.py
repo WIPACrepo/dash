@@ -87,7 +87,7 @@ class CnCLoggerTest(unittest.TestCase):
             dc = CnCLogger(self.__appender, quiet=True, extraLoud=xl)
 
             dfltObj.addExpectedText("Start of log at LOG=log(%s:%d)" %
-                                   (dfltHost, dfltPort))
+                                    (dfltHost, dfltPort))
 
             # set up default logger
             dc.openLog(dfltHost, dfltPort, None, None)
@@ -96,7 +96,7 @@ class CnCLoggerTest(unittest.TestCase):
             logObj.checkStatus(1000)
 
             logObj.addExpectedText("Start of log at LOG=log(%s:%d)" %
-                                    (logHost, logPort))
+                                   (logHost, logPort))
 
             dc.openLog(logHost, logPort, None, None)
             self.assertEqual(dc.liveHost(), None)
@@ -109,7 +109,7 @@ class CnCLoggerTest(unittest.TestCase):
 
             if xl:
                 dfltObj.addExpectedText("Reset log to LOG=log(%s:%d)" %
-                                              (dfltHost, dfltPort))
+                                        (dfltHost, dfltPort))
 
             dc.resetLog()
             self.assertEqual(dc.logHost(), dfltHost,

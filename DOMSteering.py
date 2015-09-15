@@ -76,7 +76,7 @@ def getHV(cursor, domid, gain):
     return 10 ** ((log10(gain) - intercept) / slope)
 
 
-def getTriggerThreshold(cursor, domid, type, q):
+def getTriggerThreshold(cursor, domid, domtype, q):
     nrow = cursor.execute(
         """
         SELECT slope, intercept FROM DOMCal_Discriminator d
@@ -86,7 +86,7 @@ def getTriggerThreshold(cursor, domid, type, q):
         WHERE p.tag_serial='%s' AND dt.name='%s'
         ORDER BY c.date DESC
         LIMIT 1
-        """ % (domid, type)
+        """ % (domid, domtype)
         )
     if nrow != 1:
         return None
@@ -98,8 +98,6 @@ def createConfig(cursor, mbid, **kwargs):
     """
     Create XML configuration blob
     """
-    global dom_db
-
     # Setup defaults
     gain = 1.0E+07
     trigger_mode = "spe"
@@ -250,7 +248,7 @@ lc_special_modes = {
     '49-14': 'up',     # 49-15 (Mercedes_Benz) LC broken to 49-14
     '50-35': 'up',     # 50-36 (Ocelot) is dead
     '50-37': 'down',   # 50-36 (Ocelot) is dead
-     # 59-51 (T_Centraalen) <--> 59-52 (Medborgerplaz) LC broken
+    # 59-51 (T_Centraalen) <--> 59-52 (Medborgerplaz) LC broken
     '59-51': 'up',
     '59-52': 'down',   # Ibid.
     '65-33': 'up',     # Broken LC between Michael Myers & Williwaw
@@ -306,7 +304,7 @@ if __name__ == '__main__':
     db = MySQLdb.connect(host=args.dbHost, user=args.user,
                          passwd=passwd, db="domprodtest")
 
-    cmd = re.compile('(\d{1,2})([it])')
+    cmd = re.compile(r'(\d{1,2})([it])')
     print "<?xml version='1.0' encoding='UTF-8'?>"
     print "<domConfigList>"
     for s in args.hubname:

@@ -253,10 +253,12 @@ class MyRunSet(RunSet):
     def __init__(self, parent, runConfig, compList, logger):
         self.__taskMgr = None
         self.__failReset = None
+        self.__dashLog = None
 
         super(MyRunSet, self).__init__(parent, runConfig, compList, logger)
 
-    def createComponentLog(self, runDir, comp, host, port, liveHost, livePort,
+    @staticmethod
+    def createComponentLog(runDir, comp, host, port, liveHost, livePort,
                            quiet=True):
         return MockComponentLogger(str(comp))
 
@@ -267,7 +269,7 @@ class MyRunSet(RunSet):
         return self.__dashLog
 
     def createRunData(self, runNum, clusterConfigName, runOptions, versionInfo,
-                      spadeDir, copyDir=None, logDir=None):
+                      spadeDir, copyDir=None, logDir=None, testing=True):
         return super(MyRunSet, self).createRunData(runNum, clusterConfigName,
                                                    runOptions, versionInfo,
                                                    spadeDir, copyDir, logDir,
@@ -283,7 +285,7 @@ class MyRunSet(RunSet):
         return self.__taskMgr
 
     @classmethod
-    def cycleComponents(self, compList, configDir, daqDataDir, logger, logPort,
+    def cycleComponents(cls, compList, configDir, daqDataDir, logger, logPort,
                         livePort, verbose, killWith9, eventCheck,
                         checkExists=True):
         compStr = listComponentRanges(compList)
@@ -356,55 +358,59 @@ class CnCRunSetTest(unittest.TestCase):
     HUB_NUMBER = 21
     EXAMPLE_DOM = "737d355af587"
 
-    BEAN_DATA = {"stringHub":
-                      {"DataCollectorMonitor-00A":
-                            {"MainboardId": EXAMPLE_DOM,
-                             "HitRate": 0.0,
-                             },
-                        "sender":
-                            {"NumHitsReceived": 0,
-                             "NumReadoutRequestsReceived": 0,
-                             "NumReadoutsSent": 0,
-                             },
-                        "stringhub":
-                            {"NumberOfActiveAndTotalChannels": 0,
-                             "TotalLBMOverflows": 0,
-                             "HitRate": 0,
-                             "HitRateLC": 0,
-                             "LatestFirstChannelHitTime": -1,
-                             "EarliestLastChannelHitTime": -1,
-                             "NumberOfNonZombies": 60,
-                             },
-                        },
-                  "inIceTrigger":
-                      {"stringHit":
-                           {"RecordsReceived": 0,
-                            },
-                        "trigger":
-                            {"RecordsSent": 0},
-                        },
-                  "globalTrigger":
-                      {"trigger":
-                           {"RecordsReceived": 0,
-                            },
-                        "glblTrig":
-                           {"RecordsSent": 0},
-                        },
-                  "eventBuilder":
-                      {"backEnd":
-                           {"DiskAvailable": 2048,
-                            "EventData": 0,
-                            "FirstEventTime": 0,
-                            "GoodTimes": (0, 0),
-                            "NumBadEvents": 0,
-                            "NumEventsDispatched": 0,
-                            "NumEventsSent": 0,
-                            "NumReadoutsReceived": 0,
-                            "NumTriggerRequestsReceived": 0,
-                            }
-                       },
-                  "extraComp": {},
-                  }
+    BEAN_DATA = {
+        "stringHub": {
+            "DataCollectorMonitor-00A": {
+                "MainboardId": EXAMPLE_DOM,
+                "HitRate": 0.0,
+            },
+            "sender": {
+                "NumHitsReceived": 0,
+                "NumReadoutRequestsReceived": 0,
+                "NumReadoutsSent": 0,
+            },
+            "stringhub": {
+                "NumberOfActiveAndTotalChannels": 0,
+                "TotalLBMOverflows": 0,
+                "HitRate": 0,
+                "HitRateLC": 0,
+                "LatestFirstChannelHitTime": -1,
+                "EarliestLastChannelHitTime": -1,
+                "NumberOfNonZombies": 60,
+            },
+        },
+        "inIceTrigger": {
+            "stringHit": {
+                "RecordsReceived": 0,
+            },
+            "trigger": {
+                "RecordsSent": 0,
+            },
+        },
+        "globalTrigger": {
+            "trigger": {
+                "RecordsReceived": 0,
+            },
+            "glblTrig": {
+                "RecordsSent": 0,
+            },
+        },
+        "eventBuilder": {
+            "backEnd": {
+                "DiskAvailable": 2048,
+                "EventData": 0,
+                "FirstEventTime": 0,
+                "GoodTimes": (0, 0),
+                "NumBadEvents": 0,
+                "NumEventsDispatched": 0,
+                "NumEventsSent": 0,
+                "NumReadoutsReceived": 0,
+                "NumTriggerRequestsReceived": 0,
+            }
+        },
+        "extraComp": {
+        },
+    }
 
     def __addEventStartMoni(self, liveMoni, runNum):
 
@@ -448,11 +454,12 @@ class CnCRunSetTest(unittest.TestCase):
         if not LIVE_IMPORT:
             return
 
-        data = {"runnum": runNum,
-                "runstart": str(PayloadTime.toDateTime(firstTime)),
-                "events": numEvts,
-                "status": "SUCCESS"
-                }
+        data = {
+            "runnum": runNum,
+            "runstart": str(PayloadTime.toDateTime(firstTime)),
+            "events": numEvts,
+            "status": "SUCCESS"
+        }
         liveMoni.addExpectedLiveMoni("runstop", data, "json")
 
     def __checkActiveDOMsTask(self, comps, rs, liveMoni):
@@ -706,14 +713,15 @@ class CnCRunSetTest(unittest.TestCase):
                                      " per-string active DOM stats wil not" +
                                      " be reported")
 
-        versionInfo = {"filename": "fName",
-                       "revision": "1234",
-                       "date": "date",
-                       "time": "time",
-                       "author": "author",
-                       "release": "rel",
-                       "repo_rev": "1repoRev",
-                       }
+        versionInfo = {
+            "filename": "fName",
+            "revision": "1234",
+            "date": "date",
+            "time": "time",
+            "author": "author",
+            "release": "rel",
+            "repo_rev": "1repoRev",
+        }
 
         rs.startRun(runNum, cluCfg, RunOption.MONI_TO_NONE, versionInfo,
                     "/tmp")

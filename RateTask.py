@@ -29,7 +29,7 @@ class RateThread(CnCThread):
                                          (numEvts, rateStr, numMoni, numSN,
                                           numTcal))
 
-    def getNewThread(self, ignored=True):
+    def get_new_thread(self, ignored=True):
         thrd = RateThread(self.__runset, self.__dashlog)
         return thrd
 

@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
-import os
 import socket
-import sys
 import threading
 import xmlrpclib
 
@@ -23,18 +21,18 @@ def unFixValue(obj):
     unaltered.  This pairs with the similarly named fix* methods in
     icecube.daq.juggler.mbean.XMLRPCServer """
 
-    if type(obj) is dict:
+    if isinstance(obj, dict):
         for k in obj.keys():
             obj[k] = unFixValue(obj[k])
-    elif type(obj) is list:
+    elif isinstance(obj, list):
         for i in xrange(0, len(obj)):
             obj[i] = unFixValue(obj[i])
-    elif type(obj) is tuple:
+    elif isinstance(obj, tuple):
         newObj = []
         for v in obj:
             newObj.append(unFixValue(v))
         obj = tuple(newObj)
-    elif type(obj) is str:
+    elif isinstance(obj, str):
         try:
             if obj.endswith("L"):
                 return long(obj[:-1])
@@ -151,7 +149,7 @@ class MBeanClient(object):
                                     (self.__compName, bean, fldList,
                                      exc_string()))
 
-        if type(attrs) == dict and len(attrs) > 0:
+        if isinstance(attrs, dict) and len(attrs) > 0:
             for k in attrs.keys():
                 attrs[k] = unFixValue(attrs[k])
         return attrs
@@ -584,7 +582,7 @@ class DAQClient(ComponentName):
         "Get the number of events in the specified subrun"
         try:
             evts = self.__client.xmlrpc.getEvents(subrunNumber)
-            if type(evts) == str:
+            if isinstance(evts, str):
                 evts = long(evts[:-1])
             return evts
         except:

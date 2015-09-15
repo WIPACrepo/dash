@@ -22,20 +22,20 @@ class TestDAQTime(unittest.TestCase):
                          "Expected inverted cmp(%s, %s) to return %s, not %s" %
                          (dt1, dt0, -expResult, result))
 
-    def __dateFormat(self, yr, mon, day, hr, min, sec, usec,
+    def __dateFormat(self, yr, mon, day, hr, minutes, sec, usec,
                      high_precision=False):
         if high_precision:
             subsecstr = "%010d" % usec
         else:
             subsecstr = "%06d" % (usec / 10000L)
         return "%04d-%02d-%02d %02d:%02d:%02d.%s" % \
-            (yr, mon, day, hr, min, sec, subsecstr)
+            (yr, mon, day, hr, minutes, sec, subsecstr)
 
-    def __deltaFormat(self, days, hrs, min, sec, usec):
+    def __deltaFormat(self, days, hrs, minutes, sec, usec):
         rtnstr = "%d day" % days
         if days != 1:
             rtnstr += "s"
-        rtnstr += ", %d:%02d:%02d" % (hrs, min, sec)
+        rtnstr += ", %d:%02d:%02d" % (hrs, minutes, sec)
         if usec > 0:
             rtnstr += ".%06d" % usec
         return rtnstr
@@ -274,9 +274,7 @@ class TestDAQTime(unittest.TestCase):
         self.assertEqual(PayloadTime.fromString(None), None)
 
     def testFromString(self):
-        expStr = "DAQDateTime(%d, 1, 10, 10, 19, 23, 987654321)" % \
-            self.CUR_YEAR
-        dt0 = eval(expStr)
+        dt0 = DAQDateTime(self.CUR_YEAR, 1, 10, 10, 19, 23, 987654321)
         dt1 = PayloadTime.fromString(str(dt0))
         self.__checkCompare(dt0, dt1, 0)
 

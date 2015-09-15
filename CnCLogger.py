@@ -92,7 +92,7 @@ class CnCLogger(DAQLog):
         try:
             super(CnCLogger, self)._logmsg(level, s)
         except Exception as ex:
-            if type(ex) != LogException:
+            if not isinstance(ex, LogException):
                 if str(ex).find('Connection refused') < 0:
                     raise
                 print >> sys.stderr, 'Lost logging connection to %s' % \

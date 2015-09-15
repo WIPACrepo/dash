@@ -85,7 +85,7 @@ def listComponentRanges(compList):
     return ", ".join(strList)
 
 
-class HostNotFoundForComponent   (Exception):
+class HostNotFoundForComponent(Exception):
     pass
 
 
@@ -144,7 +144,7 @@ class ComponentManager(object):
             if not os.path.exists(dirname) and not dryRun:
                 try:
                     os.makedirs(dirname)
-                except OSError as (errno, strerror):
+                except OSError as (_, strerror):
                     if fallbackDir is None:
                         einfo = sys.exc_info()
                         raise einfo[0], einfo[1], einfo[2]
@@ -251,9 +251,9 @@ class ComponentManager(object):
             inactiveStates = (RunSetState.READY, RunSetState.IDLE,
                               RunSetState.DESTROYED, RunSetState.ERROR)
 
-            for id in cnc.rpc_runset_list_ids():
-                runsets[id] = cnc.rpc_runset_state(id)
-                if not runsets[id] in inactiveStates:
+            for rid in cnc.rpc_runset_list_ids():
+                runsets[rid] = cnc.rpc_runset_state(rid)
+                if not runsets[rid] in inactiveStates:
                     active += 1
 
         return (runsets, active)
@@ -274,7 +274,7 @@ class ComponentManager(object):
                 comps = None
 
         if comps is None:
-            killOnly=False
+            killOnly = False
 
             try:
                 activeConfig = \
@@ -635,4 +635,5 @@ class ComponentManager(object):
                                      (rtn_code, nodeName, cmd))
                         logger.error("Results '%s'" % results)
 
-if __name__ == '__main__': pass
+if __name__ == '__main__':
+    pass

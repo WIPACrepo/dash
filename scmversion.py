@@ -6,15 +6,12 @@ A module for identifying the pDAQ release name (defaults to
 
 
 import os
-import pprint
 import subprocess
 import sys
 
 from datetime import datetime
 from locate_pdaq import find_pdaq_trunk
 
-from exc_string import exc_string, set_exc_string_encoding
-set_exc_string_encoding("ascii")
 
 # The release name, 'trunk' for unreleased, development versions
 __UNRELEASED = 'trunk'
@@ -34,7 +31,7 @@ EXTERNALS_TO_IGNORE = []
 FIELD_NAMES = ["release", "repo_rev", "date", "time"]
 
 
-class SCMVersionError (Exception):
+class SCMVersionError(Exception):
     """Base package exception"""
     pass
 
@@ -56,8 +53,8 @@ def __exec_cmd(cmd, shell=False, cwd=None):
     try:
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE, shell=shell, cwd=cwd)
-    except OSError, e:
-        raise SCMVersionError("Command: '%s' raised OSError: '%s'" % (cmd, e))
+    except OSError as exc:
+        raise SCMVersionError("Command: '%s' raised OSError: '%s'" % (cmd, exc))
 
     ret_code = p.wait()
     if ret_code != 0:
@@ -391,7 +388,7 @@ def get_scmversion(dir=None):
             info = __get_hg_info(stuple[1])
         if stuple[0] == SCM_SUBVERSION:
             info = __get_svn_info(stuple[1])
-    except (OSError, SCMVersionError), e:
+    except (OSError, SCMVersionError):
         # Eat the exception and look for the version saved during deployment
         if not os.path.exists(SCM_REV_FILENAME):
             # nothing cached, return an empty dictionary
@@ -451,8 +448,8 @@ def store_scmversion(dir=None):
 
     try:
         scmstr = get_scmversion_str(dir)
-    except SCMVersionError, e:
-        print >>sys.stderr, "SCMVersionError: ", e
+    except SCMVersionError as exc:
+        print >>sys.stderr, "SCMVersionError: " + str(exc)
         return ""
 
     svn_rev_file = file(SCM_REV_FILENAME, "w")

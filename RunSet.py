@@ -284,7 +284,7 @@ class GoodTimeThread(CnCThread):
         sleepSecs = 0.1
         sleepReps = 20
 
-        for i in xrange(sleepReps):
+        for _ in xrange(sleepReps):
             hanging = False
             complete = True
 
@@ -584,8 +584,8 @@ class RunData(object):
             if not RunSet.LIVE_WARNING:
                 RunSet.LIVE_WARNING = True
                 self.__dashlog.error("Cannot import IceCube Live code, so" +
-                                    " per-string active DOM stats wil not" +
-                                    " be reported")
+                                     " per-string active DOM stats wil not" +
+                                     " be reported")
 
         return moniClient
 
@@ -603,10 +603,10 @@ class RunData(object):
         for c in comps:
             if c.isComponent("eventBuilder"):
                 evtData = self.getSingleBeanField(c, "backEnd", "EventData")
-                if type(evtData) == Result:
+                if isinstance(evtData, Result):
                     self.__dashlog.error("Cannot get event data (%s)" %
                                          evtData)
-                elif type(evtData) == list or type(evtData) == tuple:
+                elif isinstance(evtData, list) or isinstance(evtData, tuple):
                     nEvts = int(evtData[0])
                     wallTime = datetime.datetime.utcnow()
                     lastPayTime = long(evtData[1])
@@ -614,7 +614,7 @@ class RunData(object):
                 if nEvts > 0 and self.__firstPayTime <= 0:
                     val = self.getSingleBeanField(c, "backEnd",
                                                   "FirstEventTime")
-                    if type(val) == Result:
+                    if isinstance(val, Result):
                         msg = "Cannot get first event time (%s)" % val
                         self.__dashlog.error(msg)
                     else:
@@ -625,7 +625,7 @@ class RunData(object):
                 for bldr in ("moni", "sn", "tcal"):
                     val = self.getSingleBeanField(c, bldr + "Builder",
                                                   "TotalDispatchedData")
-                    if type(val) == Result:
+                    if isinstance(val, Result):
                         msg = "Cannot get %sBuilder dispatched data (%s)" % \
                             (bldr, val)
                         self.__dashlog.error(msg)
@@ -653,7 +653,7 @@ class RunData(object):
             try:
                 fulltime = PayloadTime.toDateTime(self.__firstPayTime,
                                                   high_precision=True)
-            except TypeError, err:
+            except TypeError as err:
                 msg = "Cannot report first time %s<%s>, prevTime is %s<%s>" % \
                             (self.__firstPayTime, type(self.__firstPayTime),
                              PayloadTime.PREV_TIME, type(PayloadTime.PREV_TIME))
@@ -665,7 +665,7 @@ class RunData(object):
 
             try:
                 monitime = PayloadTime.toDateTime(self.__firstPayTime)
-            except TypeError, err:
+            except TypeError as err:
                 msg = "Cannot set moni time %s<%s>, prevTime is %s<%s>" % \
                             (self.__firstPayTime, type(self.__firstPayTime),
                              PayloadTime.PREV_TIME, type(PayloadTime.PREV_TIME))
@@ -949,7 +949,7 @@ class RunData(object):
                 result is None:
                 self.__dashlog.error("Cannot get run data for %s: %s" %
                                      (c.fullName(), result))
-            elif type(result) is not list and type(result) is not tuple:
+            elif not isinstance(result, list) and not isinstance(result, tuple):
                 self.__dashlog.error("Bogus run data for %s: %s" %
                                      (c.fullName(), result))
             elif c.isComponent("eventBuilder"):
@@ -1061,7 +1061,7 @@ class RunData(object):
                 self.__sendMoni(name, data, prio=Prio.SCP, time=monitime)
 
     @classmethod
-    def reportRunStartClass(self, moniClient, runNum, release, revision,
+    def reportRunStartClass(cls, moniClient, runNum, release, revision,
                             started, time=datetime.datetime.now()):
         """
         This is a class method because failed runsets must be reported to
@@ -1182,12 +1182,12 @@ class RunSet(object):
     #
     WAIT_MSG_PERIOD = 5
 
-    def __init__(self, parent, cfg, set, logger):
+    def __init__(self, parent, cfg, runset, logger):
         """
         RunSet constructor:
         parent - main server
         cfg - parsed run configuration file data
-        set - list of components
+        runset - list of components
         logger - logging object
 
         Class attributes:
@@ -1198,7 +1198,7 @@ class RunSet(object):
         """
         self.__parent = parent
         self.__cfg = cfg
-        self.__set = set
+        self.__set = runset
         self.__logger = logger
 
         self.__id = RunSet.ID.next()
@@ -1536,11 +1536,11 @@ class RunSet(object):
             if result == ComponentOperation.RESULT_HANGING or \
                 result == ComponentOperation.RESULT_ERROR:
                 self.__logger.error("Cannot get first replay time for %s: %s" %
-                                     (c.fullName(), result))
+                                    (c.fullName(), result))
                 continue
             elif result < 0:
                 self.__logger.error("Got bad replay time for %s: %s" %
-                                     (c.fullName(), result))
+                                    (c.fullName(), result))
                 continue
             elif firsttime is None or result < firsttime:
                 firsttime = result
@@ -1585,7 +1585,7 @@ class RunSet(object):
             return
 
         firstTime = None
-        for i in xrange(5):
+        for _ in xrange(5):
             val = runData.getSingleBeanField(ebComp, "backEnd",
                                              "FirstEventTime")
             if type(val) != Result:
@@ -1661,7 +1661,7 @@ class RunSet(object):
                                          self.__runData, self.__runData)
         goodThread.start()
 
-        for i in xrange(20):
+        for _ in xrange(20):
             if not goodThread.isAlive():
                 break
             time.sleep(0.5)
@@ -1788,7 +1788,7 @@ class RunSet(object):
                     csStr = self.STATE_DEAD
                 else:
                     csDict = allconn[c]
-                    if type(csDict) != dict:
+                    if not isinstance(csDict, dict):
                         csStr = str(csDict)
                     else:
                         csStr = self.__connectorString(csDict)
@@ -2109,7 +2109,7 @@ class RunSet(object):
                            runOptions)
 
     @classmethod
-    def cycleComponents(self, compList, configDir, daqDataDir, logger,
+    def cycleComponents(cls, compList, configDir, daqDataDir, logger,
                         logPort, livePort, verbose, killWith9, eventCheck,
                         checkExists=True):
 

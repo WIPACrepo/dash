@@ -59,7 +59,7 @@ def domconfig_gethubid(dcfg,
 
         if name in dcfg_dict:
             raise ConverterException(
-                "Duplicate entry for %s in %s@%s" % (name, fname,dpath))
+                "Duplicate entry for %s in %s@%s" % (name, fname, dpath))
 
         dcfg_dict[mbid] = name
 
@@ -347,7 +347,7 @@ def main():
 
     args = parse.parse_args()
 
-    geom_fname=None
+    geom_fname = None
     if args.configpath is not None:
         geom_fname = os.path.join(args.configpath,
                                   'default-dom-geometry.xml')

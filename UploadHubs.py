@@ -35,7 +35,7 @@ def hasNonZero(l):
     return False
 
 
-class ThreadableProcess:
+class ThreadableProcess(object):
     """
     Small class for a single instance of an operation to run concurrently
     w/ other instances (using ThreadSet)
@@ -127,7 +127,7 @@ class ThreadableProcess:
         self.doStop = True
 
 
-class DOMState:
+class DOMState(object):
     """
     Small class to represent DOM states
     """
@@ -148,7 +148,7 @@ class DOMState:
             self._failed = True
         if re.search('WARNING', line):
             self._hasWarning = True
-        m = re.search('DONE \((\d+)\)', line)
+        m = re.search(r'DONE \((\d+)\)', line)
         if m:
             self.done = True
             self.version = m.group(1)
@@ -172,7 +172,7 @@ class DOMState:
         return s
 
 
-class DOMCounter:
+class DOMCounter(object):
     """
     Class to represent and summarize output from upload script
     """
@@ -180,7 +180,7 @@ class DOMCounter:
         self.data = s
         self.domDict = {}
 
-        domList = re.findall('(\d\d\w): (.+)', self.data)
+        domList = re.findall(r'(\d\d\w): (.+)', self.data)
         for line in domList:
             cwd = line[0]
             dat = line[1]
@@ -270,7 +270,7 @@ class DOMCounter:
         return s
 
 
-class ThreadSet:
+class ThreadSet(object):
     """
     Lightweight class to handle concurrent ThreadableProcesses
     """
@@ -392,11 +392,11 @@ def main():
                    action="store_true", default=False,
                    help="Don't actually write flash on DOMs -" +
                    " just 'practice' all other steps")
-    p.add_argument("-s", "--straggler-time", type=int,  dest="stragglerTime",
+    p.add_argument("-s", "--straggler-time", type=int, dest="stragglerTime",
                    default=240,
                    help="Time (seconds) to wait before reporting details" +
                    " of straggler DOMs (default: 240)")
-    p.add_argument("-w", "--watch-period", type=int,  dest="watchPeriod",
+    p.add_argument("-w", "--watch-period", type=int, dest="watchPeriod",
                    default=15,
                    help="Interval (seconds) between status reports during" +
                    " upload (default: 15)")
@@ -412,7 +412,6 @@ def main():
     # Make sure file exists
     if not os.path.exists(releaseFile):
         print "Release file %s doesn't exist!\n\n" % releaseFile
-        print usage
         raise SystemExit
 
     try:

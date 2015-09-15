@@ -77,7 +77,7 @@ class BaseLiveChecker(BaseChecker):
         #msgTime = m.group(5)
         msgText = m.group(6)
 
-        global SERVICE_NAME
+        #global SERVICE_NAME
         if svcName != SERVICE_NAME:
             if setError:
                 name = str(checker)
@@ -149,16 +149,16 @@ class LiveChecker(BaseLiveChecker):
         super(LiveChecker, self).__init__(varName)
 
     def __fixValue(self, val):
-        if type(val) == str:
+        if isinstance(val, str):
             return "\"%s\"" % val
 
-        if type(val) == long:
+        if isinstance(val, long):
             vstr = str(val)
             if vstr.endswith("L"):
                 return vstr[:-1]
             return vstr
 
-        if type(val) == bool:
+        if isinstance(val, bool):
             return self.__value and "true" or "false"
 
         return str(val)
@@ -166,14 +166,14 @@ class LiveChecker(BaseLiveChecker):
     def _checkText(self, checker, msg, debug, setError):
         if self.__type is None or self.__type != "json":
             valStr = str(self.__value)
-        elif type(self.__value) == list or type(self.__value) == tuple:
+        elif isinstance(self.__value, list) or isinstance(self.__value, tuple):
             valStr = "["
             for v in self.__value:
                 if len(valStr) > 1:
                     valStr += ", "
                 valStr += self.__fixValue(v)
             valStr += "]"
-        elif type(self.__value) == dict:
+        elif isinstance(self.__value, dict):
             valStr = "{"
             for k in self.__value.keys():
                 if len(valStr) > 1:
@@ -509,15 +509,15 @@ class MockClusterWriter(object):
             if args is not None:
                 cls.writeLine(fd, indent, "jvmArgs", args)
         elif oldJVMFields or newJVMFields:
-                jStr = "jvm"
-                jStr = cls.__appendAttr(jStr, 'path', path)
-                if isServer is not None:
-                    jStr = cls.__appendAttr(jStr, 'server', isServer)
-                jStr = cls.__appendAttr(jStr, 'heapInit', heapInit)
-                jStr = cls.__appendAttr(jStr, 'heapMax', heapMax)
-                jStr = cls.__appendAttr(jStr, 'args', args)
-                jStr = cls.__appendAttr(jStr, 'extraArgs', extraArgs)
-                print >>fd, "%s<%s/>" % (indent, jStr)
+            jStr = "jvm"
+            jStr = cls.__appendAttr(jStr, 'path', path)
+            if isServer is not None:
+                jStr = cls.__appendAttr(jStr, 'server', isServer)
+            jStr = cls.__appendAttr(jStr, 'heapInit', heapInit)
+            jStr = cls.__appendAttr(jStr, 'heapMax', heapMax)
+            jStr = cls.__appendAttr(jStr, 'args', args)
+            jStr = cls.__appendAttr(jStr, 'extraArgs', extraArgs)
+            print >>fd, "%s<%s/>" % (indent, jStr)
 
     @classmethod
     def writeLine(cls, fd, indent, name, value):
@@ -666,9 +666,9 @@ class MockCluCfgFileComp(MockClusterWriter):
                        self.__jvmHeapInit is not None or \
                        self.__jvmHeapMax is not None or \
                        self.__jvmServer is not None
-        multiline =  oldJVMFields or \
-                     (oldJVMXML and False or newJVMFields) or \
-                     self.__logLevel is not None
+        multiline = oldJVMFields or \
+                    (oldJVMXML and False or newJVMFields) or \
+                    self.__logLevel is not None
 
         if multiline:
             endstr = ""
@@ -851,7 +851,7 @@ class MockClusterComponent(Component):
         return "%s(%s)" % (self.fullName(), self.__host)
 
     def dump(self, fd, indent):
-        print >>fd, "%s<location name=\"%s\" host=\"%s\>" % \
+        print >>fd, "%s<location name=\"%s\" host=\"%s\">" % \
             (indent, self.__host, self.__host)
         print >>fd, "%s    <module name=\"%s\" id=\"%02d\"/?>" % \
             (indent, self.name(), self.id())
@@ -974,7 +974,7 @@ class MockClusterConfigFile(MockClusterWriter):
 
                 if self.__defaultLogLevel is not None:
                     self.writeLine(fd, indent2, "logLevel",
-                                     self.__defaultLogLevel)
+                                   self.__defaultLogLevel)
                 if self.__defaultComps:
                     for c in self.__defaultComps:
                         c.write(fd, indent2)
@@ -1135,6 +1135,8 @@ class MockComponent(object):
         self.__deadCount = 0
         self.__stopFail = False
         self.__replayHub = False
+        self.__firstGoodTime = None
+        self.__lastGoodTime = None
 
         self.__beanData = {}
 
@@ -1235,7 +1237,7 @@ class MockComponent(object):
     def getBeanFields(self, beanName):
         return self.__beanData[beanName].keys()
 
-    def getBeanNames(self, reload=False):
+    def getBeanNames(self):
         return self.__beanData.keys()
 
     def getConfigureWait(self):
@@ -1989,7 +1991,7 @@ class MockRunConfigFile(object):
             os.makedirs(self.__configDir)
 
         if trigCfg is None:
-            trigCfg =  MockTriggerConfig("empty-trigger")
+            trigCfg = MockTriggerConfig("empty-trigger")
         trigCfg.create(self.__configDir)
 
         domCfg = "empty-dom-config"
@@ -2283,8 +2285,7 @@ class SocketWriter(object):
         self.socket.close()
 
 
-class RunXMLValidator:
-
+class RunXMLValidator(object):
     @classmethod
     def setUp(cls):
         if os.path.exists("run.xml"):
@@ -2317,12 +2318,12 @@ class RunXMLValidator:
                                        run.getRun()))
 
             test_case.assertEqual(run.getConfig(), cfgName,
-                             "Expected config \"%s\", not \"%s\"" %
-                             (cfgName, run.getConfig()))
+                                  "Expected config \"%s\", not \"%s\"" %
+                                  (cfgName, run.getConfig()))
 
             test_case.assertEqual(run.getCluster(), cluster,
-                             "Expected cluster \"%s\", not \"%s\"" %
-                             (cluster, run.getCluster()))
+                                  "Expected cluster \"%s\", not \"%s\"" %
+                                  (cluster, run.getCluster()))
 
             if startTime is not None:
                 test_case.assertEqual(run.getStartTime(), startTime,
@@ -2457,6 +2458,6 @@ class MockLiveMoni(object):
             raise Exception(("Expected live monitor data "
                              " (var=%s, datapairs=%s), not "
                              "(var=%s, val=%s, prio=%d)") %
-                             (var, self.__expMoni[var], var, val, prio))
+                            (var, self.__expMoni[var], var, val, prio))
 
         return True

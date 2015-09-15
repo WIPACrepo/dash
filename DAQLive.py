@@ -31,8 +31,8 @@ class DAQLive(Component):
         self.__moniTimer = IntervalTimer("LiveMoni", DAQLive.MONI_PERIOD)
 
         super(DAQLive, self).__init__(SERVICE_NAME, DAQPort.DAQLIVE,
-                                        synchronous=True, lightSensitive=True,
-                                        makesLight=True)
+                                      synchronous=True, lightSensitive=True,
+                                      makesLight=True)
 
     def recovering(self, retry=True):
         rtnVal = True
@@ -47,7 +47,7 @@ class DAQLive(Component):
                     stopVal = not self.__runSet.stopRun("LiveRecover",
                                                         hadError=True)
                     self.__log.error("DAQLive stopRun %s returned %s" %
-                                 (self.__runSet, stopVal))
+                                     (self.__runSet, stopVal))
 
                 waitSecs = 5
                 numTries = 12

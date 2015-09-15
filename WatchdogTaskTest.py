@@ -155,7 +155,7 @@ class WatchdogTaskTest(unittest.TestCase):
         logger.addExpectedExact("Couldn't create watcher for unknown" +
                                 " component %s#%d" % (foo.name(), foo.num()))
 
-        tsk = WatchdogTask(taskMgr, runset, logger, period=None, rules=())
+        WatchdogTask(taskMgr, runset, logger, period=None, rules=())
 
         logger.checkStatus(1)
 
@@ -173,8 +173,7 @@ class WatchdogTaskTest(unittest.TestCase):
         logger.addExpectedRegexp("Couldn't create watcher for component" +
                                  " %s#%d: .*" % (foo.name(), foo.num()))
 
-        tsk = WatchdogTask(taskMgr, runset, logger,
-                           rules=(BadMatchRule(), ))
+        WatchdogTask(taskMgr, runset, logger, rules=(BadMatchRule(), ))
 
         logger.checkStatus(1)
 
@@ -203,7 +202,7 @@ class WatchdogTaskTest(unittest.TestCase):
 
         for i in range(1, 4):
             logger.addExpectedRegexp("Initialization failure #%d for %s %s.*" %
-                                    (i, foo.fullName(), str(rules[0])))
+                                     (i, foo.fullName(), str(rules[0])))
 
             timer.trigger()
             tsk.check()

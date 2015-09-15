@@ -11,6 +11,9 @@ LOUD = False
 
 
 class MyDAQPool(DAQPool):
+    def getClusterConfig(self):
+        raise NotImplementedError("Unimplemented")
+
     def returnRunsetComponents(self, rs, verbose=False, killWith9=True,
                                eventCheck=False):
         rs.returnComponents(self, None, None, None, None, None, None, None,
@@ -221,12 +224,12 @@ class ConnectionTest(unittest.TestCase):
             # whine if any connectors are left
             #
             self.assertEqual(len(compConn), 0, 'Found extra connectors in ' +
-                              str(compConn))
+                             str(compConn))
 
         # whine if any components are left
         #
         self.assertEqual(len(tmpList), 0, 'Found extra components in ' +
-                          str(tmpList))
+                         str(tmpList))
 
         if LOUD:
             print '-- SET: ' + str(runset)

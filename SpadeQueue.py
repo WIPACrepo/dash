@@ -16,7 +16,6 @@ import datetime
 import os
 import shutil
 import subprocess
-import sys
 import tarfile
 
 from ClusterDescription import ClusterDescription
@@ -142,7 +141,7 @@ def __indicate_daq_logs_queued(spadeDir, dryRun=False):
 
 
 def __sizefmt(size):
-    for x in ('bytes','KB','MB','GB'):
+    for x in ('bytes', 'KB', 'MB', 'GB'):
         if size < 1024.0:
             return "%3.1f %s" % (size, x)
         size /= 1024.0
@@ -224,12 +223,12 @@ def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
     if os.path.exists(os.path.join(runDir, FILE_MARKER)) and \
        not force:
         logger.error(("Logs for run %d have already been queued;" +
-                     " Use --force to requeue them") % runNum)
+                      " Use --force to requeue them") % runNum)
         return
 
     try:
         (runTime, runDuration) = __getRunData(runDir)
-    except FileNotFoundException, ex:
+    except FileNotFoundException:
         if __in_progress(logger, runNum):
             # don't try to queue log files from current run
             return

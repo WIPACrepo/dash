@@ -422,8 +422,11 @@ class ComponentManagerTest(unittest.TestCase):
 
         compdict = []
         for rc in expRSComps:
-            compdict.append({"compName" : rc[0], "compNum" : rc[1],
-                             "host" : rc[2] })
+            compdict.append({
+                "compName" : rc[0],
+                "compNum" : rc[1],
+                "host" : rc[2],
+            })
         self.__srvr.addRunset(RunSetState.RUNNING, compdict)
 
         clusterDesc = ClusterDescription.SPTS64

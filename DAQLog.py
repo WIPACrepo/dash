@@ -364,7 +364,7 @@ class LiveSocketAppender(BaseAppender):
                 self.__clientLock.release()
 
     def write(self, msg, time=None, level=DAQLog.DEBUG):
-        if type(msg) == unicode:
+        if isinstance(msg, unicode):
             msg = str(msg)
 
         self.__clientLock.acquire()

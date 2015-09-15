@@ -51,12 +51,13 @@ class TestDAQLaunch(unittest.TestCase):
         logDir = os.path.join(tmpdir, 'log')
         spadeDir = os.path.join(tmpdir, 'spade')
 
-        compHostDict = {"inIceTrigger" : "trigger",
-                        "globalTrigger": "trigger",
-                        "eventBuilder": "builder",
-                        "secondaryBuilders": "builder",
-                        "ichub01": "ichub01",
-                        }
+        compHostDict = {
+            "inIceTrigger" : "trigger",
+            "globalTrigger": "trigger",
+            "eventBuilder": "builder",
+            "secondaryBuilders": "builder",
+            "ichub01": "ichub01",
+        }
 
         cluCfgFile = self.__createClusterConfigFile(configDir, "xxx",
                                                     daqDataDir, logDir,
@@ -81,7 +82,7 @@ class TestDAQLaunch(unittest.TestCase):
         shell = MockParallelShell()
         shell.addExpectedPython(True, dashDir, configDir, logDir, daqDataDir,
                                 spadeDir, cluCfgFile.name(), cfgName, copyDir,
-                                logPort, livePort,forceRestart=forceRestart)
+                                logPort, livePort, forceRestart=forceRestart)
 
         launch(configDir, dashDir, logger, clusterDesc=cluCfgFile.name(),
                configName=cfgName, validate=validate, verbose=verbose,
@@ -92,16 +93,17 @@ class TestDAQLaunch(unittest.TestCase):
         tmpdir = tempfile.mkdtemp()
         configDir = os.path.join(tmpdir, 'cfg')
         daqDataDir = os.path.join(tmpdir, 'data')
-        dashDir = os.path.join(tmpdir, 'dash')
+        #dashDir = os.path.join(tmpdir, 'dash')
         logDir = os.path.join(tmpdir, 'log')
         spadeDir = os.path.join(tmpdir, 'spade')
 
-        compHostDict = {"inIceTrigger" : "trigger",
-                        "globalTrigger": "trigger",
-                        "eventBuilder": "builder",
-                        "secondaryBuilders": "builder",
-                        "ichub01": "ichub01",
-                        }
+        compHostDict = {
+            "inIceTrigger" : "trigger",
+            "globalTrigger": "trigger",
+            "eventBuilder": "builder",
+            "secondaryBuilders": "builder",
+            "ichub01": "ichub01",
+        }
 
         cluCfgFile = self.__createClusterConfigFile(configDir, "xxx",
                                                     daqDataDir, logDir,
@@ -111,9 +113,9 @@ class TestDAQLaunch(unittest.TestCase):
         runCfgFile = MockRunConfigFile(configDir)
         cfgName = runCfgFile.create(compHostDict.keys(), domList)
 
-        copyDir = None
-        logPort = None
-        livePort = DAQPort.I3LIVE_ZMQ
+        #copyDir = None
+        #logPort = None
+        #livePort = DAQPort.I3LIVE_ZMQ
 
         validate = False
         serverKill = True

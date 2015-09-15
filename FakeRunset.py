@@ -9,32 +9,32 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-D", "--configDir", dest="runCfgDir",
-                      default="/tmp/config",
-                      help="Run configuration directory")
+                        default="/tmp/config",
+                        help="Run configuration directory")
     parser.add_argument("-f", "--forkClients", dest="forkClients",
-                      action="store_true", default=False,
-                      help="Should clients be run in a separate process")
+                        action="store_true", default=False,
+                        help="Should clients be run in a separate process")
     parser.add_argument("-H", "--numberOfHubs", type=int, dest="numHubs",
-                      default=2,
-                      help="Number of fake hubs")
+                        default=2,
+                        help="Number of fake hubs")
     parser.add_argument("-p", "--firstPortNumber", type=int, dest="firstPort",
-                      default=FakeClient.NEXT_PORT,
-                      help="First port number used for fake components")
+                        default=FakeClient.NEXT_PORT,
+                        help="First port number used for fake components")
     parser.add_argument("-q", "--quiet", dest="quiet",
-                      action="store_true", default=False,
-                      help="Fake components do not announce what they're doing")
+                        action="store_true", default=False,
+                        help="Fake components do not announce what they're doing")
     parser.add_argument("-R", "--realNames", dest="realNames",
-                      action="store_true", default=False,
-                      help="Use component names without numeric prefix")
+                        action="store_true", default=False,
+                        help="Use component names without numeric prefix")
     parser.add_argument("-S", "--small", dest="smallCfg",
-                      action="store_true", default=False,
-                      help="Use canned 3-element configuration")
+                        action="store_true", default=False,
+                        help="Use canned 3-element configuration")
     parser.add_argument("-T", "--tiny", dest="tinyCfg",
-                      action="store_true", default=False,
-                      help="Use canned 2-element configuration")
+                        action="store_true", default=False,
+                        help="Use canned 2-element configuration")
     parser.add_argument("-X", "--extraHubs", type=int, dest="extraHubs",
-                      default=0,
-                      help="Number of extra hubs to create")
+                        default=0,
+                        help="Number of extra hubs to create")
 
     args = parser.parse_args()
 

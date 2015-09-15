@@ -2,13 +2,11 @@
 
 import datetime
 import os
-import socket
 import threading
 import sys
 
 from CnCTask import CnCTask
 from CnCThread import CnCThread
-from CompOp import ComponentOperation
 from DAQClient import BeanTimeoutException
 from LiveImports import Prio
 from RunOption import RunOption
@@ -110,7 +108,7 @@ class MonitorThread(CnCThread):
                                          (self.__comp, exc_string()))
                 self.__reporter = None
 
-    def getNewThread(self):
+    def get_new_thread(self):
         thrd = MonitorThread(self.__comp, self.__runDir, self.__liveMoni,
                              self.__runOptions, self.__dashlog,
                              self.__reporter, self.__refused)
@@ -127,11 +125,11 @@ class MonitorThread(CnCThread):
 
 
 class MonitorToFile(object):
-    def __init__(self, dir, basename):
-        if dir is None:
+    def __init__(self, dirname, basename):
+        if dirname is None:
             self.__fd = None
         else:
-            self.__fd = open(os.path.join(dir, basename + ".moni"), "w")
+            self.__fd = open(os.path.join(dirname, basename + ".moni"), "w")
         self.__fdLock = threading.Lock()
 
     def close(self):
@@ -163,13 +161,13 @@ class MonitorToLive(object):
         if self.__liveMoni is not None:
             for key in attrs:
                 self.__liveMoni.sendMoni("%s*%s+%s" % (self.__name, beanName,
-                                                        key), attrs[key],
-                                                        Prio.ITS, now)
+                                                       key), attrs[key],
+                                         Prio.ITS, now)
 
 
 class MonitorToBoth(object):
-    def __init__(self, dir, basename, liveMoni):
-        self.__file = MonitorToFile(dir, basename)
+    def __init__(self, dirname, basename, liveMoni):
+        self.__file = MonitorToFile(dirname, basename)
         self.__live = MonitorToLive(basename, liveMoni)
 
     def close(self):
@@ -225,7 +223,7 @@ class MonitorTask(CnCTask):
                         self.logError(msg)
                         thrd.setWarned()
                     continue
-                self.__threadList[c] = thrd.getNewThread()
+                self.__threadList[c] = thrd.get_new_thread()
                 self.__threadList[c].start()
 
     @classmethod

@@ -15,13 +15,13 @@ class RunClusterError(Exception):
 
 
 class RunComponent(Component):
-    def __init__(self, name, id, logLevel, jvmPath, jvmServer, jvmHeapInit,
+    def __init__(self, name, compid, logLevel, jvmPath, jvmServer, jvmHeapInit,
                  jvmHeapMax, jvmArgs, jvmExtra, host, isCtlServer):
         self.__jvm = JVMArgs(jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
                              jvmArgs, jvmExtra)
         self.__isCtlServer = isCtlServer
 
-        super(RunComponent, self).__init__(name, id, logLevel=logLevel,
+        super(RunComponent, self).__init__(name, compid, logLevel=logLevel,
                                            host=host)
 
     def __str__(self):
@@ -280,8 +280,8 @@ class RunCluster(CachedConfigName):
                     break
 
             if tot < numHubs and not changed:
-                raise RunClusterException("Only able to allocate"
-                                          " %d of %d hubs" % (tot, numHubs))
+                raise RunClusterError("Only able to allocate %d of %d hubs" %
+                                      (tot, numHubs))
 
         hubList.sort()
 
@@ -299,7 +299,7 @@ class RunCluster(CachedConfigName):
 
         hubNum = 0
         for host in hosts:
-            for i in xrange(hubAlloc[host].allocated):
+            for _ in xrange(hubAlloc[host].allocated):
                 hubComp = hubList[hubNum]
                 if hubComp.logLevel() is not None:
                     lvl = hubComp.logLevel()
@@ -320,10 +320,10 @@ class RunCluster(CachedConfigName):
         needIcetop = False
 
         for hub in hubList:
-            id = hub.id() % 1000
-            if id == 0:
+            hid = hub.id() % 1000
+            if hid == 0:
                 needAmanda = True
-            elif id < 200:
+            elif hid < 200:
                 needInice = True
             else:
                 needIcetop = True
@@ -377,7 +377,7 @@ class RunCluster(CachedConfigName):
         "Get list of simulation hubs, sorted by priority"
         simList = []
 
-        for (host, simHub) in clusterDesc.listHostSimHubPairs():
+        for (_, simHub) in clusterDesc.listHostSimHubPairs():
             if simHub is None:
                 continue
             if not simHub.ifUnused or not simHub.host.name in hostMap:
@@ -486,7 +486,7 @@ if __name__ == '__main__':
 
     if len(sys.argv) <= 1:
         print >> sys.stderr, ('Usage: %s [-C clusterDesc]' +
-                             ' configXML [configXML ...]') % sys.argv[0]
+                              ' configXML [configXML ...]') % sys.argv[0]
         sys.exit(1)
 
     configDir = find_pdaq_config()

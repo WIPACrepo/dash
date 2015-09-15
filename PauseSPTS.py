@@ -11,19 +11,19 @@ def getDurationFromString(s):
     """
     Return duration in seconds based on string <s>
     """
-    m = re.search('^(\d+)$', s)
+    m = re.search(r'^(\d+)$', s)
     if m:
         return int(m.group(1))
-    m = re.search('^(\d+)s(?:ec(?:s)?)?$', s)
+    m = re.search(r'^(\d+)s(?:ec(?:s)?)?$', s)
     if m:
         return int(m.group(1))
-    m = re.search('^(\d+)m(?:in(?:s)?)?$', s)
+    m = re.search(r'^(\d+)m(?:in(?:s)?)?$', s)
     if m:
         return int(m.group(1)) * 60
-    m = re.search('^(\d+)h(?:r(?:s)?)?$', s)
+    m = re.search(r'^(\d+)h(?:r(?:s)?)?$', s)
     if m:
         return int(m.group(1)) * 3600
-    m = re.search('^(\d+)d(?:ay(?:s)?)?$', s)
+    m = re.search(r'^(\d+)d(?:ay(?:s)?)?$', s)
     if m:
         return int(m.group(1)) * 86400
     raise ValueError('String "%s" is not a known duration format.  Try'

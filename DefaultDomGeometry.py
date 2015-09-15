@@ -488,7 +488,7 @@ class DefaultDomGeometry(object):
         if strNum in [30, 40, 47, 49, 50, 57, 59, 67]:
             return 203
 
-        if strNum in [4,  5,  10, 11, 18, 20, 27, 36]:
+        if strNum in [4, 5, 10, 11, 18, 20, 27, 36]:
             return 204
 
         if strNum in [45, 54, 62, 63, 69, 70, 75, 76]:
@@ -497,19 +497,19 @@ class DefaultDomGeometry(object):
         if strNum in [21, 29, 44, 52, 53, 60, 61, 68]:
             return 206
 
-        if strNum in [2,  3,  6,  9,  12, 13, 17, 26]:
+        if strNum in [2, 3, 6, 9, 12, 13, 17, 26]:
             return 207
 
         if strNum in [19, 28, 37]:
             return 208
 
-        if strNum in [8,  15, 16, 24, 25, 32, 35, 41]:
+        if strNum in [8, 15, 16, 24, 25, 32, 35, 41]:
             return 209
 
         if strNum in [23, 33, 34, 42, 43, 51]:
             return 210
 
-        if strNum in [1,  7,  14, 22, 31, 79, 80, 81]:
+        if strNum in [1, 7, 14, 22, 31, 79, 80, 81]:
             return 211
 
         raise XMLFormatError("Could not find icetop hub for string %d" % strNum)
@@ -708,7 +708,7 @@ class DefaultDomGeometryReader(XMLParser):
                 continue
 
             raise XMLFormatError("Found unknown %s node <%s>" %
-                               (node.nodeName, kid.nodeName))
+                                 (node.nodeName, kid.nodeName))
 
         if stringNum is None:
             raise XMLFormatError("String is missing number")
@@ -781,7 +781,7 @@ class DomsTxtReader(object):
                     continue
 
                 #(mbid, prodId, name, loc, desc) = re.split("\s+", line, 4)
-                (loc, prodId, name, mbid) = re.split("\s+", line, 3)
+                (loc, prodId, name, mbid) = re.split(r"\s+", line, 3)
                 if mbid == "mbid":
                     continue
 
@@ -844,7 +844,7 @@ class NicknameReader(object):
                 if len(line) == 0:
                     continue
 
-                (mbid, prodId, name, loc, desc) = re.split("\s+", line, 4)
+                (mbid, prodId, name, loc, desc) = re.split(r"\s+", line, 4)
                 if mbid == "mbid":
                     continue
 

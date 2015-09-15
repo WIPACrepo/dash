@@ -270,7 +270,7 @@ class WatchdogDataTest(unittest.TestCase):
                                           (comp, beanName, gtName,
                                            threshVal,
                                            threshVal + i - (failNum - 1)),
-                                           comp.order())
+                                          comp.order())
                     self.assertEqual(msg, threshold[0],
                                      ("Check #%d threshold#1 should be" +
                                       " \"%s\" not \"%s\"") %

@@ -7,12 +7,13 @@ from RunStats import RunStats
 
 
 class TestRunStats(unittest.TestCase):
-    EMPTY_DICT = {"events": 0, "eventsTime": None, "evtPayTime": None,
-                  "moni": 0, "moniTime": None,
-                  "sn": 0, "snTime": None,
-                  "tcal": 0, "tcalTime": None,
-                  "startTime": None,
-                  }
+    EMPTY_DICT = {
+        "events": 0, "eventsTime": None, "evtPayTime": None,
+        "moni": 0, "moniTime": None,
+        "sn": 0, "snTime": None,
+        "tcal": 0, "tcalTime": None,
+        "startTime": None,
+    }
 
     CURRENT_FIELDS = ("eventsTime", "events", "moni", "sn", "tcal")
     MONITOR_FIELDS = ("events", "eventsTime", "evtPayTime", "moni", "moniTime",
@@ -47,20 +48,20 @@ class TestRunStats(unittest.TestCase):
 
         rval = rs.rate()
         self.assertEqual(expRate, rval,
-                          "Expected rate %s, not %s" % (expRate, rval))
+                         "Expected rate %s, not %s" % (expRate, rval))
 
         ent = rs.rateEntries()
         self.assertTrue(isinstance(ent, type(expEntries)),
                         "Expected entry %s, not %s" %
                         (type(expEntries), type(ent)))
         self.assertEqual(len(ent), len(expEntries),
-                          ("rateEntries() should return %d entries (%s)," +
+                         ("rateEntries() should return %d entries (%s)," +
                           " not %d (%s)") %
-                          (len(expEntries), expEntries, len(ent), ent))
+                         (len(expEntries), expEntries, len(ent), ent))
         for idx in xrange(len(ent)):
             self.assertEqual(expEntries[idx], ent[idx],
-                              "Rate entry #%d should be %s, not %s" %
-                              (idx, expEntries[idx], ent[idx]))
+                             "Rate entry #%d should be %s, not %s" %
+                             (idx, expEntries[idx], ent[idx]))
 
         rstr = str(rs)
         expStr = "Stats[e%s m%s s%s t%s]" % (expData["events"],
@@ -68,7 +69,7 @@ class TestRunStats(unittest.TestCase):
                                              expData["sn"],
                                              expData["tcal"])
         self.assertEqual(expStr, rstr, "Expected \"%s\", not \"%s\"" %
-                          (expStr, rstr))
+                         (expStr, rstr))
 
     def __checkUpdate(self, rs, upDict, upRate, upEntries, addRate):
         upData = []
@@ -79,25 +80,25 @@ class TestRunStats(unittest.TestCase):
         upFlds = []
         for idx in xrange(len(self.STOP_FIELDS)):
             upFlds.append((self.STOP_FIELDS[idx],
-                            upDict[self.STOP_FIELDS[idx]]))
+                           upDict[self.STOP_FIELDS[idx]]))
         self.__checkValues("updateData", upFlds, rtnData)
 
         self.__checkStats(rs, upDict, upRate, upEntries)
 
     def __checkValues(self, methodName, flds, vals):
         self.assertEqual(len(vals), len(flds),
-                          "Expected %d stop() values for %s, not %d" %
-                          (len(flds), methodName, len(vals)))
+                         "Expected %d stop() values for %s, not %d" %
+                         (len(flds), methodName, len(vals)))
 
         idx = 0
         for nm, val in flds:
             self.assertEqual(type(val), type(vals[idx]),
-                              "Expected %s %s %s (%s), not %s (%s)" %
-                              (methodName, nm, val, type(val),
-                               vals[idx], type(vals[idx])))
+                             "Expected %s %s %s (%s), not %s (%s)" %
+                             (methodName, nm, val, type(val),
+                              vals[idx], type(vals[idx])))
             self.assertEqual(val, vals[idx],
-                              "Expected %s %s %s, not %s" %
-                              (methodName, nm, val, vals[idx]))
+                             "Expected %s %s %s, not %s" %
+                             (methodName, nm, val, vals[idx]))
             idx += 1
 
     def __calcRate(self, rateList, interval=300.0):
@@ -173,12 +174,13 @@ class TestRunStats(unittest.TestCase):
         valInc = 56
         timeInc = 10000000000L
 
-        upDict = {"events": 56, "eventsTime": 123456789L,
-                  "moni": 17, "moniTime": 123459876L,
-                  "sn": 111, "snTime": 123456666L,
-                  "tcal": 454, "tcalTime": 123459999L,
-                  "startTime": None, "evtPayTime": 123456890L,
-                  }
+        upDict = {
+            "events": 56, "eventsTime": 123456789L,
+            "moni": 17, "moniTime": 123459876L,
+            "sn": 111, "snTime": 123456666L,
+            "tcal": 454, "tcalTime": 123459999L,
+            "startTime": None, "evtPayTime": 123456890L,
+        }
 
         rateList = []
         for i in xrange(5):

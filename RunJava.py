@@ -150,7 +150,7 @@ def findRepoJar(repoDir, distDir, proj, name, vers):
                 nvers = LooseVersion(entry)
                 if overs < nvers:
                     tmpjar = os.path.join(projdir, entry,
-                                           buildJarName(name, entry))
+                                          buildJarName(name, entry))
                     if os.path.exists(tmpjar):
                         import sys
                         print >>sys.stderr, "WARNING: Using %s version %s" \

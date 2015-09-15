@@ -32,7 +32,7 @@ class XMLParser(object):
         return None
 
     @classmethod
-    def getAttr(self, node, attrName, defaultVal=None):
+    def getAttr(cls, node, attrName, defaultVal=None):
         "Return the text from this node's attribute"
 
         if node.attributes is not None and \

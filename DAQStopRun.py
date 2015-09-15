@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import os
 import sys
 
 from DAQConst import DAQPort
@@ -12,8 +11,8 @@ set_exc_string_encoding("ascii")
 
 def add_arguments(parser):
     parser.add_argument("-v", "--verbose", dest="verbose",
-                   action="store_true", default=False,
-                   help="Verbose mode")
+                        action="store_true", default=False,
+                        help="Verbose mode")
     parser.add_argument("runset", nargs="*")
 
 

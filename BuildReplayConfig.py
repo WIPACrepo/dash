@@ -26,10 +26,11 @@ HUB_PAT = re.compile(r"i([ct])hub(\d+)")
 def process(path, ext, basename, trigcfg):
     hubdirs = {}
 
-    for root, dirs, files in os.walk(path):
+    for root, _, files in os.walk(path):
         found = False
-        for filename in fnmatch.filter(files, "*" + ext):
+        for _ in fnmatch.filter(files, "*" + ext):
             found = True
+            break
 
         if not found:
             continue
@@ -129,4 +130,4 @@ if __name__ == "__main__":
         ext = "." + args.ext
 
     for path in args.directory:
-            process(path, ext, args.basename, args.trigcfg)
+        process(path, ext, args.basename, args.trigcfg)

@@ -13,7 +13,7 @@ import sys
 from utils.Machineid import Machineid
 
 from ComponentManager import ComponentManager
-from DAQConfig import DAQConfig, DAQConfigParser
+from DAQConfig import DAQConfigParser
 from DAQConfigExceptions import DAQConfigException
 from DAQConst import DAQPort
 from locate_pdaq import find_pdaq_config, find_pdaq_trunk
@@ -61,13 +61,13 @@ def add_arguments_both(parser):
                               " xml configuration files"))
 
 
-def add_arguments_kill(parser):
+def add_arguments_kill(_):
     pass
 
 
 def add_arguments_launch(parser, config_as_arg=True):
     parser.add_argument("-C", "--cluster-desc", dest="clusterDesc",
-                   help="Cluster description name.")
+                        help="Cluster description name.")
     if config_as_arg:
         parser.add_argument("-c", "--config-name", dest="configName",
                             help="REQUIRED: Configuration name")
@@ -75,32 +75,32 @@ def add_arguments_launch(parser, config_as_arg=True):
         parser.add_argument("configName",
                             help="Run configuration name")
     parser.add_argument("-e", "--event-check", dest="eventCheck",
-                   action="store_true", default=False,
-                   help="Event builder will validate events")
+                        action="store_true", default=False,
+                        help="Event builder will validate events")
     parser.add_argument("-F", "--no-force-restart", dest="forceRestart",
-                   action="store_false", default=True,
-                   help="Do not force healthy components to restart at run end")
+                        action="store_false", default=True,
+                        help="Do not force healthy components to restart at run end")
     parser.add_argument("-s", "--skip-kill", dest="skipKill",
-                   action="store_true", default=False,
-                   help="Don't kill anything, just launch")
+                        action="store_true", default=False,
+                        help="Don't kill anything, just launch")
 
 
 def add_arguments_old(parser):
     parser.add_argument("-k", "--kill-only", dest="killOnly",
-                   action="store_true",  default=False,
-                   help="Kill pDAQ components, don't restart")
+                        action="store_true", default=False,
+                        help="Kill pDAQ components, don't restart")
     parser.add_argument("-l", "--list-configs", dest="doList",
-                   action="store_true", default=False,
-                   help="List available configs")
+                        action="store_true", default=False,
+                        help="List available configs")
 
 
-def check_running_on_expcont(prog):
+def check_running_on_expcont(action):
     "exit the program if it's not running on 'expcont' on SPS/SPTS"
     hostid = Machineid()
     if (not (hostid.is_control_host() or
-            (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
-        raise SystemExit("Are you sure you are running" +
-                         " %s on the correct host?" % prog)
+             (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+        raise SystemExit("Are you sure you are %s from the correct host?" %
+                         action)
 
 
 def check_detector_state():
@@ -112,8 +112,8 @@ def check_detector_state():
             plural = 's'
         print >> sys.stderr, 'Found %d active runset%s:' % \
             (len(runsets), plural)
-        for id in runsets.keys():
-            print >> sys.stderr, "  %d: %s" % (id, runsets[id])
+        for rid in runsets.keys():
+            print >> sys.stderr, "  %d: %s" % (rid, runsets[rid])
         raise SystemExit('To force a restart, rerun with the --force option')
 
 

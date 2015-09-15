@@ -183,27 +183,28 @@ class LiveState(object):
 
         self.__runNum = None
         self.__subrunNum = None
+        self.__config = None
 
         self.__svcDict = {}
 
     def __str__(self):
         "Return a description of the current I3Live state"
-        sum = "Live[%s] Run[%s] Light[%s]" % \
-            (self.__threadState, LiveRunState.str(self.__runState),
-             LightMode.str(self.__lightMode))
+        summary = "Live[%s] Run[%s] Light[%s]" % \
+                  (self.__threadState, LiveRunState.str(self.__runState),
+                   LightMode.str(self.__lightMode))
 
         for key in self.__svcDict.keys():
             svc = self.__svcDict[key]
-            sum += " %s[%s*%d]" % (key, LiveRunState.str(svc.state()),
-                                   svc.numStarts())
+            summary += " %s[%s*%d]" % (key, LiveRunState.str(svc.state()),
+                                       svc.numStarts())
 
         if self.__runNum is not None:
             if self.__subrunNum is not None and self.__subrunNum > 0:
-                sum += " run %d/%d" % (self.__runNum, self.__subrunNum)
+                summary += " run %d/%d" % (self.__runNum, self.__subrunNum)
             else:
-                sum += " run %d" % self.__runNum
+                summary += " run %d" % self.__runNum
 
-        return sum
+        return summary
 
     def __parseLine(self, parseState, line):
         """
@@ -584,7 +585,7 @@ class LiveRun(BaseRun):
                 time.sleep(secs)
         else:
             cmd = "%s flasher -d %ds -f %s" % (self.__liveCmdProg,
-                                              secs, dataPath)
+                                               secs, dataPath)
             self.logCmd(cmd)
 
             if self.__dryRun:
@@ -820,10 +821,10 @@ class LiveRun(BaseRun):
                                    10, 6, verbose=verbose):
             try:
                 runNum = self.getRunNumber()
-                str = "Run %d did not start" % runNum
+                errmsg = "Run %d did not start" % runNum
             except:
-                str = "Run did not start"
-            raise RunException(str)
+                errmsg = "Run did not start"
+            raise RunException(errmsg)
 
         return self.__waitForState(LiveRunState.STARTING, LiveRunState.RUNNING,
                                    18, 0, verbose=verbose)

@@ -162,7 +162,7 @@ class CmdKill(BaseCmd):
             check_running_on_expcont, kill
 
         if not args.nohostcheck:
-            check_running_on_expcont("pdaq " + cls.name())
+            check_running_on_expcont("launching")
 
         if not args.force:
             check_detector_state()
@@ -197,7 +197,7 @@ class CmdLaunch(BaseCmd):
             check_running_on_expcont, kill, launch
 
         if not args.nohostcheck:
-            check_running_on_expcont("pdaq " + cls.name())
+            check_running_on_expcont("launching")
 
         if not args.force:
             check_detector_state()

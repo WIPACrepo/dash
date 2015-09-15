@@ -154,12 +154,12 @@ class BaseLog(object):
 
         try:
             date = PayloadTime.fromString(dateStr)
-        except ValueError, ex:
+        except ValueError:
             return BadLine(line)
 
         return LogLine(component, className, logLevel, date, text)
 
-    def _isNoise(self, lobj):
+    def _isNoise(self, _):
         raise Exception("Unimplemented for " + self.__fileName)
 
     def _isStart(self, lobj):
@@ -286,7 +286,7 @@ class SecondaryBuildersLog(BaseLog):
 
 class StringHubLog(BaseLog):
     def __init__(self, fileName, show_tcal=False, hide_sn_gaps=False,
-                 show_lbmdebug = False):
+                 show_lbmdebug=False):
         super(StringHubLog, self).__init__(fileName)
 
         self.__showTCAL = show_tcal
@@ -462,7 +462,7 @@ def add_arguments(parser):
 def getDirAndRunnum(topDir, subDir):
     "Return path to log files and run number for the log files"
 
-    DIGITS_PAT = re.compile("^.*(\d+)$")
+    DIGITS_PAT = re.compile(r"^.*(\d+)$")
     for i in xrange(100):
         if i == 0:
             fullpath = os.path.join(topDir, subDir)

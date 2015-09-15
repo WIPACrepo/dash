@@ -8,10 +8,10 @@ from RunCluster import RunCluster, RunClusterError
 
 
 class DeployData(object):
-    def __init__(self, host, name, id=0):
+    def __init__(self, host, name, compid=0):
         self.host = host
         self.name = name
-        self.id = id
+        self.id = compid
         self.found = False
 
     def __str__(self):
@@ -25,10 +25,10 @@ class DeployData(object):
     def markFound(self):
         self.found = True
 
-    def matches(self, host, name, id):
+    def matches(self, host, name, compid):
         return self.host == str(host) and \
             self.name.lower() == name.lower() and \
-            self.id == id
+            self.id == compid
 
 
 class RunClusterTest(unittest.TestCase):
@@ -41,8 +41,8 @@ class RunClusterTest(unittest.TestCase):
         cluster = RunCluster(cfg, clusterName, RunClusterTest.CONFIG_DIR)
 
         self.assertEqual(cluster.configName(), cfgName,
-                          'Expected config name %s, not %s' %
-                          (cfgName, cluster.configName()))
+                         'Expected config name %s, not %s' %
+                         (cfgName, cluster.configName()))
 
         sortedNodes = cluster.nodes()
         sortedNodes.sort()
@@ -106,16 +106,17 @@ class RunClusterTest(unittest.TestCase):
 
     def testDeployLocalhost(self):
         cfgName = 'simpleConfig'
-        expNodes = [DeployData('localhost', 'inIceTrigger'),
-                    DeployData('localhost', 'globalTrigger'),
-                    DeployData('localhost', 'eventBuilder'),
-                    DeployData('localhost', 'SecondaryBuilders'),
-                    DeployData('localhost', 'stringHub', 1001),
-                    DeployData('localhost', 'stringHub', 1002),
-                    DeployData('localhost', 'stringHub', 1003),
-                    DeployData('localhost', 'stringHub', 1004),
-                    DeployData('localhost', 'stringHub', 1005),
-                    ]
+        expNodes = [
+            DeployData('localhost', 'inIceTrigger'),
+            DeployData('localhost', 'globalTrigger'),
+            DeployData('localhost', 'eventBuilder'),
+            DeployData('localhost', 'SecondaryBuilders'),
+            DeployData('localhost', 'stringHub', 1001),
+            DeployData('localhost', 'stringHub', 1002),
+            DeployData('localhost', 'stringHub', 1003),
+            DeployData('localhost', 'stringHub', 1004),
+            DeployData('localhost', 'stringHub', 1005),
+        ]
 
         daqLogDir = "logs"
         daqDataDir = "data"
@@ -127,16 +128,17 @@ class RunClusterTest(unittest.TestCase):
 
     def testDeploySPTS64(self):
         cfgName = 'simpleConfig'
-        expNodes = [DeployData('spts64-iitrigger', 'inIceTrigger'),
-                    DeployData('spts64-gtrigger', 'globalTrigger'),
-                    DeployData('spts64-evbuilder', 'eventBuilder'),
-                    DeployData('spts64-expcont', 'SecondaryBuilders'),
-                    DeployData('spts64-2ndbuild', 'stringHub', 1001),
-                    DeployData('spts64-fpslave01', 'stringHub', 1002),
-                    DeployData('spts64-fpslave02', 'stringHub', 1003),
-                    DeployData('spts64-fpslave03', 'stringHub', 1004),
-                    DeployData('spts64-fpslave04', 'stringHub', 1005),
-                    ]
+        expNodes = [
+            DeployData('spts64-iitrigger', 'inIceTrigger'),
+            DeployData('spts64-gtrigger', 'globalTrigger'),
+            DeployData('spts64-evbuilder', 'eventBuilder'),
+            DeployData('spts64-expcont', 'SecondaryBuilders'),
+            DeployData('spts64-2ndbuild', 'stringHub', 1001),
+            DeployData('spts64-fpslave01', 'stringHub', 1002),
+            DeployData('spts64-fpslave02', 'stringHub', 1003),
+            DeployData('spts64-fpslave03', 'stringHub', 1004),
+            DeployData('spts64-fpslave04', 'stringHub', 1005),
+        ]
 
         daqLogDir = "/mnt/data/pdaq/log"
         daqDataDir = "/mnt/data/pdaqlocal"
@@ -148,16 +150,17 @@ class RunClusterTest(unittest.TestCase):
 
     def testDeployTooMany(self):
         cfgName = 'tooManyConfig'
-        expNodes = [DeployData('spts64-iitrigger', 'inIceTrigger'),
-                    DeployData('spts64-gtrigger', 'globalTrigger'),
-                    DeployData('spts64-evbuilder', 'eventBuilder'),
-                    DeployData('spts64-expcont', 'SecondaryBuilders'),
-                    DeployData('spts64-stringproc01', 'stringHub', 1001),
-                    DeployData('spts64-stringproc02', 'stringHub', 1002),
-                    DeployData('spts64-stringproc03', 'stringHub', 1003),
-                    DeployData('spts64-stringproc06', 'stringHub', 1004),
-                    DeployData('spts64-stringproc07', 'stringHub', 1005),
-                    ]
+        expNodes = [
+            DeployData('spts64-iitrigger', 'inIceTrigger'),
+            DeployData('spts64-gtrigger', 'globalTrigger'),
+            DeployData('spts64-evbuilder', 'eventBuilder'),
+            DeployData('spts64-expcont', 'SecondaryBuilders'),
+            DeployData('spts64-stringproc01', 'stringHub', 1001),
+            DeployData('spts64-stringproc02', 'stringHub', 1002),
+            DeployData('spts64-stringproc03', 'stringHub', 1003),
+            DeployData('spts64-stringproc06', 'stringHub', 1004),
+            DeployData('spts64-stringproc07', 'stringHub', 1005),
+        ]
 
         daqLogDir = "logs"
         daqDataDir = "/mnt/data/pdaqlocal"
@@ -173,56 +176,57 @@ class RunClusterTest(unittest.TestCase):
 
     def testDeploySPS(self):
         cfgName = 'sps-IC40-IT6-Revert-IceTop-V029'
-        expNodes = [DeployData('sps-trigger', 'inIceTrigger'),
-                    DeployData('sps-trigger', 'iceTopTrigger'),
-                    DeployData('sps-gtrigger', 'globalTrigger'),
-                    DeployData('sps-evbuilder', 'eventBuilder'),
-                    DeployData('sps-2ndbuild', 'SecondaryBuilders'),
-                    DeployData('sps-ichub21', 'stringHub', 21),
-                    DeployData('sps-ichub29', 'stringHub', 29),
-                    DeployData('sps-ichub30', 'stringHub', 30),
-                    DeployData('sps-ichub38', 'stringHub', 38),
-                    DeployData('sps-ichub39', 'stringHub', 39),
-                    DeployData('sps-ichub40', 'stringHub', 40),
-                    DeployData('sps-ichub44', 'stringHub', 44),
-                    DeployData('sps-ichub45', 'stringHub', 45),
-                    DeployData('sps-ichub46', 'stringHub', 46),
-                    DeployData('sps-ichub47', 'stringHub', 47),
-                    DeployData('sps-ichub48', 'stringHub', 48),
-                    DeployData('sps-ichub49', 'stringHub', 49),
-                    DeployData('sps-ichub50', 'stringHub', 50),
-                    DeployData('sps-ichub52', 'stringHub', 52),
-                    DeployData('sps-ichub53', 'stringHub', 53),
-                    DeployData('sps-ichub54', 'stringHub', 54),
-                    DeployData('sps-ichub55', 'stringHub', 55),
-                    DeployData('sps-ichub56', 'stringHub', 56),
-                    DeployData('sps-ichub57', 'stringHub', 57),
-                    DeployData('sps-ichub58', 'stringHub', 58),
-                    DeployData('sps-ichub59', 'stringHub', 59),
-                    DeployData('sps-ichub60', 'stringHub', 60),
-                    DeployData('sps-ichub61', 'stringHub', 61),
-                    DeployData('sps-ichub62', 'stringHub', 62),
-                    DeployData('sps-ichub63', 'stringHub', 63),
-                    DeployData('sps-ichub64', 'stringHub', 64),
-                    DeployData('sps-ichub65', 'stringHub', 65),
-                    DeployData('sps-ichub66', 'stringHub', 66),
-                    DeployData('sps-ichub67', 'stringHub', 67),
-                    DeployData('sps-ichub68', 'stringHub', 68),
-                    DeployData('sps-ichub69', 'stringHub', 69),
-                    DeployData('sps-ichub70', 'stringHub', 70),
-                    DeployData('sps-ichub71', 'stringHub', 71),
-                    DeployData('sps-ichub72', 'stringHub', 72),
-                    DeployData('sps-ichub73', 'stringHub', 73),
-                    DeployData('sps-ichub74', 'stringHub', 74),
-                    DeployData('sps-ichub75', 'stringHub', 75),
-                    DeployData('sps-ichub76', 'stringHub', 76),
-                    DeployData('sps-ichub77', 'stringHub', 77),
-                    DeployData('sps-ichub78', 'stringHub', 78),
-                    DeployData('sps-ithub01', 'stringHub', 201),
-                    #DeployData('sps-ithub02', 'stringHub', 202),
-                    #DeployData('sps-ithub03', 'stringHub', 203),
-                    DeployData('sps-ithub06', 'stringHub', 206),
-                    ]
+        expNodes = [
+            DeployData('sps-trigger', 'inIceTrigger'),
+            DeployData('sps-trigger', 'iceTopTrigger'),
+            DeployData('sps-gtrigger', 'globalTrigger'),
+            DeployData('sps-evbuilder', 'eventBuilder'),
+            DeployData('sps-2ndbuild', 'SecondaryBuilders'),
+            DeployData('sps-ichub21', 'stringHub', 21),
+            DeployData('sps-ichub29', 'stringHub', 29),
+            DeployData('sps-ichub30', 'stringHub', 30),
+            DeployData('sps-ichub38', 'stringHub', 38),
+            DeployData('sps-ichub39', 'stringHub', 39),
+            DeployData('sps-ichub40', 'stringHub', 40),
+            DeployData('sps-ichub44', 'stringHub', 44),
+            DeployData('sps-ichub45', 'stringHub', 45),
+            DeployData('sps-ichub46', 'stringHub', 46),
+            DeployData('sps-ichub47', 'stringHub', 47),
+            DeployData('sps-ichub48', 'stringHub', 48),
+            DeployData('sps-ichub49', 'stringHub', 49),
+            DeployData('sps-ichub50', 'stringHub', 50),
+            DeployData('sps-ichub52', 'stringHub', 52),
+            DeployData('sps-ichub53', 'stringHub', 53),
+            DeployData('sps-ichub54', 'stringHub', 54),
+            DeployData('sps-ichub55', 'stringHub', 55),
+            DeployData('sps-ichub56', 'stringHub', 56),
+            DeployData('sps-ichub57', 'stringHub', 57),
+            DeployData('sps-ichub58', 'stringHub', 58),
+            DeployData('sps-ichub59', 'stringHub', 59),
+            DeployData('sps-ichub60', 'stringHub', 60),
+            DeployData('sps-ichub61', 'stringHub', 61),
+            DeployData('sps-ichub62', 'stringHub', 62),
+            DeployData('sps-ichub63', 'stringHub', 63),
+            DeployData('sps-ichub64', 'stringHub', 64),
+            DeployData('sps-ichub65', 'stringHub', 65),
+            DeployData('sps-ichub66', 'stringHub', 66),
+            DeployData('sps-ichub67', 'stringHub', 67),
+            DeployData('sps-ichub68', 'stringHub', 68),
+            DeployData('sps-ichub69', 'stringHub', 69),
+            DeployData('sps-ichub70', 'stringHub', 70),
+            DeployData('sps-ichub71', 'stringHub', 71),
+            DeployData('sps-ichub72', 'stringHub', 72),
+            DeployData('sps-ichub73', 'stringHub', 73),
+            DeployData('sps-ichub74', 'stringHub', 74),
+            DeployData('sps-ichub75', 'stringHub', 75),
+            DeployData('sps-ichub76', 'stringHub', 76),
+            DeployData('sps-ichub77', 'stringHub', 77),
+            DeployData('sps-ichub78', 'stringHub', 78),
+            DeployData('sps-ithub01', 'stringHub', 201),
+            #DeployData('sps-ithub02', 'stringHub', 202),
+            #DeployData('sps-ithub03', 'stringHub', 203),
+            DeployData('sps-ithub06', 'stringHub', 206),
+        ]
 
         daqLogDir = "/mnt/data/pdaq/log"
         daqDataDir = "/mnt/data/pdaqlocal"
@@ -234,7 +238,7 @@ class RunClusterTest(unittest.TestCase):
 
     @classmethod
     def __addHubs(cls, nodes, hostname, numToAdd, hubnum):
-        for i in xrange(numToAdd):
+        for _ in xrange(numToAdd):
             nodes.append(DeployData(hostname, 'replayHub', hubnum))
             hubnum += 1
             if hubnum > 86:
@@ -272,13 +276,14 @@ class RunClusterTest(unittest.TestCase):
 
     def testDeployOldReplay(self):
         cfgName = 'replay-oldtest'
-        expNodes = [DeployData('trigger', 'iceTopTrigger'),
-                    DeployData('trigger', 'iniceTrigger'),
-                    DeployData('trigger', 'globalTrigger'),
-                    DeployData('evbuilder', 'eventBuilder'),
-                    DeployData('expcont', 'CnCServer'),
-                    DeployData('2ndbuild', 'SecondaryBuilders'),
-                    ]
+        expNodes = [
+            DeployData('trigger', 'iceTopTrigger'),
+            DeployData('trigger', 'iniceTrigger'),
+            DeployData('trigger', 'globalTrigger'),
+            DeployData('evbuilder', 'eventBuilder'),
+            DeployData('expcont', 'CnCServer'),
+            DeployData('2ndbuild', 'SecondaryBuilders'),
+        ]
         hubnum = 1
         hubnum = self.__addHubs(expNodes, 'daq01', 44, hubnum)
         hubnum = self.__addHubs(expNodes, 'pdaq2', 10, hubnum)
@@ -300,13 +305,14 @@ class RunClusterTest(unittest.TestCase):
 
     def testDeployReplay(self):
         cfgName = 'replay-test'
-        expNodes = [DeployData('trigger', 'iceTopTrigger'),
-                    DeployData('trigger', 'iniceTrigger'),
-                    DeployData('trigger', 'globalTrigger'),
-                    DeployData('evbuilder', 'eventBuilder'),
-                    DeployData('expcont', 'CnCServer'),
-                    DeployData('2ndbuild', 'SecondaryBuilders'),
-                    ]
+        expNodes = [
+            DeployData('trigger', 'iceTopTrigger'),
+            DeployData('trigger', 'iniceTrigger'),
+            DeployData('trigger', 'globalTrigger'),
+            DeployData('evbuilder', 'eventBuilder'),
+            DeployData('expcont', 'CnCServer'),
+            DeployData('2ndbuild', 'SecondaryBuilders'),
+        ]
 
         self.__addHubsFromRunConfig(expNodes, cfgName)
 

@@ -301,7 +301,7 @@ class CnCRun(BaseRun):
         if os.path.exists(self.__runNumFile):
             with open(self.__runNumFile) as fd:
                 line = fd.readline()
-                m = re.search('(\d+)\s+(\d+)', line)
+                m = re.search(r'(\d+)\s+(\d+)', line)
                 if m:
                     num = int(m.group(1))
                     subnum = int(m.group(2))
@@ -417,7 +417,7 @@ class CnCRun(BaseRun):
         if runMode is not None:
             if filterMode is not None:
                 self.logError("Ignoring run mode %s, filter mode %s" %
-                                    (runMode, filterMode))
+                              (runMode, filterMode))
             else:
                 self.logError("Ignoring run mode %s" % runMode)
         elif filterMode is not None:

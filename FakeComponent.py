@@ -95,6 +95,9 @@ class TriggerHandler(FakeClient):
 
             pos += payLen
 
+    def processPayload(self, payType, utc, payload):
+        raise NotImplementedError("Unimplemented")
+
     def send(self, data):
         self.__outConn.send(data)
 
@@ -112,7 +115,7 @@ class LocalTrigger(TriggerHandler):
         self.__trigCount = 0
 
         super(LocalTrigger, self).__init__(compName, compNum, inputName,
-                                         self.__outputName, prescale)
+                                           self.__outputName, prescale)
 
     def processPayload(self, payType, utc, payload):
         if payType != PayloadType.SIMPLE_HIT:

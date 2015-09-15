@@ -69,7 +69,8 @@ class MostlyRunSet(RunSet):
         super(MostlyRunSet, self).__init__(parent, runConfig, compList,
                                            catchall)
 
-    def createComponentLog(self, runDir, c, host, port, liveHost, livePort,
+    @staticmethod
+    def createComponentLog(runDir, c, host, port, liveHost, livePort,
                            quiet=True):
         return FakeLogger()
 
@@ -106,7 +107,8 @@ class MostlyRunSet(RunSet):
     def queueForSpade(self, runData, duration):
         pass
 
-    def switchComponentLog(self, oldLog, runDir, comp):
+    @staticmethod
+    def switchComponentLog(oldLog, runDir, comp):
         return oldLog
 
 
@@ -220,7 +222,7 @@ class RealComponent(object):
 
         self.__mbean = RPCServer(mbeanPort)
         self.__mbean.register_function(self.__getMBeanValue,
-                                     'mbean.get')
+                                       'mbean.get')
         self.__mbean.register_function(self.__listMBeans, 'mbean.listMBeans')
         self.__mbean.register_function(self.__getMBeanAttributes,
                                        'mbean.getAttributes')
@@ -277,18 +279,18 @@ class RealComponent(object):
 
     @classmethod
     def __fixValue(cls, obj):
-        if type(obj) is dict:
+        if isinstance(obj, dict):
             for k in obj:
                 obj[k] = cls.__fixValue(obj[k])
-        elif type(obj) is list:
+        elif isinstance(obj, list):
             for i in xrange(0, len(obj)):
                 obj[i] = cls.__fixValue(obj[i])
-        elif type(obj) is tuple:
+        elif isinstance(obj, tuple):
             newObj = []
             for v in obj:
                 newObj.append(cls.__fixValue(v))
             obj = tuple(newObj)
-        elif type(obj) is int or type(obj) is long:
+        elif isinstance(obj, int) or isinstance(obj, long):
             if obj < xmlrpclib.MININT or obj > xmlrpclib.MAXINT:
                 return str(obj)
         return obj
@@ -471,10 +473,10 @@ class RateTracker(object):
     def addFinalLogMsgs(self, logger):
         numSecs = self.__numTicks / 10000000000
         logger.addExpectedExact(("%d physics events collected" +
-                                  " in %d seconds (%0.2f Hz)") %
-                                  (self.__numEvts, numSecs,
-                                    float(self.__numEvts) /
-                                    float(numSecs)))
+                                 " in %d seconds (%0.2f Hz)") %
+                                (self.__numEvts, numSecs,
+                                 float(self.__numEvts) /
+                                 float(numSecs)))
         logger.addExpectedExact("%d moni events, %d SN events, %d tcals" %
                                 (self.__numMoni, self.__numSN, self.__numTcal))
 
@@ -581,7 +583,7 @@ class TestCnCServer(unittest.TestCase):
 
         RunXMLValidator.tearDown()
 
-    def __addRange(rangeStr, rStart, rCurr):
+    def __addRange(self, rangeStr, rStart, rCurr):
         if not rangeStr.endswith(" "):
             rangeStr += ","
         if rStart == rCurr:
@@ -759,27 +761,27 @@ class TestCnCServer(unittest.TestCase):
             self.assertEqual(comp.name(), d["compName"],
                              ("Component#%d name should be \"%s\"," +
                               "not \"%s\"") % \
-                               (comp.id(), comp.name(), d["compName"]))
+                             (comp.id(), comp.name(), d["compName"]))
             self.assertEqual(comp.number(), d["compNum"],
                              ("Component#%d \"%s\" number should be %d," +
-                               " not %d") %
+                              " not %d") %
                              (comp.id(), comp.fullName(), comp.number(),
-                             d["compNum"]))
+                              d["compNum"]))
             self.assertEqual(compHost, d["host"],
-                              ("Component#%d \"%s\" host should be" +
-                               " \"%s\", not \"%s\"") %
-                              (comp.id(), comp.fullName(), compHost,
-                                d["host"]))
+                             ("Component#%d \"%s\" host should be" +
+                              " \"%s\", not \"%s\"") %
+                             (comp.id(), comp.fullName(), compHost,
+                              d["host"]))
             self.assertEqual(comp.cmdPort(), d["rpcPort"],
-                              ("Component#%d \"%s\" rpcPort should be" +
-                               " \"%s\", not \"%s\"") %
-                              (comp.id(), comp.fullName(), comp.cmdPort(),
-                                d["rpcPort"]))
+                             ("Component#%d \"%s\" rpcPort should be" +
+                              " \"%s\", not \"%s\"") %
+                             (comp.id(), comp.fullName(), comp.cmdPort(),
+                              d["rpcPort"]))
             self.assertEqual(comp.mbeanPort(), d["mbeanPort"],
-                              ("Component#%d \"%s\" mbeanPort should be" +
-                               " \"%s\", not \"%s\"") %
-                              (comp.id(), comp.fullName(), comp.mbeanPort(),
-                                d["mbeanPort"]))
+                             ("Component#%d \"%s\" mbeanPort should be" +
+                              " \"%s\", not \"%s\"") %
+                             (comp.id(), comp.fullName(), comp.mbeanPort(),
+                              d["mbeanPort"]))
 
         catchall.checkStatus(100)
         for nm in logs:
@@ -788,10 +790,10 @@ class TestCnCServer(unittest.TestCase):
         baseLogPort = DAQPort.RUNCOMP_BASE
         for comp in self.comps:
             log = logs[comp.fullName()]
-            log.addExpectedTextRegexp("Start of log at LOG=log(\S+:%d)" %
+            log.addExpectedTextRegexp(r"Start of log at LOG=log(\S+:%d)" %
                                       baseLogPort)
             log.addExpectedExact('Test msg')
-            log.addExpectedTextRegexp('\S+ \S+ \S+ \S+')
+            log.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+')
             baseLogPort += 1
 
         catchall.addExpectedText("Starting run #%d on \"%s\"" %
@@ -837,7 +839,7 @@ class TestCnCServer(unittest.TestCase):
         rateTracker = RateTracker(10000000000, 100, 0, 0, 0)
 
         if switchRun:
-            for i in xrange(5):
+            for _ in xrange(5):
                 rateTracker.updateRunData(self.cnc, setId, self.comps)
 
             for comp in self.comps:

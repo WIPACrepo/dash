@@ -59,19 +59,22 @@ def fetch_latestleap(host='tycho.usno.navy.mil', path='/pub/ntp',
         print "Failed to connect to host: '%s'" % host
         return
 
-    if verbose: print "Starting FTP session with %s" % host
+    if verbose:
+        print "Starting FTP session with %s" % host
     ftp.login()
 
-    if verbose: print "Changing to %s directory %s" % (host, path)
+    if verbose:
+        print "Changing to %s directory %s" % (host, path)
     ftp.cwd(path)
 
-    if verbose: print "Listing %s" % path
+    if verbose:
+        print "Listing %s" % path
     file_list = ftp.nlst()
 
     # we are only interested in files that match the pattern
     # leap-seconds.nnnnnnnn
 
-    lsec_pattern = re.compile('^leap-seconds\.([0-9]*)$')
+    lsec_pattern = re.compile(r'^leap-seconds\.([0-9]*)$')
     times_list = []
     match_dict = {}
     for fname in file_list:
@@ -81,7 +84,7 @@ def fetch_latestleap(host='tycho.usno.navy.mil', path='/pub/ntp',
             match_dict[file_time] = fname
             times_list.append(file_time)
 
-    if len(times_list)==0:
+    if len(times_list) == 0:
         print "Did not find any leap second files @ ftp://%s%s" % (host, path)
         ftp.close()
         return
@@ -139,7 +142,7 @@ def install_latestleap(latest, filename, verbose=False):
         if not os.path.exists(ldir):
             try:
                 os.makedirs(ldir)
-            except Exception, ex:
+            except Exception as ex:
                 raise SystemExit("Cannot create %s: %s" % (ldir, ex))
 
         newpath = os.path.join(ldir, basename)

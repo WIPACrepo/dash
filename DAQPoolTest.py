@@ -102,8 +102,8 @@ class TestDAQPool(unittest.TestCase):
     def __checkRunsetState(self, runset, expState):
         for c in runset.components():
             self.assertEqual(c.state(), expState,
-                              "Comp %s state should be %s, not %s" %
-                              (c.name(), expState, c.state()))
+                             "Comp %s state should be %s, not %s" %
+                             (c.name(), expState, c.state()))
 
     def __createRunConfigFile(self, compList):
         rcFile = MockRunConfigFile(self.__runConfigDir)
@@ -186,7 +186,7 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedExact("Loading run configuration \"%s\"" %
                                 runConfig)
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
-        logger.addExpectedRegexp("Built runset #\d+: .*")
+        logger.addExpectedRegexp(r"Built runset #\d+: .*")
 
         daqDataDir = None
 
@@ -609,7 +609,7 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedExact("Loading run configuration \"%s\"" %
                                 runConfig)
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
-        logger.addExpectedRegexp("Built runset #\d+: .*")
+        logger.addExpectedRegexp(r"Built runset #\d+: .*")
 
         daqDataDir = None
 
@@ -662,7 +662,7 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedExact("Loading run configuration \"%s\"" %
                                 runConfig)
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
-        logger.addExpectedRegexp("Built runset #\d+: .*")
+        logger.addExpectedRegexp(r"Built runset #\d+: .*")
 
         daqDataDir = None
 
@@ -704,14 +704,15 @@ class TestDAQPool(unittest.TestCase):
                                      " per-string active DOM stats wil not" +
                                      " be reported")
 
-        versionInfo = {"filename": "fName",
-                       "revision": "1234",
-                       "date": "date",
-                       "time": "time",
-                       "author": "author",
-                       "release": "rel",
-                       "repo_rev": "1repoRev",
-                       }
+        versionInfo = {
+            "filename": "fName",
+            "revision": "1234",
+            "date": "date",
+            "time": "time",
+            "author": "author",
+            "release": "rel",
+            "repo_rev": "1repoRev",
+        }
 
         spadeDir = "/tmp"
         copyDir = None

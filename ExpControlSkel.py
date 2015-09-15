@@ -6,7 +6,6 @@ John Jacobsen, jacobsen@npxdesigns.com
 Started November, 2006
 """
 
-import os
 import re
 import sys
 from BaseRun import FlasherScript
@@ -14,7 +13,7 @@ from cncrun import CnCRun
 from datetime import datetime
 from utils.Machineid import Machineid
 
-SVN_ID = "$Id: ExpControlSkel.py 15490 2015-04-03 21:30:46Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 15762 2015-09-15 17:01:14Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -74,14 +73,14 @@ class SubRunDOM(object):
             raise DOMArgumentException()
 
 
-class SubRun:
+class SubRun(object):
     FLASH = 1
     DELAY = 2
 
-    def __init__(self, type, duration, id):
-        self.type = type
+    def __init__(self, runtype, duration, runid):
+        self.type = runtype
         self.duration = duration
-        self.id = id
+        self.id = runid
         self.domlist = []
 
     def addDOM(self, d):
@@ -162,19 +161,19 @@ def getDurationFromString(s):
     """
     Return duration in seconds based on string <s>
     """
-    m = re.search('^(\d+)$', s)
+    m = re.search(r'^(\d+)$', s)
     if m:
         return int(m.group(1))
-    m = re.search('^(\d+)s(?:ec(?:s)?)?$', s)
+    m = re.search(r'^(\d+)s(?:ec(?:s)?)?$', s)
     if m:
         return int(m.group(1))
-    m = re.search('^(\d+)m(?:in(?:s)?)?$', s)
+    m = re.search(r'^(\d+)m(?:in(?:s)?)?$', s)
     if m:
         return int(m.group(1)) * 60
-    m = re.search('^(\d+)h(?:r(?:s)?)?$', s)
+    m = re.search(r'^(\d+)h(?:r(?:s)?)?$', s)
     if m:
         return int(m.group(1)) * 3600
-    m = re.search('^(\d+)d(?:ay(?:s)?)?$', s)
+    m = re.search(r'^(\d+)d(?:ay(?:s)?)?$', s)
     if m:
         return int(m.group(1)) * 86400
     raise ValueError('String "%s" is not a known duration format.  Try'

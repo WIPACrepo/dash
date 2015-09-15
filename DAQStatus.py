@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 
 import socket
-import sys
 
-from os import environ
-from os.path import join
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from LiveImports import SERVICE_NAME
@@ -31,8 +28,8 @@ def check_running_on_expcont(prog):
     hostid = Machineid()
     if (not (hostid.is_control_host() or
              (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
-        raise SystemExit("Are you sure you are running"
-                         " %s on the correct host?" % prog)
+        raise SystemExit("Are you sure you are checking status"
+                         " from the correct host?")
 
 
 def cmpComp(x, y):

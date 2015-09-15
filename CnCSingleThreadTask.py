@@ -58,14 +58,14 @@ class CnCSingleThreadTask(CnCTask):
             self.__badCount = 0
 
             # if we have a detail timer, check if it's gone off
-            sendDetails = False
+            send_details = False
             if self.__detailTimer is not None and \
                     self.__detailTimer.isTime():
-                sendDetails = True
+                send_details = True
                 self.__detailTimer.reset()
 
             # create and start a new thread
-            self.__thread = self.__thread.getNewThread(sendDetails)
+            self.__thread = self.__thread.get_new_thread(send_details)
             self.__thread.start()
         else:
             # remember that the current thread hasn't finished
@@ -110,7 +110,7 @@ class CnCSingleThreadTask(CnCTask):
         """
         if not self._isFailed() and not self._running():
             # gather one last set of stats
-            thrd = self.__thread.getNewThread(True)
+            thrd = self.__thread.get_new_thread(True)
             thrd.start()
 
     def taskFailed(self):

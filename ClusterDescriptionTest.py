@@ -80,7 +80,7 @@ class TestClusterDescription(unittest.TestCase):
         try:
             ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
-        except XMLFormatError, fmterr:
+        except XMLFormatError as fmterr:
             errmsg = "%s: no element found: line 2, column 0" % path
             if not str(fmterr).endswith(errmsg):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
@@ -96,7 +96,7 @@ class TestClusterDescription(unittest.TestCase):
         try:
             ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
-        except XMLFormatError, fmterr:
+        except XMLFormatError as fmterr:
             errmsg = "No hosts defined for cluster \"%s\"" % name
             if not str(fmterr).endswith(errmsg):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
@@ -114,7 +114,7 @@ class TestClusterDescription(unittest.TestCase):
         try:
             ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
-        except XMLFormatError, fmterr:
+        except XMLFormatError as fmterr:
             errmsg = ("Cluster \"%s\" has <host> node without \"name\"" +
                       " attribute") % name
             if not str(fmterr).endswith(errmsg):
@@ -135,7 +135,7 @@ class TestClusterDescription(unittest.TestCase):
         try:
             ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
-        except XMLFormatError, fmterr:
+        except XMLFormatError as fmterr:
             errmsg = "Multiple <name> nodes found"
             if not str(fmterr).endswith(errmsg):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
@@ -155,7 +155,7 @@ class TestClusterDescription(unittest.TestCase):
         try:
             ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
-        except XMLFormatError, fmterr:
+        except XMLFormatError as fmterr:
             errmsg = '"%s" has <host> node without "name" attribute' % name
             if not str(fmterr).endswith(errmsg):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
@@ -175,7 +175,7 @@ class TestClusterDescription(unittest.TestCase):
         try:
             ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
-        except XMLFormatError, fmterr:
+        except XMLFormatError as fmterr:
             errmsg = "Found multiple <name> text nodes"
             if not str(fmterr).endswith(errmsg):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
@@ -195,7 +195,7 @@ class TestClusterDescription(unittest.TestCase):
         try:
             ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
-        except XMLFormatError, fmterr:
+        except XMLFormatError as fmterr:
             errmsg = ("Cluster \"%s\" has <host> node without \"name\"" +
                       " attribute") % name
             if not str(fmterr).endswith(errmsg):
@@ -221,7 +221,7 @@ class TestClusterDescription(unittest.TestCase):
         try:
             ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
-        except ClusterDescriptionFormatError, fmterr:
+        except ClusterDescriptionFormatError as fmterr:
             errmsg = "Multiple entries for host \"%s\"" % hname
             if not str(fmterr).endswith(errmsg):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
@@ -242,7 +242,7 @@ class TestClusterDescription(unittest.TestCase):
         try:
             ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
-        except XMLFormatError, fmterr:
+        except XMLFormatError as fmterr:
             errmsg = ("Cluster \"%s\" host \"%s\" has <component> node" +
                       " without \"name\" attribute") % (name, hname)
             if not str(fmterr).endswith(errmsg):
@@ -264,7 +264,7 @@ class TestClusterDescription(unittest.TestCase):
         try:
             ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
-        except XMLFormatError, fmterr:
+        except XMLFormatError as fmterr:
             errmsg = ("Cluster \"%s\" default section has <component> node" +
                       " without \"name\" attribute") % name
             if not str(fmterr).endswith(errmsg):
@@ -288,7 +288,7 @@ class TestClusterDescription(unittest.TestCase):
         try:
             ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
-        except XMLFormatError, fmterr:
+        except XMLFormatError as fmterr:
             errmsg = ("Cluster \"%s\" host \"%s\" component \"%s\" has" +
                       " bad ID \"%s\"") % (name, hname, cname, cid)
             if not str(fmterr).endswith(errmsg):
@@ -311,7 +311,7 @@ class TestClusterDescription(unittest.TestCase):
         try:
             ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
-        except XMLFormatError, fmterr:
+        except XMLFormatError as fmterr:
             errmsg = ("Cluster \"%s\" host \"%s\" has <simulatedHub> node" +
                       " without \"priority\" attribute") % (name, hname)
             if not str(fmterr).endswith(errmsg):
@@ -336,7 +336,7 @@ class TestClusterDescription(unittest.TestCase):
         try:
             ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
-        except XMLFormatError, fmterr:
+        except XMLFormatError as fmterr:
             errmsg = ("Cluster \"%s\" host \"%s\" has <simulatedHub> node" +
                       " with bad number \"%s\"") % (name, hname, snum)
             if not str(fmterr).endswith(errmsg):
@@ -361,7 +361,7 @@ class TestClusterDescription(unittest.TestCase):
         try:
             ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
-        except XMLFormatError, fmterr:
+        except XMLFormatError as fmterr:
             errmsg = ("Cluster \"%s\" host \"%s\" has <simulatedHub> node" +
                       " with bad priority \"%s\"") % (name, hname, sprio)
             if not str(fmterr).endswith(errmsg):
@@ -378,7 +378,7 @@ class TestClusterDescription(unittest.TestCase):
         try:
             cd = ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
-        except ClusterDescriptionFormatError, fmterr:
+        except ClusterDescriptionFormatError as fmterr:
             errmsg = "No hosts defined for cluster \"%s\"" % name
             if not str(fmterr).endswith(errmsg):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
@@ -754,7 +754,7 @@ class TestClusterDescription(unittest.TestCase):
                          plainPath, plainServer, plainLogLvl)
                 else:
                     (args, extra, heapInit, heapMax, path, server, logLevel) = \
-                        (instArgs, instExtra,  instHeapInit, instHeapMax,
+                        (instArgs, instExtra, instHeapInit, instHeapMax,
                          instPath, instServer, instLogLvl)
 
                 self.assertEqual(args, comp.jvmArgs(),
@@ -874,7 +874,7 @@ class TestClusterDescription(unittest.TestCase):
         try:
             ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
-        except ClusterDescriptionFormatError, fmterr:
+        except ClusterDescriptionFormatError as fmterr:
             errmsg = ("Multiple entries for component \"%s@WARN(?)\""
                       " in host \"%s\"") % (comp.name(), host.name())
             if not str(fmterr).endswith(errmsg):
@@ -903,7 +903,7 @@ class TestClusterDescription(unittest.TestCase):
         try:
             ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
-        except ClusterDescriptionFormatError, fmterr:
+        except ClusterDescriptionFormatError as fmterr:
             errmsg = "Multiple entries for component \"%s@WARN(?)\"" % \
                      c1.name()
             if not str(fmterr).endswith(errmsg):
@@ -954,7 +954,7 @@ class TestClusterDescription(unittest.TestCase):
         h = cd.host(hname)
         try:
             h.addSimulatedHub("xxx", 7, prio, False)
-        except ClusterDescriptionFormatError, fmterr:
+        except ClusterDescriptionFormatError as fmterr:
             errmsg = "Multiple <simulatedHub> nodes at prio %d for %s" % \
                      (prio, hname)
             if not str(fmterr).endswith(errmsg):

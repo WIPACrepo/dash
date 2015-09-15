@@ -68,8 +68,8 @@ class RateCalc(object):
         # (DAQRun rate calculation)
         latest = None
         dtsec = 0.0
-        for bin in range(len(self.entries) - 1, -1, -1):
-            entry = self.entries[bin]
+        for i in range(len(self.entries) - 1, -1, -1):
+            entry = self.entries[i]
             if latest is None:
                 latest = entry
             else:
@@ -91,7 +91,7 @@ def main():
     print rc.rate()
 
     count = 0
-    for i in range(0, 10):
+    for _ in range(0, 10):
         time.sleep(1)
         rc.add(datetime.datetime.now(), count)
         count += 1

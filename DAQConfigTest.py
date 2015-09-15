@@ -12,7 +12,7 @@ class CommonCode(unittest.TestCase):
     NEWFMT = None
 
     @classmethod
-    def __checkSubdir(self, topdir, subname):
+    def __checkSubdir(cls, topdir, subname):
         subdir = os.path.join(topdir, subname)
         if not os.path.exists(subdir):
             cls.fail('No "%s" subdirectory for "%s"' % (subdir, topdir))
@@ -148,7 +148,7 @@ class CommonCode(unittest.TestCase):
     def runListsSpsIC40IT6Test(self, newFormat):
         cfgDir = self.getConfigDir(newFormat=newFormat)
         cfg = DAQConfigParser.load("sps-IC40-IT6-AM-Revert-IceTop-V029",
-                                  cfgDir)
+                                   cfgDir)
 
         expected = ['amandaTrigger', 'eventBuilder', 'globalTrigger',
                     'iceTopTrigger', 'inIceTrigger', 'secondaryBuilders',
@@ -183,21 +183,22 @@ class CommonCode(unittest.TestCase):
     def runLookupSpsIC40IT6Test(self, newFormat):
         cfgDir = self.getConfigDir(newFormat=newFormat)
         cfg = DAQConfigParser.load("sps-IC40-IT6-AM-Revert-IceTop-V029",
-                                  cfgDir)
+                                   cfgDir)
 
-        dataList = (('737d355af587', 'Bat', 21, 1),
-                    ('499ccc773077', 'Werewolf', 66, 6),
-                    ('efc9607742b9', 'Big_Two_Card', 78, 60),
-                    ('1e5b72775d19', 'AMANDA_SYNC_DOM', 0, 91),
-                    ('1d165fc478ca', 'AMANDA_TRIG_DOM', 0, 92),
-                    )
+        dataList = (
+            ('737d355af587', 'Bat', 21, 1),
+            ('499ccc773077', 'Werewolf', 66, 6),
+            ('efc9607742b9', 'Big_Two_Card', 78, 60),
+            ('1e5b72775d19', 'AMANDA_SYNC_DOM', 0, 91),
+            ('1d165fc478ca', 'AMANDA_TRIG_DOM', 0, 92),
+        )
 
         self.lookup(cfg, dataList)
 
     def runDumpDOMsTest(self, newFormat):
         cfgDir = self.getConfigDir(newFormat=newFormat)
         cfg = DAQConfigParser.load("sps-IC40-IT6-AM-Revert-IceTop-V029",
-                                  cfgDir)
+                                   cfgDir)
 
         for d in cfg.getAllDOMs():
             mbid = str(d)

@@ -1,7 +1,6 @@
-from lxml import etree, objectify
+from lxml import etree
 from utils import ip
 from utils.DashXMLLog import DashXMLLog
-from utils.DashXMLLog import DashXMLLogException
 from utils.Machineid import Machineid
 import unittest
 
@@ -35,7 +34,7 @@ class TestUtils(unittest.TestCase):
         # don't touch a non localhost address
         self.assertEqual(ip.convertLocalhostToIpAddr('fred'), 'fred')
         self.assertEqual(ip.convertLocalhostToIpAddr('localhost'),
-                          ip.getLocalIpAddr())
+                         ip.getLocalIpAddr())
 
     def test_machineid(self):
         a = Machineid("access.spts.icecube.wisc.edu")

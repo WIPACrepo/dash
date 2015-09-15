@@ -94,13 +94,13 @@ def add_arguments(parser, config_as_arg=True):
                               " configuration files"))
 
 
-def check_running_on_access(prog):
+def check_running_on_access(action):
     "exit the program if it's not running on 'access' on SPS/SPTS"
     hostid = Machineid()
     if not (hostid.is_build_host() or
             (hostid.is_unknown_host() and hostid.is_unknown_cluster())):
-        raise SystemExit("Are you sure you are running"
-                         " %s on the correct host?" % prog)
+        raise SystemExit("Are you sure you are %s from the correct host?" %
+                         action)
 
 
 def deploy(config, homeDir, pdaqDir, subdirs, delete, dryRun,
@@ -116,7 +116,7 @@ def deploy(config, homeDir, pdaqDir, subdirs, delete, dryRun,
 
     # record the release/revision info
     if not dryRun:
-        ver = store_scmversion(pdaqDir)
+        store_scmversion(pdaqDir)
 
     # record the configuration being deployed so
     # it gets copied along with everything else
@@ -190,7 +190,7 @@ def deploy(config, homeDir, pdaqDir, subdirs, delete, dryRun,
                                    pdaqDir)
             if rsyncConfigSrc is not None:
                 cmd += " && %s %s %s:~%s" % (rsyncCmdStub, rsyncConfigSrc,
-                                            nodeName, os.environ["USER"])
+                                             nodeName, os.environ["USER"])
 
         cmdToNodeNameDict[cmd] = nodeName
         if traceLevel > 0 or dryRun:
@@ -246,7 +246,7 @@ def replaceHome(homeDir, curDir):
 def run_deploy(args):
     ## Work through options implications ##
     if not args.nohostcheck:
-        check_running_on_access("DeployPDAQ")
+        check_running_on_access("deploying")
 
     # A deep-dry-run implies verbose and serial
     if args.deepDryRun:

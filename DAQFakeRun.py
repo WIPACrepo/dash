@@ -74,7 +74,7 @@ class LogThread(threading.Thread):
         pe = [self.__sock]
         while self.__serving:
             try:
-                rd, rw, re = select.select(pr, pw, pe, self.TIMEOUT)
+                rd, _, re = select.select(pr, pw, pe, self.TIMEOUT)
             except select.error as selerr:
                 if selerr[0] == socket.EBADF:
                     break
@@ -111,8 +111,8 @@ class BeanValue(object):
 
     def update(self):
         val = self.__value
-        if self.__delta is not None and type(self.__delta) == int:
-            if type(self.__value) == int:
+        if self.__delta is not None and isinstance(self.__delta, int):
+            if isinstance(self.__value, int):
                 self.__value += self.__delta
         return val
 
@@ -392,12 +392,11 @@ class DAQFakeRun(object):
         sock.connect((host, port))
         return sock
 
-    def __runInternal(self, runsetId, runCfg, runNum, duration):
+    def __runInternal(self, runsetId, runNum, duration):
         """
         Take all components through a simulated run
 
         runsetId - ID of runset being used
-        runCfg - run configuration name
         runNum - run number
         duration - length of run in seconds
         """
@@ -476,7 +475,6 @@ class DAQFakeRun(object):
             except:
                 print >>sys.stderr, "Cannot stop run for runset #%d" % runsetId
                 traceback.print_exc()
-                pass
 
     def __runOne(self, compList, runCfgDir, runNum, duration):
         """
@@ -504,7 +502,7 @@ class DAQFakeRun(object):
             print >>sys.stderr, "Expected %d run sets" % (numSets + 1)
 
         try:
-            self.__runInternal(runsetId, mockRunCfg, runNum, duration)
+            self.__runInternal(runsetId, runNum, duration)
         finally:
             traceback.print_exc()
             self.closeAll(runsetId)
@@ -625,8 +623,8 @@ class DAQFakeRun(object):
         runsetId = self.__client.rpc_runset_make(runCfg, runNum, False)
         if runsetId < 0:
             raise DAQFakeRunException(("Cannot make runset from %s" +
-                                        " (runset ID=%d)") %
-                                        (nameList, runsetId))
+                                       " (runset ID=%d)") %
+                                      (nameList, runsetId))
 
         return runsetId
 
@@ -671,56 +669,56 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-A", "--includeTrackEngine", dest="incTrackEng",
-                      action="store_true", default=False,
-                      help="Include track engine in full configuration")
+                        action="store_true", default=False,
+                        help="Include track engine in full configuration")
     parser.add_argument("-a", "--trackEngine", dest="trackEng",
-                      action="store_true", default=False,
-                      help="Use existing track engine")
+                        action="store_true", default=False,
+                        help="Use existing track engine")
     parser.add_argument("-c", "--config", dest="runCfgDir",
-                      default="/tmp/config",
-                      help="Run configuration directory")
+                        default="/tmp/config",
+                        help="Run configuration directory")
     parser.add_argument("-d", "--duration", type=int, dest="duration",
-                      default="5",
-                      help="Number of seconds for run")
+                        default="5",
+                        help="Number of seconds for run")
     parser.add_argument("-e", "--eventBuilder", dest="evtBldr",
-                      action="store_true", default=False,
-                      help="Use existing event builder")
+                        action="store_true", default=False,
+                        help="Use existing event builder")
     parser.add_argument("-f", "--forkClients", dest="forkClients",
-                      action="store_true", default=False,
-                      help="Run clients in subprocesses")
+                        action="store_true", default=False,
+                        help="Run clients in subprocesses")
     parser.add_argument("-g", "--globalTrigger", dest="glblTrig",
-                      action="store_true", default=False,
-                      help="Use existing global trigger")
+                        action="store_true", default=False,
+                        help="Use existing global trigger")
     parser.add_argument("-H", "--numberOfHubs", type=int, dest="numHubs",
-                      default=2,
-                      help="Number of fake hubs")
+                        default=2,
+                        help="Number of fake hubs")
     parser.add_argument("-i", "--iniceTrigger", dest="iniceTrig",
-                      action="store_true", default=False,
-                      help="Use existing in-ice trigger")
+                        action="store_true", default=False,
+                        help="Use existing in-ice trigger")
     parser.add_argument("-n", "--numOfRuns", type=int, dest="numRuns",
-                      default=1,
-                      help="Number of runs")
+                        default=1,
+                        help="Number of runs")
     parser.add_argument("-p", "--firstPortNumber", type=int, dest="firstPort",
-                      default=FakeClient.NEXT_PORT,
-                      help="First port number used for fake components")
+                        default=FakeClient.NEXT_PORT,
+                        help="First port number used for fake components")
     parser.add_argument("-q", "--quiet", dest="quiet",
-                      action="store_true", default=False,
-                      help="Fake components do not announce what they're doing")
+                        action="store_true", default=False,
+                        help="Fake components don't announce what they're doing")
     parser.add_argument("-R", "--realNames", dest="realNames",
-                      action="store_true", default=False,
-                      help="Use component names without numeric prefix")
+                        action="store_true", default=False,
+                        help="Use component names without numeric prefix")
     parser.add_argument("-r", "--runNum", type=int, dest="runNum",
-                      default=1234,
-                      help="Run number")
+                        default=1234,
+                        help="Run number")
     parser.add_argument("-S", "--small", dest="smallCfg",
-                      action="store_true", default=False,
-                      help="Use canned 3-element configuration")
+                        action="store_true", default=False,
+                        help="Use canned 3-element configuration")
     parser.add_argument("-T", "--tiny", dest="tinyCfg",
-                      action="store_true", default=False,
-                      help="Use canned 2-element configuration")
+                        action="store_true", default=False,
+                        help="Use canned 2-element configuration")
     parser.add_argument("-t", "--icetopTrigger", dest="icetopTrig",
-                      action="store_true", default=False,
-                      help="Use existing icetop trigger")
+                        action="store_true", default=False,
+                        help="Use existing icetop trigger")
 
     args = parser.parse_args()
 

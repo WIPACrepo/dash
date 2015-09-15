@@ -33,6 +33,8 @@ class TinyClient(object):
         self.__state = 'idle'
         self.__order = None
 
+        self.__log = None
+
     def __str__(self):
         if self.__mbeanPort == 0:
             mStr = ''
@@ -239,23 +241,23 @@ class TestDAQServer(unittest.TestCase):
                          liveHost, livePort):
         numElem = 6
         self.assertEqual(numElem, len(rtnArray),
-                          'Expected %d-element array, not %d elements' %
-                          (numElem, len(rtnArray)))
+                         'Expected %d-element array, not %d elements' %
+                         (numElem, len(rtnArray)))
         self.assertEqual(expId, rtnArray["id"],
-                          'Registration should return client ID#%d, not %d' %
-                          (expId, rtnArray["id"]))
+                         'Registration should return client ID#%d, not %d' %
+                         (expId, rtnArray["id"]))
         self.assertEqual(logHost, rtnArray["logIP"],
-                          'Registration should return loghost %s, not %s' %
-                          (logHost, rtnArray["logIP"]))
+                         'Registration should return loghost %s, not %s' %
+                         (logHost, rtnArray["logIP"]))
         self.assertEqual(logPort, rtnArray["logPort"],
-                          'Registration should return logport#%d, not %d' %
-                          (logPort, rtnArray["logPort"]))
+                         'Registration should return logport#%d, not %d' %
+                         (logPort, rtnArray["logPort"]))
         self.assertEqual(liveHost, rtnArray["liveIP"],
-                          'Registration should return livehost %s, not %s' %
-                          (liveHost, rtnArray["liveIP"]))
+                         'Registration should return livehost %s, not %s' %
+                         (liveHost, rtnArray["liveIP"]))
         self.assertEqual(livePort, rtnArray["livePort"],
-                          'Registration should return liveport#%d, not %d' %
-                          (livePort, rtnArray["livePort"]))
+                         'Registration should return liveport#%d, not %d' %
+                         (livePort, rtnArray["livePort"]))
 
     def setUp(self):
         self.__logFactory = SocketReaderFactory()
@@ -444,7 +446,7 @@ class TestDAQServer(unittest.TestCase):
 
         logger.addExpectedTextRegexp('Loading run configuration .*')
         logger.addExpectedTextRegexp('Loaded run configuration .*')
-        logger.addExpectedTextRegexp("Built runset #\d+: .*")
+        logger.addExpectedTextRegexp(r"Built runset #\d+: .*")
 
         runNum = 456
 
@@ -470,7 +472,7 @@ class TestDAQServer(unittest.TestCase):
         logger.checkStatus(100)
 
         logger.addExpectedText("Starting run #%d on \"%s\"" %
-                                (runNum, cluCfg.descName()))
+                               (runNum, cluCfg.descName()))
 
         logger.addExpectedTextRegexp(r"Version info: \S+ \S+ \S+ \S+")
         clientLogger.addExpectedTextRegexp(r"Version info: \S+ \S+ \S+ \S+")

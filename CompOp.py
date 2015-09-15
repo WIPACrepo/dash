@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import socket
 import threading
 
 from DAQClient import BeanTimeoutException
@@ -340,7 +339,7 @@ class ComponentOperationGroup(object):
         if all threads are hung, max wait time is (#threads * waitSecs * reps)
         """
         partSecs = float(waitSecs) / float(reps)
-        for i in range(reps):
+        for _ in range(reps):
             alive = False
             for t in self.__list:
                 if t.isAlive():

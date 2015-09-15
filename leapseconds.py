@@ -20,7 +20,7 @@ import datetime
 from locate_pdaq import find_pdaq_config
 from LiveImports import Prio
 
-class leapseconds:
+class leapseconds(object):
     """every calculation that might be of use when it comes to leapseconds"""
 
     LATEST = None
@@ -99,7 +99,7 @@ class leapseconds:
 
         try:
             self.__parse_nist()
-        except Exception, ex:
+        except Exception as ex:
             msg = "Cannot reload leapsecond file %s: %s" % (self.__filename, ex)
             if logger is not None:
                 logger.error(msg)
@@ -115,9 +115,10 @@ class leapseconds:
         mjd_diff = expiry_mjd - mjd_now_v
 
         if livemoni_client is not None:
-            value = {"condition": "nist leapsecond file reloaded",
-                     "desc": "Found updated leapsecond file",
-                     "vars": {"days_till_expiration": mjd_diff}
+            value = {
+                "condition": "nist leapsecond file reloaded",
+                "desc": "Found updated leapsecond file",
+                "vars": {"days_till_expiration": mjd_diff}
             }
             livemoni_client.sendMoni("alert", value, Prio.ITS)
 
@@ -127,9 +128,7 @@ class leapseconds:
 
         return True
 
-    def expiry_check(self, livemoni_client,
-                     limit = None,
-                     alert_limit = True):
+    def expiry_check(self, livemoni_client, limit=None, alert_limit=True):
         """
         Check to see if the nist config file has expired
         Test assumes that the file is not expired
@@ -162,10 +161,11 @@ class leapseconds:
 
             if livemoni_client is not None:
                 # format up an alert message
-                value = {"condition": "nist leapsecond file approaching expiration",
-                         "desc": "run dash/leapsecond-fetch.py and deploy pdaq",
-                         "vars": {"days_till_expiration": mjd_diff}
-                         }
+                value = {
+                    "condition": "nist leapsecond file approaching expiration",
+                    "desc": "run dash/leapsecond-fetch.py and deploy pdaq",
+                    "vars": {"days_till_expiration": mjd_diff}
+                }
                 livemoni_client.sendMoni("alert",
                                          value,
                                          Prio.ITS)
@@ -343,7 +343,8 @@ class leapseconds:
 
         >>> jul1_2012 = leapseconds.mjd(2012, 7, 1)
         >>> leapseconds.mjd_to_timestruct(jul1_2012)
-        time.struct_time(tm_year=2012, tm_mon=7, tm_mday=1, tm_hour=0, tm_min=0, tm_sec=0, tm_wday=6, tm_yday=183, tm_isdst=0)
+        time.struct_time(tm_year=2012, tm_mon=7, tm_mday=1, tm_hour=0,
+                         tm_min=0, tm_sec=0, tm_wday=6, tm_yday=183, tm_isdst=0)
         """
 
         jd = mjd + 2400000.5
@@ -459,9 +460,9 @@ class leapseconds:
         file expiration information.
         """
 
-        expiry_pat = re.compile('^#@\s+([0-9]+)')
-        comment_pat = re.compile('(^#$)|(^#[^@].*$)')
-        data_pat = re.compile('([0-9]+)\s+([0-9]+)')
+        expiry_pat = re.compile(r'^#@\s+([0-9]+)')
+        comment_pat = re.compile(r'(^#$)|(^#[^@].*$)')
+        data_pat = re.compile(r'([0-9]+)\s+([0-9]+)')
 
         nist_data = []
         mjd_expiry = None

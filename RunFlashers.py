@@ -4,7 +4,6 @@
 # execute a flasher run
 
 import os
-import re
 import sys
 
 from BaseRun import FlasherScript

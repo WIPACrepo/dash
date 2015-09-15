@@ -89,7 +89,7 @@ class PDAQRun(object):
         try:
             runmgr.run(self.__runCfgName, self.__runCfgName, duration,
                        numRuns=self.__numRuns, flashData=self.__flashData,
-                       flasherDelay=120, clusterDesc=clusterDesc,
+                       flasherDelay=flasherDelay, clusterDesc=clusterDesc,
                        ignoreDB=ignoreDB, verbose=verbose)
 
             # reset the timeout counter after each set of successful runs
@@ -106,20 +106,18 @@ class PDAQRun(object):
 
 # configurations to run
 #
-RUN_LIST = (PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
-            PDAQRun("spts64-dirtydozen-hlc-006", 0, 1,
-                    (("flash-21", 60), (None, 10), ("flash-21", 45),
-                     (None, 20), ("flash-21", 120))),
-            PDAQRun("spts64-dirtydozen-old-hitspool-15s-interval-8h-spool",
-                    HALF_HR),
-            PDAQRun("spts64-dirtydozen-hitspool-15s-interval-8h-spool",
-                    HALF_HR),
-            PDAQRun("spts-dirtydozen-intervals3-snmix-014",
-                    HALF_HR),
-            PDAQRun("random-01", HALF_HR),
-            PDAQRun("random-01", EIGHT_HR),
-            PDAQRun("replay-125659-local", QUARTER_HR, numRuns=3),
-            )
+RUN_LIST = (
+    PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
+    PDAQRun("spts64-dirtydozen-hlc-006", 0, 1,
+            (("flash-21", 60), (None, 10), ("flash-21", 45),
+             (None, 20), ("flash-21", 120))),
+    PDAQRun("spts64-dirtydozen-old-hitspool-15s-interval-8h-spool", HALF_HR),
+    PDAQRun("spts64-dirtydozen-hitspool-15s-interval-8h-spool", HALF_HR),
+    PDAQRun("spts-dirtydozen-intervals3-snmix-014", HALF_HR),
+    PDAQRun("random-01", HALF_HR),
+    PDAQRun("random-01", EIGHT_HR),
+    PDAQRun("replay-125659-local", QUARTER_HR, numRuns=3),
+)
 
 
 class Deploy(object):

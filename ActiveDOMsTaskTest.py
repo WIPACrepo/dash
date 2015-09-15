@@ -76,9 +76,9 @@ class ActiveDOMsTaskTest(unittest.TestCase):
                          Prio.EMAIL)
         live.addExpected("LBMOverflows", {'1': numLBM},
                          Prio.ITS)
-        live.addExpected("activeDOMs", numActive,  Prio.ITS)
-        live.addExpected("expectedDOMs", numTotal,  Prio.ITS)
-        live.addExpected("missingDOMs", numTotal - numActive,  Prio.ITS)
+        live.addExpected("activeDOMs", numActive, Prio.ITS)
+        live.addExpected("expectedDOMs", numTotal, Prio.ITS)
+        live.addExpected("missingDOMs", numTotal - numActive, Prio.ITS)
         live.addExpected("total_rate", hit_rate, Prio.ITS)
         live.addExpected("total_ratelc", hit_rate_lc, Prio.ITS)
 
@@ -175,9 +175,9 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
         tsk = ActiveDOMsTask(taskMgr, runset, logger, live)
 
-        live.addExpected("activeDOMs", numActive,  Prio.EMAIL)
-        live.addExpected("expectedDOMs", numTotal,  Prio.EMAIL)
-        live.addExpected("missingDOMs", numTotal - numActive,  Prio.EMAIL)
+        live.addExpected("activeDOMs", numActive, Prio.EMAIL)
+        live.addExpected("expectedDOMs", numTotal, Prio.EMAIL)
+        live.addExpected("missingDOMs", numTotal - numActive, Prio.EMAIL)
         live.addExpected("total_rate", hit_rate, Prio.EMAIL)
         live.addExpected("total_ratelc", hit_rate_lc, Prio.EMAIL)
 
@@ -204,9 +204,9 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         foo.setBeanData("stringhub", "NumberOfActiveAndTotalChannels",
                         Exception("Simulated error"))
 
-        live.addExpected("activeDOMs", numActive,  Prio.ITS)
-        live.addExpected("expectedDOMs", numTotal,  Prio.ITS)
-        live.addExpected("missingDOMs", numTotal - numActive,  Prio.EMAIL)
+        live.addExpected("activeDOMs", numActive, Prio.ITS)
+        live.addExpected("expectedDOMs", numTotal, Prio.ITS)
+        live.addExpected("missingDOMs", numTotal - numActive, Prio.EMAIL)
         live.addExpected("total_rate", hit_rate, Prio.ITS)
         live.addExpected("total_ratelc", hit_rate_lc, Prio.ITS)
 

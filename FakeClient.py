@@ -38,6 +38,9 @@ class Engine(object):
     def connectionTuple(self):
         return (self.name(), self.descriptionChar(), self.port())
 
+    def descriptionChar(self):
+        raise NotImplementedError("Unimplemented")
+
     def name(self):
         return self.__name
 
@@ -155,7 +158,7 @@ class OutputChannel(threading.Thread):
         try:
             self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.__sock.connect((self.__host, self.__port))
-        except socket.error, err:
+        except socket.error as err:
             self.__sock = None
             raise Exception("Cannot connect to %s:%d: %s" %
                             (self.__host, self.__port, err))
@@ -267,7 +270,7 @@ class FakeClient(object):
             elif c[1] == "o" or c[1] == "O":
                 engines.append(OutputEngine(c[0], c[1] == "O"))
             else:
-                raise Exception("Unknown connection \"%s\" type \%s\"" %
+                raise Exception("Unknown connection \"%s\" type \"%s\"" %
                                 (c[0], c[1]))
         return engines
 
@@ -375,7 +378,7 @@ class FakeClient(object):
         stateList = []
         for conn in self.__connections:
             stateList.append({"type": conn.name(), "numChan": conn.channels(),
-                               "state": conn.state()})
+                              "state": conn.state()})
 
         return stateList
 

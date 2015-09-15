@@ -67,7 +67,8 @@ class MyRunSet(RunSet):
 
         super(MyRunSet, self).__init__(parent, runConfig, compList, logger)
 
-    def createComponentLog(self, runDir, c, host, port, liveHost, livePort,
+    @staticmethod
+    def createComponentLog(runDir, c, host, port, liveHost, livePort,
                            quiet=True):
         return FakeLogger()
 
@@ -75,11 +76,11 @@ class MyRunSet(RunSet):
         return self.__dashLog
 
     def createRunData(self, runNum, clusterConfigName, runOptions, versionInfo,
-                      spadeDir, copyDir=None, logDir=None):
+                      spadeDir, copyDir=None, logDir=None, testing=True):
         return super(MyRunSet, self).createRunData(runNum, clusterConfigName,
                                                    runOptions, versionInfo,
                                                    spadeDir, copyDir,
-                                                   logDir, True)
+                                                   logDir, testing=testing)
 
     def createRunDir(self, logDir, runNum, backupExisting=True):
         return None
@@ -89,7 +90,7 @@ class MyRunSet(RunSet):
         return FakeTaskManager()
 
     @classmethod
-    def cycleComponents(self, compList, configDir, daqDataDir, logger, logPort,
+    def cycleComponents(cls, compList, configDir, daqDataDir, logger, logPort,
                         livePort, verbose, killWith9, eventCheck,
                         checkExists=True):
         pass
@@ -374,14 +375,15 @@ class TestRunSet(unittest.TestCase):
                             comp.addBeanData(bean, fld, 10)
 
         if versionInfo is None:
-            versionInfo = {"filename": "fName",
-                           "revision": "1234",
-                           "date": "date",
-                           "time": "time",
-                           "author": "author",
-                           "release": "rel",
-                           "repo_rev": "1repoRev",
-                           }
+            versionInfo = {
+                "filename": "fName",
+                "revision": "1234",
+                "date": "date",
+                "time": "time",
+                "author": "author",
+                "release": "rel",
+                "repo_rev": "1repoRev",
+            }
 
         expState = "running"
 
@@ -761,7 +763,7 @@ class TestRunSet(unittest.TestCase):
 
         logger.addExpectedExact(("RunSet #1 run#%d (forcingStop):" +
                                  " Forcing 6 components to stop: %s") %
-                                 (runNum, compStr))
+                                (runNum, compStr))
         logger.addExpectedExact("STOP_RUN failed for " + compStr)
         logger.addExpectedExact("Failed to transition to ready: stopping[%s]" %
                                 compStr)
@@ -802,12 +804,12 @@ class TestRunSet(unittest.TestCase):
 
             nextNum += 1
 
-        str = listComponentRanges(compList)
+        compstr = listComponentRanges(compList)
 
         expStr = "fooHub#1,3-5,9-10, barHub#2,6-7,11, zabTrigger, bazBuilder"
-        self.assertEqual(str, expStr,
+        self.assertEqual(compstr, expStr,
                          "Expected legible list \"%s\", not \"%s\"" %
-                         (expStr, str))
+                         (expStr, compstr))
 
 
 if __name__ == '__main__':

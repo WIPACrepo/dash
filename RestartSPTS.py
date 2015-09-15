@@ -14,6 +14,7 @@ from locate_pdaq import find_pdaq_config, find_pdaq_trunk
 from DAQLaunch import ConsoleLogger, check_detector_state, \
     check_running_on_expcont, kill, launch
 
+
 # location of SPTS restart configuration file
 CONFIG_FILE = os.path.join(os.environ["HOME"], ".spts_restart_config")
 # location of pause file
@@ -41,14 +42,22 @@ NUM_STOPLESS_VALUE = 3
 
 # map names to livecmd flags
 CONFIG_DATA = {
-    RUN_CONFIG_NAME:
-        { "flag": RUN_CONFIG_FLAG, "value": RUN_CONFIG_VALUE },
-    DURATION_NAME:
-        { "flag": DURATION_FLAG, "value": DURATION_VALUE },
-    NUM_RUNS_NAME:
-        { "flag": NUM_RUNS_FLAG, "value": NUM_RUNS_VALUE },
-    NUM_STOPLESS_NAME:
-        { "flag": NUM_STOPLESS_FLAG, "value": NUM_STOPLESS_VALUE },
+    RUN_CONFIG_NAME: {
+        "flag": RUN_CONFIG_FLAG,
+        "value": RUN_CONFIG_VALUE
+    },
+    DURATION_NAME: {
+        "flag": DURATION_FLAG,
+        "value": DURATION_VALUE
+    },
+    NUM_RUNS_NAME: {
+        "flag": NUM_RUNS_FLAG,
+        "value": NUM_RUNS_VALUE
+    },
+    NUM_STOPLESS_NAME: {
+        "flag": NUM_STOPLESS_FLAG,
+        "value": NUM_STOPLESS_VALUE
+    },
 }
 
 
@@ -91,19 +100,19 @@ def getDurationFromString(s):
     """
     Return duration in seconds based on string <s>
     """
-    m = re.search('^(\d+)$', s)
+    m = re.search(r'^(\d+)$', s)
     if m:
         return int(m.group(1))
-    m = re.search('^(\d+)s(?:ec(?:s)?)?$', s)
+    m = re.search(r'^(\d+)s(?:ec(?:s)?)?$', s)
     if m:
         return int(m.group(1))
-    m = re.search('^(\d+)m(?:in(?:s)?)?$', s)
+    m = re.search(r'^(\d+)m(?:in(?:s)?)?$', s)
     if m:
         return int(m.group(1)) * 60
-    m = re.search('^(\d+)h(?:r(?:s)?)?$', s)
+    m = re.search(r'^(\d+)h(?:r(?:s)?)?$', s)
     if m:
         return int(m.group(1)) * 3600
-    m = re.search('^(\d+)d(?:ay(?:s)?)?$', s)
+    m = re.search(r'^(\d+)d(?:ay(?:s)?)?$', s)
     if m:
         return int(m.group(1)) * 86400
     raise ValueError('String "%s" is not a known duration format.  Try'
@@ -119,7 +128,7 @@ def isPaused():
     # get the time the file was written
     try:
         stat = os.stat(PAUSED_FILE)
-    except OSError, err:
+    except OSError as err:
         # if the file doesn't exist, we're not paused
         return False
 
@@ -133,6 +142,7 @@ def isPaused():
                 tmp = int(line)
                 pause_minutes += tmp
             except:
+                import sys
                 print >> sys.stderr, "Bad 'paused' line: " + line
 
     # get the number of minutes since the file was written
@@ -197,7 +207,7 @@ def launchSPTS(run_config, verbose=False):
     if run_config is None:
         raise SystemExit("No run configuration specified")
 
-    check_running_on_expcont("RestartSPTS")
+    check_running_on_expcont("restarting")
     check_detector_state()
 
     metaDir = find_pdaq_trunk()
@@ -206,8 +216,9 @@ def launchSPTS(run_config, verbose=False):
 
     logger = ConsoleLogger()
 
-    kill(cfgDir, logger)
-    launch(cfgDir, dashDir, logger, configName=str(run_config))
+    kill(cfgDir, logger, verbose=verbose)
+    launch(cfgDir, dashDir, logger, configName=str(run_config),
+           verbose=verbose)
 
 
 def minuteDiff(now, then):

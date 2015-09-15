@@ -21,7 +21,7 @@ from DAQConfigExceptions import ConfigNotSpecifiedException
 from DAQConfigExceptions import DOMNotInConfigException
 
 
-class FindConfigDir:
+class FindConfigDir(object):
     """A utility class to hold the pdaq configuration file
     directory.  This class is here so the file can be easily overridden
     and pointed to test configs in dash/src/..."""
@@ -36,7 +36,7 @@ class FindConfigDir:
         return cls.CONFIG_DIR
 
 
-class HubIdUtils:
+class HubIdUtils(object):
     """The logic contained in here was duplicated in multiple
     places.  Instead of duplication, concentrate it in one place"""
 
@@ -129,7 +129,7 @@ class ConfigObject(object):
 
     def basename(self):
         base = os.path.basename(self.filename)
-        base, ext = os.path.splitext(base)
+        base, _ = os.path.splitext(base)
         return base
 
     @property
@@ -204,7 +204,7 @@ class RunDom(dict):
         self.__id = long(self['mbid'], 16)
         try:
             self.__name = self['name']
-        except AttributeError, ex:
+        except AttributeError:
             self.__name = None
 
         dom_id_to_dom = RunDom.__load_dom_id_map()
@@ -237,7 +237,7 @@ class RunDom(dict):
         try:
             attrib = get_attrib(self.dom_dict, key)
             return attrib
-        except AttributeError, attr_err:
+        except AttributeError as attr_err:
             if key in self.dom_dict['__children__']:
                 val = get_value(self.dom_dict['__children__'][key])
                 return val
@@ -293,12 +293,12 @@ class DomConfig(ConfigObject):
 
         self.string_map = {}
 
-        if type(self.xdict) == dict and \
+        if isinstance(self.xdict, dict) and \
                 self.xdict.has_key('domConfigList') and \
-                type(self.xdict['domConfigList']) == dict and \
-                type(self.xdict['domConfigList']['__children__']) == dict and \
-                type(self.xdict['domConfigList']['__children__']['domConfig']) \
-                == list:
+                isinstance(self.xdict['domConfigList'], dict) and \
+                isinstance(self.xdict['domConfigList']['__children__'],
+                           dict) and \
+                isinstance(self.xdict['domConfigList']['__children__']['domConfig'], list):
             try:
                 dom_configs = \
                     self.xdict['domConfigList']['__children__']['domConfig']
@@ -354,7 +354,7 @@ class RandomConfig(object):
         for skey, sval in xdict.iteritems():
             if skey == '__attribs__' and sval.has_key('id'):
                 hub_id = int(sval['id'])
-            elif skey != '__children__' or type(sval) != dict:
+            elif skey != '__children__' or not isinstance(sval, dict):
                 print "Ignoring randomHub entry %s" % skey
             else:
                 for k3, v3 in sval.iteritems():
@@ -362,11 +362,11 @@ class RandomConfig(object):
                         msg = "Unknown randomHub element %s" % k3
                         raise DAQConfigException(msg)
 
-                    if type(v3) != list or len(v3) != 1 or \
-                       type(v3[0]) != dict or len(v3[0]) != 1 or \
+                    if not isinstance(v3, list) or len(v3) != 1 or \
+                       not isinstance(v3[0], dict) or len(v3[0]) != 1 or \
                        not v3[0].has_key('__attribs__'):
                         print "Ignoring bogus randomConfig element %s" \
-                            " subelement %s" % (key, k3)
+                            " subelement %s" % (skey, k3)
                         continue
 
                     for k4, v4 in v3[0]['__attribs__'].iteritems():
@@ -483,7 +483,7 @@ class DAQConfig(ConfigObject):
     def __getBoolean(self, name, attr_name):
         """Extract a period specification from the configuration"""
         for key, value in self.other_objs:
-            if key == name and type(value) == list:
+            if key == name and isinstance(value, list):
                 for v in value:
                     try:
                         dstr = get_attrib(v, attr_name)
@@ -499,7 +499,7 @@ class DAQConfig(ConfigObject):
     def __getPeriod(self, name):
         """Extract a period specification from the configuration"""
         for key, value in self.other_objs:
-            if key == name and type(value) == list:
+            if key == name and isinstance(value, list):
                 for v in value:
                     try:
                         period = int(get_attrib(v, 'period'))
@@ -548,11 +548,12 @@ class DAQConfig(ConfigObject):
         If 'keepList' is True, omit all hubs which are NOT in the list
         """
 
-        omit_dict = {'runConfig': \
-                         {'__children__': {},
-                          '__attribs__': {}
-                          }
-                     }
+        omit_dict = {
+            'runConfig': {
+                '__children__': {},
+                '__attribs__': {},
+            }
+        }
 
         # these wouldn't be affected by the omit procedure
         # copy the trigger config
@@ -617,10 +618,10 @@ class DAQConfig(ConfigObject):
             if 'hubFiles' not in omit_dict['runConfig']['__children__']:
                 omit_dict['runConfig'][
                     '__children__']['hubFiles'][
-                    '__children__'].append(
-                        {'__children__': replay_base_dir[bdir],
-                         '__attribs__': {'baseDir': bdir}
-                         }
+                        '__children__'].append(
+                            {'__children__': replay_base_dir[bdir],
+                             '__attribs__': {'baseDir': bdir}
+                            }
                         )
 
         return xml_dict.toString(omit_dict)
@@ -642,7 +643,7 @@ class DAQConfig(ConfigObject):
             join_str = "-no"
 
         hub_names = [HubIdUtils.get_hub_name(h) for h in hub_id_list]
-        join_list = [ "%s%s" % (join_str, hub_name) for hub_name in hub_names ]
+        join_list = ["%s%s" % (join_str, hub_name) for hub_name in hub_names]
         xstr = "%s%s" % (xstr, ''.join(join_list))
 
         return os.path.join(config_dir, baseName + xstr + ".xml")
@@ -761,9 +762,9 @@ class DAQConfig(ConfigObject):
             elif key == 'randomConfig':
                 self.noise_rate = None
                 for v in val:
-                    if type(v) != dict or len(v) == 0 or \
+                    if not isinstance(v, dict) or len(v) == 0 or \
                        not v.has_key('__children__') or \
-                       type(v['__children__']) != dict:
+                       not isinstance(v['__children__'], dict):
                         msg = "Bad randomConfig element %s<%s> in %s" % \
                               (v, type(v), filename)
                         raise DAQConfigException(msg)
@@ -773,7 +774,7 @@ class DAQConfig(ConfigObject):
                             if k2 == 'noiseRate':
                                 self.noise_rate = float(v2val)
                             elif k2 == 'string':
-                                if type(v2val) != dict:
+                                if not isinstance(v2val, dict):
                                     msg = "Found bogus randomConfig element" \
                                         " %s %s" % (k2, type(v2val))
                                     raise DAQConfigException(msg)
@@ -939,23 +940,23 @@ def main():
 
     parse = argparse.ArgumentParser()
     parse.add_argument("-c", "--check-config", dest="toCheck",
-                     help="Check whether configuration is valid")
+                       help="Check whether configuration is valid")
     parse.add_argument("-S", "--not-strict", dest="strict",
-                     action="store_false", default=True,
-                     help="Do not perform strict checking")
+                       action="store_false", default=True,
+                       help="Do not perform strict checking")
     parse.add_argument("-m", "--no-host-check", dest="nohostcheck",
-                     default=False,
-                     help="Disable checking the host type for run permission")
+                       default=False,
+                       help="Disable checking the host type for run permission")
     parse.add_argument("-q", "--quiet", dest="quiet",
-                     action="store_true", default=False,
-                     help="Don't print anything if config is OK")
+                       action="store_true", default=False,
+                       help="Don't print anything if config is OK")
     parse.add_argument("-x", "--extended-tests", dest="extended",
-                     action="store_true", default=False,
-                     help="Do extended testing")
+                       action="store_true", default=False,
+                       help="Do extended testing")
     parse.add_argument("-z", "--no-schema-validation", dest="validation",
-                     action="store_false", default=True,
-                     help=("Disable schema validation of xml "
-                           "configuration files"))
+                       action="store_false", default=True,
+                       help=("Disable schema validation of xml "
+                             "configuration files"))
     parse.add_argument("xmlfile", nargs="*")
     args = parse.parse_args()
 

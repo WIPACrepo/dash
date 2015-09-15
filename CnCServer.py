@@ -139,8 +139,7 @@ class DAQPool(object):
                                    daqDataDir):
         cluCfg = self.getClusterConfig()
         if cluCfg is None:
-            logger.error("Cannot restart %s: No cluster config" %
-                         comp.fullName())
+            logger.error("Cannot restart missing components: No cluster config")
         else:
             (deadList, missingList) = cluCfg.extractComponents(waitList)
             if len(missingList) > 0:
@@ -213,6 +212,9 @@ class DAQPool(object):
 
         return runset
 
+    def getClusterConfig(self):
+        raise NotImplementedError("Unimplemented")
+
     def getRelease(self):
         return (None, None)
 
@@ -243,7 +245,7 @@ class DAQPool(object):
         try:
             runConfig = DAQConfigParser.load(runConfigName, runConfigDir,
                                              strict)
-        except DAQConfigException, ex:
+        except DAQConfigException as ex:
             raise CnCServerException("Cannot load %s from %s" %
                                      (runConfigName, runConfigDir), ex)
         logger.info("Loaded run configuration \"%s\"" % runConfigName)
@@ -496,7 +498,7 @@ class Connector(object):
         port - IP port number (for input connections)
         """
         self.__name = name
-        if type(descrChar) == bool:
+        if isinstance(descrChar, bool):
             raise Exception("Convert to new format")
         self.__descrChar = descrChar
         if self.isInput():
@@ -854,7 +856,7 @@ class CnCServer(DAQPool):
         else:
             try:
                 self.__clusterConfig.loadIfChanged()
-            except Exception, ex:
+            except Exception as ex:
                 self.__log.error("Cannot reload cluster config \"%s\": %s" %
                                  self.__clusterConfig.descName(), ex)
 
@@ -967,7 +969,7 @@ class CnCServer(DAQPool):
 
             cDict = c.map()
 
-            if type(result) != list:
+            if not isinstance(result, list):
                 cDict["error"] = str(result)
             else:
                 cDict["conn"] = result
@@ -1025,16 +1027,16 @@ class CnCServer(DAQPool):
                                connArray):
         "register a component with the server"
 
-        if type(name) != str or len(name) == 0:
+        if not isinstance(name, str) or len(name) == 0:
             raise CnCServerException("Bad component name (should be a string)")
-        if type(num) != int:
+        if not isinstance(num, int):
             raise CnCServerException("Bad component number" +
                                      " (should be an integer)")
 
         connectors = []
         for n in range(len(connArray)):
             d = connArray[n]
-            if type(d) != tuple and type(d) != list:
+            if not isinstance(d, tuple) and not isinstance(d, list):
                 errMsg = "Bad %s#%d connector#%d \"%s\"%s" % \
                     (name, num, n, str(d), str(type(d)))
                 self.__log.info(errMsg)
@@ -1044,20 +1046,20 @@ class CnCServer(DAQPool):
                           " elements)") % (name, num, n, str(d))
                 self.__log.info(errMsg)
                 raise CnCServerException(errMsg)
-            if type(d[0]) != str or len(d[0]) == 0:
+            if not isinstance(d[0], str) or len(d[0]) == 0:
                 errMsg = ("Bad %s#%d connector#%d %s (first element should" +
                           " be name)") % (name, num, n, str(d))
                 self.__log.info(errMsg)
                 raise CnCServerException(errMsg)
-            if type(d[1]) != str or len(d[1]) != 1:
+            if not isinstance(d[1], str) or len(d[1]) != 1:
                 errMsg = ("Bad %s#%d connector#%d %s (second element should" +
                           " be descrChar)") % (name, num, n, str(d))
                 self.__log.info(errMsg)
                 raise CnCServerException(errMsg)
 
-            if type(d[2]) == int:
+            if isinstance(d[2], int):
                 connPort = d[2]
-            elif type(d[2]) == str:
+            elif isinstance(d[2], str):
                 connPort = int(d[2])
             else:
                 errMsg = ("Bad %s#%d connector#%d %s (third element should" +
@@ -1145,16 +1147,17 @@ class CnCServer(DAQPool):
         else:
             termCond = "??%s??" % rsum.getTermCond()
 
-        return {"num": rsum.getRun(),
-                "config": rsum.getConfig(),
-                "result": termCond,
-                "startTime": str(rsum.getStartTime()),
-                "endTime": str(rsum.getEndTime()),
-                "numEvents": rsum.getEvents(),
-                "numMoni": rsum.getMoni(),
-                "numTcal": rsum.getTcal(),
-                "numSN": rsum.getSN(),
-                }
+        return {
+            "num": rsum.getRun(),
+            "config": rsum.getConfig(),
+            "result": termCond,
+            "startTime": str(rsum.getStartTime()),
+            "endTime": str(rsum.getEndTime()),
+            "numEvents": rsum.getEvents(),
+            "numMoni": rsum.getMoni(),
+            "numTcal": rsum.getTcal(),
+            "numSN": rsum.getSN(),
+        }
 
     def rpc_runset_active(self):
         "return number of active (running) run sets"
@@ -1232,7 +1235,7 @@ class CnCServer(DAQPool):
         if self.__runConfigDir is None:
             raise CnCServerException("Run configuration directory" +
                                      " has not been set")
-        if type(runConfig) == list:
+        if isinstance(runConfig, list):
             raise CnCServerException("Must now specify a run config name," +
                                      " not a list of components")
 
@@ -1504,7 +1507,7 @@ if __name__ == "__main__":
         args.spadeDir = os.path.abspath(args.spadeDir)
         if not os.path.exists(args.spadeDir):
             sys.exit(("Spade directory '%s' doesn't exist!" +
-                       "  Use the -s option, or -h for help.") % args.spadeDir)
+                      "  Use the -s option, or -h for help.") % args.spadeDir)
 
     if args.copyDir is not None:
         args.copyDir = os.path.abspath(args.copyDir)

@@ -138,7 +138,7 @@ class ConfigDirChecker(object):
 
     def __send_email(self, dryrun=False):
         intro = ("Subject: Modified run configuration(s) on SPS\n\n" +
-                "Hello daq-dev,\n")
+                 "Hello daq-dev,\n")
 
         if len(self.__modified) == 0:
             modstr = ""
@@ -214,12 +214,12 @@ class ConfigDirChecker(object):
 
         raise SystemExit("'%s' does not exist%s" % (cmd, helptext))
 
-    def __getDirectorySVNStatus(self, dir):
+    def __getDirectorySVNStatus(self, dirname):
         """
         Get the SVN status for all files in the current directory
         """
         proc = subprocess.Popen((self.SVN_BIN, "status"),
-                                stdout=subprocess.PIPE, cwd=dir)
+                                stdout=subprocess.PIPE, cwd=dirname)
 
         pat = re.compile(r"^(.)\s+(.*)$")
 

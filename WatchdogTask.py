@@ -22,7 +22,7 @@ class UnhealthyRecord(object):
         return "#%d: %s" % (self.__order, self.__msg)
 
     def __cmp__(self, other):
-        if type(other) != UnhealthyRecord:
+        if not isinstance(other, UnhealthyRecord):
             return -1
 
         val = cmp(self.__order, other.__order)
@@ -71,12 +71,12 @@ class ThresholdWatcher(Watcher):
         self.__lessThan = lessThan
 
         if self.__lessThan:
-            dir = "below"
+            updown = "below"
         else:
-            dir = "above"
+            updown = "above"
 
         fullName = "%s %s.%s %s %s" % \
-            (comp.fullName(), beanName, fieldName, dir, str(self.__threshold))
+            (comp.fullName(), beanName, fieldName, updown, self.__threshold)
         super(ThresholdWatcher, self).__init__(fullName, beanName, fieldName)
 
     def __compare(self, threshold, value):
@@ -93,7 +93,7 @@ class ThresholdWatcher(Watcher):
             raise TaskException(("Threshold value for %s is %s, new value" +
                                  " is %s") %
                                 (str(self), str(type(self.__threshold)),
-                             str(type(newValue))))
+                                 str(type(newValue))))
         elif newType == list or newType == dict:
             raise TaskException("ThresholdWatcher does not support %s" %
                                 newType)
@@ -143,7 +143,7 @@ class ValueWatcher(Watcher):
 
     def check(self, newValue):
         if self.__prevValue is None:
-            if type(newValue) == list:
+            if isinstance(newValue, list):
                 self.__prevValue = newValue[:]
             else:
                 self.__prevValue = newValue
@@ -425,7 +425,7 @@ class WatchdogThread(CnCThread):
             self.__data.close()
             self.__data = None
 
-    def getNewThread(self):
+    def get_new_thread(self):
         thrd = WatchdogThread(self.__runset, self.__comp, self.__rule,
                               self.__dashlog, self.__data, self.__initFail)
         return thrd
@@ -496,7 +496,7 @@ class WatchdogRule(object):
 
         for comp in runset.components():
             order = comp.order()
-            if type(order) != int:
+            if not isinstance(order, int):
                 raise TaskException("Expected integer order for %s, not %s" %
                                     (comp.fullName(), type(comp.order())))
 
@@ -600,9 +600,9 @@ class SecondaryBuildersRule(WatchdogRule):
     def initData(self, data, thisComp, components):
         data.addThresholdValue("snBuilder", "DiskAvailable", 1024)
         data.addOutputValue(self.DISPATCH_COMP, "moniBuilder",
-                          "TotalDispatchedData")
+                            "TotalDispatchedData")
         data.addOutputValue(self.DISPATCH_COMP, "snBuilder",
-                          "TotalDispatchedData")
+                            "TotalDispatchedData")
         # XXX - Disabled until there"s a simulated tcal stream
         #data.addOutputValue(self.DISPATCH_COMP, "tcalBuilder",
         #                  "TotalDispatchedData")
@@ -635,13 +635,14 @@ class WatchdogTask(CnCTask):
         WatchdogRule.initialize(runset)
 
         if rules is None:
-            rules = (StringHubRule(),
-                     LocalTriggerRule(),
-                     TrackEngineRule(),
-                     GlobalTriggerRule(),
-                     EventBuilderRule(),
-                     SecondaryBuildersRule(),
-                     )
+            rules = (
+                StringHubRule(),
+                LocalTriggerRule(),
+                TrackEngineRule(),
+                GlobalTriggerRule(),
+                EventBuilderRule(),
+                SecondaryBuildersRule(),
+            )
 
         self.__threadList = self.__createThreads(runset, rules, dashlog)
 
@@ -675,7 +676,7 @@ class WatchdogTask(CnCTask):
                 errStr = ""
             else:
                 errStr += "\n"
-            if type(bad) == UnhealthyRecord:
+            if isinstance(bad, UnhealthyRecord):
                 msg = bad.message()
             else:
                 msg = "%s (%s is not UnhealthyRecord)" % (str(bad), type(bad))
@@ -698,7 +699,7 @@ class WatchdogTask(CnCTask):
                 stagnant += self.__threadList[c].stagnant()
                 threshold += self.__threadList[c].threshold()
 
-            self.__threadList[c] = self.__threadList[c].getNewThread()
+            self.__threadList[c] = self.__threadList[c].get_new_thread()
             self.__threadList[c].start()
 
         healthy = True
@@ -731,7 +732,7 @@ class WatchdogTask(CnCTask):
                 self.setError("WatchdogTask")
 
     @classmethod
-    def createThread(self, runset, comp, rule, dashlog):
+    def createThread(cls, runset, comp, rule, dashlog):
         return WatchdogThread(runset, comp, rule, dashlog)
 
     def close(self):

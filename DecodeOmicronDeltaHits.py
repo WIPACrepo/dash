@@ -20,7 +20,7 @@ def decode_hits(f):
         if hit.atwd_avail:
             hit.decode_waveforms()
         print "id=0x%s trig=0x%x chip=%d gt=%s" % (hit.mbid, hit.trigger,
-                                                 hit.atwd_chip, str(hit.utc))
+                                                   hit.atwd_chip, str(hit.utc))
         for chan in range(2, -1, -1):
             bins = hit.atwd[chan]
             if bins:

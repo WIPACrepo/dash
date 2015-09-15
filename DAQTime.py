@@ -191,7 +191,7 @@ class PayloadTime(object):
                 ticks = 0
             else:
                 ticks = int(m.group(3))
-                for i in xrange(10 - len(m.group(3))):
+                for _ in xrange(10 - len(m.group(3))):
                     ticks *= 10
 
         return DAQDateTime(pt.tm_year, pt.tm_mon,
@@ -203,7 +203,7 @@ class PayloadTime(object):
     @staticmethod
     def toDateTime(payTime, year=None,
                    high_precision=DAQDateTime.HIGH_PRECISION):
-        if payTime is None or type(payTime) == str:
+        if payTime is None or isinstance(payTime, str):
             return None
 
         if year is None:
@@ -295,7 +295,7 @@ if __name__ == "__main__":
                 val = long(arg)
                 dt = PayloadTime.toDateTime(val, year=args.year,
                                             high_precision=True)
-            except IOError, ioe:
+            except IOError as ioe:
                 print "Cannot convert %s" % str(val)
                 import traceback
                 traceback.print_exc()
