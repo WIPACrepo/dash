@@ -182,6 +182,26 @@ def __writeSpadeTarFile(spadeDir, spadeBaseName, runDir, runNum, logger=None,
     return tarBall
 
 
+def add_arguments(p):
+    p.add_argument("-a", "--check-all", dest="check_all",
+                   action="store_true", default=False,
+                   help="Queue all unqueued daqrun directories")
+    p.add_argument("-C", "--no-combine", dest="no_combine",
+                   action="store_true", default=False,
+                   help="Do not created a combined log file")
+    p.add_argument("-f", "--force", dest="force",
+                   action="store_true", default=False,
+                   help="Requeue the logs for runs which have already been" +
+                   "queued")
+    p.add_argument("-n", "--dry-run", dest="dryRun",
+                   action="store_true", default=False,
+                   help="Don't create any files, just print what would happen")
+    p.add_argument("-v", "--verbose", dest="verbose",
+                   action="store_true", default=False,
+                   help="Print running commentary of program's progress")
+    p.add_argument("runNumber", nargs="*")
+
+
 def check_all(logger, spadeDir, copyDir, logDir, no_combine=False, force=False,
               verbose=False, dryRun=False):
     if logDir is None or not os.path.exists(logDir):
@@ -278,30 +298,8 @@ def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
         logger.error("FAILED to queue data for SPADE: " + exc_string())
 
 
-if __name__ == "__main__":
+def queue_logs(args):
     import logging
-    import argparse
-
-    p = argparse.ArgumentParser()
-    p.add_argument("-a", "--check-all", dest="check_all",
-                   action="store_true", default=False,
-                   help="Queue all unqueued daqrun directories")
-    p.add_argument("-C", "--no-combine", dest="no_combine",
-                   action="store_true", default=False,
-                   help="Do not created a combined log file")
-    p.add_argument("-f", "--force", dest="force",
-                   action="store_true", default=False,
-                   help="Requeue the logs for runs which have already been" +
-                   "queued")
-    p.add_argument("-n", "--dry-run", dest="dryRun",
-                   action="store_true", default=False,
-                   help="Don't create any files, just print what would happen")
-    p.add_argument("-v", "--verbose", dest="verbose",
-                   action="store_true", default=False,
-                   help="Print running commentary of program's progress")
-    p.add_argument("runNumber", nargs="*")
-
-    args = p.parse_args()
 
     logging.basicConfig()
 
@@ -323,3 +321,13 @@ if __name__ == "__main__":
         queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
                       no_combine=args.no_combine, force=args.force,
                       verbose=args.verbose, dryRun=args.dryRun)
+
+
+if __name__ == "__main__":
+    import argparse
+
+    p = argparse.ArgumentParser()
+    add_arguments(p)
+    args = p.parse_args()
+
+    queue_logs(args)

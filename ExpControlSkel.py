@@ -13,7 +13,7 @@ from cncrun import CnCRun
 from datetime import datetime
 from utils.Machineid import Machineid
 
-SVN_ID = "$Id: ExpControlSkel.py 15762 2015-09-15 17:01:14Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 15765 2015-09-15 22:45:15Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -151,7 +151,7 @@ def add_arguments(parser, config_as_arg=False):
                         help=("Show the output of the deploy and/or"
                               " run commands"))
     parser.add_argument("-m", "--no-host-check", dest="nohostcheck",
-                        default=False,
+                        action="store_true", default=False,
                         help=("Disable checking the host type for"
                               " run permission"))
 
@@ -188,15 +188,6 @@ def updateStatus(oldStatus, newStatus):
 
 
 def daqrun(args):
-    if not args.nohostcheck:
-        hostid = Machineid()
-        if not (hostid.is_control_host() or
-                (hostid.is_unknown_host() and hostid.is_unknown_cluster())):
-            # to run daq launch you should either be a control host or
-            # a totally unknown host
-            raise SystemExit("Are you sure you are running ExpControlSkel "
-                             "on the correct host?")
-
     if args.runConfig is None:
         raise SystemExit("You must specify a run configuration ( -c option )")
 
@@ -239,5 +230,13 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
     add_arguments(p)
     args = p.parse_args()
+
+    if not args.nohostcheck:
+        hostid = Machineid()
+        if not (hostid.is_control_host() or
+                (hostid.is_unknown_host() and hostid.is_unknown_cluster())):
+            # you should either be a control host or a totally unknown host
+            raise SystemExit("Are you sure you are running ExpControlSkel "
+                             "on the correct host?")
 
     daqrun(args)

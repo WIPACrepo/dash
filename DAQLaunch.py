@@ -94,15 +94,6 @@ def add_arguments_old(parser):
                         help="List available configs")
 
 
-def check_running_on_expcont(action):
-    "exit the program if it's not running on 'expcont' on SPS/SPTS"
-    hostid = Machineid()
-    if (not (hostid.is_control_host() or
-             (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
-        raise SystemExit("Are you sure you are %s from the correct host?" %
-                         action)
-
-
 def check_detector_state():
     (runsets, active) = ComponentManager.countActiveRunsets()
     if active > 0:
@@ -268,7 +259,12 @@ if __name__ == "__main__":
         print >>sys.stderr, "Ignoring " + ", ".join(ignored)
 
     if not args.nohostcheck:
-        check_running_on_expcont("DAQLaunch")
+        # exit if not running on expcont
+        hostid = Machineid()
+        if (not (hostid.is_control_host() or
+                 (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+            raise SystemExit("Are you sure you are launching"
+                             " from the correct host?" )
 
     if not args.force:
         check_detector_state()

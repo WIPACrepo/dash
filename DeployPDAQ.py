@@ -85,22 +85,13 @@ def add_arguments(parser, config_as_arg=True):
                         help="Express rsyncs, unsets and overrides any/all" +
                         " nice adjustments")
     parser.add_argument("-m", "--no-host-check", dest="nohostcheck",
-                        default=False,
+                        action="store_true", default=False,
                         help=("Disable checking the host type"
                               " for run permission"))
     parser.add_argument("-z", "--no-schema-validation", dest="validation",
                         action="store_false", default=True,
                         help=("Disable schema validation of xml"
                               " configuration files"))
-
-
-def check_running_on_access(action):
-    "exit the program if it's not running on 'access' on SPS/SPTS"
-    hostid = Machineid()
-    if not (hostid.is_build_host() or
-            (hostid.is_unknown_host() and hostid.is_unknown_cluster())):
-        raise SystemExit("Are you sure you are %s from the correct host?" %
-                         action)
 
 
 def deploy(config, homeDir, pdaqDir, subdirs, delete, dryRun,
@@ -245,8 +236,6 @@ def replaceHome(homeDir, curDir):
 
 def run_deploy(args):
     ## Work through options implications ##
-    if not args.nohostcheck:
-        check_running_on_access("deploying")
 
     # A deep-dry-run implies verbose and serial
     if args.deepDryRun:
@@ -340,6 +329,14 @@ if __name__ == "__main__":
 
     add_arguments(p)
 
-    ns = p.parse_args()
+    args = p.parse_args()
 
-    run_deploy(ns)
+    if not args.nohostcheck:
+        # exit the program if it's not running on 'access' on SPS/SPTS
+        hostid = Machineid()
+        if not (hostid.is_build_host() or
+                (hostid.is_unknown_host() and hostid.is_unknown_cluster())):
+            raise SystemExit("Are you sure you are deploying"
+                             " from the correct host?")
+
+    run_deploy(args)

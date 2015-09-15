@@ -1,15 +1,19 @@
 #!/usr/bin/env python
 
 import os
-import sys
 
 from locate_pdaq import find_pdaq_config, find_pdaq_trunk
+from utils.Machineid import Machineid
 
 # find top pDAQ directory
 PDAQ_HOME = find_pdaq_trunk()
 
 
 class FakeArgParser(object):
+    """
+    This is passed to commands' add_arguments() lists to build the list of
+    valid arguments for bash
+    """
     def __init__(self):
         self.__args = []
 
@@ -33,6 +37,8 @@ class BaseCmd(object):
     CMDTYPE_DONLY = "Donly"
     # Command completion for file argument
     CMDTYPE_FONLY = "Fonly"
+    # Command completion for log directory argument
+    CMDTYPE_LD = "LD"
     # Command completion for workspace argument
     CMDTYPE_WS = "WS"
     # Command doesn't require any completion
@@ -43,12 +49,21 @@ class BaseCmd(object):
     "Basic structure of a 'pdaq' command"
     @classmethod
     def add_arguments(cls, parser):
-        "Argument handling for this subcommand"
+        """
+        Argument handling for this subcommand
+        NOTE: if the command is locked to a specific host type but the user may
+        want to run it elsewhere, add an option to set 'nohostcheck' to True
+        """
         pass
 
     @classmethod
     def cmdtype(cls):
         return cls.CMDTYPE_UNKNOWN
+
+    @classmethod
+    def is_valid_host(cls, args):
+        "Is this command allowed to run on this machine?"
+        raise NotImplementedError()
 
     @classmethod
     def name(cls):
@@ -72,6 +87,11 @@ class CmdDeploy(BaseCmd):
         return cls.CMDTYPE_CARG
 
     @classmethod
+    def is_valid_host(cls, args):
+        "Deployment is done from the build host"
+        return Machineid.is_host(Machineid.BUILD_HOST)
+
+    @classmethod
     def name(cls):
         return "deploy"
 
@@ -90,6 +110,11 @@ class CmdDumpData(BaseCmd):
     @classmethod
     def cmdtype(cls):
         return cls.CMDTYPE_FONLY
+
+    @classmethod
+    def is_valid_host(cls, args):
+        "Any host can dump data"
+        return True
 
     @classmethod
     def name(cls):
@@ -112,6 +137,11 @@ class CmdDumpHSDB(BaseCmd):
         return cls.CMDTYPE_FONLY
 
     @classmethod
+    def is_valid_host(cls, args):
+        "Any host can dump a hitspool DB"
+        return True
+
+    @classmethod
     def name(cls):
         return "dumphsdb"
 
@@ -130,6 +160,11 @@ class CmdFlash(BaseCmd):
     @classmethod
     def cmdtype(cls):
         return cls.CMDTYPE_CC
+
+    @classmethod
+    def is_valid_host(cls, args):
+        "Flashers are run on the control host"
+        return Machineid.is_host(Machineid.CONTROL_HOST)
 
     @classmethod
     def name(cls):
@@ -153,16 +188,17 @@ class CmdKill(BaseCmd):
         return cls.CMDTYPE_NONE
 
     @classmethod
+    def is_valid_host(cls, args):
+        "Only a control host can kill components"
+        return Machineid.is_host(Machineid.CONTROL_HOST)
+
+    @classmethod
     def name(cls):
         return "kill"
 
     @classmethod
     def run(cls, args):
-        from DAQLaunch import ConsoleLogger, check_detector_state, \
-            check_running_on_expcont, kill
-
-        if not args.nohostcheck:
-            check_running_on_expcont("launching")
+        from DAQLaunch import ConsoleLogger, check_detector_state, kill
 
         if not args.force:
             check_detector_state()
@@ -187,17 +223,18 @@ class CmdLaunch(BaseCmd):
         return cls.CMDTYPE_CARG
 
     @classmethod
+    def is_valid_host(cls, args):
+        "Only a control host can launch components"
+        return Machineid.is_host(Machineid.CONTROL_HOST)
+
+    @classmethod
     def name(cls):
         return "launch"
 
 
     @classmethod
     def run(cls, args):
-        from DAQLaunch import ConsoleLogger, check_detector_state, \
-            check_running_on_expcont, kill, launch
-
-        if not args.nohostcheck:
-            check_running_on_expcont("launching")
+        from DAQLaunch import ConsoleLogger, check_detector_state, kill, launch
 
         if not args.force:
             check_detector_state()
@@ -212,6 +249,31 @@ class CmdLaunch(BaseCmd):
 
         launch(cfgDir, dashDir, logger, args=args)
 
+class CmdQueueLogs(BaseCmd):
+    @classmethod
+    def add_arguments(cls, parser):
+        from SpadeQueue import add_arguments
+        add_arguments(parser)
+
+    @classmethod
+    def cmdtype(cls):
+        return cls.CMDTYPE_LD
+
+    @classmethod
+    def is_valid_host(cls, args):
+        "Any host can have log files"
+        return True
+
+    @classmethod
+    def name(cls):
+        return "queuelogs"
+
+    @classmethod
+    def run(cls, args):
+        from SpadeQueue import queue_logs
+        queue_logs(args)
+
+
 class CmdRun(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -221,6 +283,11 @@ class CmdRun(BaseCmd):
     @classmethod
     def cmdtype(cls):
         return cls.CMDTYPE_CARG
+
+    @classmethod
+    def is_valid_host(cls, args):
+        "Only a control host can start runs"
+        return Machineid.is_host(Machineid.CONTROL_HOST)
 
     @classmethod
     def name(cls):
@@ -240,7 +307,12 @@ class CmdSortLogs(BaseCmd):
 
     @classmethod
     def cmdtype(cls):
-        return cls.CMDTYPE_FONLY
+        return cls.CMDTYPE_LD
+
+    @classmethod
+    def is_valid_host(cls, args):
+        "Any host can have log files"
+        return True
 
     @classmethod
     def name(cls):
@@ -263,13 +335,18 @@ class CmdStatus(BaseCmd):
         return cls.CMDTYPE_NONE
 
     @classmethod
+    def is_valid_host(cls, args):
+        "Only a control host can check component status"
+        return Machineid.is_host(Machineid.CONTROL_HOST)
+
+    @classmethod
     def name(cls):
         return "status"
 
     @classmethod
     def run(cls, args):
-        from DAQStatus import status
-        status("pdaq " + cls.name(), args)
+        from DAQStatus import print_status
+        print_status(args)
 
 
 class CmdStopRun(BaseCmd):
@@ -281,6 +358,11 @@ class CmdStopRun(BaseCmd):
     @classmethod
     def cmdtype(cls):
         return cls.CMDTYPE_NONE
+
+    @classmethod
+    def is_valid_host(cls, args):
+        "Only a control host can emergency-stop runs"
+        return Machineid.is_host(Machineid.CONTROL_HOST)
 
     @classmethod
     def name(cls):
@@ -301,6 +383,13 @@ class CmdStdTest(BaseCmd):
     @classmethod
     def cmdtype(cls):
         return cls.CMDTYPE_CONLY
+
+    @classmethod
+    def is_valid_host(cls, args):
+        """
+        Run `pdaq deploy` on build host, run StandardTests on control host
+        """
+        return Machineid.is_host(Machineid.BUILD_HOST|Machineid.CONTROL_HOST)
 
     @classmethod
     def name(cls):
@@ -329,6 +418,11 @@ class CmdWorkspace(BaseCmd):
         return cls.CMDTYPE_WS
 
     @classmethod
+    def is_valid_host(cls, args):
+        "Workspaces only exist on build host"
+        return Machineid.is_host(Machineid.BUILD_HOST)
+
+    @classmethod
     def name(cls):
         return "workspace"
 
@@ -346,6 +440,7 @@ COMMANDS = [
     CmdFlash,
     CmdKill,
     CmdLaunch,
+    CmdQueueLogs,
     CmdRun,
     CmdSortLogs,
     CmdStatus,

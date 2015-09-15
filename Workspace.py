@@ -7,14 +7,18 @@ import os
 import stat
 
 from DeployPDAQ import SUBDIRS
+from utils.Machineid import Machineid
+
 
 CURRENT = "pDAQ_current"
 
 
 def add_arguments(parser):
-    parser.add_argument("directory",
-                        nargs="?",
-                        help="New workspace")
+    parser.add_argument("-m", "--no-host-check", dest="nohostcheck",
+                        action="store_true", default=False,
+                        help=("Disable checking the host type"
+                              " for run permission"))
+    parser.add_argument("directory", nargs="?", help="New workspace")
 
 
 def workspace(args):
@@ -95,5 +99,13 @@ if __name__ == "__main__":
     add_arguments(p)
 
     args = p.parse_args()
+
+    if not args.nohostcheck:
+        hostid = Machineid()
+        if not (hostid.is_build_host() or
+                (hostid.is_unknown_host() and hostid.is_unknown_cluster())):
+            # you should either be a build host or a totally unknown host
+            raise SystemExit("Are you sure you are changing the workspace"
+                             " on the correct host?")
 
     workspace(args)

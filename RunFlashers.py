@@ -8,6 +8,7 @@ import sys
 
 from BaseRun import FlasherScript
 from liverun import LiveRun
+from utils.Machineid import Machineid
 
 
 def add_arguments(parser):
@@ -23,6 +24,10 @@ def add_arguments(parser):
     parser.add_argument("-f", "--filter-mode", dest="filterMode",
                         default="RandomFiltering",
                         help="Filter mode sent to 'livecmd start daq'")
+    parser.add_argument("-m", "--no-host-check", dest="nohostcheck",
+                        action="store_true", default=False,
+                        help=("Disable checking the host type"
+                              " for run permission"))
     parser.add_argument("-n", "--dry-run", dest="dryRun",
                         action="store_true", default=False,
                         help=("Don't run commands, just print as they"
@@ -112,5 +117,13 @@ if __name__ == "__main__":
     add_arguments(op)
 
     args = op.parse_args()
+
+    if not args.nohostcheck:
+        hostid = Machineid()
+        if not (hostid.is_control_host() or
+                (hostid.is_unknown_host() and hostid.is_unknown_cluster())):
+            # you should either be a control host or a totally unknown host
+            raise SystemExit("Are you sure you are running flashers"
+                             " on the correct host?")
 
     flash(args)

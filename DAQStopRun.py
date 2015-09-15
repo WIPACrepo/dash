@@ -4,12 +4,16 @@ import sys
 
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
+from utils.Machineid import Machineid
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
 
 def add_arguments(parser):
+    parser.add_argument("-m", "--no-host-check", dest="nohostcheck",
+                        action="store_true", default=False,
+                        help="Don't check the host type for run permission")
     parser.add_argument("-v", "--verbose", dest="verbose",
                         action="store_true", default=False,
                         help="Verbose mode")
@@ -89,5 +93,13 @@ if __name__ == "__main__":
     add_arguments(p)
 
     args = p.parse_args()
+
+    if not args.nohostcheck:
+        # exit if not running on expcont
+        hostid = Machineid()
+        if (not (hostid.is_control_host() or
+                 (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+            raise SystemExit("Are you sure you are emergency-stopping the run"
+                             " on the correct host?" )
 
     stoprun(args)

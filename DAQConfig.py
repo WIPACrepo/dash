@@ -945,7 +945,7 @@ def main():
                        action="store_false", default=True,
                        help="Do not perform strict checking")
     parse.add_argument("-m", "--no-host-check", dest="nohostcheck",
-                       default=False,
+                       action="store_true", default=False,
                        help="Disable checking the host type for run permission")
     parse.add_argument("-q", "--quiet", dest="quiet",
                        action="store_true", default=False,
@@ -966,8 +966,8 @@ def main():
                  (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
             # to run daq launch you should either be a control host or
             # a totally unknown host
-            print >> sys.stderr, ("Are you sure you are running DAQConfig "
-                                  "on the correct host?")
+            print >> sys.stderr, ("Are you sure you are running DAQConfig"
+                                  " on the correct host?")
             raise SystemExit
 
     config_dir = find_pdaq_config()

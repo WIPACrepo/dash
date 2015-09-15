@@ -11,8 +11,7 @@ import subprocess
 import time
 
 from locate_pdaq import find_pdaq_config, find_pdaq_trunk
-from DAQLaunch import ConsoleLogger, check_detector_state, \
-    check_running_on_expcont, kill, launch
+from DAQLaunch import ConsoleLogger, check_detector_state, kill, launch
 
 
 # location of SPTS restart configuration file
@@ -207,7 +206,6 @@ def launchSPTS(run_config, verbose=False):
     if run_config is None:
         raise SystemExit("No run configuration specified")
 
-    check_running_on_expcont("restarting")
     check_detector_state()
 
     metaDir = find_pdaq_trunk()
@@ -337,11 +335,6 @@ if __name__ == "__main__":
 
     from utils.Machineid import Machineid
 
-    hostid = Machineid()
-    if hostid.is_sps_cluster():
-        raise SystemExit("This script should not be run on SPS")
-    if hostid.is_build_host():
-        raise SystemExit("This script should not be run on access")
 
     p = argparse.ArgumentParser()
 
@@ -350,11 +343,24 @@ if __name__ == "__main__":
     p.add_argument("-f", "--force", dest="force",
                    action="store_true", default=False,
                    help="kill components even if there is an active run")
+    p.add_argument("-m", "--no-host-check", dest="nohostcheck",
+                   action="store_true", default=False,
+                   help=("Disable checking the host type for run permission"))
     p.add_argument("-v", "--verbose", dest="verbose",
                    action="store_true", default=False,
                    help="Log output for all components to terminal")
 
     args = p.parse_args()
+
+    if not args.nohostcheck:
+        hostid = Machineid()
+        if hostid.is_sps_cluster():
+            raise SystemExit("This script should not be run on SPS")
+        if not (hostid.is_control_host() or
+                (hostid.is_unknown_host() and hostid.is_unknown_cluster())):
+            # you should either be a control host or a totally unknown host
+            raise SystemExit("Are you sure you are restarting test runs"
+                             " on the correct host?")
 
     idle_minutes = 2 * 60    # two hours
     if isPaused():

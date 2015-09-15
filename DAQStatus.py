@@ -13,7 +13,7 @@ LINE_LENGTH = 78
 
 def add_arguments(parser):
     parser.add_argument("-m", "--no-host-check", dest="nohostcheck",
-                        default=False,
+                        action="store_true", default=False,
                         help="Don't check the host type for run permission")
     parser.add_argument("-n", "--numeric", dest="numeric",
                         action="store_true", default=False,
@@ -21,15 +21,6 @@ def add_arguments(parser):
     parser.add_argument("-v", "--verbose", dest="verbose",
                         action="store_true", default=False,
                         help="Print detailed list")
-
-
-def check_running_on_expcont(prog):
-    "exit the program if it's not running on 'expcont' on SPS/SPTS"
-    hostid = Machineid()
-    if (not (hostid.is_control_host() or
-             (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
-        raise SystemExit("Are you sure you are checking status"
-                         " from the correct host?")
 
 
 def cmpComp(x, y):
@@ -222,13 +213,6 @@ def print_status(args):
     print "Status: %s" % lst
 
 
-def status(prog, args):
-    if not args.nohostcheck:
-        check_running_on_expcont(prog)
-
-    print_status(args)
-
-
 if __name__ == "__main__":
     import argparse
 
@@ -237,4 +221,12 @@ if __name__ == "__main__":
     add_arguments(p)
     ns = p.parse_args()
 
-    status("DAQStatus", ns)
+    if not args.nohostcheck:
+        # exit if not running on expcont
+        hostid = Machineid()
+        if (not (hostid.is_control_host() or
+                 (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+            raise SystemExit("Are you sure you are checking status"
+                             " on the correct host?" )
+
+    print_status(ns)

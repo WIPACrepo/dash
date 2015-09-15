@@ -29,4 +29,11 @@ if __name__ == "__main__":
 
     ns = p.parse_args()
 
+    # True if the user didn't tell us to ignore the host type
+    host_check = not hasattr(ns, 'nohostcheck') or not ns.nohostcheck
+
+    if host_check and not cmdmap[ns.cmd].is_valid_host(ns):
+        raise SystemExit("Are you sure you are running this"
+                         " on the correct host?")
+
     cmdmap[ns.cmd].run(ns)
