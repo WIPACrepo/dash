@@ -14,7 +14,6 @@ import re
 import time
 import sys
 import os.path
-import tempfile
 import datetime
 
 from locate_pdaq import find_pdaq_config
@@ -57,6 +56,7 @@ class leapseconds(object):
 
         The first part of the unit tests below gets a temp file name in ~.
 
+        >>> import tempfile
         >>> home = os.path.expanduser("~")
         >>> tmp_fd = tempfile.NamedTemporaryFile(dir=home, delete=False)
         >>> tmp_name = tmp_fd.name
@@ -133,6 +133,7 @@ class leapseconds(object):
         Check to see if the nist config file has expired
         Test assumes that the file is not expired
 
+        >>> from DAQMocks import MockLiveMoni
         >>> p = find_pdaq_config()
         >>> p = os.path.join(p, "nist", "leapseconds-latest")
         >>> a = leapseconds(p)
@@ -343,8 +344,7 @@ class leapseconds(object):
 
         >>> jul1_2012 = leapseconds.mjd(2012, 7, 1)
         >>> leapseconds.mjd_to_timestruct(jul1_2012)
-        time.struct_time(tm_year=2012, tm_mon=7, tm_mday=1, tm_hour=0,
-                         tm_min=0, tm_sec=0, tm_wday=6, tm_yday=183, tm_isdst=0)
+        time.struct_time(tm_year=2012, tm_mon=7, tm_mday=1, tm_hour=0, tm_min=0, tm_sec=0, tm_wday=6, tm_yday=183, tm_isdst=0)
         """
 
         jd = mjd + 2400000.5
@@ -502,7 +502,6 @@ class leapseconds(object):
 
 if __name__ == "__main__":
     import doctest
-    from DAQMocks import MockLiveMoni
     doctest.testmod()
 
     print "mjd now: ", leapseconds.mjd_now()

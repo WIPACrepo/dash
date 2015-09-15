@@ -59,7 +59,7 @@ class PDAQRun(object):
                     if self.TSTRSRC is None:
                         metadir = find_pdaq_trunk()
                         self.TSTRSRC = os.path.join(metadir, "src", "test",
-                                                   "resources")
+                                                    "resources")
 
                     path = FlasherScript.findDataFile(pair[0],
                                                       basedir=self.TSTRSRC)

@@ -145,7 +145,7 @@ def main():
     verbose = False
     dryrun = False
     force = False
-    for o, a in opts:
+    for o, _ in opts:
         if o in ("-h", "--help"):
             usage()
             sys.exit()

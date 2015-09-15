@@ -31,9 +31,9 @@ class MockTMComponent(object):
             "icetopHit": {
                 "RecordsReceived": 0
             },
-             "trigger": {
-                 "RecordsSent": 0
-             },
+            "trigger": {
+                "RecordsSent": 0
+            },
         },
         "inIceTrigger": {
             "stringHit": {
