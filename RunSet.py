@@ -2653,7 +2653,9 @@ class RunSet(object):
 
         # wait for builders to finish switching
         #
-        for _ in xrange(20):
+        bldrSleep = 0.5
+        bldrMaxSleep = 30   # wait up to 30 seconds
+        for i in xrange(bldrMaxSleep / bldrSleep):
             for c in bldrSet:
                 num = c.getRunNumber()
                 if num == newNum:
@@ -2662,7 +2664,11 @@ class RunSet(object):
             if len(bldrSet) == 0:
                 break
 
-            time.sleep(0.25)
+            if i > 0 and i % 10 == 0:
+                self.__runData.error("Waiting for builders to switch"
+                                     " (after %.1f seconds): %s" %
+                                     ((i * bldrSleep), bldrSet))
+            time.sleep(bldrSleep)
 
         # from this point, cache any failures until the end
         savedEx = None
