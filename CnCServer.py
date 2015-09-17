@@ -1305,7 +1305,7 @@ class CnCServer(DAQPool):
 
         delayedException = None
         try:
-            hadError = runSet.stopRun("RPCStopRun")
+            hadError = runSet.stopRun(RunSet.NORMAL_STOP)
         except ValueError:
             hadError = True
             delayedException = sys.exc_info()

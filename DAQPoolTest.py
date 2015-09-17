@@ -737,6 +737,9 @@ class TestDAQPool(unittest.TestCase):
         monDict = runset.getEventCounts()
         self.assertEqual(monDict["physicsEvents"], numEvts)
 
+        stopName = "TestStartRun"
+        dashLog.addExpectedExact("%s is stopping the run" % stopName)
+
         numSecs = (lastTime - firstTime) / 1.0E10
 
         dashLog.addExpectedExact("%d physics events collected in %d seconds" %
@@ -747,8 +750,7 @@ class TestDAQPool(unittest.TestCase):
 
         aComp.addBeanData("stringhub", "EarliestLastChannelHitTime", 10)
 
-        self.failIf(runset.stopRun("TestStartRun"),
-                    "stopRun() encountered error")
+        self.failIf(runset.stopRun(stopName), "stopRun() encountered error")
 
         self.__checkRunsetState(runset, 'ready')
 

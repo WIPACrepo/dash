@@ -249,11 +249,7 @@ def __get_svn_info(dir):
             continue
         parts = line.split()
 
-        # print externals
         if parts[0] in EXTERNALS_TO_IGNORE:
-            # from mantis issue: 4388
-            # ignore 'cluster-config' and 'config'
-            # settable from the EXTERNALS_TO_IGNORE list global
             continue
 
         externals.append([parts[0], parts[-1].split(repo_url)[1]])

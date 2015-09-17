@@ -884,6 +884,7 @@ class TestCnCServer(unittest.TestCase):
             log.addExpectedExact('Stop %s' % comp.fullName())
 
         rateTracker.updateRunData(self.cnc, setId, self.comps)
+
         rateTracker.addFinalLogMsgs(dashlog)
 
         dashlog.addExpectedExact("Run terminated SUCCESSFULLY.")

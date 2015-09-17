@@ -736,9 +736,8 @@ class CnCRunSetTest(unittest.TestCase):
         self.__checkRateTask(comps, rs, None, dashLog, numEvts, payTime,
                              firstTime, runNum)
 
-        numMoni = 0
-        numSN = 0
-        numTcal = 0
+        stopName = "RunDirect"
+        dashLog.addExpectedExact("%s is stopping the run" % stopName)
 
         duration = self.__computeDuration(firstTime, payTime)
         if duration <= 0:
@@ -752,6 +751,10 @@ class CnCRunSetTest(unittest.TestCase):
                                       duration,
                                       hzStr))
 
+        numMoni = 0
+        numSN = 0
+        numTcal = 0
+
         dashLog.addExpectedExact("%d moni events, %d SN events, %d tcals" %
                                  (numMoni, numSN, numTcal))
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
@@ -759,7 +762,7 @@ class CnCRunSetTest(unittest.TestCase):
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
                            "stringhub", "EarliestLastChannelHitTime", 20)
 
-        self.failIf(rs.stopRun("RunDirect"), "stopRun() encountered error")
+        self.failIf(rs.stopRun(stopName), "stopRun() encountered error")
 
         logger.checkStatus(5)
         dashLog.checkStatus(5)
@@ -1023,10 +1026,6 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog.checkStatus(5)
         liveMoni.checkStatus(5)
 
-        numMoni = 0
-        numSN = 0
-        numTcal = 0
-
         duration = self.__computeDuration(firstTime, payTime)
         if duration <= 0:
             hzStr = ""
@@ -1038,6 +1037,10 @@ class CnCRunSetTest(unittest.TestCase):
                                      (numEvts,
                                       duration,
                                       hzStr))
+
+        numMoni = 0
+        numSN = 0
+        numTcal = 0
 
         dashLog.addExpectedExact("%d moni events, %d SN events, %d tcals" %
                                  (numMoni, numSN, numTcal))

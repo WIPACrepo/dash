@@ -1178,6 +1178,9 @@ class RunSet(object):
     STATE_DEAD = DAQClientState.DEAD
     STATE_HANGING = DAQClientState.HANGING
 
+    # token passed to stopRun() to indicate a "normal" stop
+    NORMAL_STOP = "NormalStop"
+
     # number of seconds between "Waiting for ..." messages during stopRun()
     #
     WAIT_MSG_PERIOD = 5
@@ -1207,7 +1210,9 @@ class RunSet(object):
         self.__state = RunSetState.IDLE
         self.__runData = None
         self.__compLog = {}
+
         self.__stopping = None
+        self.__stopLock = threading.Lock()
 
         self.__debugBits = 0x0
 
@@ -1231,6 +1236,7 @@ class RunSet(object):
     def __attemptToStop(self, srcSet, otherSet, newState, srcOp, timeoutSecs):
         self.__state = newState
 
+        # self.__runData is guaranteed to be set here
         if self.__runData.isErrorEnabled() and \
                srcOp == ComponentOperation.FORCED_STOP:
             fullSet = srcSet + otherSet
@@ -1369,10 +1375,7 @@ class RunSet(object):
                 compStr = listComponentRanges(stateDict[stateStr])
                 msg += " %s[%s]" % (stateStr, compStr)
 
-            if self.__runData is not None:
-                self.__runData.error(msg)
-            else:
-                self.__logger.error(msg)
+            self.__logError(msg)
 
             self.__state = RunSetState.ERROR
 
@@ -1383,16 +1386,11 @@ class RunSet(object):
         If one or more components are not stopped and state==READY,
         throw a RunSetException
         """
-        if self.__runData is not None and not self.__runData.isDestroyed():
-            logger = self.__runData
-        else:
-            logger = self.__logger
-
         if len(waitList) > 0:
             try:
                 waitStr = listComponentRanges(waitList)
                 errStr = '%s: Could not stop %s' % (self, waitStr)
-                logger.error(errStr)
+                self.__logError(errStr)
             except:
                 errStr = "%s: Could not stop components (?)" % str(self)
             self.__state = RunSetState.ERROR
@@ -1403,7 +1401,7 @@ class RunSet(object):
             try:
                 msg = "%s: Could not stop %s" % \
                     (self, self.__badStateString(badStates))
-                logger.error(msg)
+                self.__logError(msg)
             except Exception as ex:
                 msg = "%s: Components in bad states: %s" % (self, ex)
             self.__state = RunSetState.ERROR
@@ -1563,15 +1561,18 @@ class RunSet(object):
         if (self.__debugBits & debugBit) != debugBit:
             return
 
-        if self.__runData is not None:
+        if len(args) == 1:
+            self.__logError(args[0])
+        else:
+            self.__logError(args[0] % args[1:])
+
+    def __logError(self, msg):
+        if self.__runData is not None and not self.__runData.isDestroyed():
             logger = self.__runData
         else:
             logger = self.__logger
 
-        if len(args) == 1:
-            logger.error(args[0])
-        else:
-            logger.error(args[0] % args[1:])
+        logger.error(msg)
 
     def __reportFirstGoodTime(self, runData):
         ebComp = None
@@ -1747,11 +1748,6 @@ class RunSet(object):
                                 (comp.fullName(), exc_string()))
 
     def __stopComponents(self, srcSet, otherSet, connDict):
-        if self.__runData is not None:
-            logger = self.__runData
-        else:
-            logger = self.__logger
-
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING WAITCHK top")
         states = ComponentOperationGroup.runSimple(ComponentOperation.GET_STATE,
                                                    srcSet + otherSet, (),
@@ -1821,9 +1817,6 @@ class RunSet(object):
         Stop all components in the runset
         Return True if an error is encountered while stopping.
         """
-        if self.__runData is None:
-            raise RunSetException("RunSet #%d is not running" % self.__id)
-
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING %s", self.__runData)
         self.__runData.stop()
 
@@ -2177,10 +2170,7 @@ class RunSet(object):
 
     def logToDash(self, msg):
         "Used when the runset needs to add a log message to dash.log"
-        if self.__runData is not None:
-            self.__runData.error(msg)
-        else:
-            self.__logger.error(msg)
+        self.__logError(msg)
 
     def queueForSpade(self, runData, duration):
         if runData is None:
@@ -2334,7 +2324,6 @@ class RunSet(object):
         """
         Used by WatchdogTask (via TaskManager) to stop the current run
         """
-        self.__logDebug(RunSetDebug.STOP_RUN, "SetError %s", self.__runData)
         if self.__state == RunSetState.RUNNING and self.__stopping is None:
             try:
                 self.stopRun(callerName, hadError=True)
@@ -2479,20 +2468,25 @@ class RunSet(object):
         Stop all components in the runset
         Return True if an error is encountered while stopping.
         """
-        if self.__runData is not None and self.__runData.finished():
-            self.__logger.error("Not double-stopping %s" % self.__runData)
-            return
+        with self.__stopLock:
+            if self.__runData is None:
+                raise RunSetException("RunSet #%d is not running" % self.__id)
 
-        if self.__stopping is not None:
-            msg = "Ignored %s stopRun() call, stopRun() from %s is active" % \
-                  (callerName, self.__stopping)
-            if self.__runData is not None:
+            if self.__runData.finished():
+                self.__logger.error("Not double-stopping %s" % self.__runData)
+                return
+
+            if self.__stopping is not None:
+                msg = "Ignored %s stopRun() call, stopRun()" + \
+                      " from %s is active" % (callerName, self.__stopping)
                 self.__runData.error(msg)
-            elif self.__logger is not None:
-                self.__logger.error(msg)
-            return False
+                return False
 
-        self.__stopping = callerName
+            if callerName != self.NORMAL_STOP:
+                self.__runData.error("%s is stopping the run" % callerName)
+
+            self.__stopping = callerName
+
         waitList = []
         try:
             waitList = self.__stopRunInternal(hadError=hadError,
@@ -2508,7 +2502,8 @@ class RunSet(object):
             try:
                 self.__finishStop(callerName, hadError=hadError)
             finally:
-                self.__stopping = None
+                with self.__stopLock:
+                    self.__stopping = None
 
         # throw an exception if any component state is not READY
         self.__checkStoppedComponents(waitList)

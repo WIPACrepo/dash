@@ -189,14 +189,10 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
-        stopCaller = "stopRun"
-
-        logger.addExpectedRegexp("Could not stop run .* (%s)" % stopCaller)
-
         expState = "running"
 
         try:
-            stopErr = runset.stopRun(stopCaller, timeout=0)
+            stopErr = runset.stopRun("StopSubrun", timeout=0)
         except RunSetException as ve:
             if not "is not running" in str(ve):
                 raise
@@ -309,8 +305,6 @@ class TestRunSet(unittest.TestCase):
 
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
-
-        logger.addExpectedRegexp("Could not stop run .*")
 
         self.assertRaises(RunSetException, runset.stopRun, ("RunTest"))
         logger.checkStatus(10)
@@ -430,6 +424,14 @@ class TestRunSet(unittest.TestCase):
                     hangList.append(c.fullName())
             hangStr = ", ".join(hangList)
 
+        if hangType == 0:
+            stopName = "TestRunSet"
+        elif hangType == 1:
+            stopName = "TestHang1"
+        else:
+            stopName = "TestHang2"
+        logger.addExpectedExact("%s is stopping the run" % stopName)
+
         if hangType > 0:
             if len(hangList) < len(components):
                 logger.addExpectedExact(("RunSet #%d run#%d (%s):" +
@@ -465,12 +467,12 @@ class TestRunSet(unittest.TestCase):
             logger.addExpectedExact("Run terminated SUCCESSFULLY.")
 
         if hangType < 2:
-            self.failIf(runset.stopRun("Test1", timeout=0),
+            self.failIf(runset.stopRun(stopName, timeout=0),
                         "stopRun() encountered error")
             expState = "ready"
         else:
             try:
-                if not runset.stopRun("Test2", timeout=0):
+                if not runset.stopRun(stopName, timeout=0):
                     self.fail("stopRun() should have failed")
             except RunSetException as rse:
                 expMsg = "RunSet #%d run#%d (%s): Could not stop %s" % \
@@ -676,6 +678,9 @@ class TestRunSet(unittest.TestCase):
 
         compStr = "one#1, two#2, three#3"
 
+        stopName = "ShortStop"
+        logger.addExpectedExact("%s is stopping the run" % stopName)
+
         logger.addExpectedRegexp("Could not stop run .* RunSetException.*")
         logger.addExpectedExact("Failed to transition to ready: idle[%s]" %
                                 compStr)
@@ -683,7 +688,7 @@ class TestRunSet(unittest.TestCase):
                                 (runset.id(), compStr))
 
         try:
-            self.failIf(runset.stopRun("ShortStop", timeout=0),
+            self.failIf(runset.stopRun(stopName, timeout=0),
                         "stopRun() encountered error")
             self.fail("stopRun() on new runset should throw exception")
         except Exception as ex:
@@ -755,6 +760,9 @@ class TestRunSet(unittest.TestCase):
 
         compStr = "first#1, middle#2-5, last#6"
 
+        stopName = "BadStop"
+        logger.addExpectedExact("%s is stopping the run" % stopName)
+
         logger.addExpectedExact("Reset duration")
 
         logger.addExpectedExact("0 physics events collected in 0 seconds")
@@ -774,7 +782,7 @@ class TestRunSet(unittest.TestCase):
 
         try:
             try:
-                runset.stopRun("BadStop", timeout=0)
+                runset.stopRun(stopName, timeout=0)
             except RunSetException as rse:
                 self.assertEqual(str(rse), stopErrMsg,
                                  "Expected exception %s, not %s" %
