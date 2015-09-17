@@ -139,7 +139,7 @@ class DAQLive(Component):
         if self.__runSet is None:
             raise LiveException("Cannot stop run; no active runset")
 
-        gotError = self.__runSet.stopRun("LiveStopping")
+        gotError = self.__runSet.stopRun(self.__runSet.NORMAL_STOP)
         if not self.__runSet.isReady():
             raise LiveException("%s did not stop" % self.__runSet)
 
