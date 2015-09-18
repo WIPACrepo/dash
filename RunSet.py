@@ -2557,7 +2557,8 @@ class RunSet(object):
                 hubs.append(c)
 
         r = ComponentOperationGroup.runSimple(ComponentOperation.START_SUBRUN,
-                                              hubs, (data, ), self.__runData)
+                                              hubs, (data, ), self.__runData,
+                                              waitSecs=6)
 
         badComps = []
 
