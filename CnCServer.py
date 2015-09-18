@@ -154,11 +154,9 @@ class DAQPool(object):
                                      logger.livePort())
 
     def __returnComponents(self, compList, logger):
-        tGroup = ComponentOperationGroup(ComponentOperation.RESET_COMP)
-        for c in compList:
-            tGroup.start(c, logger, ())
-        tGroup.wait()
-        tGroup.reportErrors(logger, "reset")
+        ComponentOperationGroup.runSimple(ComponentOperation.RESET_COMP,
+                                          compList, (), logger,
+                                          errorName="reset")
 
         self.__poolLock.acquire()
         try:
@@ -317,34 +315,33 @@ class DAQPool(object):
         "check that all components in the pool are still alive"
         count = 0
 
-        tGroup = ComponentOperationGroup(ComponentOperation.GET_STATE)
+        clients = []
         for bin in self.__pool.values():
             for c in bin:
-                tGroup.start(c, logger, ())
-        tGroup.wait()
+                clients.append(c)
 
-        states = tGroup.results()
-        for bin in self.__pool.values():
-            for c in bin:
-                if c in states:
-                    stateStr = str(states[c])
-                else:
-                    stateStr = DAQClientState.MISSING
+        states = ComponentOperationGroup.runSimple(ComponentOperation.GET_STATE,
+                                                   clients, (), logger)
+        for c in clients:
+            if c in states:
+                stateStr = str(states[c])
+            else:
+                stateStr = DAQClientState.MISSING
 
-                if stateStr == DAQClientState.DEAD or \
-                        (stateStr == DAQClientState.HANGING and c.isDead()):
-                    self.remove(c)
-                    try:
-                        c.close()
-                    except:
-                        if logger is not None:
-                            logger.error("Could not close %s: %s" %
-                                         (c.fullName(), exc_string()))
-                elif stateStr == DAQClientState.MISSING or \
-                        stateStr == DAQClientState.HANGING:
-                    c.addDeadCount()
-                else:
-                    count += 1
+            if stateStr == DAQClientState.DEAD or \
+               (stateStr == DAQClientState.HANGING and c.isDead()):
+                self.remove(c)
+                try:
+                    c.close()
+                except:
+                    if logger is not None:
+                        logger.error("Could not close %s: %s" %
+                                     (c.fullName(), exc_string()))
+            elif stateStr == DAQClientState.MISSING or \
+                 stateStr == DAQClientState.HANGING:
+                c.addDeadCount()
+            else:
+                count += 1
 
         return count
 
@@ -730,11 +727,8 @@ class CnCServer(DAQPool):
     def __listComponentDicts(self, compList):
         slst = []
 
-        tGroup = ComponentOperationGroup(ComponentOperation.GET_STATE)
-        for c in compList:
-            tGroup.start(c, self.__log, ())
-        tGroup.wait()
-        states = tGroup.results()
+        states = ComponentOperationGroup.runSimple(ComponentOperation.GET_STATE,
+                                                   compList, (), self.__log)
         for c in compList:
             if c in states:
                 stateStr = str(states[c])
@@ -815,11 +809,9 @@ class CnCServer(DAQPool):
         if self.__server is not None:
             self.__server.server_close()
 
-        tGroup = ComponentOperationGroup(ComponentOperation.CLOSE)
-        for c in self.components():
-            tGroup.start(c, self.__log, ())
-        tGroup.wait()
-        tGroup.reportErrors(self.__log, "close")
+        ComponentOperationGroup.runSimple(ComponentOperation.CLOSE,
+                                          self.components(), (), self.__log,
+                                          errorName="close")
 
         self.__log.closeFinal()
         if self.__logServer is not None:
@@ -954,11 +946,8 @@ class CnCServer(DAQPool):
         "list component connector information"
         compList = self.__getComponents(idList, getAll)
 
-        tGroup = ComponentOperationGroup(ComponentOperation.GET_CONN_INFO)
-        for c in compList:
-            tGroup.start(c, self.__log, ())
-        tGroup.wait()
-        results = tGroup.results()
+        op = ComponentOperation.GET_CONN_INFO
+        results = ComponentOperationGroup.runSimple(op, compList, (), log)
 
         slst = []
         for c in compList:
@@ -1106,11 +1095,9 @@ class CnCServer(DAQPool):
 
     def rpc_end_all(self):
         "reset all clients"
-        tGroup = ComponentOperationGroup(ComponentOperation.RESET_COMP)
-        for c in self.components():
-            tGroup.start(c, self.__log, ())
-        tGroup.wait()
-        tGroup.reportErrors(self.__log, "reset")
+        ComponentOperationGroup.runSimple(ComponentOperation.RESET_COMP,
+                                          self.components(), (), self.__log,
+                                          errorName="reset")
         return 1
 
     def rpc_list_open_files(self):
