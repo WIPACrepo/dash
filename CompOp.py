@@ -320,11 +320,12 @@ class ComponentOperationGroup(object):
         return results
 
     @staticmethod
-    def runSimple(op, comps, args, logger, errorName=None):
+    def runSimple(op, comps, args, logger, errorName=None, waitSecs=2,
+                  waitReps=4):
         tGroup = ComponentOperationGroup(op)
         for c in comps:
             tGroup.start(c, logger, args)
-        tGroup.wait()
+        tGroup.wait(waitSecs=waitSecs, reps=waitReps)
         if errorName is not None:
             tGroup.reportErrors(logger, errorName)
             return None
