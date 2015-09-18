@@ -912,7 +912,7 @@ class RunData(object):
     def getMultiBeanFields(self, comp, bean, fldList):
         tGroup = ComponentOperationGroup(ComponentOperation.GET_MULTI_BEAN)
         tGroup.start(comp, self.__dashlog, (bean, fldList))
-        tGroup.wait(10)
+        tGroup.wait(waitSecs=10)
 
         r = tGroup.results()
         if not r.has_key(comp):
@@ -977,7 +977,7 @@ class RunData(object):
     def getSingleBeanField(self, comp, bean, fldName):
         tGroup = ComponentOperationGroup(ComponentOperation.GET_SINGLE_BEAN)
         tGroup.start(comp, self.__dashlog, (bean, fldName))
-        tGroup.wait(3, reps=10)
+        tGroup.wait(waitSecs=3, reps=10)
 
         r = tGroup.results()
         if not r.has_key(comp):
