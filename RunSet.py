@@ -2477,7 +2477,7 @@ class RunSet(object):
                 return
 
             if self.__stopping is not None:
-                msg = "Ignored %s stopRun() call, stopRun()" + \
+                msg = "Ignored %s stopRun() call, stopRun()" \
                       " from %s is active" % (callerName, self.__stopping)
                 self.__runData.error(msg)
                 return False
