@@ -297,8 +297,7 @@ class StringHubLog(BaseLog):
         if not self.__showTCAL and \
             (lobj.text().startswith("Wild TCAL") or
              lobj.text().find("Got IO exception") >= 0 or
-             lobj.text().find("Ignoring tcal error") >= 0 or
-             lobj.text().find("Got RAPCal exception") >= 0):
+             lobj.text().find("Ignoring tcal error") >= 0):
             return True
 
         if not self.__showLBMDebug and \
