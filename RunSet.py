@@ -2181,11 +2181,12 @@ class RunSet(object):
 
     @classmethod
     def getRunSummary(cls, logDir, runNum):
+        "Return a dictionary summarizing the requested run"
         runDir = cls.__getRunDirectoryPath(logDir, runNum)
         if not os.path.exists(runDir):
             raise RunSetException("No run directory found for run %d" % runNum)
 
-        return DashXMLLog.parse(runDir)
+        return DashXMLLog.parse(runDir).summary()
 
     def reportRunStartFailure(self, runNum, release, revision):
         try:

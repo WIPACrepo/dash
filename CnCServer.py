@@ -1126,25 +1126,7 @@ class CnCServer(DAQPool):
 
     def rpc_run_summary(self, runNum):
         "Return run summary information (if available)"
-        rsum = RunSet.getRunSummary(self.__defaultLogDir, runNum)
-        if rsum.getTermCond():
-            termCond = "FAILED"
-        elif not rsum.getTermCond():
-            termCond = "SUCCESS"
-        else:
-            termCond = "??%s??" % rsum.getTermCond()
-
-        return {
-            "num": rsum.getRun(),
-            "config": rsum.getConfig(),
-            "result": termCond,
-            "startTime": str(rsum.getStartTime()),
-            "endTime": str(rsum.getEndTime()),
-            "numEvents": rsum.getEvents(),
-            "numMoni": rsum.getMoni(),
-            "numTcal": rsum.getTcal(),
-            "numSN": rsum.getSN(),
-        }
+        return RunSet.getRunSummary(self.__defaultLogDir, runNum)
 
     def rpc_runset_active(self):
         "return number of active (running) run sets"
