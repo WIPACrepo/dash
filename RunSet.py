@@ -2657,7 +2657,7 @@ class RunSet(object):
         #
         bldrSleep = 0.5
         bldrMaxSleep = 30   # wait up to 30 seconds
-        for i in xrange(bldrMaxSleep / bldrSleep):
+        for i in xrange(int(bldrMaxSleep / bldrSleep)):
             for c in bldrSet:
                 num = c.getRunNumber()
                 if num == newNum:
