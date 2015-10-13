@@ -526,7 +526,7 @@ class RateTracker(object):
 
 class TestCnCServer(unittest.TestCase):
     HUB_NUMBER = 1021
-    DOM_MAINBOARD_ID = "53494d552101"
+    DOM_MAINBOARD_ID = 0x53494d552101
 
     def createLog(self, name, port, expectStartMsg=True):
         return self.__logFactory.createLog(name, port, expectStartMsg)
@@ -722,9 +722,13 @@ class TestCnCServer(unittest.TestCase):
             if not comp.isHub():
                 compList.append(comp.fullName())
 
-        domList = [MockRunConfigFile.createDOM(self.DOM_MAINBOARD_ID), ]
+        hubDomDict = {
+            self.HUB_NUMBER:
+            [MockRunConfigFile.createDOM(self.DOM_MAINBOARD_ID, 2,
+                                         "SrvrTst", "ABCDEF"), ],
+        }
 
-        runConfig = rcFile.create(compList, domList)
+        runConfig = rcFile.create(compList, hubDomDict)
 
         catchall.addExpectedTextRegexp('Loading run configuration .*')
         catchall.addExpectedTextRegexp('Loaded run configuration .*')

@@ -12,12 +12,13 @@ import tempfile
 import threading
 import time
 
+import DeployPDAQ
+
 from ClusterDescription import ClusterDescription
 from CnCLogger import CnCLogger
 from Component import Component
 from ComponentManager import ComponentManager
 from DAQClient import DAQClient
-import DeployPDAQ
 from DAQConst import DAQPort
 from LiveImports import MoniPort, SERVICE_NAME
 from RunCluster import RunCluster
@@ -1875,11 +1876,30 @@ class MockRunComponent(object):
 
 
 class SimDOMXML(object):
-    def __init__(self, mbid):
+    def __init__(self, mbid, pos=None, name=None, prod_id=None):
         self.__mbid = mbid
+        self.__pos = pos
+        self.__name = name
+        self.__prod_id = prod_id
+
+    @property
+    def mbid(self):
+        return self.__mbid
+
+    @property
+    def name(self):
+        return self.__name
+
+    @property
+    def pos(self):
+        return self.__pos
+
+    @property
+    def prod_id(self):
+        return self.__prod_id
 
     def printXML(self, fd, indent):
-        print >>fd, "%s<domConfig mbid=\"%s\">" % (indent, self.__mbid)
+        print >>fd, "%s<domConfig mbid=\"%012x\">" % (indent, self.__mbid)
         print >>fd, "%s%s<xxx>xxx</xxx>" % (indent, indent)
         print >>fd, "%s</domConfig>" % indent
 
@@ -1985,7 +2005,7 @@ class MockRunConfigFile(object):
                     d.printXML(fd, "  ")
             print >>fd, "</domConfigList>"
 
-    def create(self, compList, domList, trigCfg=None):
+    def create(self, compList, hubDomDict, trigCfg=None):
         path = tempfile.mktemp(suffix=".xml", dir=self.__configDir)
         if not os.path.exists(self.__configDir):
             os.makedirs(self.__configDir)
@@ -1994,13 +2014,16 @@ class MockRunConfigFile(object):
             trigCfg = MockTriggerConfig("empty-trigger")
         trigCfg.create(self.__configDir)
 
-        domCfg = "empty-dom-config"
-        self.__makeDomConfig(domCfg, domList)
-
         with open(path, 'w') as fd:
             print >>fd, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
             print >>fd, "<runConfig>"
-            print >>fd, "    <domConfigList>%s</domConfigList>" % domCfg
+            for hub, domList in hubDomDict.items():
+                domCfg = "string-%d-config" % hub
+                self.__makeDomConfig(domCfg, domList)
+
+                print >>fd, "    <stringHub hubId=\"%s\" domConfig=\"%s\"/>" % \
+                    (hub, domCfg)
+
             print >>fd, "    <triggerConfig>%s</triggerConfig>" % trigCfg.name()
             for c in compList:
                 pound = c.rfind("#")
@@ -2018,8 +2041,8 @@ class MockRunConfigFile(object):
         return name
 
     @staticmethod
-    def createDOM(mbid):
-        return SimDOMXML(mbid)
+    def createDOM(mbid, pos=None, name=None, prod_id=None):
+        return SimDOMXML(mbid, pos=pos, name=name, prod_id=prod_id)
 
 
 class MockXMLRPC(object):

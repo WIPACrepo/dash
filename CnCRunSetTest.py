@@ -356,12 +356,12 @@ class MostlyCnCServer(CnCServer):
 
 class CnCRunSetTest(unittest.TestCase):
     HUB_NUMBER = 21
-    EXAMPLE_DOM = "737d355af587"
+    EXAMPLE_DOM = 0x737d355af587
 
     BEAN_DATA = {
         "stringHub": {
             "DataCollectorMonitor-00A": {
-                "MainboardId": EXAMPLE_DOM,
+                "MainboardId": "%012x" % EXAMPLE_DOM,
                 "HitRate": 0.0,
             },
             "sender": {
@@ -669,10 +669,14 @@ class CnCRunSetTest(unittest.TestCase):
             if c.name() != "stringHub" and c.name() != "extraComp":
                 nameList.append(str(c))
 
-        domList = [MockRunConfigFile.createDOM(self.EXAMPLE_DOM), ]
+        hubDomDict = {
+            self.HUB_NUMBER:
+            [MockRunConfigFile.createDOM(self.EXAMPLE_DOM, 1, "Example",
+                                         "X123"), ],
+        }
 
         rcFile = MockRunConfigFile(self.__runConfigDir)
-        runConfig = rcFile.create(nameList, domList)
+        runConfig = rcFile.create(nameList, hubDomDict)
 
         logger = MockLogger("main")
         logger.addExpectedExact("Loading run configuration \"%s\"" % runConfig)
@@ -844,10 +848,8 @@ class CnCRunSetTest(unittest.TestCase):
 
         nameList = []
 
-        domList = []
-
         rcFile = MockRunConfigFile(self.__runConfigDir)
-        runConfig = rcFile.create(nameList, domList)
+        runConfig = rcFile.create(nameList, {})
         runNum = 123
 
         logger = MockLogger("main")
@@ -879,10 +881,14 @@ class CnCRunSetTest(unittest.TestCase):
 
         self.__cnc = MostlyCnCServer(clusterConfigObject=cluCfg)
 
-        domList = [MockRunConfigFile.createDOM(self.EXAMPLE_DOM), ]
+        hubDomDict = {
+            self.HUB_NUMBER:
+            [MockRunConfigFile.createDOM(self.EXAMPLE_DOM, 1, "Example",
+                                         "X123"), ],
+        }
 
         rcFile = MockRunConfigFile(self.__runConfigDir)
-        runConfig = rcFile.create([], domList)
+        runConfig = rcFile.create([], hubDomDict)
         runNum = 456
 
         logger = MockLoggerPlusPorts("main", 10101, 20202)
@@ -944,10 +950,14 @@ class CnCRunSetTest(unittest.TestCase):
                 continue
             runCompList.append(c.fullName())
 
-        domList = [MockRunConfigFile.createDOM(self.EXAMPLE_DOM), ]
+        hubDomDict = {
+            self.HUB_NUMBER:
+            [MockRunConfigFile.createDOM(self.EXAMPLE_DOM, 1, "Example",
+                                         "X123"), ],
+        }
 
         rcFile = MockRunConfigFile(self.__runConfigDir)
-        runConfig = rcFile.create(runCompList, domList)
+        runConfig = rcFile.create(runCompList, hubDomDict)
 
         catchall.addExpectedText("Loading run configuration \"%s\"" %
                                  runConfig)

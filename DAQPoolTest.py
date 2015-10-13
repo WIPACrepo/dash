@@ -112,7 +112,7 @@ class TestDAQPool(unittest.TestCase):
         for c in compList:
             runCompList.append(c.fullName())
 
-        return rcFile.create(runCompList, [])
+        return rcFile.create(runCompList, {})
 
     def setUp(self):
         self.__runConfigDir = None

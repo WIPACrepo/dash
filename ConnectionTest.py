@@ -151,7 +151,7 @@ class ConnectionTest(unittest.TestCase):
             nameList.append(node.name + '#' + str(node.num))
 
         rcFile = MockRunConfigFile(self.__runConfigDir)
-        runConfig = rcFile.create(nameList, [])
+        runConfig = rcFile.create(nameList, {})
 
         logger = MockLogger('main')
         logger.addExpectedExact("Loading run configuration \"%s\"" %

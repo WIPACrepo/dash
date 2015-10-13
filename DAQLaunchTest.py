@@ -63,9 +63,8 @@ class TestDAQLaunch(unittest.TestCase):
                                                     daqDataDir, logDir,
                                                     spadeDir, compHostDict)
 
-        domList = []
         runCfgFile = MockRunConfigFile(configDir)
-        cfgName = runCfgFile.create(compHostDict.keys(), domList)
+        cfgName = runCfgFile.create(compHostDict.keys(), {})
 
         copyDir = None
         logPort = None
@@ -109,9 +108,8 @@ class TestDAQLaunch(unittest.TestCase):
                                                     daqDataDir, logDir,
                                                     spadeDir, compHostDict)
 
-        domList = []
         runCfgFile = MockRunConfigFile(configDir)
-        cfgName = runCfgFile.create(compHostDict.keys(), domList)
+        cfgName = runCfgFile.create(compHostDict.keys(), {})
 
         #copyDir = None
         #logPort = None

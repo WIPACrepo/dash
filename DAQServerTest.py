@@ -229,7 +229,7 @@ class MockServer(CnCServer):
 
 class TestDAQServer(unittest.TestCase):
     HUB_NUMBER = 1021
-    DOM_MAINBOARD_ID = "53494d552101"
+    DOM_MAINBOARD_ID = 0x53494d552101
 
     def __createLog(self, name, port, expectStartMsg=True):
         return self.__logFactory.createLog(name, port, expectStartMsg)
@@ -441,8 +441,13 @@ class TestDAQServer(unittest.TestCase):
 
         rcFile = MockRunConfigFile(self.__runConfigDir)
 
-        domList = [MockRunConfigFile.createDOM(self.DOM_MAINBOARD_ID), ]
-        runConfig = rcFile.create([], domList)
+        hubDomDict = {
+            self.HUB_NUMBER:
+            [MockRunConfigFile.createDOM(self.DOM_MAINBOARD_ID, 3,
+                                         "DSrvrTst", "Z98765"), ],
+        }
+
+        runConfig = rcFile.create([], hubDomDict)
 
         logger.addExpectedTextRegexp('Loading run configuration .*')
         logger.addExpectedTextRegexp('Loaded run configuration .*')
