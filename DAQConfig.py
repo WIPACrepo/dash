@@ -5,7 +5,7 @@ import sys
 
 from CachedConfigName import CachedConfigName
 from Component import Component
-from DefaultDomGeometry import DefaultDomGeometryReader
+from DefaultDomGeometry import DefaultDomGeometry, DefaultDomGeometryReader
 from RunCluster import RunCluster
 from config.validate_configs import validate_configs
 from locate_pdaq import find_pdaq_config
@@ -463,8 +463,11 @@ class DAQConfig(ConfigObject):
         cfgs = []
 
         for fname in os.listdir(config_dir):
-            cfg = os.path.basename(fname[:-4])
-            if fname.endswith(".xml") and cfg != 'default-dom-geometry':
+            if fname == DefaultDomGeometry.FILENAME:
+                continue
+
+            (cfg, ext) = os.path.splitext(fname)
+            if ext == ".xml":
                 cfgs.append(cfg)
 
         cfgs.sort()

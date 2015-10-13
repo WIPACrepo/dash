@@ -305,6 +305,8 @@ class DomGeometry(object):
 
 
 class DefaultDomGeometry(object):
+    FILENAME = "default-dom-geometry.xml"
+
     def __init__(self, translateDoms=True):
         self.__stringToDom = {}
         self.__translateDoms = translateDoms
@@ -716,7 +718,7 @@ class DefaultDomGeometryReader(XMLParser):
     @classmethod
     def parse(cls, fileName=None, translateDoms=False):
         if fileName is None:
-            fileName = os.path.join(configDir, "default-dom-geometry.xml")
+            fileName = os.path.join(configDir, cls.FILENAME)
 
         if not os.path.exists(fileName):
             raise XMLBadFileError("Cannot read default dom geometry file"

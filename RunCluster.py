@@ -8,6 +8,7 @@ import traceback
 from CachedConfigName import CachedConfigName
 from ClusterDescription import ClusterDescription, JVMArgs
 from Component import Component
+from DefaultDomGeometry import DefaultDomGeometry
 
 
 class RunClusterError(Exception):
@@ -510,7 +511,7 @@ if __name__ == '__main__':
                 grabDesc = True
             continue
 
-        if os.path.basename(name) == 'default-dom-geometry.xml':
+        if os.path.basename(name) == DefaultDomGeometry.FILENAME:
             # ignore
             continue
 
