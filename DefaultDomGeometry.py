@@ -286,13 +286,14 @@ class DomGeometry(object):
             else:
                 raise XMLFormatError("Blank DOM entry")
 
-            raise XMLFormatError("DOM %s is missing ID in string %s" % dname)
+            raise XMLFormatError("DOM %s is missing ID in string %s" %
+                                 (dname, self.__string))
         if self.__mbid is None:
             raise XMLFormatError("DOM pos %d is missing MBID in string %s" %
                                  (self.__pos, self.__string))
         if self.__name is None:
             raise XMLFormatError("DOM %s is missing name in string %s" %
-                                 self.__mbid)
+                                 (self.__mbid, self.__string))
 
     def x(self):
         return self.__x
