@@ -15,9 +15,10 @@ class MockComponent(object):
         self.__builder = builder
 
     def __str__(self):
-        return self.fullName()
+        return self.fullname
 
-    def fullName(self):
+    @property
+    def fullname(self):
         if self.__num == 0:
             return self.__name
         return self.__name + "#%d" % self.__num
@@ -73,7 +74,7 @@ class WatchdogWatcherTest(unittest.TestCase):
             for tv in -10, 15, 100000000000:
                 tw = ThresholdWatcher(comp, beanName, fldName, tv, lt)
 
-                nm = "%s %s.%s %s %s" % (comp.fullName(), beanName, fldName,
+                nm = "%s %s.%s %s %s" % (comp.fullname, beanName, fldName,
                                          lt and "below" or "above", tv)
                 if str(tw) != nm:
                     self.fail("Expected \"%s\", not \"%s\"" % (str(tw), nm))
@@ -156,7 +157,7 @@ class WatchdogWatcherTest(unittest.TestCase):
 
             vw = ValueWatcher(fcomp, tcomp, beanName, fldName)
 
-            nm = "%s->%s %s.%s" % (fcomp.fullName(), tcomp.fullName(),
+            nm = "%s->%s %s.%s" % (fcomp.fullname, tcomp.fullname,
                                    beanName, fldName)
             if str(vw) != nm:
                 self.fail("Expected \"%s\", not \"%s\"" % (str(vw), nm))

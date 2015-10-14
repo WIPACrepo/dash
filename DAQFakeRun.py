@@ -562,7 +562,7 @@ class DAQFakeRun(object):
 
         nameList = []
         for c in compList:
-            nameList.append(c.fullName())
+            nameList.append(c.fullname)
 
         cls.__createClusterDescriptionFile(runCfgDir)
 
@@ -598,7 +598,7 @@ class DAQFakeRun(object):
             print >>fd, "  <host name=\"localhost\">"
 
             for c in comps:
-                nm = c.name()
+                nm = c.name
                 if nm == "stringHub":
                     continue
 
@@ -618,7 +618,7 @@ class DAQFakeRun(object):
     def makeRunset(self, compList, runCfg, runNum):
         nameList = []
         for c in compList:
-            nameList.append(c.fullName())
+            nameList.append(c.fullname)
 
         runsetId = self.__client.rpc_runset_make(runCfg, runNum, False)
         if runsetId < 0:

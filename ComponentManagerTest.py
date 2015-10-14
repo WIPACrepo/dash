@@ -19,26 +19,27 @@ from RunSetState import RunSetState
 class MockNode(object):
     LIST = []
 
-    def __init__(self, hostName):
-        self.__hostName = hostName
+    def __init__(self, hostname):
+        self.__hostname = hostname
         self.__comps = []
 
     def __str__(self):
-        return "%s[%s]" % (str(self.__hostName), str(self.__comps))
+        return "%s[%s]" % (str(self.__hostname), str(self.__comps))
 
     def addComp(self, compName, compId, logLevel, jvmPath, jvmServer,
                 jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtraArgs):
         comp = MockDeployComponent(compName, compId, logLevel, jvmPath,
                                    jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs,
-                                   jvmExtraArgs, host=self.__hostName)
+                                   jvmExtraArgs, host=self.__hostname)
         self.__comps.append(comp)
         return comp
 
     def components(self):
         return self.__comps
 
-    def hostName(self):
-        return self.__hostName
+    @property
+    def hostname(self):
+        return self.__hostname
 
 
 class MockClusterConfig(object):
@@ -52,10 +53,12 @@ class MockClusterConfig(object):
     def clearActiveConfig(self):
         pass
 
+    @property
     def configName(self):
         return self.__configName
 
-    def descName(self):
+    @property
+    def description(self):
         return None
 
     def nodes(self):
@@ -401,7 +404,7 @@ class ComponentManagerTest(unittest.TestCase):
 
         names = []
         for c in comps:
-            names.append(c.fullName())
+            names.append(c.fullname)
 
         for c in expComps:
             self.failUnless(c in names,
@@ -445,7 +448,7 @@ class ComponentManagerTest(unittest.TestCase):
 
         names = []
         for c in comps:
-            names.append(c.fullName())
+            names.append(c.fullname)
 
         for expList in (expUnused, expRSComps):
             for c in expList:

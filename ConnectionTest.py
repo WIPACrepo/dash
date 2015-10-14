@@ -172,7 +172,7 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(pool.numSets(), 1)
         self.assertEqual(pool.runset(0), runset)
 
-        self.assertEqual(runset.id(), chkId)
+        self.assertEqual(runset.id, chkId)
         self.assertEqual(runset.size(), len(nodeList))
 
         # copy node list
@@ -184,7 +184,7 @@ class ConnectionTest(unittest.TestCase):
         for comp in runset.components():
             node = None
             for t in tmpList:
-                if comp.name() == t.name and comp.num() == t.num:
+                if comp.name == t.name and comp.num == t.num:
                     node = t
                     tmpList.remove(t)
                     break
@@ -200,7 +200,7 @@ class ConnectionTest(unittest.TestCase):
             for typ in node.outLinks:
                 conn = None
                 for c in compConn:
-                    if not c.isInput() and c.name() == typ:
+                    if not c.isInput() and c.name == typ:
                         conn = c
                         compConn.remove(c)
                         break
@@ -213,7 +213,7 @@ class ConnectionTest(unittest.TestCase):
             for typ in node.inLinks:
                 conn = None
                 for c in compConn:
-                    if c.isInput() and c.name() == typ:
+                    if c.isInput() and c.name == typ:
                         conn = c
                         compConn.remove(c)
                         break

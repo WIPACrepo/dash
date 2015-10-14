@@ -223,12 +223,12 @@ class MostlyRunSet(RunSet):
     @classmethod
     def createComponentLog(cls, runDir, comp, host, port, liveHost, livePort,
                            quiet=True):
-        if comp.fullName() in cls.LOGDICT:
-            return cls.LOGDICT[comp.fullName()]
+        if comp.fullname in cls.LOGDICT:
+            return cls.LOGDICT[comp.fullname]
 
         expStartMsg = True
-        log = cls.LOGFACTORY.createLog(comp.fullName(), port, expStartMsg)
-        cls.LOGDICT[comp.fullName()] = log
+        log = cls.LOGFACTORY.createLog(comp.fullname, port, expStartMsg)
+        cls.LOGDICT[comp.fullname] = log
 
         #log.addExpectedRegexp('Start #\d+ on \S+#\d+')
         log.addExpectedRegexp(r'Hello from \S+#\d+')
@@ -260,8 +260,8 @@ class MostlyRunSet(RunSet):
 
     @classmethod
     def getComponentLog(cls, comp):
-        if comp.fullName() in cls.LOGDICT:
-            return cls.LOGDICT[comp.fullName()]
+        if comp.fullname in cls.LOGDICT:
+            return cls.LOGDICT[comp.fullname]
         return None
 
     def getTaskManager(self):
@@ -705,7 +705,8 @@ class RealComponent(object):
         self.__cmd.server_close()
         self.__mbean.server_close()
 
-    def fullName(self):
+    @property
+    def fullname(self):
         if self.__num == 0 and not self.__name.lower().endswith("hub"):
             return self.__name
 
@@ -738,21 +739,27 @@ class RealComponent(object):
     def isComponent(self, name, num=-1):
         return self.__name == name and (num < 0 or self.__num == num)
 
+    @property
     def jvmArgs(self):
         return self.__jvmArgs
 
+    @property
     def jvmExtraArgs(self):
         return self.__jvmExtraArgs
 
+    @property
     def jvmHeapInit(self):
         return self.__jvmHeapInit
 
+    @property
     def jvmHeapMax(self):
         return self.__jvmHeapMax
 
+    @property
     def jvmPath(self):
         return self.__jvmPath
 
+    @property
     def jvmServer(self):
         return self.__jvmServer
 
@@ -959,11 +966,11 @@ class IntegrationTest(unittest.TestCase):
                                  IntegrationTest.COPY_DIR, logPort, livePort)
         for comp in launchList:
             deployComp = MockDeployComponent(comp.getName(), comp.getNumber(),
-                                             logLevel, comp.jvmPath(),
-                                             comp.jvmServer(),
-                                             comp.jvmHeapInit(),
-                                             comp.jvmHeapMax(), comp.jvmArgs(),
-                                             comp.jvmExtraArgs())
+                                             logLevel, comp.jvmPath,
+                                             comp.jvmServer,
+                                             comp.jvmHeapInit,
+                                             comp.jvmHeapMax, comp.jvmArgs,
+                                             comp.jvmExtraArgs)
             pShell.addExpectedJava(deployComp, IntegrationTest.CONFIG_DIR,
                                    IntegrationTest.DATA_DIR,
                                    DAQPort.CATCHALL, livePort, verbose, False,
@@ -981,7 +988,7 @@ class IntegrationTest(unittest.TestCase):
         cluCfg = MockClusterConfig(IntegrationTest.CLUSTER_CONFIG,
                                    IntegrationTest.CLUSTER_DESC)
         for c in self.__compList:
-            cluCfg.addComponent(c.fullName(), c.jvmPath(), c.jvmArgs(),
+            cluCfg.addComponent(c.fullname, c.jvmPath, c.jvmArgs,
                                 "localhost")
 
         if RunOption.isLogToFile(runOptions) or liveRunOnly:
@@ -1124,11 +1131,11 @@ class IntegrationTest(unittest.TestCase):
         for comp in self.__compList:
             if logServer is not None:
                 logServer.addExpectedTextRegexp("Registered %s" %
-                                                comp.fullName())
+                                                comp.fullname)
                 logServer.addExpectedExact('Hello from %s' % str(comp))
             if liveLog is not None and not liveRunOnly:
                 liveLog.addExpectedTextRegexp('Registered %s' %
-                                              comp.fullName())
+                                              comp.fullname)
                 liveLog.addExpectedText('Hello from %s' % str(comp))
             comp.register(self.__getConnectionList(comp.getName()))
 

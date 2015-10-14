@@ -105,6 +105,7 @@ class LogSocketServer(object):
     def isServing(self):
         return self.__serving
 
+    @property
     def port(self):
         return self.__port
 

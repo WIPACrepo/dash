@@ -184,31 +184,31 @@ def launch(cfgDir, dashDir, logger, args=None, clusterDesc=None,
 
     if verbose:
         print "Version info: " + get_scmversion_str()
-        if clusterConfig.descName() is None:
+        if clusterConfig.description is None:
             print "CLUSTER CONFIG: %s" % clusterConfig.configName()
         else:
             print "CONFIG: %s" % clusterConfig.configName()
-            print "CLUSTER: %s" % clusterConfig.descName()
+            print "CLUSTER: %s" % clusterConfig.description
 
         nodeList = clusterConfig.nodes()
         nodeList.sort()
 
         print "NODES:"
         for node in nodeList:
-            print "  %s(%s)" % (node.hostName(), node.locName()),
+            print "  %s(%s)" % (node.hostname, node.location),
 
             compList = node.components()
             compList.sort()
 
             for comp in compList:
-                print "%s#%d " % (comp.name(), comp.id()),
+                print "%s#%d " % (comp.name, comp.id),
             print
 
-    spadeDir = clusterConfig.logDirForSpade()
-    copyDir = clusterConfig.logDirCopies()
-    logDir = clusterConfig.daqLogDir()
+    spadeDir = clusterConfig.logDirForSpade
+    copyDir = clusterConfig.logDirCopies
+    logDir = clusterConfig.daqLogDir
     logDirFallback = os.path.join(PDAQ_HOME, "log")
-    daqDataDir = clusterConfig.daqDataDir()
+    daqDataDir = clusterConfig.daqDataDir
 
     doCnC = True
 

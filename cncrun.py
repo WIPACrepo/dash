@@ -434,6 +434,7 @@ class CnCRun(BaseRun):
 
         return True
 
+    @property
     def state(self):
         cnc = self.cncConnection(False)
         if cnc is None:

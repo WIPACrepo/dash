@@ -141,6 +141,7 @@ class LiveService(object):
     def numStarts(self):
         return self.__numStarts
 
+    @property
     def state(self):
         return self.__state
 
@@ -195,7 +196,7 @@ class LiveState(object):
 
         for key in self.__svcDict.keys():
             svc = self.__svcDict[key]
-            summary += " %s[%s*%d]" % (key, LiveRunState.str(svc.state()),
+            summary += " %s[%s*%d]" % (key, LiveRunState.str(svc.state),
                                        svc.numStarts())
 
         if self.__runNum is not None:
@@ -387,7 +388,7 @@ class LiveState(object):
         """
         if not svcName in self.__svcDict:
             return LiveRunState.UNKNOWN
-        return LiveRunState.str(self.__svcDict[svcName].state())
+        return LiveRunState.str(self.__svcDict[svcName].state)
 
 
 class LiveRun(BaseRun):
@@ -526,7 +527,7 @@ class LiveRun(BaseRun):
                     there is a problem
         waitSecs - number of seconds to wait on each "try"
         """
-        prevState = self.state()
+        prevState = self.state
         curState = prevState
 
         if verbose and prevState != expState:
@@ -536,7 +537,7 @@ class LiveRun(BaseRun):
         for _ in range(numTries):
             self.__state.check()
 
-            curState = self.state()
+            curState = self.state
             if curState != prevState:
                 if verbose:
                     swTime = int(time.time() - startTime)
@@ -829,6 +830,7 @@ class LiveRun(BaseRun):
         return self.__waitForState(LiveRunState.STARTING, LiveRunState.RUNNING,
                                    18, 0, verbose=verbose)
 
+    @property
     def state(self):
         return self.__state.runState()
 

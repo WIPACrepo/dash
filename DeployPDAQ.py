@@ -215,7 +215,7 @@ def getUniqueHostNames(config):
     # There's probably a much better way to do this
     retHash = {}
     for node in config.nodes():
-        retHash[str(node.hostName())] = 1
+        retHash[str(node.hostname)] = 1
     return retHash.keys()
 
 
@@ -293,26 +293,29 @@ def run_deploy(args):
         raise SystemExit(e)
 
     if traceLevel >= 0:
-        if config.descName() is None:
+        if config.description is None:
             print "CLUSTER CONFIG: %s" % config.configName()
         else:
             print "CONFIG: %s" % config.configName()
-            print "CLUSTER: %s" % config.descName()
+            print "CLUSTER: %s" % config.description
 
         nodeList = config.nodes()
         nodeList.sort()
 
         print "NODES:"
         for node in nodeList:
-            print "  %s(%s)" % (node.hostName(), node.locName()),
+            if node.hostname == node.location:
+                print "  %s" % node.hostname
+            else:
+                print "  %s(%s)" % (node.hostname, node.location),
 
             compList = node.components()
             compList.sort()
 
             for comp in compList:
-                print comp.fullName(),
+                print comp.fullname,
                 if comp.isHub():
-                    print "[%s]" % getHubType(comp.id()),
+                    print "[%s]" % getHubType(comp.id),
                 print " ",
             print
 

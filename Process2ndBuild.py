@@ -175,6 +175,6 @@ if __name__ == "__main__":
 
     if args.spadedir is None:
         cluster = ClusterDescription()
-        spadeDir = cluster.logDirForSpade()
+        spadeDir = cluster.logDirForSpade
 
     main(spadeDir, verbose=args.verbose, dryRun=args.dryRun)

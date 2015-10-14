@@ -10,11 +10,12 @@ from scmversion import SCM_REV_FILENAME
 
 
 class MockNode(object):
-    def __init__(self, hostName):
-        self.__hostName = hostName
+    def __init__(self, hostname):
+        self.__hostname = hostname
 
-    def hostName(self):
-        return self.__hostName
+    @property
+    def hostname(self):
+        return self.__hostname
 
 
 class MockClusterConfig(object):

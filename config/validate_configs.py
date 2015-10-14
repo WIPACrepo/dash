@@ -20,7 +20,6 @@ from ClusterDescription import ClusterDescription
 
 
 PDAQ_HOME = find_pdaq_trunk()
-CONFIG_DIR = find_pdaq_config()
 
 
 def _open_schema(path, description):
@@ -41,7 +40,8 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
 
     # ---------------------------------------------------------
     # build up a path and validate the default_dom_geometry file
-    dom_geom_xml_path = os.path.join(CONFIG_DIR,
+    config_dir = find_pdaq_config()
+    dom_geom_xml_path = os.path.join(config_dir,
                                      "default-dom-geometry.xml")
     (valid, reason) = validate_default_dom_geom(dom_geom_xml_path)
     if not valid:
@@ -66,11 +66,12 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
     if not extension or extension is not 'cfg':
         extension = 'cfg'
 
-    path = os.path.join(CONFIG_DIR, "%s.%s" % (fname, extension))
+    config_dir = find_pdaq_config()
+    path = os.path.join(config_dir, "%s.%s" % (fname, extension))
     if not os.path.exists(path):
-        path = os.path.join(CONFIG_DIR, "%s-cluster.%s" % (fname, extension))
+        path = os.path.join(config_dir, "%s-cluster.%s" % (fname, extension))
 
-    cluster_xml_filename = path 
+    cluster_xml_filename = path
 
     (valid, reason) = validate_clusterconfig(cluster_xml_filename)
     if not valid:
@@ -95,8 +96,9 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
     if not runconfig_xml_filename.endswith('.xml'):
         runconfig_xml_filename = "%s.xml" % runconfig_xml_filename
 
+    config_dir = find_pdaq_config()
     runconfig_basename = os.path.basename(runconfig_xml_filename)
-    runconfig_xml_filename = os.path.join(CONFIG_DIR,
+    runconfig_xml_filename = os.path.join(config_dir,
                                           runconfig_basename)
 
     (valid, reason) = validate_runconfig(runconfig_xml_filename)
@@ -124,8 +126,9 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
 
     dconfigList = run_configs.findall('domConfigList')
     for dconfig in dconfigList:
+        config_dir = find_pdaq_config()
         dom_config_txt = "%s.xml" % dconfig.text
-        dom_config_path = os.path.join(CONFIG_DIR, 'domconfigs',
+        dom_config_path = os.path.join(config_dir, 'domconfigs',
                                        dom_config_txt)
 
         if is_sps:
@@ -138,8 +141,9 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
 
     trigConfigList = run_configs.findall('triggerConfig')
     for trigConfig in trigConfigList:
+        config_dir = find_pdaq_config()
         trig_config_txt = "%s.xml" % trigConfig.text
-        trig_config_path = os.path.join(CONFIG_DIR, 'trigger',
+        trig_config_path = os.path.join(config_dir, 'trigger',
                                         trig_config_txt)
 
         (valid, reason) = validate_trigger(trig_config_path)
@@ -166,7 +170,7 @@ def validate_runconfig(xml_filename):
                                                     "runconfig-old.rng")
         if old_valid:
             return (old_valid, old_reason)
-        
+
     return (valid, reason)
 
 
@@ -329,17 +333,19 @@ def _validate_xml(xml_filename, xsd_filename):
 
 if __name__ == "__main__":
 
+    config_dir = find_pdaq_config()
+
     print "-" * 60
     print "Validating all sps configurations"
     print "-" * 60
-    sps_configs = glob.glob(os.path.join(CONFIG_DIR, 'sps*.xml'))
+    sps_configs = glob.glob(os.path.join(config_dir, 'sps*.xml'))
 
     print "validate_configs"
     print "Validating all sps configurations"
     for config in sps_configs:
         print ""
         print "Validating %s" % config
-        (valid, reason) = validate_configs(os.path.join(CONFIG_DIR,
+        (valid, reason) = validate_configs(os.path.join(config_dir,
                                                         'sps-cluster.cfg'),
                                            config)
 
@@ -350,12 +356,12 @@ if __name__ == "__main__":
             print "Configuration is valid"
 
 
-    spts_configs = glob.glob(os.path.join(CONFIG_DIR, 'spts*.xml'))
+    spts_configs = glob.glob(os.path.join(config_dir, 'spts*.xml'))
     print "Validating all sps configurations"
     for config in spts_configs:
         print ""
         print "Validating %s" % config
-        (valid, reason) = validate_configs(os.path.join(CONFIG_DIR,
+        (valid, reason) = validate_configs(os.path.join(config_dir,
                                                         'spts-cluster.cfg'),
                                            config)
 

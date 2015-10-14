@@ -24,44 +24,43 @@ class TestClusterDescription(unittest.TestCase):
     def __checkComp(self, h, c, mockComps):
         mock = None
         for m in mockComps:
-            if c.name() == m.name() and c.num() == m.num():
+            if c.name == m.name and c.num == m.num:
                 mock = m
                 break
 
         self.assertFalse(mock is None, "Cannot find component \"%s\"" %
-                         c.name())
-        self.assertEqual(mock.isControlServer(), c.isControlServer(),
+                         c.name)
+        self.assertEqual(mock.isControlServer, c.isControlServer,
                          "Expected %s ctlSrvr to be %s, not %s" %
-                         (mock.name(), mock.isControlServer(),
-                          c.isControlServer()))
-        self.assertEqual(mock.isSimHub(), c.isSimHub(),
+                         (mock.name, mock.isControlServer,
+                          c.isControlServer))
+        self.assertEqual(mock.isSimHub, c.isSimHub,
                          "Expected %s simHub to be %s, not %s" %
-                         (mock.name(), mock.isSimHub(),
-                          c.isSimHub()))
-        self.assertEqual(mock.jvmArgs(), c.jvmArgs(),
+                         (mock.name, mock.isSimHub, c.isSimHub))
+        self.assertEqual(mock.jvmArgs, c.jvmArgs,
                          "Expected %s JVM args \"%s\", not \"%s\"" %
-                         (mock.name(), mock.jvmArgs(), c.jvmArgs()))
-        self.assertEqual(mock.jvmExtraArgs(), c.jvmExtraArgs(),
+                         (mock.name, mock.jvmArgs, c.jvmArgs))
+        self.assertEqual(mock.jvmExtraArgs, c.jvmExtraArgs,
                          "Expected %s JVM extra args \"%s\", not \"%s\"" %
-                         (mock.name(), mock.jvmExtraArgs(), c.jvmExtraArgs()))
-        self.assertEqual(mock.jvmHeapInit(), c.jvmHeapInit(),
+                         (mock.name, mock.jvmExtraArgs, c.jvmExtraArgs))
+        self.assertEqual(mock.jvmHeapInit, c.jvmHeapInit,
                          "Expected %s JVM heapInit \"%s\", not \"%s\"" %
-                         (mock.name(), mock.jvmHeapInit(), c.jvmHeapInit()))
-        self.assertEqual(mock.jvmHeapMax(), c.jvmHeapMax(),
+                         (mock.name, mock.jvmHeapInit, c.jvmHeapInit))
+        self.assertEqual(mock.jvmHeapMax, c.jvmHeapMax,
                          "Expected %s JVM heapMax \"%s\", not \"%s\"" %
-                         (mock.name(), mock.jvmHeapMax(), c.jvmHeapMax()))
-        self.assertEqual(mock.jvmPath(), c.jvmPath(),
+                         (mock.name, mock.jvmHeapMax, c.jvmHeapMax))
+        self.assertEqual(mock.jvmPath, c.jvmPath,
                          "Expected %s JVM path \"%s\", not \"%s\"" %
-                         (mock.name(), mock.jvmPath(), c.jvmPath()))
-        self.assertEqual(mock.jvmServer(), c.jvmServer(),
+                         (mock.name, mock.jvmPath, c.jvmPath))
+        self.assertEqual(mock.jvmServer, c.jvmServer,
                          "Expected %s JVM server \"%s\", not \"%s\"" %
-                         (mock.name(), mock.jvmServer(), c.jvmServer()))
-        self.assertEqual(mock.logLevel(), c.logLevel(),
+                         (mock.name, mock.jvmServer, c.jvmServer))
+        self.assertEqual(mock.logLevel, c.logLevel,
                          "Expected %s log level \"%s\", not \"%s\"" %
-                         (mock.name(), mock.logLevel(), c.logLevel()))
-        self.assertEqual(mock.required(), c.required(),
+                         (mock.name, mock.logLevel, c.logLevel))
+        self.assertEqual(mock.required, c.required,
                          "Expected %s required to be %s, not %s" %
-                         (mock.name(), mock.required(), c.required()))
+                         (mock.name, mock.required, c.required))
 
     def setUp(self):
         if self.CFGDIR is None or not os.path.isdir(self.CFGDIR):
@@ -443,19 +442,19 @@ class TestClusterDescription(unittest.TestCase):
             if self.DEBUG:
                 cd.dump()
 
-            self.assertEqual(name + "-cluster", cd.configName(),
+            self.assertEqual(name + "-cluster", cd.configName,
                              "Expected cfgname \"%s-cluster\", not \"%s\"" %
-                             (name, cd.configName()))
+                             (name, cd.configName))
 
-            self.assertEqual(mock.dataDir(), cd.daqDataDir(),
+            self.assertEqual(mock.dataDir, cd.daqDataDir,
                              "Expected data dir \"%s\", not \"%s\"" %
-                             (mock.dataDir(), cd.daqDataDir()))
-            self.assertEqual(mock.logDir(), cd.daqLogDir(),
+                             (mock.dataDir, cd.daqDataDir))
+            self.assertEqual(mock.logDir, cd.daqLogDir,
                              "Expected log dir \"%s\", not \"%s\"" %
-                             (mock.logDir(), cd.daqLogDir()))
-            self.assertEqual(mock.spadeDir(), cd.logDirForSpade(),
+                             (mock.logDir, cd.daqLogDir))
+            self.assertEqual(mock.spadeDir, cd.logDirForSpade,
                              "Expected SPADE dir \"%s\", not \"%s\"" %
-                             (mock.spadeDir(), cd.logDirForSpade()))
+                             (mock.spadeDir, cd.logDirForSpade))
 
             self.assertEqual(mock.defaultJVMArgs(), cd.defaultJVMArgs(),
                              "Expected default JVMArgs \"%s\", not \"%s\"" %
@@ -479,87 +478,87 @@ class TestClusterDescription(unittest.TestCase):
             self.assertEqual(mock.defaultJVMServer(), cd.defaultJVMServer(),
                              "Expected default JVMServer \"%s\", not \"%s\"" %
                              (mock.defaultJVMServer(), cd.defaultJVMServer()))
-            self.assertEqual(mock.defaultLogLevel(), cd.defaultLogLevel(),
+            self.assertEqual(mock.defaultLogLevel, cd.defaultLogLevel(),
                              "Expected default LogLevel \"%s\", not \"%s\"" %
-                             (mock.defaultLogLevel(), cd.defaultLogLevel()))
+                             (mock.defaultLogLevel, cd.defaultLogLevel()))
 
-            self.assertEqual(acomp.jvmArgs(), cd.defaultJVMArgs(acomp.name()),
+            self.assertEqual(acomp.jvmArgs, cd.defaultJVMArgs(acomp.name),
                              "Expected %s default JVMArgs \"%s\", not \"%s\"" %
-                             (acomp.name(), acomp.jvmArgs(),
-                              cd.defaultJVMArgs(acomp.name())))
-            self.assertEqual(acomp.jvmExtraArgs(),
-                             cd.defaultJVMExtraArgs(acomp.name()),
+                             (acomp.name, acomp.jvmArgs,
+                              cd.defaultJVMArgs(acomp.name)))
+            self.assertEqual(acomp.jvmExtraArgs,
+                             cd.defaultJVMExtraArgs(acomp.name),
                              "Expected %s default JVMExtraArgs \"%s\","
                              " not \"%s\"" %
-                             (acomp.name(), acomp.jvmExtraArgs(),
-                              cd.defaultJVMExtraArgs(acomp.name())))
-            self.assertEqual(acomp.jvmHeapInit(),
-                             cd.defaultJVMHeapInit(acomp.name()),
+                             (acomp.name, acomp.jvmExtraArgs,
+                              cd.defaultJVMExtraArgs(acomp.name)))
+            self.assertEqual(acomp.jvmHeapInit,
+                             cd.defaultJVMHeapInit(acomp.name),
                              "Expected %s default JVMHeapInit \"%s\","
                              " not \"%s\"" %
-                             (acomp.name(), acomp.jvmHeapInit(),
-                              cd.defaultJVMHeapInit(acomp.name())))
-            self.assertEqual(acomp.jvmHeapMax(),
-                             cd.defaultJVMHeapMax(acomp.name()),
+                             (acomp.name, acomp.jvmHeapInit,
+                              cd.defaultJVMHeapInit(acomp.name)))
+            self.assertEqual(acomp.jvmHeapMax,
+                             cd.defaultJVMHeapMax(acomp.name),
                              "Expected %s default JVMHeapMax \"%s\","
                              " not \"%s\"" %
-                             (acomp.name(), acomp.jvmHeapMax(),
-                              cd.defaultJVMHeapMax(acomp.name())))
-            self.assertEqual(acomp.jvmPath(), cd.defaultJVMPath(acomp.name()),
+                             (acomp.name, acomp.jvmHeapMax,
+                              cd.defaultJVMHeapMax(acomp.name)))
+            self.assertEqual(acomp.jvmPath, cd.defaultJVMPath(acomp.name),
                              "Expected %s default JVMPath \"%s\", not \"%s\"" %
-                             (acomp.name(), acomp.jvmPath(),
-                              cd.defaultJVMPath(acomp.name())))
-            self.assertEqual(acomp.jvmServer(),
-                             cd.defaultJVMServer(acomp.name()),
+                             (acomp.name, acomp.jvmPath,
+                              cd.defaultJVMPath(acomp.name)))
+            self.assertEqual(acomp.jvmServer,
+                             cd.defaultJVMServer(acomp.name),
                              "Expected %s default JVMServer \"%s\","
                              " not \"%s\"" %
-                             (acomp.name(), acomp.jvmServer(),
-                              cd.defaultJVMServer(acomp.name())))
-            self.assertEqual(acomp.logLevel(), cd.defaultLogLevel(acomp.name()),
+                             (acomp.name, acomp.jvmServer,
+                              cd.defaultJVMServer(acomp.name)))
+            self.assertEqual(acomp.logLevel, cd.defaultLogLevel(acomp.name),
                              "Expected %s default LogLevel \"%s\", not \"%s\"" %
-                             (acomp.name(), acomp.logLevel(),
-                              cd.defaultLogLevel(acomp.name())))
+                             (acomp.name, acomp.logLevel,
+                              cd.defaultLogLevel(acomp.name)))
 
             self.assertEqual(mock.defaultJVMArgs(),
-                             cd.defaultJVMArgs(bcomp.name()),
+                             cd.defaultJVMArgs(bcomp.name),
                              "Expected %s default JVMArgs \"%s\", not \"%s\"" %
-                             (bcomp.name(), mock.defaultJVMArgs(),
-                              cd.defaultJVMArgs(bcomp.name())))
+                             (bcomp.name, mock.defaultJVMArgs(),
+                              cd.defaultJVMArgs(bcomp.name)))
             self.assertEqual(mock.defaultJVMExtraArgs(),
-                             cd.defaultJVMExtraArgs(bcomp.name()),
+                             cd.defaultJVMExtraArgs(bcomp.name),
                              "Expected %s default JVMExtraArgs \"%s\","
                              " not \"%s\"" %
-                             (bcomp.name(), mock.defaultJVMExtraArgs(),
-                              cd.defaultJVMExtraArgs(bcomp.name())))
+                             (bcomp.name, mock.defaultJVMExtraArgs(),
+                              cd.defaultJVMExtraArgs(bcomp.name)))
             self.assertEqual(mock.defaultJVMHeapInit(),
-                             cd.defaultJVMHeapInit(bcomp.name()),
+                             cd.defaultJVMHeapInit(bcomp.name),
                              "Expected %s default JVM HeapInit \"%s\","
                              " not \"%s\"" %
-                             (bcomp.name(), mock.defaultJVMHeapInit(),
-                              cd.defaultJVMHeapInit(bcomp.name())))
+                             (bcomp.name, mock.defaultJVMHeapInit(),
+                              cd.defaultJVMHeapInit(bcomp.name)))
             self.assertEqual(mock.defaultJVMHeapMax(),
-                             cd.defaultJVMHeapMax(bcomp.name()),
+                             cd.defaultJVMHeapMax(bcomp.name),
                              "Expected %s default JVM HeapMax \"%s\","
                              " not \"%s\"" %
-                             (bcomp.name(), mock.defaultJVMHeapMax(),
-                              cd.defaultJVMHeapMax(bcomp.name())))
+                             (bcomp.name, mock.defaultJVMHeapMax(),
+                              cd.defaultJVMHeapMax(bcomp.name)))
             self.assertEqual(mock.defaultJVMPath(),
-                             cd.defaultJVMPath(bcomp.name()),
+                             cd.defaultJVMPath(bcomp.name),
                              "Expected %s default JVMPath \"%s\", not \"%s\"" %
-                             (bcomp.name(), mock.defaultJVMPath(),
-                              cd.defaultJVMPath(bcomp.name())))
+                             (bcomp.name, mock.defaultJVMPath(),
+                              cd.defaultJVMPath(bcomp.name)))
             self.assertEqual(mock.defaultJVMServer(),
-                             cd.defaultJVMServer(bcomp.name()),
+                             cd.defaultJVMServer(bcomp.name),
                              "Expected %s default JVMServer \"%s\","
                              " not \"%s\"" %
-                             (bcomp.name(), mock.defaultJVMServer(),
-                              cd.defaultJVMServer(bcomp.name())))
-            self.assertEqual(mock.defaultLogLevel(),
-                             cd.defaultLogLevel(bcomp.name()),
+                             (bcomp.name, mock.defaultJVMServer(),
+                              cd.defaultJVMServer(bcomp.name)))
+            self.assertEqual(mock.defaultLogLevel,
+                             cd.defaultLogLevel(bcomp.name),
                              "Expected %s default LogLevel \"%s\","
                              " not \"%s\"" %
-                             (bcomp.name(), mock.defaultLogLevel(),
-                              cd.defaultLogLevel(bcomp.name())))
+                             (bcomp.name, mock.defaultLogLevel,
+                              cd.defaultLogLevel(bcomp.name)))
 
     def testDefaultInheritance(self):
         name = "compdflts"
@@ -596,8 +595,8 @@ class TestClusterDescription(unittest.TestCase):
             mock.setDefaultLogLevel(dfltLogLvl)
 
             # add host
-            hostName = "someHost"
-            h = mock.addHost(hostName)
+            hostname = "someHost"
+            h = mock.addHost(hostname)
 
             # temporary values will be used to set up
             # component-specific default values
@@ -710,19 +709,19 @@ class TestClusterDescription(unittest.TestCase):
             if self.DEBUG:
                 cd.dump()
 
-            self.assertEqual(name + "-cluster", cd.configName(),
+            self.assertEqual(name + "-cluster", cd.configName,
                              "Expected cfgname \"%s-cluster\", not \"%s\"" %
-                             (name, cd.configName()))
+                             (name, cd.configName))
 
-            self.assertEqual(dataDir, cd.daqDataDir(),
+            self.assertEqual(dataDir, cd.daqDataDir,
                              "Expected data dir \"%s\", not \"%s\"" %
-                             (dataDir, cd.daqDataDir()))
-            self.assertEqual(logDir, cd.daqLogDir(),
+                             (dataDir, cd.daqDataDir))
+            self.assertEqual(logDir, cd.daqLogDir,
                              "Expected log dir \"%s\", not \"%s\"" %
-                             (logDir, cd.daqLogDir()))
-            self.assertEqual(spadeDir, cd.logDirForSpade(),
+                             (logDir, cd.daqLogDir))
+            self.assertEqual(spadeDir, cd.logDirForSpade,
                              "Expected SPADE dir \"%s\", not \"%s\"" %
-                             (spadeDir, cd.logDirForSpade()))
+                             (spadeDir, cd.logDirForSpade))
 
             self.assertEqual(dfltArgs, cd.defaultJVMArgs(),
                              "Expected default JVMArgs \"%s\", not \"%s\"" %
@@ -747,8 +746,8 @@ class TestClusterDescription(unittest.TestCase):
                              "Expected default LogLevel \"%s\", not \"%s\"" %
                              (dfltLogLvl, cd.defaultLogLevel()))
 
-            for comp in cd.host(hostName).getComponents():
-                if comp.name() == plainName:
+            for comp in cd.host(hostname).getComponents():
+                if comp.name == plainName:
                     (args, extra, heapInit, heapMax, path, server, logLevel) = \
                         (plainArgs, plainExtra, plainHeapInit, plainHeapMax,
                          plainPath, plainServer, plainLogLvl)
@@ -757,27 +756,27 @@ class TestClusterDescription(unittest.TestCase):
                         (instArgs, instExtra, instHeapInit, instHeapMax,
                          instPath, instServer, instLogLvl)
 
-                self.assertEqual(args, comp.jvmArgs(),
+                self.assertEqual(args, comp.jvmArgs,
                                  "Expected %s JVMArgs \"%s\", not \"%s\"" %
-                                 (comp.name(), args, comp.jvmArgs()))
-                self.assertEqual(extra, comp.jvmExtraArgs(),
+                                 (comp.name, args, comp.jvmArgs))
+                self.assertEqual(extra, comp.jvmExtraArgs,
                                  "Expected %s JVMExtra \"%s\", not \"%s\"" %
-                                 (comp.name(), extra, comp.jvmExtraArgs()))
-                self.assertEqual(heapInit, comp.jvmHeapInit(),
+                                 (comp.name, extra, comp.jvmExtraArgs))
+                self.assertEqual(heapInit, comp.jvmHeapInit,
                                  "Expected %s JVMHeapInit \"%s\", not \"%s\"" %
-                                 (comp.name(), heapInit, comp.jvmHeapInit()))
-                self.assertEqual(heapMax, comp.jvmHeapMax(),
+                                 (comp.name, heapInit, comp.jvmHeapInit))
+                self.assertEqual(heapMax, comp.jvmHeapMax,
                                  "Expected %s JVMHeapMax \"%s\", not \"%s\"" %
-                                 (comp.name(), heapMax, comp.jvmHeapMax()))
-                self.assertEqual(path, comp.jvmPath(),
+                                 (comp.name, heapMax, comp.jvmHeapMax))
+                self.assertEqual(path, comp.jvmPath,
                                  "Expected %s JVMPath \"%s\", not \"%s\"" %
-                                 (comp.name(), path, comp.jvmPath()))
-                self.assertEqual(server, comp.jvmServer(),
+                                 (comp.name, path, comp.jvmPath))
+                self.assertEqual(server, comp.jvmServer,
                                  "Expected %s JVMServer \"%s\", not \"%s\"" %
-                                 (comp.name(), server, comp.jvmServer()))
-                self.assertEqual(logLevel, comp.logLevel(),
+                                 (comp.name, server, comp.jvmServer))
+                self.assertEqual(logLevel, comp.logLevel,
                                  "Expected %s LogLevel \"%s\", not \"%s\"" %
-                                 (comp.name(), logLevel, comp.logLevel()))
+                                 (comp.name, logLevel, comp.logLevel))
 
     def testComponents(self):
         name = "comps"
@@ -833,15 +832,15 @@ class TestClusterDescription(unittest.TestCase):
             if self.DEBUG:
                 cd.dump()
 
-            self.assertEqual(mock.dataDir(), cd.daqDataDir(),
+            self.assertEqual(mock.dataDir, cd.daqDataDir,
                              "Expected data dir \"%s\", not \"%s\"" %
-                             (mock.dataDir(), cd.daqDataDir()))
-            self.assertEqual(mock.logDir(), cd.daqLogDir(),
+                             (mock.dataDir, cd.daqDataDir))
+            self.assertEqual(mock.logDir, cd.daqLogDir,
                              "Expected log dir \"%s\", not \"%s\"" %
-                             (mock.logDir(), cd.daqLogDir()))
-            self.assertEqual(mock.spadeDir(), cd.logDirForSpade(),
+                             (mock.logDir, cd.daqLogDir))
+            self.assertEqual(mock.spadeDir, cd.logDirForSpade,
                              "Expected SPADE dir \"%s\", not \"%s\"" %
-                             (mock.spadeDir(), cd.logDirForSpade()))
+                             (mock.spadeDir, cd.logDirForSpade))
 
             for h, c in cd.listHostComponentPairs():
                 self.__checkComp(h, c, mockComps)
@@ -876,7 +875,7 @@ class TestClusterDescription(unittest.TestCase):
             self.fail("Test %s should not succeed" % name)
         except ClusterDescriptionFormatError as fmterr:
             errmsg = ("Multiple entries for component \"%s@WARN(?)\""
-                      " in host \"%s\"") % (comp.name(), host.name())
+                      " in host \"%s\"") % (comp.name, host.name)
             if not str(fmterr).endswith(errmsg):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
@@ -905,7 +904,7 @@ class TestClusterDescription(unittest.TestCase):
             self.fail("Test %s should not succeed" % name)
         except ClusterDescriptionFormatError as fmterr:
             errmsg = "Multiple entries for component \"%s@WARN(?)\"" % \
-                     c1.name()
+                     c1.name
             if not str(fmterr).endswith(errmsg):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
@@ -964,7 +963,7 @@ class TestClusterDescription(unittest.TestCase):
     def testMultiJVM(self):
         name = "multiJVM"
 
-        hostName = "foo"
+        hostname = "foo"
         compName = "fooComp"
         args = None
         extra = None
@@ -976,7 +975,7 @@ class TestClusterDescription(unittest.TestCase):
         cluPath = os.path.join(self.CFGDIR, name + "-cluster.cfg")
         with open(cluPath, "w") as fd:
             print >>fd, "<cluster name=\"%s\">" % name
-            print >>fd, "  <host name=\"%s\">" % hostName
+            print >>fd, "  <host name=\"%s\">" % hostname
             print >>fd, "    <component name=\"%s\">" % compName
             print >>fd, "      <jvm heapInit=\"xxx\"/>"
             print >>fd, "      <jvm heapInit=\"%s\"/>" % heapInit
@@ -987,25 +986,25 @@ class TestClusterDescription(unittest.TestCase):
 
         cd = ClusterDescription(self.CFGDIR, name)
 
-        for comp in cd.host(hostName).getComponents():
-            self.assertEqual(args, comp.jvmArgs(),
+        for comp in cd.host(hostname).getComponents():
+            self.assertEqual(args, comp.jvmArgs,
                              "Expected %s JVMArgs \"%s\", not \"%s\"" %
-                             (comp.name(), args, comp.jvmArgs()))
-            self.assertEqual(extra, comp.jvmExtraArgs(),
+                             (comp.name, args, comp.jvmArgs))
+            self.assertEqual(extra, comp.jvmExtraArgs,
                              "Expected %s JVMExtra \"%s\", not \"%s\"" %
-                             (comp.name(), extra, comp.jvmExtraArgs()))
-            self.assertEqual(heapInit, comp.jvmHeapInit(),
+                             (comp.name, extra, comp.jvmExtraArgs))
+            self.assertEqual(heapInit, comp.jvmHeapInit,
                              "Expected %s JVMHeapInit \"%s\", not \"%s\"" %
-                             (comp.name(), heapInit, comp.jvmHeapInit()))
-            self.assertEqual(heapMax, comp.jvmHeapMax(),
+                             (comp.name, heapInit, comp.jvmHeapInit))
+            self.assertEqual(heapMax, comp.jvmHeapMax,
                              "Expected %s JVMHeapMax \"%s\", not \"%s\"" %
-                             (comp.name(), heapMax, comp.jvmHeapMax()))
-            self.assertEqual(path, comp.jvmPath(),
+                             (comp.name, heapMax, comp.jvmHeapMax))
+            self.assertEqual(path, comp.jvmPath,
                              "Expected %s JVMPath \"%s\", not \"%s\"" %
-                             (comp.name(), path, comp.jvmPath()))
-            self.assertEqual(server, comp.jvmServer(),
+                             (comp.name, path, comp.jvmPath))
+            self.assertEqual(server, comp.jvmServer,
                              "Expected %s JVMServer \"%s\", not \"%s\"" %
-                             (comp.name(), server, comp.jvmServer()))
+                             (comp.name, server, comp.jvmServer))
 
 if __name__ == '__main__':
     unittest.main()

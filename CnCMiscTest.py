@@ -20,9 +20,9 @@ class TestCnCMisc(unittest.TestCase):
             for cData in data[3:]:
                 conn = Connector(cData[0], cData[1], cData[2])
 
-                if not conn.name() in cDict:
-                    cDict[conn.name()] = ConnTypeEntry(conn.name())
-                cDict[conn.name()].add(conn, comp)
+                if not conn.name in cDict:
+                    cDict[conn.name] = ConnTypeEntry(conn.name)
+                cDict[conn.name].add(conn, comp)
 
         return cDict
 

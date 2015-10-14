@@ -147,6 +147,7 @@ class BaseFile(object):
     def lockStatus(self):
         return self.__lockStatus
 
+    @property
     def name(self):
         return self.__name
 
@@ -256,8 +257,9 @@ class BaseIP(BaseFile):
     def inode(self):
         return self.__proto
 
+    @property
     def name(self):
-        nm = super(BaseIP, self).name()
+        nm = super(BaseIP, self).name
         if self.__info is None:
             return nm
         for i in self.__info:
@@ -587,4 +589,4 @@ if __name__ == "__main__":
                    " %8.8s %s") % \
                    (cmd, pid, user, f.fileDesc(), f.accessMode(),
                     f.lockStatus(), f.fileType(), f.device(), f.sizeOffset(),
-                    f.inode(), f.name())
+                    f.inode(), f.name)

@@ -60,7 +60,7 @@ if __name__ == "__main__":
     if args.oldDefDomGeom is None:
         oldDomGeom = DefaultDomGeometryReader.parse()
     else:
-        oldDomGeom = DefaultDomGeometryReader.parse(args.oldDefDomGeom)
+        oldDomGeom = DefaultDomGeometryReader.parse(fileName=args.oldDefDomGeom)
 
     # update geometry info in existing file
     if args.geomFile is not None:

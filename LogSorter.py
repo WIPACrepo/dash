@@ -499,7 +499,7 @@ def sort_logs(args):
         runDir = args.rundir
     else:
         cd = ClusterDescription()
-        runDir = cd.daqLogDir()
+        runDir = cd.daqLogDir
 
     for arg in args.runNumber:
         (path, runnum) = getDirAndRunnum(runDir, arg)

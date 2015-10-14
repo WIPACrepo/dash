@@ -11,10 +11,7 @@ import sys
 from xml.dom import minidom, Node
 from xmlparser import XMLBadFileError, XMLFormatError, XMLParser
 
-
-# find pDAQ's run configuration directory
 from locate_pdaq import find_pdaq_config
-configDir = find_pdaq_config()
 
 
 class DomGeometryException(Exception):
@@ -111,6 +108,7 @@ class DomGeometry(object):
     def mbid(self):
         return self.__mbid
 
+    @property
     def name(self):
         return self.__name
 
@@ -352,7 +350,7 @@ class DefaultDomGeometry(object):
                 del self.__stringToDom[stringNum][i]
                 return
 
-        if dom.mbid() is not None or dom.name() is not None:
+        if dom.mbid() is not None or dom.name is not None:
             print >>sys.stderr, "Could not delete %s from string %d" % \
                   (dom, stringNum)
 
@@ -381,7 +379,7 @@ class DefaultDomGeometry(object):
 
             domList.sort()
             for dom in domList:
-                if dom.mbid() is None and dom.name() is None and \
+                if dom.mbid() is None and dom.name is None and \
                        dom.prodId() is None:
                     continue
                 print >>out, "%s%s<dom>" % (indent, indent)
@@ -400,8 +398,8 @@ class DefaultDomGeometry(object):
                 if dom.mbid() is not None:
                     print >>out, "%s<mainBoardId>%s</mainBoardId>" % \
                           (domIndent, dom.mbid())
-                if dom.name() is not None:
-                    print >>out, "%s<name>%s</name>" % (domIndent, dom.name())
+                if dom.name is not None:
+                    print >>out, "%s<name>%s</name>" % (domIndent, dom.name)
                 if dom.prodId() is not None:
                     print >>out, "%s<productionId>%s</productionId>" % \
                           (domIndent, dom.prodId())
@@ -426,7 +424,7 @@ class DefaultDomGeometry(object):
             for dom in self.__stringToDom[s]:
                 allDoms.append(dom)
 
-        allDoms.sort(cmp=lambda x, y: cmp(x.name(), y.name()))
+        allDoms.sort(cmp=lambda x, y: cmp(x.name, y.name))
 
         print >>out, "mbid\tthedomid\tthename\tlocation\texplanation"
         for dom in allDoms:
@@ -435,7 +433,7 @@ class DefaultDomGeometry(object):
             if dom.string() >= 1000:
                 continue
 
-            name = dom.name().encode("iso-8859-1")
+            name = dom.name.encode("iso-8859-1")
 
             try:
                 desc = dom.desc().encode("iso-8859-1")
@@ -567,31 +565,31 @@ class DefaultDomGeometry(object):
 
         for strNum in strKeys:
             for dom in self.__stringToDom[strNum]:
-                if not names.has_key(dom.name()):
-                    names[dom.name()] = dom
+                if not names.has_key(dom.name):
+                    names[dom.name] = dom
                 else:
                     print >>sys.stderr, "Found DOM \"%s\" at %s and %s" % \
-                        (dom.name(), dom.location(),
-                         names[dom.name()].location())
+                        (dom.name, dom.location(),
+                         names[dom.name].location())
 
-                if dom.name().startswith("SIM") and \
+                if dom.name.startswith("SIM") and \
                     dom.string() % 1000 >= 200 and dom.string() % 1000 < 299:
-                    domnum = int(dom.name()[3:])
+                    domnum = int(dom.name[3:])
                     origStr = ((domnum - 1) / 64) + 1001
                     if dom.originalString() is None:
                         dom.setOriginalString(origStr)
                     elif dom.originalString() != origStr:
                         print >>sys.stderr, \
                             "DOM %s \"%s\" should have origStr %d, not %d" % \
-                            (dom.location(), dom.name(), origStr,
+                            (dom.location(), dom.name, origStr,
                              dom.originalString())
 
                 if not locs.has_key(dom.location()):
                     locs[dom.location()] = dom
                 else:
                     print >>sys.stderr, "Position %s holds DOMS %s and %s" % \
-                        (dom.location(), dom.name(),
-                         locs[dom.location()].name())
+                        (dom.location(), dom.name,
+                         locs[dom.location()].name)
 
                 if dom.originalString() is not None:
                     strNum = dom.originalString()
@@ -604,11 +602,11 @@ class DefaultDomGeometry(object):
                     if dom.pos() <= DomGeometry.MAX_POSITION:
                         print >> sys.stderr, \
                             "No channel ID for DOM %s \"%s\"" % \
-                            (dom.location(), dom.name())
+                            (dom.location(), dom.name)
                 elif newId != dom.channelId():
                     print >> sys.stderr, \
                         "DOM %s \"%s\" should have channel ID %d, not %d" % \
-                        (dom.location(), dom.name(), newId, dom.channelId())
+                        (dom.location(), dom.name, newId, dom.channelId())
                     dom.setChannelId(newId)
 
 
@@ -717,7 +715,10 @@ class DefaultDomGeometryReader(XMLParser):
             raise XMLFormatError("String is missing number")
 
     @classmethod
-    def parse(cls, fileName=None, translateDoms=False):
+    def parse(cls, configDir=None, fileName=None, translateDoms=False):
+        if configDir is None:
+            configDir = find_pdaq_config()
+
         if fileName is None:
             fileName = os.path.join(configDir, DefaultDomGeometry.FILENAME)
 
@@ -767,6 +768,7 @@ class DomsTxtReader(object):
     def parse(fileName=None, defDomGeom=None):
         "Parse a doms.txt file"
         if fileName is None:
+            configDir = find_pdaq_config()
             fileName = os.path.join(configDir, "doms.txt")
 
         if not os.path.exists(fileName):
@@ -831,6 +833,7 @@ class NicknameReader(object):
     @staticmethod
     def parse(fileName=None, defDomGeom=None):
         if fileName is None:
+            configDir = find_pdaq_config()
             fileName = os.path.join(configDir, "nicknames.txt")
 
         if not os.path.exists(fileName):

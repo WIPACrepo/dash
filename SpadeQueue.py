@@ -307,8 +307,8 @@ def queue_logs(args):
     logger.setLevel(logging.DEBUG)
 
     cluster = ClusterDescription()
-    spadeDir = cluster.logDirForSpade()
-    logDir = cluster.daqLogDir()
+    spadeDir = cluster.logDirForSpade
+    logDir = cluster.daqLogDir
     copyDir = None
 
     if args.check_all or len(args.runNumber) == 0:

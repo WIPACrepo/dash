@@ -126,7 +126,7 @@ if __name__ == "__main__":
             raise SystemExit()
 
     try:
-        runCfg = DAQConfigParser.load(runCfgName, configDir)
+        runCfg = DAQConfigParser.parse(configDir, runCfgName)
     except DAQConfigException as config_exp:
         print >> sys.stderr, "WARNING: Error parsing %s" % runCfgName
         raise SystemExit(config_exp)

@@ -2,9 +2,11 @@
 
 import os
 import re
+import sys
 import unittest
 from DAQConfig import DAQConfigParser
 from RunCluster import RunCluster, RunClusterError
+from locate_pdaq import set_pdaq_config_dir
 
 
 class DeployData(object):
@@ -36,7 +38,7 @@ class RunClusterTest(unittest.TestCase):
 
     def __checkCluster(self, clusterName, cfgName, expNodes, spadeDir,
                        logCopyDir, daqLogDir, daqDataDir, verbose=False):
-        cfg = DAQConfigParser.load(cfgName, RunClusterTest.CONFIG_DIR)
+        cfg = DAQConfigParser.parse(RunClusterTest.CONFIG_DIR, cfgName)
 
         cluster = RunCluster(cfg, clusterName, RunClusterTest.CONFIG_DIR)
 
@@ -66,14 +68,14 @@ class RunClusterTest(unittest.TestCase):
             for comp in sortedComps:
                 found = False
                 for en in expNodes:
-                    #print "CMP %s/%s#%d <==> %s" % (node.hostName(), comp.name(), comp.id(), en)
-                    if en.matches(node.hostName(), comp.name(), comp.id()):
+                    #print "CMP %s/%s#%d <==> %s" % (node.hostname, comp.name, comp.id, en)
+                    if en.matches(node.hostname, comp.name, comp.id):
                         found = True
                         en.markFound()
                         break
                 if not found:
                     self.fail('Did not expect %s component %s' %
-                              (node.hostName(), str(comp)))
+                              (node.hostname, str(comp)))
 
         for en in expNodes:
             if not en.isFound():
@@ -81,21 +83,24 @@ class RunClusterTest(unittest.TestCase):
 
         #hubList = cluster.getHubNodes()
 
-        self.assertEqual(cluster.logDirForSpade(), spadeDir,
+        self.assertEqual(cluster.logDirForSpade, spadeDir,
                          'SPADE log directory is "%s", not "%s"' %
-                         (cluster.logDirForSpade(), spadeDir))
-        self.assertEqual(cluster.logDirCopies(), logCopyDir,
+                         (cluster.logDirForSpade, spadeDir))
+        self.assertEqual(cluster.logDirCopies, logCopyDir,
                          'Log copy directory is "%s", not "%s"' %
-                         (cluster.logDirCopies(), logCopyDir))
-        self.assertEqual(cluster.daqLogDir(), daqLogDir,
+                         (cluster.logDirCopies, logCopyDir))
+        self.assertEqual(cluster.daqLogDir, daqLogDir,
                          'DAQ log directory is "%s", not "%s"' %
-                         (cluster.daqLogDir(), daqLogDir))
-        self.assertEqual(cluster.daqDataDir(), daqDataDir,
+                         (cluster.daqLogDir, daqLogDir))
+        self.assertEqual(cluster.daqDataDir, daqDataDir,
                          'DAQ data directory is "%s", not "%s"' %
-                         (cluster.daqDataDir(), daqDataDir))
+                         (cluster.daqDataDir, daqDataDir))
+
+    def setUp(self):
+        set_pdaq_config_dir(RunClusterTest.CONFIG_DIR)
 
     def testClusterFile(self):
-        cfg = DAQConfigParser.load("simpleConfig", RunClusterTest.CONFIG_DIR)
+        cfg = DAQConfigParser.parse(RunClusterTest.CONFIG_DIR, "simpleConfig")
 
         cluster = RunCluster(cfg, "localhost", RunClusterTest.CONFIG_DIR)
 

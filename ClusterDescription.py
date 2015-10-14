@@ -42,6 +42,7 @@ class ConfigXMLBase(XMLParser):
 
         self.extractFrom(dom)
 
+    @property
     def configName(self):
         return self.__configName
 
@@ -118,24 +119,31 @@ class JVMComponent(Component):
 
         self.__jvm = JVMArgs(path, isServer, heapInit, heapMax, args, extraArgs)
 
+    @property
     def jvmArgs(self):
         return self.__jvm.args()
 
+    @property
     def jvmExtraArgs(self):
         return self.__jvm.extraArgs()
 
+    @property
     def jvmHeapInit(self):
         return self.__jvm.heapInit()
 
+    @property
     def jvmHeapMax(self):
         return self.__jvm.heapMax()
 
+    @property
     def jvmPath(self):
         return self.__jvm.path()
 
+    @property
     def jvmServer(self):
         return self.__jvm.isServer()
 
+    @property
     def jvmStr(self):
         return str(self.__jvm)
 
@@ -145,14 +153,17 @@ class ControlComponent(JVMComponent):
                                                None, None, None)
 
     def __str__(self):
-        return self.name()
+        return self.name
 
+    @property
     def isControlServer(self):
         return True
 
+    @property
     def isSimHub(self):
         return False
 
+    @property
     def required(self):
         return True
 
@@ -173,37 +184,58 @@ class ClusterComponent(JVMComponent):
             rStr = ""
 
         return "%s@%s(%s)%s" % \
-            (self.fullName(), str(self.logLevel()), self.jvmStr(), rStr)
+            (self.fullname, str(self.logLevel), self.jvmStr, rStr)
 
+    @property
     def isControlServer(self):
         return False
 
+    @property
     def isSimHub(self):
         return False
 
+    @property
     def required(self):
         return self.__required
 
 
 class ClusterSimHub(ClusterComponent):
     def __init__(self, host, number, priority, ifUnused):
-        self.host = host
-        self.number = number
-        self.priority = priority
-        self.ifUnused = ifUnused
+        self.__host = host
+        self.__number = number
+        self.__priority = priority
+        self.__ifUnused = ifUnused
 
         super(ClusterSimHub, self).__init__("SimHub", 0, None, None, False,
                                             None, None, None, None, False)
 
     def __str__(self):
-        if self.ifUnused:
+        if self.__ifUnused:
             uStr = "(ifUnused)"
         else:
             uStr = ""
-        return "%s*%d^%d%s" % (self.host, self.number, self.priority, uStr)
+        return "%s*%d^%d%s" % \
+            (self.__host, self.__number, self.__priority, uStr)
 
+    @property
+    def host(self):
+        return self.__host
+
+    @property
+    def ifUnused(self):
+        return self.__ifUnused
+
+    @property
     def isSimHub(self):
         return True
+
+    @property
+    def number(self):
+        return self.__number
+
+    @property
+    def priority(self):
+        return self.__priority
 
 
 class ClusterHost(object):
@@ -274,6 +306,7 @@ class ClusterHost(object):
     def getComponents(self):
         return self.compMap.values()
 
+    @property
     def isControlServer(self):
         return self.ctlServer
 
@@ -483,13 +516,13 @@ class ClusterDescription(ConfigXMLBase):
         compToHost = {}
 
         for node in hostNodes:
-            hostName = cls.getValue(node, 'name')
-            if hostName is None:
+            hostname = cls.getValue(node, 'name')
+            if hostname is None:
                 errMsg = ('Cluster "%s" has <host> node without "name"' +
                           ' attribute') % name
                 raise ClusterDescriptionFormatError(errMsg)
 
-            host = ClusterHost(hostName)
+            host = ClusterHost(hostname)
 
             for kid in node.childNodes:
                 if kid.nodeType != Node.ELEMENT_NODE:
@@ -505,10 +538,10 @@ class ClusterDescription(ConfigXMLBase):
                                          simData[3])
 
             # add host to internal host dictionary
-            if not hostName in hostMap:
-                hostMap[hostName] = host
+            if not hostname in hostMap:
+                hostMap[hostname] = host
             else:
-                errMsg = 'Multiple entries for host "%s"' % hostName
+                errMsg = 'Multiple entries for host "%s"' % hostname
                 raise ClusterDescriptionFormatError(errMsg)
 
             for comp in host.getComponents():
@@ -595,11 +628,13 @@ class ClusterDescription(ConfigXMLBase):
 
         return (host, num, prio, ifUnused)
 
+    @property
     def daqDataDir(self):
         if self.__daq_data_dir is None:
             return self.DEFAULT_DATA_DIR
         return self.__daq_data_dir
 
+    @property
     def daqLogDir(self):
         if self.__daq_log_dir is None:
             return self.DEFAULT_LOG_DIR
@@ -865,7 +900,7 @@ class ClusterDescription(ConfigXMLBase):
         for host in self.__host_map.keys():
             for comp in self.__host_map[host].getComponents():
                 yield (host, comp)
-            if self.__host_map[host].isControlServer():
+            if self.__host_map[host].isControlServer:
                 yield (host, ControlComponent())
 
     def listHostSimHubPairs(self):
@@ -874,24 +909,26 @@ class ClusterDescription(ConfigXMLBase):
                 for sh in self.__host_map[host].simHubs:
                     yield (host, sh)
 
+    @property
     def logDirForSpade(self):
         return self.__spade_log_dir
 
+    @property
     def logDirCopies(self):
         return self.__log_dir_copies
 
+    @property
     def packageStageDir(self):
         if self.__pkg_stage_dir is None:
             return self.DEFAULT_PKGSTAGE_DIR
         return self.__pkg_stage_dir
 
+    @property
     def packageInstallDir(self):
         if self.__pkg_install_dir is None:
             return self.DEFAULT_PKGINSTALL_DIR
         return self.__pkg_install_dir
 
-    def setDefaultLogLevel(self, value):
-        self.__default_log_level = value
 
 if __name__ == '__main__':
     def tryCluster(configDir, path=None):

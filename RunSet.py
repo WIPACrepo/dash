@@ -64,19 +64,18 @@ class Connection(object):
     def __str__(self):
         "String description"
         frontStr = '%s:%s#%d@%s' % \
-            (self.conn.name(), self.comp.name(), self.comp.num(),
-             self.comp.host())
+            (self.conn.name, self.comp.name, self.comp.num, self.comp.host)
         if not self.conn.isInput():
             return frontStr
-        return '%s:%d' % (frontStr, self.conn.port())
+        return '%s:%d' % (frontStr, self.conn.port)
 
     def map(self):
         connDict = {}
-        connDict['type'] = self.conn.name()
-        connDict['compName'] = self.comp.name()
-        connDict['compNum'] = self.comp.num()
-        connDict['host'] = self.comp.host()
-        connDict['port'] = self.conn.port()
+        connDict['type'] = self.conn.name
+        connDict['compName'] = self.comp.name
+        connDict['compNum'] = self.comp.num
+        connDict['host'] = self.comp.host
+        connDict['port'] = self.conn.port
         return connDict
 
 
@@ -319,7 +318,7 @@ class GoodTimeThread(CnCThread):
                 if numDoms == 0:
                     # this string has no usable DOMs, record illegal time
                     self.__log.error("No usable DOMs on %s for %s" %
-                                     (c.fullName(), self.moniname()))
+                                     (c.fullname, self.moniname()))
                     self.__timeDict[c] = -1L
                     continue
 
@@ -526,8 +525,8 @@ class RunData(object):
 
         self.__dashlog.error("Version info: " +
                              get_scmversion_str(info=versionInfo))
-        self.__dashlog.error("Run configuration: %s" % runConfig.basename())
-        self.__dashlog.error("Cluster: %s" % clusterConfig.descName())
+        self.__dashlog.error("Run configuration: %s" % runConfig.basename)
+        self.__dashlog.error("Cluster: %s" % clusterConfig.description)
 
         self.__taskMgr = None
         self.__liveMoniClient = None
@@ -648,6 +647,20 @@ class RunData(object):
         return (nEvts, wallTime, self.__firstPayTime, lastPayTime, nMoni,
                 moniTime, nSN, snTime, nTCal, tcalTime)
 
+    def __leapsecondsChecks(self, config_dir=None):
+        """
+        Reload leapseconds file if it's been updated
+        Complain if the leapseconds file is due to expire
+        """
+        ls = leapseconds.getInstance(config_dir)
+
+        ls.reload_check(self.__liveMoniClient, self.__dashlog)
+
+        # sends an alert off to live if the nist leapsecond
+        # file is about to expire
+        # will send a message to stderr if the liveMoniClient is None
+        ls.expiry_check(self.__liveMoniClient)
+
     def __reportEventStart(self):
         if self.__liveMoniClient is not None:
             try:
@@ -715,8 +728,8 @@ class RunData(object):
         xmlLog.setVersionInfo(self.__versionInfo["release"],
                               self.__versionInfo["repo_rev"])
         xmlLog.setRun(self.__runNumber)
-        xmlLog.setConfig(self.__runConfig.basename())
-        xmlLog.setCluster(self.__clusterConfig.descName())
+        xmlLog.setConfig(self.__runConfig.basename)
+        xmlLog.setCluster(self.__clusterConfig.description)
         xmlLog.setStartTime(PayloadTime.toDateTime(firstTime))
         xmlLog.setEndTime(PayloadTime.toDateTime(lastTime))
         xmlLog.setFirstGoodTime(PayloadTime.toDateTime(firstGood))
@@ -852,7 +865,7 @@ class RunData(object):
         """
 
         # reload the leapseconds file if it's changed, complain if it's outdated
-        self.leapsecondsChecks()
+        self.__leapsecondsChecks(config_dir=self.__runConfig.configdir)
 
         # send start-of-run message to Live
         if self.__liveMoniClient is not None:
@@ -948,10 +961,10 @@ class RunData(object):
                 result == ComponentOperation.RESULT_ERROR or \
                 result is None:
                 self.__dashlog.error("Cannot get run data for %s: %s" %
-                                     (c.fullName(), result))
+                                     (c.fullname, result))
             elif not isinstance(result, list) and not isinstance(result, tuple):
                 self.__dashlog.error("Bogus run data for %s: %s" %
-                                     (c.fullName(), result))
+                                     (c.fullname, result))
             elif c.isComponent("eventBuilder"):
                 expNum = 5
                 if len(result) == expNum:
@@ -959,7 +972,7 @@ class RunData(object):
                 else:
                     self.__dashlog.error(("Expected %d run data values from" +
                                           " %s, got %d (%s)") %
-                                         (expNum, c.fullName(), len(result),
+                                         (expNum, c.fullname, len(result),
                                           str(result)))
             elif c.isComponent("secondaryBuilders"):
                 expNum = 3
@@ -968,7 +981,7 @@ class RunData(object):
                 else:
                     self.__dashlog.error(("Expected %d run data values from" +
                                           " %s, got %d (%s)") %
-                                         (expNum, c.fullName(), len(result),
+                                         (expNum, c.fullname, len(result),
                                           str(result)))
 
         return (nEvts, firstTime, lastTime, firstGood, lastGood, nMoni, nSN,
@@ -1001,20 +1014,6 @@ class RunData(object):
 
     def isWarnEnabled(self):
         return self.__dashlog.isWarnEnabled()
-
-    def leapsecondsChecks(self):
-        """
-        Reload leapseconds file if it's been updated
-        Complain if the leapseconds file is due to expire
-        """
-        ls = leapseconds.getInstance()
-
-        ls.reload_check(self.__liveMoniClient, self.__dashlog)
-
-        # sends an alert off to live if the nist leapsecond
-        # file is about to expire
-        # will send a message to stderr if the liveMoniClient is None
-        ls.expiry_check(self.__liveMoniClient)
 
     def queueForSpade(self, duration):
         if self.__logDir is None:
@@ -1420,9 +1419,9 @@ class RunSet(object):
             else:
                 compStr += ', '
             if connDict is None or not connDict.has_key(c):
-                compStr += c.fullName()
+                compStr += c.fullname
             else:
-                compStr += c.fullName() + connDict[c]
+                compStr += c.fullname + connDict[c]
         return compStr
 
     @staticmethod
@@ -1534,11 +1533,11 @@ class RunSet(object):
             if result == ComponentOperation.RESULT_HANGING or \
                 result == ComponentOperation.RESULT_ERROR:
                 self.__logger.error("Cannot get first replay time for %s: %s" %
-                                    (c.fullName(), result))
+                                    (c.fullname, result))
                 continue
             elif result < 0:
                 self.__logger.error("Got bad replay time for %s: %s" %
-                                    (c.fullName(), result))
+                                    (c.fullname, result))
                 continue
             elif firsttime is None or result < firsttime:
                 firsttime = result
@@ -1723,7 +1722,7 @@ class RunSet(object):
                                    (ci["type"], ci["state"], ci["numChan"])
             if connstr is not None:
                 self.__logger.error("%s :: %s: %s" %
-                                    (text, c.fullName(), connstr))
+                                    (text, c.fullname, connstr))
 
     def __removeComponent(self, comp):
         try:
@@ -1731,7 +1730,7 @@ class RunSet(object):
         except ValueError:
             self.__logger.error(("Cannot remove component %s from" +
                                  " RunSet #%d") %
-                                (comp.fullName(), self.__id))
+                                (comp.fullname, self.__id))
 
         # clean up active log thread
         if comp in self.__compLog:
@@ -1745,7 +1744,7 @@ class RunSet(object):
             comp.close()
         except:
             self.__logger.error("Close failed for %s: %s" %
-                                (comp.fullName(), exc_string()))
+                                (comp.fullname, exc_string()))
 
     def __stopComponents(self, srcSet, otherSet, connDict):
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING WAITCHK top")
@@ -1980,9 +1979,9 @@ class RunSet(object):
 
         for comp in self.__set:
             for n in comp.connectors():
-                if not n.name() in connDict:
-                    connDict[n.name()] = ConnTypeEntry(n.name())
-                connDict[n.name()].add(n, comp)
+                if not n.name in connDict:
+                    connDict[n.name] = ConnTypeEntry(n.name)
+                connDict[n.name].add(n, comp)
 
         connMap = {}
 
@@ -1997,7 +1996,7 @@ class RunSet(object):
         return self.__set[:]
 
     def configName(self):
-        return self.__cfg.basename()
+        return self.__cfg.basename
 
     def configure(self):
         "Configure all components in the runset"
@@ -2059,8 +2058,8 @@ class RunSet(object):
             raise RunSetException("Run directory \"%s\" does not exist" %
                                   runDir)
 
-        logName = os.path.join(runDir, "%s-%d.log" % (comp.name(), comp.num()))
-        sock = LogSocketServer(port, comp.fullName(), logName, quiet=quiet)
+        logName = os.path.join(runDir, "%s-%d.log" % (comp.name, comp.num))
+        sock = LogSocketServer(port, comp.fullname, logName, quiet=quiet)
         sock.startServing()
 
         return sock
@@ -2113,8 +2112,8 @@ class RunSet(object):
         dryRun = False
         ComponentManager.killComponents(compList, dryRun, verbose, killWith9)
         ComponentManager.startComponents(compList, dryRun, verbose, configDir,
-                                         daqDataDir, logger.logPort(),
-                                         logger.livePort(), eventCheck,
+                                         daqDataDir, logger.logPort,
+                                         logger.livePort, eventCheck,
                                          checkExists=checkExists)
 
     def destroy(self, ignoreComponents=False):
@@ -2141,6 +2140,7 @@ class RunSet(object):
         updateCounts = self.__state == RunSetState.RUNNING
         return self.__runData.getEventCounts(self.__set, updateCounts)
 
+    @property
     def id(self):
         return self.__id
 
@@ -2268,8 +2268,8 @@ class RunSet(object):
         # remove remaining components from this runset
         for comp in compList:
             for nodeComp in cluCfgList:
-                if comp.name().lower() == nodeComp.name().lower() and \
-                   comp.num() == nodeComp.id():
+                if comp.name.lower() == nodeComp.name.lower() and \
+                   comp.num == nodeComp.id:
                     self.__removeComponent(comp)
                     break
 
@@ -2293,7 +2293,7 @@ class RunSet(object):
                 pool.add(comp)
             else:
                 self.__logger.error("Not returning unexpected component %s" %
-                                    comp.fullName())
+                                    comp.fullname)
 
         # raise exception if one or more components could not be reset
         #
@@ -2386,7 +2386,7 @@ class RunSet(object):
                     for m in connMap[c]:
                         # XXX hack -- ignore source->builder links
                         if not c.isSource() or \
-                             m.comp.name().lower() != "eventBuilder":
+                             m.comp.name.lower() != "eventBuilder":
                             tmp[m.comp] = 1
 
             curLevel = tmp.keys()
@@ -2417,9 +2417,9 @@ class RunSet(object):
                  spadeDir, copyDir=None, logDir=None, quiet=True):
         "Start all components in the runset"
         self.__logger.error("Starting run #%d on \"%s\"" %
-                            (runNum, clusterConfig.descName()))
+                            (runNum, clusterConfig.description))
         self.__logDebug(RunSetDebug.START_RUN, "STARTING %d - %s",
-                        runNum, clusterConfig.descName())
+                        runNum, clusterConfig.description)
         if not self.__configured:
             raise RunSetException("RunSet #%d is not configured" % self.__id)
         if not self.__state == RunSetState.READY:
@@ -2443,6 +2443,7 @@ class RunSet(object):
         self.__runData.finishSetup(self, startTime)
         self.__logDebug(RunSetDebug.START_RUN, "STARTING done")
 
+    @property
     def state(self):
         return self.__state
 
@@ -2601,7 +2602,7 @@ class RunSet(object):
             raise RunSetException("Run directory \"%s\" does not exist" %
                                   runDir)
 
-        logName = os.path.join(runDir, "%s-%d.log" % (comp.name(), comp.num()))
+        logName = os.path.join(runDir, "%s-%d.log" % (comp.name, comp.num))
         sock.setOutput(logName)
 
     def switchRun(self, newNum):
@@ -2680,7 +2681,7 @@ class RunSet(object):
         if len(bldrSet) > 0:
             badBldrs = []
             for c in bldrSet:
-                badBldrs.append(c.fullName())
+                badBldrs.append(c.fullname)
             self.__state = RunSetState.ERROR
             try:
                 raise RunSetException("Still waiting for %s to finish"

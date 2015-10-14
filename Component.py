@@ -15,20 +15,26 @@ class Component(object):
         return val
 
     def __str__(self):
-        nStr = self.fullName()
-        return nStr
+        return self.fullName
 
     def __repr__(self):
-        return self.fullName()
+        return self.fullname
 
-    def fullName(self):
+    @property
+    def fullname(self):
         if self.__id == 0 and not self.isHub():
             return self.__name
         return "%s#%d" % (self.__name, self.__id)
 
+    @property
     def host(self):
         return self.__host
 
+    @host.setter
+    def host(self, newhost):
+        self.__host = newhost
+
+    @property
     def id(self):
         return self.__id
 
@@ -52,12 +58,15 @@ class Component(object):
         "Is this a trigger component?"
         return self.__name.lower().find("trigger") >= 0
 
+    @property
     def logLevel(self):
         return self.__logLevel
 
+    @property
     def name(self):
         return self.__name
 
+    @property
     def num(self):
         return self.__id
 

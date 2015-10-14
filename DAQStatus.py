@@ -132,15 +132,15 @@ def listVerbose(compList, indent, indent2, useNumeric=True):
 
     for c in compList:
         if useNumeric:
-            hostName = c["host"]
+            hostname = c["host"]
         else:
-            hostName = socket.getfqdn(c["host"])
-            idx = hostName.find(".")
+            hostname = socket.getfqdn(c["host"])
+            idx = hostname.find(".")
             if idx > 0:
-                hostName = hostName[:idx]
+                hostname = hostname[:idx]
 
         print "%s%s#%d %s#%d at %s:%d M#%d %s" % \
-            (indent, indent2, c["id"], c["compName"], c["compNum"], hostName,
+            (indent, indent2, c["id"], c["compName"], c["compNum"], hostname,
              c["rpcPort"], c["mbeanPort"], c["state"])
 
 

@@ -22,30 +22,34 @@ from LiveImports import Prio
 class leapseconds(object):
     """every calculation that might be of use when it comes to leapseconds"""
 
+    # singleton instance of leapseconds class
+    __instance = None
+    # latest path to leapseconds file
     LATEST = None
-    instance = None
     DAYS_TO_EXPIRY = 14
 
-    class leapsecondsHelper:
-        def __call__(self, *args, **kw):
-            if leapseconds.instance is None:
-                leapseconds.instance = leapseconds()
-            return leapseconds.instance
-
-    getInstance = leapsecondsHelper()
-
-    def __init__(self, leap_filename=None):
+    def __init__(self, leap_filename=None, config_dir=None):
         if leap_filename is not None:
             self.__filename = leap_filename
         else:
-            self.__filename = self.get_latest_path()
-        self.__mtime = os.stat(self.__filename).st_mtime
-        self.__mjd_expiry = None
+            self.__filename = self.get_latest_path(config_dir=config_dir)
+        self.__mjd_expiry = 0.0
         self.__nist_data = []
         # not strictly required but quiet code analysis tools
         self.__nist_tai = None
         self.__nist_mjd = None
-        self.__parse_nist()
+
+        if not os.path.exists(self.__filename):
+            self.__mtime = 0
+        else:
+            self.__mtime = os.stat(self.__filename).st_mtime
+            self.__parse_nist()
+
+    @classmethod
+    def getInstance(cls, config_dir=None):
+        if cls.__instance is None:
+            cls.__instance = leapseconds(config_dir=config_dir)
+        return cls.__instance
 
     @classmethod
     def is_rate_limited(cls, filename=".leapsecond_alertstamp"):
@@ -93,6 +97,9 @@ class leapseconds(object):
 
 
     def reload_check(self, livemoni_client, logger):
+        if not os.path.exists(self.__filename):
+            return self.__mtime != 0
+
         new_mtime = os.stat(self.__filename).st_mtime
         if new_mtime == self.__mtime:
             return False
@@ -176,10 +183,11 @@ class leapseconds(object):
 
 
     @classmethod
-    def get_latest_path(cls):
+    def get_latest_path(cls, config_dir=None):
         if cls.LATEST is None:
-            configDir = find_pdaq_config()
-            cls.LATEST = os.path.join(configDir, 'nist', 'leapseconds-latest')
+            if config_dir is None:
+                config_dir = find_pdaq_config()
+            cls.LATEST = os.path.join(config_dir, 'nist', 'leapseconds-latest')
         return cls.LATEST
 
     def get_mjd_expiry(self):
@@ -418,6 +426,9 @@ class leapseconds(object):
         # past the expiration of the nist config file
         #if not ignore_exception and mjd > self.__mjd_expiry:
         #    raise Exception("mjd data file %s expired" % self.__filename)
+
+        if self.__nist_mjd is None:
+            return 0
 
         position = bisect.bisect_right(self.__nist_mjd, mjd)
         if position:

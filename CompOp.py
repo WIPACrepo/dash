@@ -145,7 +145,7 @@ class ComponentOperation(threading.Thread):
 
     def __getState(self):
         "Get the component's current state"
-        self.__result = self.__comp.state()
+        self.__result = self.__comp.state
 
     def __resetComponent(self):
         "Reset the component"

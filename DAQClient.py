@@ -183,12 +183,13 @@ class ComponentName(object):
         self.__num = num
 
     def __repr__(self):
-        return self.fullName()
+        return self.fullname
 
     def fileName(self):
         return '%s-%d' % (self.__name, self.__num)
 
-    def fullName(self):
+    @property
+    def fullname(self):
         if self.__num == 0 and self.__name[-3:].lower() != 'hub':
             return self.__name
         return '%s#%d' % (self.__name, self.__num)
@@ -207,9 +208,11 @@ class ComponentName(object):
     def isReplayHub(self):
         return self.isHub() and self.__name.lower().find("replay") >= 0
 
+    @property
     def name(self):
         return self.__name
 
+    @property
     def num(self):
         return self.__num
 
@@ -319,7 +322,7 @@ class DAQClient(ComponentName):
             deadStr = " DEAD#%d" % self.__deadCount
 
         return "ID#%d %s%s%s%s%s" % \
-            (self.__id, self.fullName(), hpStr, mbeanStr, extraStr, deadStr)
+            (self.__id, self.fullname, hpStr, mbeanStr, extraStr, deadStr)
 
     def addDeadCount(self):
         self.__deadCount += 1
@@ -372,7 +375,7 @@ class DAQClient(ComponentName):
         return CnCLogger(quiet=quiet)
 
     def createMBeanClient(self, host, mbeanPort):
-        return MBeanClient(self.fullName(), host, mbeanPort)
+        return MBeanClient(self.fullname, host, mbeanPort)
 
     def isDead(self):
         return self.__deadCount >= self.MAX_DEAD_COUNT
@@ -431,9 +434,11 @@ class DAQClient(ComponentName):
 
         return self.__mbean.get(name, field)
 
+    @property
     def host(self):
         return self.__host
 
+    @property
     def id(self):
         return self.__id
 
@@ -473,18 +478,20 @@ class DAQClient(ComponentName):
 
     def map(self):
         return {"id": self.__id,
-                "compName": self.name(),
-                "compNum": self.num(),
+                "compName": self.name,
+                "compNum": self.num,
                 "host": self.__host,
                 "rpcPort": self.__port,
                 "mbeanPort": self.__mbeanPort}
 
+    @property
     def mbeanPort(self):
         return self.__mbeanPort
 
     def order(self):
         return self.__cmdOrder
 
+    @property
     def port(self):
         return self.__port
 
@@ -551,6 +558,7 @@ class DAQClient(ComponentName):
             self.__log.error(exc_string())
             return None
 
+    @property
     def state(self):
         "Get current state"
         try:
@@ -599,7 +607,7 @@ class DAQClient(ComponentName):
 
     def terminate(self):
         "Terminate component"
-        state = self.state()
+        state = self.state
         if state != "idle" and state != "ready" and \
                 state != DAQClientState.MISSING and \
                 state != DAQClientState.DEAD:

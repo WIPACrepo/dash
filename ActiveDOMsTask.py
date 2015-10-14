@@ -36,12 +36,12 @@ class ActiveDOMThread(CnCThread):
             hub_total_doms = int(result[self.KEY_ACT_TOT][1])
         except:
             self.__dashlog.error("Cannot get # active DOMS from %s string: %s" %
-                                 (comp.fullName(), exc_string()))
+                                 (comp.fullname, exc_string()))
             # be extra paranoid about using previous value
             tmp_active = 0
             tmp_total = 0
-            if self.PREV_ACTIVE[comp.num()].has_key(self.KEY_ACT_TOT):
-                prevpair = self.PREV_ACTIVE[comp.num()][self.KEY_ACT_TOT]
+            if self.PREV_ACTIVE[comp.num].has_key(self.KEY_ACT_TOT):
+                prevpair = self.PREV_ACTIVE[comp.num][self.KEY_ACT_TOT]
                 if len(prevpair) == 2:
                     try:
                         tmp_active = int(prevpair[0])
@@ -59,7 +59,7 @@ class ActiveDOMThread(CnCThread):
             hub_lbm_overflows = result[self.KEY_LBM_OVER]
         else:
             hub_lbm_overflows = 0
-        lbm_overflows[str(comp.num())] = hub_lbm_overflows
+        lbm_overflows[str(comp.num)] = hub_lbm_overflows
 
         # collect hit rate information
         # note that we are rounding rates to 2 decimal points
@@ -75,11 +75,11 @@ class ActiveDOMThread(CnCThread):
         totals["total_rate"] += total_rate
 
         if self.__send_details:
-            hub_doms[str(comp.num())] = (hub_active_doms, hub_total_doms)
+            hub_doms[str(comp.num)] = (hub_active_doms, hub_total_doms)
 
         # cache current results
         #
-        self.PREV_ACTIVE[comp.num()] = {
+        self.PREV_ACTIVE[comp.num] = {
             self.KEY_ACT_TOT: (hub_active_doms, hub_total_doms),
             self.KEY_LBM_OVER: hub_lbm_overflows,
             self.KEY_LC_RATE: lc_rate,
@@ -125,16 +125,16 @@ class ActiveDOMThread(CnCThread):
                 if result == ComponentOperation.RESULT_HANGING or \
                    result == ComponentOperation.RESULT_ERROR:
                     if result == ComponentOperation.RESULT_HANGING:
-                        hanging.append(comp.fullName())
+                        hanging.append(comp.fullname)
                     result = None
 
             if result is None:
                 # if we don't have previous data for this component, skip it
-                if not comp.num() in self.PREV_ACTIVE:
+                if not comp.num in self.PREV_ACTIVE:
                     continue
 
                 # use previous datapoint
-                result = self.PREV_ACTIVE[comp.num()]
+                result = self.PREV_ACTIVE[comp.num]
 
             # 'result' should now contain a dictionary with the number of
             # active and total channels and the LBM overflows

@@ -9,7 +9,8 @@ from CnCServer import CnCServer
 from DAQClient import DAQClient
 from DAQConst import DAQPort
 from DAQMocks import MockAppender, MockClusterConfig, MockCnCLogger, \
-    MockRunConfigFile, RunXMLValidator, SocketReaderFactory, SocketWriter
+    MockDefaultDomGeometryFile, MockRunConfigFile, RunXMLValidator, \
+    SocketReaderFactory, SocketWriter
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet
@@ -53,7 +54,8 @@ class TinyClient(object):
     def connectors(self):
         return self.__connectors[:]
 
-    def fullName(self):
+    @property
+    def fullname(self):
         if self.__num == 0:
             return self.__name
         return "%s#%d" % (self.__name, self.__num)
@@ -71,6 +73,7 @@ class TinyClient(object):
                 raise Exception("Unknown beanField \"%s.%s\"" % (beanname, fld))
         return rtndict
 
+    @property
     def id(self):
         return self.__id
 
@@ -104,9 +107,11 @@ class TinyClient(object):
                 "mbeanPort": self.__mbeanPort,
                 "state": self.__state}
 
+    @property
     def name(self):
         return self.__name
 
+    @property
     def num(self):
         return self.__num
 
@@ -125,6 +130,7 @@ class TinyClient(object):
     def startRun(self, runNum):
         self.__state = 'running'
 
+    @property
     def state(self):
         return self.__state
 
@@ -449,6 +455,8 @@ class TestDAQServer(unittest.TestCase):
 
         runConfig = rcFile.create([], hubDomDict)
 
+        MockDefaultDomGeometryFile.create(self.__runConfigDir, hubDomDict)
+
         logger.addExpectedTextRegexp('Loading run configuration .*')
         logger.addExpectedTextRegexp('Loaded run configuration .*')
         logger.addExpectedTextRegexp(r"Built runset #\d+: .*")
@@ -477,13 +485,13 @@ class TestDAQServer(unittest.TestCase):
         logger.checkStatus(100)
 
         logger.addExpectedText("Starting run #%d on \"%s\"" %
-                               (runNum, cluCfg.descName()))
+                               (runNum, cluCfg.description))
 
         logger.addExpectedTextRegexp(r"Version info: \S+ \S+ \S+ \S+")
         clientLogger.addExpectedTextRegexp(r"Version info: \S+ \S+ \S+ \S+")
 
         logger.addExpectedText("Run configuration: %s" % runConfig)
-        logger.addExpectedText("Cluster: %s" % cluCfg.descName())
+        logger.addExpectedText("Cluster: %s" % cluCfg.description)
 
         moniType = RunOption.MONI_TO_NONE
 
@@ -513,7 +521,7 @@ class TestDAQServer(unittest.TestCase):
 
         logger.checkStatus(10)
 
-        RunXMLValidator.validate(self, runNum, runConfig, cluCfg.descName(),
+        RunXMLValidator.validate(self, runNum, runConfig, cluCfg.description,
                                  None, None, 0, 0, 0, 0, False)
 
         self.assertEqual(dc.rpc_component_count(), 0)

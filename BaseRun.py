@@ -591,7 +591,7 @@ class Run(object):
 
                 if not self.__mgr.isSwitching(False):
                     logger.error("Unexpected run %d state %s" %
-                                 (self.__run_num, self.state()))
+                                 (self.__run_num, self.state))
 
             numWaits += 1
             if numWaits > numTries:
@@ -822,10 +822,10 @@ class BaseRun(object):
         if not self.__dry_run and self.isRunning():
             raise LaunchException("There is at least one active run")
 
-        spadeDir = clusterCfg.logDirForSpade()
-        copyDir = clusterCfg.logDirCopies()
-        logDir = clusterCfg.daqLogDir()
-        daqDataDir = clusterCfg.daqDataDir()
+        spadeDir = clusterCfg.logDirForSpade
+        copyDir = clusterCfg.logDirCopies
+        logDir = clusterCfg.daqLogDir
+        daqDataDir = clusterCfg.daqDataDir
 
         cfgDir = find_pdaq_config()
         metaDir = find_pdaq_trunk()
@@ -945,6 +945,7 @@ class BaseRun(object):
         """
         raise NotImplementedError()
 
+    @property
     def state(self):
         """Current state of runset"""
         raise NotImplementedError()

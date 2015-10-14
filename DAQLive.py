@@ -81,7 +81,7 @@ class DAQLive(Component):
 
         if not self.__runSet.isRunning():
             raise LiveException("%s is not running (state = %s)" %
-                                (self.__runSet, self.__runSet.state()))
+                                (self.__runSet, self.__runSet.state))
 
         if self.__moniTimer.isTime():
             self.__moniTimer.reset()

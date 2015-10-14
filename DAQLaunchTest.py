@@ -6,7 +6,6 @@ import tempfile
 import unittest
 
 from CachedConfigName import CachedConfigName
-from DAQConfig import FindConfigDir
 from DAQConst import DAQPort
 from DAQLaunch import launch, kill
 from DAQMocks import MockClusterConfigFile, MockParallelShell, MockRunConfigFile
@@ -40,7 +39,6 @@ class TestDAQLaunch(unittest.TestCase):
 
     def tearDown(self):
         # clear cached config directory
-        FindConfigDir.CONFIG_DIR = None
         CachedConfigName.clearActiveConfig()
 
     def testLaunchOnlyCnC(self):
@@ -80,10 +78,10 @@ class TestDAQLaunch(unittest.TestCase):
 
         shell = MockParallelShell()
         shell.addExpectedPython(True, dashDir, configDir, logDir, daqDataDir,
-                                spadeDir, cluCfgFile.name(), cfgName, copyDir,
+                                spadeDir, cluCfgFile.name, cfgName, copyDir,
                                 logPort, livePort, forceRestart=forceRestart)
 
-        launch(configDir, dashDir, logger, clusterDesc=cluCfgFile.name(),
+        launch(configDir, dashDir, logger, clusterDesc=cluCfgFile.name,
                configName=cfgName, validate=validate, verbose=verbose,
                dryRun=dryRun, eventCheck=evtChk, parallel=shell,
                forceRestart=forceRestart, checkExists=checkExists)
@@ -131,7 +129,7 @@ class TestDAQLaunch(unittest.TestCase):
         cc.setConfigName(cfgName)
         cc.writeCacheFile(writeActiveConfig=True)
 
-        kill(configDir, logger, clusterDesc=cluCfgFile.name(),
+        kill(configDir, logger, clusterDesc=cluCfgFile.name,
              validate=validate, serverKill=serverKill, verbose=verbose,
              dryRun=dryRun, killWith9=killWith9, force=forceKill,
              parallel=shell)

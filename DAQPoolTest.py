@@ -42,7 +42,8 @@ class FakeCluster(object):
     def __init__(self, descName):
         self.__descName = descName
 
-    def descName(self):
+    @property
+    def description(self):
         return self.__descName
 
 class MyRunSet(RunSet):
@@ -101,16 +102,16 @@ class MyDAQPool(DAQPool):
 class TestDAQPool(unittest.TestCase):
     def __checkRunsetState(self, runset, expState):
         for c in runset.components():
-            self.assertEqual(c.state(), expState,
+            self.assertEqual(c.state, expState,
                              "Comp %s state should be %s, not %s" %
-                             (c.name(), expState, c.state()))
+                             (c.name, expState, c.state))
 
     def __createRunConfigFile(self, compList):
         rcFile = MockRunConfigFile(self.__runConfigDir)
 
         runCompList = []
         for c in compList:
-            runCompList.append(c.fullName())
+            runCompList.append(c.fullname)
 
         return rcFile.create(runCompList, {})
 
@@ -195,8 +196,8 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(mgr.numComponents(), 0)
 
-        found = mgr.findRunset(runset.id())
-        self.failIf(found is None, "Couldn't find runset #%d" % runset.id())
+        found = mgr.findRunset(runset.id)
+        self.failIf(found is None, "Couldn't find runset #%d" % runset.id)
 
         mgr.returnRunset(runset, logger)
 
@@ -618,8 +619,8 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(mgr.numComponents(), 0)
 
-        found = mgr.findRunset(runset.id())
-        self.failIf(found is None, "Couldn't find runset #%d" % runset.id())
+        found = mgr.findRunset(runset.id)
+        self.failIf(found is None, "Couldn't find runset #%d" % runset.id)
 
         mgr.returnRunset(runset, logger)
 
@@ -679,7 +680,7 @@ class TestDAQPool(unittest.TestCase):
         dashLog = runset.getLog("dashLog")
         dashLog.addExpectedRegexp(r"Version info: \S+ \S+ \S+ \S+")
         dashLog.addExpectedExact("Run configuration: %s" % runConfig)
-        dashLog.addExpectedExact("Cluster: %s" % clusterCfg.descName())
+        dashLog.addExpectedExact("Cluster: %s" % clusterCfg.description)
 
         self.__checkRunsetState(runset, 'ready')
 
@@ -687,7 +688,7 @@ class TestDAQPool(unittest.TestCase):
         moniType = RunOption.MONI_TO_NONE
 
         logger.addExpectedExact("Starting run #%d on \"%s\"" %
-                                (runNum, clusterCfg.descName()))
+                                (runNum, clusterCfg.description))
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
 
@@ -756,7 +757,7 @@ class TestDAQPool(unittest.TestCase):
 
         mgr.returnRunset(runset, logger)
 
-        self.assertEqual(runset.id(), None)
+        self.assertEqual(runset.id, None)
         self.assertEqual(runset.configured(), False)
         self.assertEqual(runset.runNumber(), None)
 
@@ -766,7 +767,7 @@ class TestDAQPool(unittest.TestCase):
         logger.checkStatus(10)
 
         RunXMLValidator.validate(self, runNum, runConfig,
-                                 clusterCfg.descName(),
+                                 clusterCfg.description,
                                  PayloadTime.toDateTime(firstTime),
                                  PayloadTime.toDateTime(lastTime),
                                  numEvts, numMoni, numSN, numTcal, False)

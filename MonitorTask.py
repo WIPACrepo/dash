@@ -32,7 +32,7 @@ class MonitorThread(CnCThread):
         self.__beanKeys = []
         self.__beanFlds = {}
 
-        super(MonitorThread, self).__init__(comp.fullName(), dashlog)
+        super(MonitorThread, self).__init__(comp.fullname, dashlog)
 
     def __createReporter(self):
         if RunOption.isMoniToBoth(self.__runOptions) and \
@@ -219,7 +219,7 @@ class MonitorTask(CnCTask):
                     if not thrd.isWarned():
                         msg = ("ERROR: Not monitoring %s: Connect failed" +
                                " %d times") % \
-                               (c.fullName(), thrd.refusedCount())
+                               (c.fullname, thrd.refusedCount())
                         self.logError(msg)
                         thrd.setWarned()
                     continue

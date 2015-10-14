@@ -76,7 +76,7 @@ class ThresholdWatcher(Watcher):
             updown = "above"
 
         fullName = "%s %s.%s %s %s" % \
-            (comp.fullName(), beanName, fieldName, updown, self.__threshold)
+            (comp.fullname, beanName, fieldName, updown, self.__threshold)
         super(ThresholdWatcher, self).__init__(fullName, beanName, fieldName)
 
     def __compare(self, threshold, value):
@@ -121,7 +121,7 @@ class ValueWatcher(Watcher):
         self.__prevValue = None
         self.__unchanged = 0
 
-        fullName = "%s->%s %s.%s" % (fromComp.fullName(), toComp.fullName(),
+        fullName = "%s->%s %s.%s" % (fromComp.fullname, toComp.fullname,
                                      beanName, fieldName)
         super(ValueWatcher, self).__init__(fullName, beanName, fieldName)
 
@@ -232,7 +232,7 @@ class WatchData(object):
         self.__closed = False
 
     def __str__(self):
-        return self.__comp.fullName()
+        return self.__comp.fullname
 
     def __checkBeans(self, beanList):
         unhealthy = []
@@ -280,7 +280,7 @@ class WatchData(object):
                     val = valMap[fldVal]
                 except KeyError:
                     self.__dashlog.error("No value found for %s field#%d %s" %
-                                         (self.__comp.fullName(), index,
+                                         (self.__comp.fullname, index,
                                           fldVal))
                     continue
 
@@ -339,7 +339,7 @@ class WatchData(object):
                     starved += badList
                     isOK = False
             except:
-                self.__dashlog.error(self.__comp.fullName() + " inputs: " +
+                self.__dashlog.error(self.__comp.fullname + " inputs: " +
                                      exc_string())
                 isOK = False
 
@@ -352,7 +352,7 @@ class WatchData(object):
                     stagnant += badList
                     isOK = False
             except:
-                self.__dashlog.error(self.__comp.fullName() + " outputs: " +
+                self.__dashlog.error(self.__comp.fullname + " outputs: " +
                                      exc_string())
                 isOK = False
 
@@ -365,7 +365,7 @@ class WatchData(object):
                     threshold += badList
                     isOK = False
             except:
-                self.__dashlog.error(self.__comp.fullName() + " thresholds: " +
+                self.__dashlog.error(self.__comp.fullname + " thresholds: " +
                                      exc_string())
                 isOK = False
 
@@ -392,11 +392,11 @@ class WatchdogThread(CnCThread):
         self.__stagnant = []
         self.__threshold = []
 
-        super(WatchdogThread, self).__init__(self.__comp.fullName() + ":" +
+        super(WatchdogThread, self).__init__(self.__comp.fullname + ":" +
                                              str(self.__rule), self.__dashlog)
 
     def __str__(self):
-        return self.__comp.fullName()
+        return self.__comp.fullname
 
     def _run(self):
         if self.isClosed():
@@ -412,7 +412,7 @@ class WatchdogThread(CnCThread):
                 self.__initFail += 1
                 self.__dashlog.error(("Initialization failure #%d" +
                                       " for %s %s: %s") %
-                                     (self.__initFail, self.__comp.fullName(),
+                                     (self.__initFail, self.__comp.fullname,
                                       self.__rule, exc_string()))
                 return
 
@@ -448,7 +448,8 @@ class DummyComponent(object):
     def __str__(self):
         return self.__name
 
-    def fullName(self):
+    @property
+    def fullname(self):
         return self.__name
 
     def isBuilder(self):
@@ -474,7 +475,7 @@ class WatchdogRule(object):
     @classmethod
     def findComp(cls, comps, compName):
         for c in comps:
-            if c.name() == compName:
+            if c.name == compName:
                 return c
 
         return None
@@ -498,7 +499,7 @@ class WatchdogRule(object):
             order = comp.order()
             if not isinstance(order, int):
                 raise TaskException("Expected integer order for %s, not %s" %
-                                    (comp.fullName(), type(comp.order())))
+                                    (comp.fullname, type(comp.order())))
 
             if minOrder is None or order < minOrder:
                 minOrder = order
@@ -518,7 +519,7 @@ class StringHubRule(WatchdogRule):
             data.addOutputValue(comp, "sender", "NumReadoutsSent")
 
     def matches(self, comp):
-        return comp.name() == "stringHub" or comp.name() == "replayHub"
+        return comp.name == "stringHub" or comp.name == "replayHub"
 
 
 class TrackEngineRule(WatchdogRule):
@@ -526,11 +527,11 @@ class TrackEngineRule(WatchdogRule):
         pass
 
     def matches(self, comp):
-        return comp.name() == "trackEngine"
+        return comp.name == "trackEngine"
 
 class LocalTriggerRule(WatchdogRule):
     def initData(self, data, thisComp, components):
-        if thisComp.name() == "iceTopTrigger":
+        if thisComp.name == "iceTopTrigger":
             hitName = "icetopHit"
             wantIcetop = True
         else:
@@ -539,11 +540,11 @@ class LocalTriggerRule(WatchdogRule):
 
         hub = None
         for comp in components:
-            if comp.name().lower().endswith("hub"):
+            if comp.name.lower().endswith("hub"):
                 if wantIcetop:
-                    found = comp.num() >= 200
+                    found = comp.num >= 200
                 else:
-                    found = comp.num() < 200
+                    found = comp.num < 200
                 if found:
                     hub = comp
                     break
@@ -555,9 +556,9 @@ class LocalTriggerRule(WatchdogRule):
             data.addOutputValue(comp, "trigger", "RecordsSent")
 
     def matches(self, comp):
-        return comp.name() == "inIceTrigger" or \
-                   comp.name() == "simpleTrigger" or \
-                   comp.name() == "iceTopTrigger"
+        return comp.name == "inIceTrigger" or \
+                   comp.name == "simpleTrigger" or \
+                   comp.name == "iceTopTrigger"
 
 
 class GlobalTriggerRule(WatchdogRule):
@@ -571,14 +572,14 @@ class GlobalTriggerRule(WatchdogRule):
             data.addOutputValue(comp, "glblTrig", "RecordsSent")
 
     def matches(self, comp):
-        return comp.name() == "globalTrigger"
+        return comp.name == "globalTrigger"
 
 
 class EventBuilderRule(WatchdogRule):
     def initData(self, data, thisComp, components):
         hub = None
         for comp in components:
-            if comp.name().lower().endswith("hub"):
+            if comp.name.lower().endswith("hub"):
                 hub = comp
                 break
         if hub is not None:
@@ -593,7 +594,7 @@ class EventBuilderRule(WatchdogRule):
         data.addThresholdValue("backEnd", "NumBadEvents", 0, False)
 
     def matches(self, comp):
-        return comp.name() == "eventBuilder"
+        return comp.name == "eventBuilder"
 
 
 class SecondaryBuildersRule(WatchdogRule):
@@ -608,7 +609,7 @@ class SecondaryBuildersRule(WatchdogRule):
         #                  "TotalDispatchedData")
 
     def matches(self, comp):
-        return comp.name() == "secondaryBuilders"
+        return comp.name == "secondaryBuilders"
 
 
 class WatchdogTask(CnCTask):
@@ -661,10 +662,10 @@ class WatchdogTask(CnCTask):
                         break
                 if not found:
                     self.logError("Couldn't create watcher for unknown" +
-                                  " component " + comp.fullName())
+                                  " component " + comp.fullname)
             except:
                 self.logError("Couldn't create watcher for component %s: %s" %
-                              (comp.fullName(), exc_string()))
+                              (comp.fullname, exc_string()))
         return threadList
 
     def __logUnhealthy(self, errType, badList):

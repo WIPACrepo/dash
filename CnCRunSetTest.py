@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import shutil
 import tempfile
 import time
@@ -10,8 +11,9 @@ from ComponentManager import listComponentRanges
 from CnCExceptions import CnCServerException, MissingComponentException
 from CnCServer import CnCServer
 from DAQConst import DAQPort
-from DAQMocks import MockClusterConfig, MockIntervalTimer, MockLogger, \
-    MockRunConfigFile, RunXMLValidator, SocketReader
+from DAQMocks import MockClusterConfig, MockDefaultDomGeometryFile, \
+    MockIntervalTimer, MockLogger, MockRunConfigFile, RunXMLValidator, \
+    SocketReader
 from DAQTime import PayloadTime
 from LiveImports import LIVE_IMPORT
 from MonitorTask import MonitorTask
@@ -38,9 +40,11 @@ class MockLoggerPlusPorts(MockLogger):
         self.__logPort = logPort
         self.__livePort = livePort
 
+    @property
     def livePort(self):
         return self.__livePort
 
+    @property
     def logPort(self):
         return self.__logPort
 
@@ -62,6 +66,7 @@ class MockConn(object):
     def isOptional(self):
         return self.__descrCh == "I" or self.__descrCh == "O"
 
+    @property
     def name(self):
         return self.__name
 
@@ -103,7 +108,8 @@ class MockComponent(object):
     def fileName(self):
         return "%s-%s" % (self.__name, self.__num)
 
-    def fullName(self):
+    @property
+    def fullname(self):
         return "%s#%s" % (self.__name, self.__num)
 
     def getBeanFields(self, beanName):
@@ -184,9 +190,11 @@ class MockComponent(object):
     def logTo(self, host, port, liveHost, livePort):
         pass
 
+    @property
     def name(self):
         return self.__name
 
+    @property
     def num(self):
         return self.__num
 
@@ -219,6 +227,7 @@ class MockComponent(object):
     def stopRun(self):
         self.__state = "ready"
 
+    @property
     def state(self):
         return self.__state
 
@@ -427,7 +436,7 @@ class CnCRunSetTest(unittest.TestCase):
             return
 
         for c in comps:
-            if c.name() == compName and c.num() == compNum:
+            if c.name == compName and c.num == compNum:
                 val = c.getSingleBeanField(beanName, fieldName)
                 var = "%s-%d*%s+%s" % (compName, compNum, beanName, fieldName)
                 if isJSON:
@@ -628,15 +637,15 @@ class CnCRunSetTest(unittest.TestCase):
     @classmethod
     def __loadBeanData(cls, compList):
         for c in compList:
-            if not c.name() in cls.BEAN_DATA:
+            if not c.name in cls.BEAN_DATA:
                 raise Exception("No bean data found for %s" % str(c))
 
-            for b in cls.BEAN_DATA[c.name()]:
-                if len(cls.BEAN_DATA[c.name()][b]) == 0:
+            for b in cls.BEAN_DATA[c.name]:
+                if len(cls.BEAN_DATA[c.name][b]) == 0:
                     c.setBeanData(b, "xxx", 0)
                 else:
-                    for f in cls.BEAN_DATA[c.name()][b]:
-                        c.setBeanData(b, f, cls.BEAN_DATA[c.name()][b][f])
+                    for f in cls.BEAN_DATA[c.name][b]:
+                        c.setBeanData(b, f, cls.BEAN_DATA[c.name][b][f])
 
     def __runDirect(self, failReset):
         self.__copyDir = tempfile.mkdtemp()
@@ -657,7 +666,7 @@ class CnCRunSetTest(unittest.TestCase):
 
         cluCfg = MockClusterConfig("clusterFoo")
         for comp in comps:
-            cluCfg.addComponent(comp.fullName(), "java", "", "localhost")
+            cluCfg.addComponent(comp.fullname, "java", "", "localhost")
 
         self.__cnc = MostlyCnCServer(clusterConfigObject=cluCfg)
 
@@ -666,7 +675,7 @@ class CnCRunSetTest(unittest.TestCase):
         nameList = []
         for c in comps:
             self.__cnc.add(c)
-            if c.name() != "stringHub" and c.name() != "extraComp":
+            if c.name != "stringHub" and c.name != "extraComp":
                 nameList.append(str(c))
 
         hubDomDict = {
@@ -677,6 +686,8 @@ class CnCRunSetTest(unittest.TestCase):
 
         rcFile = MockRunConfigFile(self.__runConfigDir)
         runConfig = rcFile.create(nameList, hubDomDict)
+
+        MockDefaultDomGeometryFile.create(self.__runConfigDir, hubDomDict)
 
         logger = MockLogger("main")
         logger.addExpectedExact("Loading run configuration \"%s\"" % runConfig)
@@ -696,11 +707,11 @@ class CnCRunSetTest(unittest.TestCase):
         rs.setDashLog(dashLog)
 
         logger.addExpectedExact("Starting run #%d on \"%s\"" %
-                                (runNum, cluCfg.descName()))
+                                (runNum, cluCfg.description))
 
         dashLog.addExpectedRegexp(r"Version info: \S+ \S+ \S+ \S+")
         dashLog.addExpectedExact("Run configuration: %s" % runConfig)
-        dashLog.addExpectedExact("Cluster: %s" % cluCfg.descName())
+        dashLog.addExpectedExact("Cluster: %s" % cluCfg.description)
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
 
@@ -774,7 +785,7 @@ class CnCRunSetTest(unittest.TestCase):
         if failReset:
             rs.setUnresetComponent(comps[0])
             logger.addExpectedExact("Cycling components %s#%d" %
-                                    (comps[0].name(), comps[0].num()))
+                                    (comps[0].name, comps[0].num))
         try:
             self.__cnc.returnRunset(rs, logger)
             if failReset:
@@ -786,7 +797,7 @@ class CnCRunSetTest(unittest.TestCase):
         logger.checkStatus(5)
         dashLog.checkStatus(5)
 
-        RunXMLValidator.validate(self, runNum, runConfig, cluCfg.descName(),
+        RunXMLValidator.validate(self, runNum, runConfig, cluCfg.description,
                                  None, None, numEvts, numMoni, numSN, numTcal,
                                  False)
 
@@ -795,10 +806,10 @@ class CnCRunSetTest(unittest.TestCase):
                       value):
         setData = False
         for c in comps:
-            if c.name() == compName and c.num() == compNum:
+            if c.name == compName and c.num == compNum:
                 if setData:
                     raise Exception("Found multiple components for %s" %
-                                    c.fullName())
+                                    c.fullname)
 
                 c.setBeanData(beanName, fieldName, value)
                 setData = True
@@ -844,7 +855,24 @@ class CnCRunSetTest(unittest.TestCase):
         self.__runConfigDir = tempfile.mkdtemp()
         self.__daqDataDir = tempfile.mkdtemp()
 
-        self.__cnc = MostlyCnCServer()
+        comps = [MockComponent("stringHub", self.HUB_NUMBER,
+                               (MockConn("stringHit", "o"), )),
+                 MockComponent("inIceTrigger",
+                               conn=(MockConn("stringHit", "i"),
+                                     MockConn("trigger", "o"))),
+                 MockComponent("globalTrigger",
+                               conn=(MockConn("trigger", "i"),
+                                     MockConn("glblTrig", "o"))),
+                 MockComponent("eventBuilder",
+                               conn=(MockConn("glblTrig", "i"), )),
+                 MockComponent("extraComp")]
+
+        cluCfg = MockClusterConfig("clusterFoo")
+        for comp in comps:
+            cluCfg.addComponent(comp.fullname, "java", "", "localhost")
+
+        self.__cnc = MostlyCnCServer(clusterConfigObject=cluCfg,
+                                     runConfigDir=self.__runConfigDir)
 
         nameList = []
 
@@ -855,6 +883,8 @@ class CnCRunSetTest(unittest.TestCase):
         logger = MockLogger("main")
         logger.addExpectedExact("Loading run configuration \"%s\"" % runConfig)
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
+        logger.addExpectedExact("Cycling components %s#%d" %
+                                (comps[0].name, comps[0].num))
 
         self.assertRaises(CnCServerException, self.__cnc.makeRunset,
                           self.__runConfigDir, runConfig, runNum, 0, logger,
@@ -877,7 +907,7 @@ class CnCRunSetTest(unittest.TestCase):
 
         cluCfg = MockClusterConfig("clusterMissing")
         for comp in comps:
-            cluCfg.addComponent(comp.fullName(), "java", "", "localhost")
+            cluCfg.addComponent(comp.fullname, "java", "", "localhost")
 
         self.__cnc = MostlyCnCServer(clusterConfigObject=cluCfg)
 
@@ -895,7 +925,7 @@ class CnCRunSetTest(unittest.TestCase):
         logger.addExpectedExact("Loading run configuration \"%s\"" % runConfig)
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
         logger.addExpectedExact("Cycling components %s#%d" %
-                                (comps[0].name(), comps[0].num()))
+                                (comps[0].name, comps[0].num))
 
         self.assertRaises(MissingComponentException, self.__cnc.makeRunset,
                           self.__runConfigDir, runConfig, runNum, 0, logger,
@@ -926,7 +956,7 @@ class CnCRunSetTest(unittest.TestCase):
 
         cluCfg = MockClusterConfig("clusterFoo")
         for comp in comps:
-            cluCfg.addComponent(comp.fullName(), "java", "", "localhost")
+            cluCfg.addComponent(comp.fullname, "java", "", "localhost")
 
         self.__cnc = MostlyCnCServer(clusterConfigObject=cluCfg,
                                      copyDir=self.__copyDir,
@@ -941,14 +971,14 @@ class CnCRunSetTest(unittest.TestCase):
         nameList = []
         for c in comps:
             self.__cnc.add(c)
-            if c.name() != "stringHub" and c.name() != "extraComp":
+            if c.name != "stringHub" and c.name != "extraComp":
                 nameList.append(str(c))
 
         runCompList = []
         for c in comps:
-            if c.isSource() or c.name() == "extraComp":
+            if c.isSource() or c.name == "extraComp":
                 continue
-            runCompList.append(c.fullName())
+            runCompList.append(c.fullname)
 
         hubDomDict = {
             self.HUB_NUMBER:
@@ -996,11 +1026,11 @@ class CnCRunSetTest(unittest.TestCase):
         self.__addRunStartMoni(liveMoni, runNum, rel, rev, True)
 
         catchall.addExpectedText("Starting run #%d on \"%s\"" %
-                                 (runNum, cluCfg.descName()))
+                                 (runNum, cluCfg.description))
 
         dashLog.addExpectedRegexp(r"Version info: \S+ \S+ \S+ \S+")
         dashLog.addExpectedExact("Run configuration: %s" % runConfig)
-        dashLog.addExpectedExact("Cluster: %s" % cluCfg.descName())
+        dashLog.addExpectedExact("Cluster: %s" % cluCfg.description)
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
 
@@ -1073,7 +1103,7 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog.checkStatus(5)
         liveMoni.checkStatus(5)
 
-        RunXMLValidator.validate(self, runNum, runConfig, cluCfg.descName(),
+        RunXMLValidator.validate(self, runNum, runConfig, cluCfg.description,
                                  None, None, numEvts, numMoni, numSN, numTcal,
                                  False)
 

@@ -83,7 +83,7 @@ class MockTMComponent(object):
         self.__beanData = self.__createBeanData()
 
     def __str__(self):
-        return self.fullName()
+        return self.fullname
 
     def __createBeanData(self):
         if not self.__name in self.BEANBAG:
@@ -120,7 +120,8 @@ class MockTMComponent(object):
     def getBeanNames(self):
         return self.__beanData.keys()
 
-    def fullName(self):
+    @property
+    def fullname(self):
         if self.__num == 0:
             return self.__name
         return "%s#%d" % (self.__name, self.__num)
@@ -147,9 +148,11 @@ class MockTMComponent(object):
     def reloadBeanInfo(self):
         pass
 
+    @property
     def name(self):
         return self.__name
 
+    @property
     def num(self):
         return self.__num
 

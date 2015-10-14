@@ -120,12 +120,12 @@ class MonitorTaskTest(unittest.TestCase):
                         if i == 3:
                             errMsg = ("ERROR: Not monitoring %s:" +
                                       " Connect failed %d times") % \
-                                      (c.fullName(), i)
+                                      (c.fullname, i)
                             logger.addExpectedExact(errMsg)
                         elif i >= 0 and i < 3:
                             c.raiseSocketError()
                     elif i > 0 and raiseException:
-                        errMsg = "Ignoring %s:.*: Exception.*$" % c.fullName()
+                        errMsg = "Ignoring %s:.*: Exception.*$" % c.fullname
                         logger.addExpectedRegexp(errMsg)
                         c.raiseException()
 
