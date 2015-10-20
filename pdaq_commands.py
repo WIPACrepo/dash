@@ -31,6 +31,8 @@ class BaseCmd(object):
     CMDTYPE_CARG = "Carg"
     # Command completion for "-C cluster" and "-c runconfig"
     CMDTYPE_CC = "Cc"
+    # Command completion for "help <cmd>"
+    CMDTYPE_CMD = "Cmd"
     # Command completion for "-C cluster"
     CMDTYPE_CONLY = "Conly"
     # Command completion for directory argument
@@ -61,6 +63,11 @@ class BaseCmd(object):
         return cls.CMDTYPE_UNKNOWN
 
     @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        raise NotImplementedError()
+
+    @classmethod
     def is_valid_host(cls, args):
         "Is this command allowed to run on this machine?"
         raise NotImplementedError()
@@ -85,6 +92,11 @@ class CmdDeploy(BaseCmd):
     @classmethod
     def cmdtype(cls):
         return cls.CMDTYPE_CARG
+
+    @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Deploy pDAQ software and associated files to the cluster"
 
     @classmethod
     def is_valid_host(cls, args):
@@ -112,6 +124,11 @@ class CmdDumpData(BaseCmd):
         return cls.CMDTYPE_FONLY
 
     @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Dump a pDAQ data file (hitspool, physics, moni, sn, etc.)"
+
+    @classmethod
     def is_valid_host(cls, args):
         "Any host can dump data"
         return True
@@ -135,6 +152,11 @@ class CmdDumpHSDB(BaseCmd):
     @classmethod
     def cmdtype(cls):
         return cls.CMDTYPE_FONLY
+
+    @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Dump the hitspool database list of hit files and contents"
 
     @classmethod
     def is_valid_host(cls, args):
@@ -162,6 +184,11 @@ class CmdFlash(BaseCmd):
         return cls.CMDTYPE_CC
 
     @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Control a flasher run"
+
+    @classmethod
     def is_valid_host(cls, args):
         "Flashers are run on the control host"
         return Machineid.is_host(Machineid.CONTROL_HOST)
@@ -176,6 +203,56 @@ class CmdFlash(BaseCmd):
         flash(args)
 
 
+class CmdHelp(BaseCmd):
+    @classmethod
+    def add_arguments(cls, parser):
+        parser.add_argument("helpcmd", help="Command name")
+
+    @classmethod
+    def cmdtype(cls):
+        return cls.CMDTYPE_CMD
+
+    @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Print the help message for a command"
+
+    @classmethod
+    def is_valid_host(cls, args):
+        "Any host can get help"
+        return True
+
+    @classmethod
+    def name(cls):
+        return "help"
+
+    @classmethod
+    def run(cls, args):
+        for cmd in COMMANDS:
+            if cmd.name() == args.helpcmd:
+                import argparse
+                import sys
+
+                # load an argparse object with this command's arguments
+                base = os.path.basename(sys.argv[0])
+                p = argparse.ArgumentParser(prog="%s %s" % (base, cmd.name()))
+                try:
+                    cmd.add_arguments(p)
+                except:
+                    pass
+
+                # print command name and description
+                print "%s - %s" % (cmd.name(), cmd.description())
+                print
+
+                # let argparse deal with the rest of the help message
+                p.print_help()
+
+                return
+
+        print "Unknown command '%s'" % args.helpcmd
+
+
 class CmdKill(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -186,6 +263,11 @@ class CmdKill(BaseCmd):
     @classmethod
     def cmdtype(cls):
         return cls.CMDTYPE_NONE
+
+    @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Kill the pDAQ components running on the cluster"
 
     @classmethod
     def is_valid_host(cls, args):
@@ -223,6 +305,11 @@ class CmdLaunch(BaseCmd):
         return cls.CMDTYPE_CARG
 
     @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Start pDAQ components on the cluster"
+
+    @classmethod
     def is_valid_host(cls, args):
         "Only a control host can launch components"
         return Machineid.is_host(Machineid.CONTROL_HOST)
@@ -230,7 +317,6 @@ class CmdLaunch(BaseCmd):
     @classmethod
     def name(cls):
         return "launch"
-
 
     @classmethod
     def run(cls, args):
@@ -260,6 +346,11 @@ class CmdQueueLogs(BaseCmd):
         return cls.CMDTYPE_LD
 
     @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Submit pDAQ log files to SPADE for transmission to the North"
+
+    @classmethod
     def is_valid_host(cls, args):
         "Any host can have log files"
         return True
@@ -283,6 +374,11 @@ class CmdRun(BaseCmd):
     @classmethod
     def cmdtype(cls):
         return cls.CMDTYPE_CARG
+
+    @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Start a pDAQ run (does not communicate with Live)"
 
     @classmethod
     def is_valid_host(cls, args):
@@ -310,6 +406,11 @@ class CmdSortLogs(BaseCmd):
         return cls.CMDTYPE_LD
 
     @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Combine all log entries from a run"
+
+    @classmethod
     def is_valid_host(cls, args):
         "Any host can have log files"
         return True
@@ -333,6 +434,11 @@ class CmdStatus(BaseCmd):
     @classmethod
     def cmdtype(cls):
         return cls.CMDTYPE_NONE
+
+    @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Print the status of all active pDAQ components"
 
     @classmethod
     def is_valid_host(cls, args):
@@ -360,6 +466,11 @@ class CmdStopRun(BaseCmd):
         return cls.CMDTYPE_NONE
 
     @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Stop the current pDAQ run (does not communicate with Live)"
+
+    @classmethod
     def is_valid_host(cls, args):
         "Only a control host can emergency-stop runs"
         return Machineid.is_host(Machineid.CONTROL_HOST)
@@ -383,6 +494,12 @@ class CmdStdTest(BaseCmd):
     @classmethod
     def cmdtype(cls):
         return cls.CMDTYPE_CONLY
+
+    @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Run the standard pDAQ test configurations to" \
+            " validate the system"
 
     @classmethod
     def is_valid_host(cls, args):
@@ -418,6 +535,11 @@ class CmdWorkspace(BaseCmd):
         return cls.CMDTYPE_WS
 
     @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Print or change the symlink to the current pDAQ workspace"
+
+    @classmethod
     def is_valid_host(cls, args):
         "Workspaces only exist on build host"
         return Machineid.is_host(Machineid.BUILD_HOST)
@@ -438,6 +560,7 @@ COMMANDS = [
     CmdDumpData,
     CmdDumpHSDB,
     CmdFlash,
+    CmdHelp,
     CmdKill,
     CmdLaunch,
     CmdQueueLogs,
