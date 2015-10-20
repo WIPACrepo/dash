@@ -1354,6 +1354,10 @@ class MockComponent(object):
     def host(self):
         return self.__host
 
+    @property
+    def is_dying(self):
+        return False
+
     def isBuilder(self):
         return self.__isBldr
 

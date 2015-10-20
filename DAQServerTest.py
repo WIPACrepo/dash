@@ -77,6 +77,10 @@ class TinyClient(object):
     def id(self):
         return self.__id
 
+    @property
+    def is_dying(self):
+        return False
+
     def isBuilder(self):
         return False
 

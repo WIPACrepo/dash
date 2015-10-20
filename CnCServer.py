@@ -96,7 +96,7 @@ class DAQPool(object):
                     if cn.name in self.__pool and \
                             len(self.__pool[cn.name]) > 0:
                         for comp in self.__pool[cn.name]:
-                            if comp.num == cn.num:
+                            if comp.num == cn.num and not comp.is_dying:
                                 self.__pool[cn.name].remove(comp)
                                 if len(self.__pool[cn.name]) == 0:
                                     del self.__pool[cn.name]
@@ -329,7 +329,7 @@ class DAQPool(object):
                 stateStr = DAQClientState.MISSING
 
             if stateStr == DAQClientState.DEAD or \
-               (stateStr == DAQClientState.HANGING and c.isDead()):
+               (stateStr == DAQClientState.HANGING and c.is_dead):
                 self.remove(c)
                 try:
                     c.close()

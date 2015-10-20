@@ -377,9 +377,6 @@ class DAQClient(ComponentName):
     def createMBeanClient(self, host, mbeanPort):
         return MBeanClient(self.fullname, host, mbeanPort)
 
-    def isDead(self):
-        return self.__deadCount >= self.MAX_DEAD_COUNT
-
     def forcedStop(self):
         "Force component to stop running"
         try:
@@ -441,6 +438,14 @@ class DAQClient(ComponentName):
     @property
     def id(self):
         return self.__id
+
+    @property
+    def is_dead(self):
+        return self.__deadCount >= self.MAX_DEAD_COUNT
+
+    @property
+    def is_dying(self):
+        return self.__deadCount > 0
 
     def isSource(self):
         "Is this component a source of data?"
@@ -571,7 +576,7 @@ class DAQClient(ComponentName):
 
         if state is not None:
             self.__deadCount = 0
-        elif not self.isDead():
+        elif not self.is_dead:
             state = DAQClientState.MISSING
         else:
             state = DAQClientState.DEAD

@@ -172,6 +172,10 @@ class MockComponent(object):
 
         return self.__beanData[beanName][fieldName]
 
+    @property
+    def is_dying(self):
+        return False
+
     def isBuilder(self):
         return self.__name.lower().endswith("builder")
 
