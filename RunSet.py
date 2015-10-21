@@ -2485,7 +2485,7 @@ class RunSet(object):
                 return False
 
             if callerName != self.NORMAL_STOP:
-                self.__runData.error("%s is stopping the run" % callerName)
+                self.__runData.error("Stopping the run (%s)" % callerName)
 
             self.__stopping = callerName
 

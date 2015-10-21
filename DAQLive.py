@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import threading
 import time
 
 from CnCExceptions import MissingComponentException
@@ -26,6 +27,10 @@ class DAQLive(Component):
         self.__cnc = cnc
         self.__log = logger
 
+        self.__starting = False
+        self.__startThrd = None
+        self.__startExc = None
+
         self.__runSet = None
 
         self.__moniTimer = IntervalTimer("LiveMoni", DAQLive.MONI_PERIOD)
@@ -33,6 +38,61 @@ class DAQLive(Component):
         super(DAQLive, self).__init__(SERVICE_NAME, DAQPort.DAQLIVE,
                                       synchronous=True, lightSensitive=True,
                                       makesLight=True)
+
+    def __startInternal(self, runCfg, runNum):
+        """
+        Attempt to build a runset and start a run from within a thread.
+        Returns if self.__starting is set to False.
+        Any errors are saved to self.__startExc
+        """
+        self.__startExc = None
+
+        if self.__runSet is not None and not self.__runSet.isDestroyed():
+            self.__cnc.breakRunset(self.__runSet)
+            if not self.__starting:
+                return
+
+        self.__runSet = None
+        try:
+            runSet = self.__cnc.makeRunsetFromRunConfig(runCfg, runNum)
+        except MissingComponentException as mce:
+            compStrs = [str(x) for x in mce.components()]
+            self.moniClient.sendMoni("missingComponent",
+                                     {"components": compStrs,
+                                      "runConfig": str(runCfg),
+                                      "runNumber": runNum})
+            self.__startExc = LiveException("Cannot create run #%d runset"
+                                            " for \"%s\": %s" %
+                                            (runNum, runCfg, str(mce)))
+            return
+        except:
+            self.__startExc = LiveException("Cannot create run #%d runset"
+                                            " for \"%s\": %s" %
+                                            (runNum, runCfg, exc_string()))
+            return
+
+        if runSet is None:
+            self.__startExc = LiveException("Cannot create run #%d runset"
+                                            " for \"%s\"" % (runNum, runCfg))
+            return
+
+        if self.__starting:
+            self.__runSet = runSet
+            runOptions = RunOption.LOG_TO_BOTH | RunOption.MONI_TO_FILE
+            self.__cnc.startRun(runSet, runNum, runOptions)
+
+        if not self.__starting:
+            self.__cnc.breakRunset(runSet)
+
+    def __startRun(self, runCfg, runNum):
+        """
+        Method used by the startRun thread.
+        Guarantees that self.__starting is set to False before it exits
+        """
+        try:
+            self.__startInternal(runCfg, runNum)
+        finally:
+            self.__starting = False
 
     def recovering(self, retry=True):
         rtnVal = True
@@ -64,7 +124,8 @@ class DAQLive(Component):
                                      self.__runSet)
                     rtnVal = False
                 elif not self.__runSet.isReady():
-                    self.__log.error("DAQLive cannot recover %s" % self.__runSet)
+                    self.__log.error("DAQLive cannot recover %s" %
+                                     self.__runSet)
                     rtnVal = False
                 else:
                     self.__log.error("DAQLive recovered %s" % self.__runSet)
@@ -76,8 +137,21 @@ class DAQLive(Component):
         raise NotImplementedError()
 
     def running(self, retry=True):
+        if self.__starting:
+            return True
+
+        if self.__startThrd is not None:
+            self.__startThrd.join(1)
+            if not self.__startThrd.isAlive():
+                self.__startThrd = None
+
         if self.__runSet is None:
             raise LiveException("Cannot check run state; no active runset")
+
+        if self.__startExc is not None:
+            exc = self.__startExc
+            self.__startExc = None
+            raise exc
 
         if not self.__runSet.isRunning():
             raise LiveException("%s is not running (state = %s)" %
@@ -109,35 +183,31 @@ class DAQLive(Component):
         except KeyError:
             raise LiveException("stateArgs does not contain key \"%s\"" % key)
 
-        if self.__runSet is not None and not self.__runSet.isDestroyed():
-            self.__cnc.breakRunset(self.__runSet)
+        if self.__startThrd is not None:
+            self.__startThrd.join(1)
+            if not self.__startThrd.isAlive():
+                self.__startThrd = None
 
-        try:
-            self.__runSet = self.__cnc.makeRunsetFromRunConfig(runCfg, runNum)
-        except MissingComponentException as mce:
-            compStrs = [str(x) for x in mce.components()]
-            self.moniClient.sendMoni("missingComponent",
-                                     {"components": compStrs,
-                                      "runConfig": str(runCfg),
-                                      "runNumber": runNum})
-            raise LiveException("Cannot create run #%d runset for \"%s\": %s" %
-                                (runNum, runCfg, str(mce)))
-        except:
-            raise LiveException("Cannot create run #%d runset for \"%s\": %s" %
-                                (runNum, runCfg, exc_string()))
-
-        if self.__runSet is None:
-            raise LiveException("Cannot create run #%d runset for \"%s\"" %
-                                (runNum, runCfg))
-
-        runOptions = RunOption.LOG_TO_BOTH | RunOption.MONI_TO_FILE
-        self.__cnc.startRun(self.__runSet, runNum, runOptions)
+        self.__starting = True
+        self.__startThrd = threading.Thread(target=self.__startRun,
+                                            args=(runCfg, runNum))
+        self.__startThrd.start()
 
         return True
 
     def stopping(self, stateArgs=None):
+        if self.__starting:
+            self.__cnc.stopCollecting()
+            self.__starting = False
+            return
+
         if self.__runSet is None:
             raise LiveException("Cannot stop run; no active runset")
+
+        if self.__startThrd is not None:
+            self.__startThrd.join(1)
+            if not self.__startThrd.isAlive():
+                self.__startThrd = None
 
         gotError = self.__runSet.stopRun(self.__runSet.NORMAL_STOP)
         if not self.__runSet.isReady():

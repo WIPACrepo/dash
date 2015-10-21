@@ -49,6 +49,8 @@ class DAQPool(object):
 
         self.__defaultDebugBits = defaultDebugBits
 
+        self.__starting = False
+
         super(DAQPool, self).__init__()
 
     def __addInternal(self, comp):
@@ -64,13 +66,10 @@ class DAQPool(object):
         finally:
             self.__setsLock.release()
 
-    def __collectComponents(self, requiredList, compList, logger, timeout):
-        """
-        Take all components in requiredList from pool and add them to compList.
-        Return the list of any missing components if we time out.
-        """
-        needed = []
-        for r in requiredList:
+    def __buildCompNameList(self, namelist):
+        """Build a list of ComponentNames from a list of name strings"""
+        compnames = []
+        for r in namelist:
             pound = r.rfind("#")
             if pound > 0:
                 name = r[0:pound]
@@ -83,11 +82,22 @@ class DAQPool(object):
                 else:
                     name = r
                     num = 0
-            needed.append(ComponentName(name, num))
+            compnames.append(ComponentName(name, num))
+        return compnames
+
+    def __collectComponents(self, requiredList, compList, logger, timeout):
+        """
+        Take all components in requiredList from pool and add them to compList.
+        Stop collecting if self.__starting is set to False.
+        Return the list of any missing components if we time out.
+        """
+        needed = self.__buildCompNameList(requiredList)
+        waitList = []
+
+        dt_timeout = datetime.timedelta(seconds=timeout)
 
         tstart = datetime.datetime.now()
-        while len(needed) > 0:
-            waitList = []
+        while self.__starting and len(needed) > 0:
 
             self.__poolLock.acquire()
             try:
@@ -110,18 +120,115 @@ class DAQPool(object):
                 self.__poolLock.release()
 
             needed = waitList
+            waitList = []
 
             if len(needed) > 0:
-                if datetime.datetime.now() - tstart >= \
-                        datetime.timedelta(seconds=timeout):
+                if datetime.datetime.now() - tstart >= dt_timeout:
                     break
 
                 logger.info("Waiting for " + listComponentRanges(needed))
                 time.sleep(5)
 
+        if not self.__starting:
+            raise StartInterruptedException("Collect interrupted")
+
         if len(waitList) == 0:
             waitList = None
         return waitList
+
+    def __makeRunsetInternal(self, runConfigDir, runConfigName, runNum,
+                             timeout, logger, daqDataDir, forceRestart=True,
+                             strict=False):
+        """
+        Build a runset from the specified run configuration.
+        If self.__starting is False, revert everything and raise an exception.
+        If successful, return the runset.
+        """
+        logger.info("Loading run configuration \"%s\"" % runConfigName)
+        try:
+            runConfig = DAQConfigParser.parse(runConfigDir, runConfigName,
+                                              strict)
+        except DAQConfigException as ex:
+            raise CnCServerException("Cannot load %s from %s" %
+                                     (runConfigName, runConfigDir), ex)
+        logger.info("Loaded run configuration \"%s\"" % runConfigName)
+
+        nameList = []
+        for c in runConfig.components():
+            nameList.append(c.fullname)
+
+        if nameList is None or len(nameList) == 0:
+            raise CnCServerException("No components found in" +
+                                     " run configuration \"%s\"" % runConfig)
+
+        compList = []
+        try:
+            waitList = self.__collectComponents(nameList, compList, logger,
+                                                timeout)
+        except:
+            self.__returnComponents(compList, logger)
+            raise
+
+        if waitList is not None:
+            self.__returnComponents(compList, logger)
+            self.__restartMissingComponents(waitList, runConfigDir,
+                                            logger, daqDataDir)
+            raise MissingComponentException(waitList)
+
+        setAdded = False
+        try:
+            try:
+                runSet = self.createRunset(runConfig, compList, logger)
+            except:
+                runSet = None
+                raise
+
+            self.__addRunset(runSet)
+            setAdded = True
+        finally:
+            if not setAdded:
+                self.__returnComponents(compList, logger)
+                runSet = None
+
+        if runSet is not None:
+            if self.__defaultDebugBits is not None:
+                runSet.setDebugBits(self.__defaultDebugBits)
+
+            (release, revision) = self.getRelease()
+            try:
+                if self.__starting:
+                    # figure out how components should be connected
+                    connMap = runSet.buildConnectionMap()
+                if self.__starting:
+                    # connect components to each other
+                    runSet.connect(connMap, logger)
+                if self.__starting:
+                    # set the order in which components should be configured
+                    runSet.setOrder(connMap, logger)
+                if self.__starting:
+                    # configure components
+                    runSet.configure()
+                if self.__starting:
+                    # if this is a replay run, compute the offset for hit times
+                    if runConfig.updateHitSpoolTimes():
+                        runSet.initReplayHubs()
+                if not self.__starting:
+                    # if the process was interrupted at any point,
+                    #  throw an exception
+                    raise StartInterruptedException("Start interrupted")
+            except:
+                runSet.reportRunStartFailure(runNum, release, revision)
+                if not forceRestart:
+                    self.returnRunset(runSet, logger)
+                else:
+                    self.restartRunset(runSet, logger)
+                raise
+
+            logger.info("Built runset #%d: %s" %
+                        (runSet.id,
+                         listComponentRanges(runSet.components())))
+
+        return runSet
 
     def __removeRunset(self, runSet):
         """
@@ -239,77 +346,15 @@ class DAQPool(object):
     def makeRunset(self, runConfigDir, runConfigName, runNum, timeout, logger,
                    daqDataDir, forceRestart=True, strict=False):
         "Build a runset from the specified run configuration"
-        logger.info("Loading run configuration \"%s\"" % runConfigName)
         try:
-            runConfig = DAQConfigParser.parse(runConfigDir, runConfigName,
-                                              strict)
-        except DAQConfigException as ex:
-            raise CnCServerException("Cannot load %s from %s" %
-                                     (runConfigName, runConfigDir), ex)
-        logger.info("Loaded run configuration \"%s\"" % runConfigName)
-
-        nameList = []
-        for c in runConfig.components():
-            nameList.append(c.fullname)
-
-        if nameList is None or len(nameList) == 0:
-            raise CnCServerException("No components found in" +
-                                     " run configuration \"%s\"" % runConfig)
-
-        compList = []
-        try:
-            waitList = self.__collectComponents(nameList, compList, logger,
-                                                timeout)
-        except:
-            self.__returnComponents(compList, logger)
-            raise
-
-        if waitList is not None:
-            self.__returnComponents(compList, logger)
-            self.__restartMissingComponents(waitList, runConfigDir,
-                                            logger, daqDataDir)
-            raise MissingComponentException(waitList)
-
-        setAdded = False
-        try:
-            try:
-                runSet = self.createRunset(runConfig, compList, logger)
-            except:
-                runSet = None
-                raise
-
-            self.__addRunset(runSet)
-            setAdded = True
+            self.__starting = True
+            return self.__makeRunsetInternal(runConfigDir, runConfigName,
+                                             runNum, timeout, logger,
+                                             daqDataDir,
+                                             forceRestart=forceRestart,
+                                             strict=strict)
         finally:
-            if not setAdded:
-                self.__returnComponents(compList, logger)
-                runSet = None
-
-        if runSet is not None:
-            if self.__defaultDebugBits is not None:
-                runSet.setDebugBits(self.__defaultDebugBits)
-
-            (release, revision) = self.getRelease()
-            try:
-                connMap = runSet.buildConnectionMap()
-                runSet.connect(connMap, logger)
-                runSet.setOrder(connMap, logger)
-                runSet.configure()
-                if runConfig.updateHitSpoolTimes():
-                    runSet.initReplayHubs()
-            except:
-                runSet.reportRunStartFailure(runNum, release, revision)
-                if not forceRestart:
-                    self.returnRunset(runSet, logger)
-                else:
-                    self.restartRunset(runSet, logger)
-                raise
-
-            logger.info("Built runset #%d: %s" %
-                        (runSet.id,
-                         listComponentRanges(runSet.components())))
-
-        return runSet
+            self.__starting = False
 
     def monitorClients(self, logger=None):
         "check that all components in the pool are still alive"
@@ -473,6 +518,10 @@ class DAQPool(object):
 
     def runset(self, num):
         return self.__sets[num]
+
+    def stopCollecting(self):
+        if self.__starting:
+            self.__starting = False
 
 
 class ThreadedRPCServer(ThreadingMixIn, RPCServer):
