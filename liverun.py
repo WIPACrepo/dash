@@ -515,12 +515,12 @@ class LiveRun(BaseRun):
 
         return not problem
 
-    def __waitForState(self, initState, expState, numTries, numErrors=0,
+    def __waitForState(self, initStates, expState, numTries, numErrors=0,
                        waitSecs=10, verbose=False):
         """
         Wait for the specified state
 
-        initState - expected initial detector state
+        initStates - list of possible initial detector states
         expState - expected final state
         numTries - number of tries before ceasing to wait
         numErrors - number of ERROR states allowed before assuming
@@ -555,10 +555,11 @@ class LiveRun(BaseRun):
                 numErrors -= 1
                 continue
 
-            if curState != initState and curState != LiveRunState.RECOVERING:
+            if curState not in initStates and \
+               curState != LiveRunState.RECOVERING:
                 raise StateException(("I3Live state should be %s or" +
                                       " RECOVERING, not %s") %
-                                     (initState, curState))
+                                     (", ".join(initStates), curState))
 
             time.sleep(waitSecs)
 
@@ -818,17 +819,12 @@ class LiveRun(BaseRun):
         if self.__dryRun:
             return True
 
-        if not self.__waitForState(LiveRunState.STOPPED, LiveRunState.STARTING,
-                                   10, 6, verbose=verbose):
-            try:
-                runNum = self.getRunNumber()
-                errmsg = "Run %d did not start" % runNum
-            except:
-                errmsg = "Run did not start"
-            raise RunException(errmsg)
+        if self.__state.runState() == LiveRunState.RUNNING:
+            return True
 
-        return self.__waitForState(LiveRunState.STARTING, LiveRunState.RUNNING,
-                                   18, 0, verbose=verbose)
+        initStates = (LiveRunState.STOPPED, LiveRunState.STARTING)
+        return self.__waitForState(initStates, LiveRunState.RUNNING, 60, 0,
+                                   verbose=True)
 
     @property
     def state(self):
@@ -845,13 +841,8 @@ class LiveRun(BaseRun):
         return True # Live handles this automatically
 
     def waitForStopped(self, verbose=False):
-        if self.__state.runState() != LiveRunState.STOPPING and \
-                self.__state.runState() != LiveRunState.STOPPED:
-            if not self.__waitForState(self.__state.runState(),
-                                       LiveRunState.STOPPING, 60, 0,
-                                       verbose=verbose):
-                return False
-        return self.__waitForState(LiveRunState.STOPPING, LiveRunState.STOPPED,
+        initStates = (self.__state.runState(), LiveRunState.STOPPING)
+        return self.__waitForState(initStates, LiveRunState.STOPPED,
                                    60, 0, verbose=verbose)
 
 if __name__ == "__main__":
