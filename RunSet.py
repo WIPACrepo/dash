@@ -1939,6 +1939,7 @@ class RunSet(object):
             stateOp = ComponentOperation.GET_STATE
             states = ComponentOperationGroup.runSimple(stateOp, waitList, (),
                                                        self.__logger)
+            found_error = False
             for c in waitList:
                 if states.has_key(c):
                     stateStr = str(states[c])
@@ -1946,6 +1947,13 @@ class RunSet(object):
                     stateStr = self.STATE_DEAD
                 if stateStr in validStates and stateStr != self.STATE_HANGING:
                     newList.remove(c)
+                if stateStr.upper() == "ERROR":
+                    found_error = True
+                    break
+
+            # if any component encounters an error, give up
+            if found_error:
+                break
 
             # if one or more components changed state...
             #
