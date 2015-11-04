@@ -164,7 +164,7 @@ def __writeSpadeTarFile(spadeDir, spadeBaseName, runDir, runNum, logger=None,
                         dryRun=False, force=False):
     # ignore huge directories
     dirsize = __getSize(runDir, runNum, logger=logger)
-    if dirsize >= TOO_LARGE:
+    if dirsize >= TOO_LARGE and not force:
         if logger is not None:
             logger.error("Not sending %s; %s is too large" %
                          (runDir, __sizefmt(dirsize)))
