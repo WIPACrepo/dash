@@ -19,12 +19,6 @@ from LiveImports import LIVE_IMPORT, MoniClient, MoniPort, Prio, SERVICE_NAME
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
-from locate_pdaq import find_pdaq_trunk
-metaDir = find_pdaq_trunk()
-sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
-from SVNVersionInfo import get_version_info
-# get the subversion id tag
-SVN_ID = "$Id: DAQLog.py 14923 2014-03-20 22:12:10Z dglo $"
 
 class LogException(Exception):
     pass
@@ -111,6 +105,7 @@ class LogSocketServer(object):
     def isServing(self):
         return self.__serving
 
+    @property
     def port(self):
         return self.__port
 
@@ -370,7 +365,7 @@ class LiveSocketAppender(BaseAppender):
                 self.__clientLock.release()
 
     def write(self, msg, time=None, level=DAQLog.DEBUG):
-        if type(msg) == unicode:
+        if isinstance(msg, unicode):
             msg = str(msg)
 
         self.__clientLock.acquire()
@@ -416,31 +411,21 @@ class LiveMonitor(object):
             self.__clientLock.release()
 
 if __name__ == "__main__":
-    import optparse
+    import argparse
 
     from CnCLogger import CnCLogger
 
-    ver_info = ("%(filename)s %(revision)s %(date)s %(time)s "
-                "%(author)s %(release)s %(repo_rev)s") % get_version_info(SVN_ID)
-    usage = "%prog [options]\nversion: " + ver_info
+    p = argparse.ArgumentParser()
+    p.add_argument("-L", "--liveLog", dest="liveLog",
+                   help="Hostname:port for IceCube Live")
+    p.add_argument("-M", "--mesg", dest="logmsg", default="",
+                   help="Message to log")
+    p.add_argument("logfile")
+    p.add_argument("port", type=int)
+    args = p.parse_args()
 
-    # add the command line option to try logging to live
-    # make it totally optional so if it's not there don't complain
-    p = optparse = optparse.OptionParser(usage=usage, version=ver_info)
-    p.add_option("-L", "--liveLog", type="string", dest="liveLog",
-                 action="store", default=None,
-                 help="Hostname:port for IceCube Live")
-    p.add_option("-M", "--mesg", type="string", dest="logmsg",
-                 action="store", default="",
-                 help="Message to log")
-    opt, args = p.parse_args()
-
-    if len(args) < 2:
-        print "Usage: DAQLogServer.py <file> <port>"
-        raise SystemExit
-
-    logfile = args[0]
-    port = int(args[1])
+    logfile = args.logfile
+    port = args.port
 
     if logfile == '-':
         logfile = None
@@ -453,16 +438,16 @@ if __name__ == "__main__":
     # if someone specifies a live ip and port connect to it and
     # send a few test messages
 
-    if opt.liveLog:
+    if args.liveLog:
         import random
 
         try:
-            liveIP, livePort = opt.liveLog.split(':')
+            liveIP, livePort = args.liveLog.split(':')
             livePort = int(livePort)
             print "User specified a live logging destination, try to use it"
             print "Dest: (%s:%d)" % (liveIP, livePort)
         except ValueError:
-            sys.exit("ERROR: Bad livelog argument '%s'" % opt.liveLog)
+            sys.exit("ERROR: Bad livelog argument '%s'" % args.liveLog)
 
         log = CnCLogger(quiet=False)
         logServer = LogSocketServer(port, "all-components", logfile)
@@ -471,7 +456,7 @@ if __name__ == "__main__":
 
             log.openLog("localhost", port, liveIP, livePort)
             for idx in xrange(100):
-                msg = "Logging test message (%s) %d" % (opt.logmsg, idx)
+                msg = "Logging test message (%s) %d" % (args.logmsg, idx)
                 log.debug(msg)
                 sleep_time = random.uniform(0, 0.5)
                 pytime.sleep(sleep_time)

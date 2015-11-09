@@ -76,7 +76,7 @@ def getHV(cursor, domid, gain):
     return 10 ** ((log10(gain) - intercept) / slope)
 
 
-def getTriggerThreshold(cursor, domid, type, q):
+def getTriggerThreshold(cursor, domid, domtype, q):
     nrow = cursor.execute(
         """
         SELECT slope, intercept FROM DOMCal_Discriminator d
@@ -86,7 +86,7 @@ def getTriggerThreshold(cursor, domid, type, q):
         WHERE p.tag_serial='%s' AND dt.name='%s'
         ORDER BY c.date DESC
         LIMIT 1
-        """ % (domid, type)
+        """ % (domid, domtype)
         )
     if nrow != 1:
         return None
@@ -98,8 +98,6 @@ def createConfig(cursor, mbid, **kwargs):
     """
     Create XML configuration blob
     """
-    global dom_db
-
     # Setup defaults
     gain = 1.0E+07
     trigger_mode = "spe"
@@ -250,7 +248,7 @@ lc_special_modes = {
     '49-14': 'up',     # 49-15 (Mercedes_Benz) LC broken to 49-14
     '50-35': 'up',     # 50-36 (Ocelot) is dead
     '50-37': 'down',   # 50-36 (Ocelot) is dead
-     # 59-51 (T_Centraalen) <--> 59-52 (Medborgerplaz) LC broken
+    # 59-51 (T_Centraalen) <--> 59-52 (Medborgerplaz) LC broken
     '59-51': 'up',
     '59-52': 'down',   # Ibid.
     '65-33': 'up',     # Broken LC between Michael Myers & Williwaw
@@ -265,34 +263,33 @@ if __name__ == '__main__':
     import re
     import MySQLdb
     from getpass import getpass
-    from optparse import OptionParser
-    parser = OptionParser()
-    parser.add_option("-N", "--nicknames", dest="nicknames", default=None,
-                      help=("Use alternate nicknames file "
-                            "(don't use $NICKNAMES)"))
-    parser.add_option("-H", "--db-host", dest="dbHost",
-                      default="sps-testdaq01",
-                      help="Specify domprodtest database host name")
-    parser.add_option("-u", "--user", dest="user", default="penguin",
-                      help="Specify database user")
-    parser.add_option("-p", "--password", dest="passwd", action="store_true",
-                      default=False,
-                      help="Database user will need a password")
-    parser.add_option("-E", "--engineering-readout", dest="engFmt",
-                      default="128,128,128,0,250",
-                      help="Use engineering format readout")
-    parser.add_option("-S", "--lc-span", dest="span", type="int", default=1,
-                      help="Set LC span parameter.")
-    parser.add_option("-G", "--gain", dest="gain", type="float",
-                      default=1.0E+07,
-                      help="Set PMT gain")
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-N", "--nicknames", dest="nicknames",
+                        help=("Use alternate nicknames file "
+                              "(don't use $NICKNAMES)"))
+    parser.add_argument("-H", "--db-host", dest="dbHost",
+                        default="sps-testdaq01",
+                        help="Specify domprodtest database host name")
+    parser.add_argument("-u", "--user", dest="user", default="penguin",
+                        help="Specify database user")
+    parser.add_argument("-p", "--password", dest="passwd", action="store_true",
+                        default=False,
+                        help="Database user will need a password")
+    parser.add_argument("-E", "--engineering-readout", dest="engFmt",
+                        default="128,128,128,0,250",
+                        help="Use engineering format readout")
+    parser.add_argument("-S", "--lc-span", dest="span", type=int, default=1,
+                        help="Set LC span parameter.")
+    parser.add_argument("-G", "--gain", dest="gain", type=float,
+                        default=1.0E+07,
+                        help="Set PMT gain")
+    parser.add_argument("hubname", nargs="+")
 
-    (opts, args) = parser.parse_args()
-    if len(args) < 1:
-        sys.exit(1)
+    args = parser.parse_args()
 
     # Extract the engineering format
-    vec = opts.engFmt.split(",")
+    vec = args.engFmt.split(",")
     if len(vec) != 5:
         print >> sys.stderr, ("ERROR: engineering format "
                               "spec is --E ATWD0,ATWD1,ATWD2,ATWD3,FADC")
@@ -300,17 +297,17 @@ if __name__ == '__main__':
     engFmt = (tuple([int(x) for x in vec[0:4]]), int(vec[4]))
 
     passwd = ""
-    if opts.passwd:
-        getpass("Enter password for user " + opts.user + " on " + \
-                    opts.dbHost + ": ")
+    if args.passwd:
+        getpass("Enter password for user " + args.user + " on " + \
+                    args.dbHost + ": ")
 
-    db = MySQLdb.connect(host=opts.dbHost, user=opts.user,
+    db = MySQLdb.connect(host=args.dbHost, user=args.user,
                          passwd=passwd, db="domprodtest")
 
-    cmd = re.compile('(\d{1,2})([it])')
+    cmd = re.compile(r'(\d{1,2})([it])')
     print "<?xml version='1.0' encoding='UTF-8'?>"
     print "<domConfigList>"
-    for s in args:
+    for s in args.hubname:
         m = cmd.search(s)
         if m is None:
             continue
@@ -333,6 +330,6 @@ if __name__ == '__main__':
         for mbid in mbidList:
             print createConfig(db.cursor(), mbid,
                                engFormat=engFmt,
-                               span=opts.span,
-                               gain=opts.gain)
+                               span=args.span,
+                               gain=args.gain)
     print "</domConfigList>"

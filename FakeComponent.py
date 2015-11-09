@@ -79,21 +79,24 @@ class TriggerHandler(FakeClient):
 
             payLen = struct.unpack(">i", data[pos: pos + 4])[0]
             if payLen == 4:
-                print >>sys.stderr, "%s saw STOPMSG" % self.fullName()
+                print >>sys.stderr, "%s saw STOPMSG" % self.fullname
                 break
 
             if payLen < 16:
                 print >>sys.stderr, "%s saw unexpected %d-byte payload" % \
-                      (self.fullName(), payLen)
+                      (self.fullname, payLen)
             elif len(data) < payLen:
                 print >>sys.stderr, \
                       "%s expected %d bytes, but only %d are available" % \
-                      (self.fullName(), payLen, len(data))
+                      (self.fullname, payLen, len(data))
             else:
                 payType, utc = struct.unpack(">iq", data[pos + 4: pos + 16])
                 self.processPayload(payType, utc, data[pos + 16: pos + payLen])
 
             pos += payLen
+
+    def processPayload(self, payType, utc, payload):
+        raise NotImplementedError("Unimplemented")
 
     def send(self, data):
         self.__outConn.send(data)
@@ -112,12 +115,12 @@ class LocalTrigger(TriggerHandler):
         self.__trigCount = 0
 
         super(LocalTrigger, self).__init__(compName, compNum, inputName,
-                                         self.__outputName, prescale)
+                                           self.__outputName, prescale)
 
     def processPayload(self, payType, utc, payload):
         if payType != PayloadType.SIMPLE_HIT:
             print >>sys.stderr, "Unexpected %s payload type %d" % \
-                  (self.fullName(), payType)
+                  (self.fullname, payType)
             return
 
         self.__hitCount += 1
@@ -170,7 +173,7 @@ class GlobalTrigger(TriggerHandler):
     def processPayload(self, payType, utc, payload):
         if payType != PayloadType.TRIGGER_REQUEST:
             print >> sys.stderr, "Unexpected %s payload type %d" % \
-                (self.fullName(), payType)
+                (self.fullname, payType)
             return
 
         recType, uid, trigType, cfgId, srcId, startTime, endTime, \
@@ -188,7 +191,7 @@ class GlobalTrigger(TriggerHandler):
                  struct.unpack(">ihh", payload[pos: pos + 8])
 
         if numComp > 0:
-            print >>sys.stderr, "%s ignoring %d composites" % self.fullName()
+            print >>sys.stderr, "%s ignoring %d composites" % self.fullname
 
         tr = self.makeTriggerRequest(self.TRIG_TYPE, self.TRIG_CFGID,
                                      startTime, endTime)
@@ -218,14 +221,14 @@ class TrackEngine(TriggerHandler):
             if len(data) < self.HIT_LEN:
                 print >>sys.stderr, \
                       "%s expected %d bytes, but only %d are available" % \
-                      (self.fullName(), self.HIT_LEN, len(data))
+                      (self.fullname, self.HIT_LEN, len(data))
                 break
 
             major, minor, utc, lcMode = \
                    struct.unpack(">bbqb", data[pos: pos + self.HIT_LEN])
 
             if major == 0 and minor == 0 and utc == 0 and lcMode == 0:
-                print >>sys.stderr, "%s saw STOPMSG" % self.fullName()
+                print >>sys.stderr, "%s saw STOPMSG" % self.fullname
                 break
 
             self.__hitCount += 1
@@ -239,25 +242,21 @@ class TrackEngine(TriggerHandler):
             pos += self.HIT_LEN
 
 if __name__ == "__main__":
-    import optparse
+    import argparse
 
-    parser = optparse.OptionParser()
+    parser = argparse.ArgumentParser()
 
-    parser.add_option("-p", "--firstPortNumber", type="int", dest="firstPort",
-                      action="store", default=FakeClient.NEXT_PORT,
-                      help="First port number used for fake components")
+    parser.add_argument("-p", "--firstPortNumber", type=int, dest="firstPort",
+                        default=FakeClient.NEXT_PORT,
+                        help="First port number used for fake components")
+    parser.add_argument("component")
 
-    opt, args = parser.parse_args()
+    args = parser.parse_args()
 
-    if opt.firstPort != FakeClient.NEXT_PORT:
-        FakeClient.NEXT_PORT = opt.firstPort
+    if args.firstPort != FakeClient.NEXT_PORT:
+        FakeClient.NEXT_PORT = args.firstPort
 
-    if len(args) == 0:
-        parser.error("Please specify a component to be run")
-    elif len(args) > 1:
-        parser.error("Please specify only one component to be run")
-
-    lowName = args[0].lower()
+    lowName = args.component.lower()
     if lowName == "trackengine":
         comp = TrackEngine()
     elif lowName == "inicetrigger":
@@ -267,7 +266,7 @@ if __name__ == "__main__":
     elif lowName == "globaltrigger":
         comp = GlobalTrigger()
     else:
-        parser.error("Unknown component \"%s\"" % args[0])
+        parser.error("Unknown component \"%s\"" % args.component)
 
     comp.start()
     while True:

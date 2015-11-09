@@ -72,7 +72,7 @@ def hub2Host(h):
     """ Convert a hub number to SPS hostname """
     if h < 200:
         return "sps-ichub%02d" % (h)
-    elif (h < 212):
+    elif h < 212:
         return "sps-ithub%02d" % (h - 200)
     else:
         return "unknown"
@@ -133,8 +133,9 @@ def main():
     #---------------------------------------------------
     # Parse command-line options
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hpvdf",
-                     ["help", "print", "verbose", "dryrun", "force"])
+        opts, args = getopt.getopt(sys.argv[1:], "hpvdf", [
+            "help", "print", "verbose", "dryrun", "force"
+        ])
     except getopt.GetoptError as err:
         print str(err)
         usage()
@@ -144,7 +145,7 @@ def main():
     verbose = False
     dryrun = False
     force = False
-    for o, a in opts:
+    for o, _ in opts:
         if o in ("-h", "--help"):
             usage()
             sys.exit()
@@ -170,7 +171,7 @@ def main():
     icetopTest = ICETOP_NORTH + ICETOP_SOUTH
     icetopTest.sort()
 
-    if (icetopTest != ICETOP):
+    if icetopTest != ICETOP:
         print >> sys.stderr, \
               "ERROR: IceTop divisions bad (missing or duplicate hubs)!"
         sys.exit(-1)
@@ -179,7 +180,7 @@ def main():
                 INICE_SOUTHEAST + INICE_SOUTHWEST
     iniceTest.sort()
 
-    if (iniceTest != INICE):
+    if iniceTest != INICE:
         print >> sys.stderr, \
               "ERROR: in-ice divisions bad (missing or duplicate hubs)!"
         sys.exit(-1)

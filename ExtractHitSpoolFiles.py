@@ -133,14 +133,14 @@ def process(path):
                 tf.close()
 
 if __name__ == "__main__":
-    import optparse
+    import argparse
 
-    op = optparse.OptionParser()
+    op = argparse.ArgumentParser()
+    op.add_argument("paths", nargs="*")
+    args = op.parse_args()
 
-    opt, args = op.parse_args()
-
-    if len(args) == 0:
+    if len(args.paths) == 0:
         args.append("/net/data2/pdaq/testdata/hitspool/from_sndaq_alerts")
 
-    for path in args:
+    for path in args.paths:
         process(path)

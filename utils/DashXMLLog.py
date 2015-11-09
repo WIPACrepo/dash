@@ -443,6 +443,31 @@ class DashXMLLog:
 
         return runXML
 
+    def summary(self):
+        "Return a dictionary of run summary data"
+        fld = self.getField("TermCondition")
+        if fld is None:
+            termCond = "UNKNOWN"
+        elif fld == "Failure":
+            termCond = "FAILED"
+        elif fld == "Success":
+            termCond = "SUCCESS"
+        else:
+            termCond = "??%s??" % fld
+
+        return {
+            "num": self.getRun(),
+            "config": self.getConfig(),
+            "result": termCond,
+            "startTime": str(self.getStartTime()),
+            "endTime": str(self.getEndTime()),
+            "numEvents": self.getEvents(),
+            "numMoni": self.getMoni(),
+            "numTcal": self.getTcal(),
+            "numSN": self.getSN(),
+        }
+
+
 if __name__ == "__main__":
     a = DashXMLLog()
     a.setRun(117554)

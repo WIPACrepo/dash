@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
 import os
-import socket
 import tempfile
 import unittest
 import shutil
 
+from DAQClient import BeanTimeoutException
 from LiveImports import Prio
 from MonitorTask import MonitorTask
 from RunOption import RunOption
@@ -32,7 +32,7 @@ class BadComponent(MockComponent):
     def getSingleBeanField(self, beanName, fieldName):
         if self.__raiseSocketError:
             self.__raiseSocketError = False
-            raise socket.error(123, "Connection refused")
+            raise BeanTimeoutException("Mock exception")
         if self.__raiseException:
             self.__raiseException = False
             raise Exception("Mock exception")
@@ -87,7 +87,7 @@ class MonitorTaskTest(unittest.TestCase):
         return [foo, bar, ]
 
     def __createStandardObjects(self):
-        timer = MockIntervalTimer("Monitoring")
+        timer = MockIntervalTimer(MonitorTask.NAME)
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(timer)
 
@@ -120,12 +120,12 @@ class MonitorTaskTest(unittest.TestCase):
                         if i == 3:
                             errMsg = ("ERROR: Not monitoring %s:" +
                                       " Connect failed %d times") % \
-                                      (c.fullName(), i)
+                                      (c.fullname, i)
                             logger.addExpectedExact(errMsg)
                         elif i >= 0 and i < 3:
                             c.raiseSocketError()
                     elif i > 0 and raiseException:
-                        errMsg = "Ignoring %s:.*: Exception.*$" % c.fullName()
+                        errMsg = "Ignoring %s:.*: Exception.*$" % c.fullname
                         logger.addExpectedRegexp(errMsg)
                         c.raiseException()
 

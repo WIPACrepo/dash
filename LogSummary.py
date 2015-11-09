@@ -1040,6 +1040,7 @@ class Builder(object):
     def setStopping(self):
         self.__transition(self.STATE_STARTED, self.STATE_STOPPING)
 
+    @property
     def state(self):
         return self.__stateString(self.__state)
 
@@ -1185,7 +1186,7 @@ class SecondaryBuildersLog(ComponentLog):
         if verbose:
             for bldr in self.__builder.values():
                 if not bldr.isInitial():
-                    print >> fd, "%s %s" % (str(bldr), bldr.state())
+                    print >> fd, "%s %s" % (str(bldr), bldr.state)
 
 
 class BaseDom(object):
@@ -1317,6 +1318,7 @@ class BaseDom(object):
     def setStopped(self):
         self.__transition(self.STATE_STOPPING, self.STATE_STOPPED)
 
+    @property
     def state(self):
         return self.__stateString(self.__state)
 
@@ -1336,6 +1338,7 @@ class RealDom(BaseDom):
     def __str__(self):
         return "%12x" % self.__id
 
+    @property
     def id(self):
         return self.__id
 
@@ -1822,7 +1825,7 @@ class StringHubLog(ComponentLog):
             for dom in self.__domMap.values():
                 if not dom.isStopped():
                     print >>fd, "%s: %s %s" % \
-                        (self.fileName(), str(dom), dom.state())
+                        (self.fileName(), str(dom), dom.state)
                 elif dom.getWildTCals() > 0 or dom.getTCalFailures() > 0:
                     print >>fd, "%s: %s TCals: %d wild, %d failures" % \
                         (self.fileName(), str(dom), dom.getWildTCals(),

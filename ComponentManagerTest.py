@@ -19,24 +19,27 @@ from RunSetState import RunSetState
 class MockNode(object):
     LIST = []
 
-    def __init__(self, hostName):
-        self.__hostName = hostName
+    def __init__(self, hostname):
+        self.__hostname = hostname
         self.__comps = []
 
     def __str__(self):
-        return "%s[%s]" % (str(self.__hostName), str(self.__comps))
+        return "%s[%s]" % (str(self.__hostname), str(self.__comps))
 
-    def addComp(self, compName, compId, logLevel, jvm, jvmArgs):
-        comp = MockDeployComponent(compName, compId, logLevel, jvm, jvmArgs,
-                                   host=self.__hostName)
+    def addComp(self, compName, compId, logLevel, jvmPath, jvmServer,
+                jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtraArgs):
+        comp = MockDeployComponent(compName, compId, logLevel, jvmPath,
+                                   jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs,
+                                   jvmExtraArgs, host=self.__hostname)
         self.__comps.append(comp)
         return comp
 
     def components(self):
         return self.__comps
 
-    def hostName(self):
-        return self.__hostName
+    @property
+    def hostname(self):
+        return self.__hostname
 
 
 class MockClusterConfig(object):
@@ -50,10 +53,12 @@ class MockClusterConfig(object):
     def clearActiveConfig(self):
         pass
 
+    @property
     def configName(self):
         return self.__configName
 
-    def descName(self):
+    @property
+    def description(self):
         return None
 
     def nodes(self):
@@ -163,8 +168,12 @@ class ComponentManagerTest(unittest.TestCase):
         configDir = '/foo/cfg'
         daqDataDir = '/foo/baz'
         logPort = 1234
-        jvm = "java"
-        jvmArgs = "-server"
+        jvmPath = "java"
+        jvmServer = False
+        jvmHeapInit = "1m"
+        jvmHeapMax = "12m"
+        jvmArgs = "-Xarg"
+        jvmExtra = "-Xextra"
         verbose = False
         checkExists = False
 
@@ -181,7 +190,9 @@ class ComponentManagerTest(unittest.TestCase):
 
             for host in MockNode.LIST:
                 node = MockNode(host)
-                comp = node.addComp(compName, compId, logLevel, jvm, jvmArgs)
+                comp = node.addComp(compName, compId, logLevel, jvmPath,
+                                    jvmServer, jvmHeapInit, jvmHeapMax,
+                                    jvmArgs, jvmExtra)
 
                 for isLive in (True, False):
                     if isLive:
@@ -215,14 +226,19 @@ class ComponentManagerTest(unittest.TestCase):
 
             dryRun = False
             verbose = False
-            jvm = "java"
-            jvmArgs = "-server"
+            jvmPath = "java"
+            jvmServer = False
+            jvmHeapInit = "1m"
+            jvmHeapMax = "12m"
+            jvmArgs = "-Xarg"
+            jvmExtra = "-Xextra"
 
             logLevel = 'DEBUG'
 
             for host in MockNode.LIST:
                 node = MockNode(host)
-                node.addComp(compName, compId, logLevel, jvm, jvmArgs)
+                node.addComp(compName, compId, logLevel, jvmPath, jvmServer,
+                             jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra)
 
                 for killWith9 in (True, False):
                     parallel = MockParallelShell()
@@ -253,8 +269,12 @@ class ComponentManagerTest(unittest.TestCase):
 
         compName = 'eventBuilder'
         compId = 0
-        jvm = "java"
-        jvmArgs = "-server"
+        jvmPath = "java"
+        jvmServer = False
+        jvmHeapInit = "1m"
+        jvmHeapMax = "12m"
+        jvmArgs = "-Xarg"
+        jvmExtra = "-Xextra"
         logLevel = 'DEBUG'
 
         # if there are N targets, range is 2^N
@@ -263,7 +283,9 @@ class ComponentManagerTest(unittest.TestCase):
 
             for host in MockNode.LIST:
                 node = MockNode(host)
-                comp = node.addComp(compName, compId, logLevel, jvm, jvmArgs)
+                comp = node.addComp(compName, compId, logLevel, jvmPath,
+                                    jvmServer, jvmHeapInit, jvmHeapMax,
+                                    jvmArgs, jvmExtra)
 
                 cfgName = 'mockCfg'
 
@@ -279,21 +301,24 @@ class ComponentManagerTest(unittest.TestCase):
                     for evtChk in (True, False):
                         parallel = MockParallelShell()
 
+                        cluDesc = None
+
                         parallel.addExpectedPython(doCnC, dashDir, configDir,
                                                    logDir, daqDataDir,
-                                                   spadeDir, cfgName, copyDir,
-                                                   logPort, livePort)
+                                                   spadeDir, cluDesc, cfgName,
+                                                   copyDir, logPort, livePort)
                         parallel.addExpectedJava(comp, configDir, daqDataDir,
                                                  DAQPort.CATCHALL, livePort,
                                                  verbose, evtChk, host)
 
                         dryRun = False
+                        logDirFallback = None
 
                         ComponentManager.launch(doCnC, dryRun, verbose,
                                                 config, dashDir, configDir,
-                                                daqDataDir, logDir, None,
-                                                spadeDir, copyDir, logPort,
-                                                livePort,
+                                                daqDataDir, logDir,
+                                                logDirFallback, spadeDir,
+                                                copyDir, logPort, livePort,
                                                 eventCheck=evtChk,
                                                 checkExists=checkExists,
                                                 startMissing=False,
@@ -307,8 +332,12 @@ class ComponentManagerTest(unittest.TestCase):
 
         compName = 'eventBuilder'
         compId = 0
-        jvm = "java"
-        jvmArgs = "-server"
+        jvmPath = "java"
+        jvmServer = False
+        jvmHeapInit = "1m"
+        jvmHeapMax = "12m"
+        jvmArgs = "-Xarg"
+        jvmExtra = "-Xextra"
         logLevel = 'DEBUG'
         runLogger = None
 
@@ -318,7 +347,8 @@ class ComponentManagerTest(unittest.TestCase):
 
             for host in MockNode.LIST:
                 node = MockNode(host)
-                node.addComp(compName, compId, logLevel, jvm, jvmArgs)
+                node.addComp(compName, compId, logLevel, jvmPath, jvmServer,
+                             jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra)
 
                 for killWith9 in (True, False):
                     parallel = MockParallelShell()
@@ -374,7 +404,7 @@ class ComponentManagerTest(unittest.TestCase):
 
         names = []
         for c in comps:
-            names.append(c.fullName())
+            names.append(c.fullname)
 
         for c in expComps:
             self.failUnless(c in names,
@@ -395,8 +425,11 @@ class ComponentManagerTest(unittest.TestCase):
 
         compdict = []
         for rc in expRSComps:
-            compdict.append({"compName" : rc[0], "compNum" : rc[1],
-                             "host" : rc[2] })
+            compdict.append({
+                "compName" : rc[0],
+                "compNum" : rc[1],
+                "host" : rc[2],
+            })
         self.__srvr.addRunset(RunSetState.RUNNING, compdict)
 
         clusterDesc = ClusterDescription.SPTS64
@@ -415,7 +448,7 @@ class ComponentManagerTest(unittest.TestCase):
 
         names = []
         for c in comps:
-            names.append(c.fullName())
+            names.append(c.fullname)
 
         for expList in (expUnused, expRSComps):
             for c in expList:

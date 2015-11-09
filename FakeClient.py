@@ -36,11 +36,16 @@ class Engine(object):
         return len(self.__channels)
 
     def connectionTuple(self):
-        return (self.name(), self.descriptionChar(), self.port())
+        return (self.name, self.descriptionChar(), self.port)
 
+    def descriptionChar(self):
+        raise NotImplementedError("Unimplemented")
+
+    @property
     def name(self):
         return self.__name
 
+    @property
     def port(self):
         return -1
 
@@ -48,6 +53,7 @@ class Engine(object):
         self.__channels.remove(chan)
         print "Removed %s" % chan
 
+    @property
     def state(self):
         return "unknown"
 
@@ -64,7 +70,7 @@ class InputChannel(threading.Thread):
         self.setDaemon(True)
 
     def __str__(self):
-        return "%s<<%s" % (self.__engine.name(), self.__fromhost)
+        return "%s<<%s" % (self.__engine.name, self.__fromhost)
 
     def close(self):
         self.__running = False
@@ -101,7 +107,7 @@ class InputEngine(Engine):
             optStr = " (optional)"
         else:
             optStr = ""
-        return "%s<<%d%s" % (self.name(), self.__port, optStr)
+        return "%s<<%d%s" % (self.name, self.__port, optStr)
 
     def acceptLoop(self):
         while True:
@@ -118,6 +124,7 @@ class InputEngine(Engine):
             return "I"
         return "i"
 
+    @property
     def port(self):
         return self.__port
 
@@ -137,7 +144,7 @@ class InputEngine(Engine):
             self.__sock = None
             raise
 
-        t = threading.Thread(name=self.name() + "Thread",
+        t = threading.Thread(name=self.name + "Thread",
                              target=self.acceptLoop)
         t.setDaemon(True)
         t.start()
@@ -155,7 +162,7 @@ class OutputChannel(threading.Thread):
         try:
             self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.__sock.connect((self.__host, self.__port))
-        except socket.error, err:
+        except socket.error as err:
             self.__sock = None
             raise Exception("Cannot connect to %s:%d: %s" %
                             (self.__host, self.__port, err))
@@ -164,7 +171,7 @@ class OutputChannel(threading.Thread):
         self.setDaemon(True)
 
     def __str__(self):
-        return ">>%s" % (self.__engine.name())
+        return ">>%s" % (self.__engine.name)
 
     def close(self):
         self.__engine.removeChannel(self)
@@ -203,7 +210,7 @@ class OutputEngine(Engine):
             optStr = " (optional)"
         else:
             optStr = ""
-        return "%s>>%s" % (self.name(), optStr)
+        return "%s>>%s" % (self.name, optStr)
 
     def connect(self, host, port, path=None):
         try:
@@ -267,7 +274,7 @@ class FakeClient(object):
             elif c[1] == "o" or c[1] == "O":
                 engines.append(OutputEngine(c[0], c[1] == "O"))
             else:
-                raise Exception("Unknown connection \"%s\" type \%s\"" %
+                raise Exception("Unknown connection \"%s\" type \"%s\"" %
                                 (c[0], c[1]))
         return engines
 
@@ -286,13 +293,13 @@ class FakeClient(object):
             for cd in connList:
                 found = False
                 for e in self.__connections:
-                    if e.name() == cd["type"]:
+                    if e.name == cd["type"]:
                         path = self.__getOutputDataPath()
                         e.connect(cd["host"], cd["port"], path=path)
                         found = True
                 if not found:
                     raise Exception("Cannot find \"%s\" output engine \"%s\"" %
-                                    self.fullName(), cd["type"])
+                                    self.fullname, cd["type"])
 
         self.__state = "connected"
         return self.__state
@@ -374,8 +381,8 @@ class FakeClient(object):
     def __listConnStates(self):
         stateList = []
         for conn in self.__connections:
-            stateList.append({"type": conn.name(), "numChan": conn.channels(),
-                               "state": conn.state()})
+            stateList.append({"type": conn.name, "numChan": conn.channels(),
+                              "state": conn.state})
 
         return stateList
 
@@ -436,7 +443,8 @@ class FakeClient(object):
         self.__runNum = newNum
         return "SwitchToNewRun"
 
-    def fullName(self):
+    @property
+    def fullname(self):
         if self.__num == 0:
             return self.__name
         return "%s#%d" % (self.__name, self.__num)
@@ -456,6 +464,7 @@ class FakeClient(object):
 
             time.sleep(1)
 
+    @property
     def name(self):
         return self.__name
 
@@ -499,7 +508,7 @@ class FakeClient(object):
         self.__cmd.register_function(self.__startRun, 'xmlrpc.startRun')
         self.__cmd.register_function(self.__stopRun, 'xmlrpc.stopRun')
 
-        handler = UnknownMethodHandler(self.fullName(), "Cmds")
+        handler = UnknownMethodHandler(self.fullname, "Cmds")
         self.__cmd.register_instance(handler)
 
         tName = "RealXML*%s#%d" % (self.__name, self.__num)
@@ -516,7 +525,7 @@ class FakeClient(object):
         self.__mbean.register_function(self.__listMBeanGetters,
                                        'mbean.listGetters')
 
-        handler = UnknownMethodHandler(self.fullName(), "Beans")
+        handler = UnknownMethodHandler(self.fullname, "Beans")
         self.__mbean.register_instance(handler)
 
         tName = "RealMBean*%s#%d" % (self.__name, self.__num)

@@ -7,6 +7,7 @@ set_exc_string_encoding("ascii")
 
 
 class CnCThread(threading.Thread):
+    "A thread which handles one iteration of a CnCTask"
     def __init__(self, name, log):
         self.__name = name
         self.__log = log
@@ -17,6 +18,7 @@ class CnCThread(threading.Thread):
         self.setDaemon(True)
 
     def _run(self):
+        "This method should implement the core logic of the thread"
         raise NotImplementedError()
 
     def close(self):

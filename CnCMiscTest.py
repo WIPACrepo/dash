@@ -11,7 +11,7 @@ class TestCnCMisc(unittest.TestCase):
 
     def checkConnectionMap(self, expVal, cMap, key):
         self.assertEqual(expVal, cMap[key], 'Expected %s "%s", not "%s"' %
-                          (key, str(expVal), str(cMap[key])))
+                         (key, str(expVal), str(cMap[key])))
 
     def connect(self, inputs):
         cDict = {}
@@ -20,9 +20,9 @@ class TestCnCMisc(unittest.TestCase):
             for cData in data[3:]:
                 conn = Connector(cData[0], cData[1], cData[2])
 
-                if not conn.name() in cDict:
-                    cDict[conn.name()] = ConnTypeEntry(conn.name())
-                cDict[conn.name()].add(conn, comp)
+                if not conn.name in cDict:
+                    cDict[conn.name] = ConnTypeEntry(conn.name)
+                cDict[conn.name].add(conn, comp)
 
         return cDict
 
@@ -37,7 +37,7 @@ class TestCnCMisc(unittest.TestCase):
             else:
                 expStr = '%s=>' % typeStr
             self.assertEqual(expStr, str(conn),
-                              'Expected "%s", not "%s"' % (expStr, str(conn)))
+                             'Expected "%s", not "%s"' % (expStr, str(conn)))
 
     def testConnection(self):
         compName = 'abc'
@@ -56,7 +56,7 @@ class TestCnCMisc(unittest.TestCase):
         expStr = '%s:%s#%d@%s:%d' % (connType, compName, compId, compHost,
                                      connPort)
         self.assertEqual(expStr, str(ctn),
-                          'Expected "%s", not "%s"' % (expStr, str(ctn)))
+                         'Expected "%s", not "%s"' % (expStr, str(ctn)))
 
         cMap = ctn.map()
         self.checkConnectionMap(connType, cMap, 'type')
@@ -130,8 +130,8 @@ class TestCnCMisc(unittest.TestCase):
 
                 xComp = expMap[key][conn]
                 self.assertEqual(xComp, comp,
-                                  ("Expected \"%s\" type \"%s\" to connect to"
-                                   " %s, not %s") % (key, conn, xComp, comp))
+                                 ("Expected \"%s\" type \"%s\" to connect to"
+                                  " %s, not %s") % (key, conn, xComp, comp))
 
 if __name__ == '__main__':
     unittest.main()

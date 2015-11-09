@@ -11,7 +11,6 @@ from DefaultDomGeometry import DefaultDomGeometryReader
 import copy
 import os
 import re
-import optparse
 
 
 class ConverterException(Exception):
@@ -60,7 +59,7 @@ def domconfig_gethubid(dcfg,
 
         if name in dcfg_dict:
             raise ConverterException(
-                "Duplicate entry for %s in %s@%s" % (name, fname,dpath))
+                "Duplicate entry for %s in %s@%s" % (name, fname, dpath))
 
         dcfg_dict[mbid] = name
 
@@ -76,7 +75,7 @@ def domconfig_gethubid(dcfg,
             expected_string = dom_string
         elif expected_string != dom_string:
             raise ConverterException(
-                "Bad string: %s(%s) in %s@%s" % (dom_string, expected_string, 
+                "Bad string: %s(%s) in %s@%s" % (dom_string, expected_string,
                                                  name, dpath))
 
     correct_hubid = expected_string
@@ -338,31 +337,30 @@ def convert(in_file, out_dir, domgeom=None, config_path=None):
 
 
 def main():
-    parse = optparse.OptionParser()
+    import argparse
+    parse = argparse.ArgumentParser()
 
-    parse.add_option("-o", "--output", type="string", dest="output",
-                     action="store", default="-",
-                     help="Output directory name ( - means stdout )")
-    parse.add_option("-d", "--configpath", type="string", dest="configpath",
-                     action="store", default=None,
-                     help="Config Directory ( defaults to find_pdaq_config() )")
+    parse.add_argument("-o", "--output", dest="output", default="-",
+                       help="Output directory name ( - means stdout )")
+    parse.add_argument("-d", "--configpath", dest="configpath",
+                       help="Config directory")
 
-    opt, args = parse.parse_args()
+    args = parse.parse_args()
 
-    geom_fname=None
-    if opt.configpath is not None:
-        geom_fname = os.path.join(opt.configpath,
+    geom_fname = None
+    if args.configpath is not None:
+        geom_fname = os.path.join(args.configpath,
                                   'default-dom-geometry.xml')
 
-    default_dom_geom = DefaultDomGeometryReader.parse(fileName=geom_fname, 
+    default_dom_geom = DefaultDomGeometryReader.parse(fileName=geom_fname,
                                                       translateDoms=True)
     domgeom = default_dom_geom.getDomIdToDomDict()
 
 
-    for cfg in args:
+    for cfg in args.positional:
         try:
             convert(cfg,
-                    opt.output, domgeom, opt.configpath)
+                    args.output, domgeom, args.configpath)
         except IOError as ioe:
             print "Config file error: %s" % cfg
             print "IO ERROR: ", ioe

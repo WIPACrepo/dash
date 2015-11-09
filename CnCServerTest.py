@@ -20,8 +20,9 @@ from RunOption import RunOption
 from RunSet import RunSet
 
 from DAQMocks \
-    import MockAppender, MockClusterConfig, MockCnCLogger, MockRunConfigFile,\
-    SocketReaderFactory, SocketWriter, MockLogger, RunXMLValidator
+    import MockAppender, MockClusterConfig, MockCnCLogger, \
+    MockDefaultDomGeometryFile, MockRunConfigFile,  SocketReaderFactory, \
+    SocketWriter, MockLogger, RunXMLValidator
 
 ACTIVE_WARNING = False
 
@@ -69,7 +70,8 @@ class MostlyRunSet(RunSet):
         super(MostlyRunSet, self).__init__(parent, runConfig, compList,
                                            catchall)
 
-    def createComponentLog(self, runDir, c, host, port, liveHost, livePort,
+    @staticmethod
+    def createComponentLog(runDir, c, host, port, liveHost, livePort,
                            quiet=True):
         return FakeLogger()
 
@@ -103,10 +105,11 @@ class MostlyRunSet(RunSet):
 
         return self.__logDict[name]
 
-    def queueForSpade(self, duration):
+    def queueForSpade(self, runData, duration):
         pass
 
-    def switchComponentLog(self, oldLog, runDir, comp):
+    @staticmethod
+    def switchComponentLog(oldLog, runDir, comp):
         return oldLog
 
 
@@ -197,8 +200,8 @@ class RealComponent(object):
         self.__cmd.register_function(self.__getRunNumber,
                                      'xmlrpc.getRunNumber')
         self.__cmd.register_function(self.__getState, 'xmlrpc.getState')
-        self.__cmd.register_function(self.__getVersionInfo,
-                                     'xmlrpc.getVersionInfo')
+        #self.__cmd.register_function(self.__getVersionInfo,
+        #                             'xmlrpc.getVersionInfo')
         self.__cmd.register_function(self.__logTo, 'xmlrpc.logTo')
         self.__cmd.register_function(self.__reset, 'xmlrpc.reset')
         self.__cmd.register_function(self.__resetLogging,
@@ -220,7 +223,7 @@ class RealComponent(object):
 
         self.__mbean = RPCServer(mbeanPort)
         self.__mbean.register_function(self.__getMBeanValue,
-                                     'mbean.get')
+                                       'mbean.get')
         self.__mbean.register_function(self.__listMBeans, 'mbean.listMBeans')
         self.__mbean.register_function(self.__getMBeanAttributes,
                                        'mbean.getAttributes')
@@ -254,7 +257,7 @@ class RealComponent(object):
         return val
 
     def __repr__(self):
-        return self.fullName()
+        return self.fullname
 
     def __str__(self):
         return "%s#%d" % (self.__name, self.__num)
@@ -277,25 +280,25 @@ class RealComponent(object):
 
     @classmethod
     def __fixValue(cls, obj):
-        if type(obj) is dict:
+        if isinstance(obj, dict):
             for k in obj:
                 obj[k] = cls.__fixValue(obj[k])
-        elif type(obj) is list:
+        elif isinstance(obj, list):
             for i in xrange(0, len(obj)):
                 obj[i] = cls.__fixValue(obj[i])
-        elif type(obj) is tuple:
+        elif isinstance(obj, tuple):
             newObj = []
             for v in obj:
                 newObj.append(cls.__fixValue(v))
             obj = tuple(newObj)
-        elif type(obj) is int or type(obj) is long:
+        elif isinstance(obj, int) or isinstance(obj, long):
             if obj < xmlrpclib.MININT or obj > xmlrpclib.MAXINT:
                 return str(obj)
         return obj
 
     def __getRunData(self, runNum):
         if self.__runData is None:
-            raise Exception("%s runData has not been set" % self.fullName())
+            raise Exception("%s runData has not been set" % self.fullname)
         rd = self.__runData
         self.__runData = None
         return self.__fixValue(rd)
@@ -313,15 +316,15 @@ class RealComponent(object):
         if self.__bean is None or not bean in self.__bean or \
             not field in self.__bean[bean]:
             raise Exception("%s has no value for bean %s.%s" %
-                            (self.fullName(), bean, field))
+                            (self.fullname, bean, field))
 
         return self.__fixValue(self.__bean[bean][field])
 
     def __getState(self):
         return self.__state
 
-    def __getVersionInfo(self):
-        return '$Id: filename revision date time author xxx'
+    #def __getVersionInfo(self):
+    #    return '$Id: filename revision date time author xxx'
 
     def __listMBeanGetters(self, bean):
         if self.__bean is None or not bean in self.__bean:
@@ -373,7 +376,7 @@ class RealComponent(object):
         if self.__logger is None:
             raise Exception('No logging for %s' % self)
 
-        self.__logger.write('Start #%d on %s' % (runNum, self.fullName()))
+        self.__logger.write('Start #%d on %s' % (runNum, self.fullname))
 
         self.__runNum = runNum
         self.__state = 'running'
@@ -383,7 +386,7 @@ class RealComponent(object):
         if self.__logger is None:
             raise Exception('No logging for %s' % self)
 
-        self.__logger.write('Stop %s' % self.fullName())
+        self.__logger.write('Stop %s' % self.fullname)
 
         self.__state = 'ready'
         return 'STOP'
@@ -392,7 +395,7 @@ class RealComponent(object):
         if self.__logger is None:
             raise Exception('No logging for %s' % self)
 
-        self.__logger.write('Switch %s to run#%d' % (self.fullName(), newNum))
+        self.__logger.write('Switch %s to run#%d' % (self.fullname, newNum))
 
         self.__runNum = newNum
         self.__state = 'running'
@@ -402,6 +405,7 @@ class RealComponent(object):
         self.__cmd.server_close()
         self.__mbean.server_close()
 
+    @property
     def cmdPort(self):
         return self.__cmd.portnum
 
@@ -412,7 +416,8 @@ class RealComponent(object):
 
         return MockCnCLogger(RealComponent.APPENDERS[key], quiet=quiet)
 
-    def fullName(self):
+    @property
+    def fullname(self):
         if self.__num == 0:
             return self.__name
         return "%s#%d" % (self.__name, self.__num)
@@ -420,6 +425,7 @@ class RealComponent(object):
     def getState(self):
         return self.__getState()
 
+    @property
     def id(self):
         return self.__id
 
@@ -428,12 +434,15 @@ class RealComponent(object):
             return False
         return self.__name.lower().endswith("hub")
 
+    @property
     def mbeanPort(self):
         return self.__mbean.portnum
 
+    @property
     def name(self):
         return self.__name
 
+    @property
     def num(self):
         return self.__num
 
@@ -471,10 +480,10 @@ class RateTracker(object):
     def addFinalLogMsgs(self, logger):
         numSecs = self.__numTicks / 10000000000
         logger.addExpectedExact(("%d physics events collected" +
-                                  " in %d seconds (%0.2f Hz)") %
-                                  (self.__numEvts, numSecs,
-                                    float(self.__numEvts) /
-                                    float(numSecs)))
+                                 " in %d seconds (%0.2f Hz)") %
+                                (self.__numEvts, numSecs,
+                                 float(self.__numEvts) /
+                                 float(numSecs)))
         logger.addExpectedExact("%d moni events, %d SN events, %d tcals" %
                                 (self.__numMoni, self.__numSN, self.__numTcal))
 
@@ -502,7 +511,7 @@ class RateTracker(object):
         lastEvtTime = self.__firstEvtTime + self.__numTicks
 
         for comp in comps:
-            if comp.name() == "eventBuilder":
+            if comp.name == "eventBuilder":
                 comp.setRunData(self.__numEvts, self.__firstEvtTime,
                                 lastEvtTime, self.__firstEvtTime, lastEvtTime)
                 comp.setBeanFieldValue("backEnd", "EventData",
@@ -511,7 +520,7 @@ class RateTracker(object):
                                        self.__firstEvtTime)
                 comp.setBeanFieldValue("backEnd", "GoodTimes",
                                        (self.__firstEvtTime, lastEvtTime))
-            elif comp.name() == "secondaryBuilders":
+            elif comp.name == "secondaryBuilders":
                 comp.setRunData(self.__numTcal, self.__numSN, self.__numMoni)
 
         cnc.updateRates(runsetId)
@@ -524,7 +533,7 @@ class RateTracker(object):
 
 class TestCnCServer(unittest.TestCase):
     HUB_NUMBER = 1021
-    DOM_MAINBOARD_ID = "53494d552101"
+    DOM_MAINBOARD_ID = 0x53494d552101
 
     def createLog(self, name, port, expectStartMsg=True):
         return self.__logFactory.createLog(name, port, expectStartMsg)
@@ -581,7 +590,7 @@ class TestCnCServer(unittest.TestCase):
 
         RunXMLValidator.tearDown()
 
-    def __addRange(rangeStr, rStart, rCurr):
+    def __addRange(self, rangeStr, rStart, rCurr):
         if not rangeStr.endswith(" "):
             rangeStr += ","
         if rStart == rCurr:
@@ -596,9 +605,9 @@ class TestCnCServer(unittest.TestCase):
 
         compDict = {}
         for c in cycleList:
-            if not c.name() in compDict:
-                compDict[c.name()] = []
-            compDict[c.name()].append(c.num())
+            if not c.name in compDict:
+                compDict[c.name] = []
+            compDict[c.name].append(c.num)
 
         strList = []
         for name in compDict:
@@ -642,7 +651,7 @@ class TestCnCServer(unittest.TestCase):
         for cd in compData:
             cluCfg.addComponent("%s#%d" % (cd[0], cd[1]), "java", "", compHost)
 
-        catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+ \S+ \S+ \S+')
+        catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+')
 
         self.cnc = MostlyCnCServer(clusterConfigObject=cluCfg,
                                    copyDir=self.__copyDir,
@@ -675,8 +684,8 @@ class TestCnCServer(unittest.TestCase):
 
             comp = RealComponent(cd[0], cd[1], basePort, basePort + 1, cd[2])
 
-            logs[comp.fullName()] = self.createLog(comp.fullName(),
-                                                   baseLogPort, False)
+            logs[comp.fullname] = self.createLog(comp.fullname, baseLogPort,
+                                                 False)
             comp.setExpectedRunLogPort(baseLogPort)
 
             basePort += 2
@@ -695,7 +704,7 @@ class TestCnCServer(unittest.TestCase):
         for d in s:
             comp = None
             for c in self.comps:
-                if d["compName"] == c.name() and d["compNum"] == c.number():
+                if d["compName"] == c.name and d["compNum"] == c.number():
                     comp = c
                     break
 
@@ -704,13 +713,13 @@ class TestCnCServer(unittest.TestCase):
                             (d["compName"], d["compNum"]))
             self.assertEqual(compHost, d["host"],
                              'Expected %s host %s, not %s' %
-                             (comp.fullName(), compHost, d["host"]))
-            self.assertEqual(comp.cmdPort(), d["rpcPort"],
+                             (comp.fullname, compHost, d["host"]))
+            self.assertEqual(comp.cmdPort, d["rpcPort"],
                              'Expected %s cmdPort %d, not %d' %
-                             (comp.fullName(), comp.cmdPort(), d["rpcPort"]))
-            self.assertEqual(comp.mbeanPort(), d["mbeanPort"],
+                             (comp.fullname, comp.cmdPort, d["rpcPort"]))
+            self.assertEqual(comp.mbeanPort, d["mbeanPort"],
                              'Expected %s mbeanPort %d, not %d' %
-                             (comp.fullName(), comp.mbeanPort(),
+                             (comp.fullname, comp.mbeanPort,
                               d["mbeanPort"]))
 
         rcFile = MockRunConfigFile(self.__runConfigDir)
@@ -718,18 +727,24 @@ class TestCnCServer(unittest.TestCase):
         compList = []
         for comp in self.comps:
             if not comp.isHub():
-                compList.append(comp.fullName())
+                compList.append(comp.fullname)
 
-        domList = [MockRunConfigFile.createDOM(self.DOM_MAINBOARD_ID), ]
+        hubDomDict = {
+            self.HUB_NUMBER:
+            [MockRunConfigFile.createDOM(self.DOM_MAINBOARD_ID, 2,
+                                         "SrvrTst", "ABCDEF"), ],
+        }
 
-        runConfig = rcFile.create(compList, domList)
+        runConfig = rcFile.create(compList, hubDomDict)
+
+        MockDefaultDomGeometryFile.create(self.__runConfigDir, hubDomDict)
 
         catchall.addExpectedTextRegexp('Loading run configuration .*')
         catchall.addExpectedTextRegexp('Loaded run configuration .*')
 
         for comp in self.comps:
             catchall.addExpectedExact('Config %s#%d with %s' %
-                                      (comp.name(), comp.number(), runConfig))
+                                      (comp.name, comp.number(), runConfig))
 
         catchall.addExpectedTextRegexp(r"Built runset #\d+: .*")
 
@@ -739,7 +754,7 @@ class TestCnCServer(unittest.TestCase):
         for comp in self.comps:
             self.assertEqual('ready', comp.getState(),
                              'Unexpected state %s for %s' %
-                             (comp.getState(), comp.fullName()))
+                             (comp.getState(), comp.fullname))
 
         time.sleep(1)
 
@@ -749,37 +764,37 @@ class TestCnCServer(unittest.TestCase):
         for d in rs:
             comp = None
             for c in self.comps:
-                if c.id() == d["id"]:
+                if c.id == d["id"]:
                     comp = c
                     break
             self.assertTrue(comp is not None,
                             "Unknown component %s#%d" %
                             (d["compName"], d["compNum"]))
 
-            self.assertEqual(comp.name(), d["compName"],
+            self.assertEqual(comp.name, d["compName"],
                              ("Component#%d name should be \"%s\"," +
                               "not \"%s\"") % \
-                               (comp.id(), comp.name(), d["compName"]))
+                             (comp.id, comp.name, d["compName"]))
             self.assertEqual(comp.number(), d["compNum"],
                              ("Component#%d \"%s\" number should be %d," +
-                               " not %d") %
-                             (comp.id(), comp.fullName(), comp.number(),
-                             d["compNum"]))
+                              " not %d") %
+                             (comp.id, comp.fullname, comp.number(),
+                              d["compNum"]))
             self.assertEqual(compHost, d["host"],
-                              ("Component#%d \"%s\" host should be" +
-                               " \"%s\", not \"%s\"") %
-                              (comp.id(), comp.fullName(), compHost,
-                                d["host"]))
-            self.assertEqual(comp.cmdPort(), d["rpcPort"],
-                              ("Component#%d \"%s\" rpcPort should be" +
-                               " \"%s\", not \"%s\"") %
-                              (comp.id(), comp.fullName(), comp.cmdPort(),
-                                d["rpcPort"]))
-            self.assertEqual(comp.mbeanPort(), d["mbeanPort"],
-                              ("Component#%d \"%s\" mbeanPort should be" +
-                               " \"%s\", not \"%s\"") %
-                              (comp.id(), comp.fullName(), comp.mbeanPort(),
-                                d["mbeanPort"]))
+                             ("Component#%d \"%s\" host should be" +
+                              " \"%s\", not \"%s\"") %
+                             (comp.id, comp.fullname, compHost,
+                              d["host"]))
+            self.assertEqual(comp.cmdPort, d["rpcPort"],
+                             ("Component#%d \"%s\" rpcPort should be" +
+                              " \"%s\", not \"%s\"") %
+                             (comp.id, comp.fullname, comp.cmdPort,
+                              d["rpcPort"]))
+            self.assertEqual(comp.mbeanPort, d["mbeanPort"],
+                             ("Component#%d \"%s\" mbeanPort should be" +
+                              " \"%s\", not \"%s\"") %
+                             (comp.id, comp.fullname, comp.mbeanPort,
+                              d["mbeanPort"]))
 
         catchall.checkStatus(100)
         for nm in logs:
@@ -787,31 +802,30 @@ class TestCnCServer(unittest.TestCase):
 
         baseLogPort = DAQPort.RUNCOMP_BASE
         for comp in self.comps:
-            log = logs[comp.fullName()]
-            log.addExpectedTextRegexp("Start of log at LOG=log(\S+:%d)" %
+            log = logs[comp.fullname]
+            log.addExpectedTextRegexp(r"Start of log at LOG=log(\S+:%d)" %
                                       baseLogPort)
             log.addExpectedExact('Test msg')
-            log.addExpectedText('filename revision date time author')
+            log.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+')
             baseLogPort += 1
 
         catchall.addExpectedText("Starting run #%d on \"%s\"" %
-                                 (runNum, cluCfg.descName()))
+                                 (runNum, cluCfg.description))
 
-        dashlog.addExpectedRegexp(r"Version info: \S+ \d+" +
-                                  r" \S+ \S+ \S+ \S+ \d+\S*")
+        dashlog.addExpectedRegexp(r"Version info: \S+ \S+ \S+ \S+")
         dashlog.addExpectedExact("Run configuration: %s" % runConfig)
-        dashlog.addExpectedExact("Cluster: %s" % cluCfg.descName())
+        dashlog.addExpectedExact("Cluster: %s" % cluCfg.description)
 
         moniType = RunOption.MONI_TO_NONE
 
         for comp in self.comps:
-            log = logs[comp.fullName()]
-            log.addExpectedExact('Start #%d on %s' % (runNum, comp.fullName()))
+            log = logs[comp.fullname]
+            log.addExpectedExact('Start #%d on %s' % (runNum, comp.fullname))
 
         dashlog.addExpectedExact("Starting run %d..." % runNum)
 
         for comp in self.comps:
-            if comp.name() == "stringHub":
+            if comp.name == "stringHub":
                 comp.setBeanFieldValue("stringhub", "LatestFirstChannelHitTime",
                                        10)
                 comp.setBeanFieldValue("stringhub", "NumberOfNonZombies",
@@ -838,18 +852,17 @@ class TestCnCServer(unittest.TestCase):
         rateTracker = RateTracker(10000000000, 100, 0, 0, 0)
 
         if switchRun:
-            for i in xrange(5):
+            for _ in xrange(5):
                 rateTracker.updateRunData(self.cnc, setId, self.comps)
 
             for comp in self.comps:
-                log = logs[comp.fullName()]
+                log = logs[comp.fullname]
                 log.addExpectedExact('Switch %s to run#%d' %
-                                     (comp.fullName(), runNum + 1))
+                                     (comp.fullname, runNum + 1))
 
-            dashlog.addExpectedRegexp(r"Version info: \S+ \d+" +
-                                      r" \S+ \S+ \S+ \S+ \d+\S*")
+            dashlog.addExpectedRegexp(r"Version info: \S+ \S+ \S+ \S+")
             dashlog.addExpectedExact("Run configuration: %s" % runConfig)
-            dashlog.addExpectedExact("Cluster: %s" % cluCfg.descName())
+            dashlog.addExpectedExact("Cluster: %s" % cluCfg.description)
 
             newNum = runNum + 1
 
@@ -865,7 +878,7 @@ class TestCnCServer(unittest.TestCase):
             (numEvts, numMoni, numSN, numTcal) = rateTracker.getTotals()
 
             rateTracker.validateRunXML(self, runNum, runConfig,
-                                       cluCfg.descName())
+                                       cluCfg.description)
 
             runNum = newNum
 
@@ -880,16 +893,17 @@ class TestCnCServer(unittest.TestCase):
             rateTracker.updateRunData(self.cnc, setId, self.comps)
 
         for comp in self.comps:
-            log = logs[comp.fullName()]
-            log.addExpectedExact('Stop %s' % comp.fullName())
+            log = logs[comp.fullname]
+            log.addExpectedExact('Stop %s' % comp.fullname)
 
         rateTracker.updateRunData(self.cnc, setId, self.comps)
+
         rateTracker.addFinalLogMsgs(dashlog)
 
         dashlog.addExpectedExact("Run terminated SUCCESSFULLY.")
 
         for comp in self.comps:
-            if comp.name() == "stringHub":
+            if comp.name == "stringHub":
                 comp.setBeanFieldValue("stringhub", "EarliestLastChannelHitTime",
                                        10)
 
@@ -904,7 +918,7 @@ class TestCnCServer(unittest.TestCase):
         for nm in logs:
             logs[nm].checkStatus(100)
 
-        rateTracker.validateRunXML(self, runNum, runConfig, cluCfg.descName())
+        rateTracker.validateRunXML(self, runNum, runConfig, cluCfg.description)
 
         if forceRestart:
             try:
@@ -940,8 +954,8 @@ class TestCnCServer(unittest.TestCase):
     def __setRunData(self, comps, numEvts, firstEvtTime, lastEvtTime, numTcal,
                      numSN, numMoni, firstGood, lastGood):
         for comp in comps:
-            if comp.name() == "eventBuilder":
-                print >>sys.stderr, "---- Set RunData for %s" % comp.fullName()
+            if comp.name == "eventBuilder":
+                print >>sys.stderr, "---- Set RunData for %s" % comp.fullname
                 comp.setRunData(numEvts, firstEvtTime, lastEvtTime, firstGood,
                                 lastGood)
                 comp.setBeanFieldValue("backEnd", "EventData",
@@ -950,12 +964,12 @@ class TestCnCServer(unittest.TestCase):
                                        firstEvtTime)
                 comp.setBeanFieldValue("backEnd", "GoodTimes",
                                        (firstGood, lastGood))
-            elif comp.name() == "secondaryBuilders":
-                print >>sys.stderr, "---- Set RunData for %s" % comp.fullName()
+            elif comp.name == "secondaryBuilders":
+                print >>sys.stderr, "---- Set RunData for %s" % comp.fullname
                 comp.setRunData(numTcal, numSN, numMoni)
             else:
                 print >>sys.stderr, "**** Not setting RunData for %s" % \
-                    comp.fullName()
+                    comp.fullname
 
     def testEverything(self):
         self.__runEverything()

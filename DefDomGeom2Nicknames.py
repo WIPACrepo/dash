@@ -14,7 +14,7 @@ if __name__ == "__main__":
     if len(sys.argv) <= 1:
         defDomGeom = DefaultDomGeometryReader.parse()
     else:
-        defDomGeom = DefaultDomGeometryReader.parse(sys.argv[1])
+        defDomGeom = DefaultDomGeometryReader.parse(fileName=sys.argv[1])
 
     NicknameReader.parse(defDomGeom=defDomGeom)
 

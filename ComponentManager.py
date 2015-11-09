@@ -30,52 +30,52 @@ def listComponentRanges(compList):
     """
     compDict = {}
     for c in compList:
-        if not c.name() in compDict:
-            compDict[c.name()] = [c, ]
+        if not c.name in compDict:
+            compDict[c.name] = [c, ]
         else:
-            compDict[c.name()].append(c)
+            compDict[c.name].append(c)
 
     hasOrder = True
 
     pairList = []
     for k in sorted(compDict.keys(), key=lambda nm: len(compDict[nm]),
                     reverse=True):
-        if len(compDict[k]) == 1 and compDict[k][0].num() == 0:
+        if len(compDict[k]) == 1 and compDict[k][0].num == 0:
             if not hasOrder:
-                order = compDict[k][0].name()
+                order = compDict[k][0].name
             else:
                 try:
                     order = compDict[k][0].order()
                 except AttributeError:
                     hasOrder = False
-                    order = compDict[k][0].name()
-            pairList.append((compDict[k][0].name(), order))
+                    order = compDict[k][0].name
+            pairList.append((compDict[k][0].name, order))
         else:
             prevNum = None
             rangeStr = k + "#"
-            for c in sorted(compDict[k], key=lambda c: c.num()):
+            for c in sorted(compDict[k], key=lambda c: c.num):
                 if prevNum is None:
-                    rangeStr += "%d" % c.num()
-                elif c.num() == prevNum + 1:
+                    rangeStr += "%d" % c.num
+                elif c.num == prevNum + 1:
                     if not rangeStr.endswith("-"):
                         rangeStr += "-"
                 else:
                     if rangeStr.endswith("-"):
                         rangeStr += "%d" % prevNum
-                    rangeStr += ",%d" % c.num()
-                prevNum = c.num()
+                    rangeStr += ",%d" % c.num
+                prevNum = c.num
 
             if rangeStr.endswith("-"):
                 rangeStr += "%d" % prevNum
 
             if not hasOrder:
-                order = compDict[k][0].name()
+                order = compDict[k][0].name
             else:
                 try:
                     order = compDict[k][0].order()
                 except AttributeError:
                     hasOrder = False
-                    order = compDict[k][0].name()
+                    order = compDict[k][0].name
             pairList.append((rangeStr, order))
 
     strList = []
@@ -85,7 +85,7 @@ def listComponentRanges(compList):
     return ", ".join(strList)
 
 
-class HostNotFoundForComponent   (Exception):
+class HostNotFoundForComponent(Exception):
     pass
 
 
@@ -123,7 +123,9 @@ class ComponentManager(object):
         comps = []
         for c in compdicts:
             lc = RunComponent(c["compName"], c["compNum"], "??logLevel??",
-                              "??jvm??", "??jvmArgs??", c["host"], False)
+                              "??jvmPath??", "??jvmServer??", "??jvmHeapInit??",
+                              "??jvmHeapMax??", "??jvmArgs??", "??jvmExtra??",
+                              c["host"], False)
             comps.append(lc)
         return comps
 
@@ -141,8 +143,8 @@ class ComponentManager(object):
                 dirname = os.path.join(metaDir, dirname)
             if not os.path.exists(dirname) and not dryRun:
                 try:
-                    os.mkdir(dirname)
-                except OSError as (errno, strerror):
+                    os.makedirs(dirname)
+                except OSError as (_, strerror):
                     if fallbackDir is None:
                         einfo = sys.exc_info()
                         raise einfo[0], einfo[1], einfo[2]
@@ -218,12 +220,16 @@ class ComponentManager(object):
         compList = []
         for node in clusterConfig.nodes():
             for comp in node.components():
-                if not comp.isControlServer():
-                    compList.append(RunComponent(comp.name(), comp.id(),
-                                                 comp.logLevel(),
-                                                 comp.jvm(),
-                                                 comp.jvmArgs(),
-                                                 node.hostName(), False))
+                if not comp.isControlServer:
+                    compList.append(RunComponent(comp.name, comp.id,
+                                                 comp.logLevel,
+                                                 comp.jvmPath,
+                                                 comp.jvmServer,
+                                                 comp.jvmHeapInit,
+                                                 comp.jvmHeapMax,
+                                                 comp.jvmArgs,
+                                                 comp.jvmExtraArgs,
+                                                 node.hostname, False))
         return compList
 
     @classmethod
@@ -245,9 +251,9 @@ class ComponentManager(object):
             inactiveStates = (RunSetState.READY, RunSetState.IDLE,
                               RunSetState.DESTROYED, RunSetState.ERROR)
 
-            for id in cnc.rpc_runset_list_ids():
-                runsets[id] = cnc.rpc_runset_state(id)
-                if not runsets[id] in inactiveStates:
+            for rid in cnc.rpc_runset_list_ids():
+                runsets[rid] = cnc.rpc_runset_state(rid)
+                if not runsets[rid] in inactiveStates:
                     active += 1
 
         return (runsets, active)
@@ -268,7 +274,7 @@ class ComponentManager(object):
                 comps = None
 
         if comps is None:
-            killOnly=False
+            killOnly = False
 
             try:
                 activeConfig = \
@@ -355,18 +361,18 @@ class ComponentManager(object):
                                      trace=verbose, timeout=30)
         cmdToHostDict = {}
         for comp in compList:
-            if comp.jvm() is None:
+            if comp.jvmPath is None:
                 continue
 
             if comp.isHub():
-                killPat = "stringhub.componentId=%d" % comp.id()
+                killPat = "stringhub.componentId=%d" % comp.id
             else:
-                killPat = cls.getComponentJar(comp.name())
+                killPat = cls.getComponentJar(comp.name)
 
             if comp.isLocalhost():  # Just kill it
                 fmtStr = "pkill %%s -fu %s %s" % (os.environ["USER"], killPat)
             else:
-                fmtStr = "ssh %s pkill %%s -f %s" % (comp.host(), killPat)
+                fmtStr = "ssh %s pkill %%s -f %s" % (comp.host, killPat)
 
             # add '-' on first command
             if killWith9:
@@ -394,7 +400,7 @@ class ComponentManager(object):
                         logger.info(cmd)
                 if not dryRun:
                     parallel.add(cmd)
-                    cmdToHostDict[cmd] = comp.host()
+                    cmdToHostDict[cmd] = comp.host
 
         if not dryRun:
             parallel.shuffle()
@@ -471,8 +477,8 @@ class ComponentManager(object):
                 (configDir, logDir, daqDataDir)
             if spadeDir is not None:
                 options += ' -s ' + spadeDir
-            if clusterConfig.descName() is not None:
-                options += ' -C ' + clusterConfig.descName()
+            if clusterConfig.description is not None:
+                options += ' -C ' + clusterConfig.description
             if logPort is not None:
                 options += ' -l localhost:%d' % logPort
             if livePort is not None:
@@ -548,48 +554,57 @@ class ComponentManager(object):
 
         cmdToHostDict = {}
         for comp in compList:
-            if comp.jvm() is None:
+            if comp.jvmPath is None:
                 continue
 
-            myIP = ip.getLocalIpAddr(comp.host())
-            execJar = os.path.join(binDir, cls.getComponentJar(comp.name()))
+            myIP = ip.getLocalIpAddr(comp.host)
+            execJar = os.path.join(binDir, cls.getComponentJar(comp.name))
             if checkExists and not os.path.exists(execJar) and not dryRun:
                 if logger is not None:
                     logger.error("%s jar file does not exist: %s" %
-                                 (comp.name(), execJar))
+                                 (comp.name, execJar))
                 continue
 
-            javaCmd = comp.jvm()
-            jvmArgs = comp.jvmArgs()
+            jvmPath = comp.jvmPath
 
-            jvmArgs += " -Dicecube.daq.component.configDir='%s'" % configDir
+            jvmArgs = "-Dicecube.daq.component.configDir='%s'" % configDir
+            if comp.jvmServer is not None and comp.jvmServer:
+                jvmArgs += " -server"
+            if comp.jvmHeapInit is not None and len(comp.jvmHeapInit) > 0:
+                jvmArgs += " -Xms" + comp.jvmHeapInit
+            if comp.jvmHeapMax is not None and len(comp.jvmHeapMax) > 0:
+                jvmArgs += " -Xmx" + comp.jvmHeapMax
+            if comp.jvmArgs is not None and len(comp.jvmArgs) > 0:
+                jvmArgs += " " + comp.jvmArgs
+            if comp.jvmExtraArgs is not None and len(comp.jvmExtraArgs) > 0:
+                jvmArgs += " " + comp.jvmExtraArgs
+
             #switches = "-g %s" % configDir
             switches = "-d %s" % daqDataDir
             switches += " -c %s:%d" % (myIP, DAQPort.CNCSERVER)
             if logPort is not None:
-                switches += " -l %s:%d,%s" % (myIP, logPort, comp.logLevel())
+                switches += " -l %s:%d,%s" % (myIP, logPort, comp.logLevel)
             if livePort is not None:
-                switches += " -L %s:%d,%s" % (myIP, livePort, comp.logLevel())
+                switches += " -L %s:%d,%s" % (myIP, livePort, comp.logLevel)
                 switches += " -M %s:%d" % (myIP, MoniPort)
             compIO = quietStr
 
             if comp.isHub():
-                jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % \
-                    comp.id()
+                jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % comp.id
 
             if eventCheck and comp.isBuilder():
                 jvmArgs += " -Dicecube.daq.eventBuilder.validateEvents"
 
             baseCmd = "%s %s -jar %s %s %s &" % \
-                (javaCmd, jvmArgs, execJar, switches, compIO)
+                (jvmPath, jvmArgs, execJar, switches, compIO)
             if comp.isLocalhost():
                 # Just run it
                 cmd = baseCmd
             else:
                 # Have to ssh to run it
                 cmd = """ssh -n %s \'sh -c \"%s\"%s &\'""" % \
-                    (comp.host(), baseCmd, quietStr)
-            cmdToHostDict[cmd] = comp.host()
+                    (comp.host, baseCmd, quietStr)
+            cmdToHostDict[cmd] = comp.host
             if verbose or dryRun:
                 if logger is not None:
                     logger.info(cmd)
@@ -619,4 +634,5 @@ class ComponentManager(object):
                                      (rtn_code, nodeName, cmd))
                         logger.error("Results '%s'" % results)
 
-if __name__ == '__main__': pass
+if __name__ == '__main__':
+    pass

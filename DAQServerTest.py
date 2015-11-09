@@ -9,7 +9,8 @@ from CnCServer import CnCServer
 from DAQClient import DAQClient
 from DAQConst import DAQPort
 from DAQMocks import MockAppender, MockClusterConfig, MockCnCLogger, \
-    MockRunConfigFile, RunXMLValidator, SocketReaderFactory, SocketWriter
+    MockDefaultDomGeometryFile, MockRunConfigFile, RunXMLValidator, \
+    SocketReaderFactory, SocketWriter
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet
@@ -33,6 +34,8 @@ class TinyClient(object):
         self.__state = 'idle'
         self.__order = None
 
+        self.__log = None
+
     def __str__(self):
         if self.__mbeanPort == 0:
             mStr = ''
@@ -51,7 +54,8 @@ class TinyClient(object):
     def connectors(self):
         return self.__connectors[:]
 
-    def fullName(self):
+    @property
+    def fullname(self):
         if self.__num == 0:
             return self.__name
         return "%s#%d" % (self.__name, self.__num)
@@ -69,8 +73,16 @@ class TinyClient(object):
                 raise Exception("Unknown beanField \"%s.%s\"" % (beanname, fld))
         return rtndict
 
+    @property
     def id(self):
         return self.__id
+
+    @property
+    def is_dying(self):
+        return False
+
+    def isBuilder(self):
+        return False
 
     def isComponent(self, name, num=-1):
         return self.__name == name and (num < 0 or self.__num == num)
@@ -88,8 +100,7 @@ class TinyClient(object):
         self.__log = SocketWriter(logIP, logPort)
         self.__log.write_ts('Start of log at LOG=log(%s:%d)' % \
                                 (logIP, logPort))
-        self.__log.write_ts('Version info: unknown 000 unknown unknown' +
-                            ' unknown BRANCH 0:0')
+        self.__log.write_ts('Version info: BRANCH 0:0 unknown unknown')
 
     def map(self):
         return {"id": self.__id,
@@ -100,9 +111,11 @@ class TinyClient(object):
                 "mbeanPort": self.__mbeanPort,
                 "state": self.__state}
 
+    @property
     def name(self):
         return self.__name
 
+    @property
     def num(self):
         return self.__num
 
@@ -121,6 +134,7 @@ class TinyClient(object):
     def startRun(self, runNum):
         self.__state = 'running'
 
+    @property
     def state(self):
         return self.__state
 
@@ -172,7 +186,7 @@ class MockRunSet(RunSet):
                           moniType):
         return FakeTaskManager()
 
-    def queueForSpade(self, duration):
+    def queueForSpade(self, runData, duration):
         pass
 
 
@@ -225,7 +239,7 @@ class MockServer(CnCServer):
 
 class TestDAQServer(unittest.TestCase):
     HUB_NUMBER = 1021
-    DOM_MAINBOARD_ID = "53494d552101"
+    DOM_MAINBOARD_ID = 0x53494d552101
 
     def __createLog(self, name, port, expectStartMsg=True):
         return self.__logFactory.createLog(name, port, expectStartMsg)
@@ -237,23 +251,23 @@ class TestDAQServer(unittest.TestCase):
                          liveHost, livePort):
         numElem = 6
         self.assertEqual(numElem, len(rtnArray),
-                          'Expected %d-element array, not %d elements' %
-                          (numElem, len(rtnArray)))
+                         'Expected %d-element array, not %d elements' %
+                         (numElem, len(rtnArray)))
         self.assertEqual(expId, rtnArray["id"],
-                          'Registration should return client ID#%d, not %d' %
-                          (expId, rtnArray["id"]))
+                         'Registration should return client ID#%d, not %d' %
+                         (expId, rtnArray["id"]))
         self.assertEqual(logHost, rtnArray["logIP"],
-                          'Registration should return loghost %s, not %s' %
-                          (logHost, rtnArray["logIP"]))
+                         'Registration should return loghost %s, not %s' %
+                         (logHost, rtnArray["logIP"]))
         self.assertEqual(logPort, rtnArray["logPort"],
-                          'Registration should return logport#%d, not %d' %
-                          (logPort, rtnArray["logPort"]))
+                         'Registration should return logport#%d, not %d' %
+                         (logPort, rtnArray["logPort"]))
         self.assertEqual(liveHost, rtnArray["liveIP"],
-                          'Registration should return livehost %s, not %s' %
-                          (liveHost, rtnArray["liveIP"]))
+                         'Registration should return livehost %s, not %s' %
+                         (liveHost, rtnArray["liveIP"]))
         self.assertEqual(livePort, rtnArray["livePort"],
-                          'Registration should return liveport#%d, not %d' %
-                          (livePort, rtnArray["livePort"]))
+                         'Registration should return liveport#%d, not %d' %
+                         (livePort, rtnArray["livePort"]))
 
     def setUp(self):
         self.__logFactory = SocketReaderFactory()
@@ -437,12 +451,19 @@ class TestDAQServer(unittest.TestCase):
 
         rcFile = MockRunConfigFile(self.__runConfigDir)
 
-        domList = [MockRunConfigFile.createDOM(self.DOM_MAINBOARD_ID), ]
-        runConfig = rcFile.create([], domList)
+        hubDomDict = {
+            self.HUB_NUMBER:
+            [MockRunConfigFile.createDOM(self.DOM_MAINBOARD_ID, 3,
+                                         "DSrvrTst", "Z98765"), ],
+        }
+
+        runConfig = rcFile.create([], hubDomDict)
+
+        MockDefaultDomGeometryFile.create(self.__runConfigDir, hubDomDict)
 
         logger.addExpectedTextRegexp('Loading run configuration .*')
         logger.addExpectedTextRegexp('Loaded run configuration .*')
-        logger.addExpectedTextRegexp("Built runset #\d+: .*")
+        logger.addExpectedTextRegexp(r"Built runset #\d+: .*")
 
         runNum = 456
 
@@ -468,15 +489,13 @@ class TestDAQServer(unittest.TestCase):
         logger.checkStatus(100)
 
         logger.addExpectedText("Starting run #%d on \"%s\"" %
-                                (runNum, cluCfg.descName()))
+                               (runNum, cluCfg.description))
 
-        logger.addExpectedTextRegexp(r"Version info: \S+ \d+" +
-                                     r" \S+ \S+ \S+ \S+ \d+\S*")
-        clientLogger.addExpectedTextRegexp(r"Version info: \S+ \d+" +
-                                           r" \S+ \S+ \S+ \S+ \d+\S*")
+        logger.addExpectedTextRegexp(r"Version info: \S+ \S+ \S+ \S+")
+        clientLogger.addExpectedTextRegexp(r"Version info: \S+ \S+ \S+ \S+")
 
         logger.addExpectedText("Run configuration: %s" % runConfig)
-        logger.addExpectedText("Cluster: %s" % cluCfg.descName())
+        logger.addExpectedText("Cluster: %s" % cluCfg.description)
 
         moniType = RunOption.MONI_TO_NONE
 
@@ -506,7 +525,7 @@ class TestDAQServer(unittest.TestCase):
 
         logger.checkStatus(10)
 
-        RunXMLValidator.validate(self, runNum, runConfig, cluCfg.descName(),
+        RunXMLValidator.validate(self, runNum, runConfig, cluCfg.description,
                                  None, None, 0, 0, 0, 0, False)
 
         self.assertEqual(dc.rpc_component_count(), 0)

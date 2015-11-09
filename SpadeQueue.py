@@ -16,7 +16,6 @@ import datetime
 import os
 import shutil
 import subprocess
-import sys
 import tarfile
 
 from ClusterDescription import ClusterDescription
@@ -142,7 +141,7 @@ def __indicate_daq_logs_queued(spadeDir, dryRun=False):
 
 
 def __sizefmt(size):
-    for x in ('bytes','KB','MB','GB'):
+    for x in ('bytes', 'KB', 'MB', 'GB'):
         if size < 1024.0:
             return "%3.1f %s" % (size, x)
         size /= 1024.0
@@ -165,7 +164,7 @@ def __writeSpadeTarFile(spadeDir, spadeBaseName, runDir, runNum, logger=None,
                         dryRun=False, force=False):
     # ignore huge directories
     dirsize = __getSize(runDir, runNum, logger=logger)
-    if dirsize >= TOO_LARGE:
+    if dirsize >= TOO_LARGE and not force:
         if logger is not None:
             logger.error("Not sending %s; %s is too large" %
                          (runDir, __sizefmt(dirsize)))
@@ -181,6 +180,26 @@ def __writeSpadeTarFile(spadeDir, spadeBaseName, runDir, runNum, logger=None,
         tarObj.close()
 
     return tarBall
+
+
+def add_arguments(p):
+    p.add_argument("-a", "--check-all", dest="check_all",
+                   action="store_true", default=False,
+                   help="Queue all unqueued daqrun directories")
+    p.add_argument("-C", "--no-combine", dest="no_combine",
+                   action="store_true", default=False,
+                   help="Do not created a combined log file")
+    p.add_argument("-f", "--force", dest="force",
+                   action="store_true", default=False,
+                   help="Requeue the logs for runs which have already been" +
+                   "queued")
+    p.add_argument("-n", "--dry-run", dest="dryRun",
+                   action="store_true", default=False,
+                   help="Don't create any files, just print what would happen")
+    p.add_argument("-v", "--verbose", dest="verbose",
+                   action="store_true", default=False,
+                   help="Print running commentary of program's progress")
+    p.add_argument("runNumber", nargs="*")
 
 
 def check_all(logger, spadeDir, copyDir, logDir, no_combine=False, force=False,
@@ -209,33 +228,34 @@ def check_all(logger, spadeDir, copyDir, logDir, no_combine=False, force=False,
 def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
                   no_combine=False, force=False, verbose=False, dryRun=False):
     if logDir is None or not os.path.exists(logDir):
-        logger.info("Log directory \"%s\" does not exist" % logDir)
+        logger.error("Log directory \"%s\" does not exist" % logDir)
         return
 
     runDir = os.path.join(logDir, "daqrun%05d" % runNum)
     if runDir is None or not os.path.exists(runDir):
-        logger.info("Run directory \"%s\" does not exist" % runDir)
+        logger.error("Run directory \"%s\" does not exist" % runDir)
         return
 
     if spadeDir is None or not os.path.exists(spadeDir):
-        logger.info("SPADE directory \"%s\" does not exist" % spadeDir)
+        logger.error("SPADE directory \"%s\" does not exist" % spadeDir)
         return
 
     if os.path.exists(os.path.join(runDir, FILE_MARKER)) and \
        not force:
-        logger.info(("Logs for run %d have already been queued;" +
-                     " Use --force to requeue them") % runNum)
+        logger.error(("Logs for run %d have already been queued;" +
+                      " Use --force to requeue them") % runNum)
         return
 
     try:
         (runTime, runDuration) = __getRunData(runDir)
-    except FileNotFoundException, ex:
+    except FileNotFoundException:
         if __in_progress(logger, runNum):
             # don't try to queue log files from current run
             return
         (runTime, runDuration) = (None, 0)
 
     if not no_combine:
+        logger.error("Writing combined log for run %d" % runNum)
         # if combined log file does not exist, create it
         path = os.path.join(runDir, COMBINED_LOG)
         if not os.path.exists(path):
@@ -246,6 +266,11 @@ def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
                 ls.dumpRun(fd)
             # it's now safe to rename the combined log file
             os.rename(tmppath, path)
+            logger.error("Wrote combined log for run %d" % runNum)
+        else:
+            logger.error("Combined log already exists for run %d" % runNum)
+    else:
+        logger.error("Not writing combined log for run %d" % runNum)
 
     if runTime is None:
         runTime = datetime.datetime.now()
@@ -273,30 +298,8 @@ def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
         logger.error("FAILED to queue data for SPADE: " + exc_string())
 
 
-if __name__ == "__main__":
+def queue_logs(args):
     import logging
-    import optparse
-
-    usage = "%prog [ -a | run_number ]"
-    p = optparse.OptionParser(usage=usage)
-    p.add_option("-a", "--check-all", dest="check_all",
-                 action="store_true", default=False,
-                 help="Queue all unqueued daqrun directories")
-    p.add_option("-C", "--no-combine", dest="no_combine",
-                 action="store_true", default=False,
-                 help="Do not created a combined log file")
-    p.add_option("-f", "--force", dest="force",
-                 action="store_true", default=False,
-                 help="Requeue the logs for runs which have already been" +
-                 "queued")
-    p.add_option("-n", "--dry-run", dest="dryRun",
-                 action="store_true", default=False,
-                 help="Don't create any files, just print what would happen")
-    p.add_option("-v", "--verbose", dest="verbose",
-                 action="store_true", default=False,
-                 help="Print running commentary of program's progress")
-
-    opt, args = p.parse_args()
 
     logging.basicConfig()
 
@@ -304,17 +307,27 @@ if __name__ == "__main__":
     logger.setLevel(logging.DEBUG)
 
     cluster = ClusterDescription()
-    spadeDir = cluster.logDirForSpade()
-    logDir = cluster.daqLogDir()
+    spadeDir = cluster.logDirForSpade
+    logDir = cluster.daqLogDir
     copyDir = None
 
-    if opt.check_all or len(args) == 0:
-        check_all(logger, spadeDir, copyDir, logDir, no_combine=opt.no_combine,
-                  force=opt.force, verbose=opt.verbose, dryRun=opt.dryRun)
+    if args.check_all or len(args.runNumber) == 0:
+        check_all(logger, spadeDir, copyDir, logDir, no_combine=args.no_combine,
+                  force=args.force, verbose=args.verbose, dryRun=args.dryRun)
     else:
-        for numstr in args:
+        for numstr in args.runNumber:
             runNum = int(numstr)
 
         queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
-                      no_combine=opt.no_combine, force=opt.force,
-                      verbose=opt.verbose, dryRun=opt.dryRun)
+                      no_combine=args.no_combine, force=args.force,
+                      verbose=args.verbose, dryRun=args.dryRun)
+
+
+if __name__ == "__main__":
+    import argparse
+
+    p = argparse.ArgumentParser()
+    add_arguments(p)
+    args = p.parse_args()
+
+    queue_logs(args)

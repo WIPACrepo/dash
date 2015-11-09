@@ -1,22 +1,16 @@
 #!/usr/bin/env python
 
-import os
 import socket
-import sys
 import threading
+import xmlrpclib
 
 from CnCLogger import CnCLogger
 from DAQRPC import RPCClient
 from UniqueID import UniqueID
-from locate_pdaq import find_pdaq_trunk
+from scmversion import get_scmversion_str
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
-
-# add meta-project python dir to Python library search path
-metaDir = find_pdaq_trunk()
-sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
-from SVNVersionInfo import get_version_info
 
 
 def unFixValue(obj):
@@ -27,18 +21,18 @@ def unFixValue(obj):
     unaltered.  This pairs with the similarly named fix* methods in
     icecube.daq.juggler.mbean.XMLRPCServer """
 
-    if type(obj) is dict:
+    if isinstance(obj, dict):
         for k in obj.keys():
             obj[k] = unFixValue(obj[k])
-    elif type(obj) is list:
+    elif isinstance(obj, list):
         for i in xrange(0, len(obj)):
             obj[i] = unFixValue(obj[i])
-    elif type(obj) is tuple:
+    elif isinstance(obj, tuple):
         newObj = []
         for v in obj:
             newObj.append(unFixValue(v))
         obj = tuple(newObj)
-    elif type(obj) is str:
+    elif isinstance(obj, str):
         try:
             if obj.endswith("L"):
                 return long(obj[:-1])
@@ -49,15 +43,19 @@ def unFixValue(obj):
     return obj
 
 
-class MBeanException(Exception):
+class BeanException(Exception):
     pass
 
 
-class BeanFieldNotFoundException(MBeanException):
+class BeanFieldNotFoundException(BeanException):
     pass
 
 
-class BeanLoadException(MBeanException):
+class BeanLoadException(BeanException):
+    pass
+
+
+class BeanTimeoutException(BeanException):
     pass
 
 
@@ -78,6 +76,9 @@ class MBeanClient(object):
         self.__loadedInfo = False
         try:
             self.__beanList = self.__client.mbean.listMBeans()
+        except (socket.error, xmlrpclib.Fault, xmlrpclib.ProtocolError):
+            raise BeanTimeoutException("Cannot get list of %s MBeans" %
+                                       self.__compName)
         except:
             raise BeanLoadException("Cannot get list of %s MBeans: %s " %
                                     (self.__compName, exc_string()))
@@ -85,8 +86,7 @@ class MBeanClient(object):
         failed = []
         for bean in self.__beanList:
             try:
-                self.__beanFields[bean] = \
-                                        self.__client.mbean.listGetters(bean)
+                self.__beanFields[bean] = self.__client.mbean.listGetters(bean)
             except:
                 # don't let a single failure abort remaining fetches,
                 failed.append(bean)
@@ -140,11 +140,16 @@ class MBeanClient(object):
         "get the values for a list of MBean fields"
         try:
             attrs = self.__client.mbean.getAttributes(bean, fldList)
+        except (socket.error, xmlrpclib.Fault, xmlrpclib.ProtocolError):
+            raise BeanTimeoutException("Cannot get %s mbean \"%s\" attributes"
+                                       " %s" % (self.__compName, bean, fldList))
         except:
-            raise Exception("Cannot get %s mbean \"%s\" attributes %s: %s" %
-                            (self.__compName, bean, fldList, exc_string()))
+            raise BeanLoadException("Cannot get %s mbean \"%s\" attributes"
+                                    " %s: (%s) %s" %
+                                    (self.__compName, bean, fldList,
+                                     exc_string()))
 
-        if type(attrs) == dict and len(attrs) > 0:
+        if isinstance(attrs, dict) and len(attrs) > 0:
             for k in attrs.keys():
                 attrs[k] = unFixValue(attrs[k])
         return attrs
@@ -178,19 +183,20 @@ class ComponentName(object):
         self.__num = num
 
     def __repr__(self):
-        return self.fullName()
+        return self.fullname
 
     def fileName(self):
         return '%s-%d' % (self.__name, self.__num)
 
-    def fullName(self):
+    @property
+    def fullname(self):
         if self.__num == 0 and self.__name[-3:].lower() != 'hub':
             return self.__name
         return '%s#%d' % (self.__name, self.__num)
 
     def isBuilder(self):
         "Is this an eventBuilder (or debugging fooBuilder)?"
-        return self.__name.endswith("Builder")
+        return self.__name.lower().find("builder") >= 0
 
     def isComponent(self, name, num=-1):
         "Does this component have the specified name and number?"
@@ -202,9 +208,11 @@ class ComponentName(object):
     def isReplayHub(self):
         return self.isHub() and self.__name.lower().find("replay") >= 0
 
+    @property
     def name(self):
         return self.__name
 
+    @property
     def num(self):
         return self.__num
 
@@ -314,7 +322,7 @@ class DAQClient(ComponentName):
             deadStr = " DEAD#%d" % self.__deadCount
 
         return "ID#%d %s%s%s%s%s" % \
-            (self.__id, self.fullName(), hpStr, mbeanStr, extraStr, deadStr)
+            (self.__id, self.fullname, hpStr, mbeanStr, extraStr, deadStr)
 
     def addDeadCount(self):
         self.__deadCount += 1
@@ -367,10 +375,7 @@ class DAQClient(ComponentName):
         return CnCLogger(quiet=quiet)
 
     def createMBeanClient(self, host, mbeanPort):
-        return MBeanClient(self.fullName(), host, mbeanPort)
-
-    def isDead(self):
-        return self.__deadCount >= self.MAX_DEAD_COUNT
+        return MBeanClient(self.fullname, host, mbeanPort)
 
     def forcedStop(self):
         "Force component to stop running"
@@ -390,47 +395,11 @@ class DAQClient(ComponentName):
             return []
         return self.__mbean.getBeanNames()
 
-    def getMoniCounts(self):
-        "Get the trigger counts for detector monitoring"
-        try:
-            return self.__client.xmlrpc.getMoniCounts()
-        except:
-            self.__log.error(exc_string())
-            return None
-
     def getMultiBeanFields(self, name, fieldList):
         if self.__mbean is None:
             return {}
 
         return self.__mbean.getAttributes(name, fieldList)
-
-    def getNonstoppedConnectorsString(self):
-        """
-        Return string describing states of all connectors
-        which have not yet stopped
-        """
-        try:
-            connStates = self.__client.xmlrpc.listConnectorStates()
-        except:
-            self.__log.error(exc_string())
-            connStates = []
-
-        csStr = None
-        for cs in connStates:
-            if cs["state"] == 'idle':
-                continue
-            if csStr is None:
-                csStr = '['
-            else:
-                csStr += ', '
-            csStr += '%s:%s' % (cs["type"], cs["state"])
-
-        if csStr is None:
-            csStr = ''
-        else:
-            csStr += ']'
-
-        return csStr
 
     def getReplayStartTime(self):
         "Get the earliest time for a replay hub"
@@ -462,11 +431,21 @@ class DAQClient(ComponentName):
 
         return self.__mbean.get(name, field)
 
+    @property
     def host(self):
         return self.__host
 
+    @property
     def id(self):
         return self.__id
+
+    @property
+    def is_dead(self):
+        return self.__deadCount >= self.MAX_DEAD_COUNT
+
+    @property
+    def is_dying(self):
+        return self.__deadCount > 0
 
     def isSource(self):
         "Is this component a source of data?"
@@ -499,26 +478,25 @@ class DAQClient(ComponentName):
             livePort = 0
 
         self.__client.xmlrpc.logTo(logIP, logPort, liveIP, livePort)
-        infoStr = self.__client.xmlrpc.getVersionInfo()
 
-        self.__log.debug(("Version info: %(filename)s %(revision)s" +
-                          " %(date)s %(time)s %(author)s %(release)s" +
-                          " %(repo_rev)s") % get_version_info(infoStr))
+        self.__log.debug("Version info: " + get_scmversion_str())
 
     def map(self):
         return {"id": self.__id,
-                "compName": self.name(),
-                "compNum": self.num(),
+                "compName": self.name,
+                "compNum": self.num,
                 "host": self.__host,
                 "rpcPort": self.__port,
                 "mbeanPort": self.__mbeanPort}
 
+    @property
     def mbeanPort(self):
         return self.__mbeanPort
 
     def order(self):
         return self.__cmdOrder
 
+    @property
     def port(self):
         return self.__port
 
@@ -585,11 +563,12 @@ class DAQClient(ComponentName):
             self.__log.error(exc_string())
             return None
 
+    @property
     def state(self):
         "Get current state"
         try:
             state = self.__client.xmlrpc.getState()
-        except socket.error:
+        except (socket.error, xmlrpclib.Fault, xmlrpclib.ProtocolError):
             state = None
         except:
             self.__log.error(exc_string())
@@ -597,7 +576,7 @@ class DAQClient(ComponentName):
 
         if state is not None:
             self.__deadCount = 0
-        elif not self.isDead():
+        elif not self.is_dead:
             state = DAQClientState.MISSING
         else:
             state = DAQClientState.DEAD
@@ -616,7 +595,7 @@ class DAQClient(ComponentName):
         "Get the number of events in the specified subrun"
         try:
             evts = self.__client.xmlrpc.getEvents(subrunNumber)
-            if type(evts) == str:
+            if isinstance(evts, str):
                 evts = long(evts[:-1])
             return evts
         except:
@@ -633,7 +612,7 @@ class DAQClient(ComponentName):
 
     def terminate(self):
         "Terminate component"
-        state = self.state()
+        state = self.state
         if state != "idle" and state != "ready" and \
                 state != DAQClientState.MISSING and \
                 state != DAQClientState.DEAD:

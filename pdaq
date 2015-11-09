@@ -1,0 +1,39 @@
+#!/usr/bin/env python
+#
+# The pdaq ubercommand which invokes all valid subcommands
+
+class CmdProblem(object):
+    def __init__(self, name, errmsg):
+        self.__name = name
+        self.__errmsg = errmsg
+
+    def run(self, args):
+        print "Command '%s' cannot be run: %s" % (self.__name, self.__errmsg)
+
+if __name__ == "__main__":
+    import argparse
+    from pdaq_commands import COMMANDS
+
+    p = argparse.ArgumentParser()
+
+    sub = p.add_subparsers(dest="cmd")
+
+    cmdmap = {}
+    for v in COMMANDS:
+        try:
+            v.add_arguments(sub.add_parser(v.name()))
+            cmdmap[v.name()] = v
+        except ImportError, ie:
+            # missing lxml can cause import problems on hubs
+            cmdmap[v.name()] = CmdProblem(v.name(), "%s: %s" % (type(ie), ie))
+
+    ns = p.parse_args()
+
+    # True if the user didn't tell us to ignore the host type
+    host_check = not hasattr(ns, 'nohostcheck') or not ns.nohostcheck
+
+    if host_check and not cmdmap[ns.cmd].is_valid_host(ns):
+        raise SystemExit("Are you sure you are running this"
+                         " on the correct host?")
+
+    cmdmap[ns.cmd].run(ns)

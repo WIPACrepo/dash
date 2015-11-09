@@ -78,14 +78,14 @@ class MockComponent(object):
         self.__beanData = {}
 
     def __str__(self):
-        return self.fullName()
+        return self.fullname
 
     def __checkAddBean(self, name, fldName):
         if not name in self.__beanData:
             self.__beanData[name] = {}
         if fldName in self.__beanData[name]:
             raise Exception("Cannot add duplicate bean %s.%s to %s" %
-                            (name, fldName, self.fullName()))
+                            (name, fldName, self.fullname))
 
     def addBeanDecreasing(self, name, fldName, val, dec):
         self.__checkAddBean(name, fldName)
@@ -107,9 +107,10 @@ class MockComponent(object):
         if not name in self.__beanData or \
            not fldName in self.__beanData[name]:
             raise Exception("Unknown %s bean %s.%s" %
-                            (self.fullName(), name, fldName))
+                            (self.fullname, name, fldName))
 
-    def fullName(self):
+    @property
+    def fullname(self):
         if self.__num == 0:
             return self.__name
         return self.__name + "#%d" % self.__num
@@ -270,7 +271,7 @@ class WatchdogDataTest(unittest.TestCase):
                                           (comp, beanName, gtName,
                                            threshVal,
                                            threshVal + i - (failNum - 1)),
-                                           comp.order())
+                                          comp.order())
                     self.assertEqual(msg, threshold[0],
                                      ("Check #%d threshold#1 should be" +
                                       " \"%s\" not \"%s\"") %

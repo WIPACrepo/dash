@@ -53,9 +53,9 @@ class FlasherThread(threading.Thread):
         self.setDaemon(True)
 
         self.__run = run
-        self.__dataPairs = dataPairs
-        self.__initialDelay = initialDelay
-        self.__dryRun = dryRun
+        self.__data_pairs = dataPairs
+        self.__initial_delay = initialDelay
+        self.__dry_run = dryRun
 
         self.__sem = threading.BoundedSemaphore()
 
@@ -84,7 +84,7 @@ class FlasherThread(threading.Thread):
         self.__running = True
 
         try:
-            self.__runBody()
+            self.__run_body()
         finally:
             self.__running = False
             self.__sem.release()
@@ -94,18 +94,18 @@ class FlasherThread(threading.Thread):
         except:
             pass
 
-    def __runBody(self):
+    def __run_body(self):
         "Run the flasher sequences"
-        if self.__initialDelay is not None and self.__initialDelay > 0:
-            cmd = "sleep %d" % self.__initialDelay
+        if self.__initial_delay is not None and self.__initial_delay > 0:
+            cmd = "sleep %d" % self.__initial_delay
             self.__run.logCmd(cmd)
 
-            if self.__dryRun:
+            if self.__dry_run:
                 print cmd
             else:
-                time.sleep(self.__initialDelay)
+                time.sleep(self.__initial_delay)
 
-        for pair in self.__dataPairs:
+        for pair in self.__data_pairs:
             if not self.__running:
                 break
 
@@ -132,7 +132,7 @@ class FlasherThread(threading.Thread):
 
 class FlasherScript(object):
     @classmethod
-    def __findFlasherDataFile(cls, dirname, filename):
+    def __find_flasher_data_file(cls, dirname, filename):
         """Find a flasher data file"""
         path = os.path.join(dirname, filename)
         if os.path.exists(path):
@@ -146,7 +146,7 @@ class FlasherScript(object):
         return None
 
     @classmethod
-    def __cleanString(cls, text):
+    def __clean_string(cls, text):
         """remove extra junk around text fields"""
         if text.startswith("("):
             text = text[1:]
@@ -154,43 +154,42 @@ class FlasherScript(object):
             text = text[:-1]
         if text.endswith(","):
             text = text[:-1]
-        if len(text) > 2 and cls.__isQuote(text[0]) and \
-                cls.__isQuote(text[-1]):
+        if len(text) > 2 and cls.__is_quote(text[0]) and \
+                cls.__is_quote(text[-1]):
             text = text[1:-1]
         return text
 
     # stolen from live/misc/util.py
     @classmethod
-    def __getDurationFromString(cls, s):
+    def __get_duration_from_string(cls, s):
         """
         Return duration in seconds based on string <s>
         """
-        m = re.search('^(\d+)$', s)
+        m = re.search(r'^(\d+)$', s)
         if m:
             return int(m.group(1))
-        m = re.search('^(\d+)s(?:ec(?:s)?)?$', s)
+        m = re.search(r'^(\d+)s(?:ec(?:s)?)?$', s)
         if m:
             return int(m.group(1))
-        m = re.search('^(\d+)m(?:in(?:s)?)?$', s)
+        m = re.search(r'^(\d+)m(?:in(?:s)?)?$', s)
         if m:
             return int(m.group(1)) * 60
-        m = re.search('^(\d+)h(?:r(?:s)?)?$', s)
+        m = re.search(r'^(\d+)h(?:r(?:s)?)?$', s)
         if m:
             return int(m.group(1)) * 3600
-        m = re.search('^(\d+)d(?:ay(?:s)?)?$', s)
+        m = re.search(r'^(\d+)d(?:ay(?:s)?)?$', s)
         if m:
             return int(m.group(1)) * 86400
         raise FlashFileException(('String "%s" is not a known duration'
-                                  ' format. Try 30sec, 10min, 2days etc.'
-                                  ) % s)
+                                  ' format. Try 30sec, 10min, 2days etc.') % s)
 
     @classmethod
-    def __isQuote(cls, ch):
+    def __is_quote(cls, ch):
         """Is this character a quote mark?"""
         return ch == "'" or ch == '"'
 
     @classmethod
-    def __parseFlasherOptions(cls, optList, basedir=None):
+    def __parse_flasher_options(cls, optList, basedir=None):
         """
         Parse 'livecmd flasher' options
         """
@@ -204,7 +203,7 @@ class FlasherScript(object):
                     raise FlashFileException("Found multiple durations")
 
                 i += 1
-                dur = cls.__getDurationFromString(optList[i])
+                dur = cls.__get_duration_from_string(optList[i])
                 if fil is not None:
                     pairs.append((fil, dur))
                     dur = None
@@ -246,7 +245,7 @@ class FlasherScript(object):
         if os.path.exists(flashFile):
             return flashFile
 
-        path = cls.__findFlasherDataFile(basedir, flashFile)
+        path = cls.__find_flasher_data_file(basedir, flashFile)
         if path is not None:
             return path
 
@@ -303,8 +302,8 @@ class FlasherScript(object):
                 #
                 if len(words) > 2 and words[0] == "livecmd" and \
                     words[1] == "flasher":
-                    flashData += cls.__parseFlasherOptions(words[2:],
-                                                           basedir=basedir)
+                    flashData += cls.__parse_flasher_options(words[2:],
+                                                             basedir=basedir)
                     fullLine = None
                     continue
 
@@ -313,7 +312,7 @@ class FlasherScript(object):
                 if len(words) == 2 and words[0] == "sleep":
                     try:
                         flashData.append((None, int(words[1])))
-                    except Exception as ex:
+                    except Exception:
                         print "Bad flasher line#%d: %s (bad sleep time)" % \
                               (linenum, fullLine)
                         failed = True
@@ -322,18 +321,18 @@ class FlasherScript(object):
 
                 if len(words) == 2:
                     # found 'file duration'
-                    name = cls.__cleanString(words[0])
-                    durStr = cls.__cleanString(words[1])
+                    name = cls.__clean_string(words[0])
+                    durStr = cls.__clean_string(words[1])
                 else:
                     words = fullLine.split(",")
                     if len(words) == 2:
                         # found 'file,duration'
-                        name = cls.__cleanString(words[0])
-                        durStr = cls.__cleanString(words[1])
+                        name = cls.__clean_string(words[0])
+                        durStr = cls.__clean_string(words[1])
                     elif len(words) == 3 and len(words[0]) == 0:
                         # found ',file,duration'
-                        name = cls.__cleanString(words[1])
-                        durStr = cls.__cleanString(words[2])
+                        name = cls.__clean_string(words[1])
+                        durStr = cls.__clean_string(words[2])
                     else:
                         print "Bad flasher line#%d: %s" % (linenum, line)
                         failed = True
@@ -376,21 +375,22 @@ class Run(object):
         dryRun - True if commands should only be printed and not executed
         """
         self.__mgr = mgr
-        self.__runCfgName = runCfgName
-        self.__flashData = flashData
-        self.__dryRun = dryRun
+        self.__run_cfg_name = runCfgName
+        self.__flash_data = flashData
+        self.__dry_run = dryRun
 
-        self.__runKilled = False
+        self.__run_killed = False
 
-        self.__flashThread = None
-        self.__lightMode = None
-        self.__clusterCfg = None
+        self.__flash_thread = None
+        self.__light_mode = None
+        self.__cluster_cfg = None
 
-        # __runNum being 0 is considered a safe initializer as per Dave G.
+        # __run_num being 0 is considered a safe initializer as per Dave G.
         # it was None which would cause a TypeError on some
         # error messages
-        self.__runNum = 0
+        self.__run_num = 0
         self.__duration = None
+        self.__num_runs = 0
 
         activeCfgName = self.__mgr.getActiveClusterConfig()
         if clusterCfgName is None:
@@ -400,19 +400,20 @@ class Run(object):
                 if clusterCfgName is None:
                     raise RunException("No cluster configuration specified")
 
-        # __runCfgName has to be non-null as well otherwise we get an exception
-        if self.__runCfgName is None:
+        # Run configuration name has to be non-null as well
+        # or we'll get an exception
+        if self.__run_cfg_name is None:
             raise RunException("No Run Configuration Specified")
 
         # if pDAQ isn't active or if we need a different cluster config,
         #   kill the current components
         #
         if activeCfgName is None or activeCfgName != clusterCfgName:
-            self.__mgr.killComponents(dryRun=self.__dryRun)
-            self.__runKilled = True
+            self.__mgr.killComponents(dryRun=self.__dry_run)
+            self.__run_killed = True
 
         try:
-            self.__clusterCfg = \
+            self.__cluster_cfg = \
                 DAQConfigParser.getClusterConfiguration(clusterCfgName,
                                                         useActiveConfig=False,
                                                         clusterDesc=clusterDesc,
@@ -424,43 +425,44 @@ class Run(object):
 
         # if necessary, launch the desired cluster configuration
         #
-        if self.__runKilled or self.__mgr.isDead():
-            self.__mgr.launch(self.__clusterCfg)
+        if self.__run_killed or self.__mgr.isDead():
+            self.__mgr.launch(self.__cluster_cfg)
 
     def finish(self, verbose=False):
         "clean up after run has ended"
         if not self.__mgr.isStopped(True):
             self.__mgr.stopRun()
 
-        if not self.__dryRun and not self.__mgr.isStopped(True) and \
+        if not self.__dry_run and not self.__mgr.isStopped(True) and \
             not self.__mgr.waitForStopped(verbose=verbose):
-            raise RunException("Run %d did not stop" % self.__runNum)
+            raise RunException("Run %d did not stop" % self.__run_num)
 
-        if self.__flashThread is not None:
-            self.__flashThread.waitForThread()
+        if self.__flash_thread is not None:
+            self.__flash_thread.waitForThread()
 
-        if self.__lightMode and not self.__mgr.setLightMode(False):
+        if self.__light_mode and not self.__mgr.setLightMode(False):
             raise RunException(("Could not set lightMode to dark after run " +
                                 " #%d: %s") %
-                                (self.__runNum, self.__runCfgName))
+                               (self.__run_num, self.__run_cfg_name))
 
         try:
-            rtnval = self.__mgr.summarize(self.__runNum)
+            rtnval = self.__mgr.summarize(self.__run_num)
         except:
             self.__mgr.logError("Cannot summarize run %d: %s" % \
-                                (self.__runNum, exc_string()))
+                                (self.__run_num, exc_string()))
             rtnval = False
 
-        self.__runNum = 0
+        self.__run_num = 0
 
         return rtnval
 
-    def start(self, duration, ignoreDB=False, runMode=None, filterMode=None,
-              flasherDelay=None, verbose=False):
+    def start(self, duration, numRuns=1, ignoreDB=False, runMode=None,
+              filterMode=None, flasherDelay=None, verbose=False):
         """
         Start a run
 
         duration - number of seconds to run
+        numRuns - number of sequential runs
         ignoreDB - False if the database should be checked for this run config
         runMode - Run mode for 'livecmd'
         filterMode - Run mode for 'livecmd'
@@ -470,15 +472,19 @@ class Run(object):
         # write the run configuration to the database
         #
         if not ignoreDB:
-            self.__mgr.updateDB(self.__runCfgName)
+            self.__mgr.updateDB(self.__run_cfg_name)
 
         # if we'll be flashing, build a thread to start/stop flashers
         #
-        self.__lightMode = self.__flashData is not None
-        if not self.__lightMode:
-            self.__flashThread = None
+        self.__light_mode = self.__flash_data is not None
+        if not self.__light_mode:
+            self.__flash_thread = None
         else:
-            flashDur = FlasherThread.computeRunDuration(self.__flashData,
+            if numRuns > 1:
+                raise RunException("Only 1 consecutive flasher run allowed" +
+                                   " (%d requested)" % numRuns)
+
+            flashDur = FlasherThread.computeRunDuration(self.__flash_data,
                                                         flasherDelay)
             if flashDur > duration:
                 if duration > 0:
@@ -488,14 +494,14 @@ class Run(object):
                 duration = flashDur
 
             if flasherDelay is None:
-                self.__flashThread = FlasherThread(self.__mgr,
-                                                   self.__flashData,
-                                                   dryRun=self.__dryRun)
+                self.__flash_thread = FlasherThread(self.__mgr,
+                                                    self.__flash_data,
+                                                    dryRun=self.__dry_run)
             else:
-                self.__flashThread = \
-                    FlasherThread(self.__mgr, self.__flashData,
+                self.__flash_thread = \
+                    FlasherThread(self.__mgr, self.__flash_data,
                                   initialDelay=flasherDelay,
-                                  dryRun=self.__dryRun)
+                                  dryRun=self.__dry_run)
 
         # get the new run number
         #
@@ -503,55 +509,128 @@ class Run(object):
         if runData is None or runData[0] is None:
             raise RunException("Cannot find run number!")
 
-        self.__runNum = runData[0] + 1
+        self.__run_num = runData[0] + 1
         self.__duration = duration
+        self.__num_runs = numRuns
 
         # set the LID mode
         #
-        if not self.__mgr.setLightMode(self.__lightMode):
+        if not self.__mgr.setLightMode(self.__light_mode):
             raise RunException("Could not set lightMode for run #%d: %s" %
-                               (self.__runNum, self.__runCfgName))
+                               (self.__run_num, self.__run_cfg_name))
 
         # start the run
         #
-        if not self.__mgr.startRun(self.__runCfgName, duration, 1, ignoreDB,
-                                   runMode=runMode, filterMode=filterMode,
-                                   verbose=verbose):
+        if not self.__mgr.startRun(self.__run_cfg_name, duration, numRuns,
+                                   ignoreDB, runMode=runMode,
+                                   filterMode=filterMode, verbose=verbose):
             raise RunException("Could not start run #%d: %s" %
-                               (self.__runNum, self.__runCfgName))
+                               (self.__run_num, self.__run_cfg_name))
 
         # make sure we've got the correct run number
         #
         curNum = self.__mgr.getRunNumber()
-        if curNum != self.__runNum:
+        if curNum != self.__run_num:
             self.__mgr.logError(("Expected run number %d, but actual number" +
-                                 " is %s") % (self.__runNum, curNum))
-            self.__runNum = curNum
+                                 " is %s") % (self.__run_num, curNum))
+            self.__run_num = curNum
 
         # print run info
         #
-        if self.__flashThread is None:
+        if self.__flash_thread is None:
             runType = "run"
         else:
             runType = "flasher run"
 
         self.__mgr.logger().info("Started %s %d (%d secs) %s" %
-                                 (runType, self.__runNum, duration,
-                                  self.__runCfgName))
+                                 (runType, self.__run_num, duration,
+                                  self.__run_cfg_name))
 
         # start flashing
         #
-        if self.__flashThread is not None:
-            self.__flashThread.start()
+        if self.__flash_thread is not None:
+            self.__flash_thread.start()
 
     def stop(self):
         "stop run"
         self.__mgr.stop()
 
+    def updateRunNumber(self, num):
+        self.__run_num = num
+
     def wait(self):
         "wait for run to finish"
-        if not self.__dryRun:
-            self.__mgr.waitForRun(self.__runNum, self.__duration)
+
+        if self.__dry_run:
+            return
+
+        logger = self.__mgr.logger()
+
+        # wake up every 'waitSecs' seconds to check run state
+        #
+        waitSecs = 10
+        if waitSecs > self.__duration:
+            waitSecs = self.__duration
+
+        numTries = self.__duration / waitSecs
+        numWaits = 0
+
+        runs = 1
+        while True:
+            if not self.__mgr.isRunning():
+                runTime = numWaits * waitSecs
+                if runTime < self.__duration:
+                    logger.error(("WARNING: Expected %d second run, " +
+                                  "but run %d ended after %d seconds") %
+                                 (self.__duration, self.__run_num, runTime))
+
+                if self.__mgr.isStopped(False) or \
+                        self.__mgr.isStopping(False) or \
+                        self.__mgr.isRecovering(False):
+                    break
+
+                if not self.__mgr.isSwitching(False):
+                    logger.error("Unexpected run %d state %s" %
+                                 (self.__run_num, self.state))
+
+            numWaits += 1
+            if numWaits > numTries:
+                if runs > self.__num_runs:
+                    # we've finished all the requested runs
+                    break
+                if not self.__mgr.switchRun(self.__run_num + 1):
+                    logger.error("Failed to switch to run %d" %
+                                 (self.__run_num + 1))
+                    break
+
+            curRunNum = self.__mgr.getRunNumber()
+            while self.__run_num < curRunNum:
+                self.__mgr.summarize(self.__run_num)
+                logger.info("Switched from run %d to %d" %
+                            (self.__run_num, curRunNum))
+
+                runTime = numWaits * waitSecs
+                if runTime < self.__duration:
+                    logger.error(("WARNING: Expected %d second run, " +
+                                  "but run %d ended after %d seconds") %
+                                 (self.__duration, self.__run_num, runTime))
+
+                # reset number of waits
+                numWaits = 1
+
+                # increment number of runs and update run number
+                runs += 1
+                self.__run_num += 1
+
+            if runs > self.__num_runs:
+                plural = "" if self.__num_runs == 1 else "s"
+                logger.error("WARNING: Expected %dx%d second run%s but"
+                             " run#%d is active" %
+                             (self.__num_runs, self.__duration, plural,
+                              curRunNum))
+                break
+
+            time.sleep(waitSecs)
 
 
 class RunLogger(object):
@@ -585,42 +664,38 @@ class BaseRun(object):
     PATH = None
 
     def __init__(self, showCmd=False, showCmdOutput=False, dryRun=False,
-                 dbType=None, logfile=None):
+                 logfile=None):
         """
         showCmd - True if commands should be printed before being run
         showCmdOutput - True if command output should be printed
         dryRun - True if commands should only be printed and not executed
-        dbType - DatabaseType value (TEST, PROD, or NONE)
         logfile - file where all log messages are saved
         """
-        self.__showCmd = showCmd
-        self.__showCmdOutput = showCmdOutput
-        self.__dryRun = dryRun
-        self.__userStopped = False
+        self.__show_cmd = showCmd
+        self.__show_cmd_output = showCmdOutput
+        self.__dry_run = dryRun
+        self.__user_stopped = False
 
         self.__logger = RunLogger(logfile)
 
         self.__cnc = None
 
-        if dbType is not None:
-            self.__dbType = dbType
-        else:
-            self.__dbType = ClusterDescription.getClusterDatabaseType()
+        self.__db_type = ClusterDescription.getClusterDatabaseType()
 
         # check for needed executables
         #
-        self.__updateDBProg = \
+        self.__update_db_prog = \
             os.path.join(os.environ["HOME"], "offline-db-update",
                          "offline-db-update-config")
-        if not self.checkExists("PnF program", self.__updateDBProg, False):
-            self.__updateDBProg = None
+        if not self.checkExists("PnF program", self.__update_db_prog, False):
+            self.__update_db_prog = None
 
         # make sure run-config directory exists
         #
-        self.__configDir = find_pdaq_config()
-        if not os.path.isdir(self.__configDir):
+        self.__config_dir = find_pdaq_config()
+        if not os.path.isdir(self.__config_dir):
             raise SystemExit("Run config directory '%s' does not exist" %
-                             self.__configDir)
+                             self.__config_dir)
 
     @staticmethod
     def checkExists(name, path, fatal=True):
@@ -643,9 +718,9 @@ class BaseRun(object):
 
     def createRun(self, clusterCfgName, runCfgName, clusterDesc=None,
                   flashData=None):
-        return Run(self, clusterCfgName, runCfgName, self.__configDir,
+        return Run(self, clusterCfgName, runCfgName, self.__config_dir,
                    clusterDesc=clusterDesc, flashData=flashData,
-                   dryRun=self.__dryRun)
+                   dryRun=self.__dry_run)
 
     @classmethod
     def findExecutable(cls, name, cmd, dryRun=False):
@@ -700,7 +775,7 @@ class BaseRun(object):
         raise NotImplementedError()
 
     def ignoreDatabase(self):
-        return self.__dbType == ClusterDescription.DBTYPE_NONE
+        return self.__db_type == ClusterDescription.DBTYPE_NONE
 
     def isDead(self, refreshState=False):
         raise NotImplementedError()
@@ -717,8 +792,13 @@ class BaseRun(object):
     def isStopping(self, refreshState=False):
         raise NotImplementedError()
 
+    def isSwitching(self, refreshState=False):
+        raise NotImplementedError()
+
     def isUserStopped(self, refreshState=False):
-        return self.__userStopped
+        if refreshState:
+            print >>sys.stderr, "Not refreshing state in isUserStopped()"
+        return self.__user_stopped
 
     def killComponents(self, dryRun=False):
         "Kill all pDAQ components"
@@ -739,13 +819,13 @@ class BaseRun(object):
 
         clusterCfg - cluster configuration
         """
-        if not self.__dryRun and self.isRunning():
+        if not self.__dry_run and self.isRunning():
             raise LaunchException("There is at least one active run")
 
-        spadeDir = clusterCfg.logDirForSpade()
-        copyDir = clusterCfg.logDirCopies()
-        logDir = clusterCfg.daqLogDir()
-        daqDataDir = clusterCfg.daqDataDir()
+        spadeDir = clusterCfg.logDirForSpade
+        copyDir = clusterCfg.logDirCopies
+        logDir = clusterCfg.daqLogDir
+        daqDataDir = clusterCfg.daqDataDir
 
         cfgDir = find_pdaq_config()
         metaDir = find_pdaq_trunk()
@@ -760,7 +840,7 @@ class BaseRun(object):
         livePort = DAQPort.I3LIVE_ZMQ
 
         self.logCmd("Launch %s" % clusterCfg)
-        ComponentManager.launch(doCnC, dryRun=self.__dryRun, verbose=verbose,
+        ComponentManager.launch(doCnC, dryRun=self.__dry_run, verbose=verbose,
                                 clusterConfig=clusterCfg, dashDir=dashDir,
                                 configDir=cfgDir, daqDataDir=daqDataDir,
                                 logDir=logDir, logDirFallback=logDirFallback,
@@ -773,11 +853,11 @@ class BaseRun(object):
         time.sleep(5)
 
     def logCmd(self, msg):
-        if self.__showCmd:
+        if self.__show_cmd:
             self.__logger.info("% " + msg)
 
     def logCmdOutput(self, msg):
-        if self.__showCmdOutput:
+        if self.__show_cmd_output:
             self.__logger.info("%%% " + msg)
 
     def logError(self, msg):
@@ -789,15 +869,17 @@ class BaseRun(object):
     def logger(self):
         return self.__logger
 
-    def run(self, clusterCfgName, runCfgName, duration, flashData=None,
-            flasherDelay=None, clusterDesc = None, ignoreDB=False,
-            runMode="TestData", filterMode=None, verbose=False):
+    def run(self, clusterCfgName, runCfgName, duration, numRuns=1,
+            flashData=None, flasherDelay=None, clusterDesc=None,
+            ignoreDB=False, runMode="TestData", filterMode=None,
+            verbose=False):
         """
         Manage a set of runs
 
         clusterCfgName - cluster configuration
         runCfgName - name of run configuration
         duration - number of seconds to run
+        numRuns - number of consecutive runs
         flasherData - pairs of (XML file name, duration)
         flasherDelay - number of seconds to sleep before starting flashers
         ignoreDB - False if the database should be checked for this run config
@@ -806,8 +888,13 @@ class BaseRun(object):
         verbose - provide additional details of the run
         """
 
-        if self.__userStopped:
+        if self.__user_stopped:
             return False
+
+        if numRuns > 1:
+            self.setRunsPerRestart(numRuns)
+        else:
+            self.setRunsPerRestart(1)
 
         run = self.createRun(clusterCfgName, runCfgName,
                              clusterDesc=clusterDesc, flashData=flashData)
@@ -815,13 +902,17 @@ class BaseRun(object):
         if filterMode is None and flashData is not None:
             filterMode = "RandomFiltering"
 
-        run.start(duration, ignoreDB, runMode=runMode, filterMode=filterMode,
+        run.start(duration, numRuns=numRuns, ignoreDB=ignoreDB,
+                  runMode=runMode, filterMode=filterMode,
                   flasherDelay=flasherDelay, verbose=verbose)
 
         try:
             run.wait()
-        finally:
-            return run.finish(verbose=verbose)
+        except:
+            import traceback
+            traceback.print_exc()
+
+        return run.finish(verbose=verbose)
 
     def setLightMode(self, isLID):
         """
@@ -833,8 +924,12 @@ class BaseRun(object):
         """
         raise NotImplementedError()
 
+    def setRunsPerRestart(self, num):
+        """Set the number of continuous runs between restarts"""
+        raise NotImplementedError()
+
     def startRun(self, runCfgName, duration, numRuns=1, ignoreDB=False,
-                 verbose=False):
+                 runMode=None, filterMode=None, verbose=False):
         """
         Start a run
 
@@ -842,18 +937,21 @@ class BaseRun(object):
         duration - number of seconds for run
         numRuns - number of runs (default=1)
         ignoreDB - don't check the database for this run config
+        runMode - Run mode for 'livecmd'
+        filterMode - Run mode for 'livecmd'
         verbose - print more details of run transitions
 
         Return True if the run was started
         """
         raise NotImplementedError()
 
+    @property
     def state(self):
         """Current state of runset"""
         raise NotImplementedError()
 
     def stopOnSIGINT(self, signal, frame):
-        self.__userStopped = True
+        self.__user_stopped = True
         print "Caught signal, stopping run"
         if self.isRunning(True):
             self.stopRun()
@@ -866,7 +964,7 @@ class BaseRun(object):
         raise NotImplementedError()
 
     def summarize(self, runNum):
-        if self.__dryRun:
+        if self.__dry_run:
             return True
 
         summary = self.cncConnection().rpc_run_summary(runNum)
@@ -902,31 +1000,35 @@ class BaseRun(object):
 
         return summary["result"].upper() == "SUCCESS"
 
+    def switchRun(self, runNum):
+        """Switch to a new run number without stopping any components"""
+        raise NotImplementedError()
+
     def updateDB(self, runCfgName):
         """
         Add this run configuration to the database
 
         runCfgName - name of run configuration
         """
-        if self.__dbType == ClusterDescription.DBTYPE_NONE:
+        if self.__db_type == ClusterDescription.DBTYPE_NONE:
             return
 
-        if self.__updateDBProg is None:
+        if self.__update_db_prog is None:
             self.logError("Not updating database with \"%s\"" % runCfgName)
             return
 
-        runCfgPath = os.path.join(self.__configDir, runCfgName + ".xml")
+        runCfgPath = os.path.join(self.__config_dir, runCfgName + ".xml")
         self.checkExists("Run configuration", runCfgPath)
 
-        if self.__dbType == ClusterDescription.DBTYPE_TEST:
+        if self.__db_type == ClusterDescription.DBTYPE_TEST:
             arg = "-D I3OmDb_test"
         else:
             arg = ""
 
-        cmd = "%s %s %s" % (self.__updateDBProg, arg, runCfgPath)
+        cmd = "%s %s %s" % (self.__update_db_prog, arg, runCfgPath)
         self.logCmd(cmd)
 
-        if self.__dryRun:
+        if self.__dry_run:
             print cmd
             return
 
@@ -948,43 +1050,6 @@ class BaseRun(object):
         proc.stdout.close()
 
         proc.wait()
-
-    def waitForRun(self, runNum, duration):
-        """
-        Wait for the current run to start and stop
-
-        runNum - current run number
-        duration - expected number of seconds this run will last
-        """
-
-        # wake up every 'waitSecs' seconds to check run state
-        #
-        waitSecs = 10
-
-        numTries = duration / waitSecs
-        numWaits = 0
-
-        while True:
-            if not self.isRunning():
-                runTime = numWaits * waitSecs
-                if runTime < duration:
-                    self.logError(("WARNING: Expected %d second run, " +
-                                   "but run %d ended after %d seconds") %
-                                  (duration, runNum, runTime))
-
-                if self.isStopped(False) or \
-                        self.isStopping(False) or \
-                        self.isRecovering(False):
-                    break
-
-                self.logError("Unexpected run %d state %s" %
-                              (runNum, self.state()))
-
-            numWaits += 1
-            if numWaits > numTries:
-                break
-
-            time.sleep(waitSecs)
 
     def waitForStopped(self, verbose=False):
         """Wait for the current run to be stopped"""

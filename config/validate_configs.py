@@ -19,8 +19,7 @@ except ImportError:
 from ClusterDescription import ClusterDescription
 
 
-META_DIR = find_pdaq_trunk()
-CONFIG_DIR = find_pdaq_config()
+PDAQ_HOME = find_pdaq_trunk()
 
 
 def _open_schema(path, description):
@@ -28,7 +27,7 @@ def _open_schema(path, description):
         return open(path, 'r')
     except IOError:
         # look in the schema directory
-        path2 = os.path.join(META_DIR, 'schema', os.path.basename(path))
+        path2 = os.path.join(PDAQ_HOME, 'schema', os.path.basename(path))
 
         try:
             return open(path2, 'r')
@@ -41,11 +40,13 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
 
     # ---------------------------------------------------------
     # build up a path and validate the default_dom_geometry file
-    dom_geom_xml_path = os.path.join(CONFIG_DIR,
+    config_dir = find_pdaq_config()
+    dom_geom_xml_path = os.path.join(config_dir,
                                      "default-dom-geometry.xml")
     (valid, reason) = validate_default_dom_geom(dom_geom_xml_path)
     if not valid:
-        return (valid, reason)
+        return (valid, "DefaultDOMGeometry " + dom_geom_xml_path + ": " +
+                str(reason))
 
     # -------------------------------------------------
     # validate the cluster config
@@ -59,22 +60,23 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
                 "Old style cluster configs not supported '%s'" % \
                     cluster_xml_filename)
 
-    cluster_xml_filename = os.path.basename(cluster_xml_filename)
-    fname, extension = os.path.splitext(cluster_xml_filename)
-    if not fname.endswith('-cluster'):
-        fname = "%s-cluster" % fname
+    basename = os.path.basename(cluster_xml_filename)
 
+    fname, extension = os.path.splitext(basename)
     if not extension or extension is not 'cfg':
         extension = 'cfg'
 
-    cluster_xml_filename = "%s.%s" % (fname, extension)
+    config_dir = find_pdaq_config()
+    path = os.path.join(config_dir, "%s.%s" % (fname, extension))
+    if not os.path.exists(path):
+        path = os.path.join(config_dir, "%s-cluster.%s" % (fname, extension))
 
-    cluster_xml_filename = os.path.join(CONFIG_DIR,
-                                        os.path.basename(cluster_xml_filename))
+    cluster_xml_filename = path
 
     (valid, reason) = validate_clusterconfig(cluster_xml_filename)
     if not valid:
-        return (valid, reason)
+        return (valid, "ClusterConfig " + cluster_xml_filename + ": " +
+                str(reason))
 
     #
     # validate the run configuration
@@ -94,13 +96,15 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
     if not runconfig_xml_filename.endswith('.xml'):
         runconfig_xml_filename = "%s.xml" % runconfig_xml_filename
 
+    config_dir = find_pdaq_config()
     runconfig_basename = os.path.basename(runconfig_xml_filename)
-    runconfig_xml_filename = os.path.join(CONFIG_DIR,
+    runconfig_xml_filename = os.path.join(config_dir,
                                           runconfig_basename)
 
     (valid, reason) = validate_runconfig(runconfig_xml_filename)
     if not valid:
-        return (valid, reason)
+        return (valid, "RunConfig " + runconfig_xml_filename + ": " +
+                str(reason))
 
     # parse the run config for all domConfigList, and trigger
     try:
@@ -122,8 +126,9 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
 
     dconfigList = run_configs.findall('domConfigList')
     for dconfig in dconfigList:
+        config_dir = find_pdaq_config()
         dom_config_txt = "%s.xml" % dconfig.text
-        dom_config_path = os.path.join(CONFIG_DIR, 'domconfigs',
+        dom_config_path = os.path.join(config_dir, 'domconfigs',
                                        dom_config_txt)
 
         if is_sps:
@@ -132,26 +137,26 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
             (valid, reason) = validate_dom_config_spts(dom_config_path)
 
         if not valid:
-            return (False, reason)
+            return (False, "DOMConfig " + dom_config_path + ": " + str(reason))
 
     trigConfigList = run_configs.findall('triggerConfig')
     for trigConfig in trigConfigList:
+        config_dir = find_pdaq_config()
         trig_config_txt = "%s.xml" % trigConfig.text
-        trig_config_path = os.path.join(CONFIG_DIR, 'trigger',
+        trig_config_path = os.path.join(config_dir, 'trigger',
                                         trig_config_txt)
 
         (valid, reason) = validate_trigger(trig_config_path)
         if not valid:
-            return (False, reason)
+            return (False, "TrigConfig " + trig_config_path + ": " +
+                    str(reason))
 
     return (True, "")
 
 
 def validate_clusterconfig(xml_filename):
     """Check the cluster config files against an xml schema"""
-    (valid, reason) = _validate_xml(xml_filename, 'clustercfg.xsd')
-
-    return (valid, reason)
+    return _validate_xml(xml_filename, 'clustercfg.xsd')
 
 
 def validate_runconfig(xml_filename):
@@ -165,22 +170,18 @@ def validate_runconfig(xml_filename):
                                                     "runconfig-old.rng")
         if old_valid:
             return (old_valid, old_reason)
-        
+
     return (valid, reason)
 
 
 def validate_default_dom_geom(xml_filename):
     """Check the default dom geometry against the xml schema"""
-    (valid, reason) = _validate_xml(xml_filename, 'geom.xsd')
-
-    return (valid, reason)
+    return _validate_xml(xml_filename, 'geom.xsd')
 
 
 def validate_trigger(xml_filename):
     """Check the trigger config against the xml schema"""
-    (valid, reason) = _validate_xml(xml_filename, 'trigger.xsd')
-
-    return (valid, reason)
+    return _validate_xml(xml_filename, 'trigger.xsd')
 
 
 def is_sps_cluster(cluster_xml_filename):
@@ -224,19 +225,13 @@ def is_sps_cluster(cluster_xml_filename):
 
 def validate_dom_config_sps(xml_filename):
     """Check a dom config file against the appropriate xml schema"""
-    (valid, reason) = _validate_dom_config_xml(xml_filename,
-                                               'domconfig-sps.rng')
-
-    return (valid, reason)
+    return _validate_dom_config_xml(xml_filename, 'domconfig-sps.rng')
 
 
 def validate_dom_config_spts(xml_filename):
     """Check a dom config file against the appropriate xml schema"""
 
-    (valid, reason) = _validate_dom_config_xml(xml_filename,
-                                               'domconfig-spts.rng')
-
-    return (valid, reason)
+    return _validate_dom_config_xml(xml_filename, 'domconfig-spts.rng')
 
 
 def _validate_dom_config_xml(xml_filename, rng_real_filename):
@@ -338,17 +333,19 @@ def _validate_xml(xml_filename, xsd_filename):
 
 if __name__ == "__main__":
 
+    config_dir = find_pdaq_config()
+
     print "-" * 60
     print "Validating all sps configurations"
     print "-" * 60
-    sps_configs = glob.glob(os.path.join(CONFIG_DIR, 'sps*.xml'))
+    sps_configs = glob.glob(os.path.join(config_dir, 'sps*.xml'))
 
     print "validate_configs"
     print "Validating all sps configurations"
     for config in sps_configs:
         print ""
         print "Validating %s" % config
-        (valid, reason) = validate_configs(os.path.join(CONFIG_DIR,
+        (valid, reason) = validate_configs(os.path.join(config_dir,
                                                         'sps-cluster.cfg'),
                                            config)
 
@@ -359,12 +356,12 @@ if __name__ == "__main__":
             print "Configuration is valid"
 
 
-    spts_configs = glob.glob(os.path.join(CONFIG_DIR, 'spts*.xml'))
+    spts_configs = glob.glob(os.path.join(config_dir, 'spts*.xml'))
     print "Validating all sps configurations"
     for config in spts_configs:
         print ""
         print "Validating %s" % config
-        (valid, reason) = validate_configs(os.path.join(CONFIG_DIR,
+        (valid, reason) = validate_configs(os.path.join(config_dir,
                                                         'spts-cluster.cfg'),
                                            config)
 
@@ -373,4 +370,3 @@ if __name__ == "__main__":
             print reason
         else:
             print "Configuration is valid"
-

@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-import socket
 import threading
+
+from DAQClient import BeanTimeoutException
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -144,7 +145,7 @@ class ComponentOperation(threading.Thread):
 
     def __getState(self):
         "Get the component's current state"
-        self.__result = self.__comp.state()
+        self.__result = self.__comp.state
 
     def __resetComponent(self):
         "Reset the component"
@@ -168,6 +169,8 @@ class ComponentOperation(threading.Thread):
 
     def __stopLogging(self):
         "Stop logging for the component"
+        if not self.__comp in self.__data:
+            raise Exception("No log server found for " + str(self.__comp))
         self.__data[self.__comp].stopServing()
 
     def __stopRun(self):
@@ -243,12 +246,11 @@ class ComponentOperation(threading.Thread):
         "Main method for thread"
         try:
             self.__runOperation()
-        except socket.error:
+        except BeanTimeoutException:
+            self.__log.error("%s(%s): %s" % (str(self.__operation),
+                                             str(self.__comp), exc_string()))
             self.__error = True
         except:
-            self.__log.error("%s(%s): %s" % (str(self.__operation),
-                                             str(self.__comp),
-                                             exc_string()))
             self.__error = True
 
 
@@ -317,6 +319,18 @@ class ComponentOperationGroup(object):
             results[t.component()] = result
         return results
 
+    @staticmethod
+    def runSimple(op, comps, args, logger, errorName=None, waitSecs=2,
+                  waitReps=4):
+        tGroup = ComponentOperationGroup(op)
+        for c in comps:
+            tGroup.start(c, logger, args)
+        tGroup.wait(waitSecs=waitSecs, reps=waitReps)
+        if errorName is not None:
+            tGroup.reportErrors(logger, errorName)
+            return None
+        return tGroup.results()
+
     def wait(self, waitSecs=2, reps=4):
         """
         Wait for all the threads to finish
@@ -326,7 +340,7 @@ class ComponentOperationGroup(object):
         if all threads are hung, max wait time is (#threads * waitSecs * reps)
         """
         partSecs = float(waitSecs) / float(reps)
-        for i in range(reps):
+        for _ in range(reps):
             alive = False
             for t in self.__list:
                 if t.isAlive():

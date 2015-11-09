@@ -2,12 +2,12 @@
 
 import os
 import os.path
-import sys
 import traceback
 
 from CachedConfigName import CachedConfigName
-from ClusterDescription import ClusterDescription
+from ClusterDescription import ClusterDescription, JVMArgs
 from Component import Component
+from DefaultDomGeometry import DefaultDomGeometry
 
 
 class RunClusterError(Exception):
@@ -15,94 +15,131 @@ class RunClusterError(Exception):
 
 
 class RunComponent(Component):
-    def __init__(self, name, id, logLevel, jvm, jvmArgs, host, isServer):
-        self.__jvm = jvm
-        self.__jvmArgs = jvmArgs
-        self.__host = host
-        self.__isServer = isServer
+    def __init__(self, name, compid, logLevel, jvmPath, jvmServer, jvmHeapInit,
+                 jvmHeapMax, jvmArgs, jvmExtra, host, isCtlServer):
+        self.__jvm = JVMArgs(jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
+                             jvmArgs, jvmExtra)
+        self.__isCtlServer = isCtlServer
 
-        super(RunComponent, self).__init__(name, id, logLevel)
+        super(RunComponent, self).__init__(name, compid, logLevel=logLevel,
+                                           host=host)
 
     def __str__(self):
-        nStr = self.fullName()
+        return "%s@%s(%s)" % (self.fullname, str(self.logLevel), self.__jvm)
 
-        if self.__jvm is None:
-            if self.__jvmArgs is None:
-                jStr = "?"
-            else:
-                jStr = "? | %s" % self.__jvmArgs
-        else:
-            if self.__jvmArgs is None:
-                jStr = self.__jvm
-            else:
-                jStr = "%s | %s" % (self.__jvm, self.__jvmArgs)
-
-        return "%s@%s(%s)" % (nStr, str(self.logLevel()), jStr)
-
-    def host(self):
-        return self.__host
-
+    @property
     def isControlServer(self):
-        return self.__isServer
+        return self.__isCtlServer
 
-    def isLocalhost(self):
-        return self.__host is not None and \
-            (self.__host == "localhost" or self.__host == "127.0.0.1")
-
-    def jvm(self):
-        return self.__jvm
-
+    @property
     def jvmArgs(self):
-        return self.__jvmArgs
+        return self.__jvm.args()
+
+    @property
+    def jvmExtraArgs(self):
+        return self.__jvm.extraArgs()
+
+    @property
+    def jvmHeapInit(self):
+        return self.__jvm.heapInit()
+
+    @property
+    def jvmHeapMax(self):
+        return self.__jvm.heapMax()
+
+    @property
+    def jvmPath(self):
+        return self.__jvm.path()
+
+    @property
+    def jvmServer(self):
+        return self.__jvm.isServer()
 
 
 class RunNode(object):
-    def __init__(self, hostName, defaultLogLevel, defaultJVM, defaultJVMArgs):
-        self.__locName = hostName
-        self.__hostName = hostName
+    def __init__(self, hostname, defaultLogLevel, defaultJVMPath,
+                 defaultJVMServer, defaultJVMHeapInit, defaultJVMHeapMax,
+                 defaultJVMArgs, defaultJVMExtraArgs):
+        self.__locName = hostname
+        self.__hostname = hostname
         self.__defaultLogLevel = defaultLogLevel
-        self.__defaultJVM = defaultJVM
-        self.__defaultJVMArgs = defaultJVMArgs
+        self.__defaultJVM = JVMArgs(defaultJVMPath, defaultJVMServer,
+                                    defaultJVMHeapInit, defaultJVMHeapMax,
+                                    defaultJVMArgs, defaultJVMExtraArgs)
         self.__comps = []
 
     def __cmp__(self, other):
-        val = cmp(self.__hostName, other.__hostName)
+        val = cmp(self.__hostname, other.__hostname)
         if val == 0:
             val = cmp(self.__locName, other.__locName)
         return val
 
     def __str__(self):
-        return "%s(%s)*%d" % (self.__hostName, self.__defaultLogLevel,
+        return "%s(%s)*%d" % (self.__hostname, self.__defaultLogLevel,
                               len(self.__comps))
 
     def addComponent(self, comp):
-        if comp.logLevel() is not None:
-            logLvl = comp.logLevel()
+        if comp.logLevel is not None:
+            logLvl = comp.logLevel
         else:
             logLvl = self.__defaultLogLevel
-        if comp.jvm() is not None or comp.isControlServer():
-            jvm = comp.jvm()
+        if comp.jvmPath is not None or comp.isControlServer:
+            jvmPath = comp.jvmPath
         else:
-            jvm = self.__defaultJVM
-        if comp.jvmArgs() is not None or comp.isControlServer():
-            jvmArgs = comp.jvmArgs()
+            jvmPath = self.__defaultJVM.path()
+        if comp.jvmServer is not None or comp.isControlServer:
+            jvmServer = comp.jvmServer
         else:
-            jvmArgs = self.__defaultJVMArgs
-        self.__comps.append(RunComponent(comp.name(), comp.id(), logLvl, jvm,
-                                         jvmArgs, self.__hostName,
-                                         comp.isControlServer()))
+            jvmServer = self.__defaultJVM.isServer()
+        if comp.jvmHeapInit is not None or comp.isControlServer:
+            jvmHeapInit = comp.jvmHeapInit
+        else:
+            jvmHeapInit = self.__defaultJVM.heapInit()
+        if comp.jvmHeapMax is not None or comp.isControlServer:
+            jvmHeapMax = comp.jvmHeapMax
+        else:
+            jvmHeapMax = self.__defaultJVM.heapMax()
+        if comp.jvmArgs is not None or comp.isControlServer:
+            jvmArgs = comp.jvmArgs
+        else:
+            jvmArgs = self.__defaultJVM.args()
+        if comp.jvmExtraArgs is not None or comp.isControlServer:
+            jvmExtra = comp.jvmExtraArgs
+        else:
+            jvmExtra = self.__defaultJVM.extraArgs()
+        self.__comps.append(RunComponent(comp.name, comp.id, logLvl,
+                                         jvmPath, jvmServer, jvmHeapInit,
+                                         jvmHeapMax, jvmArgs, jvmExtra,
+                                         self.__hostname,
+                                         comp.isControlServer))
 
     def components(self):
         return self.__comps[:]
 
+    @property
     def defaultLogLevel(self):
         return self.__defaultLogLevel
 
-    def hostName(self):
-        return self.__hostName
+    @property
+    def hostname(self):
+        return self.__hostname
 
-    def locName(self):
+    @property
+    def location(self):
         return self.__locName
+
+
+class SimAlloc(object):
+    "Temporary class used to assign simHubs to hosts"
+    def __init__(self, host, num):
+        self.host = host
+        self.number = num
+        self.percent = 0.0
+        self.allocated = 0
+
+    def __str__(self):
+        return "%s#%d%%.2f=%d" % (self.host, self.number, self.percent,
+                                  self.allocated)
 
 
 class RunCluster(CachedConfigName):
@@ -111,7 +148,7 @@ class RunCluster(CachedConfigName):
         "Create a cluster->component mapping from a run configuration file"
         super(RunCluster, self).__init__()
 
-        name = os.path.basename(cfg.configFile())
+        name = os.path.basename(cfg.fullpath)
         if name.endswith('.xml'):
             name = name[:-4]
         self.setConfigName(name)
@@ -122,25 +159,12 @@ class RunCluster(CachedConfigName):
 
         self.__nodes = self.__loadConfig(self.__clusterDesc, self.__hubList)
 
-    @classmethod
-    def __loadConfig(cls, clusterDesc, hubList):
-        hostMap = {}
-
-        cls.__addRequired(clusterDesc, hostMap)
-        cls.__addTriggers(clusterDesc, hubList, hostMap)
-        if len(hubList) > 0:
-            cls.__addRealHubs(clusterDesc, hubList, hostMap)
-            if len(hubList) > 0:
-                cls.__addSimHubs(clusterDesc, hubList, hostMap)
-
-        return cls.__convertToNodes(clusterDesc, hostMap)
-
     def __str__(self):
         nodeStr = ""
         for n in self.__nodes:
             if len(nodeStr) > 0:
                 nodeStr += " "
-            nodeStr += "%s*%d" % (n.hostName(), len(n.components()))
+            nodeStr += "%s*%d" % (n.hostname, len(n.components()))
         return self.configName() + "[" + nodeStr + "]"
 
     @classmethod
@@ -157,17 +181,54 @@ class RunCluster(CachedConfigName):
             if not comp.isHub():
                 continue
             for h in range(0, len(hubList)):
-                if comp.id() == hubList[h].id():
+                if comp.id == hubList[h].id:
                     cls.__addComponent(hostMap, host, comp)
                     del hubList[h]
                     break
 
     @classmethod
+    def __addReplayHubs(cls, clusterDesc, hubList, hostMap):
+        "Add replay hubs with locations hard-coded in the run config to hostMap"
+
+        logLevel = clusterDesc.defaultLogLevel("StringHub")
+        jvmPath = clusterDesc.defaultJVMPath("StringHub")
+        jvmServer = clusterDesc.defaultJVMServer("StringHub")
+        jvmHeapInit = clusterDesc.defaultJVMHeapInit("StringHub")
+        jvmHeapMax = clusterDesc.defaultJVMHeapMax("StringHub")
+        jvmArgs = clusterDesc.defaultJVMArgs("StringHub")
+        jvmExtra = clusterDesc.defaultJVMExtraArgs("StringHub")
+
+        i = 0
+        while i < len(hubList):
+            hub = hubList[i]
+            if hub.host is None:
+                i += 1
+                continue
+
+            if hub.logLevel is not None:
+                lvl = hub.logLevel
+            else:
+                lvl = logLevel
+            comp = RunComponent(hub.name, hub.id, lvl, jvmPath, jvmServer,
+                                jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra,
+                                hub.host, False)
+            cls.__addComponent(hostMap, hub.host, comp)
+            del hubList[i]
+
+    @classmethod
     def __addRequired(cls, clusterDesc, hostMap):
         "Add required components to hostMap"
         for (host, comp) in clusterDesc.listHostComponentPairs():
-            if comp.required():
+            if comp.required:
                 cls.__addComponent(hostMap, host, comp)
+
+    @classmethod
+    def __cmpAlloc(cls, a, b):
+        val = cmp(a.allocated, b.allocated)
+        if val == 0:
+            val = cmp(b.host, a.host)
+
+        return val
 
     @classmethod
     def __addSimHubs(cls, clusterDesc, hubList, hostMap):
@@ -180,54 +241,82 @@ class RunCluster(CachedConfigName):
             raise RunClusterError("Cannot simulate %s hubs %s" %
                                   (clusterDesc.name, str(missing)))
 
-        hubAlloc = []
-        for i in range(len(simList)):
-            hubAlloc.append(0)
+        hubAlloc = {}
+        maxHubs = 0
+        pctTot = 0.0
+        for sim in simList:
+            if not hubAlloc.has_key(sim.host):
+                hubAlloc[sim.host] = SimAlloc(sim.host, sim.number)
+            else:
+                # add to the maximum number of hubs for this host
+                hubAlloc[sim.host].number += sim.number
+            maxHubs += sim.number
 
-        hubNum = 0
-        for hub in hubList:
-            looped = False
-            while True:
-                if hubAlloc[hubNum] < simList[hubNum].number:
-                    hubAlloc[hubNum] += 1
-                    hubNum += 1
-                    if hubNum >= len(hubAlloc):
-                        hubNum = 0
+            pct = (10.0 / float(sim.priority)) * float(sim.number)
+            hubAlloc[sim.host].percent += pct
+            pctTot += pct
+
+        # make sure there's enough room for the requested hubs
+        numHubs = len(hubList)
+        if numHubs > maxHubs:
+            raise RunClusterError("Only have space for %d of %d hubs" %
+                                  (maxHubs, numHubs))
+
+        # first stab at allocation: allocate based on percentage
+        tot = 0
+        for v in hubAlloc.values():
+            v.percent /= pctTot
+            v.allocated = int(v.percent * numHubs)
+            if v.allocated > v.number:
+                # if we overallocated based on the percentage,
+                #  adjust down to the maximum number
+                v.allocated = v.number
+            tot += v.allocated
+
+        # allocate remainder in order of total capacity
+        while tot < numHubs:
+            changed = False
+            for v in sorted(hubAlloc.values(), reverse=True,
+                            cmp=cls.__cmpAlloc):
+                if v.allocated >= v.number:
+                    continue
+
+                v.allocated += 1
+                tot += 1
+                changed = True
+                if tot >= numHubs:
                     break
 
-                # move to next host
-                hubNum += 1
-                if hubNum >= len(hubAlloc):
-                    if looped:
-                        raise RunClusterError(("Cannot assign hub %s;" +
-                                               " out of hubs") % hub)
-                    hubNum = 0
-                    looped = True
-
-        allocMap = {}
-        for i in range(len(simList)):
-            allocMap[simList[i].host.name] = hubAlloc[i]
+            if tot < numHubs and not changed:
+                raise RunClusterError("Only able to allocate %d of %d hubs" %
+                                      (tot, numHubs))
 
         hubList.sort()
 
-        allocHosts = allocMap.keys()
-        allocHosts.sort()
+        hosts = []
+        for v in sorted(hubAlloc.values(), reverse=True, cmp=cls.__cmpAlloc):
+            hosts.append(v.host)
 
         logLevel = clusterDesc.defaultLogLevel("StringHub")
-        jvm = clusterDesc.defaultJVM("StringHub")
+        jvmPath = clusterDesc.defaultJVMPath("StringHub")
+        jvmServer = clusterDesc.defaultJVMServer("StringHub")
+        jvmHeapInit = clusterDesc.defaultJVMHeapInit("StringHub")
+        jvmHeapMax = clusterDesc.defaultJVMHeapMax("StringHub")
         jvmArgs = clusterDesc.defaultJVMArgs("StringHub")
+        jvmExtra = clusterDesc.defaultJVMExtraArgs("StringHub")
 
         hubNum = 0
-        for host in allocHosts:
-            for i in range(0, allocMap[host]):
+        for host in hosts:
+            for _ in xrange(hubAlloc[host].allocated):
                 hubComp = hubList[hubNum]
-                if hubComp.logLevel() is not None:
-                    lvl = hubComp.logLevel()
+                if hubComp.logLevel is not None:
+                    lvl = hubComp.logLevel
                 else:
                     lvl = logLevel
 
-                comp = RunComponent(hubComp.name(), hubComp.id(), lvl, jvm,
-                                    jvmArgs, host, False)
+                comp = RunComponent(hubComp.name, hubComp.id, lvl, jvmPath,
+                                    jvmServer, jvmHeapInit, jvmHeapMax,
+                                    jvmArgs, jvmExtra, host, False)
                 cls.__addComponent(hostMap, host, comp)
                 hubNum += 1
 
@@ -239,24 +328,24 @@ class RunCluster(CachedConfigName):
         needIcetop = False
 
         for hub in hubList:
-            id = hub.id() % 1000
-            if id == 0:
+            hid = hub.id % 1000
+            if hid == 0:
                 needAmanda = True
-            elif id < 200:
+            elif hid < 200:
                 needInice = True
             else:
                 needIcetop = True
 
         for (host, comp) in clusterDesc.listHostComponentPairs():
-            if not comp.name().endswith('Trigger'):
+            if not comp.name.endswith('Trigger'):
                 continue
-            if comp.name() == 'amandaTrigger' and needAmanda:
+            if comp.name == 'amandaTrigger' and needAmanda:
                 cls.__addComponent(hostMap, host, comp)
                 needAmanda = False
-            elif comp.name() == 'inIceTrigger' and needInice:
+            elif comp.name == 'inIceTrigger' and needInice:
                 cls.__addComponent(hostMap, host, comp)
                 needInice = False
-            elif comp.name() == 'iceTopTrigger' and needIcetop:
+            elif comp.name == 'iceTopTrigger' and needIcetop:
                 cls.__addComponent(hostMap, host, comp)
                 needIcetop = False
 
@@ -268,9 +357,13 @@ class RunCluster(CachedConfigName):
 
         nodes = []
         for host in hostKeys:
-            node = RunNode(host, clusterDesc.defaultLogLevel(),
-                           clusterDesc.defaultJVM(),
-                           clusterDesc.defaultJVMArgs())
+            node = RunNode(str(host), clusterDesc.defaultLogLevel(),
+                           clusterDesc.defaultJVMPath(),
+                           clusterDesc.defaultJVMServer(),
+                           clusterDesc.defaultJVMHeapInit(),
+                           clusterDesc.defaultJVMHeapMax(),
+                           clusterDesc.defaultJVMArgs(),
+                           clusterDesc.defaultJVMExtraArgs())
             nodes.append(node)
 
             for compKey in hostMap[host].keys():
@@ -292,7 +385,7 @@ class RunCluster(CachedConfigName):
         "Get list of simulation hubs, sorted by priority"
         simList = []
 
-        for (host, simHub) in clusterDesc.listHostSimHubPairs():
+        for (_, simHub) in clusterDesc.listHostSimHubPairs():
             if simHub is None:
                 continue
             if not simHub.ifUnused or not simHub.host.name in hostMap:
@@ -302,25 +395,44 @@ class RunCluster(CachedConfigName):
 
         return simList
 
+    @classmethod
+    def __loadConfig(cls, clusterDesc, hubList):
+        hostMap = {}
+
+        cls.__addRequired(clusterDesc, hostMap)
+        cls.__addTriggers(clusterDesc, hubList, hostMap)
+        if len(hubList) > 0:
+            cls.__addRealHubs(clusterDesc, hubList, hostMap)
+            if len(hubList) > 0:
+                cls.__addReplayHubs(clusterDesc, hubList, hostMap)
+                if len(hubList) > 0:
+                    cls.__addSimHubs(clusterDesc, hubList, hostMap)
+
+        return cls.__convertToNodes(clusterDesc, hostMap)
+
     @staticmethod
     def __sortByPriority(x, y):
         "Sort simulated hub nodes by priority"
-        val = cmp(y.priority, x.priority)
+        val = cmp(x.priority, y.priority)
         if val == 0:
             val = cmp(x.host.name, y.host.name)
         return val
 
+    @property
     def daqDataDir(self):
-        return self.__clusterDesc.daqDataDir()
+        return self.__clusterDesc.daqDataDir
 
+    @property
     def daqLogDir(self):
-        return self.__clusterDesc.daqLogDir()
+        return self.__clusterDesc.daqLogDir
 
+    @property
     def defaultLogLevel(self):
         return self.__clusterDesc.defaultLogLevel()
 
-    def descName(self):
-        return self.__clusterDesc.configName()
+    @property
+    def description(self):
+        return self.__clusterDesc.configName
 
     def extractComponents(self, masterList):
         return self.extractComponentsFromNodes(self.__nodes, masterList)
@@ -333,8 +445,8 @@ class RunCluster(CachedConfigName):
             found = False
             for node in nodeList:
                 for nodeComp in node.components():
-                    if comp.name().lower() == nodeComp.name().lower() \
-                       and comp.num() == nodeComp.id():
+                    if comp.name.lower() == nodeComp.name.lower() \
+                       and comp.num == nodeComp.id:
                         foundList.append(nodeComp)
                         found = True
                         break
@@ -348,7 +460,7 @@ class RunCluster(CachedConfigName):
         "get the configuration name to write to the cache file"
         if self.__clusterDesc is None:
             return self.configName()
-        return '%s@%s' % (self.configName(), self.__clusterDesc.configName())
+        return '%s@%s' % (self.configName(), self.__clusterDesc.configName)
 
     def getHubNodes(self):
         "Get a list of nodes on which hub components are running"
@@ -361,7 +473,7 @@ class RunCluster(CachedConfigName):
                     break
 
             if addHost:
-                hostMap[node.hostName()] = 1
+                hostMap[node.hostname] = 1
 
         return hostMap.keys()
 
@@ -371,25 +483,29 @@ class RunCluster(CachedConfigName):
 
         self.__nodes = self.__loadConfig(self.__clusterDesc, self.__hubList)
 
+    @property
     def logDirForSpade(self):
-        return self.__clusterDesc.logDirForSpade()
+        return self.__clusterDesc.logDirForSpade
 
+    @property
     def logDirCopies(self):
-        return self.__clusterDesc.logDirCopies()
+        return self.__clusterDesc.logDirCopies
 
     def nodes(self):
         return self.__nodes[:]
 
 if __name__ == '__main__':
+    import sys
+
     from DAQConfig import DAQConfigParser
     from locate_pdaq import find_pdaq_config
 
     if len(sys.argv) <= 1:
         print >> sys.stderr, ('Usage: %s [-C clusterDesc]' +
-                             ' configXML [configXML ...]') % sys.argv[0]
+                              ' configXML [configXML ...]') % sys.argv[0]
         sys.exit(1)
 
-    configDir = find_pdaq_config()
+    pdaqDir = find_pdaq_config()
 
     nameList = []
     grabDesc = False
@@ -410,14 +526,19 @@ if __name__ == '__main__':
                 grabDesc = True
             continue
 
-        if os.path.basename(name) == 'default-dom-geometry.xml':
+        if os.path.basename(name) == DefaultDomGeometry.FILENAME:
             # ignore
             continue
 
         nameList.append(name)
 
     for name in nameList:
-        cfg = DAQConfigParser.load(name, configDir)
+        (ndir, nbase) = os.path.split(name)
+        if ndir is None:
+            configDir = pdaqDir
+        else:
+            configDir = ndir
+        cfg = DAQConfigParser.parse(configDir, nbase)
         try:
             runCluster = RunCluster(cfg, clusterDesc)
         except NotImplementedError:
@@ -432,21 +553,21 @@ if __name__ == '__main__':
             continue
 
         print 'RunCluster: %s (%s)' % \
-            (runCluster.configName(), runCluster.descName())
+            (runCluster.configName(), runCluster.description)
         print '--------------------'
-        if runCluster.logDirForSpade() is not None:
-            print 'SPADE logDir: %s' % runCluster.logDirForSpade()
-        if runCluster.logDirCopies() is not None:
-            print 'Copied logDir: %s' % runCluster.logDirCopies()
-        if runCluster.daqDataDir() is not None:
-            print 'DAQ dataDir: %s' % runCluster.daqDataDir()
-        if runCluster.daqLogDir() is not None:
-            print 'DAQ logDir: %s' % runCluster.daqLogDir()
-        print 'Default log level: %s' % runCluster.defaultLogLevel()
+        if runCluster.logDirForSpade is not None:
+            print 'SPADE logDir: %s' % runCluster.logDirForSpade
+        if runCluster.logDirCopies is not None:
+            print 'Copied logDir: %s' % runCluster.logDirCopies
+        if runCluster.daqDataDir is not None:
+            print 'DAQ dataDir: %s' % runCluster.daqDataDir
+        if runCluster.daqLogDir is not None:
+            print 'DAQ logDir: %s' % runCluster.daqLogDir
+        print 'Default log level: %s' % runCluster.defaultLogLevel
         for node in runCluster.nodes():
             print '  %s@%s logLevel %s' % \
-                (node.locName(), node.hostName(), node.defaultLogLevel())
+                (node.location, node.hostname, node.defaultLogLevel)
             comps = node.components()
             comps.sort()
             for comp in comps:
-                print '    %s %s' % (str(comp), str(comp.logLevel()))
+                print '    %s %s' % (str(comp), str(comp.logLevel))

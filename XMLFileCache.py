@@ -2,33 +2,13 @@
 
 import os
 
-from xml.dom import minidom
-from DefaultDomGeometry import XMLError
 from DAQConfigExceptions import DAQConfigException
+from xml.dom import minidom
+from xmlparser import XMLBadFileError, XMLError, XMLFormatError
 
 
 class XMLFileCacheException(DAQConfigException):
     pass
-
-
-class XMLFileNotFound(XMLFileCacheException):
-    pass
-
-
-class XMLFileParseError(XMLFileCacheException):
-    pass
-
-
-class XMLData(object):
-    def __init__(self, data, modTime):
-        self.__data = data
-        self.__modTime = modTime
-
-    def data(self):
-        return self.__data
-
-    def modTime(self):
-        return self.__modTime
 
 
 class XMLFileCache(object):
@@ -36,8 +16,8 @@ class XMLFileCache(object):
     CACHE = {}
 
     @staticmethod
-    def buildPath(dir, name):
-        fileName = os.path.join(dir, name)
+    def buildPath(dirname, name):
+        fileName = os.path.join(dirname, name)
         if not fileName.endswith(".xml"):
             fileName += ".xml"
         if not os.path.exists(fileName):
@@ -50,43 +30,42 @@ class XMLFileCache(object):
 
         fileName = cls.buildPath(configDir, cfgName)
         if fileName is None:
-            raise XMLFileNotFound("'%s' not found in directory %s" % \
-                                      (cfgName, configDir))
+            raise XMLBadFileError("'%s' not found in directory %s" % \
+                                  (cfgName, configDir))
 
         try:
             fileStat = os.stat(fileName)
         except OSError:
-            raise XMLFileNotFound(fileName)
+            raise XMLBadFileError(fileName)
 
         # Optimize by looking up pre-parsed configurations:
         if fileName in cls.CACHE:
-            if cls.CACHE[fileName].modTime() == fileStat.st_mtime:
-                return cls.CACHE[fileName].data()
+            if cls.CACHE[fileName][0] == fileStat.st_mtime:
+                return cls.CACHE[fileName][1]
 
         try:
             dom = minidom.parse(fileName)
         except Exception as e:
-            raise XMLFileParseError("Couldn't parse \"%s\": %s" %
-                                    (fileName, str(e)))
+            raise XMLFormatError("Couldn't parse \"%s\": %s" %
+                                 (fileName, str(e)))
         except KeyboardInterrupt:
-            raise XMLFileParseError(("Couldn't parse \"%s\":" +
-                                     " KeyboardInterrupt") % fileName)
+            raise XMLFormatError("Couldn't parse \"%s\": KeyboardInterrupt" %
+                                 fileName)
 
         try:
             data = cls.parse(dom, configDir, cfgName, strict)
         except XMLError:
             from exc_string import exc_string
-            raise XMLFileParseError("%s: %s" % (fileName, exc_string()))
+            raise XMLFormatError("%s: %s" % (fileName, exc_string()))
         except KeyboardInterrupt:
-            raise XMLFileParseError(("Couldn't parse \"%s\":" +
-                                     " KeyboardInterrupt") % fileName)
+            raise XMLFormatError("Couldn't parse \"%s\": KeyboardInterrupt" %
+                                 fileName)
 
-        cls.CACHE[fileName] = XMLData(data, fileStat.st_mtime)
+        cls.CACHE[fileName] = (fileStat.st_mtime, data)
         return data
 
-        return None
 
     @classmethod
     def parse(cls, dom, configDir, fileName, strict=True):
         raise NotImplementedError("parse() method has not been" +
-                                     " implemented for %s" % cls)
+                                  " implemented for %s" % cls)

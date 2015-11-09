@@ -19,77 +19,86 @@ MONILINE_PAT = re.compile(r'^\s+([^:]+):\s+(.*)$')
 TIMEFMT = '%Y-%m-%d %H:%M:%S'
 
 COMP_FIELDS = {
-    'amandaHub':
-        {'moniData': 'RecordsSent',
-         'snData': 'RecordsSent',
-         'tcalData': 'RecordsSent',
-         #'rdoutReq': 'TotalRecordsReceived',
-         'rdoutReq': 'RecordsReceived',
-         'rdoutData': 'RecordsSent'},
-    'stringHub':
-        {'DOM': 'NumHits',
-         'sender': 'NumHitsReceived',
-         'stringHit': 'RecordsSent',
-         'moniData': 'RecordsSent',
-         'snData': 'RecordsSent',
-         'tcalData': 'RecordsSent',
-         #'rdoutReq': 'TotalRecordsReceived',
-         'rdoutReq': 'RecordsReceived',
-         'rdoutData': 'RecordsSent'},
-    'icetopHub':
-        {'DOM': 'NumHits',
-         'sender': 'NumHitsReceived',
-         'icetopHit': 'RecordsSent',
-         'moniData': 'RecordsSent',
-         'snData': 'RecordsSent',
-         'tcalData': 'RecordsSent',
-         # 'rdoutReq': 'TotalRecordsReceived',
-         'rdoutReq': 'RecordsReceived',
-         'rdoutData': 'RecordsSent'},
-    'replayHub':
-        {'DOM': 'NumHits',
-         'sender': 'NumHitsReceived',
-         'stringHit': 'RecordsSent',
-         'moniData': 'RecordsSent',
-         'snData': 'RecordsSent',
-         'tcalData': 'RecordsSent',
-         #'rdoutReq': 'TotalRecordsReceived',
-         'rdoutReq': 'RecordsReceived',
-         'rdoutData': 'RecordsSent'},
-    'inIceTrigger':
-        {  # 'stringHit': 'TotalRecordsReceived',
+    'amandaHub': {
+        'moniData': 'RecordsSent',
+        'snData': 'RecordsSent',
+        'tcalData': 'RecordsSent',
+        #'rdoutReq': 'TotalRecordsReceived',
+        'rdoutReq': 'RecordsReceived',
+        'rdoutData': 'RecordsSent'
+    },
+    'stringHub': {
+        'DOM': 'NumHits',
+        'sender': 'NumHitsReceived',
+        'stringHit': 'RecordsSent',
+        'moniData': 'RecordsSent',
+        'snData': 'RecordsSent',
+        'tcalData': 'RecordsSent',
+        #'rdoutReq': 'TotalRecordsReceived',
+        'rdoutReq': 'RecordsReceived',
+        'rdoutData': 'RecordsSent'
+    },
+    'icetopHub': {
+        'DOM': 'NumHits',
+        'sender': 'NumHitsReceived',
+        'icetopHit': 'RecordsSent',
+        'moniData': 'RecordsSent',
+        'snData': 'RecordsSent',
+        'tcalData': 'RecordsSent',
+        # 'rdoutReq': 'TotalRecordsReceived',
+        'rdoutReq': 'RecordsReceived',
+        'rdoutData': 'RecordsSent'
+    },
+    'replayHub': {
+        'DOM': 'NumHits',
+        'sender': 'NumHitsReceived',
+        'stringHit': 'RecordsSent',
+        'moniData': 'RecordsSent',
+        'snData': 'RecordsSent',
+        'tcalData': 'RecordsSent',
+        #'rdoutReq': 'TotalRecordsReceived',
+        'rdoutReq': 'RecordsReceived',
+        'rdoutData': 'RecordsSent'
+    },
+    'inIceTrigger': {
+        # 'stringHit': 'TotalRecordsReceived',
         'stringHit': 'RecordsReceived',
-        'trigger': 'RecordsSent'},
-    'iceTopTrigger':
-        {  # 'icetopHit': 'TotalRecordsReceived',
+        'trigger': 'RecordsSent'
+    },
+    'iceTopTrigger': {
+        # 'icetopHit': 'TotalRecordsReceived',
         'icetopHit': 'RecordsReceived',
-        'trigger': 'RecordsSent'},
-    'amandaTrigger':
-        {  # 'selfContained': 'TotalRecordsReceived',
+        'trigger': 'RecordsSent'
+    },
+    'amandaTrigger': {
+        # 'selfContained': 'TotalRecordsReceived',
         'selfContained': 'RecordsReceived',
-        'trigger': 'RecordsSent'},
-    'globalTrigger':
-        {  # 'trigger': 'TotalRecordsReceived',
+        'trigger': 'RecordsSent'
+    },
+    'globalTrigger': {
+        # 'trigger': 'TotalRecordsReceived',
         'trigger': 'RecordsReceived',
-        'glblTrig': 'RecordsSent'},
-    'eventBuilder':
-        {  # 'glblTrig': 'TotalRecordsReceived',
+        'glblTrig': 'RecordsSent'
+    },
+    'eventBuilder': {
+        # 'glblTrig': 'TotalRecordsReceived',
         'glblTrig': 'RecordsReceived',
         'rdoutReq': 'RecordsSent',
         # 'rdoutData': 'TotalRecordsReceived',
         'rdoutData': 'RecordsReceived',
-        'backEnd': 'NumEventsSent'},
-    'secondaryBuilders':
-        {  # 'moniData': 'TotalRecordsReceived',
-          'moniData': 'RecordsReceived',
-          'moniBuilder': 'TotalDispatchedData',
-          # 'snData': 'TotalRecordsReceived',
-          'snData': 'RecordsReceived',
-          'snBuilder': 'TotalDispatchedData',
-          # 'tcalData': 'TotalRecordsReceived',
-          'tcalData': 'RecordsReceived',
-          'tcalBuilder': 'TotalDispatchedData',
-          },
+        'backEnd': 'NumEventsSent'
+    },
+    'secondaryBuilders': {
+        # 'moniData': 'TotalRecordsReceived',
+        'moniData': 'RecordsReceived',
+        'moniBuilder': 'TotalDispatchedData',
+        # 'snData': 'TotalRecordsReceived',
+        'snData': 'RecordsReceived',
+        'snBuilder': 'TotalDispatchedData',
+        # 'tcalData': 'TotalRecordsReceived',
+        'tcalData': 'RecordsReceived',
+        'tcalBuilder': 'TotalDispatchedData',
+    },
 }
 
 
@@ -282,7 +291,7 @@ def processFile(fileName, comp):
     else:
         flds = COMP_FIELDS[comp.name]
 
-    sum = Summary()
+    summary = Summary()
 
     secName = None
     secTime = None
@@ -306,7 +315,7 @@ def processFile(fileName, comp):
 
                     if flds is None or \
                         (secName in flds and flds[secName] == name):
-                        sum.add(secName, secTime, vals)
+                        summary.add(secName, secTime, vals)
                     continue
 
             m = MONISEC_PAT.match(line)
@@ -324,39 +333,40 @@ def processFile(fileName, comp):
                 secTime = time.mktime(time.strptime(m.group(2),
                                                     TIMEFMT)) + mSec
 
-                sum.register(secName)
+                summary.register(secName)
 
                 continue
 
             print >>sys.stderr, "Bad line: " + line
 
-    return sum.data()
+    return summary.data()
 
 
 def reportDataRates(allData):
     """Report the DAQ data rates"""
     if not DATA_ONLY:
         print 'Data Rates:'
-    reportList = [('stringHub', 'DOM'),
-                  ('stringHub', 'sender'),
-                  ('stringHub', 'stringHit'),
-                  ('inIceTrigger', 'stringHit'),
-                  ('icetopHub', 'DOM'),
-                  ('icetopHub', 'sender'),
-                  ('icetopHub', 'icetopHit'),
-                  ('iceTopTrigger', 'icetopHit'),
-                  ('amandaTrigger', 'selfContained'),
-                  ('amandaTrigger', 'trigger'), ('inIceTrigger', 'trigger'),
-                  ('iceTopTrigger', 'trigger'),
-                  ('globalTrigger', 'trigger'), ('globalTrigger', 'glblTrig'),
-                  ('eventBuilder', 'glblTrig'), ('eventBuilder', 'rdoutReq'),
-                  ('amandaHub', 'rdoutReq'), ('stringHub', 'rdoutReq'),
-                  ('icetopHub', 'rdoutReq'),
-                  ('amandaHub', 'rdoutData'), ('stringHub', 'rdoutData'),
-                  ('icetopHub', 'rdoutData'),
-                  ('eventBuilder', 'rdoutData'),
-                  ('eventBuilder', 'backEnd')
-                  ]
+    reportList = [
+        ('stringHub', 'DOM'),
+        ('stringHub', 'sender'),
+        ('stringHub', 'stringHit'),
+        ('inIceTrigger', 'stringHit'),
+        ('icetopHub', 'DOM'),
+        ('icetopHub', 'sender'),
+        ('icetopHub', 'icetopHit'),
+        ('iceTopTrigger', 'icetopHit'),
+        ('amandaTrigger', 'selfContained'),
+        ('amandaTrigger', 'trigger'), ('inIceTrigger', 'trigger'),
+        ('iceTopTrigger', 'trigger'),
+        ('globalTrigger', 'trigger'), ('globalTrigger', 'glblTrig'),
+        ('eventBuilder', 'glblTrig'), ('eventBuilder', 'rdoutReq'),
+        ('amandaHub', 'rdoutReq'), ('stringHub', 'rdoutReq'),
+        ('icetopHub', 'rdoutReq'),
+        ('amandaHub', 'rdoutData'), ('stringHub', 'rdoutData'),
+        ('icetopHub', 'rdoutData'),
+        ('eventBuilder', 'rdoutData'),
+        ('eventBuilder', 'backEnd')
+    ]
     reportRatesInternal(allData, reportList)
 
 

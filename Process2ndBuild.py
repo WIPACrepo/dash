@@ -53,7 +53,8 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
     if len(filesToTar) == 0:
         return False
 
-    if verbose: print "Found %d files" % len(filesToTar)
+    if verbose:
+        print "Found %d files" % len(filesToTar)
     t = datetime.datetime.now()
     dateTag = "%03d_%04d%02d%02d_%02d%02d%02d_%06d" % \
         (0, t.year, t.month, t.day, t.hour, t.minute, t.second, 0)
@@ -63,7 +64,6 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
     snLink = front + ".sn.tar"
     moniSem = front + ".msem"
     spadeSem = front + ".sem"
-    extraLink = front + ".save.tar"
 
     # Duplicate file: wait for a new second, recalculate everything:
     if os.path.exists(spadeTar):
@@ -72,7 +72,8 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
 
     # Create temporary tarball
     tmpTar = "tmp-" + dateTag + ".tar"
-    if verbose: print "Creating temporary tarball"
+    if verbose:
+        print "Creating temporary tarball"
     try:
         if not dryRun: tarball = tarfile.open(tmpTar, "w")
         for toAdd in filesToTar:
@@ -82,38 +83,45 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
     except:
         os.unlink(tmpTar)
         raise
-    if verbose: print "Done."
+    if verbose:
+        print "Done."
 
     # Rename temporary tarball to SPADE name
-    if verbose: print "Renaming temporary tarball to %s" % spadeTar
-    if not dryRun: os.rename(tmpTar, spadeTar)
+    if verbose:
+        print "Renaming temporary tarball to %s" % spadeTar
+    if not dryRun:
+        os.rename(tmpTar, spadeTar)
 
     # Create moni hard link
-    if verbose: print "MoniLink %s" % moniLink
-    if not dryRun: os.link(spadeTar, moniLink)
+    if verbose:
+        print "MoniLink %s" % moniLink
+    if not dryRun:
+        os.link(spadeTar, moniLink)
 
     # Create sn hard link
-    if verbose: print "SNLink %s" % snLink
-    if not dryRun: os.link(spadeTar, snLink)
-    # So that SN process can delete if it's not running as pdaq
-    if not dryRun: os.chmod(snLink, 0666)
-
-    # Create extra hard link
-    if verbose: print "ExtraLink %s" % extraLink
-    if not dryRun: os.link(spadeTar, extraLink)
+    if verbose:
+        print "SNLink %s" % snLink
+    if not dryRun:
+        os.link(spadeTar, snLink)
+        # So that SN process can delete if it's not running as pdaq
+        os.chmod(snLink, 0666)
 
     # Create spade .sem
-    if not dryRun: f = open(spadeSem, "w")
-    if not dryRun: f.close()
+    if not dryRun:
+        f = open(spadeSem, "w")
+        f.close()
 
     # Create monitoring .msem
-    if not dryRun: f = open(moniSem, "w")
-    if not dryRun: f.close()
+    if not dryRun:
+        f = open(moniSem, "w")
+        f.close()
 
     # Clean up tar'ed files
     for toAdd in filesToTar:
-        if verbose: print "Removing %s..." % toAdd
-        if not dryRun: os.unlink(toAdd)
+        if verbose:
+            print "Removing %s..." % toAdd
+        if not dryRun:
+            os.unlink(toAdd)
 
     return True
 
@@ -140,7 +148,7 @@ def main(spadeDir, verbose=False, dryRun=False):
 
 
 if __name__ == "__main__":
-    import optparse
+    import argparse
     import sys
 
     from ClusterDescription import ClusterDescription
@@ -149,24 +157,24 @@ if __name__ == "__main__":
     if checkForRunningProcesses(os.path.basename(sys.argv[0])):
         raise SystemExit
 
-    op = optparse.OptionParser()
-    op.add_option("-d", "--spadedir", dest="spadedir",
-                  action="store", default=None,
-                  help="SPADE directory")
-    op.add_option("-n", "--dry-run", dest="dryRun",
-                  action="store_true", default=False,
-                  help="Do not actually do anything")
-    op.add_option("-q", "--quiet", dest="verbose",
-                  action="store_false", default=True,
-                  help="Do not print log of actions to console")
-    op.add_option("-v", "--verbose", dest="verbose",
-                  action="store_true", default=True,
-                  help="Print log of actions to console (default)")
+    op = argparse.ArgumentParser()
+    op.add_argument("-d", "--spadedir", dest="spadedir",
+                    action="store", default=None,
+                    help="SPADE directory")
+    op.add_argument("-n", "--dry-run", dest="dryRun",
+                    action="store_true", default=False,
+                    help="Do not actually do anything")
+    op.add_argument("-q", "--quiet", dest="verbose",
+                    action="store_false", default=False,
+                    help="Do not print log of actions to console")
+    op.add_argument("-v", "--verbose", dest="verbose",
+                    action="store_true", default=False,
+                    help="Print log of actions to console (default)")
 
-    opt, args = op.parse_args()
+    args = op.parse_args()
 
-    if opt.spadedir is None:
+    if args.spadedir is None:
         cluster = ClusterDescription()
-        spadeDir = cluster.logDirForSpade()
+        spadeDir = cluster.logDirForSpade
 
-    main(spadeDir, verbose=opt.verbose, dryRun=opt.dryRun)
+    main(spadeDir, verbose=args.verbose, dryRun=args.dryRun)

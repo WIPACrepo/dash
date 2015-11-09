@@ -1,26 +1,26 @@
 #!/usr/bin/env python
 
-import optparse
 import socket
-import sys
 
-from os import environ
-from os.path import join
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from LiveImports import SERVICE_NAME
-from locate_pdaq import find_pdaq_trunk
 from utils.Machineid import Machineid
 
 
-# add meta-project python dir to Python library search path
-metaDir = find_pdaq_trunk()
-sys.path.append(join(metaDir, 'src', 'main', 'python'))
-from SVNVersionInfo import get_version_info
-
-SVN_ID = "$Id: DAQStatus.py 13974 2012-10-24 17:09:53Z dglo $"
-
 LINE_LENGTH = 78
+
+
+def add_arguments(parser):
+    parser.add_argument("-m", "--no-host-check", dest="nohostcheck",
+                        action="store_true", default=False,
+                        help="Don't check the host type for run permission")
+    parser.add_argument("-n", "--numeric", dest="numeric",
+                        action="store_true", default=False,
+                        help="Show IP addresses instead of hostnames")
+    parser.add_argument("-v", "--verbose", dest="verbose",
+                        action="store_true", default=False,
+                        help="Print detailed list")
 
 
 def cmpComp(x, y):
@@ -132,58 +132,46 @@ def listVerbose(compList, indent, indent2, useNumeric=True):
 
     for c in compList:
         if useNumeric:
-            hostName = c["host"]
+            hostname = c["host"]
         else:
-            hostName = socket.getfqdn(c["host"])
-            idx = hostName.find(".")
+            hostname = socket.getfqdn(c["host"])
+            idx = hostname.find(".")
             if idx > 0:
-                hostName = hostName[:idx]
+                hostname = hostname[:idx]
 
         print "%s%s#%d %s#%d at %s:%d M#%d %s" % \
-            (indent, indent2, c["id"], c["compName"], c["compNum"], hostName,
+            (indent, indent2, c["id"], c["compName"], c["compNum"], hostname,
              c["rpcPort"], c["mbeanPort"], c["state"])
 
-if __name__ == "__main__":
-    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s " \
-               "%(release)s %(repo_rev)s" % get_version_info(SVN_ID)
-    usage = "%prog [options]\nversion: " + ver_info
-    p = optparse.OptionParser(usage=usage, version=ver_info)
 
-    p.add_option("-n", "--numeric", dest="numeric",
-                 action="store_true", default=False,
-                 help="Verbose listing uses IP addresses instead of hostnames")
-    p.add_option("-v", "--verbose", dest="verbose",
-                 action="store_true", default=False,
-                 help="Print detailed list")
-    p.add_option("-m", "--no-host-check", dest="nohostcheck", default=False,
-                 help="Disable checking the host type for run permission")
-    opt, args = p.parse_args()
-
-    if not opt.nohostcheck:
-        hostid = Machineid()
-        if(not (hostid.is_control_host() or
-           (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
-            # to run daq launch you should either be a control host or
-            # a totally unknown host
-            print >>sys.stderr, \
-                "Are you sure you are running DAQStatus on the right host?"
-            raise SystemExit
-
+def print_status(args):
     cncrpc = RPCClient("localhost", DAQPort.CNCSERVER)
 
     try:
         nc = cncrpc.rpc_component_count()
+    except:
+        nc = 0
+
+    try:
         lc = cncrpc.rpc_component_list_dicts([], False)
+    except:
+        lc = []
+
+    try:
         ns = cncrpc.rpc_runset_count()
+    except:
+        ns = 0
+
+    try:
         ids = cncrpc.rpc_runset_list_ids()
+    except:
+        ids = []
+
+    try:
         versInfo = cncrpc.rpc_version()
         vers = " (%s:%s)" % (versInfo["release"], versInfo["repo_rev"])
     except:
-        nc = 0
-        lc = []
-        ns = 0
-        ids = []
-        vers = ""
+        vers = " ??"
 
     print "CNC %s:%d%s" % ("localhost", DAQPort.CNCSERVER, vers)
 
@@ -196,8 +184,8 @@ if __name__ == "__main__":
 
     print "======================="
     print "%d unused component%s" % (nc, getPlural(nc))
-    if opt.verbose:
-        listVerbose(lc, indent, indent2, opt.numeric)
+    if args.verbose:
+        listVerbose(lc, indent, indent2, args.numeric)
     else:
         listTerse(lc, indent, indent2)
 
@@ -207,8 +195,8 @@ if __name__ == "__main__":
         cfg = cncrpc.rpc_runset_configname(runid)
         ls = cncrpc.rpc_runset_list(runid)
         print "%sRunSet#%d (%s)" % (indent, runid, cfg)
-        if opt.verbose:
-            listVerbose(ls, indent, indent2, opt.numeric)
+        if args.verbose:
+            listVerbose(ls, indent, indent2, args.numeric)
         else:
             listTerse(ls, indent, indent2)
 
@@ -223,3 +211,22 @@ if __name__ == "__main__":
     print "DAQLive %s:%d" % ("localhost", DAQPort.DAQLIVE)
     print "======================="
     print "Status: %s" % lst
+
+
+if __name__ == "__main__":
+    import argparse
+
+    p = argparse.ArgumentParser()
+
+    add_arguments(p)
+    ns = p.parse_args()
+
+    if not args.nohostcheck:
+        # exit if not running on expcont
+        hostid = Machineid()
+        if (not (hostid.is_control_host() or
+                 (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+            raise SystemExit("Are you sure you are checking status"
+                             " on the correct host?" )
+
+    print_status(ns)

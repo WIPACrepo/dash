@@ -17,8 +17,8 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         pass
 
     def testGood(self):
-        rptTimer = MockIntervalTimer("ActiveReport")
-        domTimer = MockIntervalTimer("ActiveDOM")
+        rptTimer = MockIntervalTimer(ActiveDOMsTask.REPORT_NAME)
+        domTimer = MockIntervalTimer(ActiveDOMsTask.NAME)
 
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(rptTimer)
@@ -47,6 +47,7 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         data = {
             "activeDOMs": numActive,
             "expectedDOMs": numTotal,
+            "missingDOMs": numTotal - numActive,
             "total_rate": hit_rate,
             "total_ratelc": hit_rate_lc,
         }
@@ -75,8 +76,9 @@ class ActiveDOMsTaskTest(unittest.TestCase):
                          Prio.EMAIL)
         live.addExpected("LBMOverflows", {'1': numLBM},
                          Prio.ITS)
-        live.addExpected("activeDOMs", numActive,  Prio.ITS)
-        live.addExpected("expectedDOMs", numTotal,  Prio.ITS)
+        live.addExpected("activeDOMs", numActive, Prio.ITS)
+        live.addExpected("expectedDOMs", numTotal, Prio.ITS)
+        live.addExpected("missingDOMs", numTotal - numActive, Prio.ITS)
         live.addExpected("total_rate", hit_rate, Prio.ITS)
         live.addExpected("total_ratelc", hit_rate_lc, Prio.ITS)
 
@@ -94,8 +96,8 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         tsk.close()
 
     def testNoLive(self):
-        rptTimer = MockIntervalTimer("ActiveReport")
-        domTimer = MockIntervalTimer("ActiveDOM")
+        rptTimer = MockIntervalTimer(ActiveDOMsTask.REPORT_NAME)
+        domTimer = MockIntervalTimer(ActiveDOMsTask.NAME)
 
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(rptTimer)
@@ -146,8 +148,8 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         tsk.close()
 
     def testFail(self):
-        rptTimer = MockIntervalTimer("ActiveReport")
-        domTimer = MockIntervalTimer("ActiveDOM")
+        rptTimer = MockIntervalTimer(ActiveDOMsTask.REPORT_NAME)
+        domTimer = MockIntervalTimer(ActiveDOMsTask.NAME)
 
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(rptTimer)
@@ -173,8 +175,9 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
         tsk = ActiveDOMsTask(taskMgr, runset, logger, live)
 
-        live.addExpected("activeDOMs", numActive,  Prio.EMAIL)
-        live.addExpected("expectedDOMs", numTotal,  Prio.EMAIL)
+        live.addExpected("activeDOMs", numActive, Prio.EMAIL)
+        live.addExpected("expectedDOMs", numTotal, Prio.EMAIL)
+        live.addExpected("missingDOMs", numTotal - numActive, Prio.EMAIL)
         live.addExpected("total_rate", hit_rate, Prio.EMAIL)
         live.addExpected("total_ratelc", hit_rate_lc, Prio.EMAIL)
 
@@ -201,12 +204,9 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         foo.setBeanData("stringhub", "NumberOfActiveAndTotalChannels",
                         Exception("Simulated error"))
 
-        errMsg = "Cannot get ActiveDomsTask bean data from %s: .*" % \
-                 foo.fullName()
-        logger.addExpectedRegexp(errMsg)
-
-        live.addExpected("activeDOMs", numActive,  Prio.ITS)
-        live.addExpected("expectedDOMs", numTotal,  Prio.ITS)
+        live.addExpected("activeDOMs", numActive, Prio.ITS)
+        live.addExpected("expectedDOMs", numTotal, Prio.ITS)
+        live.addExpected("missingDOMs", numTotal - numActive, Prio.EMAIL)
         live.addExpected("total_rate", hit_rate, Prio.ITS)
         live.addExpected("total_ratelc", hit_rate_lc, Prio.ITS)
 

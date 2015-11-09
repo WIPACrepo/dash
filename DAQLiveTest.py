@@ -60,6 +60,7 @@ class MockRunSet(object):
 
         self.__stopReturn = True
 
+    @property
     def state(self):
         return self.__state
 
@@ -543,7 +544,7 @@ class DAQLiveTest(unittest.TestCase):
         self.failUnless(live.starting(state), "starting failed")
 
         exc = LiveException("%s is not running (state = %s)" %
-                            (runSet, runSet.state()))
+                            (runSet, runSet.state))
         self.assertRaisesMsg(exc, live.running)
 
     def testRunning(self):

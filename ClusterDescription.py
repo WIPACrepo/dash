@@ -9,217 +9,253 @@ from xml.dom import minidom, Node
 
 from Component import Component
 from locate_pdaq import find_pdaq_config
-
-
-class XMLError(Exception):
-    pass
-
-
-class XMLFileDoesNotExist(XMLError):
-    pass
-
-
-class XMLFormatError(XMLError):
-    pass
+from xmlparser import XMLBadFileError, XMLFormatError, XMLParser
 
 
 class ClusterDescriptionFormatError(XMLFormatError):
     pass
 
 
-class ConfigXMLBase(object):
+class ConfigXMLBase(XMLParser):
     def __init__(self, configDir, configName, suffix='.xml'):
-        fileName = os.path.join(configDir, configName)
-        if not configName.endswith(suffix):
-            fileName += suffix
-        else:
+        fileName = self.buildPath(configDir, configName, suffix=suffix)
+        if not os.path.exists(configDir):
+            raise XMLBadFileError("Config directory \"%s\" does not exist" %
+                                  configDir)
+        if fileName is None:
+            raise XMLBadFileError('Cannot find "%s" in "%s"' %
+                                  (configName, configDir))
+        if configName.endswith(suffix):
             configName = configName[:-len(suffix)]
-        if not os.path.exists(fileName):
-            path = os.path.join(configDir, fileName)
-            if not os.path.exists(path):
-                raise XMLFileDoesNotExist('File "%s" does not exist' % fileName)
 
-        self.__loadXML(fileName)
+        self.__load_xml(fileName)
 
         self.__path = fileName
         self.__mtime = os.stat(self.__path).st_mtime
         self.__configName = configName
 
-    def __loadXML(self, path):
+    def __load_xml(self, path):
         try:
             dom = minidom.parse(path)
-        except Exception as e:
-            raise XMLFormatError('%s: %s' % (path, str(e)))
+        except Exception as exc:
+            raise XMLFormatError('%s: %s' % (path, str(exc)))
 
         self.extractFrom(dom)
 
+    @property
     def configName(self):
         return self.__configName
 
     def extractFrom(self, dom):
         raise NotImplementedError('extractFrom method is not implemented')
 
-    @staticmethod
-    def getNodeName(node):
-        nodeName = '<%s>' % str(node.nodeName)
-        if nodeName == '<#document>':
-            nodeName = 'top-level'
-        return nodeName
-
-    @staticmethod
-    def getChildText(node):
-        if node.childNodes is None or len(node.childNodes) == 0:
-            raise XMLFormatError('No %s child nodes' %
-                                 ConfigXMLBase.getNodeName(node))
-
-        text = None
-        for kid in node.childNodes:
-            if kid.nodeType == Node.TEXT_NODE:
-                if text is not None:
-                    raise XMLFormatError('Found multiple text nodes under %s' %
-                                         ConfigXMLBase.getNodeName(node))
-
-                text = kid.nodeValue
-                continue
-
-        if text is None:
-            raise XMLFormatError('No text node for %s' %
-                                 ConfigXMLBase.getNodeName(node))
-
-        return text
-
-    @classmethod
-    def getValue(cls, node, name, defaultVal=None):
-        if node.attributes is not None and \
-                node.attributes.has_key(name):
-            # return named attribute value
-            return node.attributes[name].value
-
-        kids = node.getElementsByTagName(name)
-        if len(kids) < 1:
-            # if no named attribute or node, return default value
-            return defaultVal
-
-        if len(kids) > 1:
-            raise XMLFormatError('Multiple <%s> nodes found' % name)
-
-        try:
-            return cls.getChildText(kids[0])
-        except:
-            return defaultVal
-
     def loadIfChanged(self):
         new_mtime = os.stat(self.__path).st_mtime
         if new_mtime == self.__mtime:
             return False
 
-        self.__loadXML(self.__path)
+        self.__load_xml(self.__path)
 
         self.__mtime = new_mtime
 
         return True
 
 
-class ControlComponent(Component):
-    def __init__(self):
-        super(ControlComponent, self).__init__("CnCServer", 0, None)
+class JVMArgs(object):
+    def __init__(self, path, isServer, heapInit, heapMax, args, extraArgs):
+        self.__path = path
+        self.__is_server = isServer
+        self.__heap_init = heapInit
+        self.__heap_max = heapMax
+        self.__args = args
+        self.__extra_args = extraArgs
 
     def __str__(self):
-        return self.name()
+        outstr = None
+        if self.__path is None:
+            outstr = "?"
+        else:
+            outstr = self.__path
 
+        if self.__is_server is not None and not self.__is_server:
+            outstr += " !server"
+
+        if self.__heap_init is not None:
+            outstr += " ms=" + self.__heap_init
+        if self.__heap_max is not None:
+            outstr += " mx=" + self.__heap_max
+
+        if self.__args is not None:
+            outstr += " | " + self.__args
+
+        if self.__extra_args is not None:
+            outstr += " | " + self.__extra_args
+
+        return outstr
+
+    def args(self):
+        return self.__args
+
+    def extraArgs(self):
+        return self.__extra_args
+
+    def heapInit(self):
+        return self.__heap_init
+
+    def heapMax(self):
+        return self.__heap_max
+
+    def isServer(self):
+        return self.__is_server
+
+    def path(self):
+        return self.__path
+
+
+class JVMComponent(Component):
+    def __init__(self, name, num, path, isServer, heapInit, heapMax, args,
+                 extraArgs, logLevel=None):
+        super(JVMComponent, self).__init__(name, num, logLevel=logLevel)
+
+        self.__jvm = JVMArgs(path, isServer, heapInit, heapMax, args, extraArgs)
+
+    @property
+    def jvmArgs(self):
+        return self.__jvm.args()
+
+    @property
+    def jvmExtraArgs(self):
+        return self.__jvm.extraArgs()
+
+    @property
+    def jvmHeapInit(self):
+        return self.__jvm.heapInit()
+
+    @property
+    def jvmHeapMax(self):
+        return self.__jvm.heapMax()
+
+    @property
+    def jvmPath(self):
+        return self.__jvm.path()
+
+    @property
+    def jvmServer(self):
+        return self.__jvm.isServer()
+
+    @property
+    def jvmStr(self):
+        return str(self.__jvm)
+
+class ControlComponent(JVMComponent):
+    def __init__(self):
+        super(ControlComponent, self).__init__("CnCServer", 0, None, None, None,
+                                               None, None, None)
+
+    def __str__(self):
+        return self.name
+
+    @property
     def isControlServer(self):
         return True
 
+    @property
     def isSimHub(self):
         return False
 
-    def jvm(self):
-        return None
-
-    def jvmArgs(self):
-        return None
-
+    @property
     def required(self):
         return True
 
 
-class ClusterComponent(Component):
-    def __init__(self, name, num, logLevel, jvm, jvmArgs, required):
-        self.__jvm = jvm
-        self.__jvmArgs = jvmArgs
+class ClusterComponent(JVMComponent):
+    def __init__(self, name, num, logLevel, jvmPath, jvmServer, jvmHeapInit,
+                 jvmHeapMax, jvmArgs, jvmExtraArgs, required):
         self.__required = required
 
-        super(ClusterComponent, self).__init__(name, num, logLevel)
+        super(ClusterComponent, self).__init__(name, num, jvmPath, jvmServer,
+                                               jvmHeapInit, jvmHeapMax, jvmArgs,
+                                               jvmExtraArgs, logLevel=logLevel)
 
     def __str__(self):
-        if self.__jvm is None:
-            if self.__jvmArgs is None:
-                jStr = "?"
-            else:
-                jStr = "? | %s" % self.__jvmArgs
-        else:
-            if self.__jvmArgs is None:
-                jStr = self.__jvm
-            else:
-                jStr = "%s | %s" % (self.__jvm, self.__jvmArgs)
-
         if self.__required:
             rStr = " REQUIRED"
         else:
             rStr = ""
 
         return "%s@%s(%s)%s" % \
-            (self.fullName(), str(self.logLevel()), jStr, rStr)
+            (self.fullname, str(self.logLevel), self.jvmStr, rStr)
 
+    @property
     def isControlServer(self):
         return False
 
+    @property
     def isSimHub(self):
         return False
 
-    def jvm(self):
-        return self.__jvm
-
-    def jvmArgs(self):
-        return self.__jvmArgs
-
+    @property
     def required(self):
         return self.__required
 
 
 class ClusterSimHub(ClusterComponent):
     def __init__(self, host, number, priority, ifUnused):
-        self.host = host
-        self.number = number
-        self.priority = priority
-        self.ifUnused = ifUnused
+        self.__host = host
+        self.__number = number
+        self.__priority = priority
+        self.__ifUnused = ifUnused
 
-        super(ClusterSimHub, self).__init__("SimHub", 0, None, None, None,
-                                            False)
+        super(ClusterSimHub, self).__init__("SimHub", 0, None, None, False,
+                                            None, None, None, None, False)
 
     def __str__(self):
-        if self.ifUnused:
+        if self.__ifUnused:
             uStr = "(ifUnused)"
         else:
             uStr = ""
-        return "%s*%d^%d%s" % (self.host, self.number, self.priority, uStr)
+        return "%s*%d^%d%s" % \
+            (self.__host, self.__number, self.__priority, uStr)
 
+    @property
+    def host(self):
+        return self.__host
+
+    @property
+    def ifUnused(self):
+        return self.__ifUnused
+
+    @property
     def isSimHub(self):
         return True
+
+    @property
+    def number(self):
+        return self.__number
+
+    @property
+    def priority(self):
+        return self.__priority
 
 
 class ClusterHost(object):
     def __init__(self, name):
         self.name = name
         self.compMap = {}
-        self.simHub = None
+        self.simHubs = None
         self.ctlServer = False
+
+    def __cmp__(self, other):
+        return cmp(self.name, str(other))
 
     def __str__(self):
         return self.name
 
-    def addComponent(self, name, num, logLevel, jvm, jvmArgs, required):
-        comp = ClusterComponent(name, num, logLevel, jvm, jvmArgs, required)
+    def addComponent(self, name, num, logLevel, jvmPath, jvmServer, jvmHeapInit,
+                     jvmHeapMax, jvmArgs, jvmExtraArgs, required=False):
+        comp = ClusterComponent(name, num, logLevel, jvmPath, jvmServer,
+                                jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtraArgs,
+                                required)
 
         compKey = str(comp)
         if compKey in self.compMap:
@@ -228,42 +264,49 @@ class ClusterHost(object):
             raise ClusterDescriptionFormatError(errMsg)
         self.compMap[compKey] = comp
 
-    def addSimulatedHub(self, simHub):
-        if self.simHub is not None:
-            errMsg = 'Multiple <simulatedHub> nodes for %s' % self.name
-            raise ClusterDescriptionFormatError(errMsg)
-        self.simHub = simHub
+    def addSimulatedHub(self, host, num, prio, ifUnused):
+        newHub = ClusterSimHub(host, num, prio, ifUnused)
 
-    def dump(self, prefix=None):
+        if self.simHubs is None:
+            self.simHubs = []
+        for sh in self.simHubs:
+            if prio == sh.priority:
+                errMsg = 'Multiple <simulatedHub> nodes at prio %d for %s' % \
+                         (prio, self.name)
+                raise ClusterDescriptionFormatError(errMsg)
+        self.simHubs.append(newHub)
+
+    def dump(self, fd=None, prefix=None):
+        if fd is None:
+            fd = sys.stdout
         if prefix is None:
             prefix = ""
 
-        print "%sHost %s:" % (prefix, self.name)
+        print >>fd, "%sHost %s:" % (prefix, self.name)
 
         cKeys = self.compMap.keys()
         cKeys.sort()
 
         for key in cKeys:
             comp = self.compMap[key]
-            print "%s  Comp %s" % (prefix, str(comp))
+            print >>fd, "%s  Comp %s" % (prefix, str(comp))
 
-        if self.simHub is not None:
-            if self.simHub.ifUnused:
-                uStr = " (ifUnused)"
-            else:
-                uStr = ""
-            print "%s  SimHub*%d prio %d%s" % \
-                (prefix, self.simHub.number, self.simHub.priority, uStr)
+        if self.simHubs is not None:
+            for sh in self.simHubs:
+                if sh.ifUnused:
+                    uStr = " (ifUnused)"
+                else:
+                    uStr = ""
+                print >>fd, "%s  SimHub*%d prio %d%s" % \
+                    (prefix, sh.number, sh.priority, uStr)
 
         if self.ctlServer:
-            print "%s  ControlServer" % prefix
+            print >>fd, "%s  ControlServer" % prefix
 
     def getComponents(self):
         return self.compMap.values()
 
-    def getSimulatedHub(self):
-        return self.simHub
-
+    @property
     def isControlServer(self):
         return self.ctlServer
 
@@ -275,8 +318,7 @@ class ClusterDefaults(object):
     def __init__(self):
         self.Components = {}
         self.LogLevel = ClusterDescription.DEFAULT_LOG_LEVEL
-        self.JVM = None
-        self.JVMArgs = None
+        self.JVM = JVMArgs(None, None, None, None, None, None)
 
     def __str__(self):
         if not self.Components:
@@ -285,7 +327,7 @@ class ClusterDefaults(object):
             cstr = ", " + str(self.Components)
 
         return "ClusterDefaults[logLvl %s, jvm %s, args %s%s]" % \
-            (self.LogLevel, self.JVM, self.JVMArgs, cstr)
+            (self.LogLevel, self.JVM, cstr)
 
 
 class ClusterDescription(ConfigXMLBase):
@@ -311,19 +353,17 @@ class ClusterDescription(ConfigXMLBase):
     def __init__(self, configDir=None, configName=None, suffix='.cfg'):
 
         self.name = None
-        self.__hostMap = None
-        self.__compToHost = None
+        self.__host_map = None
+        self.__defaults = None
 
-        self.__logDirForSpade = None
-        self.__logDirCopies = None
-        self.__daqDataDir = None
-        self.__daqLogDir = None
-        self.__pkgStageDir = None
-        self.__pkgInstallDir = None
-        self.__defaultLogLevel = self.DEFAULT_LOG_LEVEL
-        self.__defaultJVM = None
-        self.__defaultJVMArgs = None
-        self.__defaultComponent = None
+        self.__spade_log_dir = None
+        self.__log_dir_copies = None
+        self.__daq_data_dir = None
+        self.__daq_log_dir = None
+        self.__pkg_stage_dir = None
+        self.__pkg_install_dir = None
+        self.__default_log_level = self.DEFAULT_LOG_LEVEL
+        self.__default_jvm = JVMArgs(None, None, None, None, None, None)
 
         if configName is None:
             configName = self.getClusterFromHostName()
@@ -334,7 +374,7 @@ class ClusterDescription(ConfigXMLBase):
         try:
             super(ClusterDescription, self).__init__(configDir, configName,
                                                      suffix)
-        except XMLFileDoesNotExist:
+        except XMLBadFileError:
             saved_ex = sys.exc_info()
 
             if not configName.endswith('.cfg'):
@@ -348,14 +388,14 @@ class ClusterDescription(ConfigXMLBase):
             try:
                 super(ClusterDescription, self).__init__(configDir, retryName,
                                                          suffix)
-            except XMLFileDoesNotExist:
+            except XMLBadFileError:
                 raise saved_ex[0], saved_ex[1], saved_ex[2]
 
     def __str__(self):
         return self.name
 
     @classmethod
-    def __findDefault(cls, defaults, compName, valName):
+    def __find_default(cls, defaults, compName, valName):
         if compName is not None and \
                 defaults.Components is not None and \
                 compName in defaults.Components and \
@@ -364,16 +404,24 @@ class ClusterDescription(ConfigXMLBase):
 
         if valName == 'logLevel':
             return defaults.LogLevel
-        elif valName == 'jvm':
-            return defaults.JVM
+        elif valName == 'jvmPath':
+            return defaults.JVM.path()
+        elif valName == 'jvmServer':
+            return defaults.JVM.isServer()
+        elif valName == 'jvmHeapInit':
+            return defaults.JVM.heapInit()
+        elif valName == 'jvmHeapMax':
+            return defaults.JVM.heapMax()
         elif valName == 'jvmArgs':
-            return defaults.JVMArgs
+            return defaults.JVM.args()
+        elif valName == 'jvmExtraArgs':
+            return defaults.JVM.extraArgs()
 
         return None
 
     @classmethod
-    def ___parseComponentNode(cls, clusterName, defaults, host, node):
-        "Parse a <component> node from a run cluster description file"
+    def ___parse_component_node(cls, clusterName, defaults, host, node):
+        "Parse a <component> node from a cluster configuration file"
         name = cls.getValue(node, 'name')
         if name is None:
             errMsg = ('Cluster "%s" host "%s" has <component> node' +
@@ -390,101 +438,110 @@ class ClusterDescription(ConfigXMLBase):
             raise ClusterDescriptionFormatError(errMsg)
 
         reqStr = cls.getValue(node, 'required')
-
-        required = False
-        if reqStr is not None:
-            reqStr = reqStr.lower()
-            if reqStr == 'true' or reqStr == '1' or reqStr == 'on':
-                required = True
+        required = cls.parseBooleanString(reqStr) == True
 
         logLvl = cls.getValue(node, 'logLevel')
         if logLvl is None:
-            logLvl = cls.__findDefault(defaults, name, 'logLevel')
+            logLvl = cls.__find_default(defaults, name, 'logLevel')
 
-        jvm = cls.getValue(node, 'jvm')
-        if jvm is not None:
-            jvm = os.path.expanduser(jvm)
-        else:
-            jvm = cls.__findDefault(defaults, name, 'jvm')
+        (jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtraArgs) = \
+             cls.__parse_jvm_nodes(name, node)
 
-        jvmArgs = cls.getValue(node, 'jvmArgs')
+        # fill in default values for all unspecified JVM quantities
+        if jvmPath is None:
+            jvmPath = cls.__find_default(defaults, name, 'jvmPath')
+        if jvmServer is None:
+            jvmServer = cls.__find_default(defaults, name, 'jvmServer')
+        if jvmHeapInit is None:
+            jvmHeapInit = cls.__find_default(defaults, name, 'jvmHeapInit')
+        if jvmHeapMax is None:
+            jvmHeapMax = cls.__find_default(defaults, name, 'jvmHeapMax')
         if jvmArgs is None:
-            jvmArgs = cls.__findDefault(defaults, name, 'jvmArgs')
+            jvmArgs = cls.__find_default(defaults, name, 'jvmArgs')
+        if jvmExtraArgs is None:
+            jvmExtraArgs = cls.__find_default(defaults, name, 'jvmExtraArgs')
 
-        host.addComponent(name, num, logLvl, jvm, jvmArgs, required)
+        host.addComponent(name, num, logLvl, jvmPath, jvmServer, jvmHeapInit,
+                          jvmHeapMax, jvmArgs, jvmExtraArgs, required=required)
 
-    def __parseDefaultNodes(self, defaults, node):
+    def __parse_default_nodes(self, cluName, defaults, node):
+        """load JVM defaults"""
+        (path, isServer, heapInit, heapMax, args, extraArgs) = \
+            self.__parse_jvm_nodes(cluName, node)
+        defaults.JVM = JVMArgs(path, isServer, heapInit, heapMax, args,
+                               extraArgs)
+
         for kid in node.childNodes:
             if kid.nodeType != Node.ELEMENT_NODE:
                 continue
 
             if kid.nodeName == 'logLevel':
                 defaults.LogLevel = self.getChildText(kid)
-            elif kid.nodeName == 'jvm':
-                defaults.JVM = self.getChildText(kid)
-                if(defaults.JVM is not None):
-                    defaults.JVM = os.path.expanduser(defaults.JVM)
-            elif kid.nodeName == 'jvmArgs':
-                defaults.JVMArgs = self.getChildText(kid)
             elif kid.nodeName == 'component':
                 name = self.getValue(kid, 'name')
                 if name is None:
                     errMsg = ('Cluster "%s" default section has <component>' +
-                              ' node without "name" attribute') % self.name
+                              ' node without "name" attribute') % cluName
                     raise ClusterDescriptionFormatError(errMsg)
 
                 if not name in defaults.Components:
                     defaults.Components[name] = {}
 
+                (path, isServer, heapInit, heapMax, args, extraArgs) = \
+                    self.__parse_jvm_nodes(name, kid)
+                if path is not None:
+                    defaults.Components[name]['jvmPath'] = path
+                if isServer is not None:
+                    defaults.Components[name]['jvmServer'] = isServer
+                if heapInit is not None:
+                    defaults.Components[name]['jvmHeapInit'] = heapInit
+                if heapMax is not None:
+                    defaults.Components[name]['jvmHeapMax'] = heapMax
+                if args is not None:
+                    defaults.Components[name]['jvmArgs'] = args
+                if extraArgs is not None:
+                    defaults.Components[name]['jvmExtraArgs'] = extraArgs
+
                 for cKid in kid.childNodes:
-                    if cKid.nodeType != Node.ELEMENT_NODE:
+                    if cKid.nodeType == Node.ELEMENT_NODE and \
+                       cKid.nodeName == 'logLevel':
+                        defaults.Components[name]['logLevel'] = \
+                            self.getChildText(cKid)
                         continue
 
-                    for valName in ('jvm', 'jvmArgs', 'logLevel'):
-                        if cKid.nodeName == valName:
-                            defaults.Components[name][valName] = \
-                                self.getChildText(cKid)
 
     @classmethod
-    def __parseHostNodes(cls, name, defaults, hostNodes):
+    def __parse_host_nodes(cls, name, defaults, hostNodes):
         hostMap = {}
         compToHost = {}
 
         for node in hostNodes:
-            hostName = cls.getValue(node, 'name')
-            if hostName is None:
+            hostname = cls.getValue(node, 'name')
+            if hostname is None:
                 errMsg = ('Cluster "%s" has <host> node without "name"' +
                           ' attribute') % name
                 raise ClusterDescriptionFormatError(errMsg)
 
-            host = ClusterHost(hostName)
+            host = ClusterHost(hostname)
 
-            simHub = None
             for kid in node.childNodes:
                 if kid.nodeType != Node.ELEMENT_NODE:
                     continue
 
                 if kid.nodeName == 'component':
-                    cls.___parseComponentNode(name, defaults, host, kid)
+                    cls.___parse_component_node(name, defaults, host, kid)
                 elif kid.nodeName == 'controlServer':
                     host.setControlServer()
                 elif kid.nodeName == 'simulatedHub':
-                    if simHub is not None:
-                        errMsg = ('Cluster "%s" host "%s" has multiple' +
-                                  ' <simulatedHub> nodes') % (name, host)
-                        raise ClusterDescriptionFormatError(errMsg)
-
-                    simHub = cls.__parseSimulatedHubNode(name, host, kid)
-
-            # if we found a <simulatedHub> node, add it now
-            if simHub is not None:
-                host.addSimulatedHub(simHub)
+                    simData = cls.__parse_simhub_node(name, host, kid)
+                    host.addSimulatedHub(simData[0], simData[1], simData[2],
+                                         simData[3])
 
             # add host to internal host dictionary
-            if not hostName in hostMap:
-                hostMap[hostName] = host
+            if not hostname in hostMap:
+                hostMap[hostname] = host
             else:
-                errMsg = 'Multiple entries for host "%s"' % hostName
+                errMsg = 'Multiple entries for host "%s"' % hostname
                 raise ClusterDescriptionFormatError(errMsg)
 
             for comp in host.getComponents():
@@ -494,11 +551,56 @@ class ClusterDescription(ConfigXMLBase):
                     raise ClusterDescriptionFormatError(errMsg)
                 compToHost[compKey] = host
 
-        return (hostMap, compToHost)
+        return hostMap
 
     @classmethod
-    def __parseSimulatedHubNode(cls, clusterName, host, node):
-        "Parse a <simulatedHub> node from a run cluster description file"
+    def __parse_jvm_nodes(cls, name, node):
+        # create all JVM-related variables
+        path = None
+        isServer = None
+        heapInit = None
+        heapMax = None
+        args = None
+        extraArgs = None
+
+        # try to get text from old jvmArgs node
+        for argsNode in cls.getChildNodes(node, 'jvmArgs'):
+            args = cls.getChildText(argsNode)
+
+        # look for jvm node
+        for jvmNode in cls.getChildNodes(node, 'jvm'):
+            nodePath = None
+            tmpPath = cls.getChildText(jvmNode)
+            if tmpPath is not None:
+                tmpPath = tmpPath.strip()
+                if tmpPath != "":
+                    nodePath = os.path.expanduser(tmpPath)
+            tmpPath = cls.getAttr(jvmNode, 'path')
+            if tmpPath is not None:
+                if nodePath is not None:
+                    raise XMLFormatError("%s contains both <jvm path=xxx>"
+                                         " and <jvm>xxx</jvm>" % name)
+                nodePath = os.path.expanduser(tmpPath)
+            if nodePath is not None:
+                path = nodePath
+            tmpSrvr = cls.getAttr(jvmNode, 'server')
+            if tmpSrvr is not None:
+                isServer = cls.parseBooleanString(tmpSrvr)
+            heapInit = cls.getAttr(jvmNode, 'heapInit', defaultVal=heapInit)
+            heapMax = cls.getAttr(jvmNode, 'heapMax', defaultVal=heapMax)
+            tmpArgs = cls.getAttr(jvmNode, 'args')
+            if tmpArgs is not None:
+                if args is not None:
+                    raise XMLFormatError("%s contains both <jvm args=xxx>"
+                                         " and <jvmArgs>" % name)
+                args = tmpArgs
+            extraArgs = cls.getAttr(jvmNode, 'extraArgs', defaultVal=extraArgs)
+
+        return (path, isServer, heapInit, heapMax, args, extraArgs)
+
+    @classmethod
+    def __parse_simhub_node(cls, clusterName, host, node):
+        "Parse a <simulatedHub> node from a cluster configuration file"
         numStr = cls.getValue(node, 'number', '0')
         try:
             num = int(numStr)
@@ -521,86 +623,130 @@ class ClusterDescription(ConfigXMLBase):
                       (clusterName, host.name, prioStr)
             raise ClusterDescriptionFormatError(errMsg)
 
-        ifUnused = False
-
         ifStr = cls.getValue(node, 'ifUnused')
-        if ifStr is None:
-            ifUnused = False
-        else:
-            ifStr = ifStr.lower()
-            ifUnused = ifStr == 'true' or ifStr == '1' or ifStr == 'on'
+        ifUnused = cls.parseBooleanString(ifStr) == True
 
-        return ClusterSimHub(host, num, prio, ifUnused)
+        return (host, num, prio, ifUnused)
 
+    @property
     def daqDataDir(self):
-        if self.__daqDataDir is None:
+        if self.__daq_data_dir is None:
             return self.DEFAULT_DATA_DIR
-        return self.__daqDataDir
+        return self.__daq_data_dir
 
+    @property
     def daqLogDir(self):
-        if self.__daqLogDir is None:
+        if self.__daq_log_dir is None:
             return self.DEFAULT_LOG_DIR
-        return self.__daqLogDir
-
-    def defaultJVM(self, compName=None):
-        return self.__findDefault(self.__defaults, compName, 'jvm')
+        return self.__daq_log_dir
 
     def defaultJVMArgs(self, compName=None):
-        return self.__findDefault(self.__defaults, compName, 'jvmArgs')
+        return self.__find_default(self.__defaults, compName, 'jvmArgs')
+
+    def defaultJVMExtraArgs(self, compName=None):
+        return self.__find_default(self.__defaults, compName, 'jvmExtraArgs')
+
+    def defaultJVMHeapInit(self, compName=None):
+        return self.__find_default(self.__defaults, compName, 'jvmHeapInit')
+
+    def defaultJVMHeapMax(self, compName=None):
+        return self.__find_default(self.__defaults, compName, 'jvmHeapMax')
+
+    def defaultJVMPath(self, compName=None):
+        return self.__find_default(self.__defaults, compName, 'jvmPath')
+
+    def defaultJVMServer(self, compName=None):
+        return self.__find_default(self.__defaults, compName, 'jvmServer')
 
     def defaultLogLevel(self, compName=None):
-        return self.__findDefault(self.__defaults, compName, 'logLevel')
+        return self.__find_default(self.__defaults, compName, 'logLevel')
 
-    def dump(self, prefix=None):
+    def dump(self, fd=None, prefix=None):
+        if fd is None:
+            fd = sys.stdout
         if prefix is None:
             prefix = ""
 
-        print "%sDescription %s" % (prefix, self.name)
-        if self.__logDirForSpade is not None:
-            print "%s  SPADE log directory: %s" % \
-                (prefix, self.__logDirForSpade)
-        if self.__logDirCopies is not None:
-            print "%s  Copied log directory: %s" % (prefix,
-                                                    self.__logDirCopies)
-        if self.__daqDataDir is not None:
-            print "%s  DAQ data directory: %s" % (prefix, self.__daqDataDir)
-        if self.__daqLogDir is not None:
-            print "%s  DAQ log directory: %s" % (prefix, self.__daqLogDir)
-        if self.__pkgStageDir is not None:
-            print "%s  Package staging directory: %s" % \
-                (prefix, self.__pkgStageDir)
-        if self.__pkgInstallDir is not None:
-            print "%s  Package installation directory: %s" % \
-                (prefix, self.__pkgInstallDir)
-        if self.__defaultLogLevel is not None:
-            print "%s  Default log level: %s" % (prefix,
-                                                 self.__defaultLogLevel)
-        if self.__defaultJVM is not None:
-            print "%s  Default Java executable: %s" % \
-                (prefix, self.__defaultJVM)
-        if self.__defaultJVMArgs is not None:
-            print "%s  Default Java arguments: %s" % \
-                (prefix, self.__defaultJVMArgs)
-        if self.__defaultComponent is not None:
-            print "  Default components:"
-            for comp in self.__defaultComponent.keys():
-                print "%s    %s:" % (prefix, comp)
-                if 'jvm' in self.__defaultComponent[comp]:
-                    print "%s      Java executable: %s" % \
-                        (prefix, self.__defaultComponent[comp]['jvm'])
-                if 'jvmArgs' in self.__defaultComponent[comp]:
-                    print "%s      Java arguments: %s" % \
-                        (prefix, self.__defaultComponent[comp]['jvmArgs'])
+        print >>fd, "%sDescription %s" % (prefix, self.name)
+        if self.__spade_log_dir is not None:
+            print >>fd, "%s  SPADE log directory: %s" % \
+                (prefix, self.__spade_log_dir)
+        if self.__log_dir_copies is not None:
+            print >>fd, "%s  Copied log directory: %s" % \
+                (prefix, self.__log_dir_copies)
+        if self.__daq_data_dir is not None:
+            print >>fd, "%s  DAQ data directory: %s" % \
+                (prefix, self.__daq_data_dir)
+        if self.__daq_log_dir is not None:
+            print >>fd, "%s  DAQ log directory: %s" % \
+                (prefix, self.__daq_log_dir)
+        if self.__pkg_stage_dir is not None:
+            print >>fd, "%s  Package staging directory: %s" % \
+                (prefix, self.__pkg_stage_dir)
+        if self.__pkg_install_dir is not None:
+            print >>fd, "%s  Package installation directory: %s" % \
+                (prefix, self.__pkg_install_dir)
+        if self.__default_log_level is not None:
+            print >>fd, "%s  Default log level: %s" % \
+                (prefix, self.__default_log_level)
+        if self.__default_jvm.path() is not None:
+            print >>fd, "%s  Default Java executable: %s" % \
+                (prefix, self.__default_jvm.path())
+        if self.__default_jvm.isServer() is not None:
+            print >>fd, "%s  Default Java server flag: %s" % \
+                (prefix, self.__default_jvm.isServer())
+        if self.__default_jvm.heapInit() is not None:
+            print >>fd, "%s  Default Java heap init: %s" % \
+                (prefix, self.__default_jvm.heapInit())
+        if self.__default_jvm.heapMax() is not None:
+            print >>fd, "%s  Default Java heap max: %s" % \
+                (prefix, self.__default_jvm.heapMax())
+        if self.__default_jvm.args() is not None:
+            print >>fd, "%s  Default Java arguments: %s" % \
+                (prefix, self.__default_jvm.args())
+        if self.__default_jvm.extraArgs() is not None:
+            print >>fd, "%s  Default Java extra arguments: %s" % \
+                (prefix, self.__default_jvm.extraArgs())
+        if self.__defaults.Components is None or \
+           len(self.__defaults.Components) == 0:
+            print >>fd, "  **No default components**"
+        else:
+            print >>fd, "  Default components:"
+            for comp in self.__defaults.Components.keys():
+                print >>fd, "%s    %s:" % (prefix, comp)
+                if 'jvmPath' in self.__defaults.Components[comp]:
+                    print >>fd, "%s      Java executable: %s" % \
+                        (prefix, self.__defaults.Components[comp]['jvmPath'])
+                if 'jvmServer' in self.__defaults.Components[comp]:
+                    print >>fd, "%s      Java server flag: %s" % \
+                        (prefix, self.__defaults.Components[comp]['jvmServer'])
+                if 'jvmHeapInit' in self.__defaults.Components[comp]:
+                    print >>fd, "%s      Java initial heap size: %s" % \
+                        (prefix,
+                         self.__defaults.Components[comp]['jvmHeapInit'])
+                if 'jvmHeapMax' in self.__defaults.Components[comp]:
+                    print >>fd, "%s      Java maximum heap size: %s" % \
+                        (prefix, self.__defaults.Components[comp]['jvmHeapMax'])
+                if 'jvmArgs' in self.__defaults.Components[comp]:
+                    print >>fd, "%s      Java arguments: %s" % \
+                        (prefix, self.__defaults.Components[comp]['jvmArgs'])
+                if 'jvmExtraArgs' in self.__defaults.Components[comp]:
+                    print >>fd, "%s      Java extra arguments: %s" % \
+                        (prefix,
+                         self.__defaults.Components[comp]['jvmExtraArgs'])
+                if 'logLevel' in self.__defaults.Components[comp]:
+                    print >>fd, "%s      Log level: %s" % \
+                        (prefix, self.__defaults.Components[comp]['logLevel'])
 
-        if self.__hostMap is not None:
-            hKeys = self.__hostMap.keys()
+        if self.__host_map is not None:
+            hKeys = self.__host_map.keys()
             hKeys.sort()
 
             for key in hKeys:
-                self.__hostMap[key].dump(prefix + "  ")
+                self.__host_map[key].dump(fd=fd, prefix=prefix + "  ")
 
     def extractFrom(self, dom):
-        "Extract all necessary information from a run cluster description file"
+        "Extract all necessary information from a cluster configuration file"
         cluName = 'cluster'
         kids = dom.getElementsByTagName(cluName)
         if len(kids) < 1:
@@ -616,44 +762,43 @@ class ClusterDescription(ConfigXMLBase):
 
         dfltNodes = cluster.getElementsByTagName('default')
         for node in dfltNodes:
-            self.__parseDefaultNodes(defaults, node)
+            self.__parse_default_nodes(name, defaults, node)
 
         hostNodes = cluster.getElementsByTagName('host')
         if len(hostNodes) < 1:
             errMsg = 'No hosts defined for cluster "%s"' % name
             raise ClusterDescriptionFormatError(errMsg)
 
-        (hostMap, compToHost) = self.__parseHostNodes(name, defaults, hostNodes)
+        hostMap = self.__parse_host_nodes(name, defaults, hostNodes)
 
         self.name = name
         self.__defaults = defaults
-        self.__hostMap = hostMap
-        self.__compToHost = compToHost
+        self.__host_map = hostMap
 
-        self.__logDirForSpade = self.getValue(cluster, 'logDirForSpade')
+        self.__spade_log_dir = self.getValue(cluster, 'logDirForSpade')
         # expand tilde
-        if(self.__logDirForSpade is not None):
-            self.__logDirForSpade = os.path.expanduser(self.__logDirForSpade)
+        if self.__spade_log_dir is not None:
+            self.__spade_log_dir = os.path.expanduser(self.__spade_log_dir)
 
-        self.__logDirCopies = self.getValue(cluster, 'logDirCopies')
-        if(self.__logDirCopies is not None):
-            self.__logDirCopies = os.path.expanduser(self.__logDirCopies)
+        self.__log_dir_copies = self.getValue(cluster, 'logDirCopies')
+        if self.__log_dir_copies is not None:
+            self.__log_dir_copies = os.path.expanduser(self.__log_dir_copies)
 
-        self.__daqDataDir = self.getValue(cluster, 'daqDataDir')
-        if(self.__daqDataDir is not None):
-            self.__daqDataDir = os.path.expanduser(self.__daqDataDir)
+        self.__daq_data_dir = self.getValue(cluster, 'daqDataDir')
+        if self.__daq_data_dir is not None:
+            self.__daq_data_dir = os.path.expanduser(self.__daq_data_dir)
 
-        self.__daqLogDir = self.getValue(cluster, 'daqLogDir')
-        if(self.__daqLogDir is not None):
-            self.__daqLogDir = os.path.expanduser(self.__daqLogDir)
+        self.__daq_log_dir = self.getValue(cluster, 'daqLogDir')
+        if self.__daq_log_dir is not None:
+            self.__daq_log_dir = os.path.expanduser(self.__daq_log_dir)
 
-        self.__pkgStageDir = self.getValue(cluster, 'packageStageDir')
-        if(self.__pkgStageDir is not None):
-            self.__pkgStageDir = os.path.expanduser(self.__pkgStageDir)
+        self.__pkg_stage_dir = self.getValue(cluster, 'packageStageDir')
+        if self.__pkg_stage_dir is not None:
+            self.__pkg_stage_dir = os.path.expanduser(self.__pkg_stage_dir)
 
-        self.__pkgInstallDir = self.getValue(cluster, 'packageInstallDir')
-        if(self.__pkgInstallDir is not None):
-            self.__pkgInstallDir = os.path.expanduser(self.__pkgInstallDir)
+        self.__pkg_install_dir = self.getValue(cluster, 'packageInstallDir')
+        if self.__pkg_install_dir is not None:
+            self.__pkg_install_dir = os.path.expanduser(self.__pkg_install_dir)
 
     @classmethod
     def getClusterFromHostName(cls, hostname=None):
@@ -699,55 +844,91 @@ class ClusterDescription(ConfigXMLBase):
         if clu is None:
             clu = cls.getClusterFromHostName()
         if clu == cls.SPTS or clu == cls.SPTS64:
-            return cls.DBTYPE_TEST
+            dbname = cls.getLiveDBName()
+            if dbname is None or dbname == "I3OmDb_test":
+                return cls.DBTYPE_TEST
+            elif dbname == "I3OmDb":
+                return cls.DBTYPE_PROD
+            raise NotImplementedError(("Unknown database \"%s\" for" +
+                                       " cluster \"%s\"") % (dbname, clu))
         if clu == cls.SPS or clu == cls.PDAQ2:
             return cls.DBTYPE_PROD
         if clu == cls.LOCAL or clu == cls.MDFL:
             return cls.DBTYPE_NONE
         raise NotImplementedError("Cannot guess database" +
-                                     " for cluster \"%s\"" % clu)
+                                  " for cluster \"%s\"" % clu)
+
+    @classmethod
+    def getLiveDBName(cls):
+        liveConfigName = ".i3live.conf"
+
+        path = os.path.join(os.environ["HOME"], liveConfigName)
+        if os.path.exists(path):
+            with open(path, "r") as fd:
+                for line in fd:
+                    if line.startswith("["):
+                        ridx = line.find("]")
+                        if ridx < 0:
+                            # ignore line with bad section marker
+                            continue
+
+                        section = line[1:ridx]
+                        continue
+
+                    if section != "livecontrol":
+                        continue
+
+                    pos = line.find("=")
+                    if pos < 0:
+                        continue
+
+                    if line[:pos].strip() != "dbname":
+                        continue
+
+                    return line[pos + 1:].strip()
+
+        return None
+
 
     def host(self, name):
-        if not name in self.__hostMap:
+        if not name in self.__host_map:
             return None
 
-        return self.__hostMap[name]
+        return self.__host_map[name]
 
     def listHostComponentPairs(self):
-        for host in self.__hostMap.keys():
-            for comp in self.__hostMap[host].getComponents():
+        for host in self.__host_map.keys():
+            for comp in self.__host_map[host].getComponents():
                 yield (host, comp)
-            if self.__hostMap[host].isControlServer():
+            if self.__host_map[host].isControlServer:
                 yield (host, ControlComponent())
 
     def listHostSimHubPairs(self):
-        for host in self.__hostMap.keys():
-            yield (host, self.__hostMap[host].getSimulatedHub())
+        for host in self.__host_map.keys():
+            if self.__host_map[host].simHubs is not None:
+                for sh in self.__host_map[host].simHubs:
+                    yield (host, sh)
 
+    @property
     def logDirForSpade(self):
-        return self.__logDirForSpade
+        return self.__spade_log_dir
 
+    @property
     def logDirCopies(self):
-        return self.__logDirCopies
+        return self.__log_dir_copies
 
+    @property
     def packageStageDir(self):
-        if self.__pkgStageDir is None:
+        if self.__pkg_stage_dir is None:
             return self.DEFAULT_PKGSTAGE_DIR
-        return self.__pkgStageDir
+        return self.__pkg_stage_dir
 
+    @property
     def packageInstallDir(self):
-        if self.__pkgInstallDir is None:
+        if self.__pkg_install_dir is None:
             return self.DEFAULT_PKGINSTALL_DIR
-        return self.__pkgInstallDir
+        return self.__pkg_install_dir
 
-    def setDefaultJVM(self, value):
-        self.__defaultJVM = value
-
-    def setDefaultJVMArgs(self, value):
-        self.__defaultJVMArgs = value
-
-    def setDefaultLogLevel(self, value):
-        self.__defaultLogLevel = value
 
 if __name__ == '__main__':
     def tryCluster(configDir, path=None):
@@ -766,11 +947,11 @@ if __name__ == '__main__':
             except KeyboardInterrupt:
                 return
             except NotImplementedError:
-                print >> sys.stderr, 'For %s:' % name
+                print >> sys.stderr, 'For %s:' % cluster.name
                 traceback.print_exc()
                 return
             except:
-                print >> sys.stderr, 'For %s:' % name
+                print >> sys.stderr, 'For %s:' % cluster.name
                 traceback.print_exc()
                 return
 

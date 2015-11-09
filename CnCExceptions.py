@@ -15,3 +15,6 @@ class MissingComponentException(CnCServerException):
 
     def components(self):
         return self.__compList
+
+class StartInterruptedException(CnCServerException):
+    pass

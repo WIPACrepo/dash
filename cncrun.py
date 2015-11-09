@@ -31,11 +31,11 @@ import subprocess
 import time
 
 from BaseRun import BaseRun, RunException, StateException
-from DefaultDomGeometry import XMLParser
 from RunOption import RunOption
 from RunSetState import RunSetState
 from exc_string import exc_string
 from xml.dom import minidom, Node
+from xmlparser import XMLParser
 
 
 class FlasherDataException(Exception):
@@ -125,17 +125,17 @@ class FlasherDataParser(XMLParser):
 
 class CnCRun(BaseRun):
     def __init__(self, showCmd=False, showCmdOutput=False, dryRun=False,
-                 dbType=None, logfile=None):
+                 logfile=None):
         """
         showCmd - True if commands should be printed before being run
         showCmdOutput - True if command output should be printed
         dryRun - True if commands should only be printed and not executed
-        dbType - DatabaseType value (TEST, PROD, or NONE)
         logfile - file where all log messages are saved
         """
 
-        super(CnCRun, self).__init__(showCmd, showCmdOutput, dryRun, dbType,
-                                     logfile)
+        super(CnCRun, self).__init__(showCmd=showCmd,
+                                     showCmdOutput=showCmdOutput,
+                                     dryRun=dryRun, logfile=logfile)
 
         self.__showCmdOutput = showCmdOutput
         self.__dryRun = dryRun
@@ -202,7 +202,7 @@ class CnCRun(BaseRun):
         curState = prevState
 
         if verbose and prevState != expState:
-            self.logInfo("Switching from %s to %s" % (prevState, expState))
+            self.logInfo("Changing from %s to %s" % (prevState, expState))
 
         startTime = time.time()
         for _ in range(numTries):
@@ -213,7 +213,7 @@ class CnCRun(BaseRun):
             if curState != prevState:
                 if verbose:
                     swTime = int(time.time() - startTime)
-                    self.logInfo("Switched from %s to %s in %s secs" %
+                    self.logInfo("Changed from %s to %s in %s secs" %
                                  (prevState, curState, swTime))
 
                 prevState = curState
@@ -301,7 +301,7 @@ class CnCRun(BaseRun):
         if os.path.exists(self.__runNumFile):
             with open(self.__runNumFile) as fd:
                 line = fd.readline()
-                m = re.search('(\d+)\s+(\d+)', line)
+                m = re.search(r'(\d+)\s+(\d+)', line)
                 if m:
                     num = int(m.group(1))
                     subnum = int(m.group(2))
@@ -341,6 +341,9 @@ class CnCRun(BaseRun):
         except socket.error:
             return False
 
+    def isSwitching(self, refreshState=False):
+        return False
+
     def isStopping(self, refreshState=False):
         cnc = self.cncConnection(False)
         if cnc is None or self.__runSetId is None:
@@ -362,6 +365,10 @@ class CnCRun(BaseRun):
         if isLID:
             self.logError("Not setting light mode!!!")
         return True
+
+    def setRunsPerRestart(self, num):
+        """Set the number of continuous runs between restarts"""
+        pass # for non-Live runs, this is driven by BaseRun.waitForRun()
 
     def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False,
                  runMode=None, filterMode=None, verbose=False):
@@ -410,7 +417,7 @@ class CnCRun(BaseRun):
         if runMode is not None:
             if filterMode is not None:
                 self.logError("Ignoring run mode %s, filter mode %s" %
-                                    (runMode, filterMode))
+                              (runMode, filterMode))
             else:
                 self.logError("Ignoring run mode %s" % runMode)
         elif filterMode is not None:
@@ -427,6 +434,7 @@ class CnCRun(BaseRun):
 
         return True
 
+    @property
     def state(self):
         cnc = self.cncConnection(False)
         if cnc is None:
@@ -452,6 +460,22 @@ class CnCRun(BaseRun):
         else:
             cnc.rpc_runset_stop_run(self.__runSetId)
 
+    def switchRun(self, runNum):
+        """Switch to a new run number without stopping any components"""
+        if self.__runSetId is None:
+            raise RunException("No active run")
+
+        if not self.__dryRun:
+            cnc = self.cncConnection()
+
+        if self.__dryRun:
+            print "Switch runset#%s to run#%d" % (self.__runSetId, runNum)
+        else:
+            cnc.rpc_runset_switch_run(self.__runSetId, runNum)
+        self.__runNum = runNum
+
+        return True
+
     def waitForStopped(self, verbose=False):
         """Wait for the current run to be stopped"""
         cnc = self.cncConnection()
@@ -468,7 +492,7 @@ class CnCRun(BaseRun):
         return self.__waitForState(RunSetState.READY, 10, verbose=verbose)
 
 if __name__ == "__main__":
-    run = CnCRun(True, True, dryRun=False)
+    run = CnCRun(showCmd=True, showCmdOutput=True, dryRun=False)
     run.run("spts64-dirtydozen-hlc-006", "spts64-dirtydozen-hlc-006", 30,
             (("flash-21.xml", 5), (None, 10), ("flash-21.xml", 5)),
             verbose=True)

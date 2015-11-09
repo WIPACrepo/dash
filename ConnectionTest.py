@@ -11,6 +11,9 @@ LOUD = False
 
 
 class MyDAQPool(DAQPool):
+    def getClusterConfig(self):
+        raise NotImplementedError("Unimplemented")
+
     def returnRunsetComponents(self, rs, verbose=False, killWith9=True,
                                eventCheck=False):
         rs.returnComponents(self, None, None, None, None, None, None, None,
@@ -148,7 +151,7 @@ class ConnectionTest(unittest.TestCase):
             nameList.append(node.name + '#' + str(node.num))
 
         rcFile = MockRunConfigFile(self.__runConfigDir)
-        runConfig = rcFile.create(nameList, [])
+        runConfig = rcFile.create(nameList, {})
 
         logger = MockLogger('main')
         logger.addExpectedExact("Loading run configuration \"%s\"" %
@@ -169,7 +172,7 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(pool.numSets(), 1)
         self.assertEqual(pool.runset(0), runset)
 
-        self.assertEqual(runset.id(), chkId)
+        self.assertEqual(runset.id, chkId)
         self.assertEqual(runset.size(), len(nodeList))
 
         # copy node list
@@ -181,7 +184,7 @@ class ConnectionTest(unittest.TestCase):
         for comp in runset.components():
             node = None
             for t in tmpList:
-                if comp.name() == t.name and comp.num() == t.num:
+                if comp.name == t.name and comp.num == t.num:
                     node = t
                     tmpList.remove(t)
                     break
@@ -197,7 +200,7 @@ class ConnectionTest(unittest.TestCase):
             for typ in node.outLinks:
                 conn = None
                 for c in compConn:
-                    if not c.isInput() and c.name() == typ:
+                    if not c.isInput() and c.name == typ:
                         conn = c
                         compConn.remove(c)
                         break
@@ -210,7 +213,7 @@ class ConnectionTest(unittest.TestCase):
             for typ in node.inLinks:
                 conn = None
                 for c in compConn:
-                    if c.isInput() and c.name() == typ:
+                    if c.isInput() and c.name == typ:
                         conn = c
                         compConn.remove(c)
                         break
@@ -221,12 +224,12 @@ class ConnectionTest(unittest.TestCase):
             # whine if any connectors are left
             #
             self.assertEqual(len(compConn), 0, 'Found extra connectors in ' +
-                              str(compConn))
+                             str(compConn))
 
         # whine if any components are left
         #
         self.assertEqual(len(tmpList), 0, 'Found extra components in ' +
-                          str(tmpList))
+                         str(tmpList))
 
         if LOUD:
             print '-- SET: ' + str(runset)

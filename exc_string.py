@@ -106,7 +106,7 @@ def _reversed(r):
 def trace_string(tb=None):
     return " <- ".join(
         [force_string("%s() (%s:%s)" % (m, path.split(f)[1], n))
-         for f, n, m, u in _reversed(tb or extract_stack()[: -1])])
+         for f, n, m, _ in _reversed(tb or extract_stack()[: -1])])
 
 ###############################################################################
 
@@ -167,8 +167,8 @@ if __name__ == '__main__':  # run self-tests
     class Foo(object):
         def __str__(self):
             raise "foo"
-    assert (force_string(Foo()) == \
-                "unable to convert Foo to string, str() failed")
+    assert force_string(Foo()) == \
+        "unable to convert Foo to string, str() failed"
 
     class Bar(object):
         def __str__(self):
@@ -229,12 +229,12 @@ if __name__ == '__main__':  # run self-tests
     def foo():
         raise MyException(russian)
 
-    class bar(object):
+    class bar2(object):
         def __init__(self):
             foo()
 
     try:
-        bar()
+        bar2()
     except:
         assert exc_string() == \
             ("MyException(\"%s\") in foo() (exc_string.py:230) "

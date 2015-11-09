@@ -13,57 +13,65 @@ from DAQMocks import MockIntervalTimer, MockLiveMoni, MockLogger, MockRunSet
 
 class MockTMComponent(object):
     BEANBAG = {
-        "stringHub":
-            {"stringhub":
-                  {"NumberOfActiveChannels": 2,
-                   "NumberOfActiveAndTotalChannels": [1, 2],
-                   "TotalLBMOverflows": 20,
-                   "HitRate": 50.,
-                   "HitRateLC": 25.},
-              "sender":
-                  {"NumHitsReceived": 0,
-                   "NumReadoutRequestsReceived": 0,
-                   "NumReadoutsSent": 0,
-                   },
-              },
-        "iceTopTrigger":
-            {"icetopHit":
-                 {"RecordsReceived": 0},
-             "trigger":
-                 {"RecordsSent": 0},
-             },
-        "inIceTrigger":
-            {"stringHit":
-                 {"RecordsReceived": 0},
-             "trigger":
-                  {"RecordsSent": 0},
-              },
-        "globalTrigger":
-            {"trigger":
-                 {"RecordsReceived": 0},
-              "glblTrig":
-                 {"RecordsSent": 0},
-              },
-        "eventBuilder":
-            {"backEnd":
-                  {"DiskAvailable": 2560,
-                   "NumBadEvents": 0,
-                   "NumEventsDispatched": 0,
-                   "NumEventsSent": 0,
-                   "NumReadoutsReceived": 0,
-                   "NumTriggerRequestsReceived": 0,
-                   "NumBytesWritten": 0
-                   },
-              },
-        "secondaryBuilders":
-            {"moniBuilder":
-                  {"TotalDispatchedData": 0},
-              "snBuilder":
-                  {"TotalDispatchedData": 0,
-                   "DiskAvailable": 0,
-                   },
-              }
+        "stringHub": {
+            "stringhub": {
+                "NumberOfActiveChannels": 2,
+                "NumberOfActiveAndTotalChannels": [1, 2],
+                "TotalLBMOverflows": 20,
+                "HitRate": 50.,
+                "HitRateLC": 25.0
+            },
+            "sender": {
+                "NumHitsReceived": 0,
+                "NumReadoutRequestsReceived": 0,
+                "NumReadoutsSent": 0,
+            },
+        },
+        "iceTopTrigger": {
+            "icetopHit": {
+                "RecordsReceived": 0
+            },
+            "trigger": {
+                "RecordsSent": 0
+            },
+        },
+        "inIceTrigger": {
+            "stringHit": {
+                "RecordsReceived": 0
+            },
+            "trigger": {
+                "RecordsSent": 0
+            },
+        },
+        "globalTrigger": {
+            "trigger": {
+                "RecordsReceived": 0
+            },
+            "glblTrig": {
+                "RecordsSent": 0
+            },
+        },
+        "eventBuilder": {
+            "backEnd": {
+                "DiskAvailable": 2560,
+                "NumBadEvents": 0,
+                "NumEventsDispatched": 0,
+                "NumEventsSent": 0,
+                "NumReadoutsReceived": 0,
+                "NumTriggerRequestsReceived": 0,
+                "NumBytesWritten": 0
+            },
+        },
+        "secondaryBuilders": {
+            "moniBuilder": {
+                "TotalDispatchedData": 0
+            },
+            "snBuilder": {
+                "TotalDispatchedData": 0,
+                "DiskAvailable": 0,
+            },
         }
+    }
 
     def __init__(self, name, num):
         self.__name = name
@@ -75,7 +83,7 @@ class MockTMComponent(object):
         self.__beanData = self.__createBeanData()
 
     def __str__(self):
-        return self.fullName()
+        return self.fullname
 
     def __createBeanData(self):
         if not self.__name in self.BEANBAG:
@@ -112,10 +120,8 @@ class MockTMComponent(object):
     def getBeanNames(self):
         return self.__beanData.keys()
 
-    def getMoniCounts(self):
-        return {}
-
-    def fullName(self):
+    @property
+    def fullname(self):
         if self.__num == 0:
             return self.__name
         return "%s#%d" % (self.__name, self.__num)
@@ -142,9 +148,11 @@ class MockTMComponent(object):
     def reloadBeanInfo(self):
         pass
 
+    @property
     def name(self):
         return self.__name
 
+    @property
     def num(self):
         return self.__num
 
@@ -246,6 +254,7 @@ class TaskManagerTest(unittest.TestCase):
         # add activeDOM data
         live.addExpected("activeDOMs", 1, Prio.ITS)
         live.addExpected("expectedDOMs", 2, Prio.ITS)
+        live.addExpected("missingDOMs", 1, Prio.ITS)
         live.addExpected("total_rate", 50, Prio.ITS)
         live.addExpected("total_ratelc", 25, Prio.ITS)
         live.addExpected("LBMOverflows", {"1": 20},
@@ -254,7 +263,8 @@ class TaskManagerTest(unittest.TestCase):
                          Prio.EMAIL)
 
         live.addExpected("dom_update", {"expectedDOMs": 2, "total_ratelc": 25.0,
-                                        "total_rate": 50.0, "activeDOMs": 1},
+                                        "total_rate": 50.0, "activeDOMs": 1,
+                                        "missingDOMs": 1},
                          Prio.ITS)
 
     def setUp(self):
@@ -289,7 +299,7 @@ class TaskManagerTest(unittest.TestCase):
                             RunOption.MONI_TO_LIVE)
         rst.start()
 
-        for i in range(20):
+        for _ in range(20):
             waitForThread = False
             for c in compList:
                 if not c.wasUpdated():
@@ -343,7 +353,7 @@ class TaskManagerTest(unittest.TestCase):
         rst.triggerTimers()
         rst.start()
 
-        for i in range(20):
+        for _ in range(20):
             waitForThread = False
             for c in compList:
                 if not c.wasUpdated():
@@ -398,7 +408,7 @@ class TaskManagerTest(unittest.TestCase):
 
         rst.start()
 
-        for i in range(20):
+        for _ in range(20):
             waitForThread = False
             for c in compList:
                 if not c.wasUpdated():

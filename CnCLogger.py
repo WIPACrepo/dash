@@ -32,15 +32,19 @@ class LogInfo(object):
             return 'NoInfo'
         return outStr[1:]
 
+    @property
     def logHost(self):
         return self.__logHost
 
+    @property
     def logPort(self):
         return self.__logPort
 
+    @property
     def liveHost(self):
         return self.__liveHost
 
+    @property
     def livePort(self):
         return self.__livePort
 
@@ -62,15 +66,15 @@ class CnCLogger(DAQLog):
         return self.__getName()
 
     def __addAppenders(self):
-        if self.__logInfo.logHost() is not None and \
-                self.__logInfo.logPort() is not None:
-            self.addAppender(LogSocketAppender(self.__logInfo.logHost(),
-                                               self.__logInfo.logPort()))
+        if self.__logInfo.logHost is not None and \
+                self.__logInfo.logPort is not None:
+            self.addAppender(LogSocketAppender(self.__logInfo.logHost,
+                                               self.__logInfo.logPort))
 
-        if self.__logInfo.liveHost() is not None and \
-                self.__logInfo.livePort() is not None:
-            self.addAppender(LiveSocketAppender(self.__logInfo.liveHost(),
-                                                self.__logInfo.livePort()))
+        if self.__logInfo.liveHost is not None and \
+                self.__logInfo.livePort is not None:
+            self.addAppender(LiveSocketAppender(self.__logInfo.liveHost,
+                                                self.__logInfo.livePort))
         if not self.hasAppender():
             raise LogException("Not logging to socket or I3Live")
 
@@ -92,7 +96,7 @@ class CnCLogger(DAQLog):
         try:
             super(CnCLogger, self)._logmsg(level, s)
         except Exception as ex:
-            if type(ex) != LogException:
+            if not isinstance(ex, LogException):
                 if str(ex).find('Connection refused') < 0:
                     raise
                 print >> sys.stderr, 'Lost logging connection to %s' % \
@@ -112,25 +116,29 @@ class CnCLogger(DAQLog):
         self.__logInfo = None
         self.__prevInfo = None
 
+    @property
     def liveHost(self):
         if self.__logInfo is None:
             return None
-        return self.__logInfo.liveHost()
+        return self.__logInfo.liveHost
 
+    @property
     def livePort(self):
         if self.__logInfo is None:
             return None
-        return self.__logInfo.livePort()
+        return self.__logInfo.livePort
 
+    @property
     def logHost(self):
         if self.__logInfo is None:
             return None
-        return self.__logInfo.logHost()
+        return self.__logInfo.logHost
 
+    @property
     def logPort(self):
         if self.__logInfo is None:
             return None
-        return self.__logInfo.logPort()
+        return self.__logInfo.logPort
 
     def openLog(self, logHost, logPort, liveHost, livePort):
         "initialize socket logger"

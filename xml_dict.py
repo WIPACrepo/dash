@@ -6,7 +6,6 @@ values of the root element of the python dictionary passed to them."""
 
 from lxml import etree
 from lxml.etree import Comment
-from lxml.etree import XMLSyntaxError
 
 def get_attrib(xdict, attrib_name):
     if '__attribs__' not in xdict or \
@@ -32,7 +31,7 @@ def get_value(xdict):
     return xdict['__contents__']
 
 
-class xml_dict:
+class xml_dict(object):
     def __init__(self, fname):
         parser = etree.XMLParser(remove_blank_text=True)
         tree = etree.parse(fname, parser)
@@ -71,15 +70,15 @@ class xml_dict:
         ret[parent_element.tag] = {}
 
         # if the root element add root comments
-        if parent_element.getroottree().getroot()==parent_element:
+        if parent_element.getroottree().getroot() == parent_element:
             tmp = []
             c = parent_element.getprevious()
             while c is not None:
-                if c.tag==Comment:
-                    tmp.insert(0,c.text)
+                if c.tag == Comment:
+                    tmp.insert(0, c.text)
                 c = c.getprevious()
-            if len(tmp)>0:
-                ret['__root_comments__']=tmp
+            if len(tmp) > 0:
+                ret['__root_comments__'] = tmp
 
         if len(attribs) > 0:
             ret[parent_element.tag]['__attribs__'] = attribs
@@ -118,8 +117,8 @@ class xml_dict:
 
         try:
             tag, contents = next(elem_dict.iteritems())
-        except Exception, e:
-            raise e
+        except Exception:
+            raise
 
         if root is None:
             root_tag = elem_dict.keys()
@@ -158,7 +157,7 @@ class xml_dict:
         for child_name, child_desc in contents['__children__'].iteritems():
             # a special case.  if the child name is a Comment then
             # build up all the comments
-            if child_name==Comment:
+            if child_name == Comment:
                 for comment_text in child_desc:
                     c = Comment(comment_text)
                     elem.append(c)

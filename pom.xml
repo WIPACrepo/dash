@@ -9,7 +9,7 @@
   <modelVersion>4.0.0</modelVersion>
   <artifactId>dash</artifactId>
   <packaging>pom</packaging>
-  <name>dash</name>
+  <name>Python scripts</name>
   <description>The dash sub-system of the Surface Data Acquisition system for the IceCube Project.</description>
 
   <scm>

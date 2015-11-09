@@ -13,12 +13,12 @@ class TestDAQLogClient(unittest.TestCase):
     def checkLog(self, logPath, msgList):
         lines = self.readLog(logPath)
         self.assertEqual(len(msgList), len(lines), 'Expected %d line, not %d' %
-                          (len(msgList), len(lines)))
+                         (len(msgList), len(lines)))
 
         for i in range(len(msgList)):
             msg = lines[i].rstrip()
             self.assertEqual(msgList[i], msg,
-                              'Expected "%s", not "%s"' % (msgList[i], msg))
+                             'Expected "%s", not "%s"' % (msgList[i], msg))
 
     def readLog(self, logPath):
         lines = []

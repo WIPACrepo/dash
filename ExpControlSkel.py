@@ -6,57 +6,18 @@ John Jacobsen, jacobsen@npxdesigns.com
 Started November, 2006
 """
 
-import optparse
-import os
 import re
 import sys
 from BaseRun import FlasherScript
 from cncrun import CnCRun
 from datetime import datetime
-from locate_pdaq import find_pdaq_trunk
 from utils.Machineid import Machineid
 
-# add meta-project python dir to Python library search path
-metaDir = find_pdaq_trunk()
-sys.path.append(os.path.join(metaDir, 'src', 'main', 'python'))
-from SVNVersionInfo import get_version_info
-
-SVN_ID = "$Id: ExpControlSkel.py 14763 2014-01-07 19:28:22Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 15765 2015-09-15 22:45:15Z dglo $"
 
 
 class DOMArgumentException(Exception):
     pass
-
-
-def updateStatus(oldStatus, newStatus):
-    "Show any changes in status on stdout"
-    if oldStatus != newStatus:
-        print "%s: %s -> %s" % (datetime.now(), oldStatus, newStatus)
-    return newStatus
-
-
-# stolen from live/misc/util.py
-def getDurationFromString(s):
-    """
-    Return duration in seconds based on string <s>
-    """
-    m = re.search('^(\d+)$', s)
-    if m:
-        return int(m.group(1))
-    m = re.search('^(\d+)s(?:ec(?:s)?)?$', s)
-    if m:
-        return int(m.group(1))
-    m = re.search('^(\d+)m(?:in(?:s)?)?$', s)
-    if m:
-        return int(m.group(1)) * 60
-    m = re.search('^(\d+)h(?:r(?:s)?)?$', s)
-    if m:
-        return int(m.group(1)) * 3600
-    m = re.search('^(\d+)d(?:ay(?:s)?)?$', s)
-    if m:
-        return int(m.group(1)) * 86400
-    raise ValueError('String "%s" is not a known duration format.  Try'
-                     '30sec, 10min, 2days etc.' % s)
 
 
 class SubRunDOM(object):
@@ -112,14 +73,14 @@ class SubRunDOM(object):
             raise DOMArgumentException()
 
 
-class SubRun:
+class SubRun(object):
     FLASH = 1
     DELAY = 2
 
-    def __init__(self, type, duration, id):
-        self.type = type
+    def __init__(self, runtype, duration, runid):
+        self.type = runtype
         self.duration = duration
-        self.id = id
+        self.id = runid
         self.domlist = []
 
     def addDOM(self, d):
@@ -151,70 +112,103 @@ class SubRun:
         return [d.flasherHash() for d in self.domlist]
 
 
-def main():
-    "Main program"
-    ver_info = "%(filename)s %(revision)s %(date)s %(time)s %(author)s "\
-               "%(release)s %(repo_rev)s" % get_version_info(SVN_ID)
-    usage = "%prog [options]\nversion: " + ver_info
-    p = optparse.OptionParser(usage=usage, version=ver_info)
+def add_arguments(parser, config_as_arg=False):
+    parser.add_argument("-C", "--cluster-desc", dest="clusterDesc",
+                        help="Cluster description name.")
+    if config_as_arg:
+        parser.add_argument("-c", "--config-name", dest="runConfig",
+                            required=True,
+                            help="REQUIRED: Configuration name")
+    else:
+        parser.add_argument("-c", dest="minusC",
+                            action="store_true", default=False,
+                            help="Ignored, run config is a positional param")
+        parser.add_argument("runConfig",
+                            help="Run configuration name")
+    parser.add_argument("-d", "--duration-seconds", dest="duration",
+                        default="8h",
+                        help="Run duration (in seconds)")
+    parser.add_argument("-f", "--flasher-script", dest="flasherScript",
+                        help="Name of flasher script")
+    parser.add_argument("-l", dest="duration",
+                        default="8h",
+                        help="Run duration (in seconds)")
+    parser.add_argument("-n", "--num-runs", type=int, dest="numRuns",
+                        default=10000000,
+                        help="Number of runs")
+    parser.add_argument("-r", "--remote-host", dest="remoteHost",
+                        default="localhost",
+                        help="Name of host on which CnCServer is running")
+    parser.add_argument("-R", "--runsPerRestart", type=int,
+                        dest="runsPerRestart",
+                        default=1,
+                        help="Number of runs per restart")
+    parser.add_argument("-s", "--showCommands", dest="showCmd",
+                        action="store_true", default=False,
+                        help="Show the commands used to deploy and/or run")
+    parser.add_argument("-x", "--showCommandOutput", dest="showCmdOut",
+                        action="store_true", default=False,
+                        help=("Show the output of the deploy and/or"
+                              " run commands"))
+    parser.add_argument("-m", "--no-host-check", dest="nohostcheck",
+                        action="store_true", default=False,
+                        help=("Disable checking the host type for"
+                              " run permission"))
 
-    p.add_option("-C", "--cluster-desc", type="string", dest="clusterDesc",
-                 action="store", default=None,
-                 help="Cluster description name.")
-    p.add_option("-c", "--config-name",  type="string", dest="runConfig",
-                 action="store", default=None,
-                 help="Run configuration name")
-    p.add_option("-d", "--duration-seconds", type="string", dest="duration",
-                 action="store", default="8h",
-                 help="Run duration (in seconds)")
-    p.add_option("-f", "--flasher-script", type="string", dest="flasherScript",
-                 action="store", default=None,
-                 help="Name of flasher script")
-    p.add_option("-n", "--num-runs", type="int", dest="numRuns",
-                 action="store", default=10000000,
-                 help="Number of runs")
-    p.add_option("-r", "--remote-host", type="string", dest="remoteHost",
-                 action="store", default="localhost",
-                 help="Name of host on which CnCServer is running")
-    p.add_option("-s", "--showCommands", dest="showCmd",
-                 action="store_true", default=False,
-                 help="Show the commands used to deploy and/or run")
-    p.add_option("-x", "--showCommandOutput", dest="showCmdOut",
-                 action="store_true", default=False,
-                 help="Show the output of the deploy and/or run commands")
-    p.add_option("-m", "--no-host-check", dest="nohostcheck", default=False,
-                 help="Disable checking the host type for run permission")
-    opt, args = p.parse_args()
 
-    if not opt.nohostcheck:
-        hostid = Machineid()
-        if(not (hostid.is_control_host() or
-           (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
-            # to run daq launch you should either be a control host or
-            # a totally unknown host
-            raise SystemExit("Are you sure you are running ExpControlSkel "
-                             "on the correct host?")
+# stolen from live/misc/util.py
+def getDurationFromString(s):
+    """
+    Return duration in seconds based on string <s>
+    """
+    m = re.search(r'^(\d+)$', s)
+    if m:
+        return int(m.group(1))
+    m = re.search(r'^(\d+)s(?:ec(?:s)?)?$', s)
+    if m:
+        return int(m.group(1))
+    m = re.search(r'^(\d+)m(?:in(?:s)?)?$', s)
+    if m:
+        return int(m.group(1)) * 60
+    m = re.search(r'^(\d+)h(?:r(?:s)?)?$', s)
+    if m:
+        return int(m.group(1)) * 3600
+    m = re.search(r'^(\d+)d(?:ay(?:s)?)?$', s)
+    if m:
+        return int(m.group(1)) * 86400
+    raise ValueError('String "%s" is not a known duration format.  Try'
+                     '30sec, 10min, 2days etc.' % s)
 
-    if opt.runConfig is None:
+
+def updateStatus(oldStatus, newStatus):
+    "Show any changes in status on stdout"
+    if oldStatus != newStatus:
+        print "%s: %s -> %s" % (datetime.now(), oldStatus, newStatus)
+    return newStatus
+
+
+def daqrun(args):
+    if args.runConfig is None:
         raise SystemExit("You must specify a run configuration ( -c option )")
 
-    if opt.flasherScript is None:
+    if args.flasherScript is None:
         flashData = None
     else:
-        flashData = FlasherScript.parse(opt.flasherScript)
+        flashData = FlasherScript.parse(args.flasherScript)
 
-    cnc = CnCRun(showCmd=opt.showCmd, showCmdOutput=opt.showCmdOut)
+    cnc = CnCRun(showCmd=args.showCmd, showCmdOutput=args.showCmdOut)
 
     clusterCfg = cnc.getActiveClusterConfig()
     if clusterCfg is None:
         raise SystemExit("Cannot determine cluster configuration")
 
-    duration = getDurationFromString(opt.duration)
+    duration = getDurationFromString(args.duration)
 
-    for r in xrange(opt.numRuns):
-        run = cnc.createRun(None, opt.runConfig, clusterDesc=opt.clusterDesc,
+    n = 0
+    while n < args.numRuns:
+        run = cnc.createRun(None, args.runConfig, clusterDesc=args.clusterDesc,
                             flashData=flashData)
-        run.start(duration)
+        run.start(duration, numRuns=args.runsPerRestart)
 
         try:
             try:
@@ -226,5 +220,23 @@ def main():
             print >>sys.stderr, "Stopping run..."
             run.finish()
 
+        n += args.runsPerRestart
+
+
 if __name__ == "__main__":
-    main()
+    "Main program"
+    import argparse
+
+    p = argparse.ArgumentParser()
+    add_arguments(p)
+    args = p.parse_args()
+
+    if not args.nohostcheck:
+        hostid = Machineid()
+        if not (hostid.is_control_host() or
+                (hostid.is_unknown_host() and hostid.is_unknown_cluster())):
+            # you should either be a control host or a totally unknown host
+            raise SystemExit("Are you sure you are running ExpControlSkel "
+                             "on the correct host?")
+
+    daqrun(args)

@@ -21,7 +21,7 @@ class BadInitRule(WatchdogRule):
         raise Exception("FAIL")
 
     def matches(self, comp):
-        return comp.name() == "foo"
+        return comp.name == "foo"
 
 
 class BarRule(WatchdogRule):
@@ -33,7 +33,7 @@ class BarRule(WatchdogRule):
             data.addInputValue(thisComp, "barBean", "barFld")
 
     def matches(self, comp):
-        return comp.name() == "bar"
+        return comp.name == "bar"
 
 
 class FooRule(WatchdogRule):
@@ -45,7 +45,7 @@ class FooRule(WatchdogRule):
     def initData(self, data, thisComp, components):
         bar = None
         for c in components:
-            if c.name() == "bar":
+            if c.name == "bar":
                 bar = c
                 break
         if bar is None:
@@ -59,7 +59,7 @@ class FooRule(WatchdogRule):
             data.addThresholdValue("threshBean", "threshFld", 10)
 
     def matches(self, comp):
-        return comp.name() == "foo"
+        return comp.name == "foo"
 
 
 class WatchdogTaskTest(unittest.TestCase):
@@ -82,7 +82,7 @@ class WatchdogTaskTest(unittest.TestCase):
         self.__runTest(runset, rules, testIn, testOut, testThresh, False)
 
     def __runTest(self, runset, rules, testIn, testOut, testThresh, testBoth):
-        timer = MockIntervalTimer("Watchdog")
+        timer = MockIntervalTimer(WatchdogTask.NAME)
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(timer)
 
@@ -142,7 +142,7 @@ class WatchdogTaskTest(unittest.TestCase):
         pass
 
     def testUnknownComp(self):
-        timer = MockIntervalTimer("Watchdog")
+        timer = MockIntervalTimer(WatchdogTask.NAME)
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(timer)
 
@@ -153,14 +153,14 @@ class WatchdogTaskTest(unittest.TestCase):
 
         logger = MockLogger("logger")
         logger.addExpectedExact("Couldn't create watcher for unknown" +
-                                " component %s#%d" % (foo.name(), foo.num()))
+                                " component %s#%d" % (foo.name, foo.num))
 
-        tsk = WatchdogTask(taskMgr, runset, logger, period=None, rules=())
+        WatchdogTask(taskMgr, runset, logger, period=None, rules=())
 
         logger.checkStatus(1)
 
     def testBadMatchRule(self):
-        timer = MockIntervalTimer("Watchdog")
+        timer = MockIntervalTimer(WatchdogTask.NAME)
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(timer)
 
@@ -171,10 +171,9 @@ class WatchdogTaskTest(unittest.TestCase):
 
         logger = MockLogger("logger")
         logger.addExpectedRegexp("Couldn't create watcher for component" +
-                                 " %s#%d: .*" % (foo.name(), foo.num()))
+                                 " %s#%d: .*" % (foo.name, foo.num))
 
-        tsk = WatchdogTask(taskMgr, runset, logger,
-                           rules=(BadMatchRule(), ))
+        WatchdogTask(taskMgr, runset, logger, rules=(BadMatchRule(), ))
 
         logger.checkStatus(1)
 
@@ -189,7 +188,7 @@ class WatchdogTaskTest(unittest.TestCase):
 
         rules = (BadInitRule(), )
 
-        timer = MockIntervalTimer("Watchdog")
+        timer = MockIntervalTimer(WatchdogTask.NAME)
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(timer)
 
@@ -203,7 +202,7 @@ class WatchdogTaskTest(unittest.TestCase):
 
         for i in range(1, 4):
             logger.addExpectedRegexp("Initialization failure #%d for %s %s.*" %
-                                    (i, foo.fullName(), str(rules[0])))
+                                     (i, foo.fullname, str(rules[0])))
 
             timer.trigger()
             tsk.check()

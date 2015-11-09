@@ -13,7 +13,6 @@ Started November, 2007
 """
 
 import datetime
-import optparse
 import os
 import popen2
 import re
@@ -36,7 +35,7 @@ def hasNonZero(l):
     return False
 
 
-class ThreadableProcess:
+class ThreadableProcess(object):
     """
     Small class for a single instance of an operation to run concurrently
     w/ other instances (using ThreadSet)
@@ -128,7 +127,7 @@ class ThreadableProcess:
         self.doStop = True
 
 
-class DOMState:
+class DOMState(object):
     """
     Small class to represent DOM states
     """
@@ -149,7 +148,7 @@ class DOMState:
             self._failed = True
         if re.search('WARNING', line):
             self._hasWarning = True
-        m = re.search('DONE \((\d+)\)', line)
+        m = re.search(r'DONE \((\d+)\)', line)
         if m:
             self.done = True
             self.version = m.group(1)
@@ -173,7 +172,7 @@ class DOMState:
         return s
 
 
-class DOMCounter:
+class DOMCounter(object):
     """
     Class to represent and summarize output from upload script
     """
@@ -181,7 +180,7 @@ class DOMCounter:
         self.data = s
         self.domDict = {}
 
-        domList = re.findall('(\d\d\w): (.+)', self.data)
+        domList = re.findall(r'(\d\d\w): (.+)', self.data)
         for line in domList:
             cwd = line[0]
             dat = line[1]
@@ -271,7 +270,7 @@ class DOMCounter:
         return s
 
 
-class ThreadSet:
+class ThreadSet(object):
     """
     Lightweight class to handle concurrent ThreadableProcesses
     """
@@ -379,51 +378,46 @@ def testProcs():
 
 
 def main():
+    import argparse
 
-    usage = "usage: %prog [options] <releasefile>"
-    p = optparse.OptionParser(usage=usage)
-    p.add_option("-c", "--config-name", type="string",
-                 dest="clusterConfigName",
-                 action="store", default=None,
-                 help="Cluster configuration name, subset of deployed" +
-                 " configuration.")
-    p.add_option("-v", "--verbose", dest="verbose",
-                 action="store_true", default=False,
-                 help="Be chatty")
-    p.add_option("-f", "--skip-flash", dest="skipFlash",
-                 action="store_true", default=False,
-                 help="Don't actually write flash on DOMs -" +
-                 " just 'practice' all other steps")
-    p.add_option("-s", "--straggler-time", type="int",  dest="stragglerTime",
-                 action="store", default=240,
-                 help="Time (seconds) to wait before reporting details" +
-                 " of straggler DOMs (default: 240)")
-    p.add_option("-w", "--watch-period", type="int",  dest="watchPeriod",
-                 action="store", default=15,
-                 help="Interval (seconds) between status reports during" +
-                 " upload (default: 15)")
-    p.add_option("-z", "--no-schema-validation", dest="validation",
-                 action="store_false", default=True,
-                 help="Disable schema validation of xml configuration files")
+    p = argparse.ArgumentParser()
+    p.add_argument("-c", "--config-name",
+                   dest="clusterConfigName",
+                   help="Cluster configuration name, subset of deployed" +
+                   " configuration.")
+    p.add_argument("-v", "--verbose", dest="verbose",
+                   action="store_true", default=False,
+                   help="Be chatty")
+    p.add_argument("-f", "--skip-flash", dest="skipFlash",
+                   action="store_true", default=False,
+                   help="Don't actually write flash on DOMs -" +
+                   " just 'practice' all other steps")
+    p.add_argument("-s", "--straggler-time", type=int, dest="stragglerTime",
+                   default=240,
+                   help="Time (seconds) to wait before reporting details" +
+                   " of straggler DOMs (default: 240)")
+    p.add_argument("-w", "--watch-period", type=int, dest="watchPeriod",
+                   default=15,
+                   help="Interval (seconds) between status reports during" +
+                   " upload (default: 15)")
+    p.add_argument("-z", "--no-schema-validation", dest="validation",
+                   action="store_false", default=True,
+                   help="Disable schema validation of xml configuration files")
+    p.add_argument("releaseFile")
 
-    opt, args = p.parse_args()
+    args = p.parse_args()
 
-    if len(args) < 1:
-        p.error("An argument is required!")
-        raise SystemExit
-
-    releaseFile = args[0]
+    releaseFile = args.releaseFile
 
     # Make sure file exists
     if not os.path.exists(releaseFile):
         print "Release file %s doesn't exist!\n\n" % releaseFile
-        print usage
         raise SystemExit
 
     try:
         clusterConfig = \
-            DAQConfigParser.getClusterConfiguration(opt.clusterConfigName,
-                                                    validate=opt.validation)
+            DAQConfigParser.getClusterConfiguration(args.clusterConfigName,
+                                                    validate=args.validation)
     except DAQConfigException as e:
         print >> sys.stderr, 'Cluster configuration file problem:\n%s' % e
         raise SystemExit
@@ -431,7 +425,7 @@ def main():
     hublist = clusterConfig.getHubNodes()
 
     # Copy phase - copy mainboard release.hex file to remote nodes
-    copySet = ThreadSet(opt.verbose)
+    copySet = ThreadSet(args.verbose)
 
     remoteFile = "/tmp/release%d.hex" % os.getpid()
     for domhub in hublist:
@@ -449,9 +443,9 @@ def main():
     # Upload phase - upload release
     print "Uploading %s on all hubs..." % remoteFile
 
-    uploader = HubThreadSet(opt.verbose, opt.watchPeriod, opt.stragglerTime)
+    uploader = HubThreadSet(args.verbose, args.watchPeriod, args.stragglerTime)
     for domhub in hublist:
-        f = opt.skipFlash and "-f" or ""
+        f = args.skipFlash and "-f" or ""
         cmd = "ssh %s UploadDOMs.py %s -v %s" % (domhub, remoteFile, f)
         uploader.add(cmd, domhub)
 
@@ -464,7 +458,7 @@ def main():
         try:
             uploader.wait()
             print "Killing remote upload processes..."
-            killer = ThreadSet(opt.verbose)
+            killer = ThreadSet(args.verbose)
             for domhub in hublist:
                 killer.add("ssh %s killall -9 UploadDOMs.py" % domhub, domhub)
             killer.start()
@@ -473,7 +467,7 @@ def main():
             pass
 
     # Cleanup phase - remove remote files from /tmp on hubs
-    cleanUpSet = ThreadSet(opt.verbose)
+    cleanUpSet = ThreadSet(args.verbose)
     for domhub in hublist:
         cleanUpSet.add("ssh %s /bin/rm -f %s" % (domhub, remoteFile))
 

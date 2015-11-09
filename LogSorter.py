@@ -6,35 +6,6 @@ import os
 import re
 import sys
 
-# Find install location via $PDAQ_HOME, otherwise use locate_pdaq.py
-if "PDAQ_HOME" in os.environ:
-    metaDir = os.environ["PDAQ_HOME"]
-else:
-    metaDir = None
-
-    for p in ("pDAQ_current", "pDAQ_trunk"):
-        homePDAQ = os.path.join(os.environ["HOME"], p)
-        curDir = os.getcwd()
-        [parentDir, baseName] = os.path.split(curDir)
-        for d in [curDir, parentDir, homePDAQ]:
-            # source tree has 'dash', 'src', and 'StringHub' (+ maybe 'target')
-            # deployed tree has 'dash', 'src', and 'target'
-            if os.path.isdir(os.path.join(d, 'dash')) and \
-                    os.path.isdir(os.path.join(d, 'src')) and \
-                    (os.path.isdir(os.path.join(d, 'target')) or
-                     os.path.isdir(os.path.join(d, 'StringHub'))):
-                metaDir = d
-                break
-
-        if metaDir is not None:
-            break
-
-    if metaDir is None:
-        raise Exception("Couldn't find pDAQ trunk")
-
-# add dash dir to Python library search path
-sys.path.append(os.path.join(metaDir, 'dash'))
-
 from ClusterDescription import ClusterDescription
 from DAQTime import DAQDateTime, PayloadTime
 from utils.DashXMLLog import DashXMLLog
@@ -145,7 +116,8 @@ class BaseLog(object):
     DASH_PAT = re.compile(r"^(\S+)\s+\[" + DATE_STR + r"\]\s+(.*)$")
 
     LOGSTART_PAT = re.compile(r"Start of log at .*$")
-    LOGVERS_PAT = re.compile(r"Version info: \S+ \S+ \S+ \S+Z? \S+ (\S+) (\S+)")
+    OLDVERS_PAT = re.compile(r"Version info: \S+ \S+ \S+ \S+Z? \S+ (\S+) (\S+)")
+    LOGVERS_PAT = re.compile(r"Version info: (\S+) (\S+) \S+ \S+Z?")
 
     def __init__(self, fileName):
         self.__fileName = fileName
@@ -157,11 +129,16 @@ class BaseLog(object):
 
     def __gotVersionInfo(self, lobj):
         m = self.LOGVERS_PAT.match(lobj.text())
-        if not m:
-            return False
+        if m:
+            (self.__relName, self.__relNums) = m.groups()
+            return True
 
-        (self.__relName, self.__relNums) = m.groups()
-        return True
+        m = self.OLDVERS_PAT.match(lobj.text())
+        if m:
+            (self.__relName, self.__relNums) = m.groups()
+            return True
+
+        return False
 
     def __parseLine(self, line):
         m = self.LINE_PAT.match(line)
@@ -177,12 +154,12 @@ class BaseLog(object):
 
         try:
             date = PayloadTime.fromString(dateStr)
-        except ValueError, ex:
+        except ValueError:
             return BadLine(line)
 
         return LogLine(component, className, logLevel, date, text)
 
-    def _isNoise(self, lobj):
+    def _isNoise(self, _):
         raise Exception("Unimplemented for " + self.__fileName)
 
     def _isStart(self, lobj):
@@ -308,16 +285,24 @@ class SecondaryBuildersLog(BaseLog):
 
 
 class StringHubLog(BaseLog):
-    def __init__(self, fileName, show_tcal=False, hide_sn_gaps=False):
+    def __init__(self, fileName, show_tcal=False, hide_sn_gaps=False,
+                 show_lbmdebug=False):
         super(StringHubLog, self).__init__(fileName)
 
         self.__showTCAL = show_tcal
         self.__hideSNGaps = hide_sn_gaps
+        self.__showLBMDebug = show_lbmdebug
 
     def _isNoise(self, lobj):
         if not self.__showTCAL and \
             (lobj.text().startswith("Wild TCAL") or
-             lobj.text().find("Got IO exception") >= 0):
+             lobj.text().find("Got IO exception") >= 0 or
+             lobj.text().find("Ignoring tcal error") >= 0):
+            return True
+
+        if not self.__showLBMDebug and \
+            (lobj.text().startswith("HISTORY:") or
+             lobj.text().find("data collection stats") >= 0):
             return True
 
         if self.__hideSNGaps and \
@@ -329,6 +314,9 @@ class StringHubLog(BaseLog):
     def cleanup(self, lobj):
         if lobj.text().find("Got IO exception") >= 0 and \
                 lobj.text().find("TCAL read failed") > 0:
+            lobj.setText("TCAL read failed")
+        elif lobj.text().find("Ignoring tcal error") >= 0 and \
+                  lobj.text().find("TCAL read failed") > 0:
             lobj.setText("TCAL read failed")
 
 
@@ -346,7 +334,8 @@ class LogSorter(object):
         self.__runNum = runNum
 
     def __processDir(self, dirName, verbose=False, show_tcal=False,
-                     hide_rates=False, hide_sn_gaps=False):
+                     hide_rates=False, hide_sn_gaps=False,
+                     show_lbmdebug=False):
         log = None
         for f in os.listdir(dirName):
             # ignore MBean output files and run summary files
@@ -361,7 +350,8 @@ class LogSorter(object):
             flog = self.__processFile(path, verbose=verbose,
                                       show_tcal=show_tcal,
                                       hide_rates=hide_rates,
-                                      hide_sn_gaps=hide_sn_gaps)
+                                      hide_sn_gaps=hide_sn_gaps,
+                                      show_lbmdebug=show_lbmdebug)
             if flog is not None:
                 if log is None:
                     log = flog
@@ -371,7 +361,8 @@ class LogSorter(object):
         return log
 
     def __processFile(self, path, verbose=False, show_tcal=False,
-                      hide_rates=False, hide_sn_gaps=False):
+                      hide_rates=False, hide_sn_gaps=False,
+                      show_lbmdebug=False):
         fileName = os.path.basename(path)
 
         log = None
@@ -379,7 +370,8 @@ class LogSorter(object):
             return [BadLine("Ignoring \"%s\"" % path), ]
         elif fileName.startswith("stringHub-"):
             log = StringHubLog(fileName, show_tcal=show_tcal,
-                               hide_sn_gaps=hide_sn_gaps)
+                               hide_sn_gaps=hide_sn_gaps,
+                               show_lbmdebug=show_lbmdebug)
         elif fileName.startswith("inIceTrigger-") or \
                 fileName.startswith("iceTopTrigger-"):
             log = LocalTriggerLog(fileName)
@@ -397,7 +389,8 @@ class LogSorter(object):
             log = ReplayHubLog(fileName)
         elif fileName.startswith("dash"):
             log = DashLog(fileName, hide_rates=hide_rates)
-        elif fileName.startswith("combined"):
+        elif fileName.startswith("combined") or \
+                fileName.startswith(".combined"):
             return None
         else:
             return [BadLine("Unknown log file \"%s\"" % path), ]
@@ -405,7 +398,7 @@ class LogSorter(object):
         return log.parse(path, verbose)
 
     def dumpRun(self, out, verbose=False, show_tcal=False, hide_rates=False,
-                hide_sn_gaps=False):
+                hide_sn_gaps=False, show_lbmdebug=False):
         try:
             runXML = DashXMLLog.parse(self.__runDir)
         except:
@@ -436,76 +429,95 @@ class LogSorter(object):
                 (runXML.getStartTime(), runXML.getEndTime())
         log = self.__processDir(self.__runDir, verbose=verbose,
                                 show_tcal=show_tcal, hide_rates=hide_rates,
-                                hide_sn_gaps=hide_sn_gaps)
+                                hide_sn_gaps=hide_sn_gaps,
+                                show_lbmdebug=show_lbmdebug)
         log.sort()
         for l in log:
             print >>out, str(l)
         if cond == "ERROR":
             print >>out, "-^-^-^-^-^-^-^-^-^-^ ERROR ^_^_^_^_^_^_^_^_^_^_"
 
-if __name__ == "__main__":
-    import optparse
+def add_arguments(parser):
+    parser.add_argument("-d", "--rundir", dest="rundir",
+                        help=("Directory holding pDAQ run monitoring"
+                              " and log files"))
+    parser.add_argument("-l", "--show-lbm-debug", dest="show_lbmdebug",
+                        action="store_true", default=False,
+                        help="Show StringHub LBM debugging messages")
+    parser.add_argument("-r", "--hide-rates", dest="hide_rates",
+                        action="store_true", default=False,
+                        help="Hide pDAQ event rate lines")
+    parser.add_argument("-s", "--hide-sn-gaps", dest="hide_sn_gaps",
+                        action="store_true", default=False,
+                        help="Hide StringHub Supernova gap errors")
+    parser.add_argument("-t", "--show-tcal", dest="show_tcal",
+                        action="store_true", default=False,
+                        help="Show StringHub TCAL errors")
+    parser.add_argument("-v", "--verbose", dest="verbose",
+                        action="store_true", default=False,
+                        help="Include superfluous log lines")
+    parser.add_argument("runNumber", nargs="+")
 
-    def getDirAndRunnum(topDir, subDir):
-        for i in xrange(100):
-            if i == 0:
-                fullpath = os.path.join(topDir, subDir)
-            elif i == 1:
-                fullpath = subDir
-            elif i == 2:
-                fullpath = os.path.join(topDir, "daqrun" + subDir)
-            elif i == 3:
-                fullpath = "daqrun" + subDir
+
+def getDirAndRunnum(topDir, subDir):
+    "Return path to log files and run number for the log files"
+
+    DIGITS_PAT = re.compile(r"^.*(\d+)$")
+    for i in xrange(100):
+        if i == 0:
+            fullpath = os.path.join(topDir, subDir)
+        elif i == 1:
+            fullpath = subDir
+        elif i == 2:
+            fullpath = os.path.join(topDir, "daqrun" + subDir)
+        elif i == 3:
+            fullpath = "daqrun" + subDir
+        else:
+            break
+
+        print "PATH " + fullpath
+        if os.path.isdir(fullpath):
+            filename = os.path.basename(fullpath)
+            if filename.startswith("daqrun"):
+                numstr = filename[6:]
             else:
-                break
-
-            if os.path.isdir(fullpath):
-                filename = os.path.basename(fullpath)
-                if filename.startswith("daqrun"):
-                    numstr = filename[6:]
+                m = DIGITS_PAT.match(filename)
+                if m is not None:
+                    numstr = m.group(1)
                 else:
                     numstr = filename
-                try:
-                    return(fullpath, int(numstr))
-                except:
-                    pass
+            try:
+                return(fullpath, int(numstr))
+            except:
+                pass
 
-        return (None, None)
+    return (None, None)
 
-    p = optparse.OptionParser()
-    p.add_option("-d", "--rundir", dest="rundir",
-                 action="store", default=None,
-                 help="Directory holding pDAQ run monitoring and log files")
-    p.add_option("-r", "--hide-rates", dest="hide_rates",
-                 action="store_true", default=False,
-                 help="Hide pDAQ event rate lines")
-    p.add_option("-s", "--hide-sn-gaps", dest="hide_sn_gaps",
-                 action="store_true", default=False,
-                 help="Hide StringHub Supernova gap errors")
-    p.add_option("-t", "--show-tcal", dest="show_tcal",
-                 action="store_true", default=False,
-                 help="Show StringHub TCAL errors")
-    p.add_option("-v", "--verbose", dest="verbose",
-                 action="store_true", default=False,
-                 help="Include superfluous log lines")
 
-    opt, args = p.parse_args()
-
-    if len(args) == 0:
-        raise SystemExit("Please specify one or more run numbers")
-
-    if opt.rundir is not None:
-        runDir = opt.rundir
+def sort_logs(args):
+    if args.rundir is not None:
+        runDir = args.rundir
     else:
         cd = ClusterDescription()
-        runDir = cd.daqLogDir()
+        runDir = cd.daqLogDir
 
-    for arg in args:
+    for arg in args.runNumber:
         (path, runnum) = getDirAndRunnum(runDir, arg)
         if path is None or runnum is None:
-            p.error("Bad run number \"%s\"" % arg)
+            print >> sys.stderr, "Bad run number \"%s\"" % arg
             continue
 
         ls = LogSorter(path, runnum)
-        ls.dumpRun(sys.stdout, verbose=opt.verbose, show_tcal=opt.show_tcal,
-                   hide_rates=opt.hide_rates, hide_sn_gaps=opt.hide_sn_gaps)
+        ls.dumpRun(sys.stdout, verbose=args.verbose, show_tcal=args.show_tcal,
+                   hide_rates=args.hide_rates, hide_sn_gaps=args.hide_sn_gaps,
+                   show_lbmdebug=args.show_lbmdebug)
+
+
+if __name__ == "__main__":
+    import argparse
+
+    p = argparse.ArgumentParser()
+    add_arguments(p)
+    args = p.parse_args()
+
+    sort_logs(args)

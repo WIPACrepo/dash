@@ -3,7 +3,7 @@
 import os
 
 
-class HostNotFoundException(Exception):
+class DirectoryNotFoundException(Exception):
     pass
 
 
@@ -18,26 +18,27 @@ def find_pdaq_config():
         return CONFIGDIR
 
     if "PDAQ_CONFIG" in os.environ:
-        dir = os.environ["PDAQ_CONFIG"]
-        if os.path.exists(dir):
-            CONFIGDIR = dir
+        path = os.environ["PDAQ_CONFIG"]
+        if os.path.exists(path):
+            CONFIGDIR = path
             return CONFIGDIR
 
-    dir = os.path.join(os.environ["HOME"], "config")
-    if os.path.exists(dir):
-        CONFIGDIR = dir
+    path = os.path.join(os.environ["HOME"], "config")
+    if os.path.exists(path):
+        CONFIGDIR = path
         return CONFIGDIR
 
-    dir = os.path.join(find_pdaq_trunk(), "config")
-    if os.path.exists(dir):
-        CONFIGDIR = dir
+    path = os.path.join(find_pdaq_trunk(), "config")
+    if os.path.exists(path):
+        CONFIGDIR = path
         return CONFIGDIR
 
-    raise IOError("Cannot find DAQ configuration directory (PDAQ_CONFIG)")
+    raise DirectoryNotFoundException("Cannot find DAQ configuration directory"
+                                     " (PDAQ_CONFIG)")
 
 
 def find_pdaq_trunk():
-    "Find the pDAQ tree"
+    "Find the pDAQ root directory"
     global METADIR
     if METADIR is not None:
         return METADIR
@@ -61,4 +62,14 @@ def find_pdaq_trunk():
             METADIR = dir
             return METADIR
 
-    raise HostNotFoundException("Cannot find pDAQ trunk (PDAQ_HOME)")
+    raise DirectoryNotFoundException("Cannot find pDAQ trunk (PDAQ_HOME)")
+
+
+def set_pdaq_config_dir(config_dir):
+    "set location of pDAQ's run configuration directory"
+    global CONFIGDIR
+    if CONFIGDIR is not None and CONFIGDIR != config_dir:
+        raise DirectoryAlreadySetException("Cannot set pDAQ config directory"
+                                           " to '%s'; already set to '%s'" %
+                                           (config_dir, CONFIGDIR))
+    CONFIGDIR = config_dir

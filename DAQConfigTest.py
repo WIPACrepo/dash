@@ -12,7 +12,7 @@ class CommonCode(unittest.TestCase):
     NEWFMT = None
 
     @classmethod
-    def __checkSubdir(self, topdir, subname):
+    def __checkSubdir(cls, topdir, subname):
         subdir = os.path.join(topdir, subname)
         if not os.path.exists(subdir):
             cls.fail('No "%s" subdirectory for "%s"' % (subdir, topdir))
@@ -79,13 +79,13 @@ class CommonCode(unittest.TestCase):
         for data in (simpledata, sps40data):
             n = data[0]
 
-            cfg = DAQConfigParser.load(n, cfgDir)
-            self.assertEqual(n, cfg.basename(),
-                             "Expected %s, not %s" % (n, cfg.basename()))
+            cfg = DAQConfigParser.parse(cfgDir, n)
+            self.assertEqual(n, cfg.basename,
+                             "Expected %s, not %s" % (n, cfg.basename))
             fullname = os.path.join(cfgDir, n + ".xml")
-            self.assertEqual(fullname, cfg.configFile(),
+            self.assertEqual(fullname, cfg.fullpath,
                              "Expected %s, not %s" %
-                             (fullname, cfg.configFile()))
+                             (fullname, cfg.fullpath))
 
             domnames = cfg.getDomConfigs()
             self.assertEquals(data[1], len(domnames),
@@ -93,13 +93,13 @@ class CommonCode(unittest.TestCase):
                               (data[1], n, len(domnames)))
 
             trigcfg = cfg.getTriggerConfig()
-            self.assertEquals(data[2], trigcfg.basename(),
+            self.assertEquals(data[2], trigcfg.basename,
                               "Expected trigger config %s in %s, not %s" %
-                              (data[2], n, trigcfg.basename()))
+                              (data[2], n, trigcfg.basename))
 
     def runListsSim5Test(self, newFormat):
         cfgDir = self.getConfigDir(newFormat=newFormat)
-        cfg = DAQConfigParser.load("simpleConfig", cfgDir)
+        cfg = DAQConfigParser.parse(cfgDir, "simpleConfig")
 
         expected = ['eventBuilder', 'globalTrigger', 'inIceTrigger',
                     'secondaryBuilders', 'stringHub#1001', 'stringHub#1002',
@@ -114,13 +114,13 @@ class CommonCode(unittest.TestCase):
 
         for c in comps:
             try:
-                expected.index(c.fullName())
+                expected.index(c.fullname)
             except:
                 self.fail('Unexpected component "%s"' % c)
 
     def runLookupSim5Test(self, newFormat):
         cfgDir = self.getConfigDir(newFormat=newFormat)
-        cfg = DAQConfigParser.load("simpleConfig", cfgDir)
+        cfg = DAQConfigParser.parse(cfgDir, "simpleConfig")
 
         dataList = (('53494d550101', 'Nicholson_Baker', 1001, 1),
                     ('53494d550120', 'SIM0020', 1001, 20),
@@ -147,8 +147,8 @@ class CommonCode(unittest.TestCase):
 
     def runListsSpsIC40IT6Test(self, newFormat):
         cfgDir = self.getConfigDir(newFormat=newFormat)
-        cfg = DAQConfigParser.load("sps-IC40-IT6-AM-Revert-IceTop-V029",
-                                  cfgDir)
+        cfg = DAQConfigParser.parse(cfgDir,
+                                    "sps-IC40-IT6-AM-Revert-IceTop-V029")
 
         expected = ['amandaTrigger', 'eventBuilder', 'globalTrigger',
                     'iceTopTrigger', 'inIceTrigger', 'secondaryBuilders',
@@ -176,37 +176,38 @@ class CommonCode(unittest.TestCase):
 
         for c in comps:
             try:
-                expected.index(c.fullName())
+                expected.index(c.fullname)
             except:
                 self.fail('Unexpected component "%s"' % c)
 
     def runLookupSpsIC40IT6Test(self, newFormat):
         cfgDir = self.getConfigDir(newFormat=newFormat)
-        cfg = DAQConfigParser.load("sps-IC40-IT6-AM-Revert-IceTop-V029",
-                                  cfgDir)
+        cfg = DAQConfigParser.parse(cfgDir,
+                                    "sps-IC40-IT6-AM-Revert-IceTop-V029")
 
-        dataList = (('737d355af587', 'Bat', 21, 1),
-                    ('499ccc773077', 'Werewolf', 66, 6),
-                    ('efc9607742b9', 'Big_Two_Card', 78, 60),
-                    ('1e5b72775d19', 'AMANDA_SYNC_DOM', 0, 91),
-                    ('1d165fc478ca', 'AMANDA_TRIG_DOM', 0, 92),
-                    )
+        dataList = (
+            ('737d355af587', 'Bat', 21, 1),
+            ('499ccc773077', 'Werewolf', 66, 6),
+            ('efc9607742b9', 'Big_Two_Card', 78, 60),
+            ('1e5b72775d19', 'AMANDA_SYNC_DOM', 0, 91),
+            ('1d165fc478ca', 'AMANDA_TRIG_DOM', 0, 92),
+        )
 
         self.lookup(cfg, dataList)
 
     def runDumpDOMsTest(self, newFormat):
         cfgDir = self.getConfigDir(newFormat=newFormat)
-        cfg = DAQConfigParser.load("sps-IC40-IT6-AM-Revert-IceTop-V029",
-                                  cfgDir)
+        cfg = DAQConfigParser.parse(cfgDir,
+                                    "sps-IC40-IT6-AM-Revert-IceTop-V029")
 
         for d in cfg.getAllDOMs():
             mbid = str(d)
             if len(mbid) != 12 or mbid.startswith(" "):
-                self.fail("DOM %s(%s) has bad MBID" % (mbid, d.name()))
+                self.fail("DOM %s(%s) has bad MBID" % (mbid, d.name))
             n = 0
             if str(d).startswith("0"):
                 n += 1
-                nmid = cfg.getIDbyName(d.name())
+                nmid = cfg.getIDbyName(d.name)
                 if nmid != mbid:
                     self.fail("Bad IDbyName value \"%s\" for \"%s\"" %
                               (nmid, mbid))
@@ -218,7 +219,7 @@ class CommonCode(unittest.TestCase):
 
     def runReplayTest(self, newFormat):
         cfgDir = self.getConfigDir(newFormat=newFormat)
-        cfg = DAQConfigParser.load("replay-ic22-it4", cfgDir)
+        cfg = DAQConfigParser.parse(cfgDir, "replay-ic22-it4")
 
         expected = ['eventBuilder', 'globalTrigger', 'iceTopTrigger',
                     'inIceTrigger',
@@ -241,7 +242,7 @@ class CommonCode(unittest.TestCase):
 
         for c in comps:
             try:
-                expected.index(c.fullName())
+                expected.index(c.fullname)
             except:
                 self.fail('Unexpected component "%s"' % c)
 
@@ -294,17 +295,17 @@ class DAQConfigTest(CommonCode):
     def testCheckPeriod(self):
         cfgDir = self.getConfigDir()
 
-        cfg = DAQConfigParser.load("sps-IC40-hitspool", cfgDir)
+        cfg = DAQConfigParser.parse(cfgDir, "sps-IC40-hitspool")
 
         expVal = 10
         self.assertEqual(expVal, cfg.monitorPeriod(),
                          "Expected monitor period for %s to be %d, not %s" %
-                         (cfg.basename(), expVal, cfg.monitorPeriod()))
+                         (cfg.basename, expVal, cfg.monitorPeriod()))
 
         expVal = 25
         self.assertEqual(expVal, cfg.watchdogPeriod(),
                          "Expected watchdog period for %s to be %d, not %s" %
-                         (cfg.basename(), expVal, cfg.watchdogPeriod()))
+                         (cfg.basename, expVal, cfg.watchdogPeriod()))
 
 
 

@@ -22,7 +22,7 @@ class UnhealthyRecord(object):
         return "#%d: %s" % (self.__order, self.__msg)
 
     def __cmp__(self, other):
-        if type(other) != UnhealthyRecord:
+        if not isinstance(other, UnhealthyRecord):
             return -1
 
         val = cmp(self.__order, other.__order)
@@ -71,12 +71,12 @@ class ThresholdWatcher(Watcher):
         self.__lessThan = lessThan
 
         if self.__lessThan:
-            dir = "below"
+            updown = "below"
         else:
-            dir = "above"
+            updown = "above"
 
         fullName = "%s %s.%s %s %s" % \
-            (comp.fullName(), beanName, fieldName, dir, str(self.__threshold))
+            (comp.fullname, beanName, fieldName, updown, self.__threshold)
         super(ThresholdWatcher, self).__init__(fullName, beanName, fieldName)
 
     def __compare(self, threshold, value):
@@ -93,7 +93,7 @@ class ThresholdWatcher(Watcher):
             raise TaskException(("Threshold value for %s is %s, new value" +
                                  " is %s") %
                                 (str(self), str(type(self.__threshold)),
-                             str(type(newValue))))
+                                 str(type(newValue))))
         elif newType == list or newType == dict:
             raise TaskException("ThresholdWatcher does not support %s" %
                                 newType)
@@ -121,7 +121,7 @@ class ValueWatcher(Watcher):
         self.__prevValue = None
         self.__unchanged = 0
 
-        fullName = "%s->%s %s.%s" % (fromComp.fullName(), toComp.fullName(),
+        fullName = "%s->%s %s.%s" % (fromComp.fullname, toComp.fullname,
                                      beanName, fieldName)
         super(ValueWatcher, self).__init__(fullName, beanName, fieldName)
 
@@ -143,7 +143,7 @@ class ValueWatcher(Watcher):
 
     def check(self, newValue):
         if self.__prevValue is None:
-            if type(newValue) == list:
+            if isinstance(newValue, list):
                 self.__prevValue = newValue[:]
             else:
                 self.__prevValue = newValue
@@ -232,7 +232,7 @@ class WatchData(object):
         self.__closed = False
 
     def __str__(self):
-        return self.__comp.fullName()
+        return self.__comp.fullname
 
     def __checkBeans(self, beanList):
         unhealthy = []
@@ -280,7 +280,7 @@ class WatchData(object):
                     val = valMap[fldVal]
                 except KeyError:
                     self.__dashlog.error("No value found for %s field#%d %s" %
-                                         (self.__comp.fullName(), index,
+                                         (self.__comp.fullname, index,
                                           fldVal))
                     continue
 
@@ -339,7 +339,7 @@ class WatchData(object):
                     starved += badList
                     isOK = False
             except:
-                self.__dashlog.error(self.__comp.fullName() + " inputs: " +
+                self.__dashlog.error(self.__comp.fullname + " inputs: " +
                                      exc_string())
                 isOK = False
 
@@ -352,7 +352,7 @@ class WatchData(object):
                     stagnant += badList
                     isOK = False
             except:
-                self.__dashlog.error(self.__comp.fullName() + " outputs: " +
+                self.__dashlog.error(self.__comp.fullname + " outputs: " +
                                      exc_string())
                 isOK = False
 
@@ -365,7 +365,7 @@ class WatchData(object):
                     threshold += badList
                     isOK = False
             except:
-                self.__dashlog.error(self.__comp.fullName() + " thresholds: " +
+                self.__dashlog.error(self.__comp.fullname + " thresholds: " +
                                      exc_string())
                 isOK = False
 
@@ -392,11 +392,11 @@ class WatchdogThread(CnCThread):
         self.__stagnant = []
         self.__threshold = []
 
-        super(WatchdogThread, self).__init__(self.__comp.fullName() + ":" +
+        super(WatchdogThread, self).__init__(self.__comp.fullname + ":" +
                                              str(self.__rule), self.__dashlog)
 
     def __str__(self):
-        return self.__comp.fullName()
+        return self.__comp.fullname
 
     def _run(self):
         if self.isClosed():
@@ -412,7 +412,7 @@ class WatchdogThread(CnCThread):
                 self.__initFail += 1
                 self.__dashlog.error(("Initialization failure #%d" +
                                       " for %s %s: %s") %
-                                     (self.__initFail, self.__comp.fullName(),
+                                     (self.__initFail, self.__comp.fullname,
                                       self.__rule, exc_string()))
                 return
 
@@ -425,7 +425,7 @@ class WatchdogThread(CnCThread):
             self.__data.close()
             self.__data = None
 
-    def getNewThread(self):
+    def get_new_thread(self):
         thrd = WatchdogThread(self.__runset, self.__comp, self.__rule,
                               self.__dashlog, self.__data, self.__initFail)
         return thrd
@@ -448,7 +448,8 @@ class DummyComponent(object):
     def __str__(self):
         return self.__name
 
-    def fullName(self):
+    @property
+    def fullname(self):
         return self.__name
 
     def isBuilder(self):
@@ -474,7 +475,7 @@ class WatchdogRule(object):
     @classmethod
     def findComp(cls, comps, compName):
         for c in comps:
-            if c.name() == compName:
+            if c.name == compName:
                 return c
 
         return None
@@ -496,9 +497,9 @@ class WatchdogRule(object):
 
         for comp in runset.components():
             order = comp.order()
-            if type(order) != int:
+            if not isinstance(order, int):
                 raise TaskException("Expected integer order for %s, not %s" %
-                                    (comp.fullName(), type(comp.order())))
+                                    (comp.fullname, type(comp.order())))
 
             if minOrder is None or order < minOrder:
                 minOrder = order
@@ -518,7 +519,7 @@ class StringHubRule(WatchdogRule):
             data.addOutputValue(comp, "sender", "NumReadoutsSent")
 
     def matches(self, comp):
-        return comp.name() == "stringHub" or comp.name() == "replayHub"
+        return comp.name == "stringHub" or comp.name == "replayHub"
 
 
 class TrackEngineRule(WatchdogRule):
@@ -526,11 +527,11 @@ class TrackEngineRule(WatchdogRule):
         pass
 
     def matches(self, comp):
-        return comp.name() == "trackEngine"
+        return comp.name == "trackEngine"
 
 class LocalTriggerRule(WatchdogRule):
     def initData(self, data, thisComp, components):
-        if thisComp.name() == "iceTopTrigger":
+        if thisComp.name == "iceTopTrigger":
             hitName = "icetopHit"
             wantIcetop = True
         else:
@@ -539,11 +540,11 @@ class LocalTriggerRule(WatchdogRule):
 
         hub = None
         for comp in components:
-            if comp.name().lower().endswith("hub"):
+            if comp.name.lower().endswith("hub"):
                 if wantIcetop:
-                    found = comp.num() >= 200
+                    found = comp.num >= 200
                 else:
-                    found = comp.num() < 200
+                    found = comp.num < 200
                 if found:
                     hub = comp
                     break
@@ -555,9 +556,9 @@ class LocalTriggerRule(WatchdogRule):
             data.addOutputValue(comp, "trigger", "RecordsSent")
 
     def matches(self, comp):
-        return comp.name() == "inIceTrigger" or \
-                   comp.name() == "simpleTrigger" or \
-                   comp.name() == "iceTopTrigger"
+        return comp.name == "inIceTrigger" or \
+                   comp.name == "simpleTrigger" or \
+                   comp.name == "iceTopTrigger"
 
 
 class GlobalTriggerRule(WatchdogRule):
@@ -571,14 +572,14 @@ class GlobalTriggerRule(WatchdogRule):
             data.addOutputValue(comp, "glblTrig", "RecordsSent")
 
     def matches(self, comp):
-        return comp.name() == "globalTrigger"
+        return comp.name == "globalTrigger"
 
 
 class EventBuilderRule(WatchdogRule):
     def initData(self, data, thisComp, components):
         hub = None
         for comp in components:
-            if comp.name().lower().endswith("hub"):
+            if comp.name.lower().endswith("hub"):
                 hub = comp
                 break
         if hub is not None:
@@ -593,22 +594,22 @@ class EventBuilderRule(WatchdogRule):
         data.addThresholdValue("backEnd", "NumBadEvents", 0, False)
 
     def matches(self, comp):
-        return comp.name() == "eventBuilder"
+        return comp.name == "eventBuilder"
 
 
 class SecondaryBuildersRule(WatchdogRule):
     def initData(self, data, thisComp, components):
         data.addThresholdValue("snBuilder", "DiskAvailable", 1024)
         data.addOutputValue(self.DISPATCH_COMP, "moniBuilder",
-                          "TotalDispatchedData")
+                            "TotalDispatchedData")
         data.addOutputValue(self.DISPATCH_COMP, "snBuilder",
-                          "TotalDispatchedData")
+                            "TotalDispatchedData")
         # XXX - Disabled until there"s a simulated tcal stream
         #data.addOutputValue(self.DISPATCH_COMP, "tcalBuilder",
         #                  "TotalDispatchedData")
 
     def matches(self, comp):
-        return comp.name() == "secondaryBuilders"
+        return comp.name == "secondaryBuilders"
 
 
 class WatchdogTask(CnCTask):
@@ -628,20 +629,21 @@ class WatchdogTask(CnCTask):
         if period is None:
             period = self.PERIOD
 
-        super(WatchdogTask, self).__init__("Watchdog", taskMgr, dashlog,
+        super(WatchdogTask, self).__init__(self.NAME, taskMgr, dashlog,
                                            self.DEBUG_BIT, self.NAME,
                                            period)
 
         WatchdogRule.initialize(runset)
 
         if rules is None:
-            rules = (StringHubRule(),
-                     LocalTriggerRule(),
-                     TrackEngineRule(),
-                     GlobalTriggerRule(),
-                     EventBuilderRule(),
-                     SecondaryBuildersRule(),
-                     )
+            rules = (
+                StringHubRule(),
+                LocalTriggerRule(),
+                TrackEngineRule(),
+                GlobalTriggerRule(),
+                EventBuilderRule(),
+                SecondaryBuildersRule(),
+            )
 
         self.__threadList = self.__createThreads(runset, rules, dashlog)
 
@@ -660,10 +662,10 @@ class WatchdogTask(CnCTask):
                         break
                 if not found:
                     self.logError("Couldn't create watcher for unknown" +
-                                  " component " + comp.fullName())
+                                  " component " + comp.fullname)
             except:
                 self.logError("Couldn't create watcher for component %s: %s" %
-                              (comp.fullName(), exc_string()))
+                              (comp.fullname, exc_string()))
         return threadList
 
     def __logUnhealthy(self, errType, badList):
@@ -675,14 +677,14 @@ class WatchdogTask(CnCTask):
                 errStr = ""
             else:
                 errStr += "\n"
-            if type(bad) == UnhealthyRecord:
+            if isinstance(bad, UnhealthyRecord):
                 msg = bad.message()
             else:
                 msg = "%s (%s is not UnhealthyRecord)" % (str(bad), type(bad))
             errStr += "    " + msg
 
-        self.logError("Watchdog reports %s components:\n%s" % \
-                          (errType, errStr))
+        self.logError("%s reports %s components:\n%s" %
+                      (self.NAME, errType, errStr))
 
     def _check(self):
         hanging = []
@@ -698,13 +700,13 @@ class WatchdogTask(CnCTask):
                 stagnant += self.__threadList[c].stagnant()
                 threshold += self.__threadList[c].threshold()
 
-            self.__threadList[c] = self.__threadList[c].getNewThread()
+            self.__threadList[c] = self.__threadList[c].get_new_thread()
             self.__threadList[c].start()
 
         healthy = True
         if len(hanging) > 0:
-            self.logError("Watchdog reports hanging components:\n    " + \
-                          listComponentRanges(hanging))
+            self.logError("%s reports hanging components:\n    %s" %
+                          (self.NAME, listComponentRanges(hanging)))
             healthy = False
         if len(starved) > 0:
             self.__logUnhealthy("starved", starved)
@@ -728,7 +730,11 @@ class WatchdogTask(CnCTask):
                                   self.__healthMeter)
             else:
                 self.logError("Run is not healthy, stopping")
-                self.setError()
+                self.setError("WatchdogTask")
+
+    @classmethod
+    def createThread(cls, runset, comp, rule, dashlog):
+        return WatchdogThread(runset, comp, rule, dashlog)
 
     def close(self):
         savedEx = None
@@ -741,9 +747,6 @@ class WatchdogTask(CnCTask):
 
         if savedEx:
             raise savedEx[0], savedEx[1], savedEx[2]
-
-    def createThread(self, runset, comp, rule, dashlog):
-        return WatchdogThread(runset, comp, rule, dashlog)
 
     def waitUntilFinished(self):
         for c in self.__threadList.keys():

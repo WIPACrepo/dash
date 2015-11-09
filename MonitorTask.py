@@ -2,12 +2,12 @@
 
 import datetime
 import os
-import socket
 import threading
 import sys
 
 from CnCTask import CnCTask
 from CnCThread import CnCThread
+from DAQClient import BeanTimeoutException
 from LiveImports import Prio
 from RunOption import RunOption
 from RunSetDebug import RunSetDebug
@@ -29,7 +29,10 @@ class MonitorThread(CnCThread):
         self.__warned = False
         self.__closeLock = threading.Lock()
 
-        super(MonitorThread, self).__init__(comp.fullName(), dashlog)
+        self.__beanKeys = []
+        self.__beanFlds = {}
+
+        super(MonitorThread, self).__init__(comp.fullname, dashlog)
 
     def __createReporter(self):
         if RunOption.isMoniToBoth(self.__runOptions) and \
@@ -57,31 +60,30 @@ class MonitorThread(CnCThread):
             if self.__reporter is None:
                 return
 
-        bSrt = self.__comp.getBeanNames()
-        bSrt.sort()
-        for b in bSrt:
+            self.__beanKeys = []
+            self.__beanFlds = {}
+
+        if len(self.__beanKeys) == 0:
+            self.__beanKeys = self.__comp.getBeanNames()
+            self.__beanKeys.sort()
+            for b in self.__beanKeys:
+                if self.isClosed():
+                    # give up if this thread has been "closed"
+                    return
+
+                self.__beanFlds[b] = self.__comp.getBeanFields(b)
+
+        for b in self.__beanKeys:
             if self.isClosed():
-                # break out of the loop if this thread has been "closed"
                 break
 
-            flds = self.__comp.getBeanFields(b)
+            flds = self.__beanFlds[b]
             try:
                 attrs = self.__comp.getMultiBeanFields(b, flds)
                 self.__refused = 0
-            except socket.error as se:
-                sockStr = exc_string()
-                try:
-                    msg = se[1]
-                except IndexError:
-                    msg = None
-
-                if msg and msg == "Connection refused":
-                    self.__refused += 1
-                    break
-
-                attrs = None
-                self.__dashlog.error("Ignoring %s:%s: %s" %
-                                     (str(self.__comp), b, sockStr))
+            except BeanTimeoutException:
+                self.__refused += 1
+                break
             except:
                 attrs = None
                 self.__dashlog.error("Ignoring %s:%s: %s" %
@@ -90,6 +92,8 @@ class MonitorThread(CnCThread):
             # report monitoring data
             if attrs and len(attrs) > 0 and not self.isClosed():
                 self.__reporter.send(datetime.datetime.now(), b, attrs)
+
+        return self.__refused
 
     def close(self):
         super(MonitorThread, self).close()
@@ -104,7 +108,7 @@ class MonitorThread(CnCThread):
                                          (self.__comp, exc_string()))
                 self.__reporter = None
 
-    def getNewThread(self):
+    def get_new_thread(self):
         thrd = MonitorThread(self.__comp, self.__runDir, self.__liveMoni,
                              self.__runOptions, self.__dashlog,
                              self.__reporter, self.__refused)
@@ -121,11 +125,11 @@ class MonitorThread(CnCThread):
 
 
 class MonitorToFile(object):
-    def __init__(self, dir, basename):
-        if dir is None:
+    def __init__(self, dirname, basename):
+        if dirname is None:
             self.__fd = None
         else:
-            self.__fd = open(os.path.join(dir, basename + ".moni"), "w")
+            self.__fd = open(os.path.join(dirname, basename + ".moni"), "w")
         self.__fdLock = threading.Lock()
 
     def close(self):
@@ -157,13 +161,13 @@ class MonitorToLive(object):
         if self.__liveMoni is not None:
             for key in attrs:
                 self.__liveMoni.sendMoni("%s*%s+%s" % (self.__name, beanName,
-                                                        key), attrs[key],
-                                                        Prio.ITS, now)
+                                                       key), attrs[key],
+                                         Prio.ITS, now)
 
 
 class MonitorToBoth(object):
-    def __init__(self, dir, basename, liveMoni):
-        self.__file = MonitorToFile(dir, basename)
+    def __init__(self, dirname, basename, liveMoni):
+        self.__file = MonitorToFile(dirname, basename)
         self.__live = MonitorToLive(basename, liveMoni)
 
     def close(self):
@@ -184,25 +188,28 @@ class MonitorTask(CnCTask):
 
     def __init__(self, taskMgr, runset, dashlog, liveMoni, runDir, runOptions,
                  period=None):
-        self.__threadList = {}
+        if period is None:
+            period = self.PERIOD
+
+        super(MonitorTask, self).__init__(self.NAME, taskMgr, dashlog,
+                                          self.DEBUG_BIT, self.NAME,
+                                          period)
+
+        self.__threadList = self.__createThreads(runset, dashlog, liveMoni,
+                                                 runDir, runOptions)
+
+    def __createThreads(self, runset, dashlog, liveMoni, runDir, runOptions):
+        threadList = {}
+
         if not RunOption.isMoniToNone(runOptions):
             for c in runset.components():
                 # refresh MBean info to pick up any new MBeans
                 c.reloadBeanInfo()
 
-                self.__threadList[c] = self.createThread(c, runDir, liveMoni,
-                                                         runOptions, dashlog)
+                threadList[c] = self.createThread(c, runDir, liveMoni,
+                                                  runOptions, dashlog)
 
-        if period is None:
-            period = self.PERIOD
-
-        super(MonitorTask, self).__init__("Monitor", taskMgr, dashlog,
-                                          self.DEBUG_BIT, self.NAME,
-                                          period)
-
-    @classmethod
-    def createThread(cls, comp, runDir, liveMoni, runOptions, dashlog):
-        return MonitorThread(comp, runDir, liveMoni, runOptions, dashlog)
+        return threadList
 
     def _check(self):
         for c in self.__threadList.keys():
@@ -212,18 +219,22 @@ class MonitorTask(CnCTask):
                     if not thrd.isWarned():
                         msg = ("ERROR: Not monitoring %s: Connect failed" +
                                " %d times") % \
-                               (c.fullName(), thrd.refusedCount())
+                               (c.fullname, thrd.refusedCount())
                         self.logError(msg)
                         thrd.setWarned()
                     continue
-                self.__threadList[c] = thrd.getNewThread()
+                self.__threadList[c] = thrd.get_new_thread()
                 self.__threadList[c].start()
+
+    @classmethod
+    def createThread(cls, comp, runDir, liveMoni, runOptions, dashlog):
+        return MonitorThread(comp, runDir, liveMoni, runOptions, dashlog)
 
     def close(self):
         savedEx = None
-        for c in self.__threadList.keys():
+        for thr in self.__threadList.values():
             try:
-                self.__threadList[c].close()
+                thr.close()
             except:
                 if not savedEx:
                     savedEx = sys.exc_info()

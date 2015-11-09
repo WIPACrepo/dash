@@ -16,7 +16,7 @@ class RateTaskTest(unittest.TestCase):
         pass
 
     def testGood(self):
-        timer = MockIntervalTimer("Rate")
+        timer = MockIntervalTimer(RateTask.NAME)
 
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(timer)
