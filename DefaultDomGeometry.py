@@ -22,7 +22,7 @@ def compute_channel_id(string, pos):
         raise Exception("Impossible position %d" % pos)
 
     kstring = string % 1000
-    if kstring > 86:
+    if kstring < 0 or kstring > 86:
         raise Exception("Impossible string %d" % string)
 
     if pos > 64:
