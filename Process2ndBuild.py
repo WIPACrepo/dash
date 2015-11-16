@@ -64,6 +64,7 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
     snLink = front + ".sn.tar"
     moniSem = front + ".msem"
     spadeSem = front + ".sem"
+    extraLink = front + ".save.tar"
 
     # Duplicate file: wait for a new second, recalculate everything:
     if os.path.exists(spadeTar):
@@ -105,6 +106,10 @@ def processFiles(matchingFiles, verbose=False, dryRun=False):
         os.link(spadeTar, snLink)
         # So that SN process can delete if it's not running as pdaq
         os.chmod(snLink, 0666)
+
+    # Create extra hard link
+    if verbose: print "ExtraLink %s" % extraLink
+    if not dryRun: os.link(spadeTar, extraLink)
 
     # Create spade .sem
     if not dryRun:
