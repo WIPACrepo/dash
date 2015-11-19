@@ -469,9 +469,17 @@ def getDirAndRunnum(topDir, subDir):
         elif i == 1:
             fullpath = subDir
         elif i == 2:
-            fullpath = os.path.join(topDir, "daqrun" + subDir)
+            try:
+                num = int(subDir)
+                fullpath = os.path.join(topDir, "daqrun%05d" % num)
+            except:
+                continue
         elif i == 3:
-            fullpath = "daqrun" + subDir
+            try:
+                num = int(subDir)
+                fullpath = "daqrun%05d" % num
+            except:
+                continue
         else:
             break
 
