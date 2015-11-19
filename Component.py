@@ -15,7 +15,7 @@ class Component(object):
         return val
 
     def __str__(self):
-        return self.fullName
+        return self.fullname
 
     def __repr__(self):
         return self.fullname
