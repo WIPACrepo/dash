@@ -90,7 +90,13 @@ class ConfigDirChecker(object):
             for f in self.__processlist[:]:
                 # load run configuration file
                 print "!!! Loading %s" % f
-                cfg = DAQConfigParser.parse(False, f, self.__cfgdir)
+                try:
+                    cfg = DAQConfigParser.parse(False, f, self.__cfgdir)
+                except:
+                    import traceback
+                    print >>sys.stderr, "!!! Ignoring bad %s" % f
+                    traceback.print_exc()
+                    continue
 
                 # check that all dom config files have been added
                 for dc in cfg.getDomConfigs():
