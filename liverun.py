@@ -217,7 +217,7 @@ class LiveState(object):
         Returns the new parser state
         """
         if len(line) == 0 or line.find("controlled by LiveControl") > 0 or \
-                line == "(None)":
+                line == "(None)" or line == "OK":
             return self.PARSE_NORMAL
 
         if line.startswith("Flashing DOMs"):
@@ -283,6 +283,7 @@ class LiveState(object):
                 return self.PARSE_NORMAL
             elif front == "Target run stop time" or \
                  front == "Currently" or \
+                 front == "Time since start" or \
                  front == "Time until stop":
                 # ignore run time info
                 return self.PARSE_NORMAL
