@@ -188,6 +188,7 @@ class DAQLive(Component):
             if not self.__startThrd.isAlive():
                 self.__startThrd = None
 
+        # start DAQ in a thread so we can return immediately
         self.__starting = True
         self.__startThrd = threading.Thread(target=self.__startRun,
                                             args=(runCfg, runNum))
