@@ -821,7 +821,7 @@ class RunData(object):
         self.__writeRunXML(numEvts, numMoni, numSN, numTcal, firstTime,
                            lastTime, firstGood, lastGood, duration, hadError)
 
-        self.__reportRunStop(numEvts, firstTime, lastTime, hadError)
+        self.__reportRunStop(numEvts, firstGood, lastGood, hadError)
 
         if switching:
             self.reportGoodTime("lastGoodTime", lastTime)
