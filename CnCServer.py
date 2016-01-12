@@ -132,9 +132,9 @@ class DAQPool(object):
         if not self.__starting:
             raise StartInterruptedException("Collect interrupted")
 
-        if len(waitList) == 0:
-            waitList = None
-        return waitList
+        if len(needed) == 0:
+            return None
+        return needed
 
     def __makeRunsetInternal(self, runConfigDir, runConfigName, runNum,
                              timeout, logger, daqDataDir, forceRestart=True,
