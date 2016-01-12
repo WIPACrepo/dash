@@ -739,7 +739,7 @@ class TestDAQPool(unittest.TestCase):
         self.assertEqual(monDict["physicsEvents"], numEvts)
 
         stopName = "TestStartRun"
-        dashLog.addExpectedExact("%s is stopping the run" % stopName)
+        dashLog.addExpectedExact("Stopping the run (%s)" % stopName)
 
         numSecs = (lastTime - firstTime) / 1.0E10
 
