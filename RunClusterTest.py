@@ -329,5 +329,19 @@ class RunClusterTest(unittest.TestCase):
         self.__checkCluster("replay", cfgName, expNodes, spadeDir, logCopyDir,
                             daqLogDir, daqDataDir)
 
+    def testDeployReplayMissingHost(self):
+        cluName = "replay"
+        cfgName = 'replay-missing'
+
+        cfg = DAQConfigParser.parse(RunClusterTest.CONFIG_DIR, cfgName)
+
+        try:
+            RunCluster(cfg, cluName, RunClusterTest.CONFIG_DIR)
+            self.fail("This should not succeed")
+        except RunClusterError, rce:
+            estr = str(rce)
+            if estr != "Cannot find xxx09 for %s in spts" % cluName:
+                raise
+
 if __name__ == '__main__':
     unittest.main()

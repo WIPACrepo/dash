@@ -205,6 +205,11 @@ class RunCluster(CachedConfigName):
                 i += 1
                 continue
 
+            # die if host was not found in cluster config
+            if clusterDesc.host(hub.host) is None:
+                raise RunClusterError("Cannot find %s for replay in %s" %
+                                      (hub.host, clusterDesc.name))
+
             if hub.logLevel is not None:
                 lvl = hub.logLevel
             else:
