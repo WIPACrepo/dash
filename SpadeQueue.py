@@ -254,11 +254,12 @@ def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
             return
         (runTime, runDuration) = (None, 0)
 
-    if not no_combine:
-        logger.error("Writing combined log for run %d" % runNum)
-        # if combined log file does not exist, create it
-        path = os.path.join(runDir, COMBINED_LOG)
-        if not os.path.exists(path):
+    path = os.path.join(runDir, COMBINED_LOG)
+    if not os.path.exists(path):
+        if no_combine:
+            logger.error("Not writing combined log for run %d" % runNum)
+        else:
+            logger.error("Writing combined log for run %d" % runNum)
             ls = LogSorter(runDir, runNum)
             # write to dotfile in case thread dies before it's finished
             tmppath = os.path.join(runDir, "." + COMBINED_LOG)
@@ -267,10 +268,6 @@ def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
             # it's now safe to rename the combined log file
             os.rename(tmppath, path)
             logger.error("Wrote combined log for run %d" % runNum)
-        else:
-            logger.error("Combined log already exists for run %d" % runNum)
-    else:
-        logger.error("Not writing combined log for run %d" % runNum)
 
     if runTime is None:
         runTime = datetime.datetime.now()
