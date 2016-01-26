@@ -91,7 +91,7 @@ class ConfigDirChecker(object):
                 # load run configuration file
                 print "!!! Loading %s" % f
                 try:
-                    cfg = DAQConfigParser.parse(False, f, self.__cfgdir)
+                    cfg = DAQConfigParser.parse(self.__cfgdir, f, strict=False)
                 except:
                     import traceback
                     print >>sys.stderr, "!!! Ignoring bad %s" % f
