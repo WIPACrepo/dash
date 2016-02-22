@@ -115,6 +115,7 @@ class Payload(object):
         "UTC time from payload header"
         return self.__utime
 
+
 class UnknownPayload(Payload):
     "A payload which has not been implemented in this library"
 
@@ -163,7 +164,7 @@ class delta_codec(object):
             while True:
                 wrd = self.get_bits()
                 # print "%d: Got %d" % (i, wrd)
-                if wrd != (1 << (self.bpw -1)):
+                if wrd != (1 << (self.bpw - 1)):
                     break
                 self.shift_up()
             if abs(wrd) < self.bth:
@@ -324,7 +325,7 @@ class DeltaCompressedHit(Payload):
 
         return ((self.__word2 >> 27) & 0xf,
                 ((self.__word2 >> 18) & 0x1ff) << lsh,
-                ((self.__word2 >>  9) & 0x1ff) << lsh,
+                ((self.__word2 >> 9) & 0x1ff) << lsh,
                 ((self.__word2 & 0x1ff) << lsh))
 
     @property
@@ -410,7 +411,6 @@ class EventV5(Payload):
 
         super(EventV5, self).__init__(utime, data, keep_data=keep_data)
 
-        #hdr = struct.unpack(">8xQHHHQII", data[:38])
         hdr = struct.unpack(">IHIII", data[:18])
 
         self.__stop_time = utime + hdr[0]
@@ -463,14 +463,14 @@ class EventV5(Payload):
     def __load_trig_records(base_time, data, offset):
         "Return all the trigger records"
 
-        #extract the number of trigger records
+        # extract the number of trigger records
         num_recs = struct.unpack(">I", data[offset:offset+4])[0]
         offset += 4
 
         recs = []
         for _ in range(num_recs):
-            rechdr = struct.unpack(">6i",
-                                   data[offset:offset+TriggerRecord.HEADER_LEN])
+            offend = offset + TriggerRecord.HEADER_LEN
+            rechdr = struct.unpack(">6i", data[offset:offend])
             rec = TriggerRecord(base_time, rechdr, data,
                                 offset + TriggerRecord.HEADER_LEN)
             recs.append(rec)
@@ -554,7 +554,8 @@ class EngineeringHitRecord(BaseHitRecord):
     TYPE_ID = 0
 
     def __init__(self, base_time, hdr, data, offset):
-        super(EngineeringHitRecord, self).__init__(base_time, hdr, data, offset)
+        super(EngineeringHitRecord, self).__init__(base_time, hdr, data,
+                                                   offset)
 
 
 class TriggerRecord(object):
@@ -695,7 +696,6 @@ if __name__ == "__main__":
     def main():
         "Dump all payloads"
         import argparse
-
 
         parser = argparse.ArgumentParser()
 
