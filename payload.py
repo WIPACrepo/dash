@@ -478,8 +478,23 @@ class EventV5(Payload):
 
         return recs, offset
 
+    def hit(self, idx):
+        if idx < 0 or idx >= len(self.__hit_records):
+            return None
+        return self.__hit_records[idx]
+
+    @property
+    def hit_count(self):
+        return len(self.__hit_records)
+
+    @property
     def hits(self):
         return self.__hit_records[:]
+
+    @property
+    def run(self):
+        "Run number"
+        return self.__run
 
     @property
     def start_time(self):
@@ -492,24 +507,26 @@ class EventV5(Payload):
         return self.__stop_time
 
     @property
-    def run(self):
-        "Run number"
-        return self.__run
-
-    @property
     def subrun(self):
         "Subrun number"
         return self.__subrun
 
     @property
-    def year(self):
-        "Year this event was seen"
-        return self.__year
+    def trigger_count(self):
+        return len(self.__trig_records)
+
+    def triggers(self):
+        return self.__trig_records[:]
 
     @property
     def uid(self):
         "Unique event ID"
         return self.__uid
+
+    @property
+    def year(self):
+        "Year this event was seen"
+        return self.__year
 
 
 class BaseHitRecord(object):
@@ -582,12 +599,49 @@ class TriggerRecord(object):
     def __str__(self):
         "Payload description"
         return "TriggerRecord[%s typ %d cfg %d [%d-%d] hits*%d]" % \
-            (self.source_name(), self.__type, self.__config_id,
-             self.__start_time, self.__end_time, len(self.__hit_index))
+            (self.source_name, self.__type, self.__config_id,
+             self.__start_time, self.__end_time, self.hit_count)
 
+    @property
+    def config_id(self):
+        "Return the configuration ID of the trigger which created this payload"
+        return self.__config_id
+
+    @property
+    def end_time(self):
+        "Return the end of the time window (in DAQ ticks)"
+        return self.__end_time
+
+    @property
+    def hit_count(self):
+        "Return the total number of hits bundled with this trigger"
+        return len(self.__hit_index)
+
+    @property
+    def hit_indexes(self):
+        "Iterate through the list of hit indexes"
+        for idx in self.__hit_index:
+            yield idx
+
+    @property
+    def source_id(self):
+        "Return the ID of the component which created this payload"
+        return self.__source_id
+
+    @property
     def source_name(self):
         "Return the component name which created this payload"
         return Payload.source_name(self.__source_id)
+
+    @property
+    def start_time(self):
+        "Return the start of the time window (in DAQ ticks)"
+        return self.__start_time
+
+    @property
+    def trigger_type(self):
+        "Return the type of the trigger which created this payload"
+        return self.__type
 
 
 class PayloadReader(object):
