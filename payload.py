@@ -825,7 +825,7 @@ if __name__ == "__main__":
             with PayloadReader(fnm) as rdr:
                 for pay in rdr:
                     if args.max_payloads is not None and \
-                       rdr.nrec >= args.max_payloads:
+                       rdr.nrec > args.max_payloads:
                         break
 
                     print str(pay)
