@@ -47,9 +47,7 @@ class Payload(object):
         "Return the binary representation of this payload"
         if not self.__valid_data:
             raise PayloadException("Data was discarded; cannot return bytes")
-        envelope = struct.pack(">2IQ", len(self.__data) + self.ENVELOPE_LENGTH,
-                               self.payload_type_id(), self.__utime)
-        return envelope + self.__data
+        return self.envelope + self.__data
 
     @property
     def data_bytes(self):
@@ -57,6 +55,17 @@ class Payload(object):
         if not self.__valid_data:
             raise PayloadException("Data was discarded; cannot return bytes")
         return self.__data
+
+    @property
+    def data_length(self):
+        if not self.__valid_data:
+            raise PayloadException("Data was discarded; cannot return length")
+        return len(self.__data)
+
+    @property
+    def envelope(self):
+        return struct.pack(">2IQ", self.data_length + self.ENVELOPE_LENGTH,
+                           self.payload_type_id(), self.__utime)
 
     @property
     def has_data(self):
@@ -333,6 +342,10 @@ class DeltaCompressedHit(Payload):
         "Unadjusted DOM clock"
         return self.__domclk
 
+    @property
+    def envelope(self):
+        return struct.pack(">2IQ", self.data_length + self.ENVELOPE_LENGTH,
+                           self.payload_type_id(), self.__mbid)
     @property
     def fadc(self):
         "fADC values"
