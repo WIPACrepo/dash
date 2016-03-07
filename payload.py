@@ -575,6 +575,65 @@ class EngineeringHitRecord(BaseHitRecord):
                                                    offset)
 
 
+class TimeCalibration(Payload):
+    TYPE_ID = 4
+    LENGTH = 322
+
+    def __init__(self, utime, data, keep_data=True):
+        """
+        Extract time calibration data from the buffer
+        """
+        if len(data) != self.LENGTH:
+            raise PayloadException("Expected %d data bytes, got %d" %
+                                   (self.LENGTH, len(data)))
+
+        super(TimeCalibration, self).__init__(utime, data, keep_data=keep_data)
+
+        hdr = struct.unpack("<QHHQQ128xQQ128xB12sc", data[:314])
+        self.__dom_id = hdr[0]
+        self.__pktlen = hdr[1]
+        self.__format = hdr[2]
+        self.__dor_tx = hdr[3]
+        self.__dor_rx = hdr[4]
+        self.__dor_waveform = data[28:156]
+        self.__dom_rx = hdr[5]
+        self.__dom_tx = hdr[6]
+        self.__dom_waveform = data[172:300]
+        self.__start_of_gps = hdr[7]
+        self.__julianstr = hdr[8]
+        self.__quality = hdr[9]
+
+        st = struct.unpack(">Q", data[314:])
+        self.__synctime = st[0]
+
+    def __str__(self):
+        "Payload description"
+        return "TimeCalibration[dor:tx#%d rx#%d,dom:rx#%d tx#%d," \
+            " \"%s\" Q'%s' S%d]" % \
+            (self.__dor_tx, self.__dor_rx, self.__dom_rx, self.__dom_tx,
+             self.__julianstr, self.__quality, self.__synctime)
+
+    @property
+    def dom_id(self):
+        return self.__dom_id
+
+    @property
+    def dom_rx(self):
+        return self.__dom_rx
+
+    @property
+    def dom_tx(self):
+        return self.__dom_tx
+
+    @property
+    def dor_rx(self):
+        return self.__dor_rx
+
+    @property
+    def dor_tx(self):
+        return self.__dor_tx
+
+
 class TriggerRecord(object):
     "Encoded trigger request inside V5 event payload"
     HEADER_LEN = 24
@@ -736,6 +795,8 @@ class PayloadReader(object):
             return DeltaCompressedHit(utime, rawdata, keep_data=keep_data)
         if type_id == EventV5.TYPE_ID:
             return EventV5(utime, rawdata, keep_data=keep_data)
+        if type_id == TimeCalibration.TYPE_ID:
+            return TimeCalibration(utime, rawdata, keep_data=keep_data)
 
         return UnknownPayload(type_id, utime, rawdata, keep_data=keep_data)
 
