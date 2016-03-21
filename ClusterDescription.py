@@ -563,37 +563,17 @@ class ClusterDescription(ConfigXMLBase):
         args = None
         extraArgs = None
 
-        # try to get text from old jvmArgs node
-        for argsNode in cls.getChildNodes(node, 'jvmArgs'):
-            args = cls.getChildText(argsNode)
-
         # look for jvm node
         for jvmNode in cls.getChildNodes(node, 'jvm'):
-            nodePath = None
-            tmpPath = cls.getChildText(jvmNode)
-            if tmpPath is not None:
-                tmpPath = tmpPath.strip()
-                if tmpPath != "":
-                    nodePath = os.path.expanduser(tmpPath)
             tmpPath = cls.getAttr(jvmNode, 'path')
             if tmpPath is not None:
-                if nodePath is not None:
-                    raise XMLFormatError("%s contains both <jvm path=xxx>"
-                                         " and <jvm>xxx</jvm>" % name)
-                nodePath = os.path.expanduser(tmpPath)
-            if nodePath is not None:
-                path = nodePath
+                path = os.path.expanduser(tmpPath)
             tmpSrvr = cls.getAttr(jvmNode, 'server')
             if tmpSrvr is not None:
                 isServer = cls.parseBooleanString(tmpSrvr)
             heapInit = cls.getAttr(jvmNode, 'heapInit', defaultVal=heapInit)
             heapMax = cls.getAttr(jvmNode, 'heapMax', defaultVal=heapMax)
-            tmpArgs = cls.getAttr(jvmNode, 'args')
-            if tmpArgs is not None:
-                if args is not None:
-                    raise XMLFormatError("%s contains both <jvm args=xxx>"
-                                         " and <jvmArgs>" % name)
-                args = tmpArgs
+            args = cls.getAttr(jvmNode, 'args')
             extraArgs = cls.getAttr(jvmNode, 'extraArgs', defaultVal=extraArgs)
 
         return (path, isServer, heapInit, heapMax, args, extraArgs)

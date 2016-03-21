@@ -493,33 +493,17 @@ class MockClusterWriter(object):
 
     @classmethod
     def writeJVMXML(cls, fd, indent, path, isServer, heapInit, heapMax, args,
-                    extraArgs, oldJVMXML):
+                    extraArgs):
 
-        oldJVMFields = path is not None or \
-                       args is not None
-        newJVMFields = extraArgs is not None or \
-                       heapInit is not None or \
-                       heapMax is not None or \
-                       isServer is not None
-
-        if oldJVMXML and newJVMFields:
-            raise Exception("Cannot set heap/server values in old XML format")
-
-        if oldJVMXML:
-            if path is not None:
-                cls.writeLine(fd, indent, "jvm", path)
-            if args is not None:
-                cls.writeLine(fd, indent, "jvmArgs", args)
-        elif oldJVMFields or newJVMFields:
-            jStr = "jvm"
-            jStr = cls.__appendAttr(jStr, 'path', path)
-            if isServer is not None:
-                jStr = cls.__appendAttr(jStr, 'server', isServer)
-            jStr = cls.__appendAttr(jStr, 'heapInit', heapInit)
-            jStr = cls.__appendAttr(jStr, 'heapMax', heapMax)
-            jStr = cls.__appendAttr(jStr, 'args', args)
-            jStr = cls.__appendAttr(jStr, 'extraArgs', extraArgs)
-            print >>fd, "%s<%s/>" % (indent, jStr)
+        jStr = "jvm"
+        jStr = cls.__appendAttr(jStr, 'path', path)
+        if isServer is not None:
+            jStr = cls.__appendAttr(jStr, 'server', isServer)
+        jStr = cls.__appendAttr(jStr, 'heapInit', heapInit)
+        jStr = cls.__appendAttr(jStr, 'heapMax', heapMax)
+        jStr = cls.__appendAttr(jStr, 'args', args)
+        jStr = cls.__appendAttr(jStr, 'extraArgs', extraArgs)
+        print >>fd, "%s<%s/>" % (indent, jStr)
 
     @classmethod
     def writeLine(cls, fd, indent, name, value):
@@ -582,7 +566,7 @@ class MockCluCfgCtlSrvr(object):
     def required(self):
         return True
 
-    def write(self, fd, indent, oldJVMXML=False):
+    def write(self, fd, indent):
         print >>fd, indent + "<controlServer/>"
 
 
@@ -675,7 +659,7 @@ class MockCluCfgFileComp(MockClusterWriter):
     def setLogLevel(self, value):
         self.__logLevel = value
 
-    def write(self, fd, indent, oldJVMXML=False):
+    def write(self, fd, indent):
         if self.__num == 0:
             numstr = ""
         else:
@@ -686,15 +670,13 @@ class MockCluCfgFileComp(MockClusterWriter):
         else:
             reqstr = " required=\"true\""
 
-        oldJVMFields = self.__jvmPath is not None or \
-                       self.__jvmArgs is not None
-        newJVMFields = self.__jvmExtraArgs is not None or \
+        hasJVMFields = self.__jvmPath is not None or \
+                       self.__jvmArgs is not None or \
+                       self.__jvmExtraArgs is not None or \
                        self.__jvmHeapInit is not None or \
                        self.__jvmHeapMax is not None or \
                        self.__jvmServer is not None
-        multiline = oldJVMFields or \
-                    (oldJVMXML and False or newJVMFields) or \
-                    self.__logLevel is not None
+        multiline = hasJVMFields or self.__logLevel is not None
 
         if multiline:
             endstr = ""
@@ -709,7 +691,7 @@ class MockCluCfgFileComp(MockClusterWriter):
 
             self.writeJVMXML(fd, indent2, self.__jvmPath, self.__jvmServer,
                              self.__jvmHeapInit, self.__jvmHeapMax,
-                             self.__jvmArgs, self.__jvmExtraArgs, oldJVMXML)
+                             self.__jvmArgs, self.__jvmExtraArgs)
 
             if self.__logLevel is not None:
                 self.writeLine(fd, indent2, "logLevel", self.__logLevel)
@@ -770,7 +752,7 @@ class MockCluCfgFileCtlSrvr(object):
     def required(self):
         return True
 
-    def write(self, fd, indent, oldJVMXML=False):
+    def write(self, fd, indent):
         print >>fd, indent + "<controlServer/>"
 
 
@@ -803,13 +785,13 @@ class MockCluCfgFileHost(object):
     def name(self):
         return self.__name
 
-    def write(self, fd, indent, oldJVMXML=False):
+    def write(self, fd, indent):
         print >>fd, "%s<host name=\"%s\">" % (indent, self.__name)
 
         indent2 = indent + "  "
         if self.__comps:
             for c in self.__comps:
-                c.write(fd, indent2, oldJVMXML=oldJVMXML)
+                c.write(fd, indent2)
 
         print >>fd, "%s</host>" % indent
 
@@ -869,7 +851,7 @@ class MockCluCfgFileSimHubs(MockClusterWriter):
     def required(self):
         return False
 
-    def write(self, fd, indent, oldJVMXML=False):
+    def write(self, fd, indent):
         if self.__ifUnused:
             iustr = " ifUnused=\"true\""
         else:
@@ -989,7 +971,7 @@ class MockClusterConfigFile(MockClusterWriter):
         self.__hosts[name] = h
         return h
 
-    def create(self, oldJVMXML=False):
+    def create(self):
         path = os.path.join(self.__configDir, "%s-cluster.cfg" % self.__name)
 
         if not os.path.exists(self.__configDir):
@@ -1024,7 +1006,7 @@ class MockClusterConfigFile(MockClusterWriter):
                                  self.__defaultJVMHeapInit,
                                  self.__defaultJVMHeapMax,
                                  self.__defaultJVMArgs,
-                                 self.__defaultJVMExtraArgs, oldJVMXML)
+                                 self.__defaultJVMExtraArgs)
 
                 if self.__defaultLogLevel is not None:
                     self.writeLine(fd, indent2, "logLevel",
@@ -1035,7 +1017,7 @@ class MockClusterConfigFile(MockClusterWriter):
                 print >>fd, indent + "</default>"
 
             for h in self.__hosts.itervalues():
-                h.write(fd, indent, oldJVMXML=oldJVMXML)
+                h.write(fd, indent)
 
             print >>fd, "</cluster>"
 
