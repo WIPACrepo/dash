@@ -95,9 +95,9 @@ class BeanData(object):
         'secondaryBuilders': (
             ('secondaryBuilders', 'snBuilder', 'DiskAvailable',
              't', 1024, True),
-            ('dispatch', 'moniBuilder', 'TotalDispatchedData', 'o', 0),
-            ('dispatch', 'snBuilder', 'TotalDispatchedData', 'o', 0),
-            ('dispatch', 'tcalBuilder', 'TotalDispatchedData', 'o', 0),
+            ('dispatch', 'moniBuilder', 'NumDispatchedData', 'o', 0),
+            ('dispatch', 'snBuilder', 'NumDispatchedData', 'o', 0),
+            ('dispatch', 'tcalBuilder', 'NumDispatchedData', 'o', 0),
         ),
     }
 
@@ -383,11 +383,15 @@ class RealComponent(object):
         'secondaryBuilders': (32, 0),
     }
 
-    def __init__(self, name, num, cmdPort, mbeanPort, jvmPath, jvmServer,
-                 jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtraArgs, verbose=False):
+    def __init__(self, name, num, cmdPort, mbeanPort, hsDir, hsInterval,
+                 hsMaxFiles, jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
+                 jvmArgs, jvmExtraArgs, verbose=False):
         self.__id = None
         self.__name = name
         self.__num = num
+        self.__hsDir = hsDir
+        self.__hsInterval = hsInterval
+        self.__hsMaxFiles = hsMaxFiles
         self.__jvmPath = jvmPath
         self.__jvmServer = jvmServer
         self.__jvmHeapInit = jvmHeapInit
@@ -406,6 +410,7 @@ class RealComponent(object):
         self.__mbeanData = None
         self.__runData = None
 
+        self.__firstGoodTime = None
         self.__lastGoodTime = None
 
         self.__version = {'filename': name, 'revision': '1', 'date': 'date',
@@ -427,6 +432,8 @@ class RealComponent(object):
         self.__cmd.register_function(self.__reset, 'xmlrpc.reset')
         self.__cmd.register_function(self.__resetLogging,
                                      'xmlrpc.resetLogging')
+        self.__cmd.register_function(self.__setFirstGoodTime,
+                                     'xmlrpc.setFirstGoodTime')
         self.__cmd.register_function(self.__setLastGoodTime,
                                      'xmlrpc.setLastGoodTime')
         self.__cmd.register_function(self.__startRun, 'xmlrpc.startRun')
@@ -631,6 +638,10 @@ class RealComponent(object):
 
         return 'RLOG'
 
+    def __setFirstGoodTime(self, payTime):
+        self.__firstGoodTime = payTime
+        return "OK"
+
     def __setLastGoodTime(self, payTime):
         self.__lastGoodTime = payTime
         return "OK"
@@ -735,6 +746,18 @@ class RealComponent(object):
 
     def getState(self):
         return self.__getState()
+
+    @property
+    def hitspoolDirectory(self):
+        return self.__hsDir
+
+    @property
+    def hitspoolInterval(self):
+        return self.__hsInterval
+
+    @property
+    def hitspoolMaxFiles(self):
+        return self.__hsMaxFiles
 
     def isComponent(self, name, num=-1):
         return self.__name == name and (num < 0 or self.__num == num)
@@ -868,6 +891,10 @@ class IntegrationTest(unittest.TestCase):
         raise Exception("Unknown component %s-%d" % (compName, compNum))
 
     def __createComponents(self):
+        hsDir = "/mnt/data/nowhere"
+        hsInterval = 15.0
+        hsMaxFiles = 18000
+
         # Note that these jvmPath/jvmArg values needs to correspond to
         # what would be used by the config in 'sim-localhost'
         jvmPath = 'java'
@@ -876,24 +903,30 @@ class IntegrationTest(unittest.TestCase):
         jvmHeapMax = "512m"
         jvmArgs = None
         jvmExtra = None
-        comps = [('stringHub', 1001, 9111, 9211, jvmPath, jvmServer,
+        comps = [('stringHub', 1001, 9111, 9211, hsDir, hsInterval,
+                  hsMaxFiles, jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
+                  jvmArgs, jvmExtra),
+                 ('stringHub', 1002, 9112, 9212, hsDir, hsInterval,
+                  hsMaxFiles, jvmPath, jvmServer,
                   jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
-                 ('stringHub', 1002, 9112, 9212, jvmPath, jvmServer,
+                 ('stringHub', 1003, 9113, 9213, hsDir, hsInterval,
+                  hsMaxFiles, jvmPath, jvmServer,
                   jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
-                 ('stringHub', 1003, 9113, 9213, jvmPath, jvmServer,
+                 ('stringHub', 1004, 9114, 9214, hsDir, hsInterval,
+                  hsMaxFiles, jvmPath, jvmServer,
                   jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
-                 ('stringHub', 1004, 9114, 9214, jvmPath, jvmServer,
+                 ('stringHub', 1005, 9115, 9215, hsDir, hsInterval,
+                  hsMaxFiles, jvmPath, jvmServer,
                   jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
-                 ('stringHub', 1005, 9115, 9215, jvmPath, jvmServer,
-                  jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
-                 ('inIceTrigger', 0, 9117, 9217, jvmPath, jvmServer,
-                  jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
-                 ('globalTrigger', 0, 9118, 9218, jvmPath, jvmServer,
-                  jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
-                 ('eventBuilder', 0, 9119, 9219, jvmPath, jvmServer,
-                  jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
-                 ('secondaryBuilders', 0, 9120, 9220, jvmPath, jvmServer,
-                  jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra)]
+                 ('inIceTrigger', 0, 9117, 9217, None, None, None, jvmPath,
+                  jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
+                 ('globalTrigger', 0, 9118, 9218, None, None, None, jvmPath,
+                  jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
+                 ('eventBuilder', 0, 9119, 9219, None, None, None, jvmPath,
+                  jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra),
+                 ('secondaryBuilders', 0, 9120, 9220, None, None, None,
+                  jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs,
+                  jvmExtra)]
 
         if len(comps) != IntegrationTest.NUM_COMPONENTS:
             raise Exception("Expected %d components, not %d" %
@@ -903,7 +936,8 @@ class IntegrationTest(unittest.TestCase):
 
         for c in comps:
             comp = RealComponent(c[0], c[1], c[2], c[3], c[4], c[5], c[6],
-                                 c[7], c[8], c[9], verbose)
+                                 c[7], c[8], c[9], c[10], c[11], c[12],
+                                 verbose)
 
             if self.__compList is None:
                 self.__compList = []
@@ -966,8 +1000,10 @@ class IntegrationTest(unittest.TestCase):
                                  IntegrationTest.COPY_DIR, logPort, livePort)
         for comp in launchList:
             deployComp = MockDeployComponent(comp.getName(), comp.getNumber(),
-                                             logLevel, comp.jvmPath,
-                                             comp.jvmServer,
+                                             logLevel, comp.hitspoolDirectory,
+                                             comp.hitspoolInterval,
+                                             comp.hitspoolMaxFiles,
+                                             comp.jvmPath, comp.jvmServer,
                                              comp.jvmHeapInit,
                                              comp.jvmHeapMax, comp.jvmArgs,
                                              comp.jvmExtraArgs)
@@ -1556,11 +1592,11 @@ class IntegrationTest(unittest.TestCase):
         self.__setBeanData("eventBuilder", 0, "backEnd", "GoodTimes",
                            (startEvtTime, lastEvtTime))
         self.__setBeanData("secondaryBuilders", 0, "moniBuilder",
-                           "TotalDispatchedData", numMoni)
+                           "NumDispatchedData", numMoni)
         self.__setBeanData("secondaryBuilders", 0, "snBuilder",
-                           "TotalDispatchedData", numSN)
+                           "NumDispatchedData", numSN)
         self.__setBeanData("secondaryBuilders", 0, "tcalBuilder",
-                           "TotalDispatchedData", numTcal)
+                           "NumDispatchedData", numTcal)
 
         self.__setRunData(numEvts, startEvtTime, lastEvtTime, numTcal, numSN,
                           numMoni, startEvtTime, lastEvtTime)

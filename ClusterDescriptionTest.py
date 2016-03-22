@@ -395,14 +395,22 @@ class TestClusterDescription(unittest.TestCase):
         mock.setLogDir(logDir)
         mock.setSpadeDir(spadeDir)
 
+        hsDir = "xxxDir"
+        hsInterval = 12.0
+        hsMaxFiles = 111
+
         jvmPath = "xxxjvm"
         jvmArgs = "jvmArgs"
-        logLevel = "logLvl"
         jvmHeapInit = "2g"
         jvmHeapMax = "8g"
         jvmServer = False
         jvmExtraArgs = "xxxArgs"
 
+        logLevel = "logLvl"
+
+        mock.setDefaultHSDirectory(hsDir)
+        mock.setDefaultHSInterval(hsInterval)
+        mock.setDefaultHSMaxFiles(hsMaxFiles)
         mock.setDefaultJVMArgs(jvmArgs)
         mock.setDefaultJVMExtraArgs(jvmExtraArgs)
         mock.setDefaultJVMHeapInit(jvmHeapInit)
@@ -411,10 +419,12 @@ class TestClusterDescription(unittest.TestCase):
         mock.setDefaultJVMServer(jvmServer)
         mock.setDefaultLogLevel(logLevel)
 
-        acomp = MockCluCfgFileComp("foo", 1, jvmPath="abc",
-                                   jvmHeapInit="1g", jvmHeapMax="3g",
-                                   jvmServer=True, jvmArgs="def",
-                                   jvmExtraArgs="ghi", logLevel="xyz")
+        acomp = MockCluCfgFileComp("foo", 1, hitspoolDirectory="hsDir",
+                                   hitspoolInterval=21.0, hitspoolMaxFiles=10,
+                                   jvmPath="abc", jvmHeapInit="1g",
+                                   jvmHeapMax="3g", jvmServer=True,
+                                   jvmArgs="def", jvmExtraArgs="ghi",
+                                   logLevel="xyz")
         mock.addDefaultComponent(acomp)
 
         bcomp = MockCluCfgFileComp("bar")
@@ -557,7 +567,9 @@ class TestClusterDescription(unittest.TestCase):
         logDir = "/daq/log"
         spadeDir = "/daq/spade"
 
-        oldJVMXML = False
+        dfltHSDir = "xxxHSDir"
+        dfltInterval = 99.0
+        dfltMaxFiles = 99
 
         dfltPath = "xxxjvm"
         dfltHeapInit = "2g"
@@ -565,23 +577,39 @@ class TestClusterDescription(unittest.TestCase):
         dfltServer = False
         dfltArgs = "jvmArgs"
         dfltExtra = "jvmExtra"
+
         dfltLogLvl = "logLvl"
 
-        numFields = 7
-        for i in xrange(numFields):
+        numFields = 10
+
+        (FLD_PATH, FLD_HEAP_INIT, FLD_HEAP_MAX, FLD_SERVER, FLD_JVMARGS,
+         FLD_EXTRAARGS, FLD_LOGLVL, FLD_HSDIR, FLD_HSIVAL, FLD_HSMAX) \
+         = range(numFields)
+
+        for i in range(numFields):
+            if self.DEBUG:
+                print  "########## I %d" % i
+
             # create a cluster config file
             mock = MockClusterConfigFile(self.CFGDIR, name)
             mock.setDataDir(dataDir)
             mock.setLogDir(logDir)
             mock.setSpadeDir(spadeDir)
 
-            # set standard defaults
+            # set hitspool defaults
+            mock.setDefaultHSDirectory(dfltHSDir)
+            mock.setDefaultHSInterval(dfltInterval)
+            mock.setDefaultHSMaxFiles(dfltMaxFiles)
+
+            # set JVM defaults
             mock.setDefaultJVMArgs(dfltArgs)
             mock.setDefaultJVMExtraArgs(dfltExtra)
             mock.setDefaultJVMHeapInit(dfltHeapInit)
             mock.setDefaultJVMHeapMax(dfltHeapMax)
             mock.setDefaultJVMPath(dfltPath)
             mock.setDefaultJVMServer(dfltServer)
+
+            # set log level defaults
             mock.setDefaultLogLevel(dfltLogLvl)
 
             # add host
@@ -590,50 +618,69 @@ class TestClusterDescription(unittest.TestCase):
 
             # temporary values will be used to set up
             # component-specific default values
-            (tmpPath, tmpHInit, tmpHMax, tmpServer, tmpArgs, tmpExtra,
-             tmpLogLvl) = \
-                (None, None, None, None, None, None, None)
+            (tmpHsDir, tmpIval, tmpMaxF, tmpPath, tmpHInit, tmpHMax,
+             tmpServer, tmpArgs, tmpExtra, tmpLogLvl) = \
+                (None, ) * numFields
 
             # set component-level defaults
             plainName = "foo"
-            if i == 0:
+            if i == FLD_PATH:
                 plainPath = "plainPath"
                 tmpPath = plainPath
             else:
                 plainPath = dfltPath
-            if i == 1:
+            if i == FLD_HEAP_INIT:
                 plainHeapInit = "1g"
                 tmpHInit = plainHeapInit
             else:
                 plainHeapInit = dfltHeapInit
-            if i == 2:
+            if i == FLD_HEAP_MAX:
                 plainHeapMax = "3g"
                 tmpHMax = plainHeapMax
             else:
                 plainHeapMax = dfltHeapMax
-            if i == 3:
+            if i == FLD_SERVER:
                 plainServer = not dfltServer
                 tmpServer = plainServer
             else:
                 plainServer = dfltServer
-            if i == 4:
+            if i == FLD_JVMARGS:
                 plainArgs = "plainArgs"
                 tmpArgs = plainArgs
             else:
                 plainArgs = dfltArgs
-            if i == 5:
+            if i == FLD_EXTRAARGS:
                 plainExtra = "plainExtra"
                 tmpExtra = plainExtra
             else:
                 plainExtra = dfltExtra
-            if i == 6:
+            if i == FLD_LOGLVL:
                 plainLogLvl = "plainLvl"
                 tmpLogLvl = plainLogLvl
             else:
                 plainLogLvl = dfltLogLvl
+            if i == FLD_HSDIR:
+                plainHSDir = "plainDir"
+                tmpHsDir = plainHSDir
+            else:
+                plainHSDir = dfltHSDir
+            if i == FLD_HSIVAL:
+                plainIval = dfltInterval + 1.1
+                tmpIval = plainIval
+            else:
+                plainIval = dfltInterval
+            if i == FLD_HSMAX:
+                plainMaxF = dfltMaxFiles + 1
+                tmpMaxF = plainMaxF
+            else:
+                plainMaxF = dfltMaxFiles
 
             # add component-specific default (only one value will be active)
-            acomp = MockCluCfgFileComp(plainName, 0, jvmPath=tmpPath,
+            acomp = MockCluCfgFileComp(plainName, 0,
+                                       hitspoolDirectory=tmpHsDir,
+                                       hitspoolInterval=tmpIval,
+                                       hitspoolMaxFiles=tmpMaxF,
+                                       jvmPath=tmpPath,
                                        jvmHeapInit=tmpHInit,
                                        jvmHeapMax=tmpHMax,
                                        jvmServer=tmpServer,
@@ -649,41 +696,59 @@ class TestClusterDescription(unittest.TestCase):
             bar = h.addComponent(instName, required=True)
 
             j = (i + 1) % numFields
-            if j == 0:
+            if self.DEBUG:
+                print  "########## J %d" % j
+
+            if j == FLD_PATH:
                 instPath = "instPath"
                 bar.setJVMPath(instPath)
             else:
                 instPath = dfltPath
-            if j == 1:
+            if j == FLD_HEAP_INIT:
                 instHeapInit = "instInit"
                 bar.setJVMHeapInit(instHeapInit)
             else:
                 instHeapInit = dfltHeapInit
-            if j == 2:
+            if j == FLD_HEAP_MAX:
                 instHeapMax = "instMax"
                 bar.setJVMHeapMax(instHeapMax)
             else:
                 instHeapMax = dfltHeapMax
-            if j == 3:
+            if j == FLD_SERVER:
                 instServer = not dfltServer
                 bar.setJVMServer(instServer)
             else:
                 instServer = dfltServer
-            if j == 4:
+            if j == FLD_JVMARGS:
                 instArgs = "instArgs"
                 bar.setJVMArgs(instArgs)
             else:
                 instArgs = dfltArgs
-            if j == 5:
+            if j == FLD_EXTRAARGS:
                 instExtra = "instExtra"
                 bar.setJVMExtraArgs(instExtra)
             else:
                 instExtra = dfltExtra
-            if j == 6:
+            if j == FLD_LOGLVL:
                 instLogLvl = "instLvl"
                 bar.setLogLevel(instLogLvl)
             else:
                 instLogLvl = dfltLogLvl
+            if j == FLD_HSDIR:
+                instHSDir = "instHSDir"
+                bar.setHitspoolDirectory(instHSDir)
+            else:
+                instHSDir = dfltHSDir
+            if j == FLD_HSIVAL:
+                instIval = dfltInterval + 2.2
+                bar.setHitspoolInterval(instIval)
+            else:
+                instIval = dfltInterval
+            if j == FLD_HSMAX:
+                instMaxF = dfltMaxFiles + 2
+                bar.setHitspoolMaxFiles(instMaxF)
+            else:
+                instMaxF = dfltMaxFiles
 
             # create file
             mock.create()
@@ -713,6 +778,19 @@ class TestClusterDescription(unittest.TestCase):
                              "Expected SPADE dir \"%s\", not \"%s\"" %
                              (spadeDir, cd.logDirForSpade))
 
+            self.assertEqual(dfltHSDir, cd.defaultHSDirectory(),
+                             "Expected default HS directory \"%s\","
+                             " not \"%s\"" %
+                             (dfltHSDir, cd.defaultHSDirectory()))
+            self.assertEqual(dfltInterval, cd.defaultHSInterval(),
+                             "Expected default HS interval \"%s\","
+                             " not \"%s\"" %
+                             (dfltInterval, cd.defaultHSInterval()))
+            self.assertEqual(dfltMaxFiles, cd.defaultHSMaxFiles(),
+                             "Expected default HS maximum files \"%s\","
+                             " not \"%s\"" %
+                             (dfltMaxFiles, cd.defaultHSMaxFiles()))
+
             self.assertEqual(dfltArgs, cd.defaultJVMArgs(),
                              "Expected default JVMArgs \"%s\", not \"%s\"" %
                              (dfltArgs, cd.defaultJVMArgs()))
@@ -732,19 +810,37 @@ class TestClusterDescription(unittest.TestCase):
             self.assertEqual(dfltServer, cd.defaultJVMServer(),
                              "Expected default JVMServer \"%s\", not \"%s\"" %
                              (dfltServer, cd.defaultJVMServer()))
+
             self.assertEqual(dfltLogLvl, cd.defaultLogLevel(),
                              "Expected default LogLevel \"%s\", not \"%s\"" %
                              (dfltLogLvl, cd.defaultLogLevel()))
 
             for comp in cd.host(hostname).getComponents():
                 if comp.name == plainName:
-                    (args, extra, heapInit, heapMax, path, server, logLevel) = \
-                        (plainArgs, plainExtra, plainHeapInit, plainHeapMax,
-                         plainPath, plainServer, plainLogLvl)
+                    (hsDir, hsIval, hsMaxF, args, extra, heapInit, heapMax,
+                     path, server, logLevel) \
+                     = (plainHSDir, plainIval, plainMaxF, plainArgs,
+                        plainExtra, plainHeapInit, plainHeapMax, plainPath,
+                        plainServer, plainLogLvl)
                 else:
-                    (args, extra, heapInit, heapMax, path, server, logLevel) = \
-                        (instArgs, instExtra, instHeapInit, instHeapMax,
-                         instPath, instServer, instLogLvl)
+                    (hsDir, hsIval, hsMaxF, args, extra, heapInit, heapMax,
+                     path, server, logLevel) \
+                     = (instHSDir, instIval, instMaxF, instArgs, instExtra,
+                        instHeapInit, instHeapMax, instPath, instServer,
+                        instLogLvl)
+
+                self.assertEqual(hsDir, comp.hitspoolDirectory,
+                                 "Expected %s HS directory \"%s\","
+                                 " not \"%s\"" %
+                                 (comp.name, hsDir, comp.hitspoolDirectory))
+                self.assertEqual(hsIval, comp.hitspoolInterval,
+                                 "Expected %s HS interval \"%s\","
+                                 " not \"%s\"" %
+                                 (comp.name, hsIval, comp.hitspoolInterval))
+                self.assertEqual(hsMaxF, comp.hitspoolMaxFiles,
+                                 "Expected %s HS max files \"%s\","
+                                 " not \"%s\"" %
+                                 (comp.name, hsMaxF, comp.hitspoolMaxFiles))
 
                 self.assertEqual(args, comp.jvmArgs,
                                  "Expected %s JVMArgs \"%s\", not \"%s\"" %
@@ -862,7 +958,7 @@ class TestClusterDescription(unittest.TestCase):
             ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
         except ClusterDescriptionFormatError as fmterr:
-            errmsg = ("Multiple entries for component \"%s@WARN(?)\""
+            errmsg = ("Multiple entries for component \"%s@WARN(? | ?)\""
                       " in host \"%s\"") % (comp.name, host.name)
             if not str(fmterr).endswith(errmsg):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
@@ -891,7 +987,7 @@ class TestClusterDescription(unittest.TestCase):
             ClusterDescription(self.CFGDIR, name)
             self.fail("Test %s should not succeed" % name)
         except ClusterDescriptionFormatError as fmterr:
-            errmsg = "Multiple entries for component \"%s@WARN(?)\"" % \
+            errmsg = "Multiple entries for component \"%s@WARN(? | ?)\"" % \
                      c1.name
             if not str(fmterr).endswith(errmsg):
                 self.fail("Expected exception \"%s\", not \"%s\"" %

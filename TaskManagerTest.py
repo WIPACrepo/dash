@@ -64,10 +64,10 @@ class MockTMComponent(object):
         },
         "secondaryBuilders": {
             "moniBuilder": {
-                "TotalDispatchedData": 0
+                "NumDispatchedData": 0
             },
             "snBuilder": {
-                "TotalDispatchedData": 0,
+                "NumDispatchedData": 0,
                 "DiskAvailable": 0,
             },
         }
@@ -244,9 +244,9 @@ class TaskManagerTest(unittest.TestCase):
         live.addExpected("eventBuilder-0*backEnd+NumBytesWritten",
                          0, Prio.ITS)
 
-        live.addExpected("secondaryBuilders-0*moniBuilder+TotalDispatchedData",
+        live.addExpected("secondaryBuilders-0*moniBuilder+NumDispatchedData",
                          0, Prio.ITS)
-        live.addExpected("secondaryBuilders-0*snBuilder+TotalDispatchedData",
+        live.addExpected("secondaryBuilders-0*snBuilder+NumDispatchedData",
                          0, Prio.ITS)
         live.addExpected("secondaryBuilders-0*snBuilder+DiskAvailable",
                          0, Prio.ITS)

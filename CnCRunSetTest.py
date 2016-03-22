@@ -152,7 +152,7 @@ class MockComponent(object):
                 return (numEvts, firstTime, lastTime, firstGood, lastGood)
             elif self.__name.startswith("secondary"):
                 for bldr in ("tcalBuilder", "snBuilder", "moniBuilder"):
-                    val = self.__beanData[bldr]["TotalDispatchedData"]
+                    val = self.__beanData[bldr]["NumDispatchedData"]
                     if bldr == "tcalBuilder":
                         numTcal = long(val)
                     elif bldr == "snBuilder":

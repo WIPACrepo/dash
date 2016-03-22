@@ -122,9 +122,11 @@ class ComponentManager(object):
         """
         comps = []
         for c in compdicts:
-            lc = RunComponent(c["compName"], c["compNum"], "??logLevel??",
-                              "??jvmPath??", "??jvmServer??", "??jvmHeapInit??",
-                              "??jvmHeapMax??", "??jvmArgs??", "??jvmExtra??",
+            lc = RunComponent(c["compName"], c["compNum"], "??hsDir??",
+                              "??hsInterval??", "??hsMaxFiles??",
+                              "??jvmPath??", "??jvmServer??",
+                              "??jvmHeapInit??", "??jvmHeapMax??",
+                              "??jvmArgs??", "??jvmExtra??", "??logLevel??",
                               c["host"], False)
             comps.append(lc)
         return comps
@@ -222,13 +224,16 @@ class ComponentManager(object):
             for comp in node.components():
                 if not comp.isControlServer:
                     compList.append(RunComponent(comp.name, comp.id,
-                                                 comp.logLevel,
+                                                 comp.hitspoolDirectory,
+                                                 comp.hitspoolInterval,
+                                                 comp.hitspoolMaxFiles,
                                                  comp.jvmPath,
                                                  comp.jvmServer,
                                                  comp.jvmHeapInit,
                                                  comp.jvmHeapMax,
                                                  comp.jvmArgs,
                                                  comp.jvmExtraArgs,
+                                                 comp.logLevel,
                                                  node.hostname, False))
         return compList
 
@@ -579,6 +584,14 @@ class ComponentManager(object):
             if comp.jvmExtraArgs is not None and len(comp.jvmExtraArgs) > 0:
                 jvmArgs += " " + comp.jvmExtraArgs
 
+            if comp.hitspoolDirectory is not None:
+                jvmArgs += " -Dhitspool.directory=\"%s\"" % \
+                           comp.hitspoolDirectory
+            if comp.hitspoolInterval is not None:
+                jvmArgs += " -Dhitspool.interval=%.4f" %  comp.hitspoolInterval
+            if comp.hitspoolMaxFiles is not None:
+                jvmArgs += " -Dhitspool.maxfiles=%d" %  comp.hitspoolMaxFiles
+
             #switches = "-g %s" % configDir
             switches = "-d %s" % daqDataDir
             switches += " -c %s:%d" % (myIP, DAQPort.CNCSERVER)
@@ -587,6 +600,7 @@ class ComponentManager(object):
             if livePort is not None:
                 switches += " -L %s:%d,%s" % (myIP, livePort, comp.logLevel)
                 switches += " -M %s:%d" % (myIP, MoniPort)
+
             compIO = quietStr
 
             if comp.isHub():

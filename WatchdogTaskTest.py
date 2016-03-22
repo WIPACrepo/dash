@@ -248,10 +248,10 @@ class WatchdogTaskTest(unittest.TestCase):
         eb.addBeanData("backEnd", "DiskAvailable", 0)
 
         sb = MockComponent("secondaryBuilders", 0, 1)
-        sb.addBeanData("snBuilder", "TotalDispatchedData", 0)
+        sb.addBeanData("snBuilder", "NumDispatchedData", 0)
         sb.addBeanData("snBuilder", "DiskAvailable", 0)
-        sb.addBeanData("moniBuilder", "TotalDispatchedData", 0)
-        #sb.addBeanData("tcalBuilder", "TotalDispatchedData", 0)
+        sb.addBeanData("moniBuilder", "NumDispatchedData", 0)
+        #sb.addBeanData("tcalBuilder", "NumDispatchedData", 0)
 
         compList = [hub, iit, gt, eb, sb, ]
 
