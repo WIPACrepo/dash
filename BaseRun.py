@@ -10,6 +10,7 @@ import sys
 import threading
 import time
 
+from ANSIEscapeCode import ANSIEscapeCode
 from ClusterDescription import ClusterDescription
 from ComponentManager import ComponentManager
 from DAQConfig import DAQConfigException, DAQConfigParser
@@ -994,11 +995,19 @@ class BaseRun(object):
             if timediff.days > 0:
                 duration += timediff.days * 60 * 60 * 24
 
-        self.logInfo("Run %d (%s) %s seconds : %s" %
-                     (summary["num"], summary["config"], duration,
-                      summary["result"]))
+        success = summary["result"].upper() == "SUCCESS"
+        if success:
+            prefix = ANSIEscapeCode.BG_GREEN + ANSIEscapeCode.FG_BLACK 
+        else:
+            prefix = ANSIEscapeCode.BG_RED + ANSIEscapeCode.FG_BLACK 
+        suffix = ANSIEscapeCode.OFF
 
-        return summary["result"].upper() == "SUCCESS"
+        self.logInfo("%sRun %d%s (%s) %s seconds : %s" %
+                     (ANSIEscapeCode.INVERTED_ON, summary["num"],
+                      ANSIEscapeCode.INVERTED_OFF, summary["config"],
+                      duration, prefix + summary["result"] + suffix))
+
+        return success
 
     def switchRun(self, runNum):
         """Switch to a new run number without stopping any components"""
