@@ -33,7 +33,7 @@ CURRENT_RUN_NUMBER = None
 FILE_MARKER = "logs-queued"
 
 # 1 GB of log data is too large
-TOO_LARGE = 1024 * 1024 * 1024
+TOO_LARGE = 1024 * 1024 * 1024 * 1.5
 
 # name of combined log file
 COMBINED_LOG = "combined.log"
