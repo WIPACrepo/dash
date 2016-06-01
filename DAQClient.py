@@ -145,7 +145,7 @@ class MBeanClient(object):
                                        " %s" % (self.__compName, bean, fldList))
         except:
             raise BeanLoadException("Cannot get %s mbean \"%s\" attributes"
-                                    " %s: (%s) %s" %
+                                    " %s: %s" %
                                     (self.__compName, bean, fldList,
                                      exc_string()))
 
