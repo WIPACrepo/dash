@@ -7,6 +7,9 @@ class CmdProblem(object):
         self.__name = name
         self.__errmsg = errmsg
 
+    def is_valid_host(self, args):
+        return True
+
     def run(self, args):
         print "Command '%s' cannot be run: %s" % (self.__name, self.__errmsg)
 
