@@ -1,237 +1,239 @@
 #!/usr/bin/env python
-#
-# Wrapper to RemoveHubs.py that will split a run configuration into
-# detector quadrants.
-#
-# J. Kelley
-# 15 January 2013
-#
-#-------------------------------------------------------------------
 
-import sys
+
 import os
-import getopt
 
-#-------------------------------------------------------------------
-# Definition of detector pieces, in terms of domhubs
-#
-# Warning -- if this is changed, you should also update domhubConfig.dat
-# on testdaq01 to match.  You can print the domhubConfig.dat sections with
-# the -p option.
-#
-
-ICETOP_NORTH = [201, 202, 203, 205, 206, 208]
-ICETOP_SOUTH = [204, 207, 209, 210, 211]
-
-INICE_NORTHEAST = [73, 74,
-                   65, 66, 67,
-                   56, 57, 58, 59,
-                   47, 48, 49, 50,
-                   38, 39, 40,
-                   28, 29, 30,
-                   21]
-
-INICE_NORTHWEST = [75, 76, 77, 78,
-                   68, 69, 70, 71, 72,
-                   60, 61, 62, 63, 64,
-                   52, 53, 54, 55,
-                   44]
-
-INICE_SOUTHEAST = [45, 46,
-                   86, 81, 82,
-                   35, 36, 37,
-                   85, 79, 80, 83,
-                   84,
-                   26, 27,
-                   18, 19, 20,
-                   10, 11, 12, 13,
-                   3, 4, 5, 6]
-
-INICE_SOUTHWEST = [51,
-                   41, 42, 43,
-                   31, 32, 33, 34,
-                   22, 23, 24, 25,
-                   14, 15, 16, 17,
-                   7, 8, 9,
-                   1, 2]
-
-INICE_NORTH = INICE_NORTHEAST + INICE_NORTHWEST
-INICE_SOUTH = INICE_SOUTHEAST + INICE_SOUTHWEST
-
-# Master lists for checking above partitions
-INICE = [x for x in xrange(1, 87)]
-ICETOP = [x for x in xrange(201, 212)]
-
-# RemoveHubs script
-REMOVEHUBSCMD = "RemoveHubs.py"
-
-#-------------------------------------------------------------------
+from DefaultDomGeometry import DefaultDomGeometryReader
+from DAQConfig import DAQConfigException, DAQConfigParser
+from RemoveHubs import create_config
+from locate_pdaq import find_pdaq_config
 
 
-def hub2Host(h):
-    """ Convert a hub number to SPS hostname """
-    if h < 200:
-        return "sps-ichub%02d" % (h)
-    elif h < 212:
-        return "sps-ithub%02d" % (h - 200)
-    else:
-        return "unknown"
+# list of icetop and in-ice keys used to build each partition
+PARTITION_KEYS = (
+    ("NORTH", "INICE"),
+    ("SOUTH", "INICE"),
+    ("NORTH", "IINORTH"),
+    ("SOUTH", "IISOUTH"),
+    ("NORTH", "NORTHEAST"),
+    ("NORTH", "NORTHWEST"),
+    ("SOUTH", "SOUTHEAST"),
+    ("SOUTH", "SOUTHWEST"),
+)
 
 
-def makeNewConfig(cfgName, suffix, hubs, dryrun=False, force=False):
+class SplitException(Exception):
+    pass
+
+
+def add_arguments(parser):
+    parser.add_argument("-d", "--dry-run", dest="dryrun",
+                        action="store_true", default=False,
+                        help="Dry run (do not actually create configurations)")
+    parser.add_argument("-f", "--force", dest="force",
+                        action="store_true", default=False,
+                        help="Overwrite existing configuration file(s)")
+    parser.add_argument("-p", "--print-testdaq", dest="print_testdaq",
+                        action="store_true", default=False,
+                        help="Print domhubConfig.dat sections for testdaq")
+    parser.add_argument("-v", "--verbose", dest="verbose",
+                        action="store_true", default=False,
+                        help="Verbose mode")
+    parser.add_argument("runConfig", nargs=1,
+                        help="Run configuration file to partition")
+
+
+def get_partitions(verbose=False):
     """
-    Generate a new partial-detector configuration from
-    run config cfgName, adding the suffix before the
-    file extension, and removing DOMHubs in hubs.
+    Get lists of hubs associated with each partition.
+    Partitions "NORTH" and "SOUTH" should include all IceTop hubs.
+    Partitions "NORTHEAST", "NORTHWEST", "SOUTHEAST", and "SOUTHWEST" should
+    include all In-Ice hubs.
+    Partitions "IINORTH" and "IISOUTH" are supersets of the In-Ice "NORTH*"
+    and "SOUTH*" partitions.
+    Partition "INICE" is a superset of all In-Ice hubs.
     """
-    removeHubStr = ""
-    allHubs = INICE + ICETOP
-    # Determine which hubs to remove
-    for h in allHubs:
-        if h not in hubs:
-            if h < 200:
-                removeHubStr += str(h)
-            else:
-                removeHubStr += str(h - 200) + "t"
-            removeHubStr += " "
 
-    # Create new configuration filename
-    suffix += "_partition"
-    if cfgName.endswith(".xml"):
-        newName = cfgName.rstrip(".xml")
-        newName += "_" + suffix + ".xml"
-    else:
-        newName = cfgName + "_" + suffix + ".xml"
+    if verbose:
+        print "Reading DOM geometry data"
 
-    # Finally -- execute the hub removal script
-    # This is not very Pythonic, admittedly
-    if force:
-        opts = " --force -o " + newName
-    else:
-        opts = " -o " + newName
-    cmd = REMOVEHUBSCMD + opts + " " + cfgName + " " + removeHubStr
-    if not dryrun:
-        os.system(cmd)
-    else:
-        print "Would execute: ", cmd
+    # read in default-dom-geometry.xml
+    def_dom_geom = DefaultDomGeometryReader.parse()
 
+    # get partition definitions
+    partitions = def_dom_geom.getPartitions()
 
-def usage():
-    """ Print program usage """
-    print "Usage: %s [-fpvd] run_config.xml" % (sys.argv[0])
-    print "    -f    force overwrite configurations"
-    print "    -v    verbose mode"
-    print "    -d    dry run (do not actually create configurations)"
-    print "    -p    print domhubConfig.dat sections for testdaq"
+    if verbose:
+        print "Sanity-checking all partitions"
+
+    # build tuples will all IceTop and In-Ice partition keys
+    icetop_keys = ("NORTH", "SOUTH")
+    inice_keys = ("NORTHEAST", "NORTHWEST", "SOUTHEAST", "SOUTHWEST")
+
+    # make sure partitions include all strings and stations
+    all_icetop = [x for x in xrange(201, 212)]
+    sanity_check(partitions, "IceTop", icetop_keys, all_icetop)
+    all_inice = [x for x in xrange(1, 87)]
+    sanity_check(partitions, "InIce", inice_keys, all_inice)
+
+    # fill in superset partitions
+    partitions["IINORTH"] = partitions["NORTHEAST"] + partitions["NORTHWEST"]
+    partitions["IISOUTH"] = partitions["SOUTHEAST"] + partitions["SOUTHWEST"]
+    partitions["INICE"] = partitions["IINORTH"] + partitions["IISOUTH"]
+
+    return partitions
 
 
 def main():
-    """
-    Split an IceCube run configuration into subdetector
-    pieces (for emergency configs, calibration runs, etc.)
-    """
-    #---------------------------------------------------
-    # Parse command-line options
+    import argparse
+
+    op = argparse.ArgumentParser()
+    add_arguments(op)
+    args = op.parse_args()
+
+    if args.verbose:
+        print "Finding pDAQ configuration directory"
+
+    # find the pDAQ configuration directory
+    config_dir = find_pdaq_config()
+
+    if args.verbose:
+        print "Reading run configuration \"%s\"" % args.runConfig[0]
+
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hpvdf", [
-            "help", "print", "verbose", "dryrun", "force"
-        ])
-    except getopt.GetoptError as err:
-        print str(err)
-        usage()
-        sys.exit(2)
+        run_config = DAQConfigParser.parse(config_dir, args.runConfig[0])
+    except DAQConfigException as config_except:
+        raise SystemExit(str(args.runConfig) + ": " + str(config_except))
 
-    printHubConfig = False
-    verbose = False
-    dryrun = False
-    force = False
-    for o, _ in opts:
-        if o in ("-h", "--help"):
-            usage()
-            sys.exit()
-        elif o in ("-p", "--print"):
-            printHubConfig = True
-        elif o in ("-v", "--verbose"):
-            verbose = True
-        elif o in ("-d", "--dryrun"):
-            dryrun = True
-        elif o in ("-f", "--force"):
-            force = True
-        else:
-            assert False, "unhandled option"
+    partitions = get_partitions(verbose=args.verbose)
 
-    if len(args) != 1:
-        usage()
-        sys.exit(2)
+    tstlist = []
+    for it_key, ii_key in PARTITION_KEYS:
+        (tstname, hubs) = make_new_config(run_config, config_dir, partitions,
+                                          it_key, ii_key, dry_run=args.dryrun,
+                                          force=args.force,
+                                          verbose=args.verbose)
+        if args.print_testdaq:
+            tstlist.append((tstname, hubs))
 
-    cfgName = args[0]
-
-    #---------------------------------------------------
-    # Sanity-check the detector regions
-    icetopTest = ICETOP_NORTH + ICETOP_SOUTH
-    icetopTest.sort()
-
-    if icetopTest != ICETOP:
-        print >> sys.stderr, \
-              "ERROR: IceTop divisions bad (missing or duplicate hubs)!"
-        sys.exit(-1)
-
-    iniceTest = INICE_NORTHEAST + INICE_NORTHWEST + \
-                INICE_SOUTHEAST + INICE_SOUTHWEST
-    iniceTest.sort()
-
-    if iniceTest != INICE:
-        print >> sys.stderr, \
-              "ERROR: in-ice divisions bad (missing or duplicate hubs)!"
-        sys.exit(-1)
-
-    #---------------------------------------------------
-    # List of partitions to create
-    partitionList = [INICE + ICETOP_NORTH,
-                     INICE + ICETOP_SOUTH,
-                     INICE_NORTH + ICETOP_NORTH,
-                     INICE_SOUTH + ICETOP_SOUTH,
-                     INICE_NORTHEAST + ICETOP_NORTH,
-                     INICE_NORTHWEST + ICETOP_NORTH,
-                     INICE_SOUTHEAST + ICETOP_SOUTH,
-                     INICE_SOUTHWEST + ICETOP_SOUTH]
-
-    # Filename suffix to append at the end of the configuration name
-    suffixList = ["IceTopNORTH",
-                  "IceTopSOUTH",
-                  "IceTopNORTH_InIceNORTH",
-                  "IceTopSOUTH_InIceSOUTH",
-                  "IceTopNORTH_InIceNORTHEAST",
-                  "IceTopNORTH_InIceNORTHWEST",
-                  "IceTopSOUTH_InIceSOUTHEAST",
-                  "IceTopSOUTH_InIceSOUTHWEST"]
-
-    # domhubConfig.dat partition name
-    domhubList = ["icetop_north_inice",
-                  "icetop_south_inice",
-                  "icetop_north_inice_north",
-                  "icetop_south_inice_south",
-                  "icetop_north_inice_northeast",
-                  "icetop_north_inice_northwest",
-                  "icetop_south_inice_southeast",
-                  "icetop_south_inice_southwest"]
-
-    # Create the new configurations
-    for (hubs, suffix) in zip(partitionList, suffixList):
-        if verbose:
-            print "Generating partition", suffix
-            print "  Removing hubs", hubs
-        makeNewConfig(cfgName, suffix, hubs, dryrun=dryrun, force=force)
-
-    # Print new section definitions for domhubConfig.dat on testdaq01
-    if printHubConfig:
+    if args.print_testdaq:
         print "domhubConfig.dat sections:"
-        for (hubs, domhubName) in zip(partitionList, domhubList):
-            print "\"%s\"" % (domhubName)
+
+        first = True
+        for tstname, hubs in tstlist:
+            if first:
+                first = False
+            else:
+                print ""
+
+            print "\"%s\"" % tstname
+
             hubs.sort()
-            for h in hubs:
-                print hub2Host(h)
-            print ""
+            for hub in hubs:
+                if hub < 200:
+                    print "sps-ichub%02d" % hub
+                elif hub < 212:
+                    print "sps-ithub%02d" % (hub - 200)
+                else:
+                    return "unknown%02d" % hub
+
+
+def make_new_config(run_config, config_dir, partitions, it_key, ii_key,
+                    dry_run=False, force=False, verbose=False):
+    if it_key != "NORTH" and it_key != "SOUTH":
+        raise SplitException("Bad IceTop key \"%s\"" % it_key)
+
+    basename = run_config.filename
+    if basename.endswith(".xml"):
+        basename = basename[:-4]
+
+    cfgname = "IceTop" + it_key
+    tstname = "icetop_" + it_key.lower()
+
+    if ii_key == "INICE":
+        cfgname += ""
+        tstname += "_inice"
+    elif ii_key.startswith("II"):
+        cfgname += "_InIce" + ii_key[2:]
+        tstname += "_inice_" + ii_key[2:].lower()
+    else:
+        cfgname += "_InIce" + ii_key
+        tstname += "_inice_" + ii_key.lower()
+
+    hub_list = partitions[it_key] + partitions[ii_key]
+    hub_list.sort()
+
+    if verbose:
+        print "Generating partition %s" % cfgname
+        print "  using hubs %s" % range_string(hub_list)
+
+    path = os.path.join(config_dir, basename + "_" + cfgname + "_partition.xml")
+    if not dry_run:
+        create_config(run_config, path, hub_list, None, keep_hubs=True,
+                      force=force)
+    elif verbose:
+        print "  writing to %s" % path
+    else:
+        print "%s: %s" % (path, range_string(hub_list))
+
+    return tstname, hub_list
+
+
+def range_string(hub_list):
+    """
+    Create a concise string from a list of numbers
+    (e.g. [1, 3, 4, 5, 7, 8, 9] will return "1,3-5,7-9")
+    """
+    prevHub = None
+    rangeStr = ""
+    for hub in sorted(hub_list):
+        if prevHub is None:
+            rangeStr += "%d" % hub
+        elif hub == prevHub + 1:
+            if not rangeStr.endswith("-"):
+                rangeStr += "-"
+        else:
+            if rangeStr.endswith("-"):
+                rangeStr += "%d" % prevHub
+            rangeStr += ",%d" % hub
+        prevHub = hub
+    if prevHub is not None and rangeStr.endswith("-"):
+        rangeStr += "%d" % prevHub
+    return rangeStr
+
+
+def sanity_check(partitions, name, keys, expected):
+    """
+    If the hubs from the partitions listed in "keys" do not match the
+    hubs in "expected", complain and exit
+    """
+
+    # first make sure the individual partitions don't overlap
+    for k1 in keys:
+        for k2 in keys:
+            if k1 == k2:
+                continue
+            overlap = [hub for hub in partitions[k1] if hub in partitions[k2]]
+            if len(overlap) > 0:
+                raise SystemExit("Partitions \"%s\" and \"%s\" both contain"
+                                 " hubs %s" % (k1, k2, overlap))
+
+    # build a list containing all the hubs from the individual partitions
+    testlist = []
+    for part in keys:
+        if part not in partitions:
+            raise SystemExit("No %s %s partition found" % (name, part))
+
+        testlist += partitions[part]
+    testlist.sort()
+
+    # die if the final list doesn't contain all the expected hubs
+    if testlist != expected:
+        print "=== EXPECTED\n%s" % str(expected)
+        print "=== RECEIVED\n%s" % str(testlist)
+        raise SystemExit("Bad %s partitions (missing or duplicate hubs)!" %
+                         name)
+
 
 if __name__ == "__main__":
     main()
