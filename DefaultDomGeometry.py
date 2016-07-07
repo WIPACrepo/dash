@@ -720,8 +720,8 @@ class DefaultDomGeometryReader(XMLParser):
 
                     geom.addDom(dom)
                 else:
-                    raise XMLFormatError("Unexpected %s child <%s>" %
-                                         (node.nodeName, kid.nodeName))
+                    print >>sys.stderr, "Ignoring unknown %s child <%s>" % \
+                        (node.nodeName, kid.nodeName)
                 continue
 
             raise XMLFormatError("Found unknown %s node <%s>" %
