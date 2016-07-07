@@ -437,7 +437,7 @@ class TestRunSet(unittest.TestCase):
             stopName = "TestHang1"
         else:
             stopName = "TestHang2"
-        logger.addExpectedExact("%s is stopping the run" % stopName)
+        logger.addExpectedExact("Stopping the run (%s)" % stopName)
 
         if hangType > 0:
             if len(hangList) < len(components):
@@ -686,7 +686,7 @@ class TestRunSet(unittest.TestCase):
         compStr = "one#1, two#2, three#3"
 
         stopName = "ShortStop"
-        logger.addExpectedExact("%s is stopping the run" % stopName)
+        logger.addExpectedExact("Stopping the run (%s)" % stopName)
 
         logger.addExpectedRegexp("Could not stop run .* RunSetException.*")
         logger.addExpectedExact("Failed to transition to ready: idle[%s]" %
@@ -768,7 +768,7 @@ class TestRunSet(unittest.TestCase):
         compStr = "first#1, middle#2-5, last#6"
 
         stopName = "BadStop"
-        logger.addExpectedExact("%s is stopping the run" % stopName)
+        logger.addExpectedExact("Stopping the run (%s)" % stopName)
 
         logger.addExpectedExact("Reset duration")
 

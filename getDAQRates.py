@@ -91,13 +91,13 @@ COMP_FIELDS = {
     'secondaryBuilders': {
         # 'moniData': 'TotalRecordsReceived',
         'moniData': 'RecordsReceived',
-        'moniBuilder': 'TotalDispatchedData',
+        'moniBuilder': 'NumDispatchedData',
         # 'snData': 'TotalRecordsReceived',
         'snData': 'RecordsReceived',
-        'snBuilder': 'TotalDispatchedData',
+        'snBuilder': 'NumDispatchedData',
         # 'tcalData': 'TotalRecordsReceived',
         'tcalData': 'RecordsReceived',
-        'tcalBuilder': 'TotalDispatchedData',
+        'tcalBuilder': 'NumDispatchedData',
     },
 }
 

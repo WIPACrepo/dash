@@ -141,6 +141,10 @@ class ConfigObject(object):
         return self.__cfgdir
 
     @property
+    def filename(self):
+        return self.__filename
+
+    @property
     def fullpath(self):
         "Return the full path to this configuration object"
         return os.path.join(self.configdir, self.__filename)

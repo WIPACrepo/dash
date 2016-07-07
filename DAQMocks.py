@@ -492,34 +492,27 @@ class MockClusterWriter(object):
         return oldStr
 
     @classmethod
+    def writeHSXML(cls, fd, indent, path, interval, maxFiles):
+
+        jStr = "hitspool"
+        jStr = cls.__appendAttr(jStr, 'directory', path)
+        jStr = cls.__appendAttr(jStr, 'interval', interval)
+        jStr = cls.__appendAttr(jStr, 'maxfiles', maxFiles)
+        print >>fd, "%s<%s/>" % (indent, jStr)
+
+    @classmethod
     def writeJVMXML(cls, fd, indent, path, isServer, heapInit, heapMax, args,
-                    extraArgs, oldJVMXML):
+                    extraArgs):
 
-        oldJVMFields = path is not None or \
-                       args is not None
-        newJVMFields = extraArgs is not None or \
-                       heapInit is not None or \
-                       heapMax is not None or \
-                       isServer is not None
-
-        if oldJVMXML and newJVMFields:
-            raise Exception("Cannot set heap/server values in old XML format")
-
-        if oldJVMXML:
-            if path is not None:
-                cls.writeLine(fd, indent, "jvm", path)
-            if args is not None:
-                cls.writeLine(fd, indent, "jvmArgs", args)
-        elif oldJVMFields or newJVMFields:
-            jStr = "jvm"
-            jStr = cls.__appendAttr(jStr, 'path', path)
-            if isServer is not None:
-                jStr = cls.__appendAttr(jStr, 'server', isServer)
-            jStr = cls.__appendAttr(jStr, 'heapInit', heapInit)
-            jStr = cls.__appendAttr(jStr, 'heapMax', heapMax)
-            jStr = cls.__appendAttr(jStr, 'args', args)
-            jStr = cls.__appendAttr(jStr, 'extraArgs', extraArgs)
-            print >>fd, "%s<%s/>" % (indent, jStr)
+        jStr = "jvm"
+        jStr = cls.__appendAttr(jStr, 'path', path)
+        if isServer is not None:
+            jStr = cls.__appendAttr(jStr, 'server', isServer)
+        jStr = cls.__appendAttr(jStr, 'heapInit', heapInit)
+        jStr = cls.__appendAttr(jStr, 'heapMax', heapMax)
+        jStr = cls.__appendAttr(jStr, 'args', args)
+        jStr = cls.__appendAttr(jStr, 'extraArgs', extraArgs)
+        print >>fd, "%s<%s/>" % (indent, jStr)
 
     @classmethod
     def writeLine(cls, fd, indent, name, value):
@@ -533,6 +526,18 @@ class MockCluCfgCtlSrvr(object):
     """Used by MockClusterConfigFile for <controlServer>>"""
     def __init__(self):
         pass
+
+    @property
+    def hitspoolDirectory(self):
+        return None
+
+    @property
+    def hitspoolInterval(self):
+        return None
+
+    @property
+    def hitspoolMaxFiles(self):
+        return None
 
     @property
     def isControlServer(self):
@@ -564,7 +569,7 @@ class MockCluCfgCtlSrvr(object):
 
     @property
     def jvmServer(self):
-        return None
+        return False
 
     @property
     def logLevel(self):
@@ -582,18 +587,23 @@ class MockCluCfgCtlSrvr(object):
     def required(self):
         return True
 
-    def write(self, fd, indent, oldJVMXML=False):
+    def write(self, fd, indent):
         print >>fd, indent + "<controlServer/>"
 
 
 class MockCluCfgFileComp(MockClusterWriter):
     """Used by MockClusterConfigFile for <component>"""
-    def __init__(self, name, num=0, required=False, jvmPath=None,
+    def __init__(self, name, num=0, required=False, hitspoolDirectory=None,
+                 hitspoolInterval=None, hitspoolMaxFiles=None, jvmPath=None,
                  jvmServer=None, jvmHeapInit=None, jvmHeapMax=None,
                  jvmArgs=None, jvmExtraArgs=None, logLevel=None):
         self.__name = name
         self.__num = num
         self.__required = required
+
+        self.__hitspoolDir = hitspoolDirectory
+        self.__hitspoolInterval = hitspoolInterval
+        self.__hitspoolMaxFiles = hitspoolMaxFiles
 
         self.__jvmPath = jvmPath
         self.__jvmServer = jvmServer
@@ -601,7 +611,23 @@ class MockCluCfgFileComp(MockClusterWriter):
         self.__jvmHeapMax = jvmHeapMax
         self.__jvmArgs = jvmArgs
         self.__jvmExtraArgs = jvmExtraArgs
+
         self.__logLevel = logLevel
+
+    def __str__(self):
+        return "%s#%s" % (self.__name, self.__num)
+
+    @property
+    def hitspoolDirectory(self):
+        return self.__hitspoolDir
+
+    @property
+    def hitspoolInterval(self):
+        return self.__hitspoolInterval
+
+    @property
+    def hitspoolMaxFiles(self):
+        return self.__hitspoolMaxFiles
 
     @property
     def isControlServer(self):
@@ -654,6 +680,15 @@ class MockCluCfgFileComp(MockClusterWriter):
     def required(self):
         return self.__required
 
+    def setHitspoolDirectory(self, value):
+        self.__hitspoolDir = value
+
+    def setHitspoolInterval(self, value):
+        self.__hitspoolInterval = value
+
+    def setHitspoolMaxFiles(self, value):
+        self.__hitspoolMaxFiles = value
+
     def setJVMArgs(self, value):
         self.__jvmArgs = value
 
@@ -675,7 +710,7 @@ class MockCluCfgFileComp(MockClusterWriter):
     def setLogLevel(self, value):
         self.__logLevel = value
 
-    def write(self, fd, indent, oldJVMXML=False):
+    def write(self, fd, indent):
         if self.__num == 0:
             numstr = ""
         else:
@@ -686,15 +721,16 @@ class MockCluCfgFileComp(MockClusterWriter):
         else:
             reqstr = " required=\"true\""
 
-        oldJVMFields = self.__jvmPath is not None or \
-                       self.__jvmArgs is not None
-        newJVMFields = self.__jvmExtraArgs is not None or \
+        hasHSFields = self.__hitspoolDir is not None or \
+                      self.__hitspoolInterval is not None or \
+                      self.__hitspoolMaxFiles is not None
+        hasJVMFields = self.__jvmPath is not None or \
+                       self.__jvmArgs is not None or \
+                       self.__jvmExtraArgs is not None or \
                        self.__jvmHeapInit is not None or \
                        self.__jvmHeapMax is not None or \
                        self.__jvmServer is not None
-        multiline = oldJVMFields or \
-                    (oldJVMXML and False or newJVMFields) or \
-                    self.__logLevel is not None
+        multiline = hasHSFields or hasJVMFields or self.__logLevel is not None
 
         if multiline:
             endstr = ""
@@ -707,9 +743,14 @@ class MockCluCfgFileComp(MockClusterWriter):
         if multiline:
             indent2 = indent + "  "
 
-            self.writeJVMXML(fd, indent2, self.__jvmPath, self.__jvmServer,
-                             self.__jvmHeapInit, self.__jvmHeapMax,
-                             self.__jvmArgs, self.__jvmExtraArgs, oldJVMXML)
+            if hasHSFields:
+                self.writeHSXML(fd, indent2, self.__hitspoolDir,
+                                self.__hitspoolInterval,
+                                self.__hitspoolMaxFiles)
+            if hasJVMFields:
+                self.writeJVMXML(fd, indent2, self.__jvmPath, self.__jvmServer,
+                                 self.__jvmHeapInit, self.__jvmHeapMax,
+                                 self.__jvmArgs, self.__jvmExtraArgs)
 
             if self.__logLevel is not None:
                 self.writeLine(fd, indent2, "logLevel", self.__logLevel)
@@ -721,6 +762,18 @@ class MockCluCfgFileCtlSrvr(object):
     """Used by MockClusterConfigFile for <controlServer/>"""
     def __init__(self):
         pass
+
+    @property
+    def hitspoolDirectory(self):
+        return None
+
+    @property
+    def hitspoolInterval(self):
+        return None
+
+    @property
+    def hitspoolMaxFiles(self):
+        return None
 
     @property
     def isControlServer(self):
@@ -770,7 +823,7 @@ class MockCluCfgFileCtlSrvr(object):
     def required(self):
         return True
 
-    def write(self, fd, indent, oldJVMXML=False):
+    def write(self, fd, indent):
         print >>fd, indent + "<controlServer/>"
 
 
@@ -803,13 +856,13 @@ class MockCluCfgFileHost(object):
     def name(self):
         return self.__name
 
-    def write(self, fd, indent, oldJVMXML=False):
+    def write(self, fd, indent):
         print >>fd, "%s<host name=\"%s\">" % (indent, self.__name)
 
         indent2 = indent + "  "
         if self.__comps:
             for c in self.__comps:
-                c.write(fd, indent2, oldJVMXML=oldJVMXML)
+                c.write(fd, indent2)
 
         print >>fd, "%s</host>" % indent
 
@@ -820,6 +873,18 @@ class MockCluCfgFileSimHubs(MockClusterWriter):
         self.__number = number
         self.__priority = priority
         self.__ifUnused = ifUnused
+
+    @property
+    def hitspoolDirectory(self):
+        return None
+
+    @property
+    def hitspoolInterval(self):
+        return None
+
+    @property
+    def hitspoolMaxFiles(self):
+        return None
 
     @property
     def isControlServer(self):
@@ -869,7 +934,7 @@ class MockCluCfgFileSimHubs(MockClusterWriter):
     def required(self):
         return False
 
-    def write(self, fd, indent, oldJVMXML=False):
+    def write(self, fd, indent):
         if self.__ifUnused:
             iustr = " ifUnused=\"true\""
         else:
@@ -963,12 +1028,17 @@ class MockClusterConfigFile(MockClusterWriter):
         self.__logDir = None
         self.__spadeDir = None
 
+        self.__defaultHSDir = None
+        self.__defaultHSInterval = None
+        self.__defaultHSMaxFiles = None
+
         self.__defaultJVMArgs = None
         self.__defaultJVMExtraArgs = None
         self.__defaultJVMHeapInit = None
         self.__defaultJVMHeapMax = None
         self.__defaultJVMPath = None
         self.__defaultJVMServer = None
+
         self.__defaultLogLevel = None
 
         self.__defaultComps = None
@@ -989,7 +1059,7 @@ class MockClusterConfigFile(MockClusterWriter):
         self.__hosts[name] = h
         return h
 
-    def create(self, oldJVMXML=False):
+    def create(self):
         path = os.path.join(self.__configDir, "%s-cluster.cfg" % self.__name)
 
         if not os.path.exists(self.__configDir):
@@ -1007,35 +1077,49 @@ class MockClusterConfigFile(MockClusterWriter):
             if self.__spadeDir is not None:
                 self.writeLine(fd, indent, "logDirForSpade", self.__spadeDir)
 
-            if self.__defaultJVMArgs is not None or \
-               self.__defaultJVMExtraArgs is not None or \
-               self.__defaultJVMHeapInit is not None or \
-               self.__defaultJVMHeapMax is not None or \
-               self.__defaultJVMPath is not None or \
-               self.__defaultJVMServer is not None or \
+            hasHSXML = self.__defaultHSDir is not None or \
+                       self.__defaultHSInterval is not None or \
+                       self.__defaultHSMaxFiles is not None
+
+            hasJVMXML = self.__defaultJVMArgs is not None or \
+                        self.__defaultJVMExtraArgs is not None or \
+                        self.__defaultJVMHeapInit is not None or \
+                        self.__defaultJVMHeapMax is not None or \
+                        self.__defaultJVMPath is not None or \
+                        self.__defaultJVMServer is not None
+
+            if hasHSXML or hasJVMXML or \
                self.__defaultLogLevel is not None or \
                self.__defaultComps is not None:
                 print >>fd, indent + "<default>"
 
                 indent2 = indent + "  "
 
-                self.writeJVMXML(fd, indent2, self.__defaultJVMPath,
-                                 self.__defaultJVMServer,
-                                 self.__defaultJVMHeapInit,
-                                 self.__defaultJVMHeapMax,
-                                 self.__defaultJVMArgs,
-                                 self.__defaultJVMExtraArgs, oldJVMXML)
+                if hasHSXML:
+                    self.writeHSXML(fd, indent2, self.__defaultHSDir,
+                                    self.__defaultHSInterval,
+                                    self.__defaultHSMaxFiles)
+
+                if hasJVMXML:
+                    self.writeJVMXML(fd, indent2, self.__defaultJVMPath,
+                                     self.__defaultJVMServer,
+                                     self.__defaultJVMHeapInit,
+                                     self.__defaultJVMHeapMax,
+                                     self.__defaultJVMArgs,
+                                     self.__defaultJVMExtraArgs)
 
                 if self.__defaultLogLevel is not None:
                     self.writeLine(fd, indent2, "logLevel",
                                    self.__defaultLogLevel)
+
                 if self.__defaultComps:
                     for c in self.__defaultComps:
                         c.write(fd, indent2)
+
                 print >>fd, indent + "</default>"
 
             for h in self.__hosts.itervalues():
-                h.write(fd, indent, oldJVMXML=oldJVMXML)
+                h.write(fd, indent)
 
             print >>fd, "</cluster>"
 
@@ -1045,6 +1129,15 @@ class MockClusterConfigFile(MockClusterWriter):
             return ClusterDescription.DEFAULT_DATA_DIR
 
         return self.__dataDir
+
+    def defaultHSDirectory(self):
+        return self.__defaultHSDir
+
+    def defaultHSInterval(self):
+        return self.__defaultHSInterval
+
+    def defaultHSMaxFiles(self):
+        return self.__defaultHSMaxFiles
 
     def defaultJVMArgs(self):
         return self.__defaultJVMArgs
@@ -1084,6 +1177,15 @@ class MockClusterConfigFile(MockClusterWriter):
 
     def setDataDir(self, value):
         self.__dataDir = value
+
+    def setDefaultHSDirectory(self, value):
+        self.__defaultHSDir = value
+
+    def setDefaultHSInterval(self, value):
+        self.__defaultHSInterval = value
+
+    def setDefaultHSMaxFiles(self, value):
+        self.__defaultHSMaxFiles = value
 
     def setDefaultJVMArgs(self, value):
         self.__defaultJVMArgs = value
@@ -1331,7 +1433,7 @@ class MockComponent(object):
             elif self.__name.startswith("secondary"):
                 for bldr in ("tcal", "sn", "moni"):
                     val = self.getSingleBeanField(bldr + "Builder",
-                                                  "TotalDispatchedData")
+                                                  "NumDispatchedData")
                     if bldr == "tcal":
                         numTcal = long(val)
                     elif bldr == "sn":
@@ -1521,8 +1623,12 @@ class MockDefaultDomGeometryFile(object):
 
 
 class MockDeployComponent(Component):
-    def __init__(self, name, id, logLevel, jvmPath, jvmServer, jvmHeapInit,
-                 jvmHeapMax, jvmArgs, jvmExtraArgs, host=None):
+    def __init__(self, name, id, logLevel, hsDir, hsInterval, hsMaxFiles,
+                 jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs,
+                 jvmExtraArgs, host=None):
+        self.__hsDir = hsDir
+        self.__hsInterval = hsInterval
+        self.__hsMaxFiles = hsMaxFiles
         self.__jvmPath = jvmPath
         self.__jvmServer = jvmServer
         self.__jvmHeapInit = jvmHeapInit
@@ -1532,6 +1638,18 @@ class MockDeployComponent(Component):
         self.__host = host
 
         super(MockDeployComponent, self).__init__(name, id, logLevel)
+
+    @property
+    def hitspoolDirectory(self):
+        return self.__hsDir
+
+    @property
+    def hitspoolInterval(self):
+        return self.__hsInterval
+
+    @property
+    def hitspoolMaxFiles(self):
+        return self.__hsMaxFiles
 
     @property
     def isControlServer(self):
@@ -1794,6 +1912,13 @@ class MockParallelShell(object):
             cmd += " " + comp.jvmArgs
         if comp.jvmExtraArgs is not None:
             cmd += " " + comp.jvmExtraArgs
+
+        if comp.hitspoolDirectory is not None:
+            cmd += " -Dhitspool.directory=\"%s\"" % comp.hitspoolDirectory
+        if comp.hitspoolInterval is not None:
+            cmd += " -Dhitspool.interval=%.4f" %  comp.hitspoolInterval
+        if comp.hitspoolMaxFiles is not None:
+            cmd += " -Dhitspool.maxfiles=%d" %  comp.hitspoolMaxFiles
 
         if comp.isHub():
             cmd += " -Dicecube.daq.stringhub.componentId=%d" % comp.id

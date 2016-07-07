@@ -33,8 +33,7 @@ CURRENT_RUN_NUMBER = None
 FILE_MARKER = "logs-queued"
 
 # 1 GB of log data is too large
-# but we'll temporarily raise the ceiling to 1.5GB for Minocqua
-TOO_LARGE = int((1024 * 1024 * 1024) * 1.5)
+TOO_LARGE = 1024 * 1024 * 1024 * 1.5
 
 # name of combined log file
 COMBINED_LOG = "combined.log"
@@ -255,11 +254,12 @@ def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
             return
         (runTime, runDuration) = (None, 0)
 
-    if not no_combine:
-        logger.error("Writing combined log for run %d" % runNum)
-        # if combined log file does not exist, create it
-        path = os.path.join(runDir, COMBINED_LOG)
-        if not os.path.exists(path):
+    path = os.path.join(runDir, COMBINED_LOG)
+    if not os.path.exists(path):
+        if no_combine:
+            logger.error("Not writing combined log for run %d" % runNum)
+        else:
+            logger.error("Writing combined log for run %d" % runNum)
             ls = LogSorter(runDir, runNum)
             # write to dotfile in case thread dies before it's finished
             tmppath = os.path.join(runDir, "." + COMBINED_LOG)
@@ -268,10 +268,6 @@ def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
             # it's now safe to rename the combined log file
             os.rename(tmppath, path)
             logger.error("Wrote combined log for run %d" % runNum)
-        else:
-            logger.error("Combined log already exists for run %d" % runNum)
-    else:
-        logger.error("Not writing combined log for run %d" % runNum)
 
     if runTime is None:
         runTime = datetime.datetime.now()

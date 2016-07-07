@@ -623,7 +623,7 @@ class RunData(object):
             if c.isComponent("secondaryBuilders"):
                 for bldr in ("moni", "sn", "tcal"):
                     val = self.getSingleBeanField(c, bldr + "Builder",
-                                                  "TotalDispatchedData")
+                                                  "NumDispatchedData")
                     if isinstance(val, Result):
                         msg = "Cannot get %sBuilder dispatched data (%s)" % \
                             (bldr, val)

@@ -601,12 +601,12 @@ class SecondaryBuildersRule(WatchdogRule):
     def initData(self, data, thisComp, components):
         data.addThresholdValue("snBuilder", "DiskAvailable", 1024)
         data.addOutputValue(self.DISPATCH_COMP, "moniBuilder",
-                            "TotalDispatchedData")
+                            "NumDispatchedData")
         data.addOutputValue(self.DISPATCH_COMP, "snBuilder",
-                            "TotalDispatchedData")
+                            "NumDispatchedData")
         # XXX - Disabled until there"s a simulated tcal stream
         #data.addOutputValue(self.DISPATCH_COMP, "tcalBuilder",
-        #                  "TotalDispatchedData")
+        #                  "NumDispatchedData")
 
     def matches(self, comp):
         return comp.name == "secondaryBuilders"

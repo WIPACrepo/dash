@@ -173,15 +173,15 @@ class ComponentData(object):
         "secondaryBuilders": {
             "moniBuilder": {
                 "DiskAvailable": (2048, None),
-                "TotalDispatchedData": (0, 100),
+                "NumDispatchedData": (0, 100),
                 },
             "snBuilder": {
                 "DiskAvailable": (2048, None),
-                "TotalDispatchedData": (0, 100),
+                "NumDispatchedData": (0, 100),
                 },
             "tcalBuilder": {
                 "DiskAvailable": (2048, None),
-                "TotalDispatchedData": (0, 100),
+                "NumDispatchedData": (0, 100),
                 },
             }}
 

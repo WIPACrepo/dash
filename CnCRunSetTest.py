@@ -152,7 +152,7 @@ class MockComponent(object):
                 return (numEvts, firstTime, lastTime, firstGood, lastGood)
             elif self.__name.startswith("secondary"):
                 for bldr in ("tcalBuilder", "snBuilder", "moniBuilder"):
-                    val = self.__beanData[bldr]["TotalDispatchedData"]
+                    val = self.__beanData[bldr]["NumDispatchedData"]
                     if bldr == "tcalBuilder":
                         numTcal = long(val)
                     elif bldr == "snBuilder":
@@ -188,9 +188,6 @@ class MockComponent(object):
     def isSource(self):
         return self.__name.lower().endswith("hub")
 
-    def reloadBeanInfo(self):
-        pass
-
     def logTo(self, host, port, liveHost, livePort):
         pass
 
@@ -204,6 +201,9 @@ class MockComponent(object):
 
     def order(self):
         return self.__order
+
+    def reloadBeanInfo(self):
+        pass
 
     def reset(self):
         self.__state = "idle"
@@ -756,7 +756,7 @@ class CnCRunSetTest(unittest.TestCase):
                              firstTime, runNum)
 
         stopName = "RunDirect"
-        dashLog.addExpectedExact("%s is stopping the run" % stopName)
+        dashLog.addExpectedExact("Stopping the run (%s)" % stopName)
 
         duration = self.__computeDuration(firstTime, payTime)
         if duration <= 0:
@@ -923,6 +923,9 @@ class CnCRunSetTest(unittest.TestCase):
 
         rcFile = MockRunConfigFile(self.__runConfigDir)
         runConfig = rcFile.create([], hubDomDict)
+
+        MockDefaultDomGeometryFile.create(self.__runConfigDir, hubDomDict)
+
         runNum = 456
 
         logger = MockLoggerPlusPorts("main", 10101, 20202)

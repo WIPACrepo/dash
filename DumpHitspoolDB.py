@@ -4,11 +4,16 @@
 import os
 import sqlite3
 
+from DAQTime import PayloadTime
+
 
 DEFAULT_PATH = "/mnt/data/pdaqlocal/hitspool/hitspool.db"
 
 
 def add_arguments(parser):
+    parser.add_argument("-r", "--raw", dest="rawtimes",
+                        action="store_true", default=False,
+                        help="Dump times as DAQ ticks (0.1ns)")
     parser.add_argument("hitspool_db", nargs="?",
                         help="Hitspool SQLLite3 database file")
 
@@ -30,8 +35,14 @@ def dump_db(args):
                                   " from hitspool"):
             filename, start_tick, stop_tick = row
             secs = (stop_tick - start_tick) / 1E10
-            print "%s [%d-%d] (%.02fs)" % \
-                (filename, start_tick, stop_tick, secs)
+            if args.rawtimes:
+                start_val = start_tick
+                stop_val = stop_tick
+            else:
+                start_val = PayloadTime.toDateTime(start_tick)
+                stop_val = PayloadTime.toDateTime(stop_tick)
+            print "%s [%s-%s] (%.02fs)" % \
+                (filename, start_val, stop_val, secs)
     finally:
         conn.close()
 
