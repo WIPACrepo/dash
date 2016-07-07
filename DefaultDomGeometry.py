@@ -315,16 +315,91 @@ class DomGeometry(object):
         return self.__z
 
 
+class String(object):
+    def __init__(self, num):
+        self.__number = num
+        self.__rack = None
+        self.__partition = None
+        self.__doms = []
+
+    def add(self, dom):
+        self.__doms.append(dom)
+
+    def delete(self, dom):
+        found = False
+        for i in range(len(self.__doms)):
+            cur = self.__doms[i]
+            if dom.pos() <= 60 and dom.pos() == cur.pos():
+                found = True
+            elif dom.mbid() is not None and cur.mbid() is not None and \
+                 dom.mbid() == cur.mbid():
+                found = True
+            elif dom.prodId() is not None and cur.prodId() is not None and \
+                 dom.prodId() == cur.prodId():
+                found = True
+
+            if found:
+                del self.__doms[i]
+                return
+
+        if dom.mbid() is not None or dom.name is not None:
+            print >>sys.stderr, "Could not delete %s" % str(dom)
+
+    @property
+    def doms(self):
+        return self.__doms[:]
+
+    @property
+    def number(self):
+        return self.__number
+
+    @property
+    def partition(self):
+        return self.__partition
+
+    @property
+    def rack(self):
+        return self.__rack
+
+    def setPartition(self, partition):
+        if self.__partition is not None and self.__partition != partition:
+            print >>sys.stderr, "Changing string %d partition %s to %s" % \
+                  (self.__number, self.__partition, partition)
+        self.__partition = partition
+
+    def setRack(self, rack):
+        if self.__rack is not None and self.__rack != rack:
+            print >>sys.stderr, "Changing string %d rack %d to %d" % \
+                (self.__number, self.__rack, rack)
+        self.__rack = rack
+
+
 class DefaultDomGeometry(object):
     FILENAME = "default-dom-geometry.xml"
 
+    STRING_COMMENT = {
+        2002: "MDFL3 DOMs",
+        2012: "MDFL2 DOMs",
+        2022: "ABSCAL DOMs",
+    }
+
     def __init__(self, translateDoms=True):
-        self.__stringToDom = {}
+        self.__strings = {}
         self.__translateDoms = translateDoms
         self.__domIdToDom = {}
 
+    def __dumpCoordinate(self, out, axis, indent, value):
+        name = axis + "Coordinate"
+
+        vstr = "%3.2f" % value
+        vstr = vstr.rstrip("0")
+        if vstr.endswith("."):
+            vstr += "0"
+
+        print >>out, "%s<%s>%s</%s>" % (indent, name, vstr, name)
+
     def addDom(self, dom):
-        self.__stringToDom[dom.string()].append(dom)
+        self.__strings[dom.string()].add(dom)
 
         if self.__translateDoms:
             mbid = dom.mbid()
@@ -339,32 +414,16 @@ class DefaultDomGeometry(object):
                 self.__domIdToDom[mbid] = dom
 
     def addString(self, stringNum, errorOnMulti=True):
-        if stringNum not in self.__stringToDom:
-            self.__stringToDom[stringNum] = []
+        if stringNum not in self.__strings:
+            self.__strings[stringNum] = String(stringNum)
         elif errorOnMulti:
-            errMsg = "Found multiple entries for string %d" % stringNum
-            raise XMLFormatError(errMsg)
+            raise XMLFormatError("Found multiple entries for string %d" %
+                                 stringNum)
 
     def deleteDom(self, stringNum, dom):
-        for i in range(len(self.__stringToDom[stringNum])):
-            cur = self.__stringToDom[stringNum][i]
-            found = False
-            if dom.pos() == cur.pos() and dom.pos() <= 60:
-                found = True
-            elif dom.mbid() is not None and cur.mbid() is not None and \
-                 dom.mbid() == cur.mbid():
-                found = True
-            elif dom.prodId() is not None and cur.prodId() is not None and \
-                 dom.prodId() == cur.prodId():
-                found = True
-
-            if found:
-                del self.__stringToDom[stringNum][i]
-                return
-
-        if dom.mbid() is not None or dom.name is not None:
-            print >>sys.stderr, "Could not delete %s from string %d" % \
-                  (dom, stringNum)
+        if stringNum not in self.__strings:
+            raise XMLFormatError("String %d does not exist" % stringNum)
+        self.__strings[stringNum].delete(dom)
 
     def doms(self):
         "Convenience method to list all known DOMs"
@@ -373,7 +432,7 @@ class DefaultDomGeometry(object):
 
     def dump(self, out=sys.stdout):
         "Dump the string->DOM dictionary in default-dom-geometry format"
-        strList = self.__stringToDom.keys()
+        strList = self.__strings.keys()
         strList.sort()
 
         indent = "  "
@@ -381,13 +440,24 @@ class DefaultDomGeometry(object):
 
         print >>out, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
         print >>out, "<domGeometry>"
-        for s in strList:
-            domList = self.__stringToDom[s]
+        for strnum in strList:
+            domList = self.__strings[strnum].doms
             if len(domList) == 0:
                 continue
 
             print >>out, "%s<string>" % indent
-            print >>out, "%s%s<number>%d</number>" % (indent, indent, s)
+            if strnum in self.STRING_COMMENT:
+                print >>out, "%s%s<!-- %s -->" % (indent, indent,
+                                                  self.STRING_COMMENT[strnum])
+            print >>out, "%s%s<number>%d</number>" % (indent, indent, strnum)
+
+            if self.__strings[strnum].rack is not None:
+                print >>out, "%s%s<rack>%d</rack>" % \
+                    (indent, indent, self.__strings[strnum].rack)
+
+            if self.__strings[strnum].partition is not None:
+                print >>out, "%s%s<partition>%s</partition>" % \
+                    (indent, indent, self.__strings[strnum].partition)
 
             domList.sort()
             for dom in domList:
@@ -416,14 +486,11 @@ class DefaultDomGeometry(object):
                     print >>out, "%s<productionId>%s</productionId>" % \
                           (domIndent, dom.prodId())
                 if dom.x() is not None:
-                    print >>out, "%s<xCoordinate>%3.2f</xCoordinate>" % \
-                          (domIndent, dom.x())
+                    self.__dumpCoordinate(out, "x", domIndent, dom.x())
                 if dom.y() is not None:
-                    print >>out, "%s<yCoordinate>%3.2f</yCoordinate>" % \
-                          (domIndent, dom.y())
+                    self.__dumpCoordinate(out, "y", domIndent, dom.y())
                 if dom.z() is not None:
-                    print >>out, "%s<zCoordinate>%3.2f</zCoordinate>" % \
-                          (domIndent, dom.z())
+                    self.__dumpCoordinate(out, "z", domIndent, dom.z())
                 print >>out, "%s%s</dom>" % (indent, indent)
 
             print >>out, "%s</string>" % indent
@@ -432,9 +499,8 @@ class DefaultDomGeometry(object):
     def dumpNicknames(self, out=sys.stdout):
         "Dump the DOM data in nicknames.txt format"
         allDoms = []
-        for s in self.__stringToDom:
-            for dom in self.__stringToDom[s]:
-                allDoms.append(dom)
+        for strobj in self.__strings:
+            allDoms += strobj.doms
 
         allDoms.sort(cmp=lambda x, y: cmp(x.name, y.name))
 
@@ -461,20 +527,23 @@ class DefaultDomGeometry(object):
                 (dom.mbid(), dom.prodId(), name, strNum, dom.pos(), desc)
 
     def getDom(self, strNum, pos, prodId=None, origNum=None):
-        if strNum in self.__stringToDom:
-            for dom in self.__stringToDom[strNum]:
-                if dom.pos() == pos:
-                    if origNum is not None:
-                        if dom.originalString() is not None and \
-                           dom.originalString() == origNum:
-                            return dom
+        if strNum not in self.__strings:
+            return None
 
-                    if prodId is not None:
-                        if dom.prodId() == prodId:
-                            return dom
-
-                    if prodId is None and origNum is None:
+        for dom in self.__strings[strNum].doms:
+            if dom.pos() == pos:
+                if origNum is not None:
+                    if dom.originalString() is not None and \
+                       dom.originalString() == origNum:
                         return dom
+
+                if prodId is not None:
+                    if dom.prodId() == prodId:
+                        return dom
+
+                if prodId is None and origNum is None:
+                    return dom
+
         return None
 
     def getDomIdToDomDict(self):
@@ -528,40 +597,70 @@ class DefaultDomGeometry(object):
         raise XMLFormatError("Could not find icetop hub for string %d" %
                              strNum)
 
-    def getStringToDomDict(self):
-        "Get the string number -> DOM object dictionary"
-        return self.__stringToDom
+    def getDomsOnString(self, strnum):
+        "Get the DOMs on the requested string"
+        if strnum not in self.__strings:
+            return None
+        return self.__strings[strnum].doms
+
+    def getPartitions(self):
+        "Get the partition->string-number dictionary"
+        partitions = {}
+        for strnum, strobj in self.__strings.items():
+            if strobj.partition is not None:
+                if strobj.partition not in partitions:
+                    partitions[strobj.partition] = []
+                partitions[strobj.partition].append(strnum)
+        return partitions
+
+    def getStringsOnRack(self, racknum):
+        "Get the string numbers for all strings on the requested rack"
+        strings = []
+        for strnum, strobj in self.__strings.items():
+            if strobj.rack == racknum:
+                strings.append(strnum)
+        return strings
 
     def rewrite(self, verbose=False, rewriteOldIcetop=False):
         """
         Rewrite default-dom-geometry from 64 DOMs per string hub to
         60 DOMs per string hub and 32 DOMs per icetop hub
         """
-        strList = self.__stringToDom.keys()
+        strList = self.__strings.keys()
         strList.sort()
 
-        for s in strList:
-            domList = self.__stringToDom[s][:]
+        for strnum in strList:
+            domList = self.__strings[strnum].doms
 
             for dom in domList:
                 if dom.rewrite(verbose=verbose,
                                rewriteOldIcetop=rewriteOldIcetop):
-                    self.deleteDom(s, dom)
+                    self.__strings[strnum].delete(dom)
 
                     self.addString(dom.string(), errorOnMulti=False)
                     self.addDom(dom)
 
+    def setPartition(self, stringNum, partition):
+        if stringNum not in self.__strings:
+            raise XMLFormatError("String %d does not exist" % stringNum)
+        self.__strings[stringNum].setPartition(partition)
+
+    def setRack(self, stringNum, rack):
+        if stringNum not in self.__strings:
+            raise XMLFormatError("String %d does not exist" % stringNum)
+        self.__strings[stringNum].setRack(rack)
+
     def update(self, newDomGeom, verbose=False):
         "Copy missing string, DOM, or DOM info from 'newDomGeom'"
-        keys = self.__stringToDom.keys()
+        keys = self.__strings.keys()
 
-        for s in newDomGeom.__stringToDom:
-            if s not in keys:
-                self.__stringToDom[s] = newDomGeom.__stringToDom[s]
+        for strnum in newDomGeom.__strings:
+            if strnum not in keys:
+                self.__strings[strnum] = newDomGeom.__strings[strnum]
                 continue
-            for nd in newDomGeom.__stringToDom[s]:
+            for nd in newDomGeom.__strings[strnum]:
                 foundPos = False
-                for dom in self.__stringToDom[s]:
+                for dom in self.__strings[strnum]:
                     if dom.pos() == nd.pos():
                         foundPos = True
                         if dom.mbid() == nd.mbid():
@@ -573,17 +672,16 @@ class DefaultDomGeometry(object):
         names = {}
         locs = {}
 
-        strKeys = self.__stringToDom.keys()
+        strKeys = self.__strings.keys()
         strKeys.sort()
 
         for strNum in strKeys:
-            for dom in self.__stringToDom[strNum]:
+            for dom in self.__strings[strNum].doms:
                 if dom.name not in names:
                     names[dom.name] = dom
                 else:
                     print >>sys.stderr, "Found DOM \"%s\" at %s and %s" % \
-                        (dom.name, dom.location(),
-                         names[dom.name].location())
+                        (dom.name, dom.location(), names[dom.name].location())
 
                 if dom.name.startswith("SIM") and \
                    dom.string() % 1000 >= 200 and dom.string() % 1000 < 299:
@@ -706,13 +804,27 @@ class DefaultDomGeometryReader(XMLParser):
 
             if kid.nodeType == Node.ELEMENT_NODE:
                 if kid.nodeName == "number":
+                    if stringNum is not None:
+                        raise XMLFormatError("Found multiple <number> nodes" +
+                                             " under <string>")
                     stringNum = int(cls.getChildText(kid))
                     geom.addString(stringNum)
                     origOrder = 0
+                elif kid.nodeName == "rack":
+                    if stringNum is None:
+                        raise XMLFormatError("Found <rack> before" +
+                                             " <number> under <string>")
+                    rack = int(cls.getChildText(kid))
+                    geom.setRack(stringNum, rack)
+                elif kid.nodeName == "partition":
+                    if stringNum is None:
+                        raise XMLFormatError("Found <partition> before" +
+                                             " <number> under <string>")
+                    geom.setPartition(stringNum, cls.getChildText(kid))
                 elif kid.nodeName == "dom":
                     if stringNum is None:
-                        raise XMLFormatError("Found <dom> before <number>" +
-                                             " under <string>")
+                        raise XMLFormatError("Found <dom> before" +
+                                             " <number> under <string>")
                     dom = cls.__parseDomNode(stringNum, kid)
 
                     dom.setOriginalOrder(origOrder)

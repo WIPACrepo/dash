@@ -125,7 +125,7 @@ class ConfigObject(object):
                 self.__cfgdir = parent
             else:
                 self.__cfgdir = find_pdaq_config()
-        elif parent is None or parent == "":
+        elif parent is None or parent == "" or parent == cfgdir:
             self.__cfgdir = cfgdir
         else:
             raise AttributeError("Cannot specify both config dir (%s) and"
@@ -238,11 +238,11 @@ class RunDom(dict):
             raise attr_err
 
     @classmethod
-    def string_to_dom_dict(cls, configDir):
+    def doms_on_string(cls, configDir, strnum):
         if cls.DEFAULT_DOM_GEOMETRY is None:
             cls.__load_geometry(configDir)
 
-        return cls.DEFAULT_DOM_GEOMETRY.getStringToDomDict()
+        return cls.DEFAULT_DOM_GEOMETRY.getDomsOnString(strnum)
 
     # Technically not really required, but keep
     # the signature the same for these methods
@@ -322,16 +322,15 @@ class RandomConfig(object):
         str_id, excluded = self.__parseRandomHub(xdict)
 
         # fetch the list of DOMs for this string
-        str2dom = RunDom.string_to_dom_dict(configDir)
-        if not str_id in str2dom:
+        doms = RunDom.doms_on_string(configDir, str_id)
+        if doms is None or len(doms) == 0:
             msg = "Unknown random hub %d" % str_id
             raise DAQConfigException(msg)
 
         self.hub_id = str_id
 
-        for dom in str2dom[str_id]:
-            if excluded is not None and \
-               dom.mbid() in excluded:
+        for dom in doms:
+            if excluded is not None and dom.mbid() in excluded:
                 continue
 
             if str_id not in self.string_map:
@@ -744,7 +743,7 @@ class DAQConfig(ConfigObject):
                        not v.has_key('__children__') or \
                        not isinstance(v['__children__'], dict):
                         msg = "Bad randomConfig element %s<%s> in %s" % \
-                              (v, type(v), filename)
+                              (v, type(v), self.filename)
                         raise DAQConfigException(msg)
 
                     for k2, v2 in v['__children__'].iteritems():
@@ -768,7 +767,7 @@ class DAQConfig(ConfigObject):
 
                 if self.noise_rate is None:
                     raise DAQConfigException("No noise rate in %s"
-                                             " <randomConfig>" % filename)
+                                             " <randomConfig>" % self.filename)
             else:
                 # an 'OTHER' object
                 self.other_objs.append((key, val))
