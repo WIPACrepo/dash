@@ -1,4 +1,9 @@
 #!/usr/bin/env python
+#
+# Split a run configuration into detector quadrants
+#
+# J. Kelley
+# 15 January 2013
 
 
 import os
