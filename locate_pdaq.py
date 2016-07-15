@@ -3,12 +3,16 @@
 import os
 
 
+METADIR = None
+CONFIGDIR = None
+
+
 class DirectoryNotFoundException(Exception):
     pass
 
 
-METADIR = None
-CONFIGDIR = None
+class DirectoryAlreadySetException(Exception):
+    pass
 
 
 def find_pdaq_config():

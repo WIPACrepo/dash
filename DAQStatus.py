@@ -144,7 +144,7 @@ def listVerbose(compList, indent, indent2, useNumeric=True):
              c["rpcPort"], c["mbeanPort"], c["state"])
 
 
-def print_status(args):
+def print_status(numeric=False, verbose=False):
     cncrpc = RPCClient("localhost", DAQPort.CNCSERVER)
 
     try:
@@ -184,8 +184,8 @@ def print_status(args):
 
     print "======================="
     print "%d unused component%s" % (nc, getPlural(nc))
-    if args.verbose:
-        listVerbose(lc, indent, indent2, args.numeric)
+    if verbose:
+        listVerbose(lc, indent, indent2, numeric)
     else:
         listTerse(lc, indent, indent2)
 
@@ -195,8 +195,8 @@ def print_status(args):
         cfg = cncrpc.rpc_runset_configname(runid)
         ls = cncrpc.rpc_runset_list(runid)
         print "%sRunSet#%d (%s)" % (indent, runid, cfg)
-        if args.verbose:
-            listVerbose(ls, indent, indent2, args.numeric)
+        if verbose:
+            listVerbose(ls, indent, indent2, numeric)
         else:
             listTerse(ls, indent, indent2)
 
@@ -219,7 +219,7 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
 
     add_arguments(p)
-    ns = p.parse_args()
+    args = p.parse_args()
 
     if not args.nohostcheck:
         # exit if not running on expcont
@@ -229,4 +229,4 @@ if __name__ == "__main__":
             raise SystemExit("Are you sure you are checking status"
                              " on the correct host?" )
 
-    print_status(ns)
+    print_status(numeric=args.numeric, verbose=args.verbose)

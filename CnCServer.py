@@ -9,7 +9,8 @@ import sys
 import threading
 import time
 
-from CnCExceptions import CnCServerException, MissingComponentException
+from CnCExceptions import CnCServerException, MissingComponentException, \
+    StartInterruptedException
 from CnCLogger import CnCLogger
 from CompOp import ComponentOperation, ComponentOperationGroup
 from DAQClient import ComponentName, DAQClient, DAQClientState
@@ -999,7 +1000,8 @@ class CnCServer(DAQPool):
         compList = self.__getComponents(idList, getAll)
 
         op = ComponentOperation.GET_CONN_INFO
-        results = ComponentOperationGroup.runSimple(op, compList, (), log)
+        results = ComponentOperationGroup.runSimple(op, compList, (),
+                                                    self.__log)
 
         slst = []
         for c in compList:

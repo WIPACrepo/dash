@@ -221,19 +221,14 @@ class ComponentData(object):
         return beanDict
 
     @classmethod
-    def createAll(cls, numHubs, addNumericPrefix, includeIceTop=False,
-                  includeTrackEngine=False):
+    def createAll(cls, numHubs, addNumericPrefix, includeIceTop=False):
         "Create initial component data list"
-        comps = cls.createHubs(numHubs, addNumericPrefix,
-                               sendTrackHits=includeTrackEngine,
-                               isIceTop=False)
+        comps = cls.createHubs(numHubs, addNumericPrefix, isIceTop=False)
         if includeIceTop:
             itHubs = numHubs / 8
             if itHubs == 0:
                 itHubs = 1
-            comps = cls.createHubs(itHubs, addNumericPrefix,
-                                   sendTrackHits=includeTrackEngine,
-                                   isIceTop=True)
+            comps = cls.createHubs(itHubs, addNumericPrefix, isIceTop=True)
 
         # create additional components
         comps.append(ComponentData("inIceTrigger", 0,
@@ -243,11 +238,6 @@ class ComponentData(object):
         if includeIceTop:
             comps.append(ComponentData("icetopTrigger", 0,
                                        [("icetopHit", Connector.INPUT),
-                                        ("trigger", Connector.OUTPUT)],
-                                       addNumericPrefix))
-        if includeTrackEngine:
-            comps.append(ComponentData("trackEngine", 0,
-                                       [("trackEngHit", Connector.INPUT),
                                         ("trigger", Connector.OUTPUT)],
                                        addNumericPrefix))
 
@@ -269,8 +259,7 @@ class ComponentData(object):
         return comps
 
     @staticmethod
-    def createHubs(numHubs, addNumericPrefix, sendTrackHits,
-                   isIceTop=False):
+    def createHubs(numHubs, addNumericPrefix, isIceTop=False):
         "create all stringHubs"
         comps = []
 
@@ -284,9 +273,6 @@ class ComponentData(object):
             connList.append(("icetopHit", Connector.OUTPUT))
         else:
             connList.append(("stringHit", Connector.OUTPUT))
-
-        if sendTrackHits:
-            connList.append(("trackEngHit", Connector.OPT_OUTPUT))
 
         for n in range(numHubs):
             comps.append(ComponentData("stringHub", n + 1, connList,
@@ -668,12 +654,6 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("-A", "--includeTrackEngine", dest="incTrackEng",
-                        action="store_true", default=False,
-                        help="Include track engine in full configuration")
-    parser.add_argument("-a", "--trackEngine", dest="trackEng",
-                        action="store_true", default=False,
-                        help="Use existing track engine")
     parser.add_argument("-c", "--config", dest="runCfgDir",
                         default="/tmp/config",
                         help="Run configuration directory")
@@ -729,11 +709,6 @@ if __name__ == "__main__":
     if args.firstPort != FakeClient.NEXT_PORT:
         FakeClient.NEXT_PORT = args.firstPort
 
-    # make sure to include trackEngine if user wants to use real track engine
-    #
-    if args.trackEng:
-        args.incTrackEng = True
-
     # get list of components
     #
     if args.tinyCfg:
@@ -741,8 +716,7 @@ if __name__ == "__main__":
     elif args.smallCfg:
         compData = ComponentData.createSmall()
     else:
-        compData = ComponentData.createAll(args.numHubs, not args.realNames,
-                                           includeTrackEngine=args.incTrackEng)
+        compData = ComponentData.createAll(args.numHubs, not args.realNames)
         for cd in compData:
             if args.evtBldr and cd.isComponent("eventBuilder"):
                 cd.useRealComponent()
@@ -751,8 +725,6 @@ if __name__ == "__main__":
             elif args.iniceTrig and cd.isComponent("iniceTrigger"):
                 cd.useRealComponent()
             elif args.icetopTrig and cd.isComponent("icetopTrigger"):
-                cd.useRealComponent()
-            elif args.trackEng and cd.isComponent("trackEngine"):
                 cd.useRealComponent()
 
     from DumpThreads import DumpThreadsOnSignal

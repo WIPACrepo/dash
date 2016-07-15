@@ -449,6 +449,12 @@ class FakeClient(object):
             return self.__name
         return "%s#%d" % (self.__name, self.__num)
 
+    def getOutputConnector(self, name):
+        for conn in self.__connections:
+            if conn.name == name:
+                return conn
+        return None
+
     def monitorServer(self):
         while self.__registered:
             if self.__cnc is None:
