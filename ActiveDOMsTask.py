@@ -30,7 +30,7 @@ class ActiveDOMThread(CnCThread):
         super(ActiveDOMThread, self).__init__("CnCServer:ActiveDOMThread",
                                               dashlog)
 
-    def __process_result(self, comp, result, totals, lbm_overflows, hub_doms):
+    def __process_result(self, comp, result, totals, lbm_overflows):
         try:
             hub_active_doms = int(result[self.KEY_ACT_TOT][0])
             hub_total_doms = int(result[self.KEY_ACT_TOT][1])
@@ -74,9 +74,6 @@ class ActiveDOMThread(CnCThread):
         totals["lc_rate"] += lc_rate
         totals["total_rate"] += total_rate
 
-        if self.__send_details:
-            hub_doms[str(comp.num)] = (hub_active_doms, hub_total_doms)
-
         # cache current results
         #
         self.PREV_ACTIVE[comp.num] = {
@@ -114,7 +111,6 @@ class ActiveDOMThread(CnCThread):
             "lc_rate": 0.0, "total_rate": 0.0
         }
         lbm_overflows = {}
-        hub_doms = {}
 
         hanging = []
         for comp in src_set:
@@ -139,7 +135,7 @@ class ActiveDOMThread(CnCThread):
             # 'result' should now contain a dictionary with the number of
             # active and total channels and the LBM overflows
 
-            self.__process_result(comp, result, totals, lbm_overflows, hub_doms)
+            self.__process_result(comp, result, totals, lbm_overflows)
 
         # report hanging components
         if len(hanging) > 0:
@@ -184,9 +180,6 @@ class ActiveDOMThread(CnCThread):
             if self.__send_details:
                 # important messages that go out every ten minutes
                 self.__send_moni("LBMOverflows", lbm_overflows, Prio.ITS)
-
-                # less urgent messages use lower priority
-                self.__send_moni("stringDOMsInfo", hub_doms, Prio.EMAIL)
 
     def get_new_thread(self, send_details=False):
         thrd = ActiveDOMThread(self.__runset, self.__dashlog,
