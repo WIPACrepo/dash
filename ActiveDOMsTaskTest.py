@@ -68,8 +68,6 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         logger.checkStatus(4)
         live.hasAllMoni()
 
-        live.addExpected("stringDOMsInfo", {'1': (numActive, numTotal)},
-                         Prio.EMAIL)
         live.addExpected("stringRateInfo", {'1': 50},
                          Prio.EMAIL)
         live.addExpected("stringRateLCInfo", {'1': 25},
@@ -192,8 +190,6 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         logger.checkStatus(4)
         live.hasAllMoni()
 
-        live.addExpected("stringDOMsInfo", {'1': (numActive, numTotal)},
-                         Prio.EMAIL)
         live.addExpected("stringRateInfo", {'1': 50},
                          Prio.EMAIL)
         live.addExpected("stringRateLCInfo", {'1': 25},

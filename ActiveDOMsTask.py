@@ -195,9 +195,6 @@ class ActiveDOMsTask(CnCSingleThreadTask):
     'totalDOMS' which is a count of the total number of active doms
     in the array along with a count of the number of doms (active or inactive).
 
-    'stringDOMsInfo' which is a dictionary relating string number to the
-    number of active and total number of doms in a string
-
     'LBMOverflows' which is a dictionary relating string number to the total
     number of lbm overflows for a given string
     """
