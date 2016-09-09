@@ -483,7 +483,6 @@ def getDirAndRunnum(topDir, subDir):
         else:
             break
 
-        print "PATH " + fullpath
         if os.path.isdir(fullpath):
             filename = os.path.basename(fullpath)
             if filename.startswith("daqrun"):
