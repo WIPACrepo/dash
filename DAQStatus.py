@@ -17,7 +17,8 @@ def add_arguments(parser):
                         help="Don't check the host type for run permission")
     parser.add_argument("-n", "--numeric", dest="numeric",
                         action="store_true", default=False,
-                        help="Show IP addresses instead of hostnames")
+                        help="Show IP addresses instead of hostnames"
+                             " in verbose output")
     parser.add_argument("-v", "--verbose", dest="verbose",
                         action="store_true", default=False,
                         help="Print detailed list")
@@ -144,7 +145,7 @@ def listVerbose(compList, indent, indent2, useNumeric=True):
              c["rpcPort"], c["mbeanPort"], c["state"])
 
 
-def print_status(numeric=False, verbose=False):
+def print_status(args):
     cncrpc = RPCClient("localhost", DAQPort.CNCSERVER)
 
     try:
@@ -184,8 +185,8 @@ def print_status(numeric=False, verbose=False):
 
     print "======================="
     print "%d unused component%s" % (nc, getPlural(nc))
-    if verbose:
-        listVerbose(lc, indent, indent2, numeric)
+    if args.verbose or args.numeric:
+        listVerbose(lc, indent, indent2, args.numeric)
     else:
         listTerse(lc, indent, indent2)
 
@@ -195,8 +196,8 @@ def print_status(numeric=False, verbose=False):
         cfg = cncrpc.rpc_runset_configname(runid)
         ls = cncrpc.rpc_runset_list(runid)
         print "%sRunSet#%d (%s)" % (indent, runid, cfg)
-        if verbose:
-            listVerbose(ls, indent, indent2, numeric)
+        if args.verbose or args.numeric:
+            listVerbose(ls, indent, indent2, args.numeric)
         else:
             listTerse(ls, indent, indent2)
 
@@ -229,4 +230,4 @@ if __name__ == "__main__":
             raise SystemExit("Are you sure you are checking status"
                              " on the correct host?" )
 
-    print_status(numeric=args.numeric, verbose=args.verbose)
+    print_status(args)
