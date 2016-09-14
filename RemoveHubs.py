@@ -5,6 +5,7 @@
 import os
 import sys
 
+from ClusterDescription import ClusterDescription
 from DAQConfig import DAQConfigException, DAQConfigParser
 from DefaultDomGeometry import DefaultDomGeometryReader
 from locate_pdaq import find_pdaq_config
@@ -111,6 +112,9 @@ def get_hub_name(num):
         return "%02d" % num
     if num > 200 and num < 220:
         return "%02dt" % (num - 200)
+    if ClusterDescription.getClusterFromHostName() == ClusterDescription.SPTS:
+        if num >= 1000 and num <= 2099:
+            return "%d" % num
     return "?%d?" % num
 
 
