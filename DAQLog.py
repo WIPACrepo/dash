@@ -378,38 +378,6 @@ class LiveSocketAppender(BaseAppender):
             self.__clientLock.release()
 
 
-class LiveMonitor(object):
-    "Send I3Live monitoring data"
-    def __init__(self, node='localhost', port=MoniPort, service=SERVICE_NAME):
-        if not LIVE_IMPORT:
-            self.__client = None
-        else:
-            self.__client = MoniClient(service, node, port)
-        self.__clientLock = threading.Lock()
-
-    def close(self):
-        if self.__client is not None:
-            self.__clientLock.acquire()
-            try:
-                self.__client.close()
-                self.__client = None
-            finally:
-                self.__clientLock.release()
-
-    def send(self, varName, time, data):
-        if self.__client is None:
-            raise LogException('LiveMonitor has been closed')
-
-        self.__clientLock.acquire()
-        try:
-            try:
-                self.__client.sendMoni(varName, data, Prio.ITS, time)
-            except:
-                raise LogException('LiveMonitor %s: cannot send %s data: %s' %
-                                   (str(self.__client), varName, exc_string()))
-        finally:
-            self.__clientLock.release()
-
 if __name__ == "__main__":
     import argparse
 
