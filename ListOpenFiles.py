@@ -336,6 +336,14 @@ class UnknownSocket(BaseFile):
         self.__majorMinorDev = val
 
 
+class UnknownEntry(BaseFile):
+    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
+        super(UnknownEntry, self).__init__(fileType, fileDesc, accessMode,
+                                           lockStatus)
+
+    def setSize(self, val):
+        pass
+
 class ListOpenFiles(object):
     @classmethod
     def __create(cls, fileDesc, accessMode, lockStatus, fileType=None):
@@ -368,8 +376,7 @@ class ListOpenFiles(object):
         elif fileType == "0000":
             return EventPoll(fileType, fileDesc, accessMode, lockStatus)
 
-        raise ListOpenFileException("Found unknown file type \"%s\"" %
-                                    fileType)
+        return UnknownEntry(fileType, fileDesc, accessMode, lockStatus)
 
     @classmethod
     def __parseOutput(cls, fd):
@@ -543,6 +550,31 @@ class ListOpenFiles(object):
         return userList
 
     @classmethod
+    def dump(cls):
+        cls.dumpList(cls.run())
+
+    @classmethod
+    def dumpList(cls, userList):
+        print "%-9.9s %4s %4s %4.4s%1.1s%1.1s %6.6s %10.10s %9.9s %8.8s %s" % \
+              ("COMMAND", "PID", "USER", "FD", "", "", "TYPE", "DEVICE",
+               "SIZE/OFF", "NODE", "NAME")
+        for u in userList:
+            cmd = u.command()
+            pid = u.pid()
+            user = u.user()
+            if user is None:
+                uid = u.uid()
+                if uid is not None:
+                    user = "#%d" % uid
+
+            for f in u.files():
+                print ("%-9.9s %4d %4s %4.4s%1.1s%1.1s %6.6s %10.10s %9.9s" +
+                       " %8.8s %s") % \
+                       (cmd, pid, user, f.fileDesc(), f.accessMode(),
+                        f.lockStatus(), f.fileType(), f.device(),
+                        f.sizeOffset(), f.inode(), f.name)
+
+    @classmethod
     def readOutput(cls, filename):
         with open(filename, "r") as fd:
             return cls.__parseOutput(fd)
@@ -572,21 +604,4 @@ if __name__ == "__main__":
     else:
         userList = ListOpenFiles.readOutput(sys.argv[1])
 
-    print "%-9.9s %4s %4s %4.4s%1.1s%1.1s %6.6s %10.10s %9.9s %8.8s %s" % \
-          ("COMMAND", "PID", "USER", "FD", "", "", "TYPE", "DEVICE",
-           "SIZE/OFF", "NODE", "NAME")
-    for u in userList:
-        cmd = u.command()
-        pid = u.pid()
-        user = u.user()
-        if user is None:
-            uid = u.uid()
-            if uid is not None:
-                user = "#%d" % uid
-
-        for f in u.files():
-            print ("%-9.9s %4d %4s %4.4s%1.1s%1.1s %6.6s %10.10s %9.9s" +
-                   " %8.8s %s") % \
-                   (cmd, pid, user, f.fileDesc(), f.accessMode(),
-                    f.lockStatus(), f.fileType(), f.device(), f.sizeOffset(),
-                    f.inode(), f.name)
+    ListOpenFiles.dumpList(userList)
