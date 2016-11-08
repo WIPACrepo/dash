@@ -40,7 +40,8 @@ class ActiveDOMThread(CnCThread):
             # be extra paranoid about using previous value
             tmp_active = 0
             tmp_total = 0
-            if self.PREV_ACTIVE[comp.num].has_key(self.KEY_ACT_TOT):
+            if self.PREV_ACTIVE.has_key(comp.num) and \
+               self.PREV_ACTIVE[comp.num].has_key(self.KEY_ACT_TOT):
                 prevpair = self.PREV_ACTIVE[comp.num][self.KEY_ACT_TOT]
                 if len(prevpair) == 2:
                     try:
@@ -58,6 +59,8 @@ class ActiveDOMThread(CnCThread):
         if result.has_key(self.KEY_LBM_OVER):
             hub_lbm_overflows = result[self.KEY_LBM_OVER]
         else:
+            self.__dashlog.error("Bad LBM overflow result %s<%s>" %
+                                 (result, type(result)))
             hub_lbm_overflows = 0
         lbm_overflows[str(comp.num)] = hub_lbm_overflows
 

@@ -262,20 +262,25 @@ class WatchData(object):
             if not chkVal:
                 unhealthy.append(watchList[0].unhealthyRecord(val))
         else:
+            beanName = None
             fldList = []
             for f in watchList:
+                if beanName is None:
+                    beanName = f.beanName()
+                elif beanName != f.beanName():
+                    self.__dashlog.error("NOT requesting fields from multiple" +
+                                         " beans (%s != %s)" %
+                                         (beanName, f.beanName()))
+                    continue
                 fldList.append(f.fieldName())
 
             try:
-                valMap = self.__comp.getMultiBeanFields(
-                    watchList[0].beanName(),
-                    fldList)
+                valMap = self.__comp.getMultiBeanFields(beanName,  fldList)
             except Exception as ex:
                 fldList = []
                 unhealthy.append(watchList[0].unhealthyRecord(ex))
 
             for index, fldVal in enumerate(fldList):
-
                 try:
                     val = valMap[fldVal]
                 except KeyError:
