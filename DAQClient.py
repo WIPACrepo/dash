@@ -489,6 +489,11 @@ class DAQClient(ComponentName):
                 "rpcPort": self.__port,
                 "mbeanPort": self.__mbeanPort}
 
+    def matches(self, other):
+        return self.name == other.name and self.num == other.num and \
+            self.__host == other.__host and self.__port == other.__port and \
+            self.__mbeanPort == other.__mbeanPort
+
     @property
     def mbeanPort(self):
         return self.__mbeanPort

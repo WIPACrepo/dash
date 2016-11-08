@@ -58,7 +58,12 @@ class DAQPool(object):
         "This method assumes that self.__poolLock has already been acquired"
         if not comp.name in self.__pool:
             self.__pool[comp.name] = []
+        for oldcomp in self.__pool[comp.name]:
+            if comp.matches(oldcomp):
+                return False
+
         self.__pool[comp.name].append(comp)
+        return True
 
     def __addRunset(self, runSet):
         self.__setsLock.acquire()
@@ -277,7 +282,7 @@ class DAQPool(object):
         "Add the component to the config server's pool"
         self.__poolLock.acquire()
         try:
-            self.__addInternal(comp)
+            return self.__addInternal(comp)
         finally:
             self.__poolLock.release()
 
@@ -1114,9 +1119,11 @@ class CnCServer(DAQPool):
         client = self.createClient(name, num, host, port, mbeanPort,
                                    connectors)
 
-        self.__log.debug("Registered %s" % client.fullname)
-
-        self.add(client)
+        if self.add(client):
+            self.__log.debug("Registered %s" % client.fullname)
+        else:
+            self.__log.debug("Ignoring previously registered %s" %
+                             client.fullname)
 
         logIP = ip.convertLocalhostToIpAddr(self.__log.logHost)
 
