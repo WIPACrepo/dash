@@ -133,8 +133,8 @@ class RunNode(object):
         else:
             logLvl = self.__defaultLogLevel
 
-        comp = RunComponent(comp.name, comp.id, logLvl, self.__hostname,
-                            comp.isControlServer)
+        newcomp = RunComponent(comp.name, comp.id, logLvl, self.__hostname,
+                             comp.isControlServer)
 
         hsDir = None
         hsIval = None
@@ -153,7 +153,7 @@ class RunNode(object):
         if hsMaxFiles is None:
             hsMaxFiles = self.__defaultHS.maxFiles
 
-        comp.setHitSpoolOptions(hsDir, hsIval, hsMaxFiles)
+        newcomp.setHitSpoolOptions(hsDir, hsIval, hsMaxFiles)
 
         jvmPath = None
         jvmServer = None
@@ -187,9 +187,9 @@ class RunNode(object):
         if jvmExtra is None:
             jvmExtra = self.__defaultJVM.extraArgs
 
-        comp.setJVMOptions(jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
-                           jvmArgs, jvmExtra)
-        self.__comps.append(comp)
+        newcomp.setJVMOptions(jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
+                              jvmArgs, jvmExtra)
+        self.__comps.append(newcomp)
 
     def components(self):
         return self.__comps[:]
