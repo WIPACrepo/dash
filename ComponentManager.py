@@ -5,6 +5,7 @@
 import os
 import signal
 import sys
+import traceback
 
 from utils import ip
 
@@ -122,12 +123,12 @@ class ComponentManager(object):
         """
         comps = []
         for c in compdicts:
-            lc = RunComponent(c["compName"], c["compNum"], "??hsDir??",
-                              "??hsInterval??", "??hsMaxFiles??",
-                              "??jvmPath??", "??jvmServer??",
-                              "??jvmHeapInit??", "??jvmHeapMax??",
-                              "??jvmArgs??", "??jvmExtra??", "??logLevel??",
+            lc = RunComponent(c["compName"], c["compNum"], "??logLevel??",
                               c["host"], False)
+            lc.setJVMOptions("??jvmPath??", "??jvmServer??", "??jvmHeapInit??",
+                             "??jvmHeapMax??", "??jvmArgs??", "??jvmExtra??")
+            lc.setHitSpoolOptions("??hsDir??", "??hsInterval??",
+                                  "??hsMaxFiles??")
             comps.append(lc)
         return comps
 
@@ -223,18 +224,17 @@ class ComponentManager(object):
         for node in clusterConfig.nodes():
             for comp in node.components():
                 if not comp.isControlServer:
-                    compList.append(RunComponent(comp.name, comp.id,
-                                                 comp.hitspoolDirectory,
-                                                 comp.hitspoolInterval,
-                                                 comp.hitspoolMaxFiles,
-                                                 comp.jvmPath,
-                                                 comp.jvmServer,
-                                                 comp.jvmHeapInit,
-                                                 comp.jvmHeapMax,
-                                                 comp.jvmArgs,
-                                                 comp.jvmExtraArgs,
-                                                 comp.logLevel,
-                                                 node.hostname, False))
+                    rc = RunComponent(comp.name, comp.id, comp.logLevel,
+                                      node.hostname, False)
+                    rc.setJVMOptions(comp.jvmPath, comp.jvmServer,
+                                     comp.jvmHeapInit, comp.jvmHeapMax,
+                                     comp.jvmArgs, comp.jvmExtraArgs)
+                    if comp.hasHitSpoolOptions:
+                        rc.setHitSpoolOptions(comp.hitspoolDirectory,
+                                              comp.hitspoolInterval,
+                                              comp.hitspoolMaxFiles)
+
+                    compList.append(rc)
         return compList
 
     @classmethod
@@ -276,6 +276,10 @@ class ComponentManager(object):
                 if logger is not None:
                     logger.info("Extracted active components from CnCServer")
             except:
+                traceback.print_exc()
+                if logger is not None:
+                    logger.error("Failed to extract active components:\n" +
+                                 traceback.format_exc())
                 comps = None
 
         if comps is None:

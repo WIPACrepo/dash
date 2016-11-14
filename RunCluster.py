@@ -15,12 +15,9 @@ class RunClusterError(Exception):
 
 
 class RunComponent(Component):
-    def __init__(self, name, compid, hsDir, hsIval, hsMaxFiles, jvmPath,
-                 jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra,
-                 logLevel, host, isCtlServer):
-        self.__hs = HSArgs(hsDir, hsIval, hsMaxFiles)
-        self.__jvm = JVMArgs(jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
-                             jvmArgs, jvmExtra)
+    def __init__(self, name, compid, logLevel, host, isCtlServer):
+        self.__hs = None
+        self.__jvm = None
         self.__isCtlServer = isCtlServer
 
         super(RunComponent, self).__init__(name, compid, logLevel=logLevel,
@@ -31,44 +28,78 @@ class RunComponent(Component):
                                    self.__hs, self.__jvm)
 
     @property
+    def hasHitSpoolOptions(self):
+        return self.__hs is not None
+
+    @property
+    def hasJVMOptions(self):
+        return self.__jvm is not None
+
+    @property
     def isControlServer(self):
         return self.__isCtlServer
 
     @property
     def hitspoolInterval(self):
+        if self.__hs is None:
+            raise RunClusterError("HitSpool options have not been set")
         return self.__hs.interval
 
     @property
     def hitspoolMaxFiles(self):
+        if self.__hs is None:
+            raise RunClusterError("HitSpool options have not been set")
         return self.__hs.maxFiles
 
     @property
     def hitspoolDirectory(self):
+        if self.__hs is None:
+            raise RunClusterError("HitSpool options have not been set")
         return self.__hs.directory
 
     @property
     def jvmArgs(self):
-        return self.__jvm.args()
+        if self.__jvm is None:
+            raise RunClusterError("JVM options have not been set")
+        return self.__jvm.args
 
     @property
     def jvmExtraArgs(self):
-        return self.__jvm.extraArgs()
+        if self.__jvm is None:
+            raise RunClusterError("JVM options have not been set")
+        return self.__jvm.extraArgs
 
     @property
     def jvmHeapInit(self):
-        return self.__jvm.heapInit()
+        if self.__jvm is None:
+            raise RunClusterError("JVM options have not been set")
+        return self.__jvm.heapInit
 
     @property
     def jvmHeapMax(self):
-        return self.__jvm.heapMax()
+        if self.__jvm is None:
+            raise RunClusterError("JVM options have not been set")
+        return self.__jvm.heapMax
 
     @property
     def jvmPath(self):
-        return self.__jvm.path()
+        if self.__jvm is None:
+            raise RunClusterError("JVM options have not been set")
+        return self.__jvm.path
 
     @property
     def jvmServer(self):
-        return self.__jvm.isServer()
+        if self.__jvm is None:
+            raise RunClusterError("JVM options have not been set")
+        return self.__jvm.isServer
+
+    def setHitSpoolOptions(self, directory, interval, maxFiles):
+        self.__hs = HSArgs(directory, interval, maxFiles)
+
+    def setJVMOptions(self, jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
+                      jvmArgs, jvmExtra):
+        self.__jvm = JVMArgs(jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
+                             jvmArgs, jvmExtra)
 
 
 class RunNode(object):
@@ -97,54 +128,68 @@ class RunNode(object):
                               len(self.__comps))
 
     def addComponent(self, comp):
-        if comp.hitspoolDirectory is not None:
-            hsDir = comp.hitspoolDirectory
-        else:
-            hsDir = self.__defaultHS.directory
-        if comp.hitspoolInterval is not None:
-            hsIval = comp.hitspoolInterval
-        else:
-            hsIval = self.__defaultHS.interval
-        if comp.hitspoolMaxFiles is not None:
-            hsMaxFiles = comp.hitspoolMaxFiles
-        else:
-            hsMaxFiles = self.__defaultHS.maxFiles
-
-        if comp.jvmPath is not None or comp.isControlServer:
-            jvmPath = comp.jvmPath
-        else:
-            jvmPath = self.__defaultJVM.path()
-        if comp.jvmServer is not None or comp.isControlServer:
-            jvmServer = comp.jvmServer
-        else:
-            jvmServer = self.__defaultJVM.isServer()
-        if comp.jvmHeapInit is not None or comp.isControlServer:
-            jvmHeapInit = comp.jvmHeapInit
-        else:
-            jvmHeapInit = self.__defaultJVM.heapInit()
-        if comp.jvmHeapMax is not None or comp.isControlServer:
-            jvmHeapMax = comp.jvmHeapMax
-        else:
-            jvmHeapMax = self.__defaultJVM.heapMax()
-        if comp.jvmArgs is not None or comp.isControlServer:
-            jvmArgs = comp.jvmArgs
-        else:
-            jvmArgs = self.__defaultJVM.args()
-        if comp.jvmExtraArgs is not None or comp.isControlServer:
-            jvmExtra = comp.jvmExtraArgs
-        else:
-            jvmExtra = self.__defaultJVM.extraArgs()
-
         if comp.logLevel is not None:
             logLvl = comp.logLevel
         else:
             logLvl = self.__defaultLogLevel
 
-        self.__comps.append(RunComponent(comp.name, comp.id, hsDir, hsIval,
-                                         hsMaxFiles, jvmPath, jvmServer,
-                                         jvmHeapInit, jvmHeapMax, jvmArgs,
-                                         jvmExtra, logLvl, self.__hostname,
-                                         comp.isControlServer))
+        comp = RunComponent(comp.name, comp.id, logLvl, self.__hostname,
+                            comp.isControlServer)
+
+        hsDir = None
+        hsIval = None
+        hsMaxFiles = None
+        if comp.hasHitSpoolOptions:
+            if comp.hitspoolDirectory is not None:
+                hsDir = comp.hitspoolDirectory
+            if comp.hitspoolInterval is not None:
+                hsIval = comp.hitspoolInterval
+            if comp.hitspoolMaxFiles is not None:
+                hsMaxFiles = comp.hitspoolMaxFiles
+        if hsDir is None:
+            hsDir = self.__defaultHS.directory
+        if hsIval is None:
+            hsIval = self.__defaultHS.interval
+        if hsMaxFiles is None:
+            hsMaxFiles = self.__defaultHS.maxFiles
+
+        comp.setHitSpoolOptions(hsDir, hsIval, hsMaxFiles)
+
+        jvmPath = None
+        jvmServer = None
+        jvmHeapInit = None
+        jvmHeapMax = None
+        jvmArgs = None
+        jvmExtra = None
+        if comp.hasJVMOptions:
+            if comp.jvmPath is not None:
+                jvmPath = comp.jvmPath
+            if comp.jvmServer is not None or comp.isControlServer:
+                jvmServer = comp.jvmServer
+            if comp.jvmHeapInit is not None or comp.isControlServer:
+                jvmHeapInit = comp.jvmHeapInit
+            if comp.jvmHeapMax is not None or comp.isControlServer:
+                jvmHeapMax = comp.jvmHeapMax
+            if comp.jvmArgs is not None or comp.isControlServer:
+                jvmArgs = comp.jvmArgs
+            if comp.jvmExtraArgs is not None or comp.isControlServer:
+                jvmExtra = comp.jvmExtraArgs
+        if jvmPath is None:
+            jvmPath = self.__defaultJVM.path
+        if jvmServer is None:
+            jvmServer = self.__defaultJVM.isServer
+        if jvmHeapInit is None:
+            jvmHeapInit = self.__defaultJVM.heapInit
+        if jvmHeapMax is None:
+            jvmHeapMax = self.__defaultJVM.heapMax
+        if jvmArgs is None:
+            jvmArgs = self.__defaultJVM.args
+        if jvmExtra is None:
+            jvmExtra = self.__defaultJVM.extraArgs
+
+        comp.setJVMOptions(jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
+                           jvmArgs, jvmExtra)
+        self.__comps.append(comp)
 
     def components(self):
         return self.__comps[:]
@@ -252,9 +297,10 @@ class RunCluster(CachedConfigName):
                 lvl = hub.logLevel
             else:
                 lvl = logLevel
-            comp = RunComponent(hub.name, hub.id, hsDir, hsIval, hsMaxFiles,
-                                jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
-                                jvmArgs, jvmExtra, lvl, hub.host, False)
+            comp = RunComponent(hub.name, hub.id, lvl, hub.host, False)
+            comp.setJVMOptions(jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
+                               jvmArgs, jvmExtra)
+            comp.setHitSpoolOptions(hsDir, hsIval, hsMaxFiles)
             cls.__addComponent(hostMap, hub.host, comp)
             del hubList[i]
 
@@ -362,10 +408,11 @@ class RunCluster(CachedConfigName):
                 else:
                     lvl = logLevel
 
-                comp = RunComponent(hubComp.name, hubComp.id, hsDir, hsIval,
-                                    hsMaxFiles, jvmPath, jvmServer,
-                                    jvmHeapInit, jvmHeapMax, jvmArgs,
-                                    jvmExtra, lvl, host, False)
+                comp = RunComponent(hubComp.name, hubComp.id, lvl, host, False)
+                comp.setJVMOptions(jvmPath, jvmServer,
+                                   jvmHeapInit, jvmHeapMax, jvmArgs,
+                                   jvmExtra)
+                comp.setHitSpoolOptions(hsDir, hsIval, hsMaxFiles)
                 cls.__addComponent(hostMap, host, comp)
                 hubNum += 1
 

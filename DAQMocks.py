@@ -504,15 +504,17 @@ class MockClusterWriter(object):
     def writeJVMXML(cls, fd, indent, path, isServer, heapInit, heapMax, args,
                     extraArgs):
 
-        jStr = "jvm"
-        jStr = cls.__appendAttr(jStr, 'path', path)
-        if isServer is not None:
-            jStr = cls.__appendAttr(jStr, 'server', isServer)
-        jStr = cls.__appendAttr(jStr, 'heapInit', heapInit)
-        jStr = cls.__appendAttr(jStr, 'heapMax', heapMax)
-        jStr = cls.__appendAttr(jStr, 'args', args)
-        jStr = cls.__appendAttr(jStr, 'extraArgs', extraArgs)
-        print >>fd, "%s<%s/>" % (indent, jStr)
+        if path is not None or isServer or heapInit is not None or \
+           heapMax is not None or args is not None or extraArgs is not None:
+            jStr = "jvm"
+            jStr = cls.__appendAttr(jStr, 'path', path)
+            if isServer:
+                jStr = cls.__appendAttr(jStr, 'server', isServer)
+            jStr = cls.__appendAttr(jStr, 'heapInit', heapInit)
+            jStr = cls.__appendAttr(jStr, 'heapMax', heapMax)
+            jStr = cls.__appendAttr(jStr, 'args', args)
+            jStr = cls.__appendAttr(jStr, 'extraArgs', extraArgs)
+            print >>fd, "%s<%s/>" % (indent, jStr)
 
     @classmethod
     def writeLine(cls, fd, indent, name, value):
@@ -606,7 +608,7 @@ class MockCluCfgFileComp(MockClusterWriter):
         self.__hitspoolMaxFiles = hitspoolMaxFiles
 
         self.__jvmPath = jvmPath
-        self.__jvmServer = jvmServer
+        self.__jvmServer = jvmServer == True
         self.__jvmHeapInit = jvmHeapInit
         self.__jvmHeapMax = jvmHeapMax
         self.__jvmArgs = jvmArgs
@@ -805,7 +807,7 @@ class MockCluCfgFileCtlSrvr(object):
 
     @property
     def jvmServer(self):
-        return None
+        return False
 
     @property
     def logLevel(self):
@@ -1630,7 +1632,7 @@ class MockDeployComponent(Component):
         self.__hsInterval = hsInterval
         self.__hsMaxFiles = hsMaxFiles
         self.__jvmPath = jvmPath
-        self.__jvmServer = jvmServer
+        self.__jvmServer = jvmServer == True
         self.__jvmHeapInit = jvmHeapInit
         self.__jvmHeapMax = jvmHeapMax
         self.__jvmArgs = jvmArgs
@@ -1638,6 +1640,11 @@ class MockDeployComponent(Component):
         self.__host = host
 
         super(MockDeployComponent, self).__init__(name, id, logLevel)
+
+    @property
+    def hasHitSpoolOptions(self):
+        return self.__hsDir is not None or self.__hsInterval is not None or \
+            self.__hsMaxFiles is not None
 
     @property
     def hitspoolDirectory(self):

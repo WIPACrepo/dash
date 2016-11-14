@@ -16,6 +16,10 @@ class ClusterDescriptionFormatError(XMLFormatError):
     pass
 
 
+class ClusterDescriptionException(Exception):
+    pass
+
+
 class ConfigXMLBase(XMLParser):
     def __init__(self, configDir, configName, suffix='.xml'):
         fileName = self.buildPath(configDir, configName, suffix=suffix)
@@ -126,85 +130,126 @@ class JVMArgs(object):
 
         return outstr
 
+    @property
     def args(self):
         return self.__args
 
+    @property
     def extraArgs(self):
         return self.__extra_args
 
+    @property
     def heapInit(self):
         return self.__heap_init
 
+    @property
     def heapMax(self):
         return self.__heap_max
 
+    @property
     def isServer(self):
-        return self.__is_server
+        return self.__is_server == True
 
+    @property
     def path(self):
         return self.__path
 
 
 class DAQComponent(Component):
-    def __init__(self, name, num, hsDir, hsInterval, hsMaxFiles, path,
-                 isServer, heapInit, heapMax, args, extraArgs, logLevel=None):
+    def __init__(self, name, num, logLevel=None):
         super(DAQComponent, self).__init__(name, num, logLevel=logLevel)
 
-        self.__hs = HSArgs(hsDir, hsInterval, hsMaxFiles)
-        self.__jvm = JVMArgs(path, isServer, heapInit, heapMax, args, extraArgs)
-
-    @property
-    def hitspoolDirectory(self):
-        return self.__hs.directory
-
-    @property
-    def hitspoolInterval(self):
-        return self.__hs.interval
-
-    @property
-    def hitspoolMaxFiles(self):
-        return self.__hs.maxFiles
-
-    @property
-    def hitspoolStr(self):
-        return str(self.__hs)
+        self.__jvm = None
 
     @property
     def jvmArgs(self):
-        return self.__jvm.args()
+        if self.__jvm is None:
+            raise ClusterDescriptionException("JVM options have not been set")
+        return self.__jvm.args
 
     @property
     def jvmExtraArgs(self):
-        return self.__jvm.extraArgs()
+        if self.__jvm is None:
+            raise ClusterDescriptionException("JVM options have not been set")
+        return self.__jvm.extraArgs
 
     @property
     def jvmHeapInit(self):
-        return self.__jvm.heapInit()
+        if self.__jvm is None:
+            raise ClusterDescriptionException("JVM options have not been set")
+        return self.__jvm.heapInit
 
     @property
     def jvmHeapMax(self):
-        return self.__jvm.heapMax()
+        if self.__jvm is None:
+            raise ClusterDescriptionException("JVM options have not been set")
+        return self.__jvm.heapMax
 
     @property
     def jvmPath(self):
-        return self.__jvm.path()
+        if self.__jvm is None:
+            raise ClusterDescriptionException("JVM options have not been"
+                                              " set for %s" % self.fullname)
+        return self.__jvm.path
 
     @property
     def jvmServer(self):
-        return self.__jvm.isServer()
+        if self.__jvm is None:
+            raise ClusterDescriptionException("JVM options have not been"
+                                              " set for %s" % self.fullname)
+        return self.__jvm.isServer
 
     @property
     def jvmStr(self):
+        if self.__jvm is None:
+            raise ClusterDescriptionException("JVM options have not been"
+                                              " set for %s" % self.fullname)
         return str(self.__jvm)
+
+    def setJVMOptions(self, defaults, path, isServer, heapInit, heapMax, args,
+                      extraArgs):
+        # fill in default values for all unspecified JVM quantities
+        if path is None:
+            path = defaults.find(self.name, 'jvmPath')
+            if path is None:
+                path = defaults.JVM.path
+        if isServer is None:
+            isServer = defaults.find(self.name, 'jvmServer')
+            if isServer is None:
+                isServer = defaults.JVM.isServer
+                if isServer is None:
+                    isServer = False
+        if heapInit is None:
+            heapInit = defaults.find(self.name, 'jvmHeapInit')
+            if heapInit is None:
+                heapInit = defaults.JVM.heapInit
+        if heapMax is None:
+            heapMax = defaults.find(self.name, 'jvmHeapMax')
+            if heapMax is None:
+                heapMax = defaults.JVM.heapMax
+        if args is None:
+            args = defaults.find(self.name, 'jvmArgs')
+            if args is None:
+                args = defaults.JVM.args
+        if extraArgs is None:
+            extraArgs = defaults.find(self.name, 'jvmExtraArgs')
+            if extraArgs is None:
+                extraArgs = defaults.JVM.extraArgs
+
+        self.__jvm = JVMArgs(path, isServer, heapInit, heapMax, args,
+                             extraArgs)
+
 
 class ControlComponent(DAQComponent):
     def __init__(self):
-        super(ControlComponent, self).__init__("CnCServer", 0, None, None,
-                                               None, None, False, None, None,
-                                               None, None)
+        super(ControlComponent, self).__init__("CnCServer", 0, logLevel=None)
 
     def __str__(self):
         return self.name
+
+    @property
+    def hasHitSpoolOptions(self):
+        return False
 
     @property
     def isControlServer(self):
@@ -220,15 +265,10 @@ class ControlComponent(DAQComponent):
 
 
 class ClusterComponent(DAQComponent):
-    def __init__(self, name, num, hsDir, hsInterval, hsMaxFiles, jvmPath,
-                 jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtraArgs,
-                 logLevel, required):
+    def __init__(self, name, num, logLevel, required):
         self.__required = required
 
-        super(ClusterComponent, self).__init__(name, num, hsDir, hsInterval,
-                                               hsMaxFiles, jvmPath, jvmServer,
-                                               jvmHeapInit, jvmHeapMax, jvmArgs,
-                                               jvmExtraArgs, logLevel=logLevel)
+        super(ClusterComponent, self).__init__(name, num, logLevel=logLevel)
 
     def __str__(self):
         if self.__required:
@@ -237,11 +277,23 @@ class ClusterComponent(DAQComponent):
             rStr = ""
 
         return "%s@%s(%s | %s)%s" % \
-            (self.fullname, str(self.logLevel), self.hitspoolStr, self.jvmStr,
+            (self.fullname, str(self.logLevel), self.jvmStr, self.internalStr,
              rStr)
 
     @property
+    def hasHitSpoolOptions(self):
+        return False
+
+    @property
+    def internalStr(self):
+        return ""
+
+    @property
     def isControlServer(self):
+        return False
+
+    @property
+    def isRealHub(self):
         return False
 
     @property
@@ -253,16 +305,66 @@ class ClusterComponent(DAQComponent):
         return self.__required
 
 
-class ClusterSimHub(ClusterComponent):
+class HubComponent(ClusterComponent):
+    def __init__(self, name, num, logLevel, required):
+        super(HubComponent, self).__init__(name, num, logLevel, required)
+
+        self.__hs = None
+
+    @property
+    def hasHitSpoolOptions(self):
+        return True
+
+    @property
+    def hitspoolDirectory(self):
+        if self.__hs is None:
+            raise ClusterDescriptionException("HitSpool options have not" +
+                                              " been set")
+        return self.__hs.directory
+
+    @property
+    def hitspoolInterval(self):
+        if self.__hs is None:
+            raise ClusterDescriptionException("HitSpool options have not" +
+                                              " been set")
+        return self.__hs.interval
+
+    @property
+    def hitspoolMaxFiles(self):
+        if self.__hs is None:
+            raise ClusterDescriptionException("HitSpool options have not" +
+                                              " been set")
+        return self.__hs.maxFiles
+
+    @property
+    def internalStr(self):
+        if self.__hs is None:
+            raise ClusterDescriptionException("HitSpool options have not" +
+                                              " been set")
+        return "hs[%s]" % str(self.__hs)
+
+    @property
+    def isRealHub(self):
+        return True
+
+    def setHitSpoolOptions(self, directory, interval, maxFiles, defaults):
+        if directory is None:
+            directory = defaults.find(self.name, 'hitspoolDirectory')
+        if interval is None:
+            interval = defaults.find(self.name, 'hitspoolInterval')
+        if maxFiles is None:
+            maxFiles = defaults.find(self.name, 'hitspoolMaxFiles')
+        self.__hs = HSArgs(directory, interval, maxFiles)
+
+
+class SimHubComponent(ClusterComponent):
     def __init__(self, host, number, priority, ifUnused):
         self.__host = host
         self.__number = number
         self.__priority = priority
         self.__ifUnused = ifUnused
 
-        super(ClusterSimHub, self).__init__("SimHub", 0, None, None, None,
-                                            None, False, None, None, None,
-                                            None, None, False)
+        super(SimHubComponent, self).__init__("SimHub", 0, None, False)
 
     def __str__(self):
         if self.__ifUnused:
@@ -306,22 +408,23 @@ class ClusterHost(object):
     def __str__(self):
         return self.name
 
-    def addComponent(self, name, num, hsDir, hsInterval, hsMaxFiles, jvmPath,
-                     jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtraArgs,
-                     logLevel, required=False):
-        comp = ClusterComponent(name, num, hsDir, hsInterval, hsMaxFiles,
-                                jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
-                                jvmArgs, jvmExtraArgs, logLevel, required)
+    def addComponent(self, name, num, logLevel, required=False):
+        if name.endswith("Hub"):
+            comp = HubComponent(name, num, logLevel, required)
+        else:
+            comp = ClusterComponent(name, num, logLevel, required)
 
-        compKey = str(comp)
+        compKey = comp.fullname
         if compKey in self.compMap:
             errMsg = 'Multiple entries for component "%s" in host "%s"' % \
                 (compKey, self.name)
             raise ClusterDescriptionFormatError(errMsg)
         self.compMap[compKey] = comp
 
-    def addSimulatedHub(self, host, num, prio, ifUnused):
-        newHub = ClusterSimHub(host, num, prio, ifUnused)
+        return comp
+
+    def addSimulatedHub(self, num, prio, ifUnused):
+        newHub = SimHubComponent(self, num, prio, ifUnused)
 
         if self.simHubs is None:
             self.simHubs = []
@@ -331,6 +434,7 @@ class ClusterHost(object):
                          (prio, self.name)
                 raise ClusterDescriptionFormatError(errMsg)
         self.simHubs.append(newHub)
+        return newHub
 
     def dump(self, fd=None, prefix=None):
         if fd is None:
@@ -383,8 +487,40 @@ class ClusterDefaults(object):
         else:
             cstr = ", " + str(self.Components)
 
-        return "ClusterDefaults[hs %s, jvm %s, logLvl %s, args %s%s]" % \
+        return "ClusterDefaults[hs %s, jvm %s, logLvl %s, args %s]" % \
             (self.HS, self.JVM, self.LogLevel, cstr)
+
+    def find(self, compName, valName):
+        if compName is not None and \
+                self.Components is not None and \
+                compName in self.Components and \
+                valName in self.Components[compName]:
+            return self.Components[compName][valName]
+
+        if valName == 'hitspoolDirectory':
+            return self.HS.directory
+        elif valName == 'hitspoolInterval':
+            return self.HS.interval
+        elif valName == 'hitspoolMaxFiles':
+            return self.HS.maxFiles
+
+        if valName == 'jvmPath':
+            return self.JVM.path
+        elif valName == 'jvmServer':
+            return self.JVM.isServer
+        elif valName == 'jvmHeapInit':
+            return self.JVM.heapInit
+        elif valName == 'jvmHeapMax':
+            return self.JVM.heapMax
+        elif valName == 'jvmArgs':
+            return self.JVM.args
+        elif valName == 'jvmExtraArgs':
+            return self.JVM.extraArgs
+
+        if valName == 'logLevel':
+            return self.LogLevel
+
+        return None
 
 
 class ClusterDescription(ConfigXMLBase):
@@ -454,39 +590,6 @@ class ClusterDescription(ConfigXMLBase):
         return self.name
 
     @classmethod
-    def __find_default(cls, defaults, compName, valName):
-        if compName is not None and \
-                defaults.Components is not None and \
-                compName in defaults.Components and \
-                valName in defaults.Components[compName]:
-            return defaults.Components[compName][valName]
-
-        if valName == 'hitspoolDirectory':
-            return defaults.HS.directory
-        elif valName == 'hitspoolInterval':
-            return defaults.HS.interval
-        elif valName == 'hitspoolMaxFiles':
-            return defaults.HS.maxFiles
-
-        if valName == 'jvmPath':
-            return defaults.JVM.path()
-        elif valName == 'jvmServer':
-            return defaults.JVM.isServer()
-        elif valName == 'jvmHeapInit':
-            return defaults.JVM.heapInit()
-        elif valName == 'jvmHeapMax':
-            return defaults.JVM.heapMax()
-        elif valName == 'jvmArgs':
-            return defaults.JVM.args()
-        elif valName == 'jvmExtraArgs':
-            return defaults.JVM.extraArgs()
-
-        if valName == 'logLevel':
-            return defaults.LogLevel
-
-        return None
-
-    @classmethod
     def ___parse_component_node(cls, clusterName, defaults, host, node):
         "Parse a <component> node from a cluster configuration file"
         name = cls.getValue(node, 'name')
@@ -504,43 +607,28 @@ class ClusterDescription(ConfigXMLBase):
                 (clusterName, host.name, name, idStr)
             raise ClusterDescriptionFormatError(errMsg)
 
+        # look for optional logLevel
+        logLvl = cls.getValue(node, 'logLevel')
+        if logLvl is None:
+            logLvl = defaults.find(name, 'logLevel')
+
+        # look for "required" attribute
         reqStr = cls.getValue(node, 'required')
         required = cls.parseBooleanString(reqStr) == True
 
-        logLvl = cls.getValue(node, 'logLevel')
-        if logLvl is None:
-            logLvl = cls.__find_default(defaults, name, 'logLevel')
-
-        (hsDir, hsInterval, hsMaxFiles) = cls.__parse_hs_nodes(name, node)
-        if hsDir is None:
-            hsDir = cls.__find_default(defaults, name, 'hitspoolDirectory')
-        if hsInterval is None:
-            hsInterval = cls.__find_default(defaults, name,
-                                            'hitspoolInterval')
-        if hsMaxFiles is None:
-            hsMaxFiles = cls.__find_default(defaults, name,
-                                            'hitspoolMaxFiles')
+        comp = host.addComponent(name, num, logLvl, required=required)
 
         (jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtraArgs) = \
              cls.__parse_jvm_nodes(name, node)
+        comp.setJVMOptions(defaults, jvmPath, jvmServer, jvmHeapInit,
+                           jvmHeapMax, jvmArgs, jvmExtraArgs)
 
-        # fill in default values for all unspecified JVM quantities
-        if jvmPath is None:
-            jvmPath = cls.__find_default(defaults, name, 'jvmPath')
-        if jvmServer is None:
-            jvmServer = cls.__find_default(defaults, name, 'jvmServer')
-        if jvmHeapInit is None:
-            jvmHeapInit = cls.__find_default(defaults, name, 'jvmHeapInit')
-        if jvmHeapMax is None:
-            jvmHeapMax = cls.__find_default(defaults, name, 'jvmHeapMax')
-        if jvmArgs is None:
-            jvmArgs = cls.__find_default(defaults, name, 'jvmArgs')
-        if jvmExtraArgs is None:
-            jvmExtraArgs = cls.__find_default(defaults, name, 'jvmExtraArgs')
-
-        host.addComponent(name, num, hsDir, hsInterval, hsMaxFiles, jvmPath,
-                          jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs,
-                          jvmExtraArgs, logLvl, required=required)
+        if comp.isRealHub:
+            (hsDir, hsInterval, hsMaxFiles) = cls.__parse_hs_nodes(name, node)
+            comp.setHitSpoolOptions(hsDir, hsInterval, hsMaxFiles, defaults)
+            if not cls.dumped:
+                cls.dumped = True
+    dumped = False
 
     def __parse_default_nodes(self, cluName, defaults, node):
         """load JVM defaults"""
@@ -623,9 +711,7 @@ class ClusterDescription(ConfigXMLBase):
                 elif kid.nodeName == 'controlServer':
                     host.setControlServer()
                 elif kid.nodeName == 'simulatedHub':
-                    simData = cls.__parse_simhub_node(name, host, kid)
-                    host.addSimulatedHub(simData[0], simData[1], simData[2],
-                                         simData[3])
+                    cls.__parse_simhub_node(name, defaults, host, kid)
 
             # add host to internal host dictionary
             if not hostname in hostMap:
@@ -635,7 +721,7 @@ class ClusterDescription(ConfigXMLBase):
                 raise ClusterDescriptionFormatError(errMsg)
 
             for comp in host.getComponents():
-                compKey = str(comp)
+                compKey = comp.fullname
                 if compKey in compToHost:
                     errMsg = 'Multiple entries for component "%s"' % compKey
                     raise ClusterDescriptionFormatError(errMsg)
@@ -691,7 +777,7 @@ class ClusterDescription(ConfigXMLBase):
         return (path, isServer, heapInit, heapMax, args, extraArgs)
 
     @classmethod
-    def __parse_simhub_node(cls, clusterName, host, node):
+    def __parse_simhub_node(cls, clusterName, defaults, host, node):
         "Parse a <simulatedHub> node from a cluster configuration file"
         numStr = cls.getValue(node, 'number', '0')
         try:
@@ -718,7 +804,14 @@ class ClusterDescription(ConfigXMLBase):
         ifStr = cls.getValue(node, 'ifUnused')
         ifUnused = cls.parseBooleanString(ifStr) == True
 
-        return (host, num, prio, ifUnused)
+        comp = host.addSimulatedHub(num, prio, ifUnused)
+
+        (jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtraArgs) = \
+             cls.__parse_jvm_nodes(clusterName, node)
+        comp.setJVMOptions(defaults, jvmPath, jvmServer, jvmHeapInit,
+                           jvmHeapMax, jvmArgs, jvmExtraArgs)
+
+        return host
 
     @property
     def daqDataDir(self):
@@ -733,37 +826,34 @@ class ClusterDescription(ConfigXMLBase):
         return self.__daq_log_dir
 
     def defaultHSDirectory(self, compName=None):
-        return self.__find_default(self.__defaults, compName,
-                                   'hitspoolDirectory')
+        return self.__defaults.find(compName, 'hitspoolDirectory')
 
     def defaultHSInterval(self, compName=None):
-        return self.__find_default(self.__defaults, compName,
-                                   'hitspoolInterval')
+        return self.__defaults.find(compName, 'hitspoolInterval')
 
     def defaultHSMaxFiles(self, compName=None):
-        return self.__find_default(self.__defaults, compName,
-                                   'hitspoolMaxFiles')
+        return self.__defaults.find(compName, 'hitspoolMaxFiles')
 
     def defaultJVMArgs(self, compName=None):
-        return self.__find_default(self.__defaults, compName, 'jvmArgs')
+        return self.__defaults.find(compName, 'jvmArgs')
 
     def defaultJVMExtraArgs(self, compName=None):
-        return self.__find_default(self.__defaults, compName, 'jvmExtraArgs')
+        return self.__defaults.find(compName, 'jvmExtraArgs')
 
     def defaultJVMHeapInit(self, compName=None):
-        return self.__find_default(self.__defaults, compName, 'jvmHeapInit')
+        return self.__defaults.find(compName, 'jvmHeapInit')
 
     def defaultJVMHeapMax(self, compName=None):
-        return self.__find_default(self.__defaults, compName, 'jvmHeapMax')
+        return self.__defaults.find(compName, 'jvmHeapMax')
 
     def defaultJVMPath(self, compName=None):
-        return self.__find_default(self.__defaults, compName, 'jvmPath')
+        return self.__defaults.find(compName, 'jvmPath')
 
     def defaultJVMServer(self, compName=None):
-        return self.__find_default(self.__defaults, compName, 'jvmServer')
+        return self.__defaults.find(compName, 'jvmServer')
 
     def defaultLogLevel(self, compName=None):
-        return self.__find_default(self.__defaults, compName, 'logLevel')
+        return self.__defaults.find(compName, 'logLevel')
 
     def dump(self, fd=None, prefix=None):
         if fd is None:
@@ -791,34 +881,36 @@ class ClusterDescription(ConfigXMLBase):
             print >>fd, "%s  Package installation directory: %s" % \
                 (prefix, self.__pkg_install_dir)
 
-        if self.__default_hs.directory is not None:
-            print >>fd, "%s  Default HS directory: %s" % \
-                (prefix, self.__default_hs.directory)
-        if self.__default_hs.interval is not None:
-            print >>fd, "%s  Default HS interval: %s" % \
-                (prefix, self.__default_hs.interval)
-        if self.__default_hs.maxFiles is not None:
-            print >>fd, "%s  Default HS max files: %s" % \
-                (prefix, self.__default_hs.maxFiles)
+        if self.__default_hs is not None:
+            if self.__default_hs.directory is not None:
+                print >>fd, "%s  Default HS directory: %s" % \
+                    (prefix, self.__default_hs.directory)
+            if self.__default_hs.interval is not None:
+                print >>fd, "%s  Default HS interval: %s" % \
+                    (prefix, self.__default_hs.interval)
+            if self.__default_hs.maxFiles is not None:
+                print >>fd, "%s  Default HS max files: %s" % \
+                    (prefix, self.__default_hs.maxFiles)
 
-        if self.__default_jvm.path() is not None:
-            print >>fd, "%s  Default Java executable: %s" % \
-                (prefix, self.__default_jvm.path())
-        if self.__default_jvm.isServer() is not None:
-            print >>fd, "%s  Default Java server flag: %s" % \
-                (prefix, self.__default_jvm.isServer())
-        if self.__default_jvm.heapInit() is not None:
-            print >>fd, "%s  Default Java heap init: %s" % \
-                (prefix, self.__default_jvm.heapInit())
-        if self.__default_jvm.heapMax() is not None:
-            print >>fd, "%s  Default Java heap max: %s" % \
-                (prefix, self.__default_jvm.heapMax())
-        if self.__default_jvm.args() is not None:
-            print >>fd, "%s  Default Java arguments: %s" % \
-                (prefix, self.__default_jvm.args())
-        if self.__default_jvm.extraArgs() is not None:
-            print >>fd, "%s  Default Java extra arguments: %s" % \
-                (prefix, self.__default_jvm.extraArgs())
+        if self.__default_jvm is not None:
+            if self.__default_jvm.path is not None:
+                print >>fd, "%s  Default Java executable: %s" % \
+                    (prefix, self.__default_jvm.path)
+            if self.__default_jvm.isServer is not None:
+                print >>fd, "%s  Default Java server flag: %s" % \
+                    (prefix, self.__default_jvm.isServer)
+            if self.__default_jvm.heapInit is not None:
+                print >>fd, "%s  Default Java heap init: %s" % \
+                    (prefix, self.__default_jvm.heapInit)
+            if self.__default_jvm.heapMax is not None:
+                print >>fd, "%s  Default Java heap max: %s" % \
+                    (prefix, self.__default_jvm.heapMax)
+            if self.__default_jvm.args is not None:
+                print >>fd, "%s  Default Java arguments: %s" % \
+                    (prefix, self.__default_jvm.args)
+            if self.__default_jvm.extraArgs is not None:
+                print >>fd, "%s  Default Java extra arguments: %s" % \
+                    (prefix, self.__default_jvm.extraArgs)
 
         if self.__default_log_level is not None:
             print >>fd, "%s  Default log level: %s" % \
@@ -1079,11 +1171,11 @@ if __name__ == '__main__':
             except KeyboardInterrupt:
                 return
             except NotImplementedError:
-                print >> sys.stderr, 'For %s:' % cluster.name
+                print >> sys.stderr, 'For %s:' % path
                 traceback.print_exc()
                 return
             except:
-                print >> sys.stderr, 'For %s:' % cluster.name
+                print >> sys.stderr, 'For %s:' % path
                 traceback.print_exc()
                 return
 
