@@ -162,6 +162,10 @@ class DAQComponent(Component):
         self.__jvm = None
 
     @property
+    def hasJVMOptions(self):
+        return self.__jvm is not None
+
+    @property
     def jvmArgs(self):
         if self.__jvm is None:
             raise ClusterDescriptionException("JVM options have not been set")
@@ -202,8 +206,7 @@ class DAQComponent(Component):
     @property
     def jvmStr(self):
         if self.__jvm is None:
-            raise ClusterDescriptionException("JVM options have not been"
-                                              " set for %s" % self.fullname)
+            return "[???]"
         return str(self.__jvm)
 
     def setJVMOptions(self, defaults, path, isServer, heapInit, heapMax, args,
@@ -339,8 +342,7 @@ class HubComponent(ClusterComponent):
     @property
     def internalStr(self):
         if self.__hs is None:
-            raise ClusterDescriptionException("HitSpool options have not" +
-                                              " been set")
+            return "hs[???]"
         return "hs[%s]" % str(self.__hs)
 
     @property
@@ -619,7 +621,7 @@ class ClusterDescription(ConfigXMLBase):
         comp = host.addComponent(name, num, logLvl, required=required)
 
         (jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtraArgs) = \
-             cls.__parse_jvm_nodes(name, node)
+             cls.__parse_jvm_nodes(node)
         comp.setJVMOptions(defaults, jvmPath, jvmServer, jvmHeapInit,
                            jvmHeapMax, jvmArgs, jvmExtraArgs)
 
@@ -637,7 +639,7 @@ class ClusterDescription(ConfigXMLBase):
         defaults.HS = HSArgs(hsDir, hsIval, hsMaxF)
 
         (path, isServer, heapInit, heapMax, args, extraArgs) = \
-            self.__parse_jvm_nodes(cluName, node)
+            self.__parse_jvm_nodes(node)
         defaults.JVM = JVMArgs(path, isServer, heapInit, heapMax, args,
                                extraArgs)
 
@@ -666,7 +668,7 @@ class ClusterDescription(ConfigXMLBase):
                     defaults.Components[name]['hitspoolMaxFiles'] = hsMaxF
 
                 (path, isServer, heapInit, heapMax, args, extraArgs) = \
-                    self.__parse_jvm_nodes(name, kid)
+                    self.__parse_jvm_nodes(kid)
                 if path is not None:
                     defaults.Components[name]['jvmPath'] = path
                 if isServer is not None:
@@ -752,7 +754,7 @@ class ClusterDescription(ConfigXMLBase):
 
 
     @classmethod
-    def __parse_jvm_nodes(cls, name, node):
+    def __parse_jvm_nodes(cls, node):
         # create all JVM-related variables
         path = None
         isServer = None
@@ -807,7 +809,7 @@ class ClusterDescription(ConfigXMLBase):
         comp = host.addSimulatedHub(num, prio, ifUnused)
 
         (jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtraArgs) = \
-             cls.__parse_jvm_nodes(clusterName, node)
+             cls.__parse_jvm_nodes(node)
         comp.setJVMOptions(defaults, jvmPath, jvmServer, jvmHeapInit,
                            jvmHeapMax, jvmArgs, jvmExtraArgs)
 
