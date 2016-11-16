@@ -43,10 +43,14 @@ class TestClusterDescription(unittest.TestCase):
         self.assertEqual(mock.required, c.required,
                          "Expected %s required to be %s, not %s for %s<%s>" %
                          (mock.name, mock.required, c.required, c, type(c)))
-        if not c.isControlServer:
-            self.assertEqual(mock.jvmArgs, c.jvmArgs, "Expected %s JVM args"
-                             " \"%s\", not \"%s\" for %s<%s>" %
-                             (mock.name, mock.jvmArgs, c.jvmArgs, c, type(c)))
+        if c.isControlServer:
+            self.assertFalse(c.hasJVMOptions,
+                             "Expected no JVM options for %s<%s>" %
+                             (c, type(c)))
+        else:
+            self.assertTrue(c.hasJVMOptions,
+                             "Expected JVM options for %s<%s>" %
+                             (c, type(c)))
             self.assertEqual(mock.jvmExtraArgs, c.jvmExtraArgs, "Expected %s"
                              " JVM extra args \"%s\", not \"%s\" for %s<%s>" %
                              (mock.name, mock.jvmExtraArgs, c.jvmExtraArgs, c,
@@ -834,32 +838,49 @@ class TestClusterDescription(unittest.TestCase):
                         instHeapInit, instHeapMax, instPath, instServer,
                         instLogLvl)
 
-                self.assertEqual(args, comp.jvmArgs,
-                                 "Expected %s<%s> JVMArgs \"%s\", not \"%s\"" %
-                                 (comp.name, type(comp), args, comp.jvmArgs))
-                self.assertEqual(extra, comp.jvmExtraArgs,
-                                 "Expected %s<%s> JVMExtra \"%s\", not \"%s\"" %
-                                 (comp.name, type(comp), extra,
-                                  comp.jvmExtraArgs))
-                self.assertEqual(heapInit, comp.jvmHeapInit, "Expected %s<%s>"
-                                 " JVMHeapInit \"%s\", not \"%s\"" %
-                                 (comp.name, type(comp), heapInit,
-                                  comp.jvmHeapInit))
-                self.assertEqual(heapMax, comp.jvmHeapMax, "Expected %s<%s>"
-                                 " JVMHeapMax \"%s\", not \"%s\"" %
-                                 (comp.name, type(comp), heapMax,
-                                  comp.jvmHeapMax))
-                self.assertEqual(path, comp.jvmPath, "Expected %s<%s>"
-                                 " JVMPath \"%s\", not \"%s\"" %
-                                 (comp.name, type(comp), path, comp.jvmPath))
-                self.assertEqual(server, comp.jvmServer, "Expected %s<%s>"
-                                 " JVMServer \"%s\", not \"%s\"" %
-                                 (comp.name, type(comp), server,
-                                  comp.jvmServer))
-                self.assertEqual(logLevel, comp.logLevel, "Expected %s<%s>"
-                                 " LogLevel \"%s\", not \"%s\"" %
-                                 (comp.name, type(comp), logLevel,
-                                  comp.logLevel))
+                hasJVMOptions = args is not None and \
+                                extra is not None and \
+                                heapInit is not None and \
+                                heapMax is not None and \
+                                path is not None
+
+                self.assertEqual(hasJVMOptions, comp.hasJVMOptions,
+                                 "Expected %s<%s> hasJVMOptions %s, not %s" %
+                                 (comp.name, type(comp), hasJVMOptions,
+                                  comp.hasJVMOptions))
+                if comp.hasJVMOptions:
+                    self.assertEqual(args, comp.jvmArgs,
+                                     "Expected %s<%s> JVMArgs \"%s\","
+                                     " not \"%s\"" %
+                                     (comp.name, type(comp), args,
+                                      comp.jvmArgs))
+                    self.assertEqual(extra, comp.jvmExtraArgs,
+                                     "Expected %s<%s> JVMExtra \"%s\","
+                                     " not \"%s\"" %
+                                     (comp.name, type(comp), extra,
+                                      comp.jvmExtraArgs))
+                    self.assertEqual(heapInit, comp.jvmHeapInit,
+                                     "Expected %s<%s> JVMHeapInit \"%s\","
+                                     " not \"%s\"" %
+                                     (comp.name, type(comp), heapInit,
+                                      comp.jvmHeapInit))
+                    self.assertEqual(heapMax, comp.jvmHeapMax,
+                                     "Expected %s<%s> JVMHeapMax \"%s\","
+                                     " not \"%s\"" %
+                                     (comp.name, type(comp), heapMax,
+                                      comp.jvmHeapMax))
+                    self.assertEqual(path, comp.jvmPath, "Expected %s<%s>"
+                                     " JVMPath \"%s\", not \"%s\"" %
+                                     (comp.name, type(comp), path,
+                                      comp.jvmPath))
+                    self.assertEqual(server, comp.jvmServer, "Expected %s<%s>"
+                                     " JVMServer \"%s\", not \"%s\"" %
+                                     (comp.name, type(comp), server,
+                                      comp.jvmServer))
+                    self.assertEqual(logLevel, comp.logLevel, "Expected %s<%s>"
+                                     " LogLevel \"%s\", not \"%s\"" %
+                                     (comp.name, type(comp), logLevel,
+                                      comp.logLevel))
 
                 if comp.isRealHub:
                     self.assertEqual(hsDir, comp.hitspoolDirectory,

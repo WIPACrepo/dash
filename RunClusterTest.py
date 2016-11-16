@@ -73,8 +73,8 @@ class RunClusterTest(unittest.TestCase):
                         en.markFound()
                         break
                 if not found:
-                    self.fail('Did not expect %s component %s' %
-                              (node.hostname, str(comp)))
+                    self.fail('Did not expect %s component %s<%s>' %
+                              (node.hostname, comp, type(comp)))
 
         for en in expNodes:
             if not en.isFound():

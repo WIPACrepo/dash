@@ -50,6 +50,7 @@ class Component(object):
         return self.__host is not None and \
             (self.__host == "localhost" or self.__host == "127.0.0.1")
 
+    @property
     def isRealHub(self):
         "Is this a stringHub component running at the South Pole?"
         return self.__name.lower() == "stringhub" and self.__id < 1000

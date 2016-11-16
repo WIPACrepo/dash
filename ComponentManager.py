@@ -10,6 +10,7 @@ import traceback
 from utils import ip
 
 from CachedConfigName import CachedFile
+from ClusterDescription import HubComponent, JavaComponent
 from DAQConfig import DAQConfigParser
 from DAQConfigExceptions import DAQConfigException
 from DAQConst import DAQPort
@@ -17,7 +18,6 @@ from DAQRPC import RPCClient
 from LiveImports import MoniPort
 from ParallelShell import ParallelShell
 from Process import findProcess, processList
-from RunCluster import RunComponent
 from RunSetState import RunSetState
 from locate_pdaq import find_pdaq_trunk
 
@@ -123,11 +123,13 @@ class ComponentManager(object):
         """
         comps = []
         for c in compdicts:
-            lc = RunComponent(c["compName"], c["compNum"], "??logLevel??",
-                              c["host"], False)
-            lc.setJVMOptions("??jvmPath??", "??jvmServer??", "??jvmHeapInit??",
-                             "??jvmHeapMax??", "??jvmArgs??", "??jvmExtra??")
-            lc.setHitSpoolOptions("??hsDir??", "??hsInterval??",
+            lc = HubComponent(c["compName"], c["compNum"], "??logLevel??",
+                              False)
+            lc.host = c["host"]
+            lc.setJVMOptions(None, "??jvmPath??", "??jvmServer??",
+                             "??jvmHeapInit??", "??jvmHeapMax??",
+                             "??jvmArgs??", "??jvmExtra??")
+            lc.setHitSpoolOptions(None, "??hsDir??", "??hsInterval??",
                                   "??hsMaxFiles??")
             comps.append(lc)
         return comps
@@ -224,15 +226,20 @@ class ComponentManager(object):
         for node in clusterConfig.nodes():
             for comp in node.components():
                 if not comp.isControlServer:
-                    rc = RunComponent(comp.name, comp.id, comp.logLevel,
-                                      node.hostname, False)
-                    rc.setJVMOptions(comp.jvmPath, comp.jvmServer,
-                                     comp.jvmHeapInit, comp.jvmHeapMax,
-                                     comp.jvmArgs, comp.jvmExtraArgs)
                     if comp.hasHitSpoolOptions:
-                        rc.setHitSpoolOptions(comp.hitspoolDirectory,
+                        rc = HubComponent(comp.name, comp.id, comp.logLevel,
+                                          False)
+                        rc.setHitSpoolOptions(None, comp.hitspoolDirectory,
                                               comp.hitspoolInterval,
                                               comp.hitspoolMaxFiles)
+                    else:
+                        rc = JavaComponent(comp.name, comp.id, comp.logLevel,
+                                           False)
+
+                    rc.host = node.hostname
+                    rc.setJVMOptions(None, comp.jvmPath, comp.jvmServer,
+                                     comp.jvmHeapInit, comp.jvmHeapMax,
+                                     comp.jvmArgs, comp.jvmExtraArgs)
 
                     compList.append(rc)
         return compList
@@ -276,7 +283,6 @@ class ComponentManager(object):
                 if logger is not None:
                     logger.info("Extracted active components from CnCServer")
             except:
-                traceback.print_exc()
                 if logger is not None:
                     logger.error("Failed to extract active components:\n" +
                                  traceback.format_exc())
@@ -588,13 +594,16 @@ class ComponentManager(object):
             if comp.jvmExtraArgs is not None and len(comp.jvmExtraArgs) > 0:
                 jvmArgs += " " + comp.jvmExtraArgs
 
-            if comp.hitspoolDirectory is not None:
-                jvmArgs += " -Dhitspool.directory=\"%s\"" % \
-                           comp.hitspoolDirectory
-            if comp.hitspoolInterval is not None:
-                jvmArgs += " -Dhitspool.interval=%.4f" %  comp.hitspoolInterval
-            if comp.hitspoolMaxFiles is not None:
-                jvmArgs += " -Dhitspool.maxfiles=%d" %  comp.hitspoolMaxFiles
+            if comp.hasHitSpoolOptions:
+                if comp.hitspoolDirectory is not None:
+                    jvmArgs += " -Dhitspool.directory=\"%s\"" % \
+                               comp.hitspoolDirectory
+                if comp.hitspoolInterval is not None:
+                    jvmArgs += " -Dhitspool.interval=%.4f" % \
+                               comp.hitspoolInterval
+                if comp.hitspoolMaxFiles is not None:
+                    jvmArgs += " -Dhitspool.maxfiles=%d" % \
+                               comp.hitspoolMaxFiles
 
             #switches = "-g %s" % configDir
             switches = "-d %s" % daqDataDir

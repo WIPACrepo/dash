@@ -65,37 +65,61 @@ class ConfigXMLBase(XMLParser):
         return True
 
 
-class HSArgs(object):
-    def __init__(self, directory, interval, max_files):
-        self.__directory = directory
-        self.__interval = interval
-        self.__max_files = max_files
+class ClusterComponent(Component):
+    def __init__(self, name, num, logLevel=None, required=False):
+        self.__required = required
+
+        super(ClusterComponent, self).__init__(name, num, logLevel=logLevel)
 
     def __str__(self):
-        outstr = None
-        if self.__directory is None:
-            outstr = "?"
+        if self.__required:
+            rStr = " REQUIRED"
         else:
-            outstr = self.__directory
+            rStr = ""
 
-        if self.__interval is not None:
-            outstr += " ival=%s" % self.__interval
-        if self.__max_files is not None:
-            outstr += " max=%s" % self.__max_files
+        iStr = self.internalStr
+        if iStr is None:
+            iStr = ""
+        elif len(iStr) > 0:
+            iStr = "(%s)" % iStr
 
-        return outstr
-
-    @property
-    def directory(self):
-        return self.__directory
+        return "%s@%s%s%s" % \
+            (self.fullname, str(self.logLevel), iStr, rStr)
 
     @property
-    def interval(self):
-        return self.__interval
+    def hasHitSpoolOptions(self):
+        return False
 
     @property
-    def maxFiles(self):
-        return self.__max_files
+    def hasJVMOptions(self):
+        return False
+
+    @property
+    def internalStr(self):
+        return None
+
+    @property
+    def isControlServer(self):
+        return self.name == ControlComponent.NAME
+
+    @property
+    def isSimHub(self):
+        return False
+
+    @property
+    def required(self):
+        return self.__required
+
+
+class ControlComponent(ClusterComponent):
+    NAME = "CnCServer"
+
+    def __init__(self):
+        super(ControlComponent, self).__init__(ControlComponent.NAME, 0, None,
+                                               True)
+
+    def __str__(self):
+        return self.name
 
 
 class JVMArgs(object):
@@ -155,15 +179,29 @@ class JVMArgs(object):
         return self.__path
 
 
-class DAQComponent(Component):
-    def __init__(self, name, num, logLevel=None):
-        super(DAQComponent, self).__init__(name, num, logLevel=logLevel)
+class JavaComponent(ClusterComponent):
+    def __init__(self, name, num, logLevel=None, required=False):
+        super(JavaComponent, self).__init__(name, num, logLevel=logLevel,
+                                            required=required)
 
         self.__jvm = None
 
     @property
     def hasJVMOptions(self):
         return self.__jvm is not None
+
+    @property
+    def internalStr(self):
+        superStr = super(JavaComponent, self).internalStr
+        if self.__jvm is None:
+            return superStr
+
+        jvmStr = str(self.__jvm)
+        if superStr is None or len(superStr) == 0:
+            return jvmStr
+        elif jvmStr is None or len(jvmStr) == 0:
+            return superStr
+        return superStr + " | " + jvmStr
 
     @property
     def jvmArgs(self):
@@ -206,111 +244,92 @@ class DAQComponent(Component):
     @property
     def jvmStr(self):
         if self.__jvm is None:
-            return "[???]"
+            return "jvm[???]"
         return str(self.__jvm)
 
     def setJVMOptions(self, defaults, path, isServer, heapInit, heapMax, args,
                       extraArgs):
         # fill in default values for all unspecified JVM quantities
         if path is None:
-            path = defaults.find(self.name, 'jvmPath')
-            if path is None:
+            path = None if defaults is None \
+                   else defaults.find(self.name, 'jvmPath')
+            if path is None and defaults is not None and \
+               defaults.JVM is not None:
                 path = defaults.JVM.path
         if isServer is None:
-            isServer = defaults.find(self.name, 'jvmServer')
-            if isServer is None:
+            isServer = None if defaults is None \
+                       else defaults.find(self.name, 'jvmServer')
+            if isServer is None and defaults is not None and \
+               defaults.JVM is not None:
                 isServer = defaults.JVM.isServer
-                if isServer is None:
-                    isServer = False
+            if isServer is None:
+                isServer = False
         if heapInit is None:
-            heapInit = defaults.find(self.name, 'jvmHeapInit')
-            if heapInit is None:
+            heapInit = None if defaults is None \
+                       else defaults.find(self.name, 'jvmHeapInit')
+            if heapInit is None and defaults is not None and \
+               defaults.JVM is not None:
                 heapInit = defaults.JVM.heapInit
         if heapMax is None:
-            heapMax = defaults.find(self.name, 'jvmHeapMax')
-            if heapMax is None:
+            heapMax = None if defaults is None \
+                      else defaults.find(self.name, 'jvmHeapMax')
+            if heapMax is None and defaults is not None and \
+               defaults.JVM is not None:
                 heapMax = defaults.JVM.heapMax
         if args is None:
-            args = defaults.find(self.name, 'jvmArgs')
-            if args is None:
+            args = None if defaults is None \
+                   else defaults.find(self.name, 'jvmArgs')
+            if args is None and defaults is not None and \
+               defaults.JVM is not None:
                 args = defaults.JVM.args
         if extraArgs is None:
-            extraArgs = defaults.find(self.name, 'jvmExtraArgs')
-            if extraArgs is None:
+            extraArgs = None if defaults is None \
+                        else defaults.find(self.name, 'jvmExtraArgs')
+            if extraArgs is None and defaults is not None and \
+               defaults.JVM is not None:
                 extraArgs = defaults.JVM.extraArgs
 
         self.__jvm = JVMArgs(path, isServer, heapInit, heapMax, args,
                              extraArgs)
 
 
-class ControlComponent(DAQComponent):
-    def __init__(self):
-        super(ControlComponent, self).__init__("CnCServer", 0, logLevel=None)
+class HSArgs(object):
+    def __init__(self, directory, interval, max_files):
+        self.__directory = directory
+        self.__interval = interval
+        self.__max_files = max_files
 
     def __str__(self):
-        return self.name
-
-    @property
-    def hasHitSpoolOptions(self):
-        return False
-
-    @property
-    def isControlServer(self):
-        return True
-
-    @property
-    def isSimHub(self):
-        return False
-
-    @property
-    def required(self):
-        return True
-
-
-class ClusterComponent(DAQComponent):
-    def __init__(self, name, num, logLevel, required):
-        self.__required = required
-
-        super(ClusterComponent, self).__init__(name, num, logLevel=logLevel)
-
-    def __str__(self):
-        if self.__required:
-            rStr = " REQUIRED"
+        outstr = None
+        if self.__directory is None:
+            outstr = "?"
         else:
-            rStr = ""
+            outstr = self.__directory
 
-        return "%s@%s(%s | %s)%s" % \
-            (self.fullname, str(self.logLevel), self.jvmStr, self.internalStr,
-             rStr)
+        if self.__interval is not None:
+            outstr += " ival=%s" % self.__interval
+        if self.__max_files is not None:
+            outstr += " max=%s" % self.__max_files
 
-    @property
-    def hasHitSpoolOptions(self):
-        return False
-
-    @property
-    def internalStr(self):
-        return ""
+        return outstr
 
     @property
-    def isControlServer(self):
-        return False
+    def directory(self):
+        return self.__directory
 
     @property
-    def isRealHub(self):
-        return False
+    def interval(self):
+        return self.__interval
 
     @property
-    def isSimHub(self):
-        return False
-
-    @property
-    def required(self):
-        return self.__required
+    def maxFiles(self):
+        return self.__max_files
 
 
-class HubComponent(ClusterComponent):
-    def __init__(self, name, num, logLevel, required):
-        super(HubComponent, self).__init__(name, num, logLevel, required)
+class HubComponent(JavaComponent):
+    def __init__(self, name, num, logLevel=None, required=False):
+        super(HubComponent, self).__init__(name, num, logLevel=logLevel,
+                                           required=required)
 
         self.__hs = None
 
@@ -342,31 +361,34 @@ class HubComponent(ClusterComponent):
     @property
     def internalStr(self):
         if self.__hs is None:
-            return "hs[???]"
-        return "hs[%s]" % str(self.__hs)
+            istr = "hs[???]"
+        else:
+            istr = "hs[%s]" % str(self.__hs)
+        return istr
 
     @property
     def isRealHub(self):
         return True
 
-    def setHitSpoolOptions(self, directory, interval, maxFiles, defaults):
-        if directory is None:
+    def setHitSpoolOptions(self, defaults, directory, interval, maxFiles):
+        if directory is None and defaults is not None:
             directory = defaults.find(self.name, 'hitspoolDirectory')
-        if interval is None:
+        if interval is None and defaults is not None:
             interval = defaults.find(self.name, 'hitspoolInterval')
-        if maxFiles is None:
+        if maxFiles is None and defaults is not None:
             maxFiles = defaults.find(self.name, 'hitspoolMaxFiles')
         self.__hs = HSArgs(directory, interval, maxFiles)
 
 
-class SimHubComponent(ClusterComponent):
+class SimHubComponent(JavaComponent):
     def __init__(self, host, number, priority, ifUnused):
         self.__host = host
         self.__number = number
         self.__priority = priority
         self.__ifUnused = ifUnused
 
-        super(SimHubComponent, self).__init__("SimHub", 0, None, False)
+        super(SimHubComponent, self).__init__("SimHub", 0, logLevel=None,
+                                              required=False)
 
     def __str__(self):
         if self.__ifUnused:
@@ -413,8 +435,10 @@ class ClusterHost(object):
     def addComponent(self, name, num, logLevel, required=False):
         if name.endswith("Hub"):
             comp = HubComponent(name, num, logLevel, required)
+        elif name == ControlComponent.NAME:
+            comp = ControlComponent(name, num, logLevel, required)
         else:
-            comp = ClusterComponent(name, num, logLevel, required)
+            comp = JavaComponent(name, num, logLevel, required)
 
         compKey = comp.fullname
         if compKey in self.compMap:
@@ -613,6 +637,8 @@ class ClusterDescription(ConfigXMLBase):
         logLvl = cls.getValue(node, 'logLevel')
         if logLvl is None:
             logLvl = defaults.find(name, 'logLevel')
+            if logLvl is None:
+                logLvl = defaults.LogLevel
 
         # look for "required" attribute
         reqStr = cls.getValue(node, 'required')
@@ -627,7 +653,7 @@ class ClusterDescription(ConfigXMLBase):
 
         if comp.isRealHub:
             (hsDir, hsInterval, hsMaxFiles) = cls.__parse_hs_nodes(name, node)
-            comp.setHitSpoolOptions(hsDir, hsInterval, hsMaxFiles, defaults)
+            comp.setHitSpoolOptions(defaults, hsDir, hsInterval, hsMaxFiles)
             if not cls.dumped:
                 cls.dumped = True
     dumped = False
