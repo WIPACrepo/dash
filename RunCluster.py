@@ -192,6 +192,9 @@ class RunCluster(CachedConfigName):
         jvmArgs = clusterDesc.defaultJVMArgs("StringHub")
         jvmExtra = clusterDesc.defaultJVMExtraArgs("StringHub")
 
+        alertEMail = clusterDesc.defaultAlertEMail("StringHub")
+        ntpHost = clusterDesc.defaultNTPHost("StringHub")
+
         logLevel = clusterDesc.defaultLogLevel("StringHub")
 
         i = 0

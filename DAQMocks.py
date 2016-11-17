@@ -1041,6 +1041,9 @@ class MockClusterConfigFile(MockClusterWriter):
         self.__defaultJVMPath = None
         self.__defaultJVMServer = None
 
+        self.__defaultAlertEMail = None
+        self.__defaultNTPHost = None
+
         self.__defaultLogLevel = None
 
         self.__defaultComps = None
@@ -1090,7 +1093,10 @@ class MockClusterConfigFile(MockClusterWriter):
                         self.__defaultJVMPath is not None or \
                         self.__defaultJVMServer is not None
 
-            if hasHSXML or hasJVMXML or \
+            hasHubXML = self.__defaultAlertEMail is not None or \
+                        self.__defaultNTPHost is not None
+
+            if hasHSXML or hasJVMXML or hasHubXML or \
                self.__defaultLogLevel is not None or \
                self.__defaultComps is not None:
                 print >>fd, indent + "<default>"
@@ -1109,6 +1115,10 @@ class MockClusterConfigFile(MockClusterWriter):
                                      self.__defaultJVMHeapMax,
                                      self.__defaultJVMArgs,
                                      self.__defaultJVMExtraArgs)
+
+                if hasHubXML:
+                    self.writeHubXML(fd, indent2, self.__defaultAlertEMail,
+                                    self.__defaultNTPHost)
 
                 if self.__defaultLogLevel is not None:
                     self.writeLine(fd, indent2, "logLevel",
@@ -1131,6 +1141,9 @@ class MockClusterConfigFile(MockClusterWriter):
             return ClusterDescription.DEFAULT_DATA_DIR
 
         return self.__dataDir
+
+    def defaultAlertEMail(self):
+        return self.__defaultAlertEMail
 
     def defaultHSDirectory(self):
         return self.__defaultHSDir
@@ -1166,6 +1179,9 @@ class MockClusterConfigFile(MockClusterWriter):
 
         return self.__defaultLogLevel
 
+    def defaultNTPHost(self):
+        return self.__defaultNTPHost
+
     @property
     def logDir(self):
         if self.__logDir is None:
@@ -1179,6 +1195,9 @@ class MockClusterConfigFile(MockClusterWriter):
 
     def setDataDir(self, value):
         self.__dataDir = value
+
+    def setDefaultAlertEMail(self, value):
+        self.__defaultAlertEMail = value
 
     def setDefaultHSDirectory(self, value):
         self.__defaultHSDir = value
@@ -1209,6 +1228,9 @@ class MockClusterConfigFile(MockClusterWriter):
 
     def setDefaultLogLevel(self, value):
         self.__defaultLogLevel = value
+
+    def setDefaultNTPHost(self, value):
+        self.__defaultNTPHost = value
 
     def setLogDir(self, value):
         self.__logDir = value
@@ -1627,7 +1649,7 @@ class MockDefaultDomGeometryFile(object):
 class MockDeployComponent(Component):
     def __init__(self, name, id, logLevel, hsDir, hsInterval, hsMaxFiles,
                  jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs,
-                 jvmExtraArgs, host=None):
+                 jvmExtraArgs, alertEMail, ntpHost, host=None):
         self.__hsDir = hsDir
         self.__hsInterval = hsInterval
         self.__hsMaxFiles = hsMaxFiles
@@ -1637,9 +1659,15 @@ class MockDeployComponent(Component):
         self.__jvmHeapMax = jvmHeapMax
         self.__jvmArgs = jvmArgs
         self.__jvmExtraArgs = jvmExtraArgs
+        self.__alertEMail = alertEMail
+        self.__ntpHost =  ntpHost
         self.__host = host
 
         super(MockDeployComponent, self).__init__(name, id, logLevel)
+
+    @property
+    def alertEMail(self):
+        return self.__alertEMail
 
     @property
     def hasHitSpoolOptions(self):
@@ -1692,6 +1720,10 @@ class MockDeployComponent(Component):
     @property
     def jvmServer(self):
         return self.__jvmServer
+
+    @property
+    def ntpHost(self):
+        return self.__ntpHost
 
 
 class MockDAQClient(DAQClient):
@@ -1919,6 +1951,12 @@ class MockParallelShell(object):
             cmd += " " + comp.jvmArgs
         if comp.jvmExtraArgs is not None:
             cmd += " " + comp.jvmExtraArgs
+
+        if comp.isRealHub:
+            if comp.ntpHost is not None:
+                cmd += " -Dicecube.daq.time.monitoring.ntp-host=" + comp.ntpHost
+            if comp.alertEMail is not None:
+                cmd += " -Dicecube.daq.stringhub.alert-email=" + comp.alertEMail
 
         if comp.hitspoolDirectory is not None:
             cmd += " -Dhitspool.directory=\"%s\"" % comp.hitspoolDirectory

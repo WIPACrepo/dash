@@ -131,6 +131,7 @@ class ComponentManager(object):
                              "??jvmArgs??", "??jvmExtra??")
             lc.setHitSpoolOptions(None, "??hsDir??", "??hsInterval??",
                                   "??hsMaxFiles??")
+            lc.setHubOptions(None, "??alertEMail??", "??ntpHost??")
             comps.append(lc)
         return comps
 
@@ -232,6 +233,9 @@ class ComponentManager(object):
                         rc.setHitSpoolOptions(None, comp.hitspoolDirectory,
                                               comp.hitspoolInterval,
                                               comp.hitspoolMaxFiles)
+                        if comp.isRealHub:
+                            rc.setHubOptions(None, comp.alertEMail,
+                                             comp.ntpHost)
                     else:
                         rc = JavaComponent(comp.name, comp.id, comp.logLevel,
                                            False)
@@ -593,6 +597,14 @@ class ComponentManager(object):
                 jvmArgs += " " + comp.jvmArgs
             if comp.jvmExtraArgs is not None and len(comp.jvmExtraArgs) > 0:
                 jvmArgs += " " + comp.jvmExtraArgs
+
+            if comp.isRealHub:
+                if comp.ntpHost is not None:
+                    jvmArgs += " -Dicecube.daq.time.monitoring.ntp-host=%s" % \
+                               str(comp.ntpHost)
+                if comp.alertEMail is not None:
+                    jvmArgs += " -Dicecube.daq.stringhub.alert-email=%s" % \
+                               str(comp.alertEMail)
 
             if comp.hasHitSpoolOptions:
                 if comp.hitspoolDirectory is not None:

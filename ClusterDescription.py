@@ -332,6 +332,12 @@ class HubComponent(JavaComponent):
                                            required=required)
 
         self.__hs = None
+        self.__ntpHost = None
+        self.__alertEMail = None
+
+    @property
+    def alertEMail(self):
+        return self.__alertEMail
 
     @property
     def hasHitSpoolOptions(self):
@@ -364,11 +370,19 @@ class HubComponent(JavaComponent):
             istr = "hs[???]"
         else:
             istr = "hs[%s]" % str(self.__hs)
+        if self.__alertEMail is not None:
+            istr += " | alert=%s" % self.__alertEMail
+        if self.__ntpHost is not None:
+            istr += " | ntp=%s" % self.__ntpHost
         return istr
 
     @property
     def isRealHub(self):
         return True
+
+    @property
+    def ntpHost(self):
+        return self.__ntpHost
 
     def setHitSpoolOptions(self, defaults, directory, interval, maxFiles):
         if directory is None and defaults is not None:
@@ -378,6 +392,15 @@ class HubComponent(JavaComponent):
         if maxFiles is None and defaults is not None:
             maxFiles = defaults.find(self.name, 'hitspoolMaxFiles')
         self.__hs = HSArgs(directory, interval, maxFiles)
+
+    def setHubOptions(self, defaults, alertEMail, ntpHost):
+        if ntpHost is None and defaults is not None:
+            ntpHost = defaults.find(self.name, 'ntpHost')
+        if alertEMail is None and defaults is not None:
+            alertEMail = defaults.find(self.name, 'alertEMail')
+
+        self.__ntpHost = ntpHost
+        self.__alertEMail = alertEMail
 
 
 class SimHubComponent(JavaComponent):
@@ -652,11 +675,13 @@ class ClusterDescription(ConfigXMLBase):
                            jvmHeapMax, jvmArgs, jvmExtraArgs)
 
         if comp.isRealHub:
+            alertEMail = cls.getValue(node, 'alertEMail')
+            ntpHost = cls.getValue(node, 'ntpHost')
+
+            comp.setHubOptions(defaults, alertEMail, ntpHost)
+
             (hsDir, hsInterval, hsMaxFiles) = cls.__parse_hs_nodes(name, node)
             comp.setHitSpoolOptions(defaults, hsDir, hsInterval, hsMaxFiles)
-            if not cls.dumped:
-                cls.dumped = True
-    dumped = False
 
     def __parse_default_nodes(self, cluName, defaults, node):
         """load JVM defaults"""
@@ -712,6 +737,18 @@ class ClusterDescription(ConfigXMLBase):
                     if cKid.nodeType == Node.ELEMENT_NODE and \
                        cKid.nodeName == 'logLevel':
                         defaults.Components[name]['logLevel'] = \
+                            self.getChildText(cKid)
+                        continue
+
+                    if cKid.nodeType == Node.ELEMENT_NODE and \
+                       cKid.nodeName == 'alertEMail':
+                        defaults.Components[name]['alertEMail'] = \
+                            self.getChildText(cKid)
+                        continue
+
+                    if cKid.nodeType == Node.ELEMENT_NODE and \
+                       cKid.nodeName == 'ntpHost':
+                        defaults.Components[name]['ntpHost'] = \
                             self.getChildText(cKid)
                         continue
 
@@ -853,6 +890,9 @@ class ClusterDescription(ConfigXMLBase):
             return self.DEFAULT_LOG_DIR
         return self.__daq_log_dir
 
+    def defaultAlertEMail(self, compName=None):
+        return self.__defaults.find(compName, 'alertEMail')
+
     def defaultHSDirectory(self, compName=None):
         return self.__defaults.find(compName, 'hitspoolDirectory')
 
@@ -882,6 +922,9 @@ class ClusterDescription(ConfigXMLBase):
 
     def defaultLogLevel(self, compName=None):
         return self.__defaults.find(compName, 'logLevel')
+
+    def defaultNTPHost(self, compName=None):
+        return self.__defaults.find(compName, 'ntpHost')
 
     def dump(self, fd=None, prefix=None):
         if fd is None:

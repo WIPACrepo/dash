@@ -1006,7 +1006,7 @@ class IntegrationTest(unittest.TestCase):
                                              comp.jvmPath, comp.jvmServer,
                                              comp.jvmHeapInit,
                                              comp.jvmHeapMax, comp.jvmArgs,
-                                             comp.jvmExtraArgs)
+                                             comp.jvmExtraArgs, None, None)
             pShell.addExpectedJava(deployComp, IntegrationTest.CONFIG_DIR,
                                    IntegrationTest.DATA_DIR,
                                    DAQPort.CATCHALL, livePort, verbose, False,
