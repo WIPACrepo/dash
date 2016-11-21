@@ -137,7 +137,7 @@ class InputEngine(Engine):
             raise
 
         try:
-            self.__sock.bind(("localhost", self.__port))
+            self.__sock.bind(("", self.__port))
             self.__sock.listen(1)
         except socket.error:
             self.__sock.close()
