@@ -236,6 +236,7 @@ class ComponentOperation(threading.Thread):
     def component(self):
         return self.__comp
 
+    @property
     def isError(self):
         return self.__error
 
@@ -268,7 +269,7 @@ class ComponentOperationGroup(object):
         for t in self.__list:
             if t.isAlive():
                 numAlive += 1
-            if t.isError():
+            if t.isError:
                 numErrors += 1
 
         return (numAlive, numErrors)
@@ -312,7 +313,7 @@ class ComponentOperationGroup(object):
         for t in self.__list:
             if t.isAlive():
                 result = ComponentOperation.RESULT_HANGING
-            elif t.isError():
+            elif t.isError:
                 result = ComponentOperation.RESULT_ERROR
             else:
                 result = t.result()

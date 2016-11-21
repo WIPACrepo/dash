@@ -401,7 +401,7 @@ class DAQPool(object):
         self.__setsLock.acquire()
         try:
             for rs in self.__sets:
-                if rs.isRunning():
+                if rs.isRunning:
                     num += 1
         finally:
             self.__setsLock.release()
@@ -471,7 +471,7 @@ class DAQPool(object):
         self.__setsLock.acquire()
         try:
             for rs in self.__sets:
-                if rs.isRunning():
+                if rs.isRunning:
                     return False
             removed = self.__sets[:]
             del self.__sets[:]
@@ -553,18 +553,18 @@ class Connector(object):
         if isinstance(descrChar, bool):
             raise Exception("Convert to new format")
         self.__descrChar = descrChar
-        if self.isInput():
+        if self.isInput:
             self.__port = port
         else:
             self.__port = None
 
     def __str__(self):
         "String description"
-        if self.isOptional():
+        if self.isOptional:
             connCh = "~"
         else:
             connCh = "="
-        if self.isInput():
+        if self.isInput:
             return '%d%s>%s' % (self.__port, connCh, self.__name)
         return self.__name + connCh + '>'
 
@@ -573,23 +573,26 @@ class Connector(object):
         This method can raise a ValueError exception if __port is none."""
         if self.__port is not None:
             port = self.__port
-        elif not self.isInput():
+        elif not self.isInput:
             port = 0
         else:
             raise ValueError("Connector %s port was set to None" % str(self))
 
         return (self.__name, self.__descrChar, port)
 
+    @property
     def isInput(self):
         "Return True if this is an input connector"
         return self.__descrChar == self.INPUT or \
                self.__descrChar == self.OPT_INPUT
 
+    @property
     def isOptional(self):
         "Return True if this is an optional connector"
         return self.__descrChar == self.OPT_INPUT or \
                self.__descrChar == self.OPT_OUTPUT
 
+    @property
     def isOutput(self):
         "Return True if this is an output connector"
         return self.__descrChar == self.OUTPUT or \
@@ -839,7 +842,7 @@ class CnCServer(DAQPool):
 
     def breakRunset(self, runSet):
         hadError = False
-        if not runSet.isReady():
+        if not runSet.isReady:
             try:
                 hadError = runSet.stopRun("BreakRunset")
             except:
@@ -1200,7 +1203,7 @@ class CnCServer(DAQPool):
         if not runSet:
             raise CnCServerException('Could not find runset#%d' % id)
 
-        if runSet.isRunning():
+        if runSet.isRunning:
             raise CnCServerException("Cannot break up running runset #%d" % id)
 
         self.breakRunset(runSet)

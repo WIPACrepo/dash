@@ -139,9 +139,11 @@ class MockTMComponent(object):
 
         return self.__beanData[beanName][fieldName]
 
+    @property
     def isBuilder(self):
         return self.__name.lower().endswith("builder")
 
+    @property
     def isSource(self):
         return self.__name.lower().endswith("hub")
 

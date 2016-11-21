@@ -102,6 +102,7 @@ class LogSocketServer(object):
             self.__outfile.close()
         self.__serving = False
 
+    @property
     def isServing(self):
         return self.__serving
 
@@ -281,21 +282,27 @@ class DAQLog(object):
     def info(self, msg):
         self._logmsg(DAQLog.INFO, msg)
 
+    @property
     def isDebugEnabled(self):
         return self.__level == DAQLog.DEBUG
 
+    @property
     def isErrorEnabled(self):
         return self.__level == DAQLog.ERROR
 
+    @property
     def isFatalEnabled(self):
         return self.__level == DAQLog.FATAL
 
+    @property
     def isInfoEnabled(self):
         return self.__level == DAQLog.INFO
 
+    @property
     def isTraceEnabled(self):
         return self.__level == DAQLog.TRACE
 
+    @property
     def isWarnEnabled(self):
         return self.__level == DAQLog.WARN
 

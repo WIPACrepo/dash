@@ -383,12 +383,12 @@ class ComponentManager(object):
             if comp.jvmPath is None:
                 continue
 
-            if comp.isHub():
+            if comp.isHub:
                 killPat = "stringhub.componentId=%d" % comp.id
             else:
                 killPat = cls.getComponentJar(comp.name)
 
-            if comp.isLocalhost():  # Just kill it
+            if comp.isLocalhost:  # Just kill it
                 fmtStr = "pkill %%s -fu %s %s" % (os.environ["USER"], killPat)
             else:
                 fmtStr = "ssh %s pkill %%s -f %s" % (comp.host, killPat)
@@ -628,15 +628,15 @@ class ComponentManager(object):
 
             compIO = quietStr
 
-            if comp.isHub():
+            if comp.isHub:
                 jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % comp.id
 
-            if eventCheck and comp.isBuilder():
+            if eventCheck and comp.isBuilder:
                 jvmArgs += " -Dicecube.daq.eventBuilder.validateEvents"
 
             baseCmd = "%s %s -jar %s %s %s &" % \
                 (jvmPath, jvmArgs, execJar, switches, compIO)
-            if comp.isLocalhost():
+            if comp.isLocalhost:
                 # Just run it
                 cmd = baseCmd
             else:

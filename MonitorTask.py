@@ -49,7 +49,7 @@ class MonitorThread(CnCThread):
         return None
 
     def _run(self):
-        if self.isClosed():
+        if self.isClosed:
             return
 
         if self.__reporter is None:
@@ -67,14 +67,14 @@ class MonitorThread(CnCThread):
             self.__beanKeys = self.__comp.getBeanNames()
             self.__beanKeys.sort()
             for b in self.__beanKeys:
-                if self.isClosed():
+                if self.isClosed:
                     # give up if this thread has been "closed"
                     return
 
                 self.__beanFlds[b] = self.__comp.getBeanFields(b)
 
         for b in self.__beanKeys:
-            if self.isClosed():
+            if self.isClosed:
                 break
 
             flds = self.__beanFlds[b]
@@ -90,7 +90,7 @@ class MonitorThread(CnCThread):
                                      (str(self.__comp), b, exc_string()))
 
             # report monitoring data
-            if attrs and len(attrs) > 0 and not self.isClosed():
+            if attrs and len(attrs) > 0 and not self.isClosed:
                 self.__reporter.send(datetime.datetime.now(), b, attrs)
 
         return self.__refused
@@ -114,6 +114,7 @@ class MonitorThread(CnCThread):
                              self.__reporter, self.__refused)
         return thrd
 
+    @property
     def isWarned(self):
         return self.__warned
 
@@ -216,7 +217,7 @@ class MonitorTask(CnCTask):
             thrd = self.__threadList[c]
             if not thrd.isAlive():
                 if thrd.refusedCount() >= self.MAX_REFUSED:
-                    if not thrd.isWarned():
+                    if not thrd.isWarned:
                         msg = ("ERROR: Not monitoring %s: Connect failed" +
                                " %d times") % \
                                (c.fullname, thrd.refusedCount())
@@ -245,7 +246,7 @@ class MonitorTask(CnCTask):
     def numOpen(self):
         num = 0
         for c in self.__threadList.keys():
-            if not self.__threadList[c].isClosed():
+            if not self.__threadList[c].isClosed:
                 num += 1
         return num
 

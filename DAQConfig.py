@@ -60,12 +60,15 @@ class HubComponent(Component):
     def __init__(self, hub_type, hub_id, host=None):
         super(HubComponent, self).__init__(hub_type, hub_id, host=host)
 
+    @property
     def isDeepCore(self):
         return HubIdUtils.is_deep_core(self.__id)
 
+    @property
     def isIceTop(self):
         return HubIdUtils.is_icetop(self.__id)
 
+    @property
     def isInIce(self):
         return HubIdUtils.is_in_ice(self.__id)
 
@@ -409,12 +412,12 @@ class DAQConfig(ConfigObject):
             ice_top_hub, ice_top_trig = (False, False, False, False)
 
         for c in self.comps:
-            if c.isHub():
-                if c.isInIce():
+            if c.isHub:
+                if c.isInIce:
                     in_ice_hub = True
                 else:
                     ice_top_hub = True
-            elif c.isTrigger():
+            elif c.isTrigger:
                 lname = c.name.lower()
                 if lname.startswith("inice"):
                     in_ice_trig = True

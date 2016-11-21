@@ -1724,7 +1724,7 @@ class IntegrationTest(unittest.TestCase):
     @staticmethod
     def __waitForEmptyLog(log, errMsg):
         for _ in range(5):
-            if log.isEmpty():
+            if log.isEmpty:
                 break
             time.sleep(0.25)
         log.checkStatus(1)

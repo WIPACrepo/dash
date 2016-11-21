@@ -429,6 +429,7 @@ class RealComponent(object):
     def id(self):
         return self.__id
 
+    @property
     def isHub(self):
         if self.__name is None:
             return False
@@ -726,7 +727,7 @@ class TestCnCServer(unittest.TestCase):
 
         compList = []
         for comp in self.comps:
-            if not comp.isHub():
+            if not comp.isHub:
                 compList.append(comp.fullname)
 
         hubDomDict = {

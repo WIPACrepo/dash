@@ -59,11 +59,11 @@ class TestDAQLog(unittest.TestCase):
         self.sockLog = LogSocketServer(port, cname, logPath, True)
         self.sockLog.startServing()
         for _ in range(5):
-            if self.sockLog.isServing():
+            if self.sockLog.isServing:
                 break
             time.sleep(0.1)
         self.failUnless(os.path.exists(logPath), 'Log file was not created')
-        self.failUnless(self.sockLog.isServing(), 'Log server was not started')
+        self.failUnless(self.sockLog.isServing, 'Log server was not started')
 
         now = datetime.datetime.now()
         msg = 'Test 1 2 3'

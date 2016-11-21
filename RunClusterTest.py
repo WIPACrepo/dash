@@ -20,6 +20,7 @@ class DeployData(object):
             return '%s/%s' % (self.host, self.name)
         return '%s/%s#%d' % (self.host, self.name, self.id)
 
+    @property
     def isFound(self):
         return self.found
 
@@ -77,7 +78,7 @@ class RunClusterTest(unittest.TestCase):
                               (node.hostname, comp, type(comp)))
 
         for en in expNodes:
-            if not en.isFound():
+            if not en.isFound:
                 self.fail('Did not find expected component %s' % str(en))
 
         #hubList = cluster.getHubNodes()

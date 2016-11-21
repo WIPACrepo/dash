@@ -288,6 +288,7 @@ class ParallelShell(object):
     def system(self, cmd):
         return os.system(cmd)
 
+    @property
     def isParallel(self):
         return self.parallel
 

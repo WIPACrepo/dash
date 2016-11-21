@@ -17,7 +17,7 @@ class RateThread(CnCThread):
         rates = self.__runset.updateRates()
         if rates is not None:
             (numEvts, rate, numMoni, numSN, numTcal) = rates
-            if not self.isClosed():
+            if not self.isClosed:
                 rateStr = ""
                 if rate == 0.0:
                     rateStr = ""

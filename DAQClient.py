@@ -194,6 +194,7 @@ class ComponentName(object):
             return self.__name
         return '%s#%d' % (self.__name, self.__num)
 
+    @property
     def isBuilder(self):
         "Is this an eventBuilder (or debugging fooBuilder)?"
         return self.__name.lower().find("builder") >= 0
@@ -202,11 +203,13 @@ class ComponentName(object):
         "Does this component have the specified name and number?"
         return self.__name == name and (num < 0 or self.__num == num)
 
+    @property
     def isHub(self):
         return self.__name.endswith("Hub")
 
+    @property
     def isReplayHub(self):
-        return self.isHub() and self.__name.lower().find("replay") >= 0
+        return self.isHub and self.__name.lower().find("replay") >= 0
 
     @property
     def name(self):
@@ -447,16 +450,17 @@ class DAQClient(ComponentName):
     def is_dying(self):
         return self.__deadCount > 0
 
+    @property
     def isSource(self):
         "Is this component a source of data?"
 
         # XXX Hack for stringHubs which are sources but which confuse
         #     things by also reading requests from the eventBuilder
-        if self.isHub():
+        if self.isHub:
             return True
 
         for conn in self.__connectors:
-            if conn.isInput():
+            if conn.isInput:
                 return False
 
         return True

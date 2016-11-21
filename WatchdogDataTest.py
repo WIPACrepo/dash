@@ -125,9 +125,11 @@ class MockComponent(object):
         self.checkBeanField(beanName, fldName)
         return self.__beanData[beanName][fldName].nextValue()
 
+    @property
     def isBuilder(self):
         return self.__builder
 
+    @property
     def isSource(self):
         return self.__source
 

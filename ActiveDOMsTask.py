@@ -97,7 +97,7 @@ class ActiveDOMThread(CnCThread):
         # build a list of hubs
         src_set = []
         for comp in self.__runset.components():
-            if comp.isSource():
+            if comp.isSource:
                 src_set.append(comp)
 
         # spawn a bunch of threads to fetch hub data
@@ -147,7 +147,7 @@ class ActiveDOMThread(CnCThread):
             self.__dashlog.error(errmsg)
 
         # if the run isn't stopped and we have data from one or more hubs...
-        if not self.isClosed() and len(lbm_overflows) > 0:
+        if not self.isClosed and len(lbm_overflows) > 0:
 
             # active doms should be reported over ITS once every ten minutes
             # and over email once a minute.  The two should not overlap

@@ -1022,6 +1022,7 @@ class Builder(object):
                                      self.__stateString(self.__state)))
         self.__state = newState
 
+    @property
     def isInitial(self):
         return self.__state == self.STATE_INITIAL
 
@@ -1185,7 +1186,7 @@ class SecondaryBuildersLog(ComponentLog):
     def report(self, fd, verbose):
         if verbose:
             for bldr in self.__builder.values():
-                if not bldr.isInitial():
+                if not bldr.isInitial:
                     print >> fd, "%s %s" % (str(bldr), bldr.state)
 
 
@@ -1283,6 +1284,7 @@ class BaseDom(object):
     def getWildTCals(self):
         return self.__wildTCals
 
+    @property
     def isStopped(self):
         return self.__state == self.STATE_STOPPED
 

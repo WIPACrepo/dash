@@ -449,6 +449,7 @@ class LogChecker(object):
         self.__checkEmpty()
         return True
 
+    @property
     def isEmpty(self):
         return len(self.__expMsgs) == 0
 
@@ -979,6 +980,7 @@ class MockClusterComponent(Component):
     def host(self):
         return self.__host
 
+    @property
     def isLocalhost(self):
         return True
 
@@ -1281,9 +1283,11 @@ class MockConnection(object):
             return '%d=>%s' % (self.__port, self.__name)
         return '=>' + self.__name
 
+    @property
     def isInput(self):
         return self.__connCh == self.INPUT or self.__connCh == self.OPT_INPUT
 
+    @property
     def isOptional(self):
         return self.__connCh == self.OPT_INPUT or \
                self.__connCh == self.OPT_OUTPUT
@@ -1484,21 +1488,26 @@ class MockComponent(object):
     def is_dying(self):
         return False
 
+    @property
     def isBuilder(self):
         return self.__isBldr
 
     def isComponent(self, name, num=-1):
         return self.__name == name
 
+    @property
     def isConfigured(self):
         return self.__configured
 
+    @property
     def isHanging(self):
         return self.__hangType != 0
 
+    @property
     def isReplayHub(self):
         return self.__replayHub
 
+    @property
     def isSource(self):
         return self.__isSrc
 
@@ -1694,6 +1703,7 @@ class MockDeployComponent(Component):
     def host(self):
         return self.__host
 
+    @property
     def isLocalhost(self):
         return self.__host is not None and self.__host == "localhost"
 
@@ -1843,21 +1853,27 @@ class MockLogger(LogChecker):
     def info(self, m):
         self._checkMsg(m)
 
+    @property
     def isDebugEnabled(self):
         return True
 
+    @property
     def isErrorEnabled(self):
         return True
 
+    @property
     def isFatalEnabled(self):
         return True
 
+    @property
     def isInfoEnabled(self):
         return True
 
+    @property
     def isTraceEnabled(self):
         return True
 
+    @property
     def isWarnEnabled(self):
         return True
 
@@ -1965,9 +1981,9 @@ class MockParallelShell(object):
         if comp.hitspoolMaxFiles is not None:
             cmd += " -Dhitspool.maxfiles=%d" %  comp.hitspoolMaxFiles
 
-        if comp.isHub():
+        if comp.isHub:
             cmd += " -Dicecube.daq.stringhub.componentId=%d" % comp.id
-        if eventCheck and comp.isBuilder():
+        if eventCheck and comp.isBuilder:
             cmd += ' -Dicecube.daq.eventBuilder.validateEvents'
 
         cmd += ' -jar %s' % jarPath
@@ -2095,6 +2111,7 @@ class MockParallelShell(object):
     def getReturnCodes(self):
         return self.__rtnCodes
 
+    @property
     def isParallel(self):
         return self.__isParallel
 
@@ -2146,11 +2163,13 @@ class MockRunComponent(object):
     def inetAddress(self):
         return self.__inetAddr
 
+    @property
     def isHub(self):
         return self.__name.endswith("Hub")
 
+    @property
     def isReplay(self):
-        return self.isHub() and self.__name.lower().find("replay") >= 0
+        return self.isHub and self.__name.lower().find("replay") >= 0
 
     @property
     def mbeanPort(self):
@@ -2723,6 +2742,7 @@ class MockRunSet(object):
         return (self.__numEvts, self.__rate, self.__numMoni, self.__numSN,
                 self.__numTcal)
 
+    @property
     def isRunning(self):
         return self.__running
 

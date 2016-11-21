@@ -54,14 +54,16 @@ class MockConn(object):
         self.__descrCh = descrCh
 
     def __repr__(self):
-        if self.isInput():
+        if self.isInput:
             return "->%s(%s)" % (self.__descrCh, self.__name)
 
         return "%s->(%s)" % (self.__descrCh, self.__name)
 
+    @property
     def isInput(self):
         return self.__descrCh == "i" or self.__descrCh == "I"
 
+    @property
     def isOptional(self):
         return self.__descrCh == "I" or self.__descrCh == "O"
 
@@ -80,7 +82,7 @@ class MockComponent(object):
         self.__beanData = {}
 
     def __str__(self):
-        if self.__num == 0 and not self.isSource():
+        if self.__num == 0 and not self.isSource:
             return self.__name
         return "%s#%d" % (self.__name, self.__num)
 
@@ -175,15 +177,18 @@ class MockComponent(object):
     def is_dying(self):
         return False
 
+    @property
     def isBuilder(self):
         return self.__name.lower().endswith("builder")
 
     def isComponent(self, name, num=-1):
         return self.__name == name and (num < 0 or self.__num == num)
 
+    @property
     def isReplayHub(self):
         return False
 
+    @property
     def isSource(self):
         return self.__name.lower().endswith("hub")
 
@@ -824,7 +829,7 @@ class CnCRunSetTest(unittest.TestCase):
     @staticmethod
     def __waitForEmptyLog(log, errMsg):
         for i in range(5):
-            if log.isEmpty():
+            if log.isEmpty:
                 break
             time.sleep(0.25)
         log.checkStatus(1)
@@ -982,7 +987,7 @@ class CnCRunSetTest(unittest.TestCase):
 
         runCompList = []
         for c in comps:
-            if c.isSource() or c.name == "extraComp":
+            if c.isSource or c.name == "extraComp":
                 continue
             runCompList.append(c.fullname)
 

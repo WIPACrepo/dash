@@ -200,7 +200,7 @@ class ConnectionTest(unittest.TestCase):
             for typ in node.outLinks:
                 conn = None
                 for c in compConn:
-                    if not c.isInput() and c.name == typ:
+                    if not c.isInput and c.name == typ:
                         conn = c
                         compConn.remove(c)
                         break
@@ -213,7 +213,7 @@ class ConnectionTest(unittest.TestCase):
             for typ in node.inLinks:
                 conn = None
                 for c in compConn:
-                    if c.isInput() and c.name == typ:
+                    if c.isInput and c.name == typ:
                         conn = c
                         compConn.remove(c)
                         break

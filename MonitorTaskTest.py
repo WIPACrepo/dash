@@ -59,6 +59,7 @@ class BadCloseThread(object):
     def isAlive(self):
         return True
 
+    @property
     def isClosed(self):
         return self.__closed
 

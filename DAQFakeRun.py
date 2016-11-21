@@ -304,6 +304,7 @@ class ComponentData(object):
         "Does this component have the specified name and number?"
         return self.__compName == name and (num < 0 or self.__compNum == num)
 
+    @property
     def isFake(self):
         return self.__create
 
@@ -528,7 +529,7 @@ class DAQFakeRun(object):
         for cd in compData:
             client = cd.getFakeClient(quiet=quiet)
 
-            if cd.isFake():
+            if cd.isFake:
                 if forkClients:
                     if client.fork() == 0:
                         return

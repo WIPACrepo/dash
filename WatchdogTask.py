@@ -133,10 +133,10 @@ class ValueWatcher(Watcher):
         return newValue == oldValue
 
     def __computeOrder(self, beanName, fieldName):
-        if self.__fromComp.isBuilder() and self.__toComp.isSource():
+        if self.__fromComp.isBuilder and self.__toComp.isSource:
             return self.__fromComp.order() + 1
 
-        if self.__fromComp.isSource() and self.__toComp.isBuilder():
+        if self.__fromComp.isSource and self.__toComp.isBuilder:
             return self.__toComp.order() + 2
 
         return self.__fromComp.order()
@@ -404,7 +404,7 @@ class WatchdogThread(CnCThread):
         return self.__comp.fullname
 
     def _run(self):
-        if self.isClosed():
+        if self.isClosed:
             return
 
         if self.__data is None:
@@ -457,9 +457,11 @@ class DummyComponent(object):
     def fullname(self):
         return self.__name
 
+    @property
     def isBuilder(self):
         return False
 
+    @property
     def isSource(self):
         return False
 

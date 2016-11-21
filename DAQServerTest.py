@@ -81,15 +81,18 @@ class TinyClient(object):
     def is_dying(self):
         return False
 
+    @property
     def isBuilder(self):
         return False
 
     def isComponent(self, name, num=-1):
         return self.__name == name and (num < 0 or self.__num == num)
 
+    @property
     def isReplayHub(self):
         return False
 
+    @property
     def isSource(self):
         return True
 

@@ -29,23 +29,26 @@ class MockRunSet(object):
     def destroy(self):
         self.__state = self.STATE_DESTROYED
 
+    @property
     def isDestroyed(self):
         return self.__state == self.STATE_DESTROYED
 
+    @property
     def isReady(self):
         return self.__state == self.STATE_READY
 
+    @property
     def isRunning(self):
         return self.__state == self.STATE_RUNNING
 
     def runConfig(self):
-        if self.isDestroyed():
+        if self.isDestroyed:
             raise Exception("Runset destroyed")
 
         return self.__runCfg
 
     def sendEventCounts(self):
-        if self.isDestroyed():
+        if self.isDestroyed:
             raise Exception("Runset destroyed")
 
     def setExpectedStopError(self):
@@ -55,7 +58,7 @@ class MockRunSet(object):
         self.__state = newState
 
     def setStopReturnError(self):
-        if self.isDestroyed():
+        if self.isDestroyed:
             raise Exception("Runset destroyed")
 
         self.__stopReturn = True
@@ -65,7 +68,7 @@ class MockRunSet(object):
         return self.__state
 
     def stopRun(self, hadError=False):
-        if self.isDestroyed():
+        if self.isDestroyed:
             raise Exception("Runset destroyed")
 
         if hadError != self.__expStopErr:
