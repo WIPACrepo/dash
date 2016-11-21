@@ -685,8 +685,6 @@ class RunData(object):
                 self.__dashlog.error(msg)
                 return
 
-            self.__sendMoni("eventstart", data, prio=Prio.SCP, time=monitime)
-
     def __reportRunStop(self, numEvts, firstPayTime, lastPayTime, hadError):
         if self.__liveMoniClient is not None:
             firstDT = PayloadTime.toDateTime(firstPayTime, high_precision=True)

@@ -429,14 +429,6 @@ class CnCRunSetTest(unittest.TestCase):
         },
     }
 
-    def __addEventStartMoni(self, liveMoni, runNum):
-
-        if not LIVE_IMPORT:
-            return
-
-        data = {"runnum": runNum}
-        liveMoni.addExpectedLiveMoni("eventstart", data, "json")
-
     def __addLiveMoni(self, comps, liveMoni, compName, compNum, beanName,
                       fieldName, isJSON=False):
 
@@ -602,9 +594,6 @@ class CnCRunSetTest(unittest.TestCase):
 
         dashLog.addExpectedExact(("	%d physics events%s, 0 moni events," +
                                   " 0 SN events, 0 tcals") % (numEvts, hzStr))
-
-        if liveMoni is not None:
-            self.__addEventStartMoni(liveMoni, runNum)
 
         timer.trigger()
 
