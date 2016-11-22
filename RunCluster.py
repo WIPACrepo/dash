@@ -289,10 +289,6 @@ class RunCluster(CachedConfigName):
         for v in sorted(hubAlloc.values(), reverse=True):
             hosts.append(v.host)
 
-        hsDir = clusterDesc.defaultHSDirectory("StringHub")
-        hsIval = clusterDesc.defaultHSInterval("StringHub")
-        hsMaxFiles = clusterDesc.defaultHSMaxFiles("StringHub")
-
         jvmPath = clusterDesc.defaultJVMPath("StringHub")
         jvmServer = clusterDesc.defaultJVMServer("StringHub")
         jvmHeapInit = clusterDesc.defaultJVMHeapInit("StringHub")
@@ -320,12 +316,11 @@ class RunCluster(CachedConfigName):
                 else:
                     lvl = logLevel
 
-                comp = HubComponent(hubComp.name, hubComp.id, lvl, False)
+                comp = JavaComponent(hubComp.name, hubComp.id, lvl, False)
                 comp.host = host
 
                 comp.setJVMOptions(None, jvmPath, jvmServer, jvmHeapInit,
                                    jvmHeapMax, jvmArgs, jvmExtra)
-                comp.setHitSpoolOptions(None, hsDir, hsIval, hsMaxFiles)
 
                 cls.__addComponent(hostMap, host, comp)
                 hubNum += 1
@@ -515,11 +510,12 @@ if __name__ == '__main__':
     from locate_pdaq import find_pdaq_config
 
     if len(sys.argv) <= 1:
-        print >> sys.stderr, ('Usage: %s [-C clusterDesc]' +
-                              ' configXML [configXML ...]') % sys.argv[0]
-        sys.exit(1)
+        raise SystemExit('Usage: %s [-C clusterDesc] configXML'
+                         ' [configXML ...]' % sys.argv[0])
 
     pdaqDir = find_pdaq_config()
+    if pdaqDir is None or len(pdaqDir) == 0:
+        raise SystemExit("Cannot find pDAQ configuration directory")
 
     nameList = []
     grabDesc = False
@@ -548,7 +544,7 @@ if __name__ == '__main__':
 
     for name in nameList:
         (ndir, nbase) = os.path.split(name)
-        if ndir is None:
+        if ndir is None or len(ndir) == 0:
             configDir = pdaqDir
         else:
             configDir = ndir
@@ -584,4 +580,4 @@ if __name__ == '__main__':
             comps = node.components()
             comps.sort()
             for comp in comps:
-                print '    %s %s' % (str(comp), str(comp.logLevel))
+                print '    %s %s' % (comp, comp.logLevel)
