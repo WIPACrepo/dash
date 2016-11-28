@@ -316,11 +316,12 @@ class RunCluster(CachedConfigName):
                 else:
                     lvl = logLevel
 
-                comp = JavaComponent(hubComp.name, hubComp.id, lvl, False)
+                comp = HubComponent(hubComp.name, hubComp.id, lvl, False)
                 comp.host = host
 
                 comp.setJVMOptions(None, jvmPath, jvmServer, jvmHeapInit,
                                    jvmHeapMax, jvmArgs, jvmExtra)
+                comp.setHitSpoolOptions(None, None, None, None)
 
                 cls.__addComponent(hostMap, host, comp)
                 hubNum += 1
