@@ -592,7 +592,7 @@ class Run(object):
 
                 if not self.__mgr.isSwitching(False):
                     logger.error("Unexpected run %d state %s" %
-                                 (self.__run_num, self.state))
+                                 (self.__run_num, self.__mgr.state))
 
             numWaits += 1
             if numWaits > numTries:
@@ -997,9 +997,9 @@ class BaseRun(object):
 
         success = summary["result"].upper() == "SUCCESS"
         if success:
-            prefix = ANSIEscapeCode.BG_GREEN + ANSIEscapeCode.FG_BLACK 
+            prefix = ANSIEscapeCode.BG_GREEN + ANSIEscapeCode.FG_BLACK
         else:
-            prefix = ANSIEscapeCode.BG_RED + ANSIEscapeCode.FG_BLACK 
+            prefix = ANSIEscapeCode.BG_RED + ANSIEscapeCode.FG_BLACK
         suffix = ANSIEscapeCode.OFF
 
         self.logInfo("%sRun %d%s (%s) %s seconds : %s" %
