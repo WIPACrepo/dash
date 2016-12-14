@@ -474,6 +474,10 @@ class FakeClient(object):
     def name(self):
         return self.__name
 
+    @property
+    def num(self):
+        return self.__num
+
     @classmethod
     def nextPortNumber(cls):
         p = cls.NEXT_PORT
