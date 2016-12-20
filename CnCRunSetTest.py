@@ -989,6 +989,8 @@ class CnCRunSetTest(unittest.TestCase):
         rcFile = MockRunConfigFile(self.__runConfigDir)
         runConfig = rcFile.create(runCompList, hubDomDict)
 
+        MockDefaultDomGeometryFile.create(self.__runConfigDir, hubDomDict)
+
         catchall.addExpectedText("Loading run configuration \"%s\"" %
                                  runConfig)
         catchall.addExpectedText("Loaded run configuration \"%s\"" % runConfig)
