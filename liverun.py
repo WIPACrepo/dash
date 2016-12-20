@@ -616,7 +616,7 @@ class LiveRun(BaseRun):
         return problem
 
     def getLastRunNumber(self):
-        "Return the last run number"
+        "Return the last used run and subrun numbers as a tuple"
         cmd = "%s lastrun" % self.__liveCmdProg
         self.logCmd(cmd)
 

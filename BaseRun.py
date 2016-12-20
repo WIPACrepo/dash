@@ -768,7 +768,7 @@ class BaseRun(object):
         return self.__cnc
 
     def getLastRunNumber(self):
-        "Return the last run number"
+        "Return the last used run and subrun numbers as a tuple"
         raise NotImplementedError()
 
     def getRunNumber(self):

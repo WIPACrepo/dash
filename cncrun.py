@@ -294,7 +294,7 @@ class CnCRun(BaseRun):
                 cnc.rpc_runset_subrun(self.__runSetId, subrun, [])
 
     def getLastRunNumber(self):
-        "Return the last run number"
+        "Return the last used run and subrun numbers as a tuple"
         num = 1
         subnum = 0
 
