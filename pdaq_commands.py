@@ -395,6 +395,36 @@ class CmdRun(BaseCmd):
         daqrun(args)
 
 
+class CmdRunNumber(BaseCmd):
+    @classmethod
+    def add_arguments(cls, parser):
+        from RunNumber import add_arguments
+        add_arguments(parser)
+
+    @classmethod
+    def cmdtype(cls):
+        return cls.CMDTYPE_NONE
+
+    @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Get/set last run number"
+
+    @classmethod
+    def is_valid_host(cls, args):
+        "Only a control host can start runs"
+        return Machineid.is_host(Machineid.CONTROL_HOST)
+
+    @classmethod
+    def name(cls):
+        return "runnumber"
+
+    @classmethod
+    def run(cls, args):
+        from RunNumber import get_or_set_run_number
+        daqrun(args)
+
+
 class CmdSortLogs(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
