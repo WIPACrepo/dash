@@ -495,12 +495,12 @@ class RealComponent(object):
         self.__state = 'ready'
         return 'CFG'
 
-    def __connect(self, *args):
+    def __connect(self, connList=None):
         if self.__compList is None:
             raise Exception("No component list for %s" % str(self))
 
         tmpDict = {}
-        for connList in args:
+        if connList is not None:
             for cd in connList:
                 for c in self.__compList:
                     if c.isComponent(cd["compName"], cd["compNum"]):

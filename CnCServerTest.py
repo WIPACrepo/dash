@@ -274,7 +274,7 @@ class RealComponent(object):
         self.__state = 'ready'
         return 'CFG'
 
-    def __connect(self, *args):
+    def __connect(self, connList=None):
         self.__state = 'connected'
         return 'CONN'
 
