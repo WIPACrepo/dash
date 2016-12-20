@@ -1423,7 +1423,8 @@ class MockComponent(object):
             return self.__name
         return '%s#%d' % (self.__name, self.__num)
 
-    def fileName(self):
+    @property
+    def filename(self):
         return '%s-%d' % (self.__name, self.__num)
 
     def getBeanFields(self, beanName):

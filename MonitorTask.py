@@ -37,14 +37,14 @@ class MonitorThread(CnCThread):
     def __createReporter(self):
         if RunOption.isMoniToBoth(self.__runOptions) and \
                self.__liveMoni is not None:
-            return MonitorToBoth(self.__runDir, self.__comp.fileName(),
+            return MonitorToBoth(self.__runDir, self.__comp.filename,
                                  self.__liveMoni)
         if RunOption.isMoniToFile(self.__runOptions):
             if self.__runDir is not None:
-                return MonitorToFile(self.__runDir, self.__comp.fileName())
+                return MonitorToFile(self.__runDir, self.__comp.filename)
         if RunOption.isMoniToLive(self.__runOptions) and \
                self.__liveMoni is not None:
-            return MonitorToLive(self.__comp.fileName(), self.__liveMoni)
+            return MonitorToLive(self.__comp.filename, self.__liveMoni)
 
         return None
 

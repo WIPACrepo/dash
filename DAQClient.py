@@ -185,7 +185,8 @@ class ComponentName(object):
     def __repr__(self):
         return self.fullname
 
-    def fileName(self):
+    @property
+    def filename(self):
         return '%s-%d' % (self.__name, self.__num)
 
     @property

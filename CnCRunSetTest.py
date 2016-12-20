@@ -106,7 +106,8 @@ class MockComponent(object):
             return []
         return self.__conn[:]
 
-    def fileName(self):
+    @property
+    def filename(self):
         return "%s-%s" % (self.__name, self.__num)
 
     @property

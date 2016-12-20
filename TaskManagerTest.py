@@ -111,7 +111,8 @@ class MockTMComponent(object):
         return beanName in self.__beanData and \
             fieldName in self.__beanData[beanName]
 
-    def fileName(self):
+    @property
+    def filename(self):
         return "%s-%d" % (self.__name, self.__num)
 
     def getBeanFields(self, beanName):

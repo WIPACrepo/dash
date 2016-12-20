@@ -111,7 +111,7 @@ class MonitorTaskTest(unittest.TestCase):
                 for c in compList:
                     for b in c.getBeanNames():
                         for f in c.getBeanFields(b):
-                            live.addExpected(c.fileName() + "*" + b + "+" + f,
+                            live.addExpected(c.filename + "*" + b + "+" + f,
                                              c.getSingleBeanField(b, f),
                                              Prio.ITS)
 
