@@ -1258,12 +1258,12 @@ class MockClusterNode(object):
 
 
 class MockCnCLogger(CnCLogger):
-    def __init__(self, appender, quiet=False, extraLoud=False):
+    def __init__(self, name, appender=None, quiet=False, extraLoud=False):
         #if appender is None: raise Exception('Appender cannot be None')
         self.__appender = appender
 
-        super(MockCnCLogger, self).__init__(appender, quiet=quiet,
-                                            extraLoud=extraLoud)
+        super(MockCnCLogger, self).__init__(name, appender=appender,
+                                            quiet=quiet, extraLoud=extraLoud)
 
 
 class MockConnection(object):
@@ -1769,7 +1769,8 @@ class MockDAQClient(DAQClient):
         return MockRPCClient(self.name, self.num, self.outLinks)
 
     def createLogger(self, quiet):
-        return MockCnCLogger(self.__appender, quiet, self.__extraLoud)
+        return MockCnCLogger(self.fullname, appender=self.__appender,
+                             quiet=quiet, extraLoud=self.__extraLoud)
 
     def createMBeanClient(self, host, port):
         return MockRPCClient(self.name, self.num, self.outLinks)

@@ -36,7 +36,8 @@ class MostlyDAQClient(DAQClient):
                                               quiet=True)
 
     def createLogger(self, quiet):
-        return MockCnCLogger(self.__appender, quiet=quiet)
+        return MockCnCLogger(self.fullname, appender=self.__appender,
+                             quiet=quiet)
 
 
 class FakeLogger(object):
@@ -149,7 +150,8 @@ class MostlyCnCServer(CnCServer):
         if not key in MostlyCnCServer.APPENDERS:
             MostlyCnCServer.APPENDERS[key] = MockAppender('Mock-%s' % key)
 
-        return MockCnCLogger(MostlyCnCServer.APPENDERS[key], quiet=quiet)
+        return MockCnCLogger(key, appender=MostlyCnCServer.APPENDERS[key],
+                             quiet=quiet)
 
     def createRunset(self, runConfig, compList, logger):
         return MostlyRunSet(self, runConfig, compList, logger, self.__dashlog)
@@ -414,7 +416,8 @@ class RealComponent(object):
         if not key in RealComponent.APPENDERS:
             RealComponent.APPENDERS[key] = MockAppender('Mock-%s' % key)
 
-        return MockCnCLogger(RealComponent.APPENDERS[key], quiet=quiet)
+        return MockCnCLogger(key, appender=RealComponent.APPENDERS[key],
+                             quiet=quiet)
 
     @property
     def fullname(self):

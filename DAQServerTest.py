@@ -217,7 +217,7 @@ class MockServer(CnCServer):
         return TinyClient(name, num, host, port, mbeanPort, connectors)
 
     def createCnCLogger(self, quiet):
-        return MockCnCLogger(MockServer.APPENDER, quiet)
+        return MockCnCLogger("CnC", appender=MockServer.APPENDER, quiet=quiet)
 
     def createRunset(self, runConfig, compList, logger):
         return MockRunSet(self, runConfig, compList, logger,

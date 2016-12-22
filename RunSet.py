@@ -559,7 +559,7 @@ class RunData(object):
         return (lastTime - firstTime) / 10000000000
 
     def __createDashLog(self):
-        log = DAQLog(level=DAQLog.ERROR)
+        log = DAQLog("dash", level=DAQLog.ERROR)
 
         if RunOption.isLogToFile(self.__runOptions):
             if self.__runDir is None:

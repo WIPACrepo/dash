@@ -886,7 +886,7 @@ class CnCServer(DAQPool):
                          self.__quiet)
 
     def createCnCLogger(self, quiet):
-        return CnCLogger(quiet=quiet)
+        return CnCLogger("CnC", quiet=quiet)
 
     def getClusterConfig(self):
         if self.__clusterConfig is None:

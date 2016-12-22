@@ -376,7 +376,7 @@ class DAQClient(ComponentName):
         return RPCClient(host, port)
 
     def createLogger(self, quiet):
-        return CnCLogger(quiet=quiet)
+        return CnCLogger(self.fullname, quiet=quiet)
 
     def createMBeanClient(self, host, mbeanPort):
         return MBeanClient(self.fullname, host, mbeanPort)

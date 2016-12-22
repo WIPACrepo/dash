@@ -239,7 +239,8 @@ class MostlyRunSet(RunSet):
         return log
 
     def createDashLog(self):
-        return MockCnCLogger(self.__dashAppender, quiet=True, extraLoud=False)
+        return MockCnCLogger("dash", appender=self.__dashAppender, quiet=True,
+                             extraLoud=False)
 
     def createRunData(self, runNum, clusterConfigName, runOptions, versionInfo,
                       spadeDir, copyDir=None, logDir=None):
@@ -280,7 +281,8 @@ class MostlyDAQClient(DAQClient):
                                               quiet=True)
 
     def createLogger(self, quiet):
-        return MockCnCLogger(self.__appender, quiet)
+        return MockCnCLogger(self.fullname, appender=self.__appender,
+                             quiet=quiet)
 
 
 class MostlyCnCServer(CnCServer):
@@ -332,7 +334,8 @@ class MostlyCnCServer(CnCServer):
                 MockAppender('Mock-%s' % key,
                              depth=IntegrationTest.NUM_COMPONENTS)
 
-        return MockCnCLogger(MostlyCnCServer.APPENDERS[key], quiet)
+        return MockCnCLogger(key, appender=MostlyCnCServer.APPENDERS[key],
+                             quiet=quiet)
 
     def getClusterConfig(self):
         return self.__clusterConfig

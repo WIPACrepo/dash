@@ -216,14 +216,16 @@ class DAQLog(object):
     ERROR = 5
     FATAL = 6
 
-    def __init__(self, appender=None, level=TRACE):
+    def __init__(self, name, appender=None, level=TRACE):
+        self.__name = name
         self.__level = level
         self.__appenderList = []
         if appender is not None:
             self.__appenderList.append(appender)
 
     def __str__(self):
-        return '%s:%s' % (self.__getLevelName(), str(self.__appenderList))
+        return '%s@%s:%s' % (self.__name, self.__getLevelName(),
+                             str(self.__appenderList))
 
     def __getLevelName(self):
         if self.__level == DAQLog.TRACE:
@@ -244,7 +246,8 @@ class DAQLog(object):
         "This is semi-private so CnCLogger can extend it"
         if level >= self.__level:
             if len(self.__appenderList) == 0:
-                raise LogException("No appenders have been added: " + msg)
+                 raise LogException("No appenders have been added to %s: " %
+                                    (self.__name, msg))
             for a in self.__appenderList:
                 a.write(msg, level=level)
 
@@ -424,7 +427,7 @@ if __name__ == "__main__":
         except ValueError:
             sys.exit("ERROR: Bad livelog argument '%s'" % args.liveLog)
 
-        log = CnCLogger(quiet=False)
+        log = CnCLogger("live", quiet=False)
         logServer = LogSocketServer(port, "all-components", logfile)
         try:
             logServer.startServing()
