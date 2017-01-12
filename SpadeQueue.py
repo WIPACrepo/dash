@@ -267,7 +267,11 @@ def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
                 ls.dumpRun(fd)
             # it's now safe to rename the combined log file
             os.rename(tmppath, path)
-            logger.error("Wrote combined log for run %d" % runNum)
+            try:
+                logger.error("Wrote combined log for run %d" % runNum)
+            except:
+                # don't die if we lose the race to close the file
+                pass
 
     if runTime is None:
         runTime = datetime.datetime.now()

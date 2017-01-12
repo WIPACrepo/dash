@@ -29,6 +29,8 @@ class MonitorThread(CnCThread):
         self.__warned = False
         self.__closeLock = threading.Lock()
 
+        self.__mbeanClient = comp.createMBeanClient()
+
         self.__beanKeys = []
         self.__beanFlds = {}
 
@@ -54,7 +56,7 @@ class MonitorThread(CnCThread):
 
         if self.__reporter is None:
             # reload MBean info to pick up any dynamically created MBeans
-            self.__comp.reloadBeanInfo()
+            self.__mbeanClient.reload()
 
             self.__reporter = self.__createReporter()
             if self.__reporter is None:
@@ -64,14 +66,14 @@ class MonitorThread(CnCThread):
             self.__beanFlds = {}
 
         if len(self.__beanKeys) == 0:
-            self.__beanKeys = self.__comp.getBeanNames()
+            self.__beanKeys = self.__mbeanClient.getBeanNames()
             self.__beanKeys.sort()
             for b in self.__beanKeys:
                 if self.isClosed:
                     # give up if this thread has been "closed"
                     return
 
-                self.__beanFlds[b] = self.__comp.getBeanFields(b)
+                self.__beanFlds[b] = self.__mbeanClient.getBeanFields(b)
 
         for b in self.__beanKeys:
             if self.isClosed:
@@ -79,7 +81,7 @@ class MonitorThread(CnCThread):
 
             flds = self.__beanFlds[b]
             try:
-                attrs = self.__comp.getMultiBeanFields(b, flds)
+                attrs = self.__mbeanClient.getAttributes(b, flds)
                 self.__refused = 0
             except BeanTimeoutException:
                 self.__refused += 1
@@ -87,7 +89,14 @@ class MonitorThread(CnCThread):
             except:
                 attrs = None
                 self.__dashlog.error("Ignoring %s:%s: %s" %
-                                     (str(self.__comp), b, exc_string()))
+                                     (str(self.__mbeanClient), b, exc_string()))
+
+            if attrs is not None and not isinstance(attrs, dict):
+                self.__dashlog.error("%s getAttributes(%s, %s) returned %s,"
+                                     " not dict (%s)" %
+                                     (self.__mbeanClient.fullname, b, flds,
+                                      type(attrs), attrs))
+                continue
 
             # report monitoring data
             if attrs and len(attrs) > 0 and not self.isClosed:
@@ -105,7 +114,8 @@ class MonitorThread(CnCThread):
                 except:
                     self.__dashlog.error(("Could not close %s monitor" +
                                           " thread: %s") %
-                                         (self.__comp, exc_string()))
+                                         (self.__mbeanClient.fullname,
+                                          exc_string()))
                 self.__reporter = None
 
     def get_new_thread(self):
@@ -205,7 +215,7 @@ class MonitorTask(CnCTask):
         if not RunOption.isMoniToNone(runOptions):
             for c in runset.components():
                 # refresh MBean info to pick up any new MBeans
-                c.reloadBeanInfo()
+                c.mbean.reload()
 
                 threadList[c] = self.createThread(c, runDir, liveMoni,
                                                   runOptions, dashlog)

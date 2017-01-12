@@ -11,7 +11,7 @@ from WatchdogTask import WatchdogTask
 from DAQMocks import MockIntervalTimer, MockLiveMoni, MockLogger, MockRunSet
 
 
-class MockTMComponent(object):
+class MockTMMBeanClient(object):
     BEANBAG = {
         "stringHub": {
             "stringhub": {
@@ -77,17 +77,16 @@ class MockTMComponent(object):
         self.__name = name
         self.__num = num
 
-        self.__order = None
-        self.__updatedRates = False
-
         self.__beanData = self.__createBeanData()
 
     def __str__(self):
-        return self.fullname
+        if self.__num == 0:
+            return self.__name
+        return "%s#%d" % (self.__name, self.__num)
 
     def __createBeanData(self):
         if not self.__name in self.BEANBAG:
-            raise Exception("No bean data found for %s" % self)
+            raise Exception("No bean data found for %s" % self.__name)
 
         data = {}
         for b in self.BEANBAG[self.__name]:
@@ -98,8 +97,8 @@ class MockTMComponent(object):
 
         return data
 
-    def addBeanData(self, beanName, fieldName, value):
-        if self.checkBeanField(beanName, fieldName):
+    def addData(self, beanName, fieldName, value):
+        if self.check(beanName, fieldName):
             raise Exception("Value for %c bean %s field %s already exists" %
                             (self, beanName, fieldName))
 
@@ -107,7 +106,7 @@ class MockTMComponent(object):
             self.__beanData[beanName] = {}
         self.__beanData[beanName][fieldName] = value
 
-    def checkBeanField(self, beanName, fieldName):
+    def check(self, beanName, fieldName):
         return beanName in self.__beanData and \
             fieldName in self.__beanData[beanName]
 
@@ -115,30 +114,60 @@ class MockTMComponent(object):
     def filename(self):
         return "%s-%d" % (self.__name, self.__num)
 
-    def getBeanFields(self, beanName):
-        return self.__beanData[beanName].keys()
-
-    def getBeanNames(self):
-        return self.__beanData.keys()
-
     @property
     def fullname(self):
         if self.__num == 0:
             return self.__name
         return "%s#%d" % (self.__name, self.__num)
 
-    def getMultiBeanFields(self, beanName, fieldList):
+    def getBeanFields(self, beanName):
+        return self.__beanData[beanName].keys()
+
+    def getBeanNames(self):
+        return self.__beanData.keys()
+
+    def getAttributes(self, beanName, fieldList):
         rtnMap = {}
         for f in fieldList:
-            rtnMap[f] = self.getSingleBeanField(beanName, f)
+            rtnMap[f] = self.get(beanName, f)
         return rtnMap
 
-    def getSingleBeanField(self, beanName, fieldName):
-        if not self.checkBeanField(beanName, fieldName):
+    def get(self, beanName, fieldName):
+        if not self.check(beanName, fieldName):
             raise Exception("No %s data for bean %s field %s" %
                             (self, beanName, fieldName))
 
         return self.__beanData[beanName][fieldName]
+
+    def reload(self):
+        pass
+
+
+class MockTMComponent(object):
+    def __init__(self, name, num):
+        self.__name = name
+        self.__num = num
+
+        self.__order = None
+        self.__updatedRates = False
+
+        self.__mbean = MockTMMBeanClient(name, num)
+
+    def __str__(self):
+        return self.fullname
+
+    def createMBeanClient(self):
+        return self.__mbean
+
+    @property
+    def filename(self):
+        return "%s-%d" % (self.__name, self.__num)
+
+    @property
+    def fullname(self):
+        if self.__num == 0:
+            return self.__name
+        return "%s#%d" % (self.__name, self.__num)
 
     @property
     def isBuilder(self):
@@ -148,9 +177,9 @@ class MockTMComponent(object):
     def isSource(self):
         return self.__name.lower().endswith("hub")
 
-    def reloadBeanInfo(self):
-        pass
-
+    @property
+    def mbean(self):
+        return self.__mbean
     @property
     def name(self):
         return self.__name

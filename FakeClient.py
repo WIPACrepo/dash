@@ -8,7 +8,7 @@ import time
 import xmlrpclib
 
 from DAQConst import DAQPort
-from DAQRPC import RPCServer
+from DAQRPC import RPCClient, RPCServer
 
 
 class UnknownMethodHandler(object):
@@ -544,8 +544,10 @@ class FakeClient(object):
         t.setDaemon(True)
         t.start()
 
-        self.__cnc = xmlrpclib.ServerProxy('http://localhost:%d' %
-                                           DAQPort.CNCSERVER, verbose=False)
+        #self.__cnc = xmlrpclib.ServerProxy('http://localhost:%d' %
+        #                                   DAQPort.CNCSERVER, verbose=False)
+        self.__cnc = RPCClient()
+        self.__cnc.start("localhost", DAQPort.CNCSERVER)
 
         for c in self.__connections:
             c.start()

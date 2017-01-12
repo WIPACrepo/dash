@@ -1301,6 +1301,62 @@ class MockConnection(object):
         return self.__port
 
 
+class MockMBeanClient(object):
+    def __init__(self, name):
+        self.__name = name
+        self.__beanData = {}
+
+    def __str__(self):
+        return self.__name
+
+    def addData(self, beanName, fieldName, value):
+        if self.check(beanName, fieldName):
+            raise Exception("Value for %s bean %s field %s already exists" %
+                            (self, beanName, fieldName))
+
+        if not beanName in self.__beanData:
+            self.__beanData[beanName] = {}
+
+        self.__beanData[beanName][fieldName] = value
+
+    def check(self, beanName, fieldName):
+        return beanName in self.__beanData and \
+            fieldName in self.__beanData[beanName]
+
+    def get(self, beanName, fieldName):
+        if not self.check(beanName, fieldName):
+            raise Exception("No %s data for bean %s field %s" %
+                            (self, beanName, fieldName))
+
+        return self.__beanData[beanName][fieldName]
+
+    def getAttributes(self, beanName, fieldList):
+        rtnMap = {}
+        for f in fieldList:
+            rtnMap[f] = self.get(beanName, f)
+
+            if isinstance(rtnMap[f], Exception):
+                raise rtnMap[f]
+        return rtnMap
+
+    def getBeanFields(self, beanName):
+        return self.__beanData[beanName].keys()
+
+    def getBeanNames(self):
+        return self.__beanData.keys()
+
+    def reload(self):
+        pass
+
+    def setData(self, beanName, fieldName, value):
+
+        if not self.check(beanName, fieldName):
+            raise Exception("%c bean %s field %s has not been added" %
+                            (self, beanName, fieldName))
+
+        self.__beanData[beanName][fieldName] = value
+
+
 class MockComponent(object):
     def __init__(self, name, num=0, host='localhost'):
         self.__name = name
@@ -1328,8 +1384,7 @@ class MockComponent(object):
         self.__replayHub = False
         self.__firstGoodTime = None
         self.__lastGoodTime = None
-
-        self.__beanData = {}
+        self.__mbeanClient = None
 
     def __cmp__(self, other):
         val = cmp(self.__name, other.__name)
@@ -1356,17 +1411,6 @@ class MockComponent(object):
             outStr += '[' + ','.join(extra) + ']'
         return outStr
 
-    def addBeanData(self, beanName, fieldName, value):
-
-        if self.checkBeanField(beanName, fieldName):
-            raise Exception("Value for %s bean %s field %s already exists" %
-                            (self, beanName, fieldName))
-
-        if not beanName in self.__beanData:
-            self.__beanData[beanName] = {}
-
-        self.__beanData[beanName][fieldName] = value
-
     def addDeadCount(self):
         self.__deadCount += 1
 
@@ -1383,10 +1427,6 @@ class MockComponent(object):
         else:
             connCh = MockConnection.OPT_OUTPUT
         self.__connectors.append(MockConnection(name, connCh))
-
-    def checkBeanField(self, beanName, fieldName):
-        return beanName in self.__beanData and \
-            fieldName in self.__beanData[beanName]
 
     def close(self):
         pass
@@ -1406,6 +1446,14 @@ class MockComponent(object):
 
     def connectors(self):
         return self.__connectors[:]
+
+    def _createMBeanClient(self):
+        return MockMBeanClient(self.fullname)
+
+    def createMBeanClient(self):
+        if self.__mbeanClient is None:
+            self.__mbeanClient = self._createMBeanClient()
+        return self.__mbeanClient
 
     def forcedStop(self):
         if self.__stopFail:
@@ -1427,42 +1475,30 @@ class MockComponent(object):
     def filename(self):
         return '%s-%d' % (self.__name, self.__num)
 
-    def getBeanFields(self, beanName):
-        return self.__beanData[beanName].keys()
-
-    def getBeanNames(self):
-        return self.__beanData.keys()
-
     def getConfigureWait(self):
         return self.__configWait
 
-    def getMultiBeanFields(self, beanName, fieldList):
-        rtnMap = {}
-        for f in fieldList:
-            rtnMap[f] = self.getSingleBeanField(beanName, f)
-
-            if isinstance(rtnMap[f], Exception):
-                raise rtnMap[f]
-        return rtnMap
-
     def getRunData(self, runnum):
+        if self.__mbeanClient is None:
+            self.__mbeanClient = self.createMBeanClient()
+
         if self.__num == 0:
             if self.__name.startswith("event"):
-                evtData = self.getSingleBeanField("backEnd", "EventData")
+                evtData = self.__mbeanClient.get("backEnd", "EventData")
                 numEvts = int(evtData[0])
                 lastTime = long(evtData[1])
 
-                val = self.getSingleBeanField("backEnd", "FirstEventTime")
+                val = self.__mbeanClient.get("backEnd", "FirstEventTime")
                 firstTime = long(val)
 
-                good = self.getSingleBeanField("backEnd", "GoodTimes")
+                good = self.__mbeanClient.get("backEnd", "GoodTimes")
                 firstGood = long(good[0])
                 lastGood = long(good[1])
                 return (numEvts, firstTime, lastTime, firstGood, lastGood)
             elif self.__name.startswith("secondary"):
                 for bldr in ("tcal", "sn", "moni"):
-                    val = self.getSingleBeanField(bldr + "Builder",
-                                                  "NumDispatchedData")
+                    val = self.__mbeanClient.get(bldr + "Builder",
+                                                 "NumDispatchedData")
                     if bldr == "tcal":
                         numTcal = long(val)
                     elif bldr == "sn":
@@ -1473,13 +1509,6 @@ class MockComponent(object):
                 return (numTcal, numSN, numMoni)
 
         return (None, None, None)
-
-    def getSingleBeanField(self, beanName, fieldName):
-        if not self.checkBeanField(beanName, fieldName):
-            raise Exception("No %s data for bean %s field %s" %
-                            (self, beanName, fieldName))
-
-        return self.__beanData[beanName][fieldName]
 
     @property
     def host(self):
@@ -1518,6 +1547,13 @@ class MockComponent(object):
     def logTo(self, logIP, logPort, liveIP, livePort):
         pass
 
+    @property
+    def mbean(self):
+        if self.__mbeanClient is None:
+            self.__mbeanClient = self.createMBeanClient()
+
+        return self.__mbeanClient
+
     def monitorCount(self):
         return self.__monitorCount
 
@@ -1535,9 +1571,6 @@ class MockComponent(object):
     def prepareSubrun(self, id):
         pass
 
-    def reloadBeanInfo(self):
-        pass
-
     def reset(self):
         self.__connected = False
         self.__configured = False
@@ -1549,14 +1582,6 @@ class MockComponent(object):
 
     def setBadHub(self):
         self.__isBadHub = True
-
-    def setBeanData(self, beanName, fieldName, value):
-
-        if not self.checkBeanField(beanName, fieldName):
-            raise Exception("%c bean %s field %s has not been added" %
-                            (self, beanName, fieldName))
-
-        self.__beanData[beanName][fieldName] = value
 
     def setConfigureWait(self, waitNum):
         self.__configWait = waitNum

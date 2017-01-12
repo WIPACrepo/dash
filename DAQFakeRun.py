@@ -12,7 +12,9 @@ import traceback
 from xmlrpclib import ServerProxy
 from CnCServer import Connector
 from DAQConfig import DAQConfigParser
+from DAQConst import DAQPort
 from DAQMocks import MockRunConfigFile, MockTriggerConfig
+from DAQRPC import RPCClient
 from FakeClient import FakeClient, FakeClientException
 from RunOption import RunOption
 from utils import ip
@@ -318,22 +320,23 @@ class DAQFakeRun(object):
 
     LOCAL_ADDR = ip.getLocalIpAddr()
     CNCSERVER_HOST = LOCAL_ADDR
-    CNCSERVER_PORT = 8080
 
-    def __init__(self, cncHost=CNCSERVER_HOST, cncPort=CNCSERVER_PORT,
-                 verbose=False):
+    def __init__(self, cncHost=CNCSERVER_HOST, cncPort=DAQPort.CNCSERVER,
+                 dumpRPC=False):
         """
         Create a fake DAQRun
 
         cncHost - CnCServer host name/address
         cncPort - CnCServer port number
-        verbose - if XML-RPC server should print connection info
+        dumpRPC - if XML-RPC server should print connection info
         """
 
         self.__logThreads = []
 
-        self.__client = ServerProxy("http://%s:%s" % (cncHost, cncPort),
-                                    verbose=verbose)
+        #self.__client = ServerProxy("http://%s:%s" % (cncHost, cncPort),
+        #                            verbose=dumpRPC)
+        self.__client = RPCClient()
+        self.__client.start(cncHost, cncPort)
 
     @staticmethod
     def __createClusterDescriptionFile(runCfgDir):
@@ -379,15 +382,18 @@ class DAQFakeRun(object):
         sock.connect((host, port))
         return sock
 
-    def __runInternal(self, runsetId, runNum, duration):
+    def __runInternal(self, runsetId, runNum, duration, verbose=False):
         """
         Take all components through a simulated run
 
         runsetId - ID of runset being used
         runNum - run number
         duration - length of run in seconds
+        verbose - if True, print progress messages
         """
         runComps = self.__client.rpc_runset_list(runsetId)
+        if verbose:
+            print "Found %d components" % len(runComps)
 
         logList = []
         for c in runComps:
@@ -463,7 +469,7 @@ class DAQFakeRun(object):
                 print >>sys.stderr, "Cannot stop run for runset #%d" % runsetId
                 traceback.print_exc()
 
-    def __runOne(self, compList, runCfgDir, runNum, duration):
+    def __runOne(self, compList, runCfgDir, runNum, duration, verbose=False):
         """
         Simulate a run
 
@@ -489,7 +495,7 @@ class DAQFakeRun(object):
             print >>sys.stderr, "Expected %d run sets" % (numSets + 1)
 
         try:
-            self.__runInternal(runsetId, runNum, duration)
+            self.__runInternal(runsetId, runNum, duration, verbose=verbose)
         finally:
             traceback.print_exc()
             self.closeAll(runsetId)
@@ -553,7 +559,7 @@ class DAQFakeRun(object):
 
         cls.__createClusterDescriptionFile(runCfgDir)
 
-        return cfgFile.create(nameList, [], trigCfg=trigCfg)
+        return cfgFile.create(nameList, {}, trigCfg=trigCfg)
 
     @staticmethod
     def hackActiveConfig(clusterCfg):
@@ -569,13 +575,10 @@ class DAQFakeRun(object):
         with open(path, 'w') as fd:
             print >>fd, clusterCfg
 
-    @staticmethod
-    def makeMockClusterConfig(runCfgDir, comps, numHubs):
-        path = os.path.join(runCfgDir, "localhost.cfg")
-        if os.path.exists(path):
-            return
-
-        path = os.path.join(runCfgDir, "localhost-cluster.cfg")
+    @classmethod
+    def makeMockClusterConfig(cls, runCfgDir, comps, numHubs):
+        mockName = "localhost-cluster.cfg"
+        path = os.path.join(runCfgDir, mockName)
         if os.path.exists(path):
             return
 
@@ -602,6 +605,124 @@ class DAQFakeRun(object):
             print >>fd, "  </host>"
             print >>fd, "</cluster>"
 
+    @classmethod
+    def makeMockRunConfig(cls, runCfgDir, comps, numHubs, moniPeriod=None):
+        mockName = "sim-localhost"
+        trigCfgName = "spts-IT-stdtest-01"
+
+        path = os.path.join(runCfgDir, mockName + ".xml")
+        if not os.path.exists(path):
+            with open(path, 'w') as fd:
+                print >>fd, "<runConfig>"
+                if moniPeriod is not None:
+                    print >>fd, "  <monitor period=\"%d\"/>" % moniPeriod
+                print >>fd, "  <randomConfig>"
+                for c in comps:
+                    if c.name != "stringHub":
+                        continue
+
+                    print >>fd, "  <string id=\"%d\">" % c.num
+                print >>fd, "  </randomConfig>"
+
+                print >>fd, "  <triggerConfig>%s</triggerConfig>" % trigCfgName
+                for c in comps:
+                    nm = c.name
+                    if nm == "stringHub":
+                        continue
+
+                    print >>fd, "  <runComponent name=\"%s\"/>" % nm
+
+                print >>fd, "</runConfig>"
+
+        cls.makeMockTriggerConfig(runCfgDir, trigCfgName)
+
+    @classmethod
+    def writeTagAndValue(cls, fd, indent, name, value):
+        print >>fd, "%s<%s>%s</%s>" % (indent, name, value, name)
+
+    @classmethod
+    def writeTriggerConfig(cls, fd, indent, trigType, trigCfgId, srcId, name,
+                           parameterDict, readoutDict):
+        indent2 = indent + "  "
+        indent3 = indent2 + "  "
+        readoutDefaults = {
+            "type": ("readoutType", 0),
+            "offset": ("timeOffset", 0),
+            "minus": ("timeMinus", 10000),
+            "plus": ("timePlus", 10000),
+        }
+
+        print >>fd
+        print >>fd, "%s<triggerConfig>" % indent
+        cls.writeTagAndValue(fd, indent2, "triggerType", str(trigType))
+        cls.writeTagAndValue(fd, indent2, "triggerConfigId", str(trigCfgId))
+        cls.writeTagAndValue(fd, indent2, "sourceId", str(srcId))
+        cls.writeTagAndValue(fd, indent2, "triggerName", name)
+        if parameterDict is not None:
+            for name, value in parameterDict.items():
+                print >>fd, "%s<parameterConfig>" % indent2
+                cls.writeTagAndValue(fd, indent3, "parameterName", str(name))
+                cls.writeTagAndValue(fd, indent3, "parameterValueName",
+                                     str(value))
+                print >>fd, "%s</parameterConfig>" % indent2
+
+        print >>fd, "%s<readoutConfig>" % indent2
+        for key in ("type", "offset", "minus", "plus"):
+            name, defValue = readoutDefaults[key]
+            if readoutDict is not None and key in readoutDict:
+                value = readoutDict[key]
+            else:
+                value = defValue
+            cls.writeTagAndValue(fd, indent3, name, str(value))
+        print >>fd, "%s</readoutConfig>" % indent2
+        print >>fd, "%s</triggerConfig>" % indent
+
+    @classmethod
+    def makeMockTriggerConfig(cls, runCfgDir, trigCfgName):
+        inIceId = 4000
+        iceTopId = 5000
+        globalId = 6000
+
+        path = os.path.join(runCfgDir, "trigger", trigCfgName + ".xml")
+        if not os.path.exists(path):
+            with open(path, 'w') as fd:
+                indent = "  "
+                print >>fd, "<activeTriggers>"
+                # add global trigger
+                cls.writeTriggerConfig(fd, indent, 3, -1, globalId,
+                                       "ThroughputTrigger", None, None)
+
+                # add in-ice fixed rate trigger
+                cls.writeTriggerConfig(fd, indent, 23, 23050, inIceId,
+                                       "FixedRateTrigger",
+                                       { "interval": 30000000000, },
+                                       { "minus": 5000000, "plus": 5000000 })
+
+                # add in-ice min bias trigger
+                cls.writeTriggerConfig(fd, indent, 2, 0, inIceId,
+                                       "MinBiasTrigger",
+                                       { "prescale": 23, },
+                                       { "minus": 25000, "plus": 25000 })
+
+                # add icetop simple majority trigger
+                cls.writeTriggerConfig(fd, indent, 0, 102, iceTopId,
+                                       "SimpleMajorityTrigger",
+                                       { "threshold": 6, }, None)
+
+                # add icetop calibration trigger
+                cls.writeTriggerConfig(fd, indent, 1, 1009, iceTopId,
+                                       "CalibrationTrigger",
+                                       { "hitType": 4, },
+                                       { "minus": 1000, "plus": 1000 })
+
+                # add icetop min bias trigger
+                cls.writeTriggerConfig(fd, indent, 2, 101, iceTopId,
+                                       "MinBiasTrigger",
+                                       { "prescale": 10000, }, None)
+
+                # add final tag
+                print >>fd, "</activeTriggers>"
+
     def makeRunset(self, compList, runCfg, runNum):
         nameList = []
         for c in compList:
@@ -615,7 +736,8 @@ class DAQFakeRun(object):
 
         return runsetId
 
-    def runAll(self, comps, startNum, numRuns, duration, runCfgDir):
+    def runAll(self, comps, startNum, numRuns, duration, runCfgDir,
+               verbose=False):
         runNum = startNum
 
         # grab the number of components before we add ours
@@ -636,7 +758,8 @@ class DAQFakeRun(object):
             # simulate a run
             #
             try:
-                self.__runOne(comps, runCfgDir, runNum, duration)
+                self.__runOne(comps, runCfgDir, runNum, duration,
+                              verbose=verbose)
             except:
                 traceback.print_exc()
             runNum += 1
@@ -656,7 +779,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-c", "--config", dest="runCfgDir",
-                        default="/tmp/config",
+                        default="/tmp/pdaq/config",
                         help="Run configuration directory")
     parser.add_argument("-d", "--duration", type=int, dest="duration",
                         default="5",
@@ -679,12 +802,16 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--numOfRuns", type=int, dest="numRuns",
                         default=1,
                         help="Number of runs")
+    parser.add_argument("-M", "--moniPeriod", type=int, dest="moniPeriod",
+                        default=None,
+                        help="Number of seconds between monitoring requests")
     parser.add_argument("-p", "--firstPortNumber", type=int, dest="firstPort",
                         default=FakeClient.NEXT_PORT,
                         help="First port number used for fake components")
     parser.add_argument("-q", "--quiet", dest="quiet",
                         action="store_true", default=False,
-                        help="Fake components don't announce what they're doing")
+                        help="Fake components don't announce what they're"
+                        " doing")
     parser.add_argument("-R", "--realNames", dest="realNames",
                         action="store_true", default=False,
                         help="Use component names without numeric prefix")
@@ -700,6 +827,9 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--icetopTrigger", dest="icetopTrig",
                         action="store_true", default=False,
                         help="Use existing icetop trigger")
+    parser.add_argument("-v", "--verbose", dest="verbose",
+                        action="store_true", default=False,
+                        help="Print progress messages during run")
 
     args = parser.parse_args()
 
@@ -731,14 +861,24 @@ if __name__ == "__main__":
     from DumpThreads import DumpThreadsOnSignal
     DumpThreadsOnSignal()
 
+    args.runCfgDir = os.path.abspath(args.runCfgDir)
+    if not os.path.exists(args.runCfgDir):
+        os.makedirs(args.runCfgDir)
+    trigSubdir = os.path.join(args.runCfgDir, "trigger")
+    if not os.path.exists(trigSubdir):
+        os.makedirs(trigSubdir)
+
     # create components
     #
     comps = DAQFakeRun.createComps(compData, args.forkClients, quiet=args.quiet)
 
     DAQFakeRun.makeMockClusterConfig(args.runCfgDir, comps, args.numHubs)
+    DAQFakeRun.makeMockRunConfig(args.runCfgDir, comps, args.numHubs,
+                                 args.moniPeriod)
 
     try:
         DAQConfigParser.getClusterConfiguration(None, useActiveConfig=True,
+                                                configDir=args.runCfgDir,
                                                 validate=False)
     except:
         DAQFakeRun.hackActiveConfig("sim-localhost")
@@ -748,4 +888,4 @@ if __name__ == "__main__":
     runner = DAQFakeRun()
 
     runner.runAll(comps, args.runNum, args.numRuns, args.duration,
-                  args.runCfgDir)
+                  args.runCfgDir, verbose=args.verbose)

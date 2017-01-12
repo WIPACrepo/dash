@@ -223,6 +223,7 @@ class ValueWatcher(Watcher):
 class WatchData(object):
     def __init__(self, comp, dashlog):
         self.__comp = comp
+        self.__mbeanClient = comp.createMBeanClient()
         self.__dashlog = dashlog
 
         self.__inputFields = {}
@@ -253,8 +254,10 @@ class WatchData(object):
         unhealthy = []
         if len(watchList) == 1:
             try:
-                val = self.__comp.getSingleBeanField(watchList[0].beanName(),
-                                                     watchList[0].fieldName())
+                beanName = watchList[0].beanName()
+                fldName = watchList[0].fieldName()
+                val = self.__mbeanClient.get(beanName, fldName)
+
                 chkVal = watchList[0].check(val)
             except Exception as ex:
                 unhealthy.append(watchList[0].unhealthyRecord(ex))
@@ -275,7 +278,7 @@ class WatchData(object):
                 fldList.append(f.fieldName())
 
             try:
-                valMap = self.__comp.getMultiBeanFields(beanName,  fldList)
+                valMap = self.__mbeanClient.getAttributes(beanName, fldList)
             except Exception as ex:
                 fldList = []
                 unhealthy.append(watchList[0].unhealthyRecord(ex))
@@ -303,7 +306,7 @@ class WatchData(object):
         return unhealthy
 
     def addInputValue(self, otherComp, beanName, fieldName):
-        self.__comp.checkBeanField(beanName, fieldName)
+        self.__mbeanClient.check(beanName, fieldName)
 
         if beanName not in self.__inputFields:
             self.__inputFields[beanName] = []
@@ -312,7 +315,7 @@ class WatchData(object):
         self.__inputFields[beanName].append(vw)
 
     def addOutputValue(self, otherComp, beanName, fieldName):
-        self.__comp.checkBeanField(beanName, fieldName)
+        self.__mbeanClient.check(beanName, fieldName)
 
         if beanName not in self.__outputFields:
             self.__outputFields[beanName] = []
@@ -326,7 +329,7 @@ class WatchData(object):
         (or, when lessThan==False, if value rises above the threshold
         """
 
-        self.__comp.checkBeanField(beanName, fieldName)
+        self.__mbeanClient.check(beanName, fieldName)
 
         if beanName not in self.__thresholdFields:
             self.__thresholdFields[beanName] = []

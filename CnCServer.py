@@ -680,7 +680,7 @@ class CnCServer(DAQPool):
                     self.__log.error("Couldn't create server socket: %s" % e)
                     sys.exit("Couldn't create server socket: %s" % e)
 
-        if self.__server:
+        if self.__server is not None:
             self.__server.register_function(self.rpc_close_files)
             self.__server.register_function(self.rpc_component_connector_info)
             self.__server.register_function(self.rpc_component_count)
@@ -1037,7 +1037,7 @@ class CnCServer(DAQPool):
                                      includeRunsetComponents=False):
         c = self.__findComponentById(compId, includeRunsetComponents)
         if c is not None:
-            return c.getSingleBeanField(bean, field)
+            return c.mbean.get(bean, field)
 
         raise CnCServerException("Unknown component #%d" % compId)
 

@@ -217,6 +217,8 @@ class DAQLog(object):
     FATAL = 6
 
     def __init__(self, name, appender=None, level=TRACE):
+        if not isinstance(name, str):
+            raise Exception("Name cannot be %s<%s>" % (name, type(name)))
         self.__name = name
         self.__level = level
         self.__appenderList = []

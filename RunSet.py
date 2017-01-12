@@ -310,6 +310,12 @@ class GoodTimeThread(CnCThread):
                     self.__badComps[c] = 1
                     continue
 
+                if not isinstance(result, dict):
+                    self.__log.error("Expected dictionary, not %s for %s"
+                                     " (result=%s)" %
+                                     (type(result), result, c.fullname))
+                    continue
+
                 if self.__badComps.has_key(c):
                     # got a result from a component which previously failed
                     del self.__badComps[c]
@@ -919,19 +925,6 @@ class RunData(object):
             monDict["tcalTime"] = str(tcalTime)
 
         return monDict
-
-    def getMultiBeanFields(self, comp, bean, fldList):
-        tGroup = ComponentOperationGroup(ComponentOperation.GET_MULTI_BEAN)
-        tGroup.start(comp, self.__dashlog, (bean, fldList))
-        tGroup.wait(waitSecs=10)
-
-        r = tGroup.results()
-        if not r.has_key(comp):
-            result = ComponentOperation.RESULT_ERROR
-        else:
-            result = r[comp]
-
-        return result
 
     def getRunData(self, comps):
         nEvts = 0

@@ -19,6 +19,24 @@ from utils import ip
 CAUGHT_WARNING = False
 
 
+class TinyMBeanClient(object):
+    def __init__(self):
+        pass
+
+    def getAttributes(self, beanname, fldlist):
+        if beanname != "stringhub":
+            raise Exception("Unknown bean \"%s\"" % beanname)
+        rtndict = {}
+        for fld in fldlist:
+            if fld == "LatestFirstChannelHitTime" or \
+                fld == "NumberOfNonZombies" or \
+                fld == "EarliestLastChannelHitTime":
+                rtndict[fld] = 10
+            else:
+                raise Exception("Unknown beanField \"%s.%s\"" % (beanname, fld))
+        return rtndict
+
+
 class TinyClient(object):
     def __init__(self, name, num, host, port, mbeanPort, connectors):
         self.__name = name
@@ -35,6 +53,7 @@ class TinyClient(object):
         self.__order = None
 
         self.__log = None
+        self.__mbeanClient = TinyMBeanClient()
 
     def __str__(self):
         if self.__mbeanPort == 0:
@@ -59,19 +78,6 @@ class TinyClient(object):
         if self.__num == 0:
             return self.__name
         return "%s#%d" % (self.__name, self.__num)
-
-    def getMultiBeanFields(self, beanname, fldlist):
-        if beanname != "stringhub":
-            raise Exception("Unknown bean \"%s\"" % beanname)
-        rtndict = {}
-        for fld in fldlist:
-            if fld == "LatestFirstChannelHitTime" or \
-                fld == "NumberOfNonZombies" or \
-                fld == "EarliestLastChannelHitTime":
-                rtndict[fld] = 10
-            else:
-                raise Exception("Unknown beanField \"%s.%s\"" % (beanname, fld))
-        return rtndict
 
     @property
     def id(self):
@@ -113,6 +119,10 @@ class TinyClient(object):
                 "rpcPort": self.__port,
                 "mbeanPort": self.__mbeanPort,
                 "state": self.__state}
+
+    @property
+    def mbean(self):
+        return self.__mbeanClient
 
     @property
     def name(self):
