@@ -606,7 +606,13 @@ class Run(object):
 
             curRunNum = self.__mgr.getRunNumber()
             while self.__run_num < curRunNum:
-                self.__mgr.summarize(self.__run_num)
+                try:
+                    self.__mgr.summarize(self.__run_num)
+                except:
+                    import traceback
+                    logger.error("Cannot summarize %d:\n%s" %
+                                 (self.__run_num, traceback.format_exc()))
+
                 logger.info("Switched from run %d to %d" %
                             (self.__run_num, curRunNum))
 
