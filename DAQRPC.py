@@ -9,6 +9,7 @@
 
 import DocXMLRPCServer
 import datetime
+import errno
 import math
 import select
 import socket
@@ -120,11 +121,9 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
             try:
                 r, w, e = select.select([self.socket], [], [], self.__timeout)
             except select.error as err:
-                # ignore interrupted system calls
-                if err[0] == 4:
+                if err[0] == errno.EINTR: # Interrupted system call
                     continue
-                # errno 9: Bad file descriptor
-                if err[0] != 9:
+                if err[0] != errno.EBADF: # Bad file descriptor
                     traceback.print_exc()
                 break
             if r:
