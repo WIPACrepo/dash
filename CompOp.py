@@ -274,6 +274,10 @@ class ComponentOperationGroup(object):
         return (numAlive, numErrors)
 
     def reportErrors(self, logger, method):
+        if logger is None:
+            # This can happen when multiple threads are trying to stop a run
+            return
+
         (numAlive, numErrors) = self.getErrors()
 
         if numAlive > 0:
