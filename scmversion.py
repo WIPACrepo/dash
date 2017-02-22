@@ -391,7 +391,7 @@ def get_scmversion(dir=None):
             info = __make_empty_info()
         else:
             # Return contents of file written when pdaq was deployed
-            line = file(SCM_REV_FILENAME).readlines()[0]
+            line = file(SCM_REV_FILENAME).readline()
             flds = line.split(' ')
             if len(flds) != len(FIELD_NAMES):
                 raise SCMVersionError("Cannot load cached version: expected"
