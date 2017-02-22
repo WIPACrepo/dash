@@ -113,7 +113,6 @@ class RandomHub(HubComponent):
 class ConfigObject(object):
     def __init__(self, cfgdir, fname):
         self.xdict = None
-        self.xml_runcfg = None
         self.__cfgdir = cfgdir
 
         (parent, name) = os.path.split(fname)
@@ -158,25 +157,28 @@ class ConfigObject(object):
         If the file is not accessible raise XMLBadFileError
         """
         try:
-            self.xml_runcfg = xml_dict(self.fullpath)
-        except IOError:
-            print "*** <%s> -> %s" % (type(self), self.fullpath)
-            import traceback
-            traceback.print_exc()
-            raise XMLBadFileError("Cannot read xml file '%s'" % self.__filename)
-
-        self.xdict = self.xml_runcfg.xml_dict
+            self.xdict = xml_dict(self.fullpath).xml_dict
+        except IOError, ioe:
+            raise XMLBadFileError("Cannot read xml file '%s': %s" %
+                                  (self.__filename, ioe))
 
 
 class TriggerConfig(ConfigObject):
-    def __init__(self, cfgdir, fname):
+    def __init__(self, cfgdir, fname, parse=False):
         super(TriggerConfig, self).__init__(cfgdir, fname)
 
-        self.load()
+        if parse:
+            self.load()
+        elif not os.path.exists(self.fullpath):
+            raise XMLBadFileError("Trigger configuration file '%s'"
+                                  " does not exist" % self.filename)
 
     @property
     def configdir(self):
         return os.path.join(super(TriggerConfig, self).configdir, 'trigger')
+
+    def load(self):
+        super(TriggerConfig, self).load()
 
     def set_initial(self, trig_config_dict):
         self.initial_dict = trig_config_dict
@@ -265,7 +267,7 @@ class RunDom(dict):
 
 
 class DomConfig(ConfigObject):
-    def __init__(self, cfgdir, fname):
+    def __init__(self, cfgdir, fname, parse=True):
         self.rundoms = []
         self.string_map = {}
         self.__comps = []
@@ -273,7 +275,11 @@ class DomConfig(ConfigObject):
 
         super(DomConfig, self).__init__(cfgdir, fname)
 
-        self.load()
+        if parse:
+            self.load()
+        elif not os.path.exists(self.fullpath):
+            raise XMLBadFileError("DOM configuration file '%s'"
+                                  " does not exist" % self.filename)
 
     @property
     def configdir(self):
@@ -373,9 +379,25 @@ class RandomConfig(object):
 
         return (hub_id, excluded)
 
+    @property
+    def basename(self):
+        return None
+
+    @property
+    def configdir(self):
+        return None
+
+    @property
+    def filename(self):
+        return None
+
+    @property
+    def fullpath(self):
+        return None
+
 
 class DAQConfig(ConfigObject):
-    def __init__(self, cfgdir, filename, strict=False):
+    def __init__(self, cfgdir, filename, strict=False, shallow=False):
         self.__comps = []
         self.dom_cfgs = []
 
@@ -392,7 +414,7 @@ class DAQConfig(ConfigObject):
 
         super(DAQConfig, self).__init__(cfgdir, filename)
 
-        self.load()
+        self.load(shallow=shallow)
 
     def validate(self):
         """The syntax of a file is verified with the
@@ -659,7 +681,7 @@ class DAQConfig(ConfigObject):
         # passed all origional tests assume new format
         return False
 
-    def load(self):
+    def load(self, shallow=False):
         super(DAQConfig, self).load()
 
         self.dom_cfgs = []
@@ -684,7 +706,8 @@ class DAQConfig(ConfigObject):
                 continue
             elif key == 'triggerConfig':
                 tcname = get_value(val)
-                self.trig_cfg = TriggerConfig(self.configdir, tcname)
+                self.trig_cfg = TriggerConfig(self.configdir, tcname,
+                                              parse=not shallow)
                 self.trig_cfg.set_initial(val)
             elif 'runComponent' in key:
                 self.run_comps = val
@@ -697,7 +720,8 @@ class DAQConfig(ConfigObject):
                 self.dom_cfgs = []
                 for dcfg in val:
                     dcname = get_value(dcfg)
-                    dom_config = DomConfig(self.configdir, dcname)
+                    dom_config = DomConfig(self.configdir, dcname,
+                                           parse=not shallow)
                     self.dom_cfgs.append(dom_config)
             elif key == 'stringHub':
                 for strhub_dict in val:
@@ -706,7 +730,8 @@ class DAQConfig(ConfigObject):
                         if not is_old_runconfig:
                             dcname = get_attrib(strhub_dict, 'domConfig')
                             self.dom_cfgs.append(DomConfig(self.configdir,
-                                                           dcname))
+                                                           dcname,
+                                                           parse=not shallow))
 
                         str_hub = StringHub(strhub_dict, str_hub_id)
                         self.stringhub_map[str_hub_id] = str_hub
@@ -866,8 +891,9 @@ class DAQConfigParser(object):
         raise TypeError("Cannot create this object")
 
     @classmethod
-    def parse(cls, config_dir, file_name, strict=False):
-        return DAQConfig(config_dir, file_name, strict=strict)
+    def parse(cls, config_dir, file_name, strict=False, shallow=False):
+        return DAQConfig(config_dir, file_name, strict=strict,
+                         shallow=shallow)
 
     @classmethod
     def getClusterConfiguration(cls, configName, useActiveConfig=False,
