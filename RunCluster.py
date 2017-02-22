@@ -487,9 +487,12 @@ class RunCluster(CachedConfigName):
 
         return hostMap.keys()
 
-    def loadIfChanged(self):
-        if not self.__clusterDesc.loadIfChanged():
+    def loadIfChanged(self, runConfig=None, newPath=None):
+        if not self.__clusterDesc.loadIfChanged(newPath=newPath):
             return False
+
+        if runConfig is not None:
+            self.__hubList = self.__extractHubs(runConfig)
 
         self.__nodes = self.__loadConfig(self.__clusterDesc, self.__hubList)
 

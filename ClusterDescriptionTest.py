@@ -9,6 +9,7 @@ from ClusterDescription import ClusterDescription, \
     ClusterDescriptionFormatError, XMLFormatError
 from DAQMocks import MockClusterConfigFile, MockCluCfgFileComp
 
+
 class MockRunConfig(object):
     def __init__(self, name):
         self.__name = name
@@ -1124,6 +1125,7 @@ class TestClusterDescription(unittest.TestCase):
             self.assertEqual(server, comp.jvmServer,
                              "Expected %s JVMServer \"%s\", not \"%s\"" %
                              (comp.name, server, comp.jvmServer))
+
 
 if __name__ == '__main__':
     unittest.main()

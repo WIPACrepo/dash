@@ -2306,6 +2306,10 @@ class RunSet(object):
         if len(badComps) > 0:
             raise RunSetException('Could not reset %s' % str(badComps))
 
+    @property
+    def runConfigData(self):
+        return self.__cfg
+
     def runNumber(self):
         if self.__runData is None:
             return None

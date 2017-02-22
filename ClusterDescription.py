@@ -53,7 +53,11 @@ class ConfigXMLBase(XMLParser):
     def extractFrom(self, dom):
         raise NotImplementedError('extractFrom method is not implemented')
 
-    def loadIfChanged(self):
+    def loadIfChanged(self, newPath=None):
+        if newPath is not None and newPath != self.__path:
+            self.__path = newPath
+            self.__mtime = 0
+
         new_mtime = os.stat(self.__path).st_mtime
         if new_mtime == self.__mtime:
             return False

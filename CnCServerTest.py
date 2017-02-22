@@ -156,7 +156,7 @@ class MostlyCnCServer(CnCServer):
     def createRunset(self, runConfig, compList, logger):
         return MostlyRunSet(self, runConfig, compList, logger, self.__dashlog)
 
-    def getClusterConfig(self):
+    def getClusterConfig(self, runConfig=None):
         return self.__clusterConfig
 
     def monitorLoop(self):

@@ -20,6 +20,12 @@ class DeployData(object):
             return '%s/%s' % (self.host, self.name)
         return '%s/%s#%d' % (self.host, self.name, self.id)
 
+    def changeHost(self, newHost):
+        self.host = newHost
+
+    def clear(self):
+        self.found = False
+
     @property
     def isFound(self):
         return self.found
@@ -36,21 +42,13 @@ class DeployData(object):
 class RunClusterTest(unittest.TestCase):
     CONFIG_DIR = os.path.abspath('src/test/resources/config')
 
-    def __checkCluster(self, clusterName, cfgName, expNodes, spadeDir,
-                       logCopyDir, daqLogDir, daqDataDir, verbose=False):
-        cfg = DAQConfigParser.parse(RunClusterTest.CONFIG_DIR, cfgName)
-
-        cluster = RunCluster(cfg, clusterName, RunClusterTest.CONFIG_DIR)
-
-        self.assertEqual(cluster.configName(), cfgName,
-                         'Expected config name %s, not %s' %
-                         (cfgName, cluster.configName()))
-
-        sortedNodes = cluster.nodes()
+    def __checkCluster(self, cluCfg, expNodes, spadeDir, logCopyDir,
+                       daqLogDir, daqDataDir, verbose=False):
+        sortedNodes = cluCfg.nodes()
         sortedNodes.sort()
 
         if verbose:
-            print "=== RC -> %s" % cluster.configName()
+            print "=== RC -> %s" % cluCfg.configName()
             for n in sortedNodes:
                 print "::  " + str(n)
                 sortedComps = n.components()
@@ -62,39 +60,75 @@ class RunClusterTest(unittest.TestCase):
             for en in sorted(expNodes, key=lambda x: str(x)):
                 print "::  " + str(en)
 
+        extra = {}
         for node in sortedNodes:
             sortedComps = node.components()
             sortedComps.sort()
             for comp in sortedComps:
                 found = False
                 for en in expNodes:
-                    #print "CMP %s/%s#%d <==> %s" % (node.hostname, comp.name, comp.id, en)
                     if en.matches(node.hostname, comp.name, comp.id):
+                        if found:
+                            self.fail("Found multiple matches for %s/%s#%d" %
+                                      (node.hostname, comp.name, comp.id))
                         found = True
                         en.markFound()
-                        break
-                if not found:
-                    self.fail('Did not expect %s component %s<%s>' %
-                              (node.hostname, comp, type(comp)))
 
+                if not found:
+                    if node not in extra:
+                        extra[node] = []
+                    extra[node].append(comp)
+
+        if len(extra) > 0:
+            errmsg = "Found extra component%s:" % \
+                     ("" if len(extra) == 1 else "s")
+            for node, compList in extra.items():
+                cstr = None
+                for comp in compList:
+                    cfmt = comp.fullname
+                    if cstr is None:
+                        cstr = cfmt
+                    else:
+                        cstr += ", " + cfmt
+                errmsg += "\n%s[%s]" % (node.hostname, cstr)
+            self.fail(errmsg)
+
+        missing = None
         for en in expNodes:
             if not en.isFound:
-                self.fail('Did not find expected component %s' % str(en))
+                if missing is None:
+                    missing = str(en)
+                else:
+                    missing += ", " + str(en)
 
-        #hubList = cluster.getHubNodes()
+        if missing is not None:
+            self.fail('Missing one or more components: ' + missing)
 
-        self.assertEqual(cluster.logDirForSpade, spadeDir,
+        #hubList = cluCfg.getHubNodes()
+
+        self.assertEqual(cluCfg.logDirForSpade, spadeDir,
                          'SPADE log directory is "%s", not "%s"' %
-                         (cluster.logDirForSpade, spadeDir))
-        self.assertEqual(cluster.logDirCopies, logCopyDir,
+                         (cluCfg.logDirForSpade, spadeDir))
+        self.assertEqual(cluCfg.logDirCopies, logCopyDir,
                          'Log copy directory is "%s", not "%s"' %
-                         (cluster.logDirCopies, logCopyDir))
-        self.assertEqual(cluster.daqLogDir, daqLogDir,
+                         (cluCfg.logDirCopies, logCopyDir))
+        self.assertEqual(cluCfg.daqLogDir, daqLogDir,
                          'DAQ log directory is "%s", not "%s"' %
-                         (cluster.daqLogDir, daqLogDir))
-        self.assertEqual(cluster.daqDataDir, daqDataDir,
+                         (cluCfg.daqLogDir, daqLogDir))
+        self.assertEqual(cluCfg.daqDataDir, daqDataDir,
                          'DAQ data directory is "%s", not "%s"' %
-                         (cluster.daqDataDir, daqDataDir))
+                         (cluCfg.daqDataDir, daqDataDir))
+
+    def __loadConfigs(self, cfgName, clusterName):
+        cfg = DAQConfigParser.parse(RunClusterTest.CONFIG_DIR, cfgName)
+
+        cluster = RunCluster(cfg, clusterName, RunClusterTest.CONFIG_DIR)
+
+        self.assertEqual(cluster.configName(), cfgName,
+                         'Expected config name %s, not %s' %
+                         (cfgName, cluster.configName()))
+
+        return (cfg, cluster)
 
     def setUp(self):
         set_pdaq_config_dir(RunClusterTest.CONFIG_DIR)
@@ -111,6 +145,10 @@ class RunClusterTest(unittest.TestCase):
 
     def testDeployLocalhost(self):
         cfgName = 'simpleConfig'
+        clusterName = "localhost"
+
+        (runCfg, cluCfg) = self.__loadConfigs(cfgName, clusterName)
+
         expNodes = [
             DeployData('localhost', 'inIceTrigger'),
             DeployData('localhost', 'globalTrigger'),
@@ -128,11 +166,15 @@ class RunClusterTest(unittest.TestCase):
         spadeDir = 'spade'
         logCopyDir = None
 
-        self.__checkCluster("localhost", cfgName, expNodes, spadeDir,
-                            logCopyDir, daqLogDir, daqDataDir)
+        self.__checkCluster(cluCfg, expNodes, spadeDir, logCopyDir, daqLogDir,
+                            daqDataDir)
 
     def testDeploySPTS64(self):
         cfgName = 'simpleConfig'
+        clusterName = "spts64"
+
+        (runCfg, cluCfg) = self.__loadConfigs(cfgName, clusterName)
+
         expNodes = [
             DeployData('spts64-iitrigger', 'inIceTrigger'),
             DeployData('spts64-gtrigger', 'globalTrigger'),
@@ -150,37 +192,25 @@ class RunClusterTest(unittest.TestCase):
         spadeDir = "/mnt/data/spade/pdaq/runs"
         logCopyDir = "/mnt/data/pdaqlocal"
 
-        self.__checkCluster("spts64", cfgName, expNodes, spadeDir, logCopyDir,
-                            daqLogDir, daqDataDir)
+        self.__checkCluster(cluCfg, expNodes, spadeDir, logCopyDir, daqLogDir,
+                            daqDataDir)
 
     def testDeployTooMany(self):
         cfgName = 'tooManyConfig'
-        expNodes = [
-            DeployData('spts64-iitrigger', 'inIceTrigger'),
-            DeployData('spts64-gtrigger', 'globalTrigger'),
-            DeployData('spts64-evbuilder', 'eventBuilder'),
-            DeployData('spts64-expcont', 'SecondaryBuilders'),
-            DeployData('spts64-stringproc01', 'stringHub', 1001),
-            DeployData('spts64-stringproc02', 'stringHub', 1002),
-            DeployData('spts64-stringproc03', 'stringHub', 1003),
-            DeployData('spts64-stringproc06', 'stringHub', 1004),
-            DeployData('spts64-stringproc07', 'stringHub', 1005),
-        ]
-
-        daqLogDir = "logs"
-        daqDataDir = "/mnt/data/pdaqlocal"
-        spadeDir = 'spade'
-        logCopyDir = None
+        clusterName = "localhost"
 
         try:
-            self.__checkCluster("localhost", cfgName, expNodes, spadeDir,
-                                logCopyDir, daqLogDir, daqDataDir)
+            self.__loadConfigs(cfgName, clusterName)
         except RunClusterError as rce:
             if not str(rce).endswith("Only have space for 10 of 11 hubs"):
                 self.fail("Unexpected exception: " + str(rce))
 
     def testDeploySPS(self):
         cfgName = 'sps-IC40-IT6-Revert-IceTop-V029'
+        clusterName = "sps"
+
+        (runCfg, cluCfg) = self.__loadConfigs(cfgName, clusterName)
+
         expNodes = [
             DeployData('sps-trigger', 'inIceTrigger'),
             DeployData('sps-trigger', 'iceTopTrigger'),
@@ -238,8 +268,8 @@ class RunClusterTest(unittest.TestCase):
         spadeDir = "/mnt/data/spade/pdaq/runs"
         logCopyDir = "/mnt/data/pdaqlocal"
 
-        self.__checkCluster("sps", cfgName, expNodes, spadeDir, logCopyDir,
-                            daqLogDir, daqDataDir)
+        self.__checkCluster(cluCfg, expNodes, spadeDir, logCopyDir, daqLogDir,
+                            daqDataDir)
 
     @classmethod
     def __addHubs(cls, nodes, hostname, numToAdd, hubnum):
@@ -280,7 +310,11 @@ class RunClusterTest(unittest.TestCase):
             raise Exception("Didn't find any replayHub entries in %s" % path)
 
     def testDeployOldReplay(self):
-        cfgName = 'replay-oldtest'
+        cfgName = "replay-oldtest"
+        clusterName = "replay"
+
+        (runCfg, cluCfg) = self.__loadConfigs(cfgName, clusterName)
+
         expNodes = [
             DeployData('trigger', 'iceTopTrigger'),
             DeployData('trigger', 'iniceTrigger'),
@@ -305,11 +339,15 @@ class RunClusterTest(unittest.TestCase):
         spadeDir = "/mnt/data/pdaq/spade/runs"
         logCopyDir = None
 
-        self.__checkCluster("replay", cfgName, expNodes, spadeDir, logCopyDir,
-                            daqLogDir, daqDataDir)
+        self.__checkCluster(cluCfg, expNodes, spadeDir, logCopyDir, daqLogDir,
+                            daqDataDir)
 
     def testDeployReplay(self):
         cfgName = 'replay-test'
+        clusterName = "replay"
+
+        (runCfg, cluCfg) = self.__loadConfigs(cfgName, clusterName)
+
         expNodes = [
             DeployData('trigger', 'iceTopTrigger'),
             DeployData('trigger', 'iniceTrigger'),
@@ -326,22 +364,101 @@ class RunClusterTest(unittest.TestCase):
         spadeDir = "/mnt/data/pdaq/spade/runs"
         logCopyDir = None
 
-        self.__checkCluster("replay", cfgName, expNodes, spadeDir, logCopyDir,
-                            daqLogDir, daqDataDir)
+        self.__checkCluster(cluCfg, expNodes, spadeDir, logCopyDir, daqLogDir,
+                            daqDataDir)
 
     def testDeployReplayMissingHost(self):
-        cluName = "replay"
         cfgName = 'replay-missing'
+        clusterName = "replay"
 
         cfg = DAQConfigParser.parse(RunClusterTest.CONFIG_DIR, cfgName)
 
         try:
-            RunCluster(cfg, cluName, RunClusterTest.CONFIG_DIR)
+            RunCluster(cfg, clusterName, RunClusterTest.CONFIG_DIR)
             self.fail("This should not succeed")
         except RunClusterError, rce:
             estr = str(rce)
-            if estr != "Cannot find xxx09 for %s in spts" % cluName:
+            if estr != "Cannot find xxx09 for %s in spts" % clusterName:
                 raise
+
+    def testLoadIfChanged(self):
+        cfgName = 'sps-IC40-IT6-Revert-IceTop-V029'
+        clusterName = "sps"
+
+        (runCfg, cluCfg) = self.__loadConfigs(cfgName, clusterName)
+
+        expNodes = [
+            DeployData('sps-trigger', 'inIceTrigger'),
+            DeployData('sps-trigger', 'iceTopTrigger'),
+            DeployData('sps-gtrigger', 'globalTrigger'),
+            DeployData('sps-evbuilder', 'eventBuilder'),
+            DeployData('sps-2ndbuild', 'SecondaryBuilders'),
+            DeployData('sps-ichub21', 'stringHub', 21),
+            DeployData('sps-ichub29', 'stringHub', 29),
+            DeployData('sps-ichub30', 'stringHub', 30),
+            DeployData('sps-ichub38', 'stringHub', 38),
+            DeployData('sps-ichub39', 'stringHub', 39),
+            DeployData('sps-ichub40', 'stringHub', 40),
+            DeployData('sps-ichub44', 'stringHub', 44),
+            DeployData('sps-ichub45', 'stringHub', 45),
+            DeployData('sps-ichub46', 'stringHub', 46),
+            DeployData('sps-ichub47', 'stringHub', 47),
+            DeployData('sps-ichub48', 'stringHub', 48),
+            DeployData('sps-ichub49', 'stringHub', 49),
+            DeployData('sps-ichub50', 'stringHub', 50),
+            DeployData('sps-ichub52', 'stringHub', 52),
+            DeployData('sps-ichub53', 'stringHub', 53),
+            DeployData('sps-ichub54', 'stringHub', 54),
+            DeployData('sps-ichub55', 'stringHub', 55),
+            DeployData('sps-ichub56', 'stringHub', 56),
+            DeployData('sps-ichub57', 'stringHub', 57),
+            DeployData('sps-ichub58', 'stringHub', 58),
+            DeployData('sps-ichub59', 'stringHub', 59),
+            DeployData('sps-ichub60', 'stringHub', 60),
+            DeployData('sps-ichub61', 'stringHub', 61),
+            DeployData('sps-ichub62', 'stringHub', 62),
+            DeployData('sps-ichub63', 'stringHub', 63),
+            DeployData('sps-ichub64', 'stringHub', 64),
+            DeployData('sps-ichub65', 'stringHub', 65),
+            DeployData('sps-ichub66', 'stringHub', 66),
+            DeployData('sps-ichub67', 'stringHub', 67),
+            DeployData('sps-ichub68', 'stringHub', 68),
+            DeployData('sps-ichub69', 'stringHub', 69),
+            DeployData('sps-ichub70', 'stringHub', 70),
+            DeployData('sps-ichub71', 'stringHub', 71),
+            DeployData('sps-ichub72', 'stringHub', 72),
+            DeployData('sps-ichub73', 'stringHub', 73),
+            DeployData('sps-ichub74', 'stringHub', 74),
+            DeployData('sps-ichub75', 'stringHub', 75),
+            DeployData('sps-ichub76', 'stringHub', 76),
+            DeployData('sps-ichub77', 'stringHub', 77),
+            DeployData('sps-ichub78', 'stringHub', 78),
+            DeployData('sps-ithub01', 'stringHub', 201),
+            #DeployData('sps-ithub02', 'stringHub', 202),
+            #DeployData('sps-ithub03', 'stringHub', 203),
+            DeployData('sps-ithub06', 'stringHub', 206),
+        ]
+
+        daqLogDir = "/mnt/data/pdaq/log"
+        daqDataDir = "/mnt/data/pdaqlocal"
+        spadeDir = "/mnt/data/spade/pdaq/runs"
+        logCopyDir = "/mnt/data/pdaqlocal"
+
+        self.__checkCluster(cluCfg, expNodes, spadeDir, logCopyDir, daqLogDir,
+                            daqDataDir)
+
+        newPath = os.path.join(RunClusterTest.CONFIG_DIR, "sps2-cluster.cfg")
+        cluCfg.loadIfChanged(runCfg, newPath)
+
+        delNodes = []
+        for node in expNodes:
+            node.clear()
+            if node.matches('sps-gtrigger', 'globalTrigger', 0):
+                node.changeHost("sps-trigger")
+
+        self.__checkCluster(cluCfg, expNodes, spadeDir, logCopyDir, daqLogDir,
+                            daqDataDir)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -362,7 +362,7 @@ class MostlyCnCServer(CnCServer):
                                  logPort, livePort, verbose=verbose,
                                  killWith9=killWith9, eventCheck=eventCheck)
 
-    def getClusterConfig(self):
+    def getClusterConfig(self, runConfig=None):
         return self.__clusterConfig
 
     def getLogServer(self):

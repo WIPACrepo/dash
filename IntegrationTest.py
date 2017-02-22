@@ -337,7 +337,7 @@ class MostlyCnCServer(CnCServer):
         return MockCnCLogger(key, appender=MostlyCnCServer.APPENDERS[key],
                              quiet=quiet)
 
-    def getClusterConfig(self):
+    def getClusterConfig(self, runConfig=None):
         return self.__clusterConfig
 
     def createRunset(self, runConfig, compList, logger):

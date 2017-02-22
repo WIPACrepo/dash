@@ -177,8 +177,8 @@ class DAQPool(object):
 
         if waitList is not None:
             self.__returnComponents(compList, logger)
-            self.__restartMissingComponents(waitList, runConfigDir,
-                                            logger, daqDataDir)
+            self.__restartMissingComponents(waitList, runConfig, logger,
+                                            daqDataDir)
             raise MissingComponentException(waitList)
 
         setAdded = False
@@ -248,9 +248,9 @@ class DAQPool(object):
         finally:
             self.__setsLock.release()
 
-    def __restartMissingComponents(self, waitList, runConfigDir, logger,
+    def __restartMissingComponents(self, waitList, runConfig, logger,
                                    daqDataDir):
-        cluCfg = self.getClusterConfig()
+        cluCfg = self.getClusterConfig(runConfig=runConfig)
         if cluCfg is None:
             logger.error("Cannot restart missing components: No cluster config")
         else:
@@ -262,7 +262,7 @@ class DAQPool(object):
                               cluCfg.configName()))
 
             if len(deadList) > 0:
-                self.cycleComponents(deadList, runConfigDir, daqDataDir,
+                self.cycleComponents(deadList, runConfig.configdir, daqDataDir,
                                      logger, logger.logPort,
                                      logger.livePort)
 
@@ -323,7 +323,7 @@ class DAQPool(object):
 
         return runset
 
-    def getClusterConfig(self):
+    def getClusterConfig(self, runConfig=None):
         raise NotImplementedError("Unimplemented")
 
     def getRelease(self):
@@ -888,7 +888,7 @@ class CnCServer(DAQPool):
     def createCnCLogger(self, quiet):
         return CnCLogger("CnC", quiet=quiet)
 
-    def getClusterConfig(self):
+    def getClusterConfig(self, runConfig=None):
         if self.__clusterConfig is None:
             cdesc = self.__clusterDesc
             cfgDir = self.__runConfigDir
@@ -907,10 +907,10 @@ class CnCServer(DAQPool):
                                          " %s: %s" % (cdescStr, exc_string()))
         else:
             try:
-                self.__clusterConfig.loadIfChanged()
+                self.__clusterConfig.loadIfChanged(runConfig)
             except Exception as ex:
                 self.__log.error("Cannot reload cluster config \"%s\": %s" %
-                                 self.__clusterConfig.description, ex)
+                                 (self.__clusterConfig.description, ex))
 
         return self.__clusterConfig
 
@@ -974,14 +974,16 @@ class CnCServer(DAQPool):
 
     def restartRunsetComponents(self, rs, verbose=False, killWith9=True,
                                 eventCheck=False):
-        rs.restartAllComponents(self.getClusterConfig(), self.__runConfigDir,
+        cluCfg = self.getClusterConfig(runConfig=rs.runConfigData)
+        rs.restartAllComponents(cluCfg, self.__runConfigDir,
                                 self.__daqDataDir, self.__log.logPort,
                                 self.__log.livePort, verbose=verbose,
                                 killWith9=killWith9, eventCheck=eventCheck)
 
     def returnRunsetComponents(self, rs, verbose=False, killWith9=True,
                                eventCheck=False):
-        rs.returnComponents(self, self.getClusterConfig(), self.__runConfigDir,
+        cluCfg = self.getClusterConfig(runConfig=rs.runConfigData)
+        rs.returnComponents(self, cluCfg, self.__runConfigDir,
                             self.__daqDataDir, self.__log.logPort,
                             self.__log.livePort, verbose=verbose,
                             killWith9=killWith9, eventCheck=eventCheck)
@@ -1435,7 +1437,8 @@ class CnCServer(DAQPool):
             self.__log.error("Cannot count open files: %s" % exc_string())
             openCount = 0
 
-        runSet.startRun(runNum, self.getClusterConfig(),
+        cluCfg = self.getClusterConfig(runConfig=runSet.runConfigData)
+        runSet.startRun(runNum, cluCfg,
                         runOptions, self.__versionInfo, self.__spadeDir,
                         copyDir=self.__copyDir, logDir=logDir,
                         quiet=self.__quiet)

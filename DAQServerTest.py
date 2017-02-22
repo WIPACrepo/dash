@@ -233,7 +233,7 @@ class MockServer(CnCServer):
         return MockRunSet(self, runConfig, compList, logger,
                           clientLog=self.__clientLog)
 
-    def getClusterConfig(self):
+    def getClusterConfig(self, runConfig=None):
         return self.__clusterConfig
 
     def openLogServer(self, port, logDir):
