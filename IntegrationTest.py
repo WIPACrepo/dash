@@ -388,7 +388,7 @@ class RealComponent(object):
 
     def __init__(self, name, num, cmdPort, mbeanPort, hsDir, hsInterval,
                  hsMaxFiles, jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
-                 jvmArgs, jvmExtraArgs):
+                 jvmArgs, jvmExtraArgs, verbose=False):
         self.__id = None
         self.__name = name
         self.__num = num
@@ -462,12 +462,8 @@ class RealComponent(object):
         t.setDaemon(True)
         t.start()
 
-        self.__cnc = None
-
-    def connectToCnC(self):
-        #print >>sys.stderr, "Connect %s" % self.fullname
         self.__cnc = xmlrpclib.ServerProxy('http://localhost:%d' %
-                                           DAQPort.CNCSERVER)
+                                           DAQPort.CNCSERVER, verbose=verbose)
 
     def __cmp__(self, other):
         selfOrder = RealComponent.__getLaunchOrder(self.__name)
@@ -939,9 +935,12 @@ class IntegrationTest(unittest.TestCase):
             raise Exception("Expected %d components, not %d" %
                             (IntegrationTest.NUM_COMPONENTS, len(comps)))
 
+        verbose = False
+
         for c in comps:
             comp = RealComponent(c[0], c[1], c[2], c[3], c[4], c[5], c[6],
-                                 c[7], c[8], c[9], c[10], c[11], c[12])
+                                 c[7], c[8], c[9], c[10], c[11], c[12],
+                                 verbose)
 
             if self.__compList is None:
                 self.__compList = []
@@ -1215,9 +1214,6 @@ class IntegrationTest(unittest.TestCase):
 
     def __testBody(self, live, cnc, liveLog, appender, dashLog, runOptions,
                    liveRunOnly):
-        for c in self.__compList:
-            c.connectToCnC()
-
         logServer = cnc.getLogServer()
 
         RUNLOG_INFO = False
@@ -1761,8 +1757,7 @@ class IntegrationTest(unittest.TestCase):
         self.__cnc = None
         self.__compList = None
 
-        #from DAQMocks import LogChecker
-        #LogChecker.DEBUG = True
+        # shorten radar thread
 
         RunXMLValidator.setUp()
 
@@ -1795,7 +1790,7 @@ class IntegrationTest(unittest.TestCase):
         shutil.rmtree(IntegrationTest.LOG_DIR, ignore_errors=True)
         IntegrationTest.LOG_DIR = None
 
-        if False:
+        if True:
             reps = 5
             for n in range(reps):
                 if threading.activeCount() < 2:

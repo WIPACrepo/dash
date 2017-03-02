@@ -72,53 +72,6 @@ class MockConn(object):
         return self.__name
 
 
-class MockMBeanClient(object):
-    def __init__(self):
-        self.__beanData = {}
-
-    def check(self, beanName, fieldName):
-        pass
-
-    def get(self, beanName, fieldName):
-        if not beanName in self.__beanData:
-            raise ValueError("Unknown %s bean \"%s\"" % (str(self), beanName))
-        if not fieldName in self.__beanData[beanName]:
-            raise ValueError("Unknown %s bean \"%s\" field \"%s\"" %
-                             (str(self), beanName, fieldName))
-
-        return self.__beanData[beanName][fieldName]
-
-    def getBeanFields(self, beanName):
-        if not beanName in self.__beanData:
-            raise ValueError("Unknown %s bean \"%s\"" % (str(self), beanName))
-
-        return self.__beanData[beanName].keys()
-
-    def getBeanNames(self):
-        return self.__beanData.keys()
-
-    def getAttributes(self, beanName, fieldList):
-        if not beanName in self.__beanData:
-            raise ValueError("Unknown %s bean \"%s\"" % (str(self), beanName))
-
-        valMap = {}
-        for f in fieldList:
-            if not f in self.__beanData[beanName]:
-                raise ValueError("Unknown %s bean \"%s\" field \"%s\"" %
-                                 (str(self), beanName, f))
-
-            valMap[f] = self.__beanData[beanName][f]
-
-        return valMap
-
-    def reload(self):
-        pass
-
-    def setData(self, beanName, fieldName, value):
-        if not beanName in self.__beanData:
-            self.__beanData[beanName] = {}
-        self.__beanData[beanName][fieldName] = value
-
 class MockComponent(object):
     def __init__(self, name, num=0, conn=None):
         self.__name = name
@@ -126,8 +79,7 @@ class MockComponent(object):
         self.__conn = conn
         self.__state = "idle"
         self.__order = None
-
-        self.__mbean = MockMBeanClient()
+        self.__beanData = {}
 
     def __str__(self):
         if self.__num == 0 and not self.isSource:
@@ -136,6 +88,9 @@ class MockComponent(object):
 
     def __repr__(self):
         return str(self)
+
+    def checkBeanField(self, beanName, fieldName):
+        pass
 
     def close(self):
         pass
@@ -151,9 +106,6 @@ class MockComponent(object):
             return []
         return self.__conn[:]
 
-    def createMBeanClient(self):
-        return self.__mbean
-
     @property
     def filename(self):
         return "%s-%s" % (self.__name, self.__num)
@@ -162,24 +114,47 @@ class MockComponent(object):
     def fullname(self):
         return "%s#%s" % (self.__name, self.__num)
 
+    def getBeanFields(self, beanName):
+        if not beanName in self.__beanData:
+            raise ValueError("Unknown %s bean \"%s\"" % (str(self), beanName))
+
+        return self.__beanData[beanName].keys()
+
+    def getBeanNames(self):
+        return self.__beanData.keys()
+
+    def getMultiBeanFields(self, beanName, fieldList):
+        if not beanName in self.__beanData:
+            raise ValueError("Unknown %s bean \"%s\"" % (str(self), beanName))
+
+        valMap = {}
+        for f in fieldList:
+            if not f in self.__beanData[beanName]:
+                raise ValueError("Unknown %s bean \"%s\" field \"%s\"" %
+                                 (str(self), beanName, f))
+
+            valMap[f] = self.__beanData[beanName][f]
+
+        return valMap
+
     def getRunData(self, runnum):
         if self.__num == 0:
             if self.__name.startswith("event"):
-                evtData = self.__mbean.get("backEnd", "EventData")
+                evtData = self.__beanData["backEnd"]["EventData"]
                 numEvts = int(evtData[0])
                 lastTime = long(evtData[1])
 
-                val = self.__mbean.get("backEnd", "FirstEventTime")
+                val = self.__beanData["backEnd"]["FirstEventTime"]
                 firstTime = long(val)
 
-                good = self.__mbean.get("backEnd", "GoodTimes")
+                good = self.__beanData["backEnd"]["GoodTimes"]
                 firstGood = long(good[0])
                 lastGood = long(good[1])
 
                 return (numEvts, firstTime, lastTime, firstGood, lastGood)
             elif self.__name.startswith("secondary"):
                 for bldr in ("tcalBuilder", "snBuilder", "moniBuilder"):
-                    val = self.__mbean.get(bldr, "NumDispatchedData")
+                    val = self.__beanData[bldr]["NumDispatchedData"]
                     if bldr == "tcalBuilder":
                         numTcal = long(val)
                     elif bldr == "snBuilder":
@@ -189,6 +164,15 @@ class MockComponent(object):
 
                 return (numTcal, numSN, numMoni)
         return (None, None, None)
+
+    def getSingleBeanField(self, beanName, fieldName):
+        if not beanName in self.__beanData:
+            raise ValueError("Unknown %s bean \"%s\"" % (str(self), beanName))
+        if not fieldName in self.__beanData[beanName]:
+            raise ValueError("Unknown %s bean \"%s\" field \"%s\"" %
+                             (str(self), beanName, fieldName))
+
+        return self.__beanData[beanName][fieldName]
 
     @property
     def is_dying(self):
@@ -213,10 +197,6 @@ class MockComponent(object):
         pass
 
     @property
-    def mbean(self):
-        return self.__mbean
-
-    @property
     def name(self):
         return self.__name
 
@@ -227,11 +207,19 @@ class MockComponent(object):
     def order(self):
         return self.__order
 
+    def reloadBeanInfo(self):
+        pass
+
     def reset(self):
         self.__state = "idle"
 
     def resetLogging(self):
         pass
+
+    def setBeanData(self, beanName, fieldName, value):
+        if not beanName in self.__beanData:
+            self.__beanData[beanName] = {}
+        self.__beanData[beanName][fieldName] = value
 
     def setFirstGoodTime(self, payTime):
         pass
@@ -450,7 +438,7 @@ class CnCRunSetTest(unittest.TestCase):
 
         for c in comps:
             if c.name == compName and c.num == compNum:
-                val = c.mbean.get(beanName, fieldName)
+                val = c.getSingleBeanField(beanName, fieldName)
                 var = "%s-%d*%s+%s" % (compName, compNum, beanName, fieldName)
                 if isJSON:
                     liveMoni.addExpectedLiveMoni(var, val, "json")
@@ -652,10 +640,10 @@ class CnCRunSetTest(unittest.TestCase):
 
             for b in cls.BEAN_DATA[c.name]:
                 if len(cls.BEAN_DATA[c.name][b]) == 0:
-                    c.mbean.setData(b, "xxx", 0)
+                    c.setBeanData(b, "xxx", 0)
                 else:
                     for f in cls.BEAN_DATA[c.name][b]:
-                        c.mbean.setData(b, f, cls.BEAN_DATA[c.name][b][f])
+                        c.setBeanData(b, f, cls.BEAN_DATA[c.name][b][f])
 
     def __runDirect(self, failReset):
         self.__copyDir = tempfile.mkdtemp()
@@ -821,7 +809,7 @@ class CnCRunSetTest(unittest.TestCase):
                     raise Exception("Found multiple components for %s" %
                                     c.fullname)
 
-                c.mbean.setData(beanName, fieldName, value)
+                c.setBeanData(beanName, fieldName, value)
                 setData = True
 
         if not setData:

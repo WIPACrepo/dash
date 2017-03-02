@@ -695,8 +695,8 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
         logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for Hubs")
 
-        aComp.mbean.addData("stringhub", "LatestFirstChannelHitTime", 10)
-        aComp.mbean.addData("stringhub", "NumberOfNonZombies", 1)
+        aComp.addBeanData("stringhub", "LatestFirstChannelHitTime", 10)
+        aComp.addBeanData("stringhub", "NumberOfNonZombies", 1)
 
         global ACTIVE_WARNING
         if not LIVE_IMPORT and not ACTIVE_WARNING:
@@ -731,9 +731,9 @@ class TestDAQPool(unittest.TestCase):
         firstTime = 12345678L
         lastTime = 23456789L
 
-        cComp.mbean.addData("backEnd", "FirstEventTime", firstTime)
-        cComp.mbean.addData("backEnd", "EventData", (numEvts, lastTime))
-        cComp.mbean.addData("backEnd", "GoodTimes", (firstTime, lastTime))
+        cComp.addBeanData("backEnd", "FirstEventTime", firstTime)
+        cComp.addBeanData("backEnd", "EventData", (numEvts, lastTime))
+        cComp.addBeanData("backEnd", "GoodTimes", (firstTime, lastTime))
 
         monDict = runset.getEventCounts()
         self.assertEqual(monDict["physicsEvents"], numEvts)
@@ -749,7 +749,7 @@ class TestDAQPool(unittest.TestCase):
                                  (numMoni, numSN, numTcal))
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
 
-        aComp.mbean.addData("stringhub", "EarliestLastChannelHitTime", 10)
+        aComp.addBeanData("stringhub", "EarliestLastChannelHitTime", 10)
 
         self.failIf(runset.stopRun(stopName), "stopRun() encountered error")
 

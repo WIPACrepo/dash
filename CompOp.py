@@ -122,13 +122,13 @@ class ComponentOperation(threading.Thread):
 
     def __getGoodTime(self):
         "Get the component's good hit time"
-        self.__result = self.__comp.mbean.getAttributes("stringhub",
-                                                        self.__data)
+        self.__result = self.__comp.getMultiBeanFields("stringhub",
+                                                       self.__data)
 
     def __getMultiBeanFields(self):
         "Get the component's current state"
-        self.__result = self.__comp.mbean.getAttributes(self.__data[0],
-                                                        self.__data[1])
+        self.__result = self.__comp.getMultiBeanFields(self.__data[0],
+                                                       self.__data[1])
 
     def __getReplayTime(self):
         "Get the replay hub's first hit time"
@@ -140,7 +140,8 @@ class ComponentOperation(threading.Thread):
 
     def __getSingleBeanField(self):
         "Get a single bean.field value from the component"
-        self.__result = self.__comp.mbean.get(self.__data[0], self.__data[1])
+        self.__result = self.__comp.getSingleBeanField(self.__data[0],
+                                                       self.__data[1])
 
     def __getState(self):
         "Get the component's current state"

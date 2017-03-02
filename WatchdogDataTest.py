@@ -68,9 +68,17 @@ class MockBeanTimeBomb(MockBeanIncreasing):
         return super(MockBeanTimeBomb, self).nextValue()
 
 
-class MockMBeanClient(object):
-    def __init__(self):
+class MockComponent(object):
+    def __init__(self, name, num, order, source=False, builder=False):
+        self.__name = name
+        self.__num = num
+        self.__order = order
+        self.__source = source
+        self.__builder = builder
         self.__beanData = {}
+
+    def __str__(self):
+        return self.fullname
 
     def __checkAddBean(self, name, fldName):
         if not name in self.__beanData:
@@ -79,60 +87,43 @@ class MockMBeanClient(object):
             raise Exception("Cannot add duplicate bean %s.%s to %s" %
                             (name, fldName, self.fullname))
 
-    def addDecreasing(self, name, fldName, val, dec):
+    def addBeanDecreasing(self, name, fldName, val, dec):
         self.__checkAddBean(name, fldName)
         self.__beanData[name][fldName] = MockBeanDecreasing(val, dec)
 
-    def addIncreasing(self, name, fldName, val, inc):
+    def addBeanIncreasing(self, name, fldName, val, inc):
         self.__checkAddBean(name, fldName)
         self.__beanData[name][fldName] = MockBeanIncreasing(val, inc)
 
-    def addStagnant(self, name, fldName, val, countDown):
+    def addBeanStagnant(self, name, fldName, val, countDown):
         self.__checkAddBean(name, fldName)
         self.__beanData[name][fldName] = MockBeanStagnant(val, countDown)
 
-    def addTimeBomb(self, name, fldName, val, inc, bombTicks):
+    def addBeanTimeBomb(self, name, fldName, val, inc, bombTicks):
         self.__checkAddBean(name, fldName)
         self.__beanData[name][fldName] = MockBeanTimeBomb(val, inc, bombTicks)
 
-    def check(self, name, fldName):
+    def checkBeanField(self, name, fldName):
         if not name in self.__beanData or \
            not fldName in self.__beanData[name]:
             raise Exception("Unknown %s bean %s.%s" %
                             (self.fullname, name, fldName))
-
-    def get(self, beanName, fldName):
-        self.check(beanName, fldName)
-        return self.__beanData[beanName][fldName].nextValue()
-
-    def getAttributes(self, beanName, fldList):
-        rtnMap = {}
-        for f in fldList:
-            rtnMap[f] = self.get(beanName, f)
-        return rtnMap
-
-
-class MockComponent(object):
-    def __init__(self, name, num, order, mbeanClient, source=False,
-                 builder=False):
-        self.__name = name
-        self.__num = num
-        self.__order = order
-        self.__mbeanClient = mbeanClient
-        self.__source = source
-        self.__builder = builder
-
-    def __str__(self):
-        return self.fullname
-
-    def createMBeanClient(self):
-        return self.__mbeanClient
 
     @property
     def fullname(self):
         if self.__num == 0:
             return self.__name
         return self.__name + "#%d" % self.__num
+
+    def getMultiBeanFields(self, beanName, fldList):
+        rtnMap = {}
+        for f in fldList:
+            rtnMap[f] = self.getSingleBeanField(beanName, f)
+        return rtnMap
+
+    def getSingleBeanField(self, beanName, fldName):
+        self.checkBeanField(beanName, fldName)
+        return self.__beanData[beanName][fldName].nextValue()
 
     @property
     def isBuilder(self):
@@ -148,7 +139,7 @@ class MockComponent(object):
 
 class WatchdogDataTest(unittest.TestCase):
     def testCreate(self):
-        comp = MockComponent("foo", 1, 1, MockMBeanClient())
+        comp = MockComponent("foo", 1, 1)
 
         wd = WatchData(comp, None)
         self.assertEqual(comp.order(), wd.order(),
@@ -156,6 +147,11 @@ class WatchdogDataTest(unittest.TestCase):
                          (comp.order(), wd.order()))
 
     def testCheckValuesGood(self):
+        comp = MockComponent("foo", 1, 1)
+        other = MockComponent("other", 0, 17)
+
+        wd = WatchData(comp, None)
+
         beanName = "bean"
         inName = "inFld"
         outName = "outFld"
@@ -164,16 +160,10 @@ class WatchdogDataTest(unittest.TestCase):
 
         threshVal = 15
 
-        mbeanClient = MockMBeanClient()
-        mbeanClient.addIncreasing(beanName, inName, 12, 1)
-        mbeanClient.addIncreasing(beanName, outName, 5, 1)
-        mbeanClient.addIncreasing(beanName, ltName, threshVal, 1)
-        mbeanClient.addDecreasing(beanName, gtName, threshVal, 1)
-
-        comp = MockComponent("foo", 1, 1, mbeanClient)
-        other = MockComponent("other", 0, 17, MockMBeanClient())
-
-        wd = WatchData(comp, None)
+        comp.addBeanIncreasing(beanName, inName, 12, 1)
+        comp.addBeanIncreasing(beanName, outName, 5, 1)
+        comp.addBeanIncreasing(beanName, ltName, threshVal, 1)
+        comp.addBeanDecreasing(beanName, gtName, threshVal, 1)
 
         wd.addInputValue(other, beanName, inName)
         wd.addOutputValue(other, beanName, outName)
@@ -208,21 +198,19 @@ class WatchdogDataTest(unittest.TestCase):
         failNum = 2
 
         for f in range(2):
-            mbeanClient = MockMBeanClient()
-
-            comp = MockComponent("foo", 1, 1, mbeanClient)
-            other = MockComponent("other", 0, 17, MockMBeanClient())
+            comp = MockComponent("foo", 1, 1)
+            other = MockComponent("other", 0, 17)
 
             wd = WatchData(comp, None)
 
             if f == 0:
-                mbeanClient.addStagnant(beanName, inName, starveVal, failNum)
+                comp.addBeanStagnant(beanName, inName, starveVal, failNum)
                 wd.addInputValue(other, beanName, inName)
             elif f == 1:
-                mbeanClient.addStagnant(beanName, outName, stagnantVal, failNum)
+                comp.addBeanStagnant(beanName, outName, stagnantVal, failNum)
                 wd.addOutputValue(other, beanName, outName)
 
-            mbeanClient.addIncreasing(beanName, gtName, threshVal - failNum, 1)
+            comp.addBeanIncreasing(beanName, gtName, threshVal - failNum, 1)
             wd.addThresholdValue(beanName, gtName, threshVal, False)
 
             for i in range(5):
@@ -302,21 +290,19 @@ class WatchdogDataTest(unittest.TestCase):
         bombTicks = 2
 
         for f in range(3):
-            mbeanClient = MockMBeanClient()
-
-            comp = MockComponent("foo", 1, 1, mbeanClient)
-            other = MockComponent("other", 0, 17, MockMBeanClient())
+            comp = MockComponent("foo", 1, 1)
+            other = MockComponent("other", 0, 17)
 
             wd = WatchData(comp, None)
 
             if f == 0:
-                mbeanClient.addTimeBomb(beanName, inName, tVal, 1, bombTicks)
+                comp.addBeanTimeBomb(beanName, inName, tVal, 1, bombTicks)
                 wd.addInputValue(other, beanName, inName)
             elif f == 1:
-                mbeanClient.addTimeBomb(beanName, outName, tVal, 1, bombTicks)
+                comp.addBeanTimeBomb(beanName, outName, tVal, 1, bombTicks)
                 wd.addOutputValue(other, beanName, outName)
             elif f == 2:
-                mbeanClient.addTimeBomb(beanName, gtName, tVal, 1, bombTicks)
+                comp.addBeanTimeBomb(beanName, gtName, tVal, 1, bombTicks)
                 wd.addThresholdValue(beanName, gtName, tVal, ltThresh)
 
             for i in range(bombTicks + 1):

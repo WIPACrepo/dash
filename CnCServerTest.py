@@ -325,6 +325,9 @@ class RealComponent(object):
     def __getState(self):
         return self.__state
 
+    #def __getVersionInfo(self):
+    #    return '$Id: filename revision date time author xxx'
+
     def __listMBeanGetters(self, bean):
         if self.__bean is None or not bean in self.__bean:
             return []

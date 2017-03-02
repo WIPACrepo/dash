@@ -209,8 +209,8 @@ class TestRunSet(unittest.TestCase):
 
         for comp in compList:
             if comp.isSource:
-                comp.mbean.addData("stringhub", "LatestFirstChannelHitTime", 10)
-                comp.mbean.addData("stringhub", "NumberOfNonZombies", 1)
+                comp.addBeanData("stringhub", "LatestFirstChannelHitTime", 10)
+                comp.addBeanData("stringhub", "NumberOfNonZombies", 1)
 
         self.__startRun(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
@@ -245,7 +245,7 @@ class TestRunSet(unittest.TestCase):
 
         for comp in compList:
             if comp.isSource:
-                comp.mbean.addData("stringhub", "EarliestLastChannelHitTime", 10)
+                comp.addBeanData("stringhub", "EarliestLastChannelHitTime", 10)
 
         self.__stopRun(runset, runNum, runConfig, cluCfg, components=compList,
                        logger=logger)
@@ -325,7 +325,7 @@ class TestRunSet(unittest.TestCase):
 
         for comp in compList:
             if comp.isSource:
-                comp.mbean.addData("stringhub", "EarliestLastChannelHitTime", 10)
+                comp.addBeanData("stringhub", "EarliestLastChannelHitTime", 10)
 
         self.__stopRun(runset, runNum, runConfig, cluCfg, components=compList,
                        logger=logger, hangType=hangType)
@@ -371,9 +371,9 @@ class TestRunSet(unittest.TestCase):
                     for fld in ("LatestFirstChannelHitTime",
                                 "NumberOfNonZombies"):
                         try:
-                            comp.mbean.get(bean, fld)
+                            comp.getSingleBeanField(bean, fld)
                         except:
-                            comp.mbean.addData(bean, fld, 10)
+                            comp.addBeanData(bean, fld, 10)
 
         if versionInfo is None:
             versionInfo = {
