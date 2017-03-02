@@ -276,5 +276,45 @@ class Dash(cmd.Cmd):
         except:
             traceback.print_exc()
 
+
+def process_commands(commands, verbose=False):
+    dash = Dash()
+
+    for arg in commands:
+        argsplit = arg.split(" ", 1)
+        if len(argsplit) == 0:
+            print >>sys.stderr, "Ignoring empty command \"%s\"" % arg
+            continue
+
+        cmd = argsplit[0]
+        if len(argsplit) == 1:
+            remainder = ""
+        else:
+            remainder = argsplit[1]
+
+        try:
+            if verbose:
+                print arg
+            getattr(dash, "do_" + cmd)(remainder)
+        except AttributeError:
+            print >>sys.stderr, "Unknown command \"%s\"" % cmd
+        except:
+            traceback.print_exc()
+
+
 if __name__ == "__main__":
-    Dash().cmdloop()
+    import argparse
+
+    p = argparse.ArgumentParser()
+
+    p.add_argument("-c", "--command", dest="command", action="append",
+                   help="Command to run (may be specified multiple times)")
+    p.add_argument("-v", "--verbose", dest="verbose", action="store_true",
+                   help="Print command before running it")
+
+    args = p.parse_args()
+
+    if args.command is None or len(args.command) == 0:
+        Dash().cmdloop()
+    else:
+        process_commands(args.command)
