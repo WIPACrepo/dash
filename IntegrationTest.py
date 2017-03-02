@@ -239,7 +239,8 @@ class MostlyRunSet(RunSet):
         return log
 
     def createDashLog(self):
-        return MockCnCLogger(self.__dashAppender, quiet=True, extraLoud=False)
+        return MockCnCLogger("dash", appender=self.__dashAppender, quiet=True,
+                             extraLoud=False)
 
     def createRunData(self, runNum, clusterConfigName, runOptions, versionInfo,
                       spadeDir, copyDir=None, logDir=None):
@@ -280,7 +281,8 @@ class MostlyDAQClient(DAQClient):
                                               quiet=True)
 
     def createLogger(self, quiet):
-        return MockCnCLogger(self.__appender, quiet)
+        return MockCnCLogger(self.fullname, appender=self.__appender,
+                             quiet=quiet)
 
 
 class MostlyCnCServer(CnCServer):
@@ -332,9 +334,10 @@ class MostlyCnCServer(CnCServer):
                 MockAppender('Mock-%s' % key,
                              depth=IntegrationTest.NUM_COMPONENTS)
 
-        return MockCnCLogger(MostlyCnCServer.APPENDERS[key], quiet)
+        return MockCnCLogger(key, appender=MostlyCnCServer.APPENDERS[key],
+                             quiet=quiet)
 
-    def getClusterConfig(self):
+    def getClusterConfig(self, runConfig=None):
         return self.__clusterConfig
 
     def createRunset(self, runConfig, compList, logger):
@@ -385,7 +388,7 @@ class RealComponent(object):
 
     def __init__(self, name, num, cmdPort, mbeanPort, hsDir, hsInterval,
                  hsMaxFiles, jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
-                 jvmArgs, jvmExtraArgs, verbose=False):
+                 jvmArgs, jvmExtraArgs):
         self.__id = None
         self.__name = name
         self.__num = num
@@ -459,8 +462,12 @@ class RealComponent(object):
         t.setDaemon(True)
         t.start()
 
+        self.__cnc = None
+
+    def connectToCnC(self):
+        #print >>sys.stderr, "Connect %s" % self.fullname
         self.__cnc = xmlrpclib.ServerProxy('http://localhost:%d' %
-                                           DAQPort.CNCSERVER, verbose=verbose)
+                                           DAQPort.CNCSERVER)
 
     def __cmp__(self, other):
         selfOrder = RealComponent.__getLaunchOrder(self.__name)
@@ -495,12 +502,12 @@ class RealComponent(object):
         self.__state = 'ready'
         return 'CFG'
 
-    def __connect(self, *args):
+    def __connect(self, connList=None):
         if self.__compList is None:
             raise Exception("No component list for %s" % str(self))
 
         tmpDict = {}
-        for connList in args:
+        if connList is not None:
             for cd in connList:
                 for c in self.__compList:
                     if c.isComponent(cd["compName"], cd["compNum"]):
@@ -932,12 +939,9 @@ class IntegrationTest(unittest.TestCase):
             raise Exception("Expected %d components, not %d" %
                             (IntegrationTest.NUM_COMPONENTS, len(comps)))
 
-        verbose = False
-
         for c in comps:
             comp = RealComponent(c[0], c[1], c[2], c[3], c[4], c[5], c[6],
-                                 c[7], c[8], c[9], c[10], c[11], c[12],
-                                 verbose)
+                                 c[7], c[8], c[9], c[10], c[11], c[12])
 
             if self.__compList is None:
                 self.__compList = []
@@ -1006,7 +1010,7 @@ class IntegrationTest(unittest.TestCase):
                                              comp.jvmPath, comp.jvmServer,
                                              comp.jvmHeapInit,
                                              comp.jvmHeapMax, comp.jvmArgs,
-                                             comp.jvmExtraArgs)
+                                             comp.jvmExtraArgs, None, None)
             pShell.addExpectedJava(deployComp, IntegrationTest.CONFIG_DIR,
                                    IntegrationTest.DATA_DIR,
                                    DAQPort.CATCHALL, livePort, verbose, False,
@@ -1211,6 +1215,9 @@ class IntegrationTest(unittest.TestCase):
 
     def __testBody(self, live, cnc, liveLog, appender, dashLog, runOptions,
                    liveRunOnly):
+        for c in self.__compList:
+            c.connectToCnC()
+
         logServer = cnc.getLogServer()
 
         RUNLOG_INFO = False
@@ -1724,7 +1731,7 @@ class IntegrationTest(unittest.TestCase):
     @staticmethod
     def __waitForEmptyLog(log, errMsg):
         for _ in range(5):
-            if log.isEmpty():
+            if log.isEmpty:
                 break
             time.sleep(0.25)
         log.checkStatus(1)
@@ -1754,7 +1761,8 @@ class IntegrationTest(unittest.TestCase):
         self.__cnc = None
         self.__compList = None
 
-        # shorten radar thread
+        #from DAQMocks import LogChecker
+        #LogChecker.DEBUG = True
 
         RunXMLValidator.setUp()
 
@@ -1787,7 +1795,7 @@ class IntegrationTest(unittest.TestCase):
         shutil.rmtree(IntegrationTest.LOG_DIR, ignore_errors=True)
         IntegrationTest.LOG_DIR = None
 
-        if True:
+        if False:
             reps = 5
             for n in range(reps):
                 if threading.activeCount() < 2:

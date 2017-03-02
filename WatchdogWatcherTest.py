@@ -23,9 +23,11 @@ class MockComponent(object):
             return self.__name
         return self.__name + "#%d" % self.__num
 
+    @property
     def isBuilder(self):
         return self.__builder
 
+    @property
     def isSource(self):
         return self.__source
 

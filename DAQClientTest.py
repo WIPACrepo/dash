@@ -18,7 +18,8 @@ class MostlyDAQClient(DAQClient):
         return None
 
     def createLogger(self, quiet):
-        return MockCnCLogger(self.__appender, quiet)
+        return MockCnCLogger(self.fullname, appender=self.__appender,
+                             quiet=quiet)
 
     def createMBeanClient(self, host, port):
         return None

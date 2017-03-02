@@ -39,7 +39,8 @@ class ComponentLog(object):
 
         return False
 
-    def fileName(self):
+    @property
+    def filename(self):
         return self.__fileName
 
     def parse(self, path):
@@ -1022,6 +1023,7 @@ class Builder(object):
                                      self.__stateString(self.__state)))
         self.__state = newState
 
+    @property
     def isInitial(self):
         return self.__state == self.STATE_INITIAL
 
@@ -1185,7 +1187,7 @@ class SecondaryBuildersLog(ComponentLog):
     def report(self, fd, verbose):
         if verbose:
             for bldr in self.__builder.values():
-                if not bldr.isInitial():
+                if not bldr.isInitial:
                     print >> fd, "%s %s" % (str(bldr), bldr.state)
 
 
@@ -1283,6 +1285,7 @@ class BaseDom(object):
     def getWildTCals(self):
         return self.__wildTCals
 
+    @property
     def isStopped(self):
         return self.__state == self.STATE_STOPPED
 
@@ -1816,19 +1819,19 @@ class StringHubLog(ComponentLog):
         if verbose:
             if self.__gpsNotReady > 0:
                 print >>fd, "%s: %d \"GPS not ready\" warnings" % \
-                    (self.fileName(), self.__gpsNotReady)
+                    (self.filename, self.__gpsNotReady)
             if self.__outOfOrder > 0:
                 print >>fd, "%s: %d out-of-order values" % \
-                    (self.fileName(), self.__outOfOrder)
+                    (self.filename, self.__outOfOrder)
             for pr in self.__prevRpt:
-                print >>fd, "%s: %s" % (self.fileName(), pr)
+                print >>fd, "%s: %s" % (self.filename, pr)
             for dom in self.__domMap.values():
                 if not dom.isStopped():
                     print >>fd, "%s: %s %s" % \
-                        (self.fileName(), str(dom), dom.state)
+                        (self.filename, str(dom), dom.state)
                 elif dom.getWildTCals() > 0 or dom.getTCalFailures() > 0:
                     print >>fd, "%s: %s TCals: %d wild, %d failures" % \
-                        (self.fileName(), str(dom), dom.getWildTCals(),
+                        (self.filename, str(dom), dom.getWildTCals(),
                          dom.getTCalFailures())
 
 

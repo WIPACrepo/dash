@@ -192,7 +192,7 @@ def deploy(config, homeDir, pdaqDir, subdirs, delete, dryRun,
     if not dryRun:
         parallel.shuffle()
         parallel.start()
-        if parallel.isParallel():
+        if parallel.isParallel:
             parallel.wait(monitorIval)
 
     if not dryRun:
@@ -314,7 +314,7 @@ def run_deploy(args):
 
             for comp in compList:
                 print comp.fullname,
-                if comp.isHub():
+                if comp.isHub:
                     print "[%s]" % getHubType(comp.id),
                 print " ",
             print

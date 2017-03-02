@@ -31,11 +31,11 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         hit_rate_lc = 25.0
 
         foo = MockComponent("fooHub", 1)
-        foo.addBeanData("stringhub", "NumberOfActiveAndTotalChannels",
-                        (numActive, numTotal))
-        foo.addBeanData("stringhub", "TotalLBMOverflows", numLBM)
-        foo.addBeanData("stringhub", "HitRate", hit_rate)
-        foo.addBeanData("stringhub", "HitRateLC", hit_rate_lc)
+        foo.mbean.addData("stringhub", "NumberOfActiveAndTotalChannels",
+                          (numActive, numTotal))
+        foo.mbean.addData("stringhub", "TotalLBMOverflows", numLBM)
+        foo.mbean.addData("stringhub", "HitRate", hit_rate)
+        foo.mbean.addData("stringhub", "HitRateLC", hit_rate_lc)
 
         runset = MockRunSet([foo, ])
 
@@ -68,8 +68,6 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         logger.checkStatus(4)
         live.hasAllMoni()
 
-        live.addExpected("stringDOMsInfo", {'1': (numActive, numTotal)},
-                         Prio.EMAIL)
         live.addExpected("stringRateInfo", {'1': 50},
                          Prio.EMAIL)
         live.addExpected("stringRateLCInfo", {'1': 25},
@@ -110,11 +108,11 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         hit_rate_lc = 25.0
 
         foo = MockComponent("fooHub", 1)
-        foo.addBeanData("stringhub", "NumberOfActiveAndTotalChannels",
-                        (numActive, numTotal))
-        foo.addBeanData("stringhub", "TotalLBMOverflows", numLBM)
-        foo.addBeanData("stringhub", "HitRate", hit_rate)
-        foo.addBeanData("stringhub", "HitRateLC", hit_rate_lc)
+        foo.mbean.addData("stringhub", "NumberOfActiveAndTotalChannels",
+                          (numActive, numTotal))
+        foo.mbean.addData("stringhub", "TotalLBMOverflows", numLBM)
+        foo.mbean.addData("stringhub", "HitRate", hit_rate)
+        foo.mbean.addData("stringhub", "HitRateLC", hit_rate_lc)
 
         runset = MockRunSet([foo, ])
 
@@ -162,11 +160,11 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         hit_rate_lc = 25.0
 
         foo = MockComponent("fooHub", 1)
-        foo.addBeanData("stringhub", "NumberOfActiveAndTotalChannels",
-                        (numActive, numTotal))
-        foo.addBeanData("stringhub", "TotalLBMOverflows", numLBM)
-        foo.addBeanData("stringhub", "HitRate", hit_rate)
-        foo.addBeanData("stringhub", "HitRateLC", hit_rate_lc)
+        foo.mbean.addData("stringhub", "NumberOfActiveAndTotalChannels",
+                          (numActive, numTotal))
+        foo.mbean.addData("stringhub", "TotalLBMOverflows", numLBM)
+        foo.mbean.addData("stringhub", "HitRate", hit_rate)
+        foo.mbean.addData("stringhub", "HitRateLC", hit_rate_lc)
 
         runset = MockRunSet([foo, ])
 
@@ -192,8 +190,6 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         logger.checkStatus(4)
         live.hasAllMoni()
 
-        live.addExpected("stringDOMsInfo", {'1': (numActive, numTotal)},
-                         Prio.EMAIL)
         live.addExpected("stringRateInfo", {'1': 50},
                          Prio.EMAIL)
         live.addExpected("stringRateLCInfo", {'1': 25},
@@ -201,8 +197,9 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         live.addExpected("LBMOverflows", {'1': numLBM},
                          Prio.ITS)
 
-        foo.setBeanData("stringhub", "NumberOfActiveAndTotalChannels",
-                        Exception("Simulated error"))
+        foo.mbean.setData("stringhub", "NumberOfActiveAndTotalChannels",
+                          Exception("Simulated error"))
+        #logger.addExpectedRegexp(".*Simulated error.*")
 
         live.addExpected("activeDOMs", numActive, Prio.ITS)
         live.addExpected("expectedDOMs", numTotal, Prio.ITS)

@@ -449,6 +449,7 @@ class LogChecker(object):
         self.__checkEmpty()
         return True
 
+    @property
     def isEmpty(self):
         return len(self.__expMsgs) == 0
 
@@ -504,15 +505,17 @@ class MockClusterWriter(object):
     def writeJVMXML(cls, fd, indent, path, isServer, heapInit, heapMax, args,
                     extraArgs):
 
-        jStr = "jvm"
-        jStr = cls.__appendAttr(jStr, 'path', path)
-        if isServer is not None:
-            jStr = cls.__appendAttr(jStr, 'server', isServer)
-        jStr = cls.__appendAttr(jStr, 'heapInit', heapInit)
-        jStr = cls.__appendAttr(jStr, 'heapMax', heapMax)
-        jStr = cls.__appendAttr(jStr, 'args', args)
-        jStr = cls.__appendAttr(jStr, 'extraArgs', extraArgs)
-        print >>fd, "%s<%s/>" % (indent, jStr)
+        if path is not None or isServer or heapInit is not None or \
+           heapMax is not None or args is not None or extraArgs is not None:
+            jStr = "jvm"
+            jStr = cls.__appendAttr(jStr, 'path', path)
+            if isServer:
+                jStr = cls.__appendAttr(jStr, 'server', isServer)
+            jStr = cls.__appendAttr(jStr, 'heapInit', heapInit)
+            jStr = cls.__appendAttr(jStr, 'heapMax', heapMax)
+            jStr = cls.__appendAttr(jStr, 'args', args)
+            jStr = cls.__appendAttr(jStr, 'extraArgs', extraArgs)
+            print >>fd, "%s<%s/>" % (indent, jStr)
 
     @classmethod
     def writeLine(cls, fd, indent, name, value):
@@ -606,7 +609,7 @@ class MockCluCfgFileComp(MockClusterWriter):
         self.__hitspoolMaxFiles = hitspoolMaxFiles
 
         self.__jvmPath = jvmPath
-        self.__jvmServer = jvmServer
+        self.__jvmServer = jvmServer == True
         self.__jvmHeapInit = jvmHeapInit
         self.__jvmHeapMax = jvmHeapMax
         self.__jvmArgs = jvmArgs
@@ -805,7 +808,7 @@ class MockCluCfgFileCtlSrvr(object):
 
     @property
     def jvmServer(self):
-        return None
+        return False
 
     @property
     def logLevel(self):
@@ -977,6 +980,7 @@ class MockClusterComponent(Component):
     def host(self):
         return self.__host
 
+    @property
     def isLocalhost(self):
         return True
 
@@ -1039,6 +1043,9 @@ class MockClusterConfigFile(MockClusterWriter):
         self.__defaultJVMPath = None
         self.__defaultJVMServer = None
 
+        self.__defaultAlertEMail = None
+        self.__defaultNTPHost = None
+
         self.__defaultLogLevel = None
 
         self.__defaultComps = None
@@ -1088,7 +1095,10 @@ class MockClusterConfigFile(MockClusterWriter):
                         self.__defaultJVMPath is not None or \
                         self.__defaultJVMServer is not None
 
-            if hasHSXML or hasJVMXML or \
+            hasHubXML = self.__defaultAlertEMail is not None or \
+                        self.__defaultNTPHost is not None
+
+            if hasHSXML or hasJVMXML or hasHubXML or \
                self.__defaultLogLevel is not None or \
                self.__defaultComps is not None:
                 print >>fd, indent + "<default>"
@@ -1107,6 +1117,10 @@ class MockClusterConfigFile(MockClusterWriter):
                                      self.__defaultJVMHeapMax,
                                      self.__defaultJVMArgs,
                                      self.__defaultJVMExtraArgs)
+
+                if hasHubXML:
+                    self.writeHubXML(fd, indent2, self.__defaultAlertEMail,
+                                    self.__defaultNTPHost)
 
                 if self.__defaultLogLevel is not None:
                     self.writeLine(fd, indent2, "logLevel",
@@ -1129,6 +1143,9 @@ class MockClusterConfigFile(MockClusterWriter):
             return ClusterDescription.DEFAULT_DATA_DIR
 
         return self.__dataDir
+
+    def defaultAlertEMail(self):
+        return self.__defaultAlertEMail
 
     def defaultHSDirectory(self):
         return self.__defaultHSDir
@@ -1164,6 +1181,9 @@ class MockClusterConfigFile(MockClusterWriter):
 
         return self.__defaultLogLevel
 
+    def defaultNTPHost(self):
+        return self.__defaultNTPHost
+
     @property
     def logDir(self):
         if self.__logDir is None:
@@ -1177,6 +1197,9 @@ class MockClusterConfigFile(MockClusterWriter):
 
     def setDataDir(self, value):
         self.__dataDir = value
+
+    def setDefaultAlertEMail(self, value):
+        self.__defaultAlertEMail = value
 
     def setDefaultHSDirectory(self, value):
         self.__defaultHSDir = value
@@ -1208,6 +1231,9 @@ class MockClusterConfigFile(MockClusterWriter):
     def setDefaultLogLevel(self, value):
         self.__defaultLogLevel = value
 
+    def setDefaultNTPHost(self, value):
+        self.__defaultNTPHost = value
+
     def setLogDir(self, value):
         self.__logDir = value
 
@@ -1232,12 +1258,12 @@ class MockClusterNode(object):
 
 
 class MockCnCLogger(CnCLogger):
-    def __init__(self, appender, quiet=False, extraLoud=False):
+    def __init__(self, name, appender=None, quiet=False, extraLoud=False):
         #if appender is None: raise Exception('Appender cannot be None')
         self.__appender = appender
 
-        super(MockCnCLogger, self).__init__(appender, quiet=quiet,
-                                            extraLoud=extraLoud)
+        super(MockCnCLogger, self).__init__(name, appender=appender,
+                                            quiet=quiet, extraLoud=extraLoud)
 
 
 class MockConnection(object):
@@ -1257,9 +1283,11 @@ class MockConnection(object):
             return '%d=>%s' % (self.__port, self.__name)
         return '=>' + self.__name
 
+    @property
     def isInput(self):
         return self.__connCh == self.INPUT or self.__connCh == self.OPT_INPUT
 
+    @property
     def isOptional(self):
         return self.__connCh == self.OPT_INPUT or \
                self.__connCh == self.OPT_OUTPUT
@@ -1271,6 +1299,62 @@ class MockConnection(object):
     @property
     def port(self):
         return self.__port
+
+
+class MockMBeanClient(object):
+    def __init__(self, name):
+        self.__name = name
+        self.__beanData = {}
+
+    def __str__(self):
+        return self.__name
+
+    def addData(self, beanName, fieldName, value):
+        if self.check(beanName, fieldName):
+            raise Exception("Value for %s bean %s field %s already exists" %
+                            (self, beanName, fieldName))
+
+        if not beanName in self.__beanData:
+            self.__beanData[beanName] = {}
+
+        self.__beanData[beanName][fieldName] = value
+
+    def check(self, beanName, fieldName):
+        return beanName in self.__beanData and \
+            fieldName in self.__beanData[beanName]
+
+    def get(self, beanName, fieldName):
+        if not self.check(beanName, fieldName):
+            raise Exception("No %s data for bean %s field %s" %
+                            (self, beanName, fieldName))
+
+        return self.__beanData[beanName][fieldName]
+
+    def getAttributes(self, beanName, fieldList):
+        rtnMap = {}
+        for f in fieldList:
+            rtnMap[f] = self.get(beanName, f)
+
+            if isinstance(rtnMap[f], Exception):
+                raise rtnMap[f]
+        return rtnMap
+
+    def getBeanFields(self, beanName):
+        return self.__beanData[beanName].keys()
+
+    def getBeanNames(self):
+        return self.__beanData.keys()
+
+    def reload(self):
+        pass
+
+    def setData(self, beanName, fieldName, value):
+
+        if not self.check(beanName, fieldName):
+            raise Exception("%c bean %s field %s has not been added" %
+                            (self, beanName, fieldName))
+
+        self.__beanData[beanName][fieldName] = value
 
 
 class MockComponent(object):
@@ -1300,8 +1384,7 @@ class MockComponent(object):
         self.__replayHub = False
         self.__firstGoodTime = None
         self.__lastGoodTime = None
-
-        self.__beanData = {}
+        self.__mbeanClient = None
 
     def __cmp__(self, other):
         val = cmp(self.__name, other.__name)
@@ -1328,17 +1411,6 @@ class MockComponent(object):
             outStr += '[' + ','.join(extra) + ']'
         return outStr
 
-    def addBeanData(self, beanName, fieldName, value):
-
-        if self.checkBeanField(beanName, fieldName):
-            raise Exception("Value for %s bean %s field %s already exists" %
-                            (self, beanName, fieldName))
-
-        if not beanName in self.__beanData:
-            self.__beanData[beanName] = {}
-
-        self.__beanData[beanName][fieldName] = value
-
     def addDeadCount(self):
         self.__deadCount += 1
 
@@ -1355,10 +1427,6 @@ class MockComponent(object):
         else:
             connCh = MockConnection.OPT_OUTPUT
         self.__connectors.append(MockConnection(name, connCh))
-
-    def checkBeanField(self, beanName, fieldName):
-        return beanName in self.__beanData and \
-            fieldName in self.__beanData[beanName]
 
     def close(self):
         pass
@@ -1379,6 +1447,14 @@ class MockComponent(object):
     def connectors(self):
         return self.__connectors[:]
 
+    def _createMBeanClient(self):
+        return MockMBeanClient(self.fullname)
+
+    def createMBeanClient(self):
+        if self.__mbeanClient is None:
+            self.__mbeanClient = self._createMBeanClient()
+        return self.__mbeanClient
+
     def forcedStop(self):
         if self.__stopFail:
             pass
@@ -1395,45 +1471,34 @@ class MockComponent(object):
             return self.__name
         return '%s#%d' % (self.__name, self.__num)
 
-    def fileName(self):
+    @property
+    def filename(self):
         return '%s-%d' % (self.__name, self.__num)
-
-    def getBeanFields(self, beanName):
-        return self.__beanData[beanName].keys()
-
-    def getBeanNames(self):
-        return self.__beanData.keys()
 
     def getConfigureWait(self):
         return self.__configWait
 
-    def getMultiBeanFields(self, beanName, fieldList):
-        rtnMap = {}
-        for f in fieldList:
-            rtnMap[f] = self.getSingleBeanField(beanName, f)
-
-            if isinstance(rtnMap[f], Exception):
-                raise rtnMap[f]
-        return rtnMap
-
     def getRunData(self, runnum):
+        if self.__mbeanClient is None:
+            self.__mbeanClient = self.createMBeanClient()
+
         if self.__num == 0:
             if self.__name.startswith("event"):
-                evtData = self.getSingleBeanField("backEnd", "EventData")
+                evtData = self.__mbeanClient.get("backEnd", "EventData")
                 numEvts = int(evtData[0])
                 lastTime = long(evtData[1])
 
-                val = self.getSingleBeanField("backEnd", "FirstEventTime")
+                val = self.__mbeanClient.get("backEnd", "FirstEventTime")
                 firstTime = long(val)
 
-                good = self.getSingleBeanField("backEnd", "GoodTimes")
+                good = self.__mbeanClient.get("backEnd", "GoodTimes")
                 firstGood = long(good[0])
                 lastGood = long(good[1])
                 return (numEvts, firstTime, lastTime, firstGood, lastGood)
             elif self.__name.startswith("secondary"):
                 for bldr in ("tcal", "sn", "moni"):
-                    val = self.getSingleBeanField(bldr + "Builder",
-                                                  "NumDispatchedData")
+                    val = self.__mbeanClient.get(bldr + "Builder",
+                                                 "NumDispatchedData")
                     if bldr == "tcal":
                         numTcal = long(val)
                     elif bldr == "sn":
@@ -1445,13 +1510,6 @@ class MockComponent(object):
 
         return (None, None, None)
 
-    def getSingleBeanField(self, beanName, fieldName):
-        if not self.checkBeanField(beanName, fieldName):
-            raise Exception("No %s data for bean %s field %s" %
-                            (self, beanName, fieldName))
-
-        return self.__beanData[beanName][fieldName]
-
     @property
     def host(self):
         return self.__host
@@ -1460,21 +1518,26 @@ class MockComponent(object):
     def is_dying(self):
         return False
 
+    @property
     def isBuilder(self):
         return self.__isBldr
 
     def isComponent(self, name, num=-1):
         return self.__name == name
 
+    @property
     def isConfigured(self):
         return self.__configured
 
+    @property
     def isHanging(self):
         return self.__hangType != 0
 
+    @property
     def isReplayHub(self):
         return self.__replayHub
 
+    @property
     def isSource(self):
         return self.__isSrc
 
@@ -1483,6 +1546,13 @@ class MockComponent(object):
 
     def logTo(self, logIP, logPort, liveIP, livePort):
         pass
+
+    @property
+    def mbean(self):
+        if self.__mbeanClient is None:
+            self.__mbeanClient = self.createMBeanClient()
+
+        return self.__mbeanClient
 
     def monitorCount(self):
         return self.__monitorCount
@@ -1501,9 +1571,6 @@ class MockComponent(object):
     def prepareSubrun(self, id):
         pass
 
-    def reloadBeanInfo(self):
-        pass
-
     def reset(self):
         self.__connected = False
         self.__configured = False
@@ -1515,14 +1582,6 @@ class MockComponent(object):
 
     def setBadHub(self):
         self.__isBadHub = True
-
-    def setBeanData(self, beanName, fieldName, value):
-
-        if not self.checkBeanField(beanName, fieldName):
-            raise Exception("%c bean %s field %s has not been added" %
-                            (self, beanName, fieldName))
-
-        self.__beanData[beanName][fieldName] = value
 
     def setConfigureWait(self, waitNum):
         self.__configWait = waitNum
@@ -1625,19 +1684,30 @@ class MockDefaultDomGeometryFile(object):
 class MockDeployComponent(Component):
     def __init__(self, name, id, logLevel, hsDir, hsInterval, hsMaxFiles,
                  jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs,
-                 jvmExtraArgs, host=None):
+                 jvmExtraArgs, alertEMail, ntpHost, host=None):
         self.__hsDir = hsDir
         self.__hsInterval = hsInterval
         self.__hsMaxFiles = hsMaxFiles
         self.__jvmPath = jvmPath
-        self.__jvmServer = jvmServer
+        self.__jvmServer = jvmServer == True
         self.__jvmHeapInit = jvmHeapInit
         self.__jvmHeapMax = jvmHeapMax
         self.__jvmArgs = jvmArgs
         self.__jvmExtraArgs = jvmExtraArgs
+        self.__alertEMail = alertEMail
+        self.__ntpHost =  ntpHost
         self.__host = host
 
         super(MockDeployComponent, self).__init__(name, id, logLevel)
+
+    @property
+    def alertEMail(self):
+        return self.__alertEMail
+
+    @property
+    def hasHitSpoolOptions(self):
+        return self.__hsDir is not None or self.__hsInterval is not None or \
+            self.__hsMaxFiles is not None
 
     @property
     def hitspoolDirectory(self):
@@ -1659,6 +1729,7 @@ class MockDeployComponent(Component):
     def host(self):
         return self.__host
 
+    @property
     def isLocalhost(self):
         return self.__host is not None and self.__host == "localhost"
 
@@ -1685,6 +1756,10 @@ class MockDeployComponent(Component):
     @property
     def jvmServer(self):
         return self.__jvmServer
+
+    @property
+    def ntpHost(self):
+        return self.__ntpHost
 
 
 class MockDAQClient(DAQClient):
@@ -1719,7 +1794,8 @@ class MockDAQClient(DAQClient):
         return MockRPCClient(self.name, self.num, self.outLinks)
 
     def createLogger(self, quiet):
-        return MockCnCLogger(self.__appender, quiet, self.__extraLoud)
+        return MockCnCLogger(self.fullname, appender=self.__appender,
+                             quiet=quiet, extraLoud=self.__extraLoud)
 
     def createMBeanClient(self, host, port):
         return MockRPCClient(self.name, self.num, self.outLinks)
@@ -1804,21 +1880,27 @@ class MockLogger(LogChecker):
     def info(self, m):
         self._checkMsg(m)
 
+    @property
     def isDebugEnabled(self):
         return True
 
+    @property
     def isErrorEnabled(self):
         return True
 
+    @property
     def isFatalEnabled(self):
         return True
 
+    @property
     def isInfoEnabled(self):
         return True
 
+    @property
     def isTraceEnabled(self):
         return True
 
+    @property
     def isWarnEnabled(self):
         return True
 
@@ -1913,6 +1995,12 @@ class MockParallelShell(object):
         if comp.jvmExtraArgs is not None:
             cmd += " " + comp.jvmExtraArgs
 
+        if comp.isRealHub:
+            if comp.ntpHost is not None:
+                cmd += " -Dicecube.daq.time.monitoring.ntp-host=" + comp.ntpHost
+            if comp.alertEMail is not None:
+                cmd += " -Dicecube.daq.stringhub.alert-email=" + comp.alertEMail
+
         if comp.hitspoolDirectory is not None:
             cmd += " -Dhitspool.directory=\"%s\"" % comp.hitspoolDirectory
         if comp.hitspoolInterval is not None:
@@ -1920,9 +2008,9 @@ class MockParallelShell(object):
         if comp.hitspoolMaxFiles is not None:
             cmd += " -Dhitspool.maxfiles=%d" %  comp.hitspoolMaxFiles
 
-        if comp.isHub():
+        if comp.isHub:
             cmd += " -Dicecube.daq.stringhub.componentId=%d" % comp.id
-        if eventCheck and comp.isBuilder():
+        if eventCheck and comp.isBuilder:
             cmd += ' -Dicecube.daq.eventBuilder.validateEvents'
 
         cmd += ' -jar %s' % jarPath
@@ -2050,6 +2138,7 @@ class MockParallelShell(object):
     def getReturnCodes(self):
         return self.__rtnCodes
 
+    @property
     def isParallel(self):
         return self.__isParallel
 
@@ -2101,11 +2190,13 @@ class MockRunComponent(object):
     def inetAddress(self):
         return self.__inetAddr
 
+    @property
     def isHub(self):
         return self.__name.endswith("Hub")
 
+    @property
     def isReplay(self):
-        return self.isHub() and self.__name.lower().find("replay") >= 0
+        return self.isHub and self.__name.lower().find("replay") >= 0
 
     @property
     def mbeanPort(self):
@@ -2678,6 +2769,7 @@ class MockRunSet(object):
         return (self.__numEvts, self.__rate, self.__numMoni, self.__numSN,
                 self.__numTcal)
 
+    @property
     def isRunning(self):
         return self.__running
 

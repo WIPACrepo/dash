@@ -141,7 +141,7 @@ class TestRunSet(unittest.TestCase):
 
     def __isCompListConfigured(self, compList):
         for c in compList:
-            if not c.isConfigured():
+            if not c.isConfigured:
                 return False
 
         return True
@@ -208,9 +208,9 @@ class TestRunSet(unittest.TestCase):
         self.failIf(stopErr, "stopRun() encountered error")
 
         for comp in compList:
-            if comp.isSource():
-                comp.addBeanData("stringhub", "LatestFirstChannelHitTime", 10)
-                comp.addBeanData("stringhub", "NumberOfNonZombies", 1)
+            if comp.isSource:
+                comp.mbean.addData("stringhub", "LatestFirstChannelHitTime", 10)
+                comp.mbean.addData("stringhub", "NumberOfNonZombies", 1)
 
         self.__startRun(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
@@ -244,8 +244,8 @@ class TestRunSet(unittest.TestCase):
         logger.checkStatus(10)
 
         for comp in compList:
-            if comp.isSource():
-                comp.addBeanData("stringhub", "EarliestLastChannelHitTime", 10)
+            if comp.isSource:
+                comp.mbean.addData("stringhub", "EarliestLastChannelHitTime", 10)
 
         self.__stopRun(runset, runNum, runConfig, cluCfg, components=compList,
                        logger=logger)
@@ -324,8 +324,8 @@ class TestRunSet(unittest.TestCase):
         expState = "stopping"
 
         for comp in compList:
-            if comp.isSource():
-                comp.addBeanData("stringhub", "EarliestLastChannelHitTime", 10)
+            if comp.isSource:
+                comp.mbean.addData("stringhub", "EarliestLastChannelHitTime", 10)
 
         self.__stopRun(runset, runNum, runConfig, cluCfg, components=compList,
                        logger=logger, hangType=hangType)
@@ -366,14 +366,14 @@ class TestRunSet(unittest.TestCase):
 
         if components is not None:
             for comp in components:
-                if comp.isSource():
+                if comp.isSource:
                     bean = "stringhub"
                     for fld in ("LatestFirstChannelHitTime",
                                 "NumberOfNonZombies"):
                         try:
-                            comp.getSingleBeanField(bean, fld)
+                            comp.mbean.get(bean, fld)
                         except:
-                            comp.addBeanData(bean, fld, 10)
+                            comp.mbean.addData(bean, fld, 10)
 
         if versionInfo is None:
             versionInfo = {
@@ -427,7 +427,7 @@ class TestRunSet(unittest.TestCase):
         hangList = []
         if hangType > 0:
             for c in components:
-                if c.isHanging():
+                if c.isHanging:
                     hangList.append(c.fullname)
             hangStr = ", ".join(hangList)
 

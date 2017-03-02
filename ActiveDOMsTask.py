@@ -30,7 +30,7 @@ class ActiveDOMThread(CnCThread):
         super(ActiveDOMThread, self).__init__("CnCServer:ActiveDOMThread",
                                               dashlog)
 
-    def __process_result(self, comp, result, totals, lbm_overflows, hub_doms):
+    def __process_result(self, comp, result, totals, lbm_overflows):
         try:
             hub_active_doms = int(result[self.KEY_ACT_TOT][0])
             hub_total_doms = int(result[self.KEY_ACT_TOT][1])
@@ -40,7 +40,8 @@ class ActiveDOMThread(CnCThread):
             # be extra paranoid about using previous value
             tmp_active = 0
             tmp_total = 0
-            if self.PREV_ACTIVE[comp.num].has_key(self.KEY_ACT_TOT):
+            if self.PREV_ACTIVE.has_key(comp.num) and \
+               self.PREV_ACTIVE[comp.num].has_key(self.KEY_ACT_TOT):
                 prevpair = self.PREV_ACTIVE[comp.num][self.KEY_ACT_TOT]
                 if len(prevpair) == 2:
                     try:
@@ -58,6 +59,8 @@ class ActiveDOMThread(CnCThread):
         if result.has_key(self.KEY_LBM_OVER):
             hub_lbm_overflows = result[self.KEY_LBM_OVER]
         else:
+            self.__dashlog.error("Bad LBM overflow result %s<%s>" %
+                                 (result, type(result)))
             hub_lbm_overflows = 0
         lbm_overflows[str(comp.num)] = hub_lbm_overflows
 
@@ -73,9 +76,6 @@ class ActiveDOMThread(CnCThread):
 
         totals["lc_rate"] += lc_rate
         totals["total_rate"] += total_rate
-
-        if self.__send_details:
-            hub_doms[str(comp.num)] = (hub_active_doms, hub_total_doms)
 
         # cache current results
         #
@@ -97,7 +97,7 @@ class ActiveDOMThread(CnCThread):
         # build a list of hubs
         src_set = []
         for comp in self.__runset.components():
-            if comp.isSource():
+            if comp.isSource:
                 src_set.append(comp)
 
         # spawn a bunch of threads to fetch hub data
@@ -114,7 +114,6 @@ class ActiveDOMThread(CnCThread):
             "lc_rate": 0.0, "total_rate": 0.0
         }
         lbm_overflows = {}
-        hub_doms = {}
 
         hanging = []
         for comp in src_set:
@@ -139,7 +138,7 @@ class ActiveDOMThread(CnCThread):
             # 'result' should now contain a dictionary with the number of
             # active and total channels and the LBM overflows
 
-            self.__process_result(comp, result, totals, lbm_overflows, hub_doms)
+            self.__process_result(comp, result, totals, lbm_overflows)
 
         # report hanging components
         if len(hanging) > 0:
@@ -148,7 +147,7 @@ class ActiveDOMThread(CnCThread):
             self.__dashlog.error(errmsg)
 
         # if the run isn't stopped and we have data from one or more hubs...
-        if not self.isClosed() and len(lbm_overflows) > 0:
+        if not self.isClosed and len(lbm_overflows) > 0:
 
             # active doms should be reported over ITS once every ten minutes
             # and over email once a minute.  The two should not overlap
@@ -185,9 +184,6 @@ class ActiveDOMThread(CnCThread):
                 # important messages that go out every ten minutes
                 self.__send_moni("LBMOverflows", lbm_overflows, Prio.ITS)
 
-                # less urgent messages use lower priority
-                self.__send_moni("stringDOMsInfo", hub_doms, Prio.EMAIL)
-
     def get_new_thread(self, send_details=False):
         thrd = ActiveDOMThread(self.__runset, self.__dashlog,
                                self.__live_moni_client, send_details)
@@ -201,9 +197,6 @@ class ActiveDOMsTask(CnCSingleThreadTask):
 
     'totalDOMS' which is a count of the total number of active doms
     in the array along with a count of the number of doms (active or inactive).
-
-    'stringDOMsInfo' which is a dictionary relating string number to the
-    number of active and total number of doms in a string
 
     'LBMOverflows' which is a dictionary relating string number to the total
     number of lbm overflows for a given string

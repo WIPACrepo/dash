@@ -133,10 +133,10 @@ class ValueWatcher(Watcher):
         return newValue == oldValue
 
     def __computeOrder(self, beanName, fieldName):
-        if self.__fromComp.isBuilder() and self.__toComp.isSource():
+        if self.__fromComp.isBuilder and self.__toComp.isSource:
             return self.__fromComp.order() + 1
 
-        if self.__fromComp.isSource() and self.__toComp.isBuilder():
+        if self.__fromComp.isSource and self.__toComp.isBuilder:
             return self.__toComp.order() + 2
 
         return self.__fromComp.order()
@@ -223,6 +223,7 @@ class ValueWatcher(Watcher):
 class WatchData(object):
     def __init__(self, comp, dashlog):
         self.__comp = comp
+        self.__mbeanClient = comp.createMBeanClient()
         self.__dashlog = dashlog
 
         self.__inputFields = {}
@@ -253,8 +254,10 @@ class WatchData(object):
         unhealthy = []
         if len(watchList) == 1:
             try:
-                val = self.__comp.getSingleBeanField(watchList[0].beanName(),
-                                                     watchList[0].fieldName())
+                beanName = watchList[0].beanName()
+                fldName = watchList[0].fieldName()
+                val = self.__mbeanClient.get(beanName, fldName)
+
                 chkVal = watchList[0].check(val)
             except Exception as ex:
                 unhealthy.append(watchList[0].unhealthyRecord(ex))
@@ -262,20 +265,25 @@ class WatchData(object):
             if not chkVal:
                 unhealthy.append(watchList[0].unhealthyRecord(val))
         else:
+            beanName = None
             fldList = []
             for f in watchList:
+                if beanName is None:
+                    beanName = f.beanName()
+                elif beanName != f.beanName():
+                    self.__dashlog.error("NOT requesting fields from multiple" +
+                                         " beans (%s != %s)" %
+                                         (beanName, f.beanName()))
+                    continue
                 fldList.append(f.fieldName())
 
             try:
-                valMap = self.__comp.getMultiBeanFields(
-                    watchList[0].beanName(),
-                    fldList)
+                valMap = self.__mbeanClient.getAttributes(beanName, fldList)
             except Exception as ex:
                 fldList = []
                 unhealthy.append(watchList[0].unhealthyRecord(ex))
 
             for index, fldVal in enumerate(fldList):
-
                 try:
                     val = valMap[fldVal]
                 except KeyError:
@@ -298,7 +306,7 @@ class WatchData(object):
         return unhealthy
 
     def addInputValue(self, otherComp, beanName, fieldName):
-        self.__comp.checkBeanField(beanName, fieldName)
+        self.__mbeanClient.check(beanName, fieldName)
 
         if beanName not in self.__inputFields:
             self.__inputFields[beanName] = []
@@ -307,7 +315,7 @@ class WatchData(object):
         self.__inputFields[beanName].append(vw)
 
     def addOutputValue(self, otherComp, beanName, fieldName):
-        self.__comp.checkBeanField(beanName, fieldName)
+        self.__mbeanClient.check(beanName, fieldName)
 
         if beanName not in self.__outputFields:
             self.__outputFields[beanName] = []
@@ -321,7 +329,7 @@ class WatchData(object):
         (or, when lessThan==False, if value rises above the threshold
         """
 
-        self.__comp.checkBeanField(beanName, fieldName)
+        self.__mbeanClient.check(beanName, fieldName)
 
         if beanName not in self.__thresholdFields:
             self.__thresholdFields[beanName] = []
@@ -399,7 +407,7 @@ class WatchdogThread(CnCThread):
         return self.__comp.fullname
 
     def _run(self):
-        if self.isClosed():
+        if self.isClosed:
             return
 
         if self.__data is None:
@@ -452,9 +460,11 @@ class DummyComponent(object):
     def fullname(self):
         return self.__name
 
+    @property
     def isBuilder(self):
         return False
 
+    @property
     def isSource(self):
         return False
 

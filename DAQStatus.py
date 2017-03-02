@@ -17,7 +17,8 @@ def add_arguments(parser):
                         help="Don't check the host type for run permission")
     parser.add_argument("-n", "--numeric", dest="numeric",
                         action="store_true", default=False,
-                        help="Show IP addresses instead of hostnames")
+                        help="Show IP addresses instead of hostnames"
+                             " in verbose output")
     parser.add_argument("-v", "--verbose", dest="verbose",
                         action="store_true", default=False,
                         help="Print detailed list")
@@ -184,7 +185,7 @@ def print_status(args):
 
     print "======================="
     print "%d unused component%s" % (nc, getPlural(nc))
-    if args.verbose:
+    if args.verbose or args.numeric:
         listVerbose(lc, indent, indent2, args.numeric)
     else:
         listTerse(lc, indent, indent2)
@@ -195,7 +196,7 @@ def print_status(args):
         cfg = cncrpc.rpc_runset_configname(runid)
         ls = cncrpc.rpc_runset_list(runid)
         print "%sRunSet#%d (%s)" % (indent, runid, cfg)
-        if args.verbose:
+        if args.verbose or args.numeric:
             listVerbose(ls, indent, indent2, args.numeric)
         else:
             listTerse(ls, indent, indent2)
@@ -219,7 +220,7 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
 
     add_arguments(p)
-    ns = p.parse_args()
+    args = p.parse_args()
 
     if not args.nohostcheck:
         # exit if not running on expcont
@@ -229,4 +230,4 @@ if __name__ == "__main__":
             raise SystemExit("Are you sure you are checking status"
                              " on the correct host?" )
 
-    print_status(ns)
+    print_status(args)

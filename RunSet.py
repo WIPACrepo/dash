@@ -65,7 +65,7 @@ class Connection(object):
         "String description"
         frontStr = '%s:%s#%d@%s' % \
             (self.conn.name, self.comp.name, self.comp.num, self.comp.host)
-        if not self.conn.isInput():
+        if not self.conn.isInput:
             return frontStr
         return '%s:%d' % (frontStr, self.conn.port)
 
@@ -103,13 +103,13 @@ class ConnTypeEntry(object):
 
     def add(self, conn, comp):
         "Add a connection and component to the appropriate list"
-        if conn.isInput():
-            if conn.isOptional():
+        if conn.isInput:
+            if conn.isOptional:
                 self.__optInList.append([conn, comp])
             else:
                 self.__inList.append([conn, comp])
         else:
-            if conn.isOptional():
+            if conn.isOptional:
                 self.__optOutList.append(comp)
             else:
                 self.__outList.append(comp)
@@ -310,6 +310,12 @@ class GoodTimeThread(CnCThread):
                     self.__badComps[c] = 1
                     continue
 
+                if not isinstance(result, dict):
+                    self.__log.error("Expected dictionary, not %s for %s"
+                                     " (result=%s)" %
+                                     (type(result), result, c.fullname))
+                    continue
+
                 if self.__badComps.has_key(c):
                     # got a result from a component which previously failed
                     del self.__badComps[c]
@@ -361,7 +367,7 @@ class GoodTimeThread(CnCThread):
     def __notifyComponents(self, goodTime):
         "Send latest good time to the builders"
         for c in self.__otherSet:
-            if c.isBuilder() or c.isComponent("globalTrigger"):
+            if c.isBuilder or c.isComponent("globalTrigger"):
                 self.notifyComponent(c, goodTime)
 
     def beanfield(self):
@@ -559,7 +565,7 @@ class RunData(object):
         return (lastTime - firstTime) / 10000000000
 
     def __createDashLog(self):
-        log = DAQLog(level=DAQLog.ERROR)
+        log = DAQLog("dash", level=DAQLog.ERROR)
 
         if RunOption.isLogToFile(self.__runOptions):
             if self.__runDir is None:
@@ -684,8 +690,6 @@ class RunData(object):
                              PayloadTime.PREV_TIME, type(PayloadTime.PREV_TIME))
                 self.__dashlog.error(msg)
                 return
-
-            self.__sendMoni("eventstart", data, prio=Prio.SCP, time=monitime)
 
     def __reportRunStop(self, numEvts, firstPayTime, lastPayTime, hadError):
         if self.__liveMoniClient is not None:
@@ -922,19 +926,6 @@ class RunData(object):
 
         return monDict
 
-    def getMultiBeanFields(self, comp, bean, fldList):
-        tGroup = ComponentOperationGroup(ComponentOperation.GET_MULTI_BEAN)
-        tGroup.start(comp, self.__dashlog, (bean, fldList))
-        tGroup.wait(waitSecs=10)
-
-        r = tGroup.results()
-        if not r.has_key(comp):
-            result = ComponentOperation.RESULT_ERROR
-        else:
-            result = r[comp]
-
-        return result
-
     def getRunData(self, comps):
         nEvts = 0
         firstTime = 0
@@ -948,7 +939,7 @@ class RunData(object):
         # build list of endpoints (eventBuilder and secondaryBuilders)
         bldrs = []
         for c in comps:
-            if c.isBuilder():
+            if c.isBuilder:
                 bldrs.append(c)
 
         r = ComponentOperationGroup.runSimple(ComponentOperation.GET_RUN_DATA,
@@ -1003,17 +994,21 @@ class RunData(object):
     def info(self, msg):
         self.__dashlog.info(msg)
 
+    @property
     def isDestroyed(self):
         return self.__dashlog is not None
 
+    @property
     def isErrorEnabled(self):
-        return self.__dashlog.isErrorEnabled()
+        return self.__dashlog.isErrorEnabled
 
+    @property
     def isInfoEnabled(self):
-        return self.__dashlog.isInfoEnabled()
+        return self.__dashlog.isInfoEnabled
 
+    @property
     def isWarnEnabled(self):
-        return self.__dashlog.isWarnEnabled()
+        return self.__dashlog.isWarnEnabled
 
     def queueForSpade(self, duration):
         if self.__logDir is None:
@@ -1236,7 +1231,7 @@ class RunSet(object):
         self.__state = newState
 
         # self.__runData is guaranteed to be set here
-        if self.__runData.isErrorEnabled() and \
+        if self.__runData.isErrorEnabled and \
                srcOp == ComponentOperation.FORCED_STOP:
             fullSet = srcSet + otherSet
             plural = len(fullSet) == 1 and "s" or ""
@@ -1323,9 +1318,9 @@ class RunSet(object):
         failStr = None
         for c in self.__set:
             if c.order() is not None:
-                if c.isSource():
+                if c.isSource:
                     srcSet.append(c)
-                elif c.isBuilder():
+                elif c.isBuilder:
                     bldrSet.append(c)
                 else:
                     middleSet.append(c)
@@ -1514,7 +1509,7 @@ class RunSet(object):
         "Return the list of replay hubs in this runset"
         replayHubs = []
         for c in self.__set:
-            if c.isReplayHub():
+            if c.isReplayHub:
                 replayHubs.append(c)
         return replayHubs
 
@@ -1566,7 +1561,7 @@ class RunSet(object):
             self.__logError(args[0] % args[1:])
 
     def __logError(self, msg):
-        if self.__runData is not None and not self.__runData.isDestroyed():
+        if self.__runData is not None and not self.__runData.isDestroyed:
             logger = self.__runData
         else:
             logger = self.__logger
@@ -1824,7 +1819,7 @@ class RunSet(object):
 
         self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING buildSets")
         for c in self.__set:
-            if c.isSource():
+            if c.isSource:
                 srcSet.append(c)
             else:
                 otherSet.append(c)
@@ -2167,12 +2162,15 @@ class RunSet(object):
         finally:
             self.__state = prevState
 
+    @property
     def isDestroyed(self):
         return self.__state == RunSetState.DESTROYED
 
+    @property
     def isReady(self):
         return self.__state == RunSetState.READY
 
+    @property
     def isRunning(self):
         return self.__state == RunSetState.RUNNING
 
@@ -2308,6 +2306,10 @@ class RunSet(object):
         if len(badComps) > 0:
             raise RunSetException('Could not reset %s' % str(badComps))
 
+    @property
+    def runConfigData(self):
+        return self.__cfg
+
     def runNumber(self):
         if self.__runData is None:
             return None
@@ -2364,7 +2366,7 @@ class RunSet(object):
 
             # if component is a source, save it to the initial list
             #
-            if c.isSource():
+            if c.isSource:
                 curLevel.append(c)
 
         if len(curLevel) == 0:
@@ -2388,12 +2390,12 @@ class RunSet(object):
                 c.setOrder(level)
 
                 if not connMap.has_key(c):
-                    if c.isSource():
+                    if c.isSource:
                         logger.warn('No connection map entry for %s' % str(c))
                 else:
                     for m in connMap[c]:
                         # XXX hack -- ignore source->builder links
-                        if not c.isSource() or \
+                        if not c.isSource or \
                              m.comp.name.lower() != "eventBuilder":
                             tmp[m.comp] = 1
 
@@ -2556,14 +2558,14 @@ class RunSet(object):
         else:
             self.__runData.error("Subrun %d: stopping flashers" % id)
         for c in self.__set:
-            if c.isBuilder():
+            if c.isBuilder:
                 c.prepareSubrun(id)
 
         self.__runData.setSubrunNumber(-id)
 
         hubs = []
         for c in self.__set:
-            if c.isSource():
+            if c.isSource:
                 hubs.append(c)
 
         r = ComponentOperationGroup.runSimple(ComponentOperation.START_SUBRUN,
@@ -2590,7 +2592,7 @@ class RunSet(object):
                                   listComponentRanges(badComps))
 
         for c in self.__set:
-            if c.isBuilder():
+            if c.isBuilder:
                 c.commitSubrun(id, latestTime)
 
         self.__runData.setSubrunNumber(id)
@@ -2598,7 +2600,7 @@ class RunSet(object):
     def subrunEvents(self, subrunNumber):
         "Get the number of events in the specified subrun"
         for c in self.__set:
-            if c.isBuilder():
+            if c.isBuilder:
                 return c.subrunEvents(subrunNumber)
 
         raise RunSetException('RunSet #%d does not contain an event builder' %

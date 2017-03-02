@@ -5,10 +5,12 @@
 import os
 import signal
 import sys
+import traceback
 
 from utils import ip
 
 from CachedConfigName import CachedFile
+from ClusterDescription import HubComponent, JavaComponent
 from DAQConfig import DAQConfigParser
 from DAQConfigExceptions import DAQConfigException
 from DAQConst import DAQPort
@@ -16,7 +18,6 @@ from DAQRPC import RPCClient
 from LiveImports import MoniPort
 from ParallelShell import ParallelShell
 from Process import findProcess, processList
-from RunCluster import RunComponent
 from RunSetState import RunSetState
 from locate_pdaq import find_pdaq_trunk
 
@@ -122,12 +123,15 @@ class ComponentManager(object):
         """
         comps = []
         for c in compdicts:
-            lc = RunComponent(c["compName"], c["compNum"], "??hsDir??",
-                              "??hsInterval??", "??hsMaxFiles??",
-                              "??jvmPath??", "??jvmServer??",
-                              "??jvmHeapInit??", "??jvmHeapMax??",
-                              "??jvmArgs??", "??jvmExtra??", "??logLevel??",
-                              c["host"], False)
+            lc = HubComponent(c["compName"], c["compNum"], "??logLevel??",
+                              False)
+            lc.host = c["host"]
+            lc.setJVMOptions(None, "??jvmPath??", "??jvmServer??",
+                             "??jvmHeapInit??", "??jvmHeapMax??",
+                             "??jvmArgs??", "??jvmExtra??")
+            lc.setHitSpoolOptions(None, "??hsDir??", "??hsInterval??",
+                                  "??hsMaxFiles??")
+            lc.setHubOptions(None, "??alertEMail??", "??ntpHost??")
             comps.append(lc)
         return comps
 
@@ -223,18 +227,25 @@ class ComponentManager(object):
         for node in clusterConfig.nodes():
             for comp in node.components():
                 if not comp.isControlServer:
-                    compList.append(RunComponent(comp.name, comp.id,
-                                                 comp.hitspoolDirectory,
-                                                 comp.hitspoolInterval,
-                                                 comp.hitspoolMaxFiles,
-                                                 comp.jvmPath,
-                                                 comp.jvmServer,
-                                                 comp.jvmHeapInit,
-                                                 comp.jvmHeapMax,
-                                                 comp.jvmArgs,
-                                                 comp.jvmExtraArgs,
-                                                 comp.logLevel,
-                                                 node.hostname, False))
+                    if comp.hasHitSpoolOptions:
+                        rc = HubComponent(comp.name, comp.id, comp.logLevel,
+                                          False)
+                        rc.setHitSpoolOptions(None, comp.hitspoolDirectory,
+                                              comp.hitspoolInterval,
+                                              comp.hitspoolMaxFiles)
+                        if comp.isRealHub:
+                            rc.setHubOptions(None, comp.alertEMail,
+                                             comp.ntpHost)
+                    else:
+                        rc = JavaComponent(comp.name, comp.id, comp.logLevel,
+                                           False)
+
+                    rc.host = node.hostname
+                    rc.setJVMOptions(None, comp.jvmPath, comp.jvmServer,
+                                     comp.jvmHeapInit, comp.jvmHeapMax,
+                                     comp.jvmArgs, comp.jvmExtraArgs)
+
+                    compList.append(rc)
         return compList
 
     @classmethod
@@ -276,6 +287,9 @@ class ComponentManager(object):
                 if logger is not None:
                     logger.info("Extracted active components from CnCServer")
             except:
+                if logger is not None:
+                    logger.error("Failed to extract active components:\n" +
+                                 traceback.format_exc())
                 comps = None
 
         if comps is None:
@@ -369,12 +383,12 @@ class ComponentManager(object):
             if comp.jvmPath is None:
                 continue
 
-            if comp.isHub():
+            if comp.isHub:
                 killPat = "stringhub.componentId=%d" % comp.id
             else:
                 killPat = cls.getComponentJar(comp.name)
 
-            if comp.isLocalhost():  # Just kill it
+            if comp.isLocalhost:  # Just kill it
                 fmtStr = "pkill %%s -fu %s %s" % (os.environ["USER"], killPat)
             else:
                 fmtStr = "ssh %s pkill %%s -f %s" % (comp.host, killPat)
@@ -584,13 +598,24 @@ class ComponentManager(object):
             if comp.jvmExtraArgs is not None and len(comp.jvmExtraArgs) > 0:
                 jvmArgs += " " + comp.jvmExtraArgs
 
-            if comp.hitspoolDirectory is not None:
-                jvmArgs += " -Dhitspool.directory=\"%s\"" % \
-                           comp.hitspoolDirectory
-            if comp.hitspoolInterval is not None:
-                jvmArgs += " -Dhitspool.interval=%.4f" %  comp.hitspoolInterval
-            if comp.hitspoolMaxFiles is not None:
-                jvmArgs += " -Dhitspool.maxfiles=%d" %  comp.hitspoolMaxFiles
+            if comp.isRealHub:
+                if comp.ntpHost is not None:
+                    jvmArgs += " -Dicecube.daq.time.monitoring.ntp-host=%s" % \
+                               str(comp.ntpHost)
+                if comp.alertEMail is not None:
+                    jvmArgs += " -Dicecube.daq.stringhub.alert-email=%s" % \
+                               str(comp.alertEMail)
+
+            if comp.hasHitSpoolOptions:
+                if comp.hitspoolDirectory is not None:
+                    jvmArgs += " -Dhitspool.directory=\"%s\"" % \
+                               comp.hitspoolDirectory
+                if comp.hitspoolInterval is not None:
+                    jvmArgs += " -Dhitspool.interval=%.4f" % \
+                               comp.hitspoolInterval
+                if comp.hitspoolMaxFiles is not None:
+                    jvmArgs += " -Dhitspool.maxfiles=%d" % \
+                               comp.hitspoolMaxFiles
 
             #switches = "-g %s" % configDir
             switches = "-d %s" % daqDataDir
@@ -603,15 +628,15 @@ class ComponentManager(object):
 
             compIO = quietStr
 
-            if comp.isHub():
+            if comp.isHub:
                 jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % comp.id
 
-            if eventCheck and comp.isBuilder():
+            if eventCheck and comp.isBuilder:
                 jvmArgs += " -Dicecube.daq.eventBuilder.validateEvents"
 
             baseCmd = "%s %s -jar %s %s %s &" % \
                 (jvmPath, jvmArgs, execJar, switches, compIO)
-            if comp.isLocalhost():
+            if comp.isLocalhost:
                 # Just run it
                 cmd = baseCmd
             else:

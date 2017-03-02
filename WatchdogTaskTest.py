@@ -66,14 +66,14 @@ class WatchdogTaskTest(unittest.TestCase):
     def __runFooTest(self, testIn, testOut, testThresh, addBarBeans=False):
         foo = MockComponent("foo", 1)
         foo.setOrder(1)
-        foo.addBeanData("inBean", "inFld", 0)
-        foo.addBeanData("outBean", "outFld", 0)
-        foo.addBeanData("threshBean", "threshFld", 0)
+        foo.mbean.addData("inBean", "inFld", 0)
+        foo.mbean.addData("outBean", "outFld", 0)
+        foo.mbean.addData("threshBean", "threshFld", 0)
 
         bar = MockComponent("bar", 0)
         bar.setOrder(2)
         if addBarBeans:
-            bar.addBeanData("barBean", "barFld", 0)
+            bar.mbean.addData("barBean", "barFld", 0)
 
         runset = MockRunSet([foo, bar, ])
 
@@ -180,9 +180,9 @@ class WatchdogTaskTest(unittest.TestCase):
     def testBadInitRule(self):
         foo = MockComponent("foo", 1)
         foo.setOrder(1)
-        foo.addBeanData("inBean", "inFld", 0)
-        foo.addBeanData("outBean", "outFld", 0)
-        foo.addBeanData("threshBean", "threshFld", 0)
+        foo.mbean.addData("inBean", "inFld", 0)
+        foo.mbean.addData("outBean", "outFld", 0)
+        foo.mbean.addData("threshBean", "threshFld", 0)
 
         runset = MockRunSet([foo, ])
 
@@ -227,31 +227,31 @@ class WatchdogTaskTest(unittest.TestCase):
 
     def testStandard(self):
         hub = MockComponent("stringHub", 0, 1)
-        hub.addBeanData("sender", "NumHitsReceived", 0)
-        hub.addBeanData("sender", "NumReadoutRequestsReceived", 0)
-        hub.addBeanData("sender", "NumReadoutsSent", 0)
+        hub.mbean.addData("sender", "NumHitsReceived", 0)
+        hub.mbean.addData("sender", "NumReadoutRequestsReceived", 0)
+        hub.mbean.addData("sender", "NumReadoutsSent", 0)
 
         iit = MockComponent("inIceTrigger", 0, 1)
-        iit.addBeanData("stringHit", "RecordsReceived", 0)
-        iit.addBeanData("trigger", "RecordsSent", 0)
+        iit.mbean.addData("stringHit", "RecordsReceived", 0)
+        iit.mbean.addData("trigger", "RecordsSent", 0)
 
         gt = MockComponent("globalTrigger", 0, 1)
-        gt.addBeanData("trigger", "RecordsReceived", 0)
-        gt.addBeanData("glblTrig", "RecordsSent", 0)
+        gt.mbean.addData("trigger", "RecordsReceived", 0)
+        gt.mbean.addData("glblTrig", "RecordsSent", 0)
 
         eb = MockComponent("eventBuilder", 0, 1)
-        eb.addBeanData("backEnd", "NumReadoutsReceived", 0)
-        eb.addBeanData("backEnd", "NumTriggerRequestsReceived", 0)
-        eb.addBeanData("backEnd", "NumEventsDispatched", 0)
-        eb.addBeanData("backEnd", "NumEventsSent", 0)
-        eb.addBeanData("backEnd", "NumBadEvents", 0)
-        eb.addBeanData("backEnd", "DiskAvailable", 0)
+        eb.mbean.addData("backEnd", "NumReadoutsReceived", 0)
+        eb.mbean.addData("backEnd", "NumTriggerRequestsReceived", 0)
+        eb.mbean.addData("backEnd", "NumEventsDispatched", 0)
+        eb.mbean.addData("backEnd", "NumEventsSent", 0)
+        eb.mbean.addData("backEnd", "NumBadEvents", 0)
+        eb.mbean.addData("backEnd", "DiskAvailable", 0)
 
         sb = MockComponent("secondaryBuilders", 0, 1)
-        sb.addBeanData("snBuilder", "NumDispatchedData", 0)
-        sb.addBeanData("snBuilder", "DiskAvailable", 0)
-        sb.addBeanData("moniBuilder", "NumDispatchedData", 0)
-        #sb.addBeanData("tcalBuilder", "NumDispatchedData", 0)
+        sb.mbean.addData("snBuilder", "NumDispatchedData", 0)
+        sb.mbean.addData("snBuilder", "DiskAvailable", 0)
+        sb.mbean.addData("moniBuilder", "NumDispatchedData", 0)
+        #sb.mbean.addData("tcalBuilder", "NumDispatchedData", 0)
 
         compList = [hub, iit, gt, eb, sb, ]
 

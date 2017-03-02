@@ -122,9 +122,11 @@ class TaskManager(threading.Thread):
     def createIntervalTimer(cls, name, period):
         return IntervalTimer(name, period, startTriggered=True)
 
+    @property
     def isRunning(self):
         return self.__running
 
+    @property
     def isStopped(self):
         return not self.__running and not self.__stopping
 

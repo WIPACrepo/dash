@@ -102,6 +102,7 @@ class LogSocketServer(object):
             self.__outfile.close()
         self.__serving = False
 
+    @property
     def isServing(self):
         return self.__serving
 
@@ -215,14 +216,18 @@ class DAQLog(object):
     ERROR = 5
     FATAL = 6
 
-    def __init__(self, appender=None, level=TRACE):
+    def __init__(self, name, appender=None, level=TRACE):
+        if not isinstance(name, str):
+            raise Exception("Name cannot be %s<%s>" % (name, type(name)))
+        self.__name = name
         self.__level = level
         self.__appenderList = []
         if appender is not None:
             self.__appenderList.append(appender)
 
     def __str__(self):
-        return '%s:%s' % (self.__getLevelName(), str(self.__appenderList))
+        return '%s@%s:%s' % (self.__name, self.__getLevelName(),
+                             str(self.__appenderList))
 
     def __getLevelName(self):
         if self.__level == DAQLog.TRACE:
@@ -243,7 +248,8 @@ class DAQLog(object):
         "This is semi-private so CnCLogger can extend it"
         if level >= self.__level:
             if len(self.__appenderList) == 0:
-                raise LogException("No appenders have been added: " + msg)
+                 raise LogException("No appenders have been added to %s: " %
+                                    (self.__name, msg))
             for a in self.__appenderList:
                 a.write(msg, level=level)
 
@@ -281,21 +287,27 @@ class DAQLog(object):
     def info(self, msg):
         self._logmsg(DAQLog.INFO, msg)
 
+    @property
     def isDebugEnabled(self):
         return self.__level == DAQLog.DEBUG
 
+    @property
     def isErrorEnabled(self):
         return self.__level == DAQLog.ERROR
 
+    @property
     def isFatalEnabled(self):
         return self.__level == DAQLog.FATAL
 
+    @property
     def isInfoEnabled(self):
         return self.__level == DAQLog.INFO
 
+    @property
     def isTraceEnabled(self):
         return self.__level == DAQLog.TRACE
 
+    @property
     def isWarnEnabled(self):
         return self.__level == DAQLog.WARN
 
@@ -378,38 +390,6 @@ class LiveSocketAppender(BaseAppender):
             self.__clientLock.release()
 
 
-class LiveMonitor(object):
-    "Send I3Live monitoring data"
-    def __init__(self, node='localhost', port=MoniPort, service=SERVICE_NAME):
-        if not LIVE_IMPORT:
-            self.__client = None
-        else:
-            self.__client = MoniClient(service, node, port)
-        self.__clientLock = threading.Lock()
-
-    def close(self):
-        if self.__client is not None:
-            self.__clientLock.acquire()
-            try:
-                self.__client.close()
-                self.__client = None
-            finally:
-                self.__clientLock.release()
-
-    def send(self, varName, time, data):
-        if self.__client is None:
-            raise LogException('LiveMonitor has been closed')
-
-        self.__clientLock.acquire()
-        try:
-            try:
-                self.__client.sendMoni(varName, data, Prio.ITS, time)
-            except:
-                raise LogException('LiveMonitor %s: cannot send %s data: %s' %
-                                   (str(self.__client), varName, exc_string()))
-        finally:
-            self.__clientLock.release()
-
 if __name__ == "__main__":
     import argparse
 
@@ -449,7 +429,7 @@ if __name__ == "__main__":
         except ValueError:
             sys.exit("ERROR: Bad livelog argument '%s'" % args.liveLog)
 
-        log = CnCLogger(quiet=False)
+        log = CnCLogger("live", quiet=False)
         logServer = LogSocketServer(port, "all-components", logfile)
         try:
             logServer.startServing()

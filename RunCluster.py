@@ -5,70 +5,14 @@ import os.path
 import traceback
 
 from CachedConfigName import CachedConfigName
-from ClusterDescription import ClusterDescription, HSArgs, JVMArgs
+from ClusterDescription import ClusterDescription, HSArgs, HubComponent, \
+    JVMArgs, JavaComponent
 from Component import Component
 from DefaultDomGeometry import DefaultDomGeometry
 
 
 class RunClusterError(Exception):
     pass
-
-
-class RunComponent(Component):
-    def __init__(self, name, compid, hsDir, hsIval, hsMaxFiles, jvmPath,
-                 jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra,
-                 logLevel, host, isCtlServer):
-        self.__hs = HSArgs(hsDir, hsIval, hsMaxFiles)
-        self.__jvm = JVMArgs(jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
-                             jvmArgs, jvmExtra)
-        self.__isCtlServer = isCtlServer
-
-        super(RunComponent, self).__init__(name, compid, logLevel=logLevel,
-                                           host=host)
-
-    def __str__(self):
-        return "%s@%s(%s | %s)" % (self.fullname, str(self.logLevel),
-                                   self.__hs, self.__jvm)
-
-    @property
-    def isControlServer(self):
-        return self.__isCtlServer
-
-    @property
-    def hitspoolInterval(self):
-        return self.__hs.interval
-
-    @property
-    def hitspoolMaxFiles(self):
-        return self.__hs.maxFiles
-
-    @property
-    def hitspoolDirectory(self):
-        return self.__hs.directory
-
-    @property
-    def jvmArgs(self):
-        return self.__jvm.args()
-
-    @property
-    def jvmExtraArgs(self):
-        return self.__jvm.extraArgs()
-
-    @property
-    def jvmHeapInit(self):
-        return self.__jvm.heapInit()
-
-    @property
-    def jvmHeapMax(self):
-        return self.__jvm.heapMax()
-
-    @property
-    def jvmPath(self):
-        return self.__jvm.path()
-
-    @property
-    def jvmServer(self):
-        return self.__jvm.isServer()
 
 
 class RunNode(object):
@@ -97,54 +41,8 @@ class RunNode(object):
                               len(self.__comps))
 
     def addComponent(self, comp):
-        if comp.hitspoolDirectory is not None:
-            hsDir = comp.hitspoolDirectory
-        else:
-            hsDir = self.__defaultHS.directory
-        if comp.hitspoolInterval is not None:
-            hsIval = comp.hitspoolInterval
-        else:
-            hsIval = self.__defaultHS.interval
-        if comp.hitspoolMaxFiles is not None:
-            hsMaxFiles = comp.hitspoolMaxFiles
-        else:
-            hsMaxFiles = self.__defaultHS.maxFiles
-
-        if comp.jvmPath is not None or comp.isControlServer:
-            jvmPath = comp.jvmPath
-        else:
-            jvmPath = self.__defaultJVM.path()
-        if comp.jvmServer is not None or comp.isControlServer:
-            jvmServer = comp.jvmServer
-        else:
-            jvmServer = self.__defaultJVM.isServer()
-        if comp.jvmHeapInit is not None or comp.isControlServer:
-            jvmHeapInit = comp.jvmHeapInit
-        else:
-            jvmHeapInit = self.__defaultJVM.heapInit()
-        if comp.jvmHeapMax is not None or comp.isControlServer:
-            jvmHeapMax = comp.jvmHeapMax
-        else:
-            jvmHeapMax = self.__defaultJVM.heapMax()
-        if comp.jvmArgs is not None or comp.isControlServer:
-            jvmArgs = comp.jvmArgs
-        else:
-            jvmArgs = self.__defaultJVM.args()
-        if comp.jvmExtraArgs is not None or comp.isControlServer:
-            jvmExtra = comp.jvmExtraArgs
-        else:
-            jvmExtra = self.__defaultJVM.extraArgs()
-
-        if comp.logLevel is not None:
-            logLvl = comp.logLevel
-        else:
-            logLvl = self.__defaultLogLevel
-
-        self.__comps.append(RunComponent(comp.name, comp.id, hsDir, hsIval,
-                                         hsMaxFiles, jvmPath, jvmServer,
-                                         jvmHeapInit, jvmHeapMax, jvmArgs,
-                                         jvmExtra, logLvl, self.__hostname,
-                                         comp.isControlServer))
+        comp.host = self.__hostname
+        self.__comps.append(comp)
 
     def components(self):
         return self.__comps[:]
@@ -164,15 +62,75 @@ class RunNode(object):
 
 class SimAlloc(object):
     "Temporary class used to assign simHubs to hosts"
-    def __init__(self, host, num):
-        self.host = host
-        self.number = num
-        self.percent = 0.0
-        self.allocated = 0
+    def __init__(self, comp):
+        self.__comp = comp
+        self.__number = 0
+        self.__percent = 0.0
+
+        self.__allocated = 0
+
+    def __mycmp(a, b):
+        val = cmp(a.__allocated, b.__allocated)
+        if val == 0:
+            val = cmp(b.__comp.host, a.__comp.host)
+
+        return val
+
+    def __eq__(self, other):
+        return self.__mycmp(other) == 0
+
+    def __ge__(self, other):
+        return self.__mycmp(other) >= 0
+
+    def __gt__(self, other):
+        return self.__mycmp(other) > 0
+
+    def __le__(self, other):
+        return self.__mycmp(other) <= 0
+
+    def __lt__(self, other):
+        return self.__mycmp(other) < 0
+
+    def __ne__(self, other):
+        return self.__mycmp(other) != 0
 
     def __str__(self):
-        return "%s#%d%%.2f=%d" % (self.host, self.number, self.percent,
-                                  self.allocated)
+        return "%s#%d%%%.2f=%d" % (self.__comp.host, self.__number,
+                                   self.__percent, self.__allocated)
+
+    def add(self, comp):
+        self.__number += comp.number
+
+        pct = (10.0 / float(comp.priority)) * float(comp.number)
+        self.__percent += pct
+        return pct
+
+    def adjustPercentage(self, pctTot, numHubs):
+        self.__percent /= pctTot
+        self.__allocated = int(self.__percent * numHubs)
+        if self.__allocated > self.__number:
+            # if we overallocated based on the percentage,
+            #  adjust down to the maximum number
+            self.__allocated = self.__number
+        return self.__allocated
+
+    def allocateOne(self):
+        if self.__allocated >= self.__number:
+            return False
+        self.__allocated += 1
+        return True
+
+    @property
+    def allocated(self):
+        return self.__allocated
+
+    @property
+    def host(self):
+        return self.__comp.host
+
+    @property
+    def percent(self):
+        return self.__percent
 
 
 class RunCluster(CachedConfigName):
@@ -211,7 +169,7 @@ class RunCluster(CachedConfigName):
     def __addRealHubs(cls, clusterDesc, hubList, hostMap):
         "Add hubs with hard-coded locations to hostMap"
         for (host, comp) in clusterDesc.listHostComponentPairs():
-            if not comp.isHub():
+            if not comp.isHub:
                 continue
             for h in range(0, len(hubList)):
                 if comp.id == hubList[h].id:
@@ -234,6 +192,9 @@ class RunCluster(CachedConfigName):
         jvmArgs = clusterDesc.defaultJVMArgs("StringHub")
         jvmExtra = clusterDesc.defaultJVMExtraArgs("StringHub")
 
+        alertEMail = clusterDesc.defaultAlertEMail("StringHub")
+        ntpHost = clusterDesc.defaultNTPHost("StringHub")
+
         logLevel = clusterDesc.defaultLogLevel("StringHub")
 
         i = 0
@@ -252,10 +213,15 @@ class RunCluster(CachedConfigName):
                 lvl = hub.logLevel
             else:
                 lvl = logLevel
-            comp = RunComponent(hub.name, hub.id, hsDir, hsIval, hsMaxFiles,
-                                jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
-                                jvmArgs, jvmExtra, lvl, hub.host, False)
-            cls.__addComponent(hostMap, hub.host, comp)
+
+            comp = HubComponent(hub.name, hub.id, lvl, False)
+            comp.host = hub.host
+
+            comp.setJVMOptions(None, jvmPath, jvmServer, jvmHeapInit,
+                               jvmHeapMax, jvmArgs, jvmExtra)
+            comp.setHitSpoolOptions(None, hsDir, hsIval, hsMaxFiles)
+
+            cls.__addComponent(hostMap, comp.host, comp)
             del hubList[i]
 
     @classmethod
@@ -264,14 +230,6 @@ class RunCluster(CachedConfigName):
         for (host, comp) in clusterDesc.listHostComponentPairs():
             if comp.required:
                 cls.__addComponent(hostMap, host, comp)
-
-    @classmethod
-    def __cmpAlloc(cls, a, b):
-        val = cmp(a.allocated, b.allocated)
-        if val == 0:
-            val = cmp(b.host, a.host)
-
-        return val
 
     @classmethod
     def __addSimHubs(cls, clusterDesc, hubList, hostMap):
@@ -289,14 +247,15 @@ class RunCluster(CachedConfigName):
         pctTot = 0.0
         for sim in simList:
             if not hubAlloc.has_key(sim.host):
-                hubAlloc[sim.host] = SimAlloc(sim.host, sim.number)
-            else:
-                # add to the maximum number of hubs for this host
-                hubAlloc[sim.host].number += sim.number
-            maxHubs += sim.number
+                # create new host entry
+                hubAlloc[sim.host] = SimAlloc(sim)
+                action = "Cre"
+            else: action = "Inc"
 
-            pct = (10.0 / float(sim.priority)) * float(sim.number)
-            hubAlloc[sim.host].percent += pct
+            # add to the maximum number of hubs for this host
+            pct = hubAlloc[sim.host].add(sim)
+
+            maxHubs += sim.number
             pctTot += pct
 
         # make sure there's enough room for the requested hubs
@@ -308,27 +267,17 @@ class RunCluster(CachedConfigName):
         # first stab at allocation: allocate based on percentage
         tot = 0
         for v in hubAlloc.values():
-            v.percent /= pctTot
-            v.allocated = int(v.percent * numHubs)
-            if v.allocated > v.number:
-                # if we overallocated based on the percentage,
-                #  adjust down to the maximum number
-                v.allocated = v.number
-            tot += v.allocated
+            tot += v.adjustPercentage(pctTot, numHubs)
 
         # allocate remainder in order of total capacity
         while tot < numHubs:
             changed = False
-            for v in sorted(hubAlloc.values(), reverse=True,
-                            cmp=cls.__cmpAlloc):
-                if v.allocated >= v.number:
-                    continue
-
-                v.allocated += 1
-                tot += 1
-                changed = True
-                if tot >= numHubs:
-                    break
+            for v in sorted(hubAlloc.values(), reverse=True):
+                if v.allocateOne():
+                    tot += 1
+                    changed = True
+                    if tot >= numHubs:
+                        break
 
             if tot < numHubs and not changed:
                 raise RunClusterError("Only able to allocate %d of %d hubs" %
@@ -337,12 +286,8 @@ class RunCluster(CachedConfigName):
         hubList.sort()
 
         hosts = []
-        for v in sorted(hubAlloc.values(), reverse=True, cmp=cls.__cmpAlloc):
+        for v in sorted(hubAlloc.values(), reverse=True):
             hosts.append(v.host)
-
-        hsDir = clusterDesc.defaultHSDirectory("StringHub")
-        hsIval = clusterDesc.defaultHSInterval("StringHub")
-        hsMaxFiles = clusterDesc.defaultHSMaxFiles("StringHub")
 
         jvmPath = clusterDesc.defaultJVMPath("StringHub")
         jvmServer = clusterDesc.defaultJVMServer("StringHub")
@@ -353,6 +298,15 @@ class RunCluster(CachedConfigName):
 
         logLevel = clusterDesc.defaultLogLevel("StringHub")
 
+        if False:
+            print
+            print "======= SimList"
+            for sim in simList:
+                print ":: %s<%s>" % (sim, type(sim))
+            print "======= HubList"
+            for hub in hubList:
+                print ":: %s<%s>" % (hub, type(hub))
+
         hubNum = 0
         for host in hosts:
             for _ in xrange(hubAlloc[host].allocated):
@@ -362,10 +316,13 @@ class RunCluster(CachedConfigName):
                 else:
                     lvl = logLevel
 
-                comp = RunComponent(hubComp.name, hubComp.id, hsDir, hsIval,
-                                    hsMaxFiles, jvmPath, jvmServer,
-                                    jvmHeapInit, jvmHeapMax, jvmArgs,
-                                    jvmExtra, lvl, host, False)
+                comp = HubComponent(hubComp.name, hubComp.id, lvl, False)
+                comp.host = host
+
+                comp.setJVMOptions(None, jvmPath, jvmServer, jvmHeapInit,
+                                   jvmHeapMax, jvmArgs, jvmExtra)
+                comp.setHitSpoolOptions(None, None, None, None)
+
                 cls.__addComponent(hostMap, host, comp)
                 hubNum += 1
 
@@ -429,7 +386,7 @@ class RunCluster(CachedConfigName):
         "build a list of hub components used by the run configuration"
         hubList = []
         for comp in cfg.components():
-            if comp.isHub():
+            if comp.isHub:
                 hubList.append(comp)
         return hubList
 
@@ -521,7 +478,7 @@ class RunCluster(CachedConfigName):
         for node in self.__nodes:
             addHost = False
             for comp in node.components():
-                if comp.isHub():
+                if comp.isHub:
                     addHost = True
                     break
 
@@ -530,9 +487,12 @@ class RunCluster(CachedConfigName):
 
         return hostMap.keys()
 
-    def loadIfChanged(self):
-        if not self.__clusterDesc.loadIfChanged():
+    def loadIfChanged(self, runConfig=None, newPath=None):
+        if not self.__clusterDesc.loadIfChanged(newPath=newPath):
             return False
+
+        if runConfig is not None:
+            self.__hubList = self.__extractHubs(runConfig)
 
         self.__nodes = self.__loadConfig(self.__clusterDesc, self.__hubList)
 
@@ -554,11 +514,12 @@ if __name__ == '__main__':
     from locate_pdaq import find_pdaq_config
 
     if len(sys.argv) <= 1:
-        print >> sys.stderr, ('Usage: %s [-C clusterDesc]' +
-                              ' configXML [configXML ...]') % sys.argv[0]
-        sys.exit(1)
+        raise SystemExit('Usage: %s [-C clusterDesc] configXML'
+                         ' [configXML ...]' % sys.argv[0])
 
     pdaqDir = find_pdaq_config()
+    if pdaqDir is None or len(pdaqDir) == 0:
+        raise SystemExit("Cannot find pDAQ configuration directory")
 
     nameList = []
     grabDesc = False
@@ -587,7 +548,7 @@ if __name__ == '__main__':
 
     for name in nameList:
         (ndir, nbase) = os.path.split(name)
-        if ndir is None:
+        if ndir is None or len(ndir) == 0:
             configDir = pdaqDir
         else:
             configDir = ndir
@@ -623,4 +584,4 @@ if __name__ == '__main__':
             comps = node.components()
             comps.sort()
             for comp in comps:
-                print '    %s %s' % (str(comp), str(comp.logLevel))
+                print '    %s %s' % (comp, comp.logLevel)

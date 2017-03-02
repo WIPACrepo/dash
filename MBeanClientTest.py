@@ -119,7 +119,7 @@ class TestMBeanClient(unittest.TestCase):
                          "Expected bean field \"%s\", not \"%s\"" %
                          (fld, fldList[0]))
 
-        client.reloadBeanInfo()
+        client.reload()
 
         try:
             beanList = client.getBeanNames()

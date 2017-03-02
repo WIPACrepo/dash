@@ -143,17 +143,9 @@ class CnCRun(BaseRun):
         # used during dry runs to simulate the runset id
         self.__fakeRunSet = 1
 
-        self.__runNumFile = \
-            os.path.join(os.environ["HOME"], ".i3live-run")
-
         self.__runSetId = None
         self.__runCfg = None
         self.__runNum = None
-
-    def __setLastRunNumber(self, runNum, subRunNum):
-        "Set the last used run number"
-        with open(self.__runNumFile, 'w') as fd:
-            print >>fd, "%d %d" % (runNum, subRunNum)
 
     def __status(self):
         "Print the current DAQ status"
@@ -271,9 +263,8 @@ class CnCRun(BaseRun):
                 self.logError("Cannot flash: " + exc_string())
                 return True
 
-            runData = self.getLastRunNumber()
-            subrun = runData[1] + 1
-            self.__setLastRunNumber(runData[0], subrun)
+            (run, subrun) = self.getLastRunNumber()
+            RunNumber.setLast(run, subrun + 1)
 
             if self.__dryRun:
                 print "Flash subrun#%d - %s for %s second" % \
@@ -287,26 +278,15 @@ class CnCRun(BaseRun):
 
         if dataPath is not None:
             subrun += 1
-            self.__setLastRunNumber(runData[0], subrun)
+            RunNumber.setLast(runData[0], subrun)
             if self.__dryRun:
                 print "Flash subrun#%d - turn off flashers" % subrun
             else:
                 cnc.rpc_runset_subrun(self.__runSetId, subrun, [])
 
     def getLastRunNumber(self):
-        "Return the last run number"
-        num = 1
-        subnum = 0
-
-        if os.path.exists(self.__runNumFile):
-            with open(self.__runNumFile) as fd:
-                line = fd.readline()
-                m = re.search(r'(\d+)\s+(\d+)', line)
-                if m:
-                    num = int(m.group(1))
-                    subnum = int(m.group(2))
-
-        return (num, subnum)
+        "Return the last used run and subrun numbers as a tuple"
+        return RunNumber.getLast()
 
     def getRunNumber(self):
         "Return the current run number"
@@ -411,8 +391,9 @@ class CnCRun(BaseRun):
             self.__runSetId = runSetId
             self.__runCfg = runCfg
 
-        self.__runNum = self.getLastRunNumber()[0] + 1
-        self.__setLastRunNumber(self.__runNum, 0)
+        (runNum, subrun) = self.getLastRunNumber()
+        self.__runNum = runNum + 1
+        RunNumber.setLast(self.__runNum, 0)
 
         if runMode is not None:
             if filterMode is not None:

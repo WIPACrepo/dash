@@ -52,7 +52,7 @@ class LogInfo(object):
 class CnCLogger(DAQLog):
     "CnC logging client"
 
-    def __init__(self, appender=None, quiet=False, extraLoud=False):
+    def __init__(self, name, appender=None, quiet=False, extraLoud=False):
         "create a logging client"
         self.__quiet = quiet
         self.__extraLoud = extraLoud
@@ -60,7 +60,7 @@ class CnCLogger(DAQLog):
         self.__prevInfo = None
         self.__logInfo = None
 
-        super(CnCLogger, self).__init__(appender)
+        super(CnCLogger, self).__init__(name, appender=appender)
 
     def __str__(self):
         return self.__getName()

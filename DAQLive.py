@@ -47,7 +47,7 @@ class DAQLive(Component):
         """
         self.__startExc = None
 
-        if self.__runSet is not None and not self.__runSet.isDestroyed():
+        if self.__runSet is not None and not self.__runSet.isDestroyed:
             self.__cnc.breakRunset(self.__runSet)
             if not self.__starting:
                 return
@@ -100,9 +100,9 @@ class DAQLive(Component):
             # if no active runset, nothing to recover
             pass
         else:
-            if self.__runSet.isDestroyed():
+            if self.__runSet.isDestroyed:
                 self.__runSet = None
-            elif not self.__runSet.isReady():
+            elif not self.__runSet.isReady:
                 if not self.__runSet.stopping():
                     stopVal = not self.__runSet.stopRun("LiveRecover",
                                                         hadError=True)
@@ -115,7 +115,7 @@ class DAQLive(Component):
                     if not self.__runSet.stopping():
                         break
                     time.sleep(waitSecs)
-                if self.__runSet.isDestroyed():
+                if self.__runSet.isDestroyed:
                     self.__log.error("DAQLive destroyed %s" % self.__runSet)
                     self.__runSet = None
                     rtnVal = True
@@ -123,7 +123,7 @@ class DAQLive(Component):
                     self.__log.error("DAQLive giving up on hung %s" %
                                      self.__runSet)
                     rtnVal = False
-                elif not self.__runSet.isReady():
+                elif not self.__runSet.isReady:
                     self.__log.error("DAQLive cannot recover %s" %
                                      self.__runSet)
                     rtnVal = False
@@ -153,7 +153,7 @@ class DAQLive(Component):
             self.__startExc = None
             raise exc
 
-        if not self.__runSet.isRunning():
+        if not self.__runSet.isRunning:
             raise LiveException("%s is not running (state = %s)" %
                                 (self.__runSet, self.__runSet.state))
 
@@ -211,7 +211,7 @@ class DAQLive(Component):
                 self.__startThrd = None
 
         gotError = self.__runSet.stopRun(self.__runSet.NORMAL_STOP)
-        if not self.__runSet.isReady():
+        if not self.__runSet.isReady:
             raise LiveException("%s did not stop" % self.__runSet)
 
         # XXX could get rid of this if 'livecmd' released runsets on exit

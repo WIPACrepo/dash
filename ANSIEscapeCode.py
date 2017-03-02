@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+
+class ColorException(Exception):
+    pass
+
+
 def escape_string(code):
     if code <= 0:
         substr = ""
@@ -7,15 +12,18 @@ def escape_string(code):
         substr = str(code)
     return "\033[%sm" % substr
 
+
 def background_color(color):
     if color < 0 or color > 9:
         raise ColorException("Color must be between 0 and 9, not " + color)
     return escape_string(color + 40)
 
+
 def foreground_color(color):
     if color < 0 or color > 9:
         raise ColorException("Color must be between 0 and 9, not " + color)
     return escape_string(color + 30)
+
 
 class ANSIEscapeCode(object):
     OFF = escape_string(0)
@@ -59,6 +67,7 @@ class ANSIEscapeCode(object):
     BG_CYAN = background_color(CYAN)
     BG_WHITE = background_color(WHITE)
     BG_DEFAULT = background_color(DEFAULT)
+
 
 if __name__ == "__main__":
     import sys

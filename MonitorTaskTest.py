@@ -11,39 +11,42 @@ from MonitorTask import MonitorTask
 from RunOption import RunOption
 
 from DAQMocks import MockComponent, MockIntervalTimer, MockLiveMoni, \
-     MockLogger, MockRunSet, MockTaskManager
+     MockLogger, MockMBeanClient, MockRunSet, MockTaskManager
 
 
-class BadComponent(MockComponent):
-    def __init__(self, name, num=0):
-        super(BadComponent, self).__init__(name, num)
-
+class BadMBeanClient(MockMBeanClient):
+    def __init__(self, compName):
         self.__raiseSocketError = False
         self.__raiseException = False
 
-    def __str__(self):
-        sstr = super(BadComponent, self).__str__()
-        if self.__raiseSocketError:
-            sstr += "^sockErr"
-        if self.__raiseException:
-            sstr += "^exc"
-        return sstr
+        super(BadMBeanClient, self).__init__(compName)
 
-    def getSingleBeanField(self, beanName, fieldName):
+    def clearConditions(self):
+        self.__raiseSocketError = False
+        self.__raiseException = False
+
+    def get(self, beanName, fieldName):
         if self.__raiseSocketError:
             self.__raiseSocketError = False
             raise BeanTimeoutException("Mock exception")
         if self.__raiseException:
             self.__raiseException = False
             raise Exception("Mock exception")
-        return super(BadComponent, self).getSingleBeanField(beanName,
-                                                            fieldName)
+        return super(BadMBeanClient, self).get(beanName, fieldName)
 
     def raiseException(self):
         self.__raiseException = True
 
     def raiseSocketError(self):
         self.__raiseSocketError = True
+
+
+class BadComponent(MockComponent):
+    def __init__(self, name, num=0):
+        super(BadComponent, self).__init__(name, num)
+
+    def _createMBeanClient(self):
+        return BadMBeanClient(self.fullname)
 
 
 class BadCloseThread(object):
@@ -59,6 +62,7 @@ class BadCloseThread(object):
     def isAlive(self):
         return True
 
+    @property
     def isClosed(self):
         return self.__closed
 
@@ -78,11 +82,11 @@ class MonitorTaskTest(unittest.TestCase):
 
     def __createStandardComponents(self):
         foo = MockComponent("foo", 1)
-        foo.addBeanData("fooB", "fooF", 12)
-        foo.addBeanData("fooB", "fooG", "abc")
+        foo.mbean.addData("fooB", "fooF", 12)
+        foo.mbean.addData("fooB", "fooG", "abc")
 
         bar = MockComponent("bar", 0)
-        bar.addBeanData("barB", "barF", 7)
+        bar.mbean.addData("barB", "barF", 7)
 
         return [foo, bar, ]
 
@@ -108,10 +112,12 @@ class MonitorTaskTest(unittest.TestCase):
         for i in range(-1, 5):
             if RunOption.isMoniToLive(runOpt):
                 for c in compList:
-                    for b in c.getBeanNames():
-                        for f in c.getBeanFields(b):
-                            live.addExpected(c.fileName() + "*" + b + "+" + f,
-                                             c.getSingleBeanField(b, f),
+                    if isinstance(c, BadComponent):
+                        c.mbean.clearConditions()
+                    for b in c.mbean.getBeanNames():
+                        for f in c.mbean.getBeanFields(b):
+                            live.addExpected(c.filename + "*" + b + "+" + f,
+                                             c.mbean.get(b, f),
                                              Prio.ITS)
 
             for c in compList:
@@ -123,11 +129,11 @@ class MonitorTaskTest(unittest.TestCase):
                                       (c.fullname, i)
                             logger.addExpectedExact(errMsg)
                         elif i >= 0 and i < 3:
-                            c.raiseSocketError()
+                            c.mbean.raiseSocketError()
                     elif i > 0 and raiseException:
                         errMsg = "Ignoring %s:.*: Exception.*$" % c.fullname
                         logger.addExpectedRegexp(errMsg)
-                        c.raiseException()
+                        c.mbean.raiseException()
 
             timer.trigger()
             left = tsk.check()
@@ -208,11 +214,11 @@ class MonitorTaskTest(unittest.TestCase):
         (timer, taskMgr, logger, live) = self.__createStandardObjects()
 
         foo = MockComponent("foo", 1)
-        foo.addBeanData("fooB", "fooF", 12)
-        foo.addBeanData("fooB", "fooG", "abc")
+        foo.mbean.addData("fooB", "fooF", 12)
+        foo.mbean.addData("fooB", "fooG", "abc")
 
         bar = BadComponent("bar", 0)
-        bar.addBeanData("barB", "barF", 7)
+        bar.mbean.addData("barB", "barF", 7)
 
         compList = [foo, bar, ]
         self.__runTest(compList, timer, taskMgr, logger, live,
@@ -222,11 +228,11 @@ class MonitorTaskTest(unittest.TestCase):
         (timer, taskMgr, logger, live) = self.__createStandardObjects()
 
         foo = MockComponent("foo", 1)
-        foo.addBeanData("fooB", "fooF", 12)
-        foo.addBeanData("fooB", "fooG", "abc")
+        foo.mbean.addData("fooB", "fooF", 12)
+        foo.mbean.addData("fooB", "fooG", "abc")
 
         bar = BadComponent("bar", 0)
-        bar.addBeanData("barB", "barF", 7)
+        bar.mbean.addData("barB", "barF", 7)
 
         compList = [foo, bar, ]
         self.__runTest(compList, timer, taskMgr, logger, live,

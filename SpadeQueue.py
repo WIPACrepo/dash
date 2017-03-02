@@ -13,6 +13,7 @@ If run from 'cron', run as "SpadeQueue.py -a -c"
 """
 
 import datetime
+import errno
 import os
 import shutil
 import subprocess
@@ -48,7 +49,7 @@ def __copySpadeTarFile(logger, copyDir, spadeBaseName, tarFile, dryRun=False):
     try:
         os.link(tarFile, copyFile)
     except OSError as e:
-        if e.errno == 18:  # Cross-device link
+        if e.errno == errno.EXDEV:  # Cross-device link
             shutil.copyfile(tarFile, copyFile)
         else:
             raise OSError(str(e) + ": Copy %s to %s" % (tarFile, copyFile))
@@ -267,7 +268,11 @@ def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
                 ls.dumpRun(fd)
             # it's now safe to rename the combined log file
             os.rename(tmppath, path)
-            logger.error("Wrote combined log for run %d" % runNum)
+            try:
+                logger.error("Wrote combined log for run %d" % runNum)
+            except:
+                # don't die if we lose the race to close the file
+                pass
 
     if runTime is None:
         runTime = datetime.datetime.now()

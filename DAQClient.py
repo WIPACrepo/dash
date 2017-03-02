@@ -112,7 +112,7 @@ class MBeanClient(object):
             finally:
                 self.__loadLock.release()
 
-    def checkBeanField(self, bean, fld):
+    def check(self, bean, fld):
         "throw an exception if the bean or field does not exist"
         self.__lockAndLoad()
 
@@ -127,12 +127,12 @@ class MBeanClient(object):
             raise BeanFieldNotFoundException(msg)
 
     def createRPCClient(self, host, port):
-        "create an RPC client to talk to the Java MBeanAgent"
+        "create an RPC client"
         return RPCClient(host, port)
 
     def get(self, bean, fld):
         "get the value for a single MBean field"
-        self.checkBeanField(bean, fld)
+        self.check(bean, fld)
 
         return unFixValue(self.__client.mbean.get(bean, fld))
 
@@ -145,11 +145,16 @@ class MBeanClient(object):
                                        " %s" % (self.__compName, bean, fldList))
         except:
             raise BeanLoadException("Cannot get %s mbean \"%s\" attributes"
-                                    " %s: (%s) %s" %
+                                    " %s: %s" %
                                     (self.__compName, bean, fldList,
                                      exc_string()))
 
-        if isinstance(attrs, dict) and len(attrs) > 0:
+        if not isinstance(attrs, dict):
+            raise BeanException("%s getAttributes(%s, %s) should return dict,"
+                                " not %s (%s)" % (self.__compName, bean,
+                                                  fldList, type(attrs), attrs))
+
+        if len(attrs) > 0:
             for k in attrs.keys():
                 attrs[k] = unFixValue(attrs[k])
         return attrs
@@ -171,7 +176,7 @@ class MBeanClient(object):
 
         return self.__beanFields[bean]
 
-    def reloadBeanInfo(self):
+    def reload(self):
         "reload MBean names and fields during the next request"
         self.__loadedInfo = False
 
@@ -185,7 +190,8 @@ class ComponentName(object):
     def __repr__(self):
         return self.fullname
 
-    def fileName(self):
+    @property
+    def filename(self):
         return '%s-%d' % (self.__name, self.__num)
 
     @property
@@ -194,6 +200,7 @@ class ComponentName(object):
             return self.__name
         return '%s#%d' % (self.__name, self.__num)
 
+    @property
     def isBuilder(self):
         "Is this an eventBuilder (or debugging fooBuilder)?"
         return self.__name.lower().find("builder") >= 0
@@ -202,11 +209,13 @@ class ComponentName(object):
         "Does this component have the specified name and number?"
         return self.__name == name and (num < 0 or self.__num == num)
 
+    @property
     def isHub(self):
         return self.__name.endswith("Hub")
 
+    @property
     def isReplayHub(self):
-        return self.isHub() and self.__name.lower().find("replay") >= 0
+        return self.isHub and self.__name.lower().find("replay") >= 0
 
     @property
     def name(self):
@@ -289,7 +298,7 @@ class DAQClient(ComponentName):
         self.__client = self.createClient(host, port)
 
         try:
-            self.__mbean = self.createMBeanClient(host, mbeanPort)
+            self.__mbean = self.createMBeanClient()
         except:
             self.__mbean = None
 
@@ -326,10 +335,6 @@ class DAQClient(ComponentName):
 
     def addDeadCount(self):
         self.__deadCount += 1
-
-    def checkBeanField(self, bean, field):
-        if self.__mbean is not None:
-            self.__mbean.checkBeanField(bean, field)
 
     def close(self):
         self.__log.close()
@@ -372,10 +377,10 @@ class DAQClient(ComponentName):
         return RPCClient(host, port)
 
     def createLogger(self, quiet):
-        return CnCLogger(quiet=quiet)
+        return CnCLogger(self.fullname, quiet=quiet)
 
-    def createMBeanClient(self, host, mbeanPort):
-        return MBeanClient(self.fullname, host, mbeanPort)
+    def createMBeanClient(self):
+        return MBeanClient(self.fullname, self.__host, self.__mbeanPort)
 
     def forcedStop(self):
         "Force component to stop running"
@@ -384,22 +389,6 @@ class DAQClient(ComponentName):
         except:
             self.__log.error(exc_string())
             return None
-
-    def getBeanFields(self, bean):
-        if self.__mbean is None:
-            return []
-        return self.__mbean.getBeanFields(bean)
-
-    def getBeanNames(self):
-        if self.__mbean is None:
-            return []
-        return self.__mbean.getBeanNames()
-
-    def getMultiBeanFields(self, name, fieldList):
-        if self.__mbean is None:
-            return {}
-
-        return self.__mbean.getAttributes(name, fieldList)
 
     def getReplayStartTime(self):
         "Get the earliest time for a replay hub"
@@ -425,12 +414,6 @@ class DAQClient(ComponentName):
             self.__log.error(exc_string())
             return None
 
-    def getSingleBeanField(self, name, field):
-        if self.__mbean is None:
-            return None
-
-        return self.__mbean.get(name, field)
-
     @property
     def host(self):
         return self.__host
@@ -447,16 +430,17 @@ class DAQClient(ComponentName):
     def is_dying(self):
         return self.__deadCount > 0
 
+    @property
     def isSource(self):
         "Is this component a source of data?"
 
         # XXX Hack for stringHubs which are sources but which confuse
         #     things by also reading requests from the eventBuilder
-        if self.isHub():
+        if self.isHub:
             return True
 
         for conn in self.__connectors:
-            if conn.isInput():
+            if conn.isInput:
                 return False
 
         return True
@@ -489,6 +473,15 @@ class DAQClient(ComponentName):
                 "rpcPort": self.__port,
                 "mbeanPort": self.__mbeanPort}
 
+    def matches(self, other):
+        return self.name == other.name and self.num == other.num and \
+            self.__host == other.__host and self.__port == other.__port and \
+            self.__mbeanPort == other.__mbeanPort
+
+    @property
+    def mbean(self):
+        return self.__mbean
+
     @property
     def mbeanPort(self):
         return self.__mbeanPort
@@ -507,11 +500,6 @@ class DAQClient(ComponentName):
         except:
             self.__log.error(exc_string())
             return None
-
-    def reloadBeanInfo(self):
-        "Reload component MBean info"
-        if self.__mbean is not None:
-            self.__mbean.reloadBeanInfo()
 
     def reset(self):
         "Reset component back to the idle state"

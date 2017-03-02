@@ -592,7 +592,7 @@ class Run(object):
 
                 if not self.__mgr.isSwitching(False):
                     logger.error("Unexpected run %d state %s" %
-                                 (self.__run_num, self.state))
+                                 (self.__run_num, self.__mgr.state))
 
             numWaits += 1
             if numWaits > numTries:
@@ -606,7 +606,13 @@ class Run(object):
 
             curRunNum = self.__mgr.getRunNumber()
             while self.__run_num < curRunNum:
-                self.__mgr.summarize(self.__run_num)
+                try:
+                    self.__mgr.summarize(self.__run_num)
+                except:
+                    import traceback
+                    logger.error("Cannot summarize %d:\n%s" %
+                                 (self.__run_num, traceback.format_exc()))
+
                 logger.info("Switched from run %d to %d" %
                             (self.__run_num, curRunNum))
 
@@ -768,7 +774,7 @@ class BaseRun(object):
         return self.__cnc
 
     def getLastRunNumber(self):
-        "Return the last run number"
+        "Return the last used run and subrun numbers as a tuple"
         raise NotImplementedError()
 
     def getRunNumber(self):
@@ -997,9 +1003,9 @@ class BaseRun(object):
 
         success = summary["result"].upper() == "SUCCESS"
         if success:
-            prefix = ANSIEscapeCode.BG_GREEN + ANSIEscapeCode.FG_BLACK 
+            prefix = ANSIEscapeCode.BG_GREEN + ANSIEscapeCode.FG_BLACK
         else:
-            prefix = ANSIEscapeCode.BG_RED + ANSIEscapeCode.FG_BLACK 
+            prefix = ANSIEscapeCode.BG_RED + ANSIEscapeCode.FG_BLACK
         suffix = ANSIEscapeCode.OFF
 
         self.logInfo("%sRun %d%s (%s) %s seconds : %s" %

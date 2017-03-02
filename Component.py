@@ -22,7 +22,7 @@ class Component(object):
 
     @property
     def fullname(self):
-        if self.__id == 0 and not self.isHub():
+        if self.__id == 0 and not self.isHub:
             return self.__name
         return "%s#%d" % (self.__name, self.__id)
 
@@ -38,22 +38,27 @@ class Component(object):
     def id(self):
         return self.__id
 
+    @property
     def isBuilder(self):
         "Is this an eventBuilder or secondaryBuilders component?"
         return self.__name.lower().find("builder") >= 0
 
+    @property
     def isHub(self):
         "Is this a stringHub component?"
         return self.__name.lower().find("hub") >= 0
 
+    @property
     def isLocalhost(self):
         return self.__host is not None and \
             (self.__host == "localhost" or self.__host == "127.0.0.1")
 
+    @property
     def isRealHub(self):
         "Is this a stringHub component running at the South Pole?"
         return self.__name.lower() == "stringhub" and self.__id < 1000
 
+    @property
     def isTrigger(self):
         "Is this a trigger component?"
         return self.__name.lower().find("trigger") >= 0

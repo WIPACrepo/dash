@@ -36,7 +36,8 @@ class MostlyDAQClient(DAQClient):
                                               quiet=True)
 
     def createLogger(self, quiet):
-        return MockCnCLogger(self.__appender, quiet=quiet)
+        return MockCnCLogger(self.fullname, appender=self.__appender,
+                             quiet=quiet)
 
 
 class FakeLogger(object):
@@ -149,12 +150,13 @@ class MostlyCnCServer(CnCServer):
         if not key in MostlyCnCServer.APPENDERS:
             MostlyCnCServer.APPENDERS[key] = MockAppender('Mock-%s' % key)
 
-        return MockCnCLogger(MostlyCnCServer.APPENDERS[key], quiet=quiet)
+        return MockCnCLogger(key, appender=MostlyCnCServer.APPENDERS[key],
+                             quiet=quiet)
 
     def createRunset(self, runConfig, compList, logger):
         return MostlyRunSet(self, runConfig, compList, logger, self.__dashlog)
 
-    def getClusterConfig(self):
+    def getClusterConfig(self, runConfig=None):
         return self.__clusterConfig
 
     def monitorLoop(self):
@@ -274,7 +276,7 @@ class RealComponent(object):
         self.__state = 'ready'
         return 'CFG'
 
-    def __connect(self, *args):
+    def __connect(self, connList=None):
         self.__state = 'connected'
         return 'CONN'
 
@@ -322,9 +324,6 @@ class RealComponent(object):
 
     def __getState(self):
         return self.__state
-
-    #def __getVersionInfo(self):
-    #    return '$Id: filename revision date time author xxx'
 
     def __listMBeanGetters(self, bean):
         if self.__bean is None or not bean in self.__bean:
@@ -414,7 +413,8 @@ class RealComponent(object):
         if not key in RealComponent.APPENDERS:
             RealComponent.APPENDERS[key] = MockAppender('Mock-%s' % key)
 
-        return MockCnCLogger(RealComponent.APPENDERS[key], quiet=quiet)
+        return MockCnCLogger(key, appender=RealComponent.APPENDERS[key],
+                             quiet=quiet)
 
     @property
     def fullname(self):
@@ -429,6 +429,7 @@ class RealComponent(object):
     def id(self):
         return self.__id
 
+    @property
     def isHub(self):
         if self.__name is None:
             return False
@@ -726,7 +727,7 @@ class TestCnCServer(unittest.TestCase):
 
         compList = []
         for comp in self.comps:
-            if not comp.isHub():
+            if not comp.isHub:
                 compList.append(comp.fullname)
 
         hubDomDict = {

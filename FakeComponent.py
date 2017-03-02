@@ -101,6 +101,8 @@ class TriggerHandler(FakeClient):
     def send(self, data):
         self.__outConn.send(data)
 
+    def sourceId(self):
+        raise NotImplementedError("Unimplemented")
 
 class LocalTrigger(TriggerHandler):
 
@@ -198,49 +200,6 @@ class GlobalTrigger(TriggerHandler):
         self.__outConn.send(tr)
 
 
-class TrackEngine(TriggerHandler):
-
-    HIT_LEN = 11
-
-    def __init__(self, prescale=1000):
-
-        self.__outputName = "trigger"
-
-        super(TrackEngine, self).__init__("trackEngine", 0, "trackEngHit",
-                                          self.__outputName, prescale)
-
-    def processData(self, data):
-        if self.__outConn is None:
-            self.__outConn = self.getOutputConnector(self.__outputName)
-            if self.__outConn is None:
-                raise Error("Cannot find %s output connector" %
-                            self.__outputName)
-
-        pos = 0
-        while True:
-            if len(data) < self.HIT_LEN:
-                print >>sys.stderr, \
-                      "%s expected %d bytes, but only %d are available" % \
-                      (self.fullname, self.HIT_LEN, len(data))
-                break
-
-            major, minor, utc, lcMode = \
-                   struct.unpack(">bbqb", data[pos: pos + self.HIT_LEN])
-
-            if major == 0 and minor == 0 and utc == 0 and lcMode == 0:
-                print >>sys.stderr, "%s saw STOPMSG" % self.fullname
-                break
-
-            self.__hitCount += 1
-            if (self.__hitCount % self.__prescale) == 0:
-                startTime = utc - 2500
-                endTime = utc + 2500
-
-                tr = self.makeTriggerRequest(startTime, endTime)
-                self.__outConn.send(tr)
-
-            pos += self.HIT_LEN
-
 if __name__ == "__main__":
     import argparse
 
@@ -257,9 +216,7 @@ if __name__ == "__main__":
         FakeClient.NEXT_PORT = args.firstPort
 
     lowName = args.component.lower()
-    if lowName == "trackengine":
-        comp = TrackEngine()
-    elif lowName == "inicetrigger":
+    if lowName == "inicetrigger":
         comp = InIceTrigger()
     elif lowName == "icetoptrigger":
         comp = IceTopTrigger()

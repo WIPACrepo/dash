@@ -28,11 +28,12 @@ class MockNode(object):
 
     def addComp(self, compName, compId, logLevel, hsDir, hsInterval,
                 hsMaxFiles, jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
-                jvmArgs, jvmExtraArgs):
+                jvmArgs, jvmExtraArgs, alertEMail, ntpHost):
         comp = MockDeployComponent(compName, compId, logLevel, hsDir,
                                    hsInterval, hsMaxFiles, jvmPath, jvmServer,
                                    jvmHeapInit, jvmHeapMax, jvmArgs,
-                                   jvmExtraArgs, host=self.__hostname)
+                                   jvmExtraArgs, alertEMail, ntpHost,
+                                   host=self.__hostname)
         self.__comps.append(comp)
         return comp
 
@@ -170,15 +171,21 @@ class ComponentManagerTest(unittest.TestCase):
         configDir = '/foo/cfg'
         daqDataDir = '/foo/baz'
         logPort = 1234
+
         hsDir = "/mnt/data/testpath"
         hsInterval = 11.1
         hsMaxFiles = 12345
+
         jvmPath = "java"
         jvmServer = False
         jvmHeapInit = "1m"
         jvmHeapMax = "12m"
         jvmArgs = "-Xarg"
         jvmExtra = "-Xextra"
+
+        alertEMail = "xxx@yyy.zzz"
+        ntpHost = "NtPhOsT"
+
         verbose = False
         checkExists = False
 
@@ -197,7 +204,8 @@ class ComponentManagerTest(unittest.TestCase):
                 node = MockNode(host)
                 comp = node.addComp(compName, compId, logLevel, hsDir,
                                     hsInterval, hsMaxFiles, jvmPath, jvmServer,
-                                    jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra)
+                                    jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra,
+                                    alertEMail, ntpHost)
 
                 for isLive in (True, False):
                     if isLive:
@@ -231,9 +239,11 @@ class ComponentManagerTest(unittest.TestCase):
 
             dryRun = False
             verbose = False
+
             hsDir = "/mnt/data/tstkill"
             hsInterval = 12.3
             hsMaxFiles = 12345
+
             jvmPath = "java"
             jvmServer = False
             jvmHeapInit = "1m"
@@ -241,13 +251,17 @@ class ComponentManagerTest(unittest.TestCase):
             jvmArgs = "-Xarg"
             jvmExtra = "-Xextra"
 
+            alertEMail = "abc@def"
+            ntpHost = "NTP1"
+
             logLevel = 'DEBUG'
 
             for host in MockNode.LIST:
                 node = MockNode(host)
                 node.addComp(compName, compId, logLevel, hsDir, hsInterval,
                              hsMaxFiles, jvmPath, jvmServer, jvmHeapInit,
-                             jvmHeapMax, jvmArgs, jvmExtra)
+                             jvmHeapMax, jvmArgs, jvmExtra, alertEMail,
+                             ntpHost)
 
                 for killWith9 in (True, False):
                     parallel = MockParallelShell()
@@ -278,15 +292,21 @@ class ComponentManagerTest(unittest.TestCase):
 
         compName = 'eventBuilder'
         compId = 0
+
         hsDir = "/a/b/c"
         hsInterval = 1.0
         hsMaxFiles = 1
+
         jvmPath = "java"
         jvmServer = False
         jvmHeapInit = "1m"
         jvmHeapMax = "12m"
         jvmArgs = "-Xarg"
         jvmExtra = "-Xextra"
+
+        alertEMail = "abc@def.ghi"
+        ntpHost = "tempus"
+
         logLevel = 'DEBUG'
 
         # if there are N targets, range is 2^N
@@ -297,7 +317,8 @@ class ComponentManagerTest(unittest.TestCase):
                 node = MockNode(host)
                 comp = node.addComp(compName, compId, logLevel, hsDir,
                                     hsInterval, hsMaxFiles, jvmPath, jvmServer,
-                                    jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra)
+                                    jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra,
+                                    alertEMail, ntpHost)
 
                 cfgName = 'mockCfg'
 
@@ -344,15 +365,21 @@ class ComponentManagerTest(unittest.TestCase):
 
         compName = 'eventBuilder'
         compId = 0
+
         hsDir = "/x/y/z"
         hsInterval = 2.0
         hsMaxFiles = 100
+
         jvmPath = "java"
         jvmServer = False
         jvmHeapInit = "1m"
         jvmHeapMax = "12m"
         jvmArgs = "-Xarg"
         jvmExtra = "-Xextra"
+
+        alertEMail = "alert@email"
+        ntpHost = "ntpHost"
+
         logLevel = 'DEBUG'
         runLogger = None
 
@@ -364,7 +391,8 @@ class ComponentManagerTest(unittest.TestCase):
                 node = MockNode(host)
                 node.addComp(compName, compId, logLevel, hsDir, hsInterval,
                              hsMaxFiles, jvmPath, jvmServer, jvmHeapInit,
-                             jvmHeapMax, jvmArgs, jvmExtra)
+                             jvmHeapMax, jvmArgs, jvmExtra, alertEMail,
+                             ntpHost)
 
                 for killWith9 in (True, False):
                     parallel = MockParallelShell()

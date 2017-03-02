@@ -616,7 +616,7 @@ class LiveRun(BaseRun):
         return problem
 
     def getLastRunNumber(self):
-        "Return the last run number"
+        "Return the last used run and subrun numbers as a tuple"
         cmd = "%s lastrun" % self.__liveCmdProg
         self.logCmd(cmd)
 
@@ -660,6 +660,8 @@ class LiveRun(BaseRun):
     def getRunsPerRestart(self):
         """Get the number of continuous runs between restarts"""
         cmd = "livecmd runs per restart"
+        self.logCmd(cmd)
+
         if self.__dryRun:
             print cmd
             return 1
@@ -673,6 +675,7 @@ class LiveRun(BaseRun):
         curNum = None
         for line in proc.stdout:
             line = line.rstrip()
+            self.logCmdOutput(line)
             try:
                 curNum = int(line)
             except ValueError:
@@ -771,6 +774,8 @@ class LiveRun(BaseRun):
             return
 
         cmd = "livecmd runs per restart %d" % numRestarts
+        self.logCmd(cmd)
+
         if self.__dryRun:
             print cmd
             return
@@ -782,7 +787,8 @@ class LiveRun(BaseRun):
                                 shell=True)
         proc.stdin.close()
         for line in proc.stdout:
-            print line.rstrip()
+            line = line.rstrip()
+            self.logCmdOutput(line)
         proc.stdout.close()
         proc.wait()
 

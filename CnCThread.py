@@ -24,6 +24,7 @@ class CnCThread(threading.Thread):
     def close(self):
         self.__closed = True
 
+    @property
     def isClosed(self):
         return self.__closed
 

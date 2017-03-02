@@ -9,7 +9,8 @@ import sys
 import threading
 import time
 
-from CnCExceptions import CnCServerException, MissingComponentException
+from CnCExceptions import CnCServerException, MissingComponentException, \
+    StartInterruptedException
 from CnCLogger import CnCLogger
 from CompOp import ComponentOperation, ComponentOperationGroup
 from DAQClient import ComponentName, DAQClient, DAQClientState
@@ -57,7 +58,12 @@ class DAQPool(object):
         "This method assumes that self.__poolLock has already been acquired"
         if not comp.name in self.__pool:
             self.__pool[comp.name] = []
+        for oldcomp in self.__pool[comp.name]:
+            if comp.matches(oldcomp):
+                return False
+
         self.__pool[comp.name].append(comp)
+        return True
 
     def __addRunset(self, runSet):
         self.__setsLock.acquire()
@@ -171,8 +177,8 @@ class DAQPool(object):
 
         if waitList is not None:
             self.__returnComponents(compList, logger)
-            self.__restartMissingComponents(waitList, runConfigDir,
-                                            logger, daqDataDir)
+            self.__restartMissingComponents(waitList, runConfig, logger,
+                                            daqDataDir)
             raise MissingComponentException(waitList)
 
         setAdded = False
@@ -242,9 +248,9 @@ class DAQPool(object):
         finally:
             self.__setsLock.release()
 
-    def __restartMissingComponents(self, waitList, runConfigDir, logger,
+    def __restartMissingComponents(self, waitList, runConfig, logger,
                                    daqDataDir):
-        cluCfg = self.getClusterConfig()
+        cluCfg = self.getClusterConfig(runConfig=runConfig)
         if cluCfg is None:
             logger.error("Cannot restart missing components: No cluster config")
         else:
@@ -256,7 +262,7 @@ class DAQPool(object):
                               cluCfg.configName()))
 
             if len(deadList) > 0:
-                self.cycleComponents(deadList, runConfigDir, daqDataDir,
+                self.cycleComponents(deadList, runConfig.configdir, daqDataDir,
                                      logger, logger.logPort,
                                      logger.livePort)
 
@@ -276,7 +282,7 @@ class DAQPool(object):
         "Add the component to the config server's pool"
         self.__poolLock.acquire()
         try:
-            self.__addInternal(comp)
+            return self.__addInternal(comp)
         finally:
             self.__poolLock.release()
 
@@ -317,7 +323,7 @@ class DAQPool(object):
 
         return runset
 
-    def getClusterConfig(self):
+    def getClusterConfig(self, runConfig=None):
         raise NotImplementedError("Unimplemented")
 
     def getRelease(self):
@@ -395,7 +401,7 @@ class DAQPool(object):
         self.__setsLock.acquire()
         try:
             for rs in self.__sets:
-                if rs.isRunning():
+                if rs.isRunning:
                     num += 1
         finally:
             self.__setsLock.release()
@@ -465,7 +471,7 @@ class DAQPool(object):
         self.__setsLock.acquire()
         try:
             for rs in self.__sets:
-                if rs.isRunning():
+                if rs.isRunning:
                     return False
             removed = self.__sets[:]
             del self.__sets[:]
@@ -547,18 +553,18 @@ class Connector(object):
         if isinstance(descrChar, bool):
             raise Exception("Convert to new format")
         self.__descrChar = descrChar
-        if self.isInput():
+        if self.isInput:
             self.__port = port
         else:
             self.__port = None
 
     def __str__(self):
         "String description"
-        if self.isOptional():
+        if self.isOptional:
             connCh = "~"
         else:
             connCh = "="
-        if self.isInput():
+        if self.isInput:
             return '%d%s>%s' % (self.__port, connCh, self.__name)
         return self.__name + connCh + '>'
 
@@ -567,23 +573,26 @@ class Connector(object):
         This method can raise a ValueError exception if __port is none."""
         if self.__port is not None:
             port = self.__port
-        elif not self.isInput():
+        elif not self.isInput:
             port = 0
         else:
             raise ValueError("Connector %s port was set to None" % str(self))
 
         return (self.__name, self.__descrChar, port)
 
+    @property
     def isInput(self):
         "Return True if this is an input connector"
         return self.__descrChar == self.INPUT or \
                self.__descrChar == self.OPT_INPUT
 
+    @property
     def isOptional(self):
         "Return True if this is an optional connector"
         return self.__descrChar == self.OPT_INPUT or \
                self.__descrChar == self.OPT_OUTPUT
 
+    @property
     def isOutput(self):
         "Return True if this is an output connector"
         return self.__descrChar == self.OUTPUT or \
@@ -671,7 +680,7 @@ class CnCServer(DAQPool):
                     self.__log.error("Couldn't create server socket: %s" % e)
                     sys.exit("Couldn't create server socket: %s" % e)
 
-        if self.__server:
+        if self.__server is not None:
             self.__server.register_function(self.rpc_close_files)
             self.__server.register_function(self.rpc_component_connector_info)
             self.__server.register_function(self.rpc_component_count)
@@ -833,7 +842,7 @@ class CnCServer(DAQPool):
 
     def breakRunset(self, runSet):
         hadError = False
-        if not runSet.isReady():
+        if not runSet.isReady:
             try:
                 hadError = runSet.stopRun("BreakRunset")
             except:
@@ -877,9 +886,9 @@ class CnCServer(DAQPool):
                          self.__quiet)
 
     def createCnCLogger(self, quiet):
-        return CnCLogger(quiet=quiet)
+        return CnCLogger("CnC", quiet=quiet)
 
-    def getClusterConfig(self):
+    def getClusterConfig(self, runConfig=None):
         if self.__clusterConfig is None:
             cdesc = self.__clusterDesc
             cfgDir = self.__runConfigDir
@@ -898,10 +907,10 @@ class CnCServer(DAQPool):
                                          " %s: %s" % (cdescStr, exc_string()))
         else:
             try:
-                self.__clusterConfig.loadIfChanged()
+                self.__clusterConfig.loadIfChanged(runConfig)
             except Exception as ex:
                 self.__log.error("Cannot reload cluster config \"%s\": %s" %
-                                 self.__clusterConfig.description, ex)
+                                 (self.__clusterConfig.description, ex))
 
         return self.__clusterConfig
 
@@ -965,14 +974,16 @@ class CnCServer(DAQPool):
 
     def restartRunsetComponents(self, rs, verbose=False, killWith9=True,
                                 eventCheck=False):
-        rs.restartAllComponents(self.getClusterConfig(), self.__runConfigDir,
+        cluCfg = self.getClusterConfig(runConfig=rs.runConfigData)
+        rs.restartAllComponents(cluCfg, self.__runConfigDir,
                                 self.__daqDataDir, self.__log.logPort,
                                 self.__log.livePort, verbose=verbose,
                                 killWith9=killWith9, eventCheck=eventCheck)
 
     def returnRunsetComponents(self, rs, verbose=False, killWith9=True,
                                eventCheck=False):
-        rs.returnComponents(self, self.getClusterConfig(), self.__runConfigDir,
+        cluCfg = self.getClusterConfig(runConfig=rs.runConfigData)
+        rs.returnComponents(self, cluCfg, self.__runConfigDir,
                             self.__daqDataDir, self.__log.logPort,
                             self.__log.livePort, verbose=verbose,
                             killWith9=killWith9, eventCheck=eventCheck)
@@ -999,7 +1010,8 @@ class CnCServer(DAQPool):
         compList = self.__getComponents(idList, getAll)
 
         op = ComponentOperation.GET_CONN_INFO
-        results = ComponentOperationGroup.runSimple(op, compList, (), log)
+        results = ComponentOperationGroup.runSimple(op, compList, (),
+                                                    self.__log)
 
         slst = []
         for c in compList:
@@ -1027,7 +1039,7 @@ class CnCServer(DAQPool):
                                      includeRunsetComponents=False):
         c = self.__findComponentById(compId, includeRunsetComponents)
         if c is not None:
-            return c.getSingleBeanField(bean, field)
+            return c.mbean.get(bean, field)
 
         raise CnCServerException("Unknown component #%d" % compId)
 
@@ -1112,9 +1124,11 @@ class CnCServer(DAQPool):
         client = self.createClient(name, num, host, port, mbeanPort,
                                    connectors)
 
-        self.__log.debug("Registered %s" % client.fullname)
-
-        self.add(client)
+        if self.add(client):
+            self.__log.debug("Registered %s" % client.fullname)
+        else:
+            self.__log.debug("Ignoring previously registered %s" %
+                             client.fullname)
 
         logIP = ip.convertLocalhostToIpAddr(self.__log.logHost)
 
@@ -1191,7 +1205,7 @@ class CnCServer(DAQPool):
         if not runSet:
             raise CnCServerException('Could not find runset#%d' % id)
 
-        if runSet.isRunning():
+        if runSet.isRunning:
             raise CnCServerException("Cannot break up running runset #%d" % id)
 
         self.breakRunset(runSet)
@@ -1423,7 +1437,8 @@ class CnCServer(DAQPool):
             self.__log.error("Cannot count open files: %s" % exc_string())
             openCount = 0
 
-        runSet.startRun(runNum, self.getClusterConfig(),
+        cluCfg = self.getClusterConfig(runConfig=runSet.runConfigData)
+        runSet.startRun(runNum, cluCfg,
                         runOptions, self.__versionInfo, self.__spadeDir,
                         copyDir=self.__copyDir, logDir=logDir,
                         quiet=self.__quiet)
