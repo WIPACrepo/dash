@@ -221,9 +221,9 @@ class ValueWatcher(Watcher):
 
 
 class WatchData(object):
-    def __init__(self, comp, dashlog):
+    def __init__(self, comp, mbeanClient, dashlog):
         self.__comp = comp
-        self.__mbeanClient = comp.createMBeanClient()
+        self.__mbeanClient = mbeanClient
         self.__dashlog = dashlog
 
         self.__inputFields = {}
@@ -387,9 +387,14 @@ class WatchData(object):
 
 
 class WatchdogThread(CnCThread):
-    def __init__(self, runset, comp, rule, dashlog, data=None, initFail=0):
+    def __init__(self, runset, comp, rule, dashlog, data=None, initFail=0,
+                 mbeanClient=None):
         self.__runset = runset
         self.__comp = comp
+        if mbeanClient is not None:
+            self.__mbeanClient = mbeanClient
+        else:
+            self.__mbeanClient = comp.createMBeanClient()
         self.__rule = rule
         self.__dashlog = dashlog
 
@@ -414,6 +419,7 @@ class WatchdogThread(CnCThread):
             try:
                 self.__data = self.__rule.createData(
                     self.__comp,
+                    self.__mbeanClient,
                     self.__runset.components(),
                     self.__dashlog)
             except:
@@ -435,7 +441,9 @@ class WatchdogThread(CnCThread):
 
     def get_new_thread(self):
         thrd = WatchdogThread(self.__runset, self.__comp, self.__rule,
-                              self.__dashlog, self.__data, self.__initFail)
+                              self.__dashlog, data=self.__data,
+                              initFail=self.__initFail,
+                              mbeanClient=self.__mbeanClient)
         return thrd
 
     def stagnant(self):
@@ -493,10 +501,10 @@ class WatchdogRule(object):
     def initData(self, data, thisComp, components):
         raise NotImplementedError("you were supposed to implement initData")
 
-    def createData(self, thisComp, components, dashlog):
+    def createData(self, thisComp, thisClient, components, dashlog):
         """This is a base class for classes that define initData"""
 
-        data = WatchData(thisComp, dashlog)
+        data = WatchData(thisComp, thisClient, dashlog)
         self.initData(data, thisComp, components)
         return data
 
