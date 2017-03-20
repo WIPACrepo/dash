@@ -1068,7 +1068,6 @@ class CnCServer(DAQPool):
                                        includeRunsetComponents=False):
         c = self.__findComponentById(compId, includeRunsetComponents)
         if c is not None:
-            return c.getBeanFields(bean)
             return c.mbean.getBeanFields(bean)
 
         raise CnCServerException("Unknown component #%d" % compId)
