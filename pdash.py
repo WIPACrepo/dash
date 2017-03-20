@@ -33,13 +33,24 @@ class Dash(cmd.Cmd):
         if compDict.has_key(compName):
             return compDict[compName]
 
-        raise ValueError("Unknown component \"%s\"" % compName)
+        raise ValueError("Unknown component \"%s\" (not %s)" %
+                         (compName, compDict.keys()))
 
     def __findComponentFromString(self, compDict, compStr):
         compName = None
         compId = None
 
         if compStr is not None and compDict is not None:
+            sep = compStr.find('#')
+            if sep > 0:
+                try:
+                    compNum = int(compStr[sep+1:])
+                    compName = compStr[:sep]
+                    if compNum == 0 and compDict.has_key(compName):
+                        return (compName, compDict[compName])
+                except ValueError:
+                    pass
+
             if compDict.has_key(compStr):
                 compName = compStr
                 compId = compDict[compName]
@@ -47,7 +58,7 @@ class Dash(cmd.Cmd):
                 try:
                     compId = int(compStr)
                 except ValueError:
-                    compId = None
+                    return (None, None)
 
                 if compId is not None:
                     for c in compDict.keys():
@@ -216,21 +227,33 @@ class Dash(cmd.Cmd):
                 idList = None
                 break
 
+            # try to add index number
             try:
-                compId = int(cstr)
+                idList.append(int(cstr))
+                continue
             except ValueError:
-                if compDict is None:
-                    compDict = self.__cnc.rpc_component_list()
+                pass
 
-                try:
-                    compId = self.__findComponentId(compDict, cstr)
-                except ValueError:
-                    print >> sys.stderr, "Unknown component \"%s\"" % cstr
-                    continue
+            if compDict is None:
+                compDict = self.__cnc.rpc_component_list()
 
-            idList.append(compId)
+            try:
+                compId = self.__findComponentId(compDict, cstr)
+                idList.append(compId)
+                continue
+            except ValueError:
+                pass
 
-        self.__printComponentDetails(idList)
+            if cstr.find(".") > 0:
+                self.__runCmdBean((cstr, ))
+                continue
+
+            print >> sys.stderr, "Unknown component \"%s\" YYY" % cstr
+            continue
+
+
+        if len(idList) > 0:
+            self.__printComponentDetails(idList)
 
     def __runCmdOpenFiles(self, args):
         "List open files"
