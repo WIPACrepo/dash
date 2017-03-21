@@ -1038,10 +1038,10 @@ class CnCServer(DAQPool):
     def rpc_component_get_bean_field(self, compId, bean, field,
                                      includeRunsetComponents=False):
         c = self.__findComponentById(compId, includeRunsetComponents)
-        if c is not None:
-            return c.mbean.get(bean, field)
+        if c is None:
+            raise CnCServerException("Unknown component #%d" % compId)
 
-        raise CnCServerException("Unknown component #%d" % compId)
+        return c.mbean.get(bean, field)
 
     def rpc_component_list(self, includeRunsetComponents=False):
         "return dictionary of component names -> IDs"
