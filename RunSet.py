@@ -926,19 +926,6 @@ class RunData(object):
 
         return monDict
 
-    def getMultiBeanFields(self, comp, bean, fldList):
-        tGroup = ComponentOperationGroup(ComponentOperation.GET_MULTI_BEAN)
-        tGroup.start(comp, self.__dashlog, (bean, fldList))
-        tGroup.wait(waitSecs=10)
-
-        r = tGroup.results()
-        if not r.has_key(comp):
-            result = ComponentOperation.RESULT_ERROR
-        else:
-            result = r[comp]
-
-        return result
-
     def getRunData(self, comps):
         nEvts = 0
         firstTime = 0
