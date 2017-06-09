@@ -111,7 +111,6 @@ RUN_LIST = (
     PDAQRun("spts64-dirtydozen-hlc-006", 0, 1,
             (("flash-21", 60), (None, 10), ("flash-21", 45),
              (None, 20), ("flash-21", 120))),
-    PDAQRun("spts64-dirtydozen-old-hitspool-15s-interval-8h-spool", HALF_HR),
     PDAQRun("spts64-dirtydozen-hitspool-15s-interval-8h-spool", HALF_HR),
     PDAQRun("spts-dirtydozen-intervals3-snmix-014", HALF_HR),
     PDAQRun("random-01", HALF_HR),
