@@ -35,18 +35,23 @@ def _open_schema(path, description):
             raise IOError("Could not open %s '%s'" % (description, path))
 
 
+validated_def_dom_geom = None
+validated_cluster_cfg = None
 def validate_configs(cluster_xml_filename, runconfig_xml_filename,
                      default_dom_geom_xml_filename=None):
 
+    config_dir = find_pdaq_config()
+
     # ---------------------------------------------------------
     # build up a path and validate the default_dom_geometry file
-    config_dir = find_pdaq_config()
-    dom_geom_xml_path = os.path.join(config_dir,
-                                     "default-dom-geometry.xml")
-    (valid, reason) = validate_default_dom_geom(dom_geom_xml_path)
-    if not valid:
-        return (valid, "DefaultDOMGeometry " + dom_geom_xml_path + ": " +
-                str(reason))
+    if validated_def_dom_geom is None:
+        dom_geom_xml_path = os.path.join(config_dir,
+                                         "default-dom-geometry.xml")
+        (valid, reason) = validate_default_dom_geom(dom_geom_xml_path)
+        validated_def_dom_geom = valid
+        if not valid:
+            return (valid, "DefaultDOMGeometry " + dom_geom_xml_path + ": " +
+                    str(reason))
 
     # -------------------------------------------------
     # validate the cluster config
@@ -66,17 +71,17 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
     if not extension or extension is not 'cfg':
         extension = 'cfg'
 
-    config_dir = find_pdaq_config()
     path = os.path.join(config_dir, "%s.%s" % (fname, extension))
     if not os.path.exists(path):
         path = os.path.join(config_dir, "%s-cluster.%s" % (fname, extension))
 
     cluster_xml_filename = path
+    if validated_cluster_cfg is None or validated_cluster_cfg != path:
+        validated_cluster_cfg = path
 
-    (valid, reason) = validate_clusterconfig(cluster_xml_filename)
-    if not valid:
-        return (valid, "ClusterConfig " + cluster_xml_filename + ": " +
-                str(reason))
+        (valid, reason) = validate_clusterconfig(path)
+        if not valid:
+            return (valid, "ClusterConfig %s: %s" % (path, reason))
 
     #
     # validate the run configuration
