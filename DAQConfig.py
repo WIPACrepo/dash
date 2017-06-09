@@ -991,6 +991,7 @@ def main():
     #if len(args.xmlfile) == 0:
     #    args.xmlfile.append("sim5str")
 
+    failed = False
     for config_name in args.xmlfile:
         if args.extended and not args.quiet:
             print '-----------------------------------------------------------'
@@ -1000,12 +1001,17 @@ def main():
             dc = DAQConfigParser.parse(config_dir, config_name,
                                        strict=args.strict)
         except Exception:
-            print 'Could not parse "%s": %s' % (config_name, exc_string())
+            if args.quiet:
+                print "%s could not be parsed" % config_name
+            else:
+                print 'Could not parse "%s": %s' % (config_name, exc_string())
+            failed = True
             continue
 
         if args.validation:
             (valid, reason) = validate_configs(None, config_name)
             if not valid:
+                failed = True
                 raise DAQConfigException(reason)
 
         if not args.extended:
@@ -1030,6 +1036,9 @@ def main():
             if not args.quiet:
                 print "Initial time %.03f, subsequent time: %.03f" % \
                     (init_time, next_time)
+
+    if failed:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

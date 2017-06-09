@@ -161,17 +161,7 @@ def validate_clusterconfig(xml_filename):
 
 def validate_runconfig(xml_filename):
     """Check the runconfig against an xml schema"""
-    (valid, reason) = _validate_xml_rng(xml_filename, 'runconfig.rng')
-
-    # add a check here to see if this runconfig is in the old format
-    if not valid:
-        # check the old format
-        (old_valid, old_reason) = _validate_xml_rng(xml_filename,
-                                                    "runconfig-old.rng")
-        if old_valid:
-            return (old_valid, old_reason)
-
-    return (valid, reason)
+    return _validate_xml_rng(xml_filename, 'runconfig.rng')
 
 
 def validate_default_dom_geom(xml_filename):
