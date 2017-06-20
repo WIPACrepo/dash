@@ -44,6 +44,7 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
 
     # ---------------------------------------------------------
     # build up a path and validate the default_dom_geometry file
+    global validated_def_dom_geom
     if validated_def_dom_geom is None:
         dom_geom_xml_path = os.path.join(config_dir,
                                          "default-dom-geometry.xml")
@@ -76,6 +77,8 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
         path = os.path.join(config_dir, "%s-cluster.%s" % (fname, extension))
 
     cluster_xml_filename = path
+
+    global validated_cluster_cfg
     if validated_cluster_cfg is None or validated_cluster_cfg != path:
         validated_cluster_cfg = path
 
