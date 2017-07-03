@@ -6,7 +6,7 @@ import re
 import sys
 import time
 
-from leapseconds import leapseconds
+from leapseconds import leapseconds, MJD
 
 
 class DAQDateTimeDelta(object):
@@ -45,9 +45,8 @@ class DAQDateTime(object):
             self.__daqticks = (daqticks / 10000L) * 10000L
             self.__high_precision = False
 
-        self.leap = leapseconds.getInstance()
-        frac_day = self.leap.frac_day(hour, minute, second)
-        self.mjd_day = self.leap.mjd(year, month, day + frac_day)
+        self.leap = leapseconds.instance()
+        self.mjd_day = MJD(year, month, day, hour, minute, second)
 
         self.year = year
         self.month = month
@@ -90,10 +89,15 @@ class DAQDateTime(object):
         # subtract two date time objects
 
         diff_mjd = self.mjd_day - other.mjd_day
-        diff_tai = self.leap.get_tai_offset(self.mjd_day) - \
-            self.leap.get_tai_offset(other.mjd_day)
+        diff_seconds = diff_mjd * 3600. * 24.
 
-        diff_seconds = diff_mjd * 3600. * 24. + diff_tai
+        # add leapseconds
+        year = self.year
+        while year < other.year:
+            diff_seconds += self.leap.get_leap_offset(999, year)
+            year += 1
+        other_yday = other.mjd_day.timestruct.tm_yday
+        diff_seconds += self.leap.get_leap_offset(other_yday)
 
         diff_ticks = self.__daqticks - other.__daqticks
 
@@ -164,6 +168,21 @@ class PayloadTime(object):
     PREV_YEAR = None
 
     @staticmethod
+    def __seconds_until_june30(year):
+        """For the given year calculate the number of seconds
+        to a potential leapsecond at 23:59:60 on june 30.
+
+        This doesn't mean that there IS a leapsecond, just that
+        below this number of seconds past jan1 there is no danger
+        of one.
+        """
+
+        jan1_mjd = MJD(year, 1, 1)
+        june30_1159_mjd = MJD(year, 6, 30, 23, 59, 60)
+
+        return (june30_1159_mjd - jan1_mjd) * 86400
+
+    @staticmethod
     def fromString(timestr, high_precision=DAQDateTime.HIGH_PRECISION):
         if not timestr:
             return None
@@ -226,16 +245,19 @@ class PayloadTime(object):
             # clock, there will be a slight processing delay etc
             jan1 = time.struct_time((year, 1, 1, 0, 0, 0, 0, 0, -1))
             PayloadTime.TIME_OFFSET = calendar.timegm(jan1)
-            july1_tuple = time.struct_time((year, 7, 1, 0, 0, 0, 0, 0, -1))
-            PayloadTime.has_leapsecond = \
-                leapseconds.getInstance().get_leap_offset(july1_tuple) > 0
+            raw_tuple = time.struct_time((year, 7, 1, 0, 0, 0, 0, 0, -1))
+            # recompute tuple to fill in day of year
+            july1_tuple = time.gmtime(calendar.timegm(raw_tuple))
+            PayloadTime.has_leapsecond \
+                = leapseconds.instance().get_leap_offset(july1_tuple.tm_yday,
+                                                       year) > 0
             if not PayloadTime.has_leapsecond:
                 # no mid-year leap second, so don't need to calculate
                 # seconds until June 30
                 PayloadTime.TIME_TILL_JUNE30 = sys.maxint
             else:
                 PayloadTime.TIME_TILL_JUNE30 = \
-                    leapseconds.seconds_till_june30(year)
+                    PayloadTime.__seconds_until_june30(year)
 
         PayloadTime.PREV_TIME = payTime
 
@@ -252,22 +274,22 @@ class PayloadTime(object):
             return DAQDateTime(ts.tm_year, ts.tm_mon, ts.tm_mday, ts.tm_hour,
                                ts.tm_min, ts.tm_sec, subsec,
                                high_precision=high_precision)
-        else:
-            # we have to worry about a potential leapsecond
 
-            # did we get a payload time exactly ON the leapsecond
-            if curSecOffset == PayloadTime.TIME_TILL_JUNE30:
-                return DAQDateTime(year, 6, 30, 23, 59, 60,
-                                   subsec, high_precision=high_precision)
-            else:
-                curTime = curSecOffset + PayloadTime.TIME_OFFSET
-                # there was a leapsecond
-                # assuming we only have to deal with ONE leapsecond
-                ts = time.gmtime(curTime - 1)
+        # we have to worry about a potential leapsecond
 
-                return DAQDateTime(ts.tm_year, ts.tm_mon, ts.tm_mday,
-                                   ts.tm_hour, ts.tm_min, ts.tm_sec, subsec,
-                                   high_precision=high_precision)
+        # did we get a payload time exactly ON the leapsecond
+        if curSecOffset == PayloadTime.TIME_TILL_JUNE30:
+            return DAQDateTime(year, 6, 30, 23, 59, 60, subsec,
+                               high_precision=high_precision)
+
+        curTime = curSecOffset + PayloadTime.TIME_OFFSET
+        # there was a leapsecond
+        # assuming we only have to deal with ONE leapsecond
+        ts = time.gmtime(curTime - 1)
+
+        return DAQDateTime(ts.tm_year, ts.tm_mon, ts.tm_mday, ts.tm_hour,
+                           ts.tm_min, ts.tm_sec, subsec,
+                           high_precision=high_precision)
 
 
 if __name__ == "__main__":

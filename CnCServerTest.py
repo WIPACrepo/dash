@@ -21,8 +21,8 @@ from RunSet import RunSet
 
 from DAQMocks \
     import MockAppender, MockClusterConfig, MockCnCLogger, \
-    MockDefaultDomGeometryFile, MockRunConfigFile,  SocketReaderFactory, \
-    SocketWriter, MockLogger, RunXMLValidator
+    MockDefaultDomGeometryFile, MockLeapsecondFile, MockRunConfigFile, \
+    SocketReaderFactory, SocketWriter, MockLogger, RunXMLValidator
 
 ACTIVE_WARNING = False
 
@@ -739,6 +739,9 @@ class TestCnCServer(unittest.TestCase):
         runConfig = rcFile.create(compList, hubDomDict)
 
         MockDefaultDomGeometryFile.create(self.__runConfigDir, hubDomDict)
+
+        leapFile = MockLeapsecondFile(self.__runConfigDir)
+        leapFile.create()
 
         catchall.addExpectedTextRegexp('Loading run configuration .*')
         catchall.addExpectedTextRegexp('Loaded run configuration .*')

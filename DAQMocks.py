@@ -23,6 +23,7 @@ from DAQConst import DAQPort
 from DefaultDomGeometry import DefaultDomGeometry
 from LiveImports import MoniPort, SERVICE_NAME
 from RunCluster import RunCluster
+from leapseconds import leapseconds, MJD
 from locate_pdaq import find_pdaq_trunk
 from utils import ip
 from utils.DashXMLLog import DashXMLLog
@@ -2282,6 +2283,34 @@ class MockAlgorithm(object):
             print >>fd, "%s</readoutConfig>"
 
         print >>fd, "%s</triggerConfig>" % indent
+
+
+class MockLeapsecondFile(object):
+    def __init__(self, configDir):
+        self.__configDir = configDir
+
+    def create(self):
+        known_times = (
+            (35, 3550089600),
+            (36, 3644697600),
+            (37, 3692217600),
+        )
+
+        # get the current date as an NTP timestamp
+        expiration = MJD.now().ntp
+
+        nist_path = os.path.join(self.__configDir, "nist")
+        if not os.path.isdir(nist_path):
+            os.mkdir(nist_path)
+
+        filepath = os.path.join(nist_path, leapseconds.DEFAULT_FILENAME)
+        with open(filepath, "w") as out:
+            print >>out, "# Mock NIST leapseconds file"
+            print >>out, "#@\t%d" % (expiration, )
+            print >>out, "#"
+
+            for pair in known_times:
+                print >>out, "%d\t%d" % (pair[1], pair[0])
 
 class MockTriggerConfig(object):
     def __init__(self, name):

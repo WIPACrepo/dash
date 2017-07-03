@@ -11,8 +11,8 @@ from CnCExceptions import CnCServerException, MissingComponentException
 from CnCServer import CnCServer
 from DAQConst import DAQPort
 from DAQMocks import MockClusterConfig, MockDefaultDomGeometryFile, \
-    MockIntervalTimer, MockLogger, MockRunConfigFile, RunXMLValidator, \
-    SocketReader
+    MockIntervalTimer, MockLeapsecondFile, MockLogger, MockRunConfigFile, \
+    RunXMLValidator, SocketReader
 from DAQTime import PayloadTime
 from LiveImports import LIVE_IMPORT
 from MonitorTask import MonitorTask
@@ -699,6 +699,9 @@ class CnCRunSetTest(unittest.TestCase):
 
         MockDefaultDomGeometryFile.create(self.__runConfigDir, hubDomDict)
 
+        leapFile = MockLeapsecondFile(self.__runConfigDir)
+        leapFile.create()
+
         logger = MockLogger("main")
         logger.addExpectedExact("Loading run configuration \"%s\"" % runConfig)
         logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
@@ -1003,6 +1006,9 @@ class CnCRunSetTest(unittest.TestCase):
         runConfig = rcFile.create(runCompList, hubDomDict)
 
         MockDefaultDomGeometryFile.create(self.__runConfigDir, hubDomDict)
+
+        leapFile = MockLeapsecondFile(self.__runConfigDir)
+        leapFile.create()
 
         catchall.addExpectedText("Loading run configuration \"%s\"" %
                                  runConfig)

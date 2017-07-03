@@ -5,7 +5,7 @@ import datetime
 import time
 import unittest
 from DAQTime import DAQDateTime, PayloadTime
-from leapseconds import leapseconds
+from leapseconds import leapseconds, MJD
 
 class TestDAQTime(unittest.TestCase):
     TICKS_PER_SEC = 10000000000
@@ -78,13 +78,13 @@ class TestDAQTime(unittest.TestCase):
         """ test cannot easily work as calculating the number of seconds in the
         current year requires a nist file that passes the end of the year"""
 
-        leapObj = leapseconds.getInstance()
-        jan1_mjd = leapObj.mjd(self.CUR_YEAR, 1, 1.)
-        expiry_mjd = leapObj.get_mjd_expiry()
-        elapsed_seconds = (expiry_mjd - jan1_mjd) * 86400. + \
-            (leapObj.get_tai_offset(expiry_mjd) - leapObj.get_tai_offset(jan1_mjd))
+        leapObj = leapseconds.instance()
+        jan1_mjd = MJD(self.CUR_YEAR, 1, 1.)
+        expiry_mjd = leapObj.expiry
+        extra = leapObj.get_leap_offset(expiry_mjd.timestruct.tm_yday)
+        elapsed_seconds = (expiry_mjd - jan1_mjd) * 86400. + extra
 
-        est = leapObj.mjd_to_timestruct(expiry_mjd)
+        est = expiry_mjd.timestruct
 
         yrsecs = elapsed_seconds
 
@@ -103,13 +103,13 @@ class TestDAQTime(unittest.TestCase):
         """test cannot easily work as calculating the number of seconds in the current
         year requires a nist that passes the end of the year"""
 
-        leapObj = leapseconds.getInstance()
-        jan1_mjd = leapObj.mjd(self.CUR_YEAR, 1, 1.)
-        expiry_mjd = leapObj.get_mjd_expiry()
-        elapsed_seconds = (expiry_mjd - jan1_mjd) * 86400. + \
-            (leapObj.get_tai_offset(expiry_mjd) - leapObj.get_tai_offset(jan1_mjd))
+        leapObj = leapseconds.instance()
+        jan1_mjd = MJD(self.CUR_YEAR, 1, 1.)
+        expiry_mjd = leapObj.expiry
+        extra = leapObj.get_leap_offset(expiry_mjd.timestruct.tm_yday)
+        elapsed_seconds = (expiry_mjd - jan1_mjd) * 86400. + extra
 
-        est = leapObj.mjd_to_timestruct(expiry_mjd)
+        est = expiry_mjd.timestruct
         yrsecs = elapsed_seconds
 
         # the LONG bit is actually important, otherwise we run into floating

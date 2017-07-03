@@ -10,8 +10,8 @@ from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet, ConnectionException
 
-from DAQMocks import MockComponent, MockLogger, MockRunConfigFile, \
-     RunXMLValidator
+from DAQMocks import MockComponent, MockLeapsecondFile, MockLogger, \
+    MockRunConfigFile, RunXMLValidator
 
 ACTIVE_WARNING = False
 
@@ -657,6 +657,8 @@ class TestDAQPool(unittest.TestCase):
 
         self.assertEqual(mgr.numComponents(), len(compList))
 
+        MockLeapsecondFile(self.__runConfigDir).create()
+
         runConfig = self.__createRunConfigFile(compList)
 
         logger = MockLogger('main')
@@ -694,6 +696,8 @@ class TestDAQPool(unittest.TestCase):
 
         logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
         logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for Hubs")
+
+        dashLog.addExpectedRegexp(r"NIST leapsecond file not found in .*")
 
         aComp.mbean.addData("stringhub", "LatestFirstChannelHitTime", 10)
         aComp.mbean.addData("stringhub", "NumberOfNonZombies", 1)

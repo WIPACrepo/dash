@@ -4,6 +4,7 @@ import unittest
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet, RunSetException, listComponentRanges
+from leapseconds import leapseconds
 from scmversion import get_scmversion_str
 
 CAUGHT_WARNING = False
@@ -509,6 +510,10 @@ class TestRunSet(unittest.TestCase):
 
     def setUp(self):
         RunXMLValidator.setUp()
+
+        # create the leapsecond alertstamp file so we don't get superfluous
+        # log messages
+        RunSet.is_leapsecond_silenced()
 
     def tearDown(self):
         RunXMLValidator.tearDown()

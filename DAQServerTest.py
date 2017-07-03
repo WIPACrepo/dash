@@ -9,12 +9,13 @@ from CnCServer import CnCServer
 from DAQClient import DAQClient
 from DAQConst import DAQPort
 from DAQMocks import MockAppender, MockClusterConfig, MockCnCLogger, \
-    MockDefaultDomGeometryFile, MockRunConfigFile, RunXMLValidator, \
-    SocketReaderFactory, SocketWriter
+    MockDefaultDomGeometryFile, MockLeapsecondFile, MockRunConfigFile, \
+    RunXMLValidator, SocketReaderFactory, SocketWriter
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet
 from utils import ip
+
 
 CAUGHT_WARNING = False
 
@@ -471,6 +472,9 @@ class TestDAQServer(unittest.TestCase):
         }
 
         runConfig = rcFile.create([], hubDomDict)
+
+        leapFile = MockLeapsecondFile(self.__runConfigDir)
+        leapFile.create()
 
         MockDefaultDomGeometryFile.create(self.__runConfigDir, hubDomDict)
 
