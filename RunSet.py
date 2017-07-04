@@ -2263,18 +2263,17 @@ class RunSet(object):
             with open(alert_timestamp_fname, 'r') as fd:
                 tstamp = int(fd.read())
             diff = time.time() - tstamp
-
-            # if it's been less than a day since we were last silenced...
-            max_dt = datetime.timedelta(days=1).total_seconds()
-            if diff < max_dt:
-                # ... we're still silenced
-                return True
         except IOError:
             # could not open the alert timestamp file for reading
-            pass
+            diff = None
         except ValueError:
             # contents of the alert timestamp file is not an int
-            pass
+            diff = None
+
+        # if it's been less than a day since we were last silenced...
+        if diff is not None and diff < 24 * 3600:
+            # ... we're still silenced
+            return True
 
         with open(alert_timestamp_fname, 'w') as fd:
             fd.write("%d" % time.time())
