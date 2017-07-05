@@ -697,8 +697,6 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
         logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for Hubs")
 
-        dashLog.addExpectedRegexp(r"NIST leapsecond file not found in .*")
-
         aComp.mbean.addData("stringhub", "LatestFirstChannelHitTime", 10)
         aComp.mbean.addData("stringhub", "NumberOfNonZombies", 1)
 
