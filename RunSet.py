@@ -686,7 +686,7 @@ class RunData(object):
         mjd_now = MJD.now()
 
         expire_delta = expiry_mjd.value - mjd_now.value
-        if expire_delta >= self.LEAPSECOND_FILE_EXPIRY and \
+        if expire_delta <= self.LEAPSECOND_FILE_EXPIRY and \
            not RunSet.is_leapsecond_silenced():
             # notify humans that the leapsecond file is about to expire
             self.__dashlog.error("Leapsecond file has %d days till"
