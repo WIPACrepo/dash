@@ -23,6 +23,7 @@ from DAQConst import DAQPort
 from DefaultDomGeometry import DefaultDomGeometry
 from LiveImports import MoniPort, SERVICE_NAME
 from RunCluster import RunCluster
+from RunSet import RunData
 from leapseconds import leapseconds, MJD
 from locate_pdaq import find_pdaq_trunk
 from utils import ip
@@ -2296,8 +2297,9 @@ class MockLeapsecondFile(object):
             (37, 3692217600),
         )
 
-        # get the current date as an NTP timestamp
-        expiration = MJD.now().ntp
+        # set expiration to one day before warnings would appear
+        expiration = MJD.now().ntp + \
+                     ((RunData.LEAPSECOND_FILE_EXPIRY + 1) * 24 * 3600)
 
         nist_path = os.path.join(self.__configDir, "nist")
         if not os.path.isdir(nist_path):
