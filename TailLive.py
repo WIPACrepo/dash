@@ -153,12 +153,33 @@ class LiveData(object):
     def is_text(self):
         raise NotImplementedError()
 
+    @property
+    def typestring(self):
+        if self.__datatype == self.TYPE_LOG:
+            return "LOG"
+        if self.__datatype == self.TYPE_MONI:
+            return "MONI"
+        if self.__datatype == self.TYPE_LOGMONI:
+            return "LOGMONI"
+        if self.__datatype == self.TYPE_ALERT:
+            return "ALERT"
+        if self.__datatype == self.TYPE_MSGERR:
+            return "MSGERR"
+        if self.__datatype == self.TYPE_WARN:
+            return "WARN"
+        if self.__datatype == self.TYPE_UNKNOWN:
+            return "UNKNOWN"
+        return "??%d??" % (self.__datatype, )
+
 
 class TextData(LiveData):
     def __init__(self, dtype, text):
         self.__text = text
 
         super(TextData, self).__init__(dtype)
+
+    def __str__(self):
+        return "[%s] %s" % (self.typestring, self.__text)
 
     def is_text(self):
         return True
@@ -173,6 +194,9 @@ class DictData(LiveData):
 
         super(DictData, self).__init__(dtype)
 
+    def __str__(self):
+        return "[%s] %s" % (self.typestring, self.__dict)
+
     def is_text(self):
         return False
 
@@ -183,7 +207,7 @@ class DictData(LiveData):
 class LiveLine(object):
     PREFIX_PAT = re.compile(r"^\s+livecontrol\((\S+)\)" +
                             r"\s+(\d+-\d+-\d+ \d+:\d+:\d+,\d+)\s+(.*)$",
-                            re.MULTILINE)
+                            re.DOTALL)
     TIME_FMT = "%Y-%m-%d %H:%M:%S,%f"
 
     OLDLOG_PAT = re.compile(r"(\S+)\(([^\)\:]+)\:([^\)]+)\)\s+(\d+)" +
@@ -581,14 +605,14 @@ class LiveLog(Colorize):
 
             if line.startswith("    livecontrol"):
                 if prevline is not None:
-                    self.process(LiveLine(prevline))
+                    self.process(LiveLine(prevline.rstrip()))
                 if line.find(" physics events") < 0 or \
                    line.find(" moni events") < 0 or \
                    line.find(" SN events") < 0 or line.find(" tcals") < 0:
                     # cache non-rate lines in case there's an embedded newline
                     prevline = line
                 else:
-                    self.process(LiveLine(line))
+                    self.process(LiveLine(line.rstrip()))
                     prevline = None
             elif prevline is not None:
                 # if line didn't start with 'livecontrol', the previous
@@ -598,7 +622,7 @@ class LiveLog(Colorize):
                 print >> sys.stderr, "Ignoring bad line: " + line
 
         if prevline is not None:
-            self.process(LiveLine(prevline))
+            self.process(LiveLine(prevline.rstrip()))
 
 
 if __name__ == "__main__": #pylint: disable=wrong-import-position
