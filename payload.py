@@ -164,7 +164,7 @@ class SimpleHit(Payload):
         self.__mbid = flds[3]
         if flds[4] != self.__trig_type:
             raise PayloadException("SimpleHit@%d: type %0x != mode %0x" %
-                                   (self.__trig_type, flds[4]))
+                                   (utime, self.__trig_type, flds[4]))
 
         super(SimpleHit, self).__init__(utime, data, keep_data=keep_data)
 
@@ -193,7 +193,6 @@ class SimpleHit(Payload):
     def trigger_type(self):
         "Trigger flags"
         return self.__trig_type
-
 
 
 # pylint: disable=invalid-name
@@ -297,11 +296,15 @@ class HitPayload(Payload):
         raise NotImplementedError()
 
     @property
-    def trigger_mode(self):
+    def mbid(self):
         raise NotImplementedError()
 
     @property
-    def trigger_type(self):
+    def source_id(self):
+        raise NotImplementedError()
+
+    @property
+    def trigger_mode(self):
         raise NotImplementedError()
 
     @property
@@ -420,6 +423,7 @@ class DeltaCompressedHit(HitPayload):
     def envelope(self):
         return struct.pack(">2IQ", self.data_length + self.ENVELOPE_LENGTH,
                            self.payload_type_id(), self.__mbid)
+
     @property
     def fadc(self):
         "fADC values"
@@ -662,7 +666,7 @@ class EngineeringHitRecord(BaseHitRecord):
                                                    offset)
 
 
-class Monitor(Payload):
+class Monitor(object):
     TYPE_ID = 5
 
     def __init__(self):
