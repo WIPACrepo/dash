@@ -121,7 +121,7 @@ class DomGeometry(object):
 
     @property
     def is_inice(self):
-        return self.__pos >= 11 and self.__pos <= 60
+        return self.__pos >= 1 and self.__pos <= 60
 
     @property
     def is_real_dom(self):
