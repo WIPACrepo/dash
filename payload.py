@@ -676,29 +676,31 @@ class TimeCalibration(Payload):
 
         super(TimeCalibration, self).__init__(utime, data, keep_data=keep_data)
 
-        hdr = struct.unpack("<QHHQQ128xQQ128xB12sc", data[:314])
-        self.__dom_id = hdr[0]
-        self.__pktlen = hdr[1]
-        self.__format = hdr[2]
-        self.__dor_tx = hdr[3]
-        self.__dor_rx = hdr[4]
-        self.__dor_waveform = data[28:156]
-        self.__dom_rx = hdr[5]
-        self.__dom_tx = hdr[6]
-        self.__dom_waveform = data[172:300]
-        self.__start_of_gps = hdr[7]
-        self.__julianstr = hdr[8]
-        self.__quality = hdr[9]
+        dombytes = struct.unpack(">Q", data[:8])
+        self.__dom_id = dombytes[0]
 
-        st = struct.unpack(">Q", data[314:])
+        hdr = struct.unpack("<HHQQ128xQQ128xB12sc", data[8:self.LENGTH - 8])
+        self.__pktlen = hdr[0]
+        self.__format = hdr[1]
+        self.__dor_tx = hdr[2]
+        self.__dor_rx = hdr[3]
+        self.__dor_waveform = data[28:156]
+        self.__dom_rx = hdr[4]
+        self.__dom_tx = hdr[5]
+        self.__dom_waveform = data[172:300]
+        self.__start_of_gps = hdr[6]
+        self.__julianstr = hdr[7]
+        self.__quality = hdr[8]
+
+        st = struct.unpack(">Q", data[self.LENGTH - 8:])
         self.__synctime = st[0]
 
     def __str__(self):
         "Payload description"
-        return "TimeCalibration[dor:tx#%d rx#%d,dom:rx#%d tx#%d," \
+        return "TimeCalibration[dom %012x dor:tx#%d rx#%d,dom:rx#%d tx#%d," \
             " \"%s\" Q'%s' S%d]" % \
-            (self.__dor_tx, self.__dor_rx, self.__dom_rx, self.__dom_tx,
-             self.__julianstr, self.__quality, self.__synctime)
+            (self.__dom_id, self.__dor_tx, self.__dor_rx, self.__dom_rx,
+             self.__dom_tx, self.__julianstr, self.__quality, self.__synctime)
 
     @property
     def dom_id(self):
