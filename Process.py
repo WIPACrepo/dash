@@ -1,25 +1,34 @@
 #!/usr/bin/env python
+#
+# Note that most of this functionality exists in the `psutil` package
+# so this code should be reexamined if we ever add it to pDAQ
 
+import os
 import re
-from subprocess import Popen, PIPE, STDOUT
+import subprocess
+import time
 
 
-def processList():
-    command = "ps axww"
-    p = Popen(command, shell=True, close_fds=True, stdout=PIPE, stderr=STDOUT)
-    output = p.stdout.readlines()
-    result = p.wait()
-    if result:
-        print "%(command)s failed: %(output)s" % locals()
-        raise SystemExit
-    return [s.strip() for s in output]
+class ProcessException(Exception):
+    pass
 
 
-def findProcess(name, plist=None):  # Iterate over list plist
-    if plist is None:
-        plist = processList()
-    for p in plist:
-        m = re.match(r'\s*(\d+)\s+.+?[pP]ython[\d\.]* .+?%s' % name, p)
-        if m:
-            yield int(m.group(1))
-    return
+def find_python_process(target):
+    "Return the IDs of any Python processes containing the target string"
+    for line in list_processes():
+        match = re.match(r"\s*(\d+)\s+.+?[Pp]ython[\d\.]*\s+.+?%s" %
+                         (target, ), line)
+        if match is not None:
+            yield int(match.group(1))
+
+
+def list_processes():
+    "Return a list of strings describing all running processes"
+    proc = subprocess.Popen(("ps", "ahwwx"), close_fds=True,
+                            stdout=subprocess.PIPE)
+    lines = proc.stdout.readlines()
+    if proc.wait():
+        raise ProcessException("Failed to list processes")
+
+    for line in lines:
+        yield line.rstrip()

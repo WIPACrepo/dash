@@ -17,7 +17,7 @@ from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from LiveImports import MoniPort
 from ParallelShell import ParallelShell
-from Process import findProcess, processList
+from Process import find_python_process, list_processes
 from RunSetState import RunSetState
 from locate_pdaq import find_pdaq_trunk
 
@@ -203,7 +203,7 @@ class ComponentManager(object):
     @classmethod
     def __isRunning(cls, procName, procList):
         "Is this process running?"
-        pids = list(findProcess(procName, procList))
+        pids = list(find_python_process(procName, procList))
         return len(pids) > 0
 
     @classmethod
@@ -448,7 +448,7 @@ class ComponentManager(object):
     def killProcess(cls, procName, dryRun=False, logger=None):
         pid = int(os.getpid())
 
-        pids = list(findProcess(procName, processList()))
+        pids = list(find_python_process(procName))
 
         rtnval = False
         for p in pids:
@@ -479,7 +479,7 @@ class ComponentManager(object):
         if not startMissing:
             procList = []
         else:
-            procList = processList()
+            procList = list_processes()
 
         launched = []
         ignored = []

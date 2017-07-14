@@ -20,7 +20,7 @@ from DAQLive import DAQLive
 from DAQLog import LogSocketServer
 from DAQRPC import RPCServer
 from ListOpenFiles import ListOpenFiles
-from Process import processList, findProcess
+from Process import find_python_process
 from RunSet import RunSet, listComponentRanges
 from RunSetState import RunSetState
 from SocketServer import ThreadingMixIn
@@ -1519,14 +1519,14 @@ if __name__ == "__main__":
 
     args = p.parse_args()
 
-    pids = list(findProcess("CnCServer.py", processList()))
+    pids = list(find_python_process(os.path.basename(sys.argv[0])))
 
     if args.kill:
-        pid = int(os.getpid())
-        for p in pids:
-            if pid != p:
+        mypid = os.getpid()
+        for pid in pids:
+            if pid != mypid:
                 # print "Killing %d..." % p
-                os.kill(p, signal.SIGKILL)
+                os.kill(pid, signal.SIGKILL)
 
         sys.exit(0)
 
