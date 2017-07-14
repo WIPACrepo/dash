@@ -15,57 +15,77 @@ installation procedure.
 
 import datetime
 import os
-import re
 import tarfile
 import time
 
+import icetop_hdf5
+
+from DefaultDomGeometry import DefaultDomGeometryReader
+from Process import exclusive_process
 
 MAX_FILES_PER_TARBALL = 50
 
 
-def check_for_running_processes(progname):
-    c = os.popen("pgrep -fl 'python .+%s'" % progname, "r")
-    l = c.read()
-    num = len(l.split('\n'))
-    if num < 3:
-        return False  # get extra \n at end of command
-    return True
-
-
-def is_target_file(f):
+def is_target_file(filename):
     "Does this file start with 'moni', 'sn', or 'tcal'?"
-    if f is not None:
-        if f.startswith("moni_") or f.startswith("sn_") or \
-             f.startswith("tcal_"):
-            return True
-            return True
-    return False
+    if filename is None:
+        return False
+
+    return filename.startswith("moni_") or filename.startswith("sn_") or \
+        filename.startswith("tcal_")
 
 
-def process_files(matchingFiles, verbose=False, dry_run=False,
-                  enable_moni_link=False):
+def process_files(filelist, verbose=False, dry_run=False,
+                  enable_moni_link=False, create_icetop_hdf5=False):
     # Make list for tarball - restrict total number of files
     files_to_tar = []
-    while len(matchingFiles) > 0:
-        files_to_tar.append(matchingFiles[0])
-        del matchingFiles[0]
+    moni_files = []
+    while len(filelist) > 0:
+        files_to_tar.append(filelist[0])
+        if create_icetop_hdf5 and filelist[0].startswith("moni_"):
+            moni_files.append(filelist[0])
+        del filelist[0]
         if len(files_to_tar) >= MAX_FILES_PER_TARBALL:
             break
 
     if len(files_to_tar) == 0:
         return False
 
+    create_tar_and_sem_files(files_to_tar, verbose=verbose, dry_run=dry_run,
+                             enable_moni_link=enable_moni_link)
+
+    if create_icetop_hdf5 and len(moni_files) > 0:
+        # read in default-dom-geometry.xml
+        ddg = DefaultDomGeometryReader.parse(translateDoms=True)
+
+        # cache the DOM ID -> DOM dictionary
+        dom_dict = ddg.getDomIdToDomDict()
+
+        icetop_hdf5.process_list(moni_files, dom_dict, verbose=verbose)
+
+    # Clean up tar'ed files
+    for fname in files_to_tar:
+        if verbose:
+            print "Removing %s..." % (fname, )
+        if not dry_run:
+            os.unlink(fname)
+
+    return True
+
+
+def create_tar_and_sem_files(files_to_tar, verbose=False, dry_run=False,
+                             enable_moni_link=False):
     if verbose:
         print "Found %d files" % len(files_to_tar)
-    t = datetime.datetime.now()
-    dateTag = "%03d_%04d%02d%02d_%02d%02d%02d_%06d" % \
-        (0, t.year, t.month, t.day, t.hour, t.minute, t.second, 0)
-    front = "SPS-pDAQ-2ndBld-" + dateTag
+    now = datetime.datetime.now()
+    date_tag = "%03d_%04d%02d%02d_%02d%02d%02d_%06d" % \
+        (0, now.year, now.month, now.day, now.hour, now.minute, now.second, 0)
+    front = "SPS-pDAQ-2ndBld-" + date_tag
     spade_tar = front + ".dat.tar"
     spade_sem = front + ".sem"
-    moniLink = front + ".mon.tar"
+    monilink = front + ".mon.tar"
     moni_sem = front + ".msem"
-    snLink = front + ".sn.tar"
+    snlink = front + ".sn.tar"
 
     # Duplicate file: wait for a new second, recalculate everything:
     if os.path.exists(spade_tar):
@@ -73,15 +93,19 @@ def process_files(matchingFiles, verbose=False, dry_run=False,
         return True
 
     # Create temporary tarball
-    tmp_tar = "tmp-" + dateTag + ".tar"
+    tmp_tar = "tmp-" + date_tag + ".tar"
     if verbose:
         print "Creating temporary tarball"
     try:
-        if not dry_run: tarball = tarfile.open(tmp_tar, "w")
+        if not dry_run:
+            tarball = tarfile.open(tmp_tar, "w")
         for tfile in files_to_tar:
-            if verbose: print "  " + tfile
-            if not dry_run: tarball.add(tfile)
-        if not dry_run: tarball.close()
+            if verbose:
+                print "  " + tfile
+            if not dry_run:
+                tarball.add(tfile)
+        if not dry_run:
+            tarball.close()
     except:
         os.unlink(tmp_tar)
         raise
@@ -97,72 +121,56 @@ def process_files(matchingFiles, verbose=False, dry_run=False,
     # Create moni hard link
     if enable_moni_link:
         if verbose:
-            print "MoniLink %s" % moniLink
+            print "MoniLink %s" % monilink
         if not dry_run:
-            os.link(spade_tar, moniLink)
+            os.link(spade_tar, monilink)
 
     # Create sn hard link
     if verbose:
-        print "SNLink %s" % snLink
+        print "SNLink %s" % snlink
     if not dry_run:
-        os.link(spade_tar, snLink)
+        os.link(spade_tar, snlink)
         # So that SN process can delete if it's not running as pdaq
-        os.chmod(snLink, 0666)
+        os.chmod(snlink, 0666)
 
     # Create spade .sem
     if not dry_run:
-        f = open(spade_sem, "w")
-        f.close()
+        sem = open(spade_sem, "w")
+        sem.close()
 
     # Create monitoring .msem
     if enable_moni_link and not dry_run:
-        f = open(moni_sem, "w")
-        f.close()
-
-    # Clean up tar'ed files
-    for toAdd in files_to_tar:
-        if verbose:
-            print "Removing %s..." % toAdd
-        if not dry_run:
-            os.unlink(toAdd)
-
-    return True
+        sem = open(moni_sem, "w")
+        sem.close()
 
 
-def main(spadeDir, verbose=False, dry_run=False, enable_moni_link=False):
-    os.chdir(spadeDir)
+def main(spade_dir, verbose=False, dry_run=False, enable_moni_link=False,
+         create_icetop_hdf5=False):
+    os.chdir(spade_dir)
 
     # Get list of available files, matching target tar pattern:
-    matchingFiles = []
-    for f in os.listdir(spadeDir):
-        if is_target_file(f):
-            matchingFiles.append(f)
+    filelist = []
+    for fname in os.listdir(spade_dir):
+        if is_target_file(fname):
+            filelist.append(fname)
 
-    matchingFiles.sort(lambda x, y: (cmp(os.stat(x)[8], os.stat(y)[8])))
+    filelist.sort(lambda x, y: (cmp(os.stat(x)[8], os.stat(y)[8])))
 
-    running = True
-    while running:
-        try:
-            if not process_files(matchingFiles, verbose=verbose,
-                                 dry_run=dry_run,
-                                 enable_moni_link=enable_moni_link):
-                running = False
-        except KeyboardInterrupt:
-            running = False
-        #except: pass
+    process_files(filelist, verbose=verbose, dry_run=dry_run,
+                  enable_moni_link=enable_moni_link,
+                  create_icetop_hdf5=create_icetop_hdf5)
 
 
 if __name__ == "__main__":
+    #pylint: disable=invalid-name,wrong-import-position
     import argparse
-    import sys
 
     from ClusterDescription import ClusterDescription
 
-    # Make sure I'm not already running - so I can auto-restart out of crontab
-    if check_for_running_processes(os.path.basename(sys.argv[0])):
-        raise SystemExit
-
     op = argparse.ArgumentParser()
+    op.add_argument("-5", "--icetop-hdf5", dest="create_icetop_hdf5",
+                    action="store_true", default=False,
+                    help="Create HDF5 files for IceTop")
     op.add_argument("-d", "--spadedir", dest="spadedir",
                     action="store", default=None,
                     help="SPADE directory")
@@ -183,7 +191,12 @@ if __name__ == "__main__":
 
     if args.spadedir is None:
         cluster = ClusterDescription()
-        spadeDir = cluster.logDirForSpade
+        spade_dir = cluster.logDirForSpade
 
-    main(spadeDir, verbose=args.verbose, dry_run=args.dry_run,
-         enable_moni_link=args.enable_moni_link)
+    # use '.pid' file to ensure multiple instances aren't
+    # adding the same files to different tar files
+    guard_file = os.path.join(os.environ["HOME"], ".proc2ndbld.pid")
+    with exclusive_process(guard_file):
+        main(spade_dir, verbose=args.verbose, dry_run=args.dry_run,
+             enable_moni_link=args.enable_moni_link,
+             create_icetop_hdf5=args.create_icetop_hdf5)
