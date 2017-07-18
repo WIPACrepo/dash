@@ -19,6 +19,7 @@ from LiveImports import Prio, LIVE_IMPORT, SERVICE_NAME
 from RunOption import RunOption
 from RunSet import RunSet
 from TaskManager import MonitorTask, RateTask, TaskManager, WatchdogTask
+from locate_pdaq import set_pdaq_config_dir
 from scmversion import get_scmversion_str
 
 ACTIVE_WARNING = False
@@ -1782,10 +1783,14 @@ class IntegrationTest(unittest.TestCase):
         # generate a mock NIST leapseconds file
         MockLeapsecondFile(cls.CONFIG_DIR).create()
 
+        set_pdaq_config_dir(cls.CONFIG_DIR, override=True)
+
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.CONFIG_DIR, ignore_errors=True)
         cls.CONFIG_DIR = None
+
+        set_pdaq_config_dir(None, override=True)
 
     def tearDown(self):
         try:

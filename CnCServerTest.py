@@ -18,6 +18,7 @@ from DAQRPC import RPCServer
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet
+from locate_pdaq import set_pdaq_config_dir
 
 from DAQMocks \
     import MockAppender, MockClusterConfig, MockCnCLogger, \
@@ -553,6 +554,8 @@ class TestCnCServer(unittest.TestCase):
         MostlyCnCServer.APPENDERS.clear()
         RealComponent.APPENDERS.clear()
 
+        set_pdaq_config_dir(self.__runConfigDir, override=True)
+
         RunXMLValidator.setUp()
 
     def tearDown(self):
@@ -588,6 +591,8 @@ class TestCnCServer(unittest.TestCase):
             self.__logFactory.tearDown()
         except:
             traceback.print_exc()
+
+        set_pdaq_config_dir(None, override=True)
 
         RunXMLValidator.tearDown()
 

@@ -6,6 +6,7 @@ import time
 import unittest
 from DAQTime import DAQDateTime, PayloadTime
 from leapseconds import leapseconds, MJD
+from locate_pdaq import set_pdaq_config_dir
 
 class TestDAQTime(unittest.TestCase):
     TICKS_PER_SEC = 10000000000
@@ -44,6 +45,11 @@ class TestDAQTime(unittest.TestCase):
         if self.CUR_YEAR is None:
             now = time.gmtime()
             self.CUR_YEAR = now.tm_year
+
+        set_pdaq_config_dir("src/test/resources/config", override=True)
+
+    def tearDown(self):
+        set_pdaq_config_dir(None, override=True)
 
     def testPayloadTimeNone(self):
         self.assertEqual(PayloadTime.toDateTime(None), None)

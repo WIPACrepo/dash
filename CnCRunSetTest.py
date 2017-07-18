@@ -5,6 +5,7 @@ import tempfile
 import time
 import unittest
 
+from locate_pdaq import set_pdaq_config_dir
 from ActiveDOMsTask import ActiveDOMsTask
 from ComponentManager import listComponentRanges
 from CnCExceptions import CnCServerException, MissingComponentException
@@ -662,6 +663,8 @@ class CnCRunSetTest(unittest.TestCase):
         self.__runConfigDir = tempfile.mkdtemp()
         self.__spadeDir = tempfile.mkdtemp()
 
+        set_pdaq_config_dir(self.__runConfigDir)
+
         comps = [MockComponent("stringHub", self.HUB_NUMBER,
                                (MockConn("stringHit", "o"), )),
                  MockComponent("inIceTrigger",
@@ -847,6 +850,8 @@ class CnCRunSetTest(unittest.TestCase):
         self.__daqDataDir = None
         self.__spadeDir = None
 
+        set_pdaq_config_dir(None, override=True)
+
         RunXMLValidator.setUp()
 
     def tearDown(self):
@@ -957,6 +962,8 @@ class CnCRunSetTest(unittest.TestCase):
         self.__copyDir = tempfile.mkdtemp()
         self.__runConfigDir = tempfile.mkdtemp()
         self.__spadeDir = tempfile.mkdtemp()
+
+        set_pdaq_config_dir(self.__runConfigDir)
 
         comps = [MockComponent("stringHub", self.HUB_NUMBER,
                                (MockConn("stringHit", "o"), )),

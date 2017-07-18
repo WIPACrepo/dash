@@ -14,6 +14,7 @@ from DAQMocks import MockAppender, MockClusterConfig, MockCnCLogger, \
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet
+from locate_pdaq import set_pdaq_config_dir
 from utils import ip
 
 
@@ -289,6 +290,8 @@ class TestDAQServer(unittest.TestCase):
         self.__runConfigDir = None
         self.__daqDataDir = None
 
+        set_pdaq_config_dir(None, override=True)
+
         RunXMLValidator.setUp()
 
     def tearDown(self):
@@ -305,6 +308,8 @@ class TestDAQServer(unittest.TestCase):
             self.__daqDataDir = None
 
         MockServer.APPENDER.checkStatus(10)
+
+        set_pdaq_config_dir(None, override=True)
 
         RunXMLValidator.tearDown()
 
@@ -412,6 +417,8 @@ class TestDAQServer(unittest.TestCase):
     def testRunset(self):
         self.__runConfigDir = tempfile.mkdtemp()
         self.__daqDataDir = tempfile.mkdtemp()
+
+        set_pdaq_config_dir(self.__runConfigDir, override=True)
 
         logPort = 21765
 

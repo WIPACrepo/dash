@@ -4,6 +4,7 @@ import unittest
 from DAQTime import PayloadTime
 from RateCalc import dt, RateCalcEntry
 from RunStats import RunStats
+from locate_pdaq import set_pdaq_config_dir
 
 
 class TestRunStats(unittest.TestCase):
@@ -115,6 +116,12 @@ class TestRunStats(unittest.TestCase):
             return 0.0
         return float(latest[1] - entry[1]) / float(dtsec)
 
+    def setUp(self):
+        set_pdaq_config_dir(None, override=True)
+
+    def tearDown(self):
+        set_pdaq_config_dir(None, override=True)
+
     def testImmediateStop(self):
         rs = RunStats()
 
@@ -160,6 +167,8 @@ class TestRunStats(unittest.TestCase):
         self.__checkStats(rs, self.EMPTY_DICT, rateEmpty, entriesEmpty)
 
     def testUpdate(self):
+        set_pdaq_config_dir("src/test/resources/config", override=True)
+
         rs = RunStats()
 
         rateEmpty = 0
