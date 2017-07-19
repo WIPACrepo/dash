@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
+import datetime
 import logging
 import os
 import re
 import tarfile
+
+from lxml import etree
 
 import h5py
 import numpy
@@ -23,6 +26,102 @@ H5_TYPES = [
     ('DEADTIME', '<u4'),
     ('UT', '<u8'),
 ]
+
+
+def convert_pairs_to_xml(root, pairs):
+    """
+    Add a list/tuple of lists/tuples of pairs of data to an XML tree.
+    The 'pairs' list is a dumber version of an ordered dictionary
+    """
+    for key, val in pairs:
+        node = etree.SubElement(root, key)
+        if isinstance(val, tuple) or isinstance(val, list):
+            convert_pairs_to_xml(node, val)
+        else:
+            node.text = str(val)
+
+
+def create_meta_xml(path, suffix, run_number):
+    """
+    Create a metadata file for JADE.  Metadata specification is at:
+    https://docushare.icecube.wisc.edu/dsweb/Get/Document-20546/metadata_specification.pdf
+    """
+
+    # give up if they're passing us a bad filename/suffix pair
+    if not path.endswith(suffix):
+        raise SystemExit("File \"%s\" does not end with \"%s\"" %
+                         (path, suffix))
+
+    # define all the static fields
+    title = "Icetop Scaler Data" #"IceTop_Scaler"
+    summary = title
+    category = "monitoring"
+    subcategory = "IceTopScaler"
+    plus_fields = (
+        ("Category", category),
+        ("Subcategory", subcategory),
+        ("Run_Number", run_number),
+    )
+
+    # we'll need the file creation date for the "DIF_Creation_Date" field
+    try:
+        stamp = os.path.getmtime(path)
+    except OSError:
+        raise SystemExit("Cannot write metadata file: %s does not exist" %
+                         (path, ))
+    diftime = datetime.datetime.fromtimestamp(stamp).strftime("%Y-%m-%d")
+
+    # we'll need the directory and base filename below
+    directory = os.path.dirname(path)
+    basename = os.path.basename(path)[:-len(suffix)]
+    if basename[-1] == ".":
+        basename = basename[:-1]
+
+    xmldict = (
+        ("DIF", (
+            ("Entry_ID", basename),
+            ("Entry_Title", title),
+            ("Parameters",
+             "SPACE SCIENCE > Astrophysics > Neutrinos"),
+            ("ISO_Topic_Category", "geoscientificinformation"),
+            ("Data_Center", (
+                ("Data_Center_Name",
+                 "UWI-MAD/A3RI > Antarctic Astronomy and Astrophysics"
+                 " Research Institute, University of Wisconsin, Madison"),
+                ("Personnel", (
+                    ("Role", "Data Center Contact"),
+                    ("Email", "datacenter@icecube.wisc.edu"),
+                )),
+            )),
+            ("Summary", summary),
+            ("Metadata_Name", "[CEOS IDN DIF]"),
+            ("Metadata_Version", "9.4"),
+            ("Personnel", (
+                ("Role", "Technical Contact"),
+                ("First_Name", "Dave"),
+                ("Last_Name", "Glowacki"),
+                ("Email", "dglo@icecube.wisc.edu"),
+            )),
+            ("Sensor_Name", "ICECUBE > IceCube"),
+            ("Source_Name",
+             "EXPERIMENTAL > Data with an instrumentation based"
+             " source"),
+            ("DIF_Creation_Date", diftime),
+        )),
+        ("Plus", plus_fields),
+    )
+
+    root = etree.Element("DIF_Plus")
+    root.set("{http://www.w3.org/2001/XMLSchema-instance}"
+             "noNamespaceSchemaLocation", "IceCubeDIFPlus.xsd")
+
+    convert_pairs_to_xml(root, xmldict)
+
+    metaname = basename + ".meta.xml"
+    with open(os.path.join(directory, metaname), "w") as out:
+        out.write(etree.tostring(root))
+
+    return metaname
 
 
 def process_moni(dom_dict, moniname):
@@ -90,7 +189,7 @@ def process_list(monilist, dom_dict, verbose=False, debug=False):
 
         # if we've got data from another run, write it to a file
         if run is not None and run != frun:
-            write_data(run, data, verbose=verbose)
+            write_data(run, data, verbose=verbose, make_meta_xml=True)
             del data[:]
 
         # save the new data
@@ -100,7 +199,7 @@ def process_list(monilist, dom_dict, verbose=False, debug=False):
         data += process_moni(dom_dict, moni)
 
     if run is not None:
-        write_data(run, data, verbose=verbose)
+        write_data(run, data, verbose=verbose, make_meta_xml=True)
 
 
 def process_tar_file(tarname, dom_dict, debug=True):
@@ -148,17 +247,26 @@ def process_tar_file(tarname, dom_dict, debug=True):
         write_data(run, data)
 
 
-def write_data(run, data, verbose=False):
+def write_data(run, data, verbose=False, make_meta_xml=False):
     "Write IceTop monitoring data to an HDF5 file"
 
     # ignore empty arrays
     if data is None or len(data) == 0:
         return
 
+    # define file suffix here since we'll need it in a couple of places
+    suffix = ".hdf5"
+
+    # assemble the base name for the file
+    now = datetime.datetime.now()
+    basename = "IceTop_%06d_%04d%02d%02d_%02d%02d%02d" % \
+               (run, now.year, now.month, now.day, now.hour, now.minute,
+                now.second)
+
     # find the next unused filename
-    seq = 1
+    seq = 0
     while True:
-        filename = "IceTop-%06d-%d.hdf5" % (run, seq)
+        filename = "%s_%d%s" % (basename, seq, suffix)
         if not os.path.exists(filename):
             break
         seq += 1
@@ -172,6 +280,11 @@ def write_data(run, data, verbose=False):
         narray = numpy.array(data, dtype=H5_TYPES)
         # add the data to the file
         out.create_dataset("FastIceTop", data=narray, chunks=True)
+
+    if make_meta_xml:
+        if verbose:
+            print "Adding %s meta.xml file for JADE" % (filename, )
+        create_meta_xml(filename, suffix, run)
 
 
 if __name__ == "__main__":

@@ -169,8 +169,8 @@ if __name__ == "__main__":
 
     op = argparse.ArgumentParser()
     op.add_argument("-5", "--icetop-hdf5", dest="create_icetop_hdf5",
-                    action="store_true", default=False,
-                    help="Create HDF5 files for IceTop")
+                    action="store_false", default=True,
+                    help="Do NOT create HDF5 files for IceTop")
     op.add_argument("-d", "--spadedir", dest="spadedir",
                     action="store", default=None,
                     help="SPADE directory")
