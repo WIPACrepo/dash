@@ -57,25 +57,30 @@ def create_meta_xml(path, suffix, run_number):
     summary = title
     category = "monitoring"
     subcategory = "IceTopScaler"
-    plus_fields = (
-        ("Category", category),
-        ("Subcategory", subcategory),
-        ("Run_Number", run_number),
-    )
 
-    # we'll need the file creation date for the "DIF_Creation_Date" field
+    # we'll need the file creation date for a few fields
     try:
         stamp = os.path.getmtime(path)
     except OSError:
         raise SystemExit("Cannot write metadata file: %s does not exist" %
                          (path, ))
-    diftime = datetime.datetime.fromtimestamp(stamp).strftime("%Y-%m-%d")
+    filetime = datetime.datetime.fromtimestamp(stamp)
 
     # we'll need the directory and base filename below
     directory = os.path.dirname(path)
     basename = os.path.basename(path)[:-len(suffix)]
     if basename[-1] == ".":
         basename = basename[:-1]
+
+    # fill in all the file-related fields
+    timestr = filetime.strftime("%Y-%m-%dT%H:%M:%S")
+    plus_fields = (
+        ("Start_DateTime", timestr),
+        ("End_DateTime", timestr),
+        ("Category", category),
+        ("Subcategory", subcategory),
+        ("Run_Number", run_number),
+    )
 
     xmldict = (
         ("DIF", (
@@ -106,7 +111,7 @@ def create_meta_xml(path, suffix, run_number):
             ("Source_Name",
              "EXPERIMENTAL > Data with an instrumentation based"
              " source"),
-            ("DIF_Creation_Date", diftime),
+            ("DIF_Creation_Date", filetime.strftime("%Y-%m-%d")),
         )),
         ("Plus", plus_fields),
     )
