@@ -61,7 +61,8 @@ def process_files(filelist, verbose=False, dry_run=False,
         # cache the DOM ID -> DOM dictionary
         dom_dict = ddg.getDomIdToDomDict()
 
-        icetop_hdf5.process_list(moni_files, dom_dict, verbose=verbose)
+        icetop_hdf5.process_list(moni_files, dom_dict, verbose=verbose,
+                                 dry_run=dry_run)
 
     # Clean up tar'ed files
     for fname in files_to_tar:
@@ -189,7 +190,9 @@ if __name__ == "__main__":
 
     args = op.parse_args()
 
-    if args.spadedir is None:
+    if args.spadedir is not None:
+        spade_dir = args.spadedir
+    else:
         cluster = ClusterDescription()
         spade_dir = cluster.logDirForSpade
 

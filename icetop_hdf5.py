@@ -41,7 +41,7 @@ def convert_pairs_to_xml(root, pairs):
             node.text = str(val)
 
 
-def create_meta_xml(path, suffix, run_number):
+def create_meta_xml(path, suffix, run_number, verbose=False, dry_run=False):
     """
     Create a metadata file for JADE.  Metadata specification is at:
     https://docushare.icecube.wisc.edu/dsweb/Get/Document-20546/metadata_specification.pdf
@@ -59,12 +59,15 @@ def create_meta_xml(path, suffix, run_number):
     subcategory = "IceTopScaler"
 
     # we'll need the file creation date for a few fields
-    try:
-        stamp = os.path.getmtime(path)
-    except OSError:
-        raise SystemExit("Cannot write metadata file: %s does not exist" %
-                         (path, ))
-    filetime = datetime.datetime.fromtimestamp(stamp)
+    if dry_run:
+        filetime = datetime.datetime.now()
+    else:
+        try:
+            stamp = os.path.getmtime(path)
+        except OSError:
+            raise SystemExit("Cannot write metadata file: %s does not exist" %
+                             (path, ))
+        filetime = datetime.datetime.fromtimestamp(stamp)
 
     # we'll need the directory and base filename below
     directory = os.path.dirname(path)
@@ -123,8 +126,11 @@ def create_meta_xml(path, suffix, run_number):
     convert_pairs_to_xml(root, xmldict)
 
     metaname = basename + ".meta.xml"
-    with open(os.path.join(directory, metaname), "w") as out:
-        out.write(etree.tostring(root))
+    if verbose:
+        print "Creating JADE semaphore file %s" % (metaname, )
+    if not dry_run:
+        with open(os.path.join(directory, metaname), "w") as out:
+            out.write(etree.tostring(root))
 
     return metaname
 
@@ -176,7 +182,7 @@ def process_moni(dom_dict, moniname):
     return data
 
 
-def process_list(monilist, dom_dict, verbose=False, debug=False):
+def process_list(monilist, dom_dict, verbose=False, dry_run=False, debug=False):
     "Process all .moni files in the list"
     run = None
     data = []
@@ -194,7 +200,8 @@ def process_list(monilist, dom_dict, verbose=False, debug=False):
 
         # if we've got data from another run, write it to a file
         if run is not None and run != frun:
-            write_data(run, data, verbose=verbose, make_meta_xml=True)
+            write_data(run, data, verbose=verbose, dry_run=dry_run,
+                       make_meta_xml=True)
             del data[:]
 
         # save the new data
@@ -204,10 +211,11 @@ def process_list(monilist, dom_dict, verbose=False, debug=False):
         data += process_moni(dom_dict, moni)
 
     if run is not None:
-        write_data(run, data, verbose=verbose, make_meta_xml=True)
+        write_data(run, data, verbose=verbose, dry_run=dry_run,
+                   make_meta_xml=True)
 
 
-def process_tar_file(tarname, dom_dict, debug=True):
+def process_tar_file(tarname, dom_dict, verbose=False, debug=True):
     "Process all .moni files in the tar file"
     run = None
     data = []
@@ -235,7 +243,7 @@ def process_tar_file(tarname, dom_dict, debug=True):
 
         # if we've got data from another run, write it to a file
         if run is not None and run != frun:
-            write_data(run, data)
+            write_data(run, data, verbose=verbose)
             del data[:]
 
         # extract this file from the tarfile
@@ -249,10 +257,10 @@ def process_tar_file(tarname, dom_dict, debug=True):
             os.unlink(info.name)
 
     if run is not None:
-        write_data(run, data)
+        write_data(run, data, verbose=verbose)
 
 
-def write_data(run, data, verbose=False, make_meta_xml=False):
+def write_data(run, data, verbose=False, dry_run=False, make_meta_xml=False):
     "Write IceTop monitoring data to an HDF5 file"
 
     # ignore empty arrays
@@ -280,25 +288,27 @@ def write_data(run, data, verbose=False, make_meta_xml=False):
         print "Writing %s" % (filename, )
 
     # write data
-    with h5py.File(filename, "w") as out:
-        # create a NumPy array from the data
-        narray = numpy.array(data, dtype=H5_TYPES)
-        # add the data to the file
-        out.create_dataset("FastIceTop", data=narray, chunks=True)
+    if not dry_run:
+        with h5py.File(filename, "w") as out:
+            # create a NumPy array from the data
+            narray = numpy.array(data, dtype=H5_TYPES)
+            # add the data to the file
+            out.create_dataset("FastIceTop", data=narray, chunks=True)
 
     if make_meta_xml:
-        if verbose:
-            print "Adding %s meta.xml file for JADE" % (filename, )
-        create_meta_xml(filename, suffix, run)
+        create_meta_xml(filename, suffix, run, verbose=verbose, dry_run=dry_run)
 
 
 if __name__ == "__main__":
     #pylint: disable=invalid-name,wrong-import-position
     import sys
 
+    verbose = False
     files = []
     for fname in sys.argv[1:]:
-        if os.path.exists(fname):
+        if fname == "-v":
+            verbose = True
+        elif os.path.exists(fname):
             files.append(fname)
         else:
             logging.error("Ignoring unknown file \"%s\"", fname)
@@ -310,4 +320,4 @@ if __name__ == "__main__":
     ddict = ddg.getDomIdToDomDict()
 
     for fname in files:
-        process_tar_file(fname, ddict)
+        process_tar_file(fname, ddict, verbose=verbose)
