@@ -548,6 +548,36 @@ class CmdStdTest(BaseCmd):
         run_tests(args)
 
 
+class CmdTail(BaseCmd):
+    @classmethod
+    def add_arguments(cls, parser):
+        from TailLive import add_arguments
+        add_arguments(parser)
+
+    @classmethod
+    def cmdtype(cls):
+        return cls.CMDTYPE_NONE
+
+    @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Add colors to Live's log output"
+
+    @classmethod
+    def is_valid_host(cls, args):
+        "Only makes sense on expcont"
+        return Machineid.is_host(Machineid.CONTROL_HOST)
+
+    @classmethod
+    def name(cls):
+        return "taillive"
+
+    @classmethod
+    def run(cls, args):
+        from TailLive import tail_logs
+        tail_logs(args)
+
+
 class CmdTest(CmdStdTest):
     @classmethod
     def name(cls):
@@ -599,6 +629,7 @@ COMMANDS = [
     CmdStatus,
     CmdStdTest,
     CmdStopRun,
+    CmdTail,
     CmdTest,
     CmdWorkspace,
 ]
