@@ -973,8 +973,13 @@ class BaseRun(object):
         if self.__dry_run:
             return True
 
-        summary = self.cncConnection().rpc_run_summary(runNum)
+        # some info can only be obtained from CnCServer
+        cnc = self.cncConnection()
 
+        # grab summary info from CnC
+        summary = cnc.rpc_run_summary(runNum)
+
+        # calculate duration
         if summary["startTime"] == "None" or \
             summary["endTime"] == "None":
             duration = "???"
@@ -1000,6 +1005,7 @@ class BaseRun(object):
             if timediff.days > 0:
                 duration += timediff.days * 60 * 60 * 24
 
+        # colorize SUCCESS/FAILED
         success = summary["result"].upper() == "SUCCESS"
         if success:
             prefix = ANSIEscapeCode.BG_GREEN + ANSIEscapeCode.FG_BLACK
@@ -1007,9 +1013,17 @@ class BaseRun(object):
             prefix = ANSIEscapeCode.BG_RED + ANSIEscapeCode.FG_BLACK
         suffix = ANSIEscapeCode.OFF
 
-        self.logInfo("%sRun %d%s (%s) %s seconds : %s" %
+        # get release name
+        vinfo = cnc.rpc_version()
+        if vinfo is None or not isinstance(vinfo, dict) or \
+           "release" not in vinfo:
+            relname = "???"
+        else:
+            relname = vinfo["release"]
+
+        self.logInfo("%sRun %d%s (%s:%s) %s seconds : %s" %
                      (ANSIEscapeCode.INVERTED_ON, summary["num"],
-                      ANSIEscapeCode.INVERTED_OFF, summary["config"],
+                      ANSIEscapeCode.INVERTED_OFF, relname, summary["config"],
                       duration, prefix + summary["result"] + suffix))
 
         return success
