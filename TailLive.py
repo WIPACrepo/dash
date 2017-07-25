@@ -11,6 +11,9 @@ import sys
 import threading
 import Queue
 
+from ANSIEscapeCode import ANSIEscapeCode, background_color, foreground_color
+from ColorFileParser import ColorException, ColorFileParser
+
 
 def add_arguments(parser):
     parser.add_argument("-A", "--all-logs", dest="all_logs",
@@ -20,6 +23,8 @@ def add_arguments(parser):
     parser.add_argument("-a", "--all", dest="all_data",
                         action="store_true", default=False,
                         help="Show all data")
+    parser.add_argument("-C", "--color-file", dest="color_file",
+                        help="File specifying non-standard colors")
     parser.add_argument("-L", "--non-log-messages", dest="non_log",
                         action="store_true", default=False,
                         help="Print alerts and monitoring messages")
@@ -33,102 +38,37 @@ def add_arguments(parser):
     parser.add_argument("-q", "--quiet", dest="quiet",
                         action="store_true", default=False,
                         help="Omit some noisy pdaq log messages")
+    parser.add_argument("--print-colors", dest="print_colors",
+                        action="store_true", default=False,
+                        help="Print a formatted list of fields and colors")
     parser.add_argument("files", nargs="*")
 
 
 def tail_logs(args):
+    # get list of files to watch
+    if args.print_colors:
+        try:
+            ColorFileParser(args.color_file).parse(LiveLog.COLORS)
+        except ColorException, cex:
+            raise SystemExit(str(cex))
+
+        ColorFileParser.print_formatted(LiveLog.COLORS)
+        return
+
     if len(args.files) > 0:
-        log = AllFiles(args.files)
+        if len(args.files) == 1:
+            log = Tail(args.files[0], num_lines=args.tail_lines)
+        else:
+            log = AllFiles(args.files)
     elif args.all_logs:
         log = AllLogs()
     else:
-        log = Tail(args.tail_lines)
+        log = Tail(num_lines=args.tail_lines)
 
-    LiveLog(log, args.all_data, args.pdaq_only, args.non_log,
-            args.quiet).read_file()
-
-
-class ANSIEscape(object):
-    "ANSI escape codes"
-
-    @classmethod
-    def background_color(cls, color):
-        "Return the string to set the background color"
-        if color < 0 or color > 9:
-            raise ValueError("Color %d is not between 0 and 9" % color)
-        return cls.escape(color + 40)
-
-    @classmethod
-    def escape(cls, code):
-        if code <= 0:
-            substr = ""
-        else:
-            substr = str(code)
-        return "\033[" + substr + "m"
-
-    @classmethod
-    def foreground_color(cls, color):
-        if color < 0 or color > 9:
-            raise ValueError("Color %d is not between 0 and 9" % color)
-        return cls.escape(color + 30)
-
-
-class Colorize(object):
-
-    BLACK = 0
-    RED = 1
-    GREEN = 2
-    YELLOW = 3
-    BLUE = 4
-    MAGENTA = 5
-    CYAN = 6
-    WHITE = 7
-    DEFAULT = 9
-
-    OFF = ANSIEscape.escape(0)
-
-    BOLD_ON = ANSIEscape.escape(1)
-    ITALIC_ON = ANSIEscape.escape(3)
-    UNDERLINE_ON = ANSIEscape.escape(4)
-    INVERTED_ON = ANSIEscape.escape(7)
-    BOLD_OFF = ANSIEscape.escape(21)
-    BOLD_FAINT_OFF = ANSIEscape.escape(22)
-    ITALIC_OFF = ANSIEscape.escape(23)
-    UNDERLINE_OFF = ANSIEscape.escape(24)
-    INVERTED_OFF = ANSIEscape.escape(27)
-
-    FG_BLACK = ANSIEscape.foreground_color(BLACK)
-    FG_RED = ANSIEscape.foreground_color(RED)
-    FG_GREEN = ANSIEscape.foreground_color(GREEN)
-    FG_YELLOW = ANSIEscape.foreground_color(YELLOW)
-    FG_BLUE = ANSIEscape.foreground_color(BLUE)
-    FG_MAGENTA = ANSIEscape.foreground_color(MAGENTA)
-    FG_CYAN = ANSIEscape.foreground_color(CYAN)
-    FG_WHITE = ANSIEscape.foreground_color(WHITE)
-    FG_DEFAULT = ANSIEscape.foreground_color(DEFAULT)
-
-    BG_BLACK = ANSIEscape.background_color(BLACK)
-    BG_RED = ANSIEscape.background_color(RED)
-    BG_GREEN = ANSIEscape.background_color(GREEN)
-    BG_YELLOW = ANSIEscape.background_color(YELLOW)
-    BG_BLUE = ANSIEscape.background_color(BLUE)
-    BG_MAGENTA = ANSIEscape.background_color(MAGENTA)
-    BG_CYAN = ANSIEscape.background_color(CYAN)
-    BG_WHITE = ANSIEscape.background_color(WHITE)
-    BG_DEFAULT = ANSIEscape.background_color(DEFAULT)
-
-    # if the output isn't a terminal, don't add ANSI escapes
-    TTYOUT = sys.stdout.isatty()
-
-    @classmethod
-    def string(cls, date, msg, color=""):
-        if cls.TTYOUT:
-            off = cls.OFF
-        else:
-            color = ""
-            off = ""
-
-        return str(date) + " " + color + msg + off
+    llog = LiveLog(log, show_all=args.all_data, pdaq_only=args.pdaq_only,
+                   non_log=args.non_log, quiet=args.quiet,
+                   color_file=args.color_file)
+    llog.read_file()
 
 
 class LiveLogException(Exception):
@@ -363,12 +303,13 @@ class LiveFile(object):
 
 
 class Tail(LiveFile):
-    def __init__(self, num_lines=None):
+    def __init__(self, filename=None, num_lines=None):
         self.__proc = None
 
         super(Tail, self).__init__()
 
-        filename = self.basepath()
+        if filename is None:
+            filename = self.basepath()
         if not os.path.exists(filename):
             raise ValueError("File \"%s\" does not exist" % filename)
 
@@ -483,14 +424,41 @@ class AllLogs(MultiFile):
         return path
 
 
-class LiveLog(Colorize):
+class LiveLog(object):
+    # if the output isn't a terminal, don't add ANSI escapes
+    TTYOUT = sys.stdout.isatty()
+
+    # predefined fields and colors
+    COLORS = {
+        ColorFileParser.DEFAULT_FIELD:
+        (ANSIEscapeCode.RED, ANSIEscapeCode.YELLOW),
+        "pdaq_rate": (ANSIEscapeCode.GREEN, ANSIEscapeCode.WHITE),
+        "pdaq_registered": (),
+        "pdaq_wait": (ANSIEscapeCode.MAGENTA, ANSIEscapeCode.WHITE),
+        "pdaq_load": (),
+        "pdaq_info": (ANSIEscapeCode.BLUE, ANSIEscapeCode.WHITE),
+        "pdaq_prep": (),
+        "pdaq_health": (ANSIEscapeCode.GREEN, ANSIEscapeCode.BLACK),
+        "live_misc": (ANSIEscapeCode.YELLOW, ANSIEscapeCode.BLACK),
+        "unknown": (ANSIEscapeCode.RED, ANSIEscapeCode.YELLOW,
+                    ANSIEscapeCode.BOLD_ON),
+        "its": None,
+        "livecontrol": (),
+    }
+
     def __init__(self, fd, show_all=False, pdaq_only=False, non_log=False,
-                 quiet=False):
+                 quiet=False, color_file=None):
         self.__fd = fd
         self.__show_all = show_all
         self.__pdaq_only = pdaq_only
         self.__non_log = non_log
         self.__quiet = quiet
+
+        # get customized colors
+        try:
+            ColorFileParser(color_file).parse(self.COLORS)
+        except ColorException, cex:
+            raise SystemExit(str(cex))
 
         super(LiveLog, self).__init__()
 
@@ -501,66 +469,67 @@ class LiveLog(Colorize):
         if msg.find(" physics events") > 0 and \
                 msg.find(" moni events") > 0:
             # rate line
-            return self.string(date, msg, self.FG_GREEN + self.BG_WHITE)
+            return self.string("pdaq_rate", date, msg)
 
         if msg.startswith("Registered "):
             # registered
             if self.__quiet:
                 return None
-            return self.string(date, msg)
+            return self.string("pdaq_registered", date, msg)
 
         if msg.startswith("Waiting for ") or \
                 (msg.startswith("RunSet #") and
                  msg.find("Waiting for ")):
             # waiting for
-            return self.string(date, msg, self.FG_MAGENTA + self.BG_WHITE)
+            return self.string("pdaq_wait", date, msg)
 
         if msg.startswith("Loading run configuration ") or \
                 msg.startswith("Loaded run configuration "):
             # run config
-            return self.string(date, msg)
+            return self.string("pdaq_load", date, msg)
 
         if msg.startswith("Starting run ") or \
                 msg.startswith("Version info: ") or \
                 msg.startswith("Run configuration: ") or \
                 msg.startswith("Cluster: "):
             # run start
-            return self.string(date, msg, self.FG_BLUE + self.BG_WHITE)
+            return self.string("pdaq_info", date, msg)
 
         if msg.find(" physics events collected in ") > 0 or \
                 msg.find(" moni events, ") > 0 or \
                 msg.startswith("Run terminated "):
             # run end
-            return self.string(date, msg, self.FG_BLUE + self.BG_WHITE)
+            return self.string("pdaq_info", date, msg)
 
         if msg.startswith("Cycling components") or \
                 msg.startswith("Built runset #"):
             # cycle components
-            return self.string(date, msg)
+            return self.string("pdaq_misc", date, msg)
 
         if msg.startswith("Run is healthy again"):
             # whew
-            return self.string(date, msg, self.BG_GREEN + self.FG_BLACK)
+            return self.string("pdaq_health", date, msg)
 
-        return self.string(date, msg, self.FG_RED + self.BG_YELLOW)
+        return self.string("pdaq_other", date, msg)
 
-    def process(self, liveline):
+    def __process(self, line):
+        liveline = LiveLine(line)
+
         data = liveline.data()
         if data.is_text():
-            color = self.FG_RED + self.BG_YELLOW
-            if data.datatype() == LiveData.TYPE_UNKNOWN:
-                color += self.BOLD_ON
-
             msg = data.data()
             if msg.find("flowed max message size in queue ITSQueue") > 0 or \
                     msg.startswith("Sent ITS Message: "):
-                # ignore noisy Live errors
-                pass
+                field = "its"
             elif msg.find("unable to send message") >= 0 and \
                     msg.find("in queue ITSQueue!!!") > 0:
-                pass
+                field = "its"
             else:
-                print self.string(liveline.timestamp(), msg, color)
+                field = "its"
+
+            line = self.string(field, liveline.timestamp(), msg)
+            if line is not None:
+                print line
 
             return
 
@@ -569,7 +538,10 @@ class LiveLog(Colorize):
 
         if svc == "livecontrol":
             if self.__show_all:
-                print self.string(ddict["t"], str(ddict["payload"]))
+                line = self.string("livecontrol", ddict["t"],
+                                   str(ddict["payload"]))
+                if line is not None:
+                    print line
             return
 
         if self.__pdaq_only and svc != "pdaq":
@@ -577,8 +549,9 @@ class LiveLog(Colorize):
 
         if "payload" not in ddict or \
            "varname" not in ddict["payload"]:
-            color = self.FG_RED + self.BG_YELLOW + self.BOLD_ON
-            print self.string("BadDict ", str(ddict), color)
+            line = self.string("unknown", "BadDict ", str(ddict))
+            if line is not None:
+                print line
             return
 
         varname = ddict["payload"]["varname"]
@@ -593,9 +566,12 @@ class LiveLog(Colorize):
         if not self.__non_log:
             return
 
-        color = self.FG_YELLOW + self.BG_BLACK
-        print self.string(ddict["t"], svc + ":" + varname, color)
-        print self.string("\t", str(ddict["payload"]), color)
+        line = self.string("live_misc", ddict["t"], svc + ":" + varname)
+        if line is not None:
+            print line
+        line = self.string("live_misc", "\t", str(ddict["payload"]))
+        if line is not None:
+            print line
 
     def read_file(self):
         prevline = None
@@ -605,14 +581,17 @@ class LiveLog(Colorize):
 
             if line.startswith("    livecontrol"):
                 if prevline is not None:
-                    self.process(LiveLine(prevline.rstrip()))
-                if line.find(" physics events") < 0 or \
-                   line.find(" moni events") < 0 or \
-                   line.find(" SN events") < 0 or line.find(" tcals") < 0:
+                    self.__process(prevline.rstrip())
+                is_rate = line.find(" physics events") >= 0 and \
+                          line.find(" moni events") >= 0 and \
+                          line.find(" SN events") >= 0 and \
+                          line.find(" tcals") >= 0
+                is_reg = line.find(" Registered ")
+                if not is_rate and not is_reg:
                     # cache non-rate lines in case there's an embedded newline
                     prevline = line
                 else:
-                    self.process(LiveLine(line.rstrip()))
+                    self.__process(line.rstrip())
                     prevline = None
             elif prevline is not None:
                 # if line didn't start with 'livecontrol', the previous
@@ -622,10 +601,40 @@ class LiveLog(Colorize):
                 print >> sys.stderr, "Ignoring bad line: " + line
 
         if prevline is not None:
-            self.process(LiveLine(prevline.rstrip()))
+            self.__process(prevline.rstrip())
+
+    @classmethod
+    def string(cls, field, date, msg):
+        if field not in cls.COLORS:
+            colors = cls.COLORS[ColorFileParser.DEFAULT_FIELD]
+        else:
+            colors = cls.COLORS[field]
+
+        if cls.TTYOUT:
+            off = ANSIEscapeCode.OFF
+        else:
+            off = ""
+
+        if colors is None:
+            return None
+
+        if date is None:
+            dstr = ""
+        else:
+            dstr = "%s " % (date, )
+
+        if len(colors) == 0:
+            cstr = ""
+        else:
+            cstr = foreground_color(colors[0])
+            if len(colors) >= 2:
+                cstr += background_color(colors[1])
+                if len(colors) > 2:
+                    cstr += colors[2]
+        return dstr + cstr + msg + off
 
 
-if __name__ == "__main__": #pylint: disable=wrong-import-position
+if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
