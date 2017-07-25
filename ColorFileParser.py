@@ -77,16 +77,27 @@ class ColorFileParser(object):
         Make sure default entry is valid and specified all fields
         """
         defaults = list(color_dict[self.DEFAULT_FIELD])
+        modified = False
 
         # complain if a field entry is unspecified
         for idx in range(len(defaults)):
             if defaults[idx] is None:
-                raise ColorException("Undefined default for %s in \"%s\"" %
-                                     (self.FIELDNAMES[idx], self.__filename))
+                if idx == 2:
+                    defaults[2] = ""
+                    modified = True
+                else:
+                    raise ColorException("Undefined default for %s in \"%s\"" %
+                                         (self.FIELDNAMES[idx],
+                                          self.__filename))
 
         # make sure there are default values for all the fields
         while len(defaults) < len(self.FIELDNAMES):
             defaults.append("")
+            modified = True
+
+
+        if modified:
+            color_dict[self.DEFAULT_FIELD] = defaults
 
         return defaults
 
@@ -255,11 +266,11 @@ class ColorFileParser(object):
                             bg_color = cstr
 
                     modifiers = ""
-                    if len(colors) >= 2:
+                    if len(colors) > 2:
                         if not is_dflt and len(defaults) > 2 and \
                            colors[2] == defaults[2]:
                             pass
-                        elif len(colors) > 2:
+                        else:
                             pairs = (
                                 ("bold", ANSIEscapeCode.BOLD_ON),
                                 ("italic", ANSIEscapeCode.ITALIC_ON),
