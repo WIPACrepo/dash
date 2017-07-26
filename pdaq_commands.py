@@ -68,6 +68,11 @@ class BaseCmd(object):
         raise NotImplementedError()
 
     @classmethod
+    def epilog(cls):
+        "Optional extra information/instructions for a subcommand"
+        return None
+
+    @classmethod
     def is_valid_host(cls, args):
         "Is this command allowed to run on this machine?"
         raise NotImplementedError()
