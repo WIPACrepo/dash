@@ -69,6 +69,7 @@ class BaseCmd(object):
 
     @classmethod
     def epilog(cls):
+        "Optional extra information/instructions for a subcommand"
         return None
 
     @classmethod
