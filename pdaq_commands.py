@@ -68,6 +68,10 @@ class BaseCmd(object):
         raise NotImplementedError()
 
     @classmethod
+    def epilog(cls):
+        return None
+
+    @classmethod
     def is_valid_host(cls, args):
         "Is this command allowed to run on this machine?"
         raise NotImplementedError()
@@ -562,6 +566,12 @@ class CmdTail(BaseCmd):
     def description(cls):
         "One-line description of this subcommand"
         return "Add colors to Live's log output"
+
+    @classmethod
+    def epilog(cls):
+        return "Color choices can be customized in either $HOME/.pdaq_colors" \
+            " or in a file pointed to by the PDAQ_COLORS environment" \
+            " variable.  Use --print_colors to dump the current choices."
 
     @classmethod
     def is_valid_host(cls, args):
