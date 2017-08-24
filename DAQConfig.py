@@ -525,14 +525,17 @@ class DAQConfig(ConfigObject):
                         pass
         return None
 
+    @property
     def monitorPeriod(self):
         """Return the monitoring period (None if not specified)"""
         return self.__getPeriod("monitor")
 
+    @property
     def watchdogPeriod(self):
         """return the watchdog period (None if not specified)"""
         return self.__getPeriod("watchdog")
 
+    @property
     def updateHitSpoolTimes(self):
         """Return the monitoring period (None if not specified)"""
         return not self.__getBoolean("updateHitSpoolTimes", "disabled")

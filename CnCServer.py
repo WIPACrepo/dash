@@ -216,7 +216,7 @@ class DAQPool(object):
                     runSet.configure()
                 if self.__starting:
                     # if this is a replay run, compute the offset for hit times
-                    if runConfig.updateHitSpoolTimes():
+                    if runConfig.updateHitSpoolTimes:
                         runSet.initReplayHubs()
                 if not self.__starting:
                     # if the process was interrupted at any point,

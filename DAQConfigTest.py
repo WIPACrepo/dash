@@ -298,14 +298,14 @@ class DAQConfigTest(CommonCode):
         cfg = DAQConfigParser.parse(cfgDir, "sps-IC40-hitspool")
 
         expVal = 10
-        self.assertEqual(expVal, cfg.monitorPeriod(),
+        self.assertEqual(expVal, cfg.monitorPeriod,
                          "Expected monitor period for %s to be %d, not %s" %
-                         (cfg.basename, expVal, cfg.monitorPeriod()))
+                         (cfg.basename, expVal, cfg.monitorPeriod))
 
         expVal = 25
-        self.assertEqual(expVal, cfg.watchdogPeriod(),
+        self.assertEqual(expVal, cfg.watchdogPeriod,
                          "Expected watchdog period for %s to be %d, not %s" %
-                         (cfg.basename, expVal, cfg.watchdogPeriod()))
+                         (cfg.basename, expVal, cfg.watchdogPeriod))
 
 
 
