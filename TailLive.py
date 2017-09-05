@@ -586,7 +586,7 @@ class LiveLog(object):
                           line.find(" moni events") >= 0 and \
                           line.find(" SN events") >= 0 and \
                           line.find(" tcals") >= 0
-                is_reg = line.find(" Registered ")
+                is_reg = line.find(" Registered ") >= 0
                 if not is_rate and not is_reg:
                     # cache non-rate lines in case there's an embedded newline
                     prevline = line
