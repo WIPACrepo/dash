@@ -22,10 +22,11 @@ set_exc_string_encoding("ascii")
 
 # times in seconds
 #
-QUARTER_HR = 900
-HALF_HR = 1800
-FOUR_HR = 14400
-EIGHT_HR = 28800
+SECONDS_PER_HOUR = 3600
+QUARTER_HR = SECONDS_PER_HOUR / 4
+HALF_HR = SECONDS_PER_HOUR / 2
+FOUR_HR = SECONDS_PER_HOUR * 4
+EIGHT_HR = SECONDS_PER_HOUR * 8
 
 
 class PDAQRunException(Exception):
@@ -114,7 +115,7 @@ RUN_LIST = (
     PDAQRun("spts64-dirtydozen-hitspool-15s-interval-8h-spool", HALF_HR),
     PDAQRun("spts-dirtydozen-intervals3-snmix-014", HALF_HR),
     PDAQRun("random-01", HALF_HR),
-    PDAQRun("random-01", EIGHT_HR),
+    PDAQRun("replay-125659-local", EIGHT_HR),
     PDAQRun("replay-125659-local", QUARTER_HR, numRuns=3),
 )
 
