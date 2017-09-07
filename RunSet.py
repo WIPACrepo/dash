@@ -2051,6 +2051,7 @@ class RunSet(object):
     def components(self):
         return self.__set[:]
 
+    @property
     def configName(self):
         return self.__cfg.basename
 
@@ -2059,7 +2060,7 @@ class RunSet(object):
         self.__logDebug(RunSetDebug.START_RUN, "RSConfig TOP")
         self.__state = RunSetState.CONFIGURING
 
-        data = (self.configName(), )
+        data = (self.configName, )
         ComponentOperationGroup.runSimple(ComponentOperation.CONFIG_COMP,
                                           self.__set, data, self.__logger,
                                           errorName="configure")

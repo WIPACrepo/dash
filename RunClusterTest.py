@@ -48,7 +48,7 @@ class RunClusterTest(unittest.TestCase):
         sortedNodes.sort()
 
         if verbose:
-            print "=== RC -> %s" % cluCfg.configName()
+            print "=== RC -> %s" % (cluCfg.configName, )
             for n in sortedNodes:
                 print "::  " + str(n)
                 sortedComps = n.components()
@@ -124,9 +124,9 @@ class RunClusterTest(unittest.TestCase):
 
         cluster = RunCluster(cfg, clusterName, RunClusterTest.CONFIG_DIR)
 
-        self.assertEqual(cluster.configName(), cfgName,
+        self.assertEqual(cluster.configName, cfgName,
                          'Expected config name %s, not %s' %
-                         (cfgName, cluster.configName()))
+                         (cfgName, cluster.configName))
 
         return (cfg, cluster)
 

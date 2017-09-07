@@ -294,9 +294,9 @@ def run_deploy(args):
 
     if traceLevel >= 0:
         if config.description is None:
-            print "CLUSTER CONFIG: %s" % config.configName()
+            print "CLUSTER CONFIG: %s" % config.configName
         else:
-            print "CONFIG: %s" % config.configName()
+            print "CONFIG: %s" % config.configName
             print "CLUSTER: %s" % config.description
 
         nodeList = config.nodes()

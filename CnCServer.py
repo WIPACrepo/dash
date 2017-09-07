@@ -259,7 +259,7 @@ class DAQPool(object):
                 logger.error(("Cannot restart missing %s: Not found in" +
                               " cluster config \"%s\"") %
                              (listComponentRanges(missingList),
-                              cluCfg.configName()))
+                              cluCfg.configName))
 
             if len(deadList) > 0:
                 self.cycleComponents(deadList, runConfig.configdir, daqDataDir,
@@ -719,7 +719,7 @@ class CnCServer(DAQPool):
             DumpThreadsOnSignal(fd=sys.stderr, logger=self.__log)
 
     def __str__(self):
-        return "%s<%s>" % (self.__name, self.getClusterConfig().configName())
+        return "%s<%s>" % (self.__name, self.getClusterConfig().configName)
 
     def __closeOnSIGINT(self, signum, frame):
         if self.closeServer(False):
@@ -1219,7 +1219,7 @@ class CnCServer(DAQPool):
         if not runSet:
             raise CnCServerException('Could not find runset#%d' % id)
 
-        return runSet.configName()
+        return runSet.configName
 
     def rpc_runset_count(self):
         "return number of existing run sets"

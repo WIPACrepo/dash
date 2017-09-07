@@ -156,7 +156,7 @@ class RunCluster(CachedConfigName):
             if len(nodeStr) > 0:
                 nodeStr += " "
             nodeStr += "%s*%d" % (n.hostname, len(n.components()))
-        return self.configName() + "[" + nodeStr + "]"
+        return self.configName + "[" + nodeStr + "]"
 
     @classmethod
     def __addComponent(cls, hostMap, host, comp):
@@ -567,7 +567,7 @@ if __name__ == '__main__':
             continue
 
         print 'RunCluster: %s (%s)' % \
-            (runCluster.configName(), runCluster.description)
+            (runCluster.configName, runCluster.description)
         print '--------------------'
         if runCluster.logDirForSpade is not None:
             print 'SPADE logDir: %s' % runCluster.logDirForSpade
