@@ -1062,12 +1062,34 @@ class PayloadReader(object):
 
 
 if __name__ == "__main__":
+    def read_file(filename, max_payloads, write_simple_hits=False):
+        if write_simple_hits and filename.startswith("HitSpool-"):
+            out = open("SimpleHit-" + fnm[9:], "w")
+        else:
+            out = None
+
+        try:
+            with PayloadReader(filename) as rdr:
+                for pay in rdr:
+                    if max_payloads is not None and rdr.nrec > max_payloads:
+                        break
+
+                    print str(pay)
+                    if out is not None:
+                        out.write(pay.simple_hit)
+        finally:
+            if out is not None:
+                out.close()
+
     def main():
         "Dump all payloads"
         import argparse
 
         parser = argparse.ArgumentParser()
 
+        parser.add_argument("-S", "--simple-hits", dest="write_simple_hits",
+                            action="store_true", default=False,
+                            help="Rewrite hits to trigger-friendly SimpleHits")
         parser.add_argument("-n", "--max_payloads", type=int,
                             dest="max_payloads", default=None,
                             help="Maximum number of payloads to dump")
@@ -1076,24 +1098,13 @@ if __name__ == "__main__":
         args = parser.parse_args()
 
         for fnm in args.fileList:
-            if fnm.startswith("HitSpool-"):
-                out = open("SimpleHit-" + fnm[9:], "w")
-            else:
-                out = None
+            if os.path.isfile(fnm):
+                read_file(fnm, args.max_payloads, args.write_simple_hits)
+                continue
 
-            try:
-                with PayloadReader(fnm) as rdr:
-                    for pay in rdr:
-                        if args.max_payloads is not None and \
-                           rdr.nrec > args.max_payloads:
-                            break
-
-                        if out is None:
-                            print str(pay)
-                        else:
-                            out.write(pay.simple_hit)
-            finally:
-                if out is not None:
-                    out.close()
+            for entry in os.listdir(fnm):
+                path = os.path.join(fnm, entry)
+                if os.path.isfile(path):
+                    read_file(path, args.max_payloads, args.write_simple_hits)
 
     main()
