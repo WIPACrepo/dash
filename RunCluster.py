@@ -469,8 +469,8 @@ class RunCluster(CachedConfigName):
     def getConfigName(self):
         "get the configuration name to write to the cache file"
         if self.__clusterDesc is None:
-            return self.configName()
-        return '%s@%s' % (self.configName(), self.__clusterDesc.configName)
+            return self.configName
+        return '%s@%s' % (self.configName, self.__clusterDesc.configName)
 
     def getHubNodes(self):
         "Get a list of nodes on which hub components are running"
