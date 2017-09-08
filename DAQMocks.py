@@ -2042,7 +2042,7 @@ class MockParallelShell(object):
         user = os.environ['USER']
 
         if compName.endswith("hub"):
-            killPat = "stringhub.componentId=%d" % compId
+            killPat = "stringhub.componentId=%d " % compId
         else:
             killPat = ComponentManager.getComponentJar(compName)
 
@@ -2053,11 +2053,11 @@ class MockParallelShell(object):
             sshCmd = 'ssh %s ' % host
             pkillOpt = ' -f'
 
-        self.__addExpected('%spkill %s%s %s' %
+        self.__addExpected('%spkill %s%s \"%s\"' %
                            (sshCmd, nineArg, pkillOpt, killPat))
 
         if not killWith9:
-            self.__addExpected('sleep 2; %spkill -9%s %s' %
+            self.__addExpected('sleep 2; %spkill -9%s \"%s\"' %
                                (sshCmd, pkillOpt, killPat))
 
     def addExpectedPython(self, doCnC, dashDir, configDir, logDir, daqDataDir,
