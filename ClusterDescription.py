@@ -22,6 +22,7 @@ class ClusterDescriptionException(Exception):
 
 class ConfigXMLBase(XMLParser):
     def __init__(self, configDir, configName, suffix='.xml'):
+        self.name = None
         fileName = self.buildPath(configDir, configName, suffix=suffix)
         if not os.path.exists(configDir):
             raise XMLBadFileError("Config directory \"%s\" does not exist" %
@@ -597,7 +598,6 @@ class ClusterDescription(ConfigXMLBase):
     DEFAULT_PKGINSTALL_DIR = "/software/pdaq"
 
     def __init__(self, configDir=None, configName=None, suffix='.cfg'):
-
         self.name = None
         self.__host_map = None
         self.__defaults = None
@@ -636,8 +636,15 @@ class ClusterDescription(ConfigXMLBase):
             try:
                 super(ClusterDescription, self).__init__(configDir, retryName,
                                                          suffix)
+                configName = retryName
             except XMLBadFileError:
                 raise saved_ex[0], saved_ex[1], saved_ex[2]
+
+        derivedName, ext = os.path.splitext(os.path.basename(configName))
+        if derivedName.endswith("-cluster"):
+            derivedName = derivedName[:-8]
+        if derivedName != self.name:
+            self.name = derivedName
 
     def __str__(self):
         return self.name

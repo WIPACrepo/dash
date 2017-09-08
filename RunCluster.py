@@ -139,14 +139,18 @@ class RunCluster(CachedConfigName):
         "Create a cluster->component mapping from a run configuration file"
         super(RunCluster, self).__init__()
 
+        self.__clusterDesc = ClusterDescription(configDir, descrName)
+
+        # set the name to the run config plus cluster config
         name = os.path.basename(cfg.fullpath)
         if name.endswith('.xml'):
             name = name[:-4]
+        if self.__clusterDesc.name != "sps" and \
+           self.__clusterDesc.name != "spts":
+            name += "@" + self.__clusterDesc.name
         self.setConfigName(name)
 
         self.__hubList = self.__extractHubs(cfg)
-
-        self.__clusterDesc = ClusterDescription(configDir, descrName)
 
         self.__nodes = self.__loadConfig(self.__clusterDesc, self.__hubList)
 
@@ -465,12 +469,6 @@ class RunCluster(CachedConfigName):
             if not found:
                 missingList.append(comp)
         return (foundList, missingList)
-
-    def getConfigName(self):
-        "get the configuration name to write to the cache file"
-        if self.__clusterDesc is None:
-            return self.configName
-        return '%s@%s' % (self.configName, self.__clusterDesc.configName)
 
     def getHubNodes(self):
         "Get a list of nodes on which hub components are running"

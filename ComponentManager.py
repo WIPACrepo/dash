@@ -319,7 +319,7 @@ class ComponentManager(object):
             if logger is not None:
                 if activeConfig is not None:
                     logger.info("Extracted component list from %s" %
-                                activeConfig.getConfigName())
+                                activeConfig.configName)
                 else:
                     logger.info("No active components found")
 
@@ -541,7 +541,7 @@ class ComponentManager(object):
             cls.__reportAction(logger, "Launched", launched + jlist, ignored)
 
         # remember the active configuration
-        clusterConfig.writeCacheFile(True)
+        clusterConfig.writeCacheFile(writeActiveConfig=True)
 
     @classmethod
     def listComponents(cls):
