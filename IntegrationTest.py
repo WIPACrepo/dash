@@ -1752,6 +1752,9 @@ class IntegrationTest(unittest.TestCase):
                          (expState, state))
 
     def setUp(self):
+        if sys.version_info < (2, 7):
+            self.setUpClass()
+
         MostlyCnCServer.APPENDERS.clear()
 
         self.__logFactory = SocketReaderFactory()
@@ -1839,6 +1842,9 @@ class IntegrationTest(unittest.TestCase):
                     threading.activeCount()
 
         RunXMLValidator.tearDown()
+
+        if sys.version_info < (2, 7):
+            self.tearDownClass()
 
     def testFinishInMain(self):
         #print "Not running testFinishInMain"; return
