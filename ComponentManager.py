@@ -384,14 +384,16 @@ class ComponentManager(object):
                 continue
 
             if comp.isHub:
-                killPat = "stringhub.componentId=%d" % comp.id
+                killPat = "stringhub.componentId=%d " % comp.id
             else:
                 killPat = cls.getComponentJar(comp.name)
 
             if comp.isLocalhost:  # Just kill it
-                fmtStr = "pkill %%s -fu %s %s" % (os.environ["USER"], killPat)
+                fmtStr = "pkill %%s -fu %s \"%s\"" % \
+                         (os.environ["USER"], killPat)
             else:
-                fmtStr = "ssh %s pkill %%s -f %s" % (comp.host, killPat)
+                fmtStr = "ssh %s pkill %%s -f \\\"%s\\\"" % \
+                         (comp.host, killPat)
 
             # add '-' on first command
             if killWith9:
