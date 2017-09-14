@@ -544,6 +544,11 @@ class DAQConfig(ConfigObject):
         return self.__getInteger("monitor", "period")
 
     @property
+    def numReplayFilesToSkip(self):
+        """Return the monitoring period (None if not specified)"""
+        return self.__getInteger("tweak", "skip")
+
+    @property
     def watchdogPeriod(self):
         """return the watchdog period (None if not specified)"""
         return self.__getInteger("watchdog", "period")
@@ -780,6 +785,10 @@ class DAQConfig(ConfigObject):
                         except KeyError:
                             # missing keys..
                             pass
+                    if "tweak" in replay_hub['__children__']:
+                        val = replay_hub['__children__']["tweak"]
+                        self.other_objs.append(("tweak", val))
+
             elif key == 'randomConfig':
                 self.noise_rate = None
                 for v in val:

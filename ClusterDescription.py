@@ -252,6 +252,11 @@ class JavaComponent(ClusterComponent):
             return "jvm[???]"
         return str(self.__jvm)
 
+    @property
+    def numReplayFilesToSkip(self):
+        """Return the number of replay files to skip (None if not specified)"""
+        return None
+
     def setJVMOptions(self, defaults, path, isServer, heapInit, heapMax, args,
                       extraArgs):
         # fill in default values for all unspecified JVM quantities
@@ -349,6 +354,10 @@ class HubComponent(JavaComponent):
         return True
 
     @property
+    def hasReplayOptions(self):
+        return False
+
+    @property
     def hitspoolDirectory(self):
         if self.__hs is None:
             raise ClusterDescriptionException("HitSpool options have not" +
@@ -406,6 +415,37 @@ class HubComponent(JavaComponent):
 
         self.__ntpHost = ntpHost
         self.__alertEMail = alertEMail
+
+
+class ReplayHubComponent(HubComponent):
+    def __init__(self, name, num, logLevel=None, required=False):
+        super(ReplayHubComponent, self).__init__(name, num, logLevel=logLevel,
+                                                 required=required)
+
+        self.__numToSkip = None
+
+    @property
+    def hasReplayOptions(self):
+        return True
+
+    @property
+    def internalStr(self):
+        istr = super(ReplayHubComponent, self).internalStr
+        if self.__numToSkip is not None:
+            istr += " skip=%s" % (self.__numToSkip, )
+        return istr
+
+    @property
+    def isRealHub(self):
+        return False
+
+    @property
+    def numReplayFilesToSkip(self):
+        """Return the number of replay files to skip (None if not specified)"""
+        return self.__numToSkip
+
+    def setNumberToSkip(self, value):
+        self.__numToSkip = value
 
 
 class SimHubComponent(JavaComponent):

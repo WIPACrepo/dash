@@ -10,7 +10,7 @@ import traceback
 from utils import ip
 
 from CachedConfigName import CachedFile
-from ClusterDescription import HubComponent, JavaComponent
+from ClusterDescription import HubComponent, JavaComponent, ReplayHubComponent
 from DAQConfig import DAQConfigParser
 from DAQConfigExceptions import DAQConfigException
 from DAQConst import DAQPort
@@ -228,8 +228,13 @@ class ComponentManager(object):
             for comp in node.components():
                 if not comp.isControlServer:
                     if comp.hasHitSpoolOptions:
-                        rc = HubComponent(comp.name, comp.id, comp.logLevel,
-                                          False)
+                        if comp.hasReplayOptions:
+                            rc = ReplayHubComponent(comp.name, comp.id,
+                                                    comp.logLevel, False)
+                            rc.setNumberToSkip(comp.numReplayFilesToSkip)
+                        else:
+                            rc = HubComponent(comp.name, comp.id,
+                                              comp.logLevel, False)
                         rc.setHitSpoolOptions(None, comp.hitspoolDirectory,
                                               comp.hitspoolInterval,
                                               comp.hitspoolMaxFiles)
@@ -603,6 +608,10 @@ class ComponentManager(object):
                 if comp.alertEMail is not None:
                     jvmArgs += " -Dicecube.daq.stringhub.alert-email=%s" % \
                                (comp.alertEMail, )
+            else:
+                if comp.numReplayFilesToSkip > 0:
+                    jvmArgs += " -Dreplay.skipFiles=%d" % \
+                               (comp.numReplayFilesToSkip, )
 
             if comp.hasHitSpoolOptions:
                 if comp.hitspoolDirectory is not None:

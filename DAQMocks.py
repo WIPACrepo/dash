@@ -1686,7 +1686,8 @@ class MockDefaultDomGeometryFile(object):
 class MockDeployComponent(Component):
     def __init__(self, name, id, logLevel, hsDir, hsInterval, hsMaxFiles,
                  jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs,
-                 jvmExtraArgs, alertEMail, ntpHost, host=None):
+                 jvmExtraArgs, alertEMail, ntpHost, numReplayFiles=None,
+                 host=None):
         self.__hsDir = hsDir
         self.__hsInterval = hsInterval
         self.__hsMaxFiles = hsMaxFiles
@@ -1698,6 +1699,7 @@ class MockDeployComponent(Component):
         self.__jvmExtraArgs = jvmExtraArgs
         self.__alertEMail = alertEMail
         self.__ntpHost =  ntpHost
+        self.__numReplayFiles = numReplayFiles
         self.__host = host
 
         super(MockDeployComponent, self).__init__(name, id, logLevel)
@@ -1710,6 +1712,10 @@ class MockDeployComponent(Component):
     def hasHitSpoolOptions(self):
         return self.__hsDir is not None or self.__hsInterval is not None or \
             self.__hsMaxFiles is not None
+
+    @property
+    def hasReplayOptions(self):
+        return self.__numReplayFiles is not None
 
     @property
     def hitspoolDirectory(self):
@@ -1762,6 +1768,10 @@ class MockDeployComponent(Component):
     @property
     def ntpHost(self):
         return self.__ntpHost
+
+    @property
+    def numReplayFilesToSkip(self):
+        return self.__numReplayFiles
 
 
 class MockDAQClient(DAQClient):

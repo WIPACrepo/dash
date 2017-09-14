@@ -24,9 +24,16 @@ class CnCThread(threading.Thread):
     def close(self):
         self.__closed = True
 
+    def error(self, msg):
+        self.__log.error(msg)
+
     @property
     def isClosed(self):
         return self.__closed
+
+    @property
+    def name(self):
+        return self.__name
 
     def run(self):
         try:

@@ -13,9 +13,11 @@ import errno
 import math
 import select
 import socket
+import sys
+import threading
+import time
 import traceback
 import xmlrpclib
-import threading
 
 
 class RPCClient(xmlrpclib.ServerProxy):
@@ -29,49 +31,17 @@ class RPCClient(xmlrpclib.ServerProxy):
 
         self.servername = servername
         self.portnum = portnum
+
+        hostPort = "%s:%s" % (self.servername, self.portnum)
+
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # !!!!!! Warning - this is ugly !!!!!!!
         # !!!! but no other way in XMLRPC? !!!!
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         socket.setdefaulttimeout(timeout)
-        xmlrpclib.ServerProxy.__init__(self,
-                                       "http://%s:%s" %
-                                       (self.servername, self.portnum),
+
+        xmlrpclib.ServerProxy.__init__(self, "http://" + hostPort,
                                        verbose=verbose)
-        self.statDict = {}
-
-    def showStats(self):
-        "Return string representation of accumulated statistics"
-        if self.nCalls() == 0:
-            return "None"
-
-        results_list = ["%25s: %s" % (x, self.statDict[x].report()) for x in self.callList()]
-        return "\n".join(results_list)
-
-    def nCalls(self):
-        "Return number of invocations of RPC method"
-        return len(self.statDict)
-
-    def callList(self):
-        "Return list of registered methods"
-        return self.statDict.keys()
-
-    def rpccall(self, method, *rest):
-        "Wrapper to benchmark speed of various RPC calls"
-        if not method in self.statDict:
-            self.statDict[method] = RPCStat()
-        tstart = datetime.datetime.now()
-
-        result = None
-        try:
-            m = getattr(self, method)
-            result = m(*rest)
-        except AttributeError:
-            raise NameError("method: '%s' does not exist" % method)
-        finally:
-            self.statDict[method].tally(datetime.datetime.now() - tstart)
-
-        return result
 
 
 class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
@@ -85,6 +55,11 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         self.__running = False
         self.__timeout = timeout
 
+        self.__stats_lock = threading.Lock()
+        self.__times = {}
+        self.__sock_count = 0
+        self.__registered = False
+
         DocXMLRPCServer.DocXMLRPCServer.__init__(self, ('', portnum),
                                                  logRequests=False)
         # note that this has to be AFTER the init above as it can be
@@ -96,11 +71,23 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         self.__is_shut_down = threading.Event()
         self.__running = False
 
-    def server_close(self):
-        if self.__running:
-            self.__running = False
-            self.__is_shut_down.wait()
-        DocXMLRPCServer.DocXMLRPCServer.server_close(self)
+    def _dispatch(self, method, params):
+        if not method in self.funcs:
+            raise Exception("method \"%s\" is not supported" % (method, ))
+
+        func = self.funcs[method]
+
+        start = time.time()
+        success = False
+        try:
+            rtnval = func(*params)
+            success = True
+            return rtnval
+        finally:
+            with self.__stats_lock:
+                if method not in self.__times:
+                    self.__times[method] = ServerStats(method)
+                self.__times[method].add(time.time() - start, success)
 
     def get_request(self):
         """Overridden in order to set so_keepalive on client
@@ -109,7 +96,38 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         (conn, addr) = self.socket.accept()
         conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 
+        with self.__stats_lock:
+            self.__sock_count += 1
+            if not self.__registered:
+                self.register_function(self.server_statistics)
+                self.__registered = True
+
         return (conn, addr)
+
+    def server_close(self):
+        if self.__running:
+            self.__running = False
+            self.__is_shut_down.wait()
+        DocXMLRPCServer.DocXMLRPCServer.server_close(self)
+
+    def server_statistics(self):
+        # get statistics for server calls
+        count = 0
+        rpc_stats = {}
+        cc_copy = rpc_stats
+
+        # gather server statistics
+        with self.__stats_lock:
+            count = self.__sock_count
+            for key, stats in self.__times.items():
+                snap = stats.snapshot()
+                if snap is not None:
+                    rpc_stats[key] = snap
+
+        return {
+            "socket_count": count,
+            "rpc": rpc_stats,
+        }
 
     def serve_forever(self):
         """Handle one request at a time until doomsday."""
@@ -131,59 +149,43 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         self.__is_shut_down.set()
 
 
-class RPCStat(object):
-    "Class for accumulating statistics about an RPC call"
-    def __init__(self):
-        self.n = 0
-        self.min = None
-        self.max = None
-        self.sum = 0.
-        self.sumsq = 0.
+class ServerStats(object):
+    def __init__(self, method):
+        self.__method = method
+        self.__num = 0
+        self.__min = sys.maxint
+        self.__max = -sys.maxint - 1
+        self.__sum = 0.
+        self.__sumsq = 0.
+        self.__succeed = 0
+        self.__failed = 0
 
-    def tally(self, tdel):
-        """Add a point to the statistics, keeping min/max, sum and sum
-        of the squares for max/min/average/rms
-        """
-        secs = tdel.seconds + tdel.microseconds * 1.E-6
-        self.n += 1
+    def add(self, delta, success):
+        self.__num += 1
+        self.__min = min(self.__min, delta)
+        self.__max = max(self.__max, delta)
+        self.__sum += delta
+        self.__sumsq += delta * delta
+        if success:
+            self.__succeed += 1
+        else:
+            self.__failed += 1
 
-        self.min = min(secs, self.min)
-        self.max = max(secs, self.max)
-
-        self.sum += secs
-        self.sumsq += secs * secs
-
-    def summaries(self):
-        """Generate some additional statistics, ie average and rms"""
-        try:
-            avg = self.sum / self.n
-            # rms = sqrt(x_squared-avg - x-avg-squared)
-            x2avg = self.sumsq / self.n
-            xavg2 = avg * avg
-            try:
-                rms = math.sqrt(x2avg - xavg2)
-            except:
-                rms = None
-
-            return (self.n, self.min, self.max, avg, rms)
-        except ZeroDivisionError:
+    def snapshot(self):
+        if self.__num == 0:
             return None
 
-    def report(self):
-        """Return a string representation of the statistics in this class"""
-        l = self.summaries()
-        if l is None:
-            return "No entries."
-        (n, Xmin, Xmax, avg, rms) = l
-        return "%d entries, min=%.4f max=%.4f, avg=%.4f, rms=%.4f" % (n,
-                                                                      Xmin,
-                                                                      Xmax,
-                                                                      avg,
-                                                                      rms)
+        avg = self.__sum / self.__num
+        x2avg = self.__sumsq / self.__num
+        xavg2 = avg * avg
+        try:
+            rms = math.sqrt(x2avg - xavg2)
+        except:
+            rms = 0
+
+        return (self.__num, self.__min, self.__max, avg, rms)
+
 
 if __name__ == "__main__":
     from DAQConst import DAQPort
     cl = RPCClient("localhost", DAQPort.CNCSERVER)
-    for i in xrange(0, 10):
-        cl.rpccall("rpc_ping")
-    print cl.showStats()
