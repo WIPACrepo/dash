@@ -544,10 +544,7 @@ class FakeClient(object):
         t.setDaemon(True)
         t.start()
 
-        #self.__cnc = xmlrpclib.ServerProxy('http://localhost:%d' %
-        #                                   DAQPort.CNCSERVER, verbose=False)
-        self.__cnc = RPCClient()
-        self.__cnc.start("localhost", DAQPort.CNCSERVER)
+        self.__cnc = RPCClient("localhost", DAQPort.CNCSERVER)
 
         for c in self.__connections:
             c.start()
