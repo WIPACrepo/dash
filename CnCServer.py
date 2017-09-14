@@ -1448,8 +1448,9 @@ class CnCServer(DAQPool):
             runSet.logToDash("WARNING: Possible file leak; open file count" +
                              " increased from %d to %d" %
                              (self.__openFileCount, openCount))
+            if openCount - self.__openCount > 5:
+                self.__reportOpenFiles(runNum)
             self.__openFileCount = openCount
-            self.__reportOpenFiles(runNum)
 
     def updateRates(self, id):
         """
