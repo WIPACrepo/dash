@@ -498,42 +498,55 @@ class DAQConfig(ConfigObject):
                 break
 
     def __getBoolean(self, name, attr_name):
-        """Extract a period specification from the configuration"""
+        """Extract a boolean specification from the configuration"""
+        value = self.__getString(name, attr_name)
+        if value is not None:
+            value = value.lower()
+        return value == "true" or value == "yes"
+
+    def __getFloat(self, name, attr_name):
+        """Extract a floating point specification from the configuration"""
+        value = self.__getString(name, attr_name)
+        if value is not None:
+            try:
+                return float(self.__getString(name, attr_name))
+            except (AttributeError, ValueError):
+                pass
+
+        return None
+
+    def __getInteger(self, name, attr_name):
+        """Extract an integer specification from the configuration"""
+        value = self.__getString(name, attr_name)
+        if value is not None:
+            try:
+                return int(self.__getString(name, attr_name))
+            except (AttributeError, ValueError):
+                pass
+
+        return None
+
+    def __getString(self, name, attr_name):
+        """Extract a value from the configuration"""
         for key, value in self.other_objs:
             if key == name and isinstance(value, list):
                 for v in value:
                     try:
-                        dstr = get_attrib(v, attr_name)
-                        if dstr is None:
-                            return False
-                        dstr = dstr.lower()
-                        return dstr == "true" or dstr == "yes"
+                        return get_attrib(v, attr_name)
                     except (AttributeError, ValueError):
                         pass
 
-        return False
-
-    def __getPeriod(self, name):
-        """Extract a period specification from the configuration"""
-        for key, value in self.other_objs:
-            if key == name and isinstance(value, list):
-                for v in value:
-                    try:
-                        period = int(get_attrib(v, 'period'))
-                        return period
-                    except (AttributeError, ValueError):
-                        pass
         return None
 
     @property
     def monitorPeriod(self):
         """Return the monitoring period (None if not specified)"""
-        return self.__getPeriod("monitor")
+        return self.__getInteger("monitor", "period")
 
     @property
     def watchdogPeriod(self):
         """return the watchdog period (None if not specified)"""
-        return self.__getPeriod("watchdog")
+        return self.__getInteger("watchdog", "period")
 
     @property
     def updateHitSpoolTimes(self):
