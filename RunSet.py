@@ -224,42 +224,6 @@ class GoodTimeThread(CnCThread):
 
         super(GoodTimeThread, self).__init__(threadName, log)
 
-    def _run(self):
-        "Gather good hit time data from all hubs"
-        try:
-            complete = False
-            for i in range(self.MAX_ATTEMPTS):
-                complete = self.__fetchTime()
-                loud = False
-                if loud and (complete or self.__stopped):
-                    if complete:
-                        status = "complete"
-                    elif self.__stopped:
-                        status = "stopped"
-                    else:
-                        status = "unknown"
-                    self.__log.error("GetGoodTime %s after %d attempts" %
-                                     (status, i))
-                    # we're done, break out of the loop
-                    break
-                time.sleep(0.1)
-        except:
-            self.__log.error("Couldn't find %s: %s" %
-                             (self.moniname(), exc_string()))
-
-        self.__finalTime = self.__goodTime
-
-        if len(self.__badComps) > 0:
-            self.__log.error("Couldn't find %s for %s" %
-                             (self.moniname(),
-                              listComponentRanges(self.__badComps.keys())))
-
-        if self.__goodTime is None:
-            goodVal = "unknown"
-        else:
-            goodVal = self.__goodTime
-        self.__data.reportGoodTime(self.moniname(), goodVal)
-
     def __fetchTime(self):
         """
         Query all hubs which haven't yet reported a time
@@ -370,12 +334,45 @@ class GoodTimeThread(CnCThread):
             if c.isBuilder or c.isComponent("globalTrigger"):
                 self.notifyComponent(c, goodTime)
 
+    def _run(self):
+        "Gather good hit time data from all hubs"
+        try:
+            complete = False
+            for i in range(self.MAX_ATTEMPTS):
+                complete = self.__fetchTime()
+                loud = False
+                if loud and (complete or self.__stopped):
+                    if complete:
+                        status = "complete"
+                    elif self.__stopped:
+                        status = "stopped"
+                    else:
+                        status = "unknown"
+                    self.__log.error("GetGoodTime %s after %d attempts" %
+                                     (status, i))
+                    # we're done, break out of the loop
+                    break
+                time.sleep(0.1)
+        except:
+            self.__log.error("Couldn't find %s: %s" %
+                             (self.moniname(), exc_string()))
+
+        self.__finalTime = self.__goodTime
+
+        if len(self.__badComps) > 0:
+            self.__log.error("Couldn't find %s for %s" %
+                             (self.moniname(),
+                              listComponentRanges(self.__badComps.keys())))
+
+        if self.__goodTime is None:
+            goodVal = "unknown"
+        else:
+            goodVal = self.__goodTime
+        self.__data.reportGoodTime(self.moniname(), goodVal)
+
     def beanfield(self):
         "Return the name of the 'stringhub' MBean field"
         raise NotImplementedError("Unimplemented")
-
-    def logError(self, msg):
-        self.__log.error(msg)
 
     def finished(self):
         "Return True if the thread has finished"
@@ -384,6 +381,9 @@ class GoodTimeThread(CnCThread):
     def isBetter(self, oldval, newval):
         "Return True if 'newval' is better than 'oldval'"
         raise NotImplementedError("Unimplemented")
+
+    def logError(self, msg):
+        self.__log.error(msg)
 
     def moniname(self):
         "Return the name of the value sent to I3Live"
@@ -2197,6 +2197,15 @@ class RunSet(object):
         updateCounts = self.__state == RunSetState.RUNNING
         return self.__runData.getEventCounts(self.__set, updateCounts)
 
+    @classmethod
+    def getRunSummary(cls, logDir, runNum):
+        "Return a dictionary summarizing the requested run"
+        runDir = cls.__getRunDirectoryPath(logDir, runNum)
+        if not os.path.exists(runDir):
+            raise RunSetException("No run directory found for run %d" % runNum)
+
+        return DashXMLLog.parse(runDir).summary()
+
     @property
     def id(self):
         return self.__id
@@ -2227,26 +2236,6 @@ class RunSet(object):
     @property
     def isRunning(self):
         return self.__state == RunSetState.RUNNING
-
-    def logToDash(self, msg):
-        "Used when the runset needs to add a log message to dash.log"
-        self.__logError(msg)
-
-    def queueForSpade(self, runData, duration):
-        if runData is None:
-            self.__logger.error("No run data; cannot queue for SPADE")
-            return
-
-        runData.queueForSpade(duration)
-
-    @classmethod
-    def getRunSummary(cls, logDir, runNum):
-        "Return a dictionary summarizing the requested run"
-        runDir = cls.__getRunDirectoryPath(logDir, runNum)
-        if not os.path.exists(runDir):
-            raise RunSetException("No run directory found for run %d" % runNum)
-
-        return DashXMLLog.parse(runDir).summary()
 
     @classmethod
     def is_leapsecond_silenced(cls, filename=".leapsecond_alertstamp"):
@@ -2280,6 +2269,17 @@ class RunSet(object):
             fd.write("%d" % time.time())
 
         return False
+
+    def logToDash(self, msg):
+        "Used when the runset needs to add a log message to dash.log"
+        self.__logError(msg)
+
+    def queueForSpade(self, runData, duration):
+        if runData is None:
+            self.__logger.error("No run data; cannot queue for SPADE")
+            return
+
+        runData.queueForSpade(duration)
 
     def reportRunStartFailure(self, runNum, release, revision):
         try:
