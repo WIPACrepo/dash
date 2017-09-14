@@ -670,11 +670,7 @@ class CnCServer(DAQPool):
         else:
             while True:
                 try:
-                    # CnCServer needs to be made thread-safe
-                    # before we can thread the XML-RPC server
-                    #
                     self.__server = ThreadedRPCServer(DAQPort.CNCSERVER)
-                    #self.__server = RPCServer(DAQPort.CNCSERVER)
                     break
                 except socket.error as e:
                     self.__log.error("Couldn't create server socket: %s" % e)

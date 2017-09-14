@@ -477,12 +477,6 @@ class ComponentManager(object):
         logDir = cls.__createAndExpand(logDir, logDirFallback, logger, dryRun)
         daqDataDir = cls.__createAndExpand(daqDataDir, None, logger, dryRun)
 
-        # get a list of the running processes
-        if not startMissing:
-            procList = []
-        else:
-            procList = list_processes()
-
         launched = []
         ignored = []
 
@@ -490,6 +484,8 @@ class ComponentManager(object):
         progName = progBase + ".py"
 
         if startMissing and not doCnC:
+            # get a list of the running processes
+            procList = list_processes()
             doCnC |= not cls.__isRunning(progName, procList)
 
         if doCnC:
@@ -603,21 +599,21 @@ class ComponentManager(object):
             if comp.isRealHub:
                 if comp.ntpHost is not None:
                     jvmArgs += " -Dicecube.daq.time.monitoring.ntp-host=%s" % \
-                               str(comp.ntpHost)
+                               (comp.ntpHost, )
                 if comp.alertEMail is not None:
                     jvmArgs += " -Dicecube.daq.stringhub.alert-email=%s" % \
-                               str(comp.alertEMail)
+                               (comp.alertEMail, )
 
             if comp.hasHitSpoolOptions:
                 if comp.hitspoolDirectory is not None:
                     jvmArgs += " -Dhitspool.directory=\"%s\"" % \
-                               comp.hitspoolDirectory
+                               (comp.hitspoolDirectory, )
                 if comp.hitspoolInterval is not None:
                     jvmArgs += " -Dhitspool.interval=%.4f" % \
-                               comp.hitspoolInterval
+                               (comp.hitspoolInterval, )
                 if comp.hitspoolMaxFiles is not None:
                     jvmArgs += " -Dhitspool.maxfiles=%d" % \
-                               comp.hitspoolMaxFiles
+                               (comp.hitspoolMaxFiles, )
 
             #switches = "-g %s" % configDir
             switches = "-d %s" % daqDataDir

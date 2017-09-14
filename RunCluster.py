@@ -139,6 +139,8 @@ class RunCluster(CachedConfigName):
         "Create a cluster->component mapping from a run configuration file"
         super(RunCluster, self).__init__()
 
+        self.__hubList = self.__extractHubs(cfg)
+
         self.__clusterDesc = ClusterDescription(configDir, descrName)
 
         # set the name to the run config plus cluster config
@@ -150,9 +152,7 @@ class RunCluster(CachedConfigName):
             name += "@" + self.__clusterDesc.name
         self.setConfigName(name)
 
-        self.__hubList = self.__extractHubs(cfg)
-
-        self.__nodes = self.__loadConfig(self.__clusterDesc, self.__hubList)
+        self.__nodes = self.__buildNodeMap(self.__clusterDesc, self.__hubList)
 
     def __str__(self):
         nodeStr = ""
@@ -183,7 +183,9 @@ class RunCluster(CachedConfigName):
 
     @classmethod
     def __addReplayHubs(cls, clusterDesc, hubList, hostMap):
-        "Add replay hubs with locations hard-coded in the run config to hostMap"
+        """
+        Add replay hubs with locations hard-coded in the run config to hostMap
+        """
 
         hsDir = clusterDesc.defaultHSDirectory("StringHub")
         hsIval = clusterDesc.defaultHSInterval("StringHub")
@@ -410,7 +412,7 @@ class RunCluster(CachedConfigName):
         return simList
 
     @classmethod
-    def __loadConfig(cls, clusterDesc, hubList):
+    def __buildNodeMap(cls, clusterDesc, hubList):
         hostMap = {}
 
         cls.__addRequired(clusterDesc, hostMap)
@@ -492,7 +494,7 @@ class RunCluster(CachedConfigName):
         if runConfig is not None:
             self.__hubList = self.__extractHubs(runConfig)
 
-        self.__nodes = self.__loadConfig(self.__clusterDesc, self.__hubList)
+        self.__nodes = self.__buildNodeMap(self.__clusterDesc, self.__hubList)
 
     @property
     def logDirForSpade(self):
