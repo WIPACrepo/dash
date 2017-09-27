@@ -1357,8 +1357,10 @@ class IntegrationTest(unittest.TestCase):
                     dashLog.addExpectedExact(msg)
 
         if logServer:
-            logServer.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
-            logServer.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for Hubs")
+            logServer.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds"
+                                            r" for NonHubs")
+            logServer.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds"
+                                            r" for Hubs")
 
         if liveLog:
             for c in self.__compList:
