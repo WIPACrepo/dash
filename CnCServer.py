@@ -471,7 +471,7 @@ class DAQPool(object):
         self.__setsLock.acquire()
         try:
             for rs in self.__sets:
-                if rs.isRunning:
+                if rs.isRunning and not killRunning:
                     return False
             removed = self.__sets[:]
             del self.__sets[:]
