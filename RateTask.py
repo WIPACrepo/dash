@@ -14,6 +14,8 @@ class RateThread(CnCThread):
         super(RateThread, self).__init__("CnCServer:RateThread", dashlog)
 
     def _run(self):
+        if self.__runset.id is None:
+            raise Exception("Runset has been destroyed")
         rates = self.__runset.updateRates()
         if rates is not None:
             (numEvts, rate, numMoni, numSN, numTcal) = rates
@@ -42,7 +44,8 @@ class RateTask(CnCSingleThreadTask):
     def __init__(self, taskMgr, runset, dashlog, liveMoni=None, period=None,
                  needLiveMoni=False):
         super(RateTask, self).__init__(taskMgr, runset, dashlog,
-                                       liveMoni, period, needLiveMoni)
+                                       liveMoni=liveMoni, period=period,
+                                       needLiveMoni=needLiveMoni)
 
     def initializeThread(self, runset, dashlog, liveMoni):
         return RateThread(runset, dashlog)
