@@ -35,7 +35,8 @@ class TinyMBeanClient(object):
                 fld == "EarliestLastChannelHitTime":
                 rtndict[fld] = 10
             else:
-                raise Exception("Unknown beanField \"%s.%s\"" % (beanname, fld))
+                raise Exception("Unknown beanField \"%s.%s\"" %
+                                (beanname, fld))
         return rtndict
 
 
