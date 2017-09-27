@@ -1009,6 +1009,10 @@ class MockClusterConfig(object):
         self.__nodes[host].add(comp, jvmPath, jvmArgs, host)
 
     @property
+    def configName(self):
+        return self.__configName
+
+    @property
     def description(self):
         return self.__descName
 
@@ -2803,12 +2807,18 @@ class MockRunSet(object):
         self.__numSN = 12
         self.__numTcal = 13
 
+        self.__id = "MockRS"
+
     def components(self):
         return self.__comps[:]
 
     def getRates(self):
         return (self.__numEvts, self.__rate, self.__numMoni, self.__numSN,
                 self.__numTcal)
+
+    @property
+    def id(self):
+        return self.__id
 
     @property
     def isRunning(self):
