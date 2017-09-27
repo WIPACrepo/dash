@@ -19,14 +19,12 @@ class CnCSingleThreadTask(CnCTask):
         self.__runset = runset
         self.__needLiveMoni = needLiveMoni
         self.__liveMoniClient = liveMoni
-        self.__detailTimer = None
-
-        self.__thread = self.initializeThread(runset, dashlog, liveMoni)
         self.__badCount = 0
 
         if self.__needLiveMoni and self.__liveMoniClient is None:
             name = None
             period = None
+            self.__detailTimer = None
         else:
             name = self.NAME
             if period is None:
@@ -35,6 +33,8 @@ class CnCSingleThreadTask(CnCTask):
 
         super(CnCSingleThreadTask, self).__init__(name, taskMgr, dashlog,
                                                   self.DEBUG_BIT, name, period)
+
+        self.__thread = self.initializeThread(runset, dashlog, liveMoni)
 
     def _check(self):
         """
