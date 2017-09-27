@@ -24,15 +24,15 @@ class TaskManager(threading.Thread):
         self.__runset = runset
         self.__dashlog = dashlog
 
-        self.__tasks = self.__createAllTasks(liveMoni, runDir, runCfg,
-                                             runOptions)
-
         self.__running = False
         self.__stopping = False
         self.__flag = threading.Condition()
 
         super(TaskManager, self).__init__(name="TaskManager")
         self.setDaemon(True)
+
+        self.__tasks = self.__createAllTasks(liveMoni, runDir, runCfg,
+                                             runOptions)
 
     def __createAllTasks(self, liveMoni, runDir, runCfg, runOptions):
         """
