@@ -61,8 +61,10 @@ class CnCLoggerTest(unittest.TestCase):
                                         (dfltHost, dfltPort))
 
             dc.resetLog()
-            self.failIf(dc.liveHost is not None, "logIP was not cleared")
-            self.failIf(dc.livePort is not None, "logPort was not cleared")
+            self.assertFalse(dc.liveHost is not None,
+                             "logIP was not cleared")
+            self.assertFalse(dc.livePort is not None,
+                             "logPort was not cleared")
             self.assertEqual(dc.logHost, dfltHost,
                              "logHost should be %s, not %s" %
                              (dfltHost, dc.logHost))
@@ -120,8 +122,10 @@ class CnCLoggerTest(unittest.TestCase):
             self.assertEqual(dc.logPort, dfltPort,
                              "logPort should be %s, not %s" %
                              (dfltPort, dc.logPort))
-            self.failIf(dc.liveHost is not None, "liveIP was not cleared")
-            self.failIf(dc.livePort is not None, "livePort was not cleared")
+            self.assertFalse(dc.liveHost is not None,
+                             "liveIP was not cleared")
+            self.assertFalse(dc.livePort is not None,
+                             "livePort was not cleared")
 
             logObj.checkStatus(1000)
             dfltObj.checkStatus(1000)

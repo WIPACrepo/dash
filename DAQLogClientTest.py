@@ -54,7 +54,7 @@ class TestDAQLogClient(unittest.TestCase):
 
         self.collector = FileAppender(logName, logPath)
 
-        self.failUnless(os.path.exists(logPath), 'Log file was not created')
+        self.assertTrue(os.path.exists(logPath), 'Log file was not created')
 
         msg = 'Test msg'
 
@@ -68,10 +68,10 @@ class TestDAQLogClient(unittest.TestCase):
         prefix = logName + ' ['
 
         line = lines[0].rstrip()
-        self.failUnless(line.startswith(prefix),
+        self.assertTrue(line.startswith(prefix),
                         'Log entry "%s" should start with "%s"' %
                         (line, prefix))
-        self.failUnless(line.endswith('] ' + msg),
+        self.assertTrue(line.endswith('] ' + msg),
                         'Log entry "%s" should start with "%s"' %
                         (line, '] ' + msg))
 

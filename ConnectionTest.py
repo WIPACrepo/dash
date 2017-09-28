@@ -189,7 +189,8 @@ class ConnectionTest(unittest.TestCase):
                     tmpList.remove(t)
                     break
 
-            self.failIf(not node, 'Could not find component ' + str(comp))
+            self.assertFalse(not node,
+                             "Could not find component " + str(comp))
 
             # copy connector list
             #
@@ -205,8 +206,8 @@ class ConnectionTest(unittest.TestCase):
                         compConn.remove(c)
                         break
 
-                self.failIf(not conn, 'Could not find connector ' + typ +
-                            ' for component ' + str(comp))
+                self.assertFalse(not conn, "Could not find connector " + typ +
+                                 " for component " + str(comp))
 
             # remove all input connectors
             #
@@ -218,8 +219,8 @@ class ConnectionTest(unittest.TestCase):
                         compConn.remove(c)
                         break
 
-                self.failIf(not conn, 'Could not find connector ' + typ +
-                            ' for component ' + str(comp))
+                self.assertFalse(not conn, "Could not find connector " + typ +
+                                 " for component " + str(comp))
 
             # whine if any connectors are left
             #

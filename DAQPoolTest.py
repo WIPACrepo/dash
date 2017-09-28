@@ -135,7 +135,7 @@ class TestDAQPool(unittest.TestCase):
         mgr = DAQPool()
 
         runset = mgr.findRunset(1)
-        self.failIf(runset is not None, 'Found set in empty manager')
+        self.assertFalse(runset is not None, 'Found set in empty manager')
 
         mgr.remove(MockComponent('foo', 0))
 
@@ -202,7 +202,7 @@ class TestDAQPool(unittest.TestCase):
         self.assertEqual(mgr.numComponents(), 0)
 
         found = mgr.findRunset(runset.id)
-        self.failIf(found is None, "Couldn't find runset #%d" % runset.id)
+        self.assertFalse(found is None, "Couldn't find runset #%d" % runset.id)
 
         mgr.returnRunset(runset, logger)
 
@@ -625,7 +625,7 @@ class TestDAQPool(unittest.TestCase):
         self.assertEqual(mgr.numComponents(), 0)
 
         found = mgr.findRunset(runset.id)
-        self.failIf(found is None, "Couldn't find runset #%d" % runset.id)
+        self.assertFalse(found is None, "Couldn't find runset #%d" % runset.id)
 
         mgr.returnRunset(runset, logger)
 
@@ -759,7 +759,8 @@ class TestDAQPool(unittest.TestCase):
 
         aComp.mbean.addData("stringhub", "EarliestLastChannelHitTime", 10)
 
-        self.failIf(runset.stopRun(stopName), "stopRun() encountered error")
+        self.assertFalse(runset.stopRun(stopName),
+                         "stopRun() encountered error")
 
         self.__checkRunsetState(runset, 'ready')
 

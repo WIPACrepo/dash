@@ -323,7 +323,7 @@ class DAQLiveTest(unittest.TestCase):
 
         state = {"runConfig": runCfg, "runNumber": runNum}
 
-        self.failUnless(live.starting(state), "starting failed")
+        self.assertTrue(live.starting(state), "starting failed")
 
     def testStoppingNoRunset(self):
         global WARNED
@@ -364,7 +364,7 @@ class DAQLiveTest(unittest.TestCase):
 
         state = {"runConfig": runCfg, "runNumber": runNum}
 
-        self.failUnless(live.starting(state), "starting failed")
+        self.assertTrue(live.starting(state), "starting failed")
 
         runSet.setStopReturnError()
 
@@ -393,9 +393,9 @@ class DAQLiveTest(unittest.TestCase):
 
         state = {"runConfig": runCfg, "runNumber": runNum}
 
-        self.failUnless(live.starting(state), "starting failed")
+        self.assertTrue(live.starting(state), "starting failed")
 
-        self.failUnless(live.stopping(), "stopping failed")
+        self.assertTrue(live.stopping(), "stopping failed")
 
     def testRecoveringNothing(self):
         global WARNED
@@ -410,7 +410,7 @@ class DAQLiveTest(unittest.TestCase):
         log = MockLogger("liveLog")
         live = self.__createLive(cnc, log)
 
-        self.failUnless(live.recovering(), "recovering failed")
+        self.assertTrue(live.recovering(), "recovering failed")
 
     def testRecoveringDestroyed(self):
         global WARNED
@@ -435,12 +435,12 @@ class DAQLiveTest(unittest.TestCase):
 
         state = {"runConfig": runCfg, "runNumber": runNum}
 
-        self.failUnless(live.starting(state), "starting failed")
+        self.assertTrue(live.starting(state), "starting failed")
 
         runSet.setExpectedStopError()
         runSet.destroy()
 
-        self.failUnless(live.recovering(), "recovering failed")
+        self.assertTrue(live.recovering(), "recovering failed")
 
     def testRecoveringStopFail(self):
         global WARNED
@@ -465,14 +465,14 @@ class DAQLiveTest(unittest.TestCase):
 
         state = {"runConfig": runCfg, "runNumber": runNum}
 
-        self.failUnless(live.starting(state), "starting failed")
+        self.assertTrue(live.starting(state), "starting failed")
 
         runSet.setExpectedStopError()
         runSet.setStopReturnError()
 
         log.addExpectedExact("DAQLive stopRun %s returned %s" % (runSet, False))
         log.addExpectedExact("DAQLive recovered %s" % runSet)
-        self.failUnless(live.recovering(), "recovering failed")
+        self.assertTrue(live.recovering(), "recovering failed")
 
     def testRecovering(self):
         global WARNED
@@ -497,13 +497,13 @@ class DAQLiveTest(unittest.TestCase):
 
         state = {"runConfig": runCfg, "runNumber": runNum}
 
-        self.failUnless(live.starting(state), "starting failed")
+        self.assertTrue(live.starting(state), "starting failed")
 
         runSet.setExpectedStopError()
 
         log.addExpectedExact("DAQLive stopRun %s returned %s" % (runSet, True))
         log.addExpectedExact("DAQLive recovered %s" % runSet)
-        self.failUnless(live.recovering(), "recovering failed")
+        self.assertTrue(live.recovering(), "recovering failed")
 
     def testRunningNothing(self):
         global WARNED
@@ -544,7 +544,7 @@ class DAQLiveTest(unittest.TestCase):
 
         state = {"runConfig": runCfg, "runNumber": runNum}
 
-        self.failUnless(live.starting(state), "starting failed")
+        self.assertTrue(live.starting(state), "starting failed")
 
         exc = LiveException("%s is not running (state = %s)" %
                             (runSet, runSet.state))
@@ -573,11 +573,11 @@ class DAQLiveTest(unittest.TestCase):
 
         state = {"runConfig": runCfg, "runNumber": runNum}
 
-        self.failUnless(live.starting(state), "starting failed")
+        self.assertTrue(live.starting(state), "starting failed")
 
         runSet.setState(runSet.STATE_RUNNING)
 
-        self.failUnless(live.running(), "running failed")
+        self.assertTrue(live.running(), "running failed")
 
     def testSubrun(self):
         global WARNED
@@ -602,7 +602,7 @@ class DAQLiveTest(unittest.TestCase):
 
         state = {"runConfig": runCfg, "runNumber": runNum}
 
-        self.failUnless(live.starting(state), "starting failed")
+        self.assertTrue(live.starting(state), "starting failed")
 
         self.assertEqual("OK", live.subrun(1, ["domA", "dom2", ]))
 

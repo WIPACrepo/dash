@@ -424,8 +424,8 @@ class ComponentManagerTest(unittest.TestCase):
 
     def testGetActiveNothing(self):
         comps = ComponentManager.getActiveComponents(None)
-        self.failIf(comps is None,
-                    "getActiveComponents should not return None")
+        self.assertFalse(comps is None,
+                         "getActiveComponents should not return None")
 
     def testGetActiveConfig(self):
         configName = "simpleConfig"
@@ -436,8 +436,8 @@ class ComponentManagerTest(unittest.TestCase):
         comps = ComponentManager.getActiveComponents(clusterDesc,
                                                      configDir=self.CONFIG_DIR,
                                                      validate=False)
-        self.failIf(comps is None,
-                    "getActiveComponents should not return None")
+        self.assertFalse(comps is None,
+                         "getActiveComponents should not return None")
 
         expComps = ("eventBuilder", "SecondaryBuilders", "globalTrigger",
                     "inIceTrigger", "stringHub#1001", "stringHub#1002",
@@ -451,7 +451,7 @@ class ComponentManagerTest(unittest.TestCase):
             names.append(c.fullname)
 
         for c in expComps:
-            self.failUnless(c in names,
+            self.assertTrue(c in names,
                             "Expected component %s is not in (%s)" %
                             (c, names))
 
@@ -482,8 +482,8 @@ class ComponentManagerTest(unittest.TestCase):
                                                      configDir=self.CONFIG_DIR,
                                                      validate=False,
                                                      useCnC=True)
-        self.failIf(comps is None,
-                    "getActiveComponents should not return None")
+        self.assertFalse(comps is None,
+                         "getActiveComponents should not return None")
 
         totComps = len(expUnused) + len(expRSComps)
         self.assertEqual(totComps, len(comps),
@@ -500,7 +500,7 @@ class ComponentManagerTest(unittest.TestCase):
                     expName = c[0]
                 else:
                     expName = "%s#%d" % (c[0], c[1])
-                self.failUnless(expName in names,
+                self.assertTrue(expName in names,
                                 "Expected component %s is not in (%s)" %
                                 (expName, names))
 

@@ -1686,8 +1686,8 @@ class IntegrationTest(unittest.TestCase):
         cnc.updateRates(setId)
 
         moni = cnc.rpc_runset_monitor_run(setId)
-        self.failIf(moni is None, 'rpc_run_monitoring returned None')
-        self.failIf(len(moni) == 0, 'rpc_run_monitoring returned no data')
+        self.assertFalse(moni is None, 'rpc_run_monitoring returned None')
+        self.assertFalse(len(moni) == 0, 'rpc_run_monitoring returned no data')
         self.assertEqual(numEvts, moni['physicsEvents'],
                          'Expected %d physics events, not %d' %
                          (numEvts, moni['physicsEvents']))

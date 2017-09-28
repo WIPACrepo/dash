@@ -136,7 +136,7 @@ class TestRunSet(unittest.TestCase):
         statDict = runset.status()
         self.assertEqual(len(statDict), len(compList))
         for c in compList:
-            self.failUnless(c in statDict, 'Could not find ' + str(c))
+            self.assertTrue(c in statDict, 'Could not find ' + str(c))
             self.assertEqual(statDict[c], expState,
                              "Component %s: %s != expected %s" %
                              (c, statDict[c], expState))
@@ -190,10 +190,10 @@ class TestRunSet(unittest.TestCase):
         logger.checkStatus(10)
 
         if len(compList) > 0:
-            self.failUnless(self.__isCompListConfigured(compList),
+            self.assertTrue(self.__isCompListConfigured(compList),
                             'Components should be configured')
-            self.failIf(self.__isCompListRunning(compList),
-                        'Components should not be running')
+            self.assertFalse(self.__isCompListRunning(compList),
+                             "Components should not be running")
 
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
@@ -207,7 +207,7 @@ class TestRunSet(unittest.TestCase):
                 raise
             stopErr = False
 
-        self.failIf(stopErr, "stopRun() encountered error")
+        self.assertFalse(stopErr, "stopRun() encountered error")
 
         for comp in compList:
             if comp.isSource:
@@ -307,10 +307,10 @@ class TestRunSet(unittest.TestCase):
 
         expState = "ready"
         if len(compList) > 0:
-            self.failUnless(self.__isCompListConfigured(compList),
+            self.assertTrue(self.__isCompListConfigured(compList),
                             'Components should be configured')
-            self.failIf(self.__isCompListRunning(compList),
-                        'Components should not be running')
+            self.assertFalse(self.__isCompListRunning(compList),
+                             "Components should not be running")
 
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
@@ -340,10 +340,10 @@ class TestRunSet(unittest.TestCase):
                          (runset.id, expState))
 
         if len(compList) > 0:
-            self.failIf(self.__isCompListConfigured(compList),
-                        'Components should be configured')
-            self.failIf(self.__isCompListRunning(compList),
-                        'Components should not be running')
+            self.assertFalse(self.__isCompListConfigured(compList),
+                             "Components should be configured")
+            self.assertFalse(self.__isCompListRunning(compList),
+                             "Components should not be running")
 
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
@@ -409,9 +409,9 @@ class TestRunSet(unittest.TestCase):
                          (runset.id, runNum, expState))
 
         if components is not None and len(components) > 0:
-            self.failUnless(self.__isCompListConfigured(components),
+            self.assertTrue(self.__isCompListConfigured(components),
                             'Components should be configured')
-            self.failUnless(self.__isCompListRunning(components, runNum),
+            self.assertTrue(self.__isCompListRunning(components, runNum),
                             'Components should not be running')
 
         self.__checkStatus(runset, components, expState)
@@ -476,8 +476,8 @@ class TestRunSet(unittest.TestCase):
             logger.addExpectedExact("Run terminated SUCCESSFULLY.")
 
         if hangType < 2:
-            self.failIf(runset.stopRun(stopName, timeout=0),
-                        "stopRun() encountered error")
+            self.assertFalse(runset.stopRun(stopName, timeout=0),
+                             "stopRun() encountered error")
             expState = "ready"
         else:
             try:
@@ -500,10 +500,10 @@ class TestRunSet(unittest.TestCase):
                                  hangType > 1)
 
         if len(components) > 0:
-            self.failUnless(self.__isCompListConfigured(components),
-                            'Components should be configured')
-            self.failIf(self.__isCompListRunning(components),
-                        'Components should not be running')
+            self.assertTrue(self.__isCompListConfigured(components),
+                            "Components should be configured")
+            self.assertFalse(self.__isCompListRunning(components),
+                             "Components should not be running")
 
         if hangType == 0:
             self.__checkStatus(runset, components, expState)
@@ -705,8 +705,8 @@ class TestRunSet(unittest.TestCase):
                                 (runset.id, compStr))
 
         try:
-            self.failIf(runset.stopRun(stopName, timeout=0),
-                        "stopRun() encountered error")
+            self.assertFalse(runset.stopRun(stopName, timeout=0),
+                             "stopRun() encountered error")
             self.fail("stopRun() on new runset should throw exception")
         except Exception as ex:
             if str(ex) != "RunSet #%d is not running" % runset.id:

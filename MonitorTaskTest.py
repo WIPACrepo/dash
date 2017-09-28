@@ -154,11 +154,12 @@ class MonitorTaskTest(unittest.TestCase):
     def __validateFiles(self, runOpt, compList):
         files = os.listdir(self.__temp_dir)
         if not RunOption.isMoniToFile(runOpt):
-            self.failIf(len(files) > 0, "Found unexpected monitoring files: " +
-                        str(files))
+            self.assertFalse(len(files) > 0,
+                             "Found unexpected monitoring files: " +
+                             str(files))
             return
 
-        self.failUnless(len(files) == len(compList) + 1,
+        self.assertTrue(len(files) == len(compList) + 1,
                         "Expected %d files, not %d: %s" %
                         (len(compList) + 1, len(files), files))
 
@@ -254,7 +255,7 @@ class MonitorTaskTest(unittest.TestCase):
         except Exception as ex:
             if not str(ex).endswith("Forced exception"):
                 raise
-        self.failUnless(tsk.numOpen() == 0, "%d threads were not closed" %
+        self.assertTrue(tsk.numOpen() == 0, "%d threads were not closed" %
                         tsk.numOpen())
 
 if __name__ == '__main__':

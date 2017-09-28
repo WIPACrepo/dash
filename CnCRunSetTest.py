@@ -793,7 +793,7 @@ class CnCRunSetTest(unittest.TestCase):
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
                            "stringhub", "EarliestLastChannelHitTime", 20)
 
-        self.failIf(rs.stopRun(stopName), "stopRun() encountered error")
+        self.assertFalse(rs.stopRun(stopName), "stopRun() encountered error")
 
         logger.checkStatus(5)
         dashLog.checkStatus(5)
@@ -1034,7 +1034,7 @@ class CnCRunSetTest(unittest.TestCase):
         liveMoni.checkStatus(5)
 
         rs = self.__cnc.findRunset(rsId)
-        self.failIf(rs is None, "Could not find runset #%d" % rsId)
+        self.assertFalse(rs is None, "Could not find runset #%d" % rsId)
 
         time.sleep(1)
 

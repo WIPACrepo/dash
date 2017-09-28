@@ -130,7 +130,7 @@ class WatchdogTaskTest(unittest.TestCase):
             logger.checkStatus(4)
 
         if testIn or testOut or testThresh:
-            self.failUnless(taskMgr.hasError(),
+            self.assertTrue(taskMgr.hasError(),
                             "TaskManager is not error state")
 
         tsk.close()

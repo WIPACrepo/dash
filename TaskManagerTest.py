@@ -347,8 +347,8 @@ class TaskManagerTest(unittest.TestCase):
         runset.stopRunning()
         rst.stop()
 
-        self.failIf(c.wasUpdated(), "Rate thread was updated")
-        self.failUnless(live.hasAllMoni(), "Monitoring data was not sent")
+        self.assertFalse(c.wasUpdated(), "Rate thread was updated")
+        self.assertTrue(live.hasAllMoni(), "Monitoring data was not sent")
 
     def testRunOnce(self):
         compList = [MockTMComponent("stringHub", 1),
@@ -398,8 +398,8 @@ class TaskManagerTest(unittest.TestCase):
 
             time.sleep(0.1)
 
-        self.failUnless(c.wasUpdated(), "Rate thread was not updated")
-        self.failUnless(live.hasAllMoni(), "Monitoring data was not sent")
+        self.assertTrue(c.wasUpdated(), "Rate thread was not updated")
+        self.assertTrue(live.hasAllMoni(), "Monitoring data was not sent")
 
         runset.stopRunning()
         rst.stop()
@@ -479,8 +479,8 @@ class TaskManagerTest(unittest.TestCase):
 
             time.sleep(0.1)
 
-        self.failUnless(c.wasUpdated(), "Rate thread was not updated")
-        self.failUnless(live.hasAllMoni(), "Monitoring data was not sent")
+        self.assertTrue(c.wasUpdated(), "Rate thread was not updated")
+        self.assertTrue(live.hasAllMoni(), "Monitoring data was not sent")
 
         runset.stopRunning()
         rst.stop()
