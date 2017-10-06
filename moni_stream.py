@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 #
 # moni_stream() is a generator which reads a pDAQ .moni file and returns
-# tuples of (date, category, field, value)
+# tuples of (date_string, category, field, value)
+#
+# parse_date() is a method which can convert date strings into
+# 'datetime.datetime' values
 
 import ast
 import datetime
@@ -9,33 +12,22 @@ import re
 import sys
 
 CATTIME_PAT = re.compile(r"^([^:]+):\s(\d+-\d+-\d+\s\d+:\d+:\d+\.\d+):\s*$")
-DICTELEM_PAT = re.compile(r"^\s*(\S+|'[^']+'):\s+([^:]+)"
-                          r",\s+(?:(?:\S+|'[^']+'):\s+)")
 
 
-def __fix_field_name(key):
-    "Remove stray quote marks from a field name"
-    if key.startswith("'") and key.endswith("'"):
-        return key[1:-1]
-    if key.startswith('"') and key.endswith('"'):
-        return key[1:-1]
-    return key
-
-
-def __split_field_value(line):
-    idx = line.find(": ", 0)
-    if idx < 0:
-        return None
-    return __fix_field_name(line[:idx].strip()), line[idx+2:].strip()
-
-
-def moni_stream(filename, ignored_func=None):
+def moni_stream(filename, fix_values=True, fix_profile=False,
+                ignored_func=None, total_fields=None):
     """
     Read a pDAQ .moni file and return a stream of tuples containing
-    (date_string, category, field, value_string)
+    (date_string, category, field, value).
+    * if 'fix_values' is True, value strings will be translated into Python
+      data types
+    * if 'fix_profile' is True, all ProfileTimes fields have their lists of
+      profiling data stripped down to just the counts
+    * ignored_func(category, fieldname) is an optional function which
+      returns True if this category field should be ignored
+    * if a field name is in the 'total_fields' list and the value is a
+      dictionary, a 'Total' entry will be added
 
-    ignored_func(category, fieldname) is an optional function which
-    returns True if this category field should be ignored
     """
     cur_cat = None
     cur_date = None
@@ -54,14 +46,51 @@ def moni_stream(filename, ignored_func=None):
 
             continue
 
-        fldval = __split_field_value(line)
-        if fldval is not None:
-            if ignored_func is None or \
-               not ignored_func(cur_cat, fldval[0]):
-                yield (cur_date, cur_cat, fldval[0], fldval[1])
+        colon = line.find(": ", 0)
+        if colon < 0:
             continue
 
-        print >>sys.stderr, "Unknown line: " + line
+        fldstr = line[:colon].strip()
+
+        # fix field name
+        if fldstr.startswith("'") and fldstr.endswith("'"):
+            field = fldstr[1:-1]
+        elif fldstr.startswith('"') and fldstr.endswith('"'):
+            field = fldstr[1:-1]
+        else:
+            field = fldstr
+
+        if ignored_func is not None and ignored_func(cur_cat, field):
+            continue
+
+        valstr = line[colon+2:].strip()
+        if not fix_values:
+            value = valstr
+        else:
+            try:
+                value = ast.literal_eval(valstr)
+            except ValueError, ve:
+                raise ValueError("Bad %s.%s value \"%s\"" %
+                                 (cur_cat, field, valstr, ))
+
+            # XXX this is a hack
+            is_profile = fix_profile and field == "ProfileTimes"
+
+            if is_profile and isinstance(value, dict):
+                for dkey, dval in value.iteritems():
+                    # only keep the "count" field
+                    value[dkey] = int(dval[0])
+
+            # should we add a Total entry for this field?
+            add_total = total_fields is not None and field in total_fields
+            if add_total and isinstance(value, dict):
+                try:
+                    total = sum(value.values())
+                    value["Total"] = total
+                except TypeError:
+                    pass
+
+        yield (cur_date, cur_cat, field, value)
 
 
 def parse_date(datestr):
@@ -74,18 +103,54 @@ def parse_date(datestr):
     return datetime.datetime.strptime(datestr, no_subsec_fmt)
 
 
+def compute_delta(delta_values, category, field, value):
+    key = "%s:%s" % (category, field)
+    if key not in delta_values:
+        delta_values[key] = value
+        # don't have a 'delta' yet so don't return this value
+        return None
+
+    tmpval = value - delta_values[key]
+    delta_values[key] = value
+    return tmpval
+
+
 def main():
     "Sample method using moni_stream()"
     parg = argparse.ArgumentParser()
-    parg.add_argument("-p", "--fix-profile-times", dest="fix_profile_times",
+    parg.add_argument("-d", "--delta", dest="delta_fields", action="append",
+                      help="Names of fields which should be 'deltafied'")
+    parg.add_argument("-s", "--standard-fixes", dest="standard_fixes",
                       action="store_true", default=False,
-                      help="")
+                      help="Use the standard settings")
+    parg.add_argument("-p", "--fix-profile-times", dest="fix_profile",
+                      action="store_true", default=False,
+                      help="Only include the count field from ProfileTimes")
+    parg.add_argument("-t", "--total", dest="total_fields", action="append",
+                      help="Names of fields whose dictionary values should"
+                      " include a 'Total' field")
     parg.add_argument("-x", "--debug", dest="debug",
                       action="store_true", default=False,
                       help="Enable debugging")
     parg.add_argument(dest="files", nargs="+")
 
     args = parg.parse_args()
+
+    # initialize delta and total field lists
+    if not args.standard_fixes:
+        delta_fields = args.delta_fields
+        total_fields = args.total_fields
+    else:
+        delta_fields = [
+            "RecordsSent", "TotalProcessed", "TotalRecordsReceived",
+            "TotalRequestsCollected", "TotalRequestsReleased",
+            "TotalStrandDepth", "SentTriggerCount", "TriggerCounter",
+        ]
+        if args.delta_fields is not None:
+            delta_fields += args.delta_fields
+        total_fields = ["QueuedInputs", ]
+        if args.total_fields is not None:
+            total_fields += args.total_fields
 
     for fname in args.files:
         if not fname.endswith(".moni"):
@@ -96,7 +161,12 @@ def main():
         prev_cat = None
         first = True
 
-        for datestr, category, field, valstr in moni_stream(fname):
+        if delta_fields is not None:
+            delta_values = {}
+
+        for fields in moni_stream(fname, fix_profile=args.fix_profile,
+                                  total_fields=total_fields):
+            datestr, category, field, value = fields
             if prev_date != datestr or prev_cat != category:
                 if first:
                     first = False
@@ -106,18 +176,16 @@ def main():
                 prev_date = datestr
                 prev_cat = category
 
-            try:
-                value = ast.literal_eval(valstr)
-            except ValueError, ve:
-                print >>sys.stderr, "Bad value \"%s\"" % (valstr, )
-                continue
-
             if isinstance(value, dict):
-                for key, val in value.items():
-                    print "\t%s+%s: %s" % (field, key, val)
-            elif isinstance(value, list):
-                print "\t%s: %s" % (field, value)
+                for dkey, dval in value.iteritems():
+                    fullname = "%s+%s" % (field, dkey)
+                    if delta_fields is not None and fullname in delta_fields:
+                        dval = compute_delta(delta_values, category, fullname,
+                                             dval)
+                    print "\t%s: %s" % (fullname, dval)
             else:
+                if delta_fields is not None and field in delta_fields:
+                    value = compute_delta(delta_values, category, field, value)
                 print "\t%s: %s" % (field, value)
 
 
