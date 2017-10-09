@@ -18,6 +18,9 @@ def compute_channel_id(string, pos):
     """
     Compute the channel ID for a DOM's (string, position) information
     """
+    if string is None or pos is None:
+        return None
+
     if pos < 1 or pos > 66:
         raise Exception("Impossible position %d" % pos)
 
@@ -100,12 +103,7 @@ class DomGeometry(object):
         return 0
 
     def __str__(self):
-        if self.__origString is not None:
-            strnum = self.__origString
-        else:
-            strnum = self.__string
-        return "%s[%s] %02d-%02d" % \
-            (self.__mbid, self.__name, strnum, self.__pos)
+        return "%s[%s] %s" % (self.__mbid, self.__name, self.location())
 
     def channelId(self):
         return self.__chanId
@@ -135,10 +133,19 @@ class DomGeometry(object):
 
     def location(self):
         if self.__origString is not None:
-            strNum = self.__origString
+            strnum = self.__origString
         else:
-            strNum = self.__string
-        return "%02d-%02d" % (strNum, self.__pos)
+            strnum = self.__string
+
+        if strnum is not None:
+            if self.__pos is not None:
+                return "%02d-%02d" % (strnum, self.__pos)
+            return "%02d-??" % (strnum, )
+
+        if self.__pos is not None:
+            return "??-%02d" % (self.__pos, )
+
+        return "[Not Deployed]"
 
     def mbid(self):
         return self.__mbid
@@ -160,6 +167,10 @@ class DomGeometry(object):
         return self.__prod
 
     def rewrite(self, verbose=False, rewriteOldIcetop=False):
+        if self.__pos is None:
+            print >>sys.stderr, "Not rewriting DOM %s" % (self, )
+            return
+
         baseNum = self.__string % 1000
 
         if self.__pos < 1 or self.__pos > self.MAX_POSITION:
@@ -186,27 +197,39 @@ class DomGeometry(object):
                     self.__name
 
         changedString = False
-        if (baseNum <= self.MAX_STRING and self.__pos <= 60) or \
+        if (baseNum > 0 and baseNum <= self.MAX_STRING and
+            self.__pos <= 60) or \
            (baseNum > self.BASE_ICETOP_HUB_NUM and self.__pos > 60) or \
            (not rewriteOldIcetop and baseNum > self.MAX_STRING and
             self.__pos > 60):
-            pass
-        else:
-            if self.__pos <= 60:
-                it = baseNum
-            elif rewriteOldIcetop and baseNum > self.MAX_STRING and \
-                     baseNum < self.BASE_ICETOP_HUB_NUM:
-                it = baseNum % 10 + self.BASE_ICETOP_HUB_NUM
+            return False
+
+        if self.__pos <= 60:
+            if baseNum != 0 or self.__pos != 1:
+                newNum = baseNum
+            else:
+                newNum = 208
+        elif self.__pos <= 64:
+            if rewriteOldIcetop and baseNum > self.MAX_STRING and \
+               baseNum < self.BASE_ICETOP_HUB_NUM:
+                newNum = baseNum % 10 + self.BASE_ICETOP_HUB_NUM
             else:
                 try:
-                    it = DefaultDomGeometry.getIcetopNum(self.__string)
+                    newNum = DefaultDomGeometry.getIcetopNum(self.__string)
                 except XMLFormatError:
-                    it = self.__string
+                    newNum = self.__string
+        elif self.__pos <= 66:
+            try:
+                newNum = DefaultDomGeometry.getScintillatorNum(self.__string)
+            except XMLFormatError:
+                newNum = self.__string
+        else:
+            raise XMLFormatError("Bad position %s for %s" % (self.__pos, self))
 
-            if it != baseNum:
-                it = (self.__string / 1000) * 1000 + (it % 1000)
-                self.setString(it)
-                changedString = True
+        if newNum != baseNum:
+            newNum = (self.__string / 1000) * 1000 + (newNum % 1000)
+            self.setString(newNum)
+            changedString = True
 
         return changedString
 
@@ -245,11 +268,12 @@ class DomGeometry(object):
     def setString(self, strNum):
         tmpNum = self.__string
         self.__string = strNum
-        if self.__origString is not None:
+        if self.__origString is None:
+            self.__origString = tmpNum
+        elif self.__origString != tmpNum:
             raise DomGeometryException(("Cannot overwrite original string %d" +
                                         " with %d for %s") %
                                        (self.__origString, tmpNum, self))
-        self.__origString = tmpNum
 
     def setX(self, coord):
         self.__x = coord
@@ -306,22 +330,26 @@ class DomGeometry(object):
                   (self, self.__origString, dom.__origString)
 
     def validate(self):
-        if self.__pos is None:
-            if self.__name is not None:
-                dname = self.__name
-            elif self.__mbid is not None:
-                dname = self.__mbid
-            else:
-                raise XMLFormatError("Blank DOM entry")
+        if self.__name is None and self.__mbid is None:
+            if self.__string is None and self.__pos is None:
+                raise XMLFormatError("Found uninitialized DOM %s" % str(self))
+            raise XMLFormatError("No name or mainboard ID for %s" %
+                                 (self.location(), ))
 
-            raise XMLFormatError("DOM %s is missing ID in string %s" %
-                                 (dname, self.__string))
-        if self.__mbid is None:
-            raise XMLFormatError("DOM pos %d is missing MBID in string %s" %
-                                 (self.__pos, self.__string))
         if self.__name is None:
-            raise XMLFormatError("DOM %s is missing name in string %s" %
-                                 (self.__mbid, self.__string))
+            raise XMLFormatError("DOM %s is missing name" % (self.__mbid, ))
+
+        if self.__mbid is None:
+            raise XMLFormatError("DOM %s is missing mainboard ID" %
+                                 (self.__name, ))
+
+        if self.__string is None:
+            if self.__pos is not None:
+                raise XMLFormatError("DOM %s is missing string number" %
+                                     (self.__name, ))
+        elif self.__pos is None:
+            raise XMLFormatError("DOM %s in string %s is missing position" %
+                                 (self.__name, self.__string))
 
     def x(self):
         return self.__x
@@ -339,6 +367,23 @@ class String(object):
         self.__rack = None
         self.__partition = None
         self.__doms = []
+
+    def __iter__(self):
+        return iter(sorted(self.__doms, key=lambda x: x.pos()))
+
+    def __str__(self):
+        if self.__rack is None:
+            rstr = ""
+        else:
+            rstr = "R%s " % (self.__rack, )
+
+        if self.__partition is None:
+            pstr = ""
+        else:
+            pstr = "%s " % (self.__partition, )
+
+        return "String#%s[%s%sDOMS*%d]" % \
+            (self.__number, rstr, pstr, len(self.__doms))
 
     def add(self, dom):
         self.__doms.append(dom)
@@ -448,7 +493,7 @@ class DefaultDomGeometry(object):
         for domid in self.__domIdToDom:
             yield self.__domIdToDom[domid]
 
-    def dump(self, out=sys.stdout):
+    def dump(self, out=sys.stdout, include_undeployed_doms=False):
         "Dump the string->DOM dictionary in default-dom-geometry format"
         strList = self.__strings.keys()
         strList.sort()
@@ -463,17 +508,26 @@ class DefaultDomGeometry(object):
             if len(domList) == 0:
                 continue
 
+            if not include_undeployed_doms and strnum is None:
+                # ignore undeployed DOMs
+                continue
+
             print >>out, "%s<string>" % indent
             if strnum in self.STRING_COMMENT:
                 print >>out, "%s%s<!-- %s -->" % (indent, indent,
                                                   self.STRING_COMMENT[strnum])
-            print >>out, "%s%s<number>%d</number>" % (indent, indent, strnum)
+            if strnum is not None:
+                print >>out, "%s%s<number>%d</number>" % \
+                    (indent, indent, strnum)
+            else:
+                print >>out, "%s%s<!-- Undeployed DOMs -->"
 
-            if self.__strings[strnum].rack is not None:
+            if strnum is not None and self.__strings[strnum].rack is not None:
                 print >>out, "%s%s<rack>%d</rack>" % \
                     (indent, indent, self.__strings[strnum].rack)
 
-            if self.__strings[strnum].partition is not None:
+            if strnum is not None and \
+               self.__strings[strnum].partition is not None:
                 print >>out, "%s%s<partition>%s</partition>" % \
                     (indent, indent, self.__strings[strnum].partition)
 
@@ -613,7 +667,15 @@ class DefaultDomGeometry(object):
             return 211
 
         raise XMLFormatError("Could not find icetop hub for string %d" %
-                             strNum)
+                             (strNum, ))
+
+    @staticmethod
+    def getScintillatorNum(strNum):
+        if strNum in (12, 62, ):
+            return 208
+
+        raise XMLFormatError("Could not find scintillator hub for string %d" %
+                             (strNum, ))
 
     def getDomsOnString(self, strnum):
         "Get the DOMs on the requested string"
@@ -945,12 +1007,20 @@ class DomsTxtReader(object):
                                           (loc, prodId)
                     continue
 
-                if pos <= 60:
+                if pos is None or pos <= 60:
                     origStr = None
-                else:
+                elif pos <= 64:
                     origStr = strNum
                     strNum = DefaultDomGeometry.getIcetopNum(origStr)
-
+                elif pos <= 66:
+                    origStr = strNum
+                    strNum = DefaultDomGeometry.getScintillatorNum(origStr)
+                elif strNum == 0 and pos >= 90 and pos < 100:
+                    # ignore ancient Amanda DOMs
+                    pass
+                else:
+                    raise XMLFormatError("Bad position %s in line \"%s\"" %
+                                         (pos, line))
                 defDomGeom.addString(strNum, errorOnMulti=False)
 
                 if newGeom:
@@ -995,7 +1065,17 @@ class NicknameReader(object):
                 if len(line) == 0:
                     continue
 
-                (mbid, prodId, name, loc, desc) = re.split(r"\s+", line, 4)
+                flds = re.split(r"\s+", line, 4)
+                if len(flds) == 5:
+                    (mbid, prodId, name, loc, desc) = flds
+                elif len(flds) == 4:
+                    (mbid, prodId, name, loc) = flds
+                    desc = None
+                else:
+                    print >>sys.stderr, "Missing location for \"%s\"" % \
+                        (line, )
+                    continue
+
                 if mbid == "mbid":
                     continue
 
@@ -1004,16 +1084,23 @@ class NicknameReader(object):
                     strNum = int(strStr)
                     pos = int(posStr)
                 except:
-                    print >> sys.stderr, ("Bad location \"%s\" "
-                                          "for DOM \"%s\"") % \
-                                          (loc, prodId)
-                    continue
+                    strNum = None
+                    pos = None
 
-                if pos <= 60:
+                if pos is None or pos <= 60:
                     origStr = None
-                else:
+                elif pos <= 64:
                     origStr = strNum
                     strNum = DefaultDomGeometry.getIcetopNum(origStr)
+                elif pos <= 66:
+                    origStr = strNum
+                    strNum = DefaultDomGeometry.getScintillatorNum(origStr)
+                elif strNum == 0 and pos >= 90 and pos < 100:
+                    # ignore ancient Amanda DOMs
+                    pass
+                else:
+                    raise XMLFormatError("Bad position %s in line \"%s\"" %
+                                         (pos, line))
 
                 defDomGeom.addString(strNum, errorOnMulti=False)
 
@@ -1114,11 +1201,20 @@ class GeometryFileReader(object):
                 if len(coords) != 3:
                     continue
 
-                if pos <= 60:
+                if pos is None or pos <= 60:
                     origStr = None
-                else:
+                elif pos <= 64:
                     origStr = strNum
                     strNum = DefaultDomGeometry.getIcetopNum(origStr)
+                elif pos <= 66:
+                    origStr = strNum
+                    strNum = DefaultDomGeometry.getScintillatorNum(origStr)
+                elif strNum == 0 and pos >= 90 and pos < 100:
+                    # ignore ancient Amanda DOMs
+                    pass
+                else:
+                    raise XMLFormatError("Bad position %s in line \"%s\"" %
+                                         (pos, line))
 
                 defDomGeom.addString(strNum, errorOnMulti=False)
 
