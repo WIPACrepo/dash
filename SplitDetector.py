@@ -172,14 +172,21 @@ def make_new_config(run_config, config_dir, partitions, it_key, ii_key,
         print "Generating partition %s" % cfgname
         print "  using hubs %s" % range_string(hub_list)
 
-    path = os.path.join(config_dir, basename + "_" + cfgname + "_partition.xml")
-    if not dry_run:
-        create_config(run_config, path, hub_list, None, keep_hubs=True,
-                      force=force)
-    elif verbose:
-        print "  writing to %s" % path
+    path = os.path.join(config_dir, basename + "_" + cfgname +
+                        "_partition.xml")
+    if dry_run:
+        if verbose:
+            print "  writing to %s" % path
+        else:
+            print "%s: %s" % (path, range_string(hub_list))
     else:
-        print "%s: %s" % (path, range_string(hub_list))
+        final_path = create_config(run_config, path, hub_list, None,
+                                   keep_hubs=True, force=force)
+        if verbose:
+            if final_path is None:
+                print "No hubs/racks removed from %s" % (run_config.basename, )
+            else:
+                print "Created %s" % (final_path, )
 
     return tstname, hub_list
 

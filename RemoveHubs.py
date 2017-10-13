@@ -68,12 +68,15 @@ def create_config(run_config, new_path, hub_list, rack_list, keep_hubs=False,
     if rack_list is not None and len(rack_list) > 0:
         final_list += get_rack_hubs(rack_list)
 
-    # build new configuration
+    # remove hubs from run config
     new_config = run_config.omit(final_list, keep_hubs)
-    if new_config is not None:
-        with open(new_path, 'w') as fd:
-            fd.write(new_config)
-        print "Created %s" % new_path
+    if new_config is None:
+        return None
+
+    # write new configuration
+    with open(new_path, 'w') as fd:
+        fd.write(new_config)
+    return new_path
 
 
 def create_file_name(config_dir, file_name, hub_id_list, rack_list,
@@ -169,8 +172,12 @@ def main():
         print >> sys.stderr, "WARNING: Error parsing %s" % rc_path
         raise SystemExit(config_except)
 
-    create_config(run_config, new_path, hub_list, rack_list,
-                  keep_hubs=args.keep_hubs, force=args.force)
+    new_path = create_config(run_config, new_path, hub_list, rack_list,
+                             keep_hubs=args.keep_hubs, force=args.force)
+    if new_path is None:
+        print "No hubs/racks removed from %s" % (run_config.basename, )
+    else:
+        print "Created %s" % (new_path, )
 
 
 def parse_hub_rack_strings(parser, extra):

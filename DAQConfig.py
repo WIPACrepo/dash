@@ -638,6 +638,14 @@ class DAQConfig(ConfigObject):
                 omit_dict['runConfig']['__children__']['stringHub'].append(
                     shub.xdict)
 
+        if len(self.replay_hubs) > 0:
+            # replay rewrite code was moved to dead_replay_rewrite_code()
+            raise DAQConfigException("Cannot omit hubs/racks from replay"
+                                     " configs")
+
+        return xml_dict.toString(omit_dict)
+
+    def dead_replay_rewrite_code(self):
         # replay hubs
         # rebin by basedir
         replay_base_dir = {}
@@ -657,8 +665,6 @@ class DAQConfig(ConfigObject):
                              '__attribs__': {'baseDir': bdir}
                             }
                         )
-
-        return xml_dict.toString(omit_dict)
 
     @staticmethod
     def createOmitFileName(config_dir, file_name, hub_id_list, keepList=False):
