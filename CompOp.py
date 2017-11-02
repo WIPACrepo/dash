@@ -247,8 +247,8 @@ class ComponentOperation(threading.Thread):
         try:
             self.__runOperation()
         except BeanTimeoutException:
-            self.__log.error("%s(%s): %s" % (str(self.__operation),
-                                             str(self.__comp), exc_string()))
+            self.__log.error("%s(%s): %s" %
+                             (self.__operation, self.__comp, exc_string()))
             self.__error = True
         except:
             self.__error = True

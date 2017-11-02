@@ -11,13 +11,10 @@ class CnCTask(object):
     # maximum seconds to wait for tasks
     MAX_TASK_SECS = 10.0
 
-    def __init__(self, name, taskMgr, logger, debugBit, timerName,
-                 timerPeriod):
+    def __init__(self, name, taskMgr, logger, timerName, timerPeriod):
         self.__name = name
         self.__taskMgr = taskMgr
         self.__logger = logger
-        self.__debugBit = debugBit
-        self.__debug = False
 
         if timerName is None and timerPeriod is None:
             # if the name and/or period are undefined, this will never be run
@@ -66,11 +63,6 @@ class CnCTask(object):
         "Stop the timer forever"
         self.__timer = None
 
-    def logDebug(self, msg):
-        "If debugging is enabled, log a debugging message"
-        if self.__debug:
-            self.__logger.error(msg)
-
     def logError(self, msg):
         "Log an error"
         self.__logger.error(msg)
@@ -83,10 +75,6 @@ class CnCTask(object):
         "Reset everything at the end of the run"
         self.__timer = None
         self._reset()
-
-    def setDebug(self, debugBits):
-        "Enable debugging messages for this task"
-        self.__debug = ((debugBits & self.__debugBit) == self.__debugBit)
 
     def setError(self, callerName):
         """

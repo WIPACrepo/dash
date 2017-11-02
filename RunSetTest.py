@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 
 import unittest
-from LiveImports import LIVE_IMPORT
+from LiveImports import LIVE_IMPORT, Prio
 from RunOption import RunOption
 from RunSet import RunSet, RunSetException, listComponentRanges
 from leapseconds import leapseconds
 from locate_pdaq import set_pdaq_config_dir
 from scmversion import get_scmversion_str
 
-CAUGHT_WARNING = False
+CAUGHT_WARNING = True
 
-from DAQMocks import MockClusterConfig, MockComponent, MockLogger, \
-     RunXMLValidator
+from DAQMocks import MockClusterConfig, MockComponent, MockLogger
 
 
 class FakeLogger(object):
@@ -19,20 +18,6 @@ class FakeLogger(object):
         pass
 
     def stopServing(self):
-        pass
-
-
-class FakeTaskManager(object):
-    def __init__(self):
-        pass
-
-    def reset(self):
-        pass
-
-    def start(self):
-        pass
-
-    def stop(self):
         pass
 
 
@@ -44,10 +29,6 @@ class FakeRunConfig(object):
     @property
     def basename(self):
         return self.__name
-
-    @property
-    def configdir(self):
-        return self.__cfgdir
 
     def hasDOM(self, mbid):
         return True
@@ -70,45 +51,279 @@ class MyParent(object):
         pass
 
 
+class FakeMoniClient(object):
+    def __init__(self):
+        self.__expected = []
+
+    def __compare_dicts(self, name, xvalue, value):
+        for key in xvalue:
+            if key not in value:
+                raise AssertionError("Moni message \"%s\" value is missing"
+                                     " field \"%s\"" % (name, key))
+
+            self.__compare_values("%s.%s" % (name, key), xvalue[key],
+                                  value[key])
+
+        for key in value:
+            if key not in xvalue:
+                raise AssertionError("Moni message \"%s\" value has extra"
+                                     " field \"%s\"" % (name, key))
+
+
+    def __compare_lists(self, name, xvalue, value):
+        raise NotImplementedError()
+
+    def __compare_values(self, name, xvalue, value):
+        if not isinstance(value, type(xvalue)):
+            raise AssertionError("Expected moni message \"%s\" value type %s"
+                                 ", not %s" % (name, type(xvalue).__name__,
+                                               type(value).__name__))
+        if isinstance(value, dict):
+            self.__compare_dicts(name, xvalue, value)
+        elif isinstance(value, list):
+            self.__compare_lists(name, xvalue, value)
+        elif xvalue != value:
+            raise AssertionError("Expected moni message \"%s\" value %s<%s>"
+                                 ", not %s<%s>" %
+                                 (name, xvalue, type(xvalue).__name__,
+                                  value, type(value).__name__))
+
+    def add_moni(self, name, value, prio=Prio.ITS, time=None):
+        self.__expected.append((name, value, prio, time))
+
+    def send_moni(self, name, value, prio=Prio.ITS, time=None):
+        if len(self.__expected) == 0:
+            raise AssertionError("Received unexpected moni message \"%s\": %s" %
+                                 (name, value))
+        (xname, xvalue, xprio, xtime) = self.__expected.pop(0)
+        if xname != name:
+            raise AssertionError("Expected moni message \"%s\", not \"%s\"" %
+                                 (xname, name))
+        if xprio != prio:
+            raise AssertionError("Expected moni message \"%s\" prio %s"
+                                 ", not %s" % (name, xprio, prio))
+        self.__compare_values(name, xvalue, value)
+
+
+class FakeRunData(object):
+    def __init__(self, run_num, run_cfg, clu_cfg, version_info, moni_client):
+        self.__run_number = run_num
+        self.__run_config = run_cfg
+        self.__cluster_config = clu_cfg
+        self.__version_info = version_info
+        self.__moni_client = moni_client
+
+        self.__logger = None
+        self.__finished = False
+
+    @property
+    def cluster_configuration(self):
+        return self.__cluster_config
+
+    def connect_to_live(self):
+        pass
+
+    def create_task_manager(self, runset):
+        self.__taskMgr = MostlyTaskManager(runset, self.__dashlog,
+                                           self.moni_client,
+                                           self.run_directory,
+                                           self.run_configuration,
+                                           self.run_options)
+        return self.__taskMgr
+
+    def error(self, logmsg):
+        if self.__logger is None:
+            raise Exception("Mock logger has not been set")
+        self.__logger.error(logmsg)
+
+    @property
+    def finished(self):
+        return self.__finished
+
+    @property
+    def has_moni_client(self):
+        return True
+
+    def info(self, logmsg):
+        if self.__logger is None:
+            raise Exception("Mock logger has not been set")
+        self.__logger.info(logmsg)
+
+    @property
+    def isDestroyed(self):
+        return self.__logger is not None
+
+    @property
+    def isErrorEnabled(self):
+        return self.__logger.isErrorEnabled
+
+    @property
+    def log_directory(self):
+        return None
+
+    @property
+    def release(self):
+        return self.__version_info["release"]
+
+    @property
+    def repo_revision(self):
+        return self.__version_info["repo_rev"]
+
+    def reset(self):
+        pass
+
+    @property
+    def revision_date(self):
+        return self.__version_info["date"]
+
+    @property
+    def revision_time(self):
+        return self.__version_info["time"]
+
+    @property
+    def run_configuration(self):
+        return self.__run_config
+
+    @property
+    def run_directory(self):
+        return "/bad/path"
+
+    @property
+    def run_number(self):
+        return self.__run_number
+
+    def send_moni(self, name, value, prio=None, time=None, debug=False):
+        if self.__moni_client is None:
+            raise AttributeError("No MoniClient")
+        self.__moni_client.send_moni(name, value, prio=prio, time=time)
+
+    def set_finished(self):
+        self.__finished = True
+
+    def set_subrun_number(self, num):
+        pass
+
+    def set_mock_logger(self, logger):
+        self.__logger = logger
+
+    def stop(self):
+        pass
+
+    def stop_tasks(self):
+        pass
+
+    @property
+    def subrun_number(self):
+        return 0
+
+    @property
+    def task_manager(self):
+        return self.__taskMgr
+
+
 class MyRunSet(RunSet):
-    def __init__(self, parent, runConfig, compList, logger):
-        self.__dashLog = logger
+    def __init__(self, parent, runConfig, compList, logger, moni_client):
+        self.__runConfig = runConfig
+        self.__logger = logger
+        self.__moni_client = moni_client
 
         super(MyRunSet, self).__init__(parent, runConfig, compList, logger)
 
-    @staticmethod
-    def createComponentLog(runDir, c, host, port, liveHost, livePort,
-                           quiet=True):
+    @classmethod
+    def create_component_log(cls, runDir, comp, host, port, liveHost,
+                             livePort, quiet=True):
         return FakeLogger()
 
-    def createDashLog(self):
-        return self.__dashLog
+    def create_moni_client(self, port):
+        return self.__moni_client
 
-    def createRunData(self, runNum, clusterConfigName, runOptions, versionInfo,
-                      spadeDir, copyDir=None, logDir=None, testing=True):
-        return super(MyRunSet, self).createRunData(runNum, clusterConfigName,
-                                                   runOptions, versionInfo,
-                                                   spadeDir, copyDir,
-                                                   logDir, testing=testing)
-
-    def createRunDir(self, logDir, runNum, backupExisting=True):
-        return None
-
-    def createTaskManager(self, dashlog, liveMoniClient, runDir, runCfg,
-                          moniType):
-        return FakeTaskManager()
+    def create_run_data(self, runNum, clusterConfig, runOptions, versionInfo,
+                        spadeDir, copyDir=None, logDir=None, testing=True):
+        fake = FakeRunData(runNum, self.__runConfig, clusterConfig,
+                           versionInfo, self.__moni_client)
+        fake.set_mock_logger(self.__logger)
+        return fake
 
     @classmethod
-    def cycleComponents(cls, compList, configDir, daqDataDir, logger, logPort,
-                        livePort, verbose, killWith9, eventCheck,
-                        checkExists=True):
+    def cycle_components(cls, compList, configDir, daqDataDir, logger, logPort,
+                         livePort, verbose, killWith9, eventCheck,
+                         checkExists=True):
         pass
 
-    def queueForSpade(self, runData, duration):
+    def final_report(self, comps, runData, had_error=False, switching=False):
+        if True:
+            numEvts = 0
+            numMoni = 0
+            numSN = 0
+            numTCal = 0
+            numSecs = 0
+
+            if numSecs == 0:
+                hz_str = ""
+            else:
+                hz = " (%.2f Hz)" % (float(numEvts) / float(numSecs), )
+
+            self.__logger.error("%d physics events collected in %d seconds%s" %
+                                (numEvts, numSecs, hz_str))
+            self.__logger.error("%d moni events, %d SN events, %d tcals" %
+                                (numMoni, numSN, numTCal))
+
+        if switching:
+            verb = "switched"
+        else:
+            verb = "terminated"
+        if had_error:
+            result = "WITH ERROR"
+        else:
+            result = "SUCCESSFULLY"
+        self.__logger.error("Run %s %s." % (verb, result))
+
+    def finish_setup(self, run_data, start_time):
+        run_data.error("Version info: %s %s %s %s" %
+                       (run_data.release,
+                        run_data.repo_revision,
+                        run_data.revision_date,
+                        run_data.revision_time))
+        run_data.error("Run configuration: %s" %
+                       (run_data.run_configuration.basename, ))
+        run_data.error("Cluster: %s" %
+                       (run_data.cluster_configuration.description, ))
+
+    def get_event_counts(self, comps=None, update_counts=None):
+        return {
+            "physicsEvents": 1,
+            "eventPayloadTicks": -100,
+            "wallTime": None,
+            "moniEvents": 1,
+            "moniTime": 99,
+            "snEvents": 1,
+            "snTime": 98,
+            "tcalEvents": 1,
+            "tcalTime": 97,
+        }
+
+    def report_good_time(self, run_data, name, daq_time):
         pass
 
 
 class TestRunSet(unittest.TestCase):
+    def __add_moni_run_update(self, runset, moni_client, run_num):
+        ec_dict = runset.get_event_counts()
+        run_update = {
+            "version": 0,
+            "run": run_num,
+            "subrun": 0,
+        }
+        for stream in ("physics", "moni", "sn", "tcal"):
+            for fld in ("Events", "Time"):
+                key = stream + fld
+                if key in ec_dict:
+                    if fld != "Time":
+                        run_update[key] = ec_dict[key]
+                    else:
+                        run_update[key] = str(ec_dict[key])
+        moni_client.add_moni("run_update", run_update)
+
     def __buildClusterConfig(self, compList, baseName):
         jvmPath = "java-" + baseName
         jvmArgs = "args=" + baseName
@@ -157,7 +372,7 @@ class TestRunSet(unittest.TestCase):
 
         return True
 
-    def __runSubrun(self, compList, runNum, expectError=None):
+    def __runSubrun(self, compList, runNum, moni_client, expectError=None):
         logger = MockLogger('LOG')
 
         num = 1
@@ -169,7 +384,9 @@ class TestRunSet(unittest.TestCase):
 
         cluCfg = FakeCluster("cluster-foo")
 
-        runset = MyRunSet(MyParent(), runConfig, compList, logger)
+        moni_client = FakeMoniClient()
+
+        runset = MyRunSet(MyParent(), runConfig, compList, logger, moni_client)
 
         expState = "idle"
 
@@ -201,17 +418,18 @@ class TestRunSet(unittest.TestCase):
         expState = "running"
 
         try:
-            stopErr = runset.stopRun("StopSubrun", timeout=0)
+            stopErr = runset.stop_run("StopSubrun", timeout=0)
         except RunSetException as ve:
             if not "is not running" in str(ve):
                 raise
             stopErr = False
 
-        self.assertFalse(stopErr, "stopRun() encountered error")
+        self.assertFalse(stopErr, "stop_run() encountered error")
 
         for comp in compList:
             if comp.isSource:
-                comp.mbean.addData("stringhub", "LatestFirstChannelHitTime", 10)
+                comp.mbean.addData("stringhub", "LatestFirstChannelHitTime",
+                                   10)
                 comp.mbean.addData("stringhub", "NumberOfNonZombies", 1)
 
         self.__startRun(runset, runNum, runConfig, cluCfg,
@@ -247,10 +465,11 @@ class TestRunSet(unittest.TestCase):
 
         for comp in compList:
             if comp.isSource:
-                comp.mbean.addData("stringhub", "EarliestLastChannelHitTime", 10)
+                comp.mbean.addData("stringhub", "EarliestLastChannelHitTime",
+                                   10)
 
-        self.__stopRun(runset, runNum, runConfig, cluCfg, components=compList,
-                       logger=logger)
+        self.__stopRun(runset, runNum, runConfig, cluCfg, moni_client,
+                       components=compList, logger=logger)
 
     def __runTests(self, compList, runNum, hangType=None):
         logger = MockLogger('foo#0')
@@ -262,11 +481,13 @@ class TestRunSet(unittest.TestCase):
 
         runConfig = FakeRunConfig(None, "XXXrunCfgXXX")
 
-        expId = RunSet.ID.peekNext()
+        expId = RunSet.ID_SOURCE.peekNext()
 
         cluCfg = FakeCluster("cluster-foo")
 
-        runset = MyRunSet(MyParent(), runConfig, compList, logger)
+        moni_client = FakeMoniClient()
+
+        runset = MyRunSet(MyParent(), runConfig, compList, logger, moni_client)
 
         expState = "idle"
 
@@ -315,7 +536,7 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
-        self.assertRaises(RunSetException, runset.stopRun, ("RunTest"))
+        self.assertRaises(RunSetException, runset.stop_run, ("RunTest"))
         logger.checkStatus(10)
 
         expState = "running"
@@ -327,10 +548,11 @@ class TestRunSet(unittest.TestCase):
 
         for comp in compList:
             if comp.isSource:
-                comp.mbean.addData("stringhub", "EarliestLastChannelHitTime", 10)
+                comp.mbean.addData("stringhub", "EarliestLastChannelHitTime",
+                                   10)
 
-        self.__stopRun(runset, runNum, runConfig, cluCfg, components=compList,
-                       logger=logger, hangType=hangType)
+        self.__stopRun(runset, runNum, runConfig, cluCfg, moni_client,
+                       components=compList, logger=logger, hangType=hangType)
 
         runset.reset()
 
@@ -403,8 +625,8 @@ class TestRunSet(unittest.TestCase):
         logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
         logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for Hubs")
 
-        runset.startRun(runNum, cluCfg, runOptions, versionInfo,
-                        spadeDir, copyDir, logDir)
+        runset.start_run(runNum, cluCfg, runOptions, versionInfo,
+                         spadeDir, copyDir, logDir)
         self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %
                          (runset.id, runNum, expState))
 
@@ -417,8 +639,8 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, components, expState)
         logger.checkStatus(10)
 
-    def __stopRun(self, runset, runNum, runConfig, cluCfg, components=None,
-                  logger=None, hangType=0):
+    def __stopRun(self, runset, runNum, runConfig, cluCfg, moni_client,
+                  components=None, logger=None, hangType=0):
         expState = "stopping"
 
         compList = components
@@ -459,7 +681,7 @@ class TestRunSet(unittest.TestCase):
             if hangType > 1:
                 logger.addExpectedExact("FORCED_STOP failed for " + hangStr)
 
-        logger.addExpectedExact("Reset duration")
+        #logger.addExpectedExact("Reset duration")
 
         logger.addExpectedExact("0 physics events collected in 0 seconds")
         logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
@@ -475,14 +697,19 @@ class TestRunSet(unittest.TestCase):
         else:
             logger.addExpectedExact("Run terminated SUCCESSFULLY.")
 
+        logger.addExpectedExact("Not logging to file so cannot queue to"
+                                " SPADE")
+
+        self.__add_moni_run_update(runset, moni_client, runNum)
+
         if hangType < 2:
-            self.assertFalse(runset.stopRun(stopName, timeout=0),
-                             "stopRun() encountered error")
+            self.assertFalse(runset.stop_run(stopName, timeout=0),
+                             "stop_run() encountered error")
             expState = "ready"
         else:
             try:
-                if not runset.stopRun(stopName, timeout=0):
-                    self.fail("stopRun() should have failed")
+                if not runset.stop_run(stopName, timeout=0):
+                    self.fail("stop_run() should have failed")
             except RunSetException as rse:
                 expMsg = "RunSet #%d run#%d (%s): Could not stop %s" % \
                          (runset.id, runNum, expState, hangStr)
@@ -495,9 +722,9 @@ class TestRunSet(unittest.TestCase):
                          (runset.id, runNum, expState))
         self.assertFalse(runset.stopping(), "RunSet #%d is still stopping")
 
-        RunXMLValidator.validate(self, runNum, runConfig.basename,
-                                 cluCfg.description, None, None, 0, 0, 0, 0,
-                                 hangType > 1)
+        #RunXMLValidator.validate(self, runNum, runConfig.basename,
+        #                         cluCfg.description, None, None, 0, 0, 0, 0,
+        #                         hangType > 1)
 
         if len(components) > 0:
             self.assertTrue(self.__isCompListConfigured(components),
@@ -510,7 +737,7 @@ class TestRunSet(unittest.TestCase):
         logger.checkStatus(10)
 
     def setUp(self):
-        RunXMLValidator.setUp()
+        #RunXMLValidator.setUp()
 
         set_pdaq_config_dir("src/test/resources/config", override=True)
 
@@ -521,7 +748,7 @@ class TestRunSet(unittest.TestCase):
     def tearDown(self):
         set_pdaq_config_dir(None, override=True)
 
-        RunXMLValidator.tearDown()
+        #RunXMLValidator.tearDown()
 
     def testEmpty(self):
         self.__runTests([], 1)
@@ -535,14 +762,18 @@ class TestRunSet(unittest.TestCase):
     def testSubrunGood(self):
         compList = self.__buildCompList(("fooHub", "barHub", "bazBuilder"))
 
-        self.__runSubrun(compList, 3)
+        moni_client = FakeMoniClient()
+
+        self.__runSubrun(compList, 3, moni_client)
 
     def testSubrunOneBad(self):
 
         compList = self.__buildCompList(("fooHub", "barHub", "bazBuilder"))
         compList[1].setBadHub()
 
-        self.__runSubrun(compList, 4, expectError="on %s" %
+        moni_client = FakeMoniClient()
+
+        self.__runSubrun(compList, 4, moni_client, expectError="on %s" %
                          compList[1].fullname)
 
     def testSubrunBothBad(self):
@@ -551,7 +782,10 @@ class TestRunSet(unittest.TestCase):
         compList[0].setBadHub()
         compList[1].setBadHub()
 
-        self.__runSubrun(compList, 5, expectError="on any string hubs")
+        moni_client = FakeMoniClient()
+
+        self.__runSubrun(compList, 5, moni_client,
+                         expectError="on any string hubs")
 
     def testStopHang(self):
         hangType = 1
@@ -580,7 +814,9 @@ class TestRunSet(unittest.TestCase):
         runConfig = FakeRunConfig(None, "XXXrunCfgXXX")
         logger = MockLogger('foo#0')
 
-        runset = MyRunSet(MyParent(), runConfig, compList, logger)
+        moni_client = FakeMoniClient()
+
+        runset = MyRunSet(MyParent(), runConfig, compList, logger, moni_client)
 
         baseName = "failCluCfg"
 
@@ -602,8 +838,8 @@ class TestRunSet(unittest.TestCase):
         if errMsg is not None:
             logger.addExpectedExact(errMsg)
 
-        runset.restartComponents(compList[:], clusterCfg, None, None, None,
-                                 None, False, False, False)
+        runset.restart_components(compList[:], clusterCfg, None, None, None,
+                                  None, False, False, False)
 
     def testRestartExtraComp(self):
         compList = self.__buildCompList(("sleepy", "sneezy", "happy", "grumpy",
@@ -612,7 +848,9 @@ class TestRunSet(unittest.TestCase):
         runConfig = FakeRunConfig(None, "XXXrunCfgXXX")
         logger = MockLogger('foo#0')
 
-        runset = MyRunSet(MyParent(), runConfig, compList, logger)
+        moni_client = FakeMoniClient()
+
+        runset = MyRunSet(MyParent(), runConfig, compList, logger, moni_client)
 
         extraComp = MockComponent("queen", 10)
 
@@ -637,8 +875,8 @@ class TestRunSet(unittest.TestCase):
         if errMsg is not None:
             logger.addExpectedExact(errMsg)
 
-        runset.restartComponents(longList, clusterCfg, None, None, None,
-                                 None, False, False, False)
+        runset.restart_components(longList, clusterCfg, None, None, None,
+                                  None, False, False, False)
 
     def testRestart(self):
         compList = self.__buildCompList(("sleepy", "sneezy", "happy", "grumpy",
@@ -647,7 +885,9 @@ class TestRunSet(unittest.TestCase):
         runConfig = FakeRunConfig(None, "XXXrunCfgXXX")
         logger = MockLogger('foo#0')
 
-        runset = MyRunSet(MyParent(), runConfig, compList, logger)
+        moni_client = FakeMoniClient()
+
+        runset = MyRunSet(MyParent(), runConfig, compList, logger, moni_client)
 
         clusterCfg = self.__buildClusterConfig(compList, "restart")
 
@@ -660,8 +900,8 @@ class TestRunSet(unittest.TestCase):
         if errMsg is not None:
             logger.addExpectedExact(errMsg)
 
-        runset.restartComponents(compList[:], clusterCfg, None, None, None,
-                                 None, False, False, False)
+        runset.restart_components(compList[:], clusterCfg, None, None, None,
+                                  None, False, False, False)
 
     def testRestartAll(self):
         compList = self.__buildCompList(("sleepy", "sneezy", "happy", "grumpy",
@@ -670,7 +910,9 @@ class TestRunSet(unittest.TestCase):
         runConfig = FakeRunConfig(None, "XXXrunCfgXXX")
         logger = MockLogger('foo#0')
 
-        runset = MyRunSet(MyParent(), runConfig, compList, logger)
+        moni_client = FakeMoniClient()
+
+        runset = MyRunSet(MyParent(), runConfig, compList, logger, moni_client)
 
         clusterCfg = self.__buildClusterConfig(compList, "restartAll")
 
@@ -683,15 +925,17 @@ class TestRunSet(unittest.TestCase):
         if errMsg is not None:
             logger.addExpectedExact(errMsg)
 
-        runset.restartAllComponents(clusterCfg, None, None, None, None,
-                                    False, False, False)
+        runset.restart_all_components(clusterCfg, None, None, None, None,
+                                      False, False, False)
 
     def testShortStopWithoutStart(self):
         compList = self.__buildCompList(("one", "two", "three"))
         runConfig = FakeRunConfig(None, "XXXrunCfgXXX")
         logger = MockLogger('foo#0')
 
-        runset = MyRunSet(MyParent(), runConfig, compList, logger)
+        moni_client = FakeMoniClient()
+
+        runset = MyRunSet(MyParent(), runConfig, compList, logger, moni_client)
 
         compStr = "one#1, two#2, three#3"
 
@@ -705,9 +949,9 @@ class TestRunSet(unittest.TestCase):
                                 (runset.id, compStr))
 
         try:
-            self.assertFalse(runset.stopRun(stopName, timeout=0),
-                             "stopRun() encountered error")
-            self.fail("stopRun() on new runset should throw exception")
+            self.assertFalse(runset.stop_run(stopName, timeout=0),
+                             "stop_run() encountered error")
+            self.fail("stop_run() on new runset should throw exception")
         except Exception as ex:
             if str(ex) != "RunSet #%d is not running" % runset.id:
                 raise
@@ -717,7 +961,9 @@ class TestRunSet(unittest.TestCase):
         runConfig = FakeRunConfig(None, "XXXrunCfgXXX")
         logger = MockLogger('foo#0')
 
-        runset = MyRunSet(MyParent(), runConfig, compList, logger)
+        moni_client = FakeMoniClient()
+
+        runset = MyRunSet(MyParent(), runConfig, compList, logger, moni_client)
 
         runset.configure()
 
@@ -727,15 +973,17 @@ class TestRunSet(unittest.TestCase):
         self.__startRun(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
 
-        self.__stopRun(runset, runNum, runConfig, cluCfg, components=compList,
-                       logger=logger)
+        self.__stopRun(runset, runNum, runConfig, cluCfg, moni_client,
+                       components=compList, logger=logger)
 
     def testShortStopHang(self):
         compList = self.__buildCompList(("one", "two", "three"))
         runConfig = FakeRunConfig(None, "XXXrunCfgXXX")
         logger = MockLogger('foo#0')
 
-        runset = MyRunSet(MyParent(), runConfig, compList, logger)
+        moni_client = FakeMoniClient()
+
+        runset = MyRunSet(MyParent(), runConfig, compList, logger, moni_client)
 
         runset.configure()
 
@@ -751,8 +999,8 @@ class TestRunSet(unittest.TestCase):
 
         RunSet.TIMEOUT_SECS = 5
 
-        self.__stopRun(runset, runNum, runConfig, cluCfg, components=compList,
-                       logger=logger, hangType=hangType)
+        self.__stopRun(runset, runNum, runConfig, cluCfg, moni_client,
+                       components=compList, logger=logger, hangType=hangType)
 
     def testBadStop(self):
         compList = self.__buildCompList(("first", "middle", "middle",
@@ -760,7 +1008,9 @@ class TestRunSet(unittest.TestCase):
         runConfig = FakeRunConfig(None, "XXXrunCfgXXX")
         logger = MockLogger('foo#0')
 
-        runset = MyRunSet(MyParent(), runConfig, compList, logger)
+        moni_client = FakeMoniClient()
+
+        runset = MyRunSet(MyParent(), runConfig, compList, logger, moni_client)
 
         runset.configure()
 
@@ -780,11 +1030,14 @@ class TestRunSet(unittest.TestCase):
         stopName = "BadStop"
         logger.addExpectedExact("Stopping the run (%s)" % stopName)
 
-        logger.addExpectedExact("Reset duration")
+        #logger.addExpectedExact("Reset duration")
 
         logger.addExpectedExact("0 physics events collected in 0 seconds")
         logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
         logger.addExpectedExact("Run terminated SUCCESSFULLY.")
+
+        logger.addExpectedExact("Not logging to file so cannot queue to"
+                                " SPADE")
 
         logger.addExpectedExact(("RunSet #1 run#%d (forcingStop):" +
                                  " Forcing 6 components to stop: %s") %
@@ -797,17 +1050,20 @@ class TestRunSet(unittest.TestCase):
                       " stopping[%s]") % (runset.id, runNum, compStr)
         logger.addExpectedExact(stopErrMsg)
 
+        self.__add_moni_run_update(runset, moni_client, runNum)
+
         try:
             try:
-                runset.stopRun(stopName, timeout=0)
+                runset.stop_run(stopName, timeout=0)
             except RunSetException as rse:
                 self.assertEqual(str(rse), stopErrMsg,
                                  "Expected exception %s, not %s" %
                                  (rse, stopErrMsg))
         finally:
-            RunXMLValidator.validate(self, runNum, runConfig.basename,
-                                     cluCfg.description, None, None, 0, 0, 0,
-                                     0, False)
+            pass
+            #RunXMLValidator.validate(self, runNum, runConfig.basename,
+            #                         cluCfg.description, None, None, 0, 0, 0,
+            #                         0, False)
 
     def testListCompRanges(self):
 

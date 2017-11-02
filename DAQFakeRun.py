@@ -170,6 +170,7 @@ class ComponentData(object):
                 "NumEventsSent": (0, 1),
                 "NumReadoutsReceived": (0, 2),
                 "NumTriggerRequestsReceived": (0, 2),
+                "NumEventsDispatched": (0, None),
                 },
             },
         "secondaryBuilders": {

@@ -10,7 +10,6 @@ from CnCThread import CnCThread
 from DAQClient import BeanTimeoutException
 from LiveImports import Prio
 from RunOption import RunOption
-from RunSetDebug import RunSetDebug
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -257,7 +256,6 @@ class MonitorToBoth(object):
 class MonitorTask(CnCTask):
     NAME = "Monitoring"
     PERIOD = 100
-    DEBUG_BIT = RunSetDebug.MONI_TASK
 
     MAX_REFUSED = 3
 
@@ -267,8 +265,7 @@ class MonitorTask(CnCTask):
             period = self.PERIOD
 
         super(MonitorTask, self).__init__(self.NAME, taskMgr, dashlog,
-                                          self.DEBUG_BIT, self.NAME,
-                                          period)
+                                          self.NAME, period)
 
         self.__threadList = self.__createThreads(runset, dashlog, liveMoni,
                                                  runDir, runOptions)

@@ -67,7 +67,7 @@ class MockRunSet(object):
     def state(self):
         return self.__state
 
-    def stopRun(self, hadError=False):
+    def stop_run(self, hadError=False):
         if self.isDestroyed:
             raise Exception("Runset destroyed")
 
@@ -470,7 +470,8 @@ class DAQLiveTest(unittest.TestCase):
         runSet.setExpectedStopError()
         runSet.setStopReturnError()
 
-        log.addExpectedExact("DAQLive stopRun %s returned %s" % (runSet, False))
+        log.addExpectedExact("DAQLive stop_run %s returned %s" %
+                             (runSet, False))
         log.addExpectedExact("DAQLive recovered %s" % runSet)
         self.assertTrue(live.recovering(), "recovering failed")
 
@@ -501,7 +502,8 @@ class DAQLiveTest(unittest.TestCase):
 
         runSet.setExpectedStopError()
 
-        log.addExpectedExact("DAQLive stopRun %s returned %s" % (runSet, True))
+        log.addExpectedExact("DAQLive stop_run %s returned %s" %
+                             (runSet, True))
         log.addExpectedExact("DAQLive recovered %s" % runSet)
         self.assertTrue(live.recovering(), "recovering failed")
 

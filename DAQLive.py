@@ -108,8 +108,8 @@ class DAQLive(Component):
                 self.__runSet = None
             elif not self.__runSet.isReady:
                 if not self.__runSet.stopping():
-                    stopVal = not self.__runSet.stopRun("LiveRecover",
-                                                        hadError=True)
+                    stopVal = not self.__runSet.stop_run("LiveRecover",
+                                                         had_error=True)
                     self.__log.error("DAQLive stopRun %s returned %s" %
                                      (self.__runSet, stopVal))
 
@@ -163,7 +163,7 @@ class DAQLive(Component):
 
         if self.__moniTimer.isTime():
             self.__moniTimer.reset()
-            self.__runSet.sendEventCounts()
+            self.__runSet.send_event_counts()
 
         return True
 
@@ -214,7 +214,7 @@ class DAQLive(Component):
             if not self.__startThrd.isAlive():
                 self.__startThrd = None
 
-        gotError = self.__runSet.stopRun(self.__runSet.NORMAL_STOP)
+        gotError = self.__runSet.stop_run(self.__runSet.NORMAL_STOP)
         if not self.__runSet.isReady:
             raise LiveException("%s did not stop" % self.__runSet)
 
@@ -248,7 +248,7 @@ class DAQLive(Component):
         except KeyError:
             raise LiveException("stateArgs does not contain key \"%s\"" % key)
 
-        self.__runSet.switchRun(runNum)
+        self.__runSet.switch_run(runNum)
 
         return "OK"
 

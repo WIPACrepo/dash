@@ -12,9 +12,7 @@ from RunOption import RunOption
 from RunSet import RunSet, ConnectionException
 
 from DAQMocks import MockComponent, MockLeapsecondFile, MockLogger, \
-    MockRunConfigFile, RunXMLValidator
-
-ACTIVE_WARNING = False
+    MockRunConfigFile
 
 
 class FakeLogger(object):
@@ -22,20 +20,6 @@ class FakeLogger(object):
         pass
 
     def stopServing(self):
-        pass
-
-
-class FakeTaskManager(object):
-    def __init__(self):
-        pass
-
-    def reset(self):
-        pass
-
-    def start(self):
-        pass
-
-    def stop(self):
         pass
 
 
@@ -47,32 +31,106 @@ class FakeCluster(object):
     def description(self):
         return self.__descName
 
+class MockRunData(object):
+    def __init__(self, runNum, clusterConfigName, runOptions, versionInfo,
+                 spadeDir, copyDir, logDir, testing=True):
+        self.__run_number = runNum
+
+        self.__logger = None
+        self.__finished = False
+
+    def connect_to_live(self):
+        pass
+
+    def error(self, logmsg):
+        if self.__logger is None:
+            raise Exception("Mock logger has not been set")
+        self.__logger.error(logmsg)
+
+    @property
+    def finished(self):
+        return self.__finished
+
+    @property
+    def has_moni_client(self):
+        return True
+
+    @property
+    def isErrorEnabled(self):
+        return self.__logger.isErrorEnabled
+
+    @property
+    def log_directory(self):
+        return None
+
+    def reset(self):
+        pass
+
+    @property
+    def run_directory(self):
+        return "/bad/path"
+
+    @property
+    def run_number(self):
+        return self.__run_number
+
+    def send_moni(self, name, value, prio=None, time=None, debug=False):
+        pass
+
+    def set_finished(self):
+        self.__finished = True
+
+    def set_mock_logger(self, logger):
+        self.__logger = logger
+
+    def stop(self):
+        pass
+
+    def stop_tasks(self):
+        pass
+
+    @property
+    def subrun_number(self):
+        return 0
+
+
 class MyRunSet(RunSet):
     def __init__(self, parent, runConfig, compList, logger):
+        self.__logger = logger
         self.__logDict = {}
 
         super(MyRunSet, self).__init__(parent, runConfig, compList, logger)
 
-    def createComponentLog(self, runDir, c, host, port, liveHost, livePort,
-                           quiet=True):
+    @classmethod
+    def create_component_log(cls, runDir, comp, host, port, liveHost,
+                             livePort, quiet=True):
         return FakeLogger()
 
-    def createDashLog(self):
-        return self.getLog("dashLog")
+    def create_run_data(self, runNum, clusterConfigName, runOptions,
+                        versionInfo, spadeDir, copyDir=None, logDir=None):
+        mrd = MockRunData(runNum, clusterConfigName, runOptions, versionInfo,
+                          spadeDir, copyDir, logDir, True)
+        mrd.set_mock_logger(self.getLog("dashLog"))
+        return mrd
 
-    def createRunData(self, runNum, clusterConfigName, runOptions, versionInfo,
-                      spadeDir, copyDir=None, logDir=None):
-        return super(MyRunSet, self).createRunData(runNum, clusterConfigName,
-                                                   runOptions, versionInfo,
-                                                   spadeDir, copyDir, logDir,
-                                                   True)
+    def final_report(self, comps, runData, had_error=False, switching=False):
+        self.__logger.error("MockRun final report")
 
-    def createRunDir(self, logDir, runNum, backupExisting=True):
-        return None
+    def finish_setup(self, run_data, start_time):
+        pass
 
-    def createTaskManager(self, dashlog, liveMoniClient, runDir, runCfg,
-                          moniType):
-        return FakeTaskManager()
+    def get_event_counts(self, comps=None, update_counts=True):
+        return {
+            "physicsEvents": 1,
+            "eventPayloadTicks": -100,
+            "wallTime": None,
+            "moniEvents": 1,
+            "moniTime": 99,
+            "snEvents": 1,
+            "snTime": 98,
+            "tcalEvents": 1,
+            "tcalTime": 97,
+        }
 
     def getLog(self, name):
         if not name in self.__logDict:
@@ -80,7 +138,7 @@ class MyRunSet(RunSet):
 
         return self.__logDict[name]
 
-    def queueForSpade(self, runData, duration):
+    def report_good_time(self, run_data, name, daq_time):
         pass
 
 
@@ -93,8 +151,8 @@ class MyDAQPool(DAQPool):
 
     def returnRunsetComponents(self, rs, verbose=False, killWith9=True,
                                eventCheck=False):
-        rs.returnComponents(self, None, None, None, None, None, None, None,
-                            None)
+        rs.return_components(self, None, None, None, None, None, None, None,
+                             None)
 
     def saveCatchall(self, runDir):
         pass
@@ -121,15 +179,11 @@ class TestDAQPool(unittest.TestCase):
 
         set_pdaq_config_dir(None, override=True)
 
-        RunXMLValidator.setUp()
-
     def tearDown(self):
         if self.__runConfigDir is not None:
             shutil.rmtree(self.__runConfigDir, ignore_errors=True)
 
         set_pdaq_config_dir(None, override=True)
-
-        RunXMLValidator.tearDown()
 
     def testEmpty(self):
         mgr = DAQPool()
@@ -685,11 +739,6 @@ class TestDAQPool(unittest.TestCase):
 
         clusterCfg = FakeCluster("cluster-foo")
 
-        dashLog = runset.getLog("dashLog")
-        dashLog.addExpectedRegexp(r"Version info: \S+ \S+ \S+ \S+")
-        dashLog.addExpectedExact("Run configuration: %s" % runConfig)
-        dashLog.addExpectedExact("Cluster: %s" % clusterCfg.description)
-
         self.__checkRunsetState(runset, 'ready')
 
         runNum = 1
@@ -698,6 +747,9 @@ class TestDAQPool(unittest.TestCase):
         logger.addExpectedExact("Starting run #%d on \"%s\"" %
                                 (runNum, clusterCfg.description))
 
+        dashLog = runset.getLog("dashLog")
+        #dashLog.addExpectedRegexp(r"MockRun finished setup")
+
         dashLog.addExpectedExact("Starting run %d..." % runNum)
 
         logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
@@ -705,13 +757,6 @@ class TestDAQPool(unittest.TestCase):
 
         aComp.mbean.addData("stringhub", "LatestFirstChannelHitTime", 10)
         aComp.mbean.addData("stringhub", "NumberOfNonZombies", 1)
-
-        global ACTIVE_WARNING
-        if not LIVE_IMPORT and not ACTIVE_WARNING:
-            ACTIVE_WARNING = True
-            dashLog.addExpectedExact("Cannot import IceCube Live code, so" +
-                                     " per-string active DOM stats wil not" +
-                                     " be reported")
 
         versionInfo = {
             "filename": "fName",
@@ -726,10 +771,11 @@ class TestDAQPool(unittest.TestCase):
         spadeDir = "/tmp"
         copyDir = None
 
-        runset.startRun(runNum, clusterCfg, moniType, versionInfo, spadeDir,
-                        copyDir)
+        runset.start_run(runNum, clusterCfg, moniType, versionInfo, spadeDir,
+                         copyDir)
 
         self.__checkRunsetState(runset, 'running')
+        dashLog.checkStatus(10)
 
         numEvts = 1
         numMoni = 0
@@ -743,43 +789,36 @@ class TestDAQPool(unittest.TestCase):
         cComp.mbean.addData("backEnd", "EventData", (numEvts, lastTime))
         cComp.mbean.addData("backEnd", "GoodTimes", (firstTime, lastTime))
 
-        monDict = runset.getEventCounts()
+        monDict = runset.get_event_counts()
         self.assertEqual(monDict["physicsEvents"], numEvts)
+
+        dashLog.addExpectedExact("Not logging to file so cannot queue to"
+                                 " SPADE")
 
         stopName = "TestStartRun"
         dashLog.addExpectedExact("Stopping the run (%s)" % stopName)
 
-        numSecs = (lastTime - firstTime) / 1.0E10
-
-        dashLog.addExpectedExact("%d physics events collected in %d seconds" %
-                                 (numEvts, numSecs))
-        dashLog.addExpectedExact("%d moni events, %d SN events, %d tcals" %
-                                 (numMoni, numSN, numTcal))
-        dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
+        logger.addExpectedExact("MockRun final report")
 
         aComp.mbean.addData("stringhub", "EarliestLastChannelHitTime", 10)
 
-        self.assertFalse(runset.stopRun(stopName),
-                         "stopRun() encountered error")
+        self.assertFalse(runset.stop_run(stopName),
+                         "stop_run() encountered error")
 
         self.__checkRunsetState(runset, 'ready')
+        dashLog.checkStatus(10)
 
         mgr.returnRunset(runset, logger)
 
         self.assertEqual(runset.id, None)
         self.assertEqual(runset.configured(), False)
-        self.assertEqual(runset.runNumber(), None)
+        self.assertEqual(runset.run_number(), None)
 
         self.assertEqual(mgr.numComponents(), len(compList))
         self.assertEqual(runset.size(), 0)
 
         logger.checkStatus(10)
-
-        RunXMLValidator.validate(self, runNum, runConfig,
-                                 clusterCfg.description,
-                                 PayloadTime.toDateTime(firstTime),
-                                 PayloadTime.toDateTime(lastTime),
-                                 numEvts, numMoni, numSN, numTcal, False)
+        dashLog.checkStatus(10)
 
     def testMonitorClients(self):
         self.__runConfigDir = tempfile.mkdtemp()

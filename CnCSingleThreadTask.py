@@ -32,7 +32,7 @@ class CnCSingleThreadTask(CnCTask):
             self.__detailTimer = self.createDetailTimer(taskMgr)
 
         super(CnCSingleThreadTask, self).__init__(name, taskMgr, dashlog,
-                                                  self.DEBUG_BIT, name, period)
+                                                  name, period)
 
         self.__thread = self.initializeThread(runset, dashlog, liveMoni)
 
@@ -128,7 +128,7 @@ class CnCSingleThreadTask(CnCTask):
 
     def stopRunset(self, callerName):
         "Signal the runset that this run has failed"
-        self.__runset.setError(callerName)
+        self.__runset.set_run_error(callerName)
 
     def waitUntilFinished(self):
         "If a thread is running, wait until it's finished"

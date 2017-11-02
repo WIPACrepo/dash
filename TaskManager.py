@@ -141,12 +141,8 @@ class TaskManager(threading.Thread):
             if self.__dashlog is not None:
                 self.__dashlog.error(exc_string())
 
-    def setDebugBits(self, debugBits):
-        for t in self.__tasks:
-            t.setDebug(debugBits)
-
     def setError(self, callerName):
-        self.__runset.setError(callerName)
+        self.__runset.set_run_error(callerName)
 
     def stop(self):
         if self.__running and not self.__stopping:

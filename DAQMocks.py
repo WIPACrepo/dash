@@ -23,7 +23,7 @@ from DAQConst import DAQPort
 from DefaultDomGeometry import DefaultDomGeometry
 from LiveImports import MoniPort, SERVICE_NAME
 from RunCluster import RunCluster
-from RunSet import RunData
+from RunSet import RunSet
 from leapseconds import leapseconds, MJD
 from locate_pdaq import find_pdaq_trunk
 from utils import ip
@@ -65,7 +65,7 @@ class BaseLiveChecker(BaseChecker):
 
     def check(self, checker, msg, debug, setError=True):
         m = BaseChecker.PAT_LIVELOG.match(msg)
-        if not m:
+        if m is None:
             if setError:
                 name = str(checker)
                 if debug:
@@ -220,7 +220,7 @@ class LiveRegexpChecker(BaseLiveChecker):
 
     def _checkText(self, checker, msg, debug, setError):
         m = self.__regexp.match(msg)
-        if not m:
+        if m is None:
             if setError:
                 name = str(checker)
                 if debug:
@@ -253,7 +253,7 @@ class RegexpChecker(BaseChecker):
 
     def check(self, checker, msg, debug, setError=True):
         m = self.__regexp.match(msg)
-        if not m:
+        if m is None:
             if setError:
                 name = str(checker)
                 if debug:
@@ -277,7 +277,7 @@ class RegexpTextChecker(BaseChecker):
 
     def check(self, checker, msg, debug, setError=True):
         m = BaseChecker.PAT_DAQLOG.match(msg)
-        if not m:
+        if m is None:
             if setError:
                 name = str(checker)
                 if debug:
@@ -288,7 +288,7 @@ class RegexpTextChecker(BaseChecker):
             return False
 
         m = self.__regexp.match(m.group(3))
-        if not m:
+        if m is None:
             if setError:
                 name = str(checker)
                 if debug:
@@ -312,7 +312,7 @@ class TextChecker(BaseChecker):
 
     def check(self, checker, msg, debug, setError=True):
         m = BaseChecker.PAT_DAQLOG.match(msg)
-        if not m:
+        if m is None:
             if setError:
                 name = str(checker)
                 if debug:
@@ -371,12 +371,12 @@ class LogChecker(object):
 
     def _checkMsg(self, msg):
         if LogChecker.DEBUG:
-            print >>sys.stderr, "Check(%s): %s" % (str(self), msg)
+            print >>sys.stderr, "Check(%s): %s" % (self, msg)
 
         if len(self.__expMsgs) == 0:
             if LogChecker.DEBUG:
-                print >>sys.stderr, '*** %s:UNEX' % str(self)
-            self.setError('Unexpected %s log message: %s' % (str(self), msg))
+                print >>sys.stderr, '*** %s:UNEX(%s)' % (self, msg)
+            self.setError('Unexpected %s log message: %s' % (self, msg))
             return False
 
         found = None
@@ -388,17 +388,17 @@ class LogChecker(object):
                 break
 
         if found is None:
-            print >>sys.stderr, '--- Missing %s log msg ---' % str(self)
+            print >>sys.stderr, '--- Missing %s log msg ---' % (self, )
             print >>sys.stderr, msg
             if len(self.__expMsgs) > 0:
-                print >>sys.stderr, '--- Expected %s messages ---' % str(self)
+                print >>sys.stderr, '--- Expected %s messages ---' % (self, )
                 for i in range(len(self.__expMsgs)):
                     if i >= self.__depth:
                         break
                     print >>sys.stderr, "--- %s" % str(self.__expMsgs[i])
                     self.__expMsgs[i].check(self, msg, LogChecker.DEBUG, True)
             print >>sys.stderr, '----------------------------'
-            self.setError('Missing %s log message: %s' % (str(self), msg))
+            self.setError('Missing %s log message: %s' % (self, msg))
             return False
 
         del self.__expMsgs[found]
@@ -407,39 +407,39 @@ class LogChecker(object):
 
     def addExpectedExact(self, msg):
         if LogChecker.DEBUG:
-            print >>sys.stderr, "AddExact(%s): %s" % (str(self), msg)
+            print >>sys.stderr, "AddExact(%s): %s" % (self, msg)
         self.__expMsgs.append(ExactChecker(msg))
 
     def addExpectedLiveMoni(self, varName, value, valType=None):
         if LogChecker.DEBUG:
             print >>sys.stderr, "AddLiveMoni(%s): %s=%s%s" % \
-                (str(self), varName, value,
-                 valType is None and "" or "(%s)" % str(valType))
+                (self, varName, value,
+                 valType is None and "" or "(%s)" % (valType, ))
         self.__expMsgs.append(LiveChecker(varName, value, valType))
 
     def addExpectedRegexp(self, msg):
         if LogChecker.DEBUG:
-            print >>sys.stderr, "AddRegexp(%s): %s" % (str(self), msg)
+            print >>sys.stderr, "AddRegexp(%s): %s" % (self, msg)
         self.__expMsgs.append(RegexpChecker(msg))
 
     def addExpectedText(self, msg):
         if self.__isLive:
             if LogChecker.DEBUG:
-                print >>sys.stderr, "AddLive(%s): %s" % (str(self), msg)
+                print >>sys.stderr, "AddLive(%s): %s" % (self, msg)
             self.__expMsgs.append(LiveChecker('log', str(msg)))
         else:
             if LogChecker.DEBUG:
-                print >>sys.stderr, "AddText(%s): %s" % (str(self), msg)
+                print >>sys.stderr, "AddText(%s): %s" % (self, msg)
             self.__expMsgs.append(TextChecker(msg))
 
     def addExpectedTextRegexp(self, msg):
         if self.__isLive:
             if LogChecker.DEBUG:
-                print >>sys.stderr, "AddLiveRE(%s): %s" % (str(self), msg)
+                print >>sys.stderr, "AddLiveRE(%s): %s" % (self, msg)
             self.__expMsgs.append(LiveRegexpChecker('log', msg))
         else:
             if LogChecker.DEBUG:
-                print >>sys.stderr, "AddTextRE(%s): %s" % (str(self), msg)
+                print >>sys.stderr, "AddTextRE(%s): %s" % (self, msg)
             self.__expMsgs.append(RegexpTextChecker(msg))
 
     def checkStatus(self, reps):
@@ -1325,6 +1325,12 @@ class MockMBeanClient(object):
 
         self.__beanData[beanName][fieldName] = value
 
+    def addOrSet(self, beanName, fieldName, value):
+        if not beanName in self.__beanData:
+            self.__beanData[beanName] = {}
+
+        self.__beanData[beanName][fieldName] = value
+
     def check(self, beanName, fieldName):
         return beanName in self.__beanData and \
             fieldName in self.__beanData[beanName]
@@ -1355,9 +1361,8 @@ class MockMBeanClient(object):
         pass
 
     def setData(self, beanName, fieldName, value):
-
         if not self.check(beanName, fieldName):
-            raise Exception("%c bean %s field %s has not been added" %
+            raise Exception("%s bean %s field %s has not been added" %
                             (self, beanName, fieldName))
 
         self.__beanData[beanName][fieldName] = value
@@ -1374,7 +1379,7 @@ class MockComponent(object):
 
         self.runNum = None
 
-        self.__isBldr = name.endswith("Builder")
+        self.__isBldr = name.endswith("Builder") or name.endswith("Builders")
         self.__isSrc = name.endswith("Hub") or name == "amandaTrigger"
         self.__connected = False
         self.__configured = False
@@ -2197,7 +2202,7 @@ class MockRunComponent(object):
         self.__mbeanPort = mbeanPort
 
     def __str__(self):
-        return "%s#%s" % (str(self.__name), str(self.__id))
+        return "%s#%s" % (self.__name, self.__id)
 
     @property
     def id(self):
@@ -2313,7 +2318,7 @@ class MockLeapsecondFile(object):
 
         # set expiration to one day before warnings would appear
         expiration = MJD.now().ntp + \
-                     ((RunData.LEAPSECOND_FILE_EXPIRY + 1) * 24 * 3600)
+                     ((RunSet.LEAPSECOND_FILE_EXPIRY + 1) * 24 * 3600)
 
         nist_path = os.path.join(self.__configDir, "nist")
         if not os.path.isdir(nist_path):
@@ -2830,7 +2835,7 @@ class MockRunSet(object):
     def stopRunning(self):
         self.__running = False
 
-    def updateRates(self):
+    def update_rates(self):
         for c in self.__comps:
             c.updateRates()
         return self.getRates()

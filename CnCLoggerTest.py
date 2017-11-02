@@ -40,14 +40,15 @@ class CnCLoggerTest(unittest.TestCase):
                            quiet=True, extraLoud=xl)
 
             # set up default logger
-            dc.openLog(dfltHost, dfltPort, None, None)
-
             dfltObj.addExpectedText("Start of log at LOG=log(%s:%d)" %
                                     (dfltHost, dfltPort))
+            dc.openLog(dfltHost, dfltPort, None, None)
+
+            # set up file logger
             logObj.addExpectedText("Start of log at LOG=log(%s:%d)" %
                                    (logHost, logPort))
-
             dc.openLog(logHost, logPort, None, None)
+
             self.assertEqual(dc.logHost, logHost)
             self.assertEqual(dc.logPort, logPort)
             self.assertEqual(dc.liveHost, None)

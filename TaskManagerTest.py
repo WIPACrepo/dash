@@ -97,28 +97,9 @@ class MockTMMBeanClient(object):
 
         return data
 
-    def addData(self, beanName, fieldName, value):
-        if self.check(beanName, fieldName):
-            raise Exception("Value for %c bean %s field %s already exists" %
-                            (self, beanName, fieldName))
-
-        if not beanName in self.__beanData:
-            self.__beanData[beanName] = {}
-        self.__beanData[beanName][fieldName] = value
-
     def check(self, beanName, fieldName):
         return beanName in self.__beanData and \
             fieldName in self.__beanData[beanName]
-
-    @property
-    def filename(self):
-        return "%s-%d" % (self.__name, self.__num)
-
-    @property
-    def fullname(self):
-        if self.__num == 0:
-            return self.__name
-        return "%s#%d" % (self.__name, self.__num)
 
     def getBeanFields(self, beanName):
         return self.__beanData[beanName].keys()
@@ -190,9 +171,6 @@ class MockTMComponent(object):
 
     def order(self):
         return self.__order
-
-    def reset(self):
-        self.__updatedRates = False
 
     def setOrder(self, num):
         self.__order = num

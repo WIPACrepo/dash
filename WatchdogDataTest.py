@@ -9,9 +9,6 @@ class MockBean(object):
     def __init__(self, val):
         self.__val = val
 
-    def nextValue(self):
-        raise NotImplementedError()
-
     def _setValue(self, newVal):
         self.__val = newVal
 
@@ -124,9 +121,6 @@ class MockComponent(object):
 
     def __str__(self):
         return self.fullname
-
-    def createMBeanClient(self):
-        return self.__mbeanClient
 
     @property
     def fullname(self):

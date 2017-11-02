@@ -2,7 +2,6 @@
 
 from CnCSingleThreadTask import CnCSingleThreadTask
 from CnCThread import CnCThread
-from RunSetDebug import RunSetDebug
 
 
 class RateThread(CnCThread):
@@ -16,7 +15,7 @@ class RateThread(CnCThread):
     def _run(self):
         if self.__runset.id is None:
             raise Exception("Runset has been destroyed")
-        rates = self.__runset.updateRates()
+        rates = self.__runset.update_rates()
         if rates is not None:
             (numEvts, rate, numMoni, numSN, numTcal) = rates
             if not self.isClosed:
@@ -39,7 +38,6 @@ class RateThread(CnCThread):
 class RateTask(CnCSingleThreadTask):
     NAME = "Rate"
     PERIOD = 60
-    DEBUG_BIT = RunSetDebug.RATE_TASK
 
     def __init__(self, taskMgr, runset, dashlog, liveMoni=None, period=None,
                  needLiveMoni=False):

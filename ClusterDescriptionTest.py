@@ -10,14 +10,6 @@ from ClusterDescription import ClusterDescription, \
 from DAQMocks import MockClusterConfigFile, MockCluCfgFileComp
 
 
-class MockRunConfig(object):
-    def __init__(self, name):
-        self.__name = name
-
-    def configName(self):
-        return self.__name
-
-
 class TestClusterDescription(unittest.TestCase):
     CFGDIR = None
     DEBUG = False

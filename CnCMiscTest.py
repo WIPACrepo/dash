@@ -75,7 +75,7 @@ class TestCnCMisc(unittest.TestCase):
 
         cMap = {}
         for key in entries.keys():
-            entries[key].buildConnectionMap(cMap)
+            entries[key].build_connection_map(cMap)
 
         for key in cMap.keys():
             print str(key) + ':'
@@ -101,7 +101,7 @@ class TestCnCMisc(unittest.TestCase):
 
         cMap = {}
         for key in entries.keys():
-            entries[key].buildConnectionMap(cMap)
+            entries[key].build_connection_map(cMap)
 
         expMap = {}
         for i in range(2):

@@ -3,7 +3,6 @@
 from CnCTask import CnCTask, TaskException
 from CnCThread import CnCThread
 from ComponentManager import listComponentRanges
-from RunSetDebug import RunSetDebug
 import sys
 
 from exc_string import exc_string, set_exc_string_encoding
@@ -633,7 +632,6 @@ class SecondaryBuildersRule(WatchdogRule):
 class WatchdogTask(CnCTask):
     NAME = "Watchdog"
     PERIOD = 10
-    DEBUG_BIT = RunSetDebug.WATCH_TASK
 
     # number of bad checks before the run is killed
     HEALTH_METER_FULL = 9
@@ -648,8 +646,7 @@ class WatchdogTask(CnCTask):
             period = self.PERIOD
 
         super(WatchdogTask, self).__init__(self.NAME, taskMgr, dashlog,
-                                           self.DEBUG_BIT, self.NAME,
-                                           period)
+                                           self.NAME, period)
 
         WatchdogRule.initialize(runset)
 

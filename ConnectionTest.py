@@ -11,13 +11,10 @@ LOUD = False
 
 
 class MyDAQPool(DAQPool):
-    def getClusterConfig(self, runConfig=None):
-        raise NotImplementedError("Unimplemented")
-
     def returnRunsetComponents(self, rs, verbose=False, killWith9=True,
                                eventCheck=False):
-        rs.returnComponents(self, None, None, None, None, None, None, None,
-                            None)
+        rs.return_components(self, None, None, None, None, None, None, None,
+                             None)
 
 
 class Node(object):
@@ -48,57 +45,6 @@ class Node(object):
             connectors.append(Connector(k, Connector.INPUT,
                                         self.getNextPort()))
         return connectors
-
-    def getDescription(self):
-        rtnStr = str(self)
-
-        if len(self.outLinks) > 0:
-            rtnStr += ' OUT['
-
-            firstK = True
-            for k in self.outLinks.keys():
-                if firstK:
-                    firstK = False
-                else:
-                    rtnStr += ','
-
-                rtnStr += k + '='
-
-                firstL = True
-                for l in self.outLinks[k]:
-                    if firstL:
-                        firstL = False
-                    else:
-                        rtnStr += ','
-
-                    rtnStr += str(l)
-
-            rtnStr += ']'
-
-        if len(self.inLinks) > 0:
-            rtnStr += ' IN['
-
-            firstK = True
-            for k in self.inLinks.keys():
-                if firstK:
-                    firstK = False
-                else:
-                    rtnStr += ','
-
-                rtnStr += k + '='
-
-                firstL = True
-                for l in self.inLinks[k]:
-                    if firstL:
-                        firstL = False
-                    else:
-                        rtnStr += ','
-
-                    rtnStr += str(l)
-
-            rtnStr += ']'
-
-        return rtnStr
 
     def getNextPort(self):
         port = Node.CONN_PORT

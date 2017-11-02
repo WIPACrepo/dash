@@ -315,16 +315,23 @@ if __name__ == "__main__":
         try:
             try:
                 val = long(arg)
-                dt = PayloadTime.toDateTime(val, year=args.year,
-                                            high_precision=True)
-            except IOError as ioe:
+                dt = None
+            except IOError:
                 print "Cannot convert %s" % str(val)
                 import traceback
                 traceback.print_exc()
                 continue
-            except:
+            except ValueError:
+                val = None
+            if val is not None:
+                dt = PayloadTime.toDateTime(val, year=args.year,
+                                            high_precision=True)
+                print "%s -> %s" % (arg, dt)
+            else:
                 dt = PayloadTime.fromString(arg, True)
-            print "%s -> %s" % (arg, dt)
+                print "\"%s\" -> %s" % (arg, dt)
+
+
         except:
             print "Bad date: " + arg
             import traceback

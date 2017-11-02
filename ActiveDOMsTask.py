@@ -4,7 +4,6 @@ from CnCSingleThreadTask import CnCSingleThreadTask
 from CnCThread import CnCThread
 from CompOp import ComponentOperation, ComponentOperationGroup
 from LiveImports import Prio
-from RunSetDebug import RunSetDebug
 
 
 from exc_string import exc_string, set_exc_string_encoding
@@ -203,7 +202,6 @@ class ActiveDOMsTask(CnCSingleThreadTask):
     """
     NAME = "ActiveDOMs"
     PERIOD = 60
-    DEBUG_BIT = RunSetDebug.ACTDOM_TASK
 
     # active DOM periodic report timer
     REPORT_NAME = "ActiveReport"

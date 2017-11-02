@@ -53,13 +53,6 @@ class MockClusterConfig(object):
     def addNode(self, node):
         self.__nodes.append(node)
 
-    def clearActiveConfig(self):
-        pass
-
-    @property
-    def configName(self):
-        return self.__configName
-
     @property
     def description(self):
         return None

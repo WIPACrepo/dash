@@ -21,9 +21,6 @@ class MostlyDAQClient(DAQClient):
         return MockCnCLogger(self.fullname, appender=self.__appender,
                              quiet=quiet)
 
-    def createMBeanClient(self, host, port):
-        return None
-
 
 class TestDAQClient(unittest.TestCase):
     def testInit(self):
