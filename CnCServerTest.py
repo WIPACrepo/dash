@@ -119,6 +119,9 @@ class FakeRunData(object):
     def run_number(self):
         return self.__run_number
 
+    def send_count_updates(self, moni_data, prio):
+        pass
+
     def send_moni(self, name, value, prio=None, time=None, debug=False):
         pass
 

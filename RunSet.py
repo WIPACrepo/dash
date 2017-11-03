@@ -535,9 +535,10 @@ class RunData(object):
                  run_options, version_info, spade_dir, copy_dir, log_dir,
                  testing=False):
         """
-        RunData constructor
+        Constructor for object holding run-specific data
+
         run_set - run set which uses this data
-        runNum - current run number
+        run_number - current run number
         cluster_config - current cluster configuration
         run_config - current run configuration
         run_options - logging/monitoring options
@@ -600,6 +601,9 @@ class RunData(object):
         # Calculates rate over latest 5min interval
         self.__physics_entries = []
 
+        # cache monitoring data for '*_count_update'
+        self.__stream_data = {}
+
     def __str__(self):
         return "Run#%d[e%d m%d s%d t%d]" % \
             (self.__run_number, self.__num_evts, self.__num_moni,
@@ -614,6 +618,13 @@ class RunData(object):
     @property
     def _physics_entries(self):
         return self.__physics_entries[:]
+
+    @property
+    def cached_monitor_data(self):
+        return (self.__num_evts, self.__wall_time, self.__evt_pay_time, None,
+                self.__num_moni, self.__moni_time,
+                self.__num_sn, self.__sn_time,
+                self.__num_tcal, self.__tcal_time)
 
     def clone(self, run_set, new_run):
         return RunData(run_set, new_run, self.__cluster_config,
@@ -705,7 +716,8 @@ class RunData(object):
         return self.__live_moni_client is not None
 
     def info(self, msg):
-        self.__dashlog.info(msg)
+        if self.__dashlog is not None:
+            self.__dashlog.info(msg)
 
     @property
     def isDestroyed(self):
@@ -730,13 +742,6 @@ class RunData(object):
     @property
     def moni_client(self):
         return self.__live_moni_client
-
-    @property
-    def cached_monitor_data(self):
-        return (self.__num_evts, self.__wall_time, self.__evt_pay_time, None,
-                self.__num_moni, self.__moni_time,
-                self.__num_sn, self.__sn_time,
-                self.__num_tcal, self.__tcal_time)
 
     @property
     def rate(self):
@@ -787,6 +792,54 @@ class RunData(object):
     @property
     def run_options(self):
         return self.__run_options
+
+    def send_count_updates(self, moni_data, prio):
+        for stream in ("event", "moni", "sn", "tcal"):
+            if stream == "event":
+                prefix = "physics"
+                tick_field = "eventPayloadTicks"
+            else:
+                prefix = stream
+                tick_field = prefix + "Time"
+            count_field = prefix + "Events"
+
+            if count_field not in moni_data or tick_field not in moni_data:
+                self.error("No %s data provided by RunSet"
+                               ".get_event_counts()" % (stream, ))
+                continue
+
+            if moni_data[count_field] is None or moni_data[tick_field] is None:
+                if moni_data[count_field] > 0:
+                    self.error("Bad %s data provided by RunSet"
+                                   ".get_event_counts() (count %s, ticks %s)" %
+                                   (stream, moni_data[count_field],
+                                    moni_data[tick_field]))
+                continue
+
+            if stream not in self.__stream_data:
+                # add initial count/tick values for this stream, don't send yet
+                self.__stream_data[stream] \
+                    = StreamData(moni_data[count_field],
+                                 moni_data[tick_field])
+                continue
+
+            # send the monitoring data for this stream
+            entry = self.__stream_data[stream]
+            try:
+                start_str = str(PayloadTime.toDateTime(entry.ticks))
+                stop_str = str(PayloadTime.toDateTime(moni_data[tick_field]))
+                count_update = {
+                    "start_time": start_str,
+                    "stop_time": stop_str,
+                    "count": moni_data[count_field] - entry.count,
+                    "run_number": self.__run_number,
+                }
+
+                self.send_moni(stream + "_count_update", count_update,
+                                   prio=prio, time=stop_str)
+            finally:
+                # update the count/tick for this stream
+                entry.update(moni_data[count_field], moni_data[tick_field])
 
     def send_moni(self, name, value, prio=None, time=None, debug=False):
         if debug:
@@ -936,9 +989,6 @@ class RunSet(object):
         self.__spade_thread = None
 
         self.__moni_count = 0
-
-        # cache monitoring data for '*_count_update'
-        self.__stream_data = {}
 
         # make sure components are in a known order
         self.__set.sort()
@@ -2542,57 +2592,12 @@ class RunSet(object):
                 ptime = PayloadTime.toDateTime(moni_data["eventPayloadTicks"])
             else:
                 ptime = datetime.datetime.utcnow()
-                self.__run_data.error("Using system time for initial event" +
-                                      " counts (no event times available)")
+                run_data.error("Using system time for initial event" +
+                               " counts (no event times available)")
 
             run_data.send_moni("run_update", run_update, prio=prio, time=ptime)
 
-        for stream in ("event", "moni", "sn", "tcal"):
-            if stream == "event":
-                prefix = "physics"
-                tick_field = "eventPayloadTicks"
-            else:
-                prefix = stream
-                tick_field = prefix + "Time"
-            count_field = prefix + "Events"
-
-            if count_field not in moni_data or tick_field not in moni_data:
-                self.__run_data.error("No %s data provided by RunSet"
-                                      ".get_event_counts()" % (stream, ))
-                continue
-
-            if moni_data[count_field] is None or moni_data[tick_field] is None:
-                self.__run_data.error("Bad %s data provided by"
-                                      " RunSet.get_event_counts()"
-                                      " (count %s, ticks %s)" %
-                                      (stream, moni_data[count_field],
-                                       moni_data[tick_field]))
-                continue
-
-            if stream not in self.__stream_data:
-                # add initial count/tick values for this stream, don't send yet
-                self.__stream_data[stream] \
-                    = StreamData(moni_data[count_field],
-                                 moni_data[tick_field])
-                continue
-
-            # send the monitoring data for this stream
-            entry = self.__stream_data[stream]
-            try:
-                start_str = str(PayloadTime.toDateTime(entry.ticks))
-                stop_str = str(PayloadTime.toDateTime(moni_data[tick_field]))
-                count_update = {
-                    "start_time": start_str,
-                    "stop_time": stop_str,
-                    "count": moni_data[count_field] - entry.count,
-                    "run_number": self.__run_data.run_number,
-                }
-
-                run_data.send_moni(stream + "_count_update", count_update,
-                                   prio=2, time=stop_str)
-            finally:
-                # update the count/tick for this stream
-                entry.update(moni_data[count_field], moni_data[tick_field])
+        run_data.send_count_updates(moni_data, prio)
 
     def set_order(self, conn_map, logger):
         "set the order in which components are started/stopped"

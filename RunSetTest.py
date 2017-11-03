@@ -93,8 +93,8 @@ class FakeMoniClient(object):
 
     def send_moni(self, name, value, prio=Prio.ITS, time=None):
         if len(self.__expected) == 0:
-            raise AssertionError("Received unexpected moni message \"%s\": %s" %
-                                 (name, value))
+            raise AssertionError("Received unexpected moni message \"%s\":"
+                                 " %s" % (name, value))
         (xname, xvalue, xprio, xtime) = self.__expected.pop(0)
         if xname != name:
             raise AssertionError("Expected moni message \"%s\", not \"%s\"" %
@@ -191,6 +191,9 @@ class FakeRunData(object):
     @property
     def run_number(self):
         return self.__run_number
+
+    def send_count_updates(self, moni_data, prio):
+        import sys; print >>sys.stderr, "Not validating count_updates"
 
     def send_moni(self, name, value, prio=None, time=None, debug=False):
         if self.__moni_client is None:
