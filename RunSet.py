@@ -601,7 +601,7 @@ class RunData(object):
         # Calculates rate over latest 5min interval
         self.__physics_entries = []
 
-        # cache monitoring data for '*_count_update'
+        # cache monitoring data for 'event_count_update'
         self.__stream_data = {}
 
     def __str__(self):
@@ -832,11 +832,12 @@ class RunData(object):
                     "start_time": start_str,
                     "stop_time": stop_str,
                     "count": moni_data[count_field] - entry.count,
+                    "stream": count_field,
                     "run_number": self.__run_number,
                 }
 
-                self.send_moni(stream + "_count_update", count_update,
-                                   prio=prio, time=stop_str)
+                self.send_moni("event_count_update", count_update,
+                               prio=prio, time=stop_str)
             finally:
                 # update the count/tick for this stream
                 entry.update(moni_data[count_field], moni_data[tick_field])
