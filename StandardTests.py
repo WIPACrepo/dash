@@ -28,20 +28,6 @@ HALF_HR = SECONDS_PER_HOUR / 2
 FOUR_HR = SECONDS_PER_HOUR * 4
 EIGHT_HR = SECONDS_PER_HOUR * 8
 
-# configurations to run
-#
-RUN_LIST = (
-    PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
-    PDAQRun("spts64-dirtydozen-hlc-006", 0, 1,
-            (("flash-21", 60), (None, 10), ("flash-21", 45),
-             (None, 20), ("flash-21", 120))),
-    PDAQRun("spts64-dirtydozen-hitspool-15s-interval-8h-spool", HALF_HR),
-    PDAQRun("spts-dirtydozen-intervals3-snmix-014", HALF_HR),
-    PDAQRun("random-01", HALF_HR),
-    PDAQRun("replay-125659-local", EIGHT_HR),
-    PDAQRun("replay-125659-local", QUARTER_HR, numRuns=3),
-)
-
 
 class PDAQRunException(Exception):
     pass
@@ -241,6 +227,21 @@ def add_arguments(parser):
                         action="store_true", default=False,
                         help=("Show the output of the deploy and/or"
                               " run commands"))
+
+
+# configurations to run
+#
+RUN_LIST = (
+    PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
+    PDAQRun("spts64-dirtydozen-hlc-006", 0, 1,
+            (("flash-21", 60), (None, 10), ("flash-21", 45),
+             (None, 20), ("flash-21", 120))),
+    PDAQRun("spts64-dirtydozen-hitspool-15s-interval-8h-spool", HALF_HR),
+    PDAQRun("spts-dirtydozen-intervals3-snmix-014", HALF_HR),
+    PDAQRun("random-01", HALF_HR),
+    PDAQRun("replay-125659-local", EIGHT_HR),
+    PDAQRun("replay-125659-local", QUARTER_HR, numRuns=3),
+)
 
 
 def run_tests(args):
