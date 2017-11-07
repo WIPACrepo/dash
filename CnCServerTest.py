@@ -158,6 +158,7 @@ class MostlyRunSet(RunSet):
 
         super(MostlyRunSet, self).__init__(parent, run_config, components,
                                            catchall)
+
     @classmethod
     def create_component_log(cls, runDir, comp, host, port, liveHost,
                              livePort, quiet=True):
@@ -182,10 +183,10 @@ class MostlyRunSet(RunSet):
         numSecs = 6
 
         self.__dashlog.error("%d physics events collected in %d seconds"
-                            " (%.2f Hz)" % (numEvts, numSecs,
-                                            float(numEvts) / float(numSecs)))
+                             " (%.2f Hz)" % (numEvts, numSecs,
+                                             float(numEvts) / float(numSecs)))
         self.__dashlog.error("%d moni events, %d SN events, %d tcals" %
-                            (numMoni, numSN, numTCal))
+                             (numMoni, numSN, numTCal))
 
         if switching:
             verb = "switched"
@@ -218,7 +219,7 @@ class MostlyRunSet(RunSet):
         }
 
     def getLog(self, name):
-        if not name in self.__logDict:
+        if name not in self.__logDict:
             self.__logDict[name] = MockLogger(name)
 
         return self.__logDict[name]
@@ -256,7 +257,7 @@ class MostlyCnCServer(CnCServer):
     def createClient(self, name, num, host, port, mbeanPort, connectors):
         key = '%s#%d' % (name, num)
         key = 'server'
-        if not key in MostlyCnCServer.APPENDERS:
+        if key not in MostlyCnCServer.APPENDERS:
             MostlyCnCServer.APPENDERS[key] = MockAppender('Mock-%s' % key)
 
         return MostlyDAQClient(name, num, host, port, mbeanPort, connectors,
@@ -264,7 +265,7 @@ class MostlyCnCServer(CnCServer):
 
     def createCnCLogger(self, quiet):
         key = 'server'
-        if not key in MostlyCnCServer.APPENDERS:
+        if key not in MostlyCnCServer.APPENDERS:
             MostlyCnCServer.APPENDERS[key] = MockAppender('Mock-%s' % key)
 
         return MockCnCLogger(key, appender=MostlyCnCServer.APPENDERS[key],
@@ -320,8 +321,6 @@ class RealComponent(object):
         self.__cmd.register_function(self.__getRunNumber,
                                      'xmlrpc.getRunNumber')
         self.__cmd.register_function(self.__getState, 'xmlrpc.getState')
-        #self.__cmd.register_function(self.__getVersionInfo,
-        #                             'xmlrpc.getVersionInfo')
         self.__cmd.register_function(self.__logTo, 'xmlrpc.logTo')
         self.__cmd.register_function(self.__reset, 'xmlrpc.reset')
         self.__cmd.register_function(self.__resetLogging,
@@ -433,8 +432,8 @@ class RealComponent(object):
         return valDict
 
     def __getMBeanValue(self, bean, field):
-        if self.__bean is None or not bean in self.__bean or \
-            not field in self.__bean[bean]:
+        if self.__bean is None or bean not in self.__bean or \
+           field not in self.__bean[bean]:
             raise Exception("%s has no value for bean %s.%s" %
                             (self.fullname, bean, field))
 
@@ -444,7 +443,7 @@ class RealComponent(object):
         return self.__state
 
     def __listMBeanGetters(self, bean):
-        if self.__bean is None or not bean in self.__bean:
+        if self.__bean is None or bean not in self.__bean:
             return []
         return self.__bean[bean].keys()
 
@@ -563,7 +562,7 @@ class RealComponent(object):
     def setBeanFieldValue(self, bean, field, value):
         if self.__bean is None:
             self.__bean = {}
-        if not bean in  self.__bean:
+        if bean not in self.__bean:
             self.__bean[bean] = {}
         self.__bean[bean][field] = value
 
@@ -711,7 +710,7 @@ class TestCnCServer(unittest.TestCase):
 
         compDict = {}
         for c in cycleList:
-            if not c.name in compDict:
+            if c.name not in compDict:
                 compDict[c.name] = []
             compDict[c.name].append(c.num)
 
@@ -731,7 +730,7 @@ class TestCnCServer(unittest.TestCase):
             rStart = None
             rCurr = None
             for n in numList:
-                if rCurr == None:
+                if rCurr is None:
                     rStart = n
                     rCurr = n
                 elif rCurr == n - 1:
@@ -882,7 +881,7 @@ class TestCnCServer(unittest.TestCase):
 
             self.assertEqual(comp.name, d["compName"],
                              ("Component#%d name should be \"%s\"," +
-                              "not \"%s\"") % \
+                              "not \"%s\"") %
                              (comp.id, comp.name, d["compName"]))
             self.assertEqual(comp.number(), d["compNum"],
                              ("Component#%d \"%s\" number should be %d," +
@@ -1056,25 +1055,14 @@ class TestCnCServer(unittest.TestCase):
         self.__runEverything()
 
     def testEverythingAgain(self):
-        #if sys.platform != 'darwin':
-        #    print 'Skipping server tests in non-Darwin OS'
-        #    return
-
         self.__runEverything()
 
     def testForceRestart(self):
-        #if sys.platform != 'darwin':
-        #    print 'Skipping server tests in non-Darwin OS'
-        #    return
-
         self.__runEverything(forceRestart=True)
 
     def testSwitchRun(self):
-        #if sys.platform != 'darwin':
-        #    print 'Skipping server tests in non-Darwin OS'
-        #    return
-
         self.__runEverything(switchRun=True)
+
 
 if __name__ == '__main__':
     unittest.main()

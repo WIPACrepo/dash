@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import unittest
+
 from LiveImports import LIVE_IMPORT, Prio
 from RunOption import RunOption
 from RunSet import RunSet, RunSetException, listComponentRanges
@@ -8,9 +9,9 @@ from leapseconds import leapseconds
 from locate_pdaq import set_pdaq_config_dir
 from scmversion import get_scmversion_str
 
-CAUGHT_WARNING = True
-
 from DAQMocks import MockClusterConfig, MockComponent, MockLogger
+
+CAUGHT_WARNING = True
 
 
 class FakeLogger(object):
@@ -68,7 +69,6 @@ class FakeMoniClient(object):
             if key not in xvalue:
                 raise AssertionError("Moni message \"%s\" value has extra"
                                      " field \"%s\"" % (name, key))
-
 
     def __compare_lists(self, name, xvalue, value):
         raise NotImplementedError()
@@ -193,7 +193,8 @@ class FakeRunData(object):
         return self.__run_number
 
     def send_count_updates(self, moni_data, prio):
-        import sys; print >>sys.stderr, "Not validating count_updates"
+        import sys
+        print >>sys.stderr, "Not validating count_updates"
 
     def send_moni(self, name, value, prio=None, time=None, debug=False):
         if self.__moni_client is None:
@@ -423,7 +424,7 @@ class TestRunSet(unittest.TestCase):
         try:
             stopErr = runset.stop_run("StopSubrun", timeout=0)
         except RunSetException as ve:
-            if not "is not running" in str(ve):
+            if "is not running" not in str(ve):
                 raise
             stopErr = False
 
@@ -684,8 +685,6 @@ class TestRunSet(unittest.TestCase):
             if hangType > 1:
                 logger.addExpectedExact("FORCED_STOP failed for " + hangStr)
 
-        #logger.addExpectedExact("Reset duration")
-
         logger.addExpectedExact("0 physics events collected in 0 seconds")
         logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
 
@@ -725,10 +724,6 @@ class TestRunSet(unittest.TestCase):
                          (runset.id, runNum, expState))
         self.assertFalse(runset.stopping(), "RunSet #%d is still stopping")
 
-        #RunXMLValidator.validate(self, runNum, runConfig.basename,
-        #                         cluCfg.description, None, None, 0, 0, 0, 0,
-        #                         hangType > 1)
-
         if len(components) > 0:
             self.assertTrue(self.__isCompListConfigured(components),
                             "Components should be configured")
@@ -740,8 +735,6 @@ class TestRunSet(unittest.TestCase):
         logger.checkStatus(10)
 
     def setUp(self):
-        #RunXMLValidator.setUp()
-
         set_pdaq_config_dir("src/test/resources/config", override=True)
 
         # create the leapsecond alertstamp file so we don't get superfluous
@@ -750,8 +743,6 @@ class TestRunSet(unittest.TestCase):
 
     def tearDown(self):
         set_pdaq_config_dir(None, override=True)
-
-        #RunXMLValidator.tearDown()
 
     def testEmpty(self):
         self.__runTests([], 1)
@@ -1033,8 +1024,6 @@ class TestRunSet(unittest.TestCase):
         stopName = "BadStop"
         logger.addExpectedExact("Stopping the run (%s)" % stopName)
 
-        #logger.addExpectedExact("Reset duration")
-
         logger.addExpectedExact("0 physics events collected in 0 seconds")
         logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
         logger.addExpectedExact("Run terminated SUCCESSFULLY.")
@@ -1064,9 +1053,6 @@ class TestRunSet(unittest.TestCase):
                                  (rse, stopErrMsg))
         finally:
             pass
-            #RunXMLValidator.validate(self, runNum, runConfig.basename,
-            #                         cluCfg.description, None, None, 0, 0, 0,
-            #                         0, False)
 
     def testListCompRanges(self):
 

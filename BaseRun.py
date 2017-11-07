@@ -302,7 +302,7 @@ class FlasherScript(object):
                 # handle 'livecmd flasher ...'
                 #
                 if len(words) > 2 and words[0] == "livecmd" and \
-                    words[1] == "flasher":
+                   words[1] == "flasher":
                     flashData += cls.__parse_flasher_options(words[2:],
                                                              basedir=basedir)
                     fullLine = None
@@ -414,12 +414,10 @@ class Run(object):
             self.__run_killed = True
 
         try:
-            self.__cluster_cfg = \
-                DAQConfigParser.getClusterConfiguration(clusterCfgName,
-                                                        useActiveConfig=False,
-                                                        clusterDesc=clusterDesc,
-                                                        configDir=configDir,
-                                                        validate=False)
+            self.__cluster_cfg \
+                = DAQConfigParser.getClusterConfiguration\
+                (clusterCfgName, useActiveConfig=False,
+                 clusterDesc=clusterDesc, configDir=configDir, validate=False)
         except DAQConfigException:
             raise LaunchException("Cannot load configuration \"%s\": %s" %
                                   (clusterCfgName, exc_string()))
@@ -435,7 +433,7 @@ class Run(object):
             self.__mgr.stopRun()
 
         if not self.__dry_run and not self.__mgr.isStopped(True) and \
-            not self.__mgr.waitForStopped(verbose=verbose):
+           not self.__mgr.waitForStopped(verbose=verbose):
             raise RunException("Run %d did not stop" % self.__run_num)
 
         if self.__flash_thread is not None:
@@ -449,7 +447,7 @@ class Run(object):
         try:
             rtnval = self.__mgr.summarize(self.__run_num)
         except:
-            self.__mgr.logError("Cannot summarize run %d: %s" % \
+            self.__mgr.logError("Cannot summarize run %d: %s" %
                                 (self.__run_num, exc_string()))
             rtnval = False
 
@@ -981,7 +979,7 @@ class BaseRun(object):
 
         # calculate duration
         if summary["startTime"] == "None" or \
-            summary["endTime"] == "None":
+           summary["endTime"] == "None":
             duration = "???"
         else:
             try:

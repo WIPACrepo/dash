@@ -87,7 +87,8 @@ class BeanData(object):
              INPUT, 0),
             ('dispatch', 'backEnd', 'NumEventsSent', STATIC, 0),
             ('dispatch', 'backEnd', 'NumEventsDispatched', STATIC, 0),
-            ('eventBuilder', 'backEnd', 'DiskAvailable', THRESHOLD, 1024, True),
+            ('eventBuilder', 'backEnd', 'DiskAvailable', THRESHOLD, 1024,
+             True),
             ('eventBuilder', 'backEnd', 'EventData', OUTPUT, [0, 0, 0]),
             ('eventBuilder', 'backEnd', 'FirstEventTime', OUTPUT, 0, True),
             ('eventBuilder', 'backEnd', 'GoodTimes', OUTPUT, (0, 0), True),
@@ -138,14 +139,14 @@ class BeanData(object):
 
     @staticmethod
     def buildBeans(masterList, compName):
-        if not compName in masterList:
+        if compName not in masterList:
             raise Exception('Unknown component %s' % compName)
 
         mbeans = {}
 
         beanTuples = masterList[compName]
         for t in beanTuples:
-            if not t[1] in mbeans:
+            if t[1] not in mbeans:
                 mbeans[t[1]] = {}
 
             if len(t) == 5:
@@ -181,13 +182,13 @@ class MostlyTaskManager(TaskManager):
                                                 runDir, runCfg, runOptions)
 
     def createIntervalTimer(self, name, period):
-        if not name in self.TIMERS:
+        if name not in self.TIMERS:
             self.TIMERS[name] = MockIntervalTimer(name, self.WAITSECS)
 
         return self.TIMERS[name]
 
     def triggerTimer(self, name):
-        if not name in self.TIMERS:
+        if name not in self.TIMERS:
             raise Exception("Unknown timer \"%s\"" % name)
 
         self.TIMERS[name].trigger()
@@ -260,7 +261,6 @@ class MostlyRunSet(RunSet):
                                        expectStartMsg=True)
         cls.LOGDICT[comp.fullname] = log
 
-        #log.addExpectedRegexp('Start #\d+ on \S+#\d+')
         log.addExpectedRegexp(r'Hello from \S+#\d+')
         log.addExpectedTextRegexp(r'Version info: \S+ \S+ \S+ \S+')
 
@@ -374,7 +374,7 @@ class MostlyCnCServer(CnCServer):
             appender = None
         else:
             key = '%s#%d' % (name, num)
-            if not key in MostlyCnCServer.APPENDERS:
+            if key not in MostlyCnCServer.APPENDERS:
                 MostlyCnCServer.APPENDERS[key] = MockAppender('Mock-%s' % key)
             appender = MostlyCnCServer.APPENDERS[key]
 
@@ -383,7 +383,7 @@ class MostlyCnCServer(CnCServer):
 
     def createCnCLogger(self, quiet):
         key = 'server'
-        if not key in MostlyCnCServer.APPENDERS:
+        if key not in MostlyCnCServer.APPENDERS:
             MostlyCnCServer.APPENDERS[key] = \
                 MockAppender('Mock-%s' % key,
                              depth=IntegrationTest.NUM_COMPONENTS)
@@ -597,7 +597,7 @@ class RealComponent(object):
 
     @classmethod
     def __getLaunchOrder(cls, name):
-        if not name in cls.COMP_ORDER:
+        if name not in cls.COMP_ORDER:
             raise Exception('Unknown component type %s' % name)
         return cls.COMP_ORDER[name][0]
 
@@ -616,13 +616,13 @@ class RealComponent(object):
 
     @classmethod
     def __getStartOrder(cls, name):
-        if not name in cls.COMP_ORDER:
+        if name not in cls.COMP_ORDER:
             raise Exception('Unknown component type %s' % name)
         return cls.COMP_ORDER[name][1]
 
     @classmethod
     def __getOrder(cls, name):
-        if not name in cls.COMP_ORDER:
+        if name not in cls.COMP_ORDER:
             raise Exception('Unknown component type %s' % name)
         return cls.COMP_ORDER[name][0]
 
@@ -703,8 +703,6 @@ class RealComponent(object):
         return "OK"
 
     def __startRun(self, runNum):
-        #self.__log('Start #%d on %s' % (runNum, str(self)))
-
         if self.__connections is None:
             print >>sys.stderr, "Component %s has no connections" % str(self)
         elif self.__name != "eventBuilder":
@@ -1102,7 +1100,6 @@ class IntegrationTest(unittest.TestCase):
                 c.addI3LiveMonitoring(liveMoni)
 
         taskMgr.triggerTimer(MonitorTask.NAME)
-        #time.sleep(MostlyTaskManager.WAITSECS * 2)
         time.sleep(MostlyTaskManager.WAITSECS)
         taskMgr.waitForTasks()
 
@@ -1161,14 +1158,10 @@ class IntegrationTest(unittest.TestCase):
         taskMgr.waitForTasks()
 
         dashLog.addExpectedRegexp("Watchdog reports threshold components.*")
-        #dashLog.addExpectedExact("Run is unhealthy (%d checks left)" %
-        #                         (WatchdogTask.HEALTH_METER_FULL - 1))
 
         taskMgr.triggerTimer(WatchdogTask.NAME)
         time.sleep(MostlyTaskManager.WAITSECS)
         taskMgr.waitForTasks()
-
-        #self.__waitForEmptyLog(dashLog, "Didn't get watchdog message")
 
     def __getConnectionList(self, name):
         if name == 'stringHub':
@@ -1813,8 +1806,7 @@ class IntegrationTest(unittest.TestCase):
         self.__cnc = None
         self.__compList = None
 
-        #from DAQMocks import LogChecker
-        #LogChecker.DEBUG = True
+        # from DAQMocks import LogChecker; LogChecker.DEBUG = True
 
         RunXMLValidator.setUp()
 
@@ -1893,7 +1885,6 @@ class IntegrationTest(unittest.TestCase):
             self.tearDownClass()
 
     def testFinishInMain(self):
-        #print "Not running testFinishInMain"; return
         runOptions = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
 
         (cnc, appender, dashLog, pShell) = \
@@ -1906,8 +1897,6 @@ class IntegrationTest(unittest.TestCase):
         self.__runTest(None, cnc, None, appender, dashLog, runOptions, False)
 
     def testCnCInMain(self):
-        #print "Not running testCnCInMain"; return
-
         runOptions = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
 
         (cnc, appender, dashLog, pShell) = self.__createRunObjects(runOptions)
@@ -1923,7 +1912,7 @@ class IntegrationTest(unittest.TestCase):
     def testLiveFinishInMain(self):
         print "Not running testLiveFinishInMain"
         return
-        #from DAQMocks import LogChecker; LogChecker.DEBUG = True
+        # from DAQMocks import LogChecker; LogChecker.DEBUG = True
         if not LIVE_IMPORT:
             print 'Skipping I3Live-related test'
             return
@@ -1947,7 +1936,7 @@ class IntegrationTest(unittest.TestCase):
     def testZAllLiveFinishInMain(self):
         print "Not running testZAllLiveFinishInMain"
         return
-        #from DAQMocks import LogChecker; LogChecker.DEBUG = True
+        # from DAQMocks import LogChecker; LogChecker.DEBUG = True
         if not LIVE_IMPORT:
             print 'Skipping I3Live-related test'
             return
@@ -2005,9 +1994,10 @@ class IntegrationTest(unittest.TestCase):
         t.setDaemon(True)
         t.start()
 
-        #from DAQMocks import LogChecker; LogChecker.DEBUG = True
+        # from DAQMocks import LogChecker; LogChecker.DEBUG = True
         self.__runTest(live, cnc, liveLog, appender, dashLog, runOptions,
                        False)
+
 
 if __name__ == '__main__':
     unittest.main()

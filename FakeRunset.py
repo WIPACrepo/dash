@@ -22,7 +22,8 @@ if __name__ == "__main__":
                         help="First port number used for fake components")
     parser.add_argument("-q", "--quiet", dest="quiet",
                         action="store_true", default=False,
-                        help="Fake components do not announce what they're doing")
+                        help="Fake components do not announce what they're"
+                        " doing")
     parser.add_argument("-R", "--realNames", dest="realNames",
                         action="store_true", default=False,
                         help="Use component names without numeric prefix")

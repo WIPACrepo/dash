@@ -184,7 +184,7 @@ class DOMCounter(object):
         for line in domList:
             cwd = line[0]
             dat = line[1]
-            if not cwd in self.domDict:
+            if cwd not in self.domDict:
                 self.domDict[cwd] = DOMState(cwd)
             self.domDict[cwd].addData(dat)
 
@@ -205,11 +205,11 @@ class DOMCounter(object):
         return n
 
     def notDoneDoms(self):
-        l = []
+        not_done = []
         for d in self.domDict:
             if not self.domDict[d].done:
-                l.append(self.domDict[d])
-        return l
+                not_done.append(self.domDict[d])
+        return not_done
 
     def failedDoms(self):
         failed = []
@@ -232,7 +232,7 @@ class DOMCounter(object):
             if thisVersion is None:
                 continue
 
-            if not thisVersion in versions:
+            if thisVersion not in versions:
                 versions[thisVersion] = 1
             else:
                 versions[thisVersion] += 1
@@ -482,6 +482,7 @@ def main():
 
     print "\n\nDONE."
     print uploader.summary()
+
 
 if __name__ == "__main__":
     main()

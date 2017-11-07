@@ -120,14 +120,13 @@ class MockServer(RPCServer):
         return self.__runsets.keys()
 
     def __runsetState(self, rsid):
-        if not rsid in self.__runsets:
+        if rsid not in self.__runsets:
             return RunSetState.DESTROYED
 
         return self.__runsets[rsid][self.STATE_KEY]
 
     def addUnusedComponent(self, name, num, host):
-        self.__unused.append({"compName" : name, "compNum" : num,
-                              "host" : host})
+        self.__unused.append({"compName": name, "compNum": num, "host": host})
 
     def addRunset(self, state, complist=None):
         fulldict = {}
@@ -147,6 +146,7 @@ class MockServer(RPCServer):
 
     def close(self):
         self.__server.server_close()
+
 
 class ComponentManagerTest(unittest.TestCase):
     CONFIG_DIR = os.path.abspath('src/test/resources/config')
@@ -180,7 +180,7 @@ class ComponentManagerTest(unittest.TestCase):
         ntpHost = "NtPhOsT"
 
         verbose = False
-        checkExists = False
+        chkExists = False
 
         logLevel = 'DEBUG'
 
@@ -218,7 +218,7 @@ class ComponentManagerTest(unittest.TestCase):
                                                          configDir, daqDataDir,
                                                          logPort, livePort,
                                                          eventCheck=eventCheck,
-                                                         checkExists=checkExists,
+                                                         checkExists=chkExists,
                                                          parallel=parallel)
 
                         parallel.check()
@@ -281,7 +281,7 @@ class ComponentManagerTest(unittest.TestCase):
         copyDir = os.path.join(tmpdir, 'copy')
         logPort = 1234
         verbose = False
-        checkExists = False
+        chkExists = False
 
         compName = 'eventBuilder'
         compId = 0
@@ -346,7 +346,7 @@ class ComponentManagerTest(unittest.TestCase):
                                                 logDirFallback, spadeDir,
                                                 copyDir, logPort, livePort,
                                                 eventCheck=evtChk,
-                                                checkExists=checkExists,
+                                                checkExists=chkExists,
                                                 startMissing=False,
                                                 parallel=parallel)
 
@@ -463,9 +463,9 @@ class ComponentManagerTest(unittest.TestCase):
         compdict = []
         for rc in expRSComps:
             compdict.append({
-                "compName" : rc[0],
-                "compNum" : rc[1],
-                "host" : rc[2],
+                "compName": rc[0],
+                "compNum": rc[1],
+                "host": rc[2],
             })
         self.__srvr.addRunset(RunSetState.RUNNING, compdict)
 
@@ -496,6 +496,7 @@ class ComponentManagerTest(unittest.TestCase):
                 self.assertTrue(expName in names,
                                 "Expected component %s is not in (%s)" %
                                 (expName, names))
+
 
 if __name__ == '__main__':
     # make sure icecube.wisc.edu is valid

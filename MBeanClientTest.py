@@ -17,7 +17,7 @@ class MockMBeanAgent(object):
 
     def __validateBean(self, bean):
         self.__validateDict()
-        if not bean in self.__mbeanDict:
+        if bean not in self.__mbeanDict:
             raise MBeanAgentException("Unknown MBean \"%s\"" % bean)
         if isinstance(self.__mbeanDict[bean], Exception):
             tmp_except = self.__mbeanDict[bean]
@@ -26,7 +26,7 @@ class MockMBeanAgent(object):
     def __validateBeanField(self, bean, fld):
         self.__validateDict()
         self.__validateBean(bean)
-        if not fld in self.__mbeanDict[bean]:
+        if fld not in self.__mbeanDict[bean]:
             raise MBeanAgentException("Unknown MBean \"%s\" attribute \"%s\"" %
                                       (bean, fld))
         if isinstance(self.__mbeanDict[bean][fld], Exception):
@@ -132,6 +132,7 @@ class TestMBeanClient(unittest.TestCase):
             self.fail("getBeanFields should throw an exception")
         except:
             pass
+
 
 if __name__ == '__main__':
     unittest.main()

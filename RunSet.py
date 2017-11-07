@@ -805,15 +805,15 @@ class RunData(object):
 
             if count_field not in moni_data or tick_field not in moni_data:
                 self.error("No %s data provided by RunSet"
-                               ".get_event_counts()" % (stream, ))
+                           ".get_event_counts()" % (stream, ))
                 continue
 
             if moni_data[count_field] is None or moni_data[tick_field] is None:
                 if moni_data[count_field] > 0:
                     self.error("Bad %s data provided by RunSet"
-                                   ".get_event_counts() (count %s, ticks %s)" %
-                                   (stream, moni_data[count_field],
-                                    moni_data[tick_field]))
+                               ".get_event_counts() (count %s, ticks %s)" %
+                               (stream, moni_data[count_field],
+                                moni_data[tick_field]))
                 continue
 
             if stream not in self.__stream_data:

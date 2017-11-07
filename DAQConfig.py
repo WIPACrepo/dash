@@ -291,11 +291,12 @@ class DomConfig(ConfigObject):
         self.string_map = {}
 
         if isinstance(self.xdict, dict) and \
-                self.xdict.has_key('domConfigList') and \
+                'domConfigList' in self.xdict and \
                 isinstance(self.xdict['domConfigList'], dict) and \
                 isinstance(self.xdict['domConfigList']['__children__'],
                            dict) and \
-                isinstance(self.xdict['domConfigList']['__children__']['domConfig'], list):
+                isinstance(self.xdict['domConfigList']['__children__']
+                           ['domConfig'], list):
             try:
                 dom_configs = \
                     self.xdict['domConfigList']['__children__']['domConfig']
@@ -350,7 +351,7 @@ class RandomConfig(object):
         hub_id = None
         excluded = None
         for skey, sval in xdict.iteritems():
-            if skey == '__attribs__' and sval.has_key('id'):
+            if skey == '__attribs__' and 'id' in sval:
                 hub_id = int(sval['id'])
             elif skey != '__children__' or not isinstance(sval, dict):
                 print "Ignoring randomHub entry %s" % skey
@@ -362,7 +363,7 @@ class RandomConfig(object):
 
                     if not isinstance(v3, list) or len(v3) != 1 or \
                        not isinstance(v3[0], dict) or len(v3[0]) != 1 or \
-                       not v3[0].has_key('__attribs__'):
+                       '__attribs__' not in v3[0]:
                         print "Ignoring bogus randomConfig element %s" \
                             " subelement %s" % (skey, k3)
                         continue
@@ -615,7 +616,8 @@ class DAQConfig(ConfigObject):
                         omit_dict['runConfig'][
                             '__children__']['domConfigList'] = []
 
-                    dc_fname = os.path.splitext(os.path.basename(dc.filename))[0]
+                    base = os.path.basename(dc.filename)
+                    dc_fname = os.path.splitext(base)[0]
                     tmp_cfg_list = {'__attribs__': {'hub': '%d' % dc.hub_id},
                                     '__contents__': dc_fname}
 
@@ -661,8 +663,9 @@ class DAQConfig(ConfigObject):
                 omit_dict['runConfig'][
                     '__children__']['hubFiles'][
                         '__children__'].append(
-                            {'__children__': replay_base_dir[bdir],
-                             '__attribs__': {'baseDir': bdir}
+                            {
+                                '__children__': replay_base_dir[bdir],
+                                '__attribs__': {'baseDir': bdir},
                             }
                         )
 
@@ -799,7 +802,7 @@ class DAQConfig(ConfigObject):
                 self.noise_rate = None
                 for v in val:
                     if not isinstance(v, dict) or len(v) == 0 or \
-                       not v.has_key('__children__') or \
+                       '__children__' not in v or \
                        not isinstance(v['__children__'], dict):
                         msg = "Bad randomConfig element %s<%s> in %s" % \
                               (v, type(v), self.filename)
@@ -815,7 +818,8 @@ class DAQConfig(ConfigObject):
                                         " %s %s" % (k2, type(v2val))
                                     raise DAQConfigException(msg)
 
-                                dom_config = RandomConfig(v2val, self.configdir)
+                                dom_config = RandomConfig(v2val,
+                                                          self.configdir)
                                 self.dom_cfgs.append(dom_config)
 
                                 rnd_hub = RandomHub(dom_config.hub_id)
@@ -841,9 +845,9 @@ class DAQConfig(ConfigObject):
             for dom_cfg in self.dom_cfgs:
                 hubs = dom_cfg.string_map.keys()
                 if len(hubs) > 1:
-                    raise DAQConfigException(
-                        "Only one string allowed per dom config: %s" \
-                            % dom_cfg.filename)
+                    errmsg = "Only one string allowed per dom config: %s" % \
+                             (dom_cfg.filename, )
+                    raise DAQConfigException(errmsg)
                 for hId in hubs:
                     if hId not in self.stringhub_map:
                         strHub = StringHub(None, hId, inferred=True)
@@ -973,7 +977,8 @@ def main():
                        help="Do not perform strict checking")
     parse.add_argument("-m", "--no-host-check", dest="nohostcheck",
                        action="store_true", default=False,
-                       help="Disable checking the host type for run permission")
+                       help="Disable checking the host type for run"
+                       " permission")
     parse.add_argument("-q", "--quiet", dest="quiet",
                        action="store_true", default=False,
                        help="Don't print anything if config is OK")
@@ -1017,10 +1022,6 @@ def main():
             status = "%s/%s is not a valid config: %s" % \
                 (config_dir, args.toCheck, exc_string())
             raise SystemExit(status)
-
-    # Code for testing:
-    #if len(args.xmlfile) == 0:
-    #    args.xmlfile.append("sim5str")
 
     failed = False
     for config_name in args.xmlfile:

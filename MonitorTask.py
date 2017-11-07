@@ -75,7 +75,7 @@ class MBeanThread(MonitorThread):
             if self.__runDir is not None:
                 return MonitorToFile(self.__runDir, self.__comp.filename)
         if RunOption.isMoniToLive(self.__runOptions) and \
-               self.__liveMoni is not None:
+           self.__liveMoni is not None:
             return MonitorToLive(self.__comp.filename, self.__liveMoni)
 
         return None
@@ -148,8 +148,8 @@ class MBeanThread(MonitorThread):
 
     def get_new_thread(self):
         thrd = MBeanThread(self.__comp, self.__runDir, self.__liveMoni,
-                             self.__runOptions, self.dashlog,
-                             self.__reporter, self.__refused)
+                           self.__runOptions, self.dashlog,
+                           self.__reporter, self.__refused)
         return thrd
 
     @property
@@ -182,10 +182,6 @@ class CnCMoniThread(MonitorThread):
             self.__reporter = self.__create_reporter()
             if self.__reporter is None:
                 return
-
-        #sstats = self.__runset.serverStatistics()
-        #if sstats is not None and len(sstats) > 0 and not self.isClosed:
-        #    self.__reporter.send(datetime.datetime.now(), "server", sstats)
 
     def get_new_thread(self):
         thrd = CnCMoniThread(self.__runset, self.__rundir,

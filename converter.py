@@ -1,6 +1,6 @@
 import operator
 import sys
-from  locate_pdaq import find_pdaq_config
+from locate_pdaq import find_pdaq_config
 from xml_dict import xml_dict
 from xml_dict import get_attrib
 from xml_dict import set_attrib
@@ -298,8 +298,8 @@ def convert(in_file, out_dir, domgeom=None, config_path=None):
     for hub_id, cfg_name in hubid_to_cfg_dict.items():
         str_hub_dict = {'__attribs__': {'domConfig': cfg_name,
                                         'hubId': "%d" % hub_id}}
-        runcfg_dict.xml_dict['runConfig'][\
-            '__children__']['stringHub'].append(str_hub_dict)
+        runcfg_dict.xml_dict['runConfig']['__children__']['stringHub']\
+            .append(str_hub_dict)
         hub_count += 1
 
     # put the hubs in hubid order
@@ -311,8 +311,8 @@ def convert(in_file, out_dir, domgeom=None, config_path=None):
     # only if there are actually hubs defined for
     # this runconfig ( thank you replay-ic22-it4.xml )
     if hub_count > 0:
-        runcfg_dict.xml_dict['runConfig'][\
-            '__children__']['hitspool'] = [default_hs_dict]
+        runcfg_dict.xml_dict['runConfig']['__children__']['hitspool'] \
+            = [default_hs_dict]
 
     # filter out any commented out domConfigList entries
     # requested by dave
@@ -322,8 +322,8 @@ def convert(in_file, out_dir, domgeom=None, config_path=None):
         for comment_text in comments:
             if re.search('<domConfigList', comment_text):
                 comments_tmp.remove(comment_text)
-        runcfg_dict.xml_dict['runConfig'][\
-            '__children__'][Comment] = comments_tmp
+        runcfg_dict.xml_dict['runConfig']['__children__'][Comment] \
+            = comments_tmp
 
     # print out the converted xml file
     if out_dir == "-":
@@ -355,7 +355,6 @@ def main():
     default_dom_geom = DefaultDomGeometryReader.parse(fileName=geom_fname,
                                                       translateDoms=True)
     domgeom = default_dom_geom.getDomIdToDomDict()
-
 
     for cfg in args.positional:
         try:

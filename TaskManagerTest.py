@@ -85,12 +85,12 @@ class MockTMMBeanClient(object):
         return "%s#%d" % (self.__name, self.__num)
 
     def __createBeanData(self):
-        if not self.__name in self.BEANBAG:
+        if self.__name not in self.BEANBAG:
             raise Exception("No bean data found for %s" % self.__name)
 
         data = {}
         for b in self.BEANBAG[self.__name]:
-            if not b in data:
+            if b not in data:
                 data[b] = {}
             for f in self.BEANBAG[self.__name][b]:
                 data[b][f] = self.BEANBAG[self.__name][b][f]
@@ -161,6 +161,7 @@ class MockTMComponent(object):
     @property
     def mbean(self):
         return self.__mbean
+
     @property
     def name(self):
         return self.__name
@@ -272,7 +273,8 @@ class TaskManagerTest(unittest.TestCase):
         live.addExpected("LBMOverflows", {"1": 20},
                          Prio.ITS)
 
-        live.addExpected("dom_update", {"expectedDOMs": 2, "total_ratelc": 25.0,
+        live.addExpected("dom_update", {"expectedDOMs": 2,
+                                        "total_ratelc": 25.0,
                                         "total_rate": 50.0, "activeDOMs": 1,
                                         "missingDOMs": 1},
                          Prio.ITS)
@@ -297,7 +299,6 @@ class TaskManagerTest(unittest.TestCase):
             c.setOrder(orderNum)
 
         runset = MockRunSet(compList)
-        #runset.startRunning()
 
         dashlog = MockLogger("dashlog")
 
@@ -462,6 +463,7 @@ class TaskManagerTest(unittest.TestCase):
 
         runset.stopRunning()
         rst.stop()
+
 
 if __name__ == '__main__':
     unittest.main()

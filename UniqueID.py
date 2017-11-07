@@ -22,5 +22,6 @@ class UniqueID(object):
     def peekNext(self):
         return self.__val
 
+
 if __name__ == "__main__":
     pass

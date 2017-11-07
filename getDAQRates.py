@@ -23,7 +23,6 @@ COMP_FIELDS = {
         'moniData': 'RecordsSent',
         'snData': 'RecordsSent',
         'tcalData': 'RecordsSent',
-        #'rdoutReq': 'TotalRecordsReceived',
         'rdoutReq': 'RecordsReceived',
         'rdoutData': 'RecordsSent'
     },
@@ -34,7 +33,6 @@ COMP_FIELDS = {
         'moniData': 'RecordsSent',
         'snData': 'RecordsSent',
         'tcalData': 'RecordsSent',
-        #'rdoutReq': 'TotalRecordsReceived',
         'rdoutReq': 'RecordsReceived',
         'rdoutData': 'RecordsSent'
     },
@@ -45,7 +43,6 @@ COMP_FIELDS = {
         'moniData': 'RecordsSent',
         'snData': 'RecordsSent',
         'tcalData': 'RecordsSent',
-        # 'rdoutReq': 'TotalRecordsReceived',
         'rdoutReq': 'RecordsReceived',
         'rdoutData': 'RecordsSent'
     },
@@ -56,46 +53,36 @@ COMP_FIELDS = {
         'moniData': 'RecordsSent',
         'snData': 'RecordsSent',
         'tcalData': 'RecordsSent',
-        #'rdoutReq': 'TotalRecordsReceived',
         'rdoutReq': 'RecordsReceived',
         'rdoutData': 'RecordsSent'
     },
     'inIceTrigger': {
-        # 'stringHit': 'TotalRecordsReceived',
         'stringHit': 'RecordsReceived',
         'trigger': 'RecordsSent'
     },
     'iceTopTrigger': {
-        # 'icetopHit': 'TotalRecordsReceived',
         'icetopHit': 'RecordsReceived',
         'trigger': 'RecordsSent'
     },
     'amandaTrigger': {
-        # 'selfContained': 'TotalRecordsReceived',
         'selfContained': 'RecordsReceived',
         'trigger': 'RecordsSent'
     },
     'globalTrigger': {
-        # 'trigger': 'TotalRecordsReceived',
         'trigger': 'RecordsReceived',
         'glblTrig': 'RecordsSent'
     },
     'eventBuilder': {
-        # 'glblTrig': 'TotalRecordsReceived',
         'glblTrig': 'RecordsReceived',
         'rdoutReq': 'RecordsSent',
-        # 'rdoutData': 'TotalRecordsReceived',
         'rdoutData': 'RecordsReceived',
         'backEnd': 'NumEventsSent'
     },
     'secondaryBuilders': {
-        # 'moniData': 'TotalRecordsReceived',
         'moniData': 'RecordsReceived',
         'moniBuilder': 'NumDispatchedData',
-        # 'snData': 'TotalRecordsReceived',
         'snData': 'RecordsReceived',
         'snBuilder': 'NumDispatchedData',
-        # 'tcalData': 'TotalRecordsReceived',
         'tcalData': 'RecordsReceived',
         'tcalBuilder': 'NumDispatchedData',
     },
@@ -120,7 +107,7 @@ class Component(object):
                                 fileName)
 
             compName = baseName[:idx]
-            if not compName in COMP_FIELDS:
+            if compName not in COMP_FIELDS:
                 raise Exception('Unknown component "%s" in "%s"' %
                                 (compName, fileName))
 
@@ -185,7 +172,6 @@ def computeRates(dataDict):
     if len(rates) == 0:
         rates = None
         totRate = None
-    #elif prevTime == firstTime:
     elif len(rates) == 1:
         if float(rates[0]) == 0.0:
             totRate = None
@@ -264,7 +250,7 @@ class Summary(object):
         if val > 0:
             if name != "DOM":
                 self.__data[name][time] = val
-            elif not time in self.__data[name]:
+            elif time not in self.__data[name]:
                 self.__data[name][time] = val
             else:
                 self.__data[name][time] += val
@@ -272,21 +258,21 @@ class Summary(object):
 
     def add(self, name, time, vals):
         if TIME_INTERVAL is None or \
-            (time > self.__lastSaved[name] + TIME_INTERVAL):
+           (time > self.__lastSaved[name] + TIME_INTERVAL):
             self.__save(name, time, vals)
 
     def data(self):
         return self.__data
 
     def register(self, name):
-        if not name in self.__data:
+        if name not in self.__data:
             self.__data[name] = {}
             self.__lastSaved[name] = 0.0
 
 
 def processFile(fileName, comp):
     """Process the specified file"""
-    if not comp.name in COMP_FIELDS:
+    if comp.name not in COMP_FIELDS:
         flds = None
     else:
         flds = COMP_FIELDS[comp.name]
@@ -314,14 +300,14 @@ def processFile(fileName, comp):
                     vals = m.group(2)
 
                     if flds is None or \
-                        (secName in flds and flds[secName] == name):
+                       (secName in flds and flds[secName] == name):
                         summary.add(secName, secTime, vals)
                     continue
 
             m = MONISEC_PAT.match(line)
             if m:
                 nm = m.group(1)
-                if not nm in flds:
+                if nm not in flds:
                     if nm.startswith("DataCollectorMonitor"):
                         nm = "DOM"
                     else:

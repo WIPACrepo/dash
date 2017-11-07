@@ -271,13 +271,13 @@ class LiveState(object):
                 self.__config = back
                 return self.PARSE_NORMAL
             elif front.startswith("tstart") or front.startswith("tstop") or \
-                front.startswith("t_valid") or front == "livestart":
+                 front.startswith("t_valid") or front == "livestart":
                 # ignore start/stop times
                 return self.PARSE_NORMAL
             elif front == "physicsEvents" or \
                     front == "physicsEventsTime" or \
                     front == "walltimeEvents" or \
-                    front == "walltimeEventsTime"  or \
+                    front == "walltimeEventsTime" or \
                     front == "tcalEvents" or \
                     front == "moniEvents" or \
                     front == "snEvents" or \
@@ -394,7 +394,7 @@ class LiveState(object):
         Return the state string for the specified service
         from the most recent check()
         """
-        if not svcName in self.__svcDict:
+        if svcName not in self.__svcDict:
             return LiveRunState.UNKNOWN
         return LiveRunState.str(self.__svcDict[svcName].state)
 
@@ -852,12 +852,13 @@ class LiveRun(BaseRun):
 
     def switchRun(self, runNum):
         """Switch to a new run number without stopping any components"""
-        return True # Live handles this automatically
+        return True  # Live handles this automatically
 
     def waitForStopped(self, verbose=False):
         initStates = (self.__state.runState(), LiveRunState.STOPPING)
         return self.__waitForState(initStates, LiveRunState.STOPPED,
                                    60, 0, verbose=verbose)
+
 
 if __name__ == "__main__":
     run = LiveRun(showCmd=True, showCmdOutput=True, dryRun=False)

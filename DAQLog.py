@@ -87,8 +87,6 @@ class LogSocketServer(object):
         Windows version of listener - no select().
         """
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        #sock.setblocking(1)
-        #sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(("", self.__port))
         self.__serving = True
         while self.__thread is not None:

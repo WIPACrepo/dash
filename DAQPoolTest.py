@@ -31,6 +31,7 @@ class FakeCluster(object):
     def description(self):
         return self.__descName
 
+
 class MockRunData(object):
     def __init__(self, runNum, clusterConfigName, runOptions, versionInfo,
                  spadeDir, copyDir, logDir, testing=True):
@@ -136,7 +137,7 @@ class MyRunSet(RunSet):
         }
 
     def getLog(self, name):
-        if not name in self.__logDict:
+        if name not in self.__logDict:
             self.__logDict[name] = MockLogger(name)
 
         return self.__logDict[name]
@@ -627,8 +628,8 @@ class TestDAQPool(unittest.TestCase):
                            daqDataDir, forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
         except ConnectionException as ce:
-            if str(ce).find("Found 2 %s inputs for 2 outputs" % \
-                                outputName) < 0:
+            if str(ce).find("Found 2 %s inputs for 2 outputs" %
+                            (outputName, )) < 0:
                 raise
 
         self.assertEqual(mgr.numComponents(), len(compList))
@@ -751,7 +752,6 @@ class TestDAQPool(unittest.TestCase):
                                 (runNum, clusterCfg.description))
 
         dashLog = runset.getLog("dashLog")
-        #dashLog.addExpectedRegexp(r"MockRun finished setup")
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
 
@@ -870,6 +870,7 @@ class TestDAQPool(unittest.TestCase):
 
         for c in compList:
             self.assertEqual(c.monitorCount(), 2)
+
 
 if __name__ == '__main__':
     unittest.main()

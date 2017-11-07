@@ -228,6 +228,6 @@ if __name__ == "__main__":
         if (not (hostid.is_control_host() or
                  (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
             raise SystemExit("Are you sure you are checking status"
-                             " on the correct host?" )
+                             " on the correct host?")
 
     print_status(args)

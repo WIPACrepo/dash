@@ -7,6 +7,7 @@ values of the root element of the python dictionary passed to them."""
 from lxml import etree
 from lxml.etree import Comment
 
+
 def get_attrib(xdict, attrib_name):
     if '__attribs__' not in xdict or \
             attrib_name not in xdict['__attribs__']:
@@ -14,10 +15,12 @@ def get_attrib(xdict, attrib_name):
 
     return xdict['__attribs__'][attrib_name]
 
+
 def set_attrib(xdict, attrib_name, value):
     if '__attribs__' not in xdict:
         xdict['__attribs__'] = {}
     xdict['__attribs__'][attrib_name] = value
+
 
 def get_value(xdict):
     if isinstance(xdict, list) and len(xdict) > 0:
@@ -104,7 +107,7 @@ class xml_dict(object):
         return ret
 
     @staticmethod
-    def dict_xml_tree(elem_dict, root=None):
+    def dict_xml_tree(elem_dict, root=None, debug=False):
         """xml_fmt takes an XML file and outputs a specially formatted python
         dictionary.  If you pass that dictionary to this method it will return
         an lxml element tree.  That can be handed off to 'toString()' to
@@ -120,7 +123,19 @@ class xml_dict(object):
         except Exception:
             raise
 
+        debug = tag != "runConfig" and tag != "runComponent" and \
+                tag != "stringHub"
+        import sys
+        from stacktrace import stacktrace
+        if debug:
+            print >>sys.stderr, "EDict (root %s)" % (root, )
+            print >>sys.stderr, "..... keys %s" % (elem_dict.keys())
+            print >>sys.stderr, " :: %s" % (stacktrace(), )
+            print >>sys.stderr, "----- tag %s contents <%s>" % \
+                (tag, type(contents).__name__)
         if root is None:
+            if debug:
+                print >>sys.stderr, "KidNoRoot"
             root_tag = elem_dict.keys()
             if '__root_comments__' in root_tag:
                 root_tag.remove('__root_comments__')
@@ -133,49 +148,92 @@ class xml_dict(object):
                     c = Comment(comment_text)
                     elem.addprevious(c)
         else:
+            if debug:
+                print >>sys.stderr, "KidRoot"
             elem = etree.SubElement(root, tag)
 
-        if not '__attribs__' in contents and\
-                not '__children__' in contents and \
-                not '__contents__' in contents:
+        if not isinstance(contents, dict) or \
+           ('__attribs__' not in contents and
+            '__children__' not in contents and
+            '__contents__' not in contents):
+            if debug:
+                print >>sys.stderr, "KidAddText"
             elem.text = contents
             return elem
 
         # record all of the element attributes
         if '__attribs__' in contents:
+            if debug:
+                print >>sys.stderr, "KidAttr"
             for (key, value) in contents['__attribs__'].iteritems():
                 elem.set(key, value)
 
         # record the contents
-        if '__contents__' in contents:
+        if '__contents__' in contents and \
+           (isinstance(contents['__contents__'], str) or
+            isinstance(contents['__contents__'], unicode)):
+            if debug:
+                print >>sys.stderr, "KidRepl <%s> with <%s>" % \
+                    (type(contents).__name__,
+                     type(contents['__contents__']).__name__)
             elem.text = contents['__contents__']
 
         # iterate through children if there are any
         if '__children__' not in contents:
             return elem
 
+        if debug:
+            print >>sys.stderr, "KidContents <%s>" % \
+                (type(contents).__name__, )
+            print >>sys.stderr, "v"*40
+        if not isinstance(contents, dict):
+            if debug:
+                print >>sys.stderr, "NotADict <%s>%s" % \
+                    (type(contents).__name__, contents)
+        else:
+            for child_name, child_desc in contents['__children__'].iteritems():
+                if debug:
+                    print >>sys.stderr, "Kid %s desc <%s>%s" % \
+                        (child_name, type(child_desc).__name__, child_desc)
+        if debug:
+            print >>sys.stderr, "^"*40
         for child_name, child_desc in contents['__children__'].iteritems():
+            if debug:
+                print >>sys.stderr, "XXXKid  name %s desc <%s>" % \
+                    (child_name, type(child_desc).__name__)
             # a special case.  if the child name is a Comment then
             # build up all the comments
             if child_name == Comment:
+                if debug:
+                    print >>sys.stderr, "XXXComment"
                 for comment_text in child_desc:
                     c = Comment(comment_text)
                     elem.append(c)
             # a special case..  if the child_desc is a list with a string
             # element then build the child appropriately
-            elif isinstance(child_desc, list) and len(child_desc) == 1 and \
-                    (isinstance(child_desc[0], str) or child_desc[0] is None):
-                child_element = etree.SubElement(elem, child_name)
-                child_element.text = child_desc[0]
+            elif isinstance(child_desc, list):
+                if len(child_desc) == 1 and \
+                   (isinstance(child_desc[0], str) or child_desc[0] is None):
+                    if debug:
+                        print >>sys.stderr, "XXXListOne"
+                    child_element = etree.SubElement(elem, child_name)
+                    child_element.text = child_desc[0]
+                else:
+                    for entry in child_desc:
+                        if debug:
+                            print >>sys.stderr, "XXXListMulti <%s>%s" % \
+                                (type(entry).__name__, entry)
+                        xml_dict.dict_xml_tree({child_name: entry}, root=elem,
+                                               debug=debug)
             else:
-                for entry in child_desc:
-                    xml_dict.dict_xml_tree({child_name: entry}, root=elem)
+                print >>sys.stderr, "Not handling <%s>%s" % \
+                    (type(child_desc).__name__, child_desc)
 
         return elem
 
     @staticmethod
-    def toString(info_dict, pretty_print=True):
-        root = xml_dict.dict_xml_tree(info_dict)
+    def toString(info_dict, pretty_print=True, debug=False):
+        root = xml_dict.dict_xml_tree(info_dict, debug=debug)
         tree = etree.ElementTree(root)
         return etree.tostring(tree,
                               method="xml",
@@ -184,6 +242,7 @@ class xml_dict(object):
 
     def __str__(self):
         return self.toString(self.xml_dict)
+
 
 if __name__ == "__main__":
     import doctest

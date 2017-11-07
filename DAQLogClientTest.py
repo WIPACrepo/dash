@@ -83,5 +83,6 @@ class TestDAQLogClient(unittest.TestCase):
 
         self.assertRaises(Exception, FileAppender, logName, badPath)
 
+
 if __name__ == '__main__':
     unittest.main()

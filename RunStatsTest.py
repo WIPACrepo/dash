@@ -225,5 +225,6 @@ class TestRunStats(unittest.TestCase):
 
         self.__checkStats(rs, upDict, upRate, upEntries)
 
+
 if __name__ == '__main__':
     unittest.main()

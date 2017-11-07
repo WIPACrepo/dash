@@ -34,13 +34,13 @@ class ActiveDOMThread(CnCThread):
             hub_active_doms = int(result[self.KEY_ACT_TOT][0])
             hub_total_doms = int(result[self.KEY_ACT_TOT][1])
         except:
-            self.__dashlog.error("Cannot get # active DOMS from %s string: %s" %
-                                 (comp.fullname, exc_string()))
+            self.__dashlog.error("Cannot get # active DOMS from %s string:"
+                                 " %s" % (comp.fullname, exc_string()))
             # be extra paranoid about using previous value
             tmp_active = 0
             tmp_total = 0
-            if self.PREV_ACTIVE.has_key(comp.num) and \
-               self.PREV_ACTIVE[comp.num].has_key(self.KEY_ACT_TOT):
+            if comp.num in self.PREV_ACTIVE and \
+               self.KEY_ACT_TOT in self.PREV_ACTIVE[comp.num]:
                 prevpair = self.PREV_ACTIVE[comp.num][self.KEY_ACT_TOT]
                 if len(prevpair) == 2:
                     try:
@@ -55,7 +55,7 @@ class ActiveDOMThread(CnCThread):
         totals["active_doms"] += hub_active_doms
         totals["total_doms"] += hub_total_doms
 
-        if result.has_key(self.KEY_LBM_OVER):
+        if self.KEY_LBM_OVER in result:
             hub_lbm_overflows = result[self.KEY_LBM_OVER]
         else:
             self.__dashlog.error("Bad LBM overflow result %s<%s>" %
@@ -86,11 +86,7 @@ class ActiveDOMThread(CnCThread):
         }
 
     def __send_moni(self, name, value, prio):
-        #try:
         self.__live_moni_client.sendMoni(name, value, prio)
-        #except:
-        #    self.__dashlog.error("Failed to send %s=%s: %s" %
-        #                         (name, value, exc_string()))
 
     def _run(self):
         # build a list of hubs
@@ -116,7 +112,7 @@ class ActiveDOMThread(CnCThread):
 
         hanging = []
         for comp in src_set:
-            if not results.has_key(comp):
+            if comp not in results:
                 result = None
             else:
                 result = results[comp]
@@ -128,7 +124,7 @@ class ActiveDOMThread(CnCThread):
 
             if result is None:
                 # if we don't have previous data for this component, skip it
-                if not comp.num in self.PREV_ACTIVE:
+                if comp.num not in self.PREV_ACTIVE:
                     continue
 
                 # use previous datapoint
@@ -213,7 +209,8 @@ class ActiveDOMsTask(CnCSingleThreadTask):
                                              liveMoni, period, needLiveMoni)
 
     def createDetailTimer(self, taskMgr):
-        return taskMgr.createIntervalTimer(self.REPORT_NAME, self.REPORT_PERIOD)
+        return taskMgr.createIntervalTimer(self.REPORT_NAME,
+                                           self.REPORT_PERIOD)
 
     def initializeThread(self, runset, dashlog, liveMoni):
         return ActiveDOMThread(runset, dashlog, liveMoni, False)

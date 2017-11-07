@@ -55,7 +55,7 @@ class DAQPool(object):
 
     def __addInternal(self, comp):
         "This method assumes that self.__poolLock has already been acquired"
-        if not comp.name in self.__pool:
+        if comp.name not in self.__pool:
             self.__pool[comp.name] = []
         for oldcomp in self.__pool[comp.name]:
             if comp.matches(oldcomp):
@@ -368,8 +368,8 @@ class DAQPool(object):
             for c in bin:
                 clients.append(c)
 
-        states = ComponentOperationGroup.runSimple(ComponentOperation.GET_STATE,
-                                                   clients, (), logger)
+        op = ComponentOperation.GET_STATE
+        states = ComponentOperationGroup.runSimple(op, clients, (), logger)
         for c in clients:
             if c in states:
                 stateStr = str(states[c])
@@ -581,19 +581,19 @@ class Connector(object):
     def isInput(self):
         "Return True if this is an input connector"
         return self.__descrChar == self.INPUT or \
-               self.__descrChar == self.OPT_INPUT
+            self.__descrChar == self.OPT_INPUT
 
     @property
     def isOptional(self):
         "Return True if this is an optional connector"
         return self.__descrChar == self.OPT_INPUT or \
-               self.__descrChar == self.OPT_OUTPUT
+            self.__descrChar == self.OPT_OUTPUT
 
     @property
     def isOutput(self):
         "Return True if this is an output connector"
         return self.__descrChar == self.OUTPUT or \
-               self.__descrChar == self.OPT_OUTPUT
+            self.__descrChar == self.OPT_OUTPUT
 
     @property
     def name(self):
@@ -778,8 +778,9 @@ class CnCServer(DAQPool):
     def __listComponentDicts(self, compList):
         slst = []
 
-        states = ComponentOperationGroup.runSimple(ComponentOperation.GET_STATE,
-                                                   compList, (), self.__log)
+        op = ComponentOperation.GET_STATE
+        states = ComponentOperationGroup.runSimple(op, compList, (),
+                                                   self.__log)
         for c in compList:
             if c in states:
                 stateStr = str(states[c])
@@ -990,9 +991,8 @@ class CnCServer(DAQPool):
                     savedEx = (fd, exc_string())
 
         if savedEx:
-            raise CnCServerException("Cannot close file #%s: %s" % \
-                                         (savedEx[0],
-                                          savedEx[1]))
+            raise CnCServerException("Cannot close file #%s: %s" %
+                                     (savedEx[0], savedEx[1]))
 
         return 1
 
@@ -1455,6 +1455,7 @@ class CnCServer(DAQPool):
 
     def versionInfo(self):
         return self.__versionInfo
+
 
 if __name__ == "__main__":
     import argparse

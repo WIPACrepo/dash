@@ -11,6 +11,7 @@ import sys
 class RunNumberException(Exception):
     pass
 
+
 class RunNumber(object):
     DEFAULT_FILE = os.path.join(os.environ["HOME"], ".i3live-run")
 
@@ -32,11 +33,11 @@ class RunNumber(object):
                         num = int(m.group(1))
                         subnum = int(m.group(2))
                     except:
-                        raise RunNumberException("Bad line \"%s\" from \"%s\"" %
+                        raise RunNumberException("Bad line \"%s\" from"
+                                                 " \"%s\"" %
                                                  (line.rstrip(), filename))
 
         return (num, subnum)
-
 
     @classmethod
     def setLast(cls, number, subrun=0, filename=None):
@@ -58,7 +59,8 @@ class RunNumber(object):
             with open(filename, 'w') as fd:
                 print >>fd, "%d %d" % (goodRun, goodSub)
         except Exception, exc:
-            raise RunNumberException("Cannot update \"%s\" with \"%s %s\": %s" %
+            raise RunNumberException("Cannot update \"%s\" with \"%s %s\":"
+                                     " %s" %
                                      (filename, goodRun, goodSub, str(exc)))
 
 
@@ -70,13 +72,14 @@ def add_arguments(parser):
                         type=int, default=0,
                         help="Last subrun number")
 
+
 def get_or_set_run_number(args):
     (runNum, subrun) = RunNumber.getLast()
 
     if args.runNumber is None:
         action = "is"
     elif not verify_change(runNum, subrun, args.runNumber, args.subrun):
-        action ="not changed from"
+        action = "not changed from"
     else:
         # update file with new run and subrun numbers
         RunNumber.setLast(args.runNumber, subrun=args.subrun)

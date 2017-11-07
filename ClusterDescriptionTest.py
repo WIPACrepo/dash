@@ -31,7 +31,8 @@ class TestClusterDescription(unittest.TestCase):
                          "Expected %s simHub to be %s, not %s for %s<%s>" %
                          (mock.name, mock.isSimHub, c.isSimHub, c, type(c)))
         self.assertEqual(mock.logLevel, c.logLevel,
-                         "Expected %s log level \"%s\", not \"%s\" for %s<%s>" %
+                         "Expected %s log level \"%s\", not \"%s\""
+                         " for %s<%s>" %
                          (mock.name, mock.logLevel, c.logLevel, c, type(c)))
         self.assertEqual(mock.required, c.required,
                          "Expected %s required to be %s, not %s for %s<%s>" %
@@ -42,8 +43,8 @@ class TestClusterDescription(unittest.TestCase):
                              (c, type(c)))
         else:
             self.assertTrue(c.hasJVMOptions,
-                             "Expected JVM options for %s<%s>" %
-                             (c, type(c)))
+                            "Expected JVM options for %s<%s>" %
+                            (c, type(c)))
             self.assertEqual(mock.jvmExtraArgs, c.jvmExtraArgs, "Expected %s"
                              " JVM extra args \"%s\", not \"%s\" for %s<%s>" %
                              (mock.name, mock.jvmExtraArgs, c.jvmExtraArgs, c,
@@ -590,7 +591,7 @@ class TestClusterDescription(unittest.TestCase):
 
         for i in range(numFields):
             if self.DEBUG:
-                print  "########## I %d" % i
+                print "########## I %d" % i
 
             # create a cluster config file
             mock = MockClusterConfigFile(self.CFGDIR, name)
@@ -645,7 +646,7 @@ class TestClusterDescription(unittest.TestCase):
                 plainServer = not dfltServer
                 tmpServer = plainServer
             else:
-                plainServer = dfltServer == True
+                plainServer = dfltServer is True
             if i == FLD_JVMARGS:
                 plainArgs = "plainArgs"
                 tmpArgs = plainArgs
@@ -699,7 +700,7 @@ class TestClusterDescription(unittest.TestCase):
 
             j = (i + 1) % numFields
             if self.DEBUG:
-                print  "########## J %d" % j
+                print "########## J %d" % j
 
             if j == FLD_PATH:
                 instPath = "instPath"
@@ -720,7 +721,7 @@ class TestClusterDescription(unittest.TestCase):
                 instServer = not dfltServer
                 bar.setJVMServer(instServer)
             else:
-                instServer = dfltServer == True
+                instServer = dfltServer is True
             if j == FLD_JVMARGS:
                 instArgs = "instArgs"
                 bar.setJVMArgs(instArgs)
@@ -757,7 +758,7 @@ class TestClusterDescription(unittest.TestCase):
 
             if self.DEBUG:
                 with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
-                    print  ":::::::::: %s-cluster.cfg" % name
+                    print ":::::::::: %s-cluster.cfg" % name
                     for line in fd:
                         print ":: ", line,
 
@@ -801,7 +802,8 @@ class TestClusterDescription(unittest.TestCase):
                              " not \"%s\"" %
                              (dfltExtra, cd.defaultJVMExtraArgs()))
             self.assertEqual(dfltHeapInit, cd.defaultJVMHeapInit(),
-                             "Expected default JVMHeapInit \"%s\", not \"%s\"" %
+                             "Expected default JVMHeapInit \"%s\","
+                             " not \"%s\"" %
                              (dfltHeapInit, cd.defaultJVMHeapInit()))
             self.assertEqual(dfltHeapMax, cd.defaultJVMHeapMax(),
                              "Expected default JVMHeapMax \"%s\", not \"%s\"" %

@@ -130,7 +130,7 @@ class DashXMLLog:
         self._fields[field_name] = field_val
 
     def getField(self, field_name):
-        if not self._fields.has_key(field_name):
+        if field_name not in self._fields:
             return None
         return self._fields[field_name]
 
@@ -386,7 +386,7 @@ class DashXMLLog:
 
         doc = self._build_document()
 
-        if(doc.encoding == None):
+        if doc.encoding is None:
             dispStr = "<?xml version=\"1.0\"?>"
         else:
             dispStr = "<?xml version=\"1.0\" encoding=\"%s\"?>" % \
@@ -440,7 +440,6 @@ class DashXMLLog:
                     val = None
                 runXML.setField(node.tagName, val)
 
-
         return runXML
 
     def summary(self):
@@ -483,5 +482,5 @@ if __name__ == "__main__":
     a.setSN(47624256)
 
     a.setField("ExtraField", 50)
-    #print a.documentToString()
-    #a.dispLog()
+    # print a.documentToString()
+    # a.dispLog()

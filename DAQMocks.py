@@ -77,11 +77,10 @@ class BaseLiveChecker(BaseChecker):
         svcName = m.group(1)
         varName = m.group(2)
         varType = m.group(3)
-        #msgPrio = m.group(4)
-        #msgTime = m.group(5)
+        # msgPrio = m.group(4)
+        # msgTime = m.group(5)
         msgText = m.group(6)
 
-        #global SERVICE_NAME
         if svcName != SERVICE_NAME:
             if setError:
                 name = str(checker)
@@ -194,9 +193,8 @@ class LiveChecker(BaseLiveChecker):
                 name = str(checker)
                 if debug:
                     print >>sys.stderr, '*** %s:LIVE: %s' % (name, valStr)
-                checker.setError(('Expected %s live log message '
-                                  '"%s", not "%s"') % \
-                                     (name, valStr, msg))
+                checker.setError('Expected %s live log message '
+                                 '"%s", not "%s"' % (name, valStr, msg))
             return False
 
         return True
@@ -219,7 +217,7 @@ class LiveRegexpChecker(BaseLiveChecker):
         super(LiveRegexpChecker, self).__init__(varName)
 
     def _checkText(self, checker, msg, debug, setError):
-        m = self.__regexp.match(msg)
+        m = self.__regexp.search(msg)
         if m is None:
             if setError:
                 name = str(checker)
@@ -287,7 +285,7 @@ class RegexpTextChecker(BaseChecker):
                                  (name, msg))
             return False
 
-        m = self.__regexp.match(m.group(3))
+        m = self.__regexp.search(m.group(3))
         if m is None:
             if setError:
                 name = str(checker)
@@ -611,7 +609,7 @@ class MockCluCfgFileComp(MockClusterWriter):
         self.__hitspoolMaxFiles = hitspoolMaxFiles
 
         self.__jvmPath = jvmPath
-        self.__jvmServer = jvmServer == True
+        self.__jvmServer = jvmServer is True
         self.__jvmHeapInit = jvmHeapInit
         self.__jvmHeapMax = jvmHeapMax
         self.__jvmArgs = jvmArgs
@@ -1004,7 +1002,7 @@ class MockClusterConfig(object):
         return "MockClusterConfig(%s)" % self.__configName
 
     def addComponent(self, comp, jvmPath, jvmArgs, host):
-        if not host in self.__nodes:
+        if host not in self.__nodes:
             self.__nodes[host] = MockClusterNode(host)
         self.__nodes[host].add(comp, jvmPath, jvmArgs, host)
 
@@ -1126,7 +1124,7 @@ class MockClusterConfigFile(MockClusterWriter):
 
                 if hasHubXML:
                     self.writeHubXML(fd, indent2, self.__defaultAlertEMail,
-                                    self.__defaultNTPHost)
+                                     self.__defaultNTPHost)
 
                 if self.__defaultLogLevel is not None:
                     self.writeLine(fd, indent2, "logLevel",
@@ -1265,7 +1263,6 @@ class MockClusterNode(object):
 
 class MockCnCLogger(CnCLogger):
     def __init__(self, name, appender=None, quiet=False, extraLoud=False):
-        #if appender is None: raise Exception('Appender cannot be None')
         self.__appender = appender
 
         super(MockCnCLogger, self).__init__(name, appender=appender,
@@ -1320,13 +1317,13 @@ class MockMBeanClient(object):
             raise Exception("Value for %s bean %s field %s already exists" %
                             (self, beanName, fieldName))
 
-        if not beanName in self.__beanData:
+        if beanName not in self.__beanData:
             self.__beanData[beanName] = {}
 
         self.__beanData[beanName][fieldName] = value
 
     def addOrSet(self, beanName, fieldName, value):
-        if not beanName in self.__beanData:
+        if beanName not in self.__beanData:
             self.__beanData[beanName] = {}
 
         self.__beanData[beanName][fieldName] = value
@@ -1680,8 +1677,8 @@ class MockDefaultDomGeometryFile(object):
                     print >>fd, "    <number>%d</number>" % hub
                     for dom in hub_dom_dict[hub]:
                         print >>fd, "    <dom>"
-                        print >>fd, "      <mainBoardId>%012x</mainBoardId>" % \
-                            dom.mbid
+                        print >>fd, \
+                            "      <mainBoardId>%012x</mainBoardId>" % dom.mbid
                         print >>fd, "      <position>%d</position>" % dom.pos
                         print >>fd, "      <name>%s</name>" % dom.name
                         print >>fd, "      <productionId>%s</productionId>" % \
@@ -1701,13 +1698,13 @@ class MockDeployComponent(Component):
         self.__hsInterval = hsInterval
         self.__hsMaxFiles = hsMaxFiles
         self.__jvmPath = jvmPath
-        self.__jvmServer = jvmServer == True
+        self.__jvmServer = jvmServer is True
         self.__jvmHeapInit = jvmHeapInit
         self.__jvmHeapMax = jvmHeapMax
         self.__jvmArgs = jvmArgs
         self.__jvmExtraArgs = jvmExtraArgs
         self.__alertEMail = alertEMail
-        self.__ntpHost =  ntpHost
+        self.__ntpHost = ntpHost
         self.__numReplayFiles = numReplayFiles
         self.__host = host
 
@@ -1979,8 +1976,8 @@ class MockParallelShell(object):
                 print >>sys.stderr, "PSh not: " + self.__exp[i]
 
         if found is None:
-            raise Exception('Command not found in expected command list: ' \
-                            'cmd="%s"' % cmd)
+            raise Exception("Command not found in expected command list:"
+                            " cmd=\"%s\"" % (cmd, ))
 
         del self.__exp[found]
 
@@ -2018,16 +2015,18 @@ class MockParallelShell(object):
 
         if comp.isRealHub:
             if comp.ntpHost is not None:
-                cmd += " -Dicecube.daq.time.monitoring.ntp-host=" + comp.ntpHost
+                cmd += " -Dicecube.daq.time.monitoring.ntp-host=" + \
+                       comp.ntpHost
             if comp.alertEMail is not None:
-                cmd += " -Dicecube.daq.stringhub.alert-email=" + comp.alertEMail
+                cmd += " -Dicecube.daq.stringhub.alert-email=" + \
+                       comp.alertEMail
 
         if comp.hitspoolDirectory is not None:
             cmd += " -Dhitspool.directory=\"%s\"" % comp.hitspoolDirectory
         if comp.hitspoolInterval is not None:
-            cmd += " -Dhitspool.interval=%.4f" %  comp.hitspoolInterval
+            cmd += " -Dhitspool.interval=%.4f" % comp.hitspoolInterval
         if comp.hitspoolMaxFiles is not None:
-            cmd += " -Dhitspool.maxfiles=%d" %  comp.hitspoolMaxFiles
+            cmd += " -Dhitspool.maxfiles=%d" % comp.hitspoolMaxFiles
 
         if comp.isHub:
             cmd += " -Dicecube.daq.stringhub.componentId=%d" % comp.id
@@ -2333,6 +2332,7 @@ class MockLeapsecondFile(object):
             for pair in known_times:
                 print >>out, "%d\t%d" % (pair[1], pair[0])
 
+
 class MockTriggerConfig(object):
     def __init__(self, name):
         self.__name = name
@@ -2422,7 +2422,8 @@ class MockRunConfigFile(object):
                 domCfg = "string-%d-config" % hub
                 self.__makeDomConfig(domCfg, domList, debug=debug)
 
-                print >>fd, "    <stringHub hubId=\"%s\" domConfig=\"%s\"/>" % \
+                print >>fd, \
+                    "    <stringHub hubId=\"%s\" domConfig=\"%s\"/>" % \
                     (hub, domCfg)
 
             print >>fd, "    <triggerConfig>%s</triggerConfig>" % trigCfg.name
@@ -2482,7 +2483,7 @@ class MockXMLRPC(object):
             tmpLinks[k][0:] = self.outLinks[k][0:len(self.outLinks[k])]
 
         for l in list:
-            if not l['type'] in tmpLinks:
+            if l['type'] not in tmpLinks:
                 raise ValueError(('Component %s#%d should not have a "%s"' +
                                   ' connection') %
                                  (self.name, self.num, l['type']))
@@ -2497,13 +2498,10 @@ class MockXMLRPC(object):
                     break
 
             if not comp:
-                raise ValueError(("Component %s#%d "
-                                  "should not connect to %s:%s#%d") % \
-                                     (self.name,
-                                      self.num,
-                                      l['type'],
-                                      l['compName'],
-                                      l.getCompNum()))
+                raise ValueError("Component %s#%d should not connect to"
+                                 " %s:%s#%d" %
+                                 (self.name, self.num, l['type'],
+                                  l['compName'], l.getCompNum()))
 
         if len(tmpLinks) > 0:
             errMsg = 'Component ' + self.name + '#' + str(self.num) + \
@@ -2600,8 +2598,6 @@ class SocketReader(LogChecker):
 
     def __win_bind(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        #sock.setblocking(1)
-        #sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(("", self.__port))
         return sock
 
@@ -2641,8 +2637,8 @@ class SocketReader(LogChecker):
 
     def startServing(self):
         if self.__thread is not None:
-            raise Exception('Socket reader %s is already running' % \
-                                self.__name)
+            raise Exception("Socket reader %s is already running" %
+                            (self.__name, ))
 
         if os.name == "nt":
             sock = self.__win_bind()
@@ -2670,8 +2666,8 @@ class SocketReaderFactory(object):
         self.__logList.append(log)
 
         if expectStartMsg:
-            log.addExpectedTextRegexp(r'^Start of log at LOG=(\S+:\d+|' +
-                                      r'log\(\S+:\d+\)(\slive\(\S+:\d+\))?)$')
+            log.addExpectedTextRegexp(r'Start of log at LOG=(\S+:\d+|' +
+                                      r'log\(\S+:\d+\)(\slive\(\S+:\d+\))?)')
         if startServer:
             log.startServing()
 
@@ -2743,9 +2739,8 @@ class RunXMLValidator(object):
             run = DashXMLLog.parse()
 
             test_case.assertEqual(run.getRun(), runNum,
-                                  "Expected run number %s, not %s" % \
-                                      (runNum,
-                                       run.getRun()))
+                                  "Expected run number %s, not %s" %
+                                  (runNum, run.getRun()))
 
             test_case.assertEqual(run.getConfig(), cfgName,
                                   "Expected config \"%s\", not \"%s\"" %
@@ -2757,20 +2752,17 @@ class RunXMLValidator(object):
 
             if startTime is not None:
                 test_case.assertEqual(run.getStartTime(), startTime,
-                                      ("Expected start time %s<%s>, "
-                                       "not %s<%s>") % \
-                                          (startTime,
-                                           type(startTime),
-                                           run.getStartTime(),
-                                           type(run.getStartTime())))
+                                      "Expected start time %s<%s>,"
+                                      " not %s<%s>" %
+                                      (startTime, type(startTime).__name__,
+                                       run.getStartTime(),
+                                       type(run.getStartTime()).__name__))
             if endTime is not None:
                 test_case.assertEqual(run.getEndTime(), endTime,
-                                      ("Expected end time %s<%s>, "
-                                       "not %s<%s>") % \
-                                          (endTime,
-                                           type(endTime),
-                                           run.getEndTime(),
-                                           type(run.getEndTime())))
+                                      "Expected end time %s<%s>, not %s<%s>" %
+                                      (endTime, type(endTime).__name__,
+                                       run.getEndTime(),
+                                       type(run.getEndTime()).__name__))
 
             test_case.assertEqual(run.getTermCond(), failed,
                                   "Expected terminal condition %s, not %s" %
@@ -2781,19 +2773,16 @@ class RunXMLValidator(object):
                                   (numEvts, run.getEvents()))
 
             test_case.assertEqual(run.getMoni(), numMoni,
-                                  ("Expected number of monitoring events %s, "
-                                   "not %s") % \
-                                      (numMoni, run.getMoni()))
+                                  "Expected number of monitoring events %s, "
+                                  "not %s" % (numMoni, run.getMoni()))
 
             test_case.assertEqual(run.getTcal(), numTcal,
-                                  ("Expected number of time cal events %s, "
-                                   "not %s") % \
-                                      (numTcal, run.getTcal()))
+                                  "Expected number of time cal events %s, "
+                                  "not %s" % (numTcal, run.getTcal()))
 
             test_case.assertEqual(run.getSN(), numSN,
-                                  ("Expected number of supernova events %s, "
-                                   "not %s") % \
-                                      (numSN, run.getSN()))
+                                  "Expected number of supernova events %s, "
+                                  "not %s" % (numSN, run.getSN()))
         finally:
             try:
                 os.remove("run.xml")
@@ -2853,7 +2842,7 @@ class MockTaskManager(object):
         self.__timerDict[timer.name] = timer
 
     def createIntervalTimer(self, name, period):
-        if not name in self.__timerDict:
+        if name not in self.__timerDict:
             raise Exception("Cannot find timer named \"%s\"" % name)
         return self.__timerDict[name]
 
@@ -2869,7 +2858,7 @@ class MockLiveMoni(object):
         self.__expMoni = {}
 
     def addExpected(self, var, val, prio):
-        if not var in self.__expMoni:
+        if var not in self.__expMoni:
             self.__expMoni[var] = []
         self.__expMoni[var].append((val, prio))
 
@@ -2877,7 +2866,7 @@ class MockLiveMoni(object):
         return len(self.__expMoni) == 0
 
     def sendMoni(self, var, val, prio, time=datetime.datetime.now()):
-        if not var in self.__expMoni:
+        if var not in self.__expMoni:
             raise Exception(("Unexpected live monitor data"
                              " (var=%s, val=%s, prio=%d)") % (var, val, prio))
 

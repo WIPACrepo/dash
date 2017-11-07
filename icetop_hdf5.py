@@ -53,7 +53,7 @@ def create_meta_xml(path, suffix, run_number, verbose=False, dry_run=False):
                          (path, suffix))
 
     # define all the static fields
-    title = "Icetop Scaler Data" #"IceTop_Scaler"
+    title = "Icetop Scaler Data"
     summary = title
     category = "monitoring"
     subcategory = "IceTopScaler"
@@ -182,7 +182,8 @@ def process_moni(dom_dict, moniname):
     return data
 
 
-def process_list(monilist, dom_dict, verbose=False, dry_run=False, debug=False):
+def process_list(monilist, dom_dict, verbose=False, dry_run=False,
+                 debug=False):
     "Process all .moni files in the list"
     run = None
     data = []
@@ -296,11 +297,12 @@ def write_data(run, data, verbose=False, dry_run=False, make_meta_xml=False):
             out.create_dataset("FastIceTop", data=narray, chunks=True)
 
     if make_meta_xml:
-        create_meta_xml(filename, suffix, run, verbose=verbose, dry_run=dry_run)
+        create_meta_xml(filename, suffix, run, verbose=verbose,
+                        dry_run=dry_run)
 
 
 if __name__ == "__main__":
-    #pylint: disable=invalid-name,wrong-import-position
+    # pylint: disable=invalid-name,wrong-import-position
     import sys
 
     verbose = False

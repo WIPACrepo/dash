@@ -72,7 +72,6 @@ class ANSIEscapeCode(object):
 if __name__ == "__main__":
     import sys
 
-
     color = 0
     space = ""
     for arg in sys.argv[1:]:
@@ -109,7 +108,8 @@ if __name__ == "__main__":
             fgColor = ANSIEscapeCode.FG_GREEN
             bgColor = ANSIEscapeCode.BG_YELLOW
 
-        print ANSIEscapeCode.BG_WHITE + space + style + fgColor + bgColor + arg,
+        print ANSIEscapeCode.BG_WHITE + space + style + fgColor + bgColor + \
+            arg,
         color = (color + 1) % 8
         space = " "
 

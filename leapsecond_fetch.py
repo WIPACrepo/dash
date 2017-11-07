@@ -8,6 +8,7 @@ import shutil
 
 from leapseconds import leapseconds
 
+
 def compare_latestleap(latest, filename, verbose=False):
     # load in the new file
     try:
@@ -41,12 +42,11 @@ def compare_latestleap(latest, filename, verbose=False):
     # let user know that the new file is not newer than the installed file
     if verbose:
         if old_expiry == new_expiry:
-            print "A leapsecond file with this expiry date" + \
-                    " has already been installed"
+            print "A leapsecond file with this expiry date" \
+                " has already been installed"
         else:
-            print ("%s has an older expiry date (%s) than the currently" +
-                   " installed version (%s)") % \
-                   (filename, new_expiry, old_expiry)
+            print "%s has an older expiry date (%s) than the currently" \
+                " installed version (%s)" % (filename, new_expiry, old_expiry)
 
     return False
 
@@ -156,7 +156,7 @@ def install_latestleap(latest, filename, verbose=False):
         try:
             os.remove(latest)
         except:
-            pass # ignore all errors
+            pass  # ignore all errors
         os.symlink(basename, latest)
 
         if verbose:

@@ -608,5 +608,6 @@ class DAQLiveTest(unittest.TestCase):
 
         self.assertEqual("OK", live.subrun(1, ["domA", "dom2", ]))
 
+
 if __name__ == '__main__':
     unittest.main()

@@ -77,5 +77,6 @@ class TestDAQLog(unittest.TestCase):
 
         self.checkLog(logPath, ('%s - - [%s] %s' % (cname, str(now), msg), ))
 
+
 if __name__ == '__main__':
     unittest.main()

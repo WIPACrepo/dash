@@ -17,7 +17,7 @@ class Machineid(object):
     SPADE_HOST = 0x4
 
     def __init__(self, hostname=None):
-        if hostname == None:
+        if hostname is None:
             self.__hname = socket.gethostname()
         else:
             self.__hname = hostname
@@ -37,17 +37,17 @@ class Machineid(object):
         self.__host_type = self.UNKNOWN_HOST
         for h in self.BUILD_HOSTS:
             if split_host_name.endswith(h):
-            # we are a build host
+                # we are a build host
                 self.__host_type |= self.BUILD_HOST
                 break
         for h in self.CONTROL_HOSTS:
             if split_host_name.endswith(h):
-            # we are a build host
+                # we are a build host
                 self.__host_type |= self.CONTROL_HOST
                 break
         for h in self.SPADE_HOSTS:
             if split_host_name.endswith(h):
-            # we are a build host
+                # we are a build host
                 self.__host_type |= self.CONTROL_HOST
                 break
 
@@ -133,6 +133,7 @@ class Machineid(object):
     @property
     def hname(self):
         return self.__hname
+
 
 if __name__ == "__main__":
     TEST = Machineid()

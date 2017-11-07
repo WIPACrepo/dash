@@ -34,7 +34,8 @@ class TriggerHandler(FakeClient):
         mbeanDict = {}
 
         super(TriggerHandler, self).__init__(compName, compNum, connList,
-                                             mbeanDict, createXmlRpcServer=True,
+                                             mbeanDict,
+                                             createXmlRpcServer=True,
                                              addNumericPrefix=False,
                                              quiet=quiet)
 
@@ -103,6 +104,7 @@ class TriggerHandler(FakeClient):
 
     def sourceId(self):
         raise NotImplementedError("Unimplemented")
+
 
 class LocalTrigger(TriggerHandler):
 
@@ -179,8 +181,8 @@ class GlobalTrigger(TriggerHandler):
             return
 
         recType, uid, trigType, cfgId, srcId, startTime, endTime, \
-                 rReqType, rReqUid, rReqSrcId, numReq = \
-                 struct.unpack(">hiiiiqqhiii", payload[0:63])
+            rReqType, rReqUid, rReqSrcId, numReq \
+            = struct.unpack(">hiiiiqqhiii", payload[0:63])
 
         pos = 64
 
@@ -189,8 +191,8 @@ class GlobalTrigger(TriggerHandler):
             elems.append(struct.unpack(">iiqqq", payload[pos: pos + 32]))
             pos += 32
 
-        compLen, compType, numComp = \
-                 struct.unpack(">ihh", payload[pos: pos + 8])
+        compLen, compType, numComp \
+            = struct.unpack(">ihh", payload[pos: pos + 8])
 
         if numComp > 0:
             print >>sys.stderr, "%s ignoring %d composites" % self.fullname

@@ -25,10 +25,10 @@ class RateThread(CnCThread):
                 else:
                     rateStr = " (%2.2f Hz)" % rate
 
-                self.__dashlog.error(("\t%s physics events%s, %s moni events,"
-                                      " %s SN events, %s tcals") % \
-                                         (numEvts, rateStr, numMoni, numSN,
-                                          numTcal))
+                self.__dashlog.error("\t%s physics events%s, %s moni events,"
+                                     " %s SN events, %s tcals" %
+                                     (numEvts, rateStr, numMoni, numSN,
+                                      numTcal))
 
     def get_new_thread(self, ignored=True):
         thrd = RateThread(self.__runset, self.__dashlog)

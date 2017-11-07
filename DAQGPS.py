@@ -60,9 +60,10 @@ def main():
 
         # Parse template:
         # 2 pairs plugged, 2 powered; 4 DOMs communicating, 4 in iceboot
-        #match = re.search(r'(\d+) pairs plugged, (\d+) powered;
-        #                  (\d+) DOMs communicating, (\d+) in iceboot',
-        #                  result)
+        # match = re.search(r'(\d+) pairs plugged, (\d+) powered;
+        #                   (\d+) DOMs communicating, (\d+) in iceboot',
+        #                   result)
+
 
 if __name__ == "__main__":
     main()

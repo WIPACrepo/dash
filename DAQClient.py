@@ -92,7 +92,7 @@ class MBeanClient(object):
                 failed.append(bean)
 
                 # make sure bean has an entry
-                if not bean in self.__beanFields:
+                if bean not in self.__beanFields:
                     self.__beanFields[bean] = []
 
         if len(failed) > 0:
@@ -142,7 +142,8 @@ class MBeanClient(object):
             attrs = self.__client.mbean.getAttributes(bean, fldList)
         except (socket.error, xmlrpclib.Fault, xmlrpclib.ProtocolError):
             raise BeanTimeoutException("Cannot get %s mbean \"%s\" attributes"
-                                       " %s" % (self.__compName, bean, fldList))
+                                       " %s" % (self.__compName, bean,
+                                                fldList))
         except:
             raise BeanLoadException("Cannot get %s mbean \"%s\" attributes"
                                     " %s: %s" %

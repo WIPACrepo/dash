@@ -344,6 +344,7 @@ class UnknownEntry(BaseFile):
     def setSize(self, val):
         pass
 
+
 class ListOpenFiles(object):
     @classmethod
     def __create(cls, fileDesc, accessMode, lockStatus, fileType=None):
@@ -568,11 +569,11 @@ class ListOpenFiles(object):
                     user = "#%d" % uid
 
             for f in u.files():
-                print ("%-9.9s %4d %4s %4.4s%1.1s%1.1s %6.6s %10.10s %9.9s" +
-                       " %8.8s %s") % \
-                       (cmd, pid, user, f.fileDesc(), f.accessMode(),
-                        f.lockStatus(), f.fileType(), f.device(),
-                        f.sizeOffset(), f.inode(), f.name)
+                print "%-9.9s %4d %4s %4.4s%1.1s%1.1s %6.6s %10.10s %9.9s" \
+                    " %8.8s %s" % \
+                    (cmd, pid, user, f.fileDesc(), f.accessMode(),
+                     f.lockStatus(), f.fileType(), f.device(), f.sizeOffset(),
+                     f.inode(), f.name)
 
     @classmethod
     def readOutput(cls, filename):
@@ -597,6 +598,7 @@ class ListOpenFiles(object):
         proc.wait()
 
         return userList
+
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:

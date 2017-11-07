@@ -146,8 +146,8 @@ class PCmd(object):
         else:  # Handle polling/timeout case
             status = self.subproc.poll()
             if status is None:
-                if (datetime.datetime.now() - self.tstart > \
-                        datetime.timedelta(seconds=self.timeout)):
+                if (datetime.datetime.now() - self.tstart >
+                    datetime.timedelta(seconds=self.timeout)):
                     # Kill child process - note that this may fail
                     # to clean up everything if child has spawned more proc's
                     os.kill(self.subproc.pid, signal.SIGKILL)
@@ -232,8 +232,8 @@ class ParallelShell(object):
                 break
 
             if monitorIval and \
-                    (datetime.datetime.now() - t > \
-                         datetime.timedelta(seconds=monitorIval)):
+                    (datetime.datetime.now() - t >
+                     datetime.timedelta(seconds=monitorIval)):
                 t = datetime.datetime.now()
                 dt = t - t0
                 print "%d of %d done (%s)." % (nDone, nToDo, str(dt))
@@ -303,6 +303,7 @@ def main():
     p.wait()
     for job in jobs:
         print "Job %d: result %s" % (job, p.getResult(job))
+
 
 if __name__ == "__main__":
     main()

@@ -340,6 +340,7 @@ class CmdLaunch(BaseCmd):
 
         launch(cfgDir, dashDir, logger, args=args)
 
+
 class CmdQueueLogs(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -541,7 +542,8 @@ class CmdStdTest(BaseCmd):
         """
         Run `pdaq deploy` on build host, run StandardTests on control host
         """
-        return Machineid.is_host(Machineid.BUILD_HOST|Machineid.CONTROL_HOST)
+        bits = Machineid.BUILD_HOST | Machineid.CONTROL_HOST
+        return Machineid.is_host(bits)
 
     @classmethod
     def name(cls):

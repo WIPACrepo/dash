@@ -37,6 +37,8 @@ def _open_schema(path, description):
 
 validated_def_dom_geom = None
 validated_cluster_cfg = None
+
+
 def validate_configs(cluster_xml_filename, runconfig_xml_filename,
                      default_dom_geom_xml_filename=None):
 
@@ -57,14 +59,13 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
     # -------------------------------------------------
     # validate the cluster config
     # really odd file name rules..  but try to keep it consistent
-    if cluster_xml_filename == None:
+    if cluster_xml_filename is None:
         cluster_xml_filename = ClusterDescription.getClusterFromHostName()
 
     if cluster_xml_filename.endswith('.xml'):
         # old cluster configs not supported
-        return (False,
-                "Old style cluster configs not supported '%s'" % \
-                    cluster_xml_filename)
+        return (False, "Old style cluster configs not supported '%s'" %
+                cluster_xml_filename)
 
     basename = os.path.basename(cluster_xml_filename)
 
@@ -202,7 +203,7 @@ def is_sps_cluster(cluster_xml_filename):
     # the cluster attribute is the root element of the cluster
     # config xml file
     cluster = doc_xml.getroot()
-    if cluster == None:
+    if cluster is None:
         return True
     # 'name' is required by the validate_clustercfg code
     # but be a bit paranoid so check for it
@@ -352,7 +353,6 @@ if __name__ == "__main__":
             print reason
         else:
             print "Configuration is valid"
-
 
     spts_configs = glob.glob(os.path.join(config_dir, 'spts*.xml'))
     print "Validating all sps configurations"

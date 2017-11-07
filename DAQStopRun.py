@@ -43,7 +43,7 @@ def stoprun(args):
                 listRS = True
                 break
 
-            if not n in rsids:
+            if n not in rsids:
                 print >>sys.stderr, "\"%s\" is not a valid runset ID" % a
                 listRS = True
                 break
@@ -100,6 +100,6 @@ if __name__ == "__main__":
         if (not (hostid.is_control_host() or
                  (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
             raise SystemExit("Are you sure you are emergency-stopping the run"
-                             " on the correct host?" )
+                             " on the correct host?")
 
     stoprun(args)

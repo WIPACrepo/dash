@@ -22,7 +22,7 @@ class Dash(cmd.Cmd):
         except ValueError:
             pass
 
-        if not compDict.has_key(compName):
+        if compName not in compDict:
             if compName.endswith("#0") or compName.endswith("-0"):
                 compName = compName[:-2]
             elif compName.find("-") > 0:
@@ -30,7 +30,7 @@ class Dash(cmd.Cmd):
                 if len(flds) > 1:
                     compName = "#".join(flds)
 
-        if compDict.has_key(compName):
+        if compName in compDict:
             return compDict[compName]
 
         raise ValueError("Unknown component \"%s\" (not %s)" %
@@ -46,12 +46,12 @@ class Dash(cmd.Cmd):
                 try:
                     compNum = int(compStr[sep+1:])
                     compName = compStr[:sep]
-                    if compNum == 0 and compDict.has_key(compName):
+                    if compNum == 0 and compName in compDict:
                         return (compName, compDict[compName])
                 except ValueError:
                     pass
 
-            if compDict.has_key(compStr):
+            if compStr in compDict:
                 compName = compStr
                 compId = compDict[compName]
             else:
@@ -100,11 +100,11 @@ class Dash(cmd.Cmd):
         for cdict in info:
             print "  #%s: %s#%d" % (cdict["id"], cdict["compName"],
                                     cdict["compNum"])
-            if cdict.has_key("conn"):
+            if "conn" in cdict:
                 for conn in cdict["conn"]:
                     print "    %s *%d %s" % (conn["type"], conn["numChan"],
                                              conn["state"])
-            elif cdict.has_key("error"):
+            elif "error" in cdict:
                 print "    %s" % cdict["error"]
             else:
                 print "    Unknown error"
@@ -250,7 +250,6 @@ class Dash(cmd.Cmd):
 
             print >> sys.stderr, "Unknown component \"%s\" YYY" % cstr
             continue
-
 
         if len(idList) > 0:
             self.__printComponentDetails(idList)

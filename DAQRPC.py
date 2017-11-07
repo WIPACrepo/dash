@@ -72,7 +72,7 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         self.__running = False
 
     def _dispatch(self, method, params):
-        if not method in self.funcs:
+        if method not in self.funcs:
             raise Exception("method \"%s\" is not supported" % (method, ))
 
         func = self.funcs[method]
@@ -139,9 +139,9 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
             try:
                 r, w, e = select.select([self.socket], [], [], self.__timeout)
             except select.error as err:
-                if err[0] == errno.EINTR: # Interrupted system call
+                if err[0] == errno.EINTR:  # Interrupted system call
                     continue
-                if err[0] != errno.EBADF: # Bad file descriptor
+                if err[0] != errno.EBADF:  # Bad file descriptor
                     traceback.print_exc()
                 break
             if r:

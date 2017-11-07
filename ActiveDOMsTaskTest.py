@@ -199,7 +199,6 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
         foo.mbean.setData("stringhub", "NumberOfActiveAndTotalChannels",
                           Exception("Simulated error"))
-        #logger.addExpectedRegexp(".*Simulated error.*")
 
         live.addExpected("activeDOMs", numActive, Prio.ITS)
         live.addExpected("expectedDOMs", numTotal, Prio.ITS)
@@ -219,6 +218,7 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         live.hasAllMoni()
 
         tsk.close()
+
 
 if __name__ == '__main__':
     unittest.main()

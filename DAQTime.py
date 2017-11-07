@@ -250,7 +250,7 @@ class PayloadTime(object):
             july1_tuple = time.gmtime(calendar.timegm(raw_tuple))
             PayloadTime.has_leapsecond \
                 = leapseconds.instance().get_leap_offset(july1_tuple.tm_yday,
-                                                       year) > 0
+                                                         year) > 0
             if not PayloadTime.has_leapsecond:
                 # no mid-year leap second, so don't need to calculate
                 # seconds until June 30
@@ -330,7 +330,6 @@ if __name__ == "__main__":
             else:
                 dt = PayloadTime.fromString(arg, True)
                 print "\"%s\" -> %s" % (arg, dt)
-
 
         except:
             print "Bad date: " + arg

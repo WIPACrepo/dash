@@ -57,7 +57,7 @@ class Node(object):
         else:
             links = self.inLinks
 
-        if not ioType in links:
+        if ioType not in links:
             links[ioType] = []
 
         links[ioType].append(comp)
@@ -300,6 +300,7 @@ class ConnectionTest(unittest.TestCase):
         allNodes = [a1, a2, b1, b2, c, d, e, f, g, h, i]
 
         self.buildRunset(allNodes)
+
 
 if __name__ == '__main__':
     unittest.main()

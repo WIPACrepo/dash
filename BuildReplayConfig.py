@@ -38,7 +38,7 @@ def process(path, ext, basename, trigcfg):
         hspath = os.path.dirname(root)
         hsname = os.path.basename(root)
 
-        if not hubdirs.has_key(hspath):
+        if hspath not in hubdirs:
             hubdirs[hspath] = {}
         hubdirs[hspath][hsname] = 1
 
@@ -106,6 +106,7 @@ def writeRunConfig(out, basedir, trigcfg, hubs):
     print >>out, '    <runComponent name="globalTrigger"/>'
     print >>out, '    <runComponent name="eventBuilder"/>'
     print >>out, '</runConfig>'
+
 
 if __name__ == "__main__":
     import argparse

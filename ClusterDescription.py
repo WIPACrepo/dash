@@ -177,7 +177,7 @@ class JVMArgs(object):
 
     @property
     def isServer(self):
-        return self.__is_server == True
+        return self.__is_server is True
 
     @property
     def path(self):
@@ -716,12 +716,12 @@ class ClusterDescription(ConfigXMLBase):
 
         # look for "required" attribute
         reqStr = cls.getValue(node, 'required')
-        required = cls.parseBooleanString(reqStr) == True
+        required = cls.parseBooleanString(reqStr) is True
 
         comp = host.addComponent(name, num, logLvl, required=required)
 
-        (jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtraArgs) = \
-             cls.__parse_jvm_nodes(node)
+        (jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs,
+         jvmExtraArgs) = cls.__parse_jvm_nodes(node)
         comp.setJVMOptions(defaults, jvmPath, jvmServer, jvmHeapInit,
                            jvmHeapMax, jvmArgs, jvmExtraArgs)
 
@@ -758,7 +758,7 @@ class ClusterDescription(ConfigXMLBase):
                               ' node without "name" attribute') % cluName
                     raise ClusterDescriptionFormatError(errMsg)
 
-                if not name in defaults.Components:
+                if name not in defaults.Components:
                     defaults.Components[name] = {}
 
                 (hsDir, hsIval, hsMaxF) = self.__parse_hs_nodes(name, kid)
@@ -803,7 +803,6 @@ class ClusterDescription(ConfigXMLBase):
                             self.getChildText(cKid)
                         continue
 
-
     @classmethod
     def __parse_host_nodes(cls, name, defaults, hostNodes):
         hostMap = {}
@@ -830,7 +829,7 @@ class ClusterDescription(ConfigXMLBase):
                     cls.__parse_simhub_node(name, defaults, host, kid)
 
             # add host to internal host dictionary
-            if not hostname in hostMap:
+            if hostname not in hostMap:
                 hostMap[hostname] = host
             else:
                 errMsg = 'Multiple entries for host "%s"' % hostname
@@ -865,7 +864,6 @@ class ClusterDescription(ConfigXMLBase):
                 maxFiles = int(tmpStr)
 
         return (hsDir, interval, maxFiles)
-
 
     @classmethod
     def __parse_jvm_nodes(cls, node):
@@ -918,12 +916,12 @@ class ClusterDescription(ConfigXMLBase):
             raise ClusterDescriptionFormatError(errMsg)
 
         ifStr = cls.getValue(node, 'ifUnused')
-        ifUnused = cls.parseBooleanString(ifStr) == True
+        ifUnused = cls.parseBooleanString(ifStr) is True
 
         comp = host.addSimulatedHub(num, prio, ifUnused)
 
-        (jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtraArgs) = \
-             cls.__parse_jvm_nodes(node)
+        (jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs,
+         jvmExtraArgs) = cls.__parse_jvm_nodes(node)
         comp.setJVMOptions(defaults, jvmPath, jvmServer, jvmHeapInit,
                            jvmHeapMax, jvmArgs, jvmExtraArgs)
 
@@ -1071,7 +1069,8 @@ class ClusterDescription(ConfigXMLBase):
                          self.__defaults.Components[comp]['jvmHeapInit'])
                 if 'jvmHeapMax' in self.__defaults.Components[comp]:
                     print >>fd, "%s      Java maximum heap size: %s" % \
-                        (prefix, self.__defaults.Components[comp]['jvmHeapMax'])
+                        (prefix,
+                         self.__defaults.Components[comp]['jvmHeapMax'])
                 if 'jvmArgs' in self.__defaults.Components[comp]:
                     print >>fd, "%s      Java arguments: %s" % \
                         (prefix, self.__defaults.Components[comp]['jvmArgs'])
@@ -1172,7 +1171,7 @@ class ClusterDescription(ConfigXMLBase):
             if hostname.endswith("icecube.wisc.edu"):
                 hlist = hostname.split(".")
                 if len(hlist) > 4 and \
-                       (hlist[1] == cls.SPTS64 or hlist[1] == cls.SPTS):
+                   (hlist[1] == cls.SPTS64 or hlist[1] == cls.SPTS):
                     return hlist[1]
                 if len(hlist) > 4 and hlist[1] == cls.SPTSN:
                     return cls.SPTS
@@ -1235,9 +1234,8 @@ class ClusterDescription(ConfigXMLBase):
 
         return None
 
-
     def host(self, name):
-        if not name in self.__host_map:
+        if name not in self.__host_map:
             return None
 
         return self.__host_map[name]

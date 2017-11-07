@@ -205,8 +205,8 @@ def deploy(config, homeDir, pdaqDir, subdirs, delete, dryRun,
                 nodeName = cmdToNodeNameDict[cmd]
             if rtn_code != 0:
                 print "-" * 60
-                print ("Error non-zero return code  ( %d ) "
-                       "for host:%s cmd:%s") % (rtn_code, nodeName, cmd)
+                print "Error non-zero return code  ( %d ) " \
+                    "for host:%s cmd:%s" % (rtn_code, nodeName, cmd)
                 if len(result) > 0:
                     print "Results: %s" % result
 
@@ -235,7 +235,7 @@ def replaceHome(homeDir, curDir):
 
 
 def run_deploy(args):
-    ## Work through options implications ##
+    # Work through options implications #
 
     # A deep-dry-run implies verbose and serial
     if args.deepDryRun:

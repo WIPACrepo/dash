@@ -97,8 +97,6 @@ class LogThread(threading.Thread):
                     data = self.__sock.recv(8192, socket.MSG_DONTWAIT)
                     if LOUD:
                         print >>sys.stderr, "%s: %s" % (self.__compName, data)
-                    #print >>self.__outfile, "%s %s" % (self.__compName, data)
-                    #self.__outfile.flush()
                 except:
                     break  # Go back to select so we don't busy-wait
 
@@ -212,7 +210,7 @@ class ComponentData(object):
 
     def __buildMBeanDict(self):
         beanDict = {}
-        if not self.__compName in self.__BEAN_DATA:
+        if self.__compName not in self.__BEAN_DATA:
             print >>sys.stderr, "No bean data for %s" % self.__compName
         else:
             for bean in self.__BEAN_DATA[self.__compName]:
@@ -334,8 +332,6 @@ class DAQFakeRun(object):
 
         self.__logThreads = []
 
-        #self.__client = ServerProxy("http://%s:%s" % (cncHost, cncPort),
-        #                            verbose=dumpRPC)
         self.__client = RPCClient(cncHost, cncPort)
 
     @staticmethod
@@ -454,8 +450,8 @@ class DAQFakeRun(object):
                         print "RunSet %d had %d events after %.2f secs" % \
                             (runsetId, numEvts, runSecs)
                     else:
-                        print ("RunSet %d could not get event count after" +
-                               " %.2f secs") % (runsetId, runSecs)
+                        print "RunSet %d could not get event count after" \
+                            " %.2f secs" % (runsetId, runSecs)
 
                     waitSecs = duration - runSecs
 
@@ -573,7 +569,7 @@ class DAQFakeRun(object):
             with open(path, 'r') as fd:
                 curCfg = fd.read().split("\n")[0]
             print >>sys.stderr, "Changing ~/.active from \"%s\" to \"%s\"" % \
-                  (curCfg, clusterCfg)
+                (curCfg, clusterCfg)
 
         with open(path, 'w') as fd:
             print >>fd, clusterCfg
@@ -596,7 +592,7 @@ class DAQFakeRun(object):
                     continue
 
                 if nm == "globalTrigger" or nm == "eventBuilder" or \
-                       nm == "secondaryBuilders":
+                   nm == "secondaryBuilders":
                     req = " required=\"true\""
                 else:
                     req = ""
@@ -604,7 +600,7 @@ class DAQFakeRun(object):
                 print >>fd, "    <component name=\"%s\"%s/>" % (nm, req)
 
             print >>fd, "    <simulatedHub number=\"%d\" priority=\"1\"/>" % \
-                  numHubs
+                numHubs
             print >>fd, "  </host>"
             print >>fd, "</cluster>"
 
@@ -698,30 +694,30 @@ class DAQFakeRun(object):
                 # add in-ice fixed rate trigger
                 cls.writeTriggerConfig(fd, indent, 23, 23050, inIceId,
                                        "FixedRateTrigger",
-                                       { "interval": 30000000000, },
-                                       { "minus": 5000000, "plus": 5000000 })
+                                       {"interval": 30000000000},
+                                       {"minus": 5000000, "plus": 5000000})
 
                 # add in-ice min bias trigger
                 cls.writeTriggerConfig(fd, indent, 2, 0, inIceId,
                                        "MinBiasTrigger",
-                                       { "prescale": 23, },
-                                       { "minus": 25000, "plus": 25000 })
+                                       {"prescale": 23},
+                                       {"minus": 25000, "plus": 25000})
 
                 # add icetop simple majority trigger
                 cls.writeTriggerConfig(fd, indent, 0, 102, iceTopId,
                                        "SimpleMajorityTrigger",
-                                       { "threshold": 6, }, None)
+                                       {"threshold": 6}, None)
 
                 # add icetop calibration trigger
                 cls.writeTriggerConfig(fd, indent, 1, 1009, iceTopId,
                                        "CalibrationTrigger",
-                                       { "hitType": 4, },
-                                       { "minus": 1000, "plus": 1000 })
+                                       {"hitType": 4},
+                                       {"minus": 1000, "plus": 1000})
 
                 # add icetop min bias trigger
                 cls.writeTriggerConfig(fd, indent, 2, 101, iceTopId,
                                        "MinBiasTrigger",
-                                       { "prescale": 10000, }, None)
+                                       {"prescale": 10000}, None)
 
                 # add final tag
                 print >>fd, "</activeTriggers>"
@@ -775,6 +771,7 @@ class DAQFakeRun(object):
             #
             print "Waiting for components"
             self.__waitForComponents(numNew)
+
 
 if __name__ == "__main__":
     import argparse

@@ -2,6 +2,7 @@
 
 from CnCTask import CnCTask
 
+
 class CnCSingleThreadTask(CnCTask):
     """
     A task which does one thing (or one set of things) on a regular basis.
@@ -14,7 +15,8 @@ class CnCSingleThreadTask(CnCTask):
         but (obviously) nothing will be sent to I3Live.
 
         `detailTimer` is a secondary timer which can be used to trigger an
-        additional, more detailed report at a lower interval than the usual one.
+        additional, more detailed report at a lower interval than the usual
+        one.
         """
         self.__runset = runset
         self.__needLiveMoni = needLiveMoni
@@ -80,7 +82,6 @@ class CnCSingleThreadTask(CnCTask):
                 self.taskFailed()
                 # stop the interval timer so it won't be run again
                 self.endTimer()
-
 
     def _reset(self):
         "Reset tasks at the end of the run"

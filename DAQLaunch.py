@@ -38,7 +38,8 @@ class ConsoleLogger(object):
 def add_arguments_both(parser):
     parser.add_argument("-9", "--kill-kill", dest="killWith9",
                         action="store_true", default=False,
-                        help="just kill everything with extreme (-9) prejudice")
+                        help="just kill everything with extreme (-9)"
+                        " prejudice")
     parser.add_argument("-f", "--force", dest="force",
                         action="store_true", default=False,
                         help="kill components even if there is an active run")
@@ -79,7 +80,8 @@ def add_arguments_launch(parser, config_as_arg=True):
                         help="Event builder will validate events")
     parser.add_argument("-F", "--no-force-restart", dest="forceRestart",
                         action="store_false", default=True,
-                        help="Do not force healthy components to restart at run end")
+                        help="Do not force healthy components to restart at"
+                        " run end")
     parser.add_argument("-s", "--skip-kill", dest="skipKill",
                         action="store_true", default=False,
                         help="Don't kill anything, just launch")
@@ -150,7 +152,8 @@ def kill(cfgDir, logger, args=None, clusterDesc=None, validate=None,
 
 def launch(cfgDir, dashDir, logger, args=None, clusterDesc=None,
            configName=None, validate=None, verbose=None, dryRun=None,
-           eventCheck=None, parallel=None, forceRestart=None, checkExists=True):
+           eventCheck=None, parallel=None, forceRestart=None,
+           checkExists=True):
     if args is not None:
         if clusterDesc is not None or configName is not None or \
            validate is not None or verbose is not None or \
@@ -264,7 +267,7 @@ if __name__ == "__main__":
         if (not (hostid.is_control_host() or
                  (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
             raise SystemExit("Are you sure you are launching"
-                             " from the correct host?" )
+                             " from the correct host?")
 
     if not args.force:
         check_detector_state()

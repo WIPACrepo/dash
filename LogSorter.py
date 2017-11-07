@@ -116,7 +116,8 @@ class BaseLog(object):
     DASH_PAT = re.compile(r"^(\S+)\s+\[" + DATE_STR + r"\]\s+(.*)$")
 
     LOGSTART_PAT = re.compile(r"Start of log at .*$")
-    OLDVERS_PAT = re.compile(r"Version info: \S+ \S+ \S+ \S+Z? \S+ (\S+) (\S+)")
+    OLDVERS_PAT = re.compile(r"Version info: \S+ \S+ \S+ \S+Z? \S+ (\S+)"
+                             " (\S+)")
     LOGVERS_PAT = re.compile(r"Version info: (\S+) (\S+) \S+ \S+Z?")
 
     def __init__(self, fileName):
@@ -316,7 +317,7 @@ class StringHubLog(BaseLog):
                 lobj.text().find("TCAL read failed") > 0:
             lobj.setText("TCAL read failed")
         elif lobj.text().find("Ignoring tcal error") >= 0 and \
-                  lobj.text().find("TCAL read failed") > 0:
+             lobj.text().find("TCAL read failed") > 0:
             lobj.setText("TCAL read failed")
 
 
@@ -436,6 +437,7 @@ class LogSorter(object):
             print >>out, str(l)
         if cond == "ERROR":
             print >>out, "-^-^-^-^-^-^-^-^-^-^ ERROR ^_^_^_^_^_^_^_^_^_^_"
+
 
 def add_arguments(parser):
     parser.add_argument("-d", "--rundir", dest="rundir",

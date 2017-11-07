@@ -73,6 +73,7 @@ def set_exc_string_encoding(encoding):
 
 ###########################################################################
 
+
 force_string_translate_map = " ????????\t ?? ??????????????????" + \
     "".join([chr(i) for i in range(32, 256)])
 
@@ -133,6 +134,7 @@ def exc_string():
         return "exc_string() failed to extract exception string"
 
 #############################################################################
+
 
 if __name__ == '__main__':  # run self-tests
 
@@ -259,9 +261,8 @@ if __name__ == '__main__':  # run self-tests
         recur()
     except:
         assert exc_string().startswith(("RuntimeError(\"maximum recursion "
-                                        "depth exceeded\") in ") + \
-                                           ("recur() "
-                                            "(exc_string.py:256) <- ") * 100)
+                                        "depth exceeded\") in recur() "
+                                        "(exc_string.py:256) <- ") * 100)
 
     print "ok"
 

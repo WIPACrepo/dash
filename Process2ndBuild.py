@@ -163,7 +163,7 @@ def main(spade_dir, verbose=False, dry_run=False, enable_moni_link=False,
 
 
 if __name__ == "__main__":
-    #pylint: disable=invalid-name,wrong-import-position
+    # pylint: disable=invalid-name,wrong-import-position
     import argparse
 
     from ClusterDescription import ClusterDescription

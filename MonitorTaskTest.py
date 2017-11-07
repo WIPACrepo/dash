@@ -107,7 +107,7 @@ class MonitorTaskTest(unittest.TestCase):
         tsk = MonitorTask(taskMgr, runset, logger, live, self.__temp_dir,
                           runOpt)
 
-        #from DAQMocks import LogChecker; LogChecker.DEBUG = True
+        # from DAQMocks import LogChecker; LogChecker.DEBUG = True
 
         for i in range(-1, 5):
             if RunOption.isMoniToLive(runOpt):
@@ -257,6 +257,7 @@ class MonitorTaskTest(unittest.TestCase):
                 raise
         self.assertTrue(tsk.numOpen() == 0, "%d threads were not closed" %
                         tsk.numOpen())
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -42,5 +42,6 @@ def main():
     for f in args.files:
         decode_hits(open(f))
 
+
 if __name__ == "__main__":
     main()

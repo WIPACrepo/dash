@@ -5,6 +5,7 @@
 
 from RunJava import runJava
 
+
 def add_arguments(parser):
     parser.add_argument("-H", "--hubNumber", type=int, dest="hubNumber",
                         default=None, help="Hub number")
@@ -15,6 +16,7 @@ def add_arguments(parser):
                         action="store_true", default=False,
                         help="Print more details")
     parser.add_argument(dest="fileList", nargs="+")
+
 
 def simplify_hits(args):
     app = "icecube.daq.io.HitSimplifier"
@@ -33,6 +35,7 @@ def simplify_hits(args):
     arglist += args.fileList
 
     runJava(app, ["-mx2000m"], arglist, daqProjects, mavenDeps)
+
 
 if __name__ == "__main__":
     import argparse

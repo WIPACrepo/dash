@@ -349,7 +349,7 @@ class CnCRun(BaseRun):
 
     def setRunsPerRestart(self, num):
         """Set the number of continuous runs between restarts"""
-        pass # for non-Live runs, this is driven by BaseRun.waitForRun()
+        pass  # for non-Live runs, this is driven by BaseRun.waitForRun()
 
     def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False,
                  runMode=None, filterMode=None, verbose=False):
@@ -472,6 +472,7 @@ class CnCRun(BaseRun):
             return True
 
         return self.__waitForState(RunSetState.READY, 10, verbose=verbose)
+
 
 if __name__ == "__main__":
     run = CnCRun(showCmd=True, showCmdOutput=True, dryRun=False)

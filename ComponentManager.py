@@ -31,7 +31,7 @@ def listComponentRanges(compList):
     """
     compDict = {}
     for c in compList:
-        if not c.name in compDict:
+        if c.name not in compDict:
             compDict[c.name] = [c, ]
         else:
             compDict[c.name].append(c)
@@ -113,7 +113,6 @@ class ComponentManager(object):
         "stringhub": ("StringHub", "comp"),
         "replayhub": ("StringHub", "replay")
         }
-
 
     @classmethod
     def __convertDict(cls, compdicts):
@@ -274,7 +273,7 @@ class ComponentManager(object):
 
             for rid in cnc.rpc_runset_list_ids():
                 runsets[rid] = cnc.rpc_runset_state(rid)
-                if not runsets[rid] in inactiveStates:
+                if runsets[rid] not in inactiveStates:
                     active += 1
 
         return (runsets, active)
@@ -624,7 +623,6 @@ class ComponentManager(object):
                     jvmArgs += " -Dhitspool.maxfiles=%d" % \
                                (comp.hitspoolMaxFiles, )
 
-            #switches = "-g %s" % configDir
             switches = "-d %s" % daqDataDir
             switches += " -c %s:%d" % (myIP, DAQPort.CNCSERVER)
             if logPort is not None:
@@ -679,6 +677,7 @@ class ComponentManager(object):
                                       " for host: %s, cmd: %s") %
                                      (rtn_code, nodeName, cmd))
                         logger.error("Results '%s'" % results)
+
 
 if __name__ == '__main__':
     pass

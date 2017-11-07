@@ -22,6 +22,7 @@ import tarfile
 
 HUB_PAT = re.compile(r"^.*i([ct])hub(\d+).*$")
 
+
 def extract_for_real(tarname, tardir, subdir):
     hubnames = {}
     tf = tarfile.open(tarname, "r:*")
@@ -72,7 +73,7 @@ def extract_for_real(tarname, tardir, subdir):
                           os.path.join(hubpath, base))
                 os.removedirs(os.path.join(hubpath, namedir))
 
-            if not hubnames.has_key(hubname):
+            if hubname not in hubnames:
                 hubnames[hubname] = 1
             else:
                 hubnames[hubname] += 1
@@ -91,6 +92,7 @@ def extract_for_real(tarname, tardir, subdir):
 
         print "Extracted %d %s file%s to %s" % \
             (hubnames[hub], hub, plural, subdir)
+
 
 def process(path):
     for root, dirs, files in os.walk(path):
@@ -131,6 +133,7 @@ def process(path):
                 extract_for_real(members[0].name, tardir, subdir)
             finally:
                 tf.close()
+
 
 if __name__ == "__main__":
     import argparse

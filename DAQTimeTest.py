@@ -8,6 +8,7 @@ from DAQTime import DAQDateTime, PayloadTime
 from leapseconds import leapseconds, MJD
 from locate_pdaq import set_pdaq_config_dir
 
+
 class TestDAQTime(unittest.TestCase):
     TICKS_PER_SEC = 10000000000
     CUR_YEAR = None
@@ -96,7 +97,8 @@ class TestDAQTime(unittest.TestCase):
 
         # the LONG bit is actually important, otherwise we run into floating
         # point precision issues
-        yrticks = long(yrsecs) * self.TICKS_PER_SEC + (self.TICKS_PER_SEC - 10000)
+        yrticks = long(yrsecs) * self.TICKS_PER_SEC + \
+                  (self.TICKS_PER_SEC - 10000)
 
         dt = PayloadTime.toDateTime(yrticks, high_precision=False)
         expStr = self.__dateFormat(self.CUR_YEAR, est.tm_mon, est.tm_mday,
@@ -120,7 +122,8 @@ class TestDAQTime(unittest.TestCase):
 
         # the LONG bit is actually important, otherwise we run into floating
         # point precision issues
-        yrticks = long(yrsecs) * self.TICKS_PER_SEC + (self.TICKS_PER_SEC - 10000)
+        yrticks = long(yrsecs) * self.TICKS_PER_SEC + \
+                  (self.TICKS_PER_SEC - 10000)
         dt = PayloadTime.toDateTime(yrticks, high_precision=True)
 
         expStr = self.__dateFormat(self.CUR_YEAR, est.tm_mon, est.tm_mday,
@@ -330,6 +333,7 @@ class TestDAQTime(unittest.TestCase):
         expStr = self.__dateFormat(2013, 8, 20, 11, 33, 19, 0)
         self.assertEqual(expStr, str(dt),
                          "Expected date %s, not %s" % (expStr, dt))
+
 
 if __name__ == '__main__':
     unittest.main()

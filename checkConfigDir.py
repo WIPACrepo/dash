@@ -149,20 +149,18 @@ class ConfigDirChecker(object):
         if len(self.__modified) == 0:
             modstr = ""
         else:
-            modstr = \
-                ("There are modified run configuration files in" +
-                 " access:~pdaq/config on SPS.\nPlease check in valid changes" +
-                 " and/or revert modified files.\n\n\t" +
-                 "\n\t".join(self.__modified))
+            modstr = "There are modified run configuration files in" \
+                     " access:~pdaq/config on SPS.\nPlease check in valid" \
+                     " changes and/or revert modified files.\n\n\t" + \
+                     "\n\t".join(self.__modified)
 
         if len(self.__ancient) == 0:
             oldstr = ""
         else:
             self.__ancient.sort()
-            oldstr = \
-                ("There are run configuration files more than one year old.\n" +
-                 "They should probably be removed.\n\n\t" +
-                 "\n\t".join(str(x) for x in self.__ancient))
+            oldstr = "There are run configuration files more than one year" \
+                     " old.\nThey should probably be removed.\n\n\t" + \
+                     "\n\t".join(str(x) for x in self.__ancient)
 
         if modstr != "" and oldstr != "":
             middle = "\n\n\n"
@@ -282,7 +280,8 @@ class ConfigDirChecker(object):
         Report the results
 
         verbose - if False, print a one-line summary
-                  if True, print the names of added, modified, and unknown files
+                  if True, print the names of added, modified, and
+                           unknown files
         showUnknown - if True, don't report unknown files
         """
         needSpaces = False
@@ -411,7 +410,8 @@ if __name__ == "__main__":
                    help="Don't add files to SVN")
     p.add_argument("-u", "--show-unknown", dest="showUnknown",
                    action="store_true", default=False,
-                   help="Print list of all unknown files found in $PDAQ_CONFIG")
+                   help="Print list of all unknown files found"
+                   " in $PDAQ_CONFIG")
     p.add_argument("-v", "--verbose", dest="verbose",
                    action="store_true", default=False,
                    help="Print details of operation")

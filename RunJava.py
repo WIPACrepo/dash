@@ -372,7 +372,7 @@ class JavaRunner(object):
     @classmethod
     def __maven_repository_path(cls):
         """Maven repository directory"""
-        if cls.__MAVEN_REPO is None and os.environ.has_key("HOME"):
+        if cls.__MAVEN_REPO is None and "HOME" in os.environ:
             tmpDir = os.path.join(os.environ["HOME"], ".m2", "repository")
             if tmpDir is not None and os.path.exists(tmpDir):
                 cls.__MAVEN_REPO = tmpDir
@@ -381,7 +381,7 @@ class JavaRunner(object):
     @classmethod
     def __pdaq_home(cls):
         """Current active pDAQ directory"""
-        if cls.__PDAQ_HOME is None and os.environ.has_key("PDAQ_HOME"):
+        if cls.__PDAQ_HOME is None and "PDAQ_HOME" in os.environ:
             tmpDir = os.environ["PDAQ_HOME"]
             if tmpDir is not None and os.path.exists(tmpDir):
                 cls.__PDAQ_HOME = tmpDir
@@ -406,7 +406,7 @@ class JavaRunner(object):
             try:
                 ret = select.select(reads, [], [])
             except select.error:
-                 # ignore a single interrupt
+                # ignore a single interrupt
                 if num_err > 0:
                     break
                 num_err += 1
@@ -452,7 +452,7 @@ class JavaRunner(object):
             try:
                 ret = select.select(reads, [], [])
             except select.error:
-                 # ignore a single interrupt
+                # ignore a single interrupt
                 if num_err > 0:
                     break
                 num_err += 1
@@ -494,7 +494,7 @@ class JavaRunner(object):
             os.killpg(self.__proc.pid, sig)
 
     def __set_class_path(self, debug=False):
-        if not os.environ.has_key("CLASSPATH"):
+        if "CLASSPATH" not in os.environ:
             cp = self.__classpath
         else:
             cp = self.__classpath[:] + os.environ["CLASSPATH"].split(":")
@@ -527,7 +527,6 @@ class JavaRunner(object):
             self.__killsig = None
             self.__exitsig = None
 
-
     def kill(self, sig):
         self.send_signal(sig, None)
         self.__killsig = sig
@@ -557,6 +556,7 @@ class JavaRunner(object):
         """Send a signal to the process"""
         if self.__proc is not None:
             os.killpg(self.__proc.pid, sig)
+
 
 def runJava(main_class, java_args, app_args, daq_deps, maven_deps,
             daq_release=None, repo_dir=None):

@@ -88,7 +88,7 @@ class WatchdogTaskTest(unittest.TestCase):
 
         logger = MockLogger("logger")
 
-        #from DAQMocks import LogChecker; LogChecker.DEBUG = True
+        # from DAQMocks import LogChecker; LogChecker.DEBUG = True
 
         tsk = WatchdogTask(taskMgr, runset, logger, rules=rules)
 
@@ -101,7 +101,6 @@ class WatchdogTaskTest(unittest.TestCase):
             endVal += 1
 
         for i in range(0, endVal):
-            #print "== Check %d" % i
             health = WatchdogTask.HEALTH_METER_FULL - i
             if testThresh:
                 health -= 1
@@ -194,7 +193,7 @@ class WatchdogTaskTest(unittest.TestCase):
 
         logger = MockLogger("logger")
 
-        #from DAQMocks import LogChecker; LogChecker.DEBUG = True
+        # from DAQMocks import LogChecker; LogChecker.DEBUG = True
 
         tsk = WatchdogTask(taskMgr, runset, logger, rules=rules)
 
@@ -251,7 +250,7 @@ class WatchdogTaskTest(unittest.TestCase):
         sb.mbean.addData("snBuilder", "NumDispatchedData", 0)
         sb.mbean.addData("snBuilder", "DiskAvailable", 0)
         sb.mbean.addData("moniBuilder", "NumDispatchedData", 0)
-        #sb.mbean.addData("tcalBuilder", "NumDispatchedData", 0)
+        # sb.mbean.addData("tcalBuilder", "NumDispatchedData", 0)
 
         compList = [hub, iit, gt, eb, sb, ]
 
@@ -263,6 +262,7 @@ class WatchdogTaskTest(unittest.TestCase):
         runset = MockRunSet(compList)
 
         self.__runTest(runset, None, True, True, True, True)
+
 
 if __name__ == '__main__':
     unittest.main()

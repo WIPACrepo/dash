@@ -232,6 +232,7 @@ def createConfig(cursor, mbid, **kwargs):
     txt += "</domConfig>\n"
     return txt
 
+
 dom_db = dict()
 dom_db_by_omkey = dict()
 if "NICKNAMES" in os.environ:
@@ -298,8 +299,8 @@ if __name__ == '__main__':
 
     passwd = ""
     if args.passwd:
-        getpass("Enter password for user " + args.user + " on " + \
-                    args.dbHost + ": ")
+        getpass("Enter password for user %s on %s: " %
+                (args.user, args.dbHost))
 
     db = MySQLdb.connect(host=args.dbHost, user=args.user,
                          passwd=passwd, db="domprodtest")

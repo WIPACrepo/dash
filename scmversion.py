@@ -54,7 +54,8 @@ def __exec_cmd(cmd, shell=False, cwd=None):
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE, shell=shell, cwd=cwd)
     except OSError as exc:
-        raise SCMVersionError("Command: '%s' raised OSError: '%s'" % (cmd, exc))
+        raise SCMVersionError("Command: '%s' raised OSError: '%s'" %
+                              (cmd, exc))
 
     ret_code = p.wait()
     if ret_code != 0:
@@ -235,12 +236,12 @@ def __get_svn_info(dir):
         if len(uflds) > 1 and uflds[-2] == "releases":
             rel = uflds[-1]
 
-        repo_url = '/'.join(dir_url.split('/', 3)[:3]) # up to the 3rd '/'
+        repo_url = '/'.join(dir_url.split('/', 3)[:3])  # up to the 3rd '/'
 
         # Now run svnversion on each of the externals (note that svn chokes
         # on symlinks, so using cwd)
-        external_output = __exec_cmd(["svn", "pg", "svn:externals", "--strict"],
-                                     cwd=dir)
+        external_output = __exec_cmd(["svn", "pg", "svn:externals",
+                                      "--strict"], cwd=dir)
 
     # A list of 2-element lists: [external, tail_url]
     externals = []
@@ -357,7 +358,8 @@ def __scm_type(topdir, origdir=None):
 
     parent = os.path.dirname(absdir)
     if parent == absdir:
-        raise SCMVersionError("Cannot determine repository type for " + origdir)
+        raise SCMVersionError("Cannot determine repository type for %s" %
+                              (origdir, ))
 
     return __scm_type(parent, origdir=(origdir is None and topdir or origdir))
 
@@ -395,7 +397,7 @@ def get_scmversion(dir=None):
             flds = line.split(' ')
             if len(flds) != len(FIELD_NAMES):
                 raise SCMVersionError("Cannot load cached version: expected"
-                                      " %d fields, not %d from \"%s\""  %
+                                      " %d fields, not %d from \"%s\"" %
                                       (len(FIELD_NAMES), len(flds), line))
 
             saved = {}

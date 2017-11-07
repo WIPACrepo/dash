@@ -270,7 +270,7 @@ class WatchData(object):
                 if beanName is None:
                     beanName = f.beanName()
                 elif beanName != f.beanName():
-                    self.__dashlog.error("NOT requesting fields from multiple" +
+                    self.__dashlog.error("NOT requesting fields from multiple"
                                          " beans (%s != %s)" %
                                          (beanName, f.beanName()))
                     continue
@@ -546,6 +546,7 @@ class TrackEngineRule(WatchdogRule):
     def matches(self, comp):
         return comp.name == "trackEngine"
 
+
 class LocalTriggerRule(WatchdogRule):
     def initData(self, data, thisComp, components):
         if thisComp.name == "iceTopTrigger":
@@ -622,8 +623,8 @@ class SecondaryBuildersRule(WatchdogRule):
         data.addOutputValue(self.DISPATCH_COMP, "snBuilder",
                             "NumDispatchedData")
         # XXX - Disabled until there"s a simulated tcal stream
-        #data.addOutputValue(self.DISPATCH_COMP, "tcalBuilder",
-        #                  "NumDispatchedData")
+        # data.addOutputValue(self.DISPATCH_COMP, "tcalBuilder",
+        #                     "NumDispatchedData")
 
     def matches(self, comp):
         return comp.name == "secondaryBuilders"

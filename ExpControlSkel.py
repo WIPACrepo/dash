@@ -13,7 +13,7 @@ from cncrun import CnCRun
 from datetime import datetime
 from utils.Machineid import Machineid
 
-SVN_ID = "$Id: ExpControlSkel.py 15765 2015-09-15 22:45:15Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 16812 2017-11-07 20:49:13Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -84,8 +84,6 @@ class SubRun(object):
         self.domlist = []
 
     def addDOM(self, d):
-        #self.domlist.append(SubRunDOM(string, pos,  bright, window, delay,
-        #                              mask, rate))
         raise NotImplementedError(("source for SubRunDOM class"
                                    "parameters not known"))
 

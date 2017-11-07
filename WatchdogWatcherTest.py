@@ -62,7 +62,7 @@ class WatchdogWatcherTest(unittest.TestCase):
         tcomp = MockComponent(tname, tnum, torder, source=tsrc, builder=tbldr)
 
         vorder = (fbldr and tsrc) and forder + 1 or \
-                     ((fsrc and tbldr) and torder + 2 or forder)
+                 ((fsrc and tbldr) and torder + 2 or forder)
 
         return (fcomp, tcomp, vorder)
 
@@ -356,6 +356,7 @@ class WatchdogWatcherTest(unittest.TestCase):
             for n in range(len(lst)):
                 l2[n] += i
             vw.check(l2)
+
 
 if __name__ == '__main__':
     unittest.main()

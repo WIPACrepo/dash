@@ -61,8 +61,8 @@ class TinyClient(object):
         else:
             mStr = ' M#%d' % self.__mbeanPort
         return 'ID#%d %s#%d at %s:%d%s' % \
-            (self.__id, self.__name, self.__num, self.__host, \
-                 self.__port, mStr)
+            (self.__id, self.__name, self.__num, self.__host, self.__port,
+             mStr)
 
     def configure(self, cfgName=None):
         self.__state = 'ready'
@@ -100,8 +100,8 @@ class TinyClient(object):
             raise Exception('Cannot log to I3Live')
 
         self.__log = SocketWriter(logIP, logPort)
-        self.__log.write_ts('Start of log at LOG=log(%s:%d)' % \
-                                (logIP, logPort))
+        self.__log.write_ts('Start of log at LOG=log(%s:%d)' %
+                            (logIP, logPort))
         self.__log.write_ts('Version info: BRANCH 0:0 unknown unknown')
 
     def map(self):
@@ -598,8 +598,8 @@ class TestDAQServer(unittest.TestCase):
         logger.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
         logger.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for Hubs")
 
-        self.assertEqual(dc.rpc_runset_start_run(setId, runNum, moniType), \
-                             'OK')
+        self.assertEqual(dc.rpc_runset_start_run(setId, runNum, moniType),
+                         'OK')
 
         logger.checkStatus(10)
         clientLogger.checkStatus(10)
@@ -627,6 +627,7 @@ class TestDAQServer(unittest.TestCase):
 
         logger.checkStatus(10)
         clientLogger.checkStatus(10)
+
 
 if __name__ == '__main__':
     unittest.main()

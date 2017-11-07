@@ -199,6 +199,7 @@ class OutputChannel(threading.Thread):
         self.__running = False
         print "Ended %s thread (wrote %d bytes)" % (self.__engine, written)
 
+
 class OutputEngine(Engine):
     def __init__(self, name, optional):
         self.__optional = optional
@@ -311,10 +312,10 @@ class FakeClient(object):
         return valDict
 
     def __getMBeanValue(self, bean, attr):
-        if not bean in self.__mbeanDict:
+        if bean not in self.__mbeanDict:
             raise Exception("Unknown %s MBean \"%s\"" % (self, bean))
 
-        if not attr in self.__mbeanDict[bean]:
+        if attr not in self.__mbeanDict[bean]:
             raise Exception("Unknown %s MBean \"%s\" attribute \"%s\"" %
                             (self, bean, attr))
 
@@ -387,7 +388,7 @@ class FakeClient(object):
         return stateList
 
     def __listMBeanGetters(self, bean):
-        if not bean in self.__mbeanDict:
+        if bean not in self.__mbeanDict:
             raise Exception("Unknown MBean \"%s\" for %s" % (bean, self))
 
         return self.__mbeanDict[bean].keys()
@@ -498,7 +499,8 @@ class FakeClient(object):
         self.__cmd.register_function(self.__connect, 'xmlrpc.connect')
         self.__cmd.register_function(self.__getEvents, 'xmlrpc.getEvents')
         self.__cmd.register_function(self.__getRunData, 'xmlrpc.getRunData')
-        self.__cmd.register_function(self.__getRunNumber, 'xmlrpc.getRunNumber')
+        self.__cmd.register_function(self.__getRunNumber,
+                                     'xmlrpc.getRunNumber')
         self.__cmd.register_function(self.__getState, 'xmlrpc.getState')
         self.__cmd.register_function(self.__getVersionInfo,
                                      'xmlrpc.getVersionInfo')

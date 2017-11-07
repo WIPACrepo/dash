@@ -95,7 +95,6 @@ class ColorFileParser(object):
             defaults.append("")
             modified = True
 
-
         if modified:
             color_dict[self.DEFAULT_FIELD] = defaults
 

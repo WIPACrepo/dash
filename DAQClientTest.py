@@ -27,5 +27,6 @@ class TestDAQClient(unittest.TestCase):
         appender = MockAppender('test')
         MostlyDAQClient('foo', 0, 'localhost', 543, 0, [], appender)
 
+
 if __name__ == '__main__':
     unittest.main()

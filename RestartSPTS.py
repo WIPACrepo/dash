@@ -244,7 +244,7 @@ def readConfig(filename, config):
                     continue
 
                 key = m.group(1)
-                if not key in CONFIG_DATA:
+                if key not in CONFIG_DATA:
                     print "Unknown %s field \"%s\"" % (filename, key)
                     success = False
                     continue
@@ -334,7 +334,6 @@ if __name__ == "__main__":
     import argparse
 
     from utils.Machineid import Machineid
-
 
     p = argparse.ArgumentParser()
 

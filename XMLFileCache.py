@@ -30,7 +30,7 @@ class XMLFileCache(object):
 
         fileName = cls.buildPath(configDir, cfgName)
         if fileName is None:
-            raise XMLBadFileError("'%s' not found in directory %s" % \
+            raise XMLBadFileError("'%s' not found in directory %s" %
                                   (cfgName, configDir))
 
         try:
@@ -63,7 +63,6 @@ class XMLFileCache(object):
 
         cls.CACHE[fileName] = (fileStat.st_mtime, data)
         return data
-
 
     @classmethod
     def parse(cls, dom, configDir, fileName, strict=True):

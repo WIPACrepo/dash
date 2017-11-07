@@ -1252,6 +1252,7 @@ class GeometryFileReader(object):
 
         return defDomGeom
 
+
 if __name__ == "__main__":
     import argparse
 

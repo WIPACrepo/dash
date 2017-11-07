@@ -79,21 +79,21 @@ class MockMBeanClient(object):
         pass
 
     def get(self, beanName, fieldName):
-        if not beanName in self.__beanData:
+        if beanName not in self.__beanData:
             raise ValueError("Unknown %s bean \"%s\"" % (str(self), beanName))
-        if not fieldName in self.__beanData[beanName]:
+        if fieldName not in self.__beanData[beanName]:
             raise ValueError("Unknown %s bean \"%s\" field \"%s\"" %
                              (str(self), beanName, fieldName))
 
         return self.__beanData[beanName][fieldName]
 
     def getAttributes(self, beanName, fieldList):
-        if not beanName in self.__beanData:
+        if beanName not in self.__beanData:
             raise ValueError("Unknown %s bean \"%s\"" % (str(self), beanName))
 
         valMap = {}
         for f in fieldList:
-            if not f in self.__beanData[beanName]:
+            if f not in self.__beanData[beanName]:
                 raise ValueError("Unknown %s bean \"%s\" field \"%s\"" %
                                  (str(self), beanName, f))
 
@@ -105,9 +105,10 @@ class MockMBeanClient(object):
         pass
 
     def setData(self, beanName, fieldName, value):
-        if not beanName in self.__beanData:
+        if beanName not in self.__beanData:
             self.__beanData[beanName] = {}
         self.__beanData[beanName][fieldName] = value
+
 
 class MockComponent(object):
     def __init__(self, name, num=0, conn=None):
@@ -248,13 +249,13 @@ class MostlyTaskManager(TaskManager):
                                                 runDir, runCfg, moniType)
 
     def createIntervalTimer(self, name, period):
-        if not name in self.TIMERS:
+        if name not in self.TIMERS:
             self.TIMERS[name] = MockIntervalTimer(name, self.WAITSECS)
 
         return self.TIMERS[name]
 
     def getTimer(self, name):
-        if not name in self.TIMERS:
+        if name not in self.TIMERS:
             return None
 
         return self.TIMERS[name]
@@ -363,8 +364,8 @@ class MostlyCnCServer(CnCServer):
         return MyRunSet(self, runConfig, compList, logger)
 
     def cycle_components(self, compList, runConfigDir, daqDataDir, logger,
-                        logPort, livePort, verbose=False, killWith9=False,
-                        eventCheck=False):
+                         logPort, livePort, verbose=False, killWith9=False,
+                         eventCheck=False):
         MyRunSet.cycle_components(compList, runConfigDir, daqDataDir, logger,
                                   logPort, livePort, verbose=verbose,
                                   killWith9=killWith9, eventCheck=eventCheck)
@@ -499,7 +500,6 @@ class CnCRunSetTest(unittest.TestCase):
 
         numDOMs = 22
         numTotal = 60
-        #totalOverflows = 20
         hitRate = 50.
         hitRateLC = 25.
 
@@ -634,8 +634,6 @@ class CnCRunSetTest(unittest.TestCase):
         time.sleep(MostlyTaskManager.WAITSECS * 2.0)
 
         dashLog.addExpectedRegexp("Watchdog reports threshold components.*")
-        #dashLog.addExpectedExact("Run is unhealthy (%d checks left)" %
-        #                         (WatchdogTask.HEALTH_METER_FULL - 1))
 
         timer.trigger()
 
@@ -654,7 +652,7 @@ class CnCRunSetTest(unittest.TestCase):
     @classmethod
     def __loadBeanData(cls, compList):
         for c in compList:
-            if not c.name in cls.BEAN_DATA:
+            if c.name not in cls.BEAN_DATA:
                 raise Exception("No bean data found for %s" % str(c))
 
             for b in cls.BEAN_DATA[c.name]:
@@ -1144,6 +1142,7 @@ class CnCRunSetTest(unittest.TestCase):
 
         catchall.stopServing()
         liveMoni.stopServing()
+
 
 if __name__ == '__main__':
     unittest.main()

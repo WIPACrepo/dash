@@ -107,7 +107,7 @@ class ComponentOperation(threading.Thread):
 
     def __connect(self):
         "Connect the component"
-        if not self.__comp in self.__data:
+        if self.__comp not in self.__data:
             self.__result = self.__comp.connect()
         else:
             self.__result = self.__comp.connect(self.__data[self.__comp])
@@ -168,7 +168,7 @@ class ComponentOperation(threading.Thread):
 
     def __stopLogging(self):
         "Stop logging for the component"
-        if not self.__comp in self.__data:
+        if self.__comp not in self.__data:
             raise Exception("No log server found for " + str(self.__comp))
         self.__data[self.__comp].stopServing()
 
@@ -352,6 +352,7 @@ class ComponentOperationGroup(object):
                     alive |= t.isAlive()
             if not alive:
                 break
+
 
 if __name__ == "__main__":
     pass

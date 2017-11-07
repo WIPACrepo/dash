@@ -166,7 +166,7 @@ class RunCluster(CachedConfigName):
     @classmethod
     def __addComponent(cls, hostMap, host, comp):
         "Add a component to the hostMap dictionary"
-        if not host in hostMap:
+        if host not in hostMap:
             hostMap[host] = {}
         hostMap[host][str(comp)] = comp
 
@@ -261,11 +261,9 @@ class RunCluster(CachedConfigName):
         maxHubs = 0
         pctTot = 0.0
         for sim in simList:
-            if not hubAlloc.has_key(sim.host):
+            if sim.host not in hubAlloc:
                 # create new host entry
                 hubAlloc[sim.host] = SimAlloc(sim)
-                action = "Cre"
-            else: action = "Inc"
 
             # add to the maximum number of hubs for this host
             pct = hubAlloc[sim.host].add(sim)
@@ -413,7 +411,7 @@ class RunCluster(CachedConfigName):
         for (_, simHub) in clusterDesc.listHostSimHubPairs():
             if simHub is None:
                 continue
-            if not simHub.ifUnused or not simHub.host.name in hostMap:
+            if not simHub.ifUnused or simHub.host.name not in hostMap:
                 simList.append(simHub)
 
         simList.sort(cls.__sortByPriority)
@@ -516,6 +514,7 @@ class RunCluster(CachedConfigName):
 
     def nodes(self):
         return self.__nodes[:]
+
 
 if __name__ == '__main__':
     import sys

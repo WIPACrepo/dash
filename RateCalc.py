@@ -108,5 +108,6 @@ def main():
         rc.add(datetime.datetime.now(), count)
         print rc.rate()
 
+
 if __name__ == "__main__":
     main()

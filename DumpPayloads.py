@@ -4,6 +4,7 @@
 
 from RunJava import runJava
 
+
 def add_arguments(parser):
     parser.add_argument("-D", "--configDir", dest="configDir",
                         help="Configuration directory")
@@ -19,6 +20,7 @@ def add_arguments(parser):
     parser.add_argument("-r", "--configName", dest="configName",
                         help="Run configuration name")
     parser.add_argument(dest="fileList", nargs="+")
+
 
 def dump_payloads(args):
     app = "icecube.daq.io.PayloadDumper"
@@ -42,6 +44,7 @@ def dump_payloads(args):
     arglist += args.fileList
 
     runJava(app, ["-mx2000m"], arglist, daqProjects, mavenDeps)
+
 
 if __name__ == "__main__":
     import argparse

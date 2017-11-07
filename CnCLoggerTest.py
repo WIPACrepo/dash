@@ -183,12 +183,6 @@ class CnCLoggerTest(unittest.TestCase):
                                         (dfltHost, dfltLog,
                                          dfltHost, dfltLive))
 
-                ### live stuff isn't tested after ZeroMQ monitoring changes
-                #dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
-                #                             " LOG=log(%s:%d) live(%s:%d)" %
-                #                             (dfltHost, dfltLog, dfltHost,
-                #                              dfltLive))
-
             dc.resetLog()
             self.assertEqual(dc.logHost, dfltHost,
                              "logHost should be %s, not %s" %
@@ -254,11 +248,6 @@ class CnCLoggerTest(unittest.TestCase):
                                          " live(%s:%d)") %
                                         (dfltHost, dfltLog,
                                          dfltHost, dfltLive))
-                ### live stuff isn't tested after ZeroMQ monitoring changes
-                #dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
-                #                             " LOG=log(%s:%d) live(%s:%d)" %
-                #                             (dfltHost, dfltLog, dfltHost,
-                #                              dfltLive))
 
             dc.closeLog()
             self.assertEqual(dc.logHost, dfltHost,
@@ -316,17 +305,10 @@ class CnCLoggerTest(unittest.TestCase):
             dLiveObj.checkStatus(1000)
 
             if xl:
-                ### live stuff isn't tested after ZeroMQ monitoring changes
-                #liveObj.addExpectedText("End of log")
                 dLogObj.addExpectedText(("Reset log to LOG=log(%s:%d)" +
                                          " live(%s:%d)") %
                                         (dfltHost, dfltLog,
                                          dfltHost, dfltLive))
-
-                #dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
-                #                             " LOG=log(%s:%d) live(%s:%d)" %
-                #                             (dfltHost, dfltLog, dfltHost,
-                #                              dfltLive))
 
             dc.closeLog()
             self.assertEqual(dc.logHost, dfltHost,
@@ -391,11 +373,6 @@ class CnCLoggerTest(unittest.TestCase):
                                         (dfltHost, dfltLog,
                                          dfltHost, dfltLive))
 
-                #dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
-                #                             " LOG=log(%s:%d) live(%s:%d)" %
-                #                             (dfltHost, dfltLog, dfltHost,
-                #                              dfltLive))
-
             dc.closeLog()
             self.assertEqual(dc.logHost, dfltHost,
                              "logHost should be %s, not %s" %
@@ -413,6 +390,7 @@ class CnCLoggerTest(unittest.TestCase):
             logObj.checkStatus(1000)
             dLogObj.checkStatus(1000)
             dLiveObj.checkStatus(1000)
+
 
 if __name__ == "__main__":
     unittest.main()

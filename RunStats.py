@@ -72,7 +72,7 @@ class RunStats(object):
         (numEvts, wallTime, firstPayTime, evtPayTime,
          numMoni, moniTime, numSN, snTime, numTcal, tcalTime) = evtData
 
-        if addRate and  self.__startPayTime is None and firstPayTime > 0:
+        if addRate and self.__startPayTime is None and firstPayTime > 0:
             self.__startPayTime = firstPayTime
             self.__addRate(self.__startPayTime, 1)
 
