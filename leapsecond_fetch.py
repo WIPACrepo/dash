@@ -31,22 +31,21 @@ def compare_latestleap(latest, filename, verbose=False):
         return True
 
     # compare expiry date/times for new file and installed latest file
-    old_expiry = oldleap.get_mjd_expiry()
-    new_expiry = newleap.get_mjd_expiry()
-    if old_expiry < new_expiry:
+    if oldleap.expiry < newleap.expiry:
         if verbose:
             print "Current file expiry (%s) is older than %s expiry (%s)" % \
-                    (old_expiry, filename, new_expiry)
+                    (oldleap.expiry, filename, newleap.expiry)
         return True
 
     # let user know that the new file is not newer than the installed file
     if verbose:
-        if old_expiry == new_expiry:
+        if oldleap.expiry == newleap.expiry:
             print "A leapsecond file with this expiry date" \
                 " has already been installed"
         else:
             print "%s has an older expiry date (%s) than the currently" \
-                " installed version (%s)" % (filename, new_expiry, old_expiry)
+                " installed version (%s)" % \
+                (filename, newleap.expiry, oldleap.expiry)
 
     return False
 

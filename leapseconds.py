@@ -86,6 +86,9 @@ class MJD(object):
     def __sub__(self, other):
         return self.__value - other.value
 
+    def __str__(self):
+        return str(self.__value)
+
     def add(self, days):
         self.__value += days
 
@@ -228,6 +231,17 @@ class leapseconds(object):
     def expiry(self):
         "Return the Modified Julian Date when the current NIST file expires"
         return self.__expiry
+
+    @property
+    def filename(self):
+        "Return the path for the leapseconds file"
+        return self.__filename
+
+    @classmethod
+    def get_latest_path(cls):
+        "Return the absolute path to the default file"
+        return os.path.realpath(cls.instance().filename)
+
 
     def get_leap_offset(self, day_of_year, year=None):
         if year is None:
