@@ -126,8 +126,8 @@ class xml_dict(object):
         debug = tag != "runConfig" and tag != "runComponent" and \
                 tag != "stringHub"
         import sys
-        from stacktrace import stacktrace
         if debug:
+            from stacktrace import stacktrace
             print >>sys.stderr, "EDict (root %s)" % (root, )
             print >>sys.stderr, "..... keys %s" % (elem_dict.keys())
             print >>sys.stderr, " :: %s" % (stacktrace(), )
