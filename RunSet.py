@@ -1847,8 +1847,11 @@ class RunSet(object):
                                           (evt_data, ))
                 elif not isinstance(evt_data, list) and \
                      not isinstance(evt_data, tuple):
-                    self.__run_data.error("Got bad event data (%s)" %
-                                          (evt_data, ))
+                    self.__run_data.error("Got bad event data (%s) <%s>" %
+                                          (evt_data, type(evt_data).__name__))
+                elif len(evt_data) != 2:
+                    self.__dashlog.error("Got bad event data %s (expected"
+                                         " 2 entries)" % (evt_data, ))
                 else:
                     physics_count = int(evt_data[0])
                     wall_time = datetime.datetime.utcnow()
