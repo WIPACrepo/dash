@@ -269,6 +269,7 @@ class leapseconds(object):
             raise LeapsecondException("Cannot reload leapsecond file %s: %s" %
                                       (self.__filename, ex))
 
+        self.__mtime = new_mtime
         return True
 
     def set_config_dir(self, config_dir):
