@@ -429,7 +429,7 @@ class CnCRunSetTest(unittest.TestCase):
         "eventBuilder": {
             "backEnd": {
                 "DiskAvailable": 2048,
-                "EventData": 0,
+                "EventData": (0, 0),
                 "FirstEventTime": 0,
                 "GoodTimes": (0, 0),
                 "NumBadEvents": 0,

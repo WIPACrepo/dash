@@ -219,7 +219,7 @@ class LiveRegexpChecker(BaseLiveChecker):
         super(LiveRegexpChecker, self).__init__(varName)
 
     def _checkText(self, checker, msg, debug, setError):
-        m = self.__regexp.match(msg)
+        m = self.__regexp.search(msg)
         if not m:
             if setError:
                 name = str(checker)
@@ -287,7 +287,7 @@ class RegexpTextChecker(BaseChecker):
                                  (name, msg))
             return False
 
-        m = self.__regexp.match(m.group(3))
+        m = self.__regexp.search(m.group(3))
         if not m:
             if setError:
                 name = str(checker)
@@ -1353,7 +1353,7 @@ class MockMBeanClient(object):
     def setData(self, beanName, fieldName, value):
 
         if not self.check(beanName, fieldName):
-            raise Exception("%c bean %s field %s has not been added" %
+            raise Exception("%s bean %s field %s has not been added" %
                             (self, beanName, fieldName))
 
         self.__beanData[beanName][fieldName] = value
@@ -1370,7 +1370,7 @@ class MockComponent(object):
 
         self.runNum = None
 
-        self.__isBldr = name.endswith("Builder")
+        self.__isBldr = name.endswith("Builder") or name.endswith("Builders")
         self.__isSrc = name.endswith("Hub") or name == "amandaTrigger"
         self.__connected = False
         self.__configured = False

@@ -53,12 +53,12 @@ class RunnerException(Exception):
     pass
 
 
-class RunData(object):
+class JavaCommand(object):
     """Run statistics (return code, duration, etc.)"""
 
-    def __init__(self, java_args, main_class, sys_args):
+    def __init__(self, java_cmd, java_args, main_class, sys_args):
         """
-        Create a RunData object
+        Create a JavaCommand object
 
         java_args - arguments for the 'java' program
         main_class - fully-qualified name of class whose main() method
@@ -72,7 +72,11 @@ class RunData(object):
         self.__run_time = None
         self.__wait_time = None
 
-        self.__cmd = ["java", ]
+        if java_cmd is not None:
+            self.__cmd = java_cmd
+        else:
+            self.__cmd = ["java", ]
+
         if java_args is not None:
             if type(java_args) == str:
                 self.__cmd.append(java_args)
@@ -300,7 +304,8 @@ class JavaRunner(object):
         return jars
 
     @classmethod
-    def __find_repo_jar(cls, repo_dir, dist_dir, proj, name, vers, extra=None):
+    def __find_repo_jar(cls, repo_dir, dist_dir, proj, name, vers, extra=None,
+                        debug=False):
         """
         Find a jar file in the Maven repository which is at or after the
         version specified by 'vers'
@@ -308,7 +313,9 @@ class JavaRunner(object):
         jarname = cls.__build_jar_name(name, vers, extra)
 
         if repo_dir is not None:
-            projdir = os.path.join(repo_dir, proj, name)
+            projdir = os.path.join(repo_dir, proj.replace(".", "/"), name)
+            if debug:
+                print >>sys.stderr, "CHKREPO proj %s" % (projdir, )
             if os.path.exists(projdir):
                 tmpjar = os.path.join(projdir, vers, jarname)
                 if os.path.exists(tmpjar):
@@ -322,7 +329,7 @@ class JavaRunner(object):
                         tmpjar = os.path.join(projdir, entry, tmpname)
                         if os.path.exists(tmpjar):
                             print >>sys.stderr, "WARNING: Using %s version" \
-                                "%s instead of requested %s" % \
+                                " %s instead of requested %s" % \
                                 (name, entry, vers)
                             return tmpjar
 
@@ -372,7 +379,7 @@ class JavaRunner(object):
     @classmethod
     def __maven_repository_path(cls):
         """Maven repository directory"""
-        if cls.__MAVEN_REPO is None and os.environ.has_key("HOME"):
+        if cls.__MAVEN_REPO is None and "HOME" in os.environ:
             tmpDir = os.path.join(os.environ["HOME"], ".m2", "repository")
             if tmpDir is not None and os.path.exists(tmpDir):
                 cls.__MAVEN_REPO = tmpDir
@@ -381,7 +388,7 @@ class JavaRunner(object):
     @classmethod
     def __pdaq_home(cls):
         """Current active pDAQ directory"""
-        if cls.__PDAQ_HOME is None and os.environ.has_key("PDAQ_HOME"):
+        if cls.__PDAQ_HOME is None and "PDAQ_HOME" in os.environ:
             tmpDir = os.environ["PDAQ_HOME"]
             if tmpDir is not None and os.path.exists(tmpDir):
                 cls.__PDAQ_HOME = tmpDir
@@ -406,7 +413,7 @@ class JavaRunner(object):
             try:
                 ret = select.select(reads, [], [])
             except select.error:
-                 # ignore a single interrupt
+                # ignore a single interrupt
                 if num_err > 0:
                     break
                 num_err += 1
@@ -452,7 +459,7 @@ class JavaRunner(object):
             try:
                 ret = select.select(reads, [], [])
             except select.error:
-                 # ignore a single interrupt
+                # ignore a single interrupt
                 if num_err > 0:
                     break
                 num_err += 1
@@ -494,7 +501,7 @@ class JavaRunner(object):
             os.killpg(self.__proc.pid, sig)
 
     def __set_class_path(self, debug=False):
-        if not os.environ.has_key("CLASSPATH"):
+        if "CLASSPATH" not in os.environ:
             cp = self.__classpath
         else:
             cp = self.__classpath[:] + os.environ["CLASSPATH"].split(":")
@@ -527,7 +534,6 @@ class JavaRunner(object):
             self.__killsig = None
             self.__exitsig = None
 
-
     def kill(self, sig):
         self.send_signal(sig, None)
         self.__killsig = sig
@@ -537,7 +543,7 @@ class JavaRunner(object):
         self.send_signal(sig, frame)
         self.__exitsig = sig
 
-    def run(self, java_args=None, sys_args=None, debug=False):
+    def run(self, java_cmd=None, java_args=None, sys_args=None, debug=False):
         """Run the Java program, handling ^C or ^\ as appropriate"""
         self.__set_class_path(debug=debug)
 
@@ -545,7 +551,8 @@ class JavaRunner(object):
         signal.signal(signal.SIGQUIT, self.send_signal)
 
         try:
-            rundata = RunData(java_args, self.__main_class, sys_args)
+            rundata = JavaCommand(java_cmd, java_args, self.__main_class,
+                                  sys_args)
             self.__run_command(rundata, debug)
         finally:
             signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -558,8 +565,9 @@ class JavaRunner(object):
         if self.__proc is not None:
             os.killpg(self.__proc.pid, sig)
 
+
 def runJava(main_class, java_args, app_args, daq_deps, maven_deps,
-            daq_release=None, repo_dir=None):
+            java_cmd=None, daq_release=None, repo_dir=None, debug=False):
     """
     Run the Java program after adding all requested pDAQ and external jar
     files in the CLASSPATH envvar
@@ -567,7 +575,8 @@ def runJava(main_class, java_args, app_args, daq_deps, maven_deps,
     runner = JavaRunner(main_class, daq_deps, maven_deps,
                         daq_release=daq_release, repo_dir=repo_dir)
 
-    runner.run(java_args, app_args)
+    runner.run(java_cmd=java_cmd, java_args=java_args, sys_args=app_args,
+               debug=debug)
 
 
 if __name__ == "__main__":

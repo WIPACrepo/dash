@@ -611,10 +611,17 @@ class RunData(object):
         for c in comps:
             if c.isComponent("eventBuilder"):
                 evtData = self.getSingleBeanField(c, "backEnd", "EventData")
-                if isinstance(evtData, Result):
+                if evtData is None or isinstance(evtData, Result):
                     self.__dashlog.error("Cannot get event data (%s)" %
-                                         evtData)
-                elif isinstance(evtData, list) or isinstance(evtData, tuple):
+                                         (evtData, ))
+                elif not isinstance(evtData, list) and \
+                     not isinstance(evtData, tuple):
+                    self.__dashlog.error("Got bad event data %s <%s>" %
+                                         (evtData, type(evtData).__name__, ))
+                elif len(evtData) != 2:
+                    self.__dashlog.error("Got bad event data %s (expected"
+                                         " 2 entries)" % (evtData, ))
+                else:
                     nEvts = int(evtData[0])
                     wallTime = datetime.datetime.utcnow()
                     lastPayTime = long(evtData[1])
