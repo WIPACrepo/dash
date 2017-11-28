@@ -69,9 +69,10 @@ def moni_stream(filename, fix_values=True, fix_profile=False,
         else:
             try:
                 value = ast.literal_eval(valstr)
-            except ValueError, ve:
-                raise ValueError("Bad %s.%s value \"%s\"" %
-                                 (cur_cat, field, valstr, ))
+            except ValueError:
+                value = valstr
+            except SyntaxError:
+                value = valstr
 
             # XXX this is a hack
             is_profile = fix_profile and field == "ProfileTimes"
