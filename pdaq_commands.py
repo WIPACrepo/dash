@@ -569,6 +569,12 @@ class CmdTail(BaseCmd):
         return "Add colors to Live's log output"
 
     @classmethod
+    def epilog(cls):
+        return "Color choices can be customized in either $HOME/.pdaq_colors" \
+            " or in a file pointed to by the PDAQ_COLORS environment" \
+            " variable.  Use --print_colors to dump the current choices."
+
+    @classmethod
     def is_valid_host(cls, args):
         "Only makes sense on expcont"
         return Machineid.is_host(Machineid.CONTROL_HOST)

@@ -22,6 +22,7 @@ class ClusterDescriptionException(Exception):
 
 class ConfigXMLBase(XMLParser):
     def __init__(self, configDir, configName, suffix='.xml'):
+        self.name = None
         fileName = self.buildPath(configDir, configName, suffix=suffix)
         if not os.path.exists(configDir):
             raise XMLBadFileError("Config directory \"%s\" does not exist" %
@@ -251,6 +252,11 @@ class JavaComponent(ClusterComponent):
             return "jvm[???]"
         return str(self.__jvm)
 
+    @property
+    def numReplayFilesToSkip(self):
+        """Return the number of replay files to skip (None if not specified)"""
+        return None
+
     def setJVMOptions(self, defaults, path, isServer, heapInit, heapMax, args,
                       extraArgs):
         # fill in default values for all unspecified JVM quantities
@@ -348,6 +354,10 @@ class HubComponent(JavaComponent):
         return True
 
     @property
+    def hasReplayOptions(self):
+        return False
+
+    @property
     def hitspoolDirectory(self):
         if self.__hs is None:
             raise ClusterDescriptionException("HitSpool options have not" +
@@ -405,6 +415,37 @@ class HubComponent(JavaComponent):
 
         self.__ntpHost = ntpHost
         self.__alertEMail = alertEMail
+
+
+class ReplayHubComponent(HubComponent):
+    def __init__(self, name, num, logLevel=None, required=False):
+        super(ReplayHubComponent, self).__init__(name, num, logLevel=logLevel,
+                                                 required=required)
+
+        self.__numToSkip = None
+
+    @property
+    def hasReplayOptions(self):
+        return True
+
+    @property
+    def internalStr(self):
+        istr = super(ReplayHubComponent, self).internalStr
+        if self.__numToSkip is not None:
+            istr += " skip=%s" % (self.__numToSkip, )
+        return istr
+
+    @property
+    def isRealHub(self):
+        return False
+
+    @property
+    def numReplayFilesToSkip(self):
+        """Return the number of replay files to skip (None if not specified)"""
+        return self.__numToSkip
+
+    def setNumberToSkip(self, value):
+        self.__numToSkip = value
 
 
 class SimHubComponent(JavaComponent):
@@ -597,7 +638,6 @@ class ClusterDescription(ConfigXMLBase):
     DEFAULT_PKGINSTALL_DIR = "/software/pdaq"
 
     def __init__(self, configDir=None, configName=None, suffix='.cfg'):
-
         self.name = None
         self.__host_map = None
         self.__defaults = None
@@ -636,8 +676,15 @@ class ClusterDescription(ConfigXMLBase):
             try:
                 super(ClusterDescription, self).__init__(configDir, retryName,
                                                          suffix)
+                configName = retryName
             except XMLBadFileError:
                 raise saved_ex[0], saved_ex[1], saved_ex[2]
+
+        derivedName, ext = os.path.splitext(os.path.basename(configName))
+        if derivedName.endswith("-cluster"):
+            derivedName = derivedName[:-8]
+        if derivedName != self.name:
+            self.name = derivedName
 
     def __str__(self):
         return self.name

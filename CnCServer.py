@@ -20,7 +20,7 @@ from DAQLive import DAQLive
 from DAQLog import LogSocketServer
 from DAQRPC import RPCServer
 from ListOpenFiles import ListOpenFiles
-from Process import processList, findProcess
+from Process import find_python_process
 from RunSet import RunSet, listComponentRanges
 from RunSetState import RunSetState
 from SocketServer import ThreadingMixIn
@@ -216,7 +216,7 @@ class DAQPool(object):
                     runSet.configure()
                 if self.__starting:
                     # if this is a replay run, compute the offset for hit times
-                    if runConfig.updateHitSpoolTimes():
+                    if runConfig.updateHitSpoolTimes:
                         runSet.initReplayHubs()
                 if not self.__starting:
                     # if the process was interrupted at any point,
@@ -259,7 +259,7 @@ class DAQPool(object):
                 logger.error(("Cannot restart missing %s: Not found in" +
                               " cluster config \"%s\"") %
                              (listComponentRanges(missingList),
-                              cluCfg.configName()))
+                              cluCfg.configName))
 
             if len(deadList) > 0:
                 self.cycleComponents(deadList, runConfig.configdir, daqDataDir,
@@ -670,11 +670,7 @@ class CnCServer(DAQPool):
         else:
             while True:
                 try:
-                    # CnCServer needs to be made thread-safe
-                    # before we can thread the XML-RPC server
-                    #
                     self.__server = ThreadedRPCServer(DAQPort.CNCSERVER)
-                    #self.__server = RPCServer(DAQPort.CNCSERVER)
                     break
                 except socket.error as e:
                     self.__log.error("Couldn't create server socket: %s" % e)
@@ -719,7 +715,7 @@ class CnCServer(DAQPool):
             DumpThreadsOnSignal(fd=sys.stderr, logger=self.__log)
 
     def __str__(self):
-        return "%s<%s>" % (self.__name, self.getClusterConfig().configName())
+        return "%s<%s>" % (self.__name, self.getClusterConfig().configName)
 
     def __closeOnSIGINT(self, signum, frame):
         if self.closeServer(False):
@@ -1038,10 +1034,10 @@ class CnCServer(DAQPool):
     def rpc_component_get_bean_field(self, compId, bean, field,
                                      includeRunsetComponents=False):
         c = self.__findComponentById(compId, includeRunsetComponents)
-        if c is not None:
-            return c.mbean.get(bean, field)
+        if c is None:
+            raise CnCServerException("Unknown component #%d" % compId)
 
-        raise CnCServerException("Unknown component #%d" % compId)
+        return c.mbean.get(bean, field)
 
     def rpc_component_list(self, includeRunsetComponents=False):
         "return dictionary of component names -> IDs"
@@ -1060,7 +1056,7 @@ class CnCServer(DAQPool):
     def rpc_component_list_beans(self, compId, includeRunsetComponents=False):
         c = self.__findComponentById(compId, includeRunsetComponents)
         if c is not None:
-            return c.getBeanNames()
+            return c.mbean.getBeanNames()
 
         raise CnCServerException("Unknown component #%d" % compId)
 
@@ -1068,7 +1064,7 @@ class CnCServer(DAQPool):
                                        includeRunsetComponents=False):
         c = self.__findComponentById(compId, includeRunsetComponents)
         if c is not None:
-            return c.getBeanFields(bean)
+            return c.mbean.getBeanFields(bean)
 
         raise CnCServerException("Unknown component #%d" % compId)
 
@@ -1219,7 +1215,7 @@ class CnCServer(DAQPool):
         if not runSet:
             raise CnCServerException('Could not find runset#%d' % id)
 
-        return runSet.configName()
+        return runSet.configName
 
     def rpc_runset_count(self):
         "return number of existing run sets"
@@ -1452,8 +1448,9 @@ class CnCServer(DAQPool):
             runSet.logToDash("WARNING: Possible file leak; open file count" +
                              " increased from %d to %d" %
                              (self.__openFileCount, openCount))
+            if openCount - self.__openCount > 5:
+                self.__reportOpenFiles(runNum)
             self.__openFileCount = openCount
-            self.__reportOpenFiles(runNum)
 
     def updateRates(self, id):
         """
@@ -1519,14 +1516,14 @@ if __name__ == "__main__":
 
     args = p.parse_args()
 
-    pids = list(findProcess("CnCServer.py", processList()))
+    pids = list(find_python_process(os.path.basename(sys.argv[0])))
 
     if args.kill:
-        pid = int(os.getpid())
-        for p in pids:
-            if pid != p:
+        mypid = os.getpid()
+        for pid in pids:
+            if pid != mypid:
                 # print "Killing %d..." % p
-                os.kill(p, signal.SIGKILL)
+                os.kill(pid, signal.SIGKILL)
 
         sys.exit(0)
 

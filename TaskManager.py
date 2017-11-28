@@ -65,7 +65,7 @@ class TaskManager(threading.Thread):
         if taskNum == 0:
             return MonitorTask(self, self.__runset, self.__dashlog, liveMoni,
                                runDir, runOptions,
-                               period=runCfg.monitorPeriod())
+                               period=runCfg.monitorPeriod)
         elif taskNum == 1:
             return RateTask(self, self.__runset, self.__dashlog)
         elif taskNum == 2:
@@ -73,7 +73,7 @@ class TaskManager(threading.Thread):
                                   liveMoni)
         elif taskNum == 3:
             return WatchdogTask(self, self.__runset, self.__dashlog,
-                                period=runCfg.watchdogPeriod())
+                                period=runCfg.watchdogPeriod)
 
         return None
 

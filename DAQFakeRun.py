@@ -13,7 +13,7 @@ from xmlrpclib import ServerProxy
 from CnCServer import Connector
 from DAQConfig import DAQConfigParser
 from DAQConst import DAQPort
-from DAQMocks import MockRunConfigFile, MockTriggerConfig
+from DAQMocks import MockLeapsecondFile, MockRunConfigFile, MockTriggerConfig
 from DAQRPC import RPCClient
 from FakeClient import FakeClient, FakeClientException
 from RunOption import RunOption
@@ -335,8 +335,7 @@ class DAQFakeRun(object):
 
         #self.__client = ServerProxy("http://%s:%s" % (cncHost, cncPort),
         #                            verbose=dumpRPC)
-        self.__client = RPCClient()
-        self.__client.start(cncHost, cncPort)
+        self.__client = RPCClient(cncHost, cncPort)
 
     @staticmethod
     def __createClusterDescriptionFile(runCfgDir):
@@ -485,6 +484,9 @@ class DAQFakeRun(object):
             for c in self.__client.rpc_component_list_dicts():
                 print >>sys.stderr, str(c)
             print >>sys.stderr, "---"
+
+        leapfile = MockLeapsecondFile(runCfgDir)
+        leapfile.create()
 
         mockRunCfg = self.createMockRunConfig(runCfgDir, compList)
         self.hackActiveConfig(mockRunCfg)
@@ -870,7 +872,13 @@ if __name__ == "__main__":
 
     # create components
     #
-    comps = DAQFakeRun.createComps(compData, args.forkClients, quiet=args.quiet)
+    try:
+        comps = DAQFakeRun.createComps(compData, args.forkClients,
+                                       quiet=args.quiet)
+    except socket.error, serr:
+        if serr.errno != 111:
+            raise
+        raise SystemExit("Please start CnCServer before faking a run")
 
     DAQFakeRun.makeMockClusterConfig(args.runCfgDir, comps, args.numHubs)
     DAQFakeRun.makeMockRunConfig(args.runCfgDir, comps, args.numHubs,

@@ -10,14 +10,14 @@ import traceback
 from utils import ip
 
 from CachedConfigName import CachedFile
-from ClusterDescription import HubComponent, JavaComponent
+from ClusterDescription import HubComponent, JavaComponent, ReplayHubComponent
 from DAQConfig import DAQConfigParser
 from DAQConfigExceptions import DAQConfigException
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from LiveImports import MoniPort
 from ParallelShell import ParallelShell
-from Process import findProcess, processList
+from Process import find_python_process, list_processes
 from RunSetState import RunSetState
 from locate_pdaq import find_pdaq_trunk
 
@@ -203,7 +203,7 @@ class ComponentManager(object):
     @classmethod
     def __isRunning(cls, procName, procList):
         "Is this process running?"
-        pids = list(findProcess(procName, procList))
+        pids = list(find_python_process(procName, procList))
         return len(pids) > 0
 
     @classmethod
@@ -228,8 +228,13 @@ class ComponentManager(object):
             for comp in node.components():
                 if not comp.isControlServer:
                     if comp.hasHitSpoolOptions:
-                        rc = HubComponent(comp.name, comp.id, comp.logLevel,
-                                          False)
+                        if comp.hasReplayOptions:
+                            rc = ReplayHubComponent(comp.name, comp.id,
+                                                    comp.logLevel, False)
+                            rc.setNumberToSkip(comp.numReplayFilesToSkip)
+                        else:
+                            rc = HubComponent(comp.name, comp.id,
+                                              comp.logLevel, False)
                         rc.setHitSpoolOptions(None, comp.hitspoolDirectory,
                                               comp.hitspoolInterval,
                                               comp.hitspoolMaxFiles)
@@ -319,7 +324,7 @@ class ComponentManager(object):
             if logger is not None:
                 if activeConfig is not None:
                     logger.info("Extracted component list from %s" %
-                                activeConfig.getConfigName())
+                                activeConfig.configName)
                 else:
                     logger.info("No active components found")
 
@@ -384,14 +389,16 @@ class ComponentManager(object):
                 continue
 
             if comp.isHub:
-                killPat = "stringhub.componentId=%d" % comp.id
+                killPat = "stringhub.componentId=%d " % comp.id
             else:
                 killPat = cls.getComponentJar(comp.name)
 
             if comp.isLocalhost:  # Just kill it
-                fmtStr = "pkill %%s -fu %s %s" % (os.environ["USER"], killPat)
+                fmtStr = "pkill %%s -fu %s \"%s\"" % \
+                         (os.environ["USER"], killPat)
             else:
-                fmtStr = "ssh %s pkill %%s -f %s" % (comp.host, killPat)
+                fmtStr = "ssh %s pkill %%s -f \\\"%s\\\"" % \
+                         (comp.host, killPat)
 
             # add '-' on first command
             if killWith9:
@@ -448,7 +455,7 @@ class ComponentManager(object):
     def killProcess(cls, procName, dryRun=False, logger=None):
         pid = int(os.getpid())
 
-        pids = list(findProcess(procName, processList()))
+        pids = list(find_python_process(procName))
 
         rtnval = False
         for p in pids:
@@ -475,12 +482,6 @@ class ComponentManager(object):
         logDir = cls.__createAndExpand(logDir, logDirFallback, logger, dryRun)
         daqDataDir = cls.__createAndExpand(daqDataDir, None, logger, dryRun)
 
-        # get a list of the running processes
-        if not startMissing:
-            procList = []
-        else:
-            procList = processList()
-
         launched = []
         ignored = []
 
@@ -488,6 +489,8 @@ class ComponentManager(object):
         progName = progBase + ".py"
 
         if startMissing and not doCnC:
+            # get a list of the running processes
+            procList = list_processes()
             doCnC |= not cls.__isRunning(progName, procList)
 
         if doCnC:
@@ -539,7 +542,7 @@ class ComponentManager(object):
             cls.__reportAction(logger, "Launched", launched + jlist, ignored)
 
         # remember the active configuration
-        clusterConfig.writeCacheFile(True)
+        clusterConfig.writeCacheFile(writeActiveConfig=True)
 
     @classmethod
     def listComponents(cls):
@@ -601,21 +604,25 @@ class ComponentManager(object):
             if comp.isRealHub:
                 if comp.ntpHost is not None:
                     jvmArgs += " -Dicecube.daq.time.monitoring.ntp-host=%s" % \
-                               str(comp.ntpHost)
+                               (comp.ntpHost, )
                 if comp.alertEMail is not None:
                     jvmArgs += " -Dicecube.daq.stringhub.alert-email=%s" % \
-                               str(comp.alertEMail)
+                               (comp.alertEMail, )
+            else:
+                if comp.numReplayFilesToSkip > 0:
+                    jvmArgs += " -Dreplay.skipFiles=%d" % \
+                               (comp.numReplayFilesToSkip, )
 
             if comp.hasHitSpoolOptions:
                 if comp.hitspoolDirectory is not None:
                     jvmArgs += " -Dhitspool.directory=\"%s\"" % \
-                               comp.hitspoolDirectory
+                               (comp.hitspoolDirectory, )
                 if comp.hitspoolInterval is not None:
                     jvmArgs += " -Dhitspool.interval=%.4f" % \
-                               comp.hitspoolInterval
+                               (comp.hitspoolInterval, )
                 if comp.hitspoolMaxFiles is not None:
                     jvmArgs += " -Dhitspool.maxfiles=%d" % \
-                               comp.hitspoolMaxFiles
+                               (comp.hitspoolMaxFiles, )
 
             #switches = "-g %s" % configDir
             switches = "-d %s" % daqDataDir

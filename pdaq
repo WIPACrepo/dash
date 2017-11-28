@@ -24,7 +24,10 @@ if __name__ == "__main__":
     cmdmap = {}
     for v in COMMANDS:
         try:
-            v.add_arguments(sub.add_parser(v.name()))
+            v.add_arguments(sub.add_parser(v.name(),
+                                           description=v.description(),
+                                           epilog=v.epilog(),
+            ))
             cmdmap[v.name()] = v
         except ImportError, ie:
             # missing lxml can cause import problems on hubs

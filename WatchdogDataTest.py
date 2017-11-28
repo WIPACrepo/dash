@@ -150,7 +150,7 @@ class WatchdogDataTest(unittest.TestCase):
     def testCreate(self):
         comp = MockComponent("foo", 1, 1, MockMBeanClient())
 
-        wd = WatchData(comp, None)
+        wd = WatchData(comp, None, None)
         self.assertEqual(comp.order(), wd.order(),
                          "Expected WatchData order %d, not %d" %
                          (comp.order(), wd.order()))
@@ -173,7 +173,7 @@ class WatchdogDataTest(unittest.TestCase):
         comp = MockComponent("foo", 1, 1, mbeanClient)
         other = MockComponent("other", 0, 17, MockMBeanClient())
 
-        wd = WatchData(comp, None)
+        wd = WatchData(comp, mbeanClient, None)
 
         wd.addInputValue(other, beanName, inName)
         wd.addOutputValue(other, beanName, outName)
@@ -213,7 +213,7 @@ class WatchdogDataTest(unittest.TestCase):
             comp = MockComponent("foo", 1, 1, mbeanClient)
             other = MockComponent("other", 0, 17, MockMBeanClient())
 
-            wd = WatchData(comp, None)
+            wd = WatchData(comp, mbeanClient, None)
 
             if f == 0:
                 mbeanClient.addStagnant(beanName, inName, starveVal, failNum)
@@ -307,7 +307,7 @@ class WatchdogDataTest(unittest.TestCase):
             comp = MockComponent("foo", 1, 1, mbeanClient)
             other = MockComponent("other", 0, 17, MockMBeanClient())
 
-            wd = WatchData(comp, None)
+            wd = WatchData(comp, mbeanClient, None)
 
             if f == 0:
                 mbeanClient.addTimeBomb(beanName, inName, tVal, 1, bombTicks)

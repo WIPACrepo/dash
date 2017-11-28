@@ -115,6 +115,24 @@ class DomGeometry(object):
             return "-"
         return self.__desc
 
+    @property
+    def is_icetop(self):
+        return self.__pos >= 61 and self.__pos <= 64
+
+    @property
+    def is_inice(self):
+        return self.__pos >= 1 and self.__pos <= 60
+
+    @property
+    def is_real_dom(self):
+        return self.__string >= 1 and self.__string <= 86 and \
+            self.__pos >= 1 and self.__pos <= 64
+
+    @property
+    def is_scintillator(self):
+        return self.__string >= 1 and self.__string <= 86 and \
+            self.__pos >= 65 and self.__pos <= 66
+
     def location(self):
         if self.__origString is not None:
             strNum = self.__origString

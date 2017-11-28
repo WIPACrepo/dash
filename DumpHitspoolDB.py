@@ -7,7 +7,8 @@ import sqlite3
 from DAQTime import PayloadTime
 
 
-DEFAULT_PATH = "/mnt/data/pdaqlocal/hitspool/hitspool.db"
+HITSPOOL_DIR = "/mnt/data/pdaqlocal/hitspool"
+HSDB_PATH = os.path.join(HITSPOOL_DIR, "hitspool.db")
 
 
 def add_arguments(parser):
@@ -20,7 +21,7 @@ def add_arguments(parser):
 
 def dump_db(args):
     if args.hitspool_db is None:
-        path = DEFAULT_PATH
+        path = HSDB_PATH
     else:
         path = args.hitspool_db
 
@@ -41,8 +42,12 @@ def dump_db(args):
             else:
                 start_val = PayloadTime.toDateTime(start_tick)
                 stop_val = PayloadTime.toDateTime(stop_tick)
-            print "%s [%s-%s] (%.02fs)" % \
-                (filename, start_val, stop_val, secs)
+            if os.path.exists(os.path.join(HITSPOOL_DIR, filename)):
+                rmstr = ""
+            else:
+                rmstr = " [NO FILE]"
+            print "%s [%s-%s] (%.02fs)%s" % \
+                (filename, start_val, stop_val, secs, rmstr)
     finally:
         conn.close()
 

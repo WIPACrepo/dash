@@ -3,6 +3,7 @@
 import shutil
 import tempfile
 import unittest
+from locate_pdaq import set_pdaq_config_dir
 from CnCServer import DAQPool
 from DAQClient import DAQClientState
 from DAQTime import PayloadTime
@@ -10,8 +11,8 @@ from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet, ConnectionException
 
-from DAQMocks import MockComponent, MockLogger, MockRunConfigFile, \
-     RunXMLValidator
+from DAQMocks import MockComponent, MockLeapsecondFile, MockLogger, \
+    MockRunConfigFile, RunXMLValidator
 
 ACTIVE_WARNING = False
 
@@ -118,11 +119,15 @@ class TestDAQPool(unittest.TestCase):
     def setUp(self):
         self.__runConfigDir = None
 
+        set_pdaq_config_dir(None, override=True)
+
         RunXMLValidator.setUp()
 
     def tearDown(self):
         if self.__runConfigDir is not None:
             shutil.rmtree(self.__runConfigDir, ignore_errors=True)
+
+        set_pdaq_config_dir(None, override=True)
 
         RunXMLValidator.tearDown()
 
@@ -635,6 +640,7 @@ class TestDAQPool(unittest.TestCase):
 
     def testStartRun(self):
         self.__runConfigDir = tempfile.mkdtemp()
+        set_pdaq_config_dir(self.__runConfigDir, override=True)
 
         mgr = MyDAQPool()
 
@@ -656,6 +662,8 @@ class TestDAQPool(unittest.TestCase):
             mgr.add(c)
 
         self.assertEqual(mgr.numComponents(), len(compList))
+
+        MockLeapsecondFile(self.__runConfigDir).create()
 
         runConfig = self.__createRunConfigFile(compList)
 

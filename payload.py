@@ -164,7 +164,7 @@ class SimpleHit(Payload):
         self.__mbid = flds[3]
         if flds[4] != self.__trig_type:
             raise PayloadException("SimpleHit@%d: type %0x != mode %0x" %
-                                   (self.__trig_type, flds[4]))
+                                   (utime, self.__trig_type, flds[4]))
 
         super(SimpleHit, self).__init__(utime, data, keep_data=keep_data)
 
@@ -193,7 +193,6 @@ class SimpleHit(Payload):
     def trigger_type(self):
         "Trigger flags"
         return self.__trig_type
-
 
 
 # pylint: disable=invalid-name
@@ -297,11 +296,15 @@ class HitPayload(Payload):
         raise NotImplementedError()
 
     @property
-    def trigger_mode(self):
+    def mbid(self):
         raise NotImplementedError()
 
     @property
-    def trigger_type(self):
+    def source_id(self):
+        raise NotImplementedError()
+
+    @property
+    def trigger_mode(self):
         raise NotImplementedError()
 
     @property
@@ -420,6 +423,7 @@ class DeltaCompressedHit(HitPayload):
     def envelope(self):
         return struct.pack(">2IQ", self.data_length + self.ENVELOPE_LENGTH,
                            self.payload_type_id(), self.__mbid)
+
     @property
     def fadc(self):
         "fADC values"
@@ -662,6 +666,163 @@ class EngineeringHitRecord(BaseHitRecord):
                                                    offset)
 
 
+class Monitor(object):
+    TYPE_ID = 5
+
+    def __init__(self):
+        """
+        Extract time calibration data from the buffer
+        """
+        raise NotImplementedError("Use Monitor.subtype()")
+
+    @classmethod
+    def subtype(cls, utime, data, keep_data=True):
+        if len(data) < 12:
+            raise PayloadException("Truncated monitoring record")
+
+        subhdr = struct.unpack(">Qhh6B", data[:18])
+        if subhdr[1] != len(data) - 8:
+            raise PayloadException("Expected %d-byte record, not %d" %
+                                   (subhdr[1], len(data) - 8))
+
+        dom_id = subhdr[0]
+
+        if subhdr[2] & 0xff > 0:
+            rectype = subhdr[2] & 0xff
+        else:
+            rectype = (subhdr[2] >> 8) & 0xff
+
+        domclock = subhdr[3:]
+
+        if rectype == MonitorHardware.SUBTYPE_ID:
+            return MonitorHardware(utime, dom_id, domclock, data[18:])
+        if rectype == MonitorConfig.SUBTYPE_ID:
+            return MonitorConfig(utime, dom_id, domclock, data[18:])
+        if rectype == MonitorConfigChange.SUBTYPE_ID:
+            return MonitorConfigChange(utime, dom_id, domclock, data[18:])
+        if rectype == MonitorASCII.SUBTYPE_ID:
+            return MonitorASCII(utime, dom_id, domclock, data[18:])
+        if rectype == MonitorGeneric.SUBTYPE_ID:
+            return MonitorGeneric(utime, dom_id, domclock, data[18:])
+
+        return UnknownPayload(cls.TYPE_ID, utime, data, keep_data=keep_data)
+
+
+class MonitorRecord(object):
+    def __init__(self, utime, dom_id, domclock):
+        self.__utime = utime
+        self.__dom_id = dom_id
+        self.__clockbytes = domclock
+
+    @property
+    def dom_id(self):
+        return self.__dom_id
+
+    @property
+    def domclock(self):
+        val = 0
+        for byte in self.__clockbytes:
+            val = (val << 8) + byte
+        return val
+
+    @property
+    def utime(self):
+        return self.__utime
+
+
+class MonitorASCII(MonitorRecord):
+    SUBTYPE_ID = 0xcb
+
+    def __init__(self, utime, dom_id, domclock, data):
+        self.__text = struct.unpack("%ds" % len(data), data)[0]
+
+        super(MonitorASCII, self).__init__(utime, dom_id, domclock)
+
+    def __str__(self):
+        return "MonitorASCII@%d[dom %012x clk %d \"%s\"]" % \
+            (self.utime, self.dom_id, self.domclock, self.__text)
+
+    @property
+    def subtype(self):
+        return self.SUBTYPE_ID
+
+    @property
+    def text(self):
+        return self.__text
+
+
+class MonitorConfig(MonitorRecord):
+    SUBTYPE_ID = 0xc9
+
+    def __init__(self, utime, dom_id, domclock, data):
+        self.__data = data
+
+        super(MonitorConfig, self).__init__(utime, dom_id, domclock)
+
+    def __str__(self):
+        return "MonitorConfig@%d[dom %012x clk %d data*%d]" % \
+            (self.utime, self.dom_id, self.domclock, len(self.__data))
+
+    @property
+    def subtype(self):
+        return self.SUBTYPE_ID
+
+
+class MonitorConfigChange(MonitorRecord):
+    SUBTYPE_ID = 0xca
+
+    def __init__(self, utime, dom_id, domclock, data):
+        self.__data = data
+
+        super(MonitorConfigChange, self).__init__(utime, dom_id, domclock)
+
+    def __str__(self):
+        return "MonitorConfigChange@%d[dom %012x clk %d data*%d]" % \
+            (self.utime, self.dom_id, self.domclock, len(self.__data))
+
+    @property
+    def subtype(self):
+        return self.SUBTYPE_ID
+
+
+class MonitorGeneric(MonitorRecord):
+    SUBTYPE_ID = 0xcc
+
+    def __init__(self, utime, dom_id, domclock, data):
+        self.__data = data
+
+        super(MonitorGeneric, self).__init__(utime, dom_id, domclock)
+
+    def __str__(self):
+        return "MonitorGeneric@%d[dom %012x clk %d data*%d]" % \
+            (self.utime, self.dom_id, self.domclock, len(self.__data))
+
+    @property
+    def data(self):
+        return self.__data[:]
+
+    @property
+    def subtype(self):
+        return self.SUBTYPE_ID
+
+
+class MonitorHardware(MonitorRecord):
+    SUBTYPE_ID = 0xc8
+
+    def __init__(self, utime, dom_id, domclock, data):
+        self.__data = data
+
+        super(MonitorHardware, self).__init__(utime, dom_id, domclock)
+
+    def __str__(self):
+        return "MonitorHardware@%d[dom %012x clk %d data*%d]" % \
+            (self.utime, self.dom_id, self.domclock, len(self.__data))
+
+    @property
+    def subtype(self):
+        return self.SUBTYPE_ID
+
+
 class TimeCalibration(Payload):
     TYPE_ID = 4
     LENGTH = 322
@@ -676,29 +837,31 @@ class TimeCalibration(Payload):
 
         super(TimeCalibration, self).__init__(utime, data, keep_data=keep_data)
 
-        hdr = struct.unpack("<QHHQQ128xQQ128xB12sc", data[:314])
-        self.__dom_id = hdr[0]
-        self.__pktlen = hdr[1]
-        self.__format = hdr[2]
-        self.__dor_tx = hdr[3]
-        self.__dor_rx = hdr[4]
-        self.__dor_waveform = data[28:156]
-        self.__dom_rx = hdr[5]
-        self.__dom_tx = hdr[6]
-        self.__dom_waveform = data[172:300]
-        self.__start_of_gps = hdr[7]
-        self.__julianstr = hdr[8]
-        self.__quality = hdr[9]
+        dombytes = struct.unpack(">Q", data[:8])
+        self.__dom_id = dombytes[0]
 
-        st = struct.unpack(">Q", data[314:])
+        hdr = struct.unpack("<HHQQ128xQQ128xB12sc", data[8:self.LENGTH - 8])
+        self.__pktlen = hdr[0]
+        self.__format = hdr[1]
+        self.__dor_tx = hdr[2]
+        self.__dor_rx = hdr[3]
+        self.__dor_waveform = data[28:156]
+        self.__dom_rx = hdr[4]
+        self.__dom_tx = hdr[5]
+        self.__dom_waveform = data[172:300]
+        self.__start_of_gps = hdr[6]
+        self.__julianstr = hdr[7]
+        self.__quality = hdr[8]
+
+        st = struct.unpack(">Q", data[self.LENGTH - 8:])
         self.__synctime = st[0]
 
     def __str__(self):
         "Payload description"
-        return "TimeCalibration[dor:tx#%d rx#%d,dom:rx#%d tx#%d," \
+        return "TimeCalibration[dom %012x dor:tx#%d rx#%d,dom:rx#%d tx#%d," \
             " \"%s\" Q'%s' S%d]" % \
-            (self.__dor_tx, self.__dor_rx, self.__dom_rx, self.__dom_tx,
-             self.__julianstr, self.__quality, self.__synctime)
+            (self.__dom_id, self.__dor_tx, self.__dor_rx, self.__dom_rx,
+             self.__dom_tx, self.__julianstr, self.__quality, self.__synctime)
 
     @property
     def dom_id(self):
@@ -886,6 +1049,8 @@ class PayloadReader(object):
             return EventV5(utime, rawdata, keep_data=keep_data)
         if type_id == TimeCalibration.TYPE_ID:
             return TimeCalibration(utime, rawdata, keep_data=keep_data)
+        if type_id == Monitor.TYPE_ID:
+            return Monitor.subtype(utime, rawdata, keep_data=keep_data)
 
         return UnknownPayload(type_id, utime, rawdata, keep_data=keep_data)
 
@@ -897,12 +1062,34 @@ class PayloadReader(object):
 
 
 if __name__ == "__main__":
+    def read_file(filename, max_payloads, write_simple_hits=False):
+        if write_simple_hits and filename.startswith("HitSpool-"):
+            out = open("SimpleHit-" + fnm[9:], "w")
+        else:
+            out = None
+
+        try:
+            with PayloadReader(filename) as rdr:
+                for pay in rdr:
+                    if max_payloads is not None and rdr.nrec > max_payloads:
+                        break
+
+                    print str(pay)
+                    if out is not None:
+                        out.write(pay.simple_hit)
+        finally:
+            if out is not None:
+                out.close()
+
     def main():
         "Dump all payloads"
         import argparse
 
         parser = argparse.ArgumentParser()
 
+        parser.add_argument("-S", "--simple-hits", dest="write_simple_hits",
+                            action="store_true", default=False,
+                            help="Rewrite hits to trigger-friendly SimpleHits")
         parser.add_argument("-n", "--max_payloads", type=int,
                             dest="max_payloads", default=None,
                             help="Maximum number of payloads to dump")
@@ -911,20 +1098,13 @@ if __name__ == "__main__":
         args = parser.parse_args()
 
         for fnm in args.fileList:
-            if fnm.startswith("HitSpool-"):
-                outnm = "SimpleHit-" + fnm[9:]
-            else:
-                import sys
-                print >>sys.stderr, "Unknown file name " + fnm
+            if os.path.isfile(fnm):
+                read_file(fnm, args.max_payloads, args.write_simple_hits)
                 continue
 
-            with open(outnm, "w") as out:
-                with PayloadReader(fnm) as rdr:
-                    for pay in rdr:
-                        if args.max_payloads is not None and \
-                           rdr.nrec > args.max_payloads:
-                            break
-
-                    out.write(pay.simple_hit)
+            for entry in os.listdir(fnm):
+                path = os.path.join(fnm, entry)
+                if os.path.isfile(path):
+                    read_file(path, args.max_payloads, args.write_simple_hits)
 
     main()

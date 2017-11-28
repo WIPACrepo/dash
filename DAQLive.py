@@ -61,19 +61,23 @@ class DAQLive(Component):
                                      {"components": compStrs,
                                       "runConfig": str(runCfg),
                                       "runNumber": runNum})
-            self.__startExc = LiveException("Cannot create run #%d runset"
-                                            " for \"%s\": %s" %
-                                            (runNum, runCfg, str(mce)))
+            errmsg = "Cannot create run #%d runset for \"%s\": %s" % \
+                     (runNum, runCfg, str(mce))
+            self.__log.error(errmsg)
+            self.__startExc = LiveException(errmsg)
             return
         except:
-            self.__startExc = LiveException("Cannot create run #%d runset"
-                                            " for \"%s\": %s" %
-                                            (runNum, runCfg, exc_string()))
+            errmsg = "Cannot create run #%d runset for \"%s\": %s" % \
+                     (runNum, runCfg, exc_string())
+            self.__log.error(errmsg)
+            self.__startExc = LiveException(errmsg)
             return
 
         if runSet is None:
-            self.__startExc = LiveException("Cannot create run #%d runset"
-                                            " for \"%s\"" % (runNum, runCfg))
+            errmsg = "Cannot create run #%d runset for \"%s\"" % \
+                     (runNum, runCfg)
+            self.__log.error(errmsg)
+            self.__startExc = LiveException(errmsg)
             return
 
         if self.__starting:

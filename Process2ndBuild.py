@@ -21,7 +21,7 @@ import time
 import icetop_hdf5
 
 from DefaultDomGeometry import DefaultDomGeometryReader
-from NewProcess import exclusive_process
+from Process import exclusive_process
 
 MAX_FILES_PER_TARBALL = 50
 
@@ -191,7 +191,7 @@ if __name__ == "__main__":
     args = op.parse_args()
 
     if args.spadedir is not None:
-        spade_dir = os.path.abspath(args.spadedir)
+        spade_dir = args.spadedir
     else:
         cluster = ClusterDescription()
         spade_dir = cluster.logDirForSpade

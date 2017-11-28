@@ -48,7 +48,7 @@ class RunClusterTest(unittest.TestCase):
         sortedNodes.sort()
 
         if verbose:
-            print "=== RC -> %s" % cluCfg.configName()
+            print "=== RC -> %s" % (cluCfg.configName, )
             for n in sortedNodes:
                 print "::  " + str(n)
                 sortedComps = n.components()
@@ -122,11 +122,21 @@ class RunClusterTest(unittest.TestCase):
     def __loadConfigs(self, cfgName, clusterName):
         cfg = DAQConfigParser.parse(RunClusterTest.CONFIG_DIR, cfgName)
 
-        cluster = RunCluster(cfg, clusterName, RunClusterTest.CONFIG_DIR)
+        cluster = RunCluster(cfg, clusterName,
+                             configDir=RunClusterTest.CONFIG_DIR)
 
-        self.assertEqual(cluster.configName(), cfgName,
+        if not clusterName.endswith("-cluster"):
+            fixedName = clusterName
+        else:
+            fixedName = clusterName[:-1]
+        if fixedName == "sps" or fixedName == "spts":
+            fullName = cfgName
+        else:
+            fullName = "%s@%s" % (cfgName, fixedName)
+
+        self.assertEqual(cluster.configName, fullName,
                          'Expected config name %s, not %s' %
-                         (cfgName, cluster.configName()))
+                         (fullName, cluster.configName))
 
         return (cfg, cluster)
 
@@ -140,8 +150,8 @@ class RunClusterTest(unittest.TestCase):
 
         cluster.clearActiveConfig()
 
-        cluster.writeCacheFile(False)
-        cluster.writeCacheFile(True)
+        cluster.writeCacheFile(writeActiveConfig=False)
+        cluster.writeCacheFile(writeActiveConfig=True)
 
     def testDeployLocalhost(self):
         cfgName = 'simpleConfig'
@@ -378,7 +388,7 @@ class RunClusterTest(unittest.TestCase):
             self.fail("This should not succeed")
         except RunClusterError, rce:
             estr = str(rce)
-            if estr != "Cannot find xxx09 for %s in spts" % clusterName:
+            if estr != "Cannot find xxx09 for replay in %s" % clusterName:
                 raise
 
     def testLoadIfChanged(self):

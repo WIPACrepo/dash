@@ -5,14 +5,15 @@ import tempfile
 import time
 import unittest
 
+from locate_pdaq import set_pdaq_config_dir
 from ActiveDOMsTask import ActiveDOMsTask
 from ComponentManager import listComponentRanges
 from CnCExceptions import CnCServerException, MissingComponentException
 from CnCServer import CnCServer
 from DAQConst import DAQPort
 from DAQMocks import MockClusterConfig, MockDefaultDomGeometryFile, \
-    MockIntervalTimer, MockLogger, MockRunConfigFile, RunXMLValidator, \
-    SocketReader
+    MockIntervalTimer, MockLeapsecondFile, MockLogger, MockRunConfigFile, \
+    RunXMLValidator, SocketReader
 from DAQTime import PayloadTime
 from LiveImports import LIVE_IMPORT
 from MonitorTask import MonitorTask
@@ -662,6 +663,8 @@ class CnCRunSetTest(unittest.TestCase):
         self.__runConfigDir = tempfile.mkdtemp()
         self.__spadeDir = tempfile.mkdtemp()
 
+        set_pdaq_config_dir(self.__runConfigDir)
+
         comps = [MockComponent("stringHub", self.HUB_NUMBER,
                                (MockConn("stringHit", "o"), )),
                  MockComponent("inIceTrigger",
@@ -698,6 +701,9 @@ class CnCRunSetTest(unittest.TestCase):
         runConfig = rcFile.create(nameList, hubDomDict)
 
         MockDefaultDomGeometryFile.create(self.__runConfigDir, hubDomDict)
+
+        leapFile = MockLeapsecondFile(self.__runConfigDir)
+        leapFile.create()
 
         logger = MockLogger("main")
         logger.addExpectedExact("Loading run configuration \"%s\"" % runConfig)
@@ -844,6 +850,8 @@ class CnCRunSetTest(unittest.TestCase):
         self.__daqDataDir = None
         self.__spadeDir = None
 
+        set_pdaq_config_dir(None, override=True)
+
         RunXMLValidator.setUp()
 
     def tearDown(self):
@@ -955,6 +963,8 @@ class CnCRunSetTest(unittest.TestCase):
         self.__runConfigDir = tempfile.mkdtemp()
         self.__spadeDir = tempfile.mkdtemp()
 
+        set_pdaq_config_dir(self.__runConfigDir)
+
         comps = [MockComponent("stringHub", self.HUB_NUMBER,
                                (MockConn("stringHit", "o"), )),
                  MockComponent("inIceTrigger",
@@ -1003,6 +1013,9 @@ class CnCRunSetTest(unittest.TestCase):
         runConfig = rcFile.create(runCompList, hubDomDict)
 
         MockDefaultDomGeometryFile.create(self.__runConfigDir, hubDomDict)
+
+        leapFile = MockLeapsecondFile(self.__runConfigDir)
+        leapFile.create()
 
         catchall.addExpectedText("Loading run configuration \"%s\"" %
                                  runConfig)

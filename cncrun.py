@@ -31,6 +31,7 @@ import subprocess
 import time
 
 from BaseRun import BaseRun, RunException, StateException
+from RunNumber import RunNumber
 from RunOption import RunOption
 from RunSetState import RunSetState
 from exc_string import exc_string

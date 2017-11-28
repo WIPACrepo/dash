@@ -69,6 +69,7 @@ class CachedConfigName(CachedFile):
         "Initialize instance variables"
         self.__configName = None
 
+    @property
     def configName(self):
         "get the configuration name to write to the cache file"
         return self.__configName

@@ -9,12 +9,14 @@ from CnCServer import CnCServer
 from DAQClient import DAQClient
 from DAQConst import DAQPort
 from DAQMocks import MockAppender, MockClusterConfig, MockCnCLogger, \
-    MockDefaultDomGeometryFile, MockRunConfigFile, RunXMLValidator, \
-    SocketReaderFactory, SocketWriter
+    MockDefaultDomGeometryFile, MockLeapsecondFile, MockRunConfigFile, \
+    RunXMLValidator, SocketReaderFactory, SocketWriter
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet
+from locate_pdaq import set_pdaq_config_dir
 from utils import ip
+
 
 CAUGHT_WARNING = False
 
@@ -288,6 +290,8 @@ class TestDAQServer(unittest.TestCase):
         self.__runConfigDir = None
         self.__daqDataDir = None
 
+        set_pdaq_config_dir(None, override=True)
+
         RunXMLValidator.setUp()
 
     def tearDown(self):
@@ -304,6 +308,8 @@ class TestDAQServer(unittest.TestCase):
             self.__daqDataDir = None
 
         MockServer.APPENDER.checkStatus(10)
+
+        set_pdaq_config_dir(None, override=True)
 
         RunXMLValidator.tearDown()
 
@@ -412,6 +418,8 @@ class TestDAQServer(unittest.TestCase):
         self.__runConfigDir = tempfile.mkdtemp()
         self.__daqDataDir = tempfile.mkdtemp()
 
+        set_pdaq_config_dir(self.__runConfigDir, override=True)
+
         logPort = 21765
 
         logger = self.__createLog('main', logPort)
@@ -471,6 +479,9 @@ class TestDAQServer(unittest.TestCase):
         }
 
         runConfig = rcFile.create([], hubDomDict)
+
+        leapFile = MockLeapsecondFile(self.__runConfigDir)
+        leapFile.create()
 
         MockDefaultDomGeometryFile.create(self.__runConfigDir, hubDomDict)
 

@@ -19,6 +19,7 @@ from LiveImports import Prio, LIVE_IMPORT, SERVICE_NAME
 from RunOption import RunOption
 from RunSet import RunSet
 from TaskManager import MonitorTask, RateTask, TaskManager, WatchdogTask
+from locate_pdaq import set_pdaq_config_dir
 from scmversion import get_scmversion_str
 
 ACTIVE_WARNING = False
@@ -31,8 +32,9 @@ except SystemExit:
 
 from DAQMocks \
     import MockAppender, MockClusterConfig, MockCnCLogger, \
-    MockDeployComponent, MockIntervalTimer, MockParallelShell, \
-    RunXMLValidator, SocketReader, SocketReaderFactory, SocketWriter
+    MockDeployComponent, MockIntervalTimer, MockLeapsecondFile, \
+    MockParallelShell, RunXMLValidator, SocketReader, SocketReaderFactory, \
+    SocketWriter
 
 
 class MostlyLive(object):
@@ -870,11 +872,12 @@ class RealComponent(object):
 class IntegrationTest(unittest.TestCase):
     CLUSTER_CONFIG = 'deadConfig'
     CLUSTER_DESC = 'non-cluster'
-    CONFIG_DIR = os.path.abspath('src/test/resources/config')
+    CONFIG_SOURCE = os.path.abspath('src/test/resources/config')
     CONFIG_NAME = 'simpleConfig'
     COPY_DIR = 'bogus'
     DATA_DIR = '/tmp'
     SPADE_DIR = '/tmp'
+    CONFIG_DIR = None
     LOG_DIR = None
     LIVEMONI_ENABLED = False
 
@@ -1749,6 +1752,9 @@ class IntegrationTest(unittest.TestCase):
                          (expState, state))
 
     def setUp(self):
+        if sys.version_info < (2, 7):
+            self.setUpClass()
+
         MostlyCnCServer.APPENDERS.clear()
 
         self.__logFactory = SocketReaderFactory()
@@ -1765,6 +1771,29 @@ class IntegrationTest(unittest.TestCase):
         #LogChecker.DEBUG = True
 
         RunXMLValidator.setUp()
+
+    @classmethod
+    def setUpClass(cls):
+        cls.CONFIG_DIR = tempfile.mkdtemp()
+
+        # make a copy of the config files so we can add a NIST leapsecond file
+        if not os.path.isdir(cls.CONFIG_DIR):
+            raise OSError("Cannot find temporary directory \"%s\"" %
+                          (cls.CONFIG_DIR, ))
+        os.rmdir(cls.CONFIG_DIR)
+        shutil.copytree(cls.CONFIG_SOURCE, cls.CONFIG_DIR)
+
+        # generate a mock NIST leapseconds file
+        MockLeapsecondFile(cls.CONFIG_DIR).create()
+
+        set_pdaq_config_dir(cls.CONFIG_DIR, override=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.CONFIG_DIR, ignore_errors=True)
+        cls.CONFIG_DIR = None
+
+        set_pdaq_config_dir(None, override=True)
 
     def tearDown(self):
         try:
@@ -1784,13 +1813,6 @@ class IntegrationTest(unittest.TestCase):
             MostlyCnCServer.APPENDERS[key].checkStatus(10)
 
         MostlyRunSet.closeAllLogs()
-
-        for root, dirs, files in os.walk(IntegrationTest.LOG_DIR,
-                                         topdown=False):
-            for name in files:
-                os.remove(os.path.join(root, name))
-            for name in dirs:
-                os.rmdir(os.path.join(root, name))
 
         shutil.rmtree(IntegrationTest.LOG_DIR, ignore_errors=True)
         IntegrationTest.LOG_DIR = None
@@ -1820,6 +1842,9 @@ class IntegrationTest(unittest.TestCase):
                     threading.activeCount()
 
         RunXMLValidator.tearDown()
+
+        if sys.version_info < (2, 7):
+            self.tearDownClass()
 
     def testFinishInMain(self):
         #print "Not running testFinishInMain"; return

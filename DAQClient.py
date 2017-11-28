@@ -14,13 +14,13 @@ set_exc_string_encoding("ascii")
 
 
 def unFixValue(obj):
-    """ Look for numbers masquerading as strings.  If an obj is a
-    string and successfully converts to a number, return that
-    convertion.  If obj is a dict or list, recuse into it
-    converting all such masquerading strings.  All other types are
-    unaltered.  This pairs with the similarly named fix* methods in
-    icecube.daq.juggler.mbean.XMLRPCServer """
-
+    """
+    Look for numbers masquerading as strings.  If an obj is a string and
+    successfully converts to a number, return that number.  If obj is a dict
+    or list, recurse into it converting all numeric back into numbers.  All
+    other types are unaltered.  This pairs with the similarly named fix*
+    methods in icecube.daq.juggler.mbean.XMLRPCServer
+    """
     if isinstance(obj, dict):
         for k in obj.keys():
             obj[k] = unFixValue(obj[k])

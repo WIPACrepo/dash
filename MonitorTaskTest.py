@@ -158,9 +158,9 @@ class MonitorTaskTest(unittest.TestCase):
                         str(files))
             return
 
-        self.failUnless(len(files) == len(compList),
-                        "Expected %d files, not %d" %
-                        (len(compList), len(files)))
+        self.failUnless(len(files) == len(compList) + 1,
+                        "Expected %d files, not %d: %s" %
+                        (len(compList) + 1, len(files), files))
 
     def setUp(self):
         self.__temp_dir = tempfile.mkdtemp()

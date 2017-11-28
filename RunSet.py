@@ -24,7 +24,7 @@ from RunSetState import RunSetState
 from RunStats import RunStats
 from TaskManager import TaskManager
 from UniqueID import UniqueID
-from leapseconds import leapseconds
+from leapseconds import leapseconds, LeapsecondException, MJD
 from scmversion import get_scmversion_str
 from utils import ip
 from utils.DashXMLLog import DashXMLLog, DashXMLLogException
@@ -224,42 +224,6 @@ class GoodTimeThread(CnCThread):
 
         super(GoodTimeThread, self).__init__(threadName, log)
 
-    def _run(self):
-        "Gather good hit time data from all hubs"
-        try:
-            complete = False
-            for i in range(self.MAX_ATTEMPTS):
-                complete = self.__fetchTime()
-                loud = False
-                if loud and (complete or self.__stopped):
-                    if complete:
-                        status = "complete"
-                    elif self.__stopped:
-                        status = "stopped"
-                    else:
-                        status = "unknown"
-                    self.__log.error("GetGoodTime %s after %d attempts" %
-                                     (status, i))
-                    # we're done, break out of the loop
-                    break
-                time.sleep(0.1)
-        except:
-            self.__log.error("Couldn't find %s: %s" %
-                             (self.moniname(), exc_string()))
-
-        self.__finalTime = self.__goodTime
-
-        if len(self.__badComps) > 0:
-            self.__log.error("Couldn't find %s for %s" %
-                             (self.moniname(),
-                              listComponentRanges(self.__badComps.keys())))
-
-        if self.__goodTime is None:
-            goodVal = "unknown"
-        else:
-            goodVal = self.__goodTime
-        self.__data.reportGoodTime(self.moniname(), goodVal)
-
     def __fetchTime(self):
         """
         Query all hubs which haven't yet reported a time
@@ -370,12 +334,45 @@ class GoodTimeThread(CnCThread):
             if c.isBuilder or c.isComponent("globalTrigger"):
                 self.notifyComponent(c, goodTime)
 
+    def _run(self):
+        "Gather good hit time data from all hubs"
+        try:
+            complete = False
+            for i in range(self.MAX_ATTEMPTS):
+                complete = self.__fetchTime()
+                loud = False
+                if loud and (complete or self.__stopped):
+                    if complete:
+                        status = "complete"
+                    elif self.__stopped:
+                        status = "stopped"
+                    else:
+                        status = "unknown"
+                    self.__log.error("GetGoodTime %s after %d attempts" %
+                                     (status, i))
+                    # we're done, break out of the loop
+                    break
+                time.sleep(0.1)
+        except:
+            self.__log.error("Couldn't find %s: %s" %
+                             (self.moniname(), exc_string()))
+
+        self.__finalTime = self.__goodTime
+
+        if len(self.__badComps) > 0:
+            self.__log.error("Couldn't find %s for %s" %
+                             (self.moniname(),
+                              listComponentRanges(self.__badComps.keys())))
+
+        if self.__goodTime is None:
+            goodVal = "unknown"
+        else:
+            goodVal = self.__goodTime
+        self.__data.reportGoodTime(self.moniname(), goodVal)
+
     def beanfield(self):
         "Return the name of the 'stringhub' MBean field"
         raise NotImplementedError("Unimplemented")
-
-    def logError(self, msg):
-        self.__log.error(msg)
 
     def finished(self):
         "Return True if the thread has finished"
@@ -384,6 +381,9 @@ class GoodTimeThread(CnCThread):
     def isBetter(self, oldval, newval):
         "Return True if 'newval' is better than 'oldval'"
         raise NotImplementedError("Unimplemented")
+
+    def logError(self, msg):
+        self.__log.error(msg)
 
     def moniname(self):
         "Return the name of the value sent to I3Live"
@@ -481,6 +481,9 @@ class LastGoodTimeThread(GoodTimeThread):
 
 
 class RunData(object):
+    # number of days before file expiration to start sending alerts
+    LEAPSECOND_FILE_EXPIRY = 14
+
     def __init__(self, runSet, runNumber, clusterConfig, runConfig,
                  runOptions, versionInfo, spadeDir, copyDir, logDir,
                  testing=False):
@@ -658,14 +661,61 @@ class RunData(object):
         Reload leapseconds file if it's been updated
         Complain if the leapseconds file is due to expire
         """
-        ls = leapseconds.getInstance(config_dir)
+        try:
+            ls = leapseconds.instance(config_dir)
+        except LeapsecondException:
+            if self.__liveMoniClient is None:
+                self.__dashlog.error("NIST leapsecond file not found"
+                                     " in %s" % (config_dir, ))
+            else:
+                # format an alert message
+                value = {
+                    "condition": "nist leapsecond file is missing",
+                    "desc": "Run dash/leapsecond-fetch.py and deploy pdaq",
+                    "vars": {
+                        "config_dir": config_dir,
+                    }
+                }
+                self.__liveMoniClient.sendMoni("alert", value, Prio.ITS)
+            return
 
-        ls.reload_check(self.__liveMoniClient, self.__dashlog)
+        reloaded = ls.reload_check()
 
-        # sends an alert off to live if the nist leapsecond
-        # file is about to expire
-        # will send a message to stderr if the liveMoniClient is None
-        ls.expiry_check(self.__liveMoniClient)
+        expiry_mjd = ls.expiry
+
+        mjd_now = MJD.now()
+
+        expire_delta = expiry_mjd.value - mjd_now.value
+        if expire_delta <= self.LEAPSECOND_FILE_EXPIRY and \
+           not RunSet.is_leapsecond_silenced():
+            # notify humans that the leapsecond file is about to expire
+            self.__dashlog.error("Leapsecond file has %d days till"
+                                 " expiration" % (expire_delta, ))
+
+            if self.__liveMoniClient is not None:
+                # format an alert message
+                value = {
+                    "condition": "nist leapsecond file approaching expiration",
+                    "desc": "Run dash/leapsecond-fetch.py and deploy pdaq",
+                    "vars": {
+                        "days_till_expiration": expire_delta,
+                    }
+                }
+                self.__liveMoniClient.sendMoni("alert", value, Prio.ITS)
+        elif reloaded:
+            # notify humans that the leapsecond file was reloaded
+            self.__dashlog.info("Reloaded leapsecond file; %d days"
+                                " until expiration" % (expire_delta, ))
+
+            if self.__liveMoniClient is not None:
+                value = {
+                    "condition": "nist leapsecond file reloaded",
+                    "desc": "Found updated leapsecond file",
+                    "vars": {
+                        "days_till_expiration": expire_delta,
+                    }
+                }
+                self.__liveMoniClient.sendMoni("alert", value, Prio.ITS)
 
     def __reportEventStart(self):
         if self.__liveMoniClient is not None:
@@ -674,8 +724,10 @@ class RunData(object):
                                                   high_precision=True)
             except TypeError as err:
                 msg = "Cannot report first time %s<%s>, prevTime is %s<%s>" % \
-                            (self.__firstPayTime, type(self.__firstPayTime),
-                             PayloadTime.PREV_TIME, type(PayloadTime.PREV_TIME))
+                            (self.__firstPayTime,
+                             type(self.__firstPayTime).__name__,
+                             PayloadTime.PREV_TIME,
+                             type(PayloadTime.PREV_TIME).__name__)
                 self.__dashlog.error(msg)
                 return
 
@@ -868,7 +920,8 @@ class RunData(object):
         Tell Live that we're starting a new run, launch run-related threads
         """
 
-        # reload the leapseconds file if it's changed, complain if it's outdated
+        # reload the leapseconds file if it's changed,
+        #  complain if it's outdated
         self.__leapsecondsChecks(config_dir=self.__runConfig.configdir)
 
         # send start-of-run message to Live
@@ -1998,6 +2051,7 @@ class RunSet(object):
     def components(self):
         return self.__set[:]
 
+    @property
     def configName(self):
         return self.__cfg.basename
 
@@ -2006,7 +2060,7 @@ class RunSet(object):
         self.__logDebug(RunSetDebug.START_RUN, "RSConfig TOP")
         self.__state = RunSetState.CONFIGURING
 
-        data = (self.configName(), )
+        data = (self.configName, )
         ComponentOperationGroup.runSimple(ComponentOperation.CONFIG_COMP,
                                           self.__set, data, self.__logger,
                                           errorName="configure")
@@ -2143,6 +2197,15 @@ class RunSet(object):
         updateCounts = self.__state == RunSetState.RUNNING
         return self.__runData.getEventCounts(self.__set, updateCounts)
 
+    @classmethod
+    def getRunSummary(cls, logDir, runNum):
+        "Return a dictionary summarizing the requested run"
+        runDir = cls.__getRunDirectoryPath(logDir, runNum)
+        if not os.path.exists(runDir):
+            raise RunSetException("No run directory found for run %d" % runNum)
+
+        return DashXMLLog.parse(runDir).summary()
+
     @property
     def id(self):
         return self.__id
@@ -2174,6 +2237,39 @@ class RunSet(object):
     def isRunning(self):
         return self.__state == RunSetState.RUNNING
 
+    @classmethod
+    def is_leapsecond_silenced(cls, filename=".leapsecond_alertstamp"):
+        """
+        Check a named file in the users home directory looking for a timestamp
+        indicating the last time when leapsecond warnings were NOT silenced.
+
+        Returns True if silenced
+        """
+        # build the file path
+        alert_timestamp_fname = os.path.join(os.environ["HOME"], filename)
+
+        # check to see if the limit file exists
+        try:
+            with open(alert_timestamp_fname, 'r') as fd:
+                tstamp = int(fd.read())
+            diff = time.time() - tstamp
+        except IOError:
+            # could not open the alert timestamp file for reading
+            diff = None
+        except ValueError:
+            # contents of the alert timestamp file is not an int
+            diff = None
+
+        # if it's been less than a day since we were last silenced...
+        if diff is not None and diff < 24 * 3600:
+            # ... we're still silenced
+            return True
+
+        with open(alert_timestamp_fname, 'w') as fd:
+            fd.write("%d" % time.time())
+
+        return False
+
     def logToDash(self, msg):
         "Used when the runset needs to add a log message to dash.log"
         self.__logError(msg)
@@ -2184,15 +2280,6 @@ class RunSet(object):
             return
 
         runData.queueForSpade(duration)
-
-    @classmethod
-    def getRunSummary(cls, logDir, runNum):
-        "Return a dictionary summarizing the requested run"
-        runDir = cls.__getRunDirectoryPath(logDir, runNum)
-        if not os.path.exists(runDir):
-            raise RunSetException("No run directory found for run %d" % runNum)
-
-        return DashXMLLog.parse(runDir).summary()
 
     def reportRunStartFailure(self, runNum, release, revision):
         try:

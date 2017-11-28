@@ -248,8 +248,8 @@ class DAQLog(object):
         "This is semi-private so CnCLogger can extend it"
         if level >= self.__level:
             if len(self.__appenderList) == 0:
-                 raise LogException("No appenders have been added to %s: " %
-                                    (self.__name, msg))
+                raise LogException("No appenders have been added to %s: " %
+                                   (self.__name, msg))
             for a in self.__appenderList:
                 a.write(msg, level=level)
 

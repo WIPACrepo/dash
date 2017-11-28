@@ -1,4 +1,13 @@
 #!/usr/bin/env python
+#
+# Add this hunk of code to a program:
+#
+#     if sys.version_info > (2, 3):
+#         from DumpThreads import DumpThreadsOnSignal
+#         DumpThreadsOnSignal(fd=sys.stderr, logger=self.__log)
+#
+# then type ^\ (control-backslash) to dump all threads while running
+
 
 import signal
 import sys

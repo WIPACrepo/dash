@@ -185,9 +185,9 @@ def launch(cfgDir, dashDir, logger, args=None, clusterDesc=None,
     if verbose:
         print "Version info: " + get_scmversion_str()
         if clusterConfig.description is None:
-            print "CLUSTER CONFIG: %s" % clusterConfig.configName()
+            print "CLUSTER CONFIG: %s" % (clusterConfig.configName, )
         else:
-            print "CONFIG: %s" % clusterConfig.configName()
+            print "CONFIG: %s" % (clusterConfig.configName, )
             print "CLUSTER: %s" % clusterConfig.description
 
         nodeList = clusterConfig.nodes()

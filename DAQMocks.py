@@ -23,6 +23,8 @@ from DAQConst import DAQPort
 from DefaultDomGeometry import DefaultDomGeometry
 from LiveImports import MoniPort, SERVICE_NAME
 from RunCluster import RunCluster
+from RunSet import RunData
+from leapseconds import leapseconds, MJD
 from locate_pdaq import find_pdaq_trunk
 from utils import ip
 from utils.DashXMLLog import DashXMLLog
@@ -1684,7 +1686,8 @@ class MockDefaultDomGeometryFile(object):
 class MockDeployComponent(Component):
     def __init__(self, name, id, logLevel, hsDir, hsInterval, hsMaxFiles,
                  jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs,
-                 jvmExtraArgs, alertEMail, ntpHost, host=None):
+                 jvmExtraArgs, alertEMail, ntpHost, numReplayFiles=None,
+                 host=None):
         self.__hsDir = hsDir
         self.__hsInterval = hsInterval
         self.__hsMaxFiles = hsMaxFiles
@@ -1696,6 +1699,7 @@ class MockDeployComponent(Component):
         self.__jvmExtraArgs = jvmExtraArgs
         self.__alertEMail = alertEMail
         self.__ntpHost =  ntpHost
+        self.__numReplayFiles = numReplayFiles
         self.__host = host
 
         super(MockDeployComponent, self).__init__(name, id, logLevel)
@@ -1708,6 +1712,10 @@ class MockDeployComponent(Component):
     def hasHitSpoolOptions(self):
         return self.__hsDir is not None or self.__hsInterval is not None or \
             self.__hsMaxFiles is not None
+
+    @property
+    def hasReplayOptions(self):
+        return self.__numReplayFiles is not None
 
     @property
     def hitspoolDirectory(self):
@@ -1760,6 +1768,10 @@ class MockDeployComponent(Component):
     @property
     def ntpHost(self):
         return self.__ntpHost
+
+    @property
+    def numReplayFilesToSkip(self):
+        return self.__numReplayFiles
 
 
 class MockDAQClient(DAQClient):
@@ -2040,7 +2052,7 @@ class MockParallelShell(object):
         user = os.environ['USER']
 
         if compName.endswith("hub"):
-            killPat = "stringhub.componentId=%d" % compId
+            killPat = "stringhub.componentId=%d " % compId
         else:
             killPat = ComponentManager.getComponentJar(compName)
 
@@ -2051,11 +2063,11 @@ class MockParallelShell(object):
             sshCmd = 'ssh %s ' % host
             pkillOpt = ' -f'
 
-        self.__addExpected('%spkill %s%s %s' %
+        self.__addExpected('%spkill %s%s \"%s\"' %
                            (sshCmd, nineArg, pkillOpt, killPat))
 
         if not killWith9:
-            self.__addExpected('sleep 2; %spkill -9%s %s' %
+            self.__addExpected('sleep 2; %spkill -9%s \"%s\"' %
                                (sshCmd, pkillOpt, killPat))
 
     def addExpectedPython(self, doCnC, dashDir, configDir, logDir, daqDataDir,
@@ -2282,6 +2294,35 @@ class MockAlgorithm(object):
             print >>fd, "%s</readoutConfig>"
 
         print >>fd, "%s</triggerConfig>" % indent
+
+
+class MockLeapsecondFile(object):
+    def __init__(self, configDir):
+        self.__configDir = configDir
+
+    def create(self):
+        known_times = (
+            (35, 3550089600),
+            (36, 3644697600),
+            (37, 3692217600),
+        )
+
+        # set expiration to one day before warnings would appear
+        expiration = MJD.now().ntp + \
+                     ((RunData.LEAPSECOND_FILE_EXPIRY + 1) * 24 * 3600)
+
+        nist_path = os.path.join(self.__configDir, "nist")
+        if not os.path.isdir(nist_path):
+            os.mkdir(nist_path)
+
+        filepath = os.path.join(nist_path, leapseconds.DEFAULT_FILENAME)
+        with open(filepath, "w") as out:
+            print >>out, "# Mock NIST leapseconds file"
+            print >>out, "#@\t%d" % (expiration, )
+            print >>out, "#"
+
+            for pair in known_times:
+                print >>out, "%d\t%d" % (pair[1], pair[0])
 
 class MockTriggerConfig(object):
     def __init__(self, name):

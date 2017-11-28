@@ -498,41 +498,62 @@ class DAQConfig(ConfigObject):
                 break
 
     def __getBoolean(self, name, attr_name):
-        """Extract a period specification from the configuration"""
-        for key, value in self.other_objs:
-            if key == name and isinstance(value, list):
-                for v in value:
-                    try:
-                        dstr = get_attrib(v, attr_name)
-                        if dstr is None:
-                            return False
-                        dstr = dstr.lower()
-                        return dstr == "true" or dstr == "yes"
-                    except (AttributeError, ValueError):
-                        pass
+        """Extract a boolean specification from the configuration"""
+        value = self.__getString(name, attr_name)
+        if value is not None:
+            value = value.lower()
+        return value == "true" or value == "yes"
 
-        return False
+    def __getFloat(self, name, attr_name):
+        """Extract a floating point specification from the configuration"""
+        value = self.__getString(name, attr_name)
+        if value is not None:
+            try:
+                return float(self.__getString(name, attr_name))
+            except (AttributeError, ValueError):
+                pass
 
-    def __getPeriod(self, name):
-        """Extract a period specification from the configuration"""
-        for key, value in self.other_objs:
-            if key == name and isinstance(value, list):
-                for v in value:
-                    try:
-                        period = int(get_attrib(v, 'period'))
-                        return period
-                    except (AttributeError, ValueError):
-                        pass
         return None
 
+    def __getInteger(self, name, attr_name):
+        """Extract an integer specification from the configuration"""
+        value = self.__getString(name, attr_name)
+        if value is not None:
+            try:
+                return int(self.__getString(name, attr_name))
+            except (AttributeError, ValueError):
+                pass
+
+        return None
+
+    def __getString(self, name, attr_name):
+        """Extract a value from the configuration"""
+        for key, value in self.other_objs:
+            if key == name and isinstance(value, list):
+                for v in value:
+                    try:
+                        return get_attrib(v, attr_name)
+                    except (AttributeError, ValueError):
+                        pass
+
+        return None
+
+    @property
     def monitorPeriod(self):
         """Return the monitoring period (None if not specified)"""
-        return self.__getPeriod("monitor")
+        return self.__getInteger("monitor", "period")
 
+    @property
+    def numReplayFilesToSkip(self):
+        """Return the monitoring period (None if not specified)"""
+        return self.__getInteger("tweak", "skip")
+
+    @property
     def watchdogPeriod(self):
         """return the watchdog period (None if not specified)"""
-        return self.__getPeriod("watchdog")
+        return self.__getInteger("watchdog", "period")
 
+    @property
     def updateHitSpoolTimes(self):
         """Return the monitoring period (None if not specified)"""
         return not self.__getBoolean("updateHitSpoolTimes", "disabled")
@@ -764,6 +785,10 @@ class DAQConfig(ConfigObject):
                         except KeyError:
                             # missing keys..
                             pass
+                    if "tweak" in replay_hub['__children__']:
+                        val = replay_hub['__children__']["tweak"]
+                        self.other_objs.append(("tweak", val))
+
             elif key == 'randomConfig':
                 self.noise_rate = None
                 for v in val:
@@ -991,6 +1016,7 @@ def main():
     #if len(args.xmlfile) == 0:
     #    args.xmlfile.append("sim5str")
 
+    failed = False
     for config_name in args.xmlfile:
         if args.extended and not args.quiet:
             print '-----------------------------------------------------------'
@@ -1000,12 +1026,17 @@ def main():
             dc = DAQConfigParser.parse(config_dir, config_name,
                                        strict=args.strict)
         except Exception:
-            print 'Could not parse "%s": %s' % (config_name, exc_string())
+            if args.quiet:
+                print "%s could not be parsed" % config_name
+            else:
+                print 'Could not parse "%s": %s' % (config_name, exc_string())
+            failed = True
             continue
 
         if args.validation:
             (valid, reason) = validate_configs(None, config_name)
             if not valid:
+                failed = True
                 raise DAQConfigException(reason)
 
         if not args.extended:
@@ -1030,6 +1061,9 @@ def main():
             if not args.quiet:
                 print "Initial time %.03f, subsequent time: %.03f" % \
                     (init_time, next_time)
+
+    if failed:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

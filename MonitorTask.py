@@ -17,16 +17,47 @@ set_exc_string_encoding("ascii")
 
 
 class MonitorThread(CnCThread):
+    def __init__(self, compname, dashlog):
+        self.__dashlog = dashlog
+
+        self.__warned = False
+
+        super(MonitorThread, self).__init__(compname, dashlog)
+
+    def _run(self):
+        raise NotImplementedError("Unimplemented")
+
+    def close(self):
+        super(MonitorThread, self).close()
+
+    @property
+    def dashlog(self):
+        return self.__dashlog
+
+    def get_new_thread(self):
+        raise NotImplementedError("Unimplemented")
+
+    @property
+    def is_warned(self):
+        return self.__warned
+
+    @property
+    def refused_count(self):
+        raise NotImplementedError("Unimplemented")
+
+    def set_warned(self):
+        self.__warned = True
+
+
+class MBeanThread(MonitorThread):
     def __init__(self, comp, runDir, liveMoni, runOptions, dashlog,
                  reporter=None, refused=0):
         self.__comp = comp
         self.__runDir = runDir
         self.__liveMoni = liveMoni
         self.__runOptions = runOptions
-        self.__dashlog = dashlog
         self.__reporter = reporter
         self.__refused = refused
-        self.__warned = False
         self.__closeLock = threading.Lock()
 
         self.__mbeanClient = comp.createMBeanClient()
@@ -34,9 +65,9 @@ class MonitorThread(CnCThread):
         self.__beanKeys = []
         self.__beanFlds = {}
 
-        super(MonitorThread, self).__init__(comp.fullname, dashlog)
+        super(MBeanThread, self).__init__(comp.fullname, dashlog)
 
-    def __createReporter(self):
+    def __create_reporter(self):
         if RunOption.isMoniToBoth(self.__runOptions) and \
                self.__liveMoni is not None:
             return MonitorToBoth(self.__runDir, self.__comp.filename,
@@ -58,7 +89,7 @@ class MonitorThread(CnCThread):
             # reload MBean info to pick up any dynamically created MBeans
             self.__mbeanClient.reload()
 
-            self.__reporter = self.__createReporter()
+            self.__reporter = self.__create_reporter()
             if self.__reporter is None:
                 return
 
@@ -88,14 +119,14 @@ class MonitorThread(CnCThread):
                 break
             except:
                 attrs = None
-                self.__dashlog.error("Ignoring %s:%s: %s" %
-                                     (str(self.__mbeanClient), b, exc_string()))
+                self.error("Ignoring %s:%s: %s" %
+                           (str(self.__mbeanClient), b, exc_string()))
 
             if attrs is not None and not isinstance(attrs, dict):
-                self.__dashlog.error("%s getAttributes(%s, %s) returned %s,"
-                                     " not dict (%s)" %
-                                     (self.__mbeanClient.fullname, b, flds,
-                                      type(attrs), attrs))
+                self.error("%s getAttributes(%s, %s) returned %s, not dict"
+                           " (%s)" %
+                           (self.__mbeanClient.fullname, b, flds,
+                            type(attrs), attrs))
                 continue
 
             # report monitoring data
@@ -105,34 +136,67 @@ class MonitorThread(CnCThread):
         return self.__refused
 
     def close(self):
-        super(MonitorThread, self).close()
+        super(MBeanThread, self).close()
 
         with self.__closeLock:
             if self.__reporter is not None:
                 try:
                     self.__reporter.close()
                 except:
-                    self.__dashlog.error(("Could not close %s monitor" +
-                                          " thread: %s") %
-                                         (self.__mbeanClient.fullname,
-                                          exc_string()))
+                    self.error(("Could not close %s monitor thread: %s") %
+                               (self.__mbeanClient.fullname, exc_string()))
                 self.__reporter = None
 
     def get_new_thread(self):
-        thrd = MonitorThread(self.__comp, self.__runDir, self.__liveMoni,
-                             self.__runOptions, self.__dashlog,
+        thrd = MBeanThread(self.__comp, self.__runDir, self.__liveMoni,
+                             self.__runOptions, self.dashlog,
                              self.__reporter, self.__refused)
         return thrd
 
     @property
-    def isWarned(self):
-        return self.__warned
-
-    def refusedCount(self):
+    def refused_count(self):
         return self.__refused
 
-    def setWarned(self):
-        self.__warned = True
+
+class CnCMoniThread(MonitorThread):
+    def __init__(self, runset, rundir, write_to_file, dashlog, reporter=None):
+        self.__runset = runset
+        self.__rundir = rundir
+        self.__reporter = reporter
+
+        self.__write_to_file = write_to_file
+
+        super(CnCMoniThread, self).__init__("CnCServer", dashlog)
+
+    def __create_reporter(self):
+        if self.__write_to_file:
+            if self.__rundir is not None:
+                return MonitorToFile(self.__rundir, "cncServer")
+
+        return None
+
+    def _run(self):
+        if self.isClosed:
+            return
+
+        if self.__reporter is None:
+            self.__reporter = self.__create_reporter()
+            if self.__reporter is None:
+                return
+
+        #sstats = self.__runset.serverStatistics()
+        #if sstats is not None and len(sstats) > 0 and not self.isClosed:
+        #    self.__reporter.send(datetime.datetime.now(), "server", sstats)
+
+    def get_new_thread(self):
+        thrd = CnCMoniThread(self.__runset, self.__rundir,
+                             self.__write_to_file, self.dashlog,
+                             reporter=self.__reporter)
+        return thrd
+
+    @property
+    def refused_count(self):
+        return 0
 
 
 class MonitorToFile(object):
@@ -220,26 +284,34 @@ class MonitorTask(CnCTask):
                 threadList[c] = self.createThread(c, runDir, liveMoni,
                                                   runOptions, dashlog)
 
+            toFile = RunOption.isMoniToFile(runOptions)
+            threadList["CnCServer"] = self.createCnCMoniThread(runset, runDir,
+                                                               toFile, dashlog)
+
         return threadList
 
     def _check(self):
         for c in self.__threadList.keys():
             thrd = self.__threadList[c]
             if not thrd.isAlive():
-                if thrd.refusedCount() >= self.MAX_REFUSED:
-                    if not thrd.isWarned:
+                if thrd.refused_count >= self.MAX_REFUSED:
+                    if not thrd.is_warned:
                         msg = ("ERROR: Not monitoring %s: Connect failed" +
                                " %d times") % \
-                               (c.fullname, thrd.refusedCount())
+                               (c.fullname, thrd.refused_count)
                         self.logError(msg)
-                        thrd.setWarned()
+                        thrd.set_warned()
                     continue
                 self.__threadList[c] = thrd.get_new_thread()
                 self.__threadList[c].start()
 
     @classmethod
     def createThread(cls, comp, runDir, liveMoni, runOptions, dashlog):
-        return MonitorThread(comp, runDir, liveMoni, runOptions, dashlog)
+        return MBeanThread(comp, runDir, liveMoni, runOptions, dashlog)
+
+    @classmethod
+    def createCnCMoniThread(self, runset, runDir, toFile, dashlog):
+        return CnCMoniThread(runset, runDir, toFile, dashlog)
 
     def close(self):
         savedEx = None

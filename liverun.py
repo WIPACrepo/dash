@@ -188,6 +188,9 @@ class LiveState(object):
 
         self.__svcDict = {}
 
+        # only complain about unknown pairs once
+        self.__complained = {}
+
     def __str__(self):
         "Return a description of the current I3Live state"
         summary = "Live[%s] Run[%s] Light[%s]" % \
@@ -301,9 +304,13 @@ class LiveState(object):
                                     " (livecmd check returned '%s')" %
                                     line.rstrip())
                 return self.PARSE_NORMAL
-            else:
+            elif front == "Run mode" or front == "Filter mode":
+                # ignore run/filter mode info
+                return self.PARSE_NORMAL
+            elif front not in self.__complained:
                 self.__logger.error("Unknown livecmd pair: \"%s\"/\"%s\"" %
                                     (front, back))
+                self.__complained[front] = 1
                 return self.PARSE_NORMAL
 
         m = self.SVC_PAT.match(line)

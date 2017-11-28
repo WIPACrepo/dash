@@ -6,7 +6,7 @@ import traceback
 
 from CachedConfigName import CachedConfigName
 from ClusterDescription import ClusterDescription, HSArgs, HubComponent, \
-    JVMArgs, JavaComponent
+    JVMArgs, JavaComponent, ReplayHubComponent
 from Component import Component
 from DefaultDomGeometry import DefaultDomGeometry
 
@@ -139,16 +139,21 @@ class RunCluster(CachedConfigName):
         "Create a cluster->component mapping from a run configuration file"
         super(RunCluster, self).__init__()
 
-        name = os.path.basename(cfg.fullpath)
-        if name.endswith('.xml'):
-            name = name[:-4]
-        self.setConfigName(name)
-
         self.__hubList = self.__extractHubs(cfg)
 
         self.__clusterDesc = ClusterDescription(configDir, descrName)
 
-        self.__nodes = self.__loadConfig(self.__clusterDesc, self.__hubList)
+        # set the name to the run config plus cluster config
+        name = os.path.basename(cfg.fullpath)
+        if name.endswith('.xml'):
+            name = name[:-4]
+        if self.__clusterDesc.name != "sps" and \
+           self.__clusterDesc.name != "spts":
+            name += "@" + self.__clusterDesc.name
+        self.setConfigName(name)
+
+        self.__nodes = self.__buildNodeMap(self.__clusterDesc, self.__hubList,
+                                           cfg)
 
     def __str__(self):
         nodeStr = ""
@@ -156,7 +161,7 @@ class RunCluster(CachedConfigName):
             if len(nodeStr) > 0:
                 nodeStr += " "
             nodeStr += "%s*%d" % (n.hostname, len(n.components()))
-        return self.configName() + "[" + nodeStr + "]"
+        return self.configName + "[" + nodeStr + "]"
 
     @classmethod
     def __addComponent(cls, hostMap, host, comp):
@@ -178,8 +183,10 @@ class RunCluster(CachedConfigName):
                     break
 
     @classmethod
-    def __addReplayHubs(cls, clusterDesc, hubList, hostMap):
-        "Add replay hubs with locations hard-coded in the run config to hostMap"
+    def __addReplayHubs(cls, clusterDesc, hubList, hostMap, runCfg):
+        """
+        Add replay hubs with locations hard-coded in the run config to hostMap
+        """
 
         hsDir = clusterDesc.defaultHSDirectory("StringHub")
         hsIval = clusterDesc.defaultHSInterval("StringHub")
@@ -196,6 +203,11 @@ class RunCluster(CachedConfigName):
         ntpHost = clusterDesc.defaultNTPHost("StringHub")
 
         logLevel = clusterDesc.defaultLogLevel("StringHub")
+
+        if runCfg is None:
+            numToSkip = None
+        else:
+            numToSkip = runCfg.numReplayFilesToSkip
 
         i = 0
         while i < len(hubList):
@@ -214,12 +226,15 @@ class RunCluster(CachedConfigName):
             else:
                 lvl = logLevel
 
-            comp = HubComponent(hub.name, hub.id, lvl, False)
+            comp = ReplayHubComponent(hub.name, hub.id, lvl, False)
             comp.host = hub.host
 
             comp.setJVMOptions(None, jvmPath, jvmServer, jvmHeapInit,
                                jvmHeapMax, jvmArgs, jvmExtra)
             comp.setHitSpoolOptions(None, hsDir, hsIval, hsMaxFiles)
+
+            if numToSkip > 0:
+                comp.setNumberToSkip(numToSkip)
 
             cls.__addComponent(hostMap, comp.host, comp)
             del hubList[i]
@@ -382,10 +397,10 @@ class RunCluster(CachedConfigName):
         return nodes
 
     @classmethod
-    def __extractHubs(cls, cfg):
+    def __extractHubs(cls, runcfg):
         "build a list of hub components used by the run configuration"
         hubList = []
-        for comp in cfg.components():
+        for comp in runcfg.components():
             if comp.isHub:
                 hubList.append(comp)
         return hubList
@@ -406,7 +421,7 @@ class RunCluster(CachedConfigName):
         return simList
 
     @classmethod
-    def __loadConfig(cls, clusterDesc, hubList):
+    def __buildNodeMap(cls, clusterDesc, hubList, runCfg):
         hostMap = {}
 
         cls.__addRequired(clusterDesc, hostMap)
@@ -414,7 +429,7 @@ class RunCluster(CachedConfigName):
         if len(hubList) > 0:
             cls.__addRealHubs(clusterDesc, hubList, hostMap)
             if len(hubList) > 0:
-                cls.__addReplayHubs(clusterDesc, hubList, hostMap)
+                cls.__addReplayHubs(clusterDesc, hubList, hostMap, runCfg)
                 if len(hubList) > 0:
                     cls.__addSimHubs(clusterDesc, hubList, hostMap)
 
@@ -466,12 +481,6 @@ class RunCluster(CachedConfigName):
                 missingList.append(comp)
         return (foundList, missingList)
 
-    def getConfigName(self):
-        "get the configuration name to write to the cache file"
-        if self.__clusterDesc is None:
-            return self.configName()
-        return '%s@%s' % (self.configName(), self.__clusterDesc.configName)
-
     def getHubNodes(self):
         "Get a list of nodes on which hub components are running"
         hostMap = {}
@@ -494,7 +503,8 @@ class RunCluster(CachedConfigName):
         if runConfig is not None:
             self.__hubList = self.__extractHubs(runConfig)
 
-        self.__nodes = self.__loadConfig(self.__clusterDesc, self.__hubList)
+        self.__nodes = self.__buildNodeMap(self.__clusterDesc, self.__hubList,
+                                           runConfig)
 
     @property
     def logDirForSpade(self):
@@ -567,7 +577,7 @@ if __name__ == '__main__':
             continue
 
         print 'RunCluster: %s (%s)' % \
-            (runCluster.configName(), runCluster.description)
+            (runCluster.configName, runCluster.description)
         print '--------------------'
         if runCluster.logDirForSpade is not None:
             print 'SPADE logDir: %s' % runCluster.logDirForSpade

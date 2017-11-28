@@ -208,9 +208,11 @@ class MockRunConfig(object):
     def __init__(self):
         pass
 
+    @property
     def monitorPeriod(self):
         return None
 
+    @property
     def watchdogPeriod(self):
         return None
 
