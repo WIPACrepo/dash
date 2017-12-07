@@ -235,7 +235,7 @@ class DAQClientState(object):
     # internal state indicating that the client hasn't answered
     # some number of pings but has not been declared dead
     #
-    MISSING = 'MIA'
+    MISSING = 'missing'
 
     # internal state indicating that the client is
     # no longer responding to pings
