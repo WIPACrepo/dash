@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-from ftplib import FTP
 import socket
 import re
 import os
 import shutil
 
+from ftplib import FTP
 from leapseconds import leapseconds
 
 
@@ -164,10 +164,14 @@ def install_latestleap(latest, filename, verbose=False):
 
 
 if __name__ == "__main__":
-    newfile = fetch_latestleap(host='tycho.usno.navy.mil', path='/pub/ntp',
-                               verbose=True)
+    import sys
+
+    verbose = len(sys.argv) > 1 and sys.argv[1] == "-v"
 
     latest = leapseconds.get_latest_path()
+
+    newfile = fetch_latestleap(host='ftp.nist.gov',
+                               path='/pub/time/', verbose=verbose)
 
     if compare_latestleap(latest, newfile, True):
         install_latestleap(latest, newfile, True)
