@@ -1,21 +1,24 @@
 #!/usr/bin/env python
 
 import datetime
+import numbers
 import os
 import select
+import shutil
 import socket
 import sys
 import threading
 import time
 import traceback
 
-from xmlrpclib import ServerProxy
 from CnCServer import Connector
 from DAQConfig import DAQConfigParser
 from DAQConst import DAQPort
 from DAQMocks import MockLeapsecondFile, MockRunConfigFile, MockTriggerConfig
 from DAQRPC import RPCClient
-from FakeClient import FakeClient, FakeClientException
+from DefaultDomGeometry import DefaultDomGeometryReader
+from FakeClient import FakeClient, FakeClientException, PortNumber
+from FakeComponent import StringHub
 from RunOption import RunOption
 from utils import ip
 
@@ -24,6 +27,12 @@ LOUD = False
 
 class DAQFakeRunException(Exception):
     pass
+
+
+class HubType(object):
+    ALL = 0
+    PHYSICS_ONLY = 1
+    SECONDARY_ONLY = 2
 
 
 class LogThread(threading.Thread):
@@ -102,20 +111,46 @@ class LogThread(threading.Thread):
 
 
 class BeanValue(object):
-    def __init__(self, value, delta):
+    def __init__(self, name, value, delta):
+        self.__name = name
         self.__value = value
         self.__delta = delta
+
+    @classmethod
+    def __update_recursive(cls, name, value, delta):
+        if delta is None:
+            return value, value
+
+        if isinstance(delta, numbers.Number) and \
+           isinstance(value, numbers.Number):
+            return value, value + delta
+
+        if (isinstance(delta, list) or isinstance(delta, tuple)) and \
+           (isinstance(value, list) or isinstance(value, tuple)) and \
+           len(delta) == len(value):
+            rtnval = value[:]
+            newlist = []
+            for idx in range(len(value)):
+                _, newval = cls.__update_recursive(value[idx], delta[idx])
+                newlist.append(newval)
+            if isinstance(value, list):
+                return rtnval, newlist
+            else:
+                return rtnval, tuple(newlist)
+
+        print >>sys.stderr, "Not updating %s: value %s<%s> != delta" \
+            " %s<%s>" % (self.__name, value, type(value).__name__, delta,
+                         type(delta).__name__)
+        return value, delta
 
     def get(self):
         return self.__value
 
     def update(self):
-        val = self.__value
-        if self.__delta is not None and isinstance(self.__delta, int):
-            if isinstance(self.__value, int):
-                self.__value += self.__delta
-        return val
-
+        rtnval, newval = self.__update_recursive(self.__name, self.__value,
+                                                 self.__delta)
+        self.__value = newval
+        return rtnval
 
 class ComponentData(object):
     "Component data used to create simulated components"
@@ -161,14 +196,14 @@ class ComponentData(object):
         "eventBuilder": {
             "backEnd": {
                 "DiskAvailable": (2048, None),
-                "EventData": (0, 1),
+                "EventData": ((0, 1), (3, 10000000000)),
                 "FirstEventTime": (0, None),
                 "GoodTimes": ((0, 0), None),
                 "NumBadEvents": (0, None),
                 "NumEventsSent": (0, 1),
                 "NumReadoutsReceived": (0, 2),
                 "NumTriggerRequestsReceived": (0, 2),
-                "NumEventsDispatched": (0, None),
+                "NumEventsDispatched": (0, 5),
                 },
             },
         "secondaryBuilders": {
@@ -186,7 +221,7 @@ class ComponentData(object):
                 },
             }}
 
-    def __init__(self, compName, compNum, connList, addNumericPrefix=True):
+    def __init__(self, compName, compNum, connList, numeric_prefix=False):
         """
         Create a component
 
@@ -194,90 +229,89 @@ class ComponentData(object):
         compNum - component number
         connList - list of connections
         beanDict - dictionary of 'MBean' name/value pairs
-        addNumericPrefix - if True, add a number to the component name
+        numeric_prefix - if True, add a number to the component name
         """
-        self.__compName = compName
-        self.__compNum = compNum
+        self.__name = compName
+        self.__num = compNum
         self.__connList = connList[:]
-        self.__create = True
-        self.__addNumericPrefix = addNumericPrefix
-        self.__mbeanDict = self.__buildMBeanDict()
+        self.__is_fake = True
+        self.__numeric_prefix = numeric_prefix
 
     def __str__(self):
-        if self.__compNum == 0:
-            return self.__compName
-        return "%s#%d" % (self.__compName, self.__compNum)
+        return self.fullname
 
-    def __buildMBeanDict(self):
-        beanDict = {}
-        if self.__compName not in self.__BEAN_DATA:
-            print >>sys.stderr, "No bean data for %s" % self.__compName
-        else:
-            for bean in self.__BEAN_DATA[self.__compName]:
-                beanDict[bean] = {}
-                for fld in self.__BEAN_DATA[self.__compName][bean]:
-                    beanData = self.__BEAN_DATA[self.__compName][bean][fld]
-                    beanDict[bean][fld] = BeanValue(beanData[0], beanData[1])
-
-        return beanDict
+    @property
+    def connections(self):
+        return self.__connList[:]
 
     @classmethod
-    def createAll(cls, numHubs, addNumericPrefix, includeIceTop=False):
+    def createAll(cls, numHubs, def_dom_geom, numeric_prefix=False,
+                  include_icetop=False):
         "Create initial component data list"
-        comps = cls.createHubs(numHubs, addNumericPrefix, isIceTop=False)
-        if includeIceTop:
+        comps = cls.create_hubs(numHubs, 1, numeric_prefix=numeric_prefix,
+                                is_icetop=False)
+        if include_icetop:
             itHubs = numHubs / 8
             if itHubs == 0:
                 itHubs = 1
-            comps = cls.createHubs(itHubs, addNumericPrefix, isIceTop=True)
+            comps += cls.create_hubs(itHubs, 201,
+                                     numeric_prefix=numeric_prefix,
+                                     is_icetop=True)
 
         # create additional components
         comps.append(ComponentData("inIceTrigger", 0,
                                    [("stringHit", Connector.INPUT),
                                     ("trigger", Connector.OUTPUT)],
-                                   addNumericPrefix))
-        if includeIceTop:
+                                   numeric_prefix))
+        if include_icetop:
             comps.append(ComponentData("icetopTrigger", 0,
                                        [("icetopHit", Connector.INPUT),
                                         ("trigger", Connector.OUTPUT)],
-                                       addNumericPrefix))
+                                       numeric_prefix))
 
         comps.append(ComponentData("globalTrigger", 0,
                                    [("trigger", Connector.INPUT),
                                     ("glblTrig", Connector.OUTPUT)],
-                                   addNumericPrefix))
+                                   numeric_prefix))
         comps.append(ComponentData("eventBuilder", 0,
                                    [("glblTrig", Connector.INPUT),
                                     ("rdoutReq", Connector.OUTPUT),
                                     ("rdoutData", Connector.INPUT)],
-                                   addNumericPrefix))
+                                   numeric_prefix))
         comps.append(ComponentData("secondaryBuilders", 0,
                                    [("moniData", Connector.INPUT),
                                     ("snData", Connector.INPUT),
                                     ("tcalData", Connector.INPUT)],
-                                   addNumericPrefix))
+                                   numeric_prefix))
 
         return comps
 
     @staticmethod
-    def createHubs(numHubs, addNumericPrefix, isIceTop=False):
+    def create_hubs(num_hubs, starting_number, numeric_prefix=False,
+                    is_icetop=False, hub_type=HubType.ALL):
         "create all stringHubs"
         comps = []
 
-        connList = [("moniData", Connector.OUTPUT),
-                    ("snData", Connector.OUTPUT),
-                    ("tcalData", Connector.OUTPUT),
-                    ("rdoutReq", Connector.INPUT),
-                    ("rdoutData", Connector.OUTPUT)]
+        connList = []
+        if hub_type == HubType.ALL or hub_type == HubType.PHYSICS_ONLY:
+            connList += [
+                ("rdoutReq", Connector.INPUT),
+                ("rdoutData", Connector.OUTPUT),
+            ]
+            if is_icetop:
+                connList.append(("icetopHit", Connector.OUTPUT))
+            else:
+                connList.append(("stringHit", Connector.OUTPUT))
+        if hub_type == HubType.ALL or hub_type == HubType.SECONDARY_ONLY:
+            connList += [
+                ("moniData", Connector.OUTPUT),
+                ("snData", Connector.OUTPUT),
+                ("tcalData", Connector.OUTPUT),
+            ]
 
-        if isIceTop:
-            connList.append(("icetopHit", Connector.OUTPUT))
-        else:
-            connList.append(("stringHit", Connector.OUTPUT))
-
-        for n in range(numHubs):
-            comps.append(ComponentData("stringHub", n + 1, connList,
-                                       addNumericPrefix))
+        for n in range(num_hubs):
+            comps.append(HubDescription(n + starting_number, connList,
+                                        numeric_prefix=numeric_prefix))
 
         return comps
 
@@ -295,23 +329,75 @@ class ComponentData(object):
         return [ComponentData("foo", 0, [("hit", Connector.OUTPUT)]),
                 ComponentData("bar", 0, [("hit", Connector.INPUT)])]
 
-    def getFakeClient(self, quiet=False):
+    @property
+    def fullname(self):
+        if self.__num == 0:
+            return self.__name
+        return "%s#%d" % (self.__name, self.__num)
+
+    def get_fake_client(self, def_dom_geom, quiet=False):
         "Create a FakeClient object using this component data"
-        return FakeClient(self.__compName, self.__compNum, self.__connList,
-                          self.__mbeanDict, self.__create,
-                          self.__addNumericPrefix, quiet=quiet)
+        if not self.__is_fake:
+            return None
+
+        return FakeClient(self.__name, self.__num, self.__connList,
+                          self.mbean_dict,
+                          numeric_prefix=self.__numeric_prefix, quiet=quiet)
 
     def isComponent(self, name, num=-1):
         "Does this component have the specified name and number?"
-        return self.__compName == name and (num < 0 or self.__compNum == num)
+        return self.__name == name and (num < 0 or self.__num == num)
 
     @property
     def isFake(self):
-        return self.__create
+        return self.__is_fake
+
+    @property
+    def mbean_dict(self):
+        beanDict = {}
+        if self.__name not in self.__BEAN_DATA:
+            raise FakeClientException("No bean data for %s" %
+                                      (self.__name, ))
+        else:
+            for bean in self.__BEAN_DATA[self.__name]:
+                beanDict[bean] = {}
+                for fld in self.__BEAN_DATA[self.__name][bean]:
+                    beanData = self.__BEAN_DATA[self.__name][bean][fld]
+                    beanval = BeanValue("%s.%s.%s" % (self.__name, bean, fld),
+                                     beanData[0], beanData[1])
+                    beanDict[bean][fld] = beanval
+
+        return beanDict
+
+    @property
+    def name(self):
+        return self.__name
+
+    @property
+    def num(self):
+        return self.__num
+
+    @property
+    def use_numeric_prefix(self):
+        return self.__numeric_prefix
 
     def useRealComponent(self):
         "This component should not register itself so the Java version is used"
-        self.__create = False
+        self.__is_fake = False
+
+
+class HubDescription(ComponentData):
+    def __init__(self, num, connList, numeric_prefix=False):
+        super(HubDescription, self).__init__("stringHub", num, connList,
+                                             numeric_prefix=numeric_prefix)
+
+    def get_fake_client(self, def_dom_geom, quiet=False):
+        "Create a FakeClient object using this component data"
+        if not self.isFake:
+            return None
+
+        return StringHub(self.name, self.num, def_dom_geom, self.connections,
+                         self.mbean_dict, quiet=quiet)
 
 
 class DAQFakeRun(object):
@@ -378,7 +464,8 @@ class DAQFakeRun(object):
         sock.connect((host, port))
         return sock
 
-    def __runInternal(self, runsetId, runNum, duration, verbose=False):
+    def __runInternal(self, runsetId, runNum, duration, test_subrun=True,
+                      verbose=False):
         """
         Take all components through a simulated run
 
@@ -393,7 +480,7 @@ class DAQFakeRun(object):
 
         logList = []
         for c in runComps:
-            logPort = FakeClient.nextPortNumber()
+            logPort = PortNumber.next_number()
 
             logThread = LogThread("%s#%d" %
                                   (c["compName"], c["compNum"]), logPort)
@@ -415,13 +502,15 @@ class DAQFakeRun(object):
 
             time.sleep(1)
 
-            self.__client.rpc_runset_subrun(runsetId, -1,
-                                            [("0123456789abcdef",
-                                              0, 1, 2, 3, 4), ])
+            if test_subrun:
+                self.__client.rpc_runset_subrun(runsetId, -1,
+                                                [("0123456789abcdef",
+                                                  0, 1, 2, 3, 4), ])
 
             doSwitch = True
 
-            waitSecs = duration - self.__getRunTime(startTime)
+            runtime = self.__getRunTime(startTime)
+            waitSecs = duration - runtime
             if waitSecs <= 0.0:
                 waitSlice = 0.0
             else:
@@ -430,8 +519,6 @@ class DAQFakeRun(object):
                 else:
                     slices = 3
                 waitSlice = waitSecs / float(slices)
-                if waitSlice > 10.0:
-                    waitSlice = 10.0
 
             for switch in (False, True):
                 if switch and doSwitch:
@@ -447,8 +534,9 @@ class DAQFakeRun(object):
 
                     runSecs = self.__getRunTime(startTime)
                     if numEvts is not None:
-                        print "RunSet %d had %d events after %.2f secs" % \
-                            (runsetId, numEvts, runSecs)
+                        print "RunSet %d had %d event%s after %.2f secs" % \
+                            (runsetId, numEvts, "s" if numEvts != 1 else "",
+                             runSecs)
                     else:
                         print "RunSet %d could not get event count after" \
                             " %.2f secs" % (runsetId, runSecs)
@@ -465,7 +553,8 @@ class DAQFakeRun(object):
                 print >>sys.stderr, "Cannot stop run for runset #%d" % runsetId
                 traceback.print_exc()
 
-    def __runOne(self, compList, runCfgDir, runNum, duration, verbose=False):
+    def __runOne(self, compList, runCfgDir, mockRunCfg, runNum, duration,
+                 verbose=False, test_subrun=False):
         """
         Simulate a run
 
@@ -485,7 +574,6 @@ class DAQFakeRun(object):
         leapfile = MockLeapsecondFile(runCfgDir)
         leapfile.create()
 
-        mockRunCfg = self.createMockRunConfig(runCfgDir, compList)
         self.hackActiveConfig(mockRunCfg)
 
         runsetId = self.makeRunset(compList, mockRunCfg, runNum)
@@ -494,7 +582,8 @@ class DAQFakeRun(object):
             print >>sys.stderr, "Expected %d run sets" % (numSets + 1)
 
         try:
-            self.__runInternal(runsetId, runNum, duration, verbose=verbose)
+            self.__runInternal(runsetId, runNum, duration, verbose=verbose,
+                               test_subrun=test_subrun)
         finally:
             traceback.print_exc()
             self.closeAll(runsetId)
@@ -528,14 +617,17 @@ class DAQFakeRun(object):
         del self.__logThreads[:]
 
     @staticmethod
-    def createComps(compData, forkClients, quiet=False):
+    def create_comps(comp_data, def_dom_geom, fork_clients=False,
+                     quiet=False):
         "create and start components"
         comps = []
-        for cd in compData:
-            client = cd.getFakeClient(quiet=quiet)
+        for cd in comp_data:
+            client = cd.get_fake_client(def_dom_geom, quiet=quiet)
+            if client is None:
+                continue
 
             if cd.isFake:
-                if forkClients:
+                if fork_clients:
                     if client.fork() == 0:
                         return
 
@@ -565,17 +657,19 @@ class DAQFakeRun(object):
         path = os.path.join(os.environ["HOME"], ".active")
         if not os.path.exists(path):
             print >>sys.stderr, "Setting ~/.active to \"%s\"" % clusterCfg
+            curCfg = None
         else:
             with open(path, 'r') as fd:
                 curCfg = fd.read().split("\n")[0]
+
+        if curCfg != clusterCfg:
             print >>sys.stderr, "Changing ~/.active from \"%s\" to \"%s\"" % \
                 (curCfg, clusterCfg)
-
-        with open(path, 'w') as fd:
-            print >>fd, clusterCfg
+            with open(path, 'w') as fd:
+                print >>fd, clusterCfg
 
     @classmethod
-    def makeMockClusterConfig(cls, runCfgDir, comps, numHubs):
+    def makeMockClusterConfig(cls, runCfgDir, comps, num_hubs):
         mockName = "localhost-cluster.cfg"
         path = os.path.join(runCfgDir, mockName)
         if os.path.exists(path):
@@ -583,7 +677,6 @@ class DAQFakeRun(object):
 
         with open(path, 'w') as fd:
             print >>fd, "<cluster name=\"localhost\">"
-            print >>fd, "  <logDirForSpade>%s</logDirForSpade>"
             print >>fd, "  <host name=\"localhost\">"
 
             for c in comps:
@@ -600,40 +693,42 @@ class DAQFakeRun(object):
                 print >>fd, "    <component name=\"%s\"%s/>" % (nm, req)
 
             print >>fd, "    <simulatedHub number=\"%d\" priority=\"1\"/>" % \
-                numHubs
+                (num_hubs, )
             print >>fd, "  </host>"
             print >>fd, "</cluster>"
 
     @classmethod
-    def makeMockRunConfig(cls, runCfgDir, comps, numHubs, moniPeriod=None):
-        mockName = "sim-localhost"
+    def makeMockRunConfig(cls, runCfgDir, comp_data, moniPeriod=None):
+        mockName = "fake-localhost"
         trigCfgName = "spts-IT-stdtest-01"
 
         path = os.path.join(runCfgDir, mockName + ".xml")
-        if not os.path.exists(path):
-            with open(path, 'w') as fd:
-                print >>fd, "<runConfig>"
-                if moniPeriod is not None:
-                    print >>fd, "  <monitor period=\"%d\"/>" % moniPeriod
-                print >>fd, "  <randomConfig>"
-                for c in comps:
-                    if c.name != "stringHub":
-                        continue
+        with open(path, 'w') as fd:
+            print >>fd, "<runConfig>"
+            if moniPeriod is not None:
+                print >>fd, "  <monitor period=\"%d\"/>" % moniPeriod
+            print >>fd, "  <randomConfig>"
+            print >>fd, "   <noiseRate>17.0</noiseRate>"
+            for c in comp_data:
+                if c.name != "stringHub":
+                    continue
 
-                    print >>fd, "  <string id=\"%d\">" % c.num
-                print >>fd, "  </randomConfig>"
+                print >>fd, "  <string id=\"%d\"/>" % c.num
+            print >>fd, "  </randomConfig>"
 
-                print >>fd, "  <triggerConfig>%s</triggerConfig>" % trigCfgName
-                for c in comps:
-                    nm = c.name
-                    if nm == "stringHub":
-                        continue
+            print >>fd, "  <triggerConfig>%s</triggerConfig>" % trigCfgName
+            for c in comp_data:
+                nm = c.name
+                if nm == "stringHub":
+                    continue
 
-                    print >>fd, "  <runComponent name=\"%s\"/>" % nm
+                print >>fd, "  <runComponent name=\"%s\"/>" % nm
 
-                print >>fd, "</runConfig>"
+            print >>fd, "</runConfig>"
 
         cls.makeMockTriggerConfig(runCfgDir, trigCfgName)
+
+        return (mockName, trigCfgName)
 
     @classmethod
     def writeTagAndValue(cls, fd, indent, name, value):
@@ -736,7 +831,7 @@ class DAQFakeRun(object):
         return runsetId
 
     def runAll(self, comps, startNum, numRuns, duration, runCfgDir,
-               verbose=False):
+               mockRunCfg, verbose=False, test_subrun=False):
         runNum = startNum
 
         # grab the number of components before we add ours
@@ -757,8 +852,8 @@ class DAQFakeRun(object):
             # simulate a run
             #
             try:
-                self.__runOne(comps, runCfgDir, runNum, duration,
-                              verbose=verbose)
+                self.__runOne(comps, runCfgDir, mockRunCfg, runNum, duration,
+                              verbose=verbose, test_subrun=test_subrun)
             except:
                 traceback.print_exc()
             runNum += 1
@@ -787,6 +882,9 @@ if __name__ == "__main__":
     parser.add_argument("-e", "--eventBuilder", dest="evtBldr",
                         action="store_true", default=False,
                         help="Use existing event builder")
+    parser.add_argument("-F", "--fakeNames", dest="fakeNames",
+                        action="store_true", default=False,
+                        help="Add a numeric prefix to component names")
     parser.add_argument("-f", "--forkClients", dest="forkClients",
                         action="store_true", default=False,
                         help="Run clients in subprocesses")
@@ -799,6 +897,10 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--iniceTrigger", dest="iniceTrig",
                         action="store_true", default=False,
                         help="Use existing in-ice trigger")
+    parser.add_argument("-K", "--keep-old-files", dest="keepOldFiles",
+                        action="store_true", default=False,
+                        help="Keep old runs from /tmp/pdaq/log and"
+                        " /tmp/pdaq/pdaqlocal")
     parser.add_argument("-n", "--numOfRuns", type=int, dest="numRuns",
                         default=1,
                         help="Number of runs")
@@ -806,30 +908,36 @@ if __name__ == "__main__":
                         default=None,
                         help="Number of seconds between monitoring requests")
     parser.add_argument("-p", "--firstPortNumber", type=int, dest="firstPort",
-                        default=FakeClient.NEXT_PORT,
+                        default=None,
                         help="First port number used for fake components")
     parser.add_argument("-q", "--quiet", dest="quiet",
                         action="store_true", default=False,
                         help="Fake components don't announce what they're"
                         " doing")
-    parser.add_argument("-R", "--realNames", dest="realNames",
-                        action="store_true", default=False,
-                        help="Use component names without numeric prefix")
     parser.add_argument("-r", "--runNum", type=int, dest="runNum",
                         default=1234,
                         help="Run number")
     parser.add_argument("-S", "--small", dest="smallCfg",
                         action="store_true", default=False,
                         help="Use canned 3-element configuration")
+    parser.add_argument("-s", "--secondaryBuilders", dest="secBldrs",
+                        action="store_true", default=False,
+                        help="Use existing secondary builders")
     parser.add_argument("-T", "--tiny", dest="tinyCfg",
                         action="store_true", default=False,
                         help="Use canned 2-element configuration")
     parser.add_argument("-t", "--icetopTrigger", dest="icetopTrig",
                         action="store_true", default=False,
                         help="Use existing icetop trigger")
+    parser.add_argument("-u", "--test-subrun", dest="testSubrun",
+                        action="store_true", default=False,
+                        help="Test subrun")
     parser.add_argument("-v", "--verbose", dest="verbose",
                         action="store_true", default=False,
                         help="Print progress messages during run")
+    parser.add_argument("-X", "--extraHubs", type=int, dest="extraHubs",
+                        default=0,
+                        help="Number of extra hubs to create")
 
     args = parser.parse_args()
 
@@ -837,18 +945,35 @@ if __name__ == "__main__":
         from DumpThreads import DumpThreadsOnSignal
         DumpThreadsOnSignal(fd=sys.stderr)
 
-    if args.firstPort != FakeClient.NEXT_PORT:
-        FakeClient.NEXT_PORT = args.firstPort
+    if args.firstPort is not None:
+        PortNumber.set_first(args.firstPort)
+
+    if not args.keepOldFiles:
+        logname = "/tmp/pdaq/log"
+        for entry in os.listdir(logname):
+            path = os.path.join(logname, entry)
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+
+        datname = "/tmp/pdaq/pdaqlocal"
+        for entry in os.listdir(datname):
+            path = os.path.join(datname, entry)
+            if os.path.isfile(path):
+                os.unlink(path)
+
+    # get string/dom info
+    def_dom_geom = DefaultDomGeometryReader.parse()
 
     # get list of components
     #
     if args.tinyCfg:
-        compData = ComponentData.createTiny()
+        comp_data = ComponentData.createTiny()
     elif args.smallCfg:
-        compData = ComponentData.createSmall()
+        comp_data = ComponentData.createSmall()
     else:
-        compData = ComponentData.createAll(args.numHubs, not args.realNames)
-        for cd in compData:
+        comp_data = ComponentData.createAll(args.numHubs, def_dom_geom,
+                                            args.fakeNames)
+        for cd in comp_data:
             if args.evtBldr and cd.isComponent("eventBuilder"):
                 cd.useRealComponent()
             elif args.glblTrig and cd.isComponent("globalTrigger"):
@@ -857,9 +982,8 @@ if __name__ == "__main__":
                 cd.useRealComponent()
             elif args.icetopTrig and cd.isComponent("icetopTrigger"):
                 cd.useRealComponent()
-
-    from DumpThreads import DumpThreadsOnSignal
-    DumpThreadsOnSignal()
+            elif args.secBldrs and cd.isComponent("secondaryBuilders"):
+                cd.useRealComponent()
 
     args.runCfgDir = os.path.abspath(args.runCfgDir)
     if not os.path.exists(args.runCfgDir):
@@ -868,19 +992,31 @@ if __name__ == "__main__":
     if not os.path.exists(trigSubdir):
         os.makedirs(trigSubdir)
 
+    DAQFakeRun.makeMockClusterConfig(args.runCfgDir, comp_data, args.numHubs)
+    mockRunCfg, _ = DAQFakeRun.makeMockRunConfig(args.runCfgDir, comp_data,
+                                                 args.moniPeriod)
+
+    if args.extraHubs <= 0:
+        extraData = None
+    else:
+        extraData = ComponentData.create_hubs(args.extraHubs, args.numHubs + 1,
+                                              args.fakeNames, False)
+
     # create components
     #
     try:
-        comps = DAQFakeRun.createComps(compData, args.forkClients,
-                                       quiet=args.quiet)
+        comps = DAQFakeRun.create_comps(comp_data, def_dom_geom,
+                                        fork_clients=args.forkClients,
+                                        quiet=args.quiet)
     except socket.error, serr:
         if serr.errno != 111:
             raise
         raise SystemExit("Please start CnCServer before faking a run")
 
-    DAQFakeRun.makeMockClusterConfig(args.runCfgDir, comps, args.numHubs)
-    DAQFakeRun.makeMockRunConfig(args.runCfgDir, comps, args.numHubs,
-                                 args.moniPeriod)
+    if extraData is not None:
+        extra = DAQFakeRun.create_comps(extraData, def_dom_geom,
+                                        fork_clients=args.forkClients,
+                                        quiet=args.quiet)
 
     try:
         DAQConfigParser.getClusterConfiguration(None, useActiveConfig=True,
@@ -894,4 +1030,5 @@ if __name__ == "__main__":
     runner = DAQFakeRun()
 
     runner.runAll(comps, args.runNum, args.numRuns, args.duration,
-                  args.runCfgDir, verbose=args.verbose)
+                  args.runCfgDir, mockRunCfg, verbose=args.verbose,
+                  test_subrun=args.testSubrun)
