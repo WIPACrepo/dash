@@ -1398,8 +1398,7 @@ class RunSet(object):
                 else:
                     run_data.error(("Expected 3 or 6 run data values from" +
                                     " %s, got %d (%s)") %
-                                   (exp_num, comp.fullname, len(result),
-                                    str(result)))
+                                   (comp.fullname, len(result), result))
 
         return (physics_count, first_time, last_time, first_good, last_good,
                 moni_count, moni_ticks, sn_count, sn_ticks, tcal_count,
