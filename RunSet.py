@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import datetime
+import numbers
 import os
 import threading
 import time
@@ -2588,7 +2589,11 @@ class RunSet(object):
                 if moni_data[time_key] is not None and \
                    moni_data[time_key] >= 0:
                     run_update[event_key] = moni_data[event_key]
-                    run_update[time_key] = str(moni_data[time_key])
+                    if isinstance(moni_data[time_key], numbers.Number):
+                        dttm = PayloadTime.toDateTime(moni_data[time_key])
+                    else:
+                        dttm = moni_data[time_key]
+                    run_update[time_key] = str(dttm)
 
             # if we don't have a DAQ time, use system time but complain
             if moni_data["eventPayloadTicks"] is not None:
