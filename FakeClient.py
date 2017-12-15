@@ -5,7 +5,6 @@ import socket
 import sys
 import threading
 import time
-import xmlrpclib
 
 from DAQConst import DAQPort
 from DAQRPC import RPCClient, RPCServer
@@ -17,10 +16,10 @@ class UnknownMethodHandler(object):
         self.__area = area
 
     def _dispatch(self, method, params):
-        errMsg = "%s %s: Unknown method %s params %s" % \
+        errmsg = "%s %s: Unknown method %s params %s" % \
             (self.__name, self.__area, method, params)
-        print "!!! " + errMsg
-        raise Exception(errMsg)
+        print "!!! " + errmsg
+        raise Exception(errmsg)
 
 
 class PortNumber(object):
@@ -28,9 +27,9 @@ class PortNumber(object):
 
     @classmethod
     def next_number(cls):
-        p = cls.NEXT_PORT
+        port = cls.NEXT_PORT
         cls.NEXT_PORT += 1
-        return p
+        return port
 
     @classmethod
     def set_first(cls, number):
@@ -105,9 +104,6 @@ class InputOutputThread(threading.Thread):
         finally:
             self.__queue_flag.release()
 
-    def stop(self):
-        self.__running = False
-
 
 class InputChannel(InputOutputThread):
     def __init__(self, conn, addr, engine):
@@ -140,6 +136,9 @@ class InputChannel(InputOutputThread):
         self.__engine.remove_channel(self)
         self.__running = False
 
+    def stop(self):
+        self.__running = False
+
 
 class InputEngine(Engine):
     def __init__(self, name, optional, port=None):
@@ -155,10 +154,10 @@ class InputEngine(Engine):
 
     def __str__(self):
         if self.__optional:
-            optStr = " (optional)"
+            optstr = " (optional)"
         else:
-            optStr = ""
-        return "%s<<%d%s" % (self.name, self.__port, optStr)
+            optstr = ""
+        return "%s<<%d%s" % (self.name, self.__port, optstr)
 
     def accept_loop(self):
         while True:
@@ -207,10 +206,10 @@ class InputEngine(Engine):
             raise Exception("%s cannot listen on port %s" %
                             (self.name, self.__port, ))
 
-        t = threading.Thread(name=self.name + "Thread",
-                             target=self.accept_loop)
-        t.setDaemon(True)
-        t.start()
+        thrd = threading.Thread(name=self.name + "Thread",
+                                target=self.accept_loop)
+        thrd.setDaemon(True)
+        thrd.start()
 
 
 class OutputChannel(InputOutputThread):
@@ -247,19 +246,19 @@ class OutputChannel(InputOutputThread):
             except:
                 import traceback
                 traceback.print_exc()
-            #written += len(data)
+            # written += len(data)
 
     def __write_from_file(self):
-        with open(self.__path, "rb") as fd:
+        with open(self.__path, "rb") as fin:
             print "%s reading from %s" % (self, self.__path)
             while self.__running:
                 try:
-                    data = fd.read(256)
+                    data = fin.read(256)
                     if data is None or len(data) == 0:
                         break
 
                     self.__sock.send(data)
-                    #written += len(data)
+                    # written += len(data)
                 except:
                     import traceback
                     traceback.print_exc()
@@ -280,6 +279,9 @@ class OutputChannel(InputOutputThread):
         self.__running = False
         print "Ended %s thread (wrote %d bytes)" % (self.__engine, written)
 
+    def stop(self):
+        self.__running = False
+
 
 class OutputEngine(Engine):
     def __init__(self, name, optional):
@@ -289,10 +291,10 @@ class OutputEngine(Engine):
 
     def __str__(self):
         if self.__optional:
-            optStr = " (optional)"
+            optstr = " (optional)"
         else:
-            optStr = ""
-        return "%s>>%s" % (self.name, optStr)
+            optstr = ""
+        return "%s>>%s" % (self.name, optstr)
 
     def connect(self, host, port, path=None):
         try:
@@ -313,6 +315,133 @@ class OutputEngine(Engine):
         pass
 
 
+class BeanValue(object):
+    def __init__(self, name, value, delta):
+        self.__name = name
+        self.__value = value
+        self.__delta = delta
+
+    @classmethod
+    def __update_recursive(cls, name, value, delta):
+        if delta is None:
+            return value, value
+
+        if isinstance(delta, numbers.Number) and \
+           isinstance(value, numbers.Number):
+            return value, value + delta
+
+        if (isinstance(delta, list) or isinstance(delta, tuple)) and \
+           (isinstance(value, list) or isinstance(value, tuple)) and \
+           len(delta) == len(value):
+            rtnval = value[:]
+            newlist = []
+            for idx, val in enumerate(value):
+                _, newval = cls.__update_recursive(name, val, delta[idx])
+                newlist.append(newval)
+            if isinstance(value, list):
+                return rtnval, newlist
+            else:
+                return rtnval, tuple(newlist)
+
+        print >>sys.stderr, "Not updating %s: value %s<%s> != delta" \
+            " %s<%s>" % (name, value, type(value).__name__, delta,
+                         type(delta).__name__)
+        return value, delta
+
+    def get(self):
+        return self.__value
+
+    def update(self):
+        rtnval, newval = self.__update_recursive(self.__name, self.__value,
+                                                 self.__delta)
+        self.__value = newval
+        return rtnval
+
+
+class FakeMBeanData(object):
+    RADAR_DOM = "123456789abc"
+    __BEAN_DATA = {
+        "stringHub": {
+            "DataCollectorMonitor-00A": {
+                "MainboardId": (RADAR_DOM, None),
+                "HitRate": (0.0, 0.0),
+                },
+            "sender": {
+                "NumHitsReceived": (0, 10),
+                "NumReadoutRequestsReceived": (0, 2),
+                "NumReadoutsSent": (0, 2),
+                },
+            "stringhub": {
+                "NumberOfActiveChannels": (0, 0),
+                "NumberOfActiveAndTotalChannels": ((0, 0), None),
+                "NumberOfNonZombies": (60, 60),
+                "LatestFirstChannelHitTime": (12345, 67890),
+                "TotalLBMOverflows": (0, 0),
+                "HitRate": (0, 0),
+                "HitRateLC": (0, 0),
+                },
+            },
+        "inIceTrigger": {
+            "stringHit": {
+                "RecordsReceived": (0, 10),
+                },
+            "trigger": {
+                "RecordsSent": (0, 2),
+                },
+            },
+        "globalTrigger": {
+            "trigger": {
+                "RecordsReceived": (0, 2),
+                },
+            "glblTrig": {
+                "RecordsSent": (0, 2),
+                },
+            },
+        "eventBuilder": {
+            "backEnd": {
+                "DiskAvailable": (2048, None),
+                "EventData": ((0, 1), (3, 10000000000)),
+                "FirstEventTime": (0, None),
+                "GoodTimes": ((0, 0), None),
+                "NumBadEvents": (0, None),
+                "NumEventsSent": (0, 1),
+                "NumReadoutsReceived": (0, 2),
+                "NumTriggerRequestsReceived": (0, 2),
+                "NumEventsDispatched": (0, 5),
+                },
+            },
+        "secondaryBuilders": {
+            "moniBuilder": {
+                "DiskAvailable": (2048, None),
+                "NumDispatchedData": (0, 100),
+                },
+            "snBuilder": {
+                "DiskAvailable": (2048, None),
+                "NumDispatchedData": (0, 100),
+                },
+            "tcalBuilder": {
+                "DiskAvailable": (2048, None),
+                "NumDispatchedData": (0, 100),
+                },
+            }}
+
+    @classmethod
+    def create_dict(cls, name):
+        bean_dict = {}
+        if name not in cls.__BEAN_DATA:
+            raise FakeClientException("No bean data for %s" % (name, ))
+        else:
+            for bean in cls.__BEAN_DATA[name]:
+                bean_dict[bean] = {}
+                for fld in cls.__BEAN_DATA[name][bean]:
+                    bean_data = cls.__BEAN_DATA[name][bean][fld]
+                    beanval = BeanValue("%s.%s.%s" % (name, bean, fld),
+                                        bean_data[0], bean_data[1])
+                    bean_dict[bean][fld] = beanval
+
+        return bean_dict
+
+
 class FakeClientException(Exception):
     pass
 
@@ -320,7 +449,7 @@ class FakeClientException(Exception):
 class FakeClient(object):
     NEXT_PREFIX = 1
 
-    def __init__(self, name, num, connList, mbeanDict, numeric_prefix=False,
+    def __init__(self, name, num, conn_list, numeric_prefix=False,
                  quiet=False):
         if not numeric_prefix:
             self.__name = name
@@ -329,58 +458,62 @@ class FakeClient(object):
             self.NEXT_PREFIX += 1
 
         self.__num = num
-        self.__connections = self.__build_engines(connList)
-        self.__mbeanDict = mbeanDict.copy()
+        self.__connections = self.__build_engines(conn_list)
+        self.__mbean_dict = FakeMBeanData.create_dict(self.__name)
 
-        self.__cmdPort = PortNumber.next_number()
-        self.__mbeanPort = PortNumber.next_number()
+        self.__cmd_port = PortNumber.next_number()
+        self.__mbean_port = PortNumber.next_number()
 
-        self.__runNum = 0
-        self.__numEvts = 0
+        self.__run_num = 0
+        self.__num_evts = 0
 
         self.__state = "idle"
         self.__registered = True
 
         self.__quiet = quiet
 
+        self.__src_id = None
+        self.__cnc = None
+        self.__mbean = None
+
     def __str__(self):
         return "%s#%d" % (self.__name, self.__num)
 
     @classmethod
-    def __build_engines(cls, connList):
+    def __build_engines(cls, conn_list):
         engines = []
-        for c in connList:
-            if c[1] == "i" or c[1] == "I":
-                engines.append(InputEngine(c[0], c[1] == "I"))
-            elif c[1] == "o" or c[1] == "O":
-                engines.append(OutputEngine(c[0], c[1] == "O"))
+        for conn in conn_list:
+            if conn[1] == "i" or conn[1] == "I":
+                engines.append(InputEngine(conn[0], conn[1] == "I"))
+            elif conn[1] == "o" or conn[1] == "O":
+                engines.append(OutputEngine(conn[0], conn[1] == "O"))
             else:
                 raise Exception("Unknown connection \"%s\" type \"%s\"" %
-                                (c[0], c[1]))
+                                (conn[0], conn[1]))
         return engines
 
-    def __commit_subrun(self, subrunNum, latestTime):
+    def __commit_subrun(self, subrun_num, latest_time):
         if not self.__quiet:
-            print "CommitSubrun %s num %d time %s" % (self, subrunNum,
-                                                      latestTime)
+            print "CommitSubrun %s num %d time %s" % (self, subrun_num,
+                                                      latest_time)
         return "CommitSubrun"
 
-    def __configure(self, cfgName=None):
+    def __configure(self, cfg_name=None):
         self.__state = "ready"
         return self.__state
 
-    def __connect(self, connList=None):
-        if connList is not None:
-            for cd in connList:
+    def __connect(self, conn_list=None):
+        if conn_list is not None:
+            for desc in conn_list:
                 found = False
-                for e in self.__connections:
-                    if e.name == cd["type"]:
+                for conn in self.__connections:
+                    if conn.name == desc["type"]:
                         path = self.__get_output_data_path()
-                        e.connect(cd["host"], cd["port"], path=path)
+                        conn.connect(desc["host"], desc["port"], path=path)
                         found = True
                 if not found:
                     raise Exception("Cannot find \"%s\" output engine \"%s\"" %
-                                    self.fullname, cd["type"])
+                                    self.fullname, desc["type"])
 
         else:
             print >>sys.stderr, "No connections for %s" % (self, )
@@ -388,33 +521,33 @@ class FakeClient(object):
         self.__state = "connected"
         return self.__state
 
-    def __get_mbean_attributes(self, bean, attrList):
-        valDict = {}
-        for attr in attrList:
-            valDict[attr] = self.__get_mbean_value(bean, attr)
-        return valDict
+    def __get_mbean_attributes(self, bean, attr_list):
+        val_dict = {}
+        for attr in attr_list:
+            val_dict[attr] = self.__get_mbean_value(bean, attr)
+        return val_dict
 
     def __get_mbean_value(self, bean, attr):
-        if bean not in self.__mbeanDict:
+        if bean not in self.__mbean_dict:
             raise Exception("Unknown %s MBean \"%s\"" % (self, bean))
 
-        if attr not in self.__mbeanDict[bean]:
+        if attr not in self.__mbean_dict[bean]:
             raise Exception("Unknown %s MBean \"%s\" attribute \"%s\"" %
                             (self, bean, attr))
 
-        self.__mbeanDict[bean][attr].update()
+        self.__mbean_dict[bean][attr].update()
 
-        val = self.__mbeanDict[bean][attr].get()
+        val = self.__mbean_dict[bean][attr].get()
         if val is None:
             return ''
 
         return val
 
-    def __get_events(self, subrunNum):
+    def __get_events(self, subrun_num):
         if not self.__quiet:
-            print "GetEvents %s subrun %d" % (self, subrunNum)
-        self.__numEvts += 1
-        return self.__numEvts
+            print "GetEvents %s subrun %d" % (self, subrun_num)
+        self.__num_evts += 1
+        return self.__num_evts
 
     def __get_output_data_path(self):
         if self.__name == "inIceTrigger":
@@ -442,13 +575,33 @@ class FakeClient(object):
 
         return path
 
-    def __get_run_data(self, runNum):
+    def __get_run_data(self, run_num):
         if not self.__quiet:
-            print "GetRunData %s run %d" % (self, runNum)
+            print "GetRunData %s run %d" % (self, run_num)
         return (long(1), long(2), long(3), long(4), long(5))
 
     def __get_run_number(self):
-        return self.__runNum
+        return self.__run_num
+
+    def __get_source_id(self):
+        if self.__name == "inIceTrigger":
+            return 4000 + self.__num
+        elif self.__name == "iceTopTrigger":
+            return 5000 + self.__num
+        elif self.__name == "globalTrigger":
+            return 6000 + self.__num
+        elif self.__name == "eventBuilder":
+            return 7000 + self.__num
+        elif self.__name == "tcalBuilder":
+            return 8000 + self.__num
+        elif self.__name == "moniBuilder":
+            return 9000 + self.__num
+        elif self.__name == "snBuilder":
+            return 11000 + self.__num
+        elif self.__name == "stringHub" or self.__name == "icetopHub":
+            return 12000 + self.__num
+        elif self.__name == "secondaryBuilders":
+            return 14000 + self.__num
 
     def __get_state(self):
         return self.__state
@@ -457,40 +610,40 @@ class FakeClient(object):
         return '$Id: filename revision date time author xxx'
 
     def __list_connections(self):
-        connList = []
+        conn_list = []
         for conn in self.__connections:
-            connList.append(conn.connection_tuple)
-        return connList
+            conn_list.append(conn.connection_tuple)
+        return conn_list
 
     def __list_conn_states(self):
-        stateList = []
+        state_list = []
         for conn in self.__connections:
-            stateList.append({
+            state_list.append({
                 "type": conn.name,
                 "numChan": conn.num_channels,
                 "state": conn.state,
             })
 
-        return stateList
+        return state_list
 
     def __list_mbean_getters(self, bean):
-        if bean not in self.__mbeanDict:
+        if bean not in self.__mbean_dict:
             raise Exception("Unknown MBean \"%s\" for %s" % (bean, self))
 
-        return self.__mbeanDict[bean].keys()
+        return self.__mbean_dict[bean].keys()
 
     def __list_mbeans(self):
-        return self.__mbeanDict.keys()
+        return self.__mbean_dict.keys()
 
-    def __log_to(self, logHost, logPort, liveHost, livePort):
+    def __log_to(self, log_host, log_port, live_host, live_port):
         if not self.__quiet:
             print "LogTo %s LOG %s:%d LIVE %s:%d" % \
-                (self, logHost, logPort, liveHost, livePort)
+                (self, log_host, log_port, live_host, live_port)
         return False
 
-    def __prepare_subrun(self, subrunNum):
+    def __prepare_subrun(self, subrun_num):
         if not self.__quiet:
-            print "PrepareSubrun %s num %d" % (self, subrunNum)
+            print "PrepareSubrun %s num %d" % (self, subrun_num)
         return "PrepareSubrun"
 
     def __reset(self):
@@ -504,15 +657,15 @@ class FakeClient(object):
             print "ResetLogging %s" % self
         return "ResetLogging"
 
-    def __set_first_good_time(self, firstTime):
+    def __set_first_good_time(self, first_time):
         if not self.__quiet:
-            print "SetFirstGoodTime %s -> %s" % (self, firstTime)
+            print "SetFirstGoodTime %s -> %s" % (self, first_time)
         return "SetFirstGoodTime"
 
-    def __start_run(self, runNum):
+    def __start_run(self, run_num):
         if not self.__quiet:
             print "StartRun %s" % self
-        self.start_run(runNum)
+        self.start_run(run_num)
         self.__state = "running"
         return self.__state
 
@@ -528,11 +681,11 @@ class FakeClient(object):
         self.__state = "ready"
         return False
 
-    def __switch_to_new_run(self, newNum):
+    def __switch_to_new_run(self, new_num):
         if not self.__quiet:
-            print "SwitchToNewRun %s newNum %s" % (self, newNum)
-        self.switch_run(newNum)
-        self.__runNum = newNum
+            print "SwitchToNewRun %s new num %s" % (self, new_num)
+        self.switch_run(new_num)
+        self.__run_num = new_num
         return "SwitchToNewRun"
 
     @property
@@ -572,49 +725,53 @@ class FakeClient(object):
 
     def register(self):
         self.__cnc.rpc_component_register(self.__name, self.__num, 'localhost',
-                                          self.__cmdPort, self.__mbeanPort,
+                                          self.__cmd_port, self.__mbean_port,
                                           self.__list_connections())
         self.__registered = True
 
+    @property
+    def source_id(self):
+        if self.__src_id is None:
+            self.__src_id = self.__get_source_id()
+        return self.__src_id
+
     def start(self):
-        self.__cmd = RPCServer(self.__cmdPort)
-        self.__cmd.register_function(self.__commit_subrun,
-                                     'xmlrpc.commitSubrun')
-        self.__cmd.register_function(self.__configure, 'xmlrpc.configure')
-        self.__cmd.register_function(self.__connect, 'xmlrpc.connect')
-        self.__cmd.register_function(self.__get_events, 'xmlrpc.getEvents')
-        self.__cmd.register_function(self.__get_run_data, 'xmlrpc.getRunData')
-        self.__cmd.register_function(self.__get_run_number,
-                                     'xmlrpc.getRunNumber')
-        self.__cmd.register_function(self.__get_state, 'xmlrpc.getState')
-        self.__cmd.register_function(self.__get_version_info,
-                                     'xmlrpc.getVersionInfo')
-        self.__cmd.register_function(self.__list_conn_states,
-                                     'xmlrpc.listConnectorStates')
-        self.__cmd.register_function(self.__log_to, 'xmlrpc.logTo')
-        self.__cmd.register_function(self.__prepare_subrun,
-                                     'xmlrpc.prepareSubrun')
-        self.__cmd.register_function(self.__start_subrun, 'xmlrpc.startSubrun')
-        self.__cmd.register_function(self.__switch_to_new_run,
-                                     'xmlrpc.switchToNewRun')
-        self.__cmd.register_function(self.__reset, 'xmlrpc.reset')
-        self.__cmd.register_function(self.__reset_logging,
-                                     'xmlrpc.resetLogging')
-        self.__cmd.register_function(self.__set_first_good_time,
-                                     'xmlrpc.setFirstGoodTime')
-        self.__cmd.register_function(self.__start_run, 'xmlrpc.startRun')
-        self.__cmd.register_function(self.__stop_run, 'xmlrpc.stopRun')
+        rpc_srvr = RPCServer(self.__cmd_port)
+        rpc_srvr.register_function(self.__commit_subrun, 'xmlrpc.commitSubrun')
+        rpc_srvr.register_function(self.__configure, 'xmlrpc.configure')
+        rpc_srvr.register_function(self.__connect, 'xmlrpc.connect')
+        rpc_srvr.register_function(self.__get_events, 'xmlrpc.getEvents')
+        rpc_srvr.register_function(self.__get_run_data, 'xmlrpc.getRunData')
+        rpc_srvr.register_function(self.__get_run_number,
+                                   'xmlrpc.getRunNumber')
+        rpc_srvr.register_function(self.__get_state, 'xmlrpc.getState')
+        rpc_srvr.register_function(self.__get_version_info,
+                                   'xmlrpc.getVersionInfo')
+        rpc_srvr.register_function(self.__list_conn_states,
+                                   'xmlrpc.listConnectorStates')
+        rpc_srvr.register_function(self.__log_to, 'xmlrpc.logTo')
+        rpc_srvr.register_function(self.__prepare_subrun,
+                                   'xmlrpc.prepareSubrun')
+        rpc_srvr.register_function(self.__start_subrun, 'xmlrpc.startSubrun')
+        rpc_srvr.register_function(self.__switch_to_new_run,
+                                   'xmlrpc.switchToNewRun')
+        rpc_srvr.register_function(self.__reset, 'xmlrpc.reset')
+        rpc_srvr.register_function(self.__reset_logging, 'xmlrpc.resetLogging')
+        rpc_srvr.register_function(self.__set_first_good_time,
+                                   'xmlrpc.setFirstGoodTime')
+        rpc_srvr.register_function(self.__start_run, 'xmlrpc.startRun')
+        rpc_srvr.register_function(self.__stop_run, 'xmlrpc.stopRun')
 
         handler = UnknownMethodHandler(self.fullname, "Cmds")
-        self.__cmd.register_instance(handler)
+        rpc_srvr.register_instance(handler)
 
-        tName = "RealXML*%s#%d" % (self.__name, self.__num)
-        t = threading.Thread(name=tName, target=self.__cmd.serve_forever,
-                             args=())
-        t.setDaemon(True)
-        t.start()
+        tname = "RealXML*%s#%d" % (self.__name, self.__num)
+        thrd = threading.Thread(name=tname, target=rpc_srvr.serve_forever,
+                                args=())
+        thrd.setDaemon(True)
+        thrd.start()
 
-        self.__mbean = RPCServer(self.__mbeanPort)
+        self.__mbean = RPCServer(self.__mbean_port)
         self.__mbean.register_function(self.__get_mbean_value, 'mbean.get')
         self.__mbean.register_function(self.__list_mbeans, 'mbean.listMBeans')
         self.__mbean.register_function(self.__get_mbean_attributes,
@@ -625,16 +782,16 @@ class FakeClient(object):
         handler = UnknownMethodHandler(self.fullname, "Beans")
         self.__mbean.register_instance(handler)
 
-        tName = "RealMBean*%s#%d" % (self.__name, self.__num)
-        t = threading.Thread(name=tName, target=self.__mbean.serve_forever,
-                             args=())
-        t.setDaemon(True)
-        t.start()
+        tname = "RealMBean*%s#%d" % (self.__name, self.__num)
+        thrd = threading.Thread(name=tname, target=self.__mbean.serve_forever,
+                                args=())
+        thrd.setDaemon(True)
+        thrd.start()
 
         self.__cnc = RPCClient("localhost", DAQPort.CNCSERVER)
 
-        for c in self.__connections:
-            c.start()
+        for conn in self.__connections:
+            conn.start()
 
     def start_run(self, run_num):
         print >>sys.stderr, "%s not starting run#%s" % (self, run_num)

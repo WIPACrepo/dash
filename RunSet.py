@@ -511,6 +511,9 @@ class StreamData(object):
         self.__count = count
         self.__ticks = ticks
 
+    def __str__(self):
+        return "%s@%s" % (self.__count, self.__ticks)
+
     @property
     def count(self):
         return self.__count
@@ -622,7 +625,7 @@ class RunData(object):
 
     @property
     def cached_monitor_data(self):
-        return (self.__num_evts, self.__wall_time, self.__evt_pay_time, None,
+        return (self.__num_evts, self.__wall_time, None, self.__evt_pay_time,
                 self.__num_moni, self.__moni_time,
                 self.__num_sn, self.__sn_time,
                 self.__num_tcal, self.__tcal_time)
@@ -2301,7 +2304,7 @@ class RunSet(object):
         if values is None:
             return {}
 
-        (num_evts, wall_time, pay_time, _, num_moni, moni_time, num_sn,
+        (num_evts, wall_time, _, pay_time, num_moni, moni_time, num_sn,
          sn_time, num_tcal, tcal_time) = values
 
         mon_dict = {}

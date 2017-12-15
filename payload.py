@@ -781,6 +781,10 @@ class MonitorRecord(object):
         return val
 
     @property
+    def has_data(self):
+        return False
+
+    @property
     def utime(self):
         return self.__utime
 

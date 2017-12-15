@@ -40,22 +40,22 @@ class LogThread(threading.Thread):
 
     TIMEOUT = 100
 
-    def __init__(self, compName, port):
+    def __init__(self, comp_name, port):
         """
         Create a log socket reader
 
-        compName - component name
+        comp_name - component name
         port - log port number
         """
 
-        self.__compName = compName
+        self.__comp_name = comp_name
         self.__port = port
 
         self.__sock = None
         self.__serving = False
 
-        logName = "%s:log#%d" % (self.__compName, self.__port)
-        super(LogThread, self).__init__(name=logName)
+        log_name = "%s:log#%d" % (self.__comp_name, self.__port)
+        super(LogThread, self).__init__(name=log_name)
         self.setDaemon(True)
 
     def stop(self):
@@ -80,12 +80,12 @@ class LogThread(threading.Thread):
 
         self.__serving = True
 
-        pr = [self.__sock]
-        pw = []
-        pe = [self.__sock]
+        prd = [self.__sock]
+        pwr = []
+        per = [self.__sock]
         while self.__serving:
             try:
-                rd, _, re = select.select(pr, pw, pe, self.TIMEOUT)
+                rdsock, _, ersock = select.select(prd, pwr, per, self.TIMEOUT)
             except select.error as selerr:
                 if selerr[0] == socket.EBADF:
                     break
@@ -95,194 +95,74 @@ class LogThread(threading.Thread):
                     break
                 raise
 
-            if len(re) != 0:
+            if len(ersock) != 0:
                 print >>sys.stderr, "Error on select"
 
-            if len(rd) == 0:
+            if len(rdsock) == 0:
                 continue
 
             while True:
                 try:
                     data = self.__sock.recv(8192, socket.MSG_DONTWAIT)
                     if LOUD:
-                        print >>sys.stderr, "%s: %s" % (self.__compName, data)
+                        print >>sys.stderr, "%s: %s" % (self.__comp_name, data)
                 except:
                     break  # Go back to select so we don't busy-wait
 
 
-class BeanValue(object):
-    def __init__(self, name, value, delta):
-        self.__name = name
-        self.__value = value
-        self.__delta = delta
-
-    @classmethod
-    def __update_recursive(cls, name, value, delta):
-        if delta is None:
-            return value, value
-
-        if isinstance(delta, numbers.Number) and \
-           isinstance(value, numbers.Number):
-            return value, value + delta
-
-        if (isinstance(delta, list) or isinstance(delta, tuple)) and \
-           (isinstance(value, list) or isinstance(value, tuple)) and \
-           len(delta) == len(value):
-            rtnval = value[:]
-            newlist = []
-            for idx in range(len(value)):
-                _, newval = cls.__update_recursive(value[idx], delta[idx])
-                newlist.append(newval)
-            if isinstance(value, list):
-                return rtnval, newlist
-            else:
-                return rtnval, tuple(newlist)
-
-        print >>sys.stderr, "Not updating %s: value %s<%s> != delta" \
-            " %s<%s>" % (self.__name, value, type(value).__name__, delta,
-                         type(delta).__name__)
-        return value, delta
-
-    def get(self):
-        return self.__value
-
-    def update(self):
-        rtnval, newval = self.__update_recursive(self.__name, self.__value,
-                                                 self.__delta)
-        self.__value = newval
-        return rtnval
-
 class ComponentData(object):
     "Component data used to create simulated components"
 
-    RADAR_DOM = "123456789abc"
-    __BEAN_DATA = {
-        "stringHub": {
-            "DataCollectorMonitor-00A": {
-                "MainboardId": (RADAR_DOM, None),
-                "HitRate": (0.0, 0.0),
-                },
-            "sender": {
-                "NumHitsReceived": (0, 10),
-                "NumReadoutRequestsReceived": (0, 2),
-                "NumReadoutsSent": (0, 2),
-                },
-            "stringhub": {
-                "NumberOfActiveChannels": (0, 0),
-                "NumberOfActiveAndTotalChannels": ((0, 0), None),
-                "NumberOfNonZombies": (60, 60),
-                "LatestFirstChannelHitTime": (12345, 67890),
-                "TotalLBMOverflows": (0, 0),
-                "HitRate": (0, 0),
-                "HitRateLC": (0, 0),
-                },
-            },
-        "inIceTrigger": {
-            "stringHit": {
-                "RecordsReceived": (0, 10),
-                },
-            "trigger": {
-                "RecordsSent": (0, 2),
-                },
-            },
-        "globalTrigger": {
-            "trigger": {
-                "RecordsReceived": (0, 2),
-                },
-            "glblTrig": {
-                "RecordsSent": (0, 2),
-                },
-            },
-        "eventBuilder": {
-            "backEnd": {
-                "DiskAvailable": (2048, None),
-                "EventData": ((0, 1), (3, 10000000000)),
-                "FirstEventTime": (0, None),
-                "GoodTimes": ((0, 0), None),
-                "NumBadEvents": (0, None),
-                "NumEventsSent": (0, 1),
-                "NumReadoutsReceived": (0, 2),
-                "NumTriggerRequestsReceived": (0, 2),
-                "NumEventsDispatched": (0, 5),
-                },
-            },
-        "secondaryBuilders": {
-            "moniBuilder": {
-                "DiskAvailable": (2048, None),
-                "NumDispatchedData": (0, 100),
-                },
-            "snBuilder": {
-                "DiskAvailable": (2048, None),
-                "NumDispatchedData": (0, 100),
-                },
-            "tcalBuilder": {
-                "DiskAvailable": (2048, None),
-                "NumDispatchedData": (0, 100),
-                },
-            }}
-
-    def __init__(self, compName, compNum, connList, numeric_prefix=False):
+    def __init__(self, comp_name, comp_num, numeric_prefix=False):
         """
         Create a component
 
-        compName - component name
-        compNum - component number
-        connList - list of connections
-        beanDict - dictionary of 'MBean' name/value pairs
+        comp_name - component name
+        comp_num - component number
+        bean_dict - dictionary of 'MBean' name/value pairs
         numeric_prefix - if True, add a number to the component name
         """
-        self.__name = compName
-        self.__num = compNum
-        self.__connList = connList[:]
+        self.__name = comp_name
+        self.__num = comp_num
         self.__is_fake = True
         self.__numeric_prefix = numeric_prefix
+
+        self.__conn_list = None
 
     def __str__(self):
         return self.fullname
 
     @property
     def connections(self):
-        return self.__connList[:]
+        return self.__conn_list
 
     @classmethod
-    def createAll(cls, numHubs, def_dom_geom, numeric_prefix=False,
-                  include_icetop=False):
+    def create_all_data(cls, num_hubs, def_dom_geom, numeric_prefix=False,
+                        include_icetop=False):
         "Create initial component data list"
-        comps = cls.create_hubs(numHubs, 1, numeric_prefix=numeric_prefix,
+        comps = cls.create_hubs(num_hubs, 1, numeric_prefix=numeric_prefix,
                                 is_icetop=False)
         if include_icetop:
-            itHubs = numHubs / 8
-            if itHubs == 0:
-                itHubs = 1
-            comps += cls.create_hubs(itHubs, 201,
+            it_hubs = num_hubs / 8
+            if it_hubs == 0:
+                it_hubs = 1
+            comps += cls.create_hubs(it_hubs, 201,
                                      numeric_prefix=numeric_prefix,
                                      is_icetop=True)
 
         # create additional components
-        comps.append(ComponentData("inIceTrigger", 0,
-                                   [("stringHit", Connector.INPUT),
-                                    ("trigger", Connector.OUTPUT)],
-                                   numeric_prefix))
+        comps.append(TriggerDescription("inIceTrigger", 0,
+                                        numeric_prefix=numeric_prefix))
         if include_icetop:
-            comps.append(ComponentData("icetopTrigger", 0,
-                                       [("icetopHit", Connector.INPUT),
-                                        ("trigger", Connector.OUTPUT)],
-                                       numeric_prefix))
+            comps.append(TriggerDescription("icetopTrigger", 0,
+                                            numeric_prefix=numeric_prefix))
 
-        comps.append(ComponentData("globalTrigger", 0,
-                                   [("trigger", Connector.INPUT),
-                                    ("glblTrig", Connector.OUTPUT)],
-                                   numeric_prefix))
-        comps.append(ComponentData("eventBuilder", 0,
-                                   [("glblTrig", Connector.INPUT),
-                                    ("rdoutReq", Connector.OUTPUT),
-                                    ("rdoutData", Connector.INPUT)],
-                                   numeric_prefix))
-        comps.append(ComponentData("secondaryBuilders", 0,
-                                   [("moniData", Connector.INPUT),
-                                    ("snData", Connector.INPUT),
-                                    ("tcalData", Connector.INPUT)],
-                                   numeric_prefix))
+        comps.append(TriggerDescription("globalTrigger", 0,
+                                        numeric_prefix=numeric_prefix))
+        comps.append(BuilderDescription("eventBuilder", 0,
+                                        numeric_prefix=numeric_prefix))
+        comps.append(BuilderDescription("secondaryBuilders", 0,
+                                        numeric_prefix=numeric_prefix))
 
         return comps
 
@@ -291,43 +171,59 @@ class ComponentData(object):
                     is_icetop=False, hub_type=HubType.ALL):
         "create all stringHubs"
         comps = []
-
-        connList = []
-        if hub_type == HubType.ALL or hub_type == HubType.PHYSICS_ONLY:
-            connList += [
-                ("rdoutReq", Connector.INPUT),
-                ("rdoutData", Connector.OUTPUT),
-            ]
-            if is_icetop:
-                connList.append(("icetopHit", Connector.OUTPUT))
-            else:
-                connList.append(("stringHit", Connector.OUTPUT))
-        if hub_type == HubType.ALL or hub_type == HubType.SECONDARY_ONLY:
-            connList += [
-                ("moniData", Connector.OUTPUT),
-                ("snData", Connector.OUTPUT),
-                ("tcalData", Connector.OUTPUT),
-            ]
-
-        for n in range(num_hubs):
-            comps.append(HubDescription(n + starting_number, connList,
-                                        numeric_prefix=numeric_prefix))
+        for num in range(num_hubs):
+            hub = HubDescription(num + starting_number,
+                                 numeric_prefix=numeric_prefix,
+                                 is_icetop=is_icetop, hub_type=hub_type)
+            comps.append(hub)
 
         return comps
 
     @staticmethod
-    def createSmall():
+    def create_small_data():
         "Create 3-element component data list"
-        return [ComponentData("foo", 0, [("hit", Connector.OUTPUT)]),
-                ComponentData("bar", 0, [("hit", Connector.INPUT),
-                                         ("event", Connector.OUTPUT)]),
-                ComponentData("fooBuilder", 0, [("event", Connector.INPUT)])]
+        comps = []
+        for idx in range(3):
+            if idx == 0:
+                name = "foo"
+                connlist = [("hit", Connector.OUTPUT)]
+            elif idx == 1:
+                name = "bar"
+                connlist = [
+                    ("hit", Connector.INPUT),
+                    ("event", Connector.OUTPUT),
+                ]
+            elif idx == 2:
+                name = "builder"
+                connlist = [("event", Connector.INPUT)]
+            else:
+                break
+
+            comp = ComponentData(name, 0)
+            comp.set_connections(connlist)
+            comps.append(comp)
+
+        return comps
 
     @staticmethod
-    def createTiny():
+    def create_tiny_data():
         "Create 2-element component data list"
-        return [ComponentData("foo", 0, [("hit", Connector.OUTPUT)]),
-                ComponentData("bar", 0, [("hit", Connector.INPUT)])]
+        comps = []
+        for idx in range(2):
+            if idx == 0:
+                name = "foo"
+                connlist = [("hit", Connector.OUTPUT)]
+            elif idx == 1:
+                name = "bar"
+                connlist = [("hit", Connector.INPUT)]
+            else:
+                break
+
+            comp = ComponentData(name, 0)
+            comp.set_connections(connlist)
+            comps.append(comp)
+
+        return comps
 
     @property
     def fullname(self):
@@ -340,34 +236,16 @@ class ComponentData(object):
         if not self.__is_fake:
             return None
 
-        return FakeClient(self.__name, self.__num, self.__connList,
-                          self.mbean_dict,
+        return FakeClient(self.__name, self.__num, self.connections,
                           numeric_prefix=self.__numeric_prefix, quiet=quiet)
 
-    def isComponent(self, name, num=-1):
+    def is_component(self, name, num=-1):
         "Does this component have the specified name and number?"
         return self.__name == name and (num < 0 or self.__num == num)
 
     @property
-    def isFake(self):
+    def is_fake(self):
         return self.__is_fake
-
-    @property
-    def mbean_dict(self):
-        beanDict = {}
-        if self.__name not in self.__BEAN_DATA:
-            raise FakeClientException("No bean data for %s" %
-                                      (self.__name, ))
-        else:
-            for bean in self.__BEAN_DATA[self.__name]:
-                beanDict[bean] = {}
-                for fld in self.__BEAN_DATA[self.__name][bean]:
-                    beanData = self.__BEAN_DATA[self.__name][bean][fld]
-                    beanval = BeanValue("%s.%s.%s" % (self.__name, bean, fld),
-                                     beanData[0], beanData[1])
-                    beanDict[bean][fld] = beanval
-
-        return beanDict
 
     @property
     def name(self):
@@ -377,27 +255,99 @@ class ComponentData(object):
     def num(self):
         return self.__num
 
+    def set_connections(self, connlist):
+        self.__conn_list = connlist
+
     @property
     def use_numeric_prefix(self):
         return self.__numeric_prefix
 
-    def useRealComponent(self):
+    def use_real_component(self):
         "This component should not register itself so the Java version is used"
         self.__is_fake = False
 
 
 class HubDescription(ComponentData):
-    def __init__(self, num, connList, numeric_prefix=False):
-        super(HubDescription, self).__init__("stringHub", num, connList,
+    def __init__(self, num, numeric_prefix=False, is_icetop=False,
+                 hub_type=HubType.ALL):
+        super(HubDescription, self).__init__("stringHub", num,
                                              numeric_prefix=numeric_prefix)
+
+        connlist = []
+        if hub_type == HubType.ALL or hub_type == HubType.PHYSICS_ONLY:
+            connlist += [
+                ("rdoutReq", Connector.INPUT),
+                ("rdoutData", Connector.OUTPUT),
+            ]
+            if is_icetop:
+                connlist.append(("icetopHit", Connector.OUTPUT))
+            else:
+                connlist.append(("stringHit", Connector.OUTPUT))
+        if hub_type == HubType.ALL or hub_type == HubType.SECONDARY_ONLY:
+            connlist += [
+                ("moniData", Connector.OUTPUT),
+                ("snData", Connector.OUTPUT),
+                ("tcalData", Connector.OUTPUT),
+            ]
+        self.set_connections(connlist)
 
     def get_fake_client(self, def_dom_geom, quiet=False):
         "Create a FakeClient object using this component data"
-        if not self.isFake:
+        if not self.is_fake:
             return None
 
         return StringHub(self.name, self.num, def_dom_geom, self.connections,
-                         self.mbean_dict, quiet=quiet)
+                         quiet=quiet)
+
+
+class TriggerDescription(ComponentData):
+    def __init__(self, name, num, numeric_prefix=False):
+        super(TriggerDescription, self).__init__(name, num,
+                                                 numeric_prefix=numeric_prefix)
+
+        if name == "inIceTrigger":
+            connlist = [
+                ("stringHit", Connector.INPUT),
+                ("trigger", Connector.OUTPUT),
+            ]
+        elif name == "iceTopTrigger":
+            connlist = [
+                ("icetopHit", Connector.INPUT),
+                ("trigger", Connector.OUTPUT),
+            ]
+        elif name == "globalTrigger":
+            connlist = [
+                ("trigger", Connector.INPUT),
+                ("glblTrig", Connector.OUTPUT),
+            ]
+        else:
+            raise FakeClientException("Unknown trigger handler \"%s\"" %
+                                      (name, ))
+
+        self.set_connections(connlist)
+
+
+class BuilderDescription(ComponentData):
+    def __init__(self, name, num, numeric_prefix=False):
+        super(BuilderDescription, self).__init__(name, num,
+                                                 numeric_prefix=numeric_prefix)
+
+        if name == "eventBuilder":
+            connlist = [
+                ("glblTrig", Connector.INPUT),
+                ("rdoutReq", Connector.OUTPUT),
+                ("rdoutData", Connector.INPUT),
+            ]
+        elif name == "secondaryBuilders":
+            connlist = [
+                ("moniData", Connector.INPUT),
+                ("snData", Connector.INPUT),
+                ("tcalData", Connector.INPUT),
+            ]
+        else:
+            raise FakeClientException("Unknown builder \"%s\"" % (name, ))
+
+        self.set_connections(connlist)
 
 
 class DAQFakeRun(object):
@@ -406,26 +356,26 @@ class DAQFakeRun(object):
     LOCAL_ADDR = ip.getLocalIpAddr()
     CNCSERVER_HOST = LOCAL_ADDR
 
-    def __init__(self, cncHost=CNCSERVER_HOST, cncPort=DAQPort.CNCSERVER,
-                 dumpRPC=False):
+    def __init__(self, cnc_host=CNCSERVER_HOST, cnc_port=DAQPort.CNCSERVER,
+                 dump_rpc=False):
         """
         Create a fake DAQRun
 
-        cncHost - CnCServer host name/address
-        cncPort - CnCServer port number
-        dumpRPC - if XML-RPC server should print connection info
+        cnc_host - CnCServer host name/address
+        cnc_port - CnCServer port number
+        dump_rpc - if XML-RPC server should print connection info
         """
 
-        self.__logThreads = []
+        self.__log_threads = []
 
-        self.__client = RPCClient(cncHost, cncPort)
+        self.__client = RPCClient(cnc_host, cnc_port)
 
     @staticmethod
-    def __createClusterDescriptionFile(runCfgDir):
-        path = os.path.join(runCfgDir, "sps-cluster.cfg")
+    def __create_cluster_desc_file(run_cfg_dir):
+        path = os.path.join(run_cfg_dir, "sps-cluster.cfg")
         if not os.path.exists(path):
-            with open(path, 'w') as fd:
-                print >>fd, """<cluster name="localhost">
+            with open(path, 'w') as fin:
+                print >>fin, """<cluster name="localhost">
   <logDirForSpade>spade</logDirForSpade>
  <default>
    <jvm>java</jvm>
@@ -444,11 +394,11 @@ class DAQFakeRun(object):
 </cluster>"""
 
     @staticmethod
-    def __getRunTime(startTime):
-        diff = datetime.datetime.now() - startTime
+    def __get_run_time(start_time):
+        diff = datetime.datetime.now() - start_time
         return float(diff.seconds) + (float(diff.microseconds) / 1000000.0)
 
-    def __openLog(self, host, port):
+    def __open_log(self, host, port):
         """
         Open a connection to the log server
 
@@ -464,169 +414,171 @@ class DAQFakeRun(object):
         sock.connect((host, port))
         return sock
 
-    def __runInternal(self, runsetId, runNum, duration, test_subrun=True,
-                      verbose=False):
+    def __run_internal(self, runset_id, run_num, duration, test_subrun=True,
+                       verbose=False):
         """
         Take all components through a simulated run
 
-        runsetId - ID of runset being used
-        runNum - run number
+        runset_id - ID of runset being used
+        run_num - run number
         duration - length of run in seconds
         verbose - if True, print progress messages
         """
-        runComps = self.__client.rpc_runset_list(runsetId)
+        run_comps = self.__client.rpc_runset_list(runset_id)
         if verbose:
-            print "Found %d components" % len(runComps)
+            print "Found %d components" % (len(run_comps), )
 
-        logList = []
-        for c in runComps:
-            logPort = PortNumber.next_number()
+        log_list = []
+        for comp in run_comps:
+            log_port = PortNumber.next_number()
 
-            logThread = LogThread("%s#%d" %
-                                  (c["compName"], c["compNum"]), logPort)
-            logThread.start()
+            log_thread = LogThread("%s#%d" %
+                                   (comp["compName"], comp["compNum"]),
+                                   log_port)
+            log_thread.start()
 
-            self.__logThreads.append(logThread)
-            logList.append([c["compName"], c["compNum"], logPort])
+            self.__log_threads.append(log_thread)
+            log_list.append([comp["compName"], comp["compNum"], log_port])
 
-        runOptions = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
+        run_options = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
 
         try:
-            self.__client.rpc_runset_start_run(runsetId, runNum, runOptions)
+            self.__client.rpc_runset_start_run(runset_id, run_num, run_options)
 
-            startTime = datetime.datetime.now()
+            start_time = datetime.datetime.now()
 
             time.sleep(1)
 
-            self.__client.rpc_runset_list(runsetId)
+            self.__client.rpc_runset_list(runset_id)
 
             time.sleep(1)
 
             if test_subrun:
-                self.__client.rpc_runset_subrun(runsetId, -1,
+                self.__client.rpc_runset_subrun(runset_id, -1,
                                                 [("0123456789abcdef",
                                                   0, 1, 2, 3, 4), ])
 
-            doSwitch = True
+            do_switch = True
 
-            runtime = self.__getRunTime(startTime)
-            waitSecs = duration - runtime
-            if waitSecs <= 0.0:
-                waitSlice = 0.0
+            runtime = self.__get_run_time(start_time)
+            wait_secs = duration - runtime
+            if wait_secs <= 0.0:
+                wait_slice = 0.0
             else:
-                if doSwitch:
+                if do_switch:
                     slices = 6
                 else:
                     slices = 3
-                waitSlice = waitSecs / float(slices)
+                wait_slice = wait_secs / float(slices)
 
             for switch in (False, True):
-                if switch and doSwitch:
-                    self.__client.rpc_runset_switch_run(runsetId, runNum + 1)
+                if switch and do_switch:
+                    self.__client.rpc_runset_switch_run(runset_id, run_num + 1)
 
                 reps = 0
-                while waitSecs > 0:
-                    time.sleep(waitSlice)
+                while wait_secs > 0:
+                    time.sleep(wait_slice)
                     try:
-                        numEvts = self.__client.rpc_runset_events(runsetId, -1)
+                        num_evts = self.__client.rpc_runset_events(runset_id,
+                                                                   -1)
                     except:
-                        numEvts = None
+                        num_evts = None
 
-                    runSecs = self.__getRunTime(startTime)
-                    if numEvts is not None:
+                    run_secs = self.__get_run_time(start_time)
+                    if num_evts is not None:
                         print "RunSet %d had %d event%s after %.2f secs" % \
-                            (runsetId, numEvts, "s" if numEvts != 1 else "",
-                             runSecs)
+                            (runset_id, num_evts, "s" if num_evts != 1 else "",
+                             run_secs)
                     else:
                         print "RunSet %d could not get event count after" \
-                            " %.2f secs" % (runsetId, runSecs)
+                            " %.2f secs" % (runset_id, run_secs)
 
-                    waitSecs = duration - runSecs
+                    wait_secs = duration - run_secs
 
                     reps += 1
-                    if doSwitch and not switch and reps == 3:
+                    if do_switch and not switch and reps == 3:
                         break
         finally:
             try:
-                self.__client.rpc_runset_stop_run(runsetId)
+                self.__client.rpc_runset_stop_run(runset_id)
             except:
-                print >>sys.stderr, "Cannot stop run for runset #%d" % runsetId
+                print >>sys.stderr, "Cannot stop run for runset #%d" % runset_id
                 traceback.print_exc()
 
-    def __runOne(self, compList, runCfgDir, mockRunCfg, runNum, duration,
-                 verbose=False, test_subrun=False):
+    def __run_one(self, comp_list, run_cfg_dir, mock_run_cfg, run_num,
+                  duration, verbose=False, test_subrun=False):
         """
         Simulate a run
 
-        compList - list of components
-        runCfg - run configuration name
-        runNum - run number
+        comp_list - list of components
+        run_cfg - run configuration name
+        run_num - run number
         duration - length of run in seconds
         """
 
-        numSets = self.__client.rpc_runset_count()
+        num_sets = self.__client.rpc_runset_count()
         if LOUD:
-            print >>sys.stderr, "%d active runsets" % numSets
-            for c in self.__client.rpc_component_list_dicts():
-                print >>sys.stderr, str(c)
+            print >>sys.stderr, "%d active runsets" % num_sets
+            for cdict in self.__client.rpc_component_list_dicts():
+                print >>sys.stderr, str(cdict)
             print >>sys.stderr, "---"
 
-        leapfile = MockLeapsecondFile(runCfgDir)
+        leapfile = MockLeapsecondFile(run_cfg_dir)
         leapfile.create()
 
-        self.hackActiveConfig(mockRunCfg)
+        self.hack_active_config(mock_run_cfg)
 
-        runsetId = self.makeRunset(compList, mockRunCfg, runNum)
+        runset_id = self.make_runset(comp_list, mock_run_cfg, run_num)
 
-        if numSets != self.__client.rpc_runset_count() - 1:
-            print >>sys.stderr, "Expected %d run sets" % (numSets + 1)
+        if num_sets != self.__client.rpc_runset_count() - 1:
+            print >>sys.stderr, "Expected %d run sets" % (num_sets + 1)
 
         try:
-            self.__runInternal(runsetId, runNum, duration, verbose=verbose,
-                               test_subrun=test_subrun)
+            self.__run_internal(runset_id, run_num, duration, verbose=verbose,
+                                test_subrun=test_subrun)
         finally:
             traceback.print_exc()
-            self.closeAll(runsetId)
+            self.close_all(runset_id)
 
-    def __waitForComponents(self, numComps):
+    def __wait_for_components(self, num_comps):
         """
         Wait for our components to be removed from CnCServer
 
-        numComps - initial number of components
+        num_comps - initial number of components
         """
         for _ in range(10):
             num = self.__client.rpc_component_count()
-            if num == numComps:
+            if num == num_comps:
                 break
             time.sleep(1)
 
         num = self.__client.rpc_component_count()
-        if num > numComps:
+        if num > num_comps:
             print >>sys.stderr, \
                 "CnCServer still has %d components (expect %d)" % \
-                (num, numComps)
+                (num, num_comps)
 
-    def closeAll(self, runsetId):
+    def close_all(self, runset_id):
         try:
-            self.__client.rpc_runset_break(runsetId)
+            self.__client.rpc_runset_break(runset_id)
         except:
             pass
 
-        for lt in self.__logThreads:
-            lt.stop()
-        del self.__logThreads[:]
+        for thrd in self.__log_threads:
+            thrd.stop()
+        del self.__log_threads[:]
 
     @staticmethod
     def create_comps(comp_data, def_dom_geom, fork_clients=False,
                      quiet=False):
         "create and start components"
         comps = []
-        for cd in comp_data:
-            client = cd.get_fake_client(def_dom_geom, quiet=quiet)
+        for cdt in comp_data:
+            client = cdt.get_fake_client(def_dom_geom, quiet=quiet)
             if client is None:
                 continue
 
-            if cd.isFake:
+            if cdt.is_fake:
                 if fork_clients:
                     if client.fork() == 0:
                         return
@@ -638,225 +590,226 @@ class DAQFakeRun(object):
         return comps
 
     @classmethod
-    def createMockRunConfig(cls, runCfgDir, compList):
-        trigCfg = MockTriggerConfig("global-only")
-        trigCfg.add(6000, "ThroughputTrigger", 3, -1)
+    def create_mock_run_config(cls, run_cfg_dir, comp_list):
+        trig_cfg = MockTriggerConfig("global-only")
+        trig_cfg.add(6000, "ThroughputTrigger", 3, -1)
 
-        cfgFile = MockRunConfigFile(runCfgDir)
+        cfg_file = MockRunConfigFile(run_cfg_dir)
 
-        nameList = []
-        for c in compList:
-            nameList.append(c.fullname)
+        name_list = []
+        for comp in comp_list:
+            name_list.append(comp.fullname)
 
-        cls.__createClusterDescriptionFile(runCfgDir)
+        cls.__create_cluster_desc_file(run_cfg_dir)
 
-        return cfgFile.create(nameList, {}, trigCfg=trigCfg)
+        return cfg_file.create(name_list, {}, trigCfg=trig_cfg)
 
     @staticmethod
-    def hackActiveConfig(clusterCfg):
+    def hack_active_config(cluster_cfg):
         path = os.path.join(os.environ["HOME"], ".active")
         if not os.path.exists(path):
-            print >>sys.stderr, "Setting ~/.active to \"%s\"" % clusterCfg
-            curCfg = None
+            print >>sys.stderr, "Setting ~/.active to \"%s\"" % cluster_cfg
+            cur_cfg = None
         else:
-            with open(path, 'r') as fd:
-                curCfg = fd.read().split("\n")[0]
+            with open(path, 'r') as fin:
+                cur_cfg = fin.read().split("\n")[0]
 
-        if curCfg != clusterCfg:
+        if cur_cfg != cluster_cfg:
             print >>sys.stderr, "Changing ~/.active from \"%s\" to \"%s\"" % \
-                (curCfg, clusterCfg)
-            with open(path, 'w') as fd:
-                print >>fd, clusterCfg
+                (cur_cfg, cluster_cfg)
+            with open(path, 'w') as fin:
+                print >>fin, cluster_cfg
 
     @classmethod
-    def makeMockClusterConfig(cls, runCfgDir, comps, num_hubs):
-        mockName = "localhost-cluster.cfg"
-        path = os.path.join(runCfgDir, mockName)
+    def make_mock_cluster_config(cls, run_cfg_dir, comps, num_hubs):
+        mock_name = "localhost-cluster.cfg"
+        path = os.path.join(run_cfg_dir, mock_name)
         if os.path.exists(path):
             return
 
-        with open(path, 'w') as fd:
-            print >>fd, "<cluster name=\"localhost\">"
-            print >>fd, "  <host name=\"localhost\">"
+        with open(path, 'w') as out:
+            print >>out, "<cluster name=\"localhost\">"
+            print >>out, "  <host name=\"localhost\">"
 
-            for c in comps:
-                nm = c.name
-                if nm == "stringHub":
+            for comp in comps:
+                if comp.name == "stringHub":
                     continue
 
-                if nm == "globalTrigger" or nm == "eventBuilder" or \
-                   nm == "secondaryBuilders":
+                if comp.name == "globalTrigger" or comp.name == "eventBuilder" or \
+                   comp.name == "secondaryBuilders":
                     req = " required=\"true\""
                 else:
                     req = ""
 
-                print >>fd, "    <component name=\"%s\"%s/>" % (nm, req)
+                print >>out, "    <component name=\"%s\"%s/>" % (comp.name, req)
 
-            print >>fd, "    <simulatedHub number=\"%d\" priority=\"1\"/>" % \
+            print >>out, "    <simulatedHub number=\"%d\" priority=\"1\"/>" % \
                 (num_hubs, )
-            print >>fd, "  </host>"
-            print >>fd, "</cluster>"
+            print >>out, "  </host>"
+            print >>out, "</cluster>"
 
     @classmethod
-    def makeMockRunConfig(cls, runCfgDir, comp_data, moniPeriod=None):
-        mockName = "fake-localhost"
-        trigCfgName = "spts-IT-stdtest-01"
+    def make_mock_run_config(cls, run_cfg_dir, comp_data, moni_period=None):
+        mock_name = "fake-localhost"
+        trig_cfg_name = "spts-IT-stdtest-01"
 
-        path = os.path.join(runCfgDir, mockName + ".xml")
-        with open(path, 'w') as fd:
-            print >>fd, "<runConfig>"
-            if moniPeriod is not None:
-                print >>fd, "  <monitor period=\"%d\"/>" % moniPeriod
-            print >>fd, "  <randomConfig>"
-            print >>fd, "   <noiseRate>17.0</noiseRate>"
-            for c in comp_data:
-                if c.name != "stringHub":
+        path = os.path.join(run_cfg_dir, mock_name + ".xml")
+        with open(path, 'w') as out:
+            print >>out, "<runConfig>"
+            if moni_period is not None:
+                print >>out, "  <monitor period=\"%d\"/>" % moni_period
+            print >>out, "  <randomConfig>"
+            print >>out, "   <noiseRate>17.0</noiseRate>"
+            for comp in comp_data:
+                if comp.name != "stringHub":
                     continue
 
-                print >>fd, "  <string id=\"%d\"/>" % c.num
-            print >>fd, "  </randomConfig>"
+                print >>out, "  <string id=\"%d\"/>" % comp.num
+            print >>out, "  </randomConfig>"
 
-            print >>fd, "  <triggerConfig>%s</triggerConfig>" % trigCfgName
-            for c in comp_data:
-                nm = c.name
-                if nm == "stringHub":
+            print >>out, "  <triggerConfig>%s</triggerConfig>" % trig_cfg_name
+            for comp in comp_data:
+                if comp.name == "stringHub":
                     continue
 
-                print >>fd, "  <runComponent name=\"%s\"/>" % nm
+                print >>out, "  <runComponent name=\"%s\"/>" % (comp.name, )
 
-            print >>fd, "</runConfig>"
+            print >>out, "</runConfig>"
 
-        cls.makeMockTriggerConfig(runCfgDir, trigCfgName)
+        cls.make_mock_trigger_config(run_cfg_dir, trig_cfg_name)
 
-        return (mockName, trigCfgName)
-
-    @classmethod
-    def writeTagAndValue(cls, fd, indent, name, value):
-        print >>fd, "%s<%s>%s</%s>" % (indent, name, value, name)
+        return (mock_name, trig_cfg_name)
 
     @classmethod
-    def writeTriggerConfig(cls, fd, indent, trigType, trigCfgId, srcId, name,
-                           parameterDict, readoutDict):
+    def write_tag_and_value(cls, out, indent, name, value):
+        print >>out, "%s<%s>%s</%s>" % (indent, name, value, name)
+
+    @classmethod
+    def write_trigger_config(cls, out, indent, trig_type, trig_cfg_id, src_id,
+                             name, parameter_dict, readout_dict):
         indent2 = indent + "  "
         indent3 = indent2 + "  "
-        readoutDefaults = {
+        readout_defaults = {
             "type": ("readoutType", 0),
             "offset": ("timeOffset", 0),
             "minus": ("timeMinus", 10000),
             "plus": ("timePlus", 10000),
         }
 
-        print >>fd
-        print >>fd, "%s<triggerConfig>" % indent
-        cls.writeTagAndValue(fd, indent2, "triggerType", str(trigType))
-        cls.writeTagAndValue(fd, indent2, "triggerConfigId", str(trigCfgId))
-        cls.writeTagAndValue(fd, indent2, "sourceId", str(srcId))
-        cls.writeTagAndValue(fd, indent2, "triggerName", name)
-        if parameterDict is not None:
-            for name, value in parameterDict.items():
-                print >>fd, "%s<parameterConfig>" % indent2
-                cls.writeTagAndValue(fd, indent3, "parameterName", str(name))
-                cls.writeTagAndValue(fd, indent3, "parameterValueName",
-                                     str(value))
-                print >>fd, "%s</parameterConfig>" % indent2
+        print >>out
+        print >>out, "%s<triggerConfig>" % indent
+        cls.write_tag_and_value(out, indent2, "triggerType", str(trig_type))
+        cls.write_tag_and_value(out, indent2, "triggerConfigId",
+                                str(trig_cfg_id))
+        cls.write_tag_and_value(out, indent2, "sourceId", str(src_id))
+        cls.write_tag_and_value(out, indent2, "triggerName", name)
+        if parameter_dict is not None:
+            for name, value in parameter_dict.items():
+                print >>out, "%s<parameterConfig>" % indent2
+                cls.write_tag_and_value(out, indent3, "parameterName",
+                                        str(name))
+                cls.write_tag_and_value(out, indent3, "parameterValueName",
+                                        str(value))
+                print >>out, "%s</parameterConfig>" % indent2
 
-        print >>fd, "%s<readoutConfig>" % indent2
+        print >>out, "%s<readoutConfig>" % indent2
         for key in ("type", "offset", "minus", "plus"):
-            name, defValue = readoutDefaults[key]
-            if readoutDict is not None and key in readoutDict:
-                value = readoutDict[key]
+            name, def_value = readout_defaults[key]
+            if readout_dict is not None and key in readout_dict:
+                value = readout_dict[key]
             else:
-                value = defValue
-            cls.writeTagAndValue(fd, indent3, name, str(value))
-        print >>fd, "%s</readoutConfig>" % indent2
-        print >>fd, "%s</triggerConfig>" % indent
+                value = def_value
+            cls.write_tag_and_value(out, indent3, name, str(value))
+        print >>out, "%s</readoutConfig>" % indent2
+        print >>out, "%s</triggerConfig>" % indent
 
     @classmethod
-    def makeMockTriggerConfig(cls, runCfgDir, trigCfgName):
-        inIceId = 4000
-        iceTopId = 5000
-        globalId = 6000
+    def make_mock_trigger_config(cls, run_cfg_dir, trig_cfg_name):
+        inice_id = 4000
+        icetop_id = 5000
+        global_id = 6000
 
-        path = os.path.join(runCfgDir, "trigger", trigCfgName + ".xml")
+        path = os.path.join(run_cfg_dir, "trigger", trig_cfg_name + ".xml")
         if not os.path.exists(path):
-            with open(path, 'w') as fd:
+            with open(path, 'w') as out:
                 indent = "  "
-                print >>fd, "<activeTriggers>"
+                print >>out, "<activeTriggers>"
                 # add global trigger
-                cls.writeTriggerConfig(fd, indent, 3, -1, globalId,
-                                       "ThroughputTrigger", None, None)
+                cls.write_trigger_config(out, indent, 3, -1, global_id,
+                                         "ThroughputTrigger", None, None)
 
                 # add in-ice fixed rate trigger
-                cls.writeTriggerConfig(fd, indent, 23, 23050, inIceId,
-                                       "FixedRateTrigger",
-                                       {"interval": 30000000000},
-                                       {"minus": 5000000, "plus": 5000000})
+                cls.write_trigger_config(out, indent, 23, 23050, inice_id,
+                                         "FixedRateTrigger",
+                                         {"interval": 30000000000},
+                                         {"minus": 5000000, "plus": 5000000})
 
                 # add in-ice min bias trigger
-                cls.writeTriggerConfig(fd, indent, 2, 0, inIceId,
-                                       "MinBiasTrigger",
-                                       {"prescale": 23},
-                                       {"minus": 25000, "plus": 25000})
+                cls.write_trigger_config(out, indent, 2, 0, inice_id,
+                                         "MinBiasTrigger",
+                                         {"prescale": 23},
+                                         {"minus": 25000, "plus": 25000})
 
                 # add icetop simple majority trigger
-                cls.writeTriggerConfig(fd, indent, 0, 102, iceTopId,
-                                       "SimpleMajorityTrigger",
-                                       {"threshold": 6}, None)
+                cls.write_trigger_config(out, indent, 0, 102, icetop_id,
+                                         "SimpleMajorityTrigger",
+                                         {"threshold": 6}, None)
 
                 # add icetop calibration trigger
-                cls.writeTriggerConfig(fd, indent, 1, 1009, iceTopId,
-                                       "CalibrationTrigger",
-                                       {"hitType": 4},
-                                       {"minus": 1000, "plus": 1000})
+                cls.write_trigger_config(out, indent, 1, 1009, icetop_id,
+                                         "CalibrationTrigger",
+                                         {"hitType": 4},
+                                         {"minus": 1000, "plus": 1000})
 
                 # add icetop min bias trigger
-                cls.writeTriggerConfig(fd, indent, 2, 101, iceTopId,
-                                       "MinBiasTrigger",
-                                       {"prescale": 10000}, None)
+                cls.write_trigger_config(out, indent, 2, 101, icetop_id,
+                                         "MinBiasTrigger",
+                                         {"prescale": 10000}, None)
 
                 # add final tag
-                print >>fd, "</activeTriggers>"
+                print >>out, "</activeTriggers>"
 
-    def makeRunset(self, compList, runCfg, runNum):
-        nameList = []
-        for c in compList:
-            nameList.append(c.fullname)
+    def make_runset(self, comp_list, run_cfg, run_num):
+        name_list = []
+        for comp in comp_list:
+            name_list.append(comp.fullname)
 
-        runsetId = self.__client.rpc_runset_make(runCfg, runNum, False)
-        if runsetId < 0:
+        runset_id = self.__client.rpc_runset_make(run_cfg, run_num, False)
+        if runset_id < 0:
             raise DAQFakeRunException(("Cannot make runset from %s" +
                                        " (runset ID=%d)") %
-                                      (nameList, runsetId))
+                                      (name_list, runset_id))
 
-        return runsetId
+        return runset_id
 
-    def runAll(self, comps, startNum, numRuns, duration, runCfgDir,
-               mockRunCfg, verbose=False, test_subrun=False):
-        runNum = startNum
+    def run_all(self, comps, start_num, num_runs, duration, run_cfg_dir,
+                mock_run_cfg, verbose=False, test_subrun=False):
+        run_num = start_num
 
         # grab the number of components before we add ours
         #
-        numComps = self.__client.rpc_component_count()
+        num_comps = self.__client.rpc_component_count()
 
         # do all the runs
         #
-        for _ in range(numRuns):
+        for _ in range(num_runs):
             # wait for all components to be registered
             #
-            numNew = numComps + len(comps)
+            num_new = num_comps + len(comps)
             for _ in range(10):
-                if self.__client.rpc_component_count() == numNew:
+                if self.__client.rpc_component_count() == num_new:
                     break
                 time.sleep(0.1)
 
             # simulate a run
             #
             try:
-                self.__runOne(comps, runCfgDir, mockRunCfg, runNum, duration,
-                              verbose=verbose, test_subrun=test_subrun)
+                self.__run_one(comps, run_cfg_dir, mock_run_cfg, run_num,
+                               duration, verbose=verbose,
+                               test_subrun=test_subrun)
             except:
                 traceback.print_exc()
-            runNum += 1
+            run_num += 1
 
             # close all created components
             #
@@ -865,77 +818,75 @@ class DAQFakeRun(object):
             # wait for closed components to be removed from server
             #
             print "Waiting for components"
-            self.__waitForComponents(numNew)
+            self.__wait_for_components(num_new)
 
 
-if __name__ == "__main__":
-    import argparse
-
+def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("-c", "--config", dest="runCfgDir",
+    parser.add_argument("-c", "--config", dest="run_cfg_dir",
                         default="/tmp/pdaq/config",
                         help="Run configuration directory")
     parser.add_argument("-d", "--duration", type=int, dest="duration",
                         default="5",
                         help="Number of seconds for run")
-    parser.add_argument("-e", "--eventBuilder", dest="evtBldr",
+    parser.add_argument("-e", "--event-builder", dest="evt_bldr",
                         action="store_true", default=False,
                         help="Use existing event builder")
-    parser.add_argument("-F", "--fakeNames", dest="fakeNames",
+    parser.add_argument("-F", "--fake-names", dest="fake_names",
                         action="store_true", default=False,
                         help="Add a numeric prefix to component names")
-    parser.add_argument("-f", "--forkClients", dest="forkClients",
+    parser.add_argument("-f", "--fork-clients", dest="fork_clients",
                         action="store_true", default=False,
                         help="Run clients in subprocesses")
-    parser.add_argument("-g", "--globalTrigger", dest="glblTrig",
+    parser.add_argument("-g", "--global-trigger", dest="glbl_trig",
                         action="store_true", default=False,
                         help="Use existing global trigger")
-    parser.add_argument("-H", "--numberOfHubs", type=int, dest="numHubs",
+    parser.add_argument("-H", "--number-of-hubs", type=int, dest="num_hubs",
                         default=2,
                         help="Number of fake hubs")
-    parser.add_argument("-i", "--iniceTrigger", dest="iniceTrig",
+    parser.add_argument("-i", "--inice-trigger", dest="inice_trig",
                         action="store_true", default=False,
                         help="Use existing in-ice trigger")
-    parser.add_argument("-K", "--keep-old-files", dest="keepOldFiles",
+    parser.add_argument("-K", "--keep-old-files", dest="keep_old_files",
                         action="store_true", default=False,
                         help="Keep old runs from /tmp/pdaq/log and"
                         " /tmp/pdaq/pdaqlocal")
-    parser.add_argument("-n", "--numOfRuns", type=int, dest="numRuns",
+    parser.add_argument("-n", "--num-of-runs", type=int, dest="num_runs",
                         default=1,
                         help="Number of runs")
-    parser.add_argument("-M", "--moniPeriod", type=int, dest="moniPeriod",
+    parser.add_argument("-M", "--moni-period", type=int, dest="moni_period",
                         default=None,
                         help="Number of seconds between monitoring requests")
-    parser.add_argument("-p", "--firstPortNumber", type=int, dest="firstPort",
-                        default=None,
+    parser.add_argument("-p", "--first-port-number", type=int,
+                        dest="first_port", default=None,
                         help="First port number used for fake components")
     parser.add_argument("-q", "--quiet", dest="quiet",
                         action="store_true", default=False,
                         help="Fake components don't announce what they're"
                         " doing")
-    parser.add_argument("-r", "--runNum", type=int, dest="runNum",
+    parser.add_argument("-r", "--run-number", type=int, dest="run_num",
                         default=1234,
                         help="Run number")
-    parser.add_argument("-S", "--small", dest="smallCfg",
+    parser.add_argument("-S", "--small", dest="use_small",
                         action="store_true", default=False,
                         help="Use canned 3-element configuration")
-    parser.add_argument("-s", "--secondaryBuilders", dest="secBldrs",
+    parser.add_argument("-s", "--secondary-builders", dest="sec_bldrs",
                         action="store_true", default=False,
                         help="Use existing secondary builders")
-    parser.add_argument("-T", "--tiny", dest="tinyCfg",
+    parser.add_argument("-T", "--tiny", dest="use_tiny",
                         action="store_true", default=False,
                         help="Use canned 2-element configuration")
-    parser.add_argument("-t", "--icetopTrigger", dest="icetopTrig",
+    parser.add_argument("-t", "--icetop-trigger", dest="icetop_trig",
                         action="store_true", default=False,
                         help="Use existing icetop trigger")
-    parser.add_argument("-u", "--test-subrun", dest="testSubrun",
+    parser.add_argument("-u", "--test-subrun", dest="test_subrun",
                         action="store_true", default=False,
                         help="Test subrun")
     parser.add_argument("-v", "--verbose", dest="verbose",
                         action="store_true", default=False,
                         help="Print progress messages during run")
-    parser.add_argument("-X", "--extraHubs", type=int, dest="extraHubs",
+    parser.add_argument("-X", "--extra-hubs", type=int, dest="extra_hubs",
                         default=0,
                         help="Number of extra hubs to create")
 
@@ -945,10 +896,10 @@ if __name__ == "__main__":
         from DumpThreads import DumpThreadsOnSignal
         DumpThreadsOnSignal(fd=sys.stderr)
 
-    if args.firstPort is not None:
-        PortNumber.set_first(args.firstPort)
+    if args.first_port is not None:
+        PortNumber.set_first(args.first_port)
 
-    if not args.keepOldFiles:
+    if not args.keep_old_files:
         logname = "/tmp/pdaq/log"
         for entry in os.listdir(logname):
             path = os.path.join(logname, entry)
@@ -966,69 +917,78 @@ if __name__ == "__main__":
 
     # get list of components
     #
-    if args.tinyCfg:
-        comp_data = ComponentData.createTiny()
-    elif args.smallCfg:
-        comp_data = ComponentData.createSmall()
+    if args.use_tiny:
+        comp_data = ComponentData.create_tiny_data()
+    elif args.use_small:
+        comp_data = ComponentData.create_small_data()
     else:
-        comp_data = ComponentData.createAll(args.numHubs, def_dom_geom,
-                                            args.fakeNames)
-        for cd in comp_data:
-            if args.evtBldr and cd.isComponent("eventBuilder"):
-                cd.useRealComponent()
-            elif args.glblTrig and cd.isComponent("globalTrigger"):
-                cd.useRealComponent()
-            elif args.iniceTrig and cd.isComponent("iniceTrigger"):
-                cd.useRealComponent()
-            elif args.icetopTrig and cd.isComponent("icetopTrigger"):
-                cd.useRealComponent()
-            elif args.secBldrs and cd.isComponent("secondaryBuilders"):
-                cd.useRealComponent()
+        comp_data = ComponentData.create_all_data(args.num_hubs, def_dom_geom,
+                                                  args.fake_names)
+        for cdt in comp_data:
+            if args.evt_bldr and cdt.is_component("eventBuilder"):
+                cdt.use_real_component()
+            elif args.glbl_trig and cdt.is_component("globalTrigger"):
+                cdt.use_real_component()
+            elif args.inice_trig and cdt.is_component("iniceTrigger"):
+                cdt.use_real_component()
+            elif args.icetop_trig and cdt.is_component("icetopTrigger"):
+                cdt.use_real_component()
+            elif args.sec_bldrs and cdt.is_component("secondaryBuilders"):
+                cdt.use_real_component()
 
-    args.runCfgDir = os.path.abspath(args.runCfgDir)
-    if not os.path.exists(args.runCfgDir):
-        os.makedirs(args.runCfgDir)
-    trigSubdir = os.path.join(args.runCfgDir, "trigger")
-    if not os.path.exists(trigSubdir):
-        os.makedirs(trigSubdir)
+    run_cfg_dir = os.path.abspath(args.run_cfg_dir)
+    if not os.path.exists(run_cfg_dir):
+        os.makedirs(run_cfg_dir)
+    trig_subdir = os.path.join(run_cfg_dir, "trigger")
+    if not os.path.exists(trig_subdir):
+        os.makedirs(trig_subdir)
 
-    DAQFakeRun.makeMockClusterConfig(args.runCfgDir, comp_data, args.numHubs)
-    mockRunCfg, _ = DAQFakeRun.makeMockRunConfig(args.runCfgDir, comp_data,
-                                                 args.moniPeriod)
+    DAQFakeRun.make_mock_cluster_config(run_cfg_dir, comp_data, args.num_hubs)
 
-    if args.extraHubs <= 0:
-        extraData = None
+    mock_run_cfg, _ = DAQFakeRun.make_mock_run_config(run_cfg_dir,
+                                                      comp_data,
+                                                      args.moni_period)
+
+    if args.extra_hubs <= 0:
+        extra_data = None
     else:
-        extraData = ComponentData.create_hubs(args.extraHubs, args.numHubs + 1,
-                                              args.fakeNames, False)
+        extra_data = ComponentData.create_hubs(args.extra_hubs,
+                                               args.num_hubs + 1,
+                                               args.fake_names, False)
 
     # create components
     #
     try:
         comps = DAQFakeRun.create_comps(comp_data, def_dom_geom,
-                                        fork_clients=args.forkClients,
+                                        fork_clients=args.fork_clients,
                                         quiet=args.quiet)
     except socket.error, serr:
         if serr.errno != 111:
             raise
         raise SystemExit("Please start CnCServer before faking a run")
 
-    if extraData is not None:
-        extra = DAQFakeRun.create_comps(extraData, def_dom_geom,
-                                        fork_clients=args.forkClients,
-                                        quiet=args.quiet)
+    if extra_data is not None:
+        _ = DAQFakeRun.create_comps(extra_data, def_dom_geom,
+                                    fork_clients=args.fork_clients,
+                                    quiet=args.quiet)
 
     try:
         DAQConfigParser.getClusterConfiguration(None, useActiveConfig=True,
-                                                configDir=args.runCfgDir,
+                                                configDir=run_cfg_dir,
                                                 validate=False)
     except:
-        DAQFakeRun.hackActiveConfig("sim-localhost")
+        DAQFakeRun.hack_active_config("sim-localhost")
 
     # create run object and initial run number
     #
     runner = DAQFakeRun()
 
-    runner.runAll(comps, args.runNum, args.numRuns, args.duration,
-                  args.runCfgDir, mockRunCfg, verbose=args.verbose,
-                  test_subrun=args.testSubrun)
+    runner.run_all(comps, args.run_num, args.num_runs, args.duration,
+                   run_cfg_dir, mock_run_cfg, verbose=args.verbose,
+                   test_subrun=args.test_subrun)
+
+
+if __name__ == "__main__":
+    import argparse
+
+    main()
