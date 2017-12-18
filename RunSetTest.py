@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
+import numbers
 import unittest
 
+from DAQTime import PayloadTime
 from LiveImports import LIVE_IMPORT, Prio
 from RunOption import RunOption
 from RunSet import RunSet, RunSetException, listComponentRanges
@@ -324,6 +326,9 @@ class TestRunSet(unittest.TestCase):
                 if key in ec_dict:
                     if fld != "Time":
                         run_update[key] = ec_dict[key]
+                    elif isinstance(ec_dict[key], numbers.Number):
+                        dttm = PayloadTime.toDateTime(ec_dict[key])
+                        run_update[key] = str(dttm)
                     else:
                         run_update[key] = str(ec_dict[key])
         moni_client.add_moni("run_update", run_update)
