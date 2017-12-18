@@ -70,6 +70,9 @@ class MBeanClient(object):
         self.__loadLock = threading.Lock()
         self.__loadedInfo = False
 
+    def __str__(self):
+        return "MBeanClient(%s)" % (self.__compName, )
+
     def __loadBeanInfo(self):
         "Get the bean names and fields from the remote client"
 
