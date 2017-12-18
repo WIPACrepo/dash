@@ -7,7 +7,7 @@ import sys
 
 from CnCTask import CnCTask
 from CnCThread import CnCThread
-from DAQClient import BeanTimeoutException
+from DAQClient import BeanLoadException, BeanTimeoutException
 from LiveImports import Prio
 from RunOption import RunOption
 
@@ -114,23 +114,33 @@ class MBeanThread(MonitorThread):
                 attrs = self.__mbeanClient.getAttributes(b, flds)
                 self.__refused = 0
             except BeanTimeoutException:
-                self.__refused += 1
+                attrs = None
+                if not self.isClosed:
+                    self.__refused += 1
                 break
+            except BeanLoadException:
+                attrs = None
+                if not self.isClosed:
+                    self.__refused += 1
+                    self.error("Could not load monitoring data from %s:%s" %
+                               (self.__mbeanClient, b))
             except:
                 attrs = None
-                self.error("Ignoring %s:%s: %s" %
-                           (str(self.__mbeanClient), b, exc_string()))
+                if not self.isClosed:
+                    self.error("Ignoring %s:%s: %s" %
+                               (self.__mbeanClient, b, exc_string()))
 
-            if attrs is not None and not isinstance(attrs, dict):
-                self.error("%s getAttributes(%s, %s) returned %s, not dict"
-                           " (%s)" %
-                           (self.__mbeanClient.fullname, b, flds,
-                            type(attrs), attrs))
-                continue
+            if attrs is not None:
+                if not isinstance(attrs, dict):
+                    self.error("%s getAttributes(%s, %s) returned %s, not dict"
+                               " (%s)" %
+                               (self.__mbeanClient.fullname, b, flds,
+                                type(attrs), attrs))
+                    continue
 
-            # report monitoring data
-            if attrs and len(attrs) > 0 and not self.isClosed:
-                self.__reporter.send(datetime.datetime.now(), b, attrs)
+                # report monitoring data
+                if len(attrs) > 0 and not self.isClosed:
+                    self.__reporter.send(datetime.datetime.now(), b, attrs)
 
         return self.__refused
 
@@ -213,8 +223,7 @@ class MonitorToFile(object):
             if self.__fd is not None:
                 print >> self.__fd, "%s: %s:" % (beanName, now)
                 for key in attrs:
-                    print >> self.__fd, "\t%s: %s" % \
-                        (key, str(attrs[key]))
+                    print >> self.__fd, "\t%s: %s" % (key, attrs[key])
                 print >> self.__fd
                 self.__fd.flush()
 
