@@ -13,7 +13,7 @@ from cncrun import CnCRun
 from datetime import datetime
 from utils.Machineid import Machineid
 
-SVN_ID = "$Id: ExpControlSkel.py 16812 2017-11-07 20:49:13Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 16860 2017-12-18 23:01:16Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -154,28 +154,43 @@ def add_arguments(parser, config_as_arg=False):
                               " run permission"))
 
 
-# stolen from live/misc/util.py
-def getDurationFromString(s):
+# adapted from live/misc/util.py
+def getDurationFromString(durstr):
     """
-    Return duration in seconds based on string <s>
+    Return duration in seconds based on string <durstr>
+
+    >>> gdfs = getDurationFromString
+    >>> gdfs("1day")
+    86400
+    >>> gdfs("60mins")
+    3600
+    >>> gdfs("1day")
+    86400
+    >>> gdfs("5s")
+    5
+    >>> gdfs("13d")
+    1123200
+    >>> gdfs("123")
+    Traceback (most recent call last):
+    ValueError: String "123" is not a known duration format.  Try 30sec, 10min, 2days etc.
     """
-    m = re.search(r'^(\d+)$', s)
-    if m:
-        return int(m.group(1))
-    m = re.search(r'^(\d+)s(?:ec(?:s)?)?$', s)
-    if m:
-        return int(m.group(1))
-    m = re.search(r'^(\d+)m(?:in(?:s)?)?$', s)
-    if m:
-        return int(m.group(1)) * 60
-    m = re.search(r'^(\d+)h(?:r(?:s)?)?$', s)
-    if m:
-        return int(m.group(1)) * 3600
-    m = re.search(r'^(\d+)d(?:ay(?:s)?)?$', s)
-    if m:
-        return int(m.group(1)) * 86400
-    raise ValueError('String "%s" is not a known duration format.  Try'
-                     '30sec, 10min, 2days etc.' % s)
+    mtch = re.search(r"^(\d+)([smhd])(?:[eira][cny]?s?)?$", durstr)
+    if mtch is not None:
+        if mtch.group(2) == "s":
+            scale = 1
+        elif mtch.group(2) == "m":
+            scale = 60
+        elif mtch.group(2) == "h":
+            scale = 60 * 60
+        elif mtch.group(2) == "d":
+            scale = 60 * 60 * 24
+        else:
+            raise ValueError("Unknown duration suffix \"%s\" in \"%s\"" %
+                             (mtch.group(2), durstr))
+
+        return int(mtch.group(1)) * scale
+    raise ValueError("String \"%s\" is not a known duration format.  Try"
+                     " 30sec, 10min, 2days etc." % (durstr, ))
 
 
 def updateStatus(oldStatus, newStatus):
