@@ -13,7 +13,7 @@ from cncrun import CnCRun
 from datetime import datetime
 from utils.Machineid import Machineid
 
-SVN_ID = "$Id: ExpControlSkel.py 16860 2017-12-18 23:01:16Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 16862 2017-12-19 16:23:53Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -175,22 +175,23 @@ def getDurationFromString(durstr):
     ValueError: String "123" is not a known duration format.  Try 30sec, 10min, 2days etc.
     """
     mtch = re.search(r"^(\d+)([smhd])(?:[eira][cny]?s?)?$", durstr)
-    if mtch is not None:
-        if mtch.group(2) == "s":
-            scale = 1
-        elif mtch.group(2) == "m":
-            scale = 60
-        elif mtch.group(2) == "h":
-            scale = 60 * 60
-        elif mtch.group(2) == "d":
-            scale = 60 * 60 * 24
-        else:
-            raise ValueError("Unknown duration suffix \"%s\" in \"%s\"" %
-                             (mtch.group(2), durstr))
+    if mtch is None:
+        raise ValueError("String \"%s\" is not a known duration format.  Try"
+                         " 30sec, 10min, 2days etc." % (durstr, ))
 
-        return int(mtch.group(1)) * scale
-    raise ValueError("String \"%s\" is not a known duration format.  Try"
-                     " 30sec, 10min, 2days etc." % (durstr, ))
+    if mtch.group(2) == "s":
+        scale = 1
+    elif mtch.group(2) == "m":
+        scale = 60
+    elif mtch.group(2) == "h":
+        scale = 60 * 60
+    elif mtch.group(2) == "d":
+        scale = 60 * 60 * 24
+    else:
+        raise ValueError("Unknown duration suffix \"%s\" in \"%s\"" %
+                         (mtch.group(2), durstr))
+
+    return int(mtch.group(1)) * scale
 
 
 def updateStatus(oldStatus, newStatus):
