@@ -79,9 +79,13 @@ class MBeanClient(object):
         self.__loadedInfo = False
         try:
             self.__beanList = self.__client.mbean.listMBeans()
-        except (socket.error, xmlrpclib.Fault, xmlrpclib.ProtocolError):
-            raise BeanTimeoutException("Cannot get list of %s MBeans" %
-                                       self.__compName)
+        except socket.error, serr:
+            raise BeanTimeoutException("Cannot get list of %s MBeans"
+                                       " <socket error %s>" %
+                                       (self.__compName, serr))
+        except (xmlrpclib.Fault, xmlrpclib.ProtocolError), xerr:
+            raise BeanTimeoutException("Cannot get list of %s MBeans: %s" %
+                                       (self.__compName, xerr))
         except:
             raise BeanLoadException("Cannot get list of %s MBeans: %s " %
                                     (self.__compName, exc_string()))
@@ -143,10 +147,13 @@ class MBeanClient(object):
         "get the values for a list of MBean fields"
         try:
             attrs = self.__client.mbean.getAttributes(bean, fldList)
-        except (socket.error, xmlrpclib.Fault, xmlrpclib.ProtocolError):
+        except socket.error, serr:
             raise BeanTimeoutException("Cannot get %s mbean \"%s\" attributes"
-                                       " %s" % (self.__compName, bean,
-                                                fldList))
+                                       " <socket error %s>" %
+                                       (self.__compName, bean, serr))
+        except (xmlrpclib.Fault, xmlrpclib.ProtocolError), xerr:
+            raise BeanTimeoutException("Cannot get %s mbean \"%s\" attributes:"
+                                       " %s" % (self.__compName, bean, xerr))
         except:
             raise BeanLoadException("Cannot get %s mbean \"%s\" attributes"
                                     " %s: %s" %
