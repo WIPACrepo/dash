@@ -158,6 +158,7 @@ class LiveState(object):
     PARSE_NORMAL = 1
     PARSE_FLASH = 2
     PARSE_ALERTS = 3
+    PARSE_PAGES = 4
 
     def __init__(self,
                  liveCmd=os.path.join(os.environ["HOME"], "bin", "livecmd"),
@@ -241,6 +242,15 @@ class LiveState(object):
             self.__logger.error("Ongoing Alert: " + line.rstrip())
             return self.PARSE_ALERTS
 
+        if line.startswith("Ongoing Pages:"):
+            return self.PARSE_PAGES
+
+        if parseState == self.PARSE_PAGES:
+            if line.find(" PAGE FROM ") >= 0:
+                return self.PARSE_PAGES
+
+            parseState = self.PARSE_NORMAL
+
         if line.find(": ") > 0:
             (front, back) = line.split(": ", 1)
             front = front.strip()
@@ -287,7 +297,8 @@ class LiveState(object):
             elif front == "Target run stop time" or \
                  front == "Currently" or \
                  front == "Time since start" or \
-                 front == "Time until stop":
+                 front == "Time until stop" or \
+                 front == "Next run transition":
                 # ignore run time info
                 return self.PARSE_NORMAL
             elif front == "daqrelease":
