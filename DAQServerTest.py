@@ -278,7 +278,8 @@ class MockRunSet(RunSet):
             "tcalTime": 96,
         }
 
-    def report_good_time(self, run_data, name, daq_time):
+    @staticmethod
+    def report_good_time(run_data, name, daq_time):
         pass
 
 

@@ -194,6 +194,14 @@ class MostlyTaskManager(TaskManager):
         self.TIMERS[name].trigger()
 
 
+class FakeMoniClient(object):
+    def __init__(self):
+        pass
+
+    def sendMoni(self, name, data, prio=None, time=None):
+        pass
+
+
 class MostlyRunData(RunData):
     def __init__(self, runSet, runNumber, clusterConfig, runConfig,
                  runOptions, versionInfo, spadeDir, copyDir, logDir,
@@ -212,6 +220,9 @@ class MostlyRunData(RunData):
         self.__dashlog = MockCnCLogger("dash", appender=self.__appender,
                                        quiet=True, extraLoud=False)
         return self.__dashlog
+
+    def create_moni_client(self, port):
+        return FakeMoniClient()
 
     def create_task_manager(self, runset):
         self.__taskMgr = MostlyTaskManager(runset, self.__dashlog,
@@ -288,6 +299,7 @@ class MostlyRunSet(RunSet):
 
     def get_event_counts(self, comps=None, update_counts=None):
         numEvts = None
+        lastPayTime = None
         numMoni = None
         numSN = None
         numTCal = None
@@ -296,7 +308,7 @@ class MostlyRunSet(RunSet):
             if comp.name == "eventBuilder":
                 evtData = comp.mbean.get("backEnd", "EventData")
                 numEvts = evtData[0]
-                # last_pay_time = long(evtData[1])
+                lastPayTime = long(evtData[1])
             elif comp.name == "secondaryBuilders":
                 for stream in ("moni", "sn", "tcal"):
                     val = comp.mbean.get(stream + "Builder", "EventData")
@@ -312,6 +324,8 @@ class MostlyRunSet(RunSet):
 
         return {
             "physicsEvents": numEvts,
+            "wallTime": None,
+            "eventPayloadTicks": lastPayTime,
             "moniEvents": numMoni,
             "moniTime": moniTicks,
             "snEvents": numSN,
@@ -1375,10 +1389,6 @@ class IntegrationTest(unittest.TestCase):
             logServer.addExpectedText(msg)
 
         if dashLog:
-            if live is None:
-                msg = "Cannot import IceCube Live code, so per-string" + \
-                      " active DOM stats wil not be reported"
-                dashLog.addExpectedExact(msg)
             dashLog.addExpectedExact("Starting run %d..." % runNum)
 
         if logServer:

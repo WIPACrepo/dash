@@ -101,6 +101,9 @@ class MockMBeanClient(object):
 
         return valMap
 
+    def getBeanNames(self):
+        return []
+
     def reload(self):
         pass
 
@@ -144,6 +147,10 @@ class MockComponent(object):
 
     def createMBeanClient(self):
         return self.__mbean
+
+    @property
+    def filename(self):
+        return "/dev/null"
 
     @property
     def fullname(self):
@@ -261,6 +268,17 @@ class MostlyTaskManager(TaskManager):
         return self.TIMERS[name]
 
 
+class FakeMoniClient(object):
+    def __init__(self):
+        pass
+
+    def close(self):
+        pass
+
+    def sendMoni(self, name, data, prio=None, time=None):
+        pass
+
+
 class MostlyRunData(RunData):
     def __init__(self, runSet, runNumber, clusterConfig, runConfig,
                  runOptions, versionInfo, spadeDir, copyDir, logDir,
@@ -279,6 +297,9 @@ class MostlyRunData(RunData):
             raise Exception("dashLog has not been set")
 
         return self.__dashlog
+
+    def create_moni_client(self, port):
+        return FakeMoniClient()
 
     def create_task_manager(self, runset):
         self.__taskMgr = MostlyTaskManager(runset, self.__dashlog,
@@ -733,10 +754,6 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog.addExpectedExact("Run configuration: %s" % runConfig)
         dashLog.addExpectedExact("Cluster: %s" % cluCfg.description)
 
-        dashLog.addExpectedExact("Cannot import IceCube Live code, so" +
-                                 " per-string active DOM stats wil not" +
-                                 " be reported")
-
         dashLog.addExpectedExact("Starting run %d..." % runNum)
 
         logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
@@ -1060,10 +1077,6 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog.addExpectedRegexp(r"Version info: \S+ \S+ \S+ \S+")
         dashLog.addExpectedExact("Run configuration: %s" % runConfig)
         dashLog.addExpectedExact("Cluster: %s" % cluCfg.description)
-
-        dashLog.addExpectedExact("Cannot import IceCube Live code, so" +
-                                 " per-string active DOM stats wil not" +
-                                 " be reported")
 
         dashLog.addExpectedExact("Starting run %d..." % runNum)
 

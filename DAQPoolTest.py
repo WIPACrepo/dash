@@ -142,7 +142,8 @@ class MyRunSet(RunSet):
 
         return self.__logDict[name]
 
-    def report_good_time(self, run_data, name, daq_time):
+    @staticmethod
+    def report_good_time(run_data, name, daq_time):
         pass
 
 

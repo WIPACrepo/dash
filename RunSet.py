@@ -641,17 +641,7 @@ class RunData(object):
         return self.__cluster_config
 
     def connect_to_live(self):
-        if LIVE_IMPORT:
-            moni_client = self.create_moni_client(MoniPort)
-        else:
-            moni_client = None
-            if not self.LIVE_WARNING:
-                self.LIVE_WARNING = True
-                self.__dashlog.error("Cannot import IceCube Live code, so" +
-                                     " per-string active DOM stats wil not" +
-                                     " be reported")
-
-        self.__live_moni_client = moni_client
+        self.__live_moni_client = self.create_moni_client(MoniPort)
 
     @property
     def copy_directory(self):
@@ -675,7 +665,16 @@ class RunData(object):
         return log
 
     def create_moni_client(self, port):
-        return MoniClient("pdaq", "localhost", port)
+        if LIVE_IMPORT:
+            return MoniClient("pdaq", "localhost", port)
+
+        if not self.LIVE_WARNING:
+            self.LIVE_WARNING = True
+            self.__dashlog.error("Cannot import IceCube Live code, so" +
+                                 " per-string active DOM stats wil not" +
+                                 " be reported")
+
+        return None
 
     def destroy(self):
         saved_ex = None
@@ -725,7 +724,7 @@ class RunData(object):
 
     @property
     def isDestroyed(self):
-        return self.__dashlog is not None
+        return self.__dashlog is None
 
     @property
     def isErrorEnabled(self):
@@ -1350,7 +1349,8 @@ class RunSet(object):
                 replay_hubs.append(comp)
         return replay_hubs
 
-    def __get_run_counts(self, bldrs, run_data):
+    @staticmethod
+    def __get_run_counts(bldrs, run_data):
         """
         Get the counts and times for all output streams
         (physics, moni, sn, tcal)
@@ -1585,30 +1585,31 @@ class RunSet(object):
         moni_client.sendMoni("runstart", data, prio=Prio.SCP,
                              time=start_time)
 
-    def __report_run_stop(self, num_evts, first_pay_time, last_pay_time,
+    @staticmethod
+    def __report_run_stop(run_data, num_evts, first_pay_time, last_pay_time,
                           had_error):
-        if self.__run_data.has_moni_client:
-            first_dt = PayloadTime.toDateTime(first_pay_time,
-                                              high_precision=True)
-            last_dt = PayloadTime.toDateTime(last_pay_time,
-                                             high_precision=True)
+        if not run_data.has_moni_client:
+            run_data.error("Cannot report run stop, no moni client!")
+            return
 
-            if had_error is None:
-                status = "UNKNOWN"
-            elif had_error:
-                status = "FAIL"
-            else:
-                status = "SUCCESS"
+        first_dt = PayloadTime.toDateTime(first_pay_time, high_precision=True)
+        last_dt = PayloadTime.toDateTime(last_pay_time, high_precision=True)
 
-            data = {"runnum": self.__run_data.run_number,
-                    "runstart": str(first_dt),
-                    "runstop": str(last_dt),
-                    "events": num_evts,
-                    "status": status}
+        if had_error is None:
+            status = "UNKNOWN"
+        elif had_error:
+            status = "FAIL"
+        else:
+            status = "SUCCESS"
 
-            monitime = PayloadTime.toDateTime(last_pay_time)
-            self.__run_data.send_moni("runstop", data, prio=Prio.ITS,
-                                      time=monitime)
+        data = {"runnum": run_data.run_number,
+                "runstart": str(first_dt),
+                "runstop": str(last_dt),
+                "events": num_evts,
+                "status": status}
+
+        monitime = PayloadTime.toDateTime(last_pay_time)
+        run_data.send_moni("runstop", data, prio=Prio.ITS, time=monitime)
 
     def __sort_cmp(self, x, y):
         if y.order() is None:
@@ -1998,7 +1999,8 @@ class RunSet(object):
 
         return total_secs
 
-    def __write_run_xml(self, run_data, num_evts, num_moni, num_sn, num_tcal,
+    @staticmethod
+    def __write_run_xml(run_data, num_evts, num_moni, num_sn, num_tcal,
                         first_time, last_time, first_good, last_good,
                         had_error):
 
@@ -2027,8 +2029,8 @@ class RunSet(object):
         try:
             xml_log.writeLog()
         except DashXMLLogException:
-            self.__log_error("Could not write run xml log file \"%s\"" %
-                             (xml_log.getPath(), ))
+            run_data.error("Could not write run xml log file \"%s\"" %
+                           (xml_log.getPath(), ))
 
     def build_connection_map(self):
         "Validate and fill the map of connections for each component"
@@ -2180,12 +2182,16 @@ class RunSet(object):
         self.__state = RunSetState.DESTROYED
         self.__run_data = None
 
-    def final_report(self, comps, run_data, had_error=False, switching=False):
+    @classmethod
+    def final_report(cls, comps, run_data, had_error=False, switching=False):
         """
         Gather end-of-run statistics and send them to various places
         (Live, dash.log, run.xml)
         This is "public" so it can be overridden by unit tests
         """
+
+        if run_data is None or run_data.isDestroyed:
+            raise RunSetException("Run data is destroyed or not initialized")
 
         # build list of endpoints (eventBuilder and secondaryBuilders)
         bldrs = []
@@ -2195,7 +2201,7 @@ class RunSet(object):
 
         (physics_count, first_time, last_time, first_good, last_good,
          moni_count, moni_ticks, sn_count, sn_ticks, tcal_count, tcal_ticks) \
-         = self.__get_run_counts(bldrs, run_data)
+         = cls.__get_run_counts(bldrs, run_data)
 
         # set end-of-run statistics
         now = datetime.datetime.utcnow()
@@ -2209,10 +2215,10 @@ class RunSet(object):
 
         if physics_count is None or physics_count <= 0:
             if physics_count is None:
-                self.__log_error("Reset numEvts and duration for final report")
+                run_data.error("Reset numEvts and duration for final report")
                 physics_count = 0
             else:
-                self.__log_error("Reset duration for final report")
+                run_data.error("Reset duration for final report")
             duration = 0
         else:
             if first_time is None:
@@ -2227,30 +2233,30 @@ class RunSet(object):
                 duration = (last_time - first_time) / 10000000000
 
             if err_msg is not None:
-                self.__log_error(err_msg)
+                run_data.error(err_msg)
                 had_error = True
                 duration = 0
 
-        self.__write_run_xml(run_data, physics_count, moni_count, sn_count,
-                             tcal_count, first_time, last_time, first_good,
-                             last_good, had_error)
+        cls.__write_run_xml(run_data, physics_count, moni_count, sn_count,
+                            tcal_count, first_time, last_time, first_good,
+                            last_good, had_error)
 
-        self.__report_run_stop(physics_count, first_good, last_good, had_error)
+        cls.__report_run_stop(run_data, physics_count, first_good, last_good,
+                              had_error)
 
         if switching:
-            self.report_good_time(run_data, "lastGoodTime", last_time)
+            cls.report_good_time(run_data, "lastGoodTime", last_time)
 
         # report rates
         if duration == 0:
             rate_str = ""
         else:
             rate_str = " (%2.2f Hz)" % (float(physics_count) / float(duration))
-        self.__run_data.error("%d physics events collected in %d seconds%s" %
-                              (physics_count, duration, rate_str))
+        run_data.error("%d physics events collected in %d seconds%s" %
+                       (physics_count, duration, rate_str))
 
         if moni_count is None and sn_count is None and tcal_count is None:
-            self.__run_data.error("!! secondary stream data is not"
-                                  " available !!")
+            run_data.error("!! secondary stream data is not available !!")
         else:
             if moni_count is None:
                 moni_count = 0
@@ -2258,8 +2264,8 @@ class RunSet(object):
                 sn_count = 0
             if tcal_count is None:
                 tcal_count = 0
-            self.__run_data.error("%d moni events, %d SN events, %d tcals" %
-                                  (moni_count, sn_count, tcal_count))
+            run_data.error("%d moni events, %d SN events, %d tcals" %
+                           (moni_count, sn_count, tcal_count))
 
         # report run status
         if not switching:
@@ -2270,7 +2276,7 @@ class RunSet(object):
             err_type = "WITH ERROR"
         else:
             err_type = "SUCCESSFULLY"
-        self.__run_data.error("Run %s %s." % (end_type, err_type))
+        run_data.error("Run %s %s." % (end_type, err_type))
 
         return duration
 
@@ -2411,7 +2417,8 @@ class RunSet(object):
         "Used when the runset needs to add a log message to dash.log"
         self.__log_error(msg)
 
-    def report_good_time(self, run_data, name, pay_time):
+    @staticmethod
+    def report_good_time(run_data, name, pay_time):
         if not run_data.has_moni_client:
             return
 
