@@ -159,9 +159,14 @@ class MonitorTaskTest(unittest.TestCase):
                              str(files))
             return
 
-        self.assertTrue(len(files) == len(compList) + 1,
+        expFiles = len(compList)
+        if MonitorTask.MONITOR_CNCSERVER:
+            # if monitoring CnCServer, there should be a cncServer.moni file
+            expFiles += 1
+
+        self.assertTrue(len(files) == expFiles,
                         "Expected %d files, not %d: %s" %
-                        (len(compList) + 1, len(files), files))
+                        (expFiles, len(files), files))
 
     def setUp(self):
         self.__temp_dir = tempfile.mkdtemp()

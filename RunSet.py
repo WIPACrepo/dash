@@ -10,7 +10,7 @@ import sys
 import SpadeQueue
 
 from CnCThread import CnCThread
-from CompOp import ComponentOperation, ComponentOperationGroup, Result
+from CompOp import * # we need most of the Op* classes
 from ComponentManager import ComponentManager, listComponentRanges
 from DAQClient import DAQClientState
 from DAQConfig import DOMNotInConfigException
@@ -229,17 +229,17 @@ class GoodTimeThread(CnCThread):
         """
         Query all hubs which haven't yet reported a time
         """
-        tgroup = ComponentOperationGroup(ComponentOperation.GET_GOOD_TIME)
+        tgroup = ComponentGroup(OpGetGoodTime)
         for comp in self.__src_set:
             if comp not in self.__time_dict:
-                tgroup.start(comp, self.__log,
-                             (self.NONZOMBIE_FIELD, self.beanfield()))
+                args = (self.NONZOMBIE_FIELD, self.beanfield())
+                tgroup.run_thread(comp, args, logger=self.__log)
 
         if self.wait_for_all():
             # if we don't need results as soon as possible,
             # wait for all threads to finish
             tgroup.wait()
-            tgroup.reportErrors(self.__log, "getGoodTimes")
+            tgroup.report_errors(self.__log, "getGoodTimes")
 
         complete = True
         updated = False
@@ -264,13 +264,13 @@ class GoodTimeThread(CnCThread):
 
                 result = rlist[comp]
                 if result is None or \
-                   result == ComponentOperation.RESULT_HANGING:
+                   result == ComponentGroup.RESULT_HANGING:
                     # still waiting for results
                     complete = False
                     hanging = True
                     continue
 
-                if result == ComponentOperation.RESULT_ERROR:
+                if not ComponentGroup.has_value(result):
                     # component operation failed
                     self.__bad_comps[comp] = 1
                     continue
@@ -767,7 +767,10 @@ class RunData(object):
 
         if first is None or latest is None:
             return 0.0
-        return first.diff_count(latest) / (first.diff_ticks(latest) / 1E10)
+        ticks = first.diff_ticks(latest)
+        if ticks == 0:
+            return 0.0
+        return first.diff_count(latest) / (ticks / 1E10)
 
     @property
     def release(self):
@@ -867,11 +870,9 @@ class RunData(object):
         self.__finished = True
 
     def set_first_physics_time(self, paytime):
-        if len(self.__physics_entries) > 0:
-            self.__dashlog.error("Failed to set first payload time since"
-                                 " there are existing rate entries")
-        else:
+        if self.__first_pay_time is None:
             self.__first_pay_time = paytime
+        if len(self.__physics_entries) == 0:
             self.__add_rate(self.__first_pay_time, 1)
 
     def set_subrun_number(self, num):
@@ -949,6 +950,7 @@ class RunSet(object):
     TIMEOUT_SECS = RPCClient.TIMEOUT_SECS - 5
 
     STATE_DEAD = DAQClientState.DEAD
+    STATE_ERROR = DAQClientState.ERROR
     STATE_HANGING = DAQClientState.HANGING
 
     # token passed to stop_run() to indicate a "normal" stop
@@ -1016,8 +1018,7 @@ class RunSet(object):
         self.__state = new_state
 
         # self.__run_data is guaranteed to be set here
-        if self.__run_data.isErrorEnabled and \
-           src_op == ComponentOperation.FORCED_STOP:
+        if self.__run_data.isErrorEnabled and src_op == OpForcedStop:
             full_set = src_set + other_set
             plural = len(full_set) == 1 and "s" or ""
             if len(full_set) == 1:
@@ -1030,15 +1031,14 @@ class RunSet(object):
 
         # stop sources in parallel
         #
-        ComponentOperationGroup.runSimple(src_op, src_set, (),
-                                          self.__run_data, errorName=src_op)
+        ComponentGroup.run_simple(src_op, src_set, (), self.__run_data,
+                                  report_errors=True)
 
         # stop non-sources in order
         #
         for comp in other_set:
-            ComponentOperationGroup.runSimple(src_op, (comp, ), (),
-                                              self.__run_data,
-                                              errorName=src_op)
+            ComponentGroup.run_simple(src_op, (comp, ), (), self.__run_data,
+                                      report_errors=True)
 
         # make sure we run at least once
         if timeout_secs == 0:
@@ -1185,13 +1185,12 @@ class RunSet(object):
         if components is None:
             components = self.__set
 
-        comp_op = ComponentOperation.GET_STATE
-        states = ComponentOperationGroup.runSimple(comp_op, components, (),
-                                                   self.__logger)
+        states = ComponentGroup.run_simple(OpGetState, components, (),
+                                           self.__logger)
 
         state_dict = {}
         for comp in components:
-            if comp in states:
+            if comp in states and states[comp] is not None:
                 state_str = str(states[comp])
             else:
                 state_str = self.STATE_DEAD
@@ -1255,7 +1254,7 @@ class RunSet(object):
             if conn_dict is None or comp not in conn_dict:
                 comp_str += comp.fullname
             else:
-                comp_str += comp.fullname + conn_dict[comp]
+                comp_str += "%s(%s)" % (comp.fullname, conn_dict[comp])
         return comp_str
 
     @staticmethod
@@ -1367,23 +1366,24 @@ class RunSet(object):
         tcal_count = 0
         tcal_ticks = None
 
-        comp_op = ComponentOperation.GET_RUN_DATA
-        rslt = ComponentOperationGroup.runSimple(comp_op, bldrs,
-                                                 (run_data.run_number, ),
-                                                 run_data)
+        args = (run_data.run_number, )
+        logger = run_data
+        rslt = ComponentGroup.run_simple(OpGetRunData, bldrs, args, logger)
 
         for comp in bldrs:
             result = rslt[comp]
-            if result == ComponentOperation.RESULT_HANGING or \
-                result == ComponentOperation.RESULT_ERROR or \
-                result is None:
+            if not ComponentGroup.has_value(result):
                 run_data.error("Cannot get run data for %s: %s" %
                                (comp.fullname, result))
-            elif not isinstance(result, list) and \
+                continue
+
+            if not isinstance(result, list) and \
                  not isinstance(result, tuple):
                 run_data.error("Bogus run data for %s: %s" %
                                (comp.fullname, result))
-            elif comp.isComponent("eventBuilder"):
+                continue
+
+            if comp.isComponent("eventBuilder"):
                 exp_num = 5
                 if len(result) == exp_num:
                     (physics_count, first_time, last_time, first_good,
@@ -1392,7 +1392,7 @@ class RunSet(object):
                     run_data.error(("Expected %d run data values from" +
                                     " %s, got %d (%s)") %
                                    (exp_num, comp.fullname, len(result),
-                                    str(result)))
+                                    result))
             elif comp.isComponent("secondaryBuilders"):
                 if len(result) == 6:
                     (tcal_count, tcal_ticks, sn_count, sn_ticks, moni_count,
@@ -1412,38 +1412,39 @@ class RunSet(object):
     def __get_run_directory_path(cls, log_dir, run_num):
         return os.path.join(log_dir, "daqrun%05d" % run_num)
 
-    def __get_single_bean_field(self, comp, bean, fld_name):
-        tgroup = ComponentOperationGroup(ComponentOperation.GET_SINGLE_BEAN)
-        tgroup.start(comp, self.__run_data, (bean, fld_name))
-        tgroup.wait(waitSecs=3, reps=10)
+    def __get_single_bean_field(self, comp, bean, fld_name,
+                                full_result=False):
+        tgroup = ComponentGroup(OpGetSingleBeanField)
+        tgroup.run_thread(comp, (bean, fld_name), logger=self.__run_data)
+        tgroup.wait(wait_secs=3, reps=10)
 
-        rslt = tgroup.results()
+        rslt = tgroup.results(full_result=full_result)
         if comp not in rslt:
-            result = ComponentOperation.RESULT_ERROR
+            result = ComponentGroup.RESULT_ERROR
         else:
             result = rslt[comp]
 
         return result
 
     def __internal_init_replay(self, replay_hubs):
-        comp_op = ComponentOperation.GET_REPLAY_TIME
-        rslt = ComponentOperationGroup.runSimple(comp_op, replay_hubs, (),
-                                                 self.__logger)
+        rslt = ComponentGroup.run_simple(OpGetReplayTime, replay_hubs, (),
+                                         self.__logger)
 
         # find earliest first hit
         firsttime = None
         for comp in replay_hubs:
             result = rslt[comp]
-            if result == ComponentOperation.RESULT_HANGING or \
-               result == ComponentOperation.RESULT_ERROR:
+            if not ComponentGroup.has_value(result):
                 self.__logger.error("Cannot get first replay time for %s: %s" %
                                     (comp.fullname, result))
                 continue
-            elif result < 0:
+
+            if result < 0:
                 self.__logger.error("Got bad replay time for %s: %s" %
                                     (comp.fullname, result))
                 continue
-            elif firsttime is None or result < firsttime:
+
+            if firsttime is None or result < firsttime:
                 firsttime = result
 
         if firsttime is None:
@@ -1456,10 +1457,8 @@ class RunSet(object):
         offset = long(walltime - firsttime)
 
         # set offset on all replay hubs
-        ComponentOperationGroup.runSimple(ComponentOperation.SET_REPLAY_OFFSET,
-                                          replay_hubs, (offset, ),
-                                          self.__logger,
-                                          errorName="setReplayOffset")
+        ComponentGroup.run_simple(OpSetReplayOffset, replay_hubs, (offset, ),
+                                  self.__logger, report_errors=True)
 
     def __log_error(self, msg):
         if self.__run_data is not None and not self.__run_data.isDestroyed:
@@ -1475,15 +1474,20 @@ class RunSet(object):
         in the runset
         """
         self.__logger.error("================= " + text + " =================")
-        comp_op = ComponentOperation.GET_CONN_INFO
-        conn_info = ComponentOperationGroup.runSimple(comp_op, comps, (),
-                                                      self.__logger)
+        conn_info = ComponentGroup.run_simple(OpGetConnectionInfo, comps, (),
+                                              self.__logger)
         for comp in comps:
             if comp not in conn_info:
                 connstr = "???"
             else:
+                result = conn_info[comp]
+                if not ComponentGroup.has_value(result):
+                    self.__logger.error("Bad connection info for %s: %s" %
+                                        (comp.fullname, result))
+                    continue
+
                 connstr = None
-                for info in conn_info[comp]:
+                for info in result:
                     if info["state"].find("idle") == 0:
                         continue
 
@@ -1558,10 +1562,10 @@ class RunSet(object):
 
         first_time = None
         for _ in xrange(5):
-            val = self.__get_single_bean_field(eb_comp, "backEnd",
-                                               "FirstEventTime")
-            if val is not None and not isinstance(val, Result):
-                first_time = val
+            result = self.__get_single_bean_field(eb_comp, "backEnd",
+                                                  "FirstEventTime")
+            if ComponentGroup.has_value(result):
+                first_time = result
                 break
             time.sleep(0.1)
         if first_time is None:
@@ -1630,19 +1634,19 @@ class RunSet(object):
         log_host = ip.getLocalIpAddr()
         log_port = DAQPort.RUNCOMP_BASE
 
-        tgroup = ComponentOperationGroup(ComponentOperation.CONFIG_LOGGING)
+        tgroup = ComponentGroup(OpConfigureLogging)
         for comp in self.__set:
             self.__comp_log[comp] \
                 = self.create_component_log(self.__run_data.run_directory,
                                             comp, log_host, log_port,
                                             live_host, live_port, quiet=quiet)
-            tgroup.start(comp, self.__run_data, (log_host, log_port, live_host,
-                                                 live_port))
+            args = (log_host, log_port, live_host, live_port)
+            tgroup.run_thread(comp, args, logger=self.__run_data)
 
             log_port += 1
 
         tgroup.wait()
-        tgroup.reportErrors(self.__run_data, "startLogging")
+        tgroup.report_errors(self.__run_data, "startLogging")
 
         self.__run_data.error("Starting run %d..." %
                               (self.__run_data.run_number, ))
@@ -1682,9 +1686,8 @@ class RunSet(object):
         rstart = datetime.datetime.now()
 
         op_data = (self.__run_data.run_number, )
-        ComponentOperationGroup.runSimple(ComponentOperation.START_RUN,
-                                          components, op_data, self.__run_data,
-                                          errorName="start" + set_name)
+        ComponentGroup.run_simple(OpStartRun, components, op_data,
+                                  self.__run_data, report_errors=True)
 
         self.__wait_for_state_change(self.__run_data, (RunSetState.RUNNING, ),
                                      timeout_secs=30, components=components)
@@ -1701,10 +1704,8 @@ class RunSet(object):
         self.__logger.error("Waited %.3f seconds for %s" % (rsecs, set_name))
 
     def __stop_components(self, src_set, other_set, conn_dict):
-        op_name = ComponentOperation.GET_STATE
-        states = ComponentOperationGroup.runSimple(op_name,
-                                                   src_set + other_set, (),
-                                                   self.__logger)
+        states = ComponentGroup.run_simple(OpGetState, src_set + other_set, (),
+                                           self.__logger)
 
         changed = False
 
@@ -1714,12 +1715,19 @@ class RunSet(object):
         for oneset in (src_set, other_set):
             copy = oneset[:]
             for comp in copy:
-                if comp in states:
-                    state_str = str(states[comp])
-                else:
+                is_valid = False
+                if comp not in states:
                     state_str = self.STATE_DEAD
-                if state_str != self.__state and \
-                   state_str != self.STATE_HANGING:
+                else:
+                    result = states[comp]
+                    if result == ComponentGroup.RESULT_HANGING:
+                        state_str = self.STATE_HANGING
+                    elif not ComponentGroup.has_value(result):
+                        state_str = self.STATE_ERROR
+                    else:
+                        state_str = str(result)
+                        is_valid = True
+                if is_valid and state_str != self.__state:
                     oneset.remove(comp)
                     if comp in conn_dict:
                         del conn_dict[comp]
@@ -1728,18 +1736,22 @@ class RunSet(object):
                     badlist.append(comp)
 
         if len(badlist) > 0:
-            comp_op = ComponentOperation.GET_CONN_INFO
-            allconn = ComponentOperationGroup.runSimple(comp_op, badlist, (),
-                                                        self.__logger)
+            allconn = ComponentGroup.run_simple(OpGetConnectionInfo, badlist,
+                                                (), self.__logger)
             for comp in badlist:
                 if comp not in allconn:
                     cs_str = self.STATE_DEAD
                 else:
-                    cs_dict = allconn[comp]
-                    if isinstance(cs_dict, dict):
-                        cs_str = self.__connector_string(cs_dict)
+                    result = allconn[comp]
+                    if result == ComponentGroup.RESULT_HANGING:
+                        cs_str = self.STATE_HANGING
+                    elif not ComponentGroup.has_value(result):
+                        cs_str = self.STATE_ERROR
                     else:
-                        cs_str = str(cs_dict)
+                        if not isinstance(result, dict):
+                            cs_str = str(result)
+                        else:
+                            cs_str = self.__connector_string(result)
                 if comp not in conn_dict:
                     conn_dict[comp] = cs_str
                 elif conn_dict[comp] != cs_str:
@@ -1759,10 +1771,8 @@ class RunSet(object):
                 loglist.append(comp)
 
         # stop listed log servers
-        ComponentOperationGroup.runSimple(ComponentOperation.STOP_LOGGING,
-                                          loglist, self.__comp_log,
-                                          self.__logger,
-                                          errorName="stopLogging")
+        ComponentGroup.run_simple(OpStopLogging, loglist, self.__comp_log,
+                                  self.__logger, report_errors=True)
 
     def __stop_run_internal(self, timeout=20):
         """
@@ -1797,11 +1807,11 @@ class RunSet(object):
 
                 if i == 0:
                     rs_state = RunSetState.STOPPING
-                    comp_op = ComponentOperation.STOP_RUN
+                    comp_op = OpStopRun
                     op_timeout = int(timeout * .75)
                 else:
                     rs_state = RunSetState.FORCING_STOP
-                    comp_op = ComponentOperation.FORCED_STOP
+                    comp_op = OpForcedStop
                     op_timeout = int(timeout * .25)
 
                 self.__attempt_to_stop(src_set, other_set, rs_state, comp_op,
@@ -1820,7 +1830,8 @@ class RunSet(object):
         final_set = src_set + other_set
         if len(final_set) > 0 and self.__run_data is not None:
             self.__run_data.error("%s failed for %s" %
-                                  (comp_op, listComponentRanges(final_set)))
+                                  (comp_op.name,
+                                   listComponentRanges(final_set)))
 
         if self.__run_data is not None:
             self.__run_data.reset()
@@ -1842,58 +1853,78 @@ class RunSet(object):
         tcal_count = 0
         tcal_time = -1
 
+        # cache for eventBuilder object
+        evtBldr = None
+
+        # start threads to query components
+        tgroup = ComponentGroup(OpGetSingleBeanField)
         for comp in self.__set:
+            if not comp.isBuilder:
+                continue
+
             if comp.isComponent("eventBuilder"):
-                evt_data = self.__get_single_bean_field(comp, "backEnd",
-                                                        "EventData")
-                if evt_data is None or isinstance(evt_data, Result):
-                    self.__run_data.error("Cannot get event data (%s)" %
-                                          (evt_data, ))
-                elif not isinstance(evt_data, list) and \
-                     not isinstance(evt_data, tuple):
-                    self.__run_data.error("Got bad event data (%s) <%s>" %
-                                          (evt_data, type(evt_data).__name__))
-                elif len(evt_data) != 2:
+                # save eventBuilder in case we need to get the first event time
+                evtBldr = comp
+
+                tgroup.run_thread(comp, ("backEnd", "EventData"),
+                                  logger=self.__run_data)
+            elif comp.isComponent("secondaryBuilders"):
+                for bldr in ("moni", "sn", "tcal"):
+                    tgroup.run_thread(comp, (bldr + "Builder", "EventData"),
+                                      logger=self.__run_data)
+        tgroup.wait(wait_secs=8, reps=10)
+
+        # process results
+        for comp, result in tgroup.results(full_result=True).iteritems():
+            if not ComponentGroup.has_value(result, full_result=True):
+                self.__run_data.error("Cannot get event data for %s: %s" %
+                                      (comp.fullname, result))
+                continue
+
+            evt_data = result.value
+            if not isinstance(evt_data, list) and \
+               not isinstance(evt_data, tuple):
+                self.__run_data.error("Got bad event data (%s) <%s>" %
+                                      (evt_data, type(evt_data).__name__))
+                continue
+
+            if comp.isComponent("eventBuilder"):
+                if len(evt_data) != 2:
                     self.__dashlog.error("Got bad event data %s (expected"
                                          " 2 entries)" % (evt_data, ))
-                else:
-                    physics_count = int(evt_data[0])
-                    wall_time = datetime.datetime.utcnow()
-                    last_pay_time = long(evt_data[1])
+                    continue
 
-                if physics_count > 0 and \
-                   self.__run_data.first_physics_time <= 0:
-                    val = self.__get_single_bean_field(comp, "backEnd",
-                                                       "FirstEventTime")
-                    if val is None or isinstance(val, Result):
-                        msg = "Cannot get first event time (%s)" % (val, )
-                        self.__run_data.error(msg)
-                    else:
-                        self.__run_data.set_first_physics_time(val)
+                physics_count = int(evt_data[0])
+                wall_time = datetime.datetime.utcnow()
+                last_pay_time = long(evt_data[1])
 
-            if comp.isComponent("secondaryBuilders"):
-                for bldr in ("moni", "sn", "tcal"):
-                    val = self.__get_single_bean_field\
-                          (comp, bldr + "Builder", "EventData")
-                    if val is None or isinstance(val, Result):
-                        msg = "Cannot get %sBuilder dispatched data (%s)" % \
-                            (bldr, val)
-                        self.__run_data.error(msg)
-                        num = 0
-                        now = None
-                    else:
-                        num = val[0]
-                        now = val[1]
+            elif comp.isComponent("secondaryBuilders"):
+                bldr_name = result.arguments[0]
+                num = evt_data[0]
+                now = evt_data[1]
 
-                    if bldr == "moni":
-                        moni_count = num
-                        moni_time = now
-                    elif bldr == "sn":
-                        sn_count = num
-                        sn_time = now
-                    else:  # bldr == "tcal"
-                        tcal_count = num
-                        tcal_time = now
+                if bldr_name.startswith("moni"):
+                    moni_count = num
+                    moni_time = now
+                elif bldr_name.startswith("sn"):
+                    sn_count = num
+                    sn_time = now
+                elif bldr_name.startswith("tcal"):
+                    tcal_count = num
+                    tcal_time = now
+
+        # if there are physics event but we don't know the time of
+        #  the first event, fetch it now
+        if physics_count > 0 and \
+           self.__run_data.first_physics_time <= 0 and \
+           evtBldr is not None:
+            result = self.__get_single_bean_field(evtBldr, "backEnd",
+                                                  "FirstEventTime")
+            if not ComponentGroup.has_value(result):
+                msg = "Cannot get first event time (%s)" % (result, )
+                self.__run_data.error(msg)
+            else:
+                self.__run_data.set_first_physics_time(result)
 
         return self.__run_data.update_event_counts\
             (physics_count, wall_time, self.__run_data.first_physics_time,
@@ -1954,15 +1985,21 @@ class RunSet(object):
         end_secs = start_secs + timeout_secs
         while len(waitlist) > 0 and time.time() < end_secs:
             new_list = waitlist[:]
-            comp_op = ComponentOperation.GET_STATE
-            states = ComponentOperationGroup.runSimple(comp_op, waitlist, (),
-                                                       self.__logger)
+            states = ComponentGroup.run_simple(OpGetState, waitlist, (),
+                                               self.__logger)
             found_error = False
             for comp in waitlist:
-                if comp in states:
-                    state_str = str(states[comp])
-                else:
+                if comp not in states:
                     state_str = self.STATE_DEAD
+                else:
+                    result = states[comp]
+                    if result == ComponentGroup.RESULT_HANGING:
+                        state_str = self.STATE_HANGING
+                    elif not ComponentGroup.has_value(result):
+                        state_str = self.STATE_ERROR
+                    else:
+                        state_str = str(result)
+                        is_valid = True
                 if state_str in valid_states and \
                    state_str != self.STATE_HANGING:
                     new_list.remove(comp)
@@ -2062,9 +2099,8 @@ class RunSet(object):
         self.__state = RunSetState.CONFIGURING
 
         data = (self.configName, )
-        ComponentOperationGroup.runSimple(ComponentOperation.CONFIG_COMP,
-                                          self.__set, data, self.__logger,
-                                          errorName="configure")
+        ComponentGroup.run_simple(OpConfigureComponent, self.__set, data,
+                                  self.__logger, report_errors=True)
 
         cfg_states = (RunSetState.CONFIGURING, RunSetState.READY, )
         self.__wait_for_state_change(self.__logger, cfg_states,
@@ -2090,9 +2126,8 @@ class RunSet(object):
 
         # connect all components
         #
-        ComponentOperationGroup.runSimple(ComponentOperation.CONNECT,
-                                          self.__set, conn_map, self.__logger,
-                                          errorName="logger")
+        ComponentGroup.run_simple(OpConnect, self.__set, conn_map,
+                                  self.__logger, report_errors=True)
 
         try:
             self.__wait_for_state_change(self.__logger,
@@ -2460,9 +2495,8 @@ class RunSet(object):
         "Reset all components in the runset back to the idle state"
         self.__state = RunSetState.RESETTING
 
-        ComponentOperationGroup.runSimple(ComponentOperation.RESET_COMP,
-                                          self.__set, (), self.__logger,
-                                          errorName="reset")
+        ComponentGroup.run_simple(OpResetComponent, self.__set, (),
+                                  self.__logger, report_errors=True)
 
         try:
             self.__wait_for_state_change(self.__logger, (RunSetState.IDLE, ),
@@ -2487,9 +2521,8 @@ class RunSet(object):
 
     def reset_logging(self):
         "Reset logging for all components in the runset"
-        ComponentOperationGroup.runSimple(ComponentOperation.RESET_LOGGING,
-                                          self.__set, (), self.__logger,
-                                          errorName="reset_logging")
+        ComponentGroup.run_simple(OpResetLogging, self.__set, (), self.__logger,
+                                  report_errors=False)
 
     def restart_all_components(self, cluster_config, config_dir, daq_data_dir,
                                log_port, live_port, verbose, killWith9,
@@ -2617,6 +2650,10 @@ class RunSet(object):
 
         run_data.send_count_updates(moni_data, prio)
 
+    def server_statistics(self):
+        "Return RPC statistics for client->server calls"
+        return self.__parent.server_statistics()
+
     def set_order(self, conn_map, logger):
         "set the order in which components are started/stopped"
 
@@ -2739,16 +2776,16 @@ class RunSet(object):
         Return a dictionary of components in the runset
         and their current state
         """
-        comp_op = ComponentOperation.GET_STATE
-        states = ComponentOperationGroup.runSimple(comp_op, self.__set, (),
-                                                   self.__logger)
+        states = ComponentGroup.run_simple(OpGetState, self.__set, (),
+                                           self.__logger)
 
         set_stats = {}
         for comp in self.__set:
-            if comp in states:
-                set_stats[comp] = str(states[comp])
-            else:
+            if comp not in states or \
+               not ComponentGroup.has_value(states[comp]):
                 set_stats[comp] = self.STATE_DEAD
+            else:
+                set_stats[comp] = str(states[comp])
 
         return set_stats
 
@@ -2844,20 +2881,20 @@ class RunSet(object):
             if comp.isSource:
                 hubs.append(comp)
 
-        r = ComponentOperationGroup.runSimple(ComponentOperation.START_SUBRUN,
-                                              hubs, (data, ), self.__run_data,
-                                              waitSecs=6)
+        times = ComponentGroup.run_simple(OpStartSubrun, hubs, (data, ),
+                                      self.__run_data, wait_secs=6,
+                                      report_errors=True)
 
         bad_comps = []
 
         latest_time = None
         for comp in hubs:
-            result = r[comp]
-            if result is None or \
-                result == ComponentOperation.RESULT_HANGING or \
-                result == ComponentOperation.RESULT_ERROR:
+            result = times[comp]
+            if not ComponentGroup.has_value(result):
                 bad_comps.append(comp)
-            elif latest_time is None or result > latest_time:
+                continue
+
+            if latest_time is None or result > latest_time:
                 latest_time = result
 
         if latest_time is None:
@@ -2936,9 +2973,8 @@ class RunSet(object):
 
         # switch sources in parallel
         #
-        ComponentOperationGroup.runSimple(ComponentOperation.SWITCH_RUN,
-                                          src_set, (new_num, ),
-                                          self.__run_data, errorName="switch")
+        ComponentGroup.run_simple(OpSwitchRun, src_set, (new_num, ),
+                                  self.__run_data, report_errors=True)
 
         # wait for builders to finish switching
         #

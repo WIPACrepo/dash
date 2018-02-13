@@ -736,8 +736,11 @@ class WatchdogTask(CnCTask):
 
         if healthy:
             if self.__healthMeter < self.HEALTH_METER_FULL:
+                if self.__healthMeter + self.NUM_HEALTH_MSGS < \
+                   self.HEALTH_METER_FULL:
+                    # only log this if we've logged the "unhealthy" message
+                    self.logError("Run is healthy again")
                 self.__healthMeter = self.HEALTH_METER_FULL
-                self.logError("Run is healthy again")
         else:
             self.__healthMeter -= 1
             if self.__healthMeter > 0:

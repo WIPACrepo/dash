@@ -27,7 +27,8 @@ class RPCClient(xmlrpclib.ServerProxy):
     # number of seconds before RPC call is aborted
     TIMEOUT_SECS = 120
 
-    def __init__(self, servername, portnum, verbose=0, timeout=TIMEOUT_SECS):
+    def __init__(self, servername, portnum, verbose=False,
+                 timeout=TIMEOUT_SECS):
 
         self.servername = servername
         self.portnum = portnum
@@ -86,7 +87,7 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         finally:
             with self.__stats_lock:
                 if method not in self.__times:
-                    self.__times[method] = ServerStats(method)
+                    self.__times[method] = RPCStats(method)
                 self.__times[method].add(time.time() - start, success)
 
     def get_request(self):
@@ -114,7 +115,6 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         # get statistics for server calls
         count = 0
         rpc_stats = {}
-        cc_copy = rpc_stats
 
         # gather server statistics
         with self.__stats_lock:
@@ -126,6 +126,7 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
 
         return {
             "socket_count": count,
+            "thread_count": threading.active_count(),
             "rpc": rpc_stats,
         }
 
@@ -149,7 +150,7 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         self.__is_shut_down.set()
 
 
-class ServerStats(object):
+class RPCStats(object):
     def __init__(self, method):
         self.__method = method
         self.__num = 0
@@ -183,7 +184,8 @@ class ServerStats(object):
         except:
             rms = 0
 
-        return (self.__num, self.__min, self.__max, avg, rms)
+        return (self.__num, self.__succeed, self.__failed, self.__min,
+                self.__max, avg, rms)
 
 
 if __name__ == "__main__":

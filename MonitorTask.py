@@ -193,6 +193,10 @@ class CnCMoniThread(MonitorThread):
             if self.__reporter is None:
                 return
 
+        sstats = self.__runset.server_statistics()
+        if sstats is not None and len(sstats) > 0:
+            self.__reporter.send(datetime.datetime.now(), "server", sstats)
+
     def get_new_thread(self):
         thrd = CnCMoniThread(self.__runset, self.__rundir,
                              self.__write_to_file, self.dashlog,
@@ -264,6 +268,8 @@ class MonitorTask(CnCTask):
 
     MAX_REFUSED = 3
 
+    MONITOR_CNCSERVER = False
+
     def __init__(self, taskMgr, runset, dashlog, liveMoni, runDir, runOptions,
                  period=None):
         if period is None:
@@ -286,9 +292,10 @@ class MonitorTask(CnCTask):
                 threadList[c] = self.createThread(c, runDir, liveMoni,
                                                   runOptions, dashlog)
 
-            toFile = RunOption.isMoniToFile(runOptions)
-            threadList["CnCServer"] = self.createCnCMoniThread(runset, runDir,
-                                                               toFile, dashlog)
+            if self.MONITOR_CNCSERVER:
+                toFile = RunOption.isMoniToFile(runOptions)
+                threadList["CnCServer"] \
+                    = self.createCnCMoniThread(runset, runDir, toFile, dashlog)
 
         return threadList
 

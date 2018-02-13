@@ -657,14 +657,6 @@ class TestRunSet(unittest.TestCase):
         if compList is not None:
             compList.sort(lambda x, y: self.__sortCmp(y, x))
 
-        hangStr = None
-        hangList = []
-        if hangType > 0:
-            for c in components:
-                if c.isHanging:
-                    hangList.append(c.fullname)
-            hangStr = ", ".join(hangList)
-
         if hangType == 0:
             stopName = "TestRunSet"
         elif hangType == 1:
@@ -673,23 +665,35 @@ class TestRunSet(unittest.TestCase):
             stopName = "TestHang2"
         logger.addExpectedExact("Stopping the run (%s)" % stopName)
 
+        hangStr = None
+        forceStr = None
         if hangType > 0:
+            hangList = []
+            forceList = []
+            for c in components:
+                if c.isHanging:
+                    extra = "(ERROR)"
+                    hangList.append(c.fullname + extra)
+                    forceList.append(c.fullname)
+            hangStr = ", ".join(hangList)
+            forceStr = ", ".join(forceList)
+
             if len(hangList) < len(components):
-                logger.addExpectedExact(("RunSet #%d run#%d (%s):" +
-                                         " Waiting for %s %s") %
+                logger.addExpectedExact("RunSet #%d run#%d (%s):"
+                                        " Waiting for %s %s" %
                                         (runset.id, runNum, expState,
                                          expState, hangStr))
 
-            if len(hangList) == 1:
+            if len(forceList) == 1:
                 plural = ""
             else:
                 plural = "s"
-            logger.addExpectedExact(("RunSet #%d run#%d (%s):" +
-                                     " Forcing %d component%s to stop: %s") %
+            logger.addExpectedExact("RunSet #%d run#%d (%s):"
+                                    " Forcing %d component%s to stop: %s" %
                                     (runset.id, runNum, "forcingStop",
-                                     len(hangList), plural, hangStr))
+                                     len(hangList), plural, forceStr))
             if hangType > 1:
-                logger.addExpectedExact("FORCED_STOP failed for " + hangStr)
+                logger.addExpectedExact("ForcedStop failed for " + forceStr)
 
         logger.addExpectedExact("0 physics events collected in 0 seconds")
         logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
@@ -699,9 +703,9 @@ class TestRunSet(unittest.TestCase):
         if hangType > 1:
             expState = "forcingStop"
             logger.addExpectedExact("Run terminated WITH ERROR.")
-            logger.addExpectedExact(("RunSet #%d run#%d (%s):" +
-                                     " Could not stop %s") %
-                                    (runset.id, runNum, expState, hangStr))
+            logger.addExpectedExact("RunSet #%d run#%d (%s):"
+                                    " Could not stop %s" %
+                                    (runset.id, runNum, expState, forceStr))
         else:
             logger.addExpectedExact("Run terminated SUCCESSFULLY.")
 
@@ -720,7 +724,7 @@ class TestRunSet(unittest.TestCase):
                     self.fail("stop_run() should have failed")
             except RunSetException as rse:
                 expMsg = "RunSet #%d run#%d (%s): Could not stop %s" % \
-                         (runset.id, runNum, expState, hangStr)
+                         (runset.id, runNum, expState, forceStr)
                 self.assertEqual(str(rse), expMsg,
                                  ("For hangType %d expected exception %s," +
                                   " not %s") % (hangType, expMsg, rse))
@@ -742,6 +746,8 @@ class TestRunSet(unittest.TestCase):
 
     def setUp(self):
         set_pdaq_config_dir("src/test/resources/config", override=True)
+
+        # from DAQMocks import LogChecker; LogChecker.DEBUG = True
 
         # create the leapsecond alertstamp file so we don't get superfluous
         # log messages
@@ -1040,7 +1046,7 @@ class TestRunSet(unittest.TestCase):
         logger.addExpectedExact(("RunSet #1 run#%d (forcingStop):" +
                                  " Forcing 6 components to stop: %s") %
                                 (runNum, compStr))
-        logger.addExpectedExact("STOP_RUN failed for " + compStr)
+        logger.addExpectedExact("StopRun failed for " + compStr)
         logger.addExpectedExact("Failed to transition to ready: stopping[%s]" %
                                 compStr)
 

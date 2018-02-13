@@ -449,8 +449,8 @@ class FakeClientException(Exception):
 class FakeClient(object):
     NEXT_PREFIX = 1
 
-    def __init__(self, name, num, conn_list, numeric_prefix=False,
-                 quiet=False):
+    def __init__(self, name, num, conn_list, mbean_dict=None,
+                 numeric_prefix=False, quiet=False):
         if not numeric_prefix:
             self.__name = name
         else:
@@ -459,7 +459,10 @@ class FakeClient(object):
 
         self.__num = num
         self.__connections = self.__build_engines(conn_list)
-        self.__mbean_dict = FakeMBeanData.create_dict(self.__name)
+        if mbean_dict is not None:
+            self.__mbean_dict = mbean_dict
+        else:
+            self.__mbean_dict = FakeMBeanData.create_dict(self.__name)
 
         self.__cmd_port = PortNumber.next_number()
         self.__mbean_port = PortNumber.next_number()

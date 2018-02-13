@@ -8,7 +8,7 @@ import sys
 import threading
 import time
 from CnCServer import Connector
-from FakeClient import FakeClient, FakeClientException
+from FakeClient import FakeClient, FakeClientException, PortNumber
 from payload import PayloadReader, SimpleHit, MonitorASCII, StopMessage, \
     Supernova
 
@@ -267,8 +267,8 @@ class TriggerHandler(FakeClient):
         mbean_dict = {}
 
         super(TriggerHandler, self).__init__(comp_name, comp_num, conn_list,
-                                             mbean_dict, numeric_prefix=False,
-                                             quiet=quiet)
+                                             mbean_dict=mbean_dict,
+                                             numeric_prefix=False, quiet=quiet)
 
     def make_trigger_request(self, trig_type, cfg_id, start_time, end_time):
         # XXX this should be moved to payload.py
@@ -341,7 +341,8 @@ class InIceTrigger(TriggerHandler):
         self.__output_name = "trigger"
 
         super(InIceTrigger, self).__init__("inIceTrigger", 0, "stringHit",
-                                           self.__output_name, prescale)
+                                           self.__output_name,
+                                           prescale=prescale)
 
 
 class IceTopTrigger(TriggerHandler):
@@ -400,15 +401,14 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("-p", "--firstPortNumber", type=int, dest="firstPort",
-                        default=FakeClient.NEXT_PORT,
+    parser.add_argument("-p", "--firstPortNumber", type=int, dest="first_port",
                         help="First port number used for fake components")
     parser.add_argument("component")
 
     args = parser.parse_args()
 
-    if args.firstPort != FakeClient.NEXT_PORT:
-        FakeClient.NEXT_PORT = args.firstPort
+    if args.first_port is not None:
+        PortNumber.set_first(args.first_port)
 
     low_name = args.component.lower()
     if low_name == "inicetrigger":

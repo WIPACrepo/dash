@@ -62,7 +62,7 @@ class MostlyMBeanClient(MBeanClient):
         self.__agent = agent
         super(MostlyMBeanClient, self).__init__(compName, host, port)
 
-    def createRPCClient(self, host, port):
+    def createClient(self, host, port):
         return MockRPCClient(host, port, self.__agent)
 
 

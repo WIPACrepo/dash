@@ -63,18 +63,21 @@ class MBeanClient(object):
     def __init__(self, compName, host, port):
         "Python interface to Java MBeanAgent"
         self.__compName = compName
-        self.__client = self.createRPCClient(host, port)
+        self.__client = self.createClient(host, port)
         self.__beanList = []
         self.__beanFields = {}
 
-        self.__loadLock = threading.Lock()
+        self.__beanLock = threading.Lock()
         self.__loadedInfo = False
 
     def __str__(self):
         return "MBeanClient(%s)" % (self.__compName, )
 
     def __loadBeanInfo(self):
-        "Get the bean names and fields from the remote client"
+        """
+        Get the bean names and fields from the remote client
+        Note that self.__beanLock is acquired before calling this method
+        """
 
         self.__loadedInfo = False
         try:
@@ -112,12 +115,9 @@ class MBeanClient(object):
         "load bean info from the remote client if it hasn't yet been loaded"
 
         if not self.__loadedInfo:
-            self.__loadLock.acquire()
-            try:
+            with self.__beanLock:
                 if not self.__loadedInfo:
                     self.__loadBeanInfo()
-            finally:
-                self.__loadLock.release()
 
     def check(self, bean, fld):
         "throw an exception if the bean or field does not exist"
@@ -133,32 +133,37 @@ class MBeanClient(object):
                 (bean, fld, self.__compName, str(self.__beanFields[bean]))
             raise BeanFieldNotFoundException(msg)
 
-    def createRPCClient(self, host, port):
-        "create an RPC client"
+    def createClient(self, host, port):
+        "create an MBean RPC client"
         return RPCClient(host, port)
 
     def get(self, bean, fld):
         "get the value for a single MBean field"
         self.check(bean, fld)
 
-        return unFixValue(self.__client.mbean.get(bean, fld))
+        with self.__beanLock:
+            val = self.__client.mbean.get(bean, fld)
+
+        return unFixValue(val)
 
     def getAttributes(self, bean, fldList):
         "get the values for a list of MBean fields"
-        try:
-            attrs = self.__client.mbean.getAttributes(bean, fldList)
-        except socket.error, serr:
-            raise BeanTimeoutException("Cannot get %s mbean \"%s\" attributes"
-                                       " <socket error %s>" %
-                                       (self.__compName, bean, serr))
-        except (xmlrpclib.Fault, xmlrpclib.ProtocolError), xerr:
-            raise BeanTimeoutException("Cannot get %s mbean \"%s\" attributes:"
-                                       " %s" % (self.__compName, bean, xerr))
-        except:
-            raise BeanLoadException("Cannot get %s mbean \"%s\" attributes"
-                                    " %s: %s" %
-                                    (self.__compName, bean, fldList,
-                                     exc_string()))
+        with self.__beanLock:
+            try:
+                attrs = self.__client.mbean.getAttributes(bean, fldList)
+            except socket.error, serr:
+                raise BeanTimeoutException("Cannot get %s mbean \"%s\""
+                                           " attributes <socket error %s>" %
+                                           (self.__compName, bean, serr))
+            except (xmlrpclib.Fault, xmlrpclib.ProtocolError), xerr:
+                raise BeanTimeoutException("Cannot get %s mbean \"%s\":"
+                                           " attributes %s" %
+                                           (self.__compName, bean, xerr))
+            except:
+                raise BeanLoadException("Cannot get %s mbean \"%s\""
+                                        " attributes %s: %s" %
+                                        (self.__compName, bean, fldList,
+                                         exc_string()))
 
         if not isinstance(attrs, dict):
             raise BeanException("%s getAttributes(%s, %s) should return dict,"
@@ -256,6 +261,10 @@ class DAQClientState(object):
     # an XML-RPC call
     #
     HANGING = "hanging"
+
+    # internal state indicating that the most recent XML-RPC call failed
+    #
+    ERROR = "ERROR"
 
 
 class DAQClient(ComponentName):

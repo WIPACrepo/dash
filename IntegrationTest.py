@@ -44,12 +44,51 @@ class MostlyLive(object):
 
 
 class BeanData(object):
+    def __init__(self, remoteComp, bean, field, watchType, val=0,
+                 increasing=True):
+        self.__remoteComp = remoteComp
+        self.__bean = bean
+        self.__field = field
+        self.__watchType = watchType
+        self.__value = val
+        self.__increasing = increasing
+
+    def __cmp__(self, other):
+        val = cmp(self.__remoteComp, other.__remoteComp)
+        if val == 0:
+            val = cmp(self.__bean, other.__bean)
+            if val == 0:
+                val = cmp(self.__field, other.__field)
+                if val == 0:
+                    val = cmp(self.__watchType, other.__watchType)
+                    if val == 0:
+                        val = cmp(self.__increasing, other.__increasing)
+
+        return val
+
+    def __str__(self):
+        if self.__increasing:
+            updown = '^'
+        else:
+            updown = 'v'
+        return '%s.%s.%s<%s>%s%s' % \
+            (self.__remoteComp, self.__bean, self.__field, self.__watchType,
+             str(self.__value), updown)
+
+    def getValue(self):
+        return self.__value
+
+    def setValue(self, val):
+        self.__value = val
+
+
+class DAQMBeans(object):
     INPUT = 'i'
     OUTPUT = 'o'
     STATIC = 's'
     THRESHOLD = 't'
 
-    DAQ_BEANS = {
+    TEMPLATE = {
         'stringHub': (
             ('dom', 'sender', 'NumHitsReceived', INPUT, 0),
             ('eventBuilder', 'sender', 'NumReadoutRequestsReceived', INPUT, 0),
@@ -106,39 +145,11 @@ class BeanData(object):
         ),
     }
 
-    def __init__(self, remoteComp, bean, field, watchType, val=0,
-                 increasing=True):
-        self.__remoteComp = remoteComp
-        self.__bean = bean
-        self.__field = field
-        self.__watchType = watchType
-        self.__value = val
-        self.__increasing = increasing
+    LOCK = threading.Lock()
+    BEANS = {}
 
-    def __cmp__(self, other):
-        val = cmp(self.__remoteComp, other.__remoteComp)
-        if val == 0:
-            val = cmp(self.__bean, other.__bean)
-            if val == 0:
-                val = cmp(self.__field, other.__field)
-                if val == 0:
-                    val = cmp(self.__watchType, other.__watchType)
-                    if val == 0:
-                        val = cmp(self.__increasing, other.__increasing)
-
-        return val
-
-    def __str__(self):
-        if self.__increasing:
-            updown = '^'
-        else:
-            updown = 'v'
-        return '%s.%s.%s<%s>%s%s' % \
-            (self.__remoteComp, self.__bean, self.__field, self.__watchType,
-             str(self.__value), updown)
-
-    @staticmethod
-    def buildBeans(masterList, compName):
+    @classmethod
+    def __buildComponentBeans(cls, masterList, compName):
         if compName not in masterList:
             raise Exception('Unknown component %s' % compName)
 
@@ -159,15 +170,19 @@ class BeanData(object):
 
         return mbeans
 
-    @staticmethod
-    def buildDAQBeans(compName):
-        return BeanData.buildBeans(BeanData.DAQ_BEANS, compName)
+    @classmethod
+    def build(cls, compName):
+        with cls.LOCK:
+            if compName not in cls.BEANS:
+                cls.BEANS[compName] = cls.__buildComponentBeans(cls.TEMPLATE,
+                                                                compName)
+            return cls.BEANS[compName]
 
-    def getValue(self):
-        return self.__value
-
-    def setValue(self, val):
-        self.__value = val
+    @classmethod
+    def clear(cls):
+        with cls.LOCK:
+            for key in cls.BEANS.keys():
+                del cls.BEANS[key]
 
 
 class MostlyTaskManager(TaskManager):
@@ -602,7 +617,7 @@ class RealComponent(object):
 
     def __getAttributes(self, bean, fldList):
         if self.__mbeanData is None:
-            self.__mbeanData = BeanData.buildDAQBeans(self.__name)
+            self.__mbeanData = DAQMBeans.build(self.__name)
 
         attrs = {}
         for f in fldList:
@@ -617,7 +632,7 @@ class RealComponent(object):
 
     def __getMBeanValue(self, bean, fld):
         if self.__mbeanData is None:
-            self.__mbeanData = BeanData.buildDAQBeans(self.__name)
+            self.__mbeanData = DAQMBeans.build(self.__name)
 
         val = self.__mbeanData[bean][fld].getValue()
 
@@ -649,7 +664,7 @@ class RealComponent(object):
 
     def __listGetters(self, bean):
         if self.__mbeanData is None:
-            self.__mbeanData = BeanData.buildDAQBeans(self.__name)
+            self.__mbeanData = DAQMBeans.build(self.__name)
 
         k = self.__mbeanData[bean].keys()
         k.sort()
@@ -657,7 +672,7 @@ class RealComponent(object):
 
     def __listMBeans(self):
         if self.__mbeanData is None:
-            self.__mbeanData = BeanData.buildDAQBeans(self.__name)
+            self.__mbeanData = DAQMBeans.build(self.__name)
 
         k = self.__mbeanData.keys()
         k.sort()
@@ -748,30 +763,28 @@ class RealComponent(object):
 
     def addI3LiveMonitoring(self, liveLog, useMBeanData=True):
         if self.__mbeanData is None:
-            self.__mbeanData = BeanData.buildDAQBeans(self.__name)
+            self.__mbeanData = DAQMBeans.build(self.__name)
 
         beanKeys = self.__mbeanData.keys()
         beanKeys.sort()
         for bean in beanKeys:
             for fld in self.__mbeanData[bean]:
                 name = '%s-%d*%s+%s' % (self.__name, self.__num, bean, fld)
-                if useMBeanData:
+
+                val = None
+                if not useMBeanData and bean == "backEnd":
+                    if fld == "EventData":
+                        val = [2, 10000000000]
+                    elif fld == "FirstEventTime":
+                        val = 1000
+                    elif fld == "GoodTimes":
+                        val = [1000, 10000000000]
+                    elif fld == "NumEventsSent":
+                        val = 2
+                    elif fld == "NumEventsDispatched":
+                        val = 2
+                if val is None:
                     val = self.__mbeanData[bean][fld].getValue()
-                else:
-                    val = None
-                    if bean == "backEnd":
-                        if fld == "EventData":
-                            val = [2, 10000000000]
-                        elif fld == "FirstEventTime":
-                            val = 1000
-                        elif fld == "GoodTimes":
-                            val = [1000, 10000000000]
-                        elif fld == "NumEventsSent":
-                            val = 2
-                        elif fld == "NumEventsDispatched":
-                            val = 2
-                    if val is None:
-                        val = self.__mbeanData[bean][fld].getValue()
 
                 if bean == "backEnd" and fld == "EventData":
                     fldtype = "json"
@@ -803,7 +816,7 @@ class RealComponent(object):
 
     def getMBean(self, bean, fld):
         if self.__mbeanData is None:
-            self.__mbeanData = BeanData.buildDAQBeans(self.__name)
+            self.__mbeanData = DAQMBeans.build(self.__name)
 
         return self.__mbeanData[bean][fld].getValue()
 
@@ -886,7 +899,7 @@ class RealComponent(object):
 
     def setMBean(self, bean, fld, val):
         if self.__mbeanData is None:
-            self.__mbeanData = BeanData.buildDAQBeans(self.__name)
+            self.__mbeanData = DAQMBeans.build(self.__name)
 
         self.__mbeanData[bean][fld].setValue(val)
 
@@ -1126,6 +1139,9 @@ class IntegrationTest(unittest.TestCase):
         self.__setBeanData("eventBuilder", 0, "backEnd", "EventData", [0, 0])
         self.__setBeanData("eventBuilder", 0, "backEnd", "FirstEventTime", 0)
         self.__setBeanData("eventBuilder", 0, "backEnd", "GoodTimes", [0, 0])
+        for bldr in ("moni", "sn", "tcal"):
+            self.__setBeanData("secondaryBuilders", 0, bldr + "Builder",
+                               "EventData", [0, 0])
 
         dashLog.addExpectedRegexp(r"\s*0 physics events, 0 moni events," +
                                   r" 0 SN events, 0 tcals")
@@ -1511,7 +1527,7 @@ class IntegrationTest(unittest.TestCase):
                 break
 
         msg = "Subrun %d: ignoring missing DOM ['#%s']" % \
-                   (subRunId, domList[2][0])
+              (subRunId, domList[2][0])
         if dashLog:
             dashLog.addExpectedExact(msg)
 
@@ -1805,6 +1821,7 @@ class IntegrationTest(unittest.TestCase):
             self.setUpClass()
 
         MostlyCnCServer.APPENDERS.clear()
+        DAQMBeans.clear()
 
         self.__logFactory = SocketReaderFactory()
 

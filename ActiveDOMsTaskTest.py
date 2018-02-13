@@ -199,6 +199,7 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
         foo.mbean.setData("stringhub", "NumberOfActiveAndTotalChannels",
                           Exception("Simulated error"))
+        logger.addExpectedRegexp(r".*Simulated error.*")
 
         live.addExpected("activeDOMs", numActive, Prio.ITS)
         live.addExpected("expectedDOMs", numTotal, Prio.ITS)

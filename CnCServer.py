@@ -13,13 +13,14 @@ import time
 from CnCExceptions import CnCServerException, MissingComponentException, \
     StartInterruptedException
 from CnCLogger import CnCLogger
-from CompOp import ComponentOperation, ComponentOperationGroup
+from CompOp import ComponentGroup, OpClose, OpGetConnectionInfo, OpGetState, \
+    OpResetComponent
 from DAQClient import ComponentName, DAQClient, DAQClientState
 from DAQConfig import DAQConfigException, DAQConfigParser
 from DAQConst import DAQPort
 from DAQLive import DAQLive
 from DAQLog import LogSocketServer
-from DAQRPC import RPCServer
+from DAQRPC import RPCClient, RPCServer
 from ListOpenFiles import ListOpenFiles
 from Process import find_python_process
 from RunSet import RunSet, listComponentRanges
@@ -264,9 +265,8 @@ class DAQPool(object):
                                       logger.livePort)
 
     def __returnComponents(self, compList, logger):
-        ComponentOperationGroup.runSimple(ComponentOperation.RESET_COMP,
-                                          compList, (), logger,
-                                          errorName="reset")
+        ComponentGroup.run_simple(OpResetComponent, compList, (), logger,
+                                  report_errors=True)
 
         self.__poolLock.acquire()
         try:
@@ -368,8 +368,7 @@ class DAQPool(object):
             for c in bin:
                 clients.append(c)
 
-        op = ComponentOperation.GET_STATE
-        states = ComponentOperationGroup.runSimple(op, clients, (), logger)
+        states = ComponentGroup.run_simple(OpGetState, clients, (), logger)
         for c in clients:
             if c in states:
                 stateStr = str(states[c])
@@ -778,9 +777,8 @@ class CnCServer(DAQPool):
     def __listComponentDicts(self, compList):
         slst = []
 
-        op = ComponentOperation.GET_STATE
-        states = ComponentOperationGroup.runSimple(op, compList, (),
-                                                   self.__log)
+        states = ComponentGroup.run_simple(OpGetState, compList, (),
+                                           self.__log)
         for c in compList:
             if c in states:
                 stateStr = str(states[c])
@@ -861,9 +859,8 @@ class CnCServer(DAQPool):
         if self.__server is not None:
             self.__server.server_close()
 
-        ComponentOperationGroup.runSimple(ComponentOperation.CLOSE,
-                                          self.components(), (), self.__log,
-                                          errorName="close")
+        ComponentGroup.run_simple(OpClose, self.components(), (), self.__log,
+                                  report_errors=True)
 
         self.__log.closeFinal()
         if self.__logServer is not None:
@@ -1000,9 +997,8 @@ class CnCServer(DAQPool):
         "list component connector information"
         compList = self.__getComponents(idList, getAll)
 
-        op = ComponentOperation.GET_CONN_INFO
-        results = ComponentOperationGroup.runSimple(op, compList, (),
-                                                    self.__log)
+        results = ComponentGroup.run_simple(OpGetConnectionInfo, compList, (),
+                                            self.__log)
 
         slst = []
         for c in compList:
@@ -1152,9 +1148,8 @@ class CnCServer(DAQPool):
 
     def rpc_end_all(self):
         "reset all clients"
-        ComponentOperationGroup.runSimple(ComponentOperation.RESET_COMP,
-                                          self.components(), (), self.__log,
-                                          errorName="reset")
+        ComponentGroup.run_simple(OpResetComponent, self.components(), (),
+                                  report_errors=True)
         return 1
 
     def rpc_list_open_files(self):
@@ -1403,6 +1398,9 @@ class CnCServer(DAQPool):
 
         if self.__logServer is not None:
             self.__logServer.startServing()
+
+    def server_statistics(self):
+        return self.__server.server_statistics()
 
     def startLiveThread(self):
         "Start I3Live interface thread"

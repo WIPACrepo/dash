@@ -2,7 +2,7 @@
 
 from CnCSingleThreadTask import CnCSingleThreadTask
 from CnCThread import CnCThread
-from CompOp import ComponentOperation, ComponentOperationGroup
+from CompOp import ComponentGroup, OpGetMultiBeanFields
 from LiveImports import Prio
 
 
@@ -96,12 +96,11 @@ class ActiveDOMThread(CnCThread):
                 src_set.append(comp)
 
         # spawn a bunch of threads to fetch hub data
-        bean_op = ComponentOperation.GET_MULTI_BEAN
         bean_keys = (self.KEY_ACT_TOT, self.KEY_LBM_OVER, self.KEY_LC_RATE,
                      self.KEY_TOTAL_RATE)
-        results = ComponentOperationGroup.runSimple(bean_op, src_set,
-                                                    ("stringhub", bean_keys),
-                                                    self.__dashlog)
+        results = ComponentGroup.run_simple(OpGetMultiBeanFields, src_set,
+                                            ("stringhub", bean_keys),
+                                            self.__dashlog)
 
         # create dictionaries used to accumulate results
         totals = {
@@ -116,10 +115,10 @@ class ActiveDOMThread(CnCThread):
                 result = None
             else:
                 result = results[comp]
-                if result == ComponentOperation.RESULT_HANGING or \
-                   result == ComponentOperation.RESULT_ERROR:
-                    if result == ComponentOperation.RESULT_HANGING:
-                        hanging.append(comp.fullname)
+                if result == ComponentGroup.RESULT_HANGING:
+                    hanging.append(comp.fullname)
+                    result = None
+                elif result == ComponentGroup.RESULT_ERROR:
                     result = None
 
             if result is None:
