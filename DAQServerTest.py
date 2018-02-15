@@ -217,9 +217,6 @@ class FakeRunData(object):
     def set_mock_logger(self, logger):
         self.__logger = logger
 
-    def stop(self):
-        pass
-
     def stop_tasks(self):
         pass
 

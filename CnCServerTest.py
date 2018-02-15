@@ -131,9 +131,6 @@ class FakeRunData(object):
     def set_first_physics_time(self, time):
         self.__firstPayTime = time
 
-    def stop(self):
-        pass
-
     def stop_tasks(self):
         pass
 

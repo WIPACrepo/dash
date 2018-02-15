@@ -5,6 +5,7 @@ import numbers
 import os
 import threading
 import time
+import traceback
 import sys
 
 import SpadeQueue
@@ -679,7 +680,8 @@ class RunData(object):
     def destroy(self):
         saved_ex = None
         try:
-            self.stop()
+            # stop monitoring, watchdog, etc.
+            self.stop_tasks()
         except:
             saved_ex = sys.exc_info()
 
@@ -705,6 +707,14 @@ class RunData(object):
     def error(self, msg):
         if self.__dashlog is not None:
             self.__dashlog.error(msg)
+
+    def exception(self, msg):
+        if self.__dashlog is not None:
+            self.__dashlog.error(msg)
+            try:
+                self.__dashlog.error(traceback.format_exc())
+            except:
+                self.__dashlog.error("!! Cannot dump exception !!")
 
     @property
     def finished(self):
@@ -892,9 +902,6 @@ class RunData(object):
         self.__task_mgr = self.create_task_manager(runset)
 
         self.__task_mgr.start()
-
-    def stop(self):
-        pass
 
     def stop_tasks(self):
         if self.__task_mgr is not None:
@@ -1329,12 +1336,6 @@ class RunSet(object):
 
             # note that this run is finished
             self.__run_data.set_finished()
-
-            try:
-                self.__run_data.stop_tasks()
-            except:
-                if sent_error is None:
-                    sent_error = exc_string()
 
         if sent_error is not None:
             self.__logger.error("Could not send event counts for %s (%s): %s" %
@@ -1779,7 +1780,11 @@ class RunSet(object):
         Stop all components in the runset
         Return list of components which did not stop
         """
-        self.__run_data.stop()
+        try:
+            # stop monitoring, watchdog, etc.
+            self.__run_data.stop_tasks()
+        except:
+            self.__run_data.exception("Cannot stop tasks")
 
         src_set = []
         other_set = []
@@ -2936,10 +2941,6 @@ class RunSet(object):
             raise RunSetException("RunSet #%d is %s, not running" %
                                   (self.__id, self.__state))
 
-        # stop monitoring, watchdog, etc.
-        #
-        self.__run_data.stop()
-
         # create new run data object
         #
         new_data = self.__run_data.clone(self, new_num)
@@ -2952,6 +2953,12 @@ class RunSet(object):
         for comp in self.__comp_log:
             self.switch_component_log(self.__comp_log[comp],
                                       new_data.run_directory, comp)
+
+        try:
+            # stop monitoring, watchdog, etc.
+            self.__run_data.stop_tasks()
+        except:
+            self.__run_data.exception("Cannot stop tasks")
 
         # get lists of sources and of non-sources sorted back to front
         #
@@ -3049,12 +3056,6 @@ class RunSet(object):
 
         # note that the old run is finished
         old_data.set_finished()
-
-        try:
-            old_data.stop_tasks()
-        except:
-            if not saved_ex:
-                saved_ex = sys.exc_info()
 
         try:
             self.__report_first_good_time(new_data)
