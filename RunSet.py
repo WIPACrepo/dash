@@ -286,14 +286,6 @@ class GoodTimeThread(CnCThread):
                     # got a result from a component which previously failed
                     del self.__bad_comps[comp]
 
-                num_doms = result[self.NONZOMBIE_FIELD]
-                if num_doms == 0:
-                    # this string has no usable DOMs, record illegal time
-                    self.__log.error("No usable DOMs on %s for %s" %
-                                     (comp.fullname, self.moniname()))
-                    self.__time_dict[comp] = -1L
-                    continue
-
                 if self.beanfield() in result:
                     val = result[self.beanfield()]
                 else:
