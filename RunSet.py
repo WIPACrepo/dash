@@ -844,6 +844,10 @@ class RunData(object):
                     "run_number": self.__run_number,
                 }
 
+                # NOTE: all these messages are named "event_count_update",
+                #       even the updates for "moni", "sn", and "tcal"
+                #
+                # See issue 7857 for details.
                 self.send_moni("event_count_update", count_update,
                                prio=prio, time=stop_str)
             finally:
