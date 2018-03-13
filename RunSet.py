@@ -831,15 +831,26 @@ class RunData(object):
                                  moni_data[tick_field])
                 continue
 
+            # cache the historical data for current stream
+            prev_entry = self.__stream_data[stream]
+
+            # ignore streams with no new counts
+            if prev_entry.ticks == moni_data[tick_field]:
+                if moni_data[count_field] != prev_entry.count:
+                    self.error("Skipping bogus data for %s (identical"
+                               " timestamps but old count is %s, new is %s)" %
+                               (stream, prev_entry.count,
+                                moni_data[count_field]))
+                continue
+
             # send the monitoring data for this stream
-            entry = self.__stream_data[stream]
             try:
-                start_str = str(PayloadTime.toDateTime(entry.ticks))
+                start_str = str(PayloadTime.toDateTime(prev_entry.ticks))
                 stop_str = str(PayloadTime.toDateTime(moni_data[tick_field]))
                 count_update = {
                     "start_time": start_str,
                     "stop_time": stop_str,
-                    "count": moni_data[count_field] - entry.count,
+                    "count": moni_data[count_field] - prev_entry.count,
                     "stream": count_field,
                     "run_number": self.__run_number,
                 }
@@ -852,7 +863,7 @@ class RunData(object):
                                prio=prio, time=stop_str)
             finally:
                 # update the count/tick for this stream
-                entry.update(moni_data[count_field], moni_data[tick_field])
+                prev_entry.update(moni_data[count_field], moni_data[tick_field])
 
     def send_moni(self, name, value, prio=None, time=None, debug=False):
         if debug:
