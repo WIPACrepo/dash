@@ -81,57 +81,6 @@ class TestDAQTime(unittest.TestCase):
         self.assertEqual(expStr, str(dt),
                          "Expected date %s, not %s" % (expStr, dt))
 
-    def testPayloadTimeOneYear(self):
-        """ test cannot easily work as calculating the number of seconds in the
-        current year requires a nist file that passes the end of the year"""
-
-        leapObj = leapseconds.instance()
-        jan1_mjd = MJD(self.CUR_YEAR, 1, 1.)
-        expiry_mjd = leapObj.expiry
-        extra = leapObj.get_leap_offset(expiry_mjd.timestruct.tm_yday)
-        elapsed_seconds = (expiry_mjd - jan1_mjd) * 86400. + extra
-
-        est = expiry_mjd.timestruct
-
-        yrsecs = elapsed_seconds
-
-        # the LONG bit is actually important, otherwise we run into floating
-        # point precision issues
-        yrticks = long(yrsecs) * self.TICKS_PER_SEC + \
-                  (self.TICKS_PER_SEC - 10000)
-
-        dt = PayloadTime.toDateTime(yrticks, high_precision=False)
-        expStr = self.__dateFormat(self.CUR_YEAR, est.tm_mon, est.tm_mday,
-                                   est.tm_hour, est.tm_min, est.tm_sec,
-                                   9999990000)
-        self.assertEqual(expStr, str(dt),
-                         "Expected date %s, not %s" % (expStr, dt))
-
-    def testPayloadTimeOneYearHP(self):
-        """test cannot easily work as calculating the number of seconds in the current
-        year requires a nist that passes the end of the year"""
-
-        leapObj = leapseconds.instance()
-        jan1_mjd = MJD(self.CUR_YEAR, 1, 1.)
-        expiry_mjd = leapObj.expiry
-        extra = leapObj.get_leap_offset(expiry_mjd.timestruct.tm_yday)
-        elapsed_seconds = (expiry_mjd - jan1_mjd) * 86400. + extra
-
-        est = expiry_mjd.timestruct
-        yrsecs = elapsed_seconds
-
-        # the LONG bit is actually important, otherwise we run into floating
-        # point precision issues
-        yrticks = long(yrsecs) * self.TICKS_PER_SEC + \
-                  (self.TICKS_PER_SEC - 10000)
-        dt = PayloadTime.toDateTime(yrticks, high_precision=True)
-
-        expStr = self.__dateFormat(self.CUR_YEAR, est.tm_mon, est.tm_mday,
-                                   est.tm_hour, est.tm_min, est.tm_sec,
-                                   9999990000, high_precision=True)
-        self.assertEqual(expStr, str(dt),
-                         "Expected date %s, not %s" % (expStr, dt))
-
     def testDeltaOneDay(self):
         jan1 = time.struct_time((self.CUR_YEAR, 1, 1, 0, 0, 0, 0, 0, -1))
         jan2 = time.struct_time((self.CUR_YEAR, 1, 2, 0, 0, 0, 0, 0, -1))
