@@ -125,21 +125,16 @@ class DAQDateTime(object):
         return DAQDateTimeDelta(days, secs, long(usecs))
 
     def __str__(self):
+        fmt = "%d-%02d-%02d %02d:%02d:%02d"
         if self.__high_precision:
-            fmt = "%s.%010d"
+            fmt += ".%010d"
             ticks = self.__daqticks
         else:
-            fmt = "%s.%06d"
+            fmt += ".%06d"
             ticks = self.__daqticks / 10000
 
-        timeStr = "%d-%02d-%02d %02d:%02d:%02d" % (self.year,
-                                                   self.month,
-                                                   self.day,
-                                                   self.hour,
-                                                   self.minute,
-                                                   self.second)
-
-        return fmt % (timeStr, ticks)
+        return fmt % (self.year, self.month, self.day, self.hour, self.minute,
+                      self.second, ticks)
 
 
 class PayloadTime(object):
