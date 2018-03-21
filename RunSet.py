@@ -595,6 +595,9 @@ class RunData(object):
         self.__num_tcal = 0
         self.__tcal_time = None
 
+        # track number of monitoring messages
+        self.__num_event_count_messages = 0
+
         # Calculates rate over latest 5min interval
         self.__physics_entries = []
 
@@ -716,6 +719,51 @@ class RunData(object):
     def first_physics_time(self):
         return self.__first_pay_time
 
+    def get_event_counts(self, run_num, run_set):
+        "Return monitoring data for the run"
+        if self.run_number != run_num:
+            self.error("Not getting event counts for run#%d"
+                           ", current run is #%d" %
+                           (run_num, self.run_number))
+            values = None
+        elif run_set.isRunning:
+            values = self.update_counts_and_rate(run_set)
+        else:
+            values = self.cached_monitor_data
+
+        if values is None:
+            return {}
+
+        (num_evts, wall_time, _, pay_time, num_moni, moni_time, num_sn,
+         sn_time, num_tcal, tcal_time) = values
+
+        mon_dict = {}
+
+        mon_dict["physicsEvents"] = num_evts
+        if wall_time is None or num_evts == 0:
+            mon_dict["wallTime"] = None
+            mon_dict["eventPayloadTicks"] = None
+        else:
+            mon_dict["wallTime"] = str(wall_time)
+            mon_dict["eventPayloadTicks"] = pay_time
+        mon_dict["moniEvents"] = num_moni
+        if moni_time is None:
+            mon_dict["moniTime"] = None
+        else:
+            mon_dict["moniTime"] = moni_time
+        mon_dict["snEvents"] = num_sn
+        if sn_time is None:
+            mon_dict["snTime"] = None
+        else:
+            mon_dict["snTime"] = sn_time
+        mon_dict["tcalEvents"] = num_tcal
+        if tcal_time is None:
+            mon_dict["tcalTime"] = None
+        else:
+            mon_dict["tcalTime"] = tcal_time
+
+        return mon_dict
+
     @property
     def has_moni_client(self):
         return self.__live_moni_client is not None
@@ -782,6 +830,55 @@ class RunData(object):
     def repo_revision(self):
         return self.__version_info["repo_rev"]
 
+    def report_first_good_time(self, runset):
+        eb_comp = None
+        for comp in runset.components():
+            if comp.isComponent("eventBuilder"):
+                eb_comp = comp
+                break
+
+        if eb_comp is None:
+            self.error("Cannot find eventBuilder in %s" % str(runset))
+            return
+
+        first_time = None
+        for _ in xrange(5):
+            result = runset.get_first_event_time(eb_comp, self)
+            if ComponentGroup.has_value(result):
+                first_time = result
+                break
+            time.sleep(0.1)
+        if first_time is None:
+            self.error("Couldn't find first good time for switched run %d" %
+                       (self.__run_number, ))
+        else:
+            runset.report_good_time(self, "firstGoodTime", first_time)
+
+    def report_run_stop(self, num_evts, first_pay_time, last_pay_time,
+                        had_error):
+        if not self.has_moni_client:
+            self.error("Cannot report run stop, no moni client!")
+            return
+
+        first_dt = PayloadTime.toDateTime(first_pay_time, high_precision=True)
+        last_dt = PayloadTime.toDateTime(last_pay_time, high_precision=True)
+
+        if had_error is None:
+            status = "UNKNOWN"
+        elif had_error:
+            status = "FAIL"
+        else:
+            status = "SUCCESS"
+
+        data = {"runnum": self.__run_number,
+                "runstart": str(first_dt),
+                "runstop": str(last_dt),
+                "events": num_evts,
+                "status": status}
+
+        monitime = PayloadTime.toDateTime(last_pay_time)
+        self.send_moni("runstop", data, prio=Prio.ITS, time=monitime)
+
     def reset(self):
         pass
 
@@ -847,23 +944,81 @@ class RunData(object):
             try:
                 start_str = str(PayloadTime.toDateTime(prev_entry.ticks))
                 stop_str = str(PayloadTime.toDateTime(moni_data[tick_field]))
-                count_update = {
-                    "start_time": start_str,
-                    "stop_time": stop_str,
-                    "count": moni_data[count_field] - prev_entry.count,
-                    "stream": count_field,
-                    "run_number": self.__run_number,
-                }
+                cur_count = moni_data[count_field] - prev_entry.count
+                if cur_count < 0:
+                    self.error("Ignoring negative %s event count for run %s"
+                               " (prev %s, cur %s)" %
+                               (self.__run_number, count_field,
+                                prev_entry.count, moni_data[count_field]))
+                else:
+                    count_update = {
+                        "start_time": start_str,
+                        "stop_time": stop_str,
+                        "count": cur_count,
+                        "stream": count_field,
+                        "run_number": self.__run_number,
+                    }
 
-                # NOTE: all these messages are named "event_count_update",
-                #       even the updates for "moni", "sn", and "tcal"
-                #
-                # See issue 7857 for details.
-                self.send_moni("event_count_update", count_update,
-                               prio=prio, time=stop_str)
+                    # NOTE: all these messages are named "event_count_update",
+                    #       even the updates for "moni", "sn", and "tcal"
+                    #
+                    # See issue 7857 for details.
+                    self.send_moni("event_count_update", count_update,
+                                   prio=prio, time=stop_str)
             finally:
                 # update the count/tick for this stream
                 prev_entry.update(moni_data[count_field], moni_data[tick_field])
+
+    def send_event_counts(self, run_set=None):
+        "Report run monitoring quantities"
+
+        if not self.has_moni_client:
+            # don't bother if we can't report anything
+            return
+
+        moni_data = self.get_event_counts(self.__run_number, run_set)
+
+        # send every 5th set of data over ITS
+        if self.__num_event_count_messages % 5 == 0:
+            prio = Prio.ITS
+        else:
+            prio = Prio.EMAIL
+        self.__num_event_count_messages += 1
+
+        self.send_count_updates(moni_data, prio)
+
+        if True:  # XXX this should be removed after Sprecher is released
+            run_update = {
+                "run": self.__run_number,
+                "subrun": self.__subrun_number,
+                "version": 0,
+            }
+
+            # fill in counts and times
+            run_update["physicsEvents"] = moni_data["physicsEvents"]
+            if moni_data["wallTime"] is not None:
+                run_update["wallTime"] = moni_data["wallTime"]
+            for src in ("moni", "sn", "tcal"):
+                event_key = src + "Events"
+                time_key = src + "Time"
+                if moni_data[time_key] is not None and \
+                   moni_data[time_key] >= 0:
+                    run_update[event_key] = moni_data[event_key]
+                    if isinstance(moni_data[time_key], numbers.Number):
+                        dttm = PayloadTime.toDateTime(moni_data[time_key])
+                    else:
+                        dttm = moni_data[time_key]
+                    run_update[time_key] = str(dttm)
+
+            # if we don't have a DAQ time, use system time but complain
+            if moni_data["eventPayloadTicks"] is not None:
+                ptime = PayloadTime.toDateTime(moni_data["eventPayloadTicks"])
+            else:
+                ptime = datetime.datetime.utcnow()
+                self.error("Using system time for initial event" +
+                               " counts (no event times available)")
+
+            self.send_moni("run_update", run_update, prio=prio, time=ptime)
 
     def send_moni(self, name, value, prio=None, time=None, debug=False):
         if debug:
@@ -922,6 +1077,94 @@ class RunData(object):
     def subrun_number(self):
         return self.__subrun_number
 
+    def update_counts_and_rate(self, run_set):
+        physics_count = 0
+        wall_time = -1
+        last_pay_time = -1
+        moni_count = 0
+        moni_time = -1
+        sn_count = 0
+        sn_time = -1
+        tcal_count = 0
+        tcal_time = -1
+
+        # cache for eventBuilder object
+        evtBldr = None
+
+        # start threads to query components
+        tgroup = ComponentGroup(OpGetSingleBeanField)
+        for comp in run_set.components():
+            if not comp.isBuilder:
+                continue
+
+            if comp.isComponent("eventBuilder"):
+                # save eventBuilder in case we need to get the first event time
+                evtBldr = comp
+
+                tgroup.run_thread(comp, ("backEnd", "EventData"),
+                                  logger=self)
+            elif comp.isComponent("secondaryBuilders"):
+                for bldr in ("moni", "sn", "tcal"):
+                    tgroup.run_thread(comp, (bldr + "Builder", "EventData"),
+                                      logger=self)
+        tgroup.wait(wait_secs=8, reps=10)
+
+        # process results
+        for comp, result in tgroup.results(full_result=True).iteritems():
+            if not ComponentGroup.has_value(result, full_result=True):
+                self.error("Cannot get event data for %s: %s" %
+                           (comp.fullname, result))
+                continue
+
+            evt_data = result.value
+            if not isinstance(evt_data, list) and \
+               not isinstance(evt_data, tuple):
+                self.error("Got bad event data (%s) <%s>" %
+                           (evt_data, type(evt_data).__name__))
+                continue
+
+            if comp.isComponent("eventBuilder"):
+                if len(evt_data) != 2:
+                    self.error("Got bad event data %s (expected 2 entries)" %
+                               (evt_data, ))
+                    continue
+
+                physics_count = int(evt_data[0])
+                wall_time = datetime.datetime.utcnow()
+                last_pay_time = long(evt_data[1])
+
+            elif comp.isComponent("secondaryBuilders"):
+                bldr_name = result.arguments[0]
+                num = evt_data[0]
+                now = evt_data[1]
+
+                if bldr_name.startswith("moni"):
+                    moni_count = num
+                    moni_time = now
+                elif bldr_name.startswith("sn"):
+                    sn_count = num
+                    sn_time = now
+                elif bldr_name.startswith("tcal"):
+                    tcal_count = num
+                    tcal_time = now
+
+        # if there are physics event but we don't know the time of
+        #  the first event, fetch it now
+        if physics_count > 0 and \
+           self.__first_pay_time <= 0 and \
+           evtBldr is not None:
+            result = run_set.get_first_event_time(evtBldr, self)
+            if not ComponentGroup.has_value(result):
+                msg = "Cannot get first event time (%s)" % (result, )
+                self.error(msg)
+            else:
+                self.set_first_physics_time(result)
+
+        return self.update_event_counts\
+            (physics_count, wall_time, self.__first_pay_time,
+             last_pay_time, moni_count, moni_time, sn_count, sn_time,
+             tcal_count, tcal_time, add_rate=True)
+
     def update_event_counts(self, physics_count, wall_time, first_pay_time,
                             evt_pay_time, moni_count, moni_time, sn_count,
                             sn_time, tcal_count, tcal_time, add_rate=False):
@@ -949,6 +1192,38 @@ class RunData(object):
 
     def warn(self, msg):
         self.__dashlog.warn(msg)
+
+    def write_run_xml(self, num_evts, num_moni, num_sn, num_tcal,
+                      first_time, last_time, first_good, last_good,
+                      had_error):
+
+        xml_log = DashXMLLog(dir_name=self.run_directory)
+        path = xml_log.getPath()
+        if os.path.exists(path):
+            self.error("Run xml log file \"%s\" already exists!" %
+                           (path, ))
+            return
+
+        xml_log.setVersionInfo(self.release, self.repo_revision)
+        xml_log.setRun(self.run_number)
+        xml_log.setConfig(self.run_configuration.basename)
+        xml_log.setCluster(self.cluster_configuration.description)
+        xml_log.setStartTime(PayloadTime.toDateTime(first_time))
+        xml_log.setEndTime(PayloadTime.toDateTime(last_time))
+        xml_log.setFirstGoodTime(PayloadTime.toDateTime(first_good))
+        xml_log.setLastGoodTime(PayloadTime.toDateTime(last_good))
+        xml_log.setEvents(num_evts)
+        xml_log.setMoni(num_moni)
+        xml_log.setSN(num_sn)
+        xml_log.setTcal(num_tcal)
+        xml_log.setTermCond(had_error)
+
+        # write the xml log file to disk
+        try:
+            xml_log.writeLog()
+        except DashXMLLogException:
+            self.error("Could not write run xml log file \"%s\"" %
+                           (xml_log.getPath(), ))
 
 
 class RunSet(object):
@@ -1007,8 +1282,6 @@ class RunSet(object):
         self.__stop_lock = threading.Lock()
 
         self.__spade_thread = None
-
-        self.__moni_count = 0
 
         # make sure components are in a known order
         self.__set.sort()
@@ -1296,17 +1569,16 @@ class RunSet(object):
 
         return cs_str
 
-    def __finish_stop(self, caller_name, had_error=False):
+    def __finish_stop(self, run_data, caller_name, had_error=False):
         # try to finish end-of-run reporting and move catchall.log to run dir
-        if self.__run_data is not None:
+        if run_data is not None:
             try:
-                self.final_report(self.__set, self.__run_data,
-                                  had_error=had_error)
+                self.final_report(self.__set, run_data, had_error=had_error)
             except:
                 self.__logger.error("Could not finish run for %s (%s): %s" %
                                     (self, caller_name, exc_string()))
             finally:
-                self.__parent.saveCatchall(self.__run_data.run_directory)
+                self.__parent.saveCatchall(run_data.run_directory)
 
         # tell components to switch back to default logger (catchall.log)
         try:
@@ -1324,11 +1596,11 @@ class RunSet(object):
 
         # report event counts to Live
         sent_error = None
-        if self.__run_data is None:
+        if run_data is None:
             sent_error = "No run data"
         else:
             try:
-                self.send_event_counts(self.__run_data)
+                run_data.send_event_counts(self)
             except:
                 if sent_error is None:
                     sent_error = exc_string()
@@ -1336,13 +1608,13 @@ class RunSet(object):
             # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
             # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
             try:
-                self.__queue_for_spade(self.__run_data)
+                self.__queue_for_spade(run_data)
             except:
                 if sent_error is None:
                     sent_error = exc_string()
 
             # note that this run is finished
-            self.__run_data.set_finished()
+            run_data.set_finished()
 
         if sent_error is not None:
             self.__logger.error("Could not send event counts for %s (%s): %s" %
@@ -1419,20 +1691,6 @@ class RunSet(object):
     @classmethod
     def __get_run_directory_path(cls, log_dir, run_num):
         return os.path.join(log_dir, "daqrun%05d" % run_num)
-
-    def __get_single_bean_field(self, comp, bean, fld_name,
-                                full_result=False):
-        tgroup = ComponentGroup(OpGetSingleBeanField)
-        tgroup.run_thread(comp, (bean, fld_name), logger=self.__run_data)
-        tgroup.wait(wait_secs=3, reps=10)
-
-        rslt = tgroup.results(full_result=full_result)
-        if comp not in rslt:
-            result = ComponentGroup.RESULT_ERROR
-        else:
-            result = rslt[comp]
-
-        return result
 
     def __internal_init_replay(self, replay_hubs):
         rslt = ComponentGroup.run_simple(OpGetReplayTime, replay_hubs, (),
@@ -1557,31 +1815,6 @@ class RunSet(object):
             self.__logger.error("Close failed for %s: %s" %
                                 (comp.fullname, exc_string()))
 
-    def __report_first_good_time(self, run_data):
-        eb_comp = None
-        for comp in self.__set:
-            if comp.isComponent("eventBuilder"):
-                eb_comp = comp
-                break
-
-        if eb_comp is None:
-            run_data.error("Cannot find eventBuilder in %s" % str(self))
-            return
-
-        first_time = None
-        for _ in xrange(5):
-            result = self.__get_single_bean_field(eb_comp, "backEnd",
-                                                  "FirstEventTime")
-            if ComponentGroup.has_value(result):
-                first_time = result
-                break
-            time.sleep(0.1)
-        if first_time is None:
-            run_data.error("Couldn't find first good time" +
-                           " for switched run %d" % (run_data.run_number, ))
-        else:
-            self.report_good_time(run_data, "firstGoodTime", first_time)
-
     def __report_run_start(self, moni_client, run_number, release, revision,
                            started, start_time=None):
         data = {
@@ -1596,32 +1829,6 @@ class RunSet(object):
 
         moni_client.sendMoni("runstart", data, prio=Prio.SCP,
                              time=start_time)
-
-    @staticmethod
-    def __report_run_stop(run_data, num_evts, first_pay_time, last_pay_time,
-                          had_error):
-        if not run_data.has_moni_client:
-            run_data.error("Cannot report run stop, no moni client!")
-            return
-
-        first_dt = PayloadTime.toDateTime(first_pay_time, high_precision=True)
-        last_dt = PayloadTime.toDateTime(last_pay_time, high_precision=True)
-
-        if had_error is None:
-            status = "UNKNOWN"
-        elif had_error:
-            status = "FAIL"
-        else:
-            status = "SUCCESS"
-
-        data = {"runnum": run_data.run_number,
-                "runstart": str(first_dt),
-                "runstop": str(last_dt),
-                "events": num_evts,
-                "status": status}
-
-        monitime = PayloadTime.toDateTime(last_pay_time)
-        run_data.send_moni("runstop", data, prio=Prio.ITS, time=monitime)
 
     def __sort_cmp(self, x, y):
         if y.order() is None:
@@ -1782,16 +1989,16 @@ class RunSet(object):
         ComponentGroup.run_simple(OpStopLogging, loglist, self.__comp_log,
                                   self.__logger, report_errors=True)
 
-    def __stop_run_internal(self, timeout=20):
+    def __stop_run_internal(self, run_data, timeout=20):
         """
         Stop all components in the runset
         Return list of components which did not stop
         """
         try:
             # stop monitoring, watchdog, etc.
-            self.__run_data.stop_tasks()
+            run_data.stop_tasks()
         except:
-            self.__run_data.exception("Cannot stop tasks")
+            run_data.exception("Cannot stop tasks")
 
         src_set = []
         other_set = []
@@ -1809,12 +2016,12 @@ class RunSet(object):
         # start thread to find earliest last time from hubs
         #
         good_thread = LastGoodTimeThread(src_set[:], other_set[:], self,
-                                         self.__run_data, self.__run_data)
+                                         run_data, run_data)
         good_thread.start()
 
         try:
             for i in range(0, 2):
-                if self.__run_data is None:
+                if run_data is None:
                     break
 
                 if i == 0:
@@ -1840,108 +2047,15 @@ class RunSet(object):
                 pass
 
         final_set = src_set + other_set
-        if len(final_set) > 0 and self.__run_data is not None:
-            self.__run_data.error("%s failed for %s" %
+        if len(final_set) > 0 and run_data is not None:
+            run_data.error("%s failed for %s" %
                                   (comp_op.name,
                                    listComponentRanges(final_set)))
 
-        if self.__run_data is not None:
-            self.__run_data.reset()
+        if run_data is not None:
+            run_data.reset()
 
         return final_set
-
-    @property
-    def __update_counts_and_rate(self):
-        if self.__run_data is None:
-            return None
-
-        physics_count = 0
-        wall_time = -1
-        last_pay_time = -1
-        moni_count = 0
-        moni_time = -1
-        sn_count = 0
-        sn_time = -1
-        tcal_count = 0
-        tcal_time = -1
-
-        # cache for eventBuilder object
-        evtBldr = None
-
-        # start threads to query components
-        tgroup = ComponentGroup(OpGetSingleBeanField)
-        for comp in self.__set:
-            if not comp.isBuilder:
-                continue
-
-            if comp.isComponent("eventBuilder"):
-                # save eventBuilder in case we need to get the first event time
-                evtBldr = comp
-
-                tgroup.run_thread(comp, ("backEnd", "EventData"),
-                                  logger=self.__run_data)
-            elif comp.isComponent("secondaryBuilders"):
-                for bldr in ("moni", "sn", "tcal"):
-                    tgroup.run_thread(comp, (bldr + "Builder", "EventData"),
-                                      logger=self.__run_data)
-        tgroup.wait(wait_secs=8, reps=10)
-
-        # process results
-        for comp, result in tgroup.results(full_result=True).iteritems():
-            if not ComponentGroup.has_value(result, full_result=True):
-                self.__run_data.error("Cannot get event data for %s: %s" %
-                                      (comp.fullname, result))
-                continue
-
-            evt_data = result.value
-            if not isinstance(evt_data, list) and \
-               not isinstance(evt_data, tuple):
-                self.__run_data.error("Got bad event data (%s) <%s>" %
-                                      (evt_data, type(evt_data).__name__))
-                continue
-
-            if comp.isComponent("eventBuilder"):
-                if len(evt_data) != 2:
-                    self.__dashlog.error("Got bad event data %s (expected"
-                                         " 2 entries)" % (evt_data, ))
-                    continue
-
-                physics_count = int(evt_data[0])
-                wall_time = datetime.datetime.utcnow()
-                last_pay_time = long(evt_data[1])
-
-            elif comp.isComponent("secondaryBuilders"):
-                bldr_name = result.arguments[0]
-                num = evt_data[0]
-                now = evt_data[1]
-
-                if bldr_name.startswith("moni"):
-                    moni_count = num
-                    moni_time = now
-                elif bldr_name.startswith("sn"):
-                    sn_count = num
-                    sn_time = now
-                elif bldr_name.startswith("tcal"):
-                    tcal_count = num
-                    tcal_time = now
-
-        # if there are physics event but we don't know the time of
-        #  the first event, fetch it now
-        if physics_count > 0 and \
-           self.__run_data.first_physics_time <= 0 and \
-           evtBldr is not None:
-            result = self.__get_single_bean_field(evtBldr, "backEnd",
-                                                  "FirstEventTime")
-            if not ComponentGroup.has_value(result):
-                msg = "Cannot get first event time (%s)" % (result, )
-                self.__run_data.error(msg)
-            else:
-                self.__run_data.set_first_physics_time(result)
-
-        return self.__run_data.update_event_counts\
-            (physics_count, wall_time, self.__run_data.first_physics_time,
-             last_pay_time, moni_count, moni_time, sn_count, sn_time,
-             tcal_count, tcal_time, add_rate=True)
 
     def __validate_subrun_doms(self, subrun_data):
         """
@@ -2047,39 +2161,6 @@ class RunSet(object):
                                    wait_str))
 
         return total_secs
-
-    @staticmethod
-    def __write_run_xml(run_data, num_evts, num_moni, num_sn, num_tcal,
-                        first_time, last_time, first_good, last_good,
-                        had_error):
-
-        xml_log = DashXMLLog(dir_name=run_data.run_directory)
-        path = xml_log.getPath()
-        if os.path.exists(path):
-            run_data.error("Run xml log file \"%s\" already exists!" %
-                           (path, ))
-            return
-
-        xml_log.setVersionInfo(run_data.release, run_data.repo_revision)
-        xml_log.setRun(run_data.run_number)
-        xml_log.setConfig(run_data.run_configuration.basename)
-        xml_log.setCluster(run_data.cluster_configuration.description)
-        xml_log.setStartTime(PayloadTime.toDateTime(first_time))
-        xml_log.setEndTime(PayloadTime.toDateTime(last_time))
-        xml_log.setFirstGoodTime(PayloadTime.toDateTime(first_good))
-        xml_log.setLastGoodTime(PayloadTime.toDateTime(last_good))
-        xml_log.setEvents(num_evts)
-        xml_log.setMoni(num_moni)
-        xml_log.setSN(num_sn)
-        xml_log.setTcal(num_tcal)
-        xml_log.setTermCond(had_error)
-
-        # write the xml log file to disk
-        try:
-            xml_log.writeLog()
-        except DashXMLLogException:
-            run_data.error("Could not write run xml log file \"%s\"" %
-                           (xml_log.getPath(), ))
 
     def build_connection_map(self):
         "Validate and fill the map of connections for each component"
@@ -2284,12 +2365,12 @@ class RunSet(object):
                 had_error = True
                 duration = 0
 
-        cls.__write_run_xml(run_data, physics_count, moni_count, sn_count,
-                            tcal_count, first_time, last_time, first_good,
-                            last_good, had_error)
+        run_data.write_run_xml(physics_count, moni_count, sn_count,
+                               tcal_count, first_time, last_time, first_good,
+                               last_good, had_error)
 
-        cls.__report_run_stop(run_data, physics_count, first_good, last_good,
-                              had_error)
+        run_data.report_run_stop(physics_count, first_good, last_good,
+                                 had_error)
 
         if switching:
             cls.report_good_time(run_data, "lastGoodTime", last_time)
@@ -2347,45 +2428,26 @@ class RunSet(object):
 
         run_data.start_tasks(self)
 
-    def get_event_counts(self):
+    def get_event_counts(self, run_num, run_data=None):
         "Return monitoring data for the run"
-        if self.isRunning:
-            values = self.__update_counts_and_rate
-        else:
-            values = self.__run_data.cached_monitor_data
+        if run_data is None:
+            run_data = self.__run_data
 
-        if values is None:
-            return {}
+        return run_data.get_event_counts(run_num, self)
 
-        (num_evts, wall_time, _, pay_time, num_moni, moni_time, num_sn,
-         sn_time, num_tcal, tcal_time) = values
+    def get_first_event_time(self, comp, run_data):
+        tgroup = ComponentGroup(OpGetSingleBeanField)
+        tgroup.run_thread(comp, ("backEnd", "FirstEventTime"),
+                          logger=run_data)
+        tgroup.wait(wait_secs=3, reps=10)
 
-        mon_dict = {}
+        rslt = tgroup.results(full_result=False)
+        if comp not in rslt:
+            result = ComponentGroup.RESULT_ERROR
+        else:
+            result = rslt[comp]
 
-        mon_dict["physicsEvents"] = num_evts
-        if wall_time is None or num_evts == 0:
-            mon_dict["wallTime"] = None
-            mon_dict["eventPayloadTicks"] = None
-        else:
-            mon_dict["wallTime"] = str(wall_time)
-            mon_dict["eventPayloadTicks"] = pay_time
-        mon_dict["moniEvents"] = num_moni
-        if moni_time is None:
-            mon_dict["moniTime"] = None
-        else:
-            mon_dict["moniTime"] = moni_time
-        mon_dict["snEvents"] = num_sn
-        if sn_time is None:
-            mon_dict["snTime"] = None
-        else:
-            mon_dict["snTime"] = sn_time
-        mon_dict["tcalEvents"] = num_tcal
-        if tcal_time is None:
-            mon_dict["tcalTime"] = None
-        else:
-            mon_dict["tcalTime"] = tcal_time
-
-        return mon_dict
+        return result
 
     @classmethod
     def get_run_summary(cls, log_dir, run_num):
@@ -2608,60 +2670,6 @@ class RunSet(object):
 
         return self.__run_data.run_number
 
-    def send_event_counts(self, run_data=None):
-        "Report run monitoring quantities"
-
-        if run_data is None:
-            run_data = self.__run_data
-
-        if run_data is None or not run_data.has_moni_client:
-            # don't bother if we can't report anything
-            return
-
-        moni_data = self.get_event_counts()
-
-        # send every 5th set of data over ITS
-        if self.__moni_count % 5 == 0:
-            prio = Prio.ITS
-        else:
-            prio = Prio.EMAIL
-        self.__moni_count += 1
-
-        if True:  # XXX this should be removed after Sprecher is released
-            run_update = {
-                "run": run_data.run_number,
-                "subrun": run_data.subrun_number,
-                "version": 0,
-            }
-
-            # fill in counts and times
-            run_update["physicsEvents"] = moni_data["physicsEvents"]
-            if moni_data["wallTime"] is not None:
-                run_update["wallTime"] = moni_data["wallTime"]
-            for src in ("moni", "sn", "tcal"):
-                event_key = src + "Events"
-                time_key = src + "Time"
-                if moni_data[time_key] is not None and \
-                   moni_data[time_key] >= 0:
-                    run_update[event_key] = moni_data[event_key]
-                    if isinstance(moni_data[time_key], numbers.Number):
-                        dttm = PayloadTime.toDateTime(moni_data[time_key])
-                    else:
-                        dttm = moni_data[time_key]
-                    run_update[time_key] = str(dttm)
-
-            # if we don't have a DAQ time, use system time but complain
-            if moni_data["eventPayloadTicks"] is not None:
-                ptime = PayloadTime.toDateTime(moni_data["eventPayloadTicks"])
-            else:
-                ptime = datetime.datetime.utcnow()
-                run_data.error("Using system time for initial event" +
-                               " counts (no event times available)")
-
-            run_data.send_moni("run_update", run_update, prio=prio, time=ptime)
-
-        run_data.send_count_updates(moni_data, prio)
-
     def server_statistics(self):
         "Return RPC statistics for client->server calls"
         return self.__parent.server_statistics()
@@ -2807,26 +2815,27 @@ class RunSet(object):
         Return True if an error is encountered while stopping.
         """
         with self.__stop_lock:
-            if self.__run_data is None:
+            run_data = self.__run_data
+            if run_data is None:
                 raise RunSetException("RunSet #%d is not running" % self.__id)
 
-            if self.__run_data.finished:
-                self.__logger.error("Not double-stopping %s" % self.__run_data)
+            if run_data.finished:
+                self.__logger.error("Not double-stopping %s" % run_data)
                 return
 
             if self.__stopping is not None:
                 msg = "Ignored %s stop_run() call, stop_run()" \
                       " from %s is active" % (caller_name, self.__stopping)
-                self.__run_data.error(msg)
+                run_data.error(msg)
                 return False
 
             if caller_name != self.NORMAL_STOP:
-                self.__run_data.error("Stopping the run (%s)" % caller_name)
+                run_data.error("Stopping the run (%s)" % caller_name)
 
             self.__stopping = caller_name
 
         try:
-            waitlist = self.__stop_run_internal(timeout=timeout)
+            waitlist = self.__stop_run_internal(run_data, timeout=timeout)
         except:
             waitlist = []
             had_error = True
@@ -2837,7 +2846,7 @@ class RunSet(object):
             if len(waitlist) > 0:
                 had_error = True
             try:
-                self.__finish_stop(caller_name, had_error=had_error)
+                self.__finish_stop(run_data, caller_name, had_error=had_error)
             finally:
                 with self.__stop_lock:
                     self.__stopping = None
@@ -3048,7 +3057,7 @@ class RunSet(object):
             self.__parent.saveCatchall(old_data.run_directory)
 
         try:
-            self.send_event_counts(old_data)
+            old_data.send_event_counts(self)
         except:
             if not saved_ex:
                 saved_ex = sys.exc_info()
@@ -3065,7 +3074,7 @@ class RunSet(object):
         old_data.set_finished()
 
         try:
-            self.__report_first_good_time(new_data)
+            new_data.report_first_good_time(self)
         except:
             if not saved_ex:
                 saved_ex = sys.exc_info()
@@ -3074,7 +3083,7 @@ class RunSet(object):
             raise saved_ex[0], saved_ex[1], saved_ex[2]
 
     def update_rates(self):
-        values = self.__update_counts_and_rate
+        values = self.__run_data.update_counts_and_rate(self)
         if values is None:
             return None
 

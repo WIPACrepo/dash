@@ -1266,14 +1266,14 @@ class CnCServer(DAQPool):
 
         return runSet.id
 
-    def rpc_runset_monitor_run(self, id):
+    def rpc_runset_monitor_run(self, id, run_num):
         "Return monitoring data for the runset"
         runSet = self.findRunset(id)
 
         if not runSet:
             raise CnCServerException('Could not find runset#%d' % id)
 
-        monidict = runSet.get_event_counts()
+        monidict = runSet.get_event_counts(run_num)
         for key, val in monidict.iteritems():
             if not isinstance(val, str) and \
                 not isinstance(val, unicode) and \

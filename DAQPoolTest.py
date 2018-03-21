@@ -75,10 +75,7 @@ class MockRunData(object):
     def run_number(self):
         return self.__run_number
 
-    def send_count_updates(self, moni_data, prio):
-        pass
-
-    def send_moni(self, name, value, prio=None, time=None, debug=False):
+    def send_event_counts(self, run_set=None):
         pass
 
     def set_finished(self):
@@ -89,10 +86,6 @@ class MockRunData(object):
 
     def stop_tasks(self):
         pass
-
-    @property
-    def subrun_number(self):
-        return 0
 
 
 class MyRunSet(RunSet):
@@ -120,7 +113,7 @@ class MyRunSet(RunSet):
     def finish_setup(self, run_data, start_time):
         pass
 
-    def get_event_counts(self, comps=None, update_counts=True):
+    def get_event_counts(self, run_num, run_data=None):
         return {
             "physicsEvents": 1,
             "eventPayloadTicks": -100,
@@ -790,7 +783,7 @@ class TestDAQPool(unittest.TestCase):
         cComp.mbean.addData("backEnd", "EventData", (numEvts, lastTime))
         cComp.mbean.addData("backEnd", "GoodTimes", (firstTime, lastTime))
 
-        monDict = runset.get_event_counts()
+        monDict = runset.get_event_counts(runNum)
         self.assertEqual(monDict["physicsEvents"], numEvts)
 
         dashLog.addExpectedExact("Not logging to file so cannot queue to"

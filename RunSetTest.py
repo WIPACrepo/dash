@@ -194,9 +194,8 @@ class FakeRunData(object):
     def run_number(self):
         return self.__run_number
 
-    def send_count_updates(self, moni_data, prio):
-        import sys
-        print >>sys.stderr, "Not validating count_updates"
+    def send_event_counts(self, run_set=None):
+        pass
 
     def send_moni(self, name, value, prio=None, time=None, debug=False):
         if self.__moni_client is None:
@@ -292,7 +291,7 @@ class MyRunSet(RunSet):
         run_data.error("Cluster: %s" %
                        (run_data.cluster_configuration.description, ))
 
-    def get_event_counts(self, comps=None, update_counts=None):
+    def get_event_counts(self, run_num):
         return {
             "physicsEvents": 1,
             "eventPayloadTicks": -100,
@@ -312,7 +311,7 @@ class MyRunSet(RunSet):
 
 class TestRunSet(unittest.TestCase):
     def __add_moni_run_update(self, runset, moni_client, run_num):
-        ec_dict = runset.get_event_counts()
+        ec_dict = runset.get_event_counts(run_num)
         run_update = {
             "version": 0,
             "run": run_num,

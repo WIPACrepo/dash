@@ -9,15 +9,14 @@ class UniqueID(object):
         self.__val = val
         self.__lock = threading.Lock()
 
-    def next(self):
-        self.__lock.acquire()
-        try:
+    def __next__(self):
+        with self.__lock:
             rtnVal = self.__val
             self.__val += 1
-        finally:
-            self.__lock.release()
 
         return rtnVal
+
+    next = __next__ # XXX backward compatibility for Python 2
 
     def peekNext(self):
         return self.__val

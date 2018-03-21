@@ -247,9 +247,49 @@ class MostlyRunData(RunData):
                                            self.run_options)
         return self.__taskMgr
 
+    def get_event_counts(self, run_num, run_set):
+        numEvts = None
+        lastPayTime = None
+        numMoni = None
+        numSN = None
+        numTCal = None
+
+        for comp in run_set.components():
+            if comp.name == "eventBuilder":
+                evtData = comp.mbean.get("backEnd", "EventData")
+                numEvts = evtData[0]
+                lastPayTime = long(evtData[1])
+            elif comp.name == "secondaryBuilders":
+                for stream in ("moni", "sn", "tcal"):
+                    val = comp.mbean.get(stream + "Builder", "EventData")
+                    if stream == "moni":
+                        numMoni = val[0]
+                        moniTicks = val[1]
+                    elif stream == "sn":
+                        numSN = val[0]
+                        snTicks = val[1]
+                    elif stream == "tcal":
+                        numTCal = val[0]
+                        tcalTicks = val[1]
+
+        return {
+            "physicsEvents": numEvts,
+            "wallTime": None,
+            "eventPayloadTicks": lastPayTime,
+            "moniEvents": numMoni,
+            "moniTime": moniTicks,
+            "snEvents": numSN,
+            "snTime": snTicks,
+            "tcalEvents": numTCal,
+            "tcalTime": tcalTicks,
+        }
+
     @property
     def log_directory(self):
         return None
+
+    #def send_event_counts(self, run_set=None):
+    #    pass
 
     @property
     def task_manager(self):
@@ -311,43 +351,6 @@ class MostlyRunSet(RunSet):
         if comp.fullname in cls.LOGDICT:
             return cls.LOGDICT[comp.fullname]
         return None
-
-    def get_event_counts(self, comps=None, update_counts=None):
-        numEvts = None
-        lastPayTime = None
-        numMoni = None
-        numSN = None
-        numTCal = None
-
-        for comp in self.components():
-            if comp.name == "eventBuilder":
-                evtData = comp.mbean.get("backEnd", "EventData")
-                numEvts = evtData[0]
-                lastPayTime = long(evtData[1])
-            elif comp.name == "secondaryBuilders":
-                for stream in ("moni", "sn", "tcal"):
-                    val = comp.mbean.get(stream + "Builder", "EventData")
-                    if stream == "moni":
-                        numMoni = val[0]
-                        moniTicks = val[1]
-                    elif stream == "sn":
-                        numSN = val[0]
-                        snTicks = val[1]
-                    elif stream == "tcal":
-                        numTCal = val[0]
-                        tcalTicks = val[1]
-
-        return {
-            "physicsEvents": numEvts,
-            "wallTime": None,
-            "eventPayloadTicks": lastPayTime,
-            "moniEvents": numMoni,
-            "moniTime": moniTicks,
-            "snEvents": numSN,
-            "snTime": snTicks,
-            "tcalEvents": numTCal,
-            "tcalTime": tcalTicks,
-        }
 
     def getTaskManager(self):
         if self.__runData is None:
@@ -1748,7 +1751,7 @@ class IntegrationTest(unittest.TestCase):
 
         cnc.updateRates(setId)
 
-        moni = cnc.rpc_runset_monitor_run(setId)
+        moni = cnc.rpc_runset_monitor_run(setId, runNum)
         self.assertFalse(moni is None, 'rpc_run_monitoring returned None')
         self.assertFalse(len(moni) == 0, 'rpc_run_monitoring returned no data')
         self.assertEqual(numEvts, moni['physicsEvents'],

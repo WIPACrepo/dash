@@ -205,7 +205,7 @@ class FakeRunData(object):
     def run_number(self):
         return self.__run_number
 
-    def send_count_updates(self, moni_data, prio):
+    def send_event_counts(self, run_set=None):
         pass
 
     def send_moni(self, name, value, prio=None, time=None, debug=False):
@@ -262,7 +262,7 @@ class MockRunSet(RunSet):
         self.__dashLog.error("Cluster: %s" %
                              (run_data.cluster_configuration.description, ))
 
-    def get_event_counts(self, comps=None, update_counts=None):
+    def get_event_counts(self, run_num):
         return {
             "physicsEvents": 1,
             "eventPayloadTicks": -100,

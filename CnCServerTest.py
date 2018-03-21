@@ -104,6 +104,9 @@ class FakeRunData(object):
     def rate(self):
         return -123.456
 
+    def report_first_good_time(self, runset):
+        pass
+
     def reset(self):
         pass
 
@@ -119,7 +122,7 @@ class FakeRunData(object):
     def run_number(self):
         return self.__run_number
 
-    def send_count_updates(self, moni_data, prio):
+    def send_event_counts(self, run_set=None):
         pass
 
     def send_moni(self, name, value, prio=None, time=None, debug=False):
@@ -137,6 +140,9 @@ class FakeRunData(object):
     @property
     def subrun_number(self):
         return 0
+
+    def update_counts_and_rate(self, run_set):
+        pass
 
     def update_event_counts(self, num_evts, wall_time, first_pay_time,
                             evt_pay_time, num_moni, moni_time, num_sn,
@@ -202,7 +208,7 @@ class MostlyRunSet(RunSet):
         run_data.error("Cluster: %s" %
                        (run_data.cluster_configuration.description, ))
 
-    def get_event_counts(self, comps=None, update_counts=None):
+    def get_event_counts(self, run_num):
         return {
             "physicsEvents": 1,
             "eventPayloadTicks": -100,
