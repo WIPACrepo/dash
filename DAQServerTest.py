@@ -208,9 +208,6 @@ class FakeRunData(object):
     def send_event_counts(self, run_set=None):
         pass
 
-    def send_moni(self, name, value, prio=None, time=None, debug=False):
-        pass
-
     def set_finished(self):
         self.__finished = True
 
@@ -219,10 +216,6 @@ class FakeRunData(object):
 
     def stop_tasks(self):
         pass
-
-    @property
-    def subrun_number(self):
-        return 0
 
 
 class MockRunSet(RunSet):
@@ -261,19 +254,6 @@ class MockRunSet(RunSet):
                              (run_data.run_configuration.basename, ))
         self.__dashLog.error("Cluster: %s" %
                              (run_data.cluster_configuration.description, ))
-
-    def get_event_counts(self, run_num):
-        return {
-            "physicsEvents": 1,
-            "eventPayloadTicks": -100,
-            "wallTime": None,
-            "moniEvents": 1,
-            "moniTime": 98,
-            "snEvents": 1,
-            "snTime": 97,
-            "tcalEvents": 1,
-            "tcalTime": 96,
-        }
 
     @staticmethod
     def report_good_time(run_data, name, daq_time):

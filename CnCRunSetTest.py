@@ -142,7 +142,7 @@ class MockComponent(object):
 
     def connectors(self):
         if self.__conn is None:
-            return []
+            raise SystemExit("No connectors for %s" % str(self))
         return self.__conn[:]
 
     def createMBeanClient(self):
@@ -171,18 +171,8 @@ class MockComponent(object):
                 lastGood = long(good[1])
 
                 return (numEvts, firstTime, lastTime, firstGood, lastGood)
-            elif self.__name.startswith("secondary"):
-                for bldr in ("tcalBuilder", "snBuilder", "moniBuilder"):
-                    val = self.__mbean.get(bldr, "NumDispatchedData")
-                    if bldr == "tcalBuilder":
-                        numTcal = long(val)
-                    elif bldr == "snBuilder":
-                        numSN = long(val)
-                    elif bldr == "moniBuilder":
-                        numMoni = long(val)
-
-                return (numTcal, numSN, numMoni)
-        return (None, None, None)
+        raise SystemExit("Cannot return run data for \"%s\"" %
+                         (self.fullname, ))
 
     @property
     def is_dying(self):
@@ -263,7 +253,7 @@ class MostlyTaskManager(TaskManager):
 
     def getTimer(self, name):
         if name not in self.TIMERS:
-            return None
+            raise SystemExit("Unknown timer \"%s\"" % (name, ))
 
         return self.TIMERS[name]
 
@@ -339,8 +329,8 @@ class MyRunSet(RunSet):
         self.__rundata = rd
         return rd
 
-    def create_run_dir(self, logDir, runNum, backupExisting=True):
-        return None
+    #def create_run_dir(self, logDir, runNum, backupExisting=True):
+    #    return None
 
     @classmethod
     def cycle_components(cls, compList, configDir, daqDataDir, logger, logPort,
@@ -351,7 +341,7 @@ class MyRunSet(RunSet):
 
     def getTaskManager(self):
         if self.__rundata is None:
-            return None
+            raise SystemExit("RunData cannot be None")
         return self.__rundata.task_manager
 
     def reset(self):
@@ -363,6 +353,7 @@ class MyRunSet(RunSet):
         self.__dashlog = logger
         if self.__rundata is not None:
             self.__rundata.set_dash_log(logger)
+
 
     def setUnresetComponent(self, comp):
         self.__failReset = comp
@@ -409,8 +400,8 @@ class MostlyCnCServer(CnCServer):
     def saveCatchall(self, runDir):
         pass
 
-    def startLiveThread(self):
-        return None
+    #def startLiveThread(self):
+    #    return None
 
 
 class CnCRunSetTest(unittest.TestCase):

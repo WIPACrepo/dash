@@ -142,10 +142,6 @@ class FakeRunData(object):
     def finished(self):
         return self.__finished
 
-    @property
-    def has_moni_client(self):
-        return True
-
     def info(self, logmsg):
         if self.__logger is None:
             raise Exception("Mock logger has not been set")
@@ -197,11 +193,6 @@ class FakeRunData(object):
     def send_event_counts(self, run_set=None):
         pass
 
-    def send_moni(self, name, value, prio=None, time=None, debug=False):
-        if self.__moni_client is None:
-            raise AttributeError("No MoniClient")
-        self.__moni_client.send_moni(name, value, prio=prio, time=time)
-
     def set_finished(self):
         self.__finished = True
 
@@ -213,14 +204,6 @@ class FakeRunData(object):
 
     def stop_tasks(self):
         pass
-
-    @property
-    def subrun_number(self):
-        return 0
-
-    @property
-    def task_manager(self):
-        return self.__taskMgr
 
 
 class MyRunSet(RunSet):
@@ -235,9 +218,6 @@ class MyRunSet(RunSet):
     def create_component_log(cls, runDir, comp, host, port, liveHost,
                              livePort, quiet=True):
         return FakeLogger()
-
-    def create_moni_client(self, port):
-        return self.__moni_client
 
     def create_run_data(self, runNum, clusterConfig, runOptions, versionInfo,
                         spadeDir, copyDir=None, logDir=None, testing=True):

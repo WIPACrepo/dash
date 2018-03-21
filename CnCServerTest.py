@@ -69,9 +69,6 @@ class FakeRunData(object):
     def connect_to_live(self):
         pass
 
-    def create_dash_log(self):
-        return self.__dashlog
-
     def destroy(self):
         pass
 
@@ -85,24 +82,12 @@ class FakeRunData(object):
         return self.__finished
 
     @property
-    def first_physics_time(self):
-        return self.__firstPayTime
-
-    @property
-    def has_moni_client(self):
-        return True
-
-    @property
     def isErrorEnabled(self):
         return self.__dashlog.isErrorEnabled
 
     @property
     def log_directory(self):
         return None
-
-    @property
-    def rate(self):
-        return -123.456
 
     def report_first_good_time(self, runset):
         pass
@@ -125,28 +110,13 @@ class FakeRunData(object):
     def send_event_counts(self, run_set=None):
         pass
 
-    def send_moni(self, name, value, prio=None, time=None, debug=False):
-        pass
-
     def set_finished(self):
         self.__finished = True
-
-    def set_first_physics_time(self, time):
-        self.__firstPayTime = time
 
     def stop_tasks(self):
         pass
 
-    @property
-    def subrun_number(self):
-        return 0
-
     def update_counts_and_rate(self, run_set):
-        pass
-
-    def update_event_counts(self, num_evts, wall_time, first_pay_time,
-                            evt_pay_time, num_moni, moni_time, num_sn,
-                            sn_time, num_tcal, tcal_time, add_rate=False):
         pass
 
 
@@ -207,25 +177,6 @@ class MostlyRunSet(RunSet):
                        (run_data.run_configuration.basename, ))
         run_data.error("Cluster: %s" %
                        (run_data.cluster_configuration.description, ))
-
-    def get_event_counts(self, run_num):
-        return {
-            "physicsEvents": 1,
-            "eventPayloadTicks": -100,
-            "wallTime": None,
-            "moniEvents": 1,
-            "moniTime": 99,
-            "snEvents": 1,
-            "snTime": 98,
-            "tcalEvents": 1,
-            "tcalTime": 97,
-        }
-
-    def getLog(self, name):
-        if name not in self.__logDict:
-            self.__logDict[name] = MockLogger(name)
-
-        return self.__logDict[name]
 
     @staticmethod
     def report_good_time(run_data, name, daq_time):
@@ -321,7 +272,6 @@ class RealComponent(object):
         self.__cmd = RPCServer(cmdPort)
         self.__cmd.register_function(self.__configure, 'xmlrpc.configure')
         self.__cmd.register_function(self.__connect, 'xmlrpc.connect')
-        self.__cmd.register_function(self.__getRunData, 'xmlrpc.getRunData')
         self.__cmd.register_function(self.__getRunNumber,
                                      'xmlrpc.getRunNumber')
         self.__cmd.register_function(self.__getState, 'xmlrpc.getState')
@@ -331,8 +281,6 @@ class RealComponent(object):
                                      'xmlrpc.resetLogging')
         self.__cmd.register_function(self.__setFirstGoodTime,
                                      'xmlrpc.setFirstGoodTime')
-        self.__cmd.register_function(self.__setLastGoodTime,
-                                     'xmlrpc.setLastGoodTime')
         self.__cmd.register_function(self.__startRun, 'xmlrpc.startRun')
         self.__cmd.register_function(self.__stopRun, 'xmlrpc.stopRun')
         self.__cmd.register_function(self.__switchToNewRun,
@@ -419,13 +367,6 @@ class RealComponent(object):
                 return str(obj)
         return obj
 
-    def __getRunData(self, runNum):
-        if self.__runData is None:
-            raise Exception("%s runData has not been set" % self.fullname)
-        rd = self.__runData
-        self.__runData = None
-        return self.__fixValue(rd)
-
     def __getRunNumber(self):
         return self.__runNum
 
@@ -487,9 +428,6 @@ class RealComponent(object):
         return 'RLOG'
 
     def __setFirstGoodTime(self, payTime):
-        return 'OK'
-
-    def __setLastGoodTime(self, payTime):
         return 'OK'
 
     def __startRun(self, runNum):

@@ -35,12 +35,8 @@ from DAQMocks \
     SocketWriter
 
 
-class MostlyLive(object):
-    def __init__(self, port):
-        raise NotImplementedError("Missing code")
-
-    def close(self):
-        raise NotImplementedError("Missing code")
+class LiveStub(object):
+    pass
 
 
 class BeanData(object):
@@ -52,19 +48,6 @@ class BeanData(object):
         self.__watchType = watchType
         self.__value = val
         self.__increasing = increasing
-
-    def __cmp__(self, other):
-        val = cmp(self.__remoteComp, other.__remoteComp)
-        if val == 0:
-            val = cmp(self.__bean, other.__bean)
-            if val == 0:
-                val = cmp(self.__field, other.__field)
-                if val == 0:
-                    val = cmp(self.__watchType, other.__watchType)
-                    if val == 0:
-                        val = cmp(self.__increasing, other.__increasing)
-
-        return val
 
     def __str__(self):
         if self.__increasing:
@@ -513,8 +496,6 @@ class RealComponent(object):
         self.__cmd.register_function(self.__connect, 'xmlrpc.connect')
         self.__cmd.register_function(self.__getRunData, 'xmlrpc.getRunData')
         self.__cmd.register_function(self.__getState, 'xmlrpc.getState')
-        self.__cmd.register_function(self.__getVersionString,
-                                     'xmlrpc.getVersionInfo')
         self.__cmd.register_function(self.__logTo, 'xmlrpc.logTo')
         self.__cmd.register_function(self.__prepareSubrun,
                                      'xmlrpc.prepareSubrun')
@@ -660,10 +641,6 @@ class RealComponent(object):
 
     def __getState(self):
         return self.__state
-
-    def __getVersionString(self):
-        return ('$Id: %(filename)s %(revision)s %(date)s %(time)s' +
-                '%(author)s %(repo_rev)s $') % self.__version
 
     def __listGetters(self, bean):
         if self.__mbeanData is None:
@@ -1026,7 +1003,7 @@ class IntegrationTest(unittest.TestCase):
         log.addExpectedText('Started %s service on port %d' %
                             (SERVICE_NAME, livePort))
 
-        self.__live = MostlyLive(livePort)
+        self.__live = LiveStub(livePort)
 
         return (self.__live, log)
 

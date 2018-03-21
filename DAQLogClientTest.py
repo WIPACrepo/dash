@@ -10,16 +10,6 @@ from DAQLog import FileAppender
 class TestDAQLogClient(unittest.TestCase):
     DIR_PATH = None
 
-    def checkLog(self, logPath, msgList):
-        lines = self.readLog(logPath)
-        self.assertEqual(len(msgList), len(lines), 'Expected %d line, not %d' %
-                         (len(msgList), len(lines)))
-
-        for i in range(len(msgList)):
-            msg = lines[i].rstrip()
-            self.assertEqual(msgList[i], msg,
-                             'Expected "%s", not "%s"' % (msgList[i], msg))
-
     def readLog(self, logPath):
         lines = []
         with open(logPath, 'r') as fd:

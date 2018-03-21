@@ -53,10 +53,6 @@ class MockRunData(object):
         return self.__finished
 
     @property
-    def has_moni_client(self):
-        return True
-
-    @property
     def isErrorEnabled(self):
         return self.__logger.isErrorEnabled
 
