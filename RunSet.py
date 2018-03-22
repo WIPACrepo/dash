@@ -2102,6 +2102,9 @@ class RunSet(object):
         time any component changes state).  Raise a ValueError if the state
         change fails.
         """
+        if valid_states is None or len(valid_states) == 0:
+            raise RunSetException("No valid states specified")
+
         if components is None:
             waitlist = self.__set[:]
         else:
@@ -2154,10 +2157,14 @@ class RunSet(object):
 
         total_secs = time.time() - start_secs
         if len(waitlist) > 0:
+            if len(valid_states) == 1:
+                state_str = valid_states[0]
+            else:
+                state_str = "(" + ", ".join(valid_states) + ")"
             wait_str = listComponentRanges(waitlist)
             raise RunSetException(("Still waiting for %d components to" +
-                                   " leave %s after %d seconds (%s)") %
-                                  (len(waitlist), self.__state, total_secs,
+                                   " switch to %s after %d seconds (%s)") %
+                                  (len(waitlist), state_str, total_secs,
                                    wait_str))
 
         return total_secs
