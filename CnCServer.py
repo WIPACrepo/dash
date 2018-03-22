@@ -1423,9 +1423,19 @@ class CnCServer(DAQPool):
             openCount = 0
 
         cluCfg = self.getClusterConfig(runConfig=runSet.run_config_data)
-        runSet.start_run(runNum, cluCfg, runOptions, self.__versionInfo,
-                         self.__spadeDir, copy_dir=self.__copyDir,
-                         log_dir=log_dir, quiet=self.__quiet)
+        try:
+            runSet.start_run(runNum, cluCfg, runOptions, self.__versionInfo,
+                             self.__spadeDir, copy_dir=self.__copyDir,
+                             log_dir=log_dir, quiet=self.__quiet)
+        except:
+            import traceback
+            try:
+                self.__log.error("Cannot start runset#%d: %s" %
+                                 (runSet.id, traceback.format_exc()))
+                runSet.reset()
+            except:
+                self.__log.error("Cannot reset runset#%d: %s" %
+                                 (runSet.id, traceback.format_exc()))
 
         # file leaks are reported after startRun() because dash.log
         # is created in that method
