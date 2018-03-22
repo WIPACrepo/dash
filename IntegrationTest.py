@@ -271,9 +271,6 @@ class MostlyRunData(RunData):
     def log_directory(self):
         return None
 
-    #def send_event_counts(self, run_set=None):
-    #    pass
-
     @property
     def task_manager(self):
         return self.__taskMgr

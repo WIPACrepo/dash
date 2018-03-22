@@ -329,9 +329,6 @@ class MyRunSet(RunSet):
         self.__rundata = rd
         return rd
 
-    #def create_run_dir(self, logDir, runNum, backupExisting=True):
-    #    return None
-
     @classmethod
     def cycle_components(cls, compList, configDir, daqDataDir, logger, logPort,
                          livePort, verbose, killWith9, eventCheck,
@@ -353,7 +350,6 @@ class MyRunSet(RunSet):
         self.__dashlog = logger
         if self.__rundata is not None:
             self.__rundata.set_dash_log(logger)
-
 
     def setUnresetComponent(self, comp):
         self.__failReset = comp
@@ -399,9 +395,6 @@ class MostlyCnCServer(CnCServer):
 
     def saveCatchall(self, runDir):
         pass
-
-    #def startLiveThread(self):
-    #    return None
 
 
 class CnCRunSetTest(unittest.TestCase):
