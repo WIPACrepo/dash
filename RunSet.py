@@ -2670,6 +2670,9 @@ class RunSet(object):
 
         return self.__run_data.run_number
 
+    def send_event_counts(self):
+        return self.__run_data.send_event_counts(self)
+
     def server_statistics(self):
         "Return RPC statistics for client->server calls"
         return self.__parent.server_statistics()
