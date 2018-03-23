@@ -628,19 +628,20 @@ class CnCRunSetTest(unittest.TestCase):
         if liveMoni is not None:
             liveMoni.checkStatus(5)
 
-    def __checkWatchdogTask(self, comps, rs, dashLog, liveMoni):
+    def __checkWatchdogTask(self, comps, rs, dashLog, liveMoni,
+                            unhealthy=False):
         timer = rs.getTaskManager().getTimer(WatchdogTask.NAME)
 
         self.__setBeanData(comps, "eventBuilder", 0, "backEnd",
                            "DiskAvailable", 0)
 
+        if unhealthy:
+            dashLog.addExpectedRegexp("Watchdog reports starved components.*")
+            dashLog.addExpectedRegexp("Watchdog reports threshold components.*")
+
         timer.trigger()
 
         time.sleep(MostlyTaskManager.WAITSECS * 2.0)
-
-        dashLog.addExpectedRegexp("Watchdog reports threshold components.*")
-
-        timer.trigger()
 
         self.__waitForEmptyLog(dashLog, "Didn't get watchdog message")
 
@@ -1082,7 +1083,10 @@ class CnCRunSetTest(unittest.TestCase):
                              firstTime, runNum)
         self.__checkMonitorTask(comps, rs, liveMoni)
         self.__checkActiveDOMsTask(comps, rs, liveMoni)
-        self.__checkWatchdogTask(comps, rs, dashLog, liveMoni)
+
+        for idx in range(5):
+            self.__checkWatchdogTask(comps, rs, dashLog, liveMoni,
+                                     unhealthy=(idx >= 4))
 
         if catchall:
             catchall.checkStatus(5)

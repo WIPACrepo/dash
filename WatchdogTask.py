@@ -639,9 +639,13 @@ class WatchdogTask(CnCTask):
     # number of complaints printed before run is killed
     NUM_HEALTH_MSGS = 3
 
-    def __init__(self, taskMgr, runset, dashlog, period=None, rules=None):
+    def __init__(self, taskMgr, runset, dashlog, initial_health=None,
+                 period=None, rules=None):
         self.__threadList = {}
-        self.__healthMeter = self.HEALTH_METER_FULL
+        if initial_health is None:
+            self.__healthMeter = self.HEALTH_METER_FULL
+        else:
+            self.__healthMeter = int(initial_health)
 
         if period is None:
             period = self.PERIOD
@@ -719,23 +723,31 @@ class WatchdogTask(CnCTask):
             self.__threadList[c] = self.__threadList[c].get_new_thread()
             self.__threadList[c].start()
 
+        # watchdog starts out "extra healthy" to compensate for
+        #  laggy components at the start of each run
+        extra_healthy = self.__healthMeter > self.HEALTH_METER_FULL
+
         healthy = True
         if len(hanging) > 0:
-            self.logError("%s reports hanging components:\n    %s" %
-                          (self.NAME, listComponentRanges(hanging)))
+            if not extra_healthy:
+                self.logError("%s reports hanging components:\n    %s" %
+                              (self.NAME, listComponentRanges(hanging)))
             healthy = False
         if len(starved) > 0:
-            self.__logUnhealthy("starved", starved)
+            if not extra_healthy:
+                self.__logUnhealthy("starved", starved)
             healthy = False
         if len(stagnant) > 0:
-            self.__logUnhealthy("stagnant", stagnant)
+            if not extra_healthy:
+                self.__logUnhealthy("stagnant", stagnant)
             healthy = False
         if len(threshold) > 0:
-            self.__logUnhealthy("threshold", threshold)
+            if not extra_healthy:
+                self.__logUnhealthy("threshold", threshold)
             healthy = False
 
         if healthy:
-            if self.__healthMeter < self.HEALTH_METER_FULL:
+            if not extra_healthy:
                 if self.__healthMeter + self.NUM_HEALTH_MSGS < \
                    self.HEALTH_METER_FULL:
                     # only log this if we've logged the "unhealthy" message
@@ -744,7 +756,8 @@ class WatchdogTask(CnCTask):
         else:
             self.__healthMeter -= 1
             if self.__healthMeter > 0:
-                if self.__healthMeter % self.NUM_HEALTH_MSGS == 0:
+                if not extra_healthy and \
+                   self.__healthMeter % self.NUM_HEALTH_MSGS == 0:
                     self.logError("Run is unhealthy (%d checks left)" %
                                   self.__healthMeter)
             else:

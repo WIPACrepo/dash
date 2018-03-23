@@ -1160,15 +1160,18 @@ class IntegrationTest(unittest.TestCase):
 
         self.__setBeanData("eventBuilder", 0, "backEnd", "DiskAvailable", 0)
 
-        taskMgr.triggerTimer(WatchdogTask.NAME)
-        time.sleep(MostlyTaskManager.WAITSECS)
-        taskMgr.waitForTasks()
+        for idx in range(5):
+            if idx >= 4:
+                dashLog.addExpectedRegexp(r"Watchdog reports starved"
+                                          r" components.*")
+                dashLog.addExpectedRegexp(r"Watchdog reports stagnant"
+                                          r" components.*")
+                dashLog.addExpectedRegexp(r"Watchdog reports threshold"
+                                          r" components.*")
 
-        dashLog.addExpectedRegexp("Watchdog reports threshold components.*")
-
-        taskMgr.triggerTimer(WatchdogTask.NAME)
-        time.sleep(MostlyTaskManager.WAITSECS)
-        taskMgr.waitForTasks()
+            taskMgr.triggerTimer(WatchdogTask.NAME)
+            time.sleep(MostlyTaskManager.WAITSECS)
+            taskMgr.waitForTasks()
 
     def __getConnectionList(self, name):
         if name == 'stringHub':

@@ -73,7 +73,7 @@ class TaskManager(threading.Thread):
                                   liveMoni)
         elif taskNum == 3:
             return WatchdogTask(self, self.__runset, self.__dashlog,
-                                period=runCfg.watchdogPeriod)
+                                initial_health=12, period=runCfg.watchdogPeriod)
 
         return None
 
