@@ -308,7 +308,7 @@ class ComponentGroup(ThreadGroup):
 
         return result.value is not None
 
-    def results(self, full_result=False):
+    def results(self, full_result=False, comp_key=False, logger=None):
         if not self.__op.has_result:
             return None
 
@@ -324,7 +324,14 @@ class ComponentGroup(ThreadGroup):
             else:
                 # return only the value from the result
                 result = thrd.result.value
-            results[thrd.component] = result
+
+            if not comp_key:
+                results[thrd] = result
+            elif thrd.component in results:
+                logger.error("Found multiple %s results for %s" %
+                             (self.__op, thrd.component))
+            else:
+                results[thrd.component] = result
         return results
 
     @staticmethod
@@ -337,7 +344,8 @@ class ComponentGroup(ThreadGroup):
         if report_errors:
             if group.report_errors(logger, operation.name):
                 return None
-        return group.results(full_result=full_result)
+        return group.results(full_result=full_result, comp_key=True,
+                             logger=logger)
 
     def run_thread(self, comp, args, logger=None):
         "Add a thread to the group"

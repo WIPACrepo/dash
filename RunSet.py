@@ -253,17 +253,16 @@ class GoodTimeThread(CnCThread):
             hanging = False
             complete = True
 
-            rlist = tgroup.results()
-            for comp in self.__src_set:
+            for thrd, result in tgroup.results().iteritems():
                 if self.__stopped:
                     # run has been stopped, don't bother checking anymore
                     break
 
+                comp = thrd.component
                 if comp in self.__time_dict:
                     # already have a time for this hub
                     continue
 
-                result = rlist[comp]
                 if result is None or \
                    result == ComponentGroup.RESULT_HANGING:
                     # still waiting for results
@@ -1110,7 +1109,8 @@ class RunData(object):
         tgroup.wait(wait_secs=8, reps=10)
 
         # process results
-        for comp, result in tgroup.results(full_result=True).iteritems():
+        for thrd, result in tgroup.results(full_result=True).iteritems():
+            comp = thrd.component
             if not ComponentGroup.has_value(result, full_result=True):
                 self.error("Cannot get event data for %s: %s" %
                            (comp.fullname, result))
@@ -2448,12 +2448,19 @@ class RunSet(object):
                           logger=run_data)
         tgroup.wait(wait_secs=3, reps=10)
 
-        rslt = tgroup.results(full_result=False)
-        if comp not in rslt:
-            result = ComponentGroup.RESULT_ERROR
-        else:
-            result = rslt[comp]
-
+        result = None
+        for thrd, rslt in tgroup.results(full_result=False).iteritems():
+            if thrd.component != comp:
+                self.__run_data.error("Found FirstEventTime result for"
+                                      " component %s (should be %s)" %
+                                      (thrd.component, comp))
+            elif result is not None:
+                self.__run_data.error("Found multiple FirstEventTime"
+                                      " results for %s" % (comp, ))
+            else:
+                result = rslt
+        if result is None:
+            return ComponentGroup.RESULT_ERROR
         return result
 
     @classmethod
@@ -3098,8 +3105,9 @@ class RunSet(object):
             return None
 
         (num_evts, _, _, _, num_moni, _, num_sn, _, num_tcal, _) = values
+        rate = self.__run_data.rate
 
-        return (num_evts, self.__run_data.rate, num_moni, num_sn, num_tcal)
+        return (num_evts, rate, num_moni, num_sn, num_tcal)
 
 
 if __name__ == "__main__":
