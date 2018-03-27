@@ -73,6 +73,9 @@ class ThreadGroup(object):
     def __len__(self):
         return len(self.__list)
 
+    def __str__(self):
+        return "ThreadGroup(%s)*%d" % (self.__name, len(self.__list))
+
     def __get_errors(self):
         """
         Count the number of threads still "alive" and the number which
