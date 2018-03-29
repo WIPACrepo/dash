@@ -519,8 +519,9 @@ class RealComponent(object):
 
 
 class RateTracker(object):
-    def __init__(self, ticksInc, evtsInc, moniInc, snInc,
+    def __init__(self, runNum, ticksInc, evtsInc, moniInc, snInc,
                  tcalInc):
+        self.__runNumber = runNum
         self.__ticksInc = ticksInc
         self.__evtsInc = evtsInc
         self.__moniInc = moniInc
@@ -567,7 +568,8 @@ class RateTracker(object):
                 comp.setRunData(self.__numEvts, self.__firstEvtTime,
                                 lastEvtTime, self.__firstEvtTime, lastEvtTime)
                 comp.setBeanFieldValue("backEnd", "EventData",
-                                       (self.__numEvts, lastEvtTime))
+                                       (self.__runNumber, self.__numEvts,
+                                        lastEvtTime))
                 comp.setBeanFieldValue("backEnd", "FirstEventTime",
                                        self.__firstEvtTime)
                 comp.setBeanFieldValue("backEnd", "GoodTimes",
@@ -891,7 +893,7 @@ class TestCnCServer(unittest.TestCase):
         for nm in logs:
             logs[nm].checkStatus(100)
 
-        rateTracker = RateTracker(10000000000, 100, 0, 0, 0)
+        rateTracker = RateTracker(runNum, 10000000000, 100, 0, 0, 0)
 
         if switchRun:
             for _ in xrange(5):

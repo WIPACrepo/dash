@@ -120,11 +120,11 @@ class DAQMBeans(object):
             ('secondaryBuilders', 'snBuilder', 'DiskAvailable',
              THRESHOLD, 1024, True),
             ('dispatch', 'moniBuilder', 'NumDispatchedData', OUTPUT, 0),
-            ('dispatch', 'moniBuilder', 'EventData', OUTPUT, (0, 0)),
+            ('dispatch', 'moniBuilder', 'EventData', OUTPUT, (0, 0, 0)),
             ('dispatch', 'snBuilder', 'NumDispatchedData', OUTPUT, 0),
-            ('dispatch', 'snBuilder', 'EventData', OUTPUT, (0, 0)),
+            ('dispatch', 'snBuilder', 'EventData', OUTPUT, (0, 0, 0)),
             ('dispatch', 'tcalBuilder', 'NumDispatchedData', OUTPUT, 0),
-            ('dispatch', 'tcalBuilder', 'EventData', OUTPUT, (0, 0)),
+            ('dispatch', 'tcalBuilder', 'EventData', OUTPUT, (0, 0, 0)),
         ),
     }
 
@@ -240,20 +240,20 @@ class MostlyRunData(RunData):
         for comp in run_set.components():
             if comp.name == "eventBuilder":
                 evtData = comp.mbean.get("backEnd", "EventData")
-                numEvts = evtData[0]
-                lastPayTime = long(evtData[1])
+                numEvts = evtData[1]
+                lastPayTime = long(evtData[2])
             elif comp.name == "secondaryBuilders":
                 for stream in ("moni", "sn", "tcal"):
                     val = comp.mbean.get(stream + "Builder", "EventData")
                     if stream == "moni":
-                        numMoni = val[0]
-                        moniTicks = val[1]
+                        numMoni = val[1]
+                        moniTicks = val[2]
                     elif stream == "sn":
-                        numSN = val[0]
-                        snTicks = val[1]
+                        numSN = val[1]
+                        snTicks = val[2]
                     elif stream == "tcal":
-                        numTCal = val[0]
-                        tcalTicks = val[1]
+                        numTCal = val[1]
+                        tcalTicks = val[2]
 
         return {
             "physicsEvents": numEvts,
@@ -751,7 +751,7 @@ class RealComponent(object):
                 val = None
                 if not useMBeanData and bean == "backEnd":
                     if fld == "EventData":
-                        val = [2, 10000000000]
+                        val = [None, 2, 10000000000]
                     elif fld == "FirstEventTime":
                         val = 1000
                     elif fld == "GoodTimes":
@@ -1110,15 +1110,16 @@ class IntegrationTest(unittest.TestCase):
         if liveMoni is not None:
             self.__waitForEmptyLog(liveMoni, "Didn't get moni messages")
 
-    def __forceRate(self, cnc, dashLog):
+    def __forceRate(self, cnc, dashLog, runNum):
         taskMgr = cnc.getRunSet().getTaskManager()
 
-        self.__setBeanData("eventBuilder", 0, "backEnd", "EventData", [0, 0])
+        self.__setBeanData("eventBuilder", 0, "backEnd", "EventData",
+                           [runNum, 0, 0])
         self.__setBeanData("eventBuilder", 0, "backEnd", "FirstEventTime", 0)
         self.__setBeanData("eventBuilder", 0, "backEnd", "GoodTimes", [0, 0])
         for bldr in ("moni", "sn", "tcal"):
             self.__setBeanData("secondaryBuilders", 0, bldr + "Builder",
-                               "EventData", [0, 0])
+                               "EventData", [runNum, 0, 0])
 
         dashLog.addExpectedRegexp(r"\s*0 physics events, 0 moni events," +
                                   r" 0 SN events, 0 tcals")
@@ -1134,7 +1135,7 @@ class IntegrationTest(unittest.TestCase):
         curTime = 20000000000 + firstTime
 
         self.__setBeanData("eventBuilder", 0, "backEnd", "EventData",
-                           [numEvts, curTime])
+                           [runNum, numEvts, curTime])
         self.__setBeanData("eventBuilder", 0, "backEnd", "FirstEventTime",
                            firstTime)
         self.__setBeanData("eventBuilder", 0, "backEnd", "GoodTimes",
@@ -1454,7 +1455,7 @@ class IntegrationTest(unittest.TestCase):
         if logServer:
             logServer.checkStatus(10)
 
-        self.__forceRate(cnc, dashLog)
+        self.__forceRate(cnc, dashLog, runNum)
 
         if liveLog:
             liveLog.checkStatus(10)
@@ -1632,7 +1633,7 @@ class IntegrationTest(unittest.TestCase):
         self.__setBeanData("eventBuilder", 0, "backEnd", "NumEventsDispatched",
                            numEvts)
         self.__setBeanData("eventBuilder", 0, "backEnd", "EventData",
-                           [numEvts, lastEvtTime])
+                           [runNum, numEvts, lastEvtTime])
         self.__setBeanData("eventBuilder", 0, "backEnd", "FirstEventTime",
                            startEvtTime)
         self.__setBeanData("eventBuilder", 0, "backEnd", "GoodTimes",
@@ -1640,15 +1641,15 @@ class IntegrationTest(unittest.TestCase):
         self.__setBeanData("secondaryBuilders", 0, "moniBuilder",
                            "NumDispatchedData", numMoni)
         self.__setBeanData("secondaryBuilders", 0, "moniBuilder",
-                           "EventData", (numMoni, moniTicks))
+                           "EventData", (runNum, numMoni, moniTicks))
         self.__setBeanData("secondaryBuilders", 0, "snBuilder",
                            "NumDispatchedData", numSN)
         self.__setBeanData("secondaryBuilders", 0, "snBuilder",
-                           "EventData", (numSN, snTicks))
+                           "EventData", (runNum, numSN, snTicks))
         self.__setBeanData("secondaryBuilders", 0, "tcalBuilder",
                            "NumDispatchedData", numTcal)
         self.__setBeanData("secondaryBuilders", 0, "tcalBuilder",
-                           "EventData", (numTcal, tcalTicks))
+                           "EventData", (runNum, numTcal, tcalTicks))
 
         self.__setRunData(numEvts, startEvtTime, lastEvtTime, numTcal, numSN,
                           numMoni, startEvtTime, lastEvtTime)

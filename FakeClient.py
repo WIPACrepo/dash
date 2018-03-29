@@ -400,7 +400,7 @@ class FakeMBeanData(object):
         "eventBuilder": {
             "backEnd": {
                 "DiskAvailable": (2048, None),
-                "EventData": ((0, 1), (3, 10000000000)),
+                "EventData": ((0, 1), (None, 3, 10000000000)),
                 "FirstEventTime": (0, None),
                 "GoodTimes": ((0, 0), None),
                 "NumBadEvents": (0, None),

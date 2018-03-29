@@ -160,8 +160,8 @@ class MockComponent(object):
         if self.__num == 0:
             if self.__name.startswith("event"):
                 evtData = self.__mbean.get("backEnd", "EventData")
-                numEvts = int(evtData[0])
-                lastTime = long(evtData[1])
+                numEvts = int(evtData[1])
+                lastTime = long(evtData[2])
 
                 val = self.__mbean.get("backEnd", "FirstEventTime")
                 firstTime = long(val)
@@ -441,7 +441,7 @@ class CnCRunSetTest(unittest.TestCase):
         "eventBuilder": {
             "backEnd": {
                 "DiskAvailable": 2048,
-                "EventData": (0, 0),
+                "EventData": (0, 0, 0),
                 "FirstEventTime": 0,
                 "GoodTimes": (0, 0),
                 "NumBadEvents": 0,
@@ -597,6 +597,9 @@ class CnCRunSetTest(unittest.TestCase):
                         firstTime, runNum):
         timer = rs.getTaskManager().getTimer(RateTask.NAME)
 
+        self.__setBeanData(comps, "eventBuilder", 0, "backEnd", "EventData",
+                           [runNum, 0, 0])
+
         dashLog.addExpectedRegexp(r"\s+0 physics events, 0 moni events," +
                                   r" 0 SN events, 0 tcals")
 
@@ -605,7 +608,7 @@ class CnCRunSetTest(unittest.TestCase):
         self.__waitForEmptyLog(dashLog, "Didn't get rate message")
 
         self.__setBeanData(comps, "eventBuilder", 0, "backEnd", "EventData",
-                           [numEvts, payTime])
+                           [runNum, numEvts, payTime])
         self.__setBeanData(comps, "eventBuilder", 0, "backEnd",
                            "FirstEventTime", firstTime)
         self.__setBeanData(comps, "eventBuilder", 0, "backEnd",
@@ -854,6 +857,8 @@ class CnCRunSetTest(unittest.TestCase):
         self.__spadeDir = None
 
         set_pdaq_config_dir(None, override=True)
+
+        # from DAQMocks import LogChecker; LogChecker.DEBUG = True
 
         RunXMLValidator.setUp()
 

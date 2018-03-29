@@ -908,8 +908,10 @@ class RunData(object):
             count_field = prefix + "Events"
 
             if count_field not in moni_data or tick_field not in moni_data:
-                self.error("No %s data provided by RunSet"
-                           ".get_event_counts()" % (stream, ))
+                ## commented out because this is too noisy during run switches
+                ##
+                # self.error("No %s data provided by RunSet"
+                #            ".get_event_counts()" % (stream, ))
                 continue
 
             if moni_data[count_field] is None or moni_data[tick_field] is None:
@@ -985,6 +987,13 @@ class RunData(object):
         self.__num_event_count_messages += 1
 
         self.send_count_updates(moni_data, prio)
+
+        for stream in ("physics", "moni", "sn", "tcal"):
+            if stream + "Events" not in moni_data:
+                if len(moni_data) > 0:
+                    self.error("Dropping incomplete monitoring data (%s)" %
+                               str(moni_data))
+                return
 
         if True:  # XXX this should be removed after Sprecher is released
             run_update = {
@@ -1124,19 +1133,40 @@ class RunData(object):
                 continue
 
             if comp.isComponent("eventBuilder"):
-                if len(evt_data) != 2:
-                    self.error("Got bad event data %s (expected 2 entries)" %
+                if len(evt_data) != 3:
+                    self.error("Got bad event data %s (expected 3 entries)" %
                                (evt_data, ))
                     continue
 
-                physics_count = int(evt_data[0])
+                run_num = int(evt_data[0])
+                if run_num != self.__run_number:
+                    # if there's a new run, don't bother with this update
+                    if run_num != self.__run_number + 1:
+                        self.error("Ignoring eventBuilder counts (run#%d "
+                                   "!= run#%d)" % (run_num, self.__run_number))
+                    return None
+
+                physics_count = int(evt_data[1])
                 wall_time = datetime.datetime.utcnow()
-                last_pay_time = long(evt_data[1])
+                last_pay_time = long(evt_data[2])
 
             elif comp.isComponent("secondaryBuilders"):
+                if len(evt_data) != 3:
+                    self.error("Got bad event data %s (expected 3 entries)" %
+                               (evt_data, ))
+                    continue
+
+                run_num = evt_data[0]
+                if run_num != self.__run_number:
+                    # if there's a new run, don't bother with this update
+                    if run_num != self.__run_number + 1:
+                        self.error("Ignoring secondaryBuilders counts (run#%d "
+                                   "!= run#%d)" % (run_num, self.__run_number))
+                    return None
+
                 bldr_name = result.arguments[0]
-                num = evt_data[0]
-                now = evt_data[1]
+                num = evt_data[1]
+                now = evt_data[2]
 
                 if bldr_name.startswith("moni"):
                     moni_count = num

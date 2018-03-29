@@ -776,7 +776,8 @@ class TestDAQPool(unittest.TestCase):
         lastTime = 23456789L
 
         cComp.mbean.addData("backEnd", "FirstEventTime", firstTime)
-        cComp.mbean.addData("backEnd", "EventData", (numEvts, lastTime))
+        cComp.mbean.addData("backEnd", "EventData",
+                            (runNum, numEvts, lastTime))
         cComp.mbean.addData("backEnd", "GoodTimes", (firstTime, lastTime))
 
         monDict = runset.get_event_counts(runNum)
