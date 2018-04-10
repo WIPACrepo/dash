@@ -8,6 +8,16 @@ from utils.Machineid import Machineid
 # find top pDAQ directory
 PDAQ_HOME = find_pdaq_trunk()
 
+# list of all pDAQ command objects (classes which add the @command decorator)
+COMMANDS = []
+
+def command(cls):
+    """
+    Decorator which adds a command class to the master list
+    """
+    COMMANDS.append(cls)
+    return cls
+
 
 class FakeArgParser(object):
     """
@@ -47,6 +57,9 @@ class BaseCmd(object):
     CMDTYPE_NONE = "None"
     # Command completion is unknown
     CMDTYPE_UNKNOWN = "?"
+
+    # list of commands
+    COMMANDS = []
 
     "Basic structure of a 'pdaq' command"
     @classmethod
@@ -88,6 +101,7 @@ class BaseCmd(object):
         print "Not running '%s'" % cls.name()
 
 
+@command
 class CmdDeploy(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -118,6 +132,7 @@ class CmdDeploy(BaseCmd):
         run_deploy(args)
 
 
+@command
 class CmdDumpData(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -148,6 +163,7 @@ class CmdDumpData(BaseCmd):
         dump_payloads(args)
 
 
+@command
 class CmdDumpHSDB(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -178,6 +194,7 @@ class CmdDumpHSDB(BaseCmd):
         dump_db(args)
 
 
+@command
 class CmdFlash(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -208,6 +225,7 @@ class CmdFlash(BaseCmd):
         flash(args)
 
 
+@command
 class CmdHelp(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -258,6 +276,7 @@ class CmdHelp(BaseCmd):
         print "Unknown command '%s'" % args.helpcmd
 
 
+@command
 class CmdKill(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -298,6 +317,7 @@ class CmdKill(BaseCmd):
         kill(cfgDir, logger, args=args)
 
 
+@command
 class CmdLaunch(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -341,6 +361,7 @@ class CmdLaunch(BaseCmd):
         launch(cfgDir, dashDir, logger, args=args)
 
 
+@command
 class CmdQueueLogs(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -371,6 +392,7 @@ class CmdQueueLogs(BaseCmd):
         queue_logs(args)
 
 
+@command
 class CmdRun(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -401,6 +423,7 @@ class CmdRun(BaseCmd):
         daqrun(args)
 
 
+@command
 class CmdRunNumber(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -418,7 +441,7 @@ class CmdRunNumber(BaseCmd):
 
     @classmethod
     def is_valid_host(cls, args):
-        "Only a control host can start runs"
+        "Only a control host can get/set run numbers"
         return Machineid.is_host(Machineid.CONTROL_HOST)
 
     @classmethod
@@ -431,6 +454,7 @@ class CmdRunNumber(BaseCmd):
         daqrun(args)
 
 
+@command
 class CmdSortLogs(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -461,6 +485,7 @@ class CmdSortLogs(BaseCmd):
         sort_logs(args)
 
 
+@command
 class CmdStatus(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -491,6 +516,7 @@ class CmdStatus(BaseCmd):
         print_status(args)
 
 
+@command
 class CmdStopRun(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -521,6 +547,7 @@ class CmdStopRun(BaseCmd):
         stoprun(args)
 
 
+@command
 class CmdStdTest(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -555,6 +582,7 @@ class CmdStdTest(BaseCmd):
         run_tests(args)
 
 
+@command
 class CmdTail(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -591,12 +619,14 @@ class CmdTail(BaseCmd):
         tail_logs(args)
 
 
+@command
 class CmdTest(CmdStdTest):
     @classmethod
     def name(cls):
         return "test"
 
 
+@command
 class CmdWorkspace(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -625,27 +655,6 @@ class CmdWorkspace(BaseCmd):
     def run(cls, args):
         from Workspace import workspace
         workspace(args)
-
-
-# map keywords to command classes
-COMMANDS = [
-    CmdDeploy,
-    CmdDumpData,
-    CmdDumpHSDB,
-    CmdFlash,
-    CmdHelp,
-    CmdKill,
-    CmdLaunch,
-    CmdQueueLogs,
-    CmdRun,
-    CmdSortLogs,
-    CmdStatus,
-    CmdStdTest,
-    CmdStopRun,
-    CmdTail,
-    CmdTest,
-    CmdWorkspace,
-]
 
 
 if __name__ == "__main__":

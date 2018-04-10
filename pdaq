@@ -2,6 +2,10 @@
 #
 # The pdaq ubercommand which invokes all valid subcommands
 
+import inspect
+import pdaq_commands
+
+
 class CmdProblem(object):
     def __init__(self, name, errmsg):
         self.__name = name
@@ -13,16 +17,23 @@ class CmdProblem(object):
     def run(self, args):
         print "Command '%s' cannot be run: %s" % (self.__name, self.__errmsg)
 
+
+def check_commands():
+    for name, obj in inspect.getmembers(pdaq_commands):
+        if inspect.isclass(obj) and name.startswith("Cmd"):
+            if obj not in pdaq_commands.COMMANDS:
+                print "%s is missing the @command decorator" % (obj.__name__, )
+
+
 if __name__ == "__main__":
     import argparse
-    from pdaq_commands import COMMANDS
 
     p = argparse.ArgumentParser()
 
     sub = p.add_subparsers(dest="cmd")
 
     cmdmap = {}
-    for v in COMMANDS:
+    for v in pdaq_commands.COMMANDS:
         try:
             v.add_arguments(sub.add_parser(v.name(),
                                            description=v.description(),
