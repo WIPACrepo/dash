@@ -583,6 +583,37 @@ class CmdStdTest(BaseCmd):
 
 
 @command
+class CmdSummarize(BaseCmd):
+    @classmethod
+    def add_arguments(cls, parser):
+        from Summarize import add_arguments
+        add_arguments(parser)
+
+    @classmethod
+    def cmdtype(cls):
+        return cls.CMDTYPE_FONLY
+
+    @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Summarize DAQ runs"
+
+    @classmethod
+    def is_valid_host(cls, args):
+        "This can be run wherever there are 'daqrunXXXXXX' directories"
+        return True
+
+    @classmethod
+    def name(cls):
+        return "summarize"
+
+    @classmethod
+    def run(cls, args):
+        from Summarize import summarize
+        summarize(args)
+
+
+@command
 class CmdTail(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
