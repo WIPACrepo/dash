@@ -451,7 +451,7 @@ class CmdRunNumber(BaseCmd):
     @classmethod
     def run(cls, args):
         from RunNumber import get_or_set_run_number
-        daqrun(args)
+        get_or_set_run_number(args)
 
 
 @command
