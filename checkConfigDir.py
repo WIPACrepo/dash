@@ -3,17 +3,75 @@
 # Check the pDAQ/config directory on expcont for files which have been
 # used in data-taking but have not been committed
 
+import datetime
 import os
 import re
 import smtplib
 import subprocess
 import sys
+import threading
 import time
 
 
 from DAQConfig import DAQConfigParser
 from locate_pdaq import find_pdaq_config
 from utils.Machineid import Machineid
+
+
+class SVNCommit(object):
+    REV_PAT = re.compile(r"Committed revision (\d+)\.$")
+
+    def __init__(self):
+        self.__proc = None
+        self.__output = None
+        self.__revision = None
+
+    def output(self):
+        return self.__output
+
+    def revision(self):
+        return self.__revision
+
+    def run(self, timeout=None, dryrun=False):
+        def target():
+            self.__proc = subprocess.Popen("/usr/bin/svn" "commit",
+                                         "-m'Auto-commit config files'",
+                                         "--username", USER,
+                                         "--password", PASS,
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.STDOUT)
+
+            self.__output = None
+            for line in self.__proc.stdout:
+                line = line.rstrip()
+
+                m = self.REV_PAT.match(line)
+                if m is not None:
+                    self.__revision = int(m.group(1))
+
+                if self.__output is None:
+                    self.__output = [line, ]
+                else:
+                    self.__output.append(line)
+
+            self.__proc.stdout.close()
+            self.__proc.wait()
+
+        if dryrun:
+            # if this is a dry run, fake some output
+            self.__output = ["Commit Dry Run", ]
+            self.__revision = 0
+            return
+
+        thread = threading.Thread(target=target)
+        thread.start()
+
+        thread.join(timeout)
+        if thread.is_alive():
+            self.__proc.terminate()
+            thread.join()
+
+        return self.__proc.returncode
 
 
 class Ancient(object):
@@ -63,6 +121,9 @@ class ConfigDirChecker(object):
         self.__modified = []
         self.__unknown = []
         self.__ancient = []
+
+        self.__committed = None
+        self.__revision = None
 
     def __addMissingToSVN(self, dryrun=False):
         """
@@ -141,6 +202,27 @@ class ConfigDirChecker(object):
                 print >>sys.stderr, \
                     "Not handling SVN status type %s for %s" % \
                     (svnmap[path], path)
+
+    def __commit(self, dryrun=False):
+        """
+        Attempt to commit any changes, trying every half hour over half a day
+        """
+        self.__commited = None
+
+        halfDay = 60*60*12
+        interval = 60*30
+        attempts = halfDay / interval
+        cmd = SVNCommit()
+        for tries in xrange(halfDay / interval):
+            start = datetime.datetime.now()
+            rtnval = cmd.run(timeout=interval, dryrun=dryrun)
+            if rtnval == 0:
+                self.__committed = cmd.output()
+                self.__revision = cmd.revision()
+                break
+            time = datetime.datetime.now() - start
+            if time.seconds < interval:
+                time.sleep(interval - time.seconds)
 
     def __send_email(self, dryrun=False):
         intro = ("Subject: Modified run configuration(s) on SPS\n\n" +
@@ -275,6 +357,12 @@ class ConfigDirChecker(object):
 
         return configs
 
+    def __hasChanges(self):
+        """
+        Return True if there are added/modified files
+        """
+        return len(self.__added) > 0 or len(self.__modified) > 0
+
     def __report(self, verbose=False, showUnknown=False):
         """
         Report the results
@@ -295,8 +383,15 @@ class ConfigDirChecker(object):
                     if len(outstr) > 0:
                         outstr += ", "
                     outstr += "%d %s" % pair
+
+            if self.__revision is not None:
+                if len(outstr) > 0:
+                    outstr += ", "
+                outstr += "committed revision %s" % self.__revision
+
             if len(outstr) > 0:
                 print outstr
+
             return
 
         if len(self.__added) > 0:
@@ -321,6 +416,15 @@ class ConfigDirChecker(object):
                 print
             print "Found %d unknown configuration files:" % len(self.__unknown)
             for f in self.__unknown:
+                print self.INDENT + f
+            needSpaces = True
+
+        if self._committed is not None:
+            if needSpaces:
+                print
+                print
+            print "Committed to Subversion:"
+            for f in self.__committed:
                 print self.INDENT + f
             needSpaces = True
 
@@ -383,10 +487,8 @@ class ConfigDirChecker(object):
         self.__addMissingToSVN(dryrun)
         self.__findAncientUnknown()
         if commit:
-            if len(self.__added) > 0:
-                self.__svn_commit(self.__cfgdir, "Check in uncommitted" +
-                                  " run configuration files", self.__added,
-                                  dryrun=dryrun)
+            if self.__hasChanges():
+                self.__commit(dryrun)
             if len(self.__modified) > 0 or len(self.__ancient) > 0:
                 self.__send_email(dryrun=dryrun)
         else:

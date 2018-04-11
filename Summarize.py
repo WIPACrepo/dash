@@ -190,7 +190,7 @@ class Sum(object):
         self.__dryRun = False
         self.__cnc = None
 
-    def __compute_duration_and_rate(self, runxml):
+    def __compute_duration_and_rate(self, runxml, verbose=False):
         rate = ""
         duration = "???"
 
@@ -290,7 +290,8 @@ class Sum(object):
         if runxml is None:
             return
 
-        duration, rate = self.__compute_duration_and_rate(runxml)
+        duration, rate = self.__compute_duration_and_rate(runxml,
+                                                          verbose=verbose)
 
         timestr = str(runxml.getStartTime())
         idx = timestr.find(".")

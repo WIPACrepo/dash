@@ -442,5 +442,4 @@ class NISTParser(object):
 
 if __name__ == "__main__":
     ls = leapseconds.instance()
-
     ls.dump_offsets()
