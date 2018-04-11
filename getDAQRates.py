@@ -58,13 +58,11 @@ COMP_FIELDS = {
     },
     'inIceTrigger': {
         'stringHit': 'RecordsReceived',
-        'trigger': 'RecordsSent',
-        #'manager': 'TriggerCounts',
+        'trigger': 'RecordsSent'
     },
     'iceTopTrigger': {
         'icetopHit': 'RecordsReceived',
-        'trigger': 'RecordsSent',
-        #'manager': 'TriggerCounts',
+        'trigger': 'RecordsSent'
     },
     'amandaTrigger': {
         'selfContained': 'RecordsReceived',
@@ -152,59 +150,9 @@ class Component(object):
         return self.fullStr
 
 
-def computeDictRates(dictDict):
-    keys = dictDict.keys()
-
-    prevTime = None
-    firstTime = None
-
-    rates = {}
-    allDict = {}
-
-    for k in sorted(keys):
-        if prevTime is None:
-            tot = 0
-            firstTime = k
-            for k2 in dictDict[k]:
-                if k2 in dictDict[prevTime]:
-                    tot += dictDict[k][k2]
-            allDict[k] = tot
-        else:
-            secs = k - prevTime
-            tot = 0
-            for k2 in dictDict[k]:
-                if k2 in dictDict[prevTime]:
-                    vals = dictDict[k][k2] - dictDict[prevTime][k2]
-                    tot += dictDict[k][k2]
-                    if not k2 in rates:
-                        rates[k2] = []
-                    rates[k2].append(float(vals) / float(secs))
-            allDict[k] = tot
-
-        prevTime = k
-
-    if prevTime is None:
-        rates = None
-        totRate = None
-    elif prevTime == firstTime:
-        rates = None
-        totSecs = prevTime - firstTime
-        totVals = allDict[prevTime] - allDict[firstTime]
-        totRate = float(totVals) / float(totSecs)
-    else:
-        totSecs = prevTime - firstTime
-        totVals = allDict[prevTime] - allDict[firstTime]
-        totRate = float(totVals) / float(totSecs)
-
-    return (totRate, rates)
-
-
 def computeRates(dataDict):
     """Compute rates from the data saved in the data dictionary"""
     keys = dataDict.keys()
-
-    if type(dataDict[keys[0]]) == dict:
-        return computeDictRates(dataDict)
 
     prevTime = None
     firstTime = None
@@ -221,7 +169,7 @@ def computeRates(dataDict):
 
         prevTime = k
 
-    if prevTime is None:
+    if len(rates) == 0:
         rates = None
         totRate = None
     elif len(rates) == 1:
@@ -236,31 +184,6 @@ def computeRates(dataDict):
         totRate = float(totVals) / float(totSecs)
 
     return (totRate, rates)
-
-
-def fixValue(valStr):
-    """
-    Convert a string containing a single integer or a list of integers
-    into a single long value.
-    """
-    if valStr.startswith('['):
-        tot = 0
-        idx = 0
-        while idx < len(valStr) and valStr[idx] != ']':
-            nxt = valStr.find(',', idx)
-            if nxt < idx:
-                nxt = valStr.find(']', idx)
-            subStr = valStr[idx + 1: nxt]
-            try:
-                tot += long(subStr)
-            except ValueError:
-                print >> sys.stderr, \
-                    "Couldn't get integer value for '%s' ('%s' idx %d nxt %d)" % \
-                    (subStr, valStr, idx, nxt)
-            idx = nxt + 1
-        return tot
-
-    return long(valStr)
 
 
 def formatRates(rates):
@@ -303,39 +226,8 @@ class Summary(object):
     def __save(self, name, time, vals):
         if vals.startswith('['):
             self.__saveListSum(name, time, vals)
-        elif vals.startswith('{'):
-            self.__saveDict(name, time, vals)
         else:
-            try:
-                lval = long(vals)
-                self.__saveValue(name, time, long(vals))
-            except ValueError:
-                print >>sys.stderr, "Bad 'long' value %s<%s> for %s %s" % \
-                    (vals, type(vals), name, time)
-
-    def __saveDict(self, name, time, dictStr):
-        subdata = {}
-        idx = 0
-        while idx < len(dictStr) and dictStr[idx] != ']':
-            nxt = dictStr.find(',', idx)
-            if nxt < idx:
-                nxt = dictStr.find('}', idx)
-            subStr = dictStr[idx + 1: nxt]
-            (qname, valStr) = subStr.split(':')
-            try:
-                val = long(valStr)
-            except ValueError:
-                print >> sys.stderr, \
-                    ("Couldn't get integer value for '%s' from '%s'" +
-                     " ('%s' idx %d nxt %d)") % \
-                    (valStr, subStr, dictStr, idx, nxt)
-            if val > 0:
-                subdata[qname[1:-1]] = val
-            idx = nxt + 1
-        if not name in self.__data:
-            print "%s is not registered!" % name
-        else:
-            self.__data[name][time] = subdata
+            self.__saveValue(name, time, long(vals))
 
     def __saveListSum(self, name, time, valStr):
         tot = 0
@@ -349,8 +241,8 @@ class Summary(object):
                 tot += long(subStr)
             except ValueError:
                 print >> sys.stderr, \
-                    "Couldn't get integer value for '%s' ('%s' idx %d nxt %d)" % \
-                    (subStr, valStr, idx, nxt)
+                    ("Couldn't get integer value for '%s'" +
+                     " ('%s' idx %d nxt %d)") % (subStr, valStr, idx, nxt)
             idx = nxt + 1
         self.__saveValue(name, time, tot)
 
@@ -450,9 +342,7 @@ def reportDataRates(allData):
         ('icetopHub', 'icetopHit'),
         ('iceTopTrigger', 'icetopHit'),
         ('amandaTrigger', 'selfContained'),
-        ('amandaTrigger', 'trigger'),
-        ('inIceTrigger', 'trigger'),
-        ('inIceTrigger', 'manager'),
+        ('amandaTrigger', 'trigger'), ('inIceTrigger', 'trigger'),
         ('iceTopTrigger', 'trigger'),
         ('globalTrigger', 'trigger'), ('globalTrigger', 'glblTrig'),
         ('eventBuilder', 'glblTrig'), ('eventBuilder', 'rdoutReq'),
