@@ -50,7 +50,7 @@ class MonitorThread(CnCThread):
 
 class MBeanThread(MonitorThread):
     def __init__(self, comp, runDir, liveMoni, runOptions, dashlog,
-                 reporter=None, refused=0, beanKeys=None, beanFlds=None):
+                 reporter=None, refused=0):
         self.__comp = comp
         self.__runDir = runDir
         self.__liveMoni = liveMoni
@@ -61,17 +61,10 @@ class MBeanThread(MonitorThread):
 
         self.__mbeanClient = comp.createMBeanClient()
 
-        if beanKeys is not None and beanFlds is not None:
-            self.__beanKeys = beanKeys
-            self.__beanFlds = beanFlds
-            self.__mbeanClient.set_load_dumped
-        else:
-            self.__beanKeys = []
-            self.__beanFlds = {}
+        self.__beanKeys = []
+        self.__beanFlds = {}
 
         super(MBeanThread, self).__init__(comp.fullname, dashlog)
-        if beanFlds is None:
-            self.error("Created %s MoniMBeanThrd" % (comp.fullname, ))
 
     def __create_reporter(self):
         if RunOption.isMoniToBoth(self.__runOptions) and \
@@ -112,7 +105,6 @@ class MBeanThread(MonitorThread):
 
                 self.__beanFlds[b] = self.__mbeanClient.getBeanFields(b)
 
-        start_time = datetime.datetime.now()
         for b in self.__beanKeys:
             if self.isClosed:
                 break
@@ -150,23 +142,6 @@ class MBeanThread(MonitorThread):
                 if len(attrs) > 0 and not self.isClosed:
                     self.__reporter.send(datetime.datetime.now(), b, attrs)
 
-        data_time = datetime.datetime.now() - start_time
-        if self.__mbeanClient.load_not_dumped:
-            list_time, getter_time = self.__mbeanClient.load_times
-            try:
-                if list_time != "copied" or getter_time != "copied":
-                    self.error("%s moniBean: list %s getters %s data %s" %
-                               (self.__comp.fullname, list_time, getter_time,
-                                data_time))
-                else:
-                    self.error("%s moniBean: data %s" %
-                               (self.__comp.fullname, data_time, ))
-            finally:
-                self.__mbeanClient.set_load_dumped
-        else:
-            self.error("%s moniBean: data %s" %
-                       (self.__comp.fullname, data_time, ))
-
         return self.__refused
 
     def close(self):
@@ -184,8 +159,7 @@ class MBeanThread(MonitorThread):
     def get_new_thread(self):
         thrd = MBeanThread(self.__comp, self.__runDir, self.__liveMoni,
                            self.__runOptions, self.dashlog,
-                           reporter=self.__reporter, refused=self.__refused,
-                           beanKeys=self.__beanKeys, beanFlds=self.__beanFlds)
+                           self.__reporter, self.__refused)
         return thrd
 
     @property
@@ -222,10 +196,6 @@ class CnCMoniThread(MonitorThread):
         sstats = self.__runset.server_statistics()
         if sstats is not None and len(sstats) > 0:
             self.__reporter.send(datetime.datetime.now(), "server", sstats)
-
-        cstats = self.__runset.client_statistics()
-        if cstats is not None and len(cstats) > 0:
-            self.__reporter.send(datetime.datetime.now(), "client", cstats)
 
     def get_new_thread(self):
         thrd = CnCMoniThread(self.__runset, self.__rundir,
