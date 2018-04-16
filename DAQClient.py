@@ -69,6 +69,8 @@ class MBeanClient(object):
 
         self.__beanLock = threading.Lock()
         self.__loadedInfo = False
+        self.__loadTimes = None
+        self.__loadDumped = False
 
     def __str__(self):
         return "MBeanClient(%s)" % (self.__compName, )
@@ -78,6 +80,9 @@ class MBeanClient(object):
         Get the bean names and fields from the remote client
         Note that self.__beanLock is acquired before calling this method
         """
+
+        from datetime import datetime
+        start_time = datetime.now() # XXX
 
         self.__loadedInfo = False
         try:
@@ -92,6 +97,7 @@ class MBeanClient(object):
         except:
             raise BeanLoadException("Cannot get list of %s MBeans: %s " %
                                     (self.__compName, exc_string()))
+        list_time = datetime.now()
 
         failed = []
         for bean in self.__beanList:
@@ -109,7 +115,10 @@ class MBeanClient(object):
             raise BeanLoadException("Cannot load %s MBeans %s: %s" %
                                     (self.__compName, failed, exc_string()))
 
+        getter_time = datetime.now()
+
         self.__loadedInfo = True
+        self.__loadTimes = (list_time - start_time, getter_time - list_time)
 
     def __lockAndLoad(self):
         "load bean info from the remote client if it hasn't yet been loaded"
@@ -191,6 +200,20 @@ class MBeanClient(object):
             raise BeanFieldNotFoundException(msg)
 
         return self.__beanFields[bean]
+
+    @property
+    def load_times(self):
+        return self.__loadTimes
+
+    @property
+    def load_not_dumped(self):
+        return not self.__loadDumped
+
+    @property
+    def set_load_dumped(self):
+        self.__loadDumped == True
+        if self.__loadTimes is None:
+            self.__loadTimes = ("copied", "copied")
 
     def reload(self):
         "reload MBean names and fields during the next request"

@@ -190,6 +190,41 @@ class Sum(object):
         self.__dryRun = False
         self.__cnc = None
 
+    def __compute_duration_and_rate(self, runxml, verbose=False):
+        rate = ""
+        duration = "???"
+
+        xml_start_time = runxml.getStartTime()
+        xml_end_time = runxml.getEndTime()
+        if xml_start_time is not None and xml_end_time is not None:
+            timediff = xml_end_time - xml_start_time
+            if timediff.days >= 0:
+                total = timediff.seconds
+                if timediff.days > 0:
+                    total += timediff.days * 60 * 60 * 24
+
+                dtotal = total
+                dsec = dtotal % 60
+                dtotal = int(dtotal / 60)
+                dmin = dtotal % 60
+                dtotal = int(dtotal / 60)
+                dhrs = dtotal % 24
+                days = int(dtotal / 24)
+
+                if days == 0:
+                    duration = "%02d:%02d:%02d" % (dhrs, dmin, dsec)
+                else:
+                    duration = "%d:%02d:%02d:%02d" % (days, dhrs, dmin, dsec)
+
+                if verbose:
+                    evts = runxml.getEvents()
+                    if evts is None:
+                        rate = ""
+                    else:
+                        rate = "%.02f" % (float(evts) / float(total), )
+
+        return duration, rate
+
     def __loadRunXML(self, runNum, use_cnc=True):
         cnc = None
         if use_cnc:
@@ -255,39 +290,8 @@ class Sum(object):
         if runxml is None:
             return
 
-        xml_start_time = runxml.getStartTime()
-        xml_end_time = runxml.getEndTime()
-        if xml_start_time is None or xml_end_time is None:
-            duration = "???"
-            rate = ""
-        else:
-            timediff = xml_end_time - xml_start_time
-
-            total = timediff.seconds
-            if timediff.days > 0:
-                total += timediff.days * 60 * 60 * 24
-
-            dtotal = total
-            dsec = dtotal % 60
-            dtotal = int(dtotal / 60)
-            dmin = dtotal % 60
-            dtotal = int(dtotal / 60)
-            dhrs = dtotal % 24
-            days = int(dtotal / 24)
-
-            if days == 0:
-                duration = "%02d:%02d:%02d" % (dhrs, dmin, dsec)
-            else:
-                duration = "%d:%02d:%02d:%02d" % (days, dhrs, dmin, dsec)
-
-            if not verbose:
-                rate = ""
-            else:
-                evts = runxml.getEvents()
-                if evts is None:
-                    rate = ""
-                else:
-                    rate = "%.02f" % (float(evts) / float(total), )
+        duration, rate = self.__compute_duration_and_rate(runxml,
+                                                          verbose=verbose)
 
         timestr = str(runxml.getStartTime())
         idx = timestr.find(".")
@@ -319,7 +323,7 @@ class Sum(object):
                 if cfgstr is None or len(cfgstr) == 0:
                     cfgstr = std_clucfg
 
-            self.logInfo("Run %s  %s  %s  %-27.27s : %s" %
+            self.logInfo("Run %s  %s  %8.8s  %-27.27s : %s" %
                          (run, timestr, duration, cfgstr, status))
             return
 
@@ -339,7 +343,7 @@ class Sum(object):
             else:
                 relstr = "%s_%s" % (rel, rev)
 
-        self.logInfo(("Run %d  %s  %s  %7s  " + cfgfmt + "  %s : %s") %
+        self.logInfo(("Run %d  %s  %8.8s  %7s  " + cfgfmt + "  %s : %s") %
                      (run, timestr, duration, rate, cfgstr, relstr, status))
 
 
