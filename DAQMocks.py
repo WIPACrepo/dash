@@ -2,6 +2,7 @@
 #
 # Classes used for pDAQ unit testing
 
+import copy
 import datetime
 import os
 import re
@@ -1353,6 +1354,9 @@ class MockMBeanClient(object):
 
     def getBeanNames(self):
         return self.__beanData.keys()
+
+    def getDictionary(self):
+        return copy.deepcopy(self.__beanData)
 
     def reload(self):
         pass

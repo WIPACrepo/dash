@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import copy
 import time
 import unittest
 
@@ -119,6 +120,9 @@ class MockTMMBeanClient(object):
 
     def getBeanNames(self):
         return self.__beanData.keys()
+
+    def getDictionary(self):
+        return copy.deepcopy(self.__beanData)
 
     def reload(self):
         pass

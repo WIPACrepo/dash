@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import copy
 import shutil
 import tempfile
 import time
@@ -103,6 +104,9 @@ class MockMBeanClient(object):
 
     def getBeanNames(self):
         return []
+
+    def getDictionary(self):
+        return copy.deepcopy(self.__beanData)
 
     def reload(self):
         pass

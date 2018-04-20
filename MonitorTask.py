@@ -49,6 +49,9 @@ class MonitorThread(CnCThread):
 
 
 class MBeanThread(MonitorThread):
+    # XXX Get rid of the !GET_DICTIONARY code after Tyranena is released
+    GET_DICTIONARY = True
+
     def __init__(self, comp, runDir, liveMoni, runOptions, dashlog,
                  reporter=None, refused=0):
         self.__comp = comp
@@ -61,8 +64,9 @@ class MBeanThread(MonitorThread):
 
         self.__mbeanClient = comp.createMBeanClient()
 
-        self.__beanKeys = []
-        self.__beanFlds = {}
+        if not self.GET_DICTIONARY:
+            self.__beanKeys = []
+            self.__beanFlds = {}
 
         super(MBeanThread, self).__init__(comp.fullname, dashlog)
 
@@ -80,21 +84,39 @@ class MBeanThread(MonitorThread):
 
         return None
 
-    def _run(self):
-        if self.isClosed:
-            return
+    def __fetch_dictionary(self):
+        try:
+            beanDict = self.__mbeanClient.getDictionary()
+            self.__refused = 0
+        except BeanTimeoutException:
+            beanDict = None
+            if not self.isClosed:
+                self.__refused += 1
+        except BeanLoadException:
+            beanDict = None
+            if not self.isClosed:
+                self.__refused += 1
+                self.error("Could not load monitoring data from %s:%s" %
+                           (self.__mbeanClient, b))
+        except:
+            beanDict = None
+            if not self.isClosed:
+                self.error("Ignoring %s: %s" %
+                           (self.__mbeanClient, exc_string()))
 
-        if self.__reporter is None:
-            # reload MBean info to pick up any dynamically created MBeans
-            self.__mbeanClient.reload()
+        if beanDict is not None:
+            if not isinstance(beanDict, dict):
+                self.error("%s getDictionary() returned %s, not dict (%s)" %
+                           (self.__mbeanClient.fullname,
+                            type(beanDict).__name__, beanDict))
+            else:
+                # report monitoring data
+                if len(beanDict) > 0 and not self.isClosed:
+                    for key, data in beanDict.iteritems():
+                        self.__reporter.send(datetime.datetime.now(), key,
+                                             data)
 
-            self.__reporter = self.__create_reporter()
-            if self.__reporter is None:
-                return
-
-            self.__beanKeys = []
-            self.__beanFlds = {}
-
+    def __fetch_beans_slowly(self):
         if len(self.__beanKeys) == 0:
             self.__beanKeys = self.__mbeanClient.getBeanNames()
             self.__beanKeys.sort()
@@ -141,6 +163,28 @@ class MBeanThread(MonitorThread):
                 # report monitoring data
                 if len(attrs) > 0 and not self.isClosed:
                     self.__reporter.send(datetime.datetime.now(), b, attrs)
+
+    def _run(self):
+        if self.isClosed:
+            return
+
+        if self.__reporter is None:
+            if not self.GET_DICTIONARY:
+                # reload MBean info to pick up any dynamically created MBeans
+                self.__mbeanClient.reload()
+
+            self.__reporter = self.__create_reporter()
+            if self.__reporter is None:
+                return
+
+            if not self.GET_DICTIONARY:
+                self.__beanKeys = []
+                self.__beanFlds = {}
+
+        if self.GET_DICTIONARY:
+            self.__fetch_dictionary()
+        else:
+            self.__fetch_beans_slowly()
 
         return self.__refused
 

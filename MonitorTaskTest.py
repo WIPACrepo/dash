@@ -34,6 +34,15 @@ class BadMBeanClient(MockMBeanClient):
             raise Exception("Mock exception")
         return super(BadMBeanClient, self).get(beanName, fieldName)
 
+    def getDictionary(self):
+        if self.__raiseSocketError:
+            self.__raiseSocketError = False
+            raise BeanTimeoutException("Mock exception")
+        if self.__raiseException:
+            self.__raiseException = False
+            raise Exception("Mock exception")
+        return super(BadMBeanClient, self).getDictionary()
+
     def raiseException(self):
         self.__raiseException = True
 
@@ -131,7 +140,7 @@ class MonitorTaskTest(unittest.TestCase):
                         elif i >= 0 and i < 3:
                             c.mbean.raiseSocketError()
                     elif i > 0 and raiseException:
-                        errMsg = "Ignoring %s:.*: Exception.*$" % c.fullname
+                        errMsg = "Ignoring %s:(.*:)? Exception.*$" % c.fullname
                         logger.addExpectedRegexp(errMsg)
                         c.mbean.raiseException()
 

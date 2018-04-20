@@ -192,6 +192,33 @@ class MBeanClient(object):
 
         return self.__beanFields[bean]
 
+    def getDictionary(self):
+        "get the value for all MBean fields"
+        with self.__beanLock:
+            try:
+                attrs = self.__client.mbean.getDictionary()
+            except socket.error, serr:
+                raise BeanTimeoutException("Cannot get %s MBean attributes:"
+                                           " <socket error %s>" %
+                                           (self.__compName, serr))
+            except (xmlrpclib.Fault, xmlrpclib.ProtocolError), xerr:
+                raise BeanTimeoutException("Cannot get %s MBean attributes:"
+                                           " %s" % (self.__compName, xerr))
+            except:
+                raise BeanLoadException("Cannot load %s MBean attributes:"
+                                        " %s" %
+                                        (self.__compName, exc_string()))
+
+        if not isinstance(attrs, dict):
+            raise BeanException("%s getDictionary() should return dict,"
+                                " not %s (%s)" % \
+                                (self.__compName, type(attrs).__name__, attrs))
+
+        if len(attrs) > 0:
+            for k in attrs.keys():
+                attrs[k] = unFixValue(attrs[k])
+        return attrs
+
     def reload(self):
         "reload MBean names and fields during the next request"
         self.__loadedInfo = False
