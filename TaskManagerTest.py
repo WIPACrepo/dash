@@ -101,11 +101,12 @@ class MockTMMBeanClient(object):
         return beanName in self.__beanData and \
             fieldName in self.__beanData[beanName]
 
-    def getBeanFields(self, beanName):
-        return self.__beanData[beanName].keys()
+    def get(self, beanName, fieldName):
+        if not self.check(beanName, fieldName):
+            raise Exception("No %s data for bean %s field %s" %
+                            (self, beanName, fieldName))
 
-    def getBeanNames(self):
-        return self.__beanData.keys()
+        return self.__beanData[beanName][fieldName]
 
     def getAttributes(self, beanName, fieldList):
         rtnMap = {}
@@ -113,12 +114,11 @@ class MockTMMBeanClient(object):
             rtnMap[f] = self.get(beanName, f)
         return rtnMap
 
-    def get(self, beanName, fieldName):
-        if not self.check(beanName, fieldName):
-            raise Exception("No %s data for bean %s field %s" %
-                            (self, beanName, fieldName))
+    def getBeanFields(self, beanName):
+        return self.__beanData[beanName].keys()
 
-        return self.__beanData[beanName][fieldName]
+    def getBeanNames(self):
+        return self.__beanData.keys()
 
     def reload(self):
         pass
