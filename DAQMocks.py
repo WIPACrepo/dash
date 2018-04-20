@@ -2803,6 +2803,9 @@ class MockRunSet(object):
 
         self.__id = "MockRS"
 
+    def client_statistics(self):
+        return {}
+
     def components(self):
         return self.__comps[:]
 
@@ -2817,6 +2820,9 @@ class MockRunSet(object):
     @property
     def isRunning(self):
         return self.__running
+
+    def server_statistics(self):
+        return {}
 
     def startRunning(self):
         self.__running = True

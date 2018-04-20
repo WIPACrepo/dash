@@ -848,6 +848,9 @@ class CnCServer(DAQPool):
             self.__log.error("Failed to break %s: %s" %
                              (runSet, exc_string()))
 
+    def client_statistics(self):
+        return RPCClient.client_statistics()
+
     def closeServer(self, killRunning=True):
         try:
             if not self.returnAll(killRunning):

@@ -193,9 +193,13 @@ class CnCMoniThread(MonitorThread):
             if self.__reporter is None:
                 return
 
-        sstats = self.__runset.server_statistics()
-        if sstats is not None and len(sstats) > 0:
-            self.__reporter.send(datetime.datetime.now(), "server", sstats)
+        #sstats = self.__runset.server_statistics()
+        #if sstats is not None and len(sstats) > 0:
+        #    self.__reporter.send(datetime.datetime.now(), "server", sstats)
+
+        cstats = self.__runset.client_statistics()
+        if cstats is not None and len(cstats) > 0:
+            self.__reporter.send(datetime.datetime.now(), "client", cstats)
 
     def get_new_thread(self):
         thrd = CnCMoniThread(self.__runset, self.__rundir,

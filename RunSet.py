@@ -2217,6 +2217,10 @@ class RunSet(object):
 
         return conn_map
 
+    def client_statistics(self):
+        "Return RPC statistics for server->client calls"
+        return self.__parent.client_statistics()
+
     def components(self):
         return self.__set[:]
 

@@ -44,6 +44,10 @@ class RPCClient(xmlrpclib.ServerProxy):
         xmlrpclib.ServerProxy.__init__(self, "http://" + hostPort,
                                        verbose=verbose)
 
+    @classmethod
+    def client_statistics(cls):
+        return {}
+
 
 class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
     "Generic class for serving methods to remote objects"
@@ -90,6 +94,9 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
                     self.__times[method] = RPCStats(method)
                 self.__times[method].add(time.time() - start, success)
 
+    def client_statistics(self):
+        return {}
+
     def get_request(self):
         """Overridden in order to set so_keepalive on client
         sockets."""
@@ -100,6 +107,7 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         with self.__stats_lock:
             self.__sock_count += 1
             if not self.__registered:
+                self.register_function(self.client_statistics)
                 self.register_function(self.server_statistics)
                 self.__registered = True
 
