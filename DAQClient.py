@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import datetime
 import socket
 import threading
 import xmlrpclib
@@ -90,7 +91,7 @@ class MBeanClient(object):
             raise BeanTimeoutException("Cannot get list of %s MBeans: %s" %
                                        (self.__compName, xerr))
         except:
-            raise BeanLoadException("Cannot get list of %s MBeans: %s " %
+            raise BeanLoadException("Cannot load list of %s MBeans: %s " %
                                     (self.__compName, exc_string()))
 
         failed = []
@@ -119,51 +120,47 @@ class MBeanClient(object):
                 if not self.__loadedInfo:
                     self.__loadBeanInfo()
 
-    def check(self, bean, fld):
-        "throw an exception if the bean or field does not exist"
-        self.__lockAndLoad()
-
-        if bean not in self.__beanList:
-            msg = "Bean %s not in list of beans for %s" % \
-                (bean, self.__compName)
-            raise BeanFieldNotFoundException(msg)
-
-        if fld not in self.__beanFields[bean]:
-            msg = "Bean %s field %s not in list of bean fields for %s (%s)" % \
-                (bean, fld, self.__compName, str(self.__beanFields[bean]))
-            raise BeanFieldNotFoundException(msg)
-
     def createClient(self, host, port):
         "create an MBean RPC client"
         return RPCClient(host, port)
 
     def get(self, bean, fld):
         "get the value for a single MBean field"
-        self.check(bean, fld)
-
-        with self.__beanLock:
-            val = self.__client.mbean.get(bean, fld)
+        try:
+            with self.__beanLock:
+                val = self.__client.mbean.get(bean, fld)
+        except socket.error, serr:
+            raise BeanTimeoutException("Cannot get %s MBean \"%s:%s\":"
+                                       " <socket error %s>" %
+                                       (self.__compName, bean, fld, serr))
+        except (xmlrpclib.Fault, xmlrpclib.ProtocolError), xerr:
+            raise BeanTimeoutException("Cannot get %s MBean \"%s:%s\": %s" %
+                                       (self.__compName, bean, fld, xerr))
+        except:
+            raise BeanLoadException("Cannot load %s MBean \"%s:%s\": %s" %
+                                    (self.__compName, bean, fld,
+                                     exc_string()))
 
         return unFixValue(val)
 
     def getAttributes(self, bean, fldList):
         "get the values for a list of MBean fields"
-        with self.__beanLock:
-            try:
+        try:
+            with self.__beanLock:
                 attrs = self.__client.mbean.getAttributes(bean, fldList)
-            except socket.error, serr:
-                raise BeanTimeoutException("Cannot get %s mbean \"%s\""
-                                           " attributes <socket error %s>" %
-                                           (self.__compName, bean, serr))
-            except (xmlrpclib.Fault, xmlrpclib.ProtocolError), xerr:
-                raise BeanTimeoutException("Cannot get %s mbean \"%s\":"
-                                           " attributes %s" %
-                                           (self.__compName, bean, xerr))
-            except:
-                raise BeanLoadException("Cannot get %s mbean \"%s\""
-                                        " attributes %s: %s" %
-                                        (self.__compName, bean, fldList,
-                                         exc_string()))
+        except socket.error, serr:
+            raise BeanTimeoutException("Cannot get %s MBean \"%s\""
+                                       " attributes <socket error %s>" %
+                                       (self.__compName, bean, serr))
+        except (xmlrpclib.Fault, xmlrpclib.ProtocolError), xerr:
+            raise BeanTimeoutException("Cannot get %s MBean \"%s\":"
+                                       " attributes %s" %
+                                       (self.__compName, bean, xerr))
+        except:
+            raise BeanLoadException("Cannot load %s MBean \"%s\""
+                                    " attributes %s: %s" %
+                                    (self.__compName, bean, fldList,
+                                     exc_string()))
 
         if not isinstance(attrs, dict):
             raise BeanException("%s getAttributes(%s, %s) should return dict,"

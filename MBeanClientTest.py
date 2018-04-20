@@ -82,24 +82,22 @@ class TestMBeanClient(unittest.TestCase):
         try:
             client.get(bean, fld)
         except BeanLoadException as ble:
-            if not str(ble).startswith("Cannot get list of %s MBeans: " %
-                                       clientName):
+            if not str(ble).startswith("Cannot load %s MBean \"%s:%s\": " %
+                                       (clientName, bean, fld)):
                 self.fail("Unexpected exception: " + exc_string())
 
         agent.setMBeans({bean: MBeanAgentException("Test fail"), })
         try:
             client.get(bean, fld)
         except BeanLoadException as ble:
-            if not str(ble).startswith("Cannot load %s MBeans %s: " %
-                                       (clientName, [bean, ])):
+            if not str(ble).startswith("Cannot load %s MBean \"%s:%s\": " %
+                                       (clientName, bean, fld)):
                 self.fail("Unexpected exception: " + exc_string())
 
         agent.setMBeans({bean: {fld: val, }, })
         realVal = client.get(bean, fld)
         self.assertEqual(val, realVal, "Expected value \"%s\", not \"%s\"" %
                          (val, realVal))
-
-        agent.setMBeans(MBeanAgentException("Ignored"))
 
         beanList = client.getBeanNames()
         self.assertTrue(beanList is not None,

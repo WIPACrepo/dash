@@ -305,8 +305,6 @@ class WatchData(object):
         return unhealthy
 
     def addInputValue(self, otherComp, beanName, fieldName):
-        self.__mbeanClient.check(beanName, fieldName)
-
         if beanName not in self.__inputFields:
             self.__inputFields[beanName] = []
 
@@ -314,8 +312,6 @@ class WatchData(object):
         self.__inputFields[beanName].append(vw)
 
     def addOutputValue(self, otherComp, beanName, fieldName):
-        self.__mbeanClient.check(beanName, fieldName)
-
         if beanName not in self.__outputFields:
             self.__outputFields[beanName] = []
 
@@ -327,8 +323,6 @@ class WatchData(object):
         Watchdog triggers if field value drops below the threshold value
         (or, when lessThan==False, if value rises above the threshold
         """
-
-        self.__mbeanClient.check(beanName, fieldName)
 
         if beanName not in self.__thresholdFields:
             self.__thresholdFields[beanName] = []
