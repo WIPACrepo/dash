@@ -26,9 +26,6 @@ class MonitorThread(CnCThread):
     def _run(self):
         raise NotImplementedError("Unimplemented")
 
-    def close(self):
-        super(MonitorThread, self).close()
-
     @property
     def dashlog(self):
         return self.__dashlog
@@ -60,7 +57,7 @@ class MBeanThread(MonitorThread):
         self.__runOptions = runOptions
         self.__reporter = reporter
         self.__refused = refused
-        self.__closeLock = threading.Lock()
+        self.__reporterLock = threading.Lock()
 
         self.__mbeanClient = comp.createMBeanClient()
 
@@ -109,12 +106,13 @@ class MBeanThread(MonitorThread):
                 self.error("%s getDictionary() returned %s, not dict (%s)" %
                            (self.__mbeanClient.fullname,
                             type(beanDict).__name__, beanDict))
-            else:
+            elif len(beanDict) > 0:
                 # report monitoring data
-                if len(beanDict) > 0 and not self.isClosed:
+                    with self.__reporterLock:
+                        reporter = self.__reporter
                     for key, data in beanDict.iteritems():
-                        self.__reporter.send(datetime.datetime.now(), key,
-                                             data)
+                        if not self.isClosed:
+                            reporter.send(datetime.datetime.now(), key, data)
 
     def __fetch_beans_slowly(self):
         if len(self.__beanKeys) == 0:
@@ -189,16 +187,16 @@ class MBeanThread(MonitorThread):
         return self.__refused
 
     def close(self):
-        super(MBeanThread, self).close()
+        if not self.isClosed:
+            with self.__reporterLock:
+                if self.__reporter is not None:
+                    try:
+                        self.__reporter.close()
+                    except:
+                        self.error(("Could not close %s monitor thread: %s") %
+                                   (self.__mbeanClient.fullname, exc_string()))
 
-        with self.__closeLock:
-            if self.__reporter is not None:
-                try:
-                    self.__reporter.close()
-                except:
-                    self.error(("Could not close %s monitor thread: %s") %
-                               (self.__mbeanClient.fullname, exc_string()))
-                self.__reporter = None
+                super(MBeanThread, self).close()
 
     def get_new_thread(self):
         thrd = MBeanThread(self.__comp, self.__runDir, self.__liveMoni,
