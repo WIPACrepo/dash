@@ -327,14 +327,17 @@ class WatchdogTaskTest(unittest.TestCase):
         tsk.check()
         tsk.waitUntilFinished()
 
-        for health in range(max_health, 0, -1):
-            if health < WatchdogTask.HEALTH_METER_FULL:
+        for health in range(max_health - 1, 0, -1):
+            if health <= WatchdogTask.HEALTH_METER_FULL:
                 logger.addExpectedRegexp(r"Watchdog reports starved"
                                          r" components:.*")
                 if health < WatchdogTask.HEALTH_METER_FULL and \
-                   (health % WatchdogTask.NUM_HEALTH_MSGS) == 0:
-                    logger.addExpectedRegexp(r"Run is unhealthy"
-                                             r" \(\d+ checks left\)")
+                   ((health - 1) % WatchdogTask.NUM_HEALTH_MSGS) == 0:
+                    if health - 1 == 0:
+                        logger.addExpectedExact("Run is not healthy, stopping")
+                    else:
+                        logger.addExpectedRegexp(r"Run is unhealthy"
+                                                 r" \(\d+ checks left\)")
 
             timer.trigger()
 

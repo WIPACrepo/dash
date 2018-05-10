@@ -640,6 +640,7 @@ class WatchdogTask(CnCTask):
             self.__healthMeter = self.HEALTH_METER_FULL
         else:
             self.__healthMeter = int(initial_health)
+        self.__unhealthy_message = False
 
         if period is None:
             period = self.PERIOD
@@ -741,17 +742,20 @@ class WatchdogTask(CnCTask):
             healthy = False
 
         if healthy:
-            if not extra_healthy:
-                if self.__healthMeter + self.NUM_HEALTH_MSGS < \
-                   self.HEALTH_METER_FULL:
-                    # only log this if we've logged the "unhealthy" message
-                    self.logError("Run is healthy again")
+            if self.__unhealthy_message:
+                # only log this if we've logged the "unhealthy" message
+                self.__unhealthy_message = False
+                self.logError("Run is healthy again")
+            if extra_healthy:
+                self.__healthMeter -= 1
+            if self.__healthMeter < self.HEALTH_METER_FULL:
                 self.__healthMeter = self.HEALTH_METER_FULL
         else:
             self.__healthMeter -= 1
             if self.__healthMeter > 0:
                 if not extra_healthy and \
                    self.__healthMeter % self.NUM_HEALTH_MSGS == 0:
+                    self.__unhealthy_message = True
                     self.logError("Run is unhealthy (%d checks left)" %
                                   self.__healthMeter)
             else:

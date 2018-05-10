@@ -1095,7 +1095,7 @@ class CnCRunSetTest(unittest.TestCase):
 
         for idx in range(5):
             self.__checkWatchdogTask(comps, rs, dashLog, liveMoni,
-                                     unhealthy=(idx >= 4))
+                                     unhealthy=(idx >= 3))
 
         if catchall:
             catchall.checkStatus(5)

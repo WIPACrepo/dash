@@ -1162,7 +1162,7 @@ class IntegrationTest(unittest.TestCase):
         self.__setBeanData("eventBuilder", 0, "backEnd", "DiskAvailable", 0)
 
         for idx in range(5):
-            if idx >= 4:
+            if idx >= 3:
                 dashLog.addExpectedRegexp(r"Watchdog reports starved"
                                           r" components.*")
                 dashLog.addExpectedRegexp(r"Watchdog reports stagnant"
