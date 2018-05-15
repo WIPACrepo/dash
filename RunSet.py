@@ -1915,12 +1915,14 @@ class RunSet(object):
                                           self.__run_data, self.__run_data)
         good_thread.start()
 
-        for _ in xrange(20):
-            if not good_thread.isAlive():
+        # wait up to 10 seconds for the thread to finish
+        #
+        for _ in xrange(100):
+            if good_thread.finished:
                 break
-            time.sleep(0.5)
+            time.sleep(0.1)
 
-        if good_thread.isAlive():
+        if not good_thread.finished:
             raise RunSetException("Could not get runset#%d latest first time" %
                                   self.__id)
 
@@ -2528,6 +2530,10 @@ class RunSet(object):
     @property
     def isDestroyed(self):
         return self.__state == RunSetState.DESTROYED
+
+    @property
+    def isIdle(self):
+        return self.__state == RunSetState.IDLE
 
     @property
     def isReady(self):

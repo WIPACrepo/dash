@@ -1303,7 +1303,8 @@ class CnCServer(DAQPool):
         if logDir is None:
             logDir = self.__defaultLogDir
 
-        self.startRun(runSet, runNum, runOptions, log_dir=logDir)
+        if not self.startRun(runSet, runNum, runOptions, log_dir=logDir):
+            return "FAILED"
 
         return "OK"
 
@@ -1426,10 +1427,12 @@ class CnCServer(DAQPool):
             openCount = 0
 
         cluCfg = self.getClusterConfig(runConfig=runSet.run_config_data)
+        success = False
         try:
             runSet.start_run(runNum, cluCfg, runOptions, self.__versionInfo,
                              self.__spadeDir, copy_dir=self.__copyDir,
                              log_dir=log_dir, quiet=self.__quiet)
+            success = True
         except:
             import traceback
             try:
@@ -1452,6 +1455,11 @@ class CnCServer(DAQPool):
             if openCount - self.__openFileCount > 5:
                 self.__reportOpenFiles(runNum)
             self.__openFileCount = openCount
+
+        if not success:
+            raise CnCServerException("Cannot start runset %s" % (runSet, ))
+
+        return success
 
     def updateRates(self, id):
         """

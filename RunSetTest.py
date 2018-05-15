@@ -290,6 +290,18 @@ class MyRunSet(RunSet):
 
 
 class TestRunSet(unittest.TestCase):
+    def __add_hub_mbeans(self, compList):
+        for comp in compList:
+            if comp.isSource:
+                bean = "stringhub"
+                for fld in ("EarliestLastChannelHitTime",
+                            "LatestFirstChannelHitTime",
+                            "NumberOfNonZombies"):
+                    try:
+                        comp.mbean.get(bean, fld)
+                    except:
+                        comp.mbean.addData(bean, fld, 1)
+
     def __add_moni_run_update(self, runset, moni_client, run_num):
         ec_dict = runset.get_event_counts(run_num)
         run_update = {
@@ -332,6 +344,31 @@ class TestRunSet(unittest.TestCase):
             num += 1
 
         return compList
+
+    def __buildCompString(self, nameList):
+        compStr = None
+
+        prev = None
+        prevNum = None
+        for idx, name in enumerate(nameList + (None, )):
+            if prev is not None:
+                if prev == name:
+                    continue
+
+                if prevNum == idx:
+                    newStr = "%s#%d" % (prev, prevNum)
+                else:
+                    newStr = "%s#%d-%d" % (prev, prevNum, idx)
+
+                if compStr is None:
+                    compStr = newStr
+                else:
+                    compStr += ", " + newStr
+
+            prev = name
+            prevNum = idx + 1
+
+        return compStr
 
     def __checkStatus(self, runset, compList, expState):
         statDict = runset.status()
@@ -470,8 +507,11 @@ class TestRunSet(unittest.TestCase):
         logger = MockLogger('foo#0')
 
         num = 1
+        sources = 0
         for c in compList:
             c.setOrder(num)
+            if c.isSource:
+                sources += 1
             num += 1
 
         runConfig = FakeRunConfig(None, "XXXrunCfgXXX")
@@ -536,8 +576,18 @@ class TestRunSet(unittest.TestCase):
 
         expState = "running"
 
-        self.__startRun(runset, runNum, runConfig, cluCfg,
-                        components=compList, logger=logger)
+        try:
+            self.__startRun(runset, runNum, runConfig, cluCfg,
+                            components=compList, logger=logger)
+            if sources == 0:
+                self.fail("Should not be able to start a run with no sources")
+        except RunSetException as rse:
+            if sources != 0:
+                raise
+            estr = str(rse)
+            if estr.find("Could not get runset") < 0 or \
+               estr.find("latest first time") < 0:
+                self.exception("Unexpected exception during start", rse)
 
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
@@ -600,9 +650,11 @@ class TestRunSet(unittest.TestCase):
             CAUGHT_WARNING = True
             logger.addExpectedRegexp(r"^Cannot import IceCube Live.*")
 
+        has_source = False
         if components is not None:
             for comp in components:
                 if comp.isSource:
+                    has_source = True
                     bean = "stringhub"
                     for fld in ("LatestFirstChannelHitTime",
                                 "NumberOfNonZombies"):
@@ -626,11 +678,13 @@ class TestRunSet(unittest.TestCase):
 
         logger.addExpectedExact("Starting run #%d on \"%s\"" %
                                 (runNum, cluCfg.description))
-        logger.addExpectedExact("Version info: " +
-                                get_scmversion_str(info=versionInfo))
 
-        logger.addExpectedExact("Run configuration: %s" % runConfig.basename)
-        logger.addExpectedExact("Cluster: %s" % cluCfg.description)
+        if has_source:
+            logger.addExpectedExact("Version info: " +
+                                    get_scmversion_str(info=versionInfo))
+            logger.addExpectedExact("Run configuration: %s" %
+                                    runConfig.basename)
+            logger.addExpectedExact("Cluster: %s" % cluCfg.description)
 
         logger.addExpectedExact("Starting run %d..." % runNum)
 
@@ -663,8 +717,10 @@ class TestRunSet(unittest.TestCase):
             stopName = "TestRunSet"
         elif hangType == 1:
             stopName = "TestHang1"
-        else:
+        elif hangType == 2:
             stopName = "TestHang2"
+        else:
+            stopName = "Test"
         logger.addExpectedExact("Stopping the run (%s)" % stopName)
 
         hangStr = None
@@ -965,7 +1021,7 @@ class TestRunSet(unittest.TestCase):
                 raise
 
     def testShortStopNormal(self):
-        compList = self.__buildCompList(("one", "two", "three"))
+        compList = self.__buildCompList(("oneHub", "two", "three"))
         runConfig = FakeRunConfig(None, "XXXrunCfgXXX")
         logger = MockLogger('foo#0')
 
@@ -978,6 +1034,8 @@ class TestRunSet(unittest.TestCase):
         runNum = 100
         cluCfg = FakeCluster("foo-cluster")
 
+        self.__add_hub_mbeans(compList)
+
         self.__startRun(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
 
@@ -985,7 +1043,7 @@ class TestRunSet(unittest.TestCase):
                        components=compList, logger=logger)
 
     def testShortStopHang(self):
-        compList = self.__buildCompList(("one", "two", "three"))
+        compList = self.__buildCompList(("oneHub", "two", "three"))
         runConfig = FakeRunConfig(None, "XXXrunCfgXXX")
         logger = MockLogger('foo#0')
 
@@ -997,6 +1055,8 @@ class TestRunSet(unittest.TestCase):
 
         runNum = 100
         cluCfg = FakeCluster("bar-cluster")
+
+        self.__add_hub_mbeans(compList)
 
         self.__startRun(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
@@ -1011,8 +1071,8 @@ class TestRunSet(unittest.TestCase):
                        components=compList, logger=logger, hangType=hangType)
 
     def testBadStop(self):
-        compList = self.__buildCompList(("first", "middle", "middle",
-                                         "middle", "middle", "last"))
+        compNames = ("firstHub", "middle", "middle", "middle", "middle", "last")
+        compList = self.__buildCompList(compNames)
         runConfig = FakeRunConfig(None, "XXXrunCfgXXX")
         logger = MockLogger('foo#0')
 
@@ -1025,6 +1085,8 @@ class TestRunSet(unittest.TestCase):
         runNum = 543
         cluCfg = FakeCluster("bogusCluster")
 
+        self.__add_hub_mbeans(compList)
+
         self.__startRun(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
 
@@ -1033,7 +1095,8 @@ class TestRunSet(unittest.TestCase):
 
         RunSet.TIMEOUT_SECS = 5
 
-        compStr = "first#1, middle#2-5, last#6"
+
+        compStr = self.__buildCompString(compNames)
 
         stopName = "BadStop"
         logger.addExpectedExact("Stopping the run (%s)" % stopName)

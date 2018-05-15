@@ -1334,9 +1334,14 @@ class MockMBeanClient(object):
             fieldName in self.__beanData[beanName]
 
     def get(self, beanName, fieldName):
-        if not self.check(beanName, fieldName):
-            raise Exception("No %s data for bean %s field %s" %
-                            (self, beanName, fieldName))
+        if not beanName in self.__beanData:
+            raise Exception("Unknown bean %s for %s (valid beans: %s)" %
+                            (beanName, self, self.__beanData.keys()))
+        if not fieldName in self.__beanData[beanName]:
+            raise Exception("No %s data for bean %s field %s"
+                            " (valid fields: %s)" %
+                            (self, beanName, fieldName,
+                             self.__beanData[beanName].keys()))
 
         return self.__beanData[beanName][fieldName]
 

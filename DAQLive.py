@@ -99,41 +99,47 @@ class DAQLive(Component):
             self.__starting = False
 
     def recovering(self, retry=True):
-        rtnVal = True
         if self.__runSet is None:
             # if no active runset, nothing to recover
-            pass
-        else:
-            if self.__runSet.isDestroyed:
-                self.__runSet = None
-            elif not self.__runSet.isReady:
-                if not self.__runSet.stopping():
-                    stopVal = not self.__runSet.stop_run("LiveRecover",
-                                                         had_error=True)
-                    self.__log.error("DAQLive stopRun %s returned %s" %
-                                     (self.__runSet, stopVal))
+           return True
+        if self.__runSet.isReady or self.__runSet.isIdle or \
+           self.__runSet.isDestroyed:
+            # if we're in a known non-running state, we're done
+            return True
 
-                waitSecs = 5
-                numTries = 12
-                for _ in range(numTries):
-                    if not self.__runSet.stopping():
-                        break
-                    time.sleep(waitSecs)
-                if self.__runSet.isDestroyed:
-                    self.__log.error("DAQLive destroyed %s" % self.__runSet)
-                    self.__runSet = None
-                    rtnVal = True
-                elif self.__runSet.stopping():
-                    self.__log.error("DAQLive giving up on hung %s" %
-                                     self.__runSet)
-                    rtnVal = False
-                elif not self.__runSet.isReady:
-                    self.__log.error("DAQLive cannot recover %s" %
-                                     self.__runSet)
-                    rtnVal = False
-                else:
-                    self.__log.error("DAQLive recovered %s" % self.__runSet)
-                    rtnVal = True
+        # if runset isn't stopping, try to stop it
+        if not self.__runSet.stopping():
+            try:
+                stopVal = not self.__runSet.stop_run("LiveRecover",
+                                                     had_error=True)
+                self.__log.error("DAQLive stopRun %s returned %s" %
+                                 (self.__runSet, stopVal))
+            except:
+                self.__log.error("DAQLive stopRun %s failed: %s" %
+                                 (self.__runSet, exc_string()))
+            return False
+
+        # give runset a bit of time to finish stopping
+        waitSecs = 5
+        numTries = 12
+        for _ in range(numTries):
+            if not self.__runSet.stopping():
+                break
+            time.sleep(waitSecs)
+
+        rtnVal = False
+        if self.__runSet.isDestroyed:
+            self.__log.error("DAQLive destroyed %s" % (self.__runSet, ))
+            self.__runSet = None
+            rtnVal = True
+        elif self.__runSet.isReady or self.__runSet.isIdle:
+            self.__log.error("DAQLive recovered %s" % (self.__runSet, ))
+            rtnVal = True
+        elif self.__runSet.stopping():
+            self.__log.error("DAQLive giving up on hung %s" %
+                             (self.__runSet, ))
+        else:
+            self.__log.error("DAQLive cannot recover %s" % (self.__runSet, ))
 
         return rtnVal
 
