@@ -93,8 +93,8 @@ class MBeanThread(MonitorThread):
             beanDict = None
             if not self.isClosed:
                 self.__refused += 1
-                self.error("Could not load monitoring data from %s:%s" %
-                           (self.__mbeanClient, b))
+                self.error("Could not load monitoring data from %s" %
+                           (self.__mbeanClient, ))
         except:
             beanDict = None
             if not self.isClosed:
