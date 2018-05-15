@@ -342,6 +342,15 @@ class TestRunSet(unittest.TestCase):
                              "Component %s: %s != expected %s" %
                              (c, statDict[c], expState))
 
+    def __checkStatusDict(self, runset, compList, expStateDict):
+        statDict = runset.status()
+        self.assertEqual(len(statDict), len(compList))
+        for c in compList:
+            self.assertTrue(c in statDict, 'Could not find ' + str(c))
+            self.assertEqual(statDict[c], expStateDict[c],
+                             "Component %s: %s != expected %s" %
+                             (c, statDict[c], expStateDict[c]))
+
     def __isCompListConfigured(self, compList):
         for c in compList:
             if not c.isConfigured:
@@ -530,6 +539,9 @@ class TestRunSet(unittest.TestCase):
         self.__startRun(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
 
+        self.__checkStatus(runset, compList, expState)
+        logger.checkStatus(10)
+
         expState = "stopping"
 
         for comp in compList:
@@ -539,6 +551,20 @@ class TestRunSet(unittest.TestCase):
 
         self.__stopRun(runset, runNum, runConfig, cluCfg, moni_client,
                        components=compList, logger=logger, hangType=hangType)
+
+        expState = "ready"
+
+        if hangType != 2:
+            self.__checkStatus(runset, compList, expState)
+        else:
+            expStateDict = {}
+            for comp in compList:
+                if comp.name == "foo":
+                    expStateDict[comp] = expState
+                else:
+                    expStateDict[comp] = "forcingStop"
+            self.__checkStatusDict(runset, compList, expStateDict)
+        logger.checkStatus(10)
 
         runset.reset()
 
