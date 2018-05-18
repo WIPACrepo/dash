@@ -62,15 +62,15 @@ class HubComponent(Component):
 
     @property
     def isDeepCore(self):
-        return HubIdUtils.is_deep_core(self.__id)
+        return HubIdUtils.is_deep_core(self.id)
 
     @property
     def isIceTop(self):
-        return HubIdUtils.is_icetop(self.__id)
+        return HubIdUtils.is_icetop(self.id)
 
     @property
     def isInIce(self):
-        return HubIdUtils.is_in_ice(self.__id)
+        return HubIdUtils.is_in_ice(self.id)
 
 
 class StringHub(HubComponent):
@@ -559,18 +559,20 @@ class DAQConfig(ConfigObject):
         """Return the monitoring period (None if not specified)"""
         return not self.__getBoolean("updateHitSpoolTimes", "disabled")
 
-    def addComponent(self, compName, strict, host=None):
+    def addComponent(self, comp, strict=False, host=None):
         """Add a component name"""
-        pound = compName.rfind("#")
-        if pound < 0:
-            self.__comps.append(Component(compName, 0, host=host))
-        elif strict:
-            raise BadComponentName("Found \"#\" in component name \"%s\"" %
-                                   compName)
-        else:
-            self.__comps.append(Component(compName[:pound],
-                                          int(compName[pound + 1:]),
-                                          host=host))
+        if not isinstance(comp, Component):
+            compName = comp
+            pound = compName.rfind("#")
+            if pound < 0:
+                comp = Component(compName, 0, host=host)
+            elif not strict:
+                comp = Component(compName[:pound], int(compName[pound + 1:]),
+                                 host=host)
+            else:
+                raise BadComponentName("Found \"#\" in component name \"%s\"" %
+                                       compName)
+        self.__comps.append(comp)
 
     def components(self):
         objs = self.__comps[:]
@@ -744,7 +746,7 @@ class DAQConfig(ConfigObject):
                 self.comps = []
                 for run_comp in val:
                     name = get_attrib(run_comp, "name")
-                    self.addComponent(name, False)
+                    self.addComponent(name)
             elif key == 'domConfigList' and is_old_runconfig:
                 # required for backwards compatibility
                 self.dom_cfgs = []
@@ -765,7 +767,7 @@ class DAQConfig(ConfigObject):
 
                         str_hub = StringHub(strhub_dict, str_hub_id)
                         self.stringhub_map[str_hub_id] = str_hub
-                        self.addComponent(str_hub.fullname, False)
+                        self.addComponent(str_hub)
             elif key == 'replayFiles':
                 # found a replay hub
                 self.replay_hubs = []
@@ -789,8 +791,7 @@ class DAQConfig(ConfigObject):
                                 rh_obj = ReplayHub(rhub_dict, base_dir,
                                                    old_style)
                                 self.replay_hubs.append(rh_obj)
-                                self.addComponent(rh_obj.fullname, False,
-                                                  host=rh_obj.host)
+                                self.addComponent(rh_obj)
                         except KeyError:
                             # missing keys..
                             pass
@@ -824,7 +825,7 @@ class DAQConfig(ConfigObject):
 
                                 rnd_hub = RandomHub(dom_config.hub_id)
                                 self.stringhub_map[dom_config.hub_id] = rnd_hub
-                                self.addComponent(rnd_hub.fullname, False)
+                                self.addComponent(rnd_hub)
                             else:
                                 print "Ignoring " + k2
 
@@ -852,7 +853,7 @@ class DAQConfig(ConfigObject):
                     if hId not in self.stringhub_map:
                         strHub = StringHub(None, hId, inferred=True)
                         self.stringhub_map[hId] = strHub
-                        self.addComponent(strHub.fullname, False)
+                        self.addComponent(strHub)
 
         # if 'STRICT' is specified call the validation routine
         if self.strict:
