@@ -10,7 +10,7 @@ import os
 
 from DefaultDomGeometry import DefaultDomGeometryReader
 from DAQConfig import DAQConfigException, DAQConfigParser
-from RemoveHubs import create_config
+from RemoveHubs import create_config, get_hub_name
 from locate_pdaq import find_pdaq_config
 
 
@@ -38,6 +38,12 @@ def add_arguments(parser):
     parser.add_argument("-f", "--force", dest="force",
                         action="store_true", default=False,
                         help="Overwrite existing configuration file(s)")
+    parser.add_argument("-N", "--noXX_only", dest="noXX_only",
+                        action="store_true", default=False,
+                        help="Only generate -noXX run configurations")
+    parser.add_argument("-P", "--partitions_only", dest="partitions_only",
+                        action="store_true", default=False,
+                        help="Only generate partition run configurations")
     parser.add_argument("-p", "--print-testdaq", dest="print_testdaq",
                         action="store_true", default=False,
                         help="Print domhubConfig.dat sections for testdaq")
@@ -46,6 +52,48 @@ def add_arguments(parser):
                         help="Verbose mode")
     parser.add_argument("runConfig", nargs=1,
                         help="Run configuration file to partition")
+
+
+def __make_partition_config(run_config, partitions, it_key, ii_key,
+                            dry_run=False, force=False, verbose=False):
+    if it_key != "NORTH" and it_key != "SOUTH":
+        raise SplitException("Bad IceTop key \"%s\"" % it_key)
+
+    basename = run_config.filename
+    if basename.endswith(".xml"):
+        basename = basename[:-4]
+
+    cfgname = "IceTop" + it_key
+    tstname = "icetop_" + it_key.lower()
+
+    if ii_key == "INICE":
+        cfgname += ""
+        tstname += "_inice"
+    elif ii_key.startswith("II"):
+        cfgname += "_InIce" + ii_key[2:]
+        tstname += "_inice_" + ii_key[2:].lower()
+    else:
+        cfgname += "_InIce" + ii_key
+        tstname += "_inice_" + ii_key.lower()
+
+    hub_list = partitions[it_key] + partitions[ii_key]
+    hub_list.sort()
+
+    if verbose:
+        print "Generating partition %s" % cfgname
+        print "  using hubs %s" % range_string(hub_list)
+
+    new_name = "%s_%s_partition.xml" % (basename, cfgname)
+    if not dry_run:
+        final_path = create_config(run_config, hub_list, None,
+                                   new_name=new_name, keep_hubs=True,
+                                   force=force, verbose=verbose)
+    elif verbose:
+        print "  writing to %s" % (new_name, )
+    else:
+        print "%s: %s" % (new_name, range_string(hub_list))
+
+    return tstname, hub_list
 
 
 def get_partitions(verbose=False):
@@ -87,108 +135,6 @@ def get_partitions(verbose=False):
     partitions["INICE"] = partitions["IINORTH"] + partitions["IISOUTH"]
 
     return partitions
-
-
-def main():
-    import argparse
-
-    op = argparse.ArgumentParser()
-    add_arguments(op)
-    args = op.parse_args()
-
-    if args.verbose:
-        print "Finding pDAQ configuration directory"
-
-    # find the pDAQ configuration directory
-    config_dir = find_pdaq_config()
-
-    if args.verbose:
-        print "Reading run configuration \"%s\"" % args.runConfig[0]
-
-    try:
-        run_config = DAQConfigParser.parse(config_dir, args.runConfig[0])
-    except DAQConfigException as config_except:
-        raise SystemExit(str(args.runConfig) + ": " + str(config_except))
-
-    partitions = get_partitions(verbose=args.verbose)
-
-    tstlist = []
-    for it_key, ii_key in PARTITION_KEYS:
-        (tstname, hubs) = make_new_config(run_config, config_dir, partitions,
-                                          it_key, ii_key, dry_run=args.dryrun,
-                                          force=args.force,
-                                          verbose=args.verbose)
-        if args.print_testdaq:
-            tstlist.append((tstname, hubs))
-
-    if args.print_testdaq:
-        print "domhubConfig.dat sections:"
-
-        first = True
-        for tstname, hubs in tstlist:
-            if first:
-                first = False
-            else:
-                print ""
-
-            print "\"%s\"" % tstname
-
-            hubs.sort()
-            for hub in hubs:
-                if hub < 200:
-                    print "sps-ichub%02d" % hub
-                elif hub < 212:
-                    print "sps-ithub%02d" % (hub - 200)
-                else:
-                    return "unknown%02d" % hub
-
-
-def make_new_config(run_config, config_dir, partitions, it_key, ii_key,
-                    dry_run=False, force=False, verbose=False):
-    if it_key != "NORTH" and it_key != "SOUTH":
-        raise SplitException("Bad IceTop key \"%s\"" % it_key)
-
-    basename = run_config.filename
-    if basename.endswith(".xml"):
-        basename = basename[:-4]
-
-    cfgname = "IceTop" + it_key
-    tstname = "icetop_" + it_key.lower()
-
-    if ii_key == "INICE":
-        cfgname += ""
-        tstname += "_inice"
-    elif ii_key.startswith("II"):
-        cfgname += "_InIce" + ii_key[2:]
-        tstname += "_inice_" + ii_key[2:].lower()
-    else:
-        cfgname += "_InIce" + ii_key
-        tstname += "_inice_" + ii_key.lower()
-
-    hub_list = partitions[it_key] + partitions[ii_key]
-    hub_list.sort()
-
-    if verbose:
-        print "Generating partition %s" % cfgname
-        print "  using hubs %s" % range_string(hub_list)
-
-    path = os.path.join(config_dir, basename + "_" + cfgname +
-                        "_partition.xml")
-    if dry_run:
-        if verbose:
-            print "  writing to %s" % path
-        else:
-            print "%s: %s" % (path, range_string(hub_list))
-    else:
-        final_path = create_config(run_config, path, hub_list, None,
-                                   keep_hubs=True, force=force)
-        if verbose:
-            if final_path is None:
-                print "No hubs/racks removed from %s" % (run_config.basename, )
-            else:
-                print "Created %s" % (final_path, )
-
-    return tstname, hub_list
 
 
 def range_string(hub_list):
@@ -245,6 +191,91 @@ def sanity_check(partitions, name, keys, expected):
         print "=== RECEIVED\n%s" % str(testlist)
         raise SystemExit("Bad %s partitions (missing or duplicate hubs)!" %
                          name)
+
+
+def main():
+    import argparse
+
+    op = argparse.ArgumentParser()
+    add_arguments(op)
+    args = op.parse_args()
+
+    gen_partitions = True
+    gen_noXX = True
+    if args.partitions_only or args.noXX_only:
+        if not args.partitions_only:
+            gen_partitions = False
+        if not args.noXX_only:
+            gen_noXX = False
+
+    if args.verbose:
+        print "Finding pDAQ configuration directory"
+
+    # find the pDAQ configuration directory
+    config_dir = find_pdaq_config()
+
+    if args.verbose:
+        print "Reading run configuration \"%s\"" % args.runConfig[0]
+
+    try:
+        run_config = DAQConfigParser.parse(config_dir, args.runConfig[0])
+    except DAQConfigException as config_except:
+        raise SystemExit(str(args.runConfig) + ": " + str(config_except))
+
+    # map generated configuration names to lists of included hubs
+    tstlist = {}
+
+    if gen_partitions:
+        # get partition descriptions
+        partitions = get_partitions(verbose=args.verbose)
+
+        # get partition descriptions
+        for it_key, ii_key in PARTITION_KEYS:
+            (tstname, hubs) = __make_partition_config(run_config, partitions,
+                                                      it_key, ii_key,
+                                                      dry_run=args.dryrun,
+                                                      force=args.force,
+                                                      verbose=args.verbose)
+            if args.print_testdaq:
+                tstlist[tstname] = hubs
+
+    if gen_noXX:
+        if args.verbose:
+            print "Generating noXX versions of %s" % (run_config.basename, )
+        for comp in run_config.components():
+            if comp.isHub:
+                if not args.dryrun:
+                    new_cfg = create_config(run_config, [comp.id, ], None,
+                                            force=force, verbose=args.verbose)
+                elif args.verbose:
+                    print "  writing to %s-no%s" % \
+                        (run_config.basename, get_hub_name(comp.id))
+                else:
+                    print "%s-no%s" % \
+                        (run_config.basename, get_hub_name(comp.id))
+
+                # XXX not adding noXX config to tstlist
+
+    if args.print_testdaq:
+        print "domhubConfig.dat sections:"
+
+        first = True
+        for tstname, hubs in tstlist.iteritems():
+            if first:
+                first = False
+            else:
+                print ""
+
+            print "\"%s\"" % tstname
+
+            hubs.sort()
+            for hub in hubs:
+                if hub < 200:
+                    print "sps-ichub%02d" % hub
+                elif hub < 212:
+                    print "sps-ithub%02d" % (hub - 200)
+                else:
+                    return "unknown%02d" % hub
 
 
 if __name__ == "__main__":

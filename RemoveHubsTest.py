@@ -28,7 +28,7 @@ class RemoveHubsTest(unittest.TestCase):
         os.close(fdout)
         os.remove(tmppath)
 
-        new_path = create_config(cfg, tmppath, (11, 44), None)
+        new_path = create_config(cfg, (11, 44), None, new_name=tmppath)
         self.assertTrue(new_path is not None,
                         "create_config() should not return None")
         self.assertEquals(new_path, tmppath,
@@ -47,7 +47,7 @@ class RemoveHubsTest(unittest.TestCase):
         os.remove(tmppath)
 
         try:
-            create_config(cfg, tmppath, (21, ), None)
+            create_config(cfg, (21, ), None, new_name=tmppath)
             self.fail("Should not be able to remove hub from replay config")
         except DAQConfigException:
             # expect this to fail
