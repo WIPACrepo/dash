@@ -246,7 +246,8 @@ def main():
             if comp.isHub:
                 if not args.dryrun:
                     new_cfg = create_config(run_config, [comp.id, ], None,
-                                            force=force, verbose=args.verbose)
+                                            force=args.force,
+                                            verbose=args.verbose)
                 elif args.verbose:
                     print "  writing to %s-no%s" % \
                         (run_config.basename, get_hub_name(comp.id))
