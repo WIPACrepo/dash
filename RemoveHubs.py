@@ -60,12 +60,13 @@ def __create_file_name(config_dir, file_name, hub_id_list, rack_list,
         join_str = "-no"
 
     racks = ""
-    if len(rack_list) > 1:
-        rack_names = ["_%02d" % r for r in rack_list]
-        rack_names[0] = rack_names[0][1:]
-        racks = join_str + "Racks" + ''.join(rack_names)
-    elif len(rack_list) == 1:
-        racks = join_str + "Rack%02d" % rack_list[0]
+    if rack_list is not None:
+        if len(rack_list) > 1:
+            rack_names = ["_%02d" % r for r in rack_list]
+            rack_names[0] = rack_names[0][1:]
+            racks = join_str + "Racks" + ''.join(rack_names)
+        elif len(rack_list) == 1:
+            racks = join_str + "Rack%02d" % rack_list[0]
     hub_names = [get_hub_name(h) for h in hub_id_list]
     join_list = ["%s%s" % (join_str, hub_name) for hub_name in hub_names]
     xstr = "%s%s%s" % (xstr, racks, ''.join(join_list))
