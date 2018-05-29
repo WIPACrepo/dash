@@ -84,7 +84,7 @@ def create_config(run_config, hub_list, rack_list, new_name=None,
 
     if new_name is None:
         new_path = __create_file_name(run_config.configdir, run_config.basename,
-                                      hub_list, rack_list, args.keep_hubs)
+                                      hub_list, rack_list, keep_hubs)
     else:
         if new_name.startswith(run_config.configdir):
             new_path = new_name
