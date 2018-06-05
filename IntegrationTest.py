@@ -29,8 +29,8 @@ except SystemExit:
         SERVICE_NAME = 'dead'
 
 from DAQMocks \
-    import MockAppender, MockClusterConfig, MockCnCLogger, \
-    MockDeployComponent, MockIntervalTimer, MockLeapsecondFile, \
+    import MockClusterConfig, MockCnCLogger, MockDeployComponent, \
+    MockIntervalTimer, MockLeapsecondFile, MockLogger, \
     MockParallelShell, RunXMLValidator, SocketReader, SocketReaderFactory, \
     SocketWriter
 
@@ -387,7 +387,7 @@ class MostlyCnCServer(CnCServer):
         else:
             key = '%s#%d' % (name, num)
             if key not in MostlyCnCServer.APPENDERS:
-                MostlyCnCServer.APPENDERS[key] = MockAppender('Mock-%s' % key)
+                MostlyCnCServer.APPENDERS[key] = MockLogger('Mock-%s' % key)
             appender = MostlyCnCServer.APPENDERS[key]
 
         return MostlyDAQClient(name, num, host, port, mbeanPort, connectors,
@@ -397,8 +397,8 @@ class MostlyCnCServer(CnCServer):
         key = 'server'
         if key not in MostlyCnCServer.APPENDERS:
             MostlyCnCServer.APPENDERS[key] = \
-                MockAppender('Mock-%s' % key,
-                             depth=IntegrationTest.NUM_COMPONENTS)
+                MockLogger('Mock-%s' % key,
+                           depth=IntegrationTest.NUM_COMPONENTS)
 
         return MockCnCLogger(key, appender=MostlyCnCServer.APPENDERS[key],
                              quiet=quiet)
@@ -1008,10 +1008,10 @@ class IntegrationTest(unittest.TestCase):
         if not RunOption.isLogToFile(runOptions) and not liveRunOnly:
             appender = None
         else:
-            appender = MockAppender('main',
-                                    depth=IntegrationTest.NUM_COMPONENTS)
+            appender = MockLogger('main',
+                                  depth=IntegrationTest.NUM_COMPONENTS)
 
-        dashLog = MockAppender("dash")
+        dashLog = MockLogger("dash")
         return (appender, dashLog)
 
     def __createParallelShell(self, logPort, livePort):

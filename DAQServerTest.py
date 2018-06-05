@@ -8,9 +8,9 @@ from CnCExceptions import CnCServerException
 from CnCServer import CnCServer
 from DAQClient import DAQClient
 from DAQConst import DAQPort
-from DAQMocks import MockAppender, MockClusterConfig, MockCnCLogger, \
-    MockDefaultDomGeometryFile, MockLeapsecondFile, MockRunConfigFile, \
-    SocketReaderFactory, SocketWriter
+from DAQMocks import MockClusterConfig, MockCnCLogger, \
+    MockDefaultDomGeometryFile, MockLeapsecondFile, MockLogger, \
+    MockRunConfigFile, SocketReaderFactory, SocketWriter
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet
@@ -261,7 +261,7 @@ class MockRunSet(RunSet):
 
 
 class MockServer(CnCServer):
-    APPENDER = MockAppender('server')
+    APPENDER = MockLogger('server')
 
     def __init__(self, clusterConfigObject=None, copyDir=None,
                  runConfigDir=None, daqDataDir=None, spadeDir=None,

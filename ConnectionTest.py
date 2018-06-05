@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from CnCServer import Connector, DAQPool
 
-from DAQMocks import MockAppender, MockDAQClient, MockLogger, MockRunConfigFile
+from DAQMocks import MockDAQClient, MockLogger, MockRunConfigFile
 
 LOUD = False
 
@@ -78,7 +78,7 @@ class ConnectionTest(unittest.TestCase):
         port = -1
         for node in nodeList:
             key = '%s#%d' % (node.name, node.num)
-            nodeLog[key] = MockAppender('Log-%s' % key)
+            nodeLog[key] = MockLogger('Log-%s' % key)
             pool.add(MockDAQClient(node.name, node.num, None, port, 0,
                                    node.getConnections(), nodeLog[key],
                                    node.outLinks, extraLoud=extraLoud))

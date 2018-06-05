@@ -4,7 +4,7 @@ import traceback
 import unittest
 from CnCLogger import CnCLogger
 
-from DAQMocks import MockAppender, SocketReaderFactory
+from DAQMocks import MockLogger, SocketReaderFactory
 
 
 class CnCLoggerTest(unittest.TestCase):
@@ -14,7 +14,7 @@ class CnCLoggerTest(unittest.TestCase):
     def setUp(self):
         self.__logFactory = SocketReaderFactory()
 
-        self.__appender = MockAppender("mock")
+        self.__appender = MockLogger("mock")
 
     def tearDown(self):
         try:

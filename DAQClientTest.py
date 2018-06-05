@@ -3,7 +3,7 @@
 import unittest
 from DAQClient import DAQClient
 
-from DAQMocks import MockAppender, MockCnCLogger
+from DAQMocks import MockCnCLogger, MockLogger
 
 
 class MostlyDAQClient(DAQClient):
@@ -24,7 +24,7 @@ class MostlyDAQClient(DAQClient):
 
 class TestDAQClient(unittest.TestCase):
     def testInit(self):
-        appender = MockAppender('test')
+        appender = MockLogger('test')
         MostlyDAQClient('foo', 0, 'localhost', 543, 0, [], appender)
 
 

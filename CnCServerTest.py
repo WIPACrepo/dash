@@ -21,9 +21,9 @@ from RunSet import RunSet
 from locate_pdaq import set_pdaq_config_dir
 
 from DAQMocks \
-    import MockAppender, MockClusterConfig, MockCnCLogger, \
-    MockDefaultDomGeometryFile, MockLeapsecondFile, MockRunConfigFile, \
-    SocketReaderFactory, SocketWriter, MockLogger
+    import MockClusterConfig, MockCnCLogger, MockDefaultDomGeometryFile, \
+    MockLeapsecondFile, MockLogger, MockRunConfigFile, SocketReaderFactory, \
+    SocketWriter
 
 
 class MostlyDAQClient(DAQClient):
@@ -213,7 +213,7 @@ class MostlyCnCServer(CnCServer):
         key = '%s#%d' % (name, num)
         key = 'server'
         if key not in MostlyCnCServer.APPENDERS:
-            MostlyCnCServer.APPENDERS[key] = MockAppender('Mock-%s' % key)
+            MostlyCnCServer.APPENDERS[key] = MockLogger('Mock-%s' % key)
 
         return MostlyDAQClient(name, num, host, port, mbeanPort, connectors,
                                MostlyCnCServer.APPENDERS[key])
@@ -221,7 +221,7 @@ class MostlyCnCServer(CnCServer):
     def createCnCLogger(self, quiet):
         key = 'server'
         if key not in MostlyCnCServer.APPENDERS:
-            MostlyCnCServer.APPENDERS[key] = MockAppender('Mock-%s' % key)
+            MostlyCnCServer.APPENDERS[key] = MockLogger('Mock-%s' % key)
 
         return MockCnCLogger(key, appender=MostlyCnCServer.APPENDERS[key],
                              quiet=quiet)

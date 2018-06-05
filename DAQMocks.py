@@ -467,20 +467,6 @@ class LogChecker(object):
         LogChecker.DEBUG = val
 
 
-class MockAppender(LogChecker):
-    def __init__(self, name, depth=None):
-        super(MockAppender, self).__init__('LOG', name, depth=depth)
-
-    def close(self):
-        pass
-
-    def setError(self, msg):
-        raise Exception(msg)
-
-    def write(self, m, time=None, level=None):
-        self._checkMsg(m)
-
-
 class MockClusterWriter(object):
     """Base class for MockClusterConfigFile classes"""
     @classmethod
@@ -1880,8 +1866,8 @@ class MockIntervalTimer(object):
 
 
 class MockLogger(LogChecker):
-    def __init__(self, name):
-        super(MockLogger, self).__init__('LOG', name)
+    def __init__(self, name, depth=None):
+        super(MockLogger, self).__init__('LOG', name, depth=depth)
 
         self.__err = None
 
@@ -1947,6 +1933,9 @@ class MockLogger(LogChecker):
         self._checkMsg(m)
 
     def warn(self, m):
+        self._checkMsg(m)
+
+    def write(self, m, time=None, level=None):
         self._checkMsg(m)
 
 
