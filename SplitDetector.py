@@ -5,6 +5,7 @@
 # J. Kelley
 # 15 January 2013
 
+from __future__ import print_function
 
 import os
 
@@ -76,12 +77,11 @@ def __make_partition_config(run_config, partitions, it_key, ii_key,
         cfgname += "_InIce" + ii_key
         tstname += "_inice_" + ii_key.lower()
 
-    hub_list = partitions[it_key] + partitions[ii_key]
-    hub_list.sort()
+    hub_list = sorted(partitions[it_key] + partitions[ii_key])
 
     if verbose:
-        print "Generating partition %s" % cfgname
-        print "  using hubs %s" % range_string(hub_list)
+        print("Generating partition %s" % cfgname)
+        print("  using hubs %s" % range_string(hub_list))
 
     new_name = "%s_%s_partition.xml" % (basename, cfgname)
     if not dry_run:
@@ -89,9 +89,9 @@ def __make_partition_config(run_config, partitions, it_key, ii_key,
                                    new_name=new_name, keep_hubs=True,
                                    force=force, verbose=verbose)
     elif verbose:
-        print "  writing to %s" % (new_name, )
+        print("  writing to %s" % (new_name, ))
     else:
-        print "%s: %s" % (new_name, range_string(hub_list))
+        print("%s: %s" % (new_name, range_string(hub_list)))
 
     return tstname, hub_list
 
@@ -108,7 +108,7 @@ def get_partitions(verbose=False):
     """
 
     if verbose:
-        print "Reading DOM geometry data"
+        print("Reading DOM geometry data")
 
     # read in default-dom-geometry.xml
     def_dom_geom = DefaultDomGeometryReader.parse()
@@ -117,16 +117,16 @@ def get_partitions(verbose=False):
     partitions = def_dom_geom.getPartitions()
 
     if verbose:
-        print "Sanity-checking all partitions"
+        print("Sanity-checking all partitions")
 
     # build tuples will all IceTop and In-Ice partition keys
     icetop_keys = ("NORTH", "SOUTH")
     inice_keys = ("NORTHEAST", "NORTHWEST", "SOUTHEAST", "SOUTHWEST")
 
     # make sure partitions include all strings and stations
-    all_icetop = [x for x in xrange(201, 212)]
+    all_icetop = [x for x in range(201, 212)]
     sanity_check(partitions, "IceTop", icetop_keys, all_icetop)
-    all_inice = [x for x in xrange(1, 87)]
+    all_inice = [x for x in range(1, 87)]
     sanity_check(partitions, "InIce", inice_keys, all_inice)
 
     # fill in superset partitions
@@ -187,8 +187,8 @@ def sanity_check(partitions, name, keys, expected):
 
     # die if the final list doesn't contain all the expected hubs
     if testlist != expected:
-        print "=== EXPECTED\n%s" % str(expected)
-        print "=== RECEIVED\n%s" % str(testlist)
+        print("=== EXPECTED\n%s" % str(expected))
+        print("=== RECEIVED\n%s" % str(testlist))
         raise SystemExit("Bad %s partitions (missing or duplicate hubs)!" %
                          name)
 
@@ -209,13 +209,13 @@ def main():
             gen_noXX = False
 
     if args.verbose:
-        print "Finding pDAQ configuration directory"
+        print("Finding pDAQ configuration directory")
 
     # find the pDAQ configuration directory
     config_dir = find_pdaq_config()
 
     if args.verbose:
-        print "Reading run configuration \"%s\"" % args.runConfig[0]
+        print("Reading run configuration \"%s\"" % args.runConfig[0])
 
     try:
         run_config = DAQConfigParser.parse(config_dir, args.runConfig[0])
@@ -241,7 +241,7 @@ def main():
 
     if gen_noXX:
         if args.verbose:
-            print "Generating noXX versions of %s" % (run_config.basename, )
+            print("Generating noXX versions of %s" % (run_config.basename, ))
         for comp in run_config.components():
             if comp.isHub:
                 if not args.dryrun:
@@ -249,32 +249,32 @@ def main():
                                             force=args.force,
                                             verbose=args.verbose)
                 elif args.verbose:
-                    print "  writing to %s-no%s" % \
-                        (run_config.basename, get_hub_name(comp.id))
+                    print("  writing to %s-no%s" % \
+                        (run_config.basename, get_hub_name(comp.id)))
                 else:
-                    print "%s-no%s" % \
-                        (run_config.basename, get_hub_name(comp.id))
+                    print("%s-no%s" % \
+                        (run_config.basename, get_hub_name(comp.id)))
 
                 # XXX not adding noXX config to tstlist
 
     if args.print_testdaq:
-        print "domhubConfig.dat sections:"
+        print("domhubConfig.dat sections:")
 
         first = True
-        for tstname, hubs in tstlist.iteritems():
+        for tstname, hubs in list(tstlist.items()):
             if first:
                 first = False
             else:
-                print ""
+                print("")
 
-            print "\"%s\"" % tstname
+            print("\"%s\"" % tstname)
 
             hubs.sort()
             for hub in hubs:
                 if hub < 200:
-                    print "sps-ichub%02d" % hub
+                    print("sps-ichub%02d" % hub)
                 elif hub < 212:
-                    print "sps-ithub%02d" % (hub - 200)
+                    print("sps-ithub%02d" % (hub - 200))
                 else:
                     return "unknown%02d" % hub
 

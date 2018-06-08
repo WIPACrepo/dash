@@ -2,6 +2,8 @@
 #
 # Create a new run configuration with only the specified hub(s)
 
+from __future__ import print_function
+
 import os
 import sys
 from utils.Machineid import Machineid
@@ -32,7 +34,7 @@ def parseArgs():
         the list of hub IDs to be removed
     """
     if not os.path.exists(configDir):
-        print >> sys.stderr, "Cannot find configuration directory"
+        print("Cannot find configuration directory", file=sys.stderr)
 
     cluCfgName = None
     forceCreate = False
@@ -72,7 +74,7 @@ def parseArgs():
                     hubIdList.append(200 + num)
                     continue
                 except:
-                    print >> sys.stderr, "Unknown argument \"%s\"" % s
+                    print("Unknown argument \"%s\"" % s, file=sys.stderr)
                     usage = True
                     continue
 
@@ -84,22 +86,21 @@ def parseArgs():
                 hubIdList.append(num)
                 continue
             except:
-                print >> sys.stderr, "Unknown argument \"%s\"" % a
+                print("Unknown argument \"%s\"" % a, file=sys.stderr)
                 usage = True
                 continue
 
     if not usage and runCfgName is None:
-        print >> sys.stderr, "No run configuration specified"
+        print("No run configuration specified", file=sys.stderr)
         usage = True
 
     if not usage and len(hubIdList) == 0:
-        print >> sys.stderr, "No hub IDs specified"
+        print("No hub IDs specified", file=sys.stderr)
         usage = True
 
     if usage:
-        print >> sys.stderr, \
-            "Usage: %s runConfig hubId [hubId ...]" % sys.argv[0]
-        print >> sys.stderr, "  (Hub IDs can be \"6\", \"06\", \"6i\", \"6t\")"
+        print("Usage: %s runConfig hubId [hubId ...]" % sys.argv[0], file=sys.stderr)
+        print("  (Hub IDs can be \"6\", \"06\", \"6i\", \"6t\")", file=sys.stderr)
         raise SystemExit()
 
     return (forceCreate, runCfgName, cluCfgName, hubIdList)
@@ -109,10 +110,9 @@ if __name__ == "__main__":
 
     hostid = Machineid()
     if not hostid.is_build_host():
-        print >> sys.stderr, "-" * 60
-        print >> sys.stderr, \
-            "Warning: AddHubs.py should be run on the build machine"
-        print >> sys.stderr, "-" * 60
+        print("-" * 60, file=sys.stderr)
+        print("Warning: AddHubs.py should be run on the build machine", file=sys.stderr)
+        print("-" * 60, file=sys.stderr)
 
     (forceCreate, runCfgName, cluCfgName, hubIdList) = parseArgs()
 
@@ -120,16 +120,16 @@ if __name__ == "__main__":
                                            keepList=True)
     if os.path.exists(newPath):
         if forceCreate:
-            print >> sys.stderr, "WARNING: Overwriting %s" % newPath
+            print("WARNING: Overwriting %s" % newPath, file=sys.stderr)
         else:
-            print >> sys.stderr, "WARNING: %s already exists" % newPath
-            print >> sys.stderr, "Specify --force to overwrite this file"
+            print("WARNING: %s already exists" % newPath, file=sys.stderr)
+            print("Specify --force to overwrite this file", file=sys.stderr)
             raise SystemExit()
 
     try:
         runCfg = DAQConfigParser.parse(configDir, runCfgName)
     except DAQConfigException as config_exp:
-        print >> sys.stderr, "WARNING: Error parsing %s" % runCfgName
+        print("WARNING: Error parsing %s" % runCfgName, file=sys.stderr)
         raise SystemExit(config_exp)
 
     if runCfg is not None:
@@ -137,4 +137,4 @@ if __name__ == "__main__":
         if newCfg is not None:
             with open(newPath, 'w') as fd:
                 fd.write(newCfg)
-            print "Created %s" % newPath
+            print("Created %s" % newPath)

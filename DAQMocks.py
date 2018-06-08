@@ -2,6 +2,8 @@
 #
 # Classes used for pDAQ unit testing
 
+from __future__ import print_function
+
 import copy
 import datetime
 import os
@@ -70,7 +72,7 @@ class BaseLiveChecker(BaseChecker):
             if setError:
                 name = str(checker)
                 if debug:
-                    print >>sys.stderr, '*** %s:LFMT: %s' % (name, msg)
+                    print('*** %s:LFMT: %s' % (name, msg), file=sys.stderr)
                 checker.setError('Bad format for %s I3Live message "%s"' %
                                  (name, msg))
             return False
@@ -86,8 +88,8 @@ class BaseLiveChecker(BaseChecker):
             if setError:
                 name = str(checker)
                 if debug:
-                    print >>sys.stderr, '*** %s:SVC: %s (%s)' % \
-                        (name, SERVICE_NAME, self._getValue())
+                    print('*** %s:SVC: %s (%s)' % \
+                        (name, SERVICE_NAME, self._getValue()), file=sys.stderr)
                 checker.setError(('Expected %s I3Live service "%s", not "%s"' +
                                   ' in "%s"') %
                                  (name, SERVICE_NAME, svcName, msg))
@@ -97,8 +99,8 @@ class BaseLiveChecker(BaseChecker):
             if setError:
                 name = str(checker)
                 if debug:
-                    print >>sys.stderr, '*** %s:VAR: %s (%s)' % \
-                        (name, self.__varName, self._getValue())
+                    print('*** %s:VAR: %s (%s)' % \
+                        (name, self.__varName, self._getValue()), file=sys.stderr)
                     checker.setError(('Expected %s I3Live varName "%s",' +
                                       ' not "%s" in "%s"') %
                                      (name, self.__varName, varName, msg))
@@ -109,8 +111,8 @@ class BaseLiveChecker(BaseChecker):
             if setError:
                 name = str(checker)
                 if debug:
-                    print >>sys.stderr, '*** %s:TYPE: %s (%s)' % \
-                        (name, typeStr, self._getValue())
+                    print('*** %s:TYPE: %s (%s)' % \
+                        (name, typeStr, self._getValue()), file=sys.stderr)
                 checker.setError(('Expected %s I3Live type "%s", not "%s"' +
                                   ' in %s') % (name, typeStr, varType, msg))
             return False
@@ -137,7 +139,7 @@ class ExactChecker(BaseChecker):
             if setError:
                 name = str(checker)
                 if debug:
-                    print >>sys.stderr, '*** %s:XACT: %s' % (name, self.__text)
+                    print('*** %s:XACT: %s' % (name, self.__text), file=sys.stderr)
                 checker.setError(('Expected %s exact log message "%s",' +
                                   ' not "%s"') % (name, self.__text, msg))
             return False
@@ -179,7 +181,7 @@ class LiveChecker(BaseLiveChecker):
             valStr += "]"
         elif isinstance(self.__value, dict):
             valStr = "{"
-            for k in self.__value.keys():
+            for k in list(self.__value.keys()):
                 if len(valStr) > 1:
                     valStr += ", "
                 valStr += self.__fixValue(k)
@@ -193,7 +195,7 @@ class LiveChecker(BaseLiveChecker):
             if setError:
                 name = str(checker)
                 if debug:
-                    print >>sys.stderr, '*** %s:LIVE: %s' % (name, valStr)
+                    print('*** %s:LIVE: %s' % (name, valStr), file=sys.stderr)
                 checker.setError('Expected %s live log message '
                                  '"%s", not "%s"' % (name, valStr, msg))
             return False
@@ -223,8 +225,8 @@ class LiveRegexpChecker(BaseLiveChecker):
             if setError:
                 name = str(checker)
                 if debug:
-                    print >>sys.stderr, '*** %s:RLIV: %s' % \
-                        (name, self.__regexp.pattern)
+                    print('*** %s:RLIV: %s' % \
+                        (name, self.__regexp.pattern), file=sys.stderr)
                 checker.setError(('Expected %s I3Live regexp message "%s",' +
                                   ' not "%s"') %
                                  (name, self.__regexp.pattern, msg))
@@ -256,8 +258,8 @@ class RegexpChecker(BaseChecker):
             if setError:
                 name = str(checker)
                 if debug:
-                    print >>sys.stderr, '*** %s:REXP: %s' % \
-                        (name, self.__regexp.pattern)
+                    print('*** %s:REXP: %s' % \
+                        (name, self.__regexp.pattern), file=sys.stderr)
                 checker.setError(('Expected %s regexp log message of "%s",' +
                                   ' not "%s"') %
                                  (name, self.__regexp.pattern, msg))
@@ -280,8 +282,8 @@ class RegexpTextChecker(BaseChecker):
             if setError:
                 name = str(checker)
                 if debug:
-                    print >>sys.stderr, '*** %s:RFMT: %s' % \
-                        (name, BaseChecker.PAT_DAQLOG.pattern)
+                    print('*** %s:RFMT: %s' % \
+                        (name, BaseChecker.PAT_DAQLOG.pattern), file=sys.stderr)
                 checker.setError('Bad format for %s log message "%s"' %
                                  (name, msg))
             return False
@@ -291,8 +293,8 @@ class RegexpTextChecker(BaseChecker):
             if setError:
                 name = str(checker)
                 if debug:
-                    print >>sys.stderr, '*** %s:RTXT: %s' % \
-                        (name, self.__regexp.pattern)
+                    print('*** %s:RTXT: %s' % \
+                        (name, self.__regexp.pattern), file=sys.stderr)
                 checker.setError(('Expected %s regexp text log message,' +
                                   ' of "%s" not "%s"') %
                                  (name, self.__regexp.pattern, msg))
@@ -315,8 +317,8 @@ class TextChecker(BaseChecker):
             if setError:
                 name = str(checker)
                 if debug:
-                    print >>sys.stderr, '*** %s:TFMT: %s' % \
-                        (name, BaseChecker.PAT_DAQLOG.pattern)
+                    print('*** %s:TFMT: %s' % \
+                        (name, BaseChecker.PAT_DAQLOG.pattern), file=sys.stderr)
                 checker.setError('Bad format for %s log message "%s"' %
                                  (name, msg))
             return False
@@ -325,7 +327,7 @@ class TextChecker(BaseChecker):
             if setError:
                 name = str(checker)
                 if debug:
-                    print >>sys.stderr, '*** %s:TEXT: %s' % (name, self.__text)
+                    print('*** %s:TEXT: %s' % (name, self.__text), file=sys.stderr)
                 checker.setError(('Expected %s partial log message of "%s",' +
                                   ' not "%s"') %
                                  (name, self.__text, m.group(3)))
@@ -370,11 +372,11 @@ class LogChecker(object):
 
     def _checkMsg(self, msg):
         if LogChecker.DEBUG:
-            print >>sys.stderr, "Check(%s): %s" % (self, msg)
+            print("Check(%s): %s" % (self, msg), file=sys.stderr)
 
         if len(self.__expMsgs) == 0:
             if LogChecker.DEBUG:
-                print >>sys.stderr, '*** %s:UNEX(%s)' % (self, msg)
+                print('*** %s:UNEX(%s)' % (self, msg), file=sys.stderr)
             self.setError('Unexpected %s log message: %s' % (self, msg))
             return False
 
@@ -387,16 +389,16 @@ class LogChecker(object):
                 break
 
         if found is None:
-            print >>sys.stderr, '--- Missing %s log msg ---' % (self, )
-            print >>sys.stderr, msg
+            print('--- Missing %s log msg ---' % (self, ), file=sys.stderr)
+            print(msg, file=sys.stderr)
             if len(self.__expMsgs) > 0:
-                print >>sys.stderr, '--- Expected %s messages ---' % (self, )
+                print('--- Expected %s messages ---' % (self, ), file=sys.stderr)
                 for i in range(len(self.__expMsgs)):
                     if i >= self.__depth:
                         break
-                    print >>sys.stderr, "--- %s" % str(self.__expMsgs[i])
+                    print("--- %s" % str(self.__expMsgs[i]), file=sys.stderr)
                     self.__expMsgs[i].check(self, msg, LogChecker.DEBUG, True)
-            print >>sys.stderr, '----------------------------'
+            print('----------------------------', file=sys.stderr)
             self.setError('Missing %s log message: %s' % (self, msg))
             return False
 
@@ -406,39 +408,39 @@ class LogChecker(object):
 
     def addExpectedExact(self, msg):
         if LogChecker.DEBUG:
-            print >>sys.stderr, "AddExact(%s): %s" % (self, msg)
+            print("AddExact(%s): %s" % (self, msg), file=sys.stderr)
         self.__expMsgs.append(ExactChecker(msg))
 
     def addExpectedLiveMoni(self, varName, value, valType=None):
         if LogChecker.DEBUG:
-            print >>sys.stderr, "AddLiveMoni(%s): %s=%s%s" % \
+            print("AddLiveMoni(%s): %s=%s%s" % \
                 (self, varName, value,
-                 valType is None and "" or "(%s)" % (valType, ))
+                 valType is None and "" or "(%s)" % (valType, )), file=sys.stderr)
         self.__expMsgs.append(LiveChecker(varName, value, valType))
 
     def addExpectedRegexp(self, msg):
         if LogChecker.DEBUG:
-            print >>sys.stderr, "AddRegexp(%s): %s" % (self, msg)
+            print("AddRegexp(%s): %s" % (self, msg), file=sys.stderr)
         self.__expMsgs.append(RegexpChecker(msg))
 
     def addExpectedText(self, msg):
         if self.__isLive:
             if LogChecker.DEBUG:
-                print >>sys.stderr, "AddLive(%s): %s" % (self, msg)
+                print("AddLive(%s): %s" % (self, msg), file=sys.stderr)
             self.__expMsgs.append(LiveChecker('log', str(msg)))
         else:
             if LogChecker.DEBUG:
-                print >>sys.stderr, "AddText(%s): %s" % (self, msg)
+                print("AddText(%s): %s" % (self, msg), file=sys.stderr)
             self.__expMsgs.append(TextChecker(msg))
 
     def addExpectedTextRegexp(self, msg):
         if self.__isLive:
             if LogChecker.DEBUG:
-                print >>sys.stderr, "AddLiveRE(%s): %s" % (self, msg)
+                print("AddLiveRE(%s): %s" % (self, msg), file=sys.stderr)
             self.__expMsgs.append(LiveRegexpChecker('log', msg))
         else:
             if LogChecker.DEBUG:
-                print >>sys.stderr, "AddTextRE(%s): %s" % (self, msg)
+                print("AddTextRE(%s): %s" % (self, msg), file=sys.stderr)
             self.__expMsgs.append(RegexpTextChecker(msg))
 
     def checkStatus(self, reps):
@@ -486,7 +488,7 @@ class MockClusterWriter(object):
         jStr = cls.__appendAttr(jStr, 'directory', path)
         jStr = cls.__appendAttr(jStr, 'interval', interval)
         jStr = cls.__appendAttr(jStr, 'maxfiles', maxFiles)
-        print >>fd, "%s<%s/>" % (indent, jStr)
+        print("%s<%s/>" % (indent, jStr), file=fd)
 
     @classmethod
     def writeJVMXML(cls, fd, indent, path, isServer, heapInit, heapMax, args,
@@ -502,14 +504,14 @@ class MockClusterWriter(object):
             jStr = cls.__appendAttr(jStr, 'heapMax', heapMax)
             jStr = cls.__appendAttr(jStr, 'args', args)
             jStr = cls.__appendAttr(jStr, 'extraArgs', extraArgs)
-            print >>fd, "%s<%s/>" % (indent, jStr)
+            print("%s<%s/>" % (indent, jStr), file=fd)
 
     @classmethod
     def writeLine(cls, fd, indent, name, value):
         if value is None or value == "":
-            print >>fd, "%s<%s/>" % (indent, name)
+            print("%s<%s/>" % (indent, name), file=fd)
         else:
-            print >>fd, "%s<%s>%s</%s>" % (indent, name, value, name)
+            print("%s<%s>%s</%s>" % (indent, name, value, name), file=fd)
 
 
 class MockCluCfgCtlSrvr(object):
@@ -578,7 +580,7 @@ class MockCluCfgCtlSrvr(object):
         return True
 
     def write(self, fd, indent):
-        print >>fd, indent + "<controlServer/>"
+        print(indent + "<controlServer/>", file=fd)
 
 
 class MockCluCfgFileComp(MockClusterWriter):
@@ -727,8 +729,8 @@ class MockCluCfgFileComp(MockClusterWriter):
         else:
             endstr = "/"
 
-        print >>fd, "%s<component name=\"%s\"%s%s%s>" % \
-            (indent, self.__name, numstr, reqstr, endstr)
+        print("%s<component name=\"%s\"%s%s%s>" % \
+            (indent, self.__name, numstr, reqstr, endstr), file=fd)
 
         if multiline:
             indent2 = indent + "  "
@@ -745,7 +747,7 @@ class MockCluCfgFileComp(MockClusterWriter):
             if self.__logLevel is not None:
                 self.writeLine(fd, indent2, "logLevel", self.__logLevel)
 
-            print >>fd, "%s</component>" % indent
+            print("%s</component>" % indent, file=fd)
 
 
 class MockCluCfgFileCtlSrvr(object):
@@ -814,7 +816,7 @@ class MockCluCfgFileCtlSrvr(object):
         return True
 
     def write(self, fd, indent):
-        print >>fd, indent + "<controlServer/>"
+        print(indent + "<controlServer/>", file=fd)
 
 
 class MockCluCfgFileHost(object):
@@ -847,14 +849,14 @@ class MockCluCfgFileHost(object):
         return self.__name
 
     def write(self, fd, indent):
-        print >>fd, "%s<host name=\"%s\">" % (indent, self.__name)
+        print("%s<host name=\"%s\">" % (indent, self.__name), file=fd)
 
         indent2 = indent + "  "
         if self.__comps:
             for c in self.__comps:
                 c.write(fd, indent2)
 
-        print >>fd, "%s</host>" % indent
+        print("%s</host>" % indent, file=fd)
 
 
 class MockCluCfgFileSimHubs(MockClusterWriter):
@@ -930,8 +932,8 @@ class MockCluCfgFileSimHubs(MockClusterWriter):
         else:
             iustr = ""
 
-        print >>fd, "%s<simulatedHub number=\"%d\" priority=\"%d\"%s/>" % \
-            (indent, self.__number, self.__priority, iustr)
+        print("%s<simulatedHub number=\"%d\" priority=\"%d\"%s/>" % \
+            (indent, self.__number, self.__priority, iustr), file=fd)
 
 
 class MockClusterComponent(Component):
@@ -957,11 +959,11 @@ class MockClusterComponent(Component):
         return "%s(%s)" % (self.fullname, self.__host)
 
     def dump(self, fd, indent):
-        print >>fd, "%s<location name=\"%s\" host=\"%s\">" % \
-            (indent, self.__host, self.__host)
-        print >>fd, "%s    <module name=\"%s\" id=\"%02d\"/?>" % \
-            (indent, self.name, self.id)
-        print >>fd, "%s</location>" % indent
+        print("%s<location name=\"%s\" host=\"%s\">" % \
+            (indent, self.__host, self.__host), file=fd)
+        print("%s    <module name=\"%s\" id=\"%02d\"/?>" % \
+            (indent, self.name, self.id), file=fd)
+        print("%s</location>" % indent, file=fd)
 
     @property
     def host(self):
@@ -1002,7 +1004,7 @@ class MockClusterConfig(object):
         return self.__descName
 
     def extractComponents(self, masterList):
-        return RunCluster.extractComponentsFromNodes(self.__nodes.values(),
+        return RunCluster.extractComponentsFromNodes(list(self.__nodes.values()),
                                                      masterList)
 
     @property
@@ -1010,7 +1012,7 @@ class MockClusterConfig(object):
         return self.__configName
 
     def nodes(self):
-        return self.__nodes.values()
+        return list(self.__nodes.values())
 
 
 class MockClusterConfigFile(MockClusterWriter):
@@ -1064,7 +1066,7 @@ class MockClusterConfigFile(MockClusterWriter):
             os.makedirs(self.__configDir)
 
         with open(path, 'w') as fd:
-            print >>fd, "<cluster name=\"%s\">" % self.__name
+            print("<cluster name=\"%s\">" % self.__name, file=fd)
 
             indent = "  "
 
@@ -1092,7 +1094,7 @@ class MockClusterConfigFile(MockClusterWriter):
             if hasHSXML or hasJVMXML or hasHubXML or \
                self.__defaultLogLevel is not None or \
                self.__defaultComps is not None:
-                print >>fd, indent + "<default>"
+                print(indent + "<default>", file=fd)
 
                 indent2 = indent + "  "
 
@@ -1121,12 +1123,12 @@ class MockClusterConfigFile(MockClusterWriter):
                     for c in self.__defaultComps:
                         c.write(fd, indent2)
 
-                print >>fd, indent + "</default>"
+                print(indent + "</default>", file=fd)
 
-            for h in self.__hosts.itervalues():
+            for h in self.__hosts.values():
                 h.write(fd, indent)
 
-            print >>fd, "</cluster>"
+            print("</cluster>", file=fd)
 
     @property
     def dataDir(self):
@@ -1322,12 +1324,12 @@ class MockMBeanClient(object):
     def get(self, beanName, fieldName):
         if not beanName in self.__beanData:
             raise Exception("Unknown bean %s for %s (valid beans: %s)" %
-                            (beanName, self, self.__beanData.keys()))
+                            (beanName, self, list(self.__beanData.keys())))
         if not fieldName in self.__beanData[beanName]:
             raise Exception("No %s data for bean %s field %s"
                             " (valid fields: %s)" %
                             (self, beanName, fieldName,
-                             self.__beanData[beanName].keys()))
+                             list(self.__beanData[beanName].keys())))
 
         return self.__beanData[beanName][fieldName]
 
@@ -1341,10 +1343,10 @@ class MockMBeanClient(object):
         return rtnMap
 
     def getBeanFields(self, beanName):
-        return self.__beanData[beanName].keys()
+        return list(self.__beanData[beanName].keys())
 
     def getBeanNames(self):
-        return self.__beanData.keys()
+        return list(self.__beanData.keys())
 
     def getDictionary(self):
         return copy.deepcopy(self.__beanData)
@@ -1666,22 +1668,21 @@ class MockDefaultDomGeometryFile(object):
         path = os.path.join(config_dir, DefaultDomGeometry.FILENAME)
         if not os.path.exists(path):
             with open(path, "w") as fd:
-                print >>fd, "<domGeometry>"
+                print("<domGeometry>", file=fd)
                 for hub in hub_dom_dict:
-                    print >>fd, "  <string>"
-                    print >>fd, "    <number>%d</number>" % hub
+                    print("  <string>", file=fd)
+                    print("    <number>%d</number>" % hub, file=fd)
                     for dom in hub_dom_dict[hub]:
-                        print >>fd, "    <dom>"
-                        print >>fd, \
-                            "      <mainBoardId>%012x</mainBoardId>" % dom.mbid
-                        print >>fd, "      <position>%d</position>" % dom.pos
-                        print >>fd, "      <name>%s</name>" % dom.name
-                        print >>fd, "      <productionId>%s</productionId>" % \
-                            dom.prod_id
-                        print >>fd, "    </dom>"
-                    print >>fd, "  </string>"
+                        print("    <dom>", file=fd)
+                        print("      <mainBoardId>%012x</mainBoardId>" % dom.mbid, file=fd)
+                        print("      <position>%d</position>" % dom.pos, file=fd)
+                        print("      <name>%s</name>" % dom.name, file=fd)
+                        print("      <productionId>%s</productionId>" % \
+                            dom.prod_id, file=fd)
+                        print("    </dom>", file=fd)
+                    print("  </string>", file=fd)
 
-                print >>fd, "</domGeometry>"
+                print("</domGeometry>", file=fd)
 
 
 class MockDeployComponent(Component):
@@ -1876,7 +1877,7 @@ class MockLogger(LogChecker):
             raise Exception(self.__err)
 
     def addAppender(self, app):
-        print >>sys.stderr, "Not adding appender %s to MockLogger" % app
+        print("Not adding appender %s to MockLogger" % app, file=sys.stderr)
 
     def close(self):
         pass
@@ -1961,17 +1962,17 @@ class MockParallelShell(object):
             raise Exception('Did not expect command "%s"' % cmd)
 
         if self.__debug:
-            print >>sys.stderr, "PSh got: " + cmd
+            print("PSh got: " + cmd, file=sys.stderr)
 
         found = None
         for i in range(expLen):
             if cmd == self.__exp[i]:
                 found = i
                 if self.__debug:
-                    print >>sys.stderr, "PSh found cmd"
+                    print("PSh found cmd", file=sys.stderr)
                 break
             if self.__debug:
-                print >>sys.stderr, "PSh not: " + self.__exp[i]
+                print("PSh not: " + self.__exp[i], file=sys.stderr)
 
         if found is None:
             raise Exception("Command not found in expected command list:"
@@ -2253,9 +2254,9 @@ class SimDOMXML(object):
         return self.__prod_id
 
     def printXML(self, fd, indent):
-        print >>fd, "%s<domConfig mbid=\"%012x\">" % (indent, self.__mbid)
-        print >>fd, "%s%s<xxx>xxx</xxx>" % (indent, indent)
-        print >>fd, "%s</domConfig>" % indent
+        print("%s<domConfig mbid=\"%012x\">" % (indent, self.__mbid), file=fd)
+        print("%s%s<xxx>xxx</xxx>" % (indent, indent), file=fd)
+        print("%s</domConfig>" % indent, file=fd)
 
 
 class MockAlgorithm(object):
@@ -2268,7 +2269,7 @@ class MockAlgorithm(object):
         self.__readouts = []
 
     def __printElement(self, fd, indent, tag, val):
-        print >>fd, "%s<%s>%s</%s>" % (indent, tag, val, tag)
+        print("%s<%s>%s</%s>" % (indent, tag, val, tag), file=fd)
 
     def addParameter(self, name, value):
         self.__paramDict[name] = value
@@ -2278,7 +2279,7 @@ class MockAlgorithm(object):
 
     def printXML(self, fd, indent):
         i2 = indent + "    "
-        print >>fd, "%s<triggerConfig>" % indent
+        print("%s<triggerConfig>" % indent, file=fd)
 
         self.__printElement(fd, i2, "triggerType", self.__type)
         self.__printElement(fd, i2, "triggerConfigId", self.__cfgId)
@@ -2286,20 +2287,20 @@ class MockAlgorithm(object):
         self.__printElement(fd, i2, "triggerName", self.__name)
 
         for k, v in self.__paramDict:
-            print >>fd, "%s<parameterConfig>"
-            print >>fd, "%s    <parameterName>%s<parameterName>" % (i2, k)
-            print >>fd, "%s    <parameterValue>%s<parameterValue>" % (i2, v)
-            print >>fd, "%s</parameterConfig>"
+            print("%s<parameterConfig>", file=fd)
+            print("%s    <parameterName>%s<parameterName>" % (i2, k), file=fd)
+            print("%s    <parameterValue>%s<parameterValue>" % (i2, v), file=fd)
+            print("%s</parameterConfig>", file=fd)
 
         for r in self.__readouts:
             tag = ["readoutType", "timeOffset", "timeMinus", "timePlus"]
 
-            print >>fd, "%s<readoutConfig>"
-            for i in xrange(4):
-                print >>fd, "%s    <%s>%d<%s>" % (i2, tag[i], r[i], tag[i])
-            print >>fd, "%s</readoutConfig>"
+            print("%s<readoutConfig>", file=fd)
+            for i in range(4):
+                print("%s    <%s>%d<%s>" % (i2, tag[i], r[i], tag[i]), file=fd)
+            print("%s</readoutConfig>", file=fd)
 
-        print >>fd, "%s</triggerConfig>" % indent
+        print("%s</triggerConfig>" % indent, file=fd)
 
 
 class MockLeapsecondFile(object):
@@ -2323,12 +2324,12 @@ class MockLeapsecondFile(object):
 
         filepath = os.path.join(nist_path, leapseconds.DEFAULT_FILENAME)
         with open(filepath, "w") as out:
-            print >>out, "# Mock NIST leapseconds file"
-            print >>out, "#@\t%d" % (expiration, )
-            print >>out, "#"
+            print("# Mock NIST leapseconds file", file=out)
+            print("#@\t%d" % (expiration, ), file=out)
+            print("#", file=out)
 
             for pair in known_times:
-                print >>out, "%d\t%d" % (pair[1], pair[0])
+                print("%d\t%d" % (pair[1], pair[0]), file=out)
 
 
 class MockTriggerConfig(object):
@@ -2350,25 +2351,25 @@ class MockTriggerConfig(object):
         if not path.endswith(".xml"):
             path = path + ".xml"
         with open(path, "w") as fd:
-            print >>fd, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+            print("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", file=fd)
             if len(self.__algorithms) == 0:
-                print >>fd, "<activeTriggers/>"
+                print("<activeTriggers/>", file=fd)
             else:
-                print >>fd, "<activeTriggers>"
+                print("<activeTriggers>", file=fd)
                 needNL = False
                 for a in self.__algorithms:
                     if not needNL:
                         needNL = True
                     else:
-                        print >>fd
+                        print(file=fd)
                     a.printXML(fd, "    ")
-                print >>fd, "</activeTriggers>"
+                print("</activeTriggers>", file=fd)
 
         if debug:
             with open(path, "r") as fd:
-                print "=== %s ===" % path
+                print("=== %s ===" % path)
                 for line in fd:
-                    print line,
+                    print(line, end=' ')
 
     @property
     def name(self):
@@ -2391,18 +2392,18 @@ class MockRunConfigFile(object):
 
         path = os.path.join(cfgDir, fileName)
         with open(path, 'w') as fd:
-            print >>fd, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-            print >>fd, "<domConfigList>"
+            print("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", file=fd)
+            print("<domConfigList>", file=fd)
             if domList is not None:
                 for d in domList:
                     d.printXML(fd, "  ")
-            print >>fd, "</domConfigList>"
+            print("</domConfigList>", file=fd)
 
         if debug:
             with open(path, "r") as fd:
-                print "=== %s ===" % path
+                print("=== %s ===" % path)
                 for line in fd:
-                    print line,
+                    print(line, end=' ')
 
     def create(self, compList, hubDomDict, trigCfg=None, debug=False):
         path = tempfile.mktemp(suffix=".xml", dir=self.__configDir)
@@ -2414,31 +2415,30 @@ class MockRunConfigFile(object):
         trigCfg.create(self.__configDir, debug=debug)
 
         with open(path, 'w') as fd:
-            print >>fd, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-            print >>fd, "<runConfig>"
-            for hub, domList in hubDomDict.items():
+            print("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", file=fd)
+            print("<runConfig>", file=fd)
+            for hub, domList in list(hubDomDict.items()):
                 domCfg = "string-%d-config" % hub
                 self.__makeDomConfig(domCfg, domList, debug=debug)
 
-                print >>fd, \
-                    "    <stringHub hubId=\"%s\" domConfig=\"%s\"/>" % \
-                    (hub, domCfg)
+                print("    <stringHub hubId=\"%s\" domConfig=\"%s\"/>" % \
+                    (hub, domCfg), file=fd)
 
-            print >>fd, "    <triggerConfig>%s</triggerConfig>" % trigCfg.name
+            print("    <triggerConfig>%s</triggerConfig>" % trigCfg.name, file=fd)
             for c in compList:
                 pound = c.rfind("#")
                 if pound > 0:
                     val = int(c[pound + 1:])
                     if val == 0:
                         c = c[:pound]
-                print >>fd, "    <runComponent name=\"%s\"/>" % c
-            print >>fd, "</runConfig>"
+                print("    <runComponent name=\"%s\"/>" % c, file=fd)
+            print("</runConfig>", file=fd)
 
         if debug:
             with open(path, "r") as fd:
-                print "=== %s ===" % path
+                print("=== %s ===" % path)
                 for line in fd:
-                    print line,
+                    print(line, end=' ')
 
         name = os.path.basename(path)
         if name.endswith(".xml"):
@@ -2463,24 +2463,24 @@ class MockXMLRPC(object):
     def configure(self, name=None):
         pass
 
-    def connect(self, list=None):
-        if list is None or self.outLinks is None:
+    def connect(self, connlist=None):
+        if connlist is None or self.outLinks is None:
             return 'OK'
 
         if MockXMLRPC.LOUD:
-            print >>sys.stderr, 'Conn[%s:%s]' % (self.name, self.num)
-            for l in list:
-                print >>sys.stderr, '  %s:%s#%d' % \
-                    (l['type'], l['compName'], l['compNum'])
+            print('Conn[%s:%s]' % (self.name, self.num), file=sys.stderr)
+            for l in connlist:
+                print('  %s:%s#%d' % \
+                    (l['type'], l['compName'], l['compNum']), file=sys.stderr)
 
         # make a copy of the links
         #
         tmpLinks = {}
-        for k in self.outLinks.keys():
+        for k in list(self.outLinks.keys()):
             tmpLinks[k] = []
             tmpLinks[k][0:] = self.outLinks[k][0:len(self.outLinks[k])]
 
-        for l in list:
+        for l in connlist:
             if l['type'] not in tmpLinks:
                 raise ValueError(('Component %s#%d should not have a "%s"' +
                                   ' connection') %
@@ -2506,7 +2506,7 @@ class MockXMLRPC(object):
                 ' is not connected to '
 
             first = True
-            for k in tmpLinks.keys():
+            for k in list(tmpLinks.keys()):
                 for t in tmpLinks[k]:
                     if first:
                         first = False
@@ -2582,7 +2582,7 @@ class SocketReader(LogChecker):
                 if len(rd) == 0:
                     continue
                 # Slurp up waiting packets, return to select if EAGAIN
-                while 1:
+                while True:
                     try:
                         data = sock.recv(8192, socket.MSG_DONTWAIT)
                     except:
@@ -2724,17 +2724,22 @@ class RunXMLValidator(object):
             try:
                 os.remove("run.xml")
             except Exception as ex:
-                print "Cannot remove run.xml: %s" % ex
+                print("Cannot remove run.xml: %s" % ex)
             raise ValueError("Found unexpected run.xml file")
 
     @classmethod
     def validate(cls, test_case, runNum, cfgName, cluster, startTime, endTime,
-                 numEvts, numMoni, numSN, numTcal, failed):
+                 numEvts, numMoni, numSN, numTcal, failed, run_dir=None):
+        if run_dir is None:
+            path = "run.xml"
+        else:
+            path = os.path.join(run_dir, "run.xml")
+
         try:
-            if not os.path.exists("run.xml"):
+            if not os.path.exists(path):
                 test_case.fail("run.xml was not created")
 
-            run = DashXMLLog.parse()
+            run = DashXMLLog.parse(dir_name=run_dir)
 
             test_case.assertEqual(run.getRun(), runNum,
                                   "Expected run number %s, not %s" %

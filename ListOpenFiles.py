@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import subprocess
 import sys
 
@@ -544,8 +546,8 @@ class ListOpenFiles(object):
 
                 curUser.setUserID(int(line[1:]))
             else:
-                print "Unknown field \"%s\", value \"%s\"" % \
-                      (line[0], line[1:])
+                print("Unknown field \"%s\", value \"%s\"" % \
+                      (line[0], line[1:]))
                 break
 
         return userList
@@ -556,9 +558,9 @@ class ListOpenFiles(object):
 
     @classmethod
     def dumpList(cls, userList):
-        print "%-9.9s %4s %4s %4.4s%1.1s%1.1s %6.6s %10.10s %9.9s %8.8s %s" % \
+        print("%-9.9s %4s %4s %4.4s%1.1s%1.1s %6.6s %10.10s %9.9s %8.8s %s" % \
               ("COMMAND", "PID", "USER", "FD", "", "", "TYPE", "DEVICE",
-               "SIZE/OFF", "NODE", "NAME")
+               "SIZE/OFF", "NODE", "NAME"))
         for u in userList:
             cmd = u.command()
             pid = u.pid()
@@ -569,11 +571,11 @@ class ListOpenFiles(object):
                     user = "#%d" % uid
 
             for f in u.files():
-                print "%-9.9s %4d %4s %4.4s%1.1s%1.1s %6.6s %10.10s %9.9s" \
+                print("%-9.9s %4d %4s %4.4s%1.1s%1.1s %6.6s %10.10s %9.9s" \
                     " %8.8s %s" % \
                     (cmd, pid, user, f.fileDesc(), f.accessMode(),
                      f.lockStatus(), f.fileType(), f.device(), f.sizeOffset(),
-                     f.inode(), f.name)
+                     f.inode(), f.name))
 
     @classmethod
     def readOutput(cls, filename):

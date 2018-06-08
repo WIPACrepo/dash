@@ -15,6 +15,8 @@ from returning before the commands finish, otherwise the interpreter
 will return while the commands continue to run;
 """
 
+from __future__ import print_function
+
 import datetime
 import os
 import random
@@ -123,7 +125,7 @@ class PCmd(object):
             self.subproc = subprocess.Popen(self.cmd, shell=True)
 
         if self.verbose:
-            print "ParallelShell: %s" % self
+            print("ParallelShell: %s" % self)
 
         # If not running in parallel, then wait for this command (at
         # least the shell) to return
@@ -159,7 +161,7 @@ class PCmd(object):
 
         self.done = True
         if self.verbose:
-            print "ParallelShell: %s" % self
+            print("ParallelShell: %s" % self)
 
         # Harvest results
         if self.trace:
@@ -236,14 +238,14 @@ class ParallelShell(object):
                      datetime.timedelta(seconds=monitorIval)):
                 t = datetime.datetime.now()
                 dt = t - t0
-                print "%d of %d done (%s)." % (nDone, nToDo, str(dt))
+                print("%d of %d done (%s)." % (nDone, nToDo, str(dt)))
             time.sleep(0.3)
 
     def showAll(self):
         """ Show commands and (if running or finished) with their
         process IDs and (if finished) with return codes. """
         for c in self.pcmds:
-            print c
+            print(c)
 
     def getCommand(self, job):
         return self.pcmds[job].origCmd
@@ -302,7 +304,7 @@ def main():
     p.start()
     p.wait()
     for job in jobs:
-        print "Job %d: result %s" % (job, p.getResult(job))
+        print("Job %d: result %s" % (job, p.getResult(job)))
 
 
 if __name__ == "__main__":

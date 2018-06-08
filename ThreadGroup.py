@@ -56,7 +56,7 @@ class Thread(threading.Thread):
         else:
             try:
                 self.__run_method(*self.__args, **self.__kwargs)
-            except Exception, exception:
+            except Exception as exception:
                 self.report_exception(exception)
                 self.__error = exception
 

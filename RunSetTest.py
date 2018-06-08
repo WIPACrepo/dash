@@ -220,7 +220,7 @@ class MyRunSet(RunSet):
         return FakeLogger()
 
     def create_run_data(self, runNum, clusterConfig, runOptions, versionInfo,
-                        spadeDir, copyDir=None, logDir=None, testing=True):
+                        spadeDir, copyDir=None, logDir=None):
         fake = FakeRunData(runNum, self.__runConfig, clusterConfig,
                            versionInfo, self.__moni_client)
         fake.set_mock_logger(self.__logger)
@@ -632,14 +632,6 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
-    def __sortCmp(self, x, y):
-        if y.order() is None:
-            return -1
-        elif x.order() is None:
-            return 1
-        else:
-            return y.order() - x.order()
-
     def __startRun(self, runset, runNum, runConfig, cluCfg,
                    runOptions=RunOption.MONI_TO_NONE, versionInfo=None,
                    spadeDir="/tmp", copyDir=None, logDir=None,
@@ -711,7 +703,7 @@ class TestRunSet(unittest.TestCase):
 
         compList = components
         if compList is not None:
-            compList.sort(lambda x, y: self.__sortCmp(y, x))
+            compList.sort(key=lambda x: x.order())
 
         if hangType == 0:
             stopName = "TestRunSet"
@@ -890,8 +882,7 @@ class TestRunSet(unittest.TestCase):
                                  " in cluster config %s") %
                                 (compList[0].fullname, clusterCfg))
 
-        cycleList = compList[1:]
-        cycleList.sort()
+        cycleList = sorted(compList[1:])
 
         errMsg = None
         for c in cycleList:

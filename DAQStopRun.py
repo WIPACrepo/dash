@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import sys
 
 from DAQConst import DAQPort
@@ -39,12 +41,12 @@ def stoprun(args):
             try:
                 n = int(a)
             except:
-                print >>sys.stderr, "Argument \"%s\" is not a runset ID" % a
+                print("Argument \"%s\" is not a runset ID" % a, file=sys.stderr)
                 listRS = True
                 break
 
             if n not in rsids:
-                print >>sys.stderr, "\"%s\" is not a valid runset ID" % a
+                print("\"%s\" is not a valid runset ID" % a, file=sys.stderr)
                 listRS = True
                 break
 
@@ -53,7 +55,7 @@ def stoprun(args):
         stopIds.append(rsids[0])
 
     if len(stopIds) == 0:
-        print >>sys.stderr, "Please specify a runset ID"
+        print("Please specify a runset ID", file=sys.stderr)
         listRS = False
 
     if listRS:
@@ -75,14 +77,14 @@ def stoprun(args):
             if lreply == "y" or lreply == "yes":
                 try:
                     cncrpc.rpc_runset_stop_run(rsid)
-                    print "Stopped runset #%d" % rsid
+                    print("Stopped runset #%d" % rsid)
                 except:
-                    print >>sys.stderr, "Could not stop runset #%d: %s" % \
-                          (rsid, exc_string())
+                    print("Could not stop runset #%d: %s" % \
+                          (rsid, exc_string()), file=sys.stderr)
                 break
             elif lreply == "n" or lreply == "no":
                 break
-            print >>sys.stderr, "Please answer 'yes' or 'no'"
+            print("Please answer 'yes' or 'no'", file=sys.stderr)
 
 
 if __name__ == "__main__":

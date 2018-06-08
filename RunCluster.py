@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import os
 import os.path
 import traceback
@@ -69,30 +71,13 @@ class SimAlloc(object):
 
         self.__allocated = 0
 
-    def __mycmp(a, b):
-        val = cmp(a.__allocated, b.__allocated)
-        if val == 0:
-            val = cmp(b.__comp.host, a.__comp.host)
-
-        return val
-
-    def __eq__(self, other):
-        return self.__mycmp(other) == 0
-
-    def __ge__(self, other):
-        return self.__mycmp(other) >= 0
-
-    def __gt__(self, other):
-        return self.__mycmp(other) > 0
-
-    def __le__(self, other):
-        return self.__mycmp(other) <= 0
-
     def __lt__(self, other):
-        return self.__mycmp(other) < 0
-
-    def __ne__(self, other):
-        return self.__mycmp(other) != 0
+        if self.__allocated < other.__allocated:
+            return True
+        elif self.__allocated == other.__allocated and \
+             self.__comp.host > other.__comp.host:
+            return True
+        return False
 
     def __str__(self):
         return "%s#%d%%%.2f=%d" % (self.__comp.host, self.__number,
@@ -279,13 +264,13 @@ class RunCluster(CachedConfigName):
 
         # first stab at allocation: allocate based on percentage
         tot = 0
-        for v in hubAlloc.values():
+        for v in list(hubAlloc.values()):
             tot += v.adjustPercentage(pctTot, numHubs)
 
         # allocate remainder in order of total capacity
         while tot < numHubs:
             changed = False
-            for v in sorted(hubAlloc.values(), reverse=True):
+            for v in sorted(list(hubAlloc.values()), reverse=True):
                 if v.allocateOne():
                     tot += 1
                     changed = True
@@ -299,7 +284,7 @@ class RunCluster(CachedConfigName):
         hubList.sort()
 
         hosts = []
-        for v in sorted(hubAlloc.values(), reverse=True):
+        for v in sorted(list(hubAlloc.values()), reverse=True):
             hosts.append(v.host)
 
         jvmPath = clusterDesc.defaultJVMPath("StringHub")
@@ -312,17 +297,17 @@ class RunCluster(CachedConfigName):
         logLevel = clusterDesc.defaultLogLevel("StringHub")
 
         if False:
-            print
-            print "======= SimList"
+            print()
+            print("======= SimList")
             for sim in simList:
-                print ":: %s<%s>" % (sim, type(sim))
-            print "======= HubList"
+                print(":: %s<%s>" % (sim, type(sim)))
+            print("======= HubList")
             for hub in hubList:
-                print ":: %s<%s>" % (hub, type(hub))
+                print(":: %s<%s>" % (hub, type(hub)))
 
         hubNum = 0
         for host in hosts:
-            for _ in xrange(hubAlloc[host].allocated):
+            for _ in range(hubAlloc[host].allocated):
                 hubComp = hubList[hubNum]
                 if hubComp.logLevel is not None:
                     lvl = hubComp.logLevel
@@ -371,8 +356,7 @@ class RunCluster(CachedConfigName):
     @classmethod
     def __convertToNodes(cls, clusterDesc, hostMap):
         "Convert hostMap to an array of cluster nodes"
-        hostKeys = hostMap.keys()
-        hostKeys.sort()
+        hostKeys = sorted(hostMap.keys())
 
         nodes = []
         for host in hostKeys:
@@ -389,7 +373,7 @@ class RunCluster(CachedConfigName):
                            clusterDesc.defaultLogLevel())
             nodes.append(node)
 
-            for compKey in hostMap[host].keys():
+            for compKey in list(hostMap[host].keys()):
                 node.addComponent(hostMap[host][compKey])
 
         return nodes
@@ -414,7 +398,7 @@ class RunCluster(CachedConfigName):
             if not simHub.ifUnused or simHub.host.name not in hostMap:
                 simList.append(simHub)
 
-        simList.sort(cls.__sortByPriority)
+        simList.sort(key=lambda x: x.priority)
 
         return simList
 
@@ -432,14 +416,6 @@ class RunCluster(CachedConfigName):
                     cls.__addSimHubs(clusterDesc, hubList, hostMap)
 
         return cls.__convertToNodes(clusterDesc, hostMap)
-
-    @staticmethod
-    def __sortByPriority(x, y):
-        "Sort simulated hub nodes by priority"
-        val = cmp(x.priority, y.priority)
-        if val == 0:
-            val = cmp(x.host.name, y.host.name)
-        return val
 
     @property
     def daqDataDir(self):
@@ -492,7 +468,7 @@ class RunCluster(CachedConfigName):
             if addHost:
                 hostMap[node.hostname] = 1
 
-        return hostMap.keys()
+        return list(hostMap.keys())
 
     def loadIfChanged(self, runConfig=None, newPath=None):
         if not self.__clusterDesc.loadIfChanged(newPath=newPath):
@@ -565,32 +541,31 @@ if __name__ == '__main__':
         try:
             runCluster = RunCluster(cfg, clusterDesc)
         except NotImplementedError:
-            print >> sys.stderr, 'For %s:' % name
+            print('For %s:' % name, file=sys.stderr)
             traceback.print_exc()
             continue
         except KeyboardInterrupt:
             break
         except:
-            print >> sys.stderr, 'For %s:' % name
+            print('For %s:' % name, file=sys.stderr)
             traceback.print_exc()
             continue
 
-        print 'RunCluster: %s (%s)' % \
-            (runCluster.configName, runCluster.description)
-        print '--------------------'
+        print('RunCluster: %s (%s)' % \
+            (runCluster.configName, runCluster.description))
+        print('--------------------')
         if runCluster.logDirForSpade is not None:
-            print 'SPADE logDir: %s' % runCluster.logDirForSpade
+            print('SPADE logDir: %s' % runCluster.logDirForSpade)
         if runCluster.logDirCopies is not None:
-            print 'Copied logDir: %s' % runCluster.logDirCopies
+            print('Copied logDir: %s' % runCluster.logDirCopies)
         if runCluster.daqDataDir is not None:
-            print 'DAQ dataDir: %s' % runCluster.daqDataDir
+            print('DAQ dataDir: %s' % runCluster.daqDataDir)
         if runCluster.daqLogDir is not None:
-            print 'DAQ logDir: %s' % runCluster.daqLogDir
-        print 'Default log level: %s' % runCluster.defaultLogLevel
+            print('DAQ logDir: %s' % runCluster.daqLogDir)
+        print('Default log level: %s' % runCluster.defaultLogLevel)
         for node in runCluster.nodes():
-            print '  %s@%s logLevel %s' % \
-                (node.location, node.hostname, node.defaultLogLevel)
-            comps = node.components()
-            comps.sort()
+            print('  %s@%s logLevel %s' % \
+                (node.location, node.hostname, node.defaultLogLevel))
+            comps = sorted(node.components())
             for comp in comps:
-                print '    %s %s' % (comp, comp.logLevel)
+                print('    %s %s' % (comp, comp.logLevel))

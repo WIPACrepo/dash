@@ -2,6 +2,7 @@
 #
 # Manage pdaq's `pDAQ_current` symlink
 
+from __future__ import print_function
 
 import os
 import stat
@@ -45,7 +46,7 @@ def workspace(args):
             raise SystemExit("%s does not exist" % current)
 
         # print the current link and exit
-        print os.readlink(current)
+        print(os.readlink(current))
         return
 
     # make sure the target directory exists
@@ -77,7 +78,7 @@ def workspace(args):
 
     if cstat is None:
         os.symlink(target, current)
-        print "%s linked to %s" % (CURRENT, args.directory)
+        print("%s linked to %s" % (CURRENT, args.directory))
         return
 
     cabs = os.path.realpath(current)
@@ -88,7 +89,7 @@ def workspace(args):
     oldlink = os.readlink(current)
     os.unlink(current)
     os.symlink(target, current)
-    print "%s moved from %s to %s" % (CURRENT, oldlink, args.directory)
+    print("%s moved from %s to %s" % (CURRENT, oldlink, args.directory))
 
 
 if __name__ == "__main__":

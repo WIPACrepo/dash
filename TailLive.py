@@ -2,6 +2,8 @@
 #
 # Add color to `livecmd tail` output so it's more readable
 
+from __future__ import print_function
+
 import ast
 import datetime
 import os
@@ -49,7 +51,7 @@ def tail_logs(args):
     if args.print_colors:
         try:
             ColorFileParser(args.color_file).parse(LiveLog.COLORS)
-        except ColorException, cex:
+        except ColorException as cex:
             raise SystemExit(str(cex))
 
         ColorFileParser.print_formatted(LiveLog.COLORS)
@@ -184,10 +186,10 @@ class LiveLine(object):
             if debug:
                 attrs = [attr for attr in dir(node)
                          if not attr.startswith('__')]
-                print >>sys.stderr, node
+                print(node, file=sys.stderr)
                 for attrname in attrs:
-                    print >>sys.stderr, '    %s ==> %s' % \
-                        (attrname, getattr(node, attrname))
+                    print('    %s ==> %s' % \
+                        (attrname, getattr(node, attrname)), file=sys.stderr)
             raise ValueError(astr)
 
         return eval(astr)
@@ -408,7 +410,7 @@ class AllFiles(MultiFile):
             path = self.__file_list.pop(0)
             if os.path.exists(path):
                 return path
-            print >> sys.stderr, "File \"%s\" does not exist" % path
+            print("File \"%s\" does not exist" % path, file=sys.stderr)
 
 
 class AllLogs(MultiFile):
@@ -478,7 +480,7 @@ class LiveLog(object):
         # get customized colors
         try:
             ColorFileParser(color_file).parse(self.COLORS)
-        except ColorException, cex:
+        except ColorException as cex:
             raise SystemExit(str(cex))
 
         super(LiveLog, self).__init__()
@@ -554,7 +556,7 @@ class LiveLog(object):
 
             line = self.string(field, liveline.timestamp(), msg)
             if line is not None:
-                print line
+                print(line)
 
             return
 
@@ -566,7 +568,7 @@ class LiveLog(object):
                 line = self.string(self.FIELD_LIVECONTROL, ddict["t"],
                                    str(ddict["payload"]))
                 if line is not None:
-                    print line
+                    print(line)
             return
 
         if self.__pdaq_only and svc != "pdaq":
@@ -576,7 +578,7 @@ class LiveLog(object):
            "varname" not in ddict["payload"]:
             line = self.string(self.FIELD_UNKNOWN, "BadDict ", str(ddict))
             if line is not None:
-                print line
+                print(line)
             return
 
         varname = ddict["payload"]["varname"]
@@ -585,7 +587,7 @@ class LiveLog(object):
             line = self.__color_log(ddict["payload"]["time"],
                                     ddict["payload"]["value"])
             if line is not None:
-                print line
+                print(line)
             return
 
         if not self.__non_log:
@@ -594,10 +596,10 @@ class LiveLog(object):
         line = self.string(self.FIELD_LIVE_MISC, ddict["t"],
                            svc + ":" + varname)
         if line is not None:
-            print line
+            print(line)
         line = self.string(self.FIELD_LIVE_MISC, "\t", str(ddict["payload"]))
         if line is not None:
-            print line
+            print(line)
 
     def read_file(self):
         prevline = None
@@ -624,7 +626,7 @@ class LiveLog(object):
                 # line probably contained embedded newlines
                 prevline += line
             else:
-                print >> sys.stderr, "Ignoring bad line: " + line
+                print("Ignoring bad line: " + line, file=sys.stderr)
 
         if prevline is not None:
             self.__process(prevline.rstrip())

@@ -2,6 +2,7 @@
 #
 # Code to manipulate I3Live's "last run number" file
 
+from __future__ import print_function
 
 import os
 import re
@@ -57,8 +58,8 @@ class RunNumber(object):
 
         try:
             with open(filename, 'w') as fd:
-                print >>fd, "%d %d" % (goodRun, goodSub)
-        except Exception, exc:
+                print("%d %d" % (goodRun, goodSub), file=fd)
+        except Exception as exc:
             raise RunNumberException("Cannot update \"%s\" with \"%s %s\":"
                                      " %s" %
                                      (filename, goodRun, goodSub, str(exc)))
@@ -89,9 +90,9 @@ def get_or_set_run_number(args):
         (runNum, subrun) = RunNumber.getLast()
 
     if subrun == 0:
-        print "Run number %s %s" % (action, runNum)
+        print("Run number %s %s" % (action, runNum))
     else:
-        print "Run number %s %s (subrun %d)" % (action, runNum, subrun)
+        print("Run number %s %s (subrun %d)" % (action, runNum, subrun))
 
 
 def run_subrun_str(run, subrun):
@@ -125,7 +126,7 @@ def verify_change(lastrun, lastsub, newrun, newsub):
         if lreply == "n" or lreply == "no":
             return False
 
-        print >>sys.stderr, "Please answer 'yes' or 'no'"
+        print("Please answer 'yes' or 'no'", file=sys.stderr)
 
 
 if __name__ == "__main__":

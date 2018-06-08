@@ -3,6 +3,8 @@
 # Read in pDAQ monitoring files, extract IceTop data and write it to an HDF5
 # file, then create a JADE meta.xml file to transfer the HDF5 file North
 
+from __future__ import print_function
+
 import datetime
 import logging
 import os
@@ -140,7 +142,7 @@ def create_meta_xml(path, suffix, run_number, verbose=False, dry_run=False):
 
     metaname = basename + ".meta.xml"
     if verbose:
-        print "Creating JADE semaphore file %s" % (metaname, )
+        print("Creating JADE semaphore file %s" % (metaname, ))
     if not dry_run:
         with open(os.path.join(directory, metaname), "w") as out:
             out.write(etree.tostring(root))
@@ -205,7 +207,7 @@ def process_list(monilist, dom_dict, data_dir=None, verbose=False,
         match = MONI_PAT.match(moni)
         if match is None:
             if debug:
-                print "BADNAME %s" % (moni, )
+                print("BADNAME %s" % (moni, ))
             continue
 
         # get the run number from the file name
@@ -221,7 +223,7 @@ def process_list(monilist, dom_dict, data_dir=None, verbose=False,
         # save the new data
         run = frun
         if verbose:
-            print "Processing run %d moni file #%d" % (frun, fseq)
+            print("Processing run %d moni file #%d" % (frun, fseq))
         data += process_moni(dom_dict, moni)
 
     if run is not None:
@@ -241,7 +243,7 @@ def process_tar_file(tarname, dom_dict, data_dir=None, verbose=False,
     for info in tfl.getmembers():
         if not info.isfile():
             if debug:
-                print "NONFILE[%s] %s" % (tarname, info.name, )
+                print("NONFILE[%s] %s" % (tarname, info.name, ))
             continue
 
         if info.name.find("moni_") < 0:
@@ -255,13 +257,13 @@ def process_tar_file(tarname, dom_dict, data_dir=None, verbose=False,
                 if debug:
                     print "DAT_TAR[%s] %s" % (tarname, info.name)
             elif debug:
-                print "NONMONI[%s] %s" % (tarname, info.name)
+                print("NONMONI[%s] %s" % (tarname, info.name))
             continue
 
         match = MONI_PAT.match(info.name)
         if match is None:
             if debug:
-                print "BADNAME[%s] %s" % (tarname, info.name)
+                print("BADNAME[%s] %s" % (tarname, info.name))
             continue
 
         # get the run number from the file name
@@ -332,7 +334,7 @@ def write_data(run, data, data_dir=None, verbose=False, dry_run=False,
         seq += 1
 
     if verbose:
-        print "Writing %s" % (filename, )
+        print("Writing %s" % (filename, ))
 
     # write data
     if not dry_run:

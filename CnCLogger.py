@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import sys
 
 from DAQLog import DAQLog, LiveSocketAppender, LogException, LogSocketAppender
@@ -91,7 +93,7 @@ class CnCLogger(DAQLog):
         stdout of course will not appear if daemonized.
         """
         if not self.__quiet:
-            print s
+            print(s)
 
         try:
             super(CnCLogger, self)._logmsg(level, s)
@@ -99,8 +101,8 @@ class CnCLogger(DAQLog):
             if not isinstance(ex, LogException):
                 if str(ex).find('Connection refused') < 0:
                     raise
-                print >> sys.stderr, 'Lost logging connection to %s' % \
-                      str(self.__logInfo)
+                print('Lost logging connection to %s' % \
+                      str(self.__logInfo), file=sys.stderr)
             self.resetLog()
             if retry and self.hasAppender():
                 self._logmsg(level, s, False)

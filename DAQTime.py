@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import calendar
 import datetime
 import re
@@ -42,7 +44,7 @@ class DAQDateTime(object):
             self.__daqticks = daqticks
             self.__high_precision = True
         else:
-            self.__daqticks = (daqticks / 10000L) * 10000L
+            self.__daqticks = (daqticks / 10000) * 10000
             self.__high_precision = False
 
         self.leap = leapseconds.instance()
@@ -205,7 +207,7 @@ class PayloadTime(object):
                 ticks = 0
             else:
                 ticks = int(m.group(3))
-                for _ in xrange(10 - len(m.group(3))):
+                for _ in range(10 - len(m.group(3))):
                     ticks *= 10
 
         return DAQDateTime(pt.tm_year, pt.tm_mon,
@@ -302,8 +304,8 @@ if __name__ == "__main__":
         dt0 = PayloadTime.fromString(base + ".0001000000")
         dt1 = PayloadTime.fromString(base + ".0001")
 
-        print dt0
-        print dt1
+        print(dt0)
+        print(dt1)
         raise SystemExit()
 
     for arg in args.time:
@@ -312,7 +314,7 @@ if __name__ == "__main__":
                 val = long(arg)
                 dt = None
             except IOError:
-                print "Cannot convert %s" % str(val)
+                print("Cannot convert %s" % str(val))
                 import traceback
                 traceback.print_exc()
                 continue
@@ -321,12 +323,12 @@ if __name__ == "__main__":
             if val is not None:
                 dt = PayloadTime.toDateTime(val, year=args.year,
                                             high_precision=True)
-                print "%s -> %s" % (arg, dt)
+                print("%s -> %s" % (arg, dt))
             else:
                 dt = PayloadTime.fromString(arg, True)
-                print "\"%s\" -> %s" % (arg, dt)
+                print("\"%s\" -> %s" % (arg, dt))
 
         except:
-            print "Bad date: " + arg
+            print("Bad date: " + arg)
             import traceback
             traceback.print_exc()

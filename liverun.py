@@ -24,6 +24,7 @@
 #     # a flasher run
 #     run.run(clusterConfig, runConfig, numSecs, flasherData)
 
+from __future__ import print_function
 
 import os
 import re
@@ -198,7 +199,7 @@ class LiveState(object):
                   (self.__threadState, LiveRunState.str(self.__runState),
                    LightMode.str(self.__lightMode))
 
-        for key in self.__svcDict.keys():
+        for key in list(self.__svcDict.keys()):
             svc = self.__svcDict[key]
             summary += " %s[%s*%d]" % (key, LiveRunState.str(svc.state),
                                        svc.numStarts())
@@ -366,7 +367,7 @@ class LiveState(object):
             self.logCmd(cmd)
 
         if self.__dryRun:
-            print cmd
+            print(cmd)
             return
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
@@ -456,7 +457,7 @@ class LiveRun(BaseRun):
         self.logCmd(cmd)
 
         if self.__dryRun:
-            print cmd
+            print(cmd)
             return True
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
@@ -510,7 +511,7 @@ class LiveRun(BaseRun):
         self.logCmd(cmd)
 
         if self.__dryRun:
-            print cmd
+            print(cmd)
             return True
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
@@ -601,7 +602,7 @@ class LiveRun(BaseRun):
         problem = False
         if dataPath is None or dataPath == "sleep":
             if self.__dryRun:
-                print "sleep %d" % secs
+                print("sleep %d" % secs)
             else:
                 time.sleep(secs)
         else:
@@ -610,7 +611,7 @@ class LiveRun(BaseRun):
             self.logCmd(cmd)
 
             if self.__dryRun:
-                print cmd
+                print(cmd)
                 return False
 
             proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
@@ -639,7 +640,7 @@ class LiveRun(BaseRun):
         self.logCmd(cmd)
 
         if self.__dryRun:
-            print cmd
+            print(cmd)
             runNum = self.__fakeRunNum
             self.__fakeRunNum += 1
             return (runNum, 0)
@@ -681,7 +682,7 @@ class LiveRun(BaseRun):
         self.logCmd(cmd)
 
         if self.__dryRun:
-            print cmd
+            print(cmd)
             return 1
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
@@ -795,10 +796,10 @@ class LiveRun(BaseRun):
         self.logCmd(cmd)
 
         if self.__dryRun:
-            print cmd
+            print(cmd)
             return
 
-        print "Setting runs per restart to %d" % numRestarts
+        print("Setting runs per restart to %d" % numRestarts)
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, close_fds=True,

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 
 import os
 import tempfile
@@ -77,7 +78,7 @@ class TestClusterDescription(unittest.TestCase):
 
         path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
         with open(path, "w") as fd:
-            print >>fd, "<cluster>"
+            print("<cluster>", file=fd)
 
         try:
             ClusterDescription(self.CFGDIR, name)
@@ -93,7 +94,7 @@ class TestClusterDescription(unittest.TestCase):
 
         path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
         with open(path, "w") as fd:
-            print >>fd, "<cluster name=\"%s\"/>" % name
+            print("<cluster name=\"%s\"/>" % name, file=fd)
 
         try:
             ClusterDescription(self.CFGDIR, name)
@@ -109,9 +110,9 @@ class TestClusterDescription(unittest.TestCase):
 
         path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
         with open(path, "w") as fd:
-            print >>fd, "<cluster name=\"%s\">" % name
-            print >>fd, "  <host/>"
-            print >>fd, "</cluster>"
+            print("<cluster name=\"%s\">" % name, file=fd)
+            print("  <host/>", file=fd)
+            print("</cluster>", file=fd)
 
         try:
             ClusterDescription(self.CFGDIR, name)
@@ -128,11 +129,11 @@ class TestClusterDescription(unittest.TestCase):
 
         path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
         with open(path, "w") as fd:
-            print >>fd, "<cluster name=\"%s\">" % name
-            print >>fd, "  <host><name>bar</name><name>bar2</name>"
-            print >>fd, "    <jvm/>"
-            print >>fd, "  </host>"
-            print >>fd, "</cluster>"
+            print("<cluster name=\"%s\">" % name, file=fd)
+            print("  <host><name>bar</name><name>bar2</name>", file=fd)
+            print("    <jvm/>", file=fd)
+            print("  </host>", file=fd)
+            print("</cluster>", file=fd)
 
         try:
             ClusterDescription(self.CFGDIR, name)
@@ -148,11 +149,11 @@ class TestClusterDescription(unittest.TestCase):
 
         path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
         with open(path, "w") as fd:
-            print >>fd, "<cluster name=\"%s\">" % name
-            print >>fd, "  <host><name/>"
-            print >>fd, "    <jvm/>"
-            print >>fd, "  </host>"
-            print >>fd, "</cluster>"
+            print("<cluster name=\"%s\">" % name, file=fd)
+            print("  <host><name/>", file=fd)
+            print("    <jvm/>", file=fd)
+            print("  </host>", file=fd)
+            print("</cluster>", file=fd)
 
         try:
             ClusterDescription(self.CFGDIR, name)
@@ -168,11 +169,11 @@ class TestClusterDescription(unittest.TestCase):
 
         path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
         with open(path, "w") as fd:
-            print >>fd, "<cluster name=\"%s\">" % name
-            print >>fd, "  <host><name>a<x/>b</name>"
-            print >>fd, "    <jvm/>"
-            print >>fd, "  </host>"
-            print >>fd, "</cluster>"
+            print("<cluster name=\"%s\">" % name, file=fd)
+            print("  <host><name>a<x/>b</name>", file=fd)
+            print("    <jvm/>", file=fd)
+            print("  </host>", file=fd)
+            print("</cluster>", file=fd)
 
         try:
             ClusterDescription(self.CFGDIR, name)
@@ -188,11 +189,11 @@ class TestClusterDescription(unittest.TestCase):
 
         path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
         with open(path, "w") as fd:
-            print >>fd, "<cluster name=\"%s\">" % name
-            print >>fd, "  <host><name><x/></name>"
-            print >>fd, "    <jvm/>"
-            print >>fd, "  </host>"
-            print >>fd, "</cluster>"
+            print("<cluster name=\"%s\">" % name, file=fd)
+            print("  <host><name><x/></name>", file=fd)
+            print("    <jvm/>", file=fd)
+            print("  </host>", file=fd)
+            print("</cluster>", file=fd)
 
         try:
             ClusterDescription(self.CFGDIR, name)
@@ -210,15 +211,15 @@ class TestClusterDescription(unittest.TestCase):
 
         path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
         with open(path, "w") as fd:
-            print >>fd, "<cluster name=\"%s\">" % name
-            print >>fd, "  <host name=\"%s\"/>" % hname
-            print >>fd, "  <host name=\"%s\"/>" % hname
-            print >>fd, "</cluster>"
+            print("<cluster name=\"%s\">" % name, file=fd)
+            print("  <host name=\"%s\"/>" % hname, file=fd)
+            print("  <host name=\"%s\"/>" % hname, file=fd)
+            print("</cluster>", file=fd)
 
         if self.DEBUG:
             with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
                 for line in fd:
-                    print ":: ", line,
+                    print(":: ", line, end=' ')
 
         try:
             ClusterDescription(self.CFGDIR, name)
@@ -235,11 +236,11 @@ class TestClusterDescription(unittest.TestCase):
 
         path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
         with open(path, "w") as fd:
-            print >>fd, "<cluster name=\"%s\">" % name
-            print >>fd, "  <host name=\"%s\">" % hname
-            print >>fd, "    <component/>"
-            print >>fd, "  </host>"
-            print >>fd, "</cluster>"
+            print("<cluster name=\"%s\">" % name, file=fd)
+            print("  <host name=\"%s\">" % hname, file=fd)
+            print("    <component/>", file=fd)
+            print("  </host>", file=fd)
+            print("</cluster>", file=fd)
 
         try:
             ClusterDescription(self.CFGDIR, name)
@@ -257,11 +258,11 @@ class TestClusterDescription(unittest.TestCase):
 
         path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
         with open(path, "w") as fd:
-            print >>fd, "<cluster name=\"%s\">" % name
-            print >>fd, "  <default>"
-            print >>fd, "    <component/>"
-            print >>fd, "  </default>"
-            print >>fd, "</cluster>"
+            print("<cluster name=\"%s\">" % name, file=fd)
+            print("  <default>", file=fd)
+            print("    <component/>", file=fd)
+            print("  </default>", file=fd)
+            print("</cluster>", file=fd)
 
         try:
             ClusterDescription(self.CFGDIR, name)
@@ -281,11 +282,11 @@ class TestClusterDescription(unittest.TestCase):
 
         path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
         with open(path, "w") as fd:
-            print >>fd, "<cluster name=\"%s\">" % name
-            print >>fd, "  <host name=\"%s\">" % hname
-            print >>fd, "    <component name=\"%s\" id=\"%s\"/>" % (cname, cid)
-            print >>fd, "  </host>"
-            print >>fd, "</cluster>"
+            print("<cluster name=\"%s\">" % name, file=fd)
+            print("  <host name=\"%s\">" % hname, file=fd)
+            print("    <component name=\"%s\" id=\"%s\"/>" % (cname, cid), file=fd)
+            print("  </host>", file=fd)
+            print("</cluster>", file=fd)
 
         try:
             ClusterDescription(self.CFGDIR, name)
@@ -304,11 +305,11 @@ class TestClusterDescription(unittest.TestCase):
 
         path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
         with open(path, "w") as fd:
-            print >>fd, "<cluster name=\"%s\">" % name
-            print >>fd, "  <host name=\"%s\">" % hname
-            print >>fd, "    <simulatedHub number=\"%s\"/>" % snum
-            print >>fd, "  </host>"
-            print >>fd, "</cluster>"
+            print("<cluster name=\"%s\">" % name, file=fd)
+            print("  <host name=\"%s\">" % hname, file=fd)
+            print("    <simulatedHub number=\"%s\"/>" % snum, file=fd)
+            print("  </host>", file=fd)
+            print("</cluster>", file=fd)
 
         try:
             ClusterDescription(self.CFGDIR, name)
@@ -328,12 +329,12 @@ class TestClusterDescription(unittest.TestCase):
 
         path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
         with open(path, "w") as fd:
-            print >>fd, "<cluster name=\"%s\">" % name
-            print >>fd, "  <host name=\"%s\">" % hname
-            print >>fd, "    <simulatedHub number=\"%s\" priority=\"%s\"/>" % \
-                (snum, sprio)
-            print >>fd, "  </host>"
-            print >>fd, "</cluster>"
+            print("<cluster name=\"%s\">" % name, file=fd)
+            print("  <host name=\"%s\">" % hname, file=fd)
+            print("    <simulatedHub number=\"%s\" priority=\"%s\"/>" % \
+                (snum, sprio), file=fd)
+            print("  </host>", file=fd)
+            print("</cluster>", file=fd)
 
         try:
             ClusterDescription(self.CFGDIR, name)
@@ -353,12 +354,12 @@ class TestClusterDescription(unittest.TestCase):
 
         path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
         with open(path, "w") as fd:
-            print >>fd, "<cluster name=\"%s\">" % name
-            print >>fd, "  <host name=\"%s\">" % hname
-            print >>fd, "    <simulatedHub number=\"%s\" priority=\"%s\"/>" % \
-                (snum, sprio)
-            print >>fd, "  </host>"
-            print >>fd, "</cluster>"
+            print("<cluster name=\"%s\">" % name, file=fd)
+            print("  <host name=\"%s\">" % hname, file=fd)
+            print("    <simulatedHub number=\"%s\" priority=\"%s\"/>" % \
+                (snum, sprio), file=fd)
+            print("  </host>", file=fd)
+            print("</cluster>", file=fd)
 
         try:
             ClusterDescription(self.CFGDIR, name)
@@ -441,7 +442,7 @@ class TestClusterDescription(unittest.TestCase):
         if self.DEBUG:
             with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
                 for line in fd:
-                    print ":: ", line,
+                    print(":: ", line, end=' ')
 
         cd = ClusterDescription(self.CFGDIR, name)
 
@@ -587,11 +588,11 @@ class TestClusterDescription(unittest.TestCase):
 
         (FLD_PATH, FLD_HEAP_INIT, FLD_HEAP_MAX, FLD_SERVER, FLD_JVMARGS,
          FLD_EXTRAARGS, FLD_LOGLVL, FLD_HSDIR, FLD_HSIVAL, FLD_HSMAX) \
-         = range(numFields)
+         = list(range(numFields))
 
         for i in range(numFields):
             if self.DEBUG:
-                print "########## I %d" % i
+                print("########## I %d" % i)
 
             # create a cluster config file
             mock = MockClusterConfigFile(self.CFGDIR, name)
@@ -700,7 +701,7 @@ class TestClusterDescription(unittest.TestCase):
 
             j = (i + 1) % numFields
             if self.DEBUG:
-                print "########## J %d" % j
+                print("########## J %d" % j)
 
             if j == FLD_PATH:
                 instPath = "instPath"
@@ -758,9 +759,9 @@ class TestClusterDescription(unittest.TestCase):
 
             if self.DEBUG:
                 with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
-                    print ":::::::::: %s-cluster.cfg" % name
+                    print(":::::::::: %s-cluster.cfg" % name)
                     for line in fd:
-                        print ":: ", line,
+                        print(":: ", line, end=' ')
 
             cd = ClusterDescription(self.CFGDIR, name)
 
@@ -939,7 +940,7 @@ class TestClusterDescription(unittest.TestCase):
         if self.DEBUG:
             with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
                 for line in fd:
-                    print ":: ", line,
+                    print(":: ", line, end=' ')
 
         cd = ClusterDescription(self.CFGDIR, name)
 
@@ -982,7 +983,7 @@ class TestClusterDescription(unittest.TestCase):
         if self.DEBUG:
             with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
                 for line in fd:
-                    print ":: ", line,
+                    print(":: ", line, end=' ')
 
         try:
             ClusterDescription(self.CFGDIR, name)
@@ -1011,7 +1012,7 @@ class TestClusterDescription(unittest.TestCase):
         if self.DEBUG:
             with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
                 for line in fd:
-                    print ":: ", line,
+                    print(":: ", line, end=' ')
 
         try:
             ClusterDescription(self.CFGDIR, name)
@@ -1039,7 +1040,7 @@ class TestClusterDescription(unittest.TestCase):
         if self.DEBUG:
             with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
                 for line in fd:
-                    print ":: ", line,
+                    print(":: ", line, end=' ')
 
         ClusterDescription(self.CFGDIR, name)
 
@@ -1061,7 +1062,7 @@ class TestClusterDescription(unittest.TestCase):
         if self.DEBUG:
             with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
                 for line in fd:
-                    print ":: ", line,
+                    print(":: ", line, end=' ')
 
         cd = ClusterDescription(self.CFGDIR, name)
         h = cd.host(hname)
@@ -1088,15 +1089,15 @@ class TestClusterDescription(unittest.TestCase):
 
         cluPath = os.path.join(self.CFGDIR, name + "-cluster.cfg")
         with open(cluPath, "w") as fd:
-            print >>fd, "<cluster name=\"%s\">" % name
-            print >>fd, "  <host name=\"%s\">" % hostname
-            print >>fd, "    <component name=\"%s\">" % compName
-            print >>fd, "      <jvm heapInit=\"xxx\"/>"
-            print >>fd, "      <jvm heapInit=\"%s\"/>" % heapInit
-            print >>fd, "      <jvm heapMax=\"%s\"/>" % heapMax
-            print >>fd, "    </component>"
-            print >>fd, "  </host>"
-            print >>fd, "</cluster>"
+            print("<cluster name=\"%s\">" % name, file=fd)
+            print("  <host name=\"%s\">" % hostname, file=fd)
+            print("    <component name=\"%s\">" % compName, file=fd)
+            print("      <jvm heapInit=\"xxx\"/>", file=fd)
+            print("      <jvm heapInit=\"%s\"/>" % heapInit, file=fd)
+            print("      <jvm heapMax=\"%s\"/>" % heapMax, file=fd)
+            print("    </component>", file=fd)
+            print("  </host>", file=fd)
+            print("</cluster>", file=fd)
 
         cd = ClusterDescription(self.CFGDIR, name)
 

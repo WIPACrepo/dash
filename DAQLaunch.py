@@ -7,6 +7,8 @@
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started January, 2007
 
+from __future__ import print_function
+
 import os
 import sys
 
@@ -29,10 +31,10 @@ class ConsoleLogger(object):
         pass
 
     def error(self, msg):
-        print >> sys.stderr, msg
+        print(msg, file=sys.stderr)
 
     def info(self, msg):
-        print msg
+        print(msg)
 
 
 def add_arguments_both(parser):
@@ -103,10 +105,10 @@ def check_detector_state():
             plural = ''
         else:
             plural = 's'
-        print >> sys.stderr, 'Found %d active runset%s:' % \
-            (len(runsets), plural)
-        for rid in runsets.keys():
-            print >> sys.stderr, "  %d: %s" % (rid, runsets[rid])
+        print('Found %d active runset%s:' % \
+            (len(runsets), plural), file=sys.stderr)
+        for rid in list(runsets.keys()):
+            print("  %d: %s" % (rid, runsets[rid]), file=sys.stderr)
         raise SystemExit('To force a restart, rerun with the --force option')
 
 
@@ -123,7 +125,7 @@ def kill(cfgDir, logger, args=None, clusterDesc=None, validate=None,
             if logger is not None:
                 logger.error(errmsg)
             else:
-                print >> sys.stderr, errmsg
+                print(errmsg, file=sys.stderr)
         clusterDesc = args.clusterDesc
         validate = args.validation
         serverKill = args.serverKill
@@ -146,8 +148,8 @@ def kill(cfgDir, logger, args=None, clusterDesc=None, validate=None,
                               logger=logger, parallel=parallel)
 
     if force:
-        print >> sys.stderr, "Remember to run SpadeQueue.py to recover" + \
-            " any orphaned data"
+        print("Remember to run SpadeQueue.py to recover" + \
+            " any orphaned data", file=sys.stderr)
 
 
 def launch(cfgDir, dashDir, logger, args=None, clusterDesc=None,
@@ -164,7 +166,7 @@ def launch(cfgDir, dashDir, logger, args=None, clusterDesc=None,
             if logger is not None:
                 logger.error(errmsg)
             else:
-                print >> sys.stderr, errmsg
+                print(errmsg, file=sys.stderr)
 
         clusterDesc = args.clusterDesc
         configName = args.configName
@@ -182,30 +184,28 @@ def launch(cfgDir, dashDir, logger, args=None, clusterDesc=None,
                                                     configDir=cfgDir,
                                                     validate=validate)
     except DAQConfigException as e:
-        print >> sys.stderr, "DAQ Config exception:\n\t%s" % e
+        print("DAQ Config exception:\n\t%s" % e, file=sys.stderr)
         raise SystemExit
 
     if verbose:
-        print "Version info: " + get_scmversion_str()
+        print("Version info: " + get_scmversion_str())
         if clusterConfig.description is None:
-            print "CLUSTER CONFIG: %s" % (clusterConfig.configName, )
+            print("CLUSTER CONFIG: %s" % (clusterConfig.configName, ))
         else:
-            print "CONFIG: %s" % (clusterConfig.configName, )
-            print "CLUSTER: %s" % clusterConfig.description
+            print("CONFIG: %s" % (clusterConfig.configName, ))
+            print("CLUSTER: %s" % clusterConfig.description)
 
-        nodeList = clusterConfig.nodes()
-        nodeList.sort()
+        nodeList = sorted(clusterConfig.nodes())
 
-        print "NODES:"
+        print("NODES:")
         for node in nodeList:
-            print "  %s(%s)" % (node.hostname, node.location),
+            print("  %s(%s)" % (node.hostname, node.location), end=' ')
 
-            compList = node.components()
-            compList.sort()
+            compList = sorted(node.components())
 
             for comp in compList:
-                print "%s#%d " % (comp.name, comp.id),
-            print
+                print("%s#%d " % (comp.name, comp.id), end=' ')
+            print()
 
     spadeDir = clusterConfig.logDirForSpade
     copyDir = clusterConfig.logDirCopies
@@ -259,7 +259,7 @@ if __name__ == "__main__":
         if args.serverKill:
             ignored.append("--server-kill")
     if len(ignored) > 0:
-        print >>sys.stderr, "Ignoring " + ", ".join(ignored)
+        print("Ignoring " + ", ".join(ignored), file=sys.stderr)
 
     if not args.nohostcheck:
         # exit if not running on expcont

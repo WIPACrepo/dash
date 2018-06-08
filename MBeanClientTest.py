@@ -42,11 +42,11 @@ class MockMBeanAgent(object):
 
     def listMBeans(self):
         self.__validateDict()
-        return self.__mbeanDict.keys()
+        return list(self.__mbeanDict.keys())
 
     def listGetters(self, bean):
         self.__validateBean(bean)
-        return self.__mbeanDict[bean].keys()
+        return list(self.__mbeanDict[bean].keys())
 
     def setMBeans(self, mbeanDict):
         self.__mbeanDict = mbeanDict

@@ -13,6 +13,8 @@ It should be installed and activated (in cron) by the pDAQ Fabric
 installation procedure.
 """
 
+from __future__ import print_function
+
 import datetime
 import os
 import tarfile
@@ -67,7 +69,7 @@ def process_files(filelist, verbose=False, dry_run=False,
     # Clean up tar'ed files
     for fname in files_to_tar:
         if verbose:
-            print "Removing %s..." % (fname, )
+            print("Removing %s..." % (fname, ))
         if not dry_run:
             os.unlink(fname)
 
@@ -77,7 +79,7 @@ def process_files(filelist, verbose=False, dry_run=False,
 def create_tar_and_sem_files(files_to_tar, verbose=False, dry_run=False,
                              enable_moni_link=False):
     if verbose:
-        print "Found %d files" % len(files_to_tar)
+        print("Found %d files" % len(files_to_tar))
     now = datetime.datetime.now()
     date_tag = "%03d_%04d%02d%02d_%02d%02d%02d_%06d" % \
         (0, now.year, now.month, now.day, now.hour, now.minute, now.second, 0)
@@ -96,13 +98,13 @@ def create_tar_and_sem_files(files_to_tar, verbose=False, dry_run=False,
     # Create temporary tarball
     tmp_tar = "tmp-" + date_tag + ".tar"
     if verbose:
-        print "Creating temporary tarball"
+        print("Creating temporary tarball")
     try:
         if not dry_run:
             tarball = tarfile.open(tmp_tar, "w")
         for tfile in files_to_tar:
             if verbose:
-                print "  " + tfile
+                print("  " + tfile)
             if not dry_run:
                 tarball.add(tfile)
         if not dry_run:
@@ -111,24 +113,24 @@ def create_tar_and_sem_files(files_to_tar, verbose=False, dry_run=False,
         os.unlink(tmp_tar)
         raise
     if verbose:
-        print "Done."
+        print("Done.")
 
     # Rename temporary tarball to SPADE name
     if verbose:
-        print "Renaming temporary tarball to %s" % spade_tar
+        print("Renaming temporary tarball to %s" % spade_tar)
     if not dry_run:
         os.rename(tmp_tar, spade_tar)
 
     # Create moni hard link
     if enable_moni_link:
         if verbose:
-            print "MoniLink %s" % monilink
+            print("MoniLink %s" % monilink)
         if not dry_run:
             os.link(spade_tar, monilink)
 
     # Create sn hard link
     if verbose:
-        print "SNLink %s" % snlink
+        print("SNLink %s" % snlink)
     if not dry_run:
         os.link(spade_tar, snlink)
         # So that SN process can delete if it's not running as pdaq

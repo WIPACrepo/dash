@@ -2,6 +2,8 @@
 #
 # Sort all log files from a run, screen out some noise
 
+from __future__ import print_function
+
 import os
 import re
 import sys
@@ -421,22 +423,21 @@ class LogSorter(object):
                        (float(delta.microseconds) / 1000000.0)
 
         if cond == "ERROR":
-            print >>out, "-v-v-v-v-v-v-v-v-v-v ERROR v-v-v-v-v-v-v-v-v-v-"
+            print("-v-v-v-v-v-v-v-v-v-v ERROR v-v-v-v-v-v-v-v-v-v-", file=out)
         if runXML is not None:
-            print >>out, "Run %s: %s, %d evts, %s secs" % \
-                (runXML.getRun(), cond, runXML.getEvents(), secs)
-            print >>out, "    %s" % runXML.getConfig()
-            print >>out, "    from %s to %s" % \
-                (runXML.getStartTime(), runXML.getEndTime())
-        log = self.__processDir(self.__runDir, verbose=verbose,
+            print("Run %s: %s, %d evts, %s secs" % \
+                (runXML.getRun(), cond, runXML.getEvents(), secs), file=out)
+            print("    %s" % runXML.getConfig(), file=out)
+            print("    from %s to %s" % \
+                (runXML.getStartTime(), runXML.getEndTime()), file=out)
+        log = sorted(self.__processDir(self.__runDir, verbose=verbose,
                                 show_tcal=show_tcal, hide_rates=hide_rates,
                                 hide_sn_gaps=hide_sn_gaps,
-                                show_lbmdebug=show_lbmdebug)
-        log.sort()
+                                show_lbmdebug=show_lbmdebug))
         for l in log:
-            print >>out, str(l)
+            print(str(l), file=out)
         if cond == "ERROR":
-            print >>out, "-^-^-^-^-^-^-^-^-^-^ ERROR ^_^_^_^_^_^_^_^_^_^_"
+            print("-^-^-^-^-^-^-^-^-^-^ ERROR ^_^_^_^_^_^_^_^_^_^_", file=out)
 
 
 def add_arguments(parser):
@@ -465,7 +466,7 @@ def getDirAndRunnum(topDir, subDir):
     "Return path to log files and run number for the log files"
 
     DIGITS_PAT = re.compile(r"^.*(\d+)$")
-    for i in xrange(100):
+    for i in range(100):
         if i == 0:
             fullpath = os.path.join(topDir, subDir)
         elif i == 1:
@@ -513,7 +514,7 @@ def sort_logs(args):
     for arg in args.runNumber:
         (path, runnum) = getDirAndRunnum(runDir, arg)
         if path is None or runnum is None:
-            print >> sys.stderr, "Bad run number \"%s\"" % arg
+            print("Bad run number \"%s\"" % arg, file=sys.stderr)
             continue
 
         ls = LogSorter(path, runnum)

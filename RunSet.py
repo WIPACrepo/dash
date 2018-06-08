@@ -249,11 +249,11 @@ class GoodTimeThread(CnCThread):
         sleep_secs = 0.1
         sleep_reps = 20
 
-        for _ in xrange(sleep_reps):
+        for _ in range(sleep_reps):
             hanging = False
             complete = True
 
-            for thrd, result in tgroup.results().iteritems():
+            for thrd, result in list(tgroup.results().items()):
                 if self.__stopped:
                     # run has been stopped, don't bother checking anymore
                     break
@@ -351,7 +351,7 @@ class GoodTimeThread(CnCThread):
         if len(self.__bad_comps) > 0:
             self.__log.error("Couldn't find %s for %s" %
                              (self.moniname(),
-                              listComponentRanges(self.__bad_comps.keys())))
+                              listComponentRanges(list(self.__bad_comps.keys()))))
 
         if self.__good_time is None:
             good_val = "unknown"
@@ -491,11 +491,19 @@ class RateEntry(object):
     def __str__(self):
         return "RateEntry[%s -> %s]" % (self.__ticks, self.__count)
 
+    @property
+    def count(self):
+        return self.__count
+
     def diff_ticks(self, other):
         return float(self.__ticks - other.__ticks)
 
     def diff_count(self, other):
         return float(self.__count - other.__count)
+
+    @property
+    def ticks(self):
+        return self.__ticks
 
 
 class StreamData(object):
@@ -528,8 +536,7 @@ class RunData(object):
     MAX_PHYSICS_ENTRIES = 1000
 
     def __init__(self, run_set, run_number, cluster_config, run_config,
-                 run_options, version_info, spade_dir, copy_dir, log_dir,
-                 testing=False):
+                 run_options, version_info, spade_dir, copy_dir, log_dir):
         """
         Constructor for object holding run-specific data
 
@@ -542,7 +549,6 @@ class RunData(object):
         spade_dir - directory where SPADE files are written
         copy_dir - directory where a copy of the SPADE files is kept
         log_dir - top-level logging directory
-        testing - True if this is called from a unit test
         """
         self.__run_number = run_number
         self.__subrun_number = 0
@@ -552,7 +558,6 @@ class RunData(object):
         self.__version_info = version_info
         self.__spade_dir = spade_dir
         self.__copy_dir = copy_dir
-        self.__testing = testing
         self.__finished = False
         self.__task_mgr = None
 
@@ -629,7 +634,7 @@ class RunData(object):
         return RunData(run_set, new_run, self.__cluster_config,
                        self.__run_config, self.__run_options,
                        self.__version_info, self.__spade_dir, self.__copy_dir,
-                       self.__log_dir, testing=self.__testing)
+                       self.__log_dir)
 
     @property
     def cluster_configuration(self):
@@ -645,17 +650,23 @@ class RunData(object):
     def create_dash_log(self):
         log = DAQLog("dash", level=DAQLog.ERROR)
 
+        added = False
         if RunOption.isLogToFile(self.__run_options):
             if self.__run_dir is None:
                 raise RunSetException("Run directory has not been specified")
             app = FileAppender("dashlog", os.path.join(self.__run_dir,
                                                        "dash.log"))
             log.addAppender(app)
+            added = True
 
         if RunOption.isLogToLive(self.__run_options):
             app = LiveSocketAppender("localhost", DAQPort.I3LIVE_ZMQ,
                                      priority=Prio.EMAIL)
             log.addAppender(app)
+            added = True
+
+        if not added:
+            raise RunSetException("No appenders for dash.log")
 
         return log
 
@@ -670,6 +681,11 @@ class RunData(object):
                                  " be reported")
 
         return None
+
+    def create_task_manager(self, runset):
+        return TaskManager(runset, self.__dashlog, self.__live_moni_client,
+                           self.__run_dir, self.__run_config,
+                           self.__run_options)
 
     def destroy(self):
         saved_ex = None
@@ -800,26 +816,28 @@ class RunData(object):
         """
         Get latest physics rate value.
         """
-        # Find the desired bin by walking back in time.
-        # This is a bit crude but
-        # we don't need to worry about performance for the target application
-        # (DAQRun rate calculation)
-        first = None
-        latest = None
+        # Find the first and last times for the current bin
+        # This is a bit crude but we don't need to worry about performance
+        # for the target application (pDAQ rate calculation)
+        bin_end = None
+        bin_start = None
         for entry in reversed(self.__physics_entries):
-            if first is None:
-                first = entry
+            if bin_end is None:
+                bin_end = entry
             else:
-                latest = entry
-                if first.diff_ticks(entry) > self.RATE_INTERVAL:
+                bin_start = entry
+                if bin_end.diff_ticks(entry) > self.RATE_INTERVAL:
                     break
 
-        if first is None or latest is None:
+        if bin_end is None or bin_start is None:
             return 0.0
-        ticks = first.diff_ticks(latest)
-        if ticks == 0:
+
+        tick_seconds = bin_end.diff_ticks(bin_start) / 1E10
+        if tick_seconds == 0.0:
             return 0.0
-        return first.diff_count(latest) / (ticks / 1E10)
+
+        num_evts_in_bin = bin_end.diff_count(bin_start)
+        return num_evts_in_bin / tick_seconds
 
     @property
     def release(self):
@@ -841,14 +859,14 @@ class RunData(object):
             return
 
         first_time = None
-        for _ in xrange(5):
+        for idx in range(5):
             result = runset.get_first_event_time(eb_comp, self)
             if ComponentGroup.has_value(result):
                 first_time = result
                 break
             time.sleep(0.1)
         if first_time is None:
-            self.error("Couldn't find first good time for switched run %d" %
+            self.error("Couldn't find first good time for switched run %s" %
                        (self.__run_number, ))
         else:
             runset.report_good_time(self, "firstGoodTime", first_time)
@@ -1029,6 +1047,9 @@ class RunData(object):
             self.send_moni("run_update", run_update, prio=prio, time=ptime)
 
     def send_moni(self, name, value, prio=None, time=None, debug=False):
+        if not self.has_moni_client:
+            self.__dashlog.error("No monitoring client")
+
         if debug:
             if prio is None:
                 pstr = ""
@@ -1061,11 +1082,6 @@ class RunData(object):
     @property
     def spade_directory(self):
         return self.__spade_dir
-
-    def create_task_manager(self, runset):
-        return TaskManager(runset, self.__dashlog, self.__live_moni_client,
-                           self.__run_dir, self.__run_config,
-                           self.__run_options)
 
     def start_tasks(self, runset):
         # start housekeeping threads
@@ -1118,7 +1134,7 @@ class RunData(object):
         tgroup.wait(wait_secs=8, reps=10)
 
         # process results
-        for thrd, result in tgroup.results(full_result=True).iteritems():
+        for thrd, result in list(tgroup.results(full_result=True).items()):
             comp = thrd.component
             if not ComponentGroup.has_value(result, full_result=True):
                 self.error("Cannot get event data for %s: %s" %
@@ -1228,11 +1244,13 @@ class RunData(object):
                       had_error):
 
         xml_log = DashXMLLog(dir_name=self.run_directory)
+
+        # don't continue if the file has already been created
         path = xml_log.getPath()
         if os.path.exists(path):
             self.error("Run xml log file \"%s\" already exists!" %
                            (path, ))
-            return
+            return None
 
         xml_log.setVersionInfo(self.release, self.repo_revision)
         xml_log.setRun(self.run_number)
@@ -1254,6 +1272,8 @@ class RunData(object):
         except DashXMLLogException:
             self.error("Could not write run xml log file \"%s\"" %
                            (xml_log.getPath(), ))
+
+        return path
 
 
 class RunSet(object):
@@ -1426,7 +1446,7 @@ class RunSet(object):
                     fail_str += ', ' + str(comp)
         if fail_str:
             raise RunSetException(fail_str)
-        middle_set.sort(self.__sort_cmp)
+        middle_set.sort(key=lambda x: x.order())
 
         return src_set, middle_set, bldr_set
 
@@ -1860,16 +1880,6 @@ class RunSet(object):
         moni_client.sendMoni("runstart", data, prio=Prio.SCP,
                              time=start_time)
 
-    def __sort_cmp(self, x, y):
-        if y.order() is None:
-            self.__logger.error('Comp %s cmdOrder is None' % str(y))
-            return -1
-        elif x.order() is None:
-            self.__logger.error('Comp %s cmdOrder is None' % str(x))
-            return 1
-        else:
-            return y.order() - x.order()
-
     def __start_components(self, quiet):
         live_host = None
         live_port = None
@@ -1917,7 +1927,7 @@ class RunSet(object):
 
         # wait up to 10 seconds for the thread to finish
         #
-        for _ in xrange(100):
+        for _ in range(100):
             if good_thread.finished:
                 break
             time.sleep(0.1)
@@ -2043,7 +2053,7 @@ class RunSet(object):
 
         # stop from front to back
         #
-        other_set.sort(lambda x, y: self.__sort_cmp(y, x))
+        other_set.sort(key=lambda x: x.order())
 
         # start thread to find earliest last time from hubs
         #
@@ -2293,11 +2303,9 @@ class RunSet(object):
         return sock
 
     def create_run_data(self, run_num, cluster_config, run_options,
-                        version_info, spade_dir, copy_dir, log_dir,
-                        testing=False):
+                        version_info, spade_dir, copy_dir, log_dir):
         return RunData(self, run_num, cluster_config, self.__cfg,
-                       run_options, version_info, spade_dir, copy_dir, log_dir,
-                       testing=testing)
+                       run_options, version_info, spade_dir, copy_dir, log_dir)
 
     def create_run_dir(self, log_dir, run_num, backupExisting=True):
         if not os.path.exists(log_dir):
@@ -2485,7 +2493,7 @@ class RunSet(object):
         tgroup.wait(wait_secs=3, reps=10)
 
         result = None
-        for thrd, rslt in tgroup.results(full_result=False).iteritems():
+        for thrd, rslt in list(tgroup.results(full_result=False).items()):
             if thrd.component != comp:
                 self.__run_data.error("Found FirstEventTime result for"
                                       " component %s (should be %s)" %
@@ -2789,7 +2797,7 @@ class RunSet(object):
                              conn.comp.name.lower() != "eventBuilder":
                             tmp[conn.comp] = 1
 
-            cur_level = tmp.keys()
+            cur_level = list(tmp.keys())
             level += 1
 
         if len(all_comps) > 0:
@@ -3060,7 +3068,7 @@ class RunSet(object):
         #
         bldr_sleep = 0.5
         bldr_max_sleep = 30   # wait up to 30 seconds
-        for i in xrange(int(bldr_max_sleep / bldr_sleep)):
+        for i in range(int(bldr_max_sleep / bldr_sleep)):
             for comp in bldr_set:
                 num = comp.getRunNumber()
                 if num == new_num:

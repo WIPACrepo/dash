@@ -4,6 +4,7 @@ A module for identifying the pDAQ release name (defaults to
 'trunk') and extracting relevant source control details.
 """
 
+from __future__ import print_function
 
 import os
 import subprocess
@@ -401,7 +402,7 @@ def get_scmversion(dir=None):
                                       (len(FIELD_NAMES), len(flds), line))
 
             saved = {}
-            for i in xrange(len(FIELD_NAMES)):
+            for i in range(len(FIELD_NAMES)):
                 saved[FIELD_NAMES[i]] = flds[i]
             info = saved
 
@@ -447,7 +448,7 @@ def store_scmversion(dir=None):
     try:
         scmstr = get_scmversion_str(dir)
     except SCMVersionError as exc:
-        print >>sys.stderr, "SCMVersionError: " + str(exc)
+        print("SCMVersionError: " + str(exc), file=sys.stderr)
         return ""
 
     svn_rev_file = file(SCM_REV_FILENAME, "w")
@@ -470,9 +471,9 @@ if __name__ == "__main__":
     if not os.path.exists(rev_parent):
         os.makedirs(rev_parent)
 
-    print "STORED -> " + store_scmversion(opt.dir)
+    print("STORED -> " + store_scmversion(opt.dir))
 
     info = get_scmversion(opt.dir)
-    print str(info)
+    print(str(info))
 
-    print get_scmversion_str(info=info)
+    print(get_scmversion_str(info=info))

@@ -4,6 +4,8 @@ associated doctests for xml_fmt or dict_xml_tree for examples of how this
 works.  The two functions contained here are for accessing attributes or
 values of the root element of the python dictionary passed to them."""
 
+from __future__ import print_function
+
 from lxml import etree
 from lxml.etree import Comment
 
@@ -61,7 +63,7 @@ class xml_dict(object):
         """
 
         ret = {}
-        attribs = dict(parent_element.items())
+        attribs = dict(list(parent_element.items()))
 
         # if the parent element has no children,
         # no attributes and only content, just set it to
@@ -119,12 +121,12 @@ class xml_dict(object):
         """
 
         try:
-            tag, contents = next(elem_dict.iteritems())
+            tag, contents = next(iter(list(elem_dict.items())))
         except Exception:
             raise
 
         if root is None:
-            root_tag = elem_dict.keys()
+            root_tag = list(elem_dict.keys())
             if '__root_comments__' in root_tag:
                 root_tag.remove('__root_comments__')
             root_tag = root_tag[0]
@@ -147,7 +149,7 @@ class xml_dict(object):
 
         # record all of the element attributes
         if '__attribs__' in contents:
-            for (key, value) in contents['__attribs__'].iteritems():
+            for (key, value) in list(contents['__attribs__'].items()):
                 elem.set(key, value)
 
         # record the contents
@@ -160,7 +162,7 @@ class xml_dict(object):
         if '__children__' not in contents:
             return elem
 
-        for child_name, child_desc in contents['__children__'].iteritems():
+        for child_name, child_desc in list(contents['__children__'].items()):
             # a special case.  if the child name is a Comment then
             # build up all the comments
             if child_name == Comment:
@@ -178,8 +180,8 @@ class xml_dict(object):
                     for entry in child_desc:
                         xml_dict.dict_xml_tree({child_name: entry}, root=elem)
             else:
-                print >>sys.stderr, "Not handling <%s>%s" % \
-                    (type(child_desc).__name__, child_desc)
+                print("Not handling <%s>%s" % \
+                    (type(child_desc).__name__, child_desc), file=sys.stderr)
 
         return elem
 

@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import unittest
 from CnCServer import Connector
 from RunSet import ConnTypeEntry, Connection
@@ -74,13 +76,13 @@ class TestCnCMisc(unittest.TestCase):
         entries = self.connect(inputs)
 
         cMap = {}
-        for key in entries.keys():
+        for key in list(entries.keys()):
             entries[key].build_connection_map(cMap)
 
-        for key in cMap.keys():
-            print str(key) + ':'
+        for key in list(cMap.keys()):
+            print(str(key) + ':')
             for entry in cMap[key]:
-                print '  ' + str(entry)
+                print('  ' + str(entry))
 
     def testConnTypeEntryOptional(self):
         inputs = (('Start', 1, 'here',
@@ -100,7 +102,7 @@ class TestCnCMisc(unittest.TestCase):
         entries = self.connect(inputs)
 
         cMap = {}
-        for key in entries.keys():
+        for key in list(entries.keys()):
             entries[key].build_connection_map(cMap)
 
         expMap = {}
@@ -114,7 +116,7 @@ class TestCnCMisc(unittest.TestCase):
                     expMap[key][conn[0]] = "%s#%d" % \
                                            (inputs[i + 1][0], inputs[i + 1][1])
 
-        for comp in cMap.keys():
+        for comp in list(cMap.keys()):
             key = str(comp)
             if key not in expMap:
                 self.fail("Unexpected connection map entry for \"%s\"" % key)

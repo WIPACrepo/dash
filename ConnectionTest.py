@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import shutil
 import tempfile
 import unittest
@@ -38,10 +40,10 @@ class Node(object):
 
     def getConnections(self):
         connectors = []
-        for k in self.outLinks.keys():
+        for k in list(self.outLinks.keys()):
             connectors.append(Connector(k, Connector.OUTPUT,
                                         self.getNextPort()))
-        for k in self.inLinks.keys():
+        for k in list(self.inLinks.keys()):
             connectors.append(Connector(k, Connector.INPUT,
                                         self.getNextPort()))
         return connectors
@@ -68,9 +70,9 @@ class ConnectionTest(unittest.TestCase):
 
     def buildRunset(self, nodeList, extraLoud=True):
         if LOUD:
-            print '-- Nodes'
+            print('-- Nodes')
             for node in nodeList:
-                print node.getDescription()
+                print(node.getDescription())
 
         nodeLog = {}
 
@@ -86,9 +88,9 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(pool.numComponents(), len(nodeList))
 
         if LOUD:
-            print '-- Pool has %s comps' % pool.numComponents()
+            print('-- Pool has %s comps' % pool.numComponents())
             for c in pool.components():
-                print '    %s' % str(c)
+                print('    %s' % str(c))
 
         numComps = pool.numComponents()
 
@@ -179,7 +181,7 @@ class ConnectionTest(unittest.TestCase):
                          str(tmpList))
 
         if LOUD:
-            print '-- SET: ' + str(runset)
+            print('-- SET: ' + str(runset))
 
         if extraLoud:
             for key in nodeLog:

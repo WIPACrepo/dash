@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import logging
 import os
 import re
@@ -279,7 +281,7 @@ class Sum(object):
         return self.__cnc
 
     def logInfo(self, msg):
-        print msg
+        print(msg)
 
     def report(self, runNum, std_clucfg=None, no_color=False,
                   use_cnc=False, verbose=False):

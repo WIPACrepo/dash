@@ -3,7 +3,10 @@
 import datetime
 import socket
 import threading
-import xmlrpclib
+try:
+    import xmlrpclib as xclient
+except ImportError:
+    import xmlrpc.client as xclient
 
 from CnCLogger import CnCLogger
 from DAQRPC import RPCClient
@@ -23,10 +26,10 @@ def unFixValue(obj):
     methods in icecube.daq.juggler.mbean.XMLRPCServer
     """
     if isinstance(obj, dict):
-        for k in obj.keys():
+        for k in list(obj.keys()):
             obj[k] = unFixValue(obj[k])
     elif isinstance(obj, list):
-        for i in xrange(0, len(obj)):
+        for i in range(0, len(obj)):
             obj[i] = unFixValue(obj[i])
     elif isinstance(obj, tuple):
         newObj = []
@@ -83,11 +86,11 @@ class MBeanClient(object):
         self.__loadedInfo = False
         try:
             self.__beanList = self.__client.mbean.listMBeans()
-        except socket.error, serr:
+        except socket.error as serr:
             raise BeanTimeoutException("Cannot get list of %s MBeans"
                                        " <socket error %s>" %
                                        (self.__compName, serr))
-        except (xmlrpclib.Fault, xmlrpclib.ProtocolError), xerr:
+        except (xclient.Fault, xclient.ProtocolError) as xerr:
             raise BeanTimeoutException("Cannot get list of %s MBeans: %s" %
                                        (self.__compName, xerr))
         except:
@@ -129,11 +132,11 @@ class MBeanClient(object):
         try:
             with self.__beanLock:
                 val = self.__client.mbean.get(bean, fld)
-        except socket.error, serr:
+        except socket.error as serr:
             raise BeanTimeoutException("Cannot get %s MBean \"%s:%s\":"
                                        " <socket error %s>" %
                                        (self.__compName, bean, fld, serr))
-        except (xmlrpclib.Fault, xmlrpclib.ProtocolError), xerr:
+        except (xclient.Fault, xclient.ProtocolError) as xerr:
             raise BeanTimeoutException("Cannot get %s MBean \"%s:%s\": %s" %
                                        (self.__compName, bean, fld, xerr))
         except:
@@ -148,11 +151,11 @@ class MBeanClient(object):
         try:
             with self.__beanLock:
                 attrs = self.__client.mbean.getAttributes(bean, fldList)
-        except socket.error, serr:
+        except socket.error as serr:
             raise BeanTimeoutException("Cannot get %s MBean \"%s\""
                                        " attributes <socket error %s>" %
                                        (self.__compName, bean, serr))
-        except (xmlrpclib.Fault, xmlrpclib.ProtocolError), xerr:
+        except (xclient.Fault, xclient.ProtocolError) as xerr:
             raise BeanTimeoutException("Cannot get %s MBean \"%s\":"
                                        " attributes %s" %
                                        (self.__compName, bean, xerr))
@@ -168,7 +171,7 @@ class MBeanClient(object):
                                                   fldList, type(attrs), attrs))
 
         if len(attrs) > 0:
-            for k in attrs.keys():
+            for k in list(attrs.keys()):
                 attrs[k] = unFixValue(attrs[k])
         return attrs
 
@@ -194,11 +197,11 @@ class MBeanClient(object):
         with self.__beanLock:
             try:
                 attrs = self.__client.mbean.getDictionary()
-            except socket.error, serr:
+            except socket.error as serr:
                 raise BeanTimeoutException("Cannot get %s MBean attributes:"
                                            " <socket error %s>" %
                                            (self.__compName, serr))
-            except (xmlrpclib.Fault, xmlrpclib.ProtocolError), xerr:
+            except (xclient.Fault, xclient.ProtocolError) as xerr:
                 raise BeanTimeoutException("Cannot get %s MBean attributes:"
                                            " %s" % (self.__compName, xerr))
             except:
@@ -212,7 +215,7 @@ class MBeanClient(object):
                                 (self.__compName, type(attrs).__name__, attrs))
 
         if len(attrs) > 0:
-            for k in attrs.keys():
+            for k in list(attrs.keys()):
                 attrs[k] = unFixValue(attrs[k])
         return attrs
 
@@ -600,7 +603,7 @@ class DAQClient(ComponentName):
         "Get current state"
         try:
             state = self.__client.xmlrpc.getState()
-        except (socket.error, xmlrpclib.Fault, xmlrpclib.ProtocolError):
+        except (socket.error, xclient.Fault, xclient.ProtocolError):
             state = None
         except:
             self.__log.error(exc_string())

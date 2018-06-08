@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import sys
 import traceback
 import unittest
@@ -155,7 +157,7 @@ class DAQLiveTest(unittest.TestCase):
             if exc is None:
                 return
             (excType, excVal, excTB) = sys.exc_info()
-            if type(excVal) == type(exc) and str(excVal) == str(exc):
+            if isinstance(excVal, type(exc)) and str(excVal) == str(exc):
                 return
             raise self.failureException("Expected %s(%s), not %s(%s)" %
                                         (type(exc), exc, type(excVal), excVal))
@@ -176,8 +178,7 @@ class DAQLiveTest(unittest.TestCase):
             global WARNED
             if not WARNED:
                 WARNED = True
-                print >>sys.stderr, \
-                    "No I3Live Python code found, cannot run tests"
+                print("No I3Live Python code found, cannot run tests", file=sys.stderr)
             return
 
         cnc = MockCnC()
@@ -194,8 +195,7 @@ class DAQLiveTest(unittest.TestCase):
         if not LIVE_IMPORT:
             if not WARNED:
                 WARNED = True
-                print >>sys.stderr, \
-                    "No I3Live Python code found, cannot run tests"
+                print("No I3Live Python code found, cannot run tests", file=sys.stderr)
             return
 
         cnc = MockCnC()
@@ -210,8 +210,7 @@ class DAQLiveTest(unittest.TestCase):
         if not LIVE_IMPORT:
             if not WARNED:
                 WARNED = True
-                print >>sys.stderr, \
-                    "No I3Live Python code found, cannot run tests"
+                print("No I3Live Python code found, cannot run tests", file=sys.stderr)
             return
 
         cnc = MockCnC()
@@ -234,8 +233,7 @@ class DAQLiveTest(unittest.TestCase):
         if not LIVE_IMPORT:
             if not WARNED:
                 WARNED = True
-                print >>sys.stderr, \
-                    "No I3Live Python code found, cannot run tests"
+                print("No I3Live Python code found, cannot run tests", file=sys.stderr)
             return
 
         cnc = MockCnC()
@@ -258,8 +256,7 @@ class DAQLiveTest(unittest.TestCase):
         if not LIVE_IMPORT:
             if not WARNED:
                 WARNED = True
-                print >>sys.stderr, \
-                    "No I3Live Python code found, cannot run tests"
+                print("No I3Live Python code found, cannot run tests", file=sys.stderr)
             return
 
         cnc = MockCnC()
@@ -282,8 +279,7 @@ class DAQLiveTest(unittest.TestCase):
         if not LIVE_IMPORT:
             if not WARNED:
                 WARNED = True
-                print >>sys.stderr, \
-                    "No I3Live Python code found, cannot run tests"
+                print("No I3Live Python code found, cannot run tests", file=sys.stderr)
             return
 
         cnc = MockCnC()
@@ -306,8 +302,7 @@ class DAQLiveTest(unittest.TestCase):
         if not LIVE_IMPORT:
             if not WARNED:
                 WARNED = True
-                print >>sys.stderr, \
-                    "No I3Live Python code found, cannot run tests"
+                print("No I3Live Python code found, cannot run tests", file=sys.stderr)
             return
 
         cnc = MockCnC()
@@ -330,8 +325,7 @@ class DAQLiveTest(unittest.TestCase):
         if not LIVE_IMPORT:
             if not WARNED:
                 WARNED = True
-                print >>sys.stderr, \
-                    "No I3Live Python code found, cannot run tests"
+                print("No I3Live Python code found, cannot run tests", file=sys.stderr)
             return
 
         cnc = MockCnC()
@@ -346,8 +340,7 @@ class DAQLiveTest(unittest.TestCase):
         if not LIVE_IMPORT:
             if not WARNED:
                 WARNED = True
-                print >>sys.stderr, \
-                    "No I3Live Python code found, cannot run tests"
+                print("No I3Live Python code found, cannot run tests", file=sys.stderr)
             return
 
         cnc = MockCnC()
@@ -376,8 +369,7 @@ class DAQLiveTest(unittest.TestCase):
         if not LIVE_IMPORT:
             if not WARNED:
                 WARNED = True
-                print >>sys.stderr, \
-                    "No I3Live Python code found, cannot run tests"
+                print("No I3Live Python code found, cannot run tests", file=sys.stderr)
             return
 
         cnc = MockCnC()
@@ -402,8 +394,7 @@ class DAQLiveTest(unittest.TestCase):
         if not LIVE_IMPORT:
             if not WARNED:
                 WARNED = True
-                print >>sys.stderr, \
-                    "No I3Live Python code found, cannot run tests"
+                print("No I3Live Python code found, cannot run tests", file=sys.stderr)
             return
 
         cnc = MockCnC()
@@ -417,8 +408,7 @@ class DAQLiveTest(unittest.TestCase):
         if not LIVE_IMPORT:
             if not WARNED:
                 WARNED = True
-                print >>sys.stderr, \
-                    "No I3Live Python code found, cannot run tests"
+                print("No I3Live Python code found, cannot run tests", file=sys.stderr)
             return
 
         cnc = MockCnC()
@@ -447,8 +437,7 @@ class DAQLiveTest(unittest.TestCase):
         if not LIVE_IMPORT:
             if not WARNED:
                 WARNED = True
-                print >>sys.stderr, \
-                    "No I3Live Python code found, cannot run tests"
+                print("No I3Live Python code found, cannot run tests", file=sys.stderr)
             return
 
         cnc = MockCnC()
@@ -480,8 +469,7 @@ class DAQLiveTest(unittest.TestCase):
         if not LIVE_IMPORT:
             if not WARNED:
                 WARNED = True
-                print >>sys.stderr, \
-                    "No I3Live Python code found, cannot run tests"
+                print("No I3Live Python code found, cannot run tests", file=sys.stderr)
             return
 
         cnc = MockCnC()
@@ -512,8 +500,7 @@ class DAQLiveTest(unittest.TestCase):
         if not LIVE_IMPORT:
             if not WARNED:
                 WARNED = True
-                print >>sys.stderr, \
-                    "No I3Live Python code found, cannot run tests"
+                print("No I3Live Python code found, cannot run tests", file=sys.stderr)
             return
 
         cnc = MockCnC()
@@ -528,8 +515,7 @@ class DAQLiveTest(unittest.TestCase):
         if not LIVE_IMPORT:
             if not WARNED:
                 WARNED = True
-                print >>sys.stderr, \
-                    "No I3Live Python code found, cannot run tests"
+                print("No I3Live Python code found, cannot run tests", file=sys.stderr)
             return
 
         cnc = MockCnC()
@@ -557,8 +543,7 @@ class DAQLiveTest(unittest.TestCase):
         if not LIVE_IMPORT:
             if not WARNED:
                 WARNED = True
-                print >>sys.stderr, \
-                    "No I3Live Python code found, cannot run tests"
+                print("No I3Live Python code found, cannot run tests", file=sys.stderr)
             return
 
         cnc = MockCnC()
@@ -586,8 +571,7 @@ class DAQLiveTest(unittest.TestCase):
         if not LIVE_IMPORT:
             if not WARNED:
                 WARNED = True
-                print >>sys.stderr, \
-                    "No I3Live Python code found, cannot run tests"
+                print("No I3Live Python code found, cannot run tests", file=sys.stderr)
             return
 
         cnc = MockCnC()

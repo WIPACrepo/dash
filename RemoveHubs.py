@@ -2,6 +2,8 @@
 #
 # Create a new run configuration without one or more hubs
 
+from __future__ import print_function
+
 import os
 import sys
 
@@ -96,7 +98,7 @@ def create_config(run_config, hub_list, rack_list, new_name=None,
 
     if os.path.exists(new_path):
         if force:
-            print >> sys.stderr, "WARNING: Overwriting %s" % new_path
+            print("WARNING: Overwriting %s" % new_path, file=sys.stderr)
         else:
             raise SystemExit(("WARNING: %s already exists\n" % new_path) +
                              "Specify --force to overwrite this file")
@@ -115,14 +117,14 @@ def create_config(run_config, hub_list, rack_list, new_name=None,
     new_config = run_config.omit(final_list, keep_hubs)
     if new_config is None:
         if verbose:
-            print "No hubs/racks removed from %s" % (run_config.basename, )
+            print("No hubs/racks removed from %s" % (run_config.basename, ))
         return None
 
     # write new configuration
     with open(new_path, 'w') as fd:
         fd.write(new_config)
     if verbose:
-        print "Created %s" % (new_path, )
+        print("Created %s" % (new_path, ))
     return new_path
 
 
@@ -157,10 +159,9 @@ def main():
     "Main function"
     hostid = Machineid()
     if not hostid.is_build_host():
-        print >> sys.stderr, "-" * 60
-        print >> sys.stderr, \
-            "Warning: RemoveHubs.py should be run on the build machine"
-        print >> sys.stderr, "-" * 60
+        print("-" * 60, file=sys.stderr)
+        print("Warning: RemoveHubs.py should be run on the build machine", file=sys.stderr)
+        print("-" * 60, file=sys.stderr)
 
     p = argparse.ArgumentParser()
     add_arguments(p)
@@ -180,7 +181,7 @@ def main():
     try:
         run_config = DAQConfigParser.parse(args.config_dir, rc_path)
     except DAQConfigException as config_except:
-        print >> sys.stderr, "WARNING: Error parsing %s" % rc_path
+        print("WARNING: Error parsing %s" % rc_path, file=sys.stderr)
         raise SystemExit(config_except)
 
     new_path = create_config(run_config, hub_list, rack_list,

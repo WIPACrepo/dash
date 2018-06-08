@@ -2,6 +2,8 @@
 #
 # Run standard pDAQ tests
 
+from __future__ import print_function
+
 import os
 import re
 import stat
@@ -151,7 +153,7 @@ class Deploy(object):
                                   (clusterCfgName, exc_string()))
 
         if not self.__showCmd:
-            print "Deploying %s" % clusterCfg
+            print("Deploying %s" % clusterCfg)
 
         subdirs = None
         delete = True
@@ -177,16 +179,15 @@ class Deploy(object):
         for data in runList:
             ccDict[data.clusterConfig()] = 1
 
-        uniqList = ccDict.keys()
-        uniqList.sort()
+        uniqList = sorted(ccDict.keys())
 
         return uniqList
 
     def showHome(self):
         "Print the actual pDAQ home directory name"
-        print "==============================================================="
-        print "== PDAQ_HOME points to %s" % self.__pdaqHome
-        print "==============================================================="
+        print("===============================================================")
+        print("== PDAQ_HOME points to %s" % self.__pdaqHome)
+        print("===============================================================")
 
 
 def add_arguments(parser):

@@ -14,6 +14,8 @@
 #            HitSpool-11.dat
 #            HitSpool-12.dat
 
+from __future__ import print_function
+
 import fnmatch
 import os
 import re
@@ -42,8 +44,7 @@ def process(path, ext, basename, trigcfg):
             hubdirs[hspath] = {}
         hubdirs[hspath][hsname] = 1
 
-    dkeys = hubdirs.keys()
-    dkeys.sort()
+    dkeys = sorted(hubdirs.keys())
 
     for hd in dkeys:
         name = "%s-%s.xml" % (basename, hd.replace("/", "-"))
@@ -52,7 +53,7 @@ def process(path, ext, basename, trigcfg):
         else:
             rcbase = os.path.join(path, hd)
         with open(name, "w") as out:
-            writeRunConfig(out, rcbase, trigcfg, hubdirs[hd].keys())
+            writeRunConfig(out, rcbase, trigcfg, list(hubdirs[hd].keys()))
 
 
 def writeRunConfig(out, basedir, trigcfg, hubs):
@@ -65,7 +66,7 @@ def writeRunConfig(out, basedir, trigcfg, hubs):
     for hub in sorted(hubs):
         m = HUB_PAT.match(hub)
         if m is None:
-            print >>sys.stderr, "Ignoring unrecognized directory \"%s\"" % hub
+            print("Ignoring unrecognized directory \"%s\"" % hub, file=sys.stderr)
             continue
 
         hubtype = m.group(1)
@@ -77,35 +78,35 @@ def writeRunConfig(out, basedir, trigcfg, hubs):
         elif hubtype == "c":
             sawInice = True
         else:
-            print >>sys.stderr, "Hub \"%s\" is neither in-ice nor icetop" % hub
+            print("Hub \"%s\" is neither in-ice nor icetop" % hub, file=sys.stderr)
             continue
 
         finalhubs.append((hub, hubnum))
 
     if not sawInice and not sawIcetop:
-        print >>sys.stderr, "No in-ice or icetop hubs found!"
+        print("No in-ice or icetop hubs found!", file=sys.stderr)
         return
 
-    print >>out, '<?xml version="1.0" encoding="UTF-8"?>'
-    print >>out, '<runConfig>'
+    print('<?xml version="1.0" encoding="UTF-8"?>', file=out)
+    print('<runConfig>', file=out)
 
     # wait a long time before killing the run
-    print >>out, '    <watchdog period="60"/>'
-    print >>out, '    <updateHitSpoolTimes disabled="true"/>'
+    print('    <watchdog period="60"/>', file=out)
+    print('    <updateHitSpoolTimes disabled="true"/>', file=out)
 
-    print >>out, '    <replayFiles baseDir="%s">' % fullpath
+    print('    <replayFiles baseDir="%s">' % fullpath, file=out)
     for (hubname, hubnum) in finalhubs:
-        print >>out, '        <hits hub="%d" source="%s"/>' % (hubnum, hubname)
-    print >>out, '    </replayFiles>'
+        print('        <hits hub="%d" source="%s"/>' % (hubnum, hubname), file=out)
+    print('    </replayFiles>', file=out)
 
-    print >>out, '    <triggerConfig>%s</triggerConfig>' % trigcfg
+    print('    <triggerConfig>%s</triggerConfig>' % trigcfg, file=out)
     if sawInice:
-        print >>out, '    <runComponent name="inIceTrigger"/>'
+        print('    <runComponent name="inIceTrigger"/>', file=out)
     if sawIcetop:
-        print >>out, '    <runComponent name="iceTopTrigger"/>'
-    print >>out, '    <runComponent name="globalTrigger"/>'
-    print >>out, '    <runComponent name="eventBuilder"/>'
-    print >>out, '</runConfig>'
+        print('    <runComponent name="iceTopTrigger"/>', file=out)
+    print('    <runComponent name="globalTrigger"/>', file=out)
+    print('    <runComponent name="eventBuilder"/>', file=out)
+    print('</runConfig>', file=out)
 
 
 if __name__ == "__main__":

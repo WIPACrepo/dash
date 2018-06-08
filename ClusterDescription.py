@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import os
 import socket
 import sys
@@ -536,14 +538,13 @@ class ClusterHost(object):
         if prefix is None:
             prefix = ""
 
-        print >>fd, "%sHost %s:" % (prefix, self.name)
+        print("%sHost %s:" % (prefix, self.name), file=fd)
 
-        cKeys = self.compMap.keys()
-        cKeys.sort()
+        cKeys = sorted(self.compMap.keys())
 
         for key in cKeys:
             comp = self.compMap[key]
-            print >>fd, "%s  Comp %s" % (prefix, str(comp))
+            print("%s  Comp %s" % (prefix, str(comp)), file=fd)
 
         if self.simHubs is not None:
             for sh in self.simHubs:
@@ -551,14 +552,14 @@ class ClusterHost(object):
                     uStr = " (ifUnused)"
                 else:
                     uStr = ""
-                print >>fd, "%s  SimHub*%d prio %d%s" % \
-                    (prefix, sh.number, sh.priority, uStr)
+                print("%s  SimHub*%d prio %d%s" % \
+                    (prefix, sh.number, sh.priority, uStr), file=fd)
 
         if self.ctlServer:
-            print >>fd, "%s  ControlServer" % prefix
+            print("%s  ControlServer" % prefix, file=fd)
 
     def getComponents(self):
-        return self.compMap.values()
+        return list(self.compMap.values())
 
     @property
     def isControlServer(self):
@@ -981,111 +982,110 @@ class ClusterDescription(ConfigXMLBase):
         if prefix is None:
             prefix = ""
 
-        print >>fd, "%sDescription %s" % (prefix, self.name)
+        print("%sDescription %s" % (prefix, self.name), file=fd)
         if self.__spade_log_dir is not None:
-            print >>fd, "%s  SPADE log directory: %s" % \
-                (prefix, self.__spade_log_dir)
+            print("%s  SPADE log directory: %s" % \
+                (prefix, self.__spade_log_dir), file=fd)
         if self.__log_dir_copies is not None:
-            print >>fd, "%s  Copied log directory: %s" % \
-                (prefix, self.__log_dir_copies)
+            print("%s  Copied log directory: %s" % \
+                (prefix, self.__log_dir_copies), file=fd)
         if self.__daq_data_dir is not None:
-            print >>fd, "%s  DAQ data directory: %s" % \
-                (prefix, self.__daq_data_dir)
+            print("%s  DAQ data directory: %s" % \
+                (prefix, self.__daq_data_dir), file=fd)
         if self.__daq_log_dir is not None:
-            print >>fd, "%s  DAQ log directory: %s" % \
-                (prefix, self.__daq_log_dir)
+            print("%s  DAQ log directory: %s" % \
+                (prefix, self.__daq_log_dir), file=fd)
         if self.__pkg_stage_dir is not None:
-            print >>fd, "%s  Package staging directory: %s" % \
-                (prefix, self.__pkg_stage_dir)
+            print("%s  Package staging directory: %s" % \
+                (prefix, self.__pkg_stage_dir), file=fd)
         if self.__pkg_install_dir is not None:
-            print >>fd, "%s  Package installation directory: %s" % \
-                (prefix, self.__pkg_install_dir)
+            print("%s  Package installation directory: %s" % \
+                (prefix, self.__pkg_install_dir), file=fd)
 
         if self.__default_hs is not None:
             if self.__default_hs.directory is not None:
-                print >>fd, "%s  Default HS directory: %s" % \
-                    (prefix, self.__default_hs.directory)
+                print("%s  Default HS directory: %s" % \
+                    (prefix, self.__default_hs.directory), file=fd)
             if self.__default_hs.interval is not None:
-                print >>fd, "%s  Default HS interval: %s" % \
-                    (prefix, self.__default_hs.interval)
+                print("%s  Default HS interval: %s" % \
+                    (prefix, self.__default_hs.interval), file=fd)
             if self.__default_hs.maxFiles is not None:
-                print >>fd, "%s  Default HS max files: %s" % \
-                    (prefix, self.__default_hs.maxFiles)
+                print("%s  Default HS max files: %s" % \
+                    (prefix, self.__default_hs.maxFiles), file=fd)
 
         if self.__default_jvm is not None:
             if self.__default_jvm.path is not None:
-                print >>fd, "%s  Default Java executable: %s" % \
-                    (prefix, self.__default_jvm.path)
+                print("%s  Default Java executable: %s" % \
+                    (prefix, self.__default_jvm.path), file=fd)
             if self.__default_jvm.isServer is not None:
-                print >>fd, "%s  Default Java server flag: %s" % \
-                    (prefix, self.__default_jvm.isServer)
+                print("%s  Default Java server flag: %s" % \
+                    (prefix, self.__default_jvm.isServer), file=fd)
             if self.__default_jvm.heapInit is not None:
-                print >>fd, "%s  Default Java heap init: %s" % \
-                    (prefix, self.__default_jvm.heapInit)
+                print("%s  Default Java heap init: %s" % \
+                    (prefix, self.__default_jvm.heapInit), file=fd)
             if self.__default_jvm.heapMax is not None:
-                print >>fd, "%s  Default Java heap max: %s" % \
-                    (prefix, self.__default_jvm.heapMax)
+                print("%s  Default Java heap max: %s" % \
+                    (prefix, self.__default_jvm.heapMax), file=fd)
             if self.__default_jvm.args is not None:
-                print >>fd, "%s  Default Java arguments: %s" % \
-                    (prefix, self.__default_jvm.args)
+                print("%s  Default Java arguments: %s" % \
+                    (prefix, self.__default_jvm.args), file=fd)
             if self.__default_jvm.extraArgs is not None:
-                print >>fd, "%s  Default Java extra arguments: %s" % \
-                    (prefix, self.__default_jvm.extraArgs)
+                print("%s  Default Java extra arguments: %s" % \
+                    (prefix, self.__default_jvm.extraArgs), file=fd)
 
         if self.__default_log_level is not None:
-            print >>fd, "%s  Default log level: %s" % \
-                (prefix, self.__default_log_level)
+            print("%s  Default log level: %s" % \
+                (prefix, self.__default_log_level), file=fd)
 
         if self.__defaults.Components is None or \
            len(self.__defaults.Components) == 0:
-            print >>fd, "  **No default components**"
+            print("  **No default components**", file=fd)
         else:
-            print >>fd, "  Default components:"
-            for comp in self.__defaults.Components.keys():
-                print >>fd, "%s    %s:" % (prefix, comp)
+            print("  Default components:", file=fd)
+            for comp in list(self.__defaults.Components.keys()):
+                print("%s    %s:" % (prefix, comp), file=fd)
 
                 if 'hitspoolDirectory' in self.__defaults.Components[comp]:
-                    print >>fd, "%s      HS directory: %s" % \
+                    print("%s      HS directory: %s" % \
                         (prefix,
-                         self.__defaults.Components[comp]['hitspoolDirectory'])
+                         self.__defaults.Components[comp]['hitspoolDirectory']), file=fd)
                 if 'hitspoolInterval' in self.__defaults.Components[comp]:
-                    print >>fd, "%s      HS interval: %s" % \
+                    print("%s      HS interval: %s" % \
                         (prefix,
-                         self.__defaults.Components[comp]['hitspoolInterval'])
+                         self.__defaults.Components[comp]['hitspoolInterval']), file=fd)
                 if 'hitspoolMaxFiles' in self.__defaults.Components[comp]:
-                    print >>fd, "%s      HS max files: %s" % \
+                    print("%s      HS max files: %s" % \
                         (prefix,
-                         self.__defaults.Components[comp]['hitspoolMaxFiles'])
+                         self.__defaults.Components[comp]['hitspoolMaxFiles']), file=fd)
 
                 if 'jvmPath' in self.__defaults.Components[comp]:
-                    print >>fd, "%s      Java executable: %s" % \
-                        (prefix, self.__defaults.Components[comp]['jvmPath'])
+                    print("%s      Java executable: %s" % \
+                        (prefix, self.__defaults.Components[comp]['jvmPath']), file=fd)
                 if 'jvmServer' in self.__defaults.Components[comp]:
-                    print >>fd, "%s      Java server flag: %s" % \
-                        (prefix, self.__defaults.Components[comp]['jvmServer'])
+                    print("%s      Java server flag: %s" % \
+                        (prefix, self.__defaults.Components[comp]['jvmServer']), file=fd)
                 if 'jvmHeapInit' in self.__defaults.Components[comp]:
-                    print >>fd, "%s      Java initial heap size: %s" % \
+                    print("%s      Java initial heap size: %s" % \
                         (prefix,
-                         self.__defaults.Components[comp]['jvmHeapInit'])
+                         self.__defaults.Components[comp]['jvmHeapInit']), file=fd)
                 if 'jvmHeapMax' in self.__defaults.Components[comp]:
-                    print >>fd, "%s      Java maximum heap size: %s" % \
+                    print("%s      Java maximum heap size: %s" % \
                         (prefix,
-                         self.__defaults.Components[comp]['jvmHeapMax'])
+                         self.__defaults.Components[comp]['jvmHeapMax']), file=fd)
                 if 'jvmArgs' in self.__defaults.Components[comp]:
-                    print >>fd, "%s      Java arguments: %s" % \
-                        (prefix, self.__defaults.Components[comp]['jvmArgs'])
+                    print("%s      Java arguments: %s" % \
+                        (prefix, self.__defaults.Components[comp]['jvmArgs']), file=fd)
                 if 'jvmExtraArgs' in self.__defaults.Components[comp]:
-                    print >>fd, "%s      Java extra arguments: %s" % \
+                    print("%s      Java extra arguments: %s" % \
                         (prefix,
-                         self.__defaults.Components[comp]['jvmExtraArgs'])
+                         self.__defaults.Components[comp]['jvmExtraArgs']), file=fd)
 
                 if 'logLevel' in self.__defaults.Components[comp]:
-                    print >>fd, "%s      Log level: %s" % \
-                        (prefix, self.__defaults.Components[comp]['logLevel'])
+                    print("%s      Log level: %s" % \
+                        (prefix, self.__defaults.Components[comp]['logLevel']), file=fd)
 
         if self.__host_map is not None:
-            hKeys = self.__host_map.keys()
-            hKeys.sort()
+            hKeys = sorted(self.__host_map.keys())
 
             for key in hKeys:
                 self.__host_map[key].dump(fd=fd, prefix=prefix + "  ")
@@ -1241,14 +1241,14 @@ class ClusterDescription(ConfigXMLBase):
         return self.__host_map[name]
 
     def listHostComponentPairs(self):
-        for host in self.__host_map.keys():
+        for host in list(self.__host_map.keys()):
             for comp in self.__host_map[host].getComponents():
                 yield (host, comp)
             if self.__host_map[host].isControlServer:
                 yield (host, ControlComponent())
 
     def listHostSimHubPairs(self):
-        for host in self.__host_map.keys():
+        for host in list(self.__host_map.keys()):
             if self.__host_map[host].simHubs is not None:
                 for sh in self.__host_map[host].simHubs:
                     yield (host, sh)
@@ -1291,15 +1291,15 @@ if __name__ == '__main__':
             except KeyboardInterrupt:
                 return
             except NotImplementedError:
-                print >> sys.stderr, 'For %s:' % path
+                print('For %s:' % path, file=sys.stderr)
                 traceback.print_exc()
                 return
             except:
-                print >> sys.stderr, 'For %s:' % path
+                print('For %s:' % path, file=sys.stderr)
                 traceback.print_exc()
                 return
 
-        print 'Saw description %s' % cluster.name
+        print('Saw description %s' % cluster.name)
         cluster.dump()
 
     configDir = find_pdaq_config()

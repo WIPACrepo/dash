@@ -276,7 +276,7 @@ class FakeMoniClient(object):
 class MostlyRunData(RunData):
     def __init__(self, runSet, runNumber, clusterConfig, runConfig,
                  runOptions, versionInfo, spadeDir, copyDir, logDir,
-                 dashlog=None, testing=False):
+                 dashlog=None):
         self.__dashlog = dashlog
 
         self.__taskMgr = None
@@ -284,7 +284,7 @@ class MostlyRunData(RunData):
         super(MostlyRunData, self).__init__(runSet, runNumber, clusterConfig,
                                             runConfig, runOptions,
                                             versionInfo, spadeDir, copyDir,
-                                            logDir, testing=testing)
+                                            logDir)
 
     def create_dash_log(self):
         if self.__dashlog is None:
@@ -326,10 +326,10 @@ class MyRunSet(RunSet):
         return MockComponentLogger(str(comp))
 
     def create_run_data(self, runNum, clusterConfig, runOptions, versionInfo,
-                        spadeDir, copyDir=None, logDir=None, testing=True):
+                        spadeDir, copyDir=None, logDir=None):
         rd = MostlyRunData(self, runNum, clusterConfig, self.__runConfig,
                            runOptions, versionInfo, spadeDir, copyDir, logDir,
-                           dashlog=self.__dashlog, testing=True)
+                           dashlog=self.__dashlog)
         self.__rundata = rd
         return rd
 
@@ -361,11 +361,13 @@ class MyRunSet(RunSet):
 
 class MostlyCnCServer(CnCServer):
     def __init__(self, clusterConfigObject=None, copyDir=None,
-                 runConfigDir=None, daqDataDir=None, spadeDir=None):
+                 defaultLogDir=None, runConfigDir=None, daqDataDir=None,
+                 spadeDir=None):
         self.__clusterConfig = clusterConfigObject
         self.__logServer = None
 
         super(MostlyCnCServer, self).__init__(copyDir=copyDir,
+                                              defaultLogDir=defaultLogDir,
                                               runConfigDir=runConfigDir,
                                               daqDataDir=daqDataDir,
                                               spadeDir=spadeDir,
@@ -679,6 +681,7 @@ class CnCRunSetTest(unittest.TestCase):
         self.__copyDir = tempfile.mkdtemp()
         self.__runConfigDir = tempfile.mkdtemp()
         self.__spadeDir = tempfile.mkdtemp()
+        self.__logDir = tempfile.mkdtemp()
 
         set_pdaq_config_dir(self.__runConfigDir)
 
@@ -765,7 +768,7 @@ class CnCRunSetTest(unittest.TestCase):
         }
 
         rs.start_run(runNum, cluCfg, RunOption.MONI_TO_NONE, versionInfo,
-                     "/tmp")
+                     spade_dir=self.__spadeDir, log_dir=self.__logDir)
 
         logger.checkStatus(5)
         dashLog.checkStatus(5)
@@ -859,6 +862,7 @@ class CnCRunSetTest(unittest.TestCase):
         self.__runConfigDir = None
         self.__daqDataDir = None
         self.__spadeDir = None
+        self.__logDir = None
 
         set_pdaq_config_dir(None, override=True)
 
@@ -878,6 +882,8 @@ class CnCRunSetTest(unittest.TestCase):
             shutil.rmtree(self.__daqDataDir, ignore_errors=True)
         if self.__spadeDir is not None:
             shutil.rmtree(self.__spadeDir, ignore_errors=True)
+        if self.__logDir is not None:
+            shutil.rmtree(self.__logDir, ignore_errors=True)
 
         RunXMLValidator.tearDown()
 
@@ -974,6 +980,7 @@ class CnCRunSetTest(unittest.TestCase):
         self.__copyDir = tempfile.mkdtemp()
         self.__runConfigDir = tempfile.mkdtemp()
         self.__spadeDir = tempfile.mkdtemp()
+        self.__logDir = tempfile.mkdtemp()
 
         set_pdaq_config_dir(self.__runConfigDir)
 
@@ -995,6 +1002,7 @@ class CnCRunSetTest(unittest.TestCase):
 
         self.__cnc = MostlyCnCServer(clusterConfigObject=cluCfg,
                                      copyDir=self.__copyDir,
+                                     defaultLogDir=self.__logDir,
                                      runConfigDir=self.__runConfigDir,
                                      daqDataDir=self.__daqDataDir,
                                      spadeDir=self.__spadeDir)

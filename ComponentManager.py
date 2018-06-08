@@ -39,7 +39,7 @@ def listComponentRanges(compList):
     hasOrder = True
 
     pairList = []
-    for k in sorted(compDict.keys(), key=lambda nm: len(compDict[nm]),
+    for k in sorted(list(compDict.keys()), key=lambda nm: len(compDict[nm]),
                     reverse=True):
         if len(compDict[k]) == 1 and compDict[k][0].num == 0:
             if not hasOrder:
@@ -149,7 +149,8 @@ class ComponentManager(object):
             if not os.path.exists(dirname) and not dryRun:
                 try:
                     os.makedirs(dirname)
-                except OSError as (_, strerror):
+                except OSError as xxx_todo_changeme:
+                    (_, strerror) = xxx_todo_changeme.args
                     if fallbackDir is None:
                         einfo = sys.exc_info()
                         raise einfo[0], einfo[1], einfo[2]
@@ -545,7 +546,7 @@ class ComponentManager(object):
 
     @classmethod
     def listComponents(cls):
-        return cls.__COMP_JAR_MAP.keys()
+        return list(cls.__COMP_JAR_MAP.keys())
 
     @classmethod
     def startComponents(cls, compList, dryRun, verbose, configDir, daqDataDir,

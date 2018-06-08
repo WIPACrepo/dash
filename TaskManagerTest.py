@@ -116,10 +116,10 @@ class MockTMMBeanClient(object):
         return rtnMap
 
     def getBeanFields(self, beanName):
-        return self.__beanData[beanName].keys()
+        return list(self.__beanData[beanName].keys())
 
     def getBeanNames(self):
-        return self.__beanData.keys()
+        return list(self.__beanData.keys())
 
     def getDictionary(self):
         return copy.deepcopy(self.__beanData)

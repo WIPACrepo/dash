@@ -6,6 +6,8 @@ John Jacobsen, jacobsen@npxdesigns.com
 Started November, 2006
 """
 
+from __future__ import print_function
+
 import re
 import sys
 from BaseRun import FlasherScript
@@ -13,7 +15,7 @@ from cncrun import CnCRun
 from datetime import datetime
 from utils.Machineid import Machineid
 
-SVN_ID = "$Id: ExpControlSkel.py 16862 2017-12-19 16:23:53Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 17035 2018-06-08 18:17:03Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -197,7 +199,7 @@ def getDurationFromString(durstr):
 def updateStatus(oldStatus, newStatus):
     "Show any changes in status on stdout"
     if oldStatus != newStatus:
-        print "%s: %s -> %s" % (datetime.now(), oldStatus, newStatus)
+        print("%s: %s -> %s" % (datetime.now(), oldStatus, newStatus))
     return newStatus
 
 
@@ -228,10 +230,10 @@ def daqrun(args):
             try:
                 run.wait()
             except KeyboardInterrupt:
-                print "Run interrupted by user"
+                print("Run interrupted by user")
                 break
         finally:
-            print >>sys.stderr, "Stopping run..."
+            print("Stopping run...", file=sys.stderr)
             run.finish()
 
         n += args.runsPerRestart

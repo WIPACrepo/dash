@@ -3,6 +3,8 @@
 # Produce a report of the hourly and total data rates for all the components
 # in the IceCube DAQ, using data from the pDAQ .moni files.
 
+from __future__ import print_function
+
 import os
 import re
 import sys
@@ -152,7 +154,7 @@ class Component(object):
 
 def computeRates(dataDict):
     """Compute rates from the data saved in the data dictionary"""
-    keys = dataDict.keys()
+    keys = list(dataDict.keys())
 
     prevTime = None
     firstTime = None
@@ -210,7 +212,7 @@ def processDir(dirName):
         try:
             comp = Component(entry)
         except ValueError as msg:
-            print >> sys.stderr, str(msg)
+            print(str(msg), file=sys.stderr)
             continue
 
         allData[comp] = processFile(os.path.join(dirName, entry), comp)
@@ -240,9 +242,8 @@ class Summary(object):
             try:
                 tot += long(subStr)
             except ValueError:
-                print >> sys.stderr, \
-                    ("Couldn't get integer value for '%s'" +
-                     " ('%s' idx %d nxt %d)") % (subStr, valStr, idx, nxt)
+                print(("Couldn't get integer value for '%s'" +
+                     " ('%s' idx %d nxt %d)") % (subStr, valStr, idx, nxt), file=sys.stderr)
             idx = nxt + 1
         self.__saveValue(name, time, tot)
 
@@ -323,7 +324,7 @@ def processFile(fileName, comp):
 
                 continue
 
-            print >>sys.stderr, "Bad line: " + line
+            print("Bad line: " + line, file=sys.stderr)
 
     return summary.data()
 
@@ -331,7 +332,7 @@ def processFile(fileName, comp):
 def reportDataRates(allData):
     """Report the DAQ data rates"""
     if not DATA_ONLY:
-        print 'Data Rates:'
+        print('Data Rates:')
     reportList = [
         ('stringHub', 'DOM'),
         ('stringHub', 'sender'),
@@ -358,7 +359,7 @@ def reportDataRates(allData):
 
 def reportMonitorRates(allData):
     """Report the DAQ monitoring rates"""
-    print 'Monitoring Rates:'
+    print('Monitoring Rates:')
     reportList = [('amandaHub', 'moniData'), ('stringHub', 'moniData'),
                   ('icetopHub', 'moniData'), ('secondaryBuilders', 'moniData'),
                   ('secondaryBuilders', 'moniBuilder')]
@@ -367,8 +368,7 @@ def reportMonitorRates(allData):
 
 def reportRatesInternal(allData, reportList):
     """Report the rates for the specified set of values"""
-    compKeys = allData.keys()
-    compKeys.sort()
+    compKeys = sorted(allData.keys())
 
     combinedComp = None
     combinedField = None
@@ -383,15 +383,15 @@ def reportRatesInternal(allData, reportList):
         if combinedField is not None:
             if not isCombined or combinedField != rptTuple[1]:
                 if combinedRate is None:
-                    print '    %s.%s: Not enough data' % \
-                        (combinedComp, combinedField)
+                    print('    %s.%s: Not enough data' % \
+                        (combinedComp, combinedField))
                 elif TIME_INTERVAL is None or len(combinedSplit) == 0:
-                    print '    %s.%s: %.1f' % \
-                        (combinedComp, combinedField, combinedRate)
+                    print('    %s.%s: %.1f' % \
+                        (combinedComp, combinedField, combinedRate))
                 else:
-                    print '    %s.%s: %s  Total: %.1f' % \
+                    print('    %s.%s: %s  Total: %.1f' % \
                         (combinedComp, combinedField,
-                         formatRates(combinedSplit), combinedRate)
+                         formatRates(combinedSplit), combinedRate))
 
                 combinedComp = None
                 combinedField = None
@@ -426,19 +426,19 @@ def reportRatesInternal(allData, reportList):
                     else:
                         indent = '    '
                     if rateTuple[0] is None:
-                        print '    %s%s.%s: Not enough data' % \
-                            (indent, comp, sect)
+                        print('    %s%s.%s: Not enough data' % \
+                            (indent, comp, sect))
                     elif rateTuple[1] is None:
-                        print '    %s%s.%s: %.1f' % \
-                            (indent, comp, sect, rateTuple[0])
+                        print('    %s%s.%s: %.1f' % \
+                            (indent, comp, sect, rateTuple[0]))
                     else:
                         if TIME_INTERVAL is None:
-                            print '    %s%s.%s: %.1f' % \
-                                (indent, comp, sect, rateTuple[0])
+                            print('    %s%s.%s: %.1f' % \
+                                (indent, comp, sect, rateTuple[0]))
                         else:
-                            print '    %s%s.%s: %s  Total: %.1f' % \
+                            print('    %s%s.%s: %s  Total: %.1f' % \
                                 (indent, comp, sect, formatRates(rateTuple[1]),
-                                 rateTuple[0])
+                                 rateTuple[0]))
                     needNL = False
 
                 if combinedComp is not None:
@@ -455,13 +455,13 @@ def reportRatesInternal(allData, reportList):
                             combinedSplit[i] += rateTuple[1][i]
 
         if needNL:
-            print ''
+            print('')
             needNL = False
 
 
 def reportSupernovaRates(allData):
     """Report the DAQ supernova rates"""
-    print 'Supernova Rates:'
+    print('Supernova Rates:')
     reportList = [('amandaHub', 'snData'), ('stringHub', 'snData'),
                   ('icetopHub', 'snData'), ('secondaryBuilders', 'snData'),
                   ('secondaryBuilders', 'snBuilder')]
@@ -470,7 +470,7 @@ def reportSupernovaRates(allData):
 
 def reportTimeCalRates(allData):
     """Report the DAQ time calibration rates"""
-    print 'TimeCal Rates:'
+    print('TimeCal Rates:')
     reportList = [('amandaHub', 'tcalData'), ('stringHub', 'tcalData'),
                   ('icetopHub', 'tcalData'), ('secondaryBuilders', 'tcalData'),
                   ('secondaryBuilders', 'tcalBuilder')]
@@ -510,23 +510,22 @@ if __name__ == "__main__":
         elif os.path.exists(arg):
             fileList.append(arg)
         else:
-            print >> sys.stderr, 'Unknown argument "%s"' % arg
+            print('Unknown argument "%s"' % arg, file=sys.stderr)
             badArg = True
 
     if len(dirList) > 0 and len(fileList) > 0:
-        print >> sys.stderr, 'Cannot specify both directories and files'
+        print('Cannot specify both directories and files', file=sys.stderr)
         badArg = True
     elif len(dirList) == 0 and len(fileList) == 0:
-        print >> sys.stderr, 'Please specify a moni file or directory'
+        print('Please specify a moni file or directory', file=sys.stderr)
         badArg = True
 
     if badArg:
-        print >> sys.stderr, \
-            ('Usage: %s' +
+        print(('Usage: %s' +
              ' [-d(ataOnly)]' +
              ' [-i timeInterval ]' +
              ' [-v(erbose)]' +
-             ' (moniDir | moniFile [...])') % sys.argv[0]
+             ' (moniDir | moniFile [...])') % sys.argv[0], file=sys.stderr)
         sys.exit(1)
 
     if len(fileList) > 0:
@@ -535,13 +534,13 @@ if __name__ == "__main__":
             try:
                 comp = Component(f)
             except ValueError as msg:
-                print >> sys.stderr, str(msg)
+                print(str(msg), file=sys.stderr)
                 comp = Component()
 
             allData[comp] = processFile(f, comp)
             reportRates(allData)
     else:
         for d in dirList:
-            print 'Directory ' + d
+            print('Directory ' + d)
             allData = processDir(d)
             reportRates(allData)

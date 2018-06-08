@@ -127,7 +127,7 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         # gather server statistics
         with self.__stats_lock:
             count = self.__sock_count
-            for key, stats in self.__times.items():
+            for key, stats in list(self.__times.items()):
                 snap = stats.snapshot()
                 if snap is not None:
                     rpc_stats[key] = snap

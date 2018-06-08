@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import datetime
 import numbers
 import os
@@ -71,7 +73,7 @@ class LogThread(threading.Thread):
         self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         if LOUD:
-            print >>sys.stderr, "Create log server localhost#%d" % self.__port
+            print("Create log server localhost#%d" % self.__port, file=sys.stderr)
         try:
             self.__sock.bind(("", self.__port))
         except socket.error:
@@ -96,7 +98,7 @@ class LogThread(threading.Thread):
                 raise
 
             if len(ersock) != 0:
-                print >>sys.stderr, "Error on select"
+                print("Error on select", file=sys.stderr)
 
             if len(rdsock) == 0:
                 continue
@@ -105,7 +107,7 @@ class LogThread(threading.Thread):
                 try:
                     data = self.__sock.recv(8192, socket.MSG_DONTWAIT)
                     if LOUD:
-                        print >>sys.stderr, "%s: %s" % (self.__comp_name, data)
+                        print("%s: %s" % (self.__comp_name, data), file=sys.stderr)
                 except:
                     break  # Go back to select so we don't busy-wait
 
@@ -375,7 +377,7 @@ class DAQFakeRun(object):
         path = os.path.join(run_cfg_dir, "sps-cluster.cfg")
         if not os.path.exists(path):
             with open(path, 'w') as fin:
-                print >>fin, """<cluster name="localhost">
+                print("""<cluster name="localhost">
   <logDirForSpade>spade</logDirForSpade>
  <default>
    <jvm>java</jvm>
@@ -391,7 +393,7 @@ class DAQFakeRun(object):
     <component name="amandaTrigger"/>
     <simulatedHub number="100" priority="1"/>
   </host>
-</cluster>"""
+</cluster>""", file=fin)
 
     @staticmethod
     def __get_run_time(start_time):
@@ -426,7 +428,7 @@ class DAQFakeRun(object):
         """
         run_comps = self.__client.rpc_runset_list(runset_id)
         if verbose:
-            print "Found %d components" % (len(run_comps), )
+            print("Found %d components" % (len(run_comps), ))
 
         log_list = []
         for comp in run_comps:
@@ -486,12 +488,12 @@ class DAQFakeRun(object):
 
                     run_secs = self.__get_run_time(start_time)
                     if num_evts is not None:
-                        print "RunSet %d had %d event%s after %.2f secs" % \
+                        print("RunSet %d had %d event%s after %.2f secs" % \
                             (runset_id, num_evts, "s" if num_evts != 1 else "",
-                             run_secs)
+                             run_secs))
                     else:
-                        print "RunSet %d could not get event count after" \
-                            " %.2f secs" % (runset_id, run_secs)
+                        print("RunSet %d could not get event count after" \
+                            " %.2f secs" % (runset_id, run_secs))
 
                     wait_secs = duration - run_secs
 
@@ -502,7 +504,7 @@ class DAQFakeRun(object):
             try:
                 self.__client.rpc_runset_stop_run(runset_id)
             except:
-                print >>sys.stderr, "Cannot stop run for runset #%d" % runset_id
+                print("Cannot stop run for runset #%d" % runset_id, file=sys.stderr)
                 traceback.print_exc()
 
     def __run_one(self, comp_list, run_cfg_dir, mock_run_cfg, run_num,
@@ -518,10 +520,10 @@ class DAQFakeRun(object):
 
         num_sets = self.__client.rpc_runset_count()
         if LOUD:
-            print >>sys.stderr, "%d active runsets" % num_sets
+            print("%d active runsets" % num_sets, file=sys.stderr)
             for cdict in self.__client.rpc_component_list_dicts():
-                print >>sys.stderr, str(cdict)
-            print >>sys.stderr, "---"
+                print(str(cdict), file=sys.stderr)
+            print("---", file=sys.stderr)
 
         leapfile = MockLeapsecondFile(run_cfg_dir)
         leapfile.create()
@@ -531,7 +533,7 @@ class DAQFakeRun(object):
         runset_id = self.make_runset(comp_list, mock_run_cfg, run_num)
 
         if num_sets != self.__client.rpc_runset_count() - 1:
-            print >>sys.stderr, "Expected %d run sets" % (num_sets + 1)
+            print("Expected %d run sets" % (num_sets + 1), file=sys.stderr)
 
         try:
             self.__run_internal(runset_id, run_num, duration, verbose=verbose,
@@ -554,9 +556,8 @@ class DAQFakeRun(object):
 
         num = self.__client.rpc_component_count()
         if num > num_comps:
-            print >>sys.stderr, \
-                "CnCServer still has %d components (expect %d)" % \
-                (num, num_comps)
+            print("CnCServer still has %d components (expect %d)" % \
+                (num, num_comps), file=sys.stderr)
 
     def close_all(self, runset_id):
         try:
@@ -608,17 +609,17 @@ class DAQFakeRun(object):
     def hack_active_config(cluster_cfg):
         path = os.path.join(os.environ["HOME"], ".active")
         if not os.path.exists(path):
-            print >>sys.stderr, "Setting ~/.active to \"%s\"" % cluster_cfg
+            print("Setting ~/.active to \"%s\"" % cluster_cfg, file=sys.stderr)
             cur_cfg = None
         else:
             with open(path, 'r') as fin:
                 cur_cfg = fin.read().split("\n")[0]
 
         if cur_cfg != cluster_cfg:
-            print >>sys.stderr, "Changing ~/.active from \"%s\" to \"%s\"" % \
-                (cur_cfg, cluster_cfg)
+            print("Changing ~/.active from \"%s\" to \"%s\"" % \
+                (cur_cfg, cluster_cfg), file=sys.stderr)
             with open(path, 'w') as fin:
-                print >>fin, cluster_cfg
+                print(cluster_cfg, file=fin)
 
     @classmethod
     def make_mock_cluster_config(cls, run_cfg_dir, comps, num_hubs):
@@ -628,8 +629,8 @@ class DAQFakeRun(object):
             return
 
         with open(path, 'w') as out:
-            print >>out, "<cluster name=\"localhost\">"
-            print >>out, "  <host name=\"localhost\">"
+            print("<cluster name=\"localhost\">", file=out)
+            print("  <host name=\"localhost\">", file=out)
 
             for comp in comps:
                 if comp.name == "stringHub":
@@ -641,12 +642,12 @@ class DAQFakeRun(object):
                 else:
                     req = ""
 
-                print >>out, "    <component name=\"%s\"%s/>" % (comp.name, req)
+                print("    <component name=\"%s\"%s/>" % (comp.name, req), file=out)
 
-            print >>out, "    <simulatedHub number=\"%d\" priority=\"1\"/>" % \
-                (num_hubs, )
-            print >>out, "  </host>"
-            print >>out, "</cluster>"
+            print("    <simulatedHub number=\"%d\" priority=\"1\"/>" % \
+                (num_hubs, ), file=out)
+            print("  </host>", file=out)
+            print("</cluster>", file=out)
 
     @classmethod
     def make_mock_run_config(cls, run_cfg_dir, comp_data, moni_period=None):
@@ -655,26 +656,26 @@ class DAQFakeRun(object):
 
         path = os.path.join(run_cfg_dir, mock_name + ".xml")
         with open(path, 'w') as out:
-            print >>out, "<runConfig>"
+            print("<runConfig>", file=out)
             if moni_period is not None:
-                print >>out, "  <monitor period=\"%d\"/>" % moni_period
-            print >>out, "  <randomConfig>"
-            print >>out, "   <noiseRate>17.0</noiseRate>"
+                print("  <monitor period=\"%d\"/>" % moni_period, file=out)
+            print("  <randomConfig>", file=out)
+            print("   <noiseRate>17.0</noiseRate>", file=out)
             for comp in comp_data:
                 if comp.name != "stringHub":
                     continue
 
-                print >>out, "  <string id=\"%d\"/>" % comp.num
-            print >>out, "  </randomConfig>"
+                print("  <string id=\"%d\"/>" % comp.num, file=out)
+            print("  </randomConfig>", file=out)
 
-            print >>out, "  <triggerConfig>%s</triggerConfig>" % trig_cfg_name
+            print("  <triggerConfig>%s</triggerConfig>" % trig_cfg_name, file=out)
             for comp in comp_data:
                 if comp.name == "stringHub":
                     continue
 
-                print >>out, "  <runComponent name=\"%s\"/>" % (comp.name, )
+                print("  <runComponent name=\"%s\"/>" % (comp.name, ), file=out)
 
-            print >>out, "</runConfig>"
+            print("</runConfig>", file=out)
 
         cls.make_mock_trigger_config(run_cfg_dir, trig_cfg_name)
 
@@ -682,7 +683,7 @@ class DAQFakeRun(object):
 
     @classmethod
     def write_tag_and_value(cls, out, indent, name, value):
-        print >>out, "%s<%s>%s</%s>" % (indent, name, value, name)
+        print("%s<%s>%s</%s>" % (indent, name, value, name), file=out)
 
     @classmethod
     def write_trigger_config(cls, out, indent, trig_type, trig_cfg_id, src_id,
@@ -696,23 +697,23 @@ class DAQFakeRun(object):
             "plus": ("timePlus", 10000),
         }
 
-        print >>out
-        print >>out, "%s<triggerConfig>" % indent
+        print(file=out)
+        print("%s<triggerConfig>" % indent, file=out)
         cls.write_tag_and_value(out, indent2, "triggerType", str(trig_type))
         cls.write_tag_and_value(out, indent2, "triggerConfigId",
                                 str(trig_cfg_id))
         cls.write_tag_and_value(out, indent2, "sourceId", str(src_id))
         cls.write_tag_and_value(out, indent2, "triggerName", name)
         if parameter_dict is not None:
-            for name, value in parameter_dict.items():
-                print >>out, "%s<parameterConfig>" % indent2
+            for name, value in list(parameter_dict.items()):
+                print("%s<parameterConfig>" % indent2, file=out)
                 cls.write_tag_and_value(out, indent3, "parameterName",
                                         str(name))
                 cls.write_tag_and_value(out, indent3, "parameterValueName",
                                         str(value))
-                print >>out, "%s</parameterConfig>" % indent2
+                print("%s</parameterConfig>" % indent2, file=out)
 
-        print >>out, "%s<readoutConfig>" % indent2
+        print("%s<readoutConfig>" % indent2, file=out)
         for key in ("type", "offset", "minus", "plus"):
             name, def_value = readout_defaults[key]
             if readout_dict is not None and key in readout_dict:
@@ -720,8 +721,8 @@ class DAQFakeRun(object):
             else:
                 value = def_value
             cls.write_tag_and_value(out, indent3, name, str(value))
-        print >>out, "%s</readoutConfig>" % indent2
-        print >>out, "%s</triggerConfig>" % indent
+        print("%s</readoutConfig>" % indent2, file=out)
+        print("%s</triggerConfig>" % indent, file=out)
 
     @classmethod
     def make_mock_trigger_config(cls, run_cfg_dir, trig_cfg_name):
@@ -733,7 +734,7 @@ class DAQFakeRun(object):
         if not os.path.exists(path):
             with open(path, 'w') as out:
                 indent = "  "
-                print >>out, "<activeTriggers>"
+                print("<activeTriggers>", file=out)
                 # add global trigger
                 cls.write_trigger_config(out, indent, 3, -1, global_id,
                                          "ThroughputTrigger", None, None)
@@ -767,7 +768,7 @@ class DAQFakeRun(object):
                                          {"prescale": 10000}, None)
 
                 # add final tag
-                print >>out, "</activeTriggers>"
+                print("</activeTriggers>", file=out)
 
     def make_runset(self, comp_list, run_cfg, run_num):
         name_list = []
@@ -817,7 +818,7 @@ class DAQFakeRun(object):
 
             # wait for closed components to be removed from server
             #
-            print "Waiting for components"
+            print("Waiting for components")
             self.__wait_for_components(num_new)
 
 
@@ -962,7 +963,7 @@ def main():
         comps = DAQFakeRun.create_comps(comp_data, def_dom_geom,
                                         fork_clients=args.fork_clients,
                                         quiet=args.quiet)
-    except socket.error, serr:
+    except socket.error as serr:
         if serr.errno != 111:
             raise
         raise SystemExit("Please start CnCServer before faking a run")

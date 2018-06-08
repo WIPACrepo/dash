@@ -5,6 +5,7 @@
 # If you find/fix any bugs or add improvements, please also broadcast them
 # on daq-dev@icecube.wisc.edu
 
+from __future__ import print_function
 
 import bz2
 import cStringIO
@@ -1205,7 +1206,7 @@ if __name__ == "__main__":
                     if max_payloads is not None and rdr.nrec > max_payloads:
                         break
 
-                    print str(pay)
+                    print(str(pay))
                     if out is not None:
                         out.write(pay.simple_hit)
         finally:

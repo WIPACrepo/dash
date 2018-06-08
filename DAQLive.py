@@ -6,7 +6,7 @@ import time
 from CnCExceptions import MissingComponentException
 from DAQConst import DAQPort
 from IntervalTimer import IntervalTimer
-from LiveImports import Component, LIVE_IMPORT, SERVICE_NAME
+from LiveImports import LiveComponent, LIVE_IMPORT, SERVICE_NAME
 from RunOption import RunOption
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -16,7 +16,7 @@ class LiveException(Exception):
     pass
 
 
-class DAQLive(Component):
+class DAQLive(LiveComponent):
     "Frequency of monitoring uploads"
     MONI_PERIOD = 60
 

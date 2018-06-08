@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import os
 import socket
 import sys
@@ -18,7 +20,7 @@ class UnknownMethodHandler(object):
     def _dispatch(self, method, params):
         errmsg = "%s %s: Unknown method %s params %s" % \
             (self.__name, self.__area, method, params)
-        print "!!! " + errmsg
+        print("!!! " + errmsg)
         raise Exception(errmsg)
 
 
@@ -71,7 +73,7 @@ class Engine(object):
 
     def remove_channel(self, chan):
         self.__channels.remove(chan)
-        print "Engine[%s] removed %s" % (self.__name, chan)
+        print("Engine[%s] removed %s" % (self.__name, chan))
 
     @property
     def state(self):
@@ -250,7 +252,7 @@ class OutputChannel(InputOutputThread):
 
     def __write_from_file(self):
         with open(self.__path, "rb") as fin:
-            print "%s reading from %s" % (self, self.__path)
+            print("%s reading from %s" % (self, self.__path))
             while self.__running:
                 try:
                     data = fin.read(256)
@@ -277,7 +279,7 @@ class OutputChannel(InputOutputThread):
             self.__write_from_queue()
         self.close()
         self.__running = False
-        print "Ended %s thread (wrote %d bytes)" % (self.__engine, written)
+        print("Ended %s thread (wrote %d bytes)" % (self.__engine, written))
 
     def stop(self):
         self.__running = False
@@ -343,9 +345,9 @@ class BeanValue(object):
             else:
                 return rtnval, tuple(newlist)
 
-        print >>sys.stderr, "Not updating %s: value %s<%s> != delta" \
+        print("Not updating %s: value %s<%s> != delta" \
             " %s<%s>" % (name, value, type(value).__name__, delta,
-                         type(delta).__name__)
+                         type(delta).__name__), file=sys.stderr)
         return value, delta
 
     def get(self):
@@ -497,8 +499,8 @@ class FakeClient(object):
 
     def __commit_subrun(self, subrun_num, latest_time):
         if not self.__quiet:
-            print "CommitSubrun %s num %d time %s" % (self, subrun_num,
-                                                      latest_time)
+            print("CommitSubrun %s num %d time %s" % (self, subrun_num,
+                                                      latest_time))
         return "CommitSubrun"
 
     def __configure(self, cfg_name=None):
@@ -519,7 +521,7 @@ class FakeClient(object):
                                     self.fullname, desc["type"])
 
         else:
-            print >>sys.stderr, "No connections for %s" % (self, )
+            print("No connections for %s" % (self, ), file=sys.stderr)
 
         self.__state = "connected"
         return self.__state
@@ -548,7 +550,7 @@ class FakeClient(object):
 
     def __get_events(self, subrun_num):
         if not self.__quiet:
-            print "GetEvents %s subrun %d" % (self, subrun_num)
+            print("GetEvents %s subrun %d" % (self, subrun_num))
         self.__num_evts += 1
         return self.__num_evts
 
@@ -573,14 +575,14 @@ class FakeClient(object):
         path = os.path.join(os.environ["HOME"], "prj", "simplehits", fullname)
 
         if not os.path.exists(path):
-            print >>sys.stderr, "%s cannot read data from %s" % (self, path)
+            print("%s cannot read data from %s" % (self, path), file=sys.stderr)
             return None
 
         return path
 
     def __get_run_data(self, run_num):
         if not self.__quiet:
-            print "GetRunData %s run %d" % (self, run_num)
+            print("GetRunData %s run %d" % (self, run_num))
         return (long(1), long(2), long(3), long(4), long(5))
 
     def __get_run_number(self):
@@ -633,60 +635,60 @@ class FakeClient(object):
         if bean not in self.__mbean_dict:
             raise Exception("Unknown MBean \"%s\" for %s" % (bean, self))
 
-        return self.__mbean_dict[bean].keys()
+        return list(self.__mbean_dict[bean].keys())
 
     def __list_mbeans(self):
-        return self.__mbean_dict.keys()
+        return list(self.__mbean_dict.keys())
 
     def __log_to(self, log_host, log_port, live_host, live_port):
         if not self.__quiet:
-            print "LogTo %s LOG %s:%d LIVE %s:%d" % \
-                (self, log_host, log_port, live_host, live_port)
+            print("LogTo %s LOG %s:%d LIVE %s:%d" % \
+                (self, log_host, log_port, live_host, live_port))
         return False
 
     def __prepare_subrun(self, subrun_num):
         if not self.__quiet:
-            print "PrepareSubrun %s num %d" % (self, subrun_num)
+            print("PrepareSubrun %s num %d" % (self, subrun_num))
         return "PrepareSubrun"
 
     def __reset(self):
         self.__state = "idle"
         if not self.__quiet:
-            print "Reset %s" % self
+            print("Reset %s" % self)
         return self.__state
 
     def __reset_logging(self):
         if not self.__quiet:
-            print "ResetLogging %s" % self
+            print("ResetLogging %s" % self)
         return "ResetLogging"
 
     def __set_first_good_time(self, first_time):
         if not self.__quiet:
-            print "SetFirstGoodTime %s -> %s" % (self, first_time)
+            print("SetFirstGoodTime %s -> %s" % (self, first_time))
         return "SetFirstGoodTime"
 
     def __start_run(self, run_num):
         if not self.__quiet:
-            print "StartRun %s" % self
+            print("StartRun %s" % self)
         self.start_run(run_num)
         self.__state = "running"
         return self.__state
 
     def __start_subrun(self, data):
         if not self.__quiet:
-            print "StartSubrun %s data %s" % (self, data)
+            print("StartSubrun %s data %s" % (self, data))
         return 123456789L
 
     def __stop_run(self):
         if not self.__quiet:
-            print "StopRun %s" % self
+            print("StopRun %s" % self)
         self.stop_run()
         self.__state = "ready"
         return False
 
     def __switch_to_new_run(self, new_num):
         if not self.__quiet:
-            print "SwitchToNewRun %s new num %s" % (self, new_num)
+            print("SwitchToNewRun %s new num %s" % (self, new_num))
         self.switch_run(new_num)
         self.__run_num = new_num
         return "SwitchToNewRun"
@@ -797,10 +799,10 @@ class FakeClient(object):
             conn.start()
 
     def start_run(self, run_num):
-        print >>sys.stderr, "%s not starting run#%s" % (self, run_num)
+        print("%s not starting run#%s" % (self, run_num), file=sys.stderr)
 
     def stop_run(self):
-        print >>sys.stderr, "%s not stopping run" % (self, )
+        print("%s not stopping run" % (self, ), file=sys.stderr)
 
     def switch_run(self, run_num):
-        print >>sys.stderr, "%s not switching to run#%s" % (self, run_num)
+        print("%s not switching to run#%s" % (self, run_num), file=sys.stderr)

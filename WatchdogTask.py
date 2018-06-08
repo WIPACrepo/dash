@@ -707,7 +707,7 @@ class WatchdogTask(CnCTask):
         stagnant = []
         threshold = []
 
-        for c in self.__threadList.keys():
+        for c in list(self.__threadList.keys()):
             if self.__threadList[c].isAlive():
                 hanging.append(c)
             else:
@@ -768,7 +768,7 @@ class WatchdogTask(CnCTask):
 
     def close(self):
         savedEx = None
-        for thr in self.__threadList.values():
+        for thr in list(self.__threadList.values()):
             try:
                 thr.close()
             except:
@@ -779,6 +779,6 @@ class WatchdogTask(CnCTask):
             raise savedEx[0], savedEx[1], savedEx[2]
 
     def waitUntilFinished(self):
-        for c in self.__threadList.keys():
+        for c in list(self.__threadList.keys()):
             if self.__threadList[c].isAlive():
                 self.__threadList[c].join()

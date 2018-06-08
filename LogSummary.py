@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import os
 import re
 import sys
@@ -20,7 +22,7 @@ class ComponentLog(object):
 
     def logError(self, msg):
         if DEBUG:
-            print >> sys.stderr, msg
+            print(msg, file=sys.stderr)
         self.__logMsgs.append(msg)
 
     def checkInitialLogMessage(self, line):
@@ -51,7 +53,7 @@ class ComponentLog(object):
 
     def reportErrors(self, fd):
         for msg in self.__logMsgs:
-            print >> fd, "%s: %s" % (self.__fileName, msg)
+            print("%s: %s" % (self.__fileName, msg), file=fd)
 
 
 class CatchallLog(ComponentLog):
@@ -793,11 +795,11 @@ class GlobalTriggerLog(ComponentLog):
 
     def report(self, fd, verbose):
         if verbose:
-            print >> fd, "Totals: Hits %s Events %s Merged %s" % \
+            print("Totals: Hits %s Events %s Merged %s" % \
                 (str(self.__totHits), str(self.__totGTEvts),
-                 str(self.__merged))
+                 str(self.__merged)), file=fd)
             for k in self.__trigCnt:
-                print >> fd, "  %s: %d" % (k, self.__trigCnt[k])
+                print("  %s: %d" % (k, self.__trigCnt[k]), file=fd)
 
 
 class LocalTriggerData(object):
@@ -970,15 +972,15 @@ class LocalTriggerLog(ComponentLog):
     def report(self, fd, verbose):
         if verbose:
             total = 0.0
-            for k in self.__trigData.keys():
+            for k in list(self.__trigData.keys()):
                 if self.__trigData[k].total() is not None:
                     total += float(self.__trigData[k].total())
 
-            for k in self.__trigData.keys():
-                print >> fd, "%5.2f(%d): %s (%s)" % \
+            for k in list(self.__trigData.keys()):
+                print("%5.2f(%d): %s (%s)" % \
                     (self.__trigData[k].totalPct(total),
                      self.__trigData[k].avgHits(), k,
-                     str(self.__trigData[k].total()))
+                     str(self.__trigData[k].total())), file=fd)
 
 
 class LogParseException(Exception):
@@ -1185,9 +1187,9 @@ class SecondaryBuildersLog(ComponentLog):
 
     def report(self, fd, verbose):
         if verbose:
-            for bldr in self.__builder.values():
+            for bldr in list(self.__builder.values()):
                 if not bldr.isInitial:
-                    print >> fd, "%s %s" % (str(bldr), bldr.state)
+                    print("%s %s" % (str(bldr), bldr.state), file=fd)
 
 
 class BaseDom(object):
@@ -1251,12 +1253,12 @@ class BaseDom(object):
 
     def __transition(self, curState, newState):
         if DEBUG:
-            print >>sys.stderr, ("   %s: %s "
+            print(("   %s: %s "
                                  "(%s) -> %s") % \
                                  (str(self),
                                   self.__stateString(self.__state),
                                   self.__stateString(curState),
-                                  self.__stateString(newState))
+                                  self.__stateString(newState)), file=sys.stderr)
         prevState = self.__state
         self.__state = newState
         if prevState != curState:
@@ -1448,7 +1450,7 @@ class StringHubLog(ComponentLog):
                 line = line.rstrip()
 
                 if DEBUG:
-                    print >>sys.stderr, ":: " + line
+                    print(":: " + line, file=sys.stderr)
 
                 if state == self.STATE_INITIAL:
                     if self.checkInitialLogMessage(line) or \
@@ -1545,7 +1547,7 @@ class StringHubLog(ComponentLog):
 
                 elif state == self.STATE_DCTHREAD:
                     if DEBUG:
-                        print >>sys.stderr, "--InDCThread--"
+                        print("--InDCThread--", file=sys.stderr)
                     if line.find("Begin data collection thread") >= 0:
                         numDCThreads += 1
                         continue
@@ -1813,21 +1815,21 @@ class StringHubLog(ComponentLog):
     def report(self, fd, verbose):
         if verbose:
             if self.__gpsNotReady > 0:
-                print >>fd, "%s: %d \"GPS not ready\" warnings" % \
-                    (self.filename, self.__gpsNotReady)
+                print("%s: %d \"GPS not ready\" warnings" % \
+                    (self.filename, self.__gpsNotReady), file=fd)
             if self.__outOfOrder > 0:
-                print >>fd, "%s: %d out-of-order values" % \
-                    (self.filename, self.__outOfOrder)
+                print("%s: %d out-of-order values" % \
+                    (self.filename, self.__outOfOrder), file=fd)
             for pr in self.__prevRpt:
-                print >>fd, "%s: %s" % (self.filename, pr)
-            for dom in self.__domMap.values():
+                print("%s: %s" % (self.filename, pr), file=fd)
+            for dom in list(self.__domMap.values()):
                 if not dom.isStopped():
-                    print >>fd, "%s: %s %s" % \
-                        (self.filename, str(dom), dom.state)
+                    print("%s: %s %s" % \
+                        (self.filename, str(dom), dom.state), file=fd)
                 elif dom.getWildTCals() > 0 or dom.getTCalFailures() > 0:
-                    print >>fd, "%s: %s TCals: %d wild, %d failures" % \
+                    print("%s: %s TCals: %d wild, %d failures" % \
                         (self.filename, str(dom), dom.getWildTCals(),
-                         dom.getTCalFailures())
+                         dom.getTCalFailures()), file=fd)
 
 
 def processDir(dirName, outFD, verbose):
@@ -1841,7 +1843,7 @@ def processDir(dirName, outFD, verbose):
             continue
 
         if not os.path.isfile(path):
-            print >>sys.stderr, "Cannot find \"%s\"" % path
+            print("Cannot find \"%s\"" % path, file=sys.stderr)
             continue
 
         # ignore MBean output files
@@ -1856,7 +1858,7 @@ def processFile(path, outFD, verbose):
 
     log = None
     if not fileName.endswith(".log"):
-        print "Ignoring \"%s\"" % path
+        print("Ignoring \"%s\"" % path)
     elif fileName.startswith("stringHub-"):
         log = StringHubLog(fileName)
     elif fileName.startswith("inIceTrigger-") or \
@@ -1875,11 +1877,11 @@ def processFile(path, outFD, verbose):
     elif fileName.startswith("dash"):
         log = DashLog(fileName)
     else:
-        print >>sys.stderr, "Unknown log file \"%s\"" % path
+        print("Unknown log file \"%s\"" % path, file=sys.stderr)
 
     if log is not None:
         if verbose:
-            print "=== %s" % fileName
+            print("=== %s" % fileName)
         log.parse(path)
         log.reportErrors(outFD)
         log.report(outFD, verbose)
@@ -1904,12 +1906,12 @@ if __name__ == "__main__":
             fileList.append(arg)
             continue
 
-        print >>sys.stderr, "Cannot find \"%s\"" % arg
+        print("Cannot find \"%s\"" % arg, file=sys.stderr)
         usage = True
 
     if usage:
-        print >>sys.stderr, "Usage: %s ( logFile | logDir )" + \
-            " [ ( logFile | logDir ) ... ]"
+        print("Usage: %s ( logFile | logDir )" + \
+            " [ ( logFile | logDir ) ... ]", file=sys.stderr)
         raise SystemExit
 
     for f in fileList:

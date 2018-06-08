@@ -12,6 +12,8 @@ RunSet.py)
 If run from 'cron', run as "SpadeQueue.py -a -c"
 """
 
+from __future__ import print_function
+
 import datetime
 import errno
 import os
@@ -43,7 +45,7 @@ COMBINED_LOG = "combined.log"
 def __copySpadeTarFile(logger, copyDir, spadeBaseName, tarFile, dryRun=False):
     copyFile = os.path.join(copyDir, spadeBaseName + ".dat.tar")
     if dryRun:
-        print "ln %s %s" % (tarFile, copyFile)
+        print("ln %s %s" % (tarFile, copyFile))
         return
 
     logger.info("Link or copy %s->%s" % (tarFile, copyFile))
@@ -152,7 +154,7 @@ def __sizefmt(size):
 
 def __touch_file(f, dryRun=False):
     if dryRun:
-        print "touch %s" % f
+        print("touch %s" % f)
     else:
         open(f, "w").close()
 
@@ -175,7 +177,7 @@ def __writeSpadeTarFile(spadeDir, spadeBaseName, runDir, runNum, logger=None,
     tarBall = os.path.join(spadeDir, spadeBaseName + ".dat.tar")
 
     if dryRun:
-        print "tar cvf %s %s" % (tarBall, runDir)
+        print("tar cvf %s %s" % (tarBall, runDir))
     else:
         tarObj = tarfile.TarFile(tarBall, "w")
         tarObj.add(runDir, os.path.basename(runDir), True)

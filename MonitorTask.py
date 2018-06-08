@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import datetime
 import os
 import threading
@@ -110,7 +112,7 @@ class MBeanThread(MonitorThread):
                 # report monitoring data
                     with self.__reporterLock:
                         reporter = self.__reporter
-                    for key, data in beanDict.iteritems():
+                    for key, data in beanDict.items():
                         if not self.isClosed:
                             reporter.send(datetime.datetime.now(), key, data)
 
@@ -271,10 +273,10 @@ class MonitorToFile(object):
     def send(self, now, beanName, attrs):
         with self.__fdLock:
             if self.__fd is not None:
-                print >> self.__fd, "%s: %s:" % (beanName, now)
+                print("%s: %s:" % (beanName, now), file=self.__fd)
                 for key in attrs:
-                    print >> self.__fd, "\t%s: %s" % (key, attrs[key])
-                print >> self.__fd
+                    print("\t%s: %s" % (key, attrs[key]), file=self.__fd)
+                print(file=self.__fd)
                 self.__fd.flush()
 
 
@@ -346,7 +348,7 @@ class MonitorTask(CnCTask):
         return threadList
 
     def _check(self):
-        for c in self.__threadList.keys():
+        for c in list(self.__threadList.keys()):
             thrd = self.__threadList[c]
             if not thrd.isAlive():
                 if thrd.refused_count >= self.MAX_REFUSED:
@@ -370,7 +372,7 @@ class MonitorTask(CnCTask):
 
     def close(self):
         savedEx = None
-        for thr in self.__threadList.values():
+        for thr in list(self.__threadList.values()):
             try:
                 thr.close()
             except:
@@ -382,12 +384,12 @@ class MonitorTask(CnCTask):
 
     def numOpen(self):
         num = 0
-        for c in self.__threadList.keys():
+        for c in list(self.__threadList.keys()):
             if not self.__threadList[c].isClosed:
                 num += 1
         return num
 
     def waitUntilFinished(self):
-        for c in self.__threadList.keys():
+        for c in list(self.__threadList.keys()):
             if self.__threadList[c].isAlive():
                 self.__threadList[c].join()

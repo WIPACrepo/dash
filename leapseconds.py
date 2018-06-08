@@ -7,6 +7,8 @@ ftp://tycho.usno.navy.mil/pub/ntp/leap-seconds.nnnnnnnn
 is present and is named 'leap-seconds.latest'
 """
 
+from __future__ import print_function
+
 import calendar
 import os
 import re
@@ -302,10 +304,10 @@ class LeapOffsets(object):
         self.__total_seconds = None
 
     def dump(self, year):
-        print "[%d]:" % year,
+        print("[%d]:" % year, end=' ')
         for didx in range(len(self.__days)):
-            print str(self.__days[didx]),
-        print
+            print(str(self.__days[didx]), end=' ')
+        print()
 
     def get_leap_seconds(self, day_of_year):
         num_leap_secs = 0
@@ -356,8 +358,7 @@ class NISTParser(object):
 
         leap_offsets = []
 
-        leap_seconds = tai_map.keys()
-        leap_seconds.sort()
+        leap_seconds = sorted(tai_map.keys())
 
         jan1 = MJD(first_year, 1, 1).value
 

@@ -88,12 +88,12 @@ class CommonCode(unittest.TestCase):
                              (fullname, cfg.fullpath))
 
             domnames = cfg.getDomConfigs()
-            self.assertEquals(data[1], len(domnames),
+            self.assertEqual(data[1], len(domnames),
                               "Expected %s dom names in %s, not %s" %
                               (data[1], n, len(domnames)))
 
             trigcfg = cfg.getTriggerConfig()
-            self.assertEquals(data[2], trigcfg.basename,
+            self.assertEqual(data[2], trigcfg.basename,
                               "Expected trigger config %s in %s, not %s" %
                               (data[2], n, trigcfg.basename))
 

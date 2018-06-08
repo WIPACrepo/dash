@@ -8,6 +8,7 @@
 #
 # then type ^\ (control-backslash) to dump all threads while running
 
+from __future__ import print_function
 
 import signal
 import sys
@@ -39,7 +40,7 @@ class DumpThreadsOnSignal(object):
     @classmethod
     def dumpThreads(cls, fd=None, logger=None):
         first = True
-        for tId, stack in sys._current_frames().items():
+        for tId, stack in list(sys._current_frames().items()):
             thrd = cls.__findThread(tId)
             if thrd is None:
                 tStr = "Thread #%d" % tId
@@ -52,7 +53,7 @@ class DumpThreadsOnSignal(object):
             if first:
                 first = False
             elif fd is not None:
-                print >>fd
+                print(file=fd)
 
             for filename, lineno, name, line in traceback.extract_stack(stack):
                 tStr += "\n  File \"%s\", line %d, in %s" % \
@@ -61,9 +62,9 @@ class DumpThreadsOnSignal(object):
                     tStr += "\n    %s" % line.strip()
 
             if fd is not None:
-                print >>fd, tStr
+                print(tStr, file=fd)
             if logger is not None:
                 logger.error(tStr)
 
         if fd is not None:
-            print >>fd, "---------------------------------------------"
+            print("---------------------------------------------", file=fd)

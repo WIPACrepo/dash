@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import shutil
 import sys
 import tempfile
@@ -355,7 +357,7 @@ class RealComponent(object):
             for k in obj:
                 obj[k] = cls.__fixValue(obj[k])
         elif isinstance(obj, list):
-            for i in xrange(0, len(obj)):
+            for i in range(0, len(obj)):
                 obj[i] = cls.__fixValue(obj[i])
         elif isinstance(obj, tuple):
             newObj = []
@@ -390,12 +392,12 @@ class RealComponent(object):
     def __listMBeanGetters(self, bean):
         if self.__bean is None or bean not in self.__bean:
             return []
-        return self.__bean[bean].keys()
+        return list(self.__bean[bean].keys())
 
     def __listMBeans(self):
         if self.__bean is None:
             return []
-        return self.__bean.keys()
+        return list(self.__bean.keys())
 
     def __logTo(self, logHost, logPort, liveHost, livePort):
         if logHost is not None and logHost == '':
@@ -407,8 +409,8 @@ class RealComponent(object):
         if livePort is not None and livePort == 0:
             livePort = None
         if logPort != self.__expRunPort:
-            print >>sys.stderr, "Remapping %s runlog port from %s to %s" % \
-                (self, logPort, self.__expRunPort)
+            print("Remapping %s runlog port from %s to %s" % \
+                (self, logPort, self.__expRunPort), file=sys.stderr)
             logPort = self.__expRunPort
         if liveHost is not None and livePort is not None:
             raise Exception("Didn't expect I3Live logging")
@@ -649,8 +651,7 @@ class TestCnCServer(unittest.TestCase):
         return rangeStr
 
     def __listComponentsLegibly(self, comps):
-        cycleList = self.comps[:]
-        cycleList.sort()
+        cycleList = sorted(self.comps[:])
 
         compDict = {}
         for c in cycleList:
@@ -896,7 +897,7 @@ class TestCnCServer(unittest.TestCase):
         rateTracker = RateTracker(runNum, 10000000000, 100, 0, 0, 0)
 
         if switchRun:
-            for _ in xrange(5):
+            for _ in range(5):
                 rateTracker.updateRunData(self.cnc, setId, self.comps)
 
             for comp in self.comps:
@@ -933,7 +934,7 @@ class TestCnCServer(unittest.TestCase):
 
             rateTracker.reset()
 
-        for i in xrange(5):
+        for i in range(5):
             rateTracker.updateRunData(self.cnc, setId, self.comps)
 
         for comp in self.comps:

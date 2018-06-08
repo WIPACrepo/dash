@@ -31,7 +31,7 @@ class RemoveHubsTest(unittest.TestCase):
         new_path = create_config(cfg, (11, 44), None, new_name=tmppath)
         self.assertTrue(new_path is not None,
                         "create_config() should not return None")
-        self.assertEquals(new_path, tmppath,
+        self.assertEqual(new_path, tmppath,
                           "Expected new path \"%s\", not \"%s\"" %
                           (tmppath, new_path))
 

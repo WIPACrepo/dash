@@ -7,6 +7,7 @@
 #        -m log4j:log4j:1.2.7 -m commons-logging:commons-logging:1.0.3 \
 #        icecube.daq.io.PayloadDumper physics_123456_0_0_2511.dat
 
+from __future__ import print_function
 
 import datetime
 import os
@@ -78,9 +79,9 @@ class JavaCommand(object):
             self.__cmd = ["java", ]
 
         if java_args is not None:
-            if type(java_args) == str:
+            if isinstance(java_args, str):
                 self.__cmd.append(java_args)
-            elif type(java_args) == list or type(java_args) == tuple:
+            elif isinstance(java_args, list) or isinstance(java_args, tuple):
                 self.__cmd += java_args
             else:
                 raise RunnerException("Bad java_args type %s for %s" %
@@ -315,7 +316,7 @@ class JavaRunner(object):
         if repo_dir is not None:
             projdir = os.path.join(repo_dir, proj.replace(".", "/"), name)
             if debug:
-                print >>sys.stderr, "CHKREPO proj %s" % (projdir, )
+                print("CHKREPO proj %s" % (projdir, ), file=sys.stderr)
             if os.path.exists(projdir):
                 tmpjar = os.path.join(projdir, vers, jarname)
                 if os.path.exists(tmpjar):
@@ -328,9 +329,9 @@ class JavaRunner(object):
                         tmpname = cls.__build_jar_name(name, entry, extra)
                         tmpjar = os.path.join(projdir, entry, tmpname)
                         if os.path.exists(tmpjar):
-                            print >>sys.stderr, "WARNING: Using %s version" \
+                            print("WARNING: Using %s version" \
                                 " %s instead of requested %s" % \
-                                (name, entry, vers)
+                                (name, entry, vers), file=sys.stderr)
                             return tmpjar
 
         if dist_dir is not None:
@@ -347,9 +348,9 @@ class JavaRunner(object):
                         vstr = entry[len(namedash):jarext]
                         nvers = LooseVersion(vstr)
                         if overs <= nvers:
-                            print >>sys.stderr, "WARNING: Using %s version" \
+                            print("WARNING: Using %s version" \
                                 " %s instead of requested %s" % \
-                                (name, vstr, vers)
+                                (name, vstr, vers), file=sys.stderr)
                             return os.path.join(dist_dir, entry)
 
         raise SystemExit("Cannot find Maven jar file %s" % jarname)
@@ -402,7 +403,7 @@ class JavaRunner(object):
     def __run(self, command, debug=False):
         """Run the Java program"""
         if debug:
-            print " ".join(command)
+            print(" ".join(command))
 
         self.__proc = subprocess.Popen(command, stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE,
@@ -446,7 +447,7 @@ class JavaRunner(object):
         self.__exitsig = None
 
         if debug:
-            print " ".join(data.command)
+            print(" ".join(data.command))
 
         start_time = datetime.datetime.now()
 
@@ -509,7 +510,7 @@ class JavaRunner(object):
         if len(cp) > 0:
             os.environ["CLASSPATH"] = ":".join(cp)
             if debug:
-                print "export CLASSPATH=\"%s\"" % os.environ["CLASSPATH"]
+                print("export CLASSPATH=\"%s\"" % os.environ["CLASSPATH"])
 
     def oldrun(self, java_args=None, app_args=None, debug=False):
         cmd = self.__build_java_cmd(java_args, app_args)

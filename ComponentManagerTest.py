@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import os
 import socket
 import sys
@@ -117,7 +119,7 @@ class MockServer(RPCServer):
         return dictlist
 
     def __runsetListIDs(self):
-        return self.__runsets.keys()
+        return list(self.__runsets.keys())
 
     def __runsetState(self, rsid):
         if rsid not in self.__runsets:
@@ -507,7 +509,6 @@ if __name__ == '__main__':
             s.connect((rmtHost, 56))
             MockNode.LIST.append(rmtHost)
         except:
-            print >>sys.stderr, \
-                "Warning: Remote host %s is not valid" % rmtHost
+            print("Warning: Remote host %s is not valid" % rmtHost, file=sys.stderr)
 
     unittest.main()

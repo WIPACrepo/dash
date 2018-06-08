@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import os
 import sys
 from datetime import date, datetime, timedelta
@@ -27,8 +29,7 @@ for o, a in opts:
     elif o == '-N':
         domid = NICKNAME
     elif o == '-h':
-        print >>sys.stderr, \
-            "usage :: DAQDumpMoni.py [-D | -K | -N ] <inputs ...>"
+        print("usage :: DAQDumpMoni.py [-D | -K | -N ] <inputs ...>", file=sys.stderr)
         sys.exit(1)
     elif o == '-Y':
         year = int(a)
@@ -39,14 +40,14 @@ T0 = datetime(year, 1, 1)
 
 if domid != MBID:
     if "NICKNAMES" not in os.environ:
-        print >>sys.stderr, "please point NICKNAMES environment variable " + \
-            "to nicknames.txt file."
+        print("please point NICKNAMES environment variable " + \
+            "to nicknames.txt file.", file=sys.stderr)
         sys.exit(1)
     nick = Nicknames(os.environ["NICKNAMES"])
 
 for arg in args:
     f = open(arg)
-    while 1:
+    while True:
         p = decode_payload(f)
         if p is None:
             break
@@ -70,5 +71,5 @@ for arg in args:
                     kpa = '%.1f' % m.getPressure()
                 except ZeroDivisionError:
                     pass
-                print utc, name, spe, hv, kpa
+                print(utc, name, spe, hv, kpa)
     f.close()

@@ -26,7 +26,7 @@ class TestDAQLaunch(unittest.TestCase):
         h1.addControlServer()
 
         cluHosts = {}
-        for name, host in compHostDict.items():
+        for name, host in list(compHostDict.items()):
             if host not in cluHosts:
                 cluHosts[host] = cluCfgFile.addHost(host)
             cluHosts[host].addComponent(name)
@@ -63,7 +63,7 @@ class TestDAQLaunch(unittest.TestCase):
                                                     spadeDir, compHostDict)
 
         runCfgFile = MockRunConfigFile(configDir)
-        cfgName = runCfgFile.create(compHostDict.keys(), {})
+        cfgName = runCfgFile.create(list(compHostDict.keys()), {})
 
         copyDir = None
         logPort = None
@@ -107,7 +107,7 @@ class TestDAQLaunch(unittest.TestCase):
                                                     spadeDir, compHostDict)
 
         runCfgFile = MockRunConfigFile(configDir)
-        cfgName = runCfgFile.create(compHostDict.keys(), {})
+        cfgName = runCfgFile.create(list(compHostDict.keys()), {})
 
         validate = False
         serverKill = True

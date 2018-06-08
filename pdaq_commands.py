@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import os
 
 from locate_pdaq import find_pdaq_config, find_pdaq_trunk
@@ -98,7 +100,7 @@ class BaseCmd(object):
     @classmethod
     def run(cls, args):
         "Body of this subcommand"
-        print "Not running '%s'" % cls.name()
+        print("Not running '%s'" % cls.name())
 
 
 @command
@@ -265,15 +267,15 @@ class CmdHelp(BaseCmd):
                     pass
 
                 # print command name and description
-                print "%s - %s" % (cmd.name(), cmd.description())
-                print
+                print("%s - %s" % (cmd.name(), cmd.description()))
+                print()
 
                 # let argparse deal with the rest of the help message
                 p.print_help()
 
                 return
 
-        print "Unknown command '%s'" % args.helpcmd
+        print("Unknown command '%s'" % args.helpcmd)
 
 
 @command
@@ -708,7 +710,7 @@ if __name__ == "__main__":
     args = p.parse_args()
 
     if args.cmdtype is not None:
-        print cmdmap[args.cmdtype]
+        print(cmdmap[args.cmdtype])
     elif args.arglist is not None:
         fakeargs = FakeArgParser()
         for v in COMMANDS:
@@ -720,7 +722,7 @@ if __name__ == "__main__":
             except:
                 pass
         for a in fakeargs.get_arguments():
-            print a
+            print(a)
     else:
         for n in names:
-            print n
+            print(n)

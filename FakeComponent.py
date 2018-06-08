@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import datetime
 import os
 import random
@@ -317,8 +319,8 @@ class LocalTrigger(TriggerHandler):
 
     def XXXprocessPayload(self, pay_type, utc, payload):
         if pay_type != SimpleHit.TYPE_ID:
-            print >>sys.stderr, "Unexpected %s payload type %d" % \
-                  (self.fullname, pay_type)
+            print("Unexpected %s payload type %d" % \
+                  (self.fullname, pay_type), file=sys.stderr)
             return
 
         self.__hit_count += 1
@@ -370,8 +372,8 @@ class GlobalTrigger(TriggerHandler):
 
     def XXXprocessPayload(self, pay_type, utc, payload):
         if pay_type != self.TRIGGER_REQUEST_ID:
-            print >> sys.stderr, "Unexpected %s payload type %d" % \
-                (self.fullname, pay_type)
+            print("Unexpected %s payload type %d" % \
+                (self.fullname, pay_type), file=sys.stderr)
             return
 
         rec_type, uid, trig_type, cfg_id, src_id, start_time, end_time, \
@@ -389,7 +391,7 @@ class GlobalTrigger(TriggerHandler):
             = struct.unpack(">ihh", payload[pos: pos + 8])
 
         if num_comp > 0:
-            print >>sys.stderr, "%s ignoring %d composites" % self.fullname
+            print("%s ignoring %d composites" % self.fullname, file=sys.stderr)
 
         tr = self.make_trigger_request(self.TRIG_TYPE, self.TRIG_CFGID,
                                        start_time, end_time)
@@ -425,7 +427,7 @@ if __name__ == "__main__":
         try:
             comp.register()
         except FakeClientException:
-            print >>sys.stderr, "Waiting for CnCServer"
+            print("Waiting for CnCServer", file=sys.stderr)
             time.sleep(1)
             continue
 

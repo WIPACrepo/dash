@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import datetime
 import os
 import shutil
@@ -164,7 +166,7 @@ class DAQMBeans(object):
     @classmethod
     def clear(cls):
         with cls.LOCK:
-            for key in cls.BEANS.keys():
+            for key in list(cls.BEANS.keys()):
                 del cls.BEANS[key]
 
 
@@ -203,7 +205,7 @@ class FakeMoniClient(object):
 class MostlyRunData(RunData):
     def __init__(self, runSet, runNumber, clusterConfig, runConfig,
                  runOptions, versionInfo, spadeDir, copyDir, logDir,
-                 appender=None, testing=False):
+                 appender=None):
         self.__appender = appender
 
         self.__dashlog = None
@@ -212,7 +214,7 @@ class MostlyRunData(RunData):
         super(MostlyRunData, self).__init__(runSet, runNumber, clusterConfig,
                                             runConfig, runOptions,
                                             versionInfo, spadeDir, copyDir,
-                                            logDir, testing=testing)
+                                            logDir)
 
     def create_dash_log(self):
         self.__dashlog = MockCnCLogger("dash", appender=self.__appender,
@@ -293,7 +295,7 @@ class MostlyRunSet(RunSet):
 
     @classmethod
     def closeAllLogs(cls):
-        for k in cls.LOGDICT.keys():
+        for k in list(cls.LOGDICT.keys()):
             cls.LOGDICT[k].stopServing()
             del cls.LOGDICT[k]
 
@@ -315,12 +317,11 @@ class MostlyRunSet(RunSet):
         return log
 
     def create_run_data(self, runNum, clusterConfig, runOptions, versionInfo,
-                        spadeDir, copyDir=None, logDir=None, testing=True):
+                        spadeDir, copyDir=None, logDir=None):
         self.__runData = MostlyRunData(self, runNum, clusterConfig,
                                        self.__runConfig, runOptions,
                                        versionInfo, spadeDir, copyDir,
-                                       logDir, appender=self.__dashAppender,
-                                       testing=True)
+                                       logDir, appender=self.__dashAppender)
         return self.__runData
 
     def create_run_dir(self, logDir, runNum, backupExisting=True):
@@ -573,7 +574,7 @@ class RealComponent(object):
                         tmpDict[c] = 1
                         break
 
-        self.__connections = tmpDict.keys()
+        self.__connections = list(tmpDict.keys())
 
         self.__state = 'connected'
         return 'CONN'
@@ -584,7 +585,7 @@ class RealComponent(object):
             for k in obj:
                 obj[k] = cls.__fixValue(obj[k])
         elif isinstance(obj, list):
-            for i in xrange(0, len(obj)):
+            for i in range(0, len(obj)):
                 obj[i] = cls.__fixValue(obj[i])
         elif isinstance(obj, tuple):
             newObj = []
@@ -643,16 +644,14 @@ class RealComponent(object):
         if self.__mbeanData is None:
             self.__mbeanData = DAQMBeans.build(self.__name)
 
-        k = self.__mbeanData[bean].keys()
-        k.sort()
+        k = sorted(self.__mbeanData[bean].keys())
         return k
 
     def __listMBeans(self):
         if self.__mbeanData is None:
             self.__mbeanData = DAQMBeans.build(self.__name)
 
-        k = self.__mbeanData.keys()
-        k.sort()
+        k = sorted(self.__mbeanData.keys())
         return k
 
     def __log(self, msg):
@@ -710,12 +709,12 @@ class RealComponent(object):
 
     def __startRun(self, runNum):
         if self.__connections is None:
-            print >>sys.stderr, "Component %s has no connections" % str(self)
+            print("Component %s has no connections" % str(self), file=sys.stderr)
         elif self.__name != "eventBuilder":
             for c in self.__connections:
                 if c.getState() != 'running':
-                    print >>sys.stderr, ("Comp %s is running before %s" %
-                                         (str(c), str(self)))
+                    print(("Comp %s is running before %s" %
+                                         (str(c), str(self))), file=sys.stderr)
 
         self.__state = 'running'
         return 'RUN#%d' % runNum
@@ -728,12 +727,12 @@ class RealComponent(object):
         self.__log('Stop %s' % str(self))
 
         if self.__connections is None:
-            print >>sys.stderr, "Component %s has no connections" % str(self)
+            print("Component %s has no connections" % str(self), file=sys.stderr)
         elif self.__name != "eventBuilder":
             for c in self.__connections:
                 if c.getState() == 'stopped':
-                    print >>sys.stderr, ("Comp %s is stopped before %s" %
-                                         (str(c), str(self)))
+                    print(("Comp %s is stopped before %s" %
+                                         (str(c), str(self))), file=sys.stderr)
 
         self.__state = 'ready'
         return 'STOP'
@@ -742,8 +741,7 @@ class RealComponent(object):
         if self.__mbeanData is None:
             self.__mbeanData = DAQMBeans.build(self.__name)
 
-        beanKeys = self.__mbeanData.keys()
-        beanKeys.sort()
+        beanKeys = sorted(self.__mbeanData.keys())
         for bean in beanKeys:
             for fld in self.__mbeanData[bean]:
                 name = '%s-%d*%s+%s' % (self.__name, self.__num, bean, fld)
@@ -851,6 +849,12 @@ class RealComponent(object):
     def logTo(self, logHost, logPort, liveHost, livePort):
         return self.__logTo(logHost, logPort, liveHost, livePort)
 
+    @property
+    def order(self):
+        if self.__name not in self.COMP_ORDER:
+            raise Exception('Unknown component type %s' % name)
+        return self.COMP_ORDER[self.__name][0]
+
     def register(self, connList):
         reg = self.__cnc.rpc_component_register(self.__name, self.__num,
                                                 'localhost',
@@ -888,23 +892,6 @@ class RealComponent(object):
                               long(val4))
 
     @staticmethod
-    def sortForLaunch(y, x):
-        selfOrder = RealComponent.__getLaunchOrder(x.__name)
-        otherOrder = RealComponent.__getLaunchOrder(y.__name)
-
-        if selfOrder < otherOrder:
-            return -1
-        elif selfOrder > otherOrder:
-            return 1
-
-        if x.__num < y.__num:
-            return 1
-        elif x.__num > y.__num:
-            return -1
-
-        return 0
-
-    @staticmethod
     def sortForStart(y, x):
         selfOrder = RealComponent.__getStartOrder(x.__name)
         otherOrder = RealComponent.__getStartOrder(y.__name)
@@ -920,6 +907,12 @@ class RealComponent(object):
             return -1
 
         return 0
+
+    @property
+    def start_order(self):
+        if self.__name not in self.COMP_ORDER:
+            raise Exception('Unknown component type %s' % name)
+        return self.COMP_ORDER[self.__name][1]
 
 
 class IntegrationTest(unittest.TestCase):
@@ -1030,7 +1023,7 @@ class IntegrationTest(unittest.TestCase):
         pShell.addExpectedPythonKill(doCnC, killWith9)
 
         launchList = self.__compList[:]
-        launchList.sort(RealComponent.sortForLaunch)
+        launchList.sort(key=lambda x: x.order)
 
         for comp in launchList:
             pShell.addExpectedJavaKill(comp.getName(), comp.getNumber(),
@@ -1351,7 +1344,8 @@ class IntegrationTest(unittest.TestCase):
 
         if liveLog:
             keys = self.__compList[:]
-            keys.sort(RealComponent.sortForStart)
+            #keys.sort(RealComponent.sortForStart)
+            keys.sort(key=lambda x: x.start_order)
 
             for c in keys:
                 liveLog.addExpectedText('Hello from %s' % str(c))
@@ -1875,17 +1869,16 @@ class IntegrationTest(unittest.TestCase):
                         continue
 
                     if needHdr:
-                        print >>sys.stderr, "---- Active threads #%d" % \
-                            (reps - n)
+                        print("---- Active threads #%d" % \
+                            (reps - n), file=sys.stderr)
                         needHdr = False
-                    print >>sys.stderr, "  %s" % t
+                    print("  %s" % t, file=sys.stderr)
 
                 time.sleep(1)
 
             if threading.activeCount() > 1:
-                print >>sys.stderr, \
-                    "tearDown exiting with %d active threads" % \
-                    threading.activeCount()
+                print("tearDown exiting with %d active threads" % \
+                    threading.activeCount(), file=sys.stderr)
 
         RunXMLValidator.tearDown()
 
@@ -1918,11 +1911,11 @@ class IntegrationTest(unittest.TestCase):
         cnc.run()
 
     def testLiveFinishInMain(self):
-        print "Not running testLiveFinishInMain"
+        print("Not running testLiveFinishInMain")
         return
         # from DAQMocks import LogChecker; LogChecker.DEBUG = True
         if not LIVE_IMPORT:
-            print 'Skipping I3Live-related test'
+            print('Skipping I3Live-related test')
             return
 
         livePort = 9751
@@ -1942,11 +1935,11 @@ class IntegrationTest(unittest.TestCase):
                        True)
 
     def testZAllLiveFinishInMain(self):
-        print "Not running testZAllLiveFinishInMain"
+        print("Not running testZAllLiveFinishInMain")
         return
         # from DAQMocks import LogChecker; LogChecker.DEBUG = True
         if not LIVE_IMPORT:
-            print 'Skipping I3Live-related test'
+            print('Skipping I3Live-related test')
             return
 
         livePort = 9751
@@ -1975,10 +1968,10 @@ class IntegrationTest(unittest.TestCase):
                        False)
 
     def testZBothFinishInMain(self):
-        print "Not running testZBothFinishInMain"
+        print("Not running testZBothFinishInMain")
         return
         if not LIVE_IMPORT:
-            print 'Skipping I3Live-related test'
+            print('Skipping I3Live-related test')
             return
 
         livePort = 9751

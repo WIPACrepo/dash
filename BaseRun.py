@@ -2,6 +2,8 @@
 #
 # Base class for managing pDAQ runs
 
+from __future__ import print_function
+
 import os
 import re
 import socket
@@ -102,7 +104,7 @@ class FlasherThread(threading.Thread):
             self.__run.logCmd(cmd)
 
             if self.__dry_run:
-                print cmd
+                print(cmd)
             else:
                 time.sleep(self.__initial_delay)
 
@@ -259,7 +261,7 @@ class FlasherScript(object):
         pairs.
         """
         if not os.path.isfile(path):
-            print "Flasher file \"%s\" does not exist" % path
+            print("Flasher file \"%s\" does not exist" % path)
             return None
 
         basedir = os.path.dirname(path)
@@ -314,8 +316,8 @@ class FlasherScript(object):
                     try:
                         flashData.append((None, int(words[1])))
                     except Exception:
-                        print "Bad flasher line#%d: %s (bad sleep time)" % \
-                              (linenum, fullLine)
+                        print("Bad flasher line#%d: %s (bad sleep time)" % \
+                              (linenum, fullLine))
                         failed = True
                     fullLine = None
                     continue
@@ -335,7 +337,7 @@ class FlasherScript(object):
                         name = cls.__clean_string(words[1])
                         durStr = cls.__clean_string(words[2])
                     else:
-                        print "Bad flasher line#%d: %s" % (linenum, line)
+                        print("Bad flasher line#%d: %s" % (linenum, line))
                         failed = True
                         fullLine = None
                         continue
@@ -348,7 +350,7 @@ class FlasherScript(object):
                         duration = int(name)
                         name = durStr
                     except:
-                        print "Bad flasher line#%d: %s" % (linenum, line)
+                        print("Bad flasher line#%d: %s" % (linenum, line))
                         failed = True
                         fullLine = None
                         continue
@@ -650,16 +652,16 @@ class RunLogger(object):
             self.__fd = open(logfile, "a")
 
     def __logmsg(self, sep, msg):
-        print >>self.__fd, time.strftime("%Y-%m-%d %H:%M:%S") + " " + \
-            sep + " " + msg
+        print(time.strftime("%Y-%m-%d %H:%M:%S") + " " + \
+            sep + " " + msg, file=self.__fd)
 
     def error(self, msg):
-        print >>sys.stderr, "!! " + msg
+        print("!! " + msg, file=sys.stderr)
         if self.__fd is not None:
             self.__logmsg("[ERROR]", msg)
 
     def info(self, msg):
-        print " " + msg
+        print(" " + msg)
         if self.__fd is not None:
             self.__logmsg("[INFO]", msg)
 
@@ -801,7 +803,7 @@ class BaseRun(object):
 
     def isUserStopped(self, refreshState=False):
         if refreshState:
-            print >>sys.stderr, "Not refreshing state in isUserStopped()"
+            print("Not refreshing state in isUserStopped()", file=sys.stderr)
         return self.__user_stopped
 
     def killComponents(self, dryRun=False):
@@ -956,11 +958,11 @@ class BaseRun(object):
 
     def stopOnSIGINT(self, signal, frame):
         self.__user_stopped = True
-        print "Caught signal, stopping run"
+        print("Caught signal, stopping run")
         if self.isRunning(True):
             self.stopRun()
             self.waitForStopped(verbose=True)
-        print "Exiting"
+        print("Exiting")
         raise SystemExit
 
     def stopRun(self):
@@ -1050,7 +1052,7 @@ class BaseRun(object):
         self.logCmd(cmd)
 
         if self.__dry_run:
-            print cmd
+            print(cmd)
             return
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,

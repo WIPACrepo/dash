@@ -5,6 +5,8 @@
 #
 # Deploy valid pDAQ cluster configurations to any cluster
 
+from __future__ import print_function
+
 import os
 import sys
 
@@ -170,7 +172,7 @@ def deploy(config, homeDir, pdaqDir, subdirs, delete, dryRun,
         if nodeName == "localhost":
             continue
         if not done and traceLevel > 0:
-            print "COMMANDS:"
+            print("COMMANDS:")
             done = True
 
         if undeploy:
@@ -185,7 +187,7 @@ def deploy(config, homeDir, pdaqDir, subdirs, delete, dryRun,
 
         cmdToNodeNameDict[cmd] = nodeName
         if traceLevel > 0 or dryRun:
-            print "  " + cmd
+            print("  " + cmd)
         if not dryRun:
             parallel.add(cmd)
 
@@ -204,11 +206,11 @@ def deploy(config, homeDir, pdaqDir, subdirs, delete, dryRun,
             else:
                 nodeName = cmdToNodeNameDict[cmd]
             if rtn_code != 0:
-                print "-" * 60
-                print "Error non-zero return code  ( %d ) " \
-                    "for host:%s cmd:%s" % (rtn_code, nodeName, cmd)
+                print("-" * 60)
+                print("Error non-zero return code  ( %d ) " \
+                    "for host:%s cmd:%s" % (rtn_code, nodeName, cmd))
                 if len(result) > 0:
-                    print "Results: %s" % result
+                    print("Results: %s" % result)
 
 
 def getUniqueHostNames(config):
@@ -216,7 +218,7 @@ def getUniqueHostNames(config):
     retHash = {}
     for node in config.nodes():
         retHash[str(node.hostname)] = 1
-    return retHash.keys()
+    return list(retHash.keys())
 
 
 def getHubType(compID):
@@ -274,7 +276,7 @@ def run_deploy(args):
         raise SystemExit
 
     if not args.configName:
-        print >>sys.stderr, 'No configuration specified'
+        print('No configuration specified', file=sys.stderr)
         p.print_help()
         raise SystemExit
 
@@ -285,39 +287,37 @@ def run_deploy(args):
                                                     clusterDesc=cdesc,
                                                     validate=args.validation)
     except XMLBadFileError:
-        print >> sys.stderr, 'Configuration "%s" not found' % args.configName
+        print('Configuration "%s" not found' % args.configName, file=sys.stderr)
         p.print_help()
         raise SystemExit
     except DAQConfigException as e:
-        print >> sys.stderr, 'Cluster configuration file problem:'
+        print('Cluster configuration file problem:', file=sys.stderr)
         raise SystemExit(e)
 
     if traceLevel >= 0:
         if config.description is None:
-            print "CLUSTER CONFIG: %s" % config.configName
+            print("CLUSTER CONFIG: %s" % config.configName)
         else:
-            print "CONFIG: %s" % config.configName
-            print "CLUSTER: %s" % config.description
+            print("CONFIG: %s" % config.configName)
+            print("CLUSTER: %s" % config.description)
 
-        nodeList = config.nodes()
-        nodeList.sort()
+        nodeList = sorted(config.nodes())
 
-        print "NODES:"
+        print("NODES:")
         for node in nodeList:
             if node.hostname == node.location:
-                print "  %s" % node.hostname
+                print("  %s" % node.hostname)
             else:
-                print "  %s(%s)" % (node.hostname, node.location),
+                print("  %s(%s)" % (node.hostname, node.location), end=' ')
 
-            compList = node.components()
-            compList.sort()
+            compList = sorted(node.components())
 
             for comp in compList:
-                print comp.fullname,
+                print(comp.fullname, end=' ')
                 if comp.isHub:
-                    print "[%s]" % getHubType(comp.id),
-                print " ",
-            print
+                    print("[%s]" % getHubType(comp.id), end=' ')
+                print(" ", end=' ')
+            print()
 
     deploy(config, os.environ["HOME"], PDAQ_HOME, SUBDIRS, args.delete,
            args.dryRun, args.deepDryRun, args.undeploy, traceLevel,

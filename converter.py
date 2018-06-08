@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+
 import operator
 import sys
 from locate_pdaq import find_pdaq_config
@@ -65,7 +69,7 @@ def domconfig_gethubid(dcfg,
 
     # lookup the string information for all of these doms
     expected_string = hub_id
-    for mbid, name in dcfg_dict.items():
+    for mbid, name in list(dcfg_dict.items()):
         if mbid not in domgeom:
             raise ConverterException(
                 "Missing mbid for %s in %s@%s" % (name, fname, dpath))
@@ -174,7 +178,7 @@ def getdefault_hs(fname):
     if len(hub_dict) == 0:
         return default_hs
 
-    hub_list = hub_dict.items()
+    hub_list = list(hub_dict.items())
     hub_match = {}
     for id1, hs1 in hub_list:
         match_ids = []
@@ -187,7 +191,7 @@ def getdefault_hs(fname):
     if len(hub_match) == 0:
         return default_hs
 
-    default_hs_idx = max(hub_match.iteritems(),
+    default_hs_idx = max(list(hub_match.items()),
                          key=operator.itemgetter(1))[0]
 
     default_hs = hub_dict[default_hs_idx]
@@ -266,9 +270,8 @@ def convert(in_file, out_dir, domgeom=None, config_path=None):
             # has a commented out domConfigList but has the matching
             # stringHub element.  Dave says this should print a warning but
             # not be a failure
-            print >> sys.stderr, \
-                ("WARNING: %s stringHub element %d"
-                 " missing a domConfigList") % (in_file, hub_id)
+            print(("WARNING: %s stringHub element %d"
+                 " missing a domConfigList") % (in_file, hub_id), file=sys.stderr)
             continue
 
         set_attrib(hub, 'domConfig', cfg_file)
@@ -295,7 +298,7 @@ def convert(in_file, out_dir, domgeom=None, config_path=None):
 
     # we've now altered any existing stringhub elements
     # add in the stringhub elements that have not existed
-    for hub_id, cfg_name in hubid_to_cfg_dict.items():
+    for hub_id, cfg_name in list(hubid_to_cfg_dict.items()):
         str_hub_dict = {'__attribs__': {'domConfig': cfg_name,
                                         'hubId': "%d" % hub_id}}
         runcfg_dict.xml_dict['runConfig']['__children__']['stringHub']\
@@ -327,13 +330,13 @@ def convert(in_file, out_dir, domgeom=None, config_path=None):
 
     # print out the converted xml file
     if out_dir == "-":
-        print runcfg_dict
+        print(runcfg_dict)
     else:
         in_file_basename = os.path.basename(in_file)
         out_file = os.path.join(out_dir,
                                 in_file_basename)
         with open(out_file, 'w') as fd:
-            print >> fd, runcfg_dict
+            print(runcfg_dict, file=fd)
 
 
 def main():
@@ -361,8 +364,8 @@ def main():
             convert(cfg,
                     args.output, domgeom, args.configpath)
         except IOError as ioe:
-            print "Config file error: %s" % cfg
-            print "IO ERROR: ", ioe
+            print("Config file error: %s" % cfg)
+            print("IO ERROR: ", ioe)
 
 
 if __name__ == "__main__":

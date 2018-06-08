@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import Daemon
 import datetime
 import numbers
@@ -364,7 +366,7 @@ class DAQPool(object):
         count = 0
 
         clients = []
-        for bin in self.__pool.values():
+        for bin in list(self.__pool.values()):
             for c in bin:
                 clients.append(c)
 
@@ -713,9 +715,9 @@ class CnCServer(DAQPool):
 
     def __closeOnSIGINT(self, signum, frame):
         if self.closeServer(False):
-            print >> sys.stderr, "\nExiting"
+            print("\nExiting", file=sys.stderr)
             sys.exit(0)
-        print >> sys.stderr, "Cannot exit with active runset(s)"
+        print("Cannot exit with active runset(s)", file=sys.stderr)
 
     @staticmethod
     def __countFileDescriptors():
@@ -934,8 +936,8 @@ class CnCServer(DAQPool):
 
                 new = (lastCount != count)
                 if new and not self.__quiet:
-                    print >> sys.stderr, "%d bins, %d comps" % \
-                        (self.numUnused(), count)
+                    print("%d bins, %d comps" % \
+                        (self.numUnused(), count), file=sys.stderr)
 
                 lastCount = count
 
@@ -1277,7 +1279,7 @@ class CnCServer(DAQPool):
             raise CnCServerException('Could not find runset#%d' % id)
 
         monidict = runSet.get_event_counts(run_num)
-        for key, val in monidict.iteritems():
+        for key, val in list(monidict.items()):
             if not isinstance(val, str) and \
                 not isinstance(val, unicode) and \
                 not isinstance(val, numbers.Number):

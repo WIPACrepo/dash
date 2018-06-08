@@ -4,6 +4,8 @@
 # John Jacobsen, NPX Designs, Inc., jacobsen\@npxdesigns.com
 # Started: Fri Jun  1 15:57:10 2007
 
+from __future__ import print_function
+
 import sys
 
 from DAQConfig import DAQConfigParser
@@ -34,7 +36,7 @@ def main():
             getClusterConfiguration(args.clusterConfigName,
                                     validate=args.validation)
     except DAQConfigException as e:
-        print >> sys.stderr, "Configuration file problem:\n%s" % e
+        print("Configuration file problem:\n%s" % e, file=sys.stderr)
         raise SystemExit
 
     if args.doList:
@@ -53,10 +55,10 @@ def main():
     cmds.wait()
 
     for hub in hublist:
-        print "Hub %s: " % hub,
+        print("Hub %s: " % hub, end=' ')
         result = cmds.getResult(ids[hub])
         result = result.rstrip()
-        print result
+        print(result)
 
         # Parse template:
         # 2 pairs plugged, 2 powered; 4 DOMs communicating, 4 in iceboot

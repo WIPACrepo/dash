@@ -46,17 +46,19 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 #
+############################################################################
+
+from __future__ import print_function
+
+from sys import exc_info
+from traceback import extract_stack, extract_tb
+from os import path
+
 #############################################################################
 
 
 __all__ = ["exc_string", "trace_string", "force_string",
            "get_exc_string_encoding", "set_exc_string_encoding"]
-
-############################################################################
-
-from sys import exc_info
-from traceback import extract_stack, extract_tb
-from os import path
 
 ###############################################################################
 
@@ -138,7 +140,7 @@ def exc_string():
 
 if __name__ == '__main__':  # run self-tests
 
-    print "self-testing module exc_string.py:"
+    print("self-testing module exc_string.py:")
 
     # force_string tests
 
@@ -264,7 +266,7 @@ if __name__ == '__main__':  # run self-tests
                                         "depth exceeded\") in recur() "
                                         "(exc_string.py:256) <- ") * 100)
 
-    print "ok"
+    print("ok")
 
 ###############################################################################
 # EOF
