@@ -1,4 +1,8 @@
+#!/usr/bin/env python
 """Identify machines for the pdaq system."""
+
+from __future__ import print_function
+
 import socket
 
 
@@ -8,7 +12,7 @@ class Machineid(object):
     SPADE_HOSTS = ["2ndbuild", "evbuilder"]
 
     # cluster type constants
-    SPS_CLUSTER, SPTS_CLUSTER, UNKNOWN_CLUSTER = range(3)
+    SPS_CLUSTER, SPTS_CLUSTER, UNKNOWN_CLUSTER = list(range(3))
 
     # machine type constants
     UNKNOWN_HOST = 0x0
@@ -137,4 +141,4 @@ class Machineid(object):
 
 if __name__ == "__main__":
     TEST = Machineid()
-    print TEST
+    print(TEST)

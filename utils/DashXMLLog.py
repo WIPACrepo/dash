@@ -79,7 +79,7 @@ class DashXMLLog:
         if not m:
             raise ValueError("Unparseable date string \"%s\"" % fld)
         dtflds = []
-        for i in xrange(6):
+        for i in range(6):
             dtflds.append(int(m.group(i+1)))
         if m.group(8) is None:
             subsec = 0
@@ -330,7 +330,7 @@ class DashXMLLog:
         and the style sheet url to build an xml document.
         """
         # check for all required xml fields
-        fields_known = self._fields.keys()
+        fields_known = list(self._fields.keys())
         fields_known.sort()
         for requiredKey in self._required_fields:
             if requiredKey not in fields_known:

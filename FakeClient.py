@@ -366,7 +366,6 @@ class FakeMBeanData(object):
         "stringHub": {
             "DataCollectorMonitor-00A": {
                 "MainboardId": (RADAR_DOM, None),
-                "HitRate": (0.0, 0.0),
                 },
             "sender": {
                 "NumHitsReceived": (0, 10),
@@ -379,8 +378,6 @@ class FakeMBeanData(object):
                 "NumberOfNonZombies": (60, 60),
                 "LatestFirstChannelHitTime": (12345, 67890),
                 "TotalLBMOverflows": (0, 0),
-                "HitRate": (0, 0),
-                "HitRateLC": (0, 0),
                 },
             },
         "inIceTrigger": {

@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+
 from lxml import etree
 from lxml.etree import XMLSyntaxError
 import os
@@ -334,37 +338,37 @@ if __name__ == "__main__":
 
     config_dir = find_pdaq_config()
 
-    print "-" * 60
-    print "Validating all sps configurations"
-    print "-" * 60
+    print("-" * 60)
+    print("Validating all sps configurations")
+    print("-" * 60)
     sps_configs = glob.glob(os.path.join(config_dir, 'sps*.xml'))
 
-    print "validate_configs"
-    print "Validating all sps configurations"
+    print("validate_configs")
+    print("Validating all sps configurations")
     for config in sps_configs:
-        print ""
-        print "Validating %s" % config
+        print("")
+        print("Validating %s" % config)
         (valid, reason) = validate_configs(os.path.join(config_dir,
                                                         'sps-cluster.cfg'),
                                            config)
 
         if not valid:
-            print "Configuration invalid ( reasons: )"
-            print reason
+            print("Configuration invalid ( reasons: )")
+            print(reason)
         else:
-            print "Configuration is valid"
+            print("Configuration is valid")
 
     spts_configs = glob.glob(os.path.join(config_dir, 'spts*.xml'))
-    print "Validating all sps configurations"
+    print("Validating all sps configurations")
     for config in spts_configs:
-        print ""
-        print "Validating %s" % config
+        print("")
+        print("Validating %s" % config)
         (valid, reason) = validate_configs(os.path.join(config_dir,
                                                         'spts-cluster.cfg'),
                                            config)
 
         if not valid:
-            print "Configuration invalid ( reasons: )"
-            print reason
+            print("Configuration invalid ( reasons: )")
+            print(reason)
         else:
-            print "Configuration is valid"
+            print("Configuration is valid")

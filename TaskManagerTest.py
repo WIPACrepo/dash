@@ -19,8 +19,6 @@ class MockTMMBeanClient(object):
                 "NumberOfActiveChannels": 2,
                 "NumberOfActiveAndTotalChannels": [1, 2],
                 "TotalLBMOverflows": 20,
-                "HitRate": 50.,
-                "HitRateLC": 25.0
             },
             "sender": {
                 "NumHitsReceived": 0,
@@ -229,8 +227,6 @@ class TaskManagerTest(unittest.TestCase):
                          2, Prio.ITS)
         live.addExpected("stringHub-1*stringhub+TotalLBMOverflows",
                          20, Prio.ITS)
-        live.addExpected("stringHub-1*stringhub+HitRate", 50, Prio.ITS)
-        live.addExpected("stringHub-1*stringhub+HitRateLC", 25, Prio.ITS)
         live.addExpected(
             "stringHub-1*stringhub+NumberOfActiveAndTotalChannels",
             [1, 2], Prio.ITS)
@@ -269,17 +265,12 @@ class TaskManagerTest(unittest.TestCase):
                          0, Prio.ITS)
 
         # add activeDOM data
-        live.addExpected("activeDOMs", 1, Prio.ITS)
-        live.addExpected("expectedDOMs", 2, Prio.ITS)
         live.addExpected("missingDOMs", 1, Prio.ITS)
-        live.addExpected("total_rate", 50, Prio.ITS)
-        live.addExpected("total_ratelc", 25, Prio.ITS)
         live.addExpected("LBMOverflows", {"1": 20},
                          Prio.ITS)
 
         live.addExpected("dom_update", {"expectedDOMs": 2,
-                                        "total_ratelc": 25.0,
-                                        "total_rate": 50.0, "activeDOMs": 1,
+                                        "activeDOMs": 1,
                                         "missingDOMs": 1},
                          Prio.ITS)
 

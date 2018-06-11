@@ -411,7 +411,6 @@ class CnCRunSetTest(unittest.TestCase):
         "stringHub": {
             "DataCollectorMonitor-00A": {
                 "MainboardId": "%012x" % EXAMPLE_DOM,
-                "HitRate": 0.0,
             },
             "sender": {
                 "NumHitsReceived": 0,
@@ -421,8 +420,6 @@ class CnCRunSetTest(unittest.TestCase):
             "stringhub": {
                 "NumberOfActiveAndTotalChannels": 0,
                 "TotalLBMOverflows": 0,
-                "HitRate": 0,
-                "HitRateLC": 0,
                 "LatestFirstChannelHitTime": -1,
                 "EarliestLastChannelHitTime": -1,
                 "NumberOfNonZombies": 60,
@@ -511,8 +508,6 @@ class CnCRunSetTest(unittest.TestCase):
 
         numDOMs = 22
         numTotal = 60
-        hitRate = 50.
-        hitRateLC = 25.
 
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
                            "NumberOfActiveAndTotalChannels",
@@ -522,17 +517,8 @@ class CnCRunSetTest(unittest.TestCase):
                            "TotalLBMOverflows",
                            20)
 
-        self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
-                           "HitRateLC",
-                           hitRateLC)
-        self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
-                           "HitRate",
-                           hitRate)
-
         liveMoni.addExpectedLiveMoni("activeDOMs", numDOMs)
         liveMoni.addExpectedLiveMoni("expectedDOMs", numTotal)
-        liveMoni.addExpectedLiveMoni("total_rate", hitRate)
-        liveMoni.addExpectedLiveMoni("total_ratelc", hitRateLC)
 
         timer.trigger()
 
@@ -578,13 +564,6 @@ class CnCRunSetTest(unittest.TestCase):
                            "FirstEventTime", False)
         self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
                            "DataCollectorMonitor-00A", "MainboardId")
-        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
-                           "DataCollectorMonitor-00A", "HitRate")
-
-        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
-                           "stringhub", "HitRateLC")
-        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
-                           "stringhub", "HitRate")
 
         self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
                            "stringhub", "EarliestLastChannelHitTime")

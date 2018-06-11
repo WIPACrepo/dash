@@ -17,8 +17,6 @@ class ActiveDOMThread(CnCThread):
 
     KEY_ACT_TOT = "NumberOfActiveAndTotalChannels"
     KEY_LBM_OVER = "TotalLBMOverflows"
-    KEY_LC_RATE = "HitRateLC"
-    KEY_TOTAL_RATE = "HitRate"
 
     def __init__(self, runset, dashlog, liveMoni, send_details):
         self.__runset = runset
@@ -63,26 +61,11 @@ class ActiveDOMThread(CnCThread):
             hub_lbm_overflows = 0
         lbm_overflows[str(comp.num)] = hub_lbm_overflows
 
-        # collect hit rate information
-        # note that we are rounding rates to 2 decimal points
-        # because we need to conserve space in the stringRateInfo dict
-        try:
-            lc_rate = float(result[self.KEY_LC_RATE])
-            total_rate = float(result[self.KEY_TOTAL_RATE])
-        except:
-            lc_rate = 0.0
-            total_rate = 0.0
-
-        totals["lc_rate"] += lc_rate
-        totals["total_rate"] += total_rate
-
         # cache current results
         #
         self.PREV_ACTIVE[comp.num] = {
             self.KEY_ACT_TOT: (hub_active_doms, hub_total_doms),
             self.KEY_LBM_OVER: hub_lbm_overflows,
-            self.KEY_LC_RATE: lc_rate,
-            self.KEY_TOTAL_RATE: total_rate
         }
 
     def __send_moni(self, name, value, prio):
@@ -96,8 +79,7 @@ class ActiveDOMThread(CnCThread):
                 src_set.append(comp)
 
         # spawn a bunch of threads to fetch hub data
-        bean_keys = (self.KEY_ACT_TOT, self.KEY_LBM_OVER, self.KEY_LC_RATE,
-                     self.KEY_TOTAL_RATE)
+        bean_keys = (self.KEY_ACT_TOT, self.KEY_LBM_OVER)
         results = ComponentGroup.run_simple(OpGetMultiBeanFields, src_set,
                                             ("stringhub", bean_keys),
                                             self.__dashlog)
@@ -105,7 +87,6 @@ class ActiveDOMThread(CnCThread):
         # create dictionaries used to accumulate results
         totals = {
             "active_doms": 0, "total_doms": 0,
-            "lc_rate": 0.0, "total_rate": 0.0
         }
         lbm_overflows = {}
 
@@ -162,17 +143,10 @@ class ActiveDOMThread(CnCThread):
                 "activeDOMs": active_doms,
                 "expectedDOMs": total_doms,
                 "missingDOMs": missing_doms,
-                "total_ratelc": totals["lc_rate"],
-                "total_rate": totals["total_rate"],
             }
             self.__send_moni("dom_update", dom_update, prio)
 
-            # XXX get rid of these once I3Live uses "dom_update"
-            self.__send_moni("activeDOMs", active_doms, prio)
-            self.__send_moni("expectedDOMs", total_doms, prio)
             self.__send_moni("missingDOMs", missing_doms, prio)
-            self.__send_moni("total_ratelc", totals["lc_rate"], prio)
-            self.__send_moni("total_rate", totals["total_rate"], prio)
 
             if self.__send_details:
                 # important messages that go out every ten minutes
