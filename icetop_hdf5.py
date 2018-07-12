@@ -250,12 +250,12 @@ def process_tar_file(tarname, dom_dict, data_dir=None, verbose=False,
             if info.name.endswith(".meta.xml"):
                 saw_meta = True
                 if debug:
-                    print "METAXML[%s] %s" % (tarname, info.name)
+                    print("METAXML[%s] %s" % (tarname, info.name))
             elif info.name.endswith(".dat.tar") and \
                  info.name.startswith("SPS-pDAQ-2ndBld-"):
                 dat_tar = info
                 if debug:
-                    print "DAT_TAR[%s] %s" % (tarname, info.name)
+                    print("DAT_TAR[%s] %s" % (tarname, info.name))
             elif debug:
                 print("NONMONI[%s] %s" % (tarname, info.name))
             continue
@@ -368,6 +368,6 @@ if __name__ == "__main__":
     for fname in args.files:
         if args.verbose:
             count += 1
-            print "** Processing %d of %d files" % (count, total)
+            print("** Processing %d of %d files" % (count, total))
         process_tar_file(fname, ddict, data_dir=args.data_directory,
                          verbose=args.verbose)
