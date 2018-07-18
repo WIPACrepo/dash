@@ -737,7 +737,7 @@ class RunData(object):
     def get_event_counts(self, run_num, run_set):
         "Return monitoring data for the run"
         if self.run_number != run_num:
-            self.error("Not getting event counts for run#%d"
+            self.error("Not getting event counts for run#%s"
                            ", current run is #%d" %
                            (run_num, self.run_number))
             values = None
@@ -1158,7 +1158,7 @@ class RunData(object):
                 if run_num != self.__run_number:
                     # if there's a new run, don't bother with this update
                     if run_num != self.__run_number + 1:
-                        self.error("Ignoring eventBuilder counts (run#%d "
+                        self.error("Ignoring eventBuilder counts (run#%s "
                                    "!= run#%d)" % (run_num, self.__run_number))
                     return None
 
@@ -1176,7 +1176,7 @@ class RunData(object):
                 if run_num != self.__run_number:
                     # if there's a new run, don't bother with this update
                     if run_num != self.__run_number + 1:
-                        self.error("Ignoring secondaryBuilders counts (run#%d "
+                        self.error("Ignoring secondaryBuilders counts (run#%s "
                                    "!= run#%d)" % (run_num, self.__run_number))
                     return None
 
@@ -1344,7 +1344,7 @@ class RunSet(object):
         if self.__id is None:
             set_str = "DESTROYED RUNSET"
         else:
-            set_str = 'RunSet #%d' % (self.__id, )
+            set_str = 'RunSet #%s' % (self.__id, )
         if self.__run_data is not None:
             set_str += ' run#%d' % (self.__run_data.run_number, )
         set_str += " (%s)" % (self.__state, )
@@ -1933,7 +1933,7 @@ class RunSet(object):
             time.sleep(0.1)
 
         if not good_thread.finished:
-            raise RunSetException("Could not get runset#%d latest first time" %
+            raise RunSetException("Could not get runset#%s latest first time" %
                                   self.__id)
 
     def __start_set(self, set_name, components):
@@ -1951,7 +1951,7 @@ class RunSet(object):
 
         bad_states = self.__check_state(RunSetState.RUNNING, components)
         if len(bad_states) > 0:
-            raise RunSetException(("Could not start runset#%d run#%d" +
+            raise RunSetException(("Could not start runset#%s run#%d" +
                                    " %s components: %s") %
                                   (self.__id, self.__run_data.run_number,
                                    set_name,
@@ -2351,7 +2351,7 @@ class RunSet(object):
 
     def destroy(self, ignore_components=False):
         if not ignore_components and len(self.__set) > 0:
-            raise RunSetException('RunSet #%d is not empty' % self.__id)
+            raise RunSetException('RunSet #%s is not empty' % self.__id)
 
         if self.__run_data is not None:
             self.__run_data.destroy()
@@ -2835,7 +2835,7 @@ class RunSet(object):
         self.__logger.error("Starting run #%d on \"%s\"" %
                             (run_num, cluster_config.description))
         if not self.__configured:
-            raise RunSetException("RunSet #%d is not configured" % self.__id)
+            raise RunSetException("RunSet #%s is not configured" % self.__id)
         if self.__state != RunSetState.READY:
             raise RunSetException("Cannot start runset from state \"%s\"" %
                                   self.__state)
@@ -2882,7 +2882,7 @@ class RunSet(object):
         with self.__stop_lock:
             run_data = self.__run_data
             if run_data is None:
-                raise RunSetException("RunSet #%d is not running" % self.__id)
+                raise RunSetException("RunSet #%s is not running" % self.__id)
 
             if run_data.finished:
                 self.__logger.error("Not double-stopping %s" % run_data)
@@ -2927,7 +2927,7 @@ class RunSet(object):
     def subrun(self, sub_id, data):
         "Start a subrun with all components in the runset"
         if self.__run_data is None or self.__state != RunSetState.RUNNING:
-            raise RunSetException("RunSet #%d is not running" % self.__id)
+            raise RunSetException("RunSet #%s is not running" % self.__id)
 
         if len(data) > 0:
             try:
@@ -3002,7 +3002,7 @@ class RunSet(object):
             if comp.isBuilder:
                 return comp.subrunEvents(subrun_number)
 
-        raise RunSetException('RunSet #%d does not contain an event builder' %
+        raise RunSetException('RunSet #%s does not contain an event builder' %
                               self.__id)
 
     @staticmethod
@@ -3017,9 +3017,9 @@ class RunSet(object):
     def switch_run(self, new_num):
         "Switch all components in the runset to a new run"
         if self.__run_data is None:
-            raise RunSetException("RunSet #%d is not running" % self.__id)
+            raise RunSetException("RunSet #%s is not running" % self.__id)
         if self.__state != RunSetState.RUNNING:
-            raise RunSetException("RunSet #%d is %s, not running" %
+            raise RunSetException("RunSet #%s is %s, not running" %
                                   (self.__id, self.__state))
 
         # create new run data object
