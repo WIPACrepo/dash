@@ -9,6 +9,10 @@ try:
         MoniPort = 6666
 
     from live.control.component import Component as LiveComponent
+    try:
+        from live.control.component import INCOMPLETE_STATE_CHANGE
+    except ImportError:
+        INCOMPLETE_STATE_CHANGE = None
 
     try:
         from live.transport.priorities import Prio
@@ -64,6 +68,9 @@ except ImportError:
 
     # set bogus service name
     SERVICE_NAME = "pdaqFake"
+
+    # Sginal that we're using the old API
+    INCOMPLETE_STATE_CHANGE = None
 
     # indicate that import failed
     LIVE_IMPORT = False
