@@ -23,6 +23,9 @@ class DAQLive(LiveComponent):
     "Frequency of monitoring uploads"
     MONI_PERIOD = 60
 
+    "Number of times to attempt recovery before giving up"
+    MAX_RECOVERY_ATTEMPTS = 60
+
     def __init__(self, cnc, logger):
         if not LIVE_IMPORT:
             raise LiveException("Cannot import I3Live code")
@@ -32,6 +35,8 @@ class DAQLive(LiveComponent):
 
         self.__oldAPI = INCOMPLETE_STATE_CHANGE == None
 
+        self.__runSet = None
+
         self.__starting = False
         self.__startThrd = None
         self.__startExc = None
@@ -40,7 +45,7 @@ class DAQLive(LiveComponent):
         self.__stopThrd = None
         self.__stopExc = None
 
-        self.__runSet = None
+        self.__recoverAttempts = 0
 
         self.__moniTimer = IntervalTimer("LiveMoni", DAQLive.MONI_PERIOD)
 
@@ -177,23 +182,51 @@ class DAQLive(LiveComponent):
             self.__stopping = False
 
     def recovering(self, retry=True):
+        # count another recovery attempt
+        self.__recoverAttempts += 1
+
         # if no active runset, nothing to recover
         if self.__stopping:
             if self.__stopThrd is not None:
-                self.__stopThrd.join()
+                self.__stopThrd.join(0.1)
+                if self.__stopThrd.is_alive():
+                    return INCOMPLETE_STATE_CHANGE
+
                 self.__stopThrd = None
-            self.__stopping = False
+                if self.__stopExc is not None:
+                    self._log.error("While recovering, saw stopping"
+                                    " exception: %s" % (self.__stopExc, ))
+                    self.__stopExc = None
+
+                # done stopping
+                self.__stopping = False
 
         # if the runset was destroyed, forget about it
         if self.__runSet is not None and self.__runSet.isDestroyed:
             self.__runSet = None
 
         if self.__runSet is None:
-            if self.__starting:
-                self.__starting = False
-                self.__startThrd.join()
+            if not self.__starting:
+                # is there's no runset and we're not starting, we're recovered
+                return True
+
+            if self.__startThrd is not None:
+                self.__startThrd.join(1)
+                if self.__startThrd.is_alive():
+                    return INCOMPLETE_STATE_CHANGE
+
                 self.__startThrd = None
-            return True
+                if self.__startExc is not None:
+                    self._log.error("While recovering, saw starting"
+                                    " exception: %s" % (self.__startExc, ))
+                    self.__startExc = None
+
+            # done starting
+            self.__starting = False
+
+            # if runset is still not set, we're recovered
+            if self.__runSet is None:
+                return True
 
         if self.__runSet.isReady or self.__runSet.isIdle or \
            self.__runSet.isDestroyed:
@@ -220,21 +253,27 @@ class DAQLive(LiveComponent):
                 break
             time.sleep(waitSecs)
 
+        # report final state
         rtnVal = False
         if self.__runSet is None or self.__runSet.isDestroyed:
             self.__log.error("DAQLive destroyed %s" % (self.__runSet, ))
             self.__runSet = None
             return True
         if self.__runSet.isReady or self.__runSet.isIdle:
-            self.__log.error("DAQLive recovered %s" % (self.__runSet, ))
             return True
         if self.__runSet.stopping():
             self.__log.error("DAQLive giving up on hung %s" %
                              (self.__runSet, ))
         else:
-            self.__log.error("DAQLive cannot recover %s" % (self.__runSet, ))
+            self.__log.error("DAQLive cannot recover %s (state=%s)" %
+                             (self.__runSet, self.__runSet.state))
 
-        raise LiveException("Runset %s was not recovered" % (self.__runSet, ))
+        if self.__recoverAttempts < self.MAX_RECOVERY_ATTEMPTS:
+            time.sleep(1)
+            return INCOMPLETE_STATE_CHANGE
+
+        raise LiveException("Runset %s was not recovered after %d attempts" %
+                            (self.__runSet, self.__recoverAttempts))
 
     def runChange(self, stateArgs=None):
         raise NotImplementedError()
@@ -281,6 +320,9 @@ class DAQLive(LiveComponent):
             "runNumber" - run number
             "subRunNumber" - subrun number
         """
+        # reset recovery attempt counter
+        self.__recoverAttempts = 0
+
         # if there was an exception in the startup thread, rethrow it here
         if self.__startExc is not None:
             exc = self.__startExc
