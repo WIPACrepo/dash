@@ -18,6 +18,8 @@ MONISEC_PAT = \
     re.compile(r'^(.*):\s+(\d+-\d+-\d+ \d+:\d+:\d+)\.(\d+):\s*$')
 MONILINE_PAT = re.compile(r'^\s+([^:]+):\s+(.*)$')
 
+TRIG_PAT = re.compile(r'^\S+Trigger[0-9]*$')
+
 TIMEFMT = '%Y-%m-%d %H:%M:%S'
 
 COMP_FIELDS = {
@@ -300,6 +302,11 @@ def processFile(fileName, comp):
                     name = m.group(1)
                     vals = m.group(2)
 
+                    if secName.find("Trigger") > 0 and \
+                       name == "SentTriggerCount":
+                        summary.add(secName, secTime, vals)
+                        continue
+
                     if flds is None or \
                        (secName in flds and flds[secName] == name):
                         summary.add(secName, secTime, vals)
@@ -311,6 +318,8 @@ def processFile(fileName, comp):
                 if nm not in flds:
                     if nm.startswith("DataCollectorMonitor"):
                         nm = "DOM"
+                    elif nm.find("Trigger") >= 0:
+                        secName = nm
                     else:
                         secName = "IGNORE"
                         continue
@@ -333,7 +342,7 @@ def reportDataRates(allData):
     """Report the DAQ data rates"""
     if not DATA_ONLY:
         print('Data Rates:')
-    reportList = [
+    hubTrigList = [
         ('stringHub', 'DOM'),
         ('stringHub', 'sender'),
         ('stringHub', 'stringHit'),
@@ -342,10 +351,20 @@ def reportDataRates(allData):
         ('icetopHub', 'sender'),
         ('icetopHub', 'icetopHit'),
         ('iceTopTrigger', 'icetopHit'),
-        ('amandaTrigger', 'selfContained'),
-        ('amandaTrigger', 'trigger'), ('inIceTrigger', 'trigger'),
-        ('iceTopTrigger', 'trigger'),
-        ('globalTrigger', 'trigger'), ('globalTrigger', 'glblTrig'),
+    ]
+
+    trigList = []
+    for trig in ('inIceTrigger', 'iceTopTrigger', 'globalTrigger'):
+        for comp in allData.keys():
+            if comp.name == trig:
+                trigList.append((trig, 'trigger'))
+                for key in allData[comp].keys():
+                    mtch = TRIG_PAT.match(key)
+                    if mtch is not None:
+                        trigList.append((trig, key))
+
+    trigEBList = [
+        ('globalTrigger', 'glblTrig'),
         ('eventBuilder', 'glblTrig'), ('eventBuilder', 'rdoutReq'),
         ('amandaHub', 'rdoutReq'), ('stringHub', 'rdoutReq'),
         ('icetopHub', 'rdoutReq'),
@@ -354,7 +373,7 @@ def reportDataRates(allData):
         ('eventBuilder', 'rdoutData'),
         ('eventBuilder', 'backEnd')
     ]
-    reportRatesInternal(allData, reportList)
+    reportRatesInternal(allData, hubTrigList + trigList + trigEBList)
 
 
 def reportMonitorRates(allData):
