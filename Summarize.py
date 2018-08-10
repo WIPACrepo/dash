@@ -329,11 +329,19 @@ class Sum(object):
                          (run, timestr, duration, cfgstr, status))
             return
 
-        if std_clucfg is None or runxml.getCluster() == std_clucfg:
+        # get cluster config
+        cluster = strip_clucfg(runxml.getCluster())
+
+        if std_clucfg is None:
             cfgstr = runxml.getConfig()
             cfgfmt = "%-27.27s"
         else:
-            cfgstr = "%s(%s)" % (runxml.getConfig(), runxml.getCluster(), )
+            # get config, make sure cluster config is visible
+            config = runxml.getConfig()
+            if len(config) + len(cluster) + 2 > 35:
+                config = config[:35-(len(cluster) + 2)]
+
+            cfgstr = "%s(%s)" % (config, cluster, )
             cfgfmt = "%-35.35s"
 
         (rel, rev) = runxml.getVersionInfo()
@@ -348,13 +356,22 @@ class Sum(object):
         self.logInfo(("Run %d  %s  %8.8s  %7s  " + cfgfmt + "  %s : %s") %
                      (run, timestr, duration, rate, cfgstr, relstr, status))
 
+    def strip_clucfg(cluster):
+        """
+        Strip away "-cluster" and/or ".cfg" suffix from cluster config name
+        """
+        if cluster.endswith(".cfg"):
+            cluster = cluster[:-4]
+        if cluster.endswith("-cluster"):
+            cluster = cluster[:-8]
+        return cluster
+
 
 def summarize(args):
     if not args.show_clucfg:
         std_clucfg = None
     else:
-        cluster = ClusterDescription.getClusterFromHostName()
-        std_clucfg = "%s-cluster.cfg" % (cluster, )
+        std_clucfg = strip_clucfg(ClusterDescription.getClusterFromHostName())
 
     if len(args.files) > 0:
         files = args.files[:]
