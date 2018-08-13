@@ -356,22 +356,24 @@ class Sum(object):
         self.logInfo(("Run %d  %s  %8.8s  %7s  " + cfgfmt + "  %s : %s") %
                      (run, timestr, duration, rate, cfgstr, relstr, status))
 
-    def strip_clucfg(cluster):
-        """
-        Strip away "-cluster" and/or ".cfg" suffix from cluster config name
-        """
-        if cluster.endswith(".cfg"):
-            cluster = cluster[:-4]
-        if cluster.endswith("-cluster"):
-            cluster = cluster[:-8]
-        return cluster
+
+def strip_clucfg(cluster):
+    """
+    Strip away "-cluster" and/or ".cfg" suffix from cluster config name
+    """
+    if cluster.endswith(".cfg"):
+        cluster = cluster[:-4]
+    if cluster.endswith("-cluster"):
+        cluster = cluster[:-8]
+    return cluster
 
 
 def summarize(args):
     if not args.show_clucfg:
         std_clucfg = None
     else:
-        std_clucfg = strip_clucfg(ClusterDescription.getClusterFromHostName())
+        clu_name = ClusterDescription.getClusterFromHostName()
+        std_clucfg = strip_clucfg(clu_name)
 
     if len(args.files) > 0:
         files = args.files[:]
