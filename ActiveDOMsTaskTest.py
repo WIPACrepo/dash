@@ -62,13 +62,16 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         logger.checkStatus(4)
         live.hasAllMoni()
 
-        live.addExpected("stringRateInfo", {'1': 50},
-                         Prio.EMAIL)
-        live.addExpected("stringRateLCInfo", {'1': 25},
-                         Prio.EMAIL)
-        live.addExpected("LBMOverflows", {'1': numLBM},
-                         Prio.ITS)
+        live.addExpected("stringRateInfo", {'1': 50}, Prio.EMAIL)
+        live.addExpected("stringRateLCInfo", {'1': 25}, Prio.EMAIL)
         live.addExpected("missingDOMs", numTotal - numActive, Prio.ITS)
+
+        lbmo_dict = {
+            "runNumber": runset.run_number(),
+            "early_lbm": "true",
+            "count": 2,
+        }
+        live.addExpected("LBMOcount", lbmo_dict, Prio.ITS)
 
         domTimer.trigger()
         left = tsk.check()
@@ -168,18 +171,9 @@ class ActiveDOMsTaskTest(unittest.TestCase):
         logger.checkStatus(4)
         live.hasAllMoni()
 
-        live.addExpected("stringRateInfo", {'1': 50},
-                         Prio.EMAIL)
-        live.addExpected("stringRateLCInfo", {'1': 25},
-                         Prio.EMAIL)
-        live.addExpected("LBMOverflows", {'1': numLBM},
-                         Prio.ITS)
-
         foo.mbean.setData("stringhub", "NumberOfActiveAndTotalChannels",
                           Exception("Simulated error"))
         logger.addExpectedRegexp(r".*Simulated error.*")
-
-        live.addExpected("missingDOMs", numTotal - numActive, Prio.EMAIL)
 
         domTimer.trigger()
         left = tsk.check()

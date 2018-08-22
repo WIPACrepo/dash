@@ -2798,6 +2798,7 @@ class MockRunSet(object):
         self.__comps = comps
         self.__running = False
 
+        self.__run_number = 123456
         self.__numEvts = 10
         self.__rate = 123.45
         self.__numMoni = 11
@@ -2824,8 +2825,14 @@ class MockRunSet(object):
     def isRunning(self):
         return self.__running
 
+    def run_number(self):
+        return self.__run_number
+
     def server_statistics(self):
         return {}
+
+    def set_run_number(self, new_number):
+        self.__run_number = new_number
 
     def startRunning(self):
         self.__running = True
@@ -2866,10 +2873,10 @@ class MockLiveMoni(object):
     def __init__(self):
         self.__expMoni = {}
 
-    def addExpected(self, var, val, prio):
+    def addExpected(self, var, val, prio, match_dict_values=True):
         if var not in self.__expMoni:
             self.__expMoni[var] = []
-        self.__expMoni[var].append((val, prio))
+        self.__expMoni[var].append((val, prio, match_dict_values))
 
     def hasAllMoni(self):
         return len(self.__expMoni) == 0
@@ -2880,11 +2887,24 @@ class MockLiveMoni(object):
                              " (var=%s, val=%s, prio=%d)") % (var, val, prio))
 
         expData = None
-        for index, (val_tmp, prio_tmp) in enumerate(self.__expMoni[var]):
-            if val == val_tmp and prio == prio_tmp:
-                # found the right entry
-                expData = self.__expMoni[var].pop(index)
-                break
+        for index, (val_tmp, prio_tmp, match) in enumerate(self.__expMoni[var]):
+            if prio != prio_tmp:
+                continue
+            if match or not isinstance(val, dict):
+                if val != val_tmp:
+                    continue
+            else:
+                matched = True
+                for key in val.keys():
+                    if key not in val_tmp:
+                        matched = False
+                        break
+                if not matched:
+                    continue
+
+            # found the right entry
+            expData = self.__expMoni[var].pop(index)
+            break
 
         if len(self.__expMoni[var]) == 0:
             del self.__expMoni[var]

@@ -215,7 +215,7 @@ class MyTaskManager(TaskManager):
 
 
 class TaskManagerTest(unittest.TestCase):
-    def __loadExpected(self, live, compList, hitRate):
+    def __loadExpected(self, live, compList, hitRate, first=True):
 
         # add monitoring data
         live.addExpected("stringHub-1*sender+NumHitsReceived",
@@ -266,13 +266,28 @@ class TaskManagerTest(unittest.TestCase):
 
         # add activeDOM data
         live.addExpected("missingDOMs", 1, Prio.ITS)
-        live.addExpected("LBMOverflows", {"1": 20},
+        lbmo_dict = {
+            "count": 20,
+            "runNumber": 123456,
+        }
+        if first:
+            lbmo_dict["early_lbm"] = "true"
+            match = True
+        else:
+            lbmo_dict["early_lbm"] = "false",
+            lbmo_dict["recordingStartTime"] = "???",
+            lbmo_dict["recordingStopTime"] = "???",
+            match = False
+        live.addExpected("LBMOcount", lbmo_dict, Prio.ITS, match)
+
+        dom_dict = {
+            "expectedDOMs": 2,
+            "activeDOMs": 1,
+            "missingDOMs": 1,
+        }
+        live.addExpected("dom_update", dom_dict,
                          Prio.ITS)
 
-        live.addExpected("dom_update", {"expectedDOMs": 2,
-                                        "activeDOMs": 1,
-                                        "missingDOMs": 1},
-                         Prio.ITS)
 
     def setUp(self):
         self.__firstTime = True
@@ -427,7 +442,9 @@ class TaskManagerTest(unittest.TestCase):
 
             time.sleep(0.1)
 
-        self.__loadExpected(live, compList, hitRate)
+        self.assertTrue(live.hasAllMoni(), "Monitoring data was not sent")
+
+        self.__loadExpected(live, compList, hitRate, first=False)
         dashlog.addExpectedExact("Watchdog reports threshold components:\n" +
                                  "    secondaryBuilders" +
                                  " snBuilder.DiskAvailable below 1024" +

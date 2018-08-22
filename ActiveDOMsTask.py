@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import datetime
+
 from CnCSingleThreadTask import CnCSingleThreadTask
 from CnCThread import CnCThread
 from CompOp import ComponentGroup, OpGetMultiBeanFields
@@ -18,14 +20,58 @@ class ActiveDOMThread(CnCThread):
     KEY_ACT_TOT = "NumberOfActiveAndTotalChannels"
     KEY_LBM_OVER = "TotalLBMOverflows"
 
-    def __init__(self, runset, dashlog, liveMoni, send_details):
+    KEY_ACTIVE = "active_doms"
+    KEY_TOTAL = "total_doms"
+
+    def __init__(self, runset, dashlog, liveMoni, lbm_start_time=None,
+                 send_details=False):
         self.__runset = runset
         self.__dashlog = dashlog
         self.__live_moni_client = liveMoni
+        self.__lbm_start_time = lbm_start_time
         self.__send_details = send_details
 
         super(ActiveDOMThread, self).__init__("CnCServer:ActiveDOMThread",
                                               dashlog)
+
+    @classmethod
+    def __get_previous_doms(cls, hub_num):
+        tmp_active = 0
+        tmp_total = 0
+        if hub_num in cls.PREV_ACTIVE and \
+           cls.KEY_ACT_TOT in cls.PREV_ACTIVE[hub_num]:
+            prevpair = cls.PREV_ACTIVE[hub_num][cls.KEY_ACT_TOT]
+            if len(prevpair) == 2:
+                try:
+                    tmp_active = int(prevpair[0])
+                    tmp_total = int(prevpair[1])
+                except:
+                    tmp_active = 0
+                    tmp_total = 0
+        return (tmp_active, tmp_total)
+
+    @classmethod
+    def __get_previous_entry(cls, hub_num):
+        if hub_num in cls.PREV_ACTIVE:
+            return cls.PREV_ACTIVE[hub_num]
+        return None
+
+    @classmethod
+    def __get_previous_lbm(cls, hub_num):
+        if hub_num in cls.PREV_ACTIVE and \
+           cls.KEY_LBM_OVER in cls.PREV_ACTIVE[hub_num]:
+            return cls.PREV_ACTIVE[hub_num][cls.KEY_LBM_OVER]
+
+        return None
+
+    def __got_data(self, totals):
+        if len(totals) == 0:
+            return False
+        if self.KEY_ACTIVE not in totals or self.KEY_TOTAL not in totals:
+            return False
+        if totals[self.KEY_ACTIVE] == 0 and totals[self.KEY_TOTAL] == 0:
+            return False
+        return True
 
     def __process_result(self, comp, result, totals, lbm_overflows):
         try:
@@ -34,49 +80,36 @@ class ActiveDOMThread(CnCThread):
         except:
             self.__dashlog.error("Cannot get # active DOMS from %s string:"
                                  " %s" % (comp.fullname, exc_string()))
-            # be extra paranoid about using previous value
-            tmp_active = 0
-            tmp_total = 0
-            if comp.num in self.PREV_ACTIVE and \
-               self.KEY_ACT_TOT in self.PREV_ACTIVE[comp.num]:
-                prevpair = self.PREV_ACTIVE[comp.num][self.KEY_ACT_TOT]
-                if len(prevpair) == 2:
-                    try:
-                        tmp_active = int(prevpair[0])
-                        tmp_total = int(prevpair[0])
-                    except:
-                        tmp_active = 0
-                        tmp_total = 0
-            hub_active_doms = tmp_active
-            hub_total_doms = tmp_total
+            (hub_active_doms, hub_total_doms) \
+                = self.__get_previous_doms(comp.num)
 
-        totals["active_doms"] += hub_active_doms
-        totals["total_doms"] += hub_total_doms
+        totals[self.KEY_ACTIVE] += hub_active_doms
+        totals[self.KEY_TOTAL] += hub_total_doms
 
         if self.KEY_LBM_OVER in result:
             hub_lbm_overflows = result[self.KEY_LBM_OVER]
         else:
-            self.__dashlog.error("Bad LBM overflow result %s<%s>" %
-                                 (result, type(result)))
-            hub_lbm_overflows = 0
+            hum_lbm_overflows = self.__get_previous_lbm(comp.num)
+            if hub_lbm_overflows is None:
+                self.__dashlog.error("No LBM overflows in result %s<%s>" %
+                                     (result, type(result)))
+                hub_lbm_overflows = 0
+
         lbm_overflows[str(comp.num)] = hub_lbm_overflows
 
         # cache current results
         #
-        self.PREV_ACTIVE[comp.num] = {
-            self.KEY_ACT_TOT: (hub_active_doms, hub_total_doms),
-            self.KEY_LBM_OVER: hub_lbm_overflows,
-        }
-
-    def __send_moni(self, name, value, prio):
-        self.__live_moni_client.sendMoni(name, value, prio)
-
+        self.__set_previous(comp.num, hub_active_doms, hub_total_doms,
+                            hub_lbm_overflows)
     def _run(self):
         # build a list of hubs
         src_set = []
         for comp in self.__runset.components():
             if comp.isSource:
                 src_set.append(comp)
+
+        # save the current time
+        start_time = datetime.datetime.now()
 
         # spawn a bunch of threads to fetch hub data
         bean_keys = (self.KEY_ACT_TOT, self.KEY_LBM_OVER)
@@ -86,7 +119,7 @@ class ActiveDOMThread(CnCThread):
 
         # create dictionaries used to accumulate results
         totals = {
-            "active_doms": 0, "total_doms": 0,
+            self.KEY_ACTIVE: 0, self.KEY_TOTAL: 0,
         }
         lbm_overflows = {}
 
@@ -103,12 +136,11 @@ class ActiveDOMThread(CnCThread):
                     result = None
 
             if result is None:
-                # if we don't have previous data for this component, skip it
-                if comp.num not in self.PREV_ACTIVE:
-                    continue
-
                 # use previous datapoint
-                result = self.PREV_ACTIVE[comp.num]
+                result = self.__get_previous_entry(comp.num)
+                if result is None:
+                    # if no previous data for this component, skip it
+                    continue
 
             # 'result' should now contain a dictionary with the number of
             # active and total channels and the LBM overflows
@@ -122,7 +154,7 @@ class ActiveDOMThread(CnCThread):
             self.__dashlog.error(errmsg)
 
         # if the run isn't stopped and we have data from one or more hubs...
-        if not self.isClosed and len(lbm_overflows) > 0:
+        if not self.isClosed and self.__got_data(totals) > 0:
 
             # active doms should be reported over ITS once every ten minutes
             # and over email once a minute.  The two should not overlap
@@ -135,8 +167,8 @@ class ActiveDOMThread(CnCThread):
                 # use higher priority every 10 minutes to keep North updated
                 prio = Prio.ITS
 
-            active_doms = totals["active_doms"]
-            total_doms = totals["total_doms"]
+            active_doms = totals[self.KEY_ACTIVE]
+            total_doms = totals[self.KEY_TOTAL]
             missing_doms = total_doms - active_doms
 
             dom_update = {
@@ -148,13 +180,51 @@ class ActiveDOMThread(CnCThread):
 
             self.__send_moni("missingDOMs", missing_doms, prio)
 
+            # send LBM overflow count every minute
+            self.__send_lbm_overflow(lbm_overflows, start_time,
+                                     self.__runset.run_number())
             if self.__send_details:
                 # important messages that go out every ten minutes
-                self.__send_moni("LBMOverflows", lbm_overflows, Prio.ITS)
+                pass
+
+
+    def __send_lbm_overflow(self, lbmo_dict, start_time, run_number):
+        # get the total LBM overflow count
+        count = 0
+        for hub_count in lbmo_dict.values():
+            count += hub_count
+
+        msg_dict = {}
+        if self.__lbm_start_time is None:
+            msg_dict["early_lbm"] = "true"
+        else:
+            msg_dict["early_lbm"] = "false"
+            msg_dict["recordingStartTime"] = str(self.__lbm_start_time)
+            msg_dict["recordingStopTime"] = str(start_time)
+
+        msg_dict["runNumber"] = run_number
+        msg_dict["count"] = count
+
+        self.__send_moni("LBMOcount", msg_dict, Prio.ITS)
+
+        # save start time for current bin
+        self.__lbm_start_time = start_time
+
+    def __send_moni(self, name, value, prio):
+        self.__live_moni_client.sendMoni(name, value, prio)
+
+    @classmethod
+    def __set_previous(cls, hub_num, hub_active_doms, hub_total_doms,
+                       hub_lbm_overflows):
+        cls.PREV_ACTIVE[hub_num] = {
+            cls.KEY_ACT_TOT: (hub_active_doms, hub_total_doms),
+            cls.KEY_LBM_OVER: hub_lbm_overflows,
+        }
 
     def get_new_thread(self, send_details=False):
         thrd = ActiveDOMThread(self.__runset, self.__dashlog,
-                               self.__live_moni_client, send_details)
+                               self.__live_moni_client, self.__lbm_start_time,
+                               send_details)
         return thrd
 
 
@@ -186,7 +256,7 @@ class ActiveDOMsTask(CnCSingleThreadTask):
                                            self.REPORT_PERIOD)
 
     def initializeThread(self, runset, dashlog, liveMoni):
-        return ActiveDOMThread(runset, dashlog, liveMoni, False)
+        return ActiveDOMThread(runset, dashlog, liveMoni)
 
     def taskFailed(self):
         self.logError("ERROR: %s thread seems to be stuck,"
