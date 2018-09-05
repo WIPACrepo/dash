@@ -510,6 +510,9 @@ class ClusterHost(object):
         else:
             comp = JavaComponent(name, num, logLevel, required)
 
+        return self.addComponentObject(comp)
+
+    def addComponentObject(self, comp):
         compKey = comp.fullname
         if compKey in self.compMap:
             errMsg = 'Multiple entries for component "%s" in host "%s"' % \
@@ -564,6 +567,28 @@ class ClusterHost(object):
     @property
     def isControlServer(self):
         return self.ctlServer
+
+    def merge(self, host):
+        if self.name != host.name:
+            raise AttributeError("Cannot merge host \"%s\" entry into \"%s\"" %
+                                 (host.name, self.name))
+
+        if host.ctlServer:
+            self.ctlServer = True
+
+        for comp in host.compMap.values():
+            key = comp.fullname
+            if key in self.compMap:
+                errMsg = 'Multiple entries for component "%s" in host "%s"' % \
+                         (key, host.name)
+                raise ClusterDescriptionFormatError(errMsg)
+            self.compMap[key] = comp
+
+        if host.simHubs is not None:
+            if self.simHubs is None:
+                self.simHubs = []
+            for scomp in host.simHubs:
+                self.simHubs.append(scomp)
 
     def setControlServer(self):
         self.ctlServer = True
@@ -833,8 +858,7 @@ class ClusterDescription(ConfigXMLBase):
             if hostname not in hostMap:
                 hostMap[hostname] = host
             else:
-                errMsg = 'Multiple entries for host "%s"' % hostname
-                raise ClusterDescriptionFormatError(errMsg)
+                hostMap[hostname].merge(host)
 
             for comp in host.getComponents():
                 compKey = comp.fullname
