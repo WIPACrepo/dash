@@ -53,4 +53,7 @@ if __name__ == "__main__":
         raise SystemExit("Are you sure you are running this"
                          " on the correct host?")
 
-    cmdmap[ns.cmd].run(ns)
+    try:
+        cmdmap[ns.cmd].run(ns)
+    except KeyboardInterrupt:
+        sys.exit("Interrupted.")
