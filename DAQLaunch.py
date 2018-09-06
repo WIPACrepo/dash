@@ -10,6 +10,7 @@
 from __future__ import print_function
 
 import os
+import subprocess
 import sys
 
 from utils.Machineid import Machineid
@@ -73,9 +74,9 @@ def add_arguments_launch(parser, config_as_arg=True):
                         help="Cluster description name.")
     if config_as_arg:
         parser.add_argument("-c", "--config-name", dest="configName",
-                            help="REQUIRED: Configuration name")
+                            help="Configuration name")
     else:
-        parser.add_argument("configName",
+        parser.add_argument("configName", nargs="?",
                             help="Run configuration name")
     parser.add_argument("-e", "--event-check", dest="eventCheck",
                         action="store_true", default=False,
@@ -176,6 +177,9 @@ def launch(cfgDir, dashDir, logger, args=None, clusterDesc=None,
         eventCheck = args.eventCheck
         forceRestart = args.forceRestart
 
+    if configName is None:
+        configName = livecmd_default_config()
+
     try:
         clusterConfig = \
             DAQConfigParser.getClusterConfiguration(configName,
@@ -184,8 +188,7 @@ def launch(cfgDir, dashDir, logger, args=None, clusterDesc=None,
                                                     configDir=cfgDir,
                                                     validate=validate)
     except DAQConfigException as e:
-        print("DAQ Config exception:\n\t%s" % e, file=sys.stderr)
-        raise SystemExit
+        raise SystemExit("DAQ Config exception:\n\t%s" % str(e))
 
     if verbose:
         print("Version info: " + get_scmversion_str())
@@ -224,6 +227,29 @@ def launch(cfgDir, dashDir, logger, args=None, clusterDesc=None,
                             eventCheck=eventCheck, checkExists=checkExists,
                             startMissing=True, forceRestart=forceRestart,
                             logger=logger, parallel=parallel)
+
+
+def livecmd_default_config():
+    cmd = "livecmd config"
+
+    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, close_fds=True,
+                            shell=True)
+    proc.stdin.close()
+
+    config = None
+    for line in proc.stdout:
+        if config is None:
+            config = line.rstrip()
+
+    proc.stdout.close()
+    proc.wait()
+
+    if proc.returncode > 1:
+        raise SystemExit("Cannot get default run config file name"
+                         " from \"livecmd\"")
+
+    return config
 
 
 if __name__ == "__main__":
