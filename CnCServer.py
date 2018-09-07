@@ -1210,7 +1210,10 @@ class CnCServer(DAQPool):
         if not runSet:
             raise CnCServerException('Could not find runset#%d' % id)
 
-        return runSet.configName
+        clucfg = runSet.cluster_config()
+        if clucfg is None:
+            return runSet.configName
+        return "%s@%s" % (runSet.configName, clucfg)
 
     def rpc_runset_count(self):
         "return number of existing run sets"

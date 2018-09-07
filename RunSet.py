@@ -10,6 +10,7 @@ import sys
 
 import SpadeQueue
 
+from ClusterDescription import ClusterDescription
 from CnCThread import CnCThread
 from CompOp import * # we need most of the Op* classes
 from ComponentManager import ComponentManager, listComponentRanges
@@ -2232,6 +2233,25 @@ class RunSet(object):
     def client_statistics(self):
         "Return RPC statistics for server->client calls"
         return self.__parent.client_statistics()
+
+    def cluster_config(self):
+        if self.__run_data is None:
+            return None
+
+        clucfg = self.__run_data.cluster_configuration
+        if clucfg is None:
+            return None
+
+        desc = clucfg.description
+        if desc.endswith(".cfg"):
+            desc = desc[:-4]
+        if desc.endswith("-cluster"):
+            front = desc[:-8]
+            base = ClusterDescription.getClusterFromHostName()
+            if front == base:
+                return None
+
+        return desc
 
     def components(self):
         return self.__set[:]
