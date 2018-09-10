@@ -56,4 +56,4 @@ if __name__ == "__main__":
     try:
         cmdmap[ns.cmd].run(ns)
     except KeyboardInterrupt:
-        sys.exit("Interrupted.")
+        raise SystemExit("Interrupted.")
