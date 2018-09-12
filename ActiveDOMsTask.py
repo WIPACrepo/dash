@@ -196,9 +196,9 @@ class ActiveDOMThread(CnCThread):
 
         msg_dict = {}
         if self.__lbm_start_time is None:
-            msg_dict["early_lbm"] = "true"
+            msg_dict["early_lbm"] = True
         else:
-            msg_dict["early_lbm"] = "false"
+            msg_dict["early_lbm"] = False
             msg_dict["recordingStartTime"] = str(self.__lbm_start_time)
             msg_dict["recordingStopTime"] = str(start_time)
 

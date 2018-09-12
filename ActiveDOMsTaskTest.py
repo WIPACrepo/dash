@@ -68,7 +68,7 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
         lbmo_dict = {
             "runNumber": runset.run_number(),
-            "early_lbm": "true",
+            "early_lbm": True,
             "count": 2,
         }
         live.addExpected("LBMOcount", lbmo_dict, Prio.ITS)

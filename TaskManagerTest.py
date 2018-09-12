@@ -271,10 +271,10 @@ class TaskManagerTest(unittest.TestCase):
             "runNumber": 123456,
         }
         if first:
-            lbmo_dict["early_lbm"] = "true"
+            lbmo_dict["early_lbm"] = True
             match = True
         else:
-            lbmo_dict["early_lbm"] = "false",
+            lbmo_dict["early_lbm"] = False
             lbmo_dict["recordingStartTime"] = "???",
             lbmo_dict["recordingStopTime"] = "???",
             match = False
