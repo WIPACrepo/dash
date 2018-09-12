@@ -845,6 +845,10 @@ class MockCluCfgFileHost(object):
                                                     ifUnused=ifUnused))
 
     @property
+    def components(self):
+        return self.__comps[:]
+
+    @property
     def name(self):
         return self.__name
 
@@ -1053,10 +1057,10 @@ class MockClusterConfigFile(MockClusterWriter):
 
     def addHost(self, name):
         if name in self.__hosts:
-            raise Exception("Host \"%s\" is already added" % name)
-
-        h = MockCluCfgFileHost(name, self)
-        self.__hosts[name] = h
+            h = self.__hosts[name]
+        else:
+            h = MockCluCfgFileHost(name, self)
+            self.__hosts[name] = h
         return h
 
     def create(self):
@@ -1176,6 +1180,10 @@ class MockClusterConfigFile(MockClusterWriter):
 
     def defaultNTPHost(self):
         return self.__defaultNTPHost
+
+    @property
+    def hosts(self):
+        return self.__hosts.copy()
 
     @property
     def logDir(self):

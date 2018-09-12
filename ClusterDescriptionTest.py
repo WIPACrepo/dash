@@ -205,31 +205,6 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
-    def testDupHosts(self):
-        name = "duphosts"
-        hname = "host1"
-
-        path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
-        with open(path, "w") as fd:
-            print("<cluster name=\"%s\">" % name, file=fd)
-            print("  <host name=\"%s\"/>" % hname, file=fd)
-            print("  <host name=\"%s\"/>" % hname, file=fd)
-            print("</cluster>", file=fd)
-
-        if self.DEBUG:
-            with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
-                for line in fd:
-                    print(":: ", line, end=' ')
-
-        try:
-            ClusterDescription(self.CFGDIR, name)
-            self.fail("Test %s should not succeed" % name)
-        except ClusterDescriptionFormatError as fmterr:
-            errmsg = "Multiple entries for host \"%s\"" % hname
-            if not str(fmterr).endswith(errmsg):
-                self.fail("Expected exception \"%s\", not \"%s\"" %
-                          (errmsg, fmterr))
-
     def testNamelessComp(self):
         name = "nameless-comp"
         hname = "hostx"
@@ -1023,6 +998,44 @@ class TestClusterDescription(unittest.TestCase):
             if not str(fmterr).endswith(errmsg):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
+
+    def testMergedHostEntries(self):
+        name = "merged-hosts"
+
+        mockComps = []
+        mock = MockClusterConfigFile(self.CFGDIR, name)
+
+        h1 = mock.addHost("host1")
+        c1 = h1.addComponent("foo")
+
+        h2 = mock.addHost("host2")
+        c2 = h2.addComponent("bar")
+
+        h2 = mock.addHost("host1")
+        c2 = h2.addComponent("ney")
+
+        mock.create()
+
+        if self.DEBUG:
+            with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
+                for line in fd:
+                    print(":: ", line, end=' ')
+
+        cdesc = ClusterDescription(self.CFGDIR, name)
+
+        mockdict = mock.hosts
+        for name, comp in cdesc.listHostComponentPairs():
+            if name not in mockdict:
+                self.fail("Cannot find host \"%s\" in cluster description" %
+                          (name, ))
+            found = False
+            for mcomp in mockdict[name].components:
+                if comp.name == mcomp.name and comp.num == mcomp.num:
+                    found = True
+                    break
+            if not found:
+                self.fail("Cannot find host \"%s\" component \"%s\""
+                          " in cluster description" % (name, comp))
 
     def testDupSimHubs(self):
         """duplicate simHub lines at different priorities are allowed"""
