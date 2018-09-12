@@ -852,15 +852,23 @@ class MockCluCfgFileHost(object):
     def name(self):
         return self.__name
 
-    def write(self, fd, indent):
-        print("%s<host name=\"%s\">" % (indent, self.__name), file=fd)
-
+    def write(self, fd, indent, split_hosts=False):
+        printed_host = False
         indent2 = indent + "  "
         if self.__comps:
             for c in self.__comps:
+                if split_hosts or not printed_host:
+                    print("%s<host name=\"%s\">" % (indent, self.__name),
+                          file=fd)
+                    printed_host = True
+
                 c.write(fd, indent2)
 
-        print("%s</host>" % indent, file=fd)
+                if split_hosts:
+                    print("%s</host>" % indent, file=fd)
+
+            if printed_host and not split_hosts:
+                    print("%s</host>" % indent, file=fd)
 
 
 class MockCluCfgFileSimHubs(MockClusterWriter):
@@ -1063,7 +1071,7 @@ class MockClusterConfigFile(MockClusterWriter):
             self.__hosts[name] = h
         return h
 
-    def create(self):
+    def create(self, split_hosts=False):
         path = os.path.join(self.__configDir, "%s-cluster.cfg" % self.__name)
 
         if not os.path.exists(self.__configDir):
@@ -1130,7 +1138,7 @@ class MockClusterConfigFile(MockClusterWriter):
                 print(indent + "</default>", file=fd)
 
             for h in self.__hosts.values():
-                h.write(fd, indent)
+                h.write(fd, indent, split_hosts=split_hosts)
 
             print("</cluster>", file=fd)
 

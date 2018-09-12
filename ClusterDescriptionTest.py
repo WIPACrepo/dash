@@ -1014,7 +1014,7 @@ class TestClusterDescription(unittest.TestCase):
         h2 = mock.addHost("host1")
         c2 = h2.addComponent("ney")
 
-        mock.create()
+        mock.create(split_hosts=True)
 
         if self.DEBUG:
             with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
