@@ -320,7 +320,7 @@ class GoodTimeThread(CnCThread):
                         self.notify_component(comp, self.__good_time)
             except:
                 self.__log.error("Cannot send %s to builders: %s" %
-                                 (self.moniname(), exc_string()))
+                                 (self.moniname, exc_string()))
 
         return complete
 
@@ -345,20 +345,20 @@ class GoodTimeThread(CnCThread):
                 time.sleep(0.1)
         except:
             self.__log.error("Couldn't find %s: %s" %
-                             (self.moniname(), exc_string()))
+                             (self.moniname, exc_string()))
 
         self.__final_time = self.__good_time
 
         if len(self.__bad_comps) > 0:
             self.__log.error("Couldn't find %s for %s" %
-                             (self.moniname(),
+                             (self.moniname,
                               listComponentRanges(list(self.__bad_comps.keys()))))
 
         if self.__good_time is None:
             good_val = "unknown"
         else:
             good_val = self.__good_time
-        self.__runset.report_good_time(self.__data, self.moniname(), good_val)
+        self.__runset.report_good_time(self.__data, self.moniname, good_val)
 
     def beanfield(self):
         "Return the name of the 'stringhub' MBean field"
@@ -376,6 +376,7 @@ class GoodTimeThread(CnCThread):
     def logError(self, msg):
         self.__log.error(msg)
 
+    @property
     def moniname(self):
         "Return the name of the value sent to I3Live"
         raise NotImplementedError("Unimplemented")
@@ -419,6 +420,7 @@ class FirstGoodTimeThread(GoodTimeThread):
         "Return True if 'newval' is better than 'oldval'"
         return oldval is None or (newval is not None and oldval < newval)
 
+    @property
     def moniname(self):
         "Return the name of the value sent to I3Live"
         return "firstGoodTime"
@@ -459,6 +461,7 @@ class LastGoodTimeThread(GoodTimeThread):
         "Return True if 'newval' is better than 'oldval'"
         return oldval is None or (newval is not None and oldval > newval)
 
+    @property
     def moniname(self):
         "Return the name of the value sent to I3Live"
         return "lastGoodTime"
