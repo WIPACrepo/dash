@@ -656,7 +656,7 @@ class RunLogger(object):
             sep + " " + msg, file=self.__fd)
 
     def error(self, msg):
-        print("!! " + msg, file=sys.stderr)
+        print("!! %s" % (msg, ), file=sys.stderr)
         if self.__fd is not None:
             self.__logmsg("[ERROR]", msg)
 
