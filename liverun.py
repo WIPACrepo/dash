@@ -221,8 +221,12 @@ class LiveState(object):
 
         Returns the new parser state
         """
-        if len(line) == 0 or line.find("controlled by LiveControl") > 0 or \
-                line == "(None)" or line == "OK":
+        if len(line) == 0:
+            # blank lines shouldn't change parse state
+            return parseState
+
+        if line.find("controlled by LiveControl") > 0 or line == "(None)" or \
+                line == "OK":
             return self.PARSE_NORMAL
 
         if line.startswith("Flashing DOMs"):
@@ -240,7 +244,8 @@ class LiveState(object):
             if line.find("(None)") >= 0:
                 return self.PARSE_NORMAL
 
-            self.__logger.error("Ongoing Alert: " + line.rstrip())
+            if not line.find("PFServer is Running check") >= 0:
+                self.__logger.error("Ongoing Alert: %s" % (line, ))
             return self.PARSE_ALERTS
 
         if line.startswith("Ongoing Pages:"):
