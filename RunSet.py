@@ -251,10 +251,13 @@ class GoodTimeThread(CnCThread):
         sleep_reps = 20
 
         for _ in range(sleep_reps):
-            hanging = False
+            hanging = None
             complete = True
 
             for thrd, result in list(tgroup.results().items()):
+                # start with no hanging components
+                hanging = None
+
                 if self.__stopped:
                     # run has been stopped, don't bother checking anymore
                     break
@@ -268,7 +271,9 @@ class GoodTimeThread(CnCThread):
                    result == ComponentGroup.RESULT_HANGING:
                     # still waiting for results
                     complete = False
-                    hanging = True
+                    if hanging is None:
+                        hanging = []
+                    hanging.append(comp)
                     continue
 
                 if not ComponentGroup.has_value(result):
@@ -306,12 +311,18 @@ class GoodTimeThread(CnCThread):
                 # quit if we've got all the results
                 break
 
-            if not hanging and not self.wait_for_all():
+            if hanging is None and not self.wait_for_all():
                 # quit if all threads are done or if we don't need to wait
                 break
 
             # wait a bit more for the threads to finish
             time.sleep(sleep_secs)
+
+        if hanging is not None:
+            hang_str = listComponentRanges(hanging)
+            self.__log.error("%s found %d hanging component%s: %s" %
+                             (self.moniname, len(hanging),
+                              "" if len(hanging) == 1 else "s", hang_str))
 
         if updated:
             try:
@@ -350,9 +361,9 @@ class GoodTimeThread(CnCThread):
         self.__final_time = self.__good_time
 
         if len(self.__bad_comps) > 0:
+            comp_str = listComponentRanges(list(self.__bad_comps.keys()))
             self.__log.error("Couldn't find %s for %s" %
-                             (self.moniname,
-                              listComponentRanges(list(self.__bad_comps.keys()))))
+                             (self.moniname, comp_str))
 
         if self.__good_time is None:
             good_val = "unknown"
