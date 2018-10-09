@@ -160,34 +160,15 @@ def main():
     hostid = Machineid()
     if not hostid.is_build_host():
         print("-" * 60, file=sys.stderr)
-        print("Warning: RemoveHubs.py should be run on the build machine", file=sys.stderr)
+        print("Warning: RemoveHubs.py should be run on the build machine",
+              file=sys.stderr)
         print("-" * 60, file=sys.stderr)
 
     p = argparse.ArgumentParser()
     add_arguments(p)
     args = p.parse_args()
-    hub_list, rack_list = parse_hub_rack_strings(p, args.hubOrRack)
 
-    # verify that original run configuration file exists
-    if len(args.runConfig) != 1:
-        p.error("Unexpected number of runConfig arguments (%d)" %
-                len(args.runConfig))
-    rc_path = os.path.join(args.config_dir, args.runConfig[0])
-    if not rc_path.endswith(".xml"):
-        rc_path += ".xml"
-    if not os.path.exists(rc_path):
-        p.error("Run configuration \"%s\" does not exist" % args.runConfig[0])
-
-    try:
-        run_config = DAQConfigParser.parse(args.config_dir, rc_path)
-    except DAQConfigException as config_except:
-        print("WARNING: Error parsing %s" % rc_path, file=sys.stderr)
-        raise SystemExit(config_except)
-
-    new_path = create_config(run_config, hub_list, rack_list,
-                             new_name=args.out_cfg_name,
-                             keep_hubs=args.keep_hubs, force=args.force,
-                             verbose=args.verbose)
+    remove_hubs(args)
 
 
 def parse_hub_rack_strings(parser, extra):
@@ -225,6 +206,31 @@ def parse_hub_rack_strings(parser, extra):
         parser.error("No hubs or racks specified")
 
     return (hub_list, rack_list)
+
+
+def remove_hubs(args):
+    hub_list, rack_list = parse_hub_rack_strings(p, args.hubOrRack)
+
+    # verify that original run configuration file exists
+    if len(args.runConfig) != 1:
+        p.error("Unexpected number of runConfig arguments (%d)" %
+                len(args.runConfig))
+    rc_path = os.path.join(args.config_dir, args.runConfig[0])
+    if not rc_path.endswith(".xml"):
+        rc_path += ".xml"
+    if not os.path.exists(rc_path):
+        p.error("Run configuration \"%s\" does not exist" % args.runConfig[0])
+
+    try:
+        run_config = DAQConfigParser.parse(args.config_dir, rc_path)
+    except DAQConfigException as config_except:
+        print("WARNING: Error parsing %s" % rc_path, file=sys.stderr)
+        raise SystemExit(config_except)
+
+    new_path = create_config(run_config, hub_list, rack_list,
+                             new_name=args.out_cfg_name,
+                             keep_hubs=args.keep_hubs, force=args.force,
+                             verbose=args.verbose)
 
 
 if __name__ == "__main__":

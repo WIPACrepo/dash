@@ -395,6 +395,37 @@ class CmdQueueLogs(BaseCmd):
 
 
 @command
+class CmdRemoveHubs(BaseCmd):
+    @classmethod
+    def add_arguments(cls, parser):
+        from RemoveHubs import add_arguments
+        add_arguments(parser)
+
+    @classmethod
+    def cmdtype(cls):
+        return cls.CMDTYPE_UNKNOWN
+
+    @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Remove hubs or racks from a run configuration"
+
+    @classmethod
+    def is_valid_host(cls, args):
+        "Any host can have log files"
+        return Machineid.is_host(Machineid.BUILD_HOST)
+
+    @classmethod
+    def name(cls):
+        return "removehubs"
+
+    @classmethod
+    def run(cls, args):
+        from RemoveHubs import remove_hubs
+        remove_hubs(args)
+
+
+@command
 class CmdRun(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
