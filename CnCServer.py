@@ -690,7 +690,6 @@ class CnCServer(DAQPool):
             self.__server.register_function(self.rpc_ping)
             self.__server.register_function(self.rpc_register_component)
             self.__server.register_function(self.rpc_run_summary)
-            self.__server.register_function(self.rpc_runset_active)
             self.__server.register_function(self.rpc_runset_break)
             self.__server.register_function(self.rpc_runset_configname)
             self.__server.register_function(self.rpc_runset_count)
@@ -1184,10 +1183,6 @@ class CnCServer(DAQPool):
     def rpc_run_summary(self, runNum):
         "Return run summary information (if available)"
         return RunSet.get_run_summary(self.__defaultLogDir, runNum)
-
-    def rpc_runset_active(self):
-        "return number of active (running) run sets"
-        return self.numActiveSets()
 
     def rpc_runset_break(self, id):
         "break up the specified runset"
