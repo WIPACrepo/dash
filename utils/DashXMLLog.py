@@ -53,6 +53,10 @@ class DashXMLLog:
     DATE_PAT = re.compile(r"(\d\d\d\d)-(\d\d)-(\d\d)\s+" +
                           r"(\d\d?):(\d\d):(\d\d)(\.(\d+))?")
 
+    FAILURE = "Failure"
+    SUCCESS = "Success"
+    IN_PROGRESS = "In Progress"
+
     def __init__(self, dir_name=None, file_name="run.xml",
                  root_elem_name="DAQRunlog",
                  style_sheet_url="/2001/xml/DAQRunlog.xsl"):
@@ -230,9 +234,11 @@ class DashXMLLog:
             (False if the run succeeded, True if there was an error)
         """
         if had_error:
-            term_cond = "Failure"
+            term_cond = self.FAILURE
+        elif had_error is not None:
+            term_cond = self.SUCCESS
         else:
-            term_cond = "Success"
+            term_cond = self.IN_PROGRESS
         self.setField("TermCondition", term_cond)
 
     def getTermCond(self):
@@ -240,10 +246,12 @@ class DashXMLLog:
         fld = self.getField("TermCondition")
         if fld is None:
             return None
-        if fld == "Failure":
+        if fld == self.FAILURE:
             return True
-        if fld == "Success":
+        if fld == self.SUCCESS:
             return False
+        if fld == self.IN_PROGRESS:
+            return None
         raise ValueError("Bad termination condition \"%s\"" % fld)
 
     def setEvents(self, events):
@@ -406,6 +414,21 @@ class DashXMLLog:
         return dispStr
 
     @classmethod
+    def format_summary(cls, num, config, result, start_time, end_time,
+                       num_events, num_moni, num_tcal, num_sn):
+        return {
+            "num": num,
+            "config": config,
+            "result": result,
+            "startTime": start_time,
+            "endTime": end_time,
+            "numEvents": num_events,
+            "numMoni": num_moni,
+            "numTcal": num_tcal,
+            "numSN": num_sn,
+        }
+
+    @classmethod
     def parse(cls, dir_name=None, file_name="run.xml"):
         if dir_name is None:
             path = file_name
@@ -445,26 +468,20 @@ class DashXMLLog:
     def summary(self):
         "Return a dictionary of run summary data"
         fld = self.getField("TermCondition")
-        if fld is None:
-            termCond = "UNKNOWN"
-        elif fld == "Failure":
+        if fld == self.FAILURE:
             termCond = "FAILED"
-        elif fld == "Success":
+        elif fld == self.SUCCESS:
             termCond = "SUCCESS"
+        elif fld == self.IN_PROGRESS:
+            termCond = "RUNNING"
         else:
             termCond = "??%s??" % fld
 
-        return {
-            "num": self.getRun(),
-            "config": self.getConfig(),
-            "result": termCond,
-            "startTime": str(self.getStartTime()),
-            "endTime": str(self.getEndTime()),
-            "numEvents": self.getEvents(),
-            "numMoni": self.getMoni(),
-            "numTcal": self.getTcal(),
-            "numSN": self.getSN(),
-        }
+        return self.format_summary(self.getRun(), self.getConfig(), termCond,
+                                   str(self.getStartTime()),
+                                   str(self.getEndTime()), self.getEvents(),
+                                   self.getMoni(), self.getTcal(),
+                                   self.getSN())
 
 
 if __name__ == "__main__":
