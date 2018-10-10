@@ -15,7 +15,7 @@ from DAQRPC import RPCClient
 from DAQTime import PayloadTime
 from LogSorter import BaseLog
 from exc_string import exc_string
-from utils.DashXMLLog import DashXMLLog
+from utils.DashXMLLog import DashXMLLog, DashXMLLogException
 
 
 def add_arguments(parser):
@@ -73,7 +73,7 @@ class DashLog2RunXML(BaseLog):
         runxml = DashXMLLog(dirname, file_name=xmlname)
         runxml.setFirstGoodTime(0)
         runxml.setLastGoodTime(0)
-        runxml.setTermCond(True)
+        runxml.setTermCond(None)
 
         with open(dashpath, "r") as rdr:
             for line in rdr:
@@ -153,7 +153,8 @@ class DashLog2RunXML(BaseLog):
                         continue
 
                 if dash_text.find("Run terminated") >= 0:
-                    runxml.setTermCond(dash_text.find("ERROR") > 0)
+                    cond = dash_text.find("ERROR") > 0
+                    runxml.setTermCond(cond)
                     continue
 
         if phys_evts is not None:
@@ -227,11 +228,11 @@ class Sum(object):
 
         return duration, rate
 
-    def __loadRunXML(self, runNum, use_cnc=True):
+    def __get_run_xml(self, runNum, use_cnc=True):
         cnc = None
         if use_cnc:
             try:
-                tmp = self.cncConnection()
+                tmp = self.cnc_connection()
                 cnc = tmp
             except ValueError:
                 pass
@@ -240,12 +241,16 @@ class Sum(object):
                 try:
                     summary = cnc.rpc_run_summary(runNum)
                     return DashLog2RunXML.from_summary(summary)
-                except:
+                except DashXMLLogException:
                     pass
 
-        return self.__readDaqRunDir(runNum)
+        try:
+            return self.__read_daq_run_dir(runNum)
+        except:
+            # couldn't find any details about this run!
+            return None
 
-    def __readDaqRunDir(self, runNum):
+    def __read_daq_run_dir(self, runNum):
         rundir = os.path.join(self.__logdir, "daqrun%05d" % runNum)
         if not os.path.isdir(rundir):
             raise ValueError("Cannot see run %d data" % runNum)
@@ -264,7 +269,7 @@ class Sum(object):
 
         return runxml
 
-    def cncConnection(self, abortOnFail=True):
+    def cnc_connection(self, abortOnFail=True):
         if self.__cnc is None:
             self.__cnc = RPCClient("localhost", DAQPort.CNCSERVER)
             try:
@@ -280,7 +285,7 @@ class Sum(object):
 
         return self.__cnc
 
-    def logInfo(self, msg):
+    def log_info(self, msg):
         print(msg)
 
     def report(self, runNum, std_clucfg=None, no_color=False,
@@ -288,7 +293,7 @@ class Sum(object):
         if self.__dryRun:
             return
 
-        runxml = self.__loadRunXML(runNum, use_cnc=use_cnc)
+        runxml = self.__get_run_xml(runNum, use_cnc=use_cnc)
         if runxml is None:
             return
 
@@ -302,8 +307,8 @@ class Sum(object):
 
         cond = runxml.getTermCond()
         if cond is None:
-            color = ANSIEscapeCode.FG_MAGENTA + ANSIEscapeCode.BG_WHITE
-            status = "UNKNOWN"
+            color = ANSIEscapeCode.FG_WHITE + ANSIEscapeCode.BG_BLUE
+            status = "RUNNING"
         elif cond:
             color = ANSIEscapeCode.FG_RED + ANSIEscapeCode.BG_WHITE
             status = "FAILED"
@@ -325,8 +330,8 @@ class Sum(object):
                 if cfgstr is None or len(cfgstr) == 0:
                     cfgstr = std_clucfg
 
-            self.logInfo("Run %s  %s  %8.8s  %-27.27s : %s" %
-                         (run, timestr, duration, cfgstr, status))
+            self.log_info("Run %s  %s  %8.8s  %-27.27s : %s" %
+                          (run, timestr, duration, cfgstr, status))
             return
 
         # get cluster config
@@ -353,8 +358,8 @@ class Sum(object):
             else:
                 relstr = "%s_%s" % (rel, rev)
 
-        self.logInfo(("Run %d  %s  %8.8s  %7s  " + cfgfmt + "  %s : %s") %
-                     (run, timestr, duration, rate, cfgstr, relstr, status))
+        self.log_info(("Run %d  %s  %8.8s  %7s  " + cfgfmt + "  %s : %s") %
+                      (run, timestr, duration, rate, cfgstr, relstr, status))
 
 
 def strip_clucfg(cluster):
@@ -387,7 +392,8 @@ def summarize(args):
                              (args.log_directory, ))
     files.sort()
 
-    s = Sum(args.log_directory)
+    summary = Sum(args.log_directory)
+
     for arg in files:
         if arg.find("/") >= 0:
             arg = os.path.basename(arg)
@@ -402,8 +408,8 @@ def summarize(args):
             continue
 
         try:
-            s.report(num, std_clucfg=std_clucfg, no_color=args.no_color,
-                     verbose=args.verbose, use_cnc=args.use_cnc)
+            summary.report(num, std_clucfg=std_clucfg, no_color=args.no_color,
+                           verbose=args.verbose, use_cnc=args.use_cnc)
         except:
             import traceback; traceback.print_exc()
             logging.error("Bad run %d: %s: %s", num, sys.exc_info()[0],
