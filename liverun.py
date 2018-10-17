@@ -262,10 +262,10 @@ class LiveState(object):
             front = front.strip()
             back = back.strip()
 
-            if front == "DAQ thread":
+            if front == "DAQ thread" or front == "I3Live DAQ thread":
                 self.__threadState = back
                 return self.PARSE_NORMAL
-            elif front == "Run state":
+            elif front == "Run state" or front == "I3Live run state":
                 self.__runState = LiveRunState.get(back)
                 return self.PARSE_NORMAL
             elif front == "Current run":
