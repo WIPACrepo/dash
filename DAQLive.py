@@ -33,7 +33,7 @@ class DAQLive(LiveComponent):
         self.__cnc = cnc
         self.__log = logger
 
-        self.__oldAPI = INCOMPLETE_STATE_CHANGE == None
+        self.__oldAPI = force_old or INCOMPLETE_STATE_CHANGE == None
 
         self.__runSet = None
 
@@ -62,14 +62,18 @@ class DAQLive(LiveComponent):
         Attempt to build a runset and start a run from within a thread.
         Returns if self.__starting is set to False.
         """
-        if self.__stopping:
+        # make sure we're not actively trying to stop
+        if self.__stopping or self.__stopThrd is not None:
             if self.__stopThrd is not None:
+                self.__log.error("Waiting for stopping thread before"
+                                 " starting run %s" % (runNum, ))
                 self.__stopThrd.join()
                 self.__stopThrd = None
             self.__stopping = False
 
-        if self.__runSet is not None and not self.__runSet.isDestroyed:
-            self.__cnc.breakRunset(self.__runSet)
+        if self.__runSet is not None:
+            if not self.__runSet.isDestroyed:
+                self.__cnc.breakRunset(self.__runSet)
             self.__runSet = None
 
             # if we got here after the start was cancelled, give up
@@ -131,13 +135,14 @@ class DAQLive(LiveComponent):
             self.__starting = False
 
     def __stopInternal(self):
+        if self.__startThrd is not None:
+            self.__log.error("Waiting for starting thread before stopping run")
+            self.__startThrd.join()
+            self.__startThrd = None
+
         if self.__starting:
             self.__cnc.stopCollecting()
             self.__starting = False
-
-        if self.__startThrd is not None:
-            self.__startThrd.join()
-            self.__startThrd = None
 
         # if the runset was destroyed, forget about it
         if self.__runSet is not None and self.__runSet.isDestroyed:
@@ -188,8 +193,9 @@ class DAQLive(LiveComponent):
         # if no active runset, nothing to recover
         if self.__stopping:
             if self.__stopThrd is not None:
-                self.__stopThrd.join(0.1)
-                if self.__stopThrd.is_alive():
+                if self.__oldAPI:
+                    self.__stopThrd.join()
+                elif not self.__joinThread(self.__stopThrd):
                     return INCOMPLETE_STATE_CHANGE
 
                 self.__stopThrd = None
@@ -211,8 +217,9 @@ class DAQLive(LiveComponent):
                 return True
 
             if self.__startThrd is not None:
-                self.__startThrd.join(1)
-                if self.__startThrd.is_alive():
+                if self.__oldAPI:
+                    self.__startThrd.join()
+                elif not self.__joinThread(self.__startThrd):
                     return INCOMPLETE_STATE_CHANGE
 
                 self.__startThrd = None
@@ -282,6 +289,9 @@ class DAQLive(LiveComponent):
         # if the runset was destroyed, forget about it
         if self.__runSet is not None and self.__runSet.isDestroyed:
             self.__runSet = None
+
+        if self.__stopping or self.__stopThrd is not None:
+            raise LiveException("pDAQ has not finished stopping")
 
         if self.__runSet is None:
             if self.__starting:
@@ -362,6 +372,14 @@ class DAQLive(LiveComponent):
             self.__startThrd.start()
 
         if self.__oldAPI:
+            self.__startThrd.join()
+            self.__startThrd = None
+
+            if self.__startExc is not None:
+                exc = self.__startExc
+                self.__startExc = None
+                raise exc
+
             return True
 
         return INCOMPLETE_STATE_CHANGE
@@ -391,6 +409,12 @@ class DAQLive(LiveComponent):
 
 
         if self.__oldAPI:
+            self.__stopThrd.join()
+            self.__stopThrd = None
+            if self.__stopExc is not None:
+                exc = self.__stopExc
+                self.__stopExc = None
+                raise exc
             return True
 
         return INCOMPLETE_STATE_CHANGE
