@@ -26,7 +26,7 @@ class DAQLive(LiveComponent):
     "Number of times to attempt recovery before giving up"
     MAX_RECOVERY_ATTEMPTS = 60
 
-    def __init__(self, cnc, logger):
+    def __init__(self, cnc, logger, rpc_port=DAQPort.DAQLIVE, force_old=False):
         if not LIVE_IMPORT:
             raise LiveException("Cannot import I3Live code")
 
@@ -49,7 +49,7 @@ class DAQLive(LiveComponent):
 
         self.__moniTimer = IntervalTimer("LiveMoni", DAQLive.MONI_PERIOD)
 
-        super(DAQLive, self).__init__(SERVICE_NAME, DAQPort.DAQLIVE,
+        super(DAQLive, self).__init__(SERVICE_NAME, rpc_port,
                                       synchronous=True, lightSensitive=True,
                                       makesLight=True)
 
@@ -61,10 +61,7 @@ class DAQLive(LiveComponent):
         """
         Attempt to build a runset and start a run from within a thread.
         Returns if self.__starting is set to False.
-        Any errors are saved to self.__startExc
         """
-        self.__startExc = None
-
         if self.__stopping:
             if self.__stopThrd is not None:
                 self.__stopThrd.join()
@@ -73,10 +70,12 @@ class DAQLive(LiveComponent):
 
         if self.__runSet is not None and not self.__runSet.isDestroyed:
             self.__cnc.breakRunset(self.__runSet)
+            self.__runSet = None
+
+            # if we got here after the start was cancelled, give up
             if not self.__starting:
                 return
 
-        self.__runSet = None
         try:
             runSet = self.__cnc.makeRunsetFromRunConfig(runCfg, runNum)
         except MissingComponentException as mce:
@@ -88,21 +87,18 @@ class DAQLive(LiveComponent):
             errmsg = "Cannot create run #%d runset for \"%s\": %s" % \
                      (runNum, runCfg, str(mce))
             self.__log.error(errmsg)
-            self.__startExc = LiveException(errmsg)
-            return
+            raise LiveException(errmsg)
         except:
             errmsg = "Cannot create run #%d runset for \"%s\": %s" % \
                      (runNum, runCfg, exc_string())
             self.__log.error(errmsg)
-            self.__startExc = LiveException(errmsg)
-            return
+            raise LiveException(errmsg)
 
         if runSet is None:
             errmsg = "Cannot create run #%d runset for \"%s\"" % \
                      (runNum, runCfg)
             self.__log.error(errmsg)
-            self.__startExc = LiveException(errmsg)
-            return
+            raise LiveException(errmsg)
 
         if self.__starting:
             runOptions = RunOption.LOG_TO_BOTH | RunOption.MONI_TO_FILE
@@ -121,20 +117,22 @@ class DAQLive(LiveComponent):
         Method used by the startRun thread.
         Guarantees that self.__starting is set to False before it exits
         """
+
+        # set up a couple of state variables
+        self.__starting = True
+        self.__startExc = None
+
         try:
             self.__startInternal(runCfg, runNum)
+        except Exception, exc:
+            if self.__startExc is None:
+                self.__startExc = exc
         finally:
             self.__starting = False
 
     def __stopInternal(self):
-        self.__stopExc = None
-
         if self.__starting:
-            try:
-                self.__cnc.stopCollecting()
-            except Exception, exc:
-                self.__stopExc = exc
-                return
+            self.__cnc.stopCollecting()
             self.__starting = False
 
         if self.__startThrd is not None:
@@ -144,40 +142,42 @@ class DAQLive(LiveComponent):
         # if the runset was destroyed, forget about it
         if self.__runSet is not None and self.__runSet.isDestroyed:
             self.__runSet = None
+
+        # no active runset, so there's nothing to stop
         if self.__runSet is None:
-            return True
+            return
 
-        if not self.__runSet.isReady and not self.__runSet.isIdle:
-            try:
-                gotError = self.__runSet.stop_run(self.__runSet.NORMAL_STOP)
-            except Exception, exc:
-                self.__stopExc = exc
-                return
-
+        if self.__runSet.isReady or self.__runSet.isIdle:
+            got_error = False
+        else:
+            got_error = self.__runSet.stop_run(self.__runSet.NORMAL_STOP)
             if not self.__runSet.isReady:
-                self.__stopExc = LiveException("%s did not stop" %
-                                               (self.__runSet, ))
-                return
+                raise LiveException("%s did not stop" % (self.__runSet, ))
 
         # XXX could get rid of this if 'livecmd' released runsets on exit
         #
-        try:
-            self.__cnc.breakRunset(self.__runSet)
-        except Exception, exc:
-            self.__stopExc = exc
-            return
+        self.__cnc.breakRunset(self.__runSet)
+        if self.__runSet.isDestroyed:
+            self._runSet = None
 
-        if gotError:
-            self.__stopExc = LiveException("Encountered ERROR while"
-                                           " stopping run")
+        if got_error:
+            raise LiveException("Encountered ERROR while stopping run")
 
     def __stopRun(self):
         """
         Method used by the stopRun thread.
         Guarantees that self.__stopping is set to False before it exits
         """
+
+        # set up a couple of state variables
+        self.__stopping = True
+        self.__stopExc = None
+
         try:
             self.__stopInternal()
+        except Exception, exc:
+            if self.__stopExc is None:
+                self.__stopExc = exc
         finally:
             self.__stopping = False
 
@@ -357,7 +357,6 @@ class DAQLive(LiveComponent):
                                     (key, ))
 
             # start DAQ in a thread so we can return immediately
-            self.__starting = True
             self.__startThrd = threading.Thread(target=self.__startRun,
                                                 args=(runCfg, runNum))
             self.__startThrd.start()
@@ -378,8 +377,6 @@ class DAQLive(LiveComponent):
         if not self.__stopping:
             if self.__runSet is None or not self.__runSet.isRunning:
                 raise LiveException("Cannot stop run; no active runset")
-
-            self.__stopping = True
 
             # stop in a thread so we can return immediately
             self.__stopThrd = threading.Thread(target=self.__stopRun)
