@@ -77,7 +77,7 @@ class DashXMLLog:
     def __parseDateTime(self, fld):
         if fld is None:
             return None
-        if type(fld) == DAQDateTime or type(fld) == datetime:
+        if isinstance(fld, DAQDateTime) or isinstance(fld, datetime):
             return fld
         m = self.DATE_PAT.match(str(fld))
         if not m:
@@ -338,12 +338,11 @@ class DashXMLLog:
         and the style sheet url to build an xml document.
         """
         # check for all required xml fields
-        fields_known = list(self._fields.keys())
-        fields_known.sort()
+        fields_known = self._fields.keys()
         for requiredKey in self._required_fields:
             if requiredKey not in fields_known:
-                raise DashXMLLogException(
-                    "Missing Required Field %s" % requiredKey)
+                raise DashXMLLogException("Missing Required Field %s" %
+                                          (requiredKey, ))
 
         doc = minidom.Document()
         processingInstr = doc.createProcessingInstruction(
@@ -355,7 +354,7 @@ class DashXMLLog:
         base = doc.createElement(self._root_elem_name)
         doc.appendChild(base)
 
-        for key in fields_known:
+        for key in sorted(fields_known):
             elem = doc.createElement(key)
             base.appendChild(elem)
 
