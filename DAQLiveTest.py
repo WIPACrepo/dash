@@ -172,7 +172,7 @@ class DAQLiveTest(unittest.TestCase):
         for idx in range(10):
             try:
                 val = live.starting(state)
-            except LiveException, lex:
+            except LiveException as lex:
                 if expectedException is None or \
                    str(expectedException) != str(lex):
                     raise
@@ -490,7 +490,7 @@ class DAQLiveTest(unittest.TestCase):
         for _ in range(10):
             try:
                 val = live.stopping()
-            except LiveException, lex:
+            except LiveException as lex:
                 exp_err = "Encountered ERROR while stopping run"
                 self.assertEqual(str(lex), exp_err,
                                  "Expected \"%s\", not \"%s\"" %

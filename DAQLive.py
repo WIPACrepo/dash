@@ -128,7 +128,7 @@ class DAQLive(LiveComponent):
 
         try:
             self.__startInternal(runCfg, runNum)
-        except Exception, exc:
+        except Exception as exc:
             if self.__startExc is None:
                 self.__startExc = exc
         finally:
@@ -180,7 +180,7 @@ class DAQLive(LiveComponent):
 
         try:
             self.__stopInternal()
-        except Exception, exc:
+        except Exception as exc:
             if self.__stopExc is None:
                 self.__stopExc = exc
         finally:
