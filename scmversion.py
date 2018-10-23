@@ -263,7 +263,7 @@ def __get_svn_info(dir):
     versions.append(svn_rev)
 
     switched = modified = exported = False
-    low_rev = sys.maxint
+    low_rev = sys.maxsize
     high_rev = 0
     for ver in versions:
         if ver == "exported":

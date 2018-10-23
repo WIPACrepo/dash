@@ -162,8 +162,8 @@ class RPCStats(object):
     def __init__(self, method):
         self.__method = method
         self.__num = 0
-        self.__min = sys.maxint
-        self.__max = -sys.maxint - 1
+        self.__min = sys.maxsize
+        self.__max = -sys.maxsize - 1
         self.__sum = 0.
         self.__sumsq = 0.
         self.__succeed = 0

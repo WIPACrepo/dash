@@ -251,7 +251,7 @@ class PayloadTime(object):
             if not PayloadTime.has_leapsecond:
                 # no mid-year leap second, so don't need to calculate
                 # seconds until June 30
-                PayloadTime.TIME_TILL_JUNE30 = sys.maxint
+                PayloadTime.TIME_TILL_JUNE30 = sys.maxsize
             else:
                 PayloadTime.TIME_TILL_JUNE30 = \
                     PayloadTime.__seconds_until_june30(year)

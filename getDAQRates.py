@@ -140,7 +140,7 @@ class Component(object):
 
     def __hash__(self):
         if self.hash is None:
-            self.hash = ((hash(self.name) * 100) % sys.maxint) + \
+            self.hash = ((hash(self.name) * 100) % sys.maxsize) + \
                 (self.num % 100)
         return self.hash
 
