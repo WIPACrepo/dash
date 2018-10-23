@@ -37,7 +37,7 @@ class XMLParser(object):
 
         # NOTE: node.attributes doesn't support "attrName in node.attributes"
         if node.attributes is not None and \
-           node.attributes.has_key(attrName):
+           attrName in node.attributes:
             # return named attribute value
             return node.attributes[attrName].value
 
