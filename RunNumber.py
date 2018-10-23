@@ -9,6 +9,13 @@ import re
 import sys
 
 
+# Python 2/3 compatibility hack
+if sys.version_info >= (3, 0):
+    read_input = input
+else:
+    read_input = raw_input
+
+
 class RunNumberException(Exception):
     pass
 
@@ -119,7 +126,7 @@ def verify_change(lastrun, lastsub, newrun, newsub):
                  " %s to %s?" % (laststr, newstr)
 
     while True:
-        reply = raw_input(prompt + " (y/n) ")
+        reply = read_input(prompt + " (y/n) ")
         lreply = reply.strip().lower()
         if lreply == "y" or lreply == "yes":
             return True

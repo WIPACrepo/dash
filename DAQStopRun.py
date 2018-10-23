@@ -12,6 +12,13 @@ from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
 
+# Python 2/3 compatibility hack
+if sys.version_info >= (3, 0):
+    read_input = input
+else:
+    read_input = raw_input
+
+
 def add_arguments(parser):
     parser.add_argument("-m", "--no-host-check", dest="nohostcheck",
                         action="store_true", default=False,
@@ -70,9 +77,9 @@ def stoprun(args):
         except:
             state = "UNKNOWN"
         while True:
-            reply = raw_input("Are you sure you want to stop" +
-                              " runset #%d (%s) without 'livecmd'? " %
-                              (rsid, state))
+            reply = read_input("Are you sure you want to stop" +
+                               " runset #%d (%s) without 'livecmd'? " %
+                               (rsid, state))
             lreply = reply.strip().lower()
             if lreply == "y" or lreply == "yes":
                 try:
