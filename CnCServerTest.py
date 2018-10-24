@@ -364,7 +364,7 @@ class RealComponent(object):
             for v in obj:
                 newObj.append(cls.__fixValue(v))
             obj = tuple(newObj)
-        elif isinstance(obj, int) or isinstance(obj, long):
+        elif isinstance(obj, int) or isinstance(obj, int):
             if obj < xmlrpclib.MININT or obj > xmlrpclib.MAXINT:
                 return str(obj)
         return obj
@@ -515,9 +515,9 @@ class RealComponent(object):
 
     def setRunData(self, v1, v2, v3, v4=None, v5=None):
         if v4 is None and v5 is None:
-            self.__runData = (long(v1), long(v2), long(v3))
+            self.__runData = (int(v1), int(v2), int(v3))
         else:
-            self.__runData = (long(v1), long(v2), long(v3), long(v4), long(v5))
+            self.__runData = (int(v1), int(v2), int(v3), int(v4), int(v5))
 
 
 class RateTracker(object):

@@ -124,7 +124,7 @@ class DAQDateTime(object):
             secs -= 1
             usecs += 1000000
 
-        return DAQDateTimeDelta(days, secs, long(usecs))
+        return DAQDateTimeDelta(days, secs, int(usecs))
 
     def __str__(self):
         fmt = "%d-%02d-%02d %02d:%02d:%02d"
@@ -258,7 +258,7 @@ class PayloadTime(object):
 
         PayloadTime.PREV_TIME = payTime
 
-        curSecOffset = (payTime / long(PayloadTime.TICKS_PER_SECOND))
+        curSecOffset = (payTime / int(PayloadTime.TICKS_PER_SECOND))
         subsec = payTime % PayloadTime.TICKS_PER_SECOND
 
         if not PayloadTime.has_leapsecond or \
@@ -311,7 +311,7 @@ if __name__ == "__main__":
     for arg in args.time:
         try:
             try:
-                val = long(arg)
+                val = int(arg)
                 dt = None
             except IOError:
                 print("Cannot convert %s" % str(val))

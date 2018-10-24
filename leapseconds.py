@@ -412,14 +412,14 @@ class NISTParser(object):
                 # found a comment line
                 if len(line) > 4 and line[1] == "@":
                     # but it's really the expiration date
-                    val = long(line[3:].strip())
+                    val = int(line[3:].strip())
                     expiry = MJD.from_ntp(val)
 
                 continue
 
             match = self.NIST_DATA_PAT.match(line)
             if match is not None:
-                pt = MJD.from_ntp(long(match.group(1)))
+                pt = MJD.from_ntp(int(match.group(1)))
                 offset = int(match.group(2))
 
                 tai_map[pt] = offset

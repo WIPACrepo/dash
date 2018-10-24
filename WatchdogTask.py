@@ -58,7 +58,7 @@ class Watcher(object):
         vType = type(val)
         if vType == tuple:
             return list
-        if vType == long:
+        if vType == int:
             return int
         return vType
 

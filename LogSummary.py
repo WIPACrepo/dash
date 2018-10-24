@@ -721,7 +721,7 @@ class GlobalTriggerLog(ComponentLog):
 
                     m = self.TRIG_NUM.match(line)
                     if m:
-                        self.__trigCnt[m.group(2)] = long(m.group(3))
+                        self.__trigCnt[m.group(2)] = int(m.group(3))
                         continue
 
                     m = self.ISSUE_NUM.match(line)
@@ -730,7 +730,7 @@ class GlobalTriggerLog(ComponentLog):
 
                     m = self.MERGED_NUM.match(line)
                     if m:
-                        self.__merged = long(m.group(2))
+                        self.__merged = int(m.group(2))
                         continue
 
                     if line.find("pushing LAST_POSSIBLE_SPLICEABLE") >= 0:
@@ -756,7 +756,7 @@ class GlobalTriggerLog(ComponentLog):
 
                     m = self.PROC_TOTAL.match(line)
                     if m:
-                        self.__totHits = long(m.group(2))
+                        self.__totHits = int(m.group(2))
                         state = self.STATE_STOPPED
                         continue
 
@@ -771,17 +771,17 @@ class GlobalTriggerLog(ComponentLog):
 
                     m = self.TOT_GT_EVTS.match(line)
                     if m:
-                        self.__totGTEvts = long(m.group(2))
+                        self.__totGTEvts = int(m.group(2))
                         continue
 
                     m = self.TOT_MERGED.match(line)
                     if m:
-                        self.__merged = long(m.group(2))
+                        self.__merged = int(m.group(2))
                         continue
 
                     m = self.TRIG_TOTAL.match(line)
                     if m:
-                        self.__trigCnt[m.group(2)] = long(m.group(3))
+                        self.__trigCnt[m.group(2)] = int(m.group(3))
                         continue
 
                 elif state == self.STATE_STOPPED:
@@ -956,7 +956,7 @@ class LocalTriggerLog(ComponentLog):
 
                     m = self.PROC_TOTAL.match(line)
                     if m:
-                        totHits = long(m.group(2))
+                        totHits = int(m.group(2))
                         state = self.STATE_STOPPED
                         continue
 
@@ -1334,7 +1334,7 @@ class SimDom(BaseDom):
 
 class RealDom(BaseDom):
     def __init__(self, dcName, domId, mbRel):
-        self.__id = long(domId, 16)
+        self.__id = int(domId, 16)
         self.__mbRel = mbRel
 
         super(RealDom, self).__init__(dcName)

@@ -83,7 +83,7 @@ def __getRunData(runDir):
 
     try:
         delta = runXML.getEndTime() - runXML.getStartTime()
-        duration = long(delta.seconds)
+        duration = int(delta.seconds)
     except:
         pass
 

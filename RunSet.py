@@ -1179,7 +1179,7 @@ class RunData(object):
 
                 physics_count = int(evt_data[1])
                 wall_time = datetime.datetime.utcnow()
-                last_pay_time = long(evt_data[2])
+                last_pay_time = int(evt_data[2])
 
             elif comp.isComponent("secondaryBuilders"):
                 if len(evt_data) != 3:
@@ -1785,7 +1785,7 @@ class RunSet(object):
         now = time.gmtime()
         jan1 = time.struct_time((now.tm_year, 1, 1, 0, 0, 0, 0, 0, -1))
         walltime = (time.mktime(now) - time.mktime(jan1)) * 10000000000
-        offset = long(walltime - firsttime)
+        offset = int(walltime - firsttime)
 
         # set offset on all replay hubs
         ComponentGroup.run_simple(OpSetReplayOffset, replay_hubs, (offset, ),

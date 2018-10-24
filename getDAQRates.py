@@ -231,7 +231,7 @@ class Summary(object):
         if vals.startswith('['):
             self.__saveListSum(name, time, vals)
         else:
-            self.__saveValue(name, time, long(vals))
+            self.__saveValue(name, time, int(vals))
 
     def __saveListSum(self, name, time, valStr):
         tot = 0
@@ -242,7 +242,7 @@ class Summary(object):
                 nxt = valStr.find(']', idx)
             subStr = valStr[idx + 1: nxt]
             try:
-                tot += long(subStr)
+                tot += int(subStr)
             except ValueError:
                 print(("Couldn't get integer value for '%s'" +
                      " ('%s' idx %d nxt %d)") % (subStr, valStr, idx, nxt), file=sys.stderr)

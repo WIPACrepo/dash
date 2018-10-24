@@ -165,14 +165,14 @@ class MockComponent(object):
             if self.__name.startswith("event"):
                 evtData = self.__mbean.get("backEnd", "EventData")
                 numEvts = int(evtData[1])
-                lastTime = long(evtData[2])
+                lastTime = int(evtData[2])
 
                 val = self.__mbean.get("backEnd", "FirstEventTime")
-                firstTime = long(val)
+                firstTime = int(val)
 
                 good = self.__mbean.get("backEnd", "GoodTimes")
-                firstGood = long(good[0])
-                lastGood = long(good[1])
+                firstGood = int(good[0])
+                lastGood = int(good[1])
 
                 return (numEvts, firstTime, lastTime, firstGood, lastGood)
         raise SystemExit("Cannot return run data for \"%s\"" %

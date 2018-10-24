@@ -580,7 +580,7 @@ class FakeClient(object):
     def __get_run_data(self, run_num):
         if not self.__quiet:
             print("GetRunData %s run %d" % (self, run_num))
-        return (long(1), long(2), long(3), long(4), long(5))
+        return (int(1), int(2), int(3), int(4), int(5))
 
     def __get_run_number(self):
         return self.__run_num

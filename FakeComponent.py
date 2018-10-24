@@ -23,9 +23,9 @@ class FakeError(Exception):
 class PayloadGenerator(object):
     def __init__(self, first_tick=None, delay=None):
         if first_tick is None:
-            self.__daq_tick = long(0x1234567890abcde)
+            self.__daq_tick = int(0x1234567890abcde)
         else:
-            self.__daq_tick = long(first_tick)
+            self.__daq_tick = int(first_tick)
 
         if delay is None:
             self.__delay = 1
@@ -47,7 +47,7 @@ class PayloadGenerator(object):
         try:
             return self.generate()
         finally:
-            self.__daq_tick += long(1E10 * self.__delay)
+            self.__daq_tick += int(1E10 * self.__delay)
 
 
 class MoniGenerator(PayloadGenerator):
@@ -281,7 +281,7 @@ class TriggerHandler(FakeClient):
         RR_TYPE = 0xf
         RR_GLOBAL = 0
         RR_SRC = -1
-        RR_DOM = long(-1)
+        RR_DOM = int(-1)
 
         uid = self.__trig_count
         self.__trig_count += 1

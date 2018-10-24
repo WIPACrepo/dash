@@ -509,7 +509,7 @@ class ListOpenFiles(object):
                     errmsg = "Parse error for inode (no curFile)"
                     raise ListOpenFileException(errmsg)
 
-                curFile.setInode(long(line[1:]))
+                curFile.setInode(int(line[1:]))
             elif line.startswith("k"):
                 if curFile is None:
                     errmsg = "Parse error for link count (no curFile)"
@@ -538,7 +538,7 @@ class ListOpenFiles(object):
                     errmsg = "Parse error for file size (no curFile)"
                     raise ListOpenFileException(errmsg)
 
-                curFile.setSize(long(line[1:]))
+                curFile.setSize(int(line[1:]))
             elif line.startswith("u"):
                 if curUser is None:
                     errmsg = "Parse error for user ID (no curUser)"

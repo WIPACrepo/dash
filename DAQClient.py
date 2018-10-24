@@ -39,7 +39,7 @@ def unFixValue(obj):
     elif isinstance(obj, str):
         try:
             if obj.endswith("L"):
-                return long(obj[:-1])
+                return int(obj[:-1])
             else:
                 return int(obj)
         except ValueError:
@@ -631,7 +631,7 @@ class DAQClient(ComponentName):
         try:
             evts = self.__client.xmlrpc.getEvents(subrunNumber)
             if isinstance(evts, str):
-                evts = long(evts[:-1])
+                evts = int(evts[:-1])
             return evts
         except:
             self.__log.error(exc_string())

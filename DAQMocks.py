@@ -158,7 +158,7 @@ class LiveChecker(BaseLiveChecker):
         if isinstance(val, str):
             return "\"%s\"" % val
 
-        if isinstance(val, long):
+        if isinstance(val, int):
             vstr = str(val)
             if vstr.endswith("L"):
                 return vstr[:-1]
@@ -1507,25 +1507,25 @@ class MockComponent(object):
             if self.__name.startswith("event"):
                 evtData = self.__mbeanClient.get("backEnd", "EventData")
                 numEvts = int(evtData[0])
-                lastTime = long(evtData[1])
+                lastTime = int(evtData[1])
 
                 val = self.__mbeanClient.get("backEnd", "FirstEventTime")
-                firstTime = long(val)
+                firstTime = int(val)
 
                 good = self.__mbeanClient.get("backEnd", "GoodTimes")
-                firstGood = long(good[0])
-                lastGood = long(good[1])
+                firstGood = int(good[0])
+                lastGood = int(good[1])
                 return (numEvts, firstTime, lastTime, firstGood, lastGood)
             elif self.__name.startswith("secondary"):
                 for bldr in ("tcal", "sn", "moni"):
                     val = self.__mbeanClient.get(bldr + "Builder",
                                                  "NumDispatchedData")
                     if bldr == "tcal":
-                        numTcal = long(val)
+                        numTcal = int(val)
                     elif bldr == "sn":
-                        numSN = long(val)
+                        numSN = int(val)
                     elif bldr == "moni":
-                        numMoni = long(val)
+                        numMoni = int(val)
 
                 return (numTcal, numSN, numMoni)
 

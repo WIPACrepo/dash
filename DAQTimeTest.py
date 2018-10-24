@@ -84,7 +84,7 @@ class TestDAQTime(unittest.TestCase):
     def testDeltaOneDay(self):
         jan1 = time.struct_time((self.CUR_YEAR, 1, 1, 0, 0, 0, 0, 0, -1))
         jan2 = time.struct_time((self.CUR_YEAR, 1, 2, 0, 0, 0, 0, 0, -1))
-        dayticks = long(calendar.timegm(jan2) - calendar.timegm(jan1)) * \
+        dayticks = int(calendar.timegm(jan2) - calendar.timegm(jan1)) * \
             self.TICKS_PER_SEC
 
         dt0 = PayloadTime.toDateTime(0)
@@ -102,7 +102,7 @@ class TestDAQTime(unittest.TestCase):
         jan1 = time.struct_time((self.CUR_YEAR, 1, 1, 0, 0, 0, 0, 0, -1))
         jan15 = time.struct_time((self.CUR_YEAR, 1, 15, 3, 2, 1, 0, 0, -1))
         usec = 101100
-        dayticks = long(calendar.timegm(jan15) - calendar.timegm(jan1)) * \
+        dayticks = int(calendar.timegm(jan15) - calendar.timegm(jan1)) * \
             self.TICKS_PER_SEC + (usec * 10000)
 
         dt0 = PayloadTime.toDateTime(0)
@@ -120,7 +120,7 @@ class TestDAQTime(unittest.TestCase):
         jan1 = time.struct_time((self.CUR_YEAR, 1, 1, 0, 0, 0, 0, 0, -1))
         jan15 = time.struct_time((self.CUR_YEAR, 1, 15, 3, 2, 1, 0, 0, -1))
         usec = 101100
-        dayticks = long(calendar.timegm(jan15) - calendar.timegm(jan1)) * \
+        dayticks = int(calendar.timegm(jan15) - calendar.timegm(jan1)) * \
             self.TICKS_PER_SEC + (usec * 10000)
 
         dt0 = PayloadTime.toDateTime(0, high_precision=True)

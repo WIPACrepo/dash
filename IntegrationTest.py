@@ -243,7 +243,7 @@ class MostlyRunData(RunData):
             if comp.name == "eventBuilder":
                 evtData = comp.mbean.get("backEnd", "EventData")
                 numEvts = evtData[1]
-                lastPayTime = long(evtData[2])
+                lastPayTime = int(evtData[2])
             elif comp.name == "secondaryBuilders":
                 for stream in ("moni", "sn", "tcal"):
                     val = comp.mbean.get(stream + "Builder", "EventData")
@@ -592,7 +592,7 @@ class RealComponent(object):
             for v in obj:
                 newObj.append(cls.__fixValue(v))
             obj = tuple(newObj)
-        elif isinstance(obj, int) or isinstance(obj, long):
+        elif isinstance(obj, int) or isinstance(obj, int):
             if obj < xmlrpclib.MININT or obj > xmlrpclib.MAXINT:
                 return str(obj)
         return obj
@@ -721,7 +721,7 @@ class RealComponent(object):
 
     def __startSubrun(self, data):
         self.__log('Start subrun %s' % str(data))
-        return long(time.time())
+        return int(time.time())
 
     def __stopRun(self):
         self.__log('Stop %s' % str(self))
@@ -886,10 +886,10 @@ class RealComponent(object):
 
     def setRunData(self, val0, val1, val2, val3=None, val4=None):
         if val3 is None and val4 is None:
-            self.__runData = (long(val0), long(val1), long(val2))
+            self.__runData = (int(val0), int(val1), int(val2))
         else:
-            self.__runData = (long(val0), long(val1), long(val2), long(val3),
-                              long(val4))
+            self.__runData = (int(val0), int(val1), int(val2), int(val3),
+                              int(val4))
 
     @staticmethod
     def sortForStart(y, x):
