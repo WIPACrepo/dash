@@ -393,20 +393,17 @@ class DAQLive(LiveComponent):
 
         # if we're not stopping yet, start the thread now
         if not self.__stopping:
-            if self.__runSet is None or not self.__runSet.isRunning:
-                raise LiveException("Cannot stop run; no active runset")
-
-            # stop in a thread so we can return immediately
-            self.__stopThrd = threading.Thread(target=self.__stopRun)
-            self.__stopThrd.start()
+            if self.__runSet is not None and self.__runSet.isRunning:
+                # stop in a thread so we can return immediately
+                self.__stopThrd = threading.Thread(target=self.__stopRun)
+                self.__stopThrd.start()
         else:
             # if we're stopping, try to join with the thread
             if self.__stopThrd is not None:
                 if self.__joinThread(self.__stopThrd):
                     self.__stopThrd = None
-                    # if we joined with the thread, DAQ must be stopped
-                    return True
 
+            return True
 
         if self.__oldAPI:
             self.__stopThrd.join()
@@ -415,6 +412,7 @@ class DAQLive(LiveComponent):
                 exc = self.__stopExc
                 self.__stopExc = None
                 raise exc
+
             return True
 
         return INCOMPLETE_STATE_CHANGE
