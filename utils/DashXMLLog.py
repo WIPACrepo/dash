@@ -338,7 +338,7 @@ class DashXMLLog:
         and the style sheet url to build an xml document.
         """
         # check for all required xml fields
-        fields_known = self._fields.keys()
+        fields_known = list(self._fields.keys())
         for requiredKey in self._required_fields:
             if requiredKey not in fields_known:
                 raise DashXMLLogException("Missing Required Field %s" %
