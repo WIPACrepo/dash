@@ -43,7 +43,7 @@ class PayloadGenerator(object):
     def generate(self):
         raise NotImplementedError()
 
-    def next(self):
+    def __next__(self):
         try:
             return self.generate()
         finally:
@@ -150,7 +150,7 @@ class StringHub(FakeClient):
 
         while self.__running:
             # get the next payload
-            payload = src.next()
+            payload = next(src)
             if payload is None:
                 # if we're out of payloads, exit the loop
                 break

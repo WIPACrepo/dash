@@ -43,7 +43,7 @@ class TinyClient(object):
         self.__num = num
         self.__connectors = connectors
 
-        self.__id = DAQClient.ID.next()
+        self.__id = next(DAQClient.ID)
 
         self.__host = host
         self.__port = port

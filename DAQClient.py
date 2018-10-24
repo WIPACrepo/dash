@@ -330,7 +330,7 @@ class DAQClient(ComponentName):
 
         super(DAQClient, self).__init__(name, num)
 
-        self.__id = DAQClient.ID.next()
+        self.__id = next(DAQClient.ID)
 
         self.__host = host
         self.__port = port

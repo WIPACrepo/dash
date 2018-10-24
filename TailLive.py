@@ -345,7 +345,7 @@ class Tail(LiveFile):
             if not line:
                 break
 
-    def next(self):
+    def __next__(self):
         return self.readline()
 
     def close(self):
@@ -377,7 +377,7 @@ class MultiFile(LiveFile):
     def next_file(self):
         raise NotImplementedError()
 
-    def next(self):
+    def __next__(self):
         return self.readline()
 
     def close(self):

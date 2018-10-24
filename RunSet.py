@@ -1336,7 +1336,7 @@ class RunSet(object):
         self.__set = runset
         self.__logger = logger
 
-        self.__id = RunSet.ID_SOURCE.next()
+        self.__id = next(RunSet.ID_SOURCE)
 
         self.__configured = False
         self.__state = RunSetState.IDLE

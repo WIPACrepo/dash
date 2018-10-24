@@ -1127,7 +1127,7 @@ class PayloadReader(object):
                 return
 
             # decode the next payload
-            pay = self.next()
+            pay = next(self)
             if pay is None:
                 # must have hit the end of the file
                 return
@@ -1186,7 +1186,7 @@ class PayloadReader(object):
 
         return UnknownPayload(type_id, utime, rawdata, keep_data=keep_data)
 
-    def next(self):
+    def __next__(self):
         "Read the next payload"
         pay = self.decode_payload(self.__fin, keep_data=self.__keep_data)
         self.__num_read += 1
