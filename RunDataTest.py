@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import os
 import shutil
 import tempfile
@@ -186,7 +188,7 @@ class MyRunData(RunData):
         if self.__moni_client is not None:
             return self.__moni_client
 
-        print "Creating real MoniClient"
+        print("Creating real MoniClient")
         return super(MyRunData, self).create_moni_client()
 
     @property

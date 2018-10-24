@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+
 """This is a utility written specificaly with linux and the /proc file system
 in mind.  Use the 'scan_pid' method to get a report on how many files a
 particular process has open.  It will give details into the number of open
@@ -76,9 +80,9 @@ def read_unix_proc(proc_unix_path="/proc/net/unix", debug=True):
                 type_str = type_map.get(type_int, "UNKNOWN")
 
                 if debug:
-                    print "UNIX:"
-                    print "\t", inode, ", ", proto_str, ", ", \
-                        type_str, ", ", file_str
+                    print("UNIX:")
+                    print("\t", inode, ", ", proto_str, ", ", \
+                        type_str, ", ", file_str)
                 results[inode] = (proto_str, type_str, file_str)
     return results
 
@@ -153,10 +157,10 @@ def read_tcp_proc(proc_tcp_path="/proc/net/tcp", debug=True):
                 remote_port = int(remote_port, 16)
 
                 if debug:
-                    print "TCP (", local_ip, ":", local_port, ") -> (", \
-                        remote_ip, ":", remote_port, ") State: ", state
-                    print "tx: ", tx, " rx: ", rx, " uid: ", uid, \
-                        " inode: ", inode
+                    print("TCP (", local_ip, ":", local_port, ") -> (", \
+                        remote_ip, ":", remote_port, ") State: ", state)
+                    print("tx: ", tx, " rx: ", rx, " uid: ", uid, \
+                        " inode: ", inode)
 
                 results[inode] = (local_ip, local_port, remote_ip,
                                   remote_port, state, rx, rx)
@@ -227,10 +231,10 @@ def read_udp_proc(proc_udp_path="/proc/net/udp", debug=True):
                 remote_port = int(remote_port, 16)
 
                 if debug:
-                    print "UDP (", local_ip, ":", local_port, ") -> (", \
-                        remote_ip, ":", remote_port, ") State: ", state
-                    print "tx: ", tx, " rx: ", rx, " uid: ", uid, \
-                        " inode: ", inode
+                    print("UDP (", local_ip, ":", local_port, ") -> (", \
+                        remote_ip, ":", remote_port, ") State: ", state)
+                    print("tx: ", tx, " rx: ", rx, " uid: ", uid, \
+                        " inode: ", inode)
 
                 results[inode] = (local_ip, local_port, remote_ip,
                                   remote_port, state, rx, rx)
@@ -302,7 +306,7 @@ def scan_pid(pid, debug_flag=False):
             elif socket_inode in unix_map:
                 unix_sockets.append(unix_map[socket_inode])
             else:
-                print "Uknown socket %d" % socket_inode
+                print("Uknown socket %d" % socket_inode)
             continue
 
         # check to see if the link points to a valid file
@@ -313,11 +317,11 @@ def scan_pid(pid, debug_flag=False):
 
         num_other = num_other + 1
 
-    print "Report for pid %d" % pid
-    print "Number of open files: %d" % num_open_files
-    print "Number of sockets: %d" % num_sockets
-    print "Number of files: %d" % num_files
-    print "Number of other (pipes etc ): %d" % num_other
+    print("Report for pid %d" % pid)
+    print("Number of open files: %d" % num_open_files)
+    print("Number of sockets: %d" % num_sockets)
+    print("Number of files: %d" % num_files)
+    print("Number of other (pipes etc ): %d" % num_other)
 
     print_details(tcp_socket_map, udp_socket_map, unix_sockets, open_files)
 
@@ -327,49 +331,49 @@ def print_details(tcp_socket_map, udp_socket_map, unix_sockets, open_files):
     report to standard out."""
 
     # tcp sockets
-    print ""
-    print "TCP Socket Details:"
-    print "-" * 60
+    print("")
+    print("TCP Socket Details:")
+    print("-" * 60)
     for key in tcp_socket_map:
         if len(tcp_socket_map[key]) > 1:
-            print "There are %d connections to %s" % \
-                (len(tcp_socket_map[key]), key)
+            print("There are %d connections to %s" % \
+                (len(tcp_socket_map[key]), key))
 
         for entry in tcp_socket_map[key]:
-            print "Local %-15s:%6d\tRemote: %15s:%6d\tState: %s " \
-                "(rx: %d, tx:%d)" % entry
+            print("Local %-15s:%6d\tRemote: %15s:%6d\tState: %s " \
+                "(rx: %d, tx:%d)" % entry)
 
     # udp sockets
-    print ""
-    print "UDP Socket Details:"
-    print "-" * 60
+    print("")
+    print("UDP Socket Details:")
+    print("-" * 60)
     for key in udp_socket_map:
         if len(udp_socket_map[key]) > 1:
-            print "There are %d connections to %s" % \
-                (len(udp_socket_map[key]), key)
+            print("There are %d connections to %s" % \
+                (len(udp_socket_map[key]), key))
         for entry in udp_socket_map[key]:
-            print "Local %-15s:%6d\tRemote: %15s:%6d\tState: %s " \
-                "(rx: %d, tx: %d)" % entry
+            print("Local %-15s:%6d\tRemote: %15s:%6d\tState: %s " \
+                "(rx: %d, tx: %d)" % entry)
 
     # unix sockets
-    print ""
-    print "Unix Socket Details:"
-    print "-" * 60
+    print("")
+    print("Unix Socket Details:")
+    print("-" * 60)
     for entry in unix_sockets:
-        print "%-15s\t%15s\t%s" % entry
+        print("%-15s\t%15s\t%s" % entry)
 
     # files
-    print ""
-    print "Open Files:"
-    print "-" * 60
+    print("")
+    print("Open Files:")
+    print("-" * 60)
     for entry in open_files:
-        print entry
+        print(entry)
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print "Usage:"
-        print "%s <pid of process to scan>" % sys.argv[0]
+        print("Usage:")
+        print("%s <pid of process to scan>" % sys.argv[0])
         sys.exit(-1)
 
     pid = int(sys.argv[1])
