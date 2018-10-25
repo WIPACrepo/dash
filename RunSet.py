@@ -295,7 +295,7 @@ class GoodTimeThread(CnCThread):
                     val = result[self.beanfield()]
                 else:
                     val = None
-                if val is None or val <= 0L:
+                if val is None or val <= 0:
                     # No results yet, need to poll again
                     complete = False
                     continue
@@ -2362,7 +2362,7 @@ class RunSet(object):
                     os.rename(run_dir, bak_dir)
                     break
                 n += 1
-            os.mkdir(run_dir, 0755)
+            os.mkdir(run_dir, 0o755)
 
         return run_dir
 

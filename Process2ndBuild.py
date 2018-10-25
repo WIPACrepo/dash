@@ -134,7 +134,7 @@ def create_tar_and_sem_files(files_to_tar, verbose=False, dry_run=False,
     if not dry_run:
         os.link(spade_tar, snlink)
         # So that SN process can delete if it's not running as pdaq
-        os.chmod(snlink, 0666)
+        os.chmod(snlink, 0o666)
 
     # Create spade .sem
     if not dry_run:

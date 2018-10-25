@@ -1102,7 +1102,7 @@ class PayloadReader(object):
         self.__filename = filename
         self.__fin = fin
         self.__keep_data = keep_data
-        self.__num_read = 0L
+        self.__num_read = 0
 
     def __enter__(self):
         """

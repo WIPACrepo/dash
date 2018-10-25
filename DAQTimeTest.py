@@ -29,7 +29,7 @@ class TestDAQTime(unittest.TestCase):
         if high_precision:
             subsecstr = "%010d" % usec
         else:
-            subsecstr = "%06d" % (usec / 10000L)
+            subsecstr = "%06d" % (usec / 10000)
         return "%04d-%02d-%02d %02d:%02d:%02d.%s" % \
             (yr, mon, day, hr, minutes, sec, subsecstr)
 
@@ -270,14 +270,14 @@ class TestDAQTime(unittest.TestCase):
         self.__checkCompare(dt0, dt1, 1)
 
     def testCompareLeapYear(self):
-        dt = PayloadTime.toDateTime(199999990000000000L, year=2012,
+        dt = PayloadTime.toDateTime(199999990000000000, year=2012,
                                     high_precision=False)
         expStr = self.__dateFormat(2012, 8, 19, 11, 33, 18, 0)
         self.assertEqual(expStr, str(dt),
                          "Expected date %s, not %s" % (expStr, dt))
 
     def testCompareNonLeapYear(self):
-        dt = PayloadTime.toDateTime(199999990000000000L, year=2013,
+        dt = PayloadTime.toDateTime(199999990000000000, year=2013,
                                     high_precision=False)
         expStr = self.__dateFormat(2013, 8, 20, 11, 33, 19, 0)
         self.assertEqual(expStr, str(dt),

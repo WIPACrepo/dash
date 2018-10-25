@@ -674,7 +674,7 @@ class FakeClient(object):
     def __start_subrun(self, data):
         if not self.__quiet:
             print("StartSubrun %s data %s" % (self, data))
-        return 123456789L
+        return 123456789
 
     def __stop_run(self):
         if not self.__quiet:

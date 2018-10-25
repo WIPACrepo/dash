@@ -772,8 +772,8 @@ class TestDAQPool(unittest.TestCase):
         numSN = 0
         numTcal = 0
 
-        firstTime = 12345678L
-        lastTime = 23456789L
+        firstTime = 12345678
+        lastTime = 23456789
 
         cComp.mbean.addData("backEnd", "FirstEventTime", firstTime)
         cComp.mbean.addData("backEnd", "EventData",

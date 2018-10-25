@@ -1615,11 +1615,11 @@ class IntegrationTest(unittest.TestCase):
 
         numEvts = 17
         numMoni = 222
-        moniTicks = 0L
+        moniTicks = 0
         numSN = 51
-        snTicks = 0L
+        snTicks = 0
         numTcal = 93
-        tcalTicks = 0L
+        tcalTicks = 0
         lastEvtTime = startEvtTime + (domTicksPerSec * 3)
 
         self.__setBeanData("eventBuilder", 0, "backEnd", "NumEventsSent",

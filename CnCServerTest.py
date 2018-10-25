@@ -58,7 +58,7 @@ class FakeRunData(object):
 
         self.__finished = False
 
-        self.__firstPayTime = 0L
+        self.__firstPayTime = 0
 
     def clone(self, parent, newNum):
         return FakeRunData(newNum, self.__run_config, self.__cluster_config,
