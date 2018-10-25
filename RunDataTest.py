@@ -263,14 +263,14 @@ class RunDataTest(unittest.TestCase):
                            tcal_time, bad_data=False):
         for comp in runset.components():
             if comp.name == "eventBuilder":
-                comp.mbean.addData("backEnd","EventData",
+                comp.mbean.addData("backEnd", "EventData",
                                    [run_number, num_evts, evt_time])
             elif comp.name == "secondaryBuilders":
-                comp.mbean.addData("moniBuilder","EventData",
+                comp.mbean.addData("moniBuilder", "EventData",
                                    [run_number, num_moni, moni_time])
-                comp.mbean.addData("snBuilder","EventData",
+                comp.mbean.addData("snBuilder", "EventData",
                                    [run_number, num_sn, sn_time])
-                comp.mbean.addData("tcalBuilder","EventData",
+                comp.mbean.addData("tcalBuilder", "EventData",
                                    [run_number, num_tcal, tcal_time])
 
     def __validate_dict(self, result, valid, skip_wall_time=False):
@@ -940,10 +940,10 @@ class RunDataTest(unittest.TestCase):
 
         for comp in runset.components():
             if comp.name == "eventBuilder":
-                comp.mbean.addData("backEnd","EventData", None)
+                comp.mbean.addData("backEnd", "EventData", None)
             elif comp.name == "secondaryBuilders":
                 for stream in ("moni", "sn", "tcal"):
-                    comp.mbean.addData(stream + "Builder","EventData", None)
+                    comp.mbean.addData(stream + "Builder", "EventData", None)
 
         err_comps = ("eventBuilder", "secondaryBuilders", "secondaryBuilders",
                      "secondaryBuilders", )
@@ -969,10 +969,10 @@ class RunDataTest(unittest.TestCase):
 
         for comp in runset.components():
             if comp.name == "eventBuilder":
-                comp.mbean.addData("backEnd","EventData", 17)
+                comp.mbean.addData("backEnd", "EventData", 17)
             elif comp.name == "secondaryBuilders":
                 for stream in ("moni", "sn", "tcal"):
-                    comp.mbean.addData(stream + "Builder","EventData", 34)
+                    comp.mbean.addData(stream + "Builder", "EventData", 34)
 
         err_comps = ("eventBuilder", "secondaryBuilders", "secondaryBuilders",
                      "secondaryBuilders", )
@@ -996,10 +996,10 @@ class RunDataTest(unittest.TestCase):
 
         for comp in runset.components():
             if comp.name == "eventBuilder":
-                comp.mbean.addData("backEnd","EventData", [1, 2])
+                comp.mbean.addData("backEnd", "EventData", [1, 2])
             elif comp.name == "secondaryBuilders":
                 for stream in ("moni", "sn", "tcal"):
-                    comp.mbean.addData(stream + "Builder","EventData", [3, 4])
+                    comp.mbean.addData(stream + "Builder", "EventData", [3, 4])
 
         err_comps = ("eventBuilder", "secondaryBuilders", "secondaryBuilders",
                      "secondaryBuilders", )
