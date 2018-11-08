@@ -351,6 +351,8 @@ class Tail(LiveFile):
     def close(self):
         self.__proc.kill()
 
+    next = __next__ # XXX backward compatibility for Python 2
+
     def readline_nb(self):
         """Non-blocking read"""
         return self.__queue.get_nowait()
@@ -374,14 +376,16 @@ class MultiFile(LiveFile):
     def __iter__(self):
         return self
 
-    def next_file(self):
-        raise NotImplementedError()
-
     def __next__(self):
         return self.readline()
 
+    def next_file(self):
+        raise NotImplementedError()
+
     def close(self):
         self.__fd.close()
+
+    next = __next__ # XXX backward compatibility for Python 2
 
     def readline(self):
         while True:

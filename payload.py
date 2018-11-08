@@ -1135,6 +1135,12 @@ class PayloadReader(object):
             # return the next payload
             yield pay
 
+    def __next__(self):
+        "Read the next payload"
+        pay = self.decode_payload(self.__fin, keep_data=self.__keep_data)
+        self.__num_read += 1
+        return pay
+
     def close(self):
         """
         Explicitly close the filehandle
@@ -1186,11 +1192,7 @@ class PayloadReader(object):
 
         return UnknownPayload(type_id, utime, rawdata, keep_data=keep_data)
 
-    def __next__(self):
-        "Read the next payload"
-        pay = self.decode_payload(self.__fin, keep_data=self.__keep_data)
-        self.__num_read += 1
-        return pay
+    next = __next__ # XXX backward compatibility for Python 2
 
 
 if __name__ == "__main__":

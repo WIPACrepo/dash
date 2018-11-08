@@ -32,6 +32,12 @@ class PayloadGenerator(object):
         else:
             self.__delay = delay
 
+    def __next__(self):
+        try:
+            return self.generate()
+        finally:
+            self.__daq_tick += int(1E10 * self.__delay)
+
     @property
     def daq_tick(self):
         return self.__daq_tick
@@ -43,11 +49,7 @@ class PayloadGenerator(object):
     def generate(self):
         raise NotImplementedError()
 
-    def __next__(self):
-        try:
-            return self.generate()
-        finally:
-            self.__daq_tick += int(1E10 * self.__delay)
+    next = __next__ # XXX backward compatibility for Python 2
 
 
 class MoniGenerator(PayloadGenerator):
