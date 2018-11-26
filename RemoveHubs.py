@@ -171,7 +171,7 @@ def main():
     remove_hubs(args)
 
 
-def parse_hub_rack_strings(parser, extra):
+def parse_hub_rack_strings(extra):
     """
     Convert hub/rack strings from command-line into lists of hubs and or racks
     """
@@ -185,7 +185,7 @@ def parse_hub_rack_strings(parser, extra):
                     num = int(substr[1:])
                     rack_list.append(num)
                 except:
-                    parser.error("Bad rack specifier \"%s\"" % substr)
+                    raise SystemExit("Bad rack specifier \"%s\"" % substr)
                 continue
 
             offset = 0
@@ -199,17 +199,17 @@ def parse_hub_rack_strings(parser, extra):
                 num = int(substr) + offset
                 hub_list.append(num)
             except:
-                parser.error("Bad hub specifier \"%s\"" % substr)
+                raise SystemExit("Bad hub specifier \"%s\"" % substr)
             continue
 
     if len(hub_list) == 0 and len(rack_list) == 0:
-        parser.error("No hubs or racks specified")
+        raise SystemExit("No hubs or racks specified")
 
     return (hub_list, rack_list)
 
 
 def remove_hubs(args):
-    hub_list, rack_list = parse_hub_rack_strings(p, args.hubOrRack)
+    hub_list, rack_list = parse_hub_rack_strings(args.hubOrRack)
 
     # verify that original run configuration file exists
     if len(args.runConfig) != 1:

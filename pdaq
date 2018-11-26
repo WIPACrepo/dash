@@ -44,7 +44,17 @@ if __name__ == "__main__":
             # missing lxml can cause import problems on hubs
             cmdmap[v.name()] = CmdProblem(v.name(), "%s: %s" % (type(ie), ie))
 
-    ns = p.parse_args()
+    # try to parse command-line arguments
+    ns, unknown = p.parse_known_args()
+    if unknown is not None and len(unknown) > 0:
+        # there was a problem with the
+        if ns.cmd not in cmdmap:
+            raise SystemExit("Unknown command \"%s\"" % (ns.cmd, ))
+        if isinstance(cmdmap[ns.cmd], CmdProblem):
+            cmdmap[ns.cmd].run(None)
+            raise SystemExit(1)
+        raise SystemExit("Unknown argument(s) for \"%s\": %s" %
+                         (ns.cmd, unknown, ))
 
     # True if the user didn't tell us to ignore the host type
     host_check = not hasattr(ns, 'nohostcheck') or not ns.nohostcheck
