@@ -2,6 +2,8 @@
 #
 # Deal with the various configuration name caches
 
+from __future__ import print_function
+
 import os
 
 from locate_pdaq import find_pdaq_config
@@ -61,7 +63,7 @@ class CachedFile(object):
         cachedNamePath = CachedFile.__getCachedNamePath(writeActiveConfig)
 
         with open(cachedNamePath, 'w') as fd:
-            print >> fd, name
+            print(name, file=fd)
 
 
 class CachedConfigName(CachedFile):

@@ -91,7 +91,6 @@ class TestUtils(unittest.TestCase):
 
         docStr = a.documentToString(indent="")
 
-
         expectedDocStr = """<?xml version="1.0" ?>
 <?xml-stylesheet type="text/xsl" href="/2001/xml/DAQRunlog.xsl"?>
 <DAQRunlog>
@@ -116,6 +115,7 @@ class TestUtils(unittest.TestCase):
         expStr = self.normalizeXML(expectedDocStr)
 
         self.assertEqual(realStr, expStr)
+
 
 if __name__ == "__main__":
     unittest.main()

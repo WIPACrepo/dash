@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+
 from lxml import etree
 from lxml.etree import XMLSyntaxError
 import os
@@ -37,6 +41,8 @@ def _open_schema(path, description):
 
 validated_def_dom_geom = None
 validated_cluster_cfg = None
+
+
 def validate_configs(cluster_xml_filename, runconfig_xml_filename,
                      default_dom_geom_xml_filename=None):
 
@@ -57,14 +63,13 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
     # -------------------------------------------------
     # validate the cluster config
     # really odd file name rules..  but try to keep it consistent
-    if cluster_xml_filename == None:
+    if cluster_xml_filename is None:
         cluster_xml_filename = ClusterDescription.getClusterFromHostName()
 
     if cluster_xml_filename.endswith('.xml'):
         # old cluster configs not supported
-        return (False,
-                "Old style cluster configs not supported '%s'" % \
-                    cluster_xml_filename)
+        return (False, "Old style cluster configs not supported '%s'" %
+                cluster_xml_filename)
 
     basename = os.path.basename(cluster_xml_filename)
 
@@ -202,7 +207,7 @@ def is_sps_cluster(cluster_xml_filename):
     # the cluster attribute is the root element of the cluster
     # config xml file
     cluster = doc_xml.getroot()
-    if cluster == None:
+    if cluster is None:
         return True
     # 'name' is required by the validate_clustercfg code
     # but be a bit paranoid so check for it
@@ -333,38 +338,37 @@ if __name__ == "__main__":
 
     config_dir = find_pdaq_config()
 
-    print "-" * 60
-    print "Validating all sps configurations"
-    print "-" * 60
+    print("-" * 60)
+    print("Validating all sps configurations")
+    print("-" * 60)
     sps_configs = glob.glob(os.path.join(config_dir, 'sps*.xml'))
 
-    print "validate_configs"
-    print "Validating all sps configurations"
+    print("validate_configs")
+    print("Validating all sps configurations")
     for config in sps_configs:
-        print ""
-        print "Validating %s" % config
+        print("")
+        print("Validating %s" % config)
         (valid, reason) = validate_configs(os.path.join(config_dir,
                                                         'sps-cluster.cfg'),
                                            config)
 
         if not valid:
-            print "Configuration invalid ( reasons: )"
-            print reason
+            print("Configuration invalid ( reasons: )")
+            print(reason)
         else:
-            print "Configuration is valid"
-
+            print("Configuration is valid")
 
     spts_configs = glob.glob(os.path.join(config_dir, 'spts*.xml'))
-    print "Validating all sps configurations"
+    print("Validating all sps configurations")
     for config in spts_configs:
-        print ""
-        print "Validating %s" % config
+        print("")
+        print("Validating %s" % config)
         (valid, reason) = validate_configs(os.path.join(config_dir,
                                                         'spts-cluster.cfg'),
                                            config)
 
         if not valid:
-            print "Configuration invalid ( reasons: )"
-            print reason
+            print("Configuration invalid ( reasons: )")
+            print(reason)
         else:
-            print "Configuration is valid"
+            print("Configuration is valid")

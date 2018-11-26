@@ -45,5 +45,6 @@ class RateTaskTest(unittest.TestCase):
 
         tsk.close()
 
+
 if __name__ == '__main__':
     unittest.main()

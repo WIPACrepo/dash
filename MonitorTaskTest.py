@@ -34,6 +34,15 @@ class BadMBeanClient(MockMBeanClient):
             raise Exception("Mock exception")
         return super(BadMBeanClient, self).get(beanName, fieldName)
 
+    def getDictionary(self):
+        if self.__raiseSocketError:
+            self.__raiseSocketError = False
+            raise BeanTimeoutException("Mock exception")
+        if self.__raiseException:
+            self.__raiseException = False
+            raise Exception("Mock exception")
+        return super(BadMBeanClient, self).getDictionary()
+
     def raiseException(self):
         self.__raiseException = True
 
@@ -107,7 +116,7 @@ class MonitorTaskTest(unittest.TestCase):
         tsk = MonitorTask(taskMgr, runset, logger, live, self.__temp_dir,
                           runOpt)
 
-        #from DAQMocks import LogChecker; LogChecker.DEBUG = True
+        # from DAQMocks import LogChecker; LogChecker.DEBUG = True
 
         for i in range(-1, 5):
             if RunOption.isMoniToLive(runOpt):
@@ -131,7 +140,7 @@ class MonitorTaskTest(unittest.TestCase):
                         elif i >= 0 and i < 3:
                             c.mbean.raiseSocketError()
                     elif i > 0 and raiseException:
-                        errMsg = "Ignoring %s:.*: Exception.*$" % c.fullname
+                        errMsg = "Ignoring %s:(.*:)? Exception.*$" % c.fullname
                         logger.addExpectedRegexp(errMsg)
                         c.mbean.raiseException()
 
@@ -154,13 +163,19 @@ class MonitorTaskTest(unittest.TestCase):
     def __validateFiles(self, runOpt, compList):
         files = os.listdir(self.__temp_dir)
         if not RunOption.isMoniToFile(runOpt):
-            self.failIf(len(files) > 0, "Found unexpected monitoring files: " +
-                        str(files))
+            self.assertFalse(len(files) > 0,
+                             "Found unexpected monitoring files: " +
+                             str(files))
             return
 
-        self.failUnless(len(files) == len(compList) + 1,
+        expFiles = len(compList)
+        if MonitorTask.MONITOR_CNCSERVER:
+            # if monitoring CnCServer, there should be a cncServer.moni file
+            expFiles += 1
+
+        self.assertTrue(len(files) == expFiles,
                         "Expected %d files, not %d: %s" %
-                        (len(compList) + 1, len(files), files))
+                        (expFiles, len(files), files))
 
     def setUp(self):
         self.__temp_dir = tempfile.mkdtemp()
@@ -254,8 +269,9 @@ class MonitorTaskTest(unittest.TestCase):
         except Exception as ex:
             if not str(ex).endswith("Forced exception"):
                 raise
-        self.failUnless(tsk.numOpen() == 0, "%d threads were not closed" %
+        self.assertTrue(tsk.numOpen() == 0, "%d threads were not closed" %
                         tsk.numOpen())
+
 
 if __name__ == '__main__':
     unittest.main()

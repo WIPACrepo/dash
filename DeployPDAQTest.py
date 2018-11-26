@@ -30,6 +30,7 @@ class MockClusterConfig(object):
     def writeCacheFile(self):
         pass
 
+
 class DeployPDAQTest(unittest.TestCase):
     def __checkDeploy(self, hosts, subdirs, delete, dryRun, deepDryRun,
                       undeploy, niceAdj=DeployPDAQ.NICE_ADJ_DEFAULT,
@@ -180,6 +181,7 @@ class DeployPDAQTest(unittest.TestCase):
         self.__checkDeploy(hosts, subdirs, delete,
                            dryRun, deepDryRun, undeploy,
                            niceAdj, express)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import sys
 
 from DAQConst import DAQPort
@@ -8,6 +10,13 @@ from utils.Machineid import Machineid
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
+
+
+# Python 2/3 compatibility hack
+if sys.version_info >= (3, 0):
+    read_input = input
+else:
+    read_input = raw_input
 
 
 def add_arguments(parser):
@@ -39,12 +48,12 @@ def stoprun(args):
             try:
                 n = int(a)
             except:
-                print >>sys.stderr, "Argument \"%s\" is not a runset ID" % a
+                print("Argument \"%s\" is not a runset ID" % a, file=sys.stderr)
                 listRS = True
                 break
 
-            if not n in rsids:
-                print >>sys.stderr, "\"%s\" is not a valid runset ID" % a
+            if n not in rsids:
+                print("\"%s\" is not a valid runset ID" % a, file=sys.stderr)
                 listRS = True
                 break
 
@@ -53,7 +62,7 @@ def stoprun(args):
         stopIds.append(rsids[0])
 
     if len(stopIds) == 0:
-        print >>sys.stderr, "Please specify a runset ID"
+        print("Please specify a runset ID", file=sys.stderr)
         listRS = False
 
     if listRS:
@@ -68,21 +77,21 @@ def stoprun(args):
         except:
             state = "UNKNOWN"
         while True:
-            reply = raw_input("Are you sure you want to stop" +
-                              " runset #%d (%s) without 'livecmd'? " %
-                              (rsid, state))
+            reply = read_input("Are you sure you want to stop" +
+                               " runset #%d (%s) without 'livecmd'? " %
+                               (rsid, state))
             lreply = reply.strip().lower()
             if lreply == "y" or lreply == "yes":
                 try:
                     cncrpc.rpc_runset_stop_run(rsid)
-                    print "Stopped runset #%d" % rsid
+                    print("Stopped runset #%d" % rsid)
                 except:
-                    print >>sys.stderr, "Could not stop runset #%d: %s" % \
-                          (rsid, exc_string())
+                    print("Could not stop runset #%d: %s" % \
+                          (rsid, exc_string()), file=sys.stderr)
                 break
             elif lreply == "n" or lreply == "no":
                 break
-            print >>sys.stderr, "Please answer 'yes' or 'no'"
+            print("Please answer 'yes' or 'no'", file=sys.stderr)
 
 
 if __name__ == "__main__":
@@ -100,6 +109,6 @@ if __name__ == "__main__":
         if (not (hostid.is_control_host() or
                  (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
             raise SystemExit("Are you sure you are emergency-stopping the run"
-                             " on the correct host?" )
+                             " on the correct host?")
 
     stoprun(args)

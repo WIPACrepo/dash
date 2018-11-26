@@ -10,16 +10,6 @@ from DAQLog import FileAppender
 class TestDAQLogClient(unittest.TestCase):
     DIR_PATH = None
 
-    def checkLog(self, logPath, msgList):
-        lines = self.readLog(logPath)
-        self.assertEqual(len(msgList), len(lines), 'Expected %d line, not %d' %
-                         (len(msgList), len(lines)))
-
-        for i in range(len(msgList)):
-            msg = lines[i].rstrip()
-            self.assertEqual(msgList[i], msg,
-                             'Expected "%s", not "%s"' % (msgList[i], msg))
-
     def readLog(self, logPath):
         lines = []
         with open(logPath, 'r') as fd:
@@ -54,7 +44,7 @@ class TestDAQLogClient(unittest.TestCase):
 
         self.collector = FileAppender(logName, logPath)
 
-        self.failUnless(os.path.exists(logPath), 'Log file was not created')
+        self.assertTrue(os.path.exists(logPath), 'Log file was not created')
 
         msg = 'Test msg'
 
@@ -68,10 +58,10 @@ class TestDAQLogClient(unittest.TestCase):
         prefix = logName + ' ['
 
         line = lines[0].rstrip()
-        self.failUnless(line.startswith(prefix),
+        self.assertTrue(line.startswith(prefix),
                         'Log entry "%s" should start with "%s"' %
                         (line, prefix))
-        self.failUnless(line.endswith('] ' + msg),
+        self.assertTrue(line.endswith('] ' + msg),
                         'Log entry "%s" should start with "%s"' %
                         (line, '] ' + msg))
 
@@ -82,6 +72,7 @@ class TestDAQLogClient(unittest.TestCase):
             badPath = os.path.join(badPath, 'x')
 
         self.assertRaises(Exception, FileAppender, logName, badPath)
+
 
 if __name__ == '__main__':
     unittest.main()

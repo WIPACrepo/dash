@@ -3,6 +3,8 @@
 # Check the pDAQ/config directory on expcont for files which have been
 # used in data-taking but have not been committed
 
+from __future__ import print_function
+
 import os
 import re
 import smtplib
@@ -89,12 +91,12 @@ class ConfigDirChecker(object):
         if len(self.__processlist) > 0:
             for f in self.__processlist[:]:
                 # load run configuration file
-                print "!!! Loading %s" % f
+                print("!!! Loading %s" % f)
                 try:
                     cfg = DAQConfigParser.parse(self.__cfgdir, f, strict=False)
                 except:
                     import traceback
-                    print >>sys.stderr, "!!! Ignoring bad %s" % f
+                    print("!!! Ignoring bad %s" % f, file=sys.stderr)
                     traceback.print_exc()
                     continue
 
@@ -138,9 +140,8 @@ class ConfigDirChecker(object):
                 del svnmap[path]
             else:
                 # complain about all others
-                print >>sys.stderr, \
-                    "Not handling SVN status type %s for %s" % \
-                    (svnmap[path], path)
+                print("Not handling SVN status type %s for %s" % \
+                    (svnmap[path], path), file=sys.stderr)
 
     def __send_email(self, dryrun=False):
         intro = ("Subject: Modified run configuration(s) on SPS\n\n" +
@@ -149,20 +150,18 @@ class ConfigDirChecker(object):
         if len(self.__modified) == 0:
             modstr = ""
         else:
-            modstr = \
-                ("There are modified run configuration files in" +
-                 " access:~pdaq/config on SPS.\nPlease check in valid changes" +
-                 " and/or revert modified files.\n\n\t" +
-                 "\n\t".join(self.__modified))
+            modstr = "There are modified run configuration files in" \
+                     " access:~pdaq/config on SPS.\nPlease check in valid" \
+                     " changes and/or revert modified files.\n\n\t" + \
+                     "\n\t".join(self.__modified)
 
         if len(self.__ancient) == 0:
             oldstr = ""
         else:
             self.__ancient.sort()
-            oldstr = \
-                ("There are run configuration files more than one year old.\n" +
-                 "They should probably be removed.\n\n\t" +
-                 "\n\t".join(str(x) for x in self.__ancient))
+            oldstr = "There are run configuration files more than one year" \
+                     " old.\nThey should probably be removed.\n\n\t" + \
+                     "\n\t".join(str(x) for x in self.__ancient)
 
         if modstr != "" and oldstr != "":
             middle = "\n\n\n"
@@ -174,9 +173,9 @@ class ConfigDirChecker(object):
         body = intro + modstr + middle + oldstr
 
         if dryrun:
-            print "From: " + fromaddr
-            print "To: " + toaddr
-            print body
+            print("From: " + fromaddr)
+            print("To: " + toaddr)
+            print(body)
             return
 
         s = smtplib.SMTP("mail.southpole.usap.gov")
@@ -235,8 +234,8 @@ class ConfigDirChecker(object):
 
             m = pat.match(line)
             if not m:
-                print >>sys.stderr, "Bad SVN line in %s: \"%s\"" % \
-                    (self.__cfgdir, line)
+                print("Bad SVN line in %s: \"%s\"" % \
+                    (self.__cfgdir, line), file=sys.stderr)
                 continue
 
             svnmap[m.group(2)] = m.group(1)
@@ -282,7 +281,8 @@ class ConfigDirChecker(object):
         Report the results
 
         verbose - if False, print a one-line summary
-                  if True, print the names of added, modified, and unknown files
+                  if True, print the names of added, modified, and
+                           unknown files
         showUnknown - if True, don't report unknown files
         """
         needSpaces = False
@@ -297,32 +297,32 @@ class ConfigDirChecker(object):
                         outstr += ", "
                     outstr += "%d %s" % pair
             if len(outstr) > 0:
-                print outstr
+                print(outstr)
             return
 
         if len(self.__added) > 0:
-            print "Added %d configuration files:" % len(self.__added)
+            print("Added %d configuration files:" % len(self.__added))
             for f in self.__added:
-                print self.INDENT + f
+                print(self.INDENT + f)
             needSpaces = True
 
         if len(self.__modified) > 0:
             if needSpaces:
-                print
-                print
-            print "Found %d modified configuration files:" % \
-                len(self.__modified)
+                print()
+                print()
+            print("Found %d modified configuration files:" % \
+                len(self.__modified))
             for f in self.__modified:
-                print self.INDENT + f
+                print(self.INDENT + f)
             needSpaces = True
 
         if showUnknown and len(self.__unknown) > 0:
             if needSpaces:
-                print
-                print
-            print "Found %d unknown configuration files:" % len(self.__unknown)
+                print()
+                print()
+            print("Found %d unknown configuration files:" % len(self.__unknown))
             for f in self.__unknown:
-                print self.INDENT + f
+                print(self.INDENT + f)
             needSpaces = True
 
     def __svn_add(self, svndir, name, dryrun=False):
@@ -330,7 +330,7 @@ class ConfigDirChecker(object):
         Add a file to the local SVN repository
         """
         if dryrun:
-            print "%s add %s" % (self.SVN_BIN, name)
+            print("%s add %s" % (self.SVN_BIN, name))
             return True
 
         proc = subprocess.Popen((self.SVN_BIN, "add", name),
@@ -342,9 +342,9 @@ class ConfigDirChecker(object):
         proc.stdout.close()
         proc.wait()
         if proc.returncode != 0:
-            print >>sys.stderr, "Failed to SVN ADD %s:" % name
+            print("Failed to SVN ADD %s:" % name, file=sys.stderr)
             for line in outlines:
-                print >>sys.stderr, self.INDENT + line
+                print(self.INDENT + line, file=sys.stderr)
 
         return proc.returncode == 0
 
@@ -353,8 +353,8 @@ class ConfigDirChecker(object):
         Commit all added/modified files to the master SVN repository
         """
         if dryrun:
-            print "%s commit -m\"%s\" %s" % \
-                (self.SVN_BIN, commit_msg, " ".join(filelist))
+            print("%s commit -m\"%s\" %s" % \
+                (self.SVN_BIN, commit_msg, " ".join(filelist)))
             return True
 
         proc = subprocess.Popen([self.SVN_BIN, "commit", "-m",
@@ -367,9 +367,9 @@ class ConfigDirChecker(object):
         proc.stdout.close()
         proc.wait()
         if proc.returncode != 0:
-            print >>sys.stderr, "Failed to SVN COMMIT %s:" % " ".join(filelist)
+            print("Failed to SVN COMMIT %s:" % " ".join(filelist), file=sys.stderr)
             for line in outlines:
-                print >>sys.stderr, self.INDENT + line
+                print(self.INDENT + line, file=sys.stderr)
 
         return proc.returncode == 0
 
@@ -411,7 +411,8 @@ if __name__ == "__main__":
                    help="Don't add files to SVN")
     p.add_argument("-u", "--show-unknown", dest="showUnknown",
                    action="store_true", default=False,
-                   help="Print list of all unknown files found in $PDAQ_CONFIG")
+                   help="Print list of all unknown files found"
+                   " in $PDAQ_CONFIG")
     p.add_argument("-v", "--verbose", dest="verbose",
                    action="store_true", default=False,
                    help="Print details of operation")

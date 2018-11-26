@@ -6,6 +6,8 @@ John Jacobsen, jacobsen@npxdesigns.com
 Started November, 2006
 """
 
+from __future__ import print_function
+
 import re
 import sys
 from BaseRun import FlasherScript
@@ -13,7 +15,7 @@ from cncrun import CnCRun
 from datetime import datetime
 from utils.Machineid import Machineid
 
-SVN_ID = "$Id: ExpControlSkel.py 15765 2015-09-15 22:45:15Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 17035 2018-06-08 18:17:03Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -84,8 +86,6 @@ class SubRun(object):
         self.domlist = []
 
     def addDOM(self, d):
-        #self.domlist.append(SubRunDOM(string, pos,  bright, window, delay,
-        #                              mask, rate))
         raise NotImplementedError(("source for SubRunDOM class"
                                    "parameters not known"))
 
@@ -156,34 +156,50 @@ def add_arguments(parser, config_as_arg=False):
                               " run permission"))
 
 
-# stolen from live/misc/util.py
-def getDurationFromString(s):
+# adapted from live/misc/util.py
+def getDurationFromString(durstr):
     """
-    Return duration in seconds based on string <s>
+    Return duration in seconds based on string <durstr>
+
+    >>> gdfs = getDurationFromString
+    >>> gdfs("1day")
+    86400
+    >>> gdfs("60mins")
+    3600
+    >>> gdfs("1day")
+    86400
+    >>> gdfs("5s")
+    5
+    >>> gdfs("13d")
+    1123200
+    >>> gdfs("123")
+    Traceback (most recent call last):
+    ValueError: String "123" is not a known duration format.  Try 30sec, 10min, 2days etc.
     """
-    m = re.search(r'^(\d+)$', s)
-    if m:
-        return int(m.group(1))
-    m = re.search(r'^(\d+)s(?:ec(?:s)?)?$', s)
-    if m:
-        return int(m.group(1))
-    m = re.search(r'^(\d+)m(?:in(?:s)?)?$', s)
-    if m:
-        return int(m.group(1)) * 60
-    m = re.search(r'^(\d+)h(?:r(?:s)?)?$', s)
-    if m:
-        return int(m.group(1)) * 3600
-    m = re.search(r'^(\d+)d(?:ay(?:s)?)?$', s)
-    if m:
-        return int(m.group(1)) * 86400
-    raise ValueError('String "%s" is not a known duration format.  Try'
-                     '30sec, 10min, 2days etc.' % s)
+    mtch = re.search(r"^(\d+)([smhd])(?:[eira][cny]?s?)?$", durstr)
+    if mtch is None:
+        raise ValueError("String \"%s\" is not a known duration format.  Try"
+                         " 30sec, 10min, 2days etc." % (durstr, ))
+
+    if mtch.group(2) == "s":
+        scale = 1
+    elif mtch.group(2) == "m":
+        scale = 60
+    elif mtch.group(2) == "h":
+        scale = 60 * 60
+    elif mtch.group(2) == "d":
+        scale = 60 * 60 * 24
+    else:
+        raise ValueError("Unknown duration suffix \"%s\" in \"%s\"" %
+                         (mtch.group(2), durstr))
+
+    return int(mtch.group(1)) * scale
 
 
 def updateStatus(oldStatus, newStatus):
     "Show any changes in status on stdout"
     if oldStatus != newStatus:
-        print "%s: %s -> %s" % (datetime.now(), oldStatus, newStatus)
+        print("%s: %s -> %s" % (datetime.now(), oldStatus, newStatus))
     return newStatus
 
 
@@ -214,10 +230,10 @@ def daqrun(args):
             try:
                 run.wait()
             except KeyboardInterrupt:
-                print "Run interrupted by user"
+                print("Run interrupted by user")
                 break
         finally:
-            print >>sys.stderr, "Stopping run..."
+            print("Stopping run...", file=sys.stderr)
             run.finish()
 
         n += args.runsPerRestart

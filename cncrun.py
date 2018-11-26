@@ -24,6 +24,8 @@
 #     # a flasher run
 #     run.run(clusterConfig, runConfig, numSecs, flasherData)
 
+from __future__ import print_function
+
 import os
 import re
 import socket
@@ -241,7 +243,7 @@ class CnCRun(BaseRun):
                 cnc = self.cncConnection()
 
             if self.__dryRun:
-                print "Break runset#%s" % self.__runSetId
+                print("Break runset#%s" % self.__runSetId)
             else:
                 cnc.rpc_runset_break(self.__runSetId)
             self.__runSetId = None
@@ -268,8 +270,8 @@ class CnCRun(BaseRun):
             RunNumber.setLast(run, subrun + 1)
 
             if self.__dryRun:
-                print "Flash subrun#%d - %s for %s second" % \
-                    (subrun, data[0], data[1])
+                print("Flash subrun#%d - %s for %s second" % \
+                    (subrun, data[0], data[1]))
             else:
                 cnc.rpc_runset_subrun(self.__runSetId, subrun, data)
 
@@ -281,7 +283,7 @@ class CnCRun(BaseRun):
             subrun += 1
             RunNumber.setLast(runData[0], subrun)
             if self.__dryRun:
-                print "Flash subrun#%d - turn off flashers" % subrun
+                print("Flash subrun#%d - turn off flashers" % subrun)
             else:
                 cnc.rpc_runset_subrun(self.__runSetId, subrun, [])
 
@@ -349,7 +351,7 @@ class CnCRun(BaseRun):
 
     def setRunsPerRestart(self, num):
         """Set the number of continuous runs between restarts"""
-        pass # for non-Live runs, this is driven by BaseRun.waitForRun()
+        pass  # for non-Live runs, this is driven by BaseRun.waitForRun()
 
     def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False,
                  runMode=None, filterMode=None, verbose=False):
@@ -373,7 +375,7 @@ class CnCRun(BaseRun):
                 self.__runCfg != runCfg:
             self.__runCfg = None
             if self.__dryRun:
-                print "Break runset #%s" % self.__runSetId
+                print("Break runset #%s" % self.__runSetId)
             else:
                 cnc.rpc_runset_break(self.__runSetId)
             self.__runSetId = None
@@ -382,7 +384,7 @@ class CnCRun(BaseRun):
             if self.__dryRun:
                 runSetId = self.__fakeRunSet
                 self.__fakeRunSet += 1
-                print "Make runset #%d" % runSetId
+                print("Make runset #%d" % runSetId)
             else:
                 runSetId = cnc.rpc_runset_make(runCfg)
             if runSetId < 0:
@@ -408,8 +410,8 @@ class CnCRun(BaseRun):
         runOptions = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
 
         if self.__dryRun:
-            print "Start run#%d with runset#%d" % \
-                (self.__runNum, self.__runSetId)
+            print("Start run#%d with runset#%d" % \
+                (self.__runNum, self.__runSetId))
         else:
             cnc.rpc_runset_start_run(self.__runSetId, self.__runNum,
                                      runOptions)
@@ -438,7 +440,7 @@ class CnCRun(BaseRun):
             cnc = self.cncConnection()
 
         if self.__dryRun:
-            print "Stop runset#%s" % self.__runSetId
+            print("Stop runset#%s" % self.__runSetId)
         else:
             cnc.rpc_runset_stop_run(self.__runSetId)
 
@@ -451,7 +453,7 @@ class CnCRun(BaseRun):
             cnc = self.cncConnection()
 
         if self.__dryRun:
-            print "Switch runset#%s to run#%d" % (self.__runSetId, runNum)
+            print("Switch runset#%s to run#%d" % (self.__runSetId, runNum))
         else:
             cnc.rpc_runset_switch_run(self.__runSetId, runNum)
         self.__runNum = runNum
@@ -472,6 +474,7 @@ class CnCRun(BaseRun):
             return True
 
         return self.__waitForState(RunSetState.READY, 10, verbose=verbose)
+
 
 if __name__ == "__main__":
     run = CnCRun(showCmd=True, showCmdOutput=True, dryRun=False)

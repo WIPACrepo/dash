@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import os
 import re
 import sys
@@ -20,7 +22,7 @@ class ComponentLog(object):
 
     def logError(self, msg):
         if DEBUG:
-            print >> sys.stderr, msg
+            print(msg, file=sys.stderr)
         self.__logMsgs.append(msg)
 
     def checkInitialLogMessage(self, line):
@@ -51,7 +53,7 @@ class ComponentLog(object):
 
     def reportErrors(self, fd):
         for msg in self.__logMsgs:
-            print >> fd, "%s: %s" % (self.__fileName, msg)
+            print("%s: %s" % (self.__fileName, msg), file=fd)
 
 
 class CatchallLog(ComponentLog):
@@ -225,8 +227,8 @@ class CatchallLog(ComponentLog):
                     if m:
                         continue
 
-                self.logError("State %s: %s" % \
-                                  (self.__stateString(state), line))
+                self.logError("State %s: %s" %
+                              (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         pass
@@ -275,8 +277,8 @@ class CnCServerLog(ComponentLog):
                         waitState = m.group(4)
                         continue
 
-                self.logError("State %s: %s" % \
-                                  (self.__stateString(state), line))
+                self.logError("State %s: %s" %
+                              (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         pass
@@ -587,10 +589,9 @@ class EventBuilderLog(ComponentLog):
                                            "message: %s") % line)
                         runNum = int(m.group(4))
                         if self.__runNum != runNum:
-                            self.logError(("Expected data boundary run "
-                                           "number %s,"
-                                           " not %s") % \
-                                              (str(self.__runNum), runNum))
+                            self.logError("Expected data boundary run "
+                                          "number %s, not %s" %
+                                          (self.__runNum, runNum))
                         continue
 
                     if line.find(" was not moved to the dispatch storage") > 0:
@@ -789,16 +790,16 @@ class GlobalTriggerLog(ComponentLog):
                             line.find("Resetting logging") >= 0:
                         continue
 
-                self.logError("State %s: %s" % \
-                                  (self.__stateString(state), line))
+                self.logError("State %s: %s" %
+                              (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         if verbose:
-            print >> fd, "Totals: Hits %s Events %s Merged %s" % \
+            print("Totals: Hits %s Events %s Merged %s" % \
                 (str(self.__totHits), str(self.__totGTEvts),
-                 str(self.__merged))
+                 str(self.__merged)), file=fd)
             for k in self.__trigCnt:
-                print >> fd, "  %s: %d" % (k, self.__trigCnt[k])
+                print("  %s: %d" % (k, self.__trigCnt[k]), file=fd)
 
 
 class LocalTriggerData(object):
@@ -932,7 +933,7 @@ class LocalTriggerLog(ComponentLog):
                         num = int(m.group(2))
                         name = m.group(3)
                         numHits = int(m.group(4))
-                        if not name in self.__trigData:
+                        if name not in self.__trigData:
                             self.__trigData[name] = LocalTriggerData()
                         self.__trigData[name].setTotal(num)
                         self.__trigData[name].addHits(numHits)
@@ -948,7 +949,7 @@ class LocalTriggerLog(ComponentLog):
                     if m:
                         name = m.group(2)
                         cnt = int(m.group(3))
-                        if not name in self.__trigData:
+                        if name not in self.__trigData:
                             self.__trigData[name] = LocalTriggerData()
                         self.__trigData[name].setTotal(cnt)
                         continue
@@ -971,15 +972,15 @@ class LocalTriggerLog(ComponentLog):
     def report(self, fd, verbose):
         if verbose:
             total = 0.0
-            for k in self.__trigData.keys():
+            for k in list(self.__trigData.keys()):
                 if self.__trigData[k].total() is not None:
                     total += float(self.__trigData[k].total())
 
-            for k in self.__trigData.keys():
-                print >> fd, "%5.2f(%d): %s (%s)" % \
+            for k in list(self.__trigData.keys()):
+                print("%5.2f(%d): %s (%s)" % \
                     (self.__trigData[k].totalPct(total),
                      self.__trigData[k].avgHits(), k,
-                     str(self.__trigData[k].total()))
+                     str(self.__trigData[k].total())), file=fd)
 
 
 class LogParseException(Exception):
@@ -1113,7 +1114,7 @@ class SecondaryBuildersLog(ComponentLog):
                                           (name, line))
                             continue
 
-                        if not name in self.__builder:
+                        if name not in self.__builder:
                             self.__builder[name] = Builder(name)
                         self.__builder[name].setStarting()
                         continue
@@ -1127,7 +1128,7 @@ class SecondaryBuildersLog(ComponentLog):
                                           (name, line))
                             continue
 
-                        if not name in self.__builder:
+                        if name not in self.__builder:
                             self.__builder[name] = Builder(name)
                         self.__builder[name].setStarted()
                         continue
@@ -1150,7 +1151,7 @@ class SecondaryBuildersLog(ComponentLog):
                                           (name, line))
                             continue
 
-                        if not name in self.__builder:
+                        if name not in self.__builder:
                             self.__builder[name] = Builder(name)
                         self.__builder[name].setStopping()
                         continue
@@ -1164,7 +1165,7 @@ class SecondaryBuildersLog(ComponentLog):
                                           (name, line))
                             continue
 
-                        if not name in self.__builder:
+                        if name not in self.__builder:
                             self.__builder[name] = Builder(name)
                         self.__builder[name].setStopped()
                         continue
@@ -1172,7 +1173,7 @@ class SecondaryBuildersLog(ComponentLog):
                     m = self.SPLI_HALT.match(line)
                     if m:
                         name = m.group(2)
-                        if not name in self.__builder:
+                        if name not in self.__builder:
                             self.__builder[name] = Builder(name)
                         self.__builder[name].setSplicerStopped()
                         continue
@@ -1181,14 +1182,14 @@ class SecondaryBuildersLog(ComponentLog):
                         state = self.STATE_INITIAL
                         continue
 
-                self.logError("State %s: %s" % \
-                                  (self.__stateString(state), line))
+                self.logError("State %s: %s" %
+                              (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         if verbose:
-            for bldr in self.__builder.values():
+            for bldr in list(self.__builder.values()):
                 if not bldr.isInitial:
-                    print >> fd, "%s %s" % (str(bldr), bldr.state)
+                    print("%s %s" % (str(bldr), bldr.state), file=fd)
 
 
 class BaseDom(object):
@@ -1252,12 +1253,12 @@ class BaseDom(object):
 
     def __transition(self, curState, newState):
         if DEBUG:
-            print >>sys.stderr, ("   %s: %s "
+            print(("   %s: %s "
                                  "(%s) -> %s") % \
                                  (str(self),
                                   self.__stateString(self.__state),
                                   self.__stateString(curState),
-                                  self.__stateString(newState))
+                                  self.__stateString(newState)), file=sys.stderr)
         prevState = self.__state
         self.__state = newState
         if prevState != curState:
@@ -1356,11 +1357,12 @@ class StringHubLog(ComponentLog):
                           r" loading config from (\S+)\s*$")
     CFG_DONE = re.compile(r"^(|.*\]\s+)Configuration successfully" +
                           r" loaded.*size\(\)" +
-                          " = (\d+)\s*$")
+                          r" = (\d+)\s*$")
     DOM_REL = re.compile(r"^.*DataCollector-(\d\d[AB]) \S+ \[[^\]]+\]" +
-                         " Found DOM (\S+) running (\S+)\s*$")
+                         r" Found DOM (\S+) running (\S+)\s*$")
     SIMDOM_REL = re.compile(r"^.*DataCollector-(\d\d[AB]) \S+ \[[^\]]+\]" +
-                         " Simulated DOM at (\S+) started at dom clock (\d+)$")
+                            r" Simulated DOM at (\S+) started at dom clock"
+                            r" (\d+)$")
     DOM_GENERIC = re.compile(r"^.*(DataCollector|AbstractRAPCal|Driver)" +
                              r"-(\d\d[AB]) \S+ \[[^\]]+\] (.*)$")
     CONFIG_DOM = re.compile(r"^Configuring DOM on \[(\d\d[AB])\].*$")
@@ -1448,7 +1450,7 @@ class StringHubLog(ComponentLog):
                 line = line.rstrip()
 
                 if DEBUG:
-                    print >>sys.stderr, ":: " + line
+                    print(":: " + line, file=sys.stderr)
 
                 if state == self.STATE_INITIAL:
                     if self.checkInitialLogMessage(line) or \
@@ -1476,13 +1478,11 @@ class StringHubLog(ComponentLog):
                             else:
                                 nextFound += 2
                         else:
-                            self.__prevRpt.append(
-                                ("Previous DOM on %s (#%d), "
-                                 "current DOM on %s (#%d)") % \
-                                    (self.__getCardLoc(nextFound),
-                                     nextFound,
-                                     self.__getCardLoc(num),
-                                     num))
+                            errmsg = "Previous DOM on %s (#%d), " \
+                                "current DOM on %s (#%d)" % \
+                                (self.__getCardLoc(nextFound), nextFound,
+                                 self.__getCardLoc(num), num)
+                            self.__prevRpt.append(errmsg)
                             nextFound = num + 1
                         totalDOMs += 1
                         continue
@@ -1493,15 +1493,12 @@ class StringHubLog(ComponentLog):
                                                    int(m.group(3)),
                                                    "A")
                         if num != nextFound:
-                            self.__prevRpt.append(
-                                ("Previous pair on %s (#%d),"
-                                 " current pair on %s (#%d)") % \
-                                    (self.__getCardLoc(nextFound,
-                                                       False),
-                                     nextFound,
-                                     self.__getCardLoc(num, False),
-                                     num))
-
+                            errmsg = "Previous pair on %s (#%d)," \
+                                " current pair on %s (#%d)" % \
+                                (self.__getCardLoc(nextFound, False),
+                                 nextFound, self.__getCardLoc(num, False),
+                                 num)
+                            self.__prevRpt.append(errmsg)
                             nextFound = num
                         continue
 
@@ -1550,7 +1547,7 @@ class StringHubLog(ComponentLog):
 
                 elif state == self.STATE_DCTHREAD:
                     if DEBUG:
-                        print >>sys.stderr, "--InDCThread--"
+                        print("--InDCThread--", file=sys.stderr)
                     if line.find("Begin data collection thread") >= 0:
                         numDCThreads += 1
                         continue
@@ -1583,7 +1580,7 @@ class StringHubLog(ComponentLog):
                         if msg.find("Entering run loop") >= 0:
                             continue
 
-                        if not cardLoc in self.__domMap:
+                        if cardLoc not in self.__domMap:
                             self.logError("Got unknown card \"%s\"" % cardLoc)
                             continue
 
@@ -1696,7 +1693,7 @@ class StringHubLog(ComponentLog):
                         cardLoc = m.group(2)
                         msg = m.group(3)
 
-                        if not cardLoc in self.__domMap:
+                        if cardLoc not in self.__domMap:
                             self.logError("Got unknown card \"%s\"" % cardLoc)
                             continue
 
@@ -1783,7 +1780,7 @@ class StringHubLog(ComponentLog):
                         cardLoc = m.group(2)
                         msg = m.group(3)
 
-                        if not cardLoc in self.__domMap:
+                        if cardLoc not in self.__domMap:
                             self.logError("Got unknown card \"%s\"" % cardLoc)
                             continue
 
@@ -1808,31 +1805,31 @@ class StringHubLog(ComponentLog):
                             continue
 
                 elif state == self.STATE_STOPPED:
-                    if line.find(("Found STOP symbol in stream "
-                                  "- shutting down")):
+                    if line.find("Found STOP symbol in stream "
+                                 "- shutting down"):
                         continue
 
-                self.logError("State %s: %s" % \
-                                  (self.__stateString(state), line))
+                self.logError("State %s: %s" %
+                              (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         if verbose:
             if self.__gpsNotReady > 0:
-                print >>fd, "%s: %d \"GPS not ready\" warnings" % \
-                    (self.filename, self.__gpsNotReady)
+                print("%s: %d \"GPS not ready\" warnings" % \
+                    (self.filename, self.__gpsNotReady), file=fd)
             if self.__outOfOrder > 0:
-                print >>fd, "%s: %d out-of-order values" % \
-                    (self.filename, self.__outOfOrder)
+                print("%s: %d out-of-order values" % \
+                    (self.filename, self.__outOfOrder), file=fd)
             for pr in self.__prevRpt:
-                print >>fd, "%s: %s" % (self.filename, pr)
-            for dom in self.__domMap.values():
+                print("%s: %s" % (self.filename, pr), file=fd)
+            for dom in list(self.__domMap.values()):
                 if not dom.isStopped():
-                    print >>fd, "%s: %s %s" % \
-                        (self.filename, str(dom), dom.state)
+                    print("%s: %s %s" % \
+                        (self.filename, str(dom), dom.state), file=fd)
                 elif dom.getWildTCals() > 0 or dom.getTCalFailures() > 0:
-                    print >>fd, "%s: %s TCals: %d wild, %d failures" % \
+                    print("%s: %s TCals: %d wild, %d failures" % \
                         (self.filename, str(dom), dom.getWildTCals(),
-                         dom.getTCalFailures())
+                         dom.getTCalFailures()), file=fd)
 
 
 def processDir(dirName, outFD, verbose):
@@ -1846,7 +1843,7 @@ def processDir(dirName, outFD, verbose):
             continue
 
         if not os.path.isfile(path):
-            print >>sys.stderr, "Cannot find \"%s\"" % path
+            print("Cannot find \"%s\"" % path, file=sys.stderr)
             continue
 
         # ignore MBean output files
@@ -1861,7 +1858,7 @@ def processFile(path, outFD, verbose):
 
     log = None
     if not fileName.endswith(".log"):
-        print "Ignoring \"%s\"" % path
+        print("Ignoring \"%s\"" % path)
     elif fileName.startswith("stringHub-"):
         log = StringHubLog(fileName)
     elif fileName.startswith("inIceTrigger-") or \
@@ -1880,14 +1877,15 @@ def processFile(path, outFD, verbose):
     elif fileName.startswith("dash"):
         log = DashLog(fileName)
     else:
-        print >>sys.stderr, "Unknown log file \"%s\"" % path
+        print("Unknown log file \"%s\"" % path, file=sys.stderr)
 
     if log is not None:
         if verbose:
-            print "=== %s" % fileName
+            print("=== %s" % fileName)
         log.parse(path)
         log.reportErrors(outFD)
         log.report(outFD, verbose)
+
 
 if __name__ == "__main__":
     verbose = False
@@ -1908,12 +1906,12 @@ if __name__ == "__main__":
             fileList.append(arg)
             continue
 
-        print >>sys.stderr, "Cannot find \"%s\"" % arg
+        print("Cannot find \"%s\"" % arg, file=sys.stderr)
         usage = True
 
     if usage:
-        print >>sys.stderr, "Usage: %s ( logFile | logDir )" + \
-            " [ ( logFile | logDir ) ... ]"
+        print("Usage: %s ( logFile | logDir )" + \
+            " [ ( logFile | logDir ) ... ]", file=sys.stderr)
         raise SystemExit
 
     for f in fileList:

@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 
 class ColorException(Exception):
     pass
@@ -72,7 +74,6 @@ class ANSIEscapeCode(object):
 if __name__ == "__main__":
     import sys
 
-
     color = 0
     space = ""
     for arg in sys.argv[1:]:
@@ -109,8 +110,9 @@ if __name__ == "__main__":
             fgColor = ANSIEscapeCode.FG_GREEN
             bgColor = ANSIEscapeCode.BG_YELLOW
 
-        print ANSIEscapeCode.BG_WHITE + space + style + fgColor + bgColor + arg,
+        print(ANSIEscapeCode.BG_WHITE + space + style + fgColor + bgColor + \
+            arg, end=' ')
         color = (color + 1) % 8
         space = " "
 
-    print ANSIEscapeCode.OFF
+    print(ANSIEscapeCode.OFF)

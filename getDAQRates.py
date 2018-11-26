@@ -3,6 +3,8 @@
 # Produce a report of the hourly and total data rates for all the components
 # in the IceCube DAQ, using data from the pDAQ .moni files.
 
+from __future__ import print_function
+
 import os
 import re
 import sys
@@ -16,6 +18,8 @@ MONISEC_PAT = \
     re.compile(r'^(.*):\s+(\d+-\d+-\d+ \d+:\d+:\d+)\.(\d+):\s*$')
 MONILINE_PAT = re.compile(r'^\s+([^:]+):\s+(.*)$')
 
+TRIG_PAT = re.compile(r'^\S+Trigger[0-9]*$')
+
 TIMEFMT = '%Y-%m-%d %H:%M:%S'
 
 COMP_FIELDS = {
@@ -23,7 +27,6 @@ COMP_FIELDS = {
         'moniData': 'RecordsSent',
         'snData': 'RecordsSent',
         'tcalData': 'RecordsSent',
-        #'rdoutReq': 'TotalRecordsReceived',
         'rdoutReq': 'RecordsReceived',
         'rdoutData': 'RecordsSent'
     },
@@ -34,7 +37,6 @@ COMP_FIELDS = {
         'moniData': 'RecordsSent',
         'snData': 'RecordsSent',
         'tcalData': 'RecordsSent',
-        #'rdoutReq': 'TotalRecordsReceived',
         'rdoutReq': 'RecordsReceived',
         'rdoutData': 'RecordsSent'
     },
@@ -45,7 +47,6 @@ COMP_FIELDS = {
         'moniData': 'RecordsSent',
         'snData': 'RecordsSent',
         'tcalData': 'RecordsSent',
-        # 'rdoutReq': 'TotalRecordsReceived',
         'rdoutReq': 'RecordsReceived',
         'rdoutData': 'RecordsSent'
     },
@@ -56,46 +57,36 @@ COMP_FIELDS = {
         'moniData': 'RecordsSent',
         'snData': 'RecordsSent',
         'tcalData': 'RecordsSent',
-        #'rdoutReq': 'TotalRecordsReceived',
         'rdoutReq': 'RecordsReceived',
         'rdoutData': 'RecordsSent'
     },
     'inIceTrigger': {
-        # 'stringHit': 'TotalRecordsReceived',
         'stringHit': 'RecordsReceived',
         'trigger': 'RecordsSent'
     },
     'iceTopTrigger': {
-        # 'icetopHit': 'TotalRecordsReceived',
         'icetopHit': 'RecordsReceived',
         'trigger': 'RecordsSent'
     },
     'amandaTrigger': {
-        # 'selfContained': 'TotalRecordsReceived',
         'selfContained': 'RecordsReceived',
         'trigger': 'RecordsSent'
     },
     'globalTrigger': {
-        # 'trigger': 'TotalRecordsReceived',
         'trigger': 'RecordsReceived',
         'glblTrig': 'RecordsSent'
     },
     'eventBuilder': {
-        # 'glblTrig': 'TotalRecordsReceived',
         'glblTrig': 'RecordsReceived',
         'rdoutReq': 'RecordsSent',
-        # 'rdoutData': 'TotalRecordsReceived',
         'rdoutData': 'RecordsReceived',
         'backEnd': 'NumEventsSent'
     },
     'secondaryBuilders': {
-        # 'moniData': 'TotalRecordsReceived',
         'moniData': 'RecordsReceived',
         'moniBuilder': 'NumDispatchedData',
-        # 'snData': 'TotalRecordsReceived',
         'snData': 'RecordsReceived',
         'snBuilder': 'NumDispatchedData',
-        # 'tcalData': 'TotalRecordsReceived',
         'tcalData': 'RecordsReceived',
         'tcalBuilder': 'NumDispatchedData',
     },
@@ -120,7 +111,7 @@ class Component(object):
                                 fileName)
 
             compName = baseName[:idx]
-            if not compName in COMP_FIELDS:
+            if compName not in COMP_FIELDS:
                 raise Exception('Unknown component "%s" in "%s"' %
                                 (compName, fileName))
 
@@ -149,7 +140,7 @@ class Component(object):
 
     def __hash__(self):
         if self.hash is None:
-            self.hash = ((hash(self.name) * 100) % sys.maxint) + \
+            self.hash = ((hash(self.name) * 100) % sys.maxsize) + \
                 (self.num % 100)
         return self.hash
 
@@ -165,7 +156,7 @@ class Component(object):
 
 def computeRates(dataDict):
     """Compute rates from the data saved in the data dictionary"""
-    keys = dataDict.keys()
+    keys = list(dataDict.keys())
 
     prevTime = None
     firstTime = None
@@ -185,7 +176,6 @@ def computeRates(dataDict):
     if len(rates) == 0:
         rates = None
         totRate = None
-    #elif prevTime == firstTime:
     elif len(rates) == 1:
         if float(rates[0]) == 0.0:
             totRate = None
@@ -224,7 +214,7 @@ def processDir(dirName):
         try:
             comp = Component(entry)
         except ValueError as msg:
-            print >> sys.stderr, str(msg)
+            print(str(msg), file=sys.stderr)
             continue
 
         allData[comp] = processFile(os.path.join(dirName, entry), comp)
@@ -254,9 +244,8 @@ class Summary(object):
             try:
                 tot += long(subStr)
             except ValueError:
-                print >> sys.stderr, \
-                    ("Couldn't get integer value for '%s'" +
-                     " ('%s' idx %d nxt %d)") % (subStr, valStr, idx, nxt)
+                print(("Couldn't get integer value for '%s'" +
+                     " ('%s' idx %d nxt %d)") % (subStr, valStr, idx, nxt), file=sys.stderr)
             idx = nxt + 1
         self.__saveValue(name, time, tot)
 
@@ -264,7 +253,7 @@ class Summary(object):
         if val > 0:
             if name != "DOM":
                 self.__data[name][time] = val
-            elif not time in self.__data[name]:
+            elif time not in self.__data[name]:
                 self.__data[name][time] = val
             else:
                 self.__data[name][time] += val
@@ -272,21 +261,21 @@ class Summary(object):
 
     def add(self, name, time, vals):
         if TIME_INTERVAL is None or \
-            (time > self.__lastSaved[name] + TIME_INTERVAL):
+           (time > self.__lastSaved[name] + TIME_INTERVAL):
             self.__save(name, time, vals)
 
     def data(self):
         return self.__data
 
     def register(self, name):
-        if not name in self.__data:
+        if name not in self.__data:
             self.__data[name] = {}
             self.__lastSaved[name] = 0.0
 
 
 def processFile(fileName, comp):
     """Process the specified file"""
-    if not comp.name in COMP_FIELDS:
+    if comp.name not in COMP_FIELDS:
         flds = None
     else:
         flds = COMP_FIELDS[comp.name]
@@ -313,17 +302,24 @@ def processFile(fileName, comp):
                     name = m.group(1)
                     vals = m.group(2)
 
+                    if secName.find("Trigger") > 0 and \
+                       name == "SentTriggerCount":
+                        summary.add(secName, secTime, vals)
+                        continue
+
                     if flds is None or \
-                        (secName in flds and flds[secName] == name):
+                       (secName in flds and flds[secName] == name):
                         summary.add(secName, secTime, vals)
                     continue
 
             m = MONISEC_PAT.match(line)
             if m:
                 nm = m.group(1)
-                if not nm in flds:
+                if nm not in flds:
                     if nm.startswith("DataCollectorMonitor"):
                         nm = "DOM"
+                    elif nm.find("Trigger") >= 0:
+                        secName = nm
                     else:
                         secName = "IGNORE"
                         continue
@@ -337,7 +333,7 @@ def processFile(fileName, comp):
 
                 continue
 
-            print >>sys.stderr, "Bad line: " + line
+            print("Bad line: " + line, file=sys.stderr)
 
     return summary.data()
 
@@ -345,8 +341,8 @@ def processFile(fileName, comp):
 def reportDataRates(allData):
     """Report the DAQ data rates"""
     if not DATA_ONLY:
-        print 'Data Rates:'
-    reportList = [
+        print('Data Rates:')
+    hubTrigList = [
         ('stringHub', 'DOM'),
         ('stringHub', 'sender'),
         ('stringHub', 'stringHit'),
@@ -355,10 +351,20 @@ def reportDataRates(allData):
         ('icetopHub', 'sender'),
         ('icetopHub', 'icetopHit'),
         ('iceTopTrigger', 'icetopHit'),
-        ('amandaTrigger', 'selfContained'),
-        ('amandaTrigger', 'trigger'), ('inIceTrigger', 'trigger'),
-        ('iceTopTrigger', 'trigger'),
-        ('globalTrigger', 'trigger'), ('globalTrigger', 'glblTrig'),
+    ]
+
+    trigList = []
+    for trig in ('inIceTrigger', 'iceTopTrigger', 'globalTrigger'):
+        for comp in allData.keys():
+            if comp.name == trig:
+                trigList.append((trig, 'trigger'))
+                for key in allData[comp].keys():
+                    mtch = TRIG_PAT.match(key)
+                    if mtch is not None:
+                        trigList.append((trig, key))
+
+    trigEBList = [
+        ('globalTrigger', 'glblTrig'),
         ('eventBuilder', 'glblTrig'), ('eventBuilder', 'rdoutReq'),
         ('amandaHub', 'rdoutReq'), ('stringHub', 'rdoutReq'),
         ('icetopHub', 'rdoutReq'),
@@ -367,12 +373,12 @@ def reportDataRates(allData):
         ('eventBuilder', 'rdoutData'),
         ('eventBuilder', 'backEnd')
     ]
-    reportRatesInternal(allData, reportList)
+    reportRatesInternal(allData, hubTrigList + trigList + trigEBList)
 
 
 def reportMonitorRates(allData):
     """Report the DAQ monitoring rates"""
-    print 'Monitoring Rates:'
+    print('Monitoring Rates:')
     reportList = [('amandaHub', 'moniData'), ('stringHub', 'moniData'),
                   ('icetopHub', 'moniData'), ('secondaryBuilders', 'moniData'),
                   ('secondaryBuilders', 'moniBuilder')]
@@ -381,8 +387,7 @@ def reportMonitorRates(allData):
 
 def reportRatesInternal(allData, reportList):
     """Report the rates for the specified set of values"""
-    compKeys = allData.keys()
-    compKeys.sort()
+    compKeys = sorted(allData.keys())
 
     combinedComp = None
     combinedField = None
@@ -397,15 +402,15 @@ def reportRatesInternal(allData, reportList):
         if combinedField is not None:
             if not isCombined or combinedField != rptTuple[1]:
                 if combinedRate is None:
-                    print '    %s.%s: Not enough data' % \
-                        (combinedComp, combinedField)
+                    print('    %s.%s: Not enough data' % \
+                        (combinedComp, combinedField))
                 elif TIME_INTERVAL is None or len(combinedSplit) == 0:
-                    print '    %s.%s: %.1f' % \
-                        (combinedComp, combinedField, combinedRate)
+                    print('    %s.%s: %.1f' % \
+                        (combinedComp, combinedField, combinedRate))
                 else:
-                    print '    %s.%s: %s  Total: %.1f' % \
+                    print('    %s.%s: %s  Total: %.1f' % \
                         (combinedComp, combinedField,
-                         formatRates(combinedSplit), combinedRate)
+                         formatRates(combinedSplit), combinedRate))
 
                 combinedComp = None
                 combinedField = None
@@ -440,19 +445,19 @@ def reportRatesInternal(allData, reportList):
                     else:
                         indent = '    '
                     if rateTuple[0] is None:
-                        print '    %s%s.%s: Not enough data' % \
-                            (indent, comp, sect)
+                        print('    %s%s.%s: Not enough data' % \
+                            (indent, comp, sect))
                     elif rateTuple[1] is None:
-                        print '    %s%s.%s: %.1f' % \
-                            (indent, comp, sect, rateTuple[0])
+                        print('    %s%s.%s: %.1f' % \
+                            (indent, comp, sect, rateTuple[0]))
                     else:
                         if TIME_INTERVAL is None:
-                            print '    %s%s.%s: %.1f' % \
-                                (indent, comp, sect, rateTuple[0])
+                            print('    %s%s.%s: %.1f' % \
+                                (indent, comp, sect, rateTuple[0]))
                         else:
-                            print '    %s%s.%s: %s  Total: %.1f' % \
+                            print('    %s%s.%s: %s  Total: %.1f' % \
                                 (indent, comp, sect, formatRates(rateTuple[1]),
-                                 rateTuple[0])
+                                 rateTuple[0]))
                     needNL = False
 
                 if combinedComp is not None:
@@ -469,13 +474,13 @@ def reportRatesInternal(allData, reportList):
                             combinedSplit[i] += rateTuple[1][i]
 
         if needNL:
-            print ''
+            print('')
             needNL = False
 
 
 def reportSupernovaRates(allData):
     """Report the DAQ supernova rates"""
-    print 'Supernova Rates:'
+    print('Supernova Rates:')
     reportList = [('amandaHub', 'snData'), ('stringHub', 'snData'),
                   ('icetopHub', 'snData'), ('secondaryBuilders', 'snData'),
                   ('secondaryBuilders', 'snBuilder')]
@@ -484,7 +489,7 @@ def reportSupernovaRates(allData):
 
 def reportTimeCalRates(allData):
     """Report the DAQ time calibration rates"""
-    print 'TimeCal Rates:'
+    print('TimeCal Rates:')
     reportList = [('amandaHub', 'tcalData'), ('stringHub', 'tcalData'),
                   ('icetopHub', 'tcalData'), ('secondaryBuilders', 'tcalData'),
                   ('secondaryBuilders', 'tcalBuilder')]
@@ -524,23 +529,22 @@ if __name__ == "__main__":
         elif os.path.exists(arg):
             fileList.append(arg)
         else:
-            print >> sys.stderr, 'Unknown argument "%s"' % arg
+            print('Unknown argument "%s"' % arg, file=sys.stderr)
             badArg = True
 
     if len(dirList) > 0 and len(fileList) > 0:
-        print >> sys.stderr, 'Cannot specify both directories and files'
+        print('Cannot specify both directories and files', file=sys.stderr)
         badArg = True
     elif len(dirList) == 0 and len(fileList) == 0:
-        print >> sys.stderr, 'Please specify a moni file or directory'
+        print('Please specify a moni file or directory', file=sys.stderr)
         badArg = True
 
     if badArg:
-        print >> sys.stderr, \
-            ('Usage: %s' +
+        print(('Usage: %s' +
              ' [-d(ataOnly)]' +
              ' [-i timeInterval ]' +
              ' [-v(erbose)]' +
-             ' (moniDir | moniFile [...])') % sys.argv[0]
+             ' (moniDir | moniFile [...])') % sys.argv[0], file=sys.stderr)
         sys.exit(1)
 
     if len(fileList) > 0:
@@ -549,13 +553,13 @@ if __name__ == "__main__":
             try:
                 comp = Component(f)
             except ValueError as msg:
-                print >> sys.stderr, str(msg)
+                print(str(msg), file=sys.stderr)
                 comp = Component()
 
             allData[comp] = processFile(f, comp)
             reportRates(allData)
     else:
         for d in dirList:
-            print 'Directory ' + d
+            print('Directory ' + d)
             allData = processDir(d)
             reportRates(allData)

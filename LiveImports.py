@@ -8,7 +8,11 @@ try:
         from live.control.LiveMoni import MoniClient
         MoniPort = 6666
 
-    from live.control.component import Component
+    from live.control.component import Component as LiveComponent
+    try:
+        from live.control.component import INCOMPLETE_STATE_CHANGE
+    except ImportError:
+        INCOMPLETE_STATE_CHANGE = None
 
     try:
         from live.transport.priorities import Prio
@@ -25,7 +29,7 @@ try:
     LIVE_IMPORT = True
 except ImportError:
     # create bogus placeholder classes
-    class Component(object):
+    class LiveComponent(object):
         def __init__(self, compName, rpcPort=None, moniHost=None,
                      moniPort=None, synchronous=None, lightSensitive=None,
                      makesLight=None, logger=None):
@@ -64,6 +68,9 @@ except ImportError:
 
     # set bogus service name
     SERVICE_NAME = "pdaqFake"
+
+    # Sginal that we're using the old API
+    INCOMPLETE_STATE_CHANGE = None
 
     # indicate that import failed
     LIVE_IMPORT = False

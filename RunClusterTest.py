@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import os
 import re
 import unittest
@@ -44,26 +46,23 @@ class RunClusterTest(unittest.TestCase):
 
     def __checkCluster(self, cluCfg, expNodes, spadeDir, logCopyDir,
                        daqLogDir, daqDataDir, verbose=False):
-        sortedNodes = cluCfg.nodes()
-        sortedNodes.sort()
+        sortedNodes = sorted(cluCfg.nodes())
 
         if verbose:
-            print "=== RC -> %s" % (cluCfg.configName, )
+            print("=== RC -> %s" % (cluCfg.configName, ))
             for n in sortedNodes:
-                print "::  " + str(n)
-                sortedComps = n.components()
-                sortedComps.sort()
+                print("::  " + str(n))
+                sortedComps = sorted(n.components())
                 for c in sortedComps:
-                    print "        " + str(c)
+                    print("        " + str(c))
 
-            print "=== EXP"
+            print("=== EXP")
             for en in sorted(expNodes, key=lambda x: str(x)):
-                print "::  " + str(en)
+                print("::  " + str(en))
 
         extra = {}
         for node in sortedNodes:
-            sortedComps = node.components()
-            sortedComps.sort()
+            sortedComps = sorted(node.components())
             for comp in sortedComps:
                 found = False
                 for en in expNodes:
@@ -82,7 +81,7 @@ class RunClusterTest(unittest.TestCase):
         if len(extra) > 0:
             errmsg = "Found extra component%s:" % \
                      ("" if len(extra) == 1 else "s")
-            for node, compList in extra.items():
+            for node, compList in list(extra.items()):
                 cstr = None
                 for comp in compList:
                     cfmt = comp.fullname
@@ -103,8 +102,6 @@ class RunClusterTest(unittest.TestCase):
 
         if missing is not None:
             self.fail('Missing one or more components: ' + missing)
-
-        #hubList = cluCfg.getHubNodes()
 
         self.assertEqual(cluCfg.logDirForSpade, spadeDir,
                          'SPADE log directory is "%s", not "%s"' %
@@ -268,8 +265,6 @@ class RunClusterTest(unittest.TestCase):
             DeployData('sps-ichub77', 'stringHub', 77),
             DeployData('sps-ichub78', 'stringHub', 78),
             DeployData('sps-ithub01', 'stringHub', 201),
-            #DeployData('sps-ithub02', 'stringHub', 202),
-            #DeployData('sps-ithub03', 'stringHub', 203),
             DeployData('sps-ithub06', 'stringHub', 206),
         ]
 
@@ -283,7 +278,7 @@ class RunClusterTest(unittest.TestCase):
 
     @classmethod
     def __addHubs(cls, nodes, hostname, numToAdd, hubnum):
-        for _ in xrange(numToAdd):
+        for _ in range(numToAdd):
             nodes.append(DeployData(hostname, 'replayHub', hubnum))
             hubnum += 1
             if hubnum > 86:
@@ -386,7 +381,7 @@ class RunClusterTest(unittest.TestCase):
         try:
             RunCluster(cfg, clusterName, RunClusterTest.CONFIG_DIR)
             self.fail("This should not succeed")
-        except RunClusterError, rce:
+        except RunClusterError as rce:
             estr = str(rce)
             if estr != "Cannot find xxx09 for replay in %s" % clusterName:
                 raise
@@ -444,8 +439,6 @@ class RunClusterTest(unittest.TestCase):
             DeployData('sps-ichub77', 'stringHub', 77),
             DeployData('sps-ichub78', 'stringHub', 78),
             DeployData('sps-ithub01', 'stringHub', 201),
-            #DeployData('sps-ithub02', 'stringHub', 202),
-            #DeployData('sps-ithub03', 'stringHub', 203),
             DeployData('sps-ithub06', 'stringHub', 206),
         ]
 

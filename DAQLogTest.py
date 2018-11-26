@@ -62,8 +62,8 @@ class TestDAQLog(unittest.TestCase):
             if self.sockLog.isServing:
                 break
             time.sleep(0.1)
-        self.failUnless(os.path.exists(logPath), 'Log file was not created')
-        self.failUnless(self.sockLog.isServing, 'Log server was not started')
+        self.assertTrue(os.path.exists(logPath), 'Log file was not created')
+        self.assertTrue(self.sockLog.isServing, 'Log server was not started')
 
         now = datetime.datetime.now()
         msg = 'Test 1 2 3'
@@ -76,6 +76,7 @@ class TestDAQLog(unittest.TestCase):
         self.sockLog.stopServing()
 
         self.checkLog(logPath, ('%s - - [%s] %s' % (cname, str(now), msg), ))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -4,7 +4,7 @@ import traceback
 import unittest
 from CnCLogger import CnCLogger
 
-from DAQMocks import MockAppender, SocketReaderFactory
+from DAQMocks import MockLogger, SocketReaderFactory
 
 
 class CnCLoggerTest(unittest.TestCase):
@@ -14,7 +14,7 @@ class CnCLoggerTest(unittest.TestCase):
     def setUp(self):
         self.__logFactory = SocketReaderFactory()
 
-        self.__appender = MockAppender("mock")
+        self.__appender = MockLogger("mock")
 
     def tearDown(self):
         try:
@@ -40,14 +40,15 @@ class CnCLoggerTest(unittest.TestCase):
                            quiet=True, extraLoud=xl)
 
             # set up default logger
-            dc.openLog(dfltHost, dfltPort, None, None)
-
             dfltObj.addExpectedText("Start of log at LOG=log(%s:%d)" %
                                     (dfltHost, dfltPort))
+            dc.openLog(dfltHost, dfltPort, None, None)
+
+            # set up file logger
             logObj.addExpectedText("Start of log at LOG=log(%s:%d)" %
                                    (logHost, logPort))
-
             dc.openLog(logHost, logPort, None, None)
+
             self.assertEqual(dc.logHost, logHost)
             self.assertEqual(dc.logPort, logPort)
             self.assertEqual(dc.liveHost, None)
@@ -61,8 +62,10 @@ class CnCLoggerTest(unittest.TestCase):
                                         (dfltHost, dfltPort))
 
             dc.resetLog()
-            self.failIf(dc.liveHost is not None, "logIP was not cleared")
-            self.failIf(dc.livePort is not None, "logPort was not cleared")
+            self.assertFalse(dc.liveHost is not None,
+                             "logIP was not cleared")
+            self.assertFalse(dc.livePort is not None,
+                             "logPort was not cleared")
             self.assertEqual(dc.logHost, dfltHost,
                              "logHost should be %s, not %s" %
                              (dfltHost, dc.logHost))
@@ -120,8 +123,10 @@ class CnCLoggerTest(unittest.TestCase):
             self.assertEqual(dc.logPort, dfltPort,
                              "logPort should be %s, not %s" %
                              (dfltPort, dc.logPort))
-            self.failIf(dc.liveHost is not None, "liveIP was not cleared")
-            self.failIf(dc.livePort is not None, "livePort was not cleared")
+            self.assertFalse(dc.liveHost is not None,
+                             "liveIP was not cleared")
+            self.assertFalse(dc.livePort is not None,
+                             "livePort was not cleared")
 
             logObj.checkStatus(1000)
             dfltObj.checkStatus(1000)
@@ -177,12 +182,6 @@ class CnCLoggerTest(unittest.TestCase):
                                          " live(%s:%d)") %
                                         (dfltHost, dfltLog,
                                          dfltHost, dfltLive))
-
-                ### live stuff isn't tested after ZeroMQ monitoring changes
-                #dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
-                #                             " LOG=log(%s:%d) live(%s:%d)" %
-                #                             (dfltHost, dfltLog, dfltHost,
-                #                              dfltLive))
 
             dc.resetLog()
             self.assertEqual(dc.logHost, dfltHost,
@@ -249,11 +248,6 @@ class CnCLoggerTest(unittest.TestCase):
                                          " live(%s:%d)") %
                                         (dfltHost, dfltLog,
                                          dfltHost, dfltLive))
-                ### live stuff isn't tested after ZeroMQ monitoring changes
-                #dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
-                #                             " LOG=log(%s:%d) live(%s:%d)" %
-                #                             (dfltHost, dfltLog, dfltHost,
-                #                              dfltLive))
 
             dc.closeLog()
             self.assertEqual(dc.logHost, dfltHost,
@@ -311,17 +305,10 @@ class CnCLoggerTest(unittest.TestCase):
             dLiveObj.checkStatus(1000)
 
             if xl:
-                ### live stuff isn't tested after ZeroMQ monitoring changes
-                #liveObj.addExpectedText("End of log")
                 dLogObj.addExpectedText(("Reset log to LOG=log(%s:%d)" +
                                          " live(%s:%d)") %
                                         (dfltHost, dfltLog,
                                          dfltHost, dfltLive))
-
-                #dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
-                #                             " LOG=log(%s:%d) live(%s:%d)" %
-                #                             (dfltHost, dfltLog, dfltHost,
-                #                              dfltLive))
 
             dc.closeLog()
             self.assertEqual(dc.logHost, dfltHost,
@@ -386,11 +373,6 @@ class CnCLoggerTest(unittest.TestCase):
                                         (dfltHost, dfltLog,
                                          dfltHost, dfltLive))
 
-                #dLiveObj.addExpectedLiveMoni("log", "Reset log to" +
-                #                             " LOG=log(%s:%d) live(%s:%d)" %
-                #                             (dfltHost, dfltLog, dfltHost,
-                #                              dfltLive))
-
             dc.closeLog()
             self.assertEqual(dc.logHost, dfltHost,
                              "logHost should be %s, not %s" %
@@ -408,6 +390,7 @@ class CnCLoggerTest(unittest.TestCase):
             logObj.checkStatus(1000)
             dLogObj.checkStatus(1000)
             dLiveObj.checkStatus(1000)
+
 
 if __name__ == "__main__":
     unittest.main()

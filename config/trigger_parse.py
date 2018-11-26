@@ -10,8 +10,8 @@ if __name__ == "__main__":
 
     print "Validating all trigger configuration files"
     print "Will only print a status when a corrupt file is found"
-    print ("Note that there are some corrupt trigger files, "
-           "someone put quotes in the wrong place.")
+    print "Note that there are some corrupt trigger files, " \
+        "someone put quotes in the wrong place."
     print "-" * 60
     print ""
 

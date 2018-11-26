@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import copy
 import time
 import unittest
 
@@ -18,8 +19,6 @@ class MockTMMBeanClient(object):
                 "NumberOfActiveChannels": 2,
                 "NumberOfActiveAndTotalChannels": [1, 2],
                 "TotalLBMOverflows": 20,
-                "HitRate": 50.,
-                "HitRateLC": 25.0
             },
             "sender": {
                 "NumHitsReceived": 0,
@@ -85,52 +84,21 @@ class MockTMMBeanClient(object):
         return "%s#%d" % (self.__name, self.__num)
 
     def __createBeanData(self):
-        if not self.__name in self.BEANBAG:
+        if self.__name not in self.BEANBAG:
             raise Exception("No bean data found for %s" % self.__name)
 
         data = {}
         for b in self.BEANBAG[self.__name]:
-            if not b in data:
+            if b not in data:
                 data[b] = {}
             for f in self.BEANBAG[self.__name][b]:
                 data[b][f] = self.BEANBAG[self.__name][b][f]
 
         return data
 
-    def addData(self, beanName, fieldName, value):
-        if self.check(beanName, fieldName):
-            raise Exception("Value for %c bean %s field %s already exists" %
-                            (self, beanName, fieldName))
-
-        if not beanName in self.__beanData:
-            self.__beanData[beanName] = {}
-        self.__beanData[beanName][fieldName] = value
-
     def check(self, beanName, fieldName):
         return beanName in self.__beanData and \
             fieldName in self.__beanData[beanName]
-
-    @property
-    def filename(self):
-        return "%s-%d" % (self.__name, self.__num)
-
-    @property
-    def fullname(self):
-        if self.__num == 0:
-            return self.__name
-        return "%s#%d" % (self.__name, self.__num)
-
-    def getBeanFields(self, beanName):
-        return self.__beanData[beanName].keys()
-
-    def getBeanNames(self):
-        return self.__beanData.keys()
-
-    def getAttributes(self, beanName, fieldList):
-        rtnMap = {}
-        for f in fieldList:
-            rtnMap[f] = self.get(beanName, f)
-        return rtnMap
 
     def get(self, beanName, fieldName):
         if not self.check(beanName, fieldName):
@@ -138,6 +106,21 @@ class MockTMMBeanClient(object):
                             (self, beanName, fieldName))
 
         return self.__beanData[beanName][fieldName]
+
+    def getAttributes(self, beanName, fieldList):
+        rtnMap = {}
+        for f in fieldList:
+            rtnMap[f] = self.get(beanName, f)
+        return rtnMap
+
+    def getBeanFields(self, beanName):
+        return list(self.__beanData[beanName].keys())
+
+    def getBeanNames(self):
+        return list(self.__beanData.keys())
+
+    def getDictionary(self):
+        return copy.deepcopy(self.__beanData)
 
     def reload(self):
         pass
@@ -180,6 +163,7 @@ class MockTMComponent(object):
     @property
     def mbean(self):
         return self.__mbean
+
     @property
     def name(self):
         return self.__name
@@ -190,9 +174,6 @@ class MockTMComponent(object):
 
     def order(self):
         return self.__order
-
-    def reset(self):
-        self.__updatedRates = False
 
     def setOrder(self, num):
         self.__order = num
@@ -234,7 +215,7 @@ class MyTaskManager(TaskManager):
 
 
 class TaskManagerTest(unittest.TestCase):
-    def __loadExpected(self, live, compList, hitRate):
+    def __loadExpected(self, live, compList, hitRate, first=True):
 
         # add monitoring data
         live.addExpected("stringHub-1*sender+NumHitsReceived",
@@ -246,8 +227,6 @@ class TaskManagerTest(unittest.TestCase):
                          2, Prio.ITS)
         live.addExpected("stringHub-1*stringhub+TotalLBMOverflows",
                          20, Prio.ITS)
-        live.addExpected("stringHub-1*stringhub+HitRate", 50, Prio.ITS)
-        live.addExpected("stringHub-1*stringhub+HitRateLC", 25, Prio.ITS)
         live.addExpected(
             "stringHub-1*stringhub+NumberOfActiveAndTotalChannels",
             [1, 2], Prio.ITS)
@@ -286,18 +265,29 @@ class TaskManagerTest(unittest.TestCase):
                          0, Prio.ITS)
 
         # add activeDOM data
-        live.addExpected("activeDOMs", 1, Prio.ITS)
-        live.addExpected("expectedDOMs", 2, Prio.ITS)
         live.addExpected("missingDOMs", 1, Prio.ITS)
-        live.addExpected("total_rate", 50, Prio.ITS)
-        live.addExpected("total_ratelc", 25, Prio.ITS)
-        live.addExpected("LBMOverflows", {"1": 20},
+        lbmo_dict = {
+            "count": 20,
+            "runNumber": 123456,
+        }
+        if first:
+            lbmo_dict["early_lbm"] = True
+            match = True
+        else:
+            lbmo_dict["early_lbm"] = False
+            lbmo_dict["recordingStartTime"] = "???",
+            lbmo_dict["recordingStopTime"] = "???",
+            match = False
+        live.addExpected("LBMOcount", lbmo_dict, Prio.ITS, match)
+
+        dom_dict = {
+            "expectedDOMs": 2,
+            "activeDOMs": 1,
+            "missingDOMs": 1,
+        }
+        live.addExpected("dom_update", dom_dict,
                          Prio.ITS)
 
-        live.addExpected("dom_update", {"expectedDOMs": 2, "total_ratelc": 25.0,
-                                        "total_rate": 50.0, "activeDOMs": 1,
-                                        "missingDOMs": 1},
-                         Prio.ITS)
 
     def setUp(self):
         self.__firstTime = True
@@ -319,7 +309,6 @@ class TaskManagerTest(unittest.TestCase):
             c.setOrder(orderNum)
 
         runset = MockRunSet(compList)
-        #runset.startRunning()
 
         dashlog = MockLogger("dashlog")
 
@@ -347,8 +336,8 @@ class TaskManagerTest(unittest.TestCase):
         runset.stopRunning()
         rst.stop()
 
-        self.failIf(c.wasUpdated(), "Rate thread was updated")
-        self.failUnless(live.hasAllMoni(), "Monitoring data was not sent")
+        self.assertFalse(c.wasUpdated(), "Rate thread was updated")
+        self.assertTrue(live.hasAllMoni(), "Monitoring data was not sent")
 
     def testRunOnce(self):
         compList = [MockTMComponent("stringHub", 1),
@@ -398,8 +387,8 @@ class TaskManagerTest(unittest.TestCase):
 
             time.sleep(0.1)
 
-        self.failUnless(c.wasUpdated(), "Rate thread was not updated")
-        self.failUnless(live.hasAllMoni(), "Monitoring data was not sent")
+        self.assertTrue(c.wasUpdated(), "Rate thread was not updated")
+        self.assertTrue(live.hasAllMoni(), "Monitoring data was not sent")
 
         runset.stopRunning()
         rst.stop()
@@ -453,7 +442,9 @@ class TaskManagerTest(unittest.TestCase):
 
             time.sleep(0.1)
 
-        self.__loadExpected(live, compList, hitRate)
+        self.assertTrue(live.hasAllMoni(), "Monitoring data was not sent")
+
+        self.__loadExpected(live, compList, hitRate, first=False)
         dashlog.addExpectedExact("Watchdog reports threshold components:\n" +
                                  "    secondaryBuilders" +
                                  " snBuilder.DiskAvailable below 1024" +
@@ -479,11 +470,12 @@ class TaskManagerTest(unittest.TestCase):
 
             time.sleep(0.1)
 
-        self.failUnless(c.wasUpdated(), "Rate thread was not updated")
-        self.failUnless(live.hasAllMoni(), "Monitoring data was not sent")
+        self.assertTrue(c.wasUpdated(), "Rate thread was not updated")
+        self.assertTrue(live.hasAllMoni(), "Monitoring data was not sent")
 
         runset.stopRunning()
         rst.stop()
+
 
 if __name__ == '__main__':
     unittest.main()

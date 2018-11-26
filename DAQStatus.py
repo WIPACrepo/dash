@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import socket
 
 from DAQConst import DAQPort
@@ -41,7 +43,7 @@ def dumpComp(comp, numList, indent, indent2):
         return
 
     if len(numList) == 1 and numList[0] == 0:
-        print indent + indent2 + comp
+        print(indent + indent2 + comp)
         return
 
     numStr = None
@@ -73,7 +75,7 @@ def dumpComp(comp, numList, indent, indent2):
     while len(numStr) > 0:
         # if list of numbers fits on the line, print it
         if frontLen + len(numStr) < LINE_LENGTH:
-            print front + numStr
+            print(front + numStr)
             break
 
         # look for break point
@@ -88,7 +90,7 @@ def dumpComp(comp, numList, indent, indent2):
                 tmpLen += 1
 
         # split line at break point
-        print front + numStr[0:tmpLen]
+        print(front + numStr[0:tmpLen])
 
         # set numStr to remainder of string and strip leading whitespace
         numStr = numStr[tmpLen:]
@@ -123,7 +125,7 @@ def listTerse(compList, indent, indent2):
             numList = []
         if stateChanged:
             prevState = c["state"]
-            print indent + prevState
+            print(indent + prevState)
         numList.append(c["compNum"])
     dumpComp(prevComp, numList, indent, indent2)
 
@@ -140,9 +142,9 @@ def listVerbose(compList, indent, indent2, useNumeric=True):
             if idx > 0:
                 hostname = hostname[:idx]
 
-        print "%s%s#%d %s#%d at %s:%d M#%d %s" % \
+        print("%s%s#%d %s#%d at %s:%d M#%d %s" % \
             (indent, indent2, c["id"], c["compName"], c["compNum"], hostname,
-             c["rpcPort"], c["mbeanPort"], c["state"])
+             c["rpcPort"], c["mbeanPort"], c["state"]))
 
 
 def print_status(args):
@@ -174,7 +176,7 @@ def print_status(args):
     except:
         vers = " ??"
 
-    print "CNC %s:%d%s" % ("localhost", DAQPort.CNCSERVER, vers)
+    print("CNC %s:%d%s" % ("localhost", DAQPort.CNCSERVER, vers))
 
     indent = "    "
 
@@ -183,19 +185,19 @@ def print_status(args):
     else:
         indent2 = indent
 
-    print "======================="
-    print "%d unused component%s" % (nc, getPlural(nc))
+    print("=======================")
+    print("%d unused component%s" % (nc, getPlural(nc)))
     if args.verbose or args.numeric:
         listVerbose(lc, indent, indent2, args.numeric)
     else:
         listTerse(lc, indent, indent2)
 
-    print "-----------------------"
-    print "%d run set%s" % (ns, getPlural(ns))
+    print("-----------------------")
+    print("%d run set%s" % (ns, getPlural(ns)))
     for runid in ids:
         cfg = cncrpc.rpc_runset_configname(runid)
         ls = cncrpc.rpc_runset_list(runid)
-        print "%sRunSet#%d (%s)" % (indent, runid, cfg)
+        print("%sRunSet#%d (%s)" % (indent, runid, cfg))
         if args.verbose or args.numeric:
             listVerbose(ls, indent, indent2, args.numeric)
         else:
@@ -208,10 +210,10 @@ def print_status(args):
     except:
         lst = "???"
 
-    print "======================="
-    print "DAQLive %s:%d" % ("localhost", DAQPort.DAQLIVE)
-    print "======================="
-    print "Status: %s" % lst
+    print("=======================")
+    print("DAQLive %s:%d" % ("localhost", DAQPort.DAQLIVE))
+    print("=======================")
+    print("Status: %s" % lst)
 
 
 if __name__ == "__main__":
@@ -228,6 +230,6 @@ if __name__ == "__main__":
         if (not (hostid.is_control_host() or
                  (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
             raise SystemExit("Are you sure you are checking status"
-                             " on the correct host?" )
+                             " on the correct host?")
 
     print_status(args)

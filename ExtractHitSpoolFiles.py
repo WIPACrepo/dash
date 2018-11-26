@@ -14,6 +14,8 @@
 # set of tar files in /foo/bar/123456 and another in /foo/bar/backup, both
 # directories will end up with a set of hitspool subdirectories.
 
+from __future__ import print_function
+
 import fnmatch
 import os
 import re
@@ -21,6 +23,7 @@ import sys
 import tarfile
 
 HUB_PAT = re.compile(r"^.*i([ct])hub(\d+).*$")
+
 
 def extract_for_real(tarname, tardir, subdir):
     hubnames = {}
@@ -32,8 +35,8 @@ def extract_for_real(tarname, tardir, subdir):
 
             m = HUB_PAT.match(info.name)
             if m is None:
-                print >>sys.stderr, "No hubname found in %s; skipping" % \
-                    info.name
+                print("No hubname found in %s; skipping" % \
+                    info.name, file=sys.stderr)
                 continue
 
             hubtype = m.group(1)
@@ -44,14 +47,14 @@ def extract_for_real(tarname, tardir, subdir):
             elif hubtype == "t":
                 inice = False
             else:
-                print >>sys.stderr, "Unknown hub type in \"%s\"; skipping" % \
-                    info.name
+                print("Unknown hub type in \"%s\"; skipping" % \
+                    info.name, file=sys.stderr)
 
             try:
                 hubnum = int(numstr)
             except:
-                print >>sys.stderr, "Bad hub number in \"%s\"; skipping" % \
-                    info.name
+                print("Bad hub number in \"%s\"; skipping" % \
+                    info.name, file=sys.stderr)
 
             if not inice and hubnum < 100:
                 hubnum += 200
@@ -72,7 +75,7 @@ def extract_for_real(tarname, tardir, subdir):
                           os.path.join(hubpath, base))
                 os.removedirs(os.path.join(hubpath, namedir))
 
-            if not hubnames.has_key(hubname):
+            if hubname not in hubnames:
                 hubnames[hubname] = 1
             else:
                 hubnames[hubname] += 1
@@ -80,8 +83,7 @@ def extract_for_real(tarname, tardir, subdir):
         tf.close()
         os.remove(tarname)
 
-    keys = hubnames.keys()
-    keys.sort()
+    keys = sorted(hubnames.keys())
 
     for hub in keys:
         if hubnames[hub] == 1:
@@ -89,8 +91,9 @@ def extract_for_real(tarname, tardir, subdir):
         else:
             plural = "s"
 
-        print "Extracted %d %s file%s to %s" % \
-            (hubnames[hub], hub, plural, subdir)
+        print("Extracted %d %s file%s to %s" % \
+            (hubnames[hub], hub, plural, subdir))
+
 
 def process(path):
     for root, dirs, files in os.walk(path):
@@ -107,19 +110,18 @@ def process(path):
                         members.append(info)
 
                 if len(members) == 0:
-                    print >>sys.stderr, "No tarfile found in %s" % tarpath
+                    print("No tarfile found in %s" % tarpath, file=sys.stderr)
                 elif len(members) > 1:
-                    print >>sys.stderr, "Found %d tarfiles in %s" % \
-                        (len(members), tarpath)
+                    print("Found %d tarfiles in %s" % \
+                        (len(members), tarpath), file=sys.stderr)
                 else:
                     tf.extractall(members=members)
 
                 tardir = os.path.dirname(tarpath)
 
                 if not root.startswith(path):
-                    print >>sys.stderr, \
-                        "Cannot find subdirectory \"%s\" in \"%s\"" % \
-                        (root, path)
+                    print("Cannot find subdirectory \"%s\" in \"%s\"" % \
+                        (root, path), file=sys.stderr)
                     subdir = root
                 else:
                     subdir = root[len(path):]
@@ -131,6 +133,7 @@ def process(path):
                 extract_for_real(members[0].name, tardir, subdir)
             finally:
                 tf.close()
+
 
 if __name__ == "__main__":
     import argparse

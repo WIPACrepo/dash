@@ -12,6 +12,8 @@ RunSet.py)
 If run from 'cron', run as "SpadeQueue.py -a -c"
 """
 
+from __future__ import print_function
+
 import datetime
 import errno
 import os
@@ -39,10 +41,11 @@ TOO_LARGE = 1024 * 1024 * 1024 * 1.5
 # name of combined log file
 COMBINED_LOG = "combined.log"
 
+
 def __copySpadeTarFile(logger, copyDir, spadeBaseName, tarFile, dryRun=False):
     copyFile = os.path.join(copyDir, spadeBaseName + ".dat.tar")
     if dryRun:
-        print "ln %s %s" % (tarFile, copyFile)
+        print("ln %s %s" % (tarFile, copyFile))
         return
 
     logger.info("Link or copy %s->%s" % (tarFile, copyFile))
@@ -151,7 +154,7 @@ def __sizefmt(size):
 
 def __touch_file(f, dryRun=False):
     if dryRun:
-        print "touch %s" % f
+        print("touch %s" % f)
     else:
         open(f, "w").close()
 
@@ -174,7 +177,7 @@ def __writeSpadeTarFile(spadeDir, spadeBaseName, runDir, runNum, logger=None,
     tarBall = os.path.join(spadeDir, spadeBaseName + ".dat.tar")
 
     if dryRun:
-        print "tar cvf %s %s" % (tarBall, runDir)
+        print("tar cvf %s %s" % (tarBall, runDir))
     else:
         tarObj = tarfile.TarFile(tarBall, "w")
         tarObj.add(runDir, os.path.basename(runDir), True)
@@ -283,7 +286,8 @@ def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
              runTime.hour, runTime.minute, runTime.second, runDuration)
 
         tarFile = __writeSpadeTarFile(spadeDir, spadeBaseName, runDir, runNum,
-                                      logger=logger, dryRun=dryRun, force=force)
+                                      logger=logger, dryRun=dryRun,
+                                      force=force)
         if tarFile is not None:
             if copyDir is not None and os.path.exists(copyDir):
                 __copySpadeTarFile(logger, copyDir, spadeBaseName, tarFile,
@@ -314,8 +318,9 @@ def queue_logs(args):
     copyDir = None
 
     if args.check_all or len(args.runNumber) == 0:
-        check_all(logger, spadeDir, copyDir, logDir, no_combine=args.no_combine,
-                  force=args.force, verbose=args.verbose, dryRun=args.dryRun)
+        check_all(logger, spadeDir, copyDir, logDir,
+                  no_combine=args.no_combine, force=args.force,
+                  verbose=args.verbose, dryRun=args.dryRun)
     else:
         for numstr in args.runNumber:
             runNum = int(numstr)

@@ -2,6 +2,8 @@
 #
 # Parse pDAQ color files (used to specify colors for `pdaq taillive`)
 
+from __future__ import print_function
+
 import os
 
 from ANSIEscapeCode import ANSIEscapeCode
@@ -95,7 +97,6 @@ class ColorFileParser(object):
             defaults.append("")
             modified = True
 
-
         if modified:
             color_dict[self.DEFAULT_FIELD] = defaults
 
@@ -149,7 +150,7 @@ class ColorFileParser(object):
             try:
                 colors[cnum] = self.value(clow)
                 continue
-            except ColorException, cex:
+            except ColorException as cex:
                 raise ColorException("Bad %s in \"%s\" line %d: %s" %
                                      (self.FIELDNAMES[cnum], self.__filename,
                                       linenum, line))
@@ -164,7 +165,7 @@ class ColorFileParser(object):
         if color_value is None:
             raise ColorException("Value cannot be None")
 
-        for name, val in cls.COLOR_MAP.items():
+        for name, val in list(cls.COLOR_MAP.items()):
             if val == color_value:
                 return name
 
@@ -212,8 +213,7 @@ class ColorFileParser(object):
 
     @classmethod
     def print_formatted(cls, color_dict):
-        keys = color_dict.keys()
-        keys.sort()
+        keys = sorted(color_dict.keys())
         didx = keys.index(ColorFileParser.DEFAULT_FIELD)
         if didx > 0:
             del keys[didx]
@@ -221,10 +221,10 @@ class ColorFileParser(object):
         elif didx < 0:
             raise ColorException("Dictionary is missing a default entry")
 
-        print "# field: foreground / background / bold italic underline"
-        print "# can also specify \"none\" for no colors" \
-            " or \"skip\" to not print the line"
-        print
+        print("# field: foreground / background / bold italic underline")
+        print("# can also specify \"none\" for no colors" \
+            " or \"skip\" to not print the line")
+        print()
 
         defaults = color_dict[ColorFileParser.DEFAULT_FIELD]
         for fld in keys:
@@ -291,13 +291,13 @@ class ColorFileParser(object):
                         fstr = fg_color + " / " + bg_color + " / " + modifiers
 
             if fstr is None:
-                print "# %s: default" % (fld, )
+                print("# %s: default" % (fld, ))
             else:
-                print "%s: %s" % (fld, fstr)
+                print("%s: %s" % (fld, fstr))
 
             if is_dflt:
                 # leave whitespace before and after default
-                print
+                print()
 
     @classmethod
     def value(cls, color_name):
@@ -316,7 +316,7 @@ if __name__ == "__main__":
 
     from TailLive import LiveLog
 
-    print "%d args" % len(sys.argv)
+    print("%d args" % len(sys.argv))
     if len(sys.argv) > 1:
         filename = sys.argv[1]
     else:
@@ -324,7 +324,7 @@ if __name__ == "__main__":
 
     try:
         ColorFileParser(filename).parse(LiveLog.COLORS)
-    except ColorException, cex:
+    except ColorException as cex:
         raise SystemExit(str(cex))
 
     ColorFileParser.print_formatted(LiveLog.COLORS)

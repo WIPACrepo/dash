@@ -24,15 +24,15 @@ class TaskManager(threading.Thread):
         self.__runset = runset
         self.__dashlog = dashlog
 
-        self.__tasks = self.__createAllTasks(liveMoni, runDir, runCfg,
-                                             runOptions)
-
         self.__running = False
         self.__stopping = False
         self.__flag = threading.Condition()
 
         super(TaskManager, self).__init__(name="TaskManager")
         self.setDaemon(True)
+
+        self.__tasks = self.__createAllTasks(liveMoni, runDir, runCfg,
+                                             runOptions)
 
     def __createAllTasks(self, liveMoni, runDir, runCfg, runOptions):
         """
@@ -73,7 +73,7 @@ class TaskManager(threading.Thread):
                                   liveMoni)
         elif taskNum == 3:
             return WatchdogTask(self, self.__runset, self.__dashlog,
-                                period=runCfg.watchdogPeriod)
+                                initial_health=12, period=runCfg.watchdogPeriod)
 
         return None
 
@@ -141,12 +141,8 @@ class TaskManager(threading.Thread):
             if self.__dashlog is not None:
                 self.__dashlog.error(exc_string())
 
-    def setDebugBits(self, debugBits):
-        for t in self.__tasks:
-            t.setDebug(debugBits)
-
     def setError(self, callerName):
-        self.__runset.setError(callerName)
+        self.__runset.set_run_error(callerName)
 
     def stop(self):
         if self.__running and not self.__stopping:

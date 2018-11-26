@@ -12,6 +12,8 @@ Started November, 2007
 
 """
 
+from __future__ import print_function
+
 import datetime
 import os
 import popen2
@@ -58,7 +60,7 @@ class ThreadableProcess(object):
         Thread for starting, watching and controlling external process
         """
         if self.verbose:
-            print "Starting '%s' on %s..." % (cmd, hub)
+            print("Starting '%s' on %s..." % (cmd, hub))
 
         self.lock = threading.Lock()
         self.started = True
@@ -79,7 +81,7 @@ class ThreadableProcess(object):
 
         if self.doStop:
             if self.verbose:
-                print "Killing %s" % self.pop.pid
+                print("Killing %s" % self.pop.pid)
             os.kill(self.pop.pid, signal.SIGKILL)
         self.done = True
         self.started = False
@@ -92,7 +94,7 @@ class ThreadableProcess(object):
             time.sleep(0.3)
         if self.pop:
             if self.verbose:
-                print "Waiting for %s" % self.pop.pid
+                print("Waiting for %s" % self.pop.pid)
             self.pop.wait()
 
     def start(self):
@@ -123,7 +125,7 @@ class ThreadableProcess(object):
         Signal control thread to stop
         """
         if self.verbose:
-            print "OK, stopping thread for %s (%s)" % (self.hub, self.cmd)
+            print("OK, stopping thread for %s (%s)" % (self.hub, self.cmd))
         self.doStop = True
 
 
@@ -184,12 +186,12 @@ class DOMCounter(object):
         for line in domList:
             cwd = line[0]
             dat = line[1]
-            if not cwd in self.domDict:
+            if cwd not in self.domDict:
                 self.domDict[cwd] = DOMState(cwd)
             self.domDict[cwd].addData(dat)
 
     def doms(self):
-        return self.domDict.keys()
+        return list(self.domDict.keys())
 
     def lastState(self, dom):
         return self.domDict[dom].lastState()
@@ -205,11 +207,11 @@ class DOMCounter(object):
         return n
 
     def notDoneDoms(self):
-        l = []
+        not_done = []
         for d in self.domDict:
             if not self.domDict[d].done:
-                l.append(self.domDict[d])
-        return l
+                not_done.append(self.domDict[d])
+        return not_done
 
     def failedDoms(self):
         failed = []
@@ -227,12 +229,12 @@ class DOMCounter(object):
 
     def versionCounts(self):
         versions = {}
-        for d in self.domDict.keys():
+        for d in list(self.domDict.keys()):
             thisVersion = self.getVersion(d)
             if thisVersion is None:
                 continue
 
-            if not thisVersion in versions:
+            if thisVersion not in versions:
                 versions[thisVersion] = 1
             else:
                 versions[thisVersion] += 1
@@ -258,12 +260,12 @@ class DOMCounter(object):
             s += "NO DOMs UPLOADED SUCCESSFULLY!\n"
         elif len(vc) == 1:
             s += "Uploaded DOM-MB %s to %d DOMs\n" % \
-                (vc.keys()[0], self.doneDomCount())
+                (list(vc.keys())[0], self.doneDomCount())
         else:
             s += "WARNING: version mismatch\n"
             for version in vc:
                 s += "%2d DOMs with %s: " % (vc[version], version)
-                for d in self.domDict.keys():
+                for d in list(self.domDict.keys()):
                     if self.getVersion(d) == version:
                         s += "%s " % d
                 s += "\n"
@@ -343,17 +345,17 @@ class HubThreadSet(ThreadSet):
                         nDone += 1
                     nd = dc.notDoneDoms()
                     if nd and dt.seconds > self.stragglerTime:
-                        print "Waiting for %s:" % hub
+                        print("Waiting for %s:" % hub)
                         for notDone in dc.notDoneDoms():
-                            print "\t%s: %s" % \
-                                (notDone.cwd, notDone.lastState())
+                            print("\t%s: %s" % \
+                                (notDone.cwd, notDone.lastState()))
                 if nDone == len(self.hubs):
                     break
-                print "%s Done with %d of %d hubs (%d DOMs)." % \
+                print("%s Done with %d of %d hubs (%d DOMs)." % \
                     (str(datetime.datetime.now()),
                      nDone,
                      len(self.hubs),
-                     doneDomCount)
+                     doneDomCount))
             time.sleep(1)
 
 
@@ -411,7 +413,7 @@ def main():
 
     # Make sure file exists
     if not os.path.exists(releaseFile):
-        print "Release file %s doesn't exist!\n\n" % releaseFile
+        print("Release file %s doesn't exist!\n\n" % releaseFile)
         raise SystemExit
 
     try:
@@ -419,7 +421,7 @@ def main():
             DAQConfigParser.getClusterConfiguration(args.clusterConfigName,
                                                     validate=args.validation)
     except DAQConfigException as e:
-        print >> sys.stderr, 'Cluster configuration file problem:\n%s' % e
+        print('Cluster configuration file problem:\n%s' % e, file=sys.stderr)
         raise SystemExit
 
     hublist = clusterConfig.getHubNodes()
@@ -431,17 +433,17 @@ def main():
     for domhub in hublist:
         copySet.add("scp -q %s %s:%s" % (releaseFile, domhub, remoteFile))
 
-    print "Copying %s to all hubs as %s..." % (releaseFile, remoteFile)
+    print("Copying %s to all hubs as %s..." % (releaseFile, remoteFile))
     copySet.start()
     try:
         copySet.wait()
     except KeyboardInterrupt:
-        print "\nInterrupted."
+        print("\nInterrupted.")
         copySet.stop()
         raise SystemExit
 
     # Upload phase - upload release
-    print "Uploading %s on all hubs..." % remoteFile
+    print("Uploading %s on all hubs..." % remoteFile)
 
     uploader = HubThreadSet(args.verbose, args.watchPeriod, args.stragglerTime)
     for domhub in hublist:
@@ -453,11 +455,11 @@ def main():
     try:
         uploader.watch()
     except KeyboardInterrupt:
-        print "Got keyboardInterrupt... stopping threads..."
+        print("Got keyboardInterrupt... stopping threads...")
         uploader.stop()
         try:
             uploader.wait()
-            print "Killing remote upload processes..."
+            print("Killing remote upload processes...")
             killer = ThreadSet(args.verbose)
             for domhub in hublist:
                 killer.add("ssh %s killall -9 UploadDOMs.py" % domhub, domhub)
@@ -471,17 +473,18 @@ def main():
     for domhub in hublist:
         cleanUpSet.add("ssh %s /bin/rm -f %s" % (domhub, remoteFile))
 
-    print "Cleaning up %s on all hubs..." % remoteFile
+    print("Cleaning up %s on all hubs..." % remoteFile)
     cleanUpSet.start()
     try:
         cleanUpSet.wait()
     except KeyboardInterrupt:
-        print "\nInterrupted."
+        print("\nInterrupted.")
         cleanUpSet.stop()
         raise SystemExit
 
-    print "\n\nDONE."
-    print uploader.summary()
+    print("\n\nDONE.")
+    print(uploader.summary())
+
 
 if __name__ == "__main__":
     main()

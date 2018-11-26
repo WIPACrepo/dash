@@ -7,6 +7,8 @@ ftp://tycho.usno.navy.mil/pub/ntp/leap-seconds.nnnnnnnn
 is present and is named 'leap-seconds.latest'
 """
 
+from __future__ import print_function
+
 import calendar
 import os
 import re
@@ -85,6 +87,9 @@ class MJD(object):
 
     def __sub__(self, other):
         return self.__value - other.value
+
+    def __str__(self):
+        return str(self.__value)
 
     def add(self, days):
         self.__value += days
@@ -229,6 +234,17 @@ class leapseconds(object):
         "Return the Modified Julian Date when the current NIST file expires"
         return self.__expiry
 
+    @property
+    def filename(self):
+        "Return the path for the leapseconds file"
+        return self.__filename
+
+    @classmethod
+    def get_latest_path(cls):
+        "Return the absolute path to the default file"
+        return os.path.realpath(cls.instance().filename)
+
+
     def get_leap_offset(self, day_of_year, year=None):
         if year is None:
             year = self.__default_year
@@ -269,6 +285,7 @@ class leapseconds(object):
             raise LeapsecondException("Cannot reload leapsecond file %s: %s" %
                                       (self.__filename, ex))
 
+        self.__mtime = new_mtime
         return True
 
     def set_config_dir(self, config_dir):
@@ -287,10 +304,10 @@ class LeapOffsets(object):
         self.__total_seconds = None
 
     def dump(self, year):
-        print "[%d]:" % year,
+        print("[%d]:" % year, end=' ')
         for didx in range(len(self.__days)):
-            print str(self.__days[didx]),
-        print
+            print(str(self.__days[didx]), end=' ')
+        print()
 
     def get_leap_seconds(self, day_of_year):
         num_leap_secs = 0
@@ -341,8 +358,7 @@ class NISTParser(object):
 
         leap_offsets = []
 
-        leap_seconds = tai_map.keys()
-        leap_seconds.sort()
+        leap_seconds = sorted(tai_map.keys())
 
         jan1 = MJD(first_year, 1, 1).value
 

@@ -1,15 +1,18 @@
 #!/usr/bin/env python
 
 import datetime
+import numbers
 import os
 import threading
 import time
+import traceback
 import sys
 
 import SpadeQueue
 
+from ClusterDescription import ClusterDescription
 from CnCThread import CnCThread
-from CompOp import ComponentOperation, ComponentOperationGroup, Result
+from CompOp import * # we need most of the Op* classes
 from ComponentManager import ComponentManager, listComponentRanges
 from DAQClient import DAQClientState
 from DAQConfig import DOMNotInConfigException
@@ -19,9 +22,7 @@ from DAQRPC import RPCClient
 from DAQTime import PayloadTime
 from LiveImports import LIVE_IMPORT, MoniClient, MoniPort, Prio
 from RunOption import RunOption
-from RunSetDebug import RunSetDebug
 from RunSetState import RunSetState
-from RunStats import RunStats
 from TaskManager import TaskManager
 from UniqueID import UniqueID
 from leapseconds import leapseconds, LeapsecondException, MJD
@@ -63,126 +64,126 @@ class Connection(object):
 
     def __str__(self):
         "String description"
-        frontStr = '%s:%s#%d@%s' % \
+        front = '%s:%s#%d@%s' % \
             (self.conn.name, self.comp.name, self.comp.num, self.comp.host)
         if not self.conn.isInput:
-            return frontStr
-        return '%s:%d' % (frontStr, self.conn.port)
+            return front
+        return '%s:%d' % (front, self.conn.port)
 
     def map(self):
-        connDict = {}
-        connDict['type'] = self.conn.name
-        connDict['compName'] = self.comp.name
-        connDict['compNum'] = self.comp.num
-        connDict['host'] = self.comp.host
-        connDict['port'] = self.conn.port
-        return connDict
+        conn_dict = {}
+        conn_dict['type'] = self.conn.name
+        conn_dict['compName'] = self.comp.name
+        conn_dict['compNum'] = self.comp.num
+        conn_dict['host'] = self.comp.host
+        conn_dict['port'] = self.conn.port
+        return conn_dict
 
 
 class ConnTypeEntry(object):
     """
     Temporary class used to build the connection map for a runset
     type - connection type
-    inList - list of [input connection, component] entries
-    outList - list of output connections
+    in_list - list of [input connection, component] entries
+    out_list - list of output connections
     """
-    def __init__(self, type):
+    def __init__(self, conn_type):
         """
         ConnTypeEntry constructor
         type - connection type
         """
-        self.__type = type
-        self.__inList = []
-        self.__optInList = []
-        self.__outList = []
-        self.__optOutList = []
+        self.__type = conn_type
+        self.__in_list = []
+        self.__opt_in_list = []
+        self.__out_list = []
+        self.__opt_out_list = []
 
     def __str__(self):
-        return '%s in#%d out#%d' % (self.__type, len(self.__inList),
-                                    len(self.__outList))
+        return '%s in#%d out#%d' % (self.__type, len(self.__in_list),
+                                    len(self.__out_list))
 
     def add(self, conn, comp):
         "Add a connection and component to the appropriate list"
         if conn.isInput:
             if conn.isOptional:
-                self.__optInList.append([conn, comp])
+                self.__opt_in_list.append([conn, comp])
             else:
-                self.__inList.append([conn, comp])
+                self.__in_list.append([conn, comp])
         else:
             if conn.isOptional:
-                self.__optOutList.append(comp)
+                self.__opt_out_list.append(comp)
             else:
-                self.__outList.append(comp)
+                self.__out_list.append(comp)
 
-    def buildConnectionMap(self, connMap):
+    def build_connection_map(self, conn_map):
         "Validate and fill the map of connections for each component"
 
-        inLen = len(self.__inList) + len(self.__optInList)
-        outLen = len(self.__outList) + len(self.__optOutList)
+        in_len = len(self.__in_list) + len(self.__opt_in_list)
+        out_len = len(self.__out_list) + len(self.__opt_out_list)
 
         # if there are no inputs and no required outputs (or no required
         # inputs and no outputs), we're done
-        if (outLen == 0 and len(self.__inList) == 0) or \
-               (inLen == 0 and len(self.__outList) == 0):
+        if (out_len == 0 and len(self.__in_list) == 0) or \
+           (in_len == 0 and len(self.__out_list) == 0):
             return
 
         # if there are no inputs, throw an error
-        if inLen == 0:
-            outStr = None
-            for outComp in self.__outList + self.__optOutList:
-                if outStr is None:
-                    outStr = ''
+        if in_len == 0:
+            out_str = None
+            for out_comp in self.__out_list + self.__opt_out_list:
+                if out_str is None:
+                    out_str = ''
                 else:
-                    outStr += ', '
-                outStr += str(outComp)
+                    out_str += ', '
+                out_str += str(out_comp)
             raise ConnectionException('No inputs found for %s outputs (%s)' %
-                                      (self.__type, outStr))
+                                      (self.__type, out_str))
 
         # if there are no outputs, throw an error
-        if outLen == 0:
-            inStr = None
-            for inPair in self.__inList + self.__optInList:
-                if inStr is None:
-                    inStr = ''
+        if out_len == 0:
+            in_str = None
+            for pair in self.__in_list + self.__opt_in_list:
+                if in_str is None:
+                    in_str = ''
                 else:
-                    inStr += ', '
-                inStr += str(inPair[1])
+                    in_str += ', '
+                in_str += str(pair[1])
             raise ConnectionException('No outputs found for %s inputs (%s)' %
-                                      (self.__type, inStr))
+                                      (self.__type, in_str))
 
         # if there are multiple inputs and outputs, throw an error
-        if inLen > 1 and outLen > 1:
+        if in_len > 1 and out_len > 1:
             raise ConnectionException('Found %d %s inputs for %d outputs' %
-                                      (inLen, self.__type, outLen))
+                                      (in_len, self.__type, out_len))
 
         # at this point there is either a single input or a single output
 
-        if inLen == 1:
-            if len(self.__inList) == 1:
-                inObj = self.__inList[0]
+        if in_len == 1:
+            if len(self.__in_list) == 1:
+                in_obj = self.__in_list[0]
             else:
-                inObj = self.__optInList[0]
-            inConn = inObj[0]
-            inComp = inObj[1]
+                in_obj = self.__opt_in_list[0]
+            in_conn = in_obj[0]
+            in_comp = in_obj[1]
 
-            for outComp in self.__outList + self.__optOutList:
-                entry = Connection(inConn, inComp)
+            for out_comp in self.__out_list + self.__opt_out_list:
+                entry = Connection(in_conn, in_comp)
 
-                if not connMap.has_key(outComp):
-                    connMap[outComp] = []
-                connMap[outComp].append(entry)
+                if out_comp not in conn_map:
+                    conn_map[out_comp] = []
+                conn_map[out_comp].append(entry)
         else:
-            if len(self.__outList) == 1:
-                outComp = self.__outList[0]
+            if len(self.__out_list) == 1:
+                out_comp = self.__out_list[0]
             else:
-                outComp = self.__optOutList[0]
+                out_comp = self.__opt_out_list[0]
 
-            for inConn, inComp in self.__inList + self.__optInList:
-                entry = Connection(inConn, inComp)
+            for in_conn, in_comp in self.__in_list + self.__opt_in_list:
+                entry = Connection(in_conn, in_comp)
 
-                if not connMap.has_key(outComp):
-                    connMap[outComp] = []
-                connMap[outComp].append(entry)
+                if out_comp not in conn_map:
+                    conn_map[out_comp] = []
+                conn_map[out_comp].append(entry)
 
 
 class GoodTimeThread(CnCThread):
@@ -196,150 +197,150 @@ class GoodTimeThread(CnCThread):
     # maximum number of attempts to get the time from all hubs
     MAX_ATTEMPTS = 5
 
-    def __init__(self, srcSet, otherSet, data, log, quickSet=False,
-                 threadName=None):
+    def __init__(self, src_set, other_set, runset, data, log, quick_set=False,
+                 thread_name=None):
         """
         Create the thread
 
-        srcSet - list of sources (stringHubs) in the runset
-        otherSet - list of non-sources in the runset
+        src_set - list of sources (stringHubs) in the runset
+        other_set - list of non-sources in the runset
+        runset - collection of components in the run
         data - RunData for the run
         log - log file for the runset
-        quickSet - True if time should be passed on as quickly as possible
-        threadName - thread name
+        quick_set - True if time should be passed on as quickly as possible
+        thread_name - thread name
         """
-        self.__srcSet = srcSet
-        self.__otherSet = otherSet
+        self.__src_set = src_set
+        self.__other_set = other_set
+        self.__runset = runset
         self.__data = data
         self.__log = log
-        self.__quickSet = quickSet
+        self.__quick_set = quick_set
 
-        self.__timeDict = {}
-        self.__badComps = {}
+        self.__time_dict = {}
+        self.__bad_comps = {}
 
-        self.__goodTime = None
-        self.__finalTime = None
+        self.__good_time = None
+        self.__final_time = None
 
         self.__stopped = False
 
-        super(GoodTimeThread, self).__init__(threadName, log)
+        super(GoodTimeThread, self).__init__(thread_name, log)
 
-    def __fetchTime(self):
+    def __fetch_time(self):
         """
         Query all hubs which haven't yet reported a time
         """
-        tGroup = ComponentOperationGroup(ComponentOperation.GET_GOOD_TIME)
-        for c in self.__srcSet:
-            if not c in self.__timeDict:
-                tGroup.start(c, self.__log,
-                             (self.NONZOMBIE_FIELD, self.beanfield()))
+        tgroup = ComponentGroup(OpGetGoodTime)
+        for comp in self.__src_set:
+            if comp not in self.__time_dict:
+                args = (self.NONZOMBIE_FIELD, self.beanfield())
+                tgroup.run_thread(comp, args, logger=self.__log)
 
-        if self.waitForAll():
+        if self.wait_for_all():
             # if we don't need results as soon as possible,
             # wait for all threads to finish
-            tGroup.wait()
-            tGroup.reportErrors(self.__log, "getGoodTimes")
+            tgroup.wait()
+            tgroup.report_errors(self.__log, "getGoodTimes")
 
         complete = True
         updated = False
 
         # wait for up to two seconds for a result
-        sleepSecs = 0.1
-        sleepReps = 20
+        sleep_secs = 0.1
+        sleep_reps = 20
 
-        for _ in xrange(sleepReps):
-            hanging = False
+        for _ in range(sleep_reps):
+            hanging = None
             complete = True
 
-            rList = tGroup.results()
-            for c in self.__srcSet:
+            for thrd, result in list(tgroup.results().items()):
+                # start with no hanging components
+                hanging = None
+
                 if self.__stopped:
                     # run has been stopped, don't bother checking anymore
                     break
 
-                if c in self.__timeDict:
+                comp = thrd.component
+                if comp in self.__time_dict:
                     # already have a time for this hub
                     continue
 
-                result = rList[c]
                 if result is None or \
-                    result == ComponentOperation.RESULT_HANGING:
+                   result == ComponentGroup.RESULT_HANGING:
                     # still waiting for results
                     complete = False
-                    hanging = True
+                    if hanging is None:
+                        hanging = []
+                    hanging.append(comp)
                     continue
 
-                if result == ComponentOperation.RESULT_ERROR:
+                if not ComponentGroup.has_value(result):
                     # component operation failed
-                    self.__badComps[c] = 1
+                    self.__bad_comps[comp] = 1
                     continue
 
                 if not isinstance(result, dict):
                     self.__log.error("Expected dictionary, not %s for %s"
                                      " (result=%s)" %
-                                     (type(result), result, c.fullname))
+                                     (type(result), result, comp.fullname))
                     continue
 
-                if self.__badComps.has_key(c):
+                if comp in self.__bad_comps:
                     # got a result from a component which previously failed
-                    del self.__badComps[c]
+                    del self.__bad_comps[comp]
 
-                numDoms = result[self.NONZOMBIE_FIELD]
-                if numDoms == 0:
-                    # this string has no usable DOMs, record illegal time
-                    self.__log.error("No usable DOMs on %s for %s" %
-                                     (c.fullname, self.moniname()))
-                    self.__timeDict[c] = -1L
-                    continue
-
-                if not result.has_key(self.beanfield()):
-                    val = None
-                else:
+                if self.beanfield() in result:
                     val = result[self.beanfield()]
+                else:
+                    val = None
                 if val is None or val <= 0L:
                     # No results yet, need to poll again
                     complete = False
                     continue
 
-                self.__timeDict[c] = val
-                if self.__goodTime is None or \
-                    self.isBetter(self.__goodTime, val):
+                self.__time_dict[comp] = val
+                if self.__good_time is None or \
+                   self.is_better(self.__good_time, val):
                     # got new good time, tell the builders
-                    self.__goodTime = val
+                    self.__good_time = val
                     updated = True
 
             if complete:
                 # quit if we've got all the results
                 break
 
-            if not hanging and not self.waitForAll():
+            if hanging is None and not self.wait_for_all():
                 # quit if all threads are done or if we don't need to wait
                 break
 
             # wait a bit more for the threads to finish
-            time.sleep(sleepSecs)
+            time.sleep(sleep_secs)
+
+        if hanging is not None:
+            hang_str = listComponentRanges(hanging)
+            self.__log.error("%s found %d hanging component%s: %s" %
+                             (self.moniname, len(hanging),
+                              "" if len(hanging) == 1 else "s", hang_str))
 
         if updated:
             try:
-                self.__notifyComponents(self.__goodTime)
+                for comp in self.__other_set:
+                    if comp.isBuilder or comp.isComponent("globalTrigger"):
+                        self.notify_component(comp, self.__good_time)
             except:
                 self.__log.error("Cannot send %s to builders: %s" %
-                                 (self.moniname(), exc_string()))
+                                 (self.moniname, exc_string()))
 
         return complete
-
-    def __notifyComponents(self, goodTime):
-        "Send latest good time to the builders"
-        for c in self.__otherSet:
-            if c.isBuilder or c.isComponent("globalTrigger"):
-                self.notifyComponent(c, goodTime)
 
     def _run(self):
         "Gather good hit time data from all hubs"
         try:
             complete = False
-            for i in range(self.MAX_ATTEMPTS):
-                complete = self.__fetchTime()
+            for num in range(self.MAX_ATTEMPTS):
+                complete = self.__fetch_time()
                 loud = False
                 if loud and (complete or self.__stopped):
                     if complete:
@@ -349,47 +350,49 @@ class GoodTimeThread(CnCThread):
                     else:
                         status = "unknown"
                     self.__log.error("GetGoodTime %s after %d attempts" %
-                                     (status, i))
+                                     (status, num))
                     # we're done, break out of the loop
                     break
                 time.sleep(0.1)
         except:
             self.__log.error("Couldn't find %s: %s" %
-                             (self.moniname(), exc_string()))
+                             (self.moniname, exc_string()))
 
-        self.__finalTime = self.__goodTime
+        self.__final_time = self.__good_time
 
-        if len(self.__badComps) > 0:
+        if len(self.__bad_comps) > 0:
+            comp_str = listComponentRanges(list(self.__bad_comps.keys()))
             self.__log.error("Couldn't find %s for %s" %
-                             (self.moniname(),
-                              listComponentRanges(self.__badComps.keys())))
+                             (self.moniname, comp_str))
 
-        if self.__goodTime is None:
-            goodVal = "unknown"
+        if self.__good_time is None:
+            good_val = "unknown"
         else:
-            goodVal = self.__goodTime
-        self.__data.reportGoodTime(self.moniname(), goodVal)
+            good_val = self.__good_time
+        self.__runset.report_good_time(self.__data, self.moniname, good_val)
 
     def beanfield(self):
         "Return the name of the 'stringhub' MBean field"
         raise NotImplementedError("Unimplemented")
 
+    @property
     def finished(self):
         "Return True if the thread has finished"
-        return self.__finalTime is not None
+        return self.__final_time is not None
 
-    def isBetter(self, oldval, newval):
+    def is_better(self, oldval, newval):
         "Return True if 'newval' is better than 'oldval'"
         raise NotImplementedError("Unimplemented")
 
     def logError(self, msg):
         self.__log.error(msg)
 
+    @property
     def moniname(self):
         "Return the name of the value sent to I3Live"
         raise NotImplementedError("Unimplemented")
 
-    def notifyComponent(self, comp, goodTime):
+    def notify_component(self, comp, good_time):
         "Notify the builder of the good time"
         raise NotImplementedError("Unimplemented")
 
@@ -398,665 +401,410 @@ class GoodTimeThread(CnCThread):
 
     def time(self):
         "Return the time marking the start or end of good data taking"
-        return self.__finalTime
+        return self.__final_time
 
-    def waitForAll(self):
+    def wait_for_all(self):
         "Wait for all threads to finish before checking results?"
         raise NotImplementedError("Unimplemented")
 
 
 class FirstGoodTimeThread(GoodTimeThread):
-    def __init__(self, srcSet, otherSet, data, log):
+    def __init__(self, src_set, other_set, runset, data, log):
         """
         Create the thread
 
-        srcSet - list of sources (stringHubs) in the runset
-        otherSet - list of non-sources in the runset
+        src_set - list of sources (stringHubs) in the runset
+        other_set - list of non-sources in the runset
+        runset - collection of components in the run
         data - RunData for the run
         log - log file for the runset
         """
-        super(FirstGoodTimeThread, self).__init__(srcSet, otherSet, data, log,
-                                                  threadName="FirstGoodTime")
+        super(FirstGoodTimeThread, self).__init__(src_set, other_set, runset,
+                                                  data, log,
+                                                  thread_name="FirstGoodTime")
 
     def beanfield(self):
         "Return the name of the 'stringhub' MBean field"
         return "LatestFirstChannelHitTime"
 
-    def isBetter(self, oldval, newval):
+    def is_better(self, oldval, newval):
         "Return True if 'newval' is better than 'oldval'"
         return oldval is None or (newval is not None and oldval < newval)
 
+    @property
     def moniname(self):
         "Return the name of the value sent to I3Live"
         return "firstGoodTime"
 
-    def notifyComponent(self, comp, payTime):
+    def notify_component(self, comp, pay_time):
         "Notify the builder of the good time"
-        if payTime is None:
+        if pay_time is None:
             self.logError("Cannot set first good time to None")
         else:
-            comp.setFirstGoodTime(payTime)
+            comp.setFirstGoodTime(pay_time)
 
-    def waitForAll(self):
+    def wait_for_all(self):
         "Wait for all threads to finish before checking results?"
         return True
 
 
 class LastGoodTimeThread(GoodTimeThread):
-    def __init__(self, srcSet, otherSet, data, log):
+    def __init__(self, src_set, other_set, runset, data, log):
         """
         Create the thread
 
-        srcSet - list of sources (stringHubs) in the runset
-        otherSet - list of non-sources in the runset
+        src_set - list of sources (stringHubs) in the runset
+        other_set - list of non-sources in the runset
+        runset - collection of components in the run
         data - RunData for the run
         log - log file for the runset
         """
-        super(LastGoodTimeThread, self).__init__(srcSet, otherSet, data, log,
-                                                 threadName="LastGoodTime",
-                                                 quickSet=True)
+        super(LastGoodTimeThread, self).__init__(src_set, other_set, runset,
+                                                 data, log,
+                                                 thread_name="LastGoodTime",
+                                                 quick_set=True)
 
     def beanfield(self):
         "Return the name of the 'stringhub' MBean field"
         return "EarliestLastChannelHitTime"
 
-    def isBetter(self, oldval, newval):
+    def is_better(self, oldval, newval):
         "Return True if 'newval' is better than 'oldval'"
         return oldval is None or (newval is not None and oldval > newval)
 
+    @property
     def moniname(self):
         "Return the name of the value sent to I3Live"
         return "lastGoodTime"
 
-    def notifyComponent(self, comp, payTime):
+    def notify_component(self, comp, pay_time):
         "Notify the builder of the good time"
-        if payTime is None:
+        if pay_time is None:
             self.logError("Cannot set last good time to None")
         else:
-            comp.setLastGoodTime(payTime)
+            comp.setLastGoodTime(pay_time)
 
-    def waitForAll(self):
+    def wait_for_all(self):
         "Wait for all threads to finish before checking results?"
         return False
 
 
+class RateEntry(object):
+    def __init__(self, ticks, count):
+        self.__ticks = ticks
+        self.__count = count
+
+    def __cmp__(self, other):
+        val = cmp(self.__ticks, other.__ticks)
+        if val == 0:
+            val = cmp(self.__count, other.__count)
+        return val
+
+    def __repr__(self):
+        return "RateEntry(%s, %s)" % (self.__ticks, self.__count)
+
+    def __str__(self):
+        return "RateEntry[%s -> %s]" % (self.__ticks, self.__count)
+
+    @property
+    def count(self):
+        return self.__count
+
+    def diff_ticks(self, other):
+        return float(self.__ticks - other.__ticks)
+
+    def diff_count(self, other):
+        return float(self.__count - other.__count)
+
+    @property
+    def ticks(self):
+        return self.__ticks
+
+
+class StreamData(object):
+    def __init__(self, count, ticks):
+        self.__count = count
+        self.__ticks = ticks
+
+    def __str__(self):
+        return "%s@%s" % (self.__count, self.__ticks)
+
+    @property
+    def count(self):
+        return self.__count
+
+    @property
+    def ticks(self):
+        return self.__ticks
+
+    def update(self, count, ticks):
+        self.__count = count
+        self.__ticks = ticks
+
+
 class RunData(object):
-    # number of days before file expiration to start sending alerts
-    LEAPSECOND_FILE_EXPIRY = 14
+    # True if we've printed a warning about the failed IceCube Live code import
+    LIVE_WARNING = False
+    # rate interval (in 0.1ns)
+    RATE_INTERVAL = 300 * 10000000000
+    # maximum number of physics count entries
+    MAX_PHYSICS_ENTRIES = 1000
 
-    def __init__(self, runSet, runNumber, clusterConfig, runConfig,
-                 runOptions, versionInfo, spadeDir, copyDir, logDir,
-                 testing=False):
+    def __init__(self, run_set, run_number, cluster_config, run_config,
+                 run_options, version_info, spade_dir, copy_dir, log_dir):
         """
-        RunData constructor
-        runSet - run set which uses this data
-        runNum - current run number
-        clusterConfig - current cluster configuration
-        runConfig - current run configuration
-        runOptions - logging/monitoring options
-        versionInfo - release and revision info
-        spadeDir - directory where SPADE files are written
-        copyDir - directory where a copy of the SPADE files is kept
-        logDir - top-level logging directory
-        testing - True if this is called from a unit test
+        Constructor for object holding run-specific data
+
+        run_set - run set which uses this data
+        run_number - current run number
+        cluster_config - current cluster configuration
+        run_config - current run configuration
+        run_options - logging/monitoring options
+        version_info - release and revision info
+        spade_dir - directory where SPADE files are written
+        copy_dir - directory where a copy of the SPADE files is kept
+        log_dir - top-level logging directory
         """
-        self.__runNumber = runNumber
-        self.__subrunNumber = 0
-        self.__clusterConfig = clusterConfig
-        self.__runConfig = runConfig
-        self.__runOptions = runOptions
-        self.__versionInfo = versionInfo
-        self.__spadeDir = spadeDir
-        self.__copyDir = copyDir
-        self.__testing = testing
+        self.__run_number = run_number
+        self.__subrun_number = 0
+        self.__cluster_config = cluster_config
+        self.__run_config = run_config
+        self.__run_options = run_options
+        self.__version_info = version_info
+        self.__spade_dir = spade_dir
+        self.__copy_dir = copy_dir
         self.__finished = False
+        self.__task_mgr = None
 
-        if not RunOption.isLogToFile(self.__runOptions):
-            self.__logDir = None
-            self.__runDir = None
+        if not RunOption.isLogToFile(self.__run_options):
+            self.__log_dir = None
+            self.__run_dir = None
         else:
-            if logDir is None:
+            if log_dir is None:
                 raise RunSetException("Log directory not specified for" +
                                       " file logging")
 
-            self.__logDir = logDir
-            self.__runDir = runSet.createRunDir(self.__logDir,
-                                                self.__runNumber)
+            self.__log_dir = log_dir
+            self.__run_dir = run_set.create_run_dir(self.__log_dir,
+                                                    self.__run_number)
 
-        if self.__spadeDir is not None and not os.path.exists(self.__spadeDir):
+        if self.__spade_dir is not None and \
+           not os.path.exists(self.__spade_dir):
             raise RunSetException("SPADE directory %s does not exist" %
-                                  self.__spadeDir)
+                                  (self.__spade_dir, ))
 
-        if not testing:
-            self.__dashlog = self.__createDashLog()
-        else:
-            self.__dashlog = runSet.createDashLog()
+        self.__dashlog = self.create_dash_log()
 
-        self.__dashlog.error("Version info: " +
-                             get_scmversion_str(info=versionInfo))
-        self.__dashlog.error("Run configuration: %s" % runConfig.basename)
-        self.__dashlog.error("Cluster: %s" % clusterConfig.description)
+        self.__dashlog.error("Version info: %s" %
+                             (get_scmversion_str(info=version_info), ))
+        self.__dashlog.error("Run configuration: %s" % (run_config.basename, ))
+        self.__dashlog.error("Cluster: %s" % (cluster_config.description, ))
 
-        self.__taskMgr = None
-        self.__liveMoniClient = None
+        self.__live_moni_client = None
 
-        self.__runStats = RunStats()
-        self.__sendCount = 0
+        # run stats
+        self.__first_pay_time = None
+        self.__num_evts = 0
+        self.__wall_time = None
+        self.__evt_pay_time = None
+        self.__num_moni = 0
+        self.__moni_time = None
+        self.__num_sn = 0
+        self.__sn_time = None
+        self.__num_tcal = 0
+        self.__tcal_time = None
 
-        self.__firstPayTime = -1
+        # track number of monitoring messages
+        self.__num_event_count_messages = 0
 
-        self.__spadeThread = None
+        # Calculates rate over latest 5min interval
+        self.__physics_entries = []
+
+        # cache monitoring data for 'event_count_update'
+        self.__stream_data = {}
 
     def __str__(self):
-        return "Run#%d %s" % (self.__runNumber, self.__runStats)
+        return "Run#%d[e%d m%d s%d t%d]" % \
+            (self.__run_number, self.__num_evts, self.__num_moni,
+             self.__num_sn, self.__num_tcal)
 
-    def __calculateDuration(self, firstTime, lastTime, hadError):
-        if firstTime is None:
-            errMsg = "Starting time is not set"
-        elif lastTime is None:
-            errMsg = "Ending time is not set"
-        elif lastTime < firstTime:
-            errMsg = "Ending time %s is before starting time %s" % \
-                (lastTime, firstTime)
-        else:
-            errMsg = None
+    def __add_rate(self, pay_time, num_evts):
+        while len(self.__physics_entries) >= self.MAX_PHYSICS_ENTRIES:
+            self.__physics_entries.pop(0)
 
-        if errMsg is not None:
-            self.__dashlog.error(errMsg)
-            return -1
+        self.__physics_entries.append(RateEntry(pay_time, num_evts))
 
-        return (lastTime - firstTime) / 10000000000
+    @property
+    def _physics_entries(self):
+        return self.__physics_entries[:]
 
-    def __createDashLog(self):
+    @property
+    def cached_monitor_data(self):
+        return (self.__num_evts, self.__wall_time, None, self.__evt_pay_time,
+                self.__num_moni, self.__moni_time,
+                self.__num_sn, self.__sn_time,
+                self.__num_tcal, self.__tcal_time)
+
+    def clone(self, run_set, new_run):
+        return RunData(run_set, new_run, self.__cluster_config,
+                       self.__run_config, self.__run_options,
+                       self.__version_info, self.__spade_dir, self.__copy_dir,
+                       self.__log_dir)
+
+    @property
+    def cluster_configuration(self):
+        return self.__cluster_config
+
+    def connect_to_live(self):
+        self.__live_moni_client = self.create_moni_client(MoniPort)
+
+    @property
+    def copy_directory(self):
+        return self.__copy_dir
+
+    def create_dash_log(self):
         log = DAQLog("dash", level=DAQLog.ERROR)
 
-        if RunOption.isLogToFile(self.__runOptions):
-            if self.__runDir is None:
+        added = False
+        if RunOption.isLogToFile(self.__run_options):
+            if self.__run_dir is None:
                 raise RunSetException("Run directory has not been specified")
-            app = FileAppender("dashlog", os.path.join(self.__runDir,
+            app = FileAppender("dashlog", os.path.join(self.__run_dir,
                                                        "dash.log"))
             log.addAppender(app)
+            added = True
 
-        if RunOption.isLogToLive(self.__runOptions):
+        if RunOption.isLogToLive(self.__run_options):
             app = LiveSocketAppender("localhost", DAQPort.I3LIVE_ZMQ,
                                      priority=Prio.EMAIL)
             log.addAppender(app)
+            added = True
+
+        if not added:
+            raise RunSetException("No appenders for dash.log")
 
         return log
 
-    def __createLiveMoniClient(self):
+    def create_moni_client(self, port):
         if LIVE_IMPORT:
-            moniClient = MoniClient("pdaq", "localhost", MoniPort)
-        else:
-            moniClient = None
-            if not RunSet.LIVE_WARNING:
-                RunSet.LIVE_WARNING = True
-                self.__dashlog.error("Cannot import IceCube Live code, so" +
-                                     " per-string active DOM stats wil not" +
-                                     " be reported")
+            return MoniClient("pdaq", "localhost", port)
 
-        return moniClient
+        if not self.LIVE_WARNING:
+            self.LIVE_WARNING = True
+            self.__dashlog.error("Cannot import IceCube Live code, so" +
+                                 " per-string active DOM stats wil not" +
+                                 " be reported")
 
-    def __getRateData(self, comps):
-        nEvts = 0
-        wallTime = -1
-        lastPayTime = -1
-        nMoni = 0
-        moniTime = -1
-        nSN = 0
-        snTime = -1
-        nTCal = 0
-        tcalTime = -1
+        return None
 
-        for c in comps:
-            if c.isComponent("eventBuilder"):
-                evtData = self.getSingleBeanField(c, "backEnd", "EventData")
-                if evtData is None or isinstance(evtData, Result):
-                    self.__dashlog.error("Cannot get event data (%s)" %
-                                         (evtData, ))
-                elif not isinstance(evtData, list) and \
-                     not isinstance(evtData, tuple):
-                    self.__dashlog.error("Got bad event data %s <%s>" %
-                                         (evtData, type(evtData).__name__, ))
-                elif len(evtData) != 2:
-                    self.__dashlog.error("Got bad event data %s (expected"
-                                         " 2 entries)" % (evtData, ))
-                else:
-                    nEvts = int(evtData[0])
-                    wallTime = datetime.datetime.utcnow()
-                    lastPayTime = long(evtData[1])
-
-                if nEvts > 0 and self.__firstPayTime <= 0:
-                    val = self.getSingleBeanField(c, "backEnd",
-                                                  "FirstEventTime")
-                    if isinstance(val, Result):
-                        msg = "Cannot get first event time (%s)" % val
-                        self.__dashlog.error(msg)
-                    else:
-                        self.__firstPayTime = val
-                        self.__reportEventStart()
-
-            if c.isComponent("secondaryBuilders"):
-                for bldr in ("moni", "sn", "tcal"):
-                    val = self.getSingleBeanField(c, bldr + "Builder",
-                                                  "NumDispatchedData")
-                    if isinstance(val, Result):
-                        msg = "Cannot get %sBuilder dispatched data (%s)" % \
-                            (bldr, val)
-                        self.__dashlog.error(msg)
-                        num = 0
-                        time = None
-                    else:
-                        num = int(val)
-                        time = datetime.datetime.utcnow()
-
-                        if bldr == "moni":
-                            nMoni = num
-                            moniTime = time
-                        elif bldr == "sn":
-                            nSN = num
-                            snTime = time
-                        elif bldr == "tcal":
-                            nTCal = num
-                            tcalTime = time
-
-        return (nEvts, wallTime, self.__firstPayTime, lastPayTime, nMoni,
-                moniTime, nSN, snTime, nTCal, tcalTime)
-
-    def __leapsecondsChecks(self, config_dir=None):
-        """
-        Reload leapseconds file if it's been updated
-        Complain if the leapseconds file is due to expire
-        """
-        try:
-            ls = leapseconds.instance(config_dir)
-        except LeapsecondException:
-            if self.__liveMoniClient is None:
-                self.__dashlog.error("NIST leapsecond file not found"
-                                     " in %s" % (config_dir, ))
-            else:
-                # format an alert message
-                value = {
-                    "condition": "nist leapsecond file is missing",
-                    "desc": "Run dash/leapsecond-fetch.py and deploy pdaq",
-                    "vars": {
-                        "config_dir": config_dir,
-                    }
-                }
-                self.__liveMoniClient.sendMoni("alert", value, Prio.ITS)
-            return
-
-        reloaded = ls.reload_check()
-
-        expiry_mjd = ls.expiry
-
-        mjd_now = MJD.now()
-
-        expire_delta = expiry_mjd.value - mjd_now.value
-        if expire_delta <= self.LEAPSECOND_FILE_EXPIRY and \
-           not RunSet.is_leapsecond_silenced():
-            # notify humans that the leapsecond file is about to expire
-            self.__dashlog.error("Leapsecond file has %d days till"
-                                 " expiration" % (expire_delta, ))
-
-            if self.__liveMoniClient is not None:
-                # format an alert message
-                value = {
-                    "condition": "nist leapsecond file approaching expiration",
-                    "desc": "Run dash/leapsecond-fetch.py and deploy pdaq",
-                    "vars": {
-                        "days_till_expiration": expire_delta,
-                    }
-                }
-                self.__liveMoniClient.sendMoni("alert", value, Prio.ITS)
-        elif reloaded:
-            # notify humans that the leapsecond file was reloaded
-            self.__dashlog.info("Reloaded leapsecond file; %d days"
-                                " until expiration" % (expire_delta, ))
-
-            if self.__liveMoniClient is not None:
-                value = {
-                    "condition": "nist leapsecond file reloaded",
-                    "desc": "Found updated leapsecond file",
-                    "vars": {
-                        "days_till_expiration": expire_delta,
-                    }
-                }
-                self.__liveMoniClient.sendMoni("alert", value, Prio.ITS)
-
-    def __reportEventStart(self):
-        if self.__liveMoniClient is not None:
-            try:
-                fulltime = PayloadTime.toDateTime(self.__firstPayTime,
-                                                  high_precision=True)
-            except TypeError as err:
-                msg = "Cannot report first time %s<%s>, prevTime is %s<%s>" % \
-                            (self.__firstPayTime,
-                             type(self.__firstPayTime).__name__,
-                             PayloadTime.PREV_TIME,
-                             type(PayloadTime.PREV_TIME).__name__)
-                self.__dashlog.error(msg)
-                return
-
-            data = {"runnum": self.__runNumber,
-                    "time" : str(fulltime)}
-
-            try:
-                monitime = PayloadTime.toDateTime(self.__firstPayTime)
-            except TypeError as err:
-                msg = "Cannot set moni time %s<%s>, prevTime is %s<%s>" % \
-                            (self.__firstPayTime, type(self.__firstPayTime),
-                             PayloadTime.PREV_TIME, type(PayloadTime.PREV_TIME))
-                self.__dashlog.error(msg)
-                return
-
-    def __reportRunStop(self, numEvts, firstPayTime, lastPayTime, hadError):
-        if self.__liveMoniClient is not None:
-            firstDT = PayloadTime.toDateTime(firstPayTime, high_precision=True)
-            lastDT = PayloadTime.toDateTime(lastPayTime, high_precision=True)
-
-            if hadError is None:
-                status = "UNKNOWN"
-            elif hadError:
-                status = "FAIL"
-            else:
-                status = "SUCCESS"
-
-            data = {"runnum": self.__runNumber,
-                    "runstart": str(firstDT),
-                    "runstop": str(lastDT),
-                    "events": numEvts,
-                    "status": status}
-
-            monitime = PayloadTime.toDateTime(lastPayTime)
-            self.__sendMoni("runstop", data, prio=Prio.ITS, time=monitime)
-
-    def __sendMoni(self, name, value, prio=None, time=None):
-        try:
-            self.__liveMoniClient.sendMoni(name, value, prio=prio, time=time)
-        except:
-            self.__dashlog.error("Failed to send %s=%s: %s" %
-                                 (name, value, exc_string()))
-
-    def __writeRunXML(self, numEvts, numMoni, numSN, numTcal, firstTime,
-                      lastTime, firstGood, lastGood, duration, hadError):
-
-        xmlLog = DashXMLLog(dir_name=self.__runDir)
-        path = xmlLog.getPath()
-        if os.path.exists(path):
-            self.__dashlog.error("Run xml log file \"%s\" already exists!" %
-                                 path)
-            return
-
-        xmlLog.setVersionInfo(self.__versionInfo["release"],
-                              self.__versionInfo["repo_rev"])
-        xmlLog.setRun(self.__runNumber)
-        xmlLog.setConfig(self.__runConfig.basename)
-        xmlLog.setCluster(self.__clusterConfig.description)
-        xmlLog.setStartTime(PayloadTime.toDateTime(firstTime))
-        xmlLog.setEndTime(PayloadTime.toDateTime(lastTime))
-        xmlLog.setFirstGoodTime(PayloadTime.toDateTime(firstGood))
-        xmlLog.setLastGoodTime(PayloadTime.toDateTime(lastGood))
-        xmlLog.setEvents(numEvts)
-        xmlLog.setMoni(numMoni)
-        xmlLog.setSN(numSN)
-        xmlLog.setTcal(numTcal)
-        xmlLog.setTermCond(hadError)
-
-        # write the xml log file to disk
-        try:
-            xmlLog.writeLog()
-        except DashXMLLogException:
-            self.__dashlog.error("Could not write run xml log file \"%s\"" %
-                                 xmlLog.getPath())
-
-    def clone(self, runSet, newRun):
-        return RunData(runSet, newRun, self.__clusterConfig,
-                       self.__runConfig, self.__runOptions, self.__versionInfo,
-                       self.__spadeDir, self.__copyDir, self.__logDir,
-                       testing=self.__testing)
-
-    def connectToI3Live(self):
-        self.__liveMoniClient = self.__createLiveMoniClient()
+    def create_task_manager(self, runset):
+        return TaskManager(runset, self.__dashlog, self.__live_moni_client,
+                           self.__run_dir, self.__run_config,
+                           self.__run_options)
 
     def destroy(self):
-        savedEx = None
+        saved_ex = None
         try:
-            self.stop()
+            # stop monitoring, watchdog, etc.
+            self.stop_tasks()
         except:
-            savedEx = sys.exc_info()
+            saved_ex = sys.exc_info()
 
-        if self.__liveMoniClient:
+        if self.has_moni_client:
             try:
-                self.__liveMoniClient.close()
+                self.__live_moni_client.close()
             except:
-                if not savedEx:
-                    savedEx = sys.exc_info()
-            self.__liveMoniClient = None
+                if not saved_ex:
+                    saved_ex = sys.exc_info()
+            self.__live_moni_client = None
 
         if self.__dashlog is not None:
             try:
                 self.__dashlog.close()
             except:
-                if not savedEx:
-                    savedEx = sys.exc_info()
+                if not saved_ex:
+                    saved_ex = sys.exc_info()
             self.__dashlog = None
 
-        if savedEx:
-            raise savedEx[0], savedEx[1], savedEx[2]
+        if saved_ex:
+            raise saved_ex[0], saved_ex[1], saved_ex[2]
 
     def error(self, msg):
         if self.__dashlog is not None:
             self.__dashlog.error(msg)
 
-    def finalReport(self, comps, hadError, switching=False):
-        """
-        Gather end-of-run statistics and send them to various places
-        (Live, dash.log, run.xml)
-        """
-        (numEvts, firstTime, lastTime, firstGood, lastGood, numMoni, numSN,
-         numTcal) = self.getRunData(comps)
+    def exception(self, msg):
+        if self.__dashlog is not None:
+            self.__dashlog.error(msg)
+            try:
+                self.__dashlog.error(traceback.format_exc())
+            except:
+                self.__dashlog.error("!! Cannot dump exception !!")
 
-        # set end-of-run statistics
-        time = datetime.datetime.utcnow()
-        (numEvts, numMoni, numSN, numTcal, startPayTime, lastTime) = \
-            self.__runStats.updateEventCounts((numEvts, time, firstTime,
-                                               lastTime, numMoni, time,
-                                               numSN, time, numTcal, time))
-        if startPayTime is not None:
-            # starting payload time is more accurate, use it if available
-            firstTime = startPayTime
-
-        if numEvts is None or numEvts <= 0:
-            if numEvts is None:
-                self.__dashlog.error("Reset numEvts and duration")
-                numEvts = 0
-            else:
-                self.__dashlog.error("Reset duration")
-            duration = 0
-        else:
-            duration = self.__calculateDuration(firstTime, lastTime, hadError)
-            if duration is None or duration < 0:
-                hadError = True
-                duration = 0
-                self.__dashlog.error("Cannot calculate duration")
-
-        self.__writeRunXML(numEvts, numMoni, numSN, numTcal, firstTime,
-                           lastTime, firstGood, lastGood, duration, hadError)
-
-        self.__reportRunStop(numEvts, firstGood, lastGood, hadError)
-
-        if switching:
-            self.reportGoodTime("lastGoodTime", lastTime)
-
-        # report rates
-        if duration == 0:
-            rateStr = ""
-        else:
-            rateStr = " (%2.2f Hz)" % (float(numEvts) / float(duration))
-        self.__dashlog.error("%d physics events collected in %d seconds%s" %
-                             (numEvts, duration, rateStr))
-
-        if numMoni is None and numSN is None and numTcal is None:
-            self.__dashlog.error("!! secondary stream data is not available !!")
-        else:
-            if numMoni is None:
-                numMoni = 0
-            if numSN is None:
-                numSN = 0
-            if numTcal is None:
-                numTcal = 0
-            self.__dashlog.error("%d moni events, %d SN events, %d tcals" %
-                                 (numMoni, numSN, numTcal))
-
-        # report run status
-        if not switching:
-            endType = "terminated"
-        else:
-            endType = "switched"
-        if hadError:
-            errType = "WITH ERROR"
-        else:
-            errType = "SUCCESSFULLY"
-        self.__dashlog.error("Run %s %s." % (endType, errType))
-
-        return duration
-
-    def finishSetup(self, runSet, startTime):
-        """
-        Tell Live that we're starting a new run, launch run-related threads
-        """
-
-        # reload the leapseconds file if it's changed,
-        #  complain if it's outdated
-        self.__leapsecondsChecks(config_dir=self.__runConfig.configdir)
-
-        # send start-of-run message to Live
-        if self.__liveMoniClient is not None:
-            self.reportRunStartClass(self.__liveMoniClient, self.__runNumber,
-                                     self.__versionInfo["release"],
-                                     self.__versionInfo["repo_rev"], True,
-                                     time=startTime)
-
-        # start housekeeping threads
-        self.__taskMgr = runSet.createTaskManager(self.__dashlog,
-                                                  self.__liveMoniClient,
-                                                  self.__runDir,
-                                                  self.__runConfig,
-                                                  self.__runOptions)
-        self.__taskMgr.start()
-
+    @property
     def finished(self):
         return self.__finished
 
-    def firstPayTime(self):
-        return self.__firstPayTime
+    @property
+    def first_physics_time(self):
+        return self.__first_pay_time
 
-    def getEventCounts(self, comps, updateCounts=True):
+    def get_event_counts(self, run_num, run_set):
         "Return monitoring data for the run"
-        monDict = {}
-
-        if updateCounts:
-            self.__runStats.updateEventCounts(self.__getRateData(comps), True)
-        (numEvts, wallTime, payTime, numMoni, moniTime, numSN, snTime,
-         numTcal, tcalTime) = self.__runStats.monitorData()
-
-        monDict["physicsEvents"] = numEvts
-        if wallTime is None or numEvts == 0:
-            monDict["wallTime"] = None
-            monDict["eventPayloadTicks"] = None
+        if self.run_number != run_num:
+            self.error("Not getting event counts for run#%s"
+                           ", current run is #%d" %
+                           (run_num, self.run_number))
+            values = None
+        elif run_set.isRunning:
+            values = self.update_counts_and_rate(run_set)
         else:
-            monDict["wallTime"] = str(wallTime)
-            monDict["eventPayloadTicks"] = payTime
-        monDict["moniEvents"] = numMoni
-        if moniTime is None:
-            monDict["moniTime"] = None
+            values = self.cached_monitor_data
+
+        if values is None:
+            return {}
+
+        (num_evts, wall_time, _, pay_time, num_moni, moni_time, num_sn,
+         sn_time, num_tcal, tcal_time) = values
+
+        mon_dict = {}
+
+        mon_dict["physicsEvents"] = num_evts
+        if wall_time is None or num_evts == 0:
+            mon_dict["wallTime"] = None
+            mon_dict["eventPayloadTicks"] = None
         else:
-            monDict["moniTime"] = str(moniTime)
-        monDict["snEvents"] = numSN
-        if snTime is None:
-            monDict["snTime"] = None
+            mon_dict["wallTime"] = str(wall_time)
+            mon_dict["eventPayloadTicks"] = pay_time
+        mon_dict["moniEvents"] = num_moni
+        if moni_time is None:
+            mon_dict["moniTime"] = None
         else:
-            monDict["snTime"] = str(snTime)
-        monDict["tcalEvents"] = numTcal
-        if tcalTime is None:
-            monDict["tcalTime"] = None
+            mon_dict["moniTime"] = moni_time
+        mon_dict["snEvents"] = num_sn
+        if sn_time is None:
+            mon_dict["snTime"] = None
         else:
-            monDict["tcalTime"] = str(tcalTime)
-
-        return monDict
-
-    def getRunData(self, comps):
-        nEvts = 0
-        firstTime = 0
-        lastTime = 0
-        firstGood = 0
-        lastGood = 0
-        nMoni = 0
-        nSN = 0
-        nTCal = 0
-
-        # build list of endpoints (eventBuilder and secondaryBuilders)
-        bldrs = []
-        for c in comps:
-            if c.isBuilder:
-                bldrs.append(c)
-
-        r = ComponentOperationGroup.runSimple(ComponentOperation.GET_RUN_DATA,
-                                              bldrs, (self.__runNumber, ),
-                                              self.__dashlog)
-
-        for c in bldrs:
-            result = r[c]
-            if result == ComponentOperation.RESULT_HANGING or \
-                result == ComponentOperation.RESULT_ERROR or \
-                result is None:
-                self.__dashlog.error("Cannot get run data for %s: %s" %
-                                     (c.fullname, result))
-            elif not isinstance(result, list) and not isinstance(result, tuple):
-                self.__dashlog.error("Bogus run data for %s: %s" %
-                                     (c.fullname, result))
-            elif c.isComponent("eventBuilder"):
-                expNum = 5
-                if len(result) == expNum:
-                    (nEvts, firstTime, lastTime, firstGood, lastGood) = result
-                else:
-                    self.__dashlog.error(("Expected %d run data values from" +
-                                          " %s, got %d (%s)") %
-                                         (expNum, c.fullname, len(result),
-                                          str(result)))
-            elif c.isComponent("secondaryBuilders"):
-                expNum = 3
-                if len(result) == expNum:
-                    (nTCal, nSN, nMoni) = result
-                else:
-                    self.__dashlog.error(("Expected %d run data values from" +
-                                          " %s, got %d (%s)") %
-                                         (expNum, c.fullname, len(result),
-                                          str(result)))
-
-        return (nEvts, firstTime, lastTime, firstGood, lastGood, nMoni, nSN,
-                nTCal)
-
-    def getSingleBeanField(self, comp, bean, fldName):
-        tGroup = ComponentOperationGroup(ComponentOperation.GET_SINGLE_BEAN)
-        tGroup.start(comp, self.__dashlog, (bean, fldName))
-        tGroup.wait(waitSecs=3, reps=10)
-
-        r = tGroup.results()
-        if not r.has_key(comp):
-            result = ComponentOperation.RESULT_ERROR
+            mon_dict["snTime"] = sn_time
+        mon_dict["tcalEvents"] = num_tcal
+        if tcal_time is None:
+            mon_dict["tcalTime"] = None
         else:
-            result = r[comp]
+            mon_dict["tcalTime"] = tcal_time
 
-        return result
+        return mon_dict
+
+    @property
+    def has_moni_client(self):
+        return self.__live_moni_client is not None
 
     def info(self, msg):
-        self.__dashlog.info(msg)
+        if self.__dashlog is not None:
+            self.__dashlog.info(msg)
 
     @property
     def isDestroyed(self):
-        return self.__dashlog is not None
+        return self.__dashlog is None
 
     @property
     def isErrorEnabled(self):
@@ -1070,148 +818,477 @@ class RunData(object):
     def isWarnEnabled(self):
         return self.__dashlog.isWarnEnabled
 
-    def queueForSpade(self, duration):
-        if self.__logDir is None:
-            self.__dashlog.error(("Not logging to file "
-                                  "so cannot queue to SPADE"))
+    @property
+    def log_directory(self):
+        return self.__log_dir
+
+    @property
+    def moni_client(self):
+        return self.__live_moni_client
+
+    @property
+    def rate(self):
+        """
+        Get latest physics rate value.
+        """
+        # Find the first and last times for the current bin
+        # This is a bit crude but we don't need to worry about performance
+        # for the target application (pDAQ rate calculation)
+        bin_end = None
+        bin_start = None
+        for entry in reversed(self.__physics_entries):
+            if bin_end is None:
+                bin_end = entry
+            else:
+                bin_start = entry
+                if bin_end.diff_ticks(entry) > self.RATE_INTERVAL:
+                    break
+
+        if bin_end is None or bin_start is None:
+            return 0.0
+
+        tick_seconds = bin_end.diff_ticks(bin_start) / 1E10
+        if tick_seconds == 0.0:
+            return 0.0
+
+        num_evts_in_bin = bin_end.diff_count(bin_start)
+        return num_evts_in_bin / tick_seconds
+
+    @property
+    def release(self):
+        return self.__version_info["release"]
+
+    @property
+    def repo_revision(self):
+        return self.__version_info["repo_rev"]
+
+    def report_first_good_time(self, runset):
+        eb_comp = None
+        for comp in runset.components():
+            if comp.isComponent("eventBuilder"):
+                eb_comp = comp
+                break
+
+        if eb_comp is None:
+            self.error("Cannot find eventBuilder in %s" % str(runset))
             return
 
-        if self.__spadeDir is not None:
-            if self.__spadeThread is not None:
-                if self.__spadeThread.is_alive():
-                    try:
-                        self.__spadeThread.join(0.001)
-                    except:
-                        pass
-                if self.__spadeThread.is_alive():
-                    self.__dashlog.error("Previous SpadeQueue thread is" +
-                                         " still running!!!")
-
-            thrd = threading.Thread(target=SpadeQueue.queueForSpade,
-                                    args=(self.__dashlog, self.__spadeDir,
-                                          self.__copyDir, self.__logDir,
-                                          self.__runNumber))
-            thrd.start()
-
-            self.__spadeThread = thrd
-
-    def reportGoodTime(self, name, payTime):
-        if self.__liveMoniClient is None:
-            #self.__dashlog.error("Not reporting %s; no moni client" % name)
-            pass
+        first_time = None
+        for idx in range(5):
+            result = runset.get_first_event_time(eb_comp, self)
+            if ComponentGroup.has_value(result):
+                first_time = result
+                break
+            time.sleep(0.1)
+        if first_time is None:
+            self.error("Couldn't find first good time for switched run %s" %
+                       (self.__run_number, ))
         else:
-            try:
-                fulltime = PayloadTime.toDateTime(payTime, high_precision=True)
-            except:
-                fulltime = None
-                self.__dashlog.error("Cannot report %s: Bad value '%s'" %
-                                     (name, payTime))
-            if fulltime is not None:
-                data = {"runnum": self.__runNumber,
-                        "subrun": self.__subrunNumber,
-                        "time": str(fulltime)}
+            runset.report_good_time(self, "firstGoodTime", first_time)
 
-                monitime = PayloadTime.toDateTime(payTime)
-                self.__sendMoni(name, data, prio=Prio.SCP, time=monitime)
+    def report_run_stop(self, num_evts, first_pay_time, last_pay_time,
+                        had_error):
+        if not self.has_moni_client:
+            self.error("Cannot report run stop, no moni client!")
+            return
 
-    @classmethod
-    def reportRunStartClass(cls, moniClient, runNum, release, revision,
-                            started, time=datetime.datetime.now()):
-        """
-        This is a class method because failed runsets must be reported to
-        I3Live, but only successful runsets initialize RunData
-        moniClient - connection to I3Live
-        runNum - run number for started run
-        release - pDAQ software release name
-        revision - pDAQ software SVN revision
-        started - False if the run failed to start due to error
-        time - date/time run was started
-        """
-        data = {"runnum": runNum,
-                "release": release,
-                "revision": revision,
-                "started": started}
-        moniClient.sendMoni("runstart", data, prio=Prio.SCP, time=time)
+        first_dt = PayloadTime.toDateTime(first_pay_time, high_precision=True)
+        last_dt = PayloadTime.toDateTime(last_pay_time, high_precision=True)
+
+        if had_error is None:
+            status = "UNKNOWN"
+        elif had_error:
+            status = "FAIL"
+        else:
+            status = "SUCCESS"
+
+        data = {"runnum": self.__run_number,
+                "runstart": str(first_dt),
+                "runstop": str(last_dt),
+                "events": num_evts,
+                "status": status}
+
+        monitime = PayloadTime.toDateTime(last_pay_time)
+        self.send_moni("runstop", data, prio=Prio.ITS, time=monitime)
 
     def reset(self):
-        if self.__taskMgr is not None:
-            self.__taskMgr.reset()
+        pass
 
-    def runDirectory(self):
-        return self.__runDir
+    @property
+    def run_configuration(self):
+        return self.__run_config
 
-    def runNumber(self):
-        return self.__runNumber
+    @property
+    def run_directory(self):
+        return self.__run_dir
 
-    def sendEventCounts(self, comps, updateCounts=True):
-        "Report run monitoring quantities"
-        if self.__liveMoniClient is not None:
-            moniData = self.getEventCounts(comps, updateCounts)
+    @property
+    def run_number(self):
+        return self.__run_number
 
-            # send every 5th set of data over ITS
-            if self.__sendCount % 5 == 0:
-                prio = Prio.ITS
+    @property
+    def run_options(self):
+        return self.__run_options
+
+    def send_count_updates(self, moni_data, prio):
+        for stream in ("event", "moni", "sn", "tcal"):
+            if stream == "event":
+                prefix = "physics"
+                tick_field = "eventPayloadTicks"
             else:
-                prio = Prio.EMAIL
-            self.__sendCount += 1
+                prefix = stream
+                tick_field = prefix + "Time"
+            count_field = prefix + "Events"
 
-            value = {
-                "run": self.__runNumber,
-                "subrun": self.__subrunNumber,
+            if count_field not in moni_data or tick_field not in moni_data:
+                ## commented out because this is too noisy during run switches
+                ##
+                # self.error("No %s data provided by RunSet"
+                #            ".get_event_counts()" % (stream, ))
+                continue
+
+            if moni_data[count_field] is None or moni_data[tick_field] is None:
+                if moni_data[count_field] > 0:
+                    self.error("Bad %s data provided by RunSet"
+                               ".get_event_counts() (count %s, ticks %s)" %
+                               (stream, moni_data[count_field],
+                                moni_data[tick_field]))
+                continue
+
+            if stream not in self.__stream_data:
+                # add initial count/tick values for this stream, don't send yet
+                self.__stream_data[stream] \
+                    = StreamData(moni_data[count_field],
+                                 moni_data[tick_field])
+                continue
+
+            # cache the historical data for current stream
+            prev_entry = self.__stream_data[stream]
+
+            # ignore streams with no new counts
+            if prev_entry.ticks == moni_data[tick_field]:
+                if moni_data[count_field] != prev_entry.count:
+                    self.error("Skipping bogus data for %s (identical"
+                               " timestamps but old count is %s, new is %s)" %
+                               (stream, prev_entry.count,
+                                moni_data[count_field]))
+                continue
+
+            # send the monitoring data for this stream
+            try:
+                start_str = str(PayloadTime.toDateTime(prev_entry.ticks))
+                stop_str = str(PayloadTime.toDateTime(moni_data[tick_field]))
+                cur_count = moni_data[count_field] - prev_entry.count
+                if cur_count < 0:
+                    self.error("Ignoring negative %s event count for run %s"
+                               " (prev %s, cur %s)" %
+                               (self.__run_number, count_field,
+                                prev_entry.count, moni_data[count_field]))
+                else:
+                    count_update = {
+                        "start_time": start_str,
+                        "stop_time": stop_str,
+                        "count": cur_count,
+                        "stream": count_field,
+                        "run_number": self.__run_number,
+                    }
+
+                    # NOTE: all these messages are named "event_count_update",
+                    #       even the updates for "moni", "sn", and "tcal"
+                    #
+                    # See issue 7857 for details.
+                    self.send_moni("event_count_update", count_update,
+                                   prio=prio, time=stop_str)
+            finally:
+                # update the count/tick for this stream
+                prev_entry.update(moni_data[count_field], moni_data[tick_field])
+
+    def send_event_counts(self, run_set=None):
+        "Report run monitoring quantities"
+
+        if not self.has_moni_client:
+            # don't bother if we can't report anything
+            return
+
+        moni_data = self.get_event_counts(self.__run_number, run_set)
+
+        # send every 5th set of data over ITS
+        if self.__num_event_count_messages % 5 == 0:
+            prio = Prio.ITS
+        else:
+            prio = Prio.EMAIL
+        self.__num_event_count_messages += 1
+
+        self.send_count_updates(moni_data, prio)
+
+        for stream in ("physics", "moni", "sn", "tcal"):
+            if stream + "Events" not in moni_data:
+                if len(moni_data) > 0:
+                    self.error("Dropping incomplete monitoring data (%s)" %
+                               str(moni_data))
+                return
+
+        if True:  # XXX this should be removed after Sprecher is released
+            run_update = {
+                "run": self.__run_number,
+                "subrun": self.__subrun_number,
                 "version": 0,
             }
 
-            # if we don't have a DAQ time, use system time but complain
-            if moniData["eventPayloadTicks"] is not None:
-                time = PayloadTime.toDateTime(moniData["eventPayloadTicks"])
-            else:
-                time = datetime.datetime.utcnow()
-                self.__dashlog.error("Using system time for initial event" +
-                                     " counts (no event times available)")
-
             # fill in counts and times
-            value["physicsEvents"] = moniData["physicsEvents"]
-            if moniData["wallTime"] is not None:
-                value["wallTime"] = moniData["wallTime"]
+            run_update["physicsEvents"] = moni_data["physicsEvents"]
+            if moni_data["wallTime"] is not None:
+                run_update["wallTime"] = moni_data["wallTime"]
             for src in ("moni", "sn", "tcal"):
-                eventKey = src + "Events"
-                timeKey = src + "Time"
-                if moniData[timeKey] is not None and moniData[timeKey] >= 0:
-                    value[eventKey] = moniData[eventKey]
-                    value[timeKey] = moniData[timeKey]
+                event_key = src + "Events"
+                time_key = src + "Time"
+                if moni_data[time_key] is not None and \
+                   moni_data[time_key] >= 0:
+                    run_update[event_key] = moni_data[event_key]
+                    if isinstance(moni_data[time_key], numbers.Number):
+                        dttm = PayloadTime.toDateTime(moni_data[time_key])
+                    else:
+                        dttm = moni_data[time_key]
+                    run_update[time_key] = str(dttm)
 
-            self.__sendMoni("run_update", value, prio=prio, time=time)
+            # if we don't have a DAQ time, use system time but complain
+            if moni_data["eventPayloadTicks"] is not None:
+                ptime = PayloadTime.toDateTime(moni_data["eventPayloadTicks"])
+            else:
+                ptime = datetime.datetime.utcnow()
+                self.error("Using system time for initial event" +
+                               " counts (no event times available)")
 
-    def setDebugBits(self, debugBits):
-        if self.__taskMgr is not None:
-            self.__taskMgr.setDebugBits(debugBits)
+            self.send_moni("run_update", run_update, prio=prio, time=ptime)
 
-    def setFinished(self):
+    def send_moni(self, name, value, prio=None, time=None, debug=False):
+        if not self.has_moni_client:
+            self.__dashlog.error("No monitoring client")
+
+        if debug:
+            if prio is None:
+                pstr = ""
+            else:
+                pstr = "(prio %s)" % str(prio)
+            if time is None:
+                tstr = ""
+            else:
+                tstr = "[%s]" % str(time)
+            self.__dashlog.error("SendMoni %s%s%s: %s" %
+                                 (name, tstr, pstr, value))
+        try:
+            self.__live_moni_client.sendMoni(name, value, prio=prio, time=time)
+        except:
+            self.__dashlog.error("Failed to send %s=%s: %s" %
+                                 (name, value, exc_string()))
+
+    def set_finished(self):
         self.__finished = True
 
-    def setSubrunNumber(self, num):
-        self.__subrunNumber = num
+    def set_first_physics_time(self, paytime):
+        if self.__first_pay_time is None:
+            self.__first_pay_time = paytime
+        if len(self.__physics_entries) == 0:
+            self.__add_rate(self.__first_pay_time, 1)
 
-    def stop(self):
-        if self.__taskMgr is not None:
-            self.__taskMgr.stop()
+    def set_subrun_number(self, num):
+        self.__subrun_number = num
 
-    def subrunNumber(self):
-        return self.__subrunNumber
+    @property
+    def spade_directory(self):
+        return self.__spade_dir
 
-    def updateRates(self, comps):
-        rateData = self.__getRateData(comps)
-        self.__runStats.updateEventCounts(rateData, True)
+    def start_tasks(self, runset):
+        # start housekeeping threads
+        self.__task_mgr = self.create_task_manager(runset)
 
-        rate = self.__runStats.rate()
+        self.__task_mgr.start()
 
-        (wallTime, numEvts, numMoni, numSN, numTcal) = \
-                  self.__runStats.currentData()
+    def stop_tasks(self):
+        if self.__task_mgr is not None:
+            self.__task_mgr.stop()
+            for _ in range(5):
+                if self.__task_mgr.isStopped:
+                    break
+                time.sleep(0.25)
 
-        return (numEvts, rate, numMoni, numSN, numTcal)
+    @property
+    def subrun_number(self):
+        return self.__subrun_number
+
+    def update_counts_and_rate(self, run_set):
+        physics_count = 0
+        wall_time = -1
+        last_pay_time = -1
+        moni_count = 0
+        moni_time = -1
+        sn_count = 0
+        sn_time = -1
+        tcal_count = 0
+        tcal_time = -1
+
+        # cache for eventBuilder object
+        evtBldr = None
+
+        # start threads to query components
+        tgroup = ComponentGroup(OpGetSingleBeanField)
+        for comp in run_set.components():
+            if not comp.isBuilder:
+                continue
+
+            if comp.isComponent("eventBuilder"):
+                # save eventBuilder in case we need to get the first event time
+                evtBldr = comp
+
+                tgroup.run_thread(comp, ("backEnd", "EventData"),
+                                  logger=self)
+            elif comp.isComponent("secondaryBuilders"):
+                for bldr in ("moni", "sn", "tcal"):
+                    tgroup.run_thread(comp, (bldr + "Builder", "EventData"),
+                                      logger=self)
+        tgroup.wait(wait_secs=8, reps=10)
+
+        # process results
+        for thrd, result in list(tgroup.results(full_result=True).items()):
+            comp = thrd.component
+            if not ComponentGroup.has_value(result, full_result=True):
+                self.error("Cannot get event data for %s: %s" %
+                           (comp.fullname, result))
+                continue
+
+            evt_data = result.value
+            if not isinstance(evt_data, list) and \
+               not isinstance(evt_data, tuple):
+                self.error("Got bad event data (%s) <%s>" %
+                           (evt_data, type(evt_data).__name__))
+                continue
+
+            if comp.isComponent("eventBuilder"):
+                if len(evt_data) != 3:
+                    self.error("Got bad event data %s (expected 3 entries)" %
+                               (evt_data, ))
+                    continue
+
+                run_num = int(evt_data[0])
+                if run_num != self.__run_number:
+                    # if there's a new run, don't bother with this update
+                    if run_num != self.__run_number + 1:
+                        self.error("Ignoring eventBuilder counts (run#%s "
+                                   "!= run#%d)" % (run_num, self.__run_number))
+                    return None
+
+                physics_count = int(evt_data[1])
+                wall_time = datetime.datetime.utcnow()
+                last_pay_time = long(evt_data[2])
+
+            elif comp.isComponent("secondaryBuilders"):
+                if len(evt_data) != 3:
+                    self.error("Got bad event data %s (expected 3 entries)" %
+                               (evt_data, ))
+                    continue
+
+                run_num = evt_data[0]
+                if run_num != self.__run_number:
+                    # if there's a new run, don't bother with this update
+                    if run_num != self.__run_number + 1:
+                        self.error("Ignoring secondaryBuilders counts (run#%s "
+                                   "!= run#%d)" % (run_num, self.__run_number))
+                    return None
+
+                bldr_name = result.arguments[0]
+                num = evt_data[1]
+                now = evt_data[2]
+
+                if bldr_name.startswith("moni"):
+                    moni_count = num
+                    moni_time = now
+                elif bldr_name.startswith("sn"):
+                    sn_count = num
+                    sn_time = now
+                elif bldr_name.startswith("tcal"):
+                    tcal_count = num
+                    tcal_time = now
+
+        # if there are physics event but we don't know the time of
+        #  the first event, fetch it now
+        if physics_count > 0 and \
+           self.__first_pay_time <= 0 and \
+           evtBldr is not None:
+            result = run_set.get_first_event_time(evtBldr, self)
+            if not ComponentGroup.has_value(result):
+                msg = "Cannot get first event time (%s)" % (result, )
+                self.error(msg)
+            else:
+                self.set_first_physics_time(result)
+
+        return self.update_event_counts\
+            (physics_count, wall_time, self.__first_pay_time,
+             last_pay_time, moni_count, moni_time, sn_count, sn_time,
+             tcal_count, tcal_time, add_rate=True)
+
+    def update_event_counts(self, physics_count, wall_time, first_pay_time,
+                            evt_pay_time, moni_count, moni_time, sn_count,
+                            sn_time, tcal_count, tcal_time, add_rate=False):
+        "Gather run statistics"
+        if add_rate and self.__first_pay_time is None and first_pay_time > 0:
+            self.set_first_physics_time(first_pay_time)
+
+        if physics_count >= 0 and evt_pay_time > 0:
+            (self.__num_evts, self.__wall_time, self.__evt_pay_time,
+             self.__num_moni, self.__moni_time,
+             self.__num_sn, self.__sn_time,
+             self.__num_tcal, self.__tcal_time) = \
+             (physics_count, wall_time, evt_pay_time,
+              moni_count, moni_time,
+              sn_count, sn_time,
+              tcal_count, tcal_time)
+
+            if add_rate:
+                self.__add_rate(self.__evt_pay_time, self.__num_evts)
+
+        return (self.__num_evts, self.__wall_time, self.__first_pay_time,
+                self.__evt_pay_time, self.__num_moni, self.__moni_time,
+                self.__num_sn, self.__sn_time, self.__num_tcal,
+                self.__tcal_time)
 
     def warn(self, msg):
         self.__dashlog.warn(msg)
+
+    def write_run_xml(self, num_evts, num_moni, num_sn, num_tcal,
+                      first_time, last_time, first_good, last_good,
+                      had_error):
+
+        xml_log = DashXMLLog(dir_name=self.run_directory)
+
+        # don't continue if the file has already been created
+        path = xml_log.getPath()
+        if os.path.exists(path):
+            self.error("Run xml log file \"%s\" already exists!" %
+                           (path, ))
+            return None
+
+        xml_log.setVersionInfo(self.release, self.repo_revision)
+        xml_log.setRun(self.run_number)
+        xml_log.setConfig(self.run_configuration.basename)
+        xml_log.setCluster(self.cluster_configuration.description)
+        xml_log.setStartTime(PayloadTime.toDateTime(first_time))
+        xml_log.setEndTime(PayloadTime.toDateTime(last_time))
+        xml_log.setFirstGoodTime(PayloadTime.toDateTime(first_good))
+        xml_log.setLastGoodTime(PayloadTime.toDateTime(last_good))
+        xml_log.setEvents(num_evts)
+        xml_log.setMoni(num_moni)
+        xml_log.setSN(num_sn)
+        xml_log.setTcal(num_tcal)
+        xml_log.setTermCond(had_error)
+
+        # write the xml log file to disk
+        try:
+            xml_log.writeLog()
+        except DashXMLLogException:
+            self.error("Could not write run xml log file \"%s\"" %
+                           (xml_log.getPath(), ))
+
+        return path
 
 
 class RunSet(object):
@@ -1219,25 +1296,26 @@ class RunSet(object):
 
     # next runset ID
     #
-    ID = UniqueID()
+    ID_SOURCE = UniqueID()
 
     # number of seconds to wait after stopping components seem to be
     # hung before forcing remaining components to stop
     #
     TIMEOUT_SECS = RPCClient.TIMEOUT_SECS - 5
 
-    # True if we've printed a warning about the failed IceCube Live code import
-    LIVE_WARNING = False
-
     STATE_DEAD = DAQClientState.DEAD
+    STATE_ERROR = DAQClientState.ERROR
     STATE_HANGING = DAQClientState.HANGING
 
-    # token passed to stopRun() to indicate a "normal" stop
+    # token passed to stop_run() to indicate a "normal" stop
     NORMAL_STOP = "NormalStop"
 
-    # number of seconds between "Waiting for ..." messages during stopRun()
+    # number of seconds between "Waiting for ..." messages during stop_run()
     #
     WAIT_MSG_PERIOD = 5
+
+    # number of days before file expiration to start sending alerts
+    LEAPSECOND_FILE_EXPIRY = 14
 
     def __init__(self, parent, cfg, runset, logger):
         """
@@ -1258,17 +1336,17 @@ class RunSet(object):
         self.__set = runset
         self.__logger = logger
 
-        self.__id = RunSet.ID.next()
+        self.__id = RunSet.ID_SOURCE.next()
 
         self.__configured = False
         self.__state = RunSetState.IDLE
-        self.__runData = None
-        self.__compLog = {}
+        self.__run_data = None
+        self.__comp_log = {}
 
         self.__stopping = None
-        self.__stopLock = threading.Lock()
+        self.__stop_lock = threading.Lock()
 
-        self.__debugBits = 0x0
+        self.__spade_thread = None
 
         # make sure components are in a known order
         self.__set.sort()
@@ -1279,125 +1357,178 @@ class RunSet(object):
     def __str__(self):
         "String description"
         if self.__id is None:
-            setStr = "DESTROYED RUNSET"
+            set_str = "DESTROYED RUNSET"
         else:
-            setStr = 'RunSet #%d' % self.__id
-        if self.__runData is not None:
-            setStr += ' run#%d' % self.__runData.runNumber()
-        setStr += " (%s)" % self.__state
-        return setStr
+            set_str = 'RunSet #%s' % (self.__id, )
+        if self.__run_data is not None:
+            set_str += ' run#%d' % (self.__run_data.run_number, )
+        set_str += " (%s)" % (self.__state, )
+        return set_str
 
-    def __attemptToStop(self, srcSet, otherSet, newState, srcOp, timeoutSecs):
-        self.__state = newState
+    def __attempt_to_stop(self, src_set, other_set, new_state, src_op,
+                          timeout_secs):
+        self.__state = new_state
 
-        # self.__runData is guaranteed to be set here
-        if self.__runData.isErrorEnabled and \
-               srcOp == ComponentOperation.FORCED_STOP:
-            fullSet = srcSet + otherSet
-            plural = len(fullSet) == 1 and "s" or ""
-            if len(fullSet) == 1:
+        # self.__run_data is guaranteed to be set here
+        if self.__run_data.isErrorEnabled and src_op == OpForcedStop:
+            full_set = src_set + other_set
+            plural = len(full_set) == 1 and "s" or ""
+            if len(full_set) == 1:
                 plural = ""
             else:
                 plural = "s"
-            self.__runData.error('%s: Forcing %d component%s to stop: %s' %
-                                 (str(self), len(fullSet), plural,
-                                  listComponentRanges(fullSet)))
+            self.__run_data.error('%s: Forcing %d component%s to stop: %s' %
+                                  (str(self), len(full_set), plural,
+                                   listComponentRanges(full_set)))
 
         # stop sources in parallel
         #
-        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING SRC create *%d",
-                        len(srcSet))
-        ComponentOperationGroup.runSimple(srcOp, srcSet, (), self.__runData,
-                                          errorName=srcOp)
-        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING SRC done")
+        ComponentGroup.run_simple(src_op, src_set, (), self.__run_data,
+                                  report_errors=True)
 
         # stop non-sources in order
         #
-        for c in otherSet:
-            self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING OTHER %s", c)
-            ComponentOperationGroup.runSimple(srcOp, (c, ), (), self.__runData,
-                                              errorName=srcOp)
-            self.__logDebug(RunSetDebug.STOP_RUN,
-                            "STOPPING OTHER %s done", c)
+        for comp in other_set:
+            ComponentGroup.run_simple(src_op, (comp, ), (), self.__run_data,
+                                      report_errors=True)
 
         # make sure we run at least once
-        if timeoutSecs == 0:
-            timeoutSecs = 1
+        if timeout_secs == 0:
+            timeout_secs = 1
 
-        connDict = {}
+        conn_dict = {}
 
-        msgSecs = None
-        curSecs = time.time()
-        endSecs = curSecs + timeoutSecs
+        msg_secs = None
+        cur_secs = time.time()
+        end_secs = cur_secs + timeout_secs
 
-        while (len(srcSet) > 0 or len(otherSet) > 0) and curSecs < endSecs:
-            changed = self.__stopComponents(srcSet, otherSet, connDict)
+        while (len(src_set) > 0 or len(other_set) > 0) and cur_secs < end_secs:
+            changed = self.__stop_components(src_set, other_set, conn_dict)
             if not changed:
                 #
                 # hmmm ... we may be hanging
                 #
                 time.sleep(1)
-            elif len(srcSet) > 0 or len(otherSet) > 0:
+            elif len(src_set) > 0 or len(other_set) > 0:
                 #
                 # one or more components must have stopped
                 #
-                newSecs = time.time()
-                if msgSecs is None or \
-                   newSecs < (msgSecs + self.WAIT_MSG_PERIOD):
-                    waitStr = self.__connectionString(srcSet + otherSet,
-                                                      connDict)
-                    self.__runData.info('%s: Waiting for %s %s' %
-                                        (str(self), self.__state, waitStr))
-                msgSecs = newSecs
+                new_secs = time.time()
+                if msg_secs is None or \
+                   new_secs < (msg_secs + self.WAIT_MSG_PERIOD):
+                    wait_str = self.__connection_string(src_set + other_set,
+                                                        conn_dict)
+                    self.__run_data.info('%s: Waiting for %s %s' %
+                                         (str(self), self.__state, wait_str))
+                msg_secs = new_secs
 
-            curSecs = time.time()
-            self.__logDebug(RunSetDebug.STOP_RUN,
-                            "STOPPING WAITCHK - %d secs, %d comps",
-                            endSecs - curSecs, len(srcSet) + len(otherSet))
+            cur_secs = time.time()
 
-        return connDict
+        return conn_dict
 
-    def __badStateString(self, badStates):
-        badList = []
-        for state in badStates:
-            compStr = listComponentRanges(badStates[state])
-            badList.append(state + "[" + compStr + "]")
-        return ", ".join(badList)
+    @classmethod
+    def __bad_state_string(cls, bad_states):
+        badlist = []
+        for state in bad_states:
+            comp_str = listComponentRanges(bad_states[state])
+            badlist.append(state + "[" + comp_str + "]")
+        return ", ".join(badlist)
 
-    def __buildStartSets(self):
+    def __build_start_sets(self):
         """
         Return several lists of components.  The first list contains all the
         sources.  The second contains the non-builder components, sorted in
         reverse order.  The final set contains all builders (which are
         endpoints for the DAQ data streams).
         """
-        srcSet = []
-        middleSet = []
-        bldrSet = []
+        src_set = []
+        middle_set = []
+        bldr_set = []
 
-        failStr = None
-        for c in self.__set:
-            if c.order() is not None:
-                if c.isSource:
-                    srcSet.append(c)
-                elif c.isBuilder:
-                    bldrSet.append(c)
+        fail_str = None
+        for comp in self.__set:
+            if comp.order() is not None:
+                if comp.isSource:
+                    src_set.append(comp)
+                elif comp.isBuilder:
+                    bldr_set.append(comp)
                 else:
-                    middleSet.append(c)
+                    middle_set.append(comp)
             else:
-                if not failStr:
-                    failStr = 'No order set for ' + str(c)
+                if not fail_str:
+                    fail_str = 'No order set for ' + str(comp)
                 else:
-                    failStr += ', ' + str(c)
-        if failStr:
-            raise RunSetException(failStr)
-        middleSet.sort(self.__sortCmp)
+                    fail_str += ', ' + str(comp)
+        if fail_str:
+            raise RunSetException(fail_str)
+        middle_set.sort(key=lambda x: x.order())
 
-        return srcSet, middleSet, bldrSet
+        return src_set, middle_set, bldr_set
 
-    def __checkState(self, newState, components=None):
+    def __check_leapseconds(self, run_data, config_dir):
         """
-        If component states match 'newState', set state to 'newState' and
+        Reload leapseconds file if it's been updated
+        Complain if the leapseconds file is due to expire
+        """
+        try:
+            leapsec = leapseconds.instance(config_dir)
+        except LeapsecondException:
+            if not run_data.has_moni_client:
+                run_data.error("NIST leapsecond file not found in %s" %
+                               (config_dir, ))
+            else:
+                # format an alert message
+                value = {
+                    "condition": "nist leapsecond file is missing",
+                    "desc": "Run dash/leapsecond-fetch.py and deploy pdaq",
+                    "vars": {
+                        "config_dir": config_dir,
+                    }
+                }
+                run_data.send_moni("alert", value, Prio.ITS)
+            return
+
+        reloaded = leapsec.reload_check()
+
+        expiry_mjd = leapsec.expiry
+
+        mjd_now = MJD.now()
+
+        expire_delta = expiry_mjd.value - mjd_now.value
+        if expire_delta <= self.LEAPSECOND_FILE_EXPIRY and \
+           not self.is_leapsecond_silenced():
+            # notify humans that the leapsecond file is about to expire
+            run_data.error("Leapsecond file has %d days till expiration" %
+                           (expire_delta, ))
+
+            if run_data.has_moni_client:
+                # format an alert message
+                value = {
+                    "condition": "nist leapsecond file approaching expiration",
+                    "desc": "Run dash/leapsecond-fetch.py and deploy pdaq",
+                    "vars": {
+                        "days_till_expiration": expire_delta,
+                    }
+                }
+                run_data.send_moni("alert", value, Prio.ITS)
+        elif reloaded:
+            # notify humans that the leapsecond file was reloaded
+            run_data.info("Reloaded leapsecond file; %d days until"
+                          " expiration" % (expire_delta, ))
+
+            if run_data.has_moni_client:
+                value = {
+                    "condition": "nist leapsecond file reloaded",
+                    "desc": "Found updated leapsecond file",
+                    "vars": {
+                        "days_till_expiration": expire_delta,
+                    }
+                }
+                run_data.send_moni("alert", value, Prio.ITS)
+
+    def __check_state(self, new_state, components=None):
+        """
+        If component states match 'new_state', set state to 'new_state' and
         return an empty list.
         Otherwise, set state to ERROR and return a dictionary of states
         and corresponding lists of components.
@@ -1406,195 +1537,245 @@ class RunSet(object):
         if components is None:
             components = self.__set
 
-        states = ComponentOperationGroup.runSimple(ComponentOperation.GET_STATE,
-                                                   components, (),
-                                                   self.__logger)
+        states = ComponentGroup.run_simple(OpGetState, components, (),
+                                           self.__logger)
 
-        stateDict = {}
-        for c in components:
-            if states.has_key(c):
-                stateStr = str(states[c])
+        state_dict = {}
+        for comp in components:
+            if comp in states and states[comp] is not None:
+                state_str = str(states[comp])
             else:
-                stateStr = self.STATE_DEAD
-            if stateStr != newState:
-                if not stateStr in stateDict:
-                    stateDict[stateStr] = []
-                stateDict[stateStr].append(c)
+                state_str = self.STATE_DEAD
+            if state_str != new_state:
+                if state_str not in state_dict:
+                    state_dict[state_str] = []
+                state_dict[state_str].append(comp)
 
-        if len(stateDict) == 0:
-            self.__state = newState
+        if len(state_dict) == 0:
+            self.__state = new_state
         else:
-            msg = "Failed to transition to %s:" % newState
-            for stateStr in stateDict:
-                compStr = listComponentRanges(stateDict[stateStr])
-                msg += " %s[%s]" % (stateStr, compStr)
+            msg = "Failed to transition to %s:" % new_state
+            for state_str in state_dict:
+                comp_str = listComponentRanges(state_dict[state_str])
+                msg += " %s[%s]" % (state_str, comp_str)
 
-            self.__logError(msg)
+            self.__log_error(msg)
 
             self.__state = RunSetState.ERROR
 
-        return stateDict
+        return state_dict
 
-    def __checkStoppedComponents(self, waitList):
+    def __check_stopped_components(self, waitlist):
         """
         If one or more components are not stopped and state==READY,
         throw a RunSetException
         """
-        if len(waitList) > 0:
+        if len(waitlist) > 0:
             try:
-                waitStr = listComponentRanges(waitList)
-                errStr = '%s: Could not stop %s' % (self, waitStr)
-                self.__logError(errStr)
+                wait_str = listComponentRanges(waitlist)
+                err_str = '%s: Could not stop %s' % (self, wait_str)
+                self.__log_error(err_str)
             except:
-                errStr = "%s: Could not stop components (?)" % str(self)
+                err_str = "%s: Could not stop components (?)" % str(self)
             self.__state = RunSetState.ERROR
-            raise RunSetException(errStr)
+            raise RunSetException(err_str)
 
-        badStates = self.__checkState(RunSetState.READY)
-        if len(badStates) > 0:
+        bad_states = self.__check_state(RunSetState.READY)
+        if len(bad_states) > 0:
             try:
                 msg = "%s: Could not stop %s" % \
-                    (self, self.__badStateString(badStates))
-                self.__logError(msg)
+                    (self, self.__bad_state_string(bad_states))
+                self.__log_error(msg)
             except Exception as ex:
                 msg = "%s: Components in bad states: %s" % (self, ex)
             self.__state = RunSetState.ERROR
             raise RunSetException(msg)
 
     @staticmethod
-    def __connectionString(compList, connDict=None):
+    def __connection_string(comp_list, conn_dict=None):
         """
         Build a string of component names and (if supplied) the states of
         their connections
         """
-        compStr = None
-        for c in compList:
-            if compStr is None:
-                compStr = ''
+        comp_str = None
+        for comp in comp_list:
+            if comp_str is None:
+                comp_str = ''
             else:
-                compStr += ', '
-            if connDict is None or not connDict.has_key(c):
-                compStr += c.fullname
+                comp_str += ', '
+            if conn_dict is None or comp not in conn_dict:
+                comp_str += comp.fullname
             else:
-                compStr += c.fullname + connDict[c]
-        return compStr
+                comp_str += "%s(%s)" % (comp.fullname, conn_dict[comp])
+        return comp_str
 
     @staticmethod
-    def __connectorString(connStates):
+    def __connector_string(conn_states):
         """
         Build a string from a component's list of connector states
         (returned by the remote `listConnectorStates()` method)
         """
-        csStr = None
-        for cs in connStates:
-            if not cs.has_key("type") or not cs.has_key("state"):
+        cs_str = None
+        for cst in conn_states:
+            if "type" not in cst or "state" not in cst:
                 continue
-            if cs["state"] == 'idle':
+            if cst["state"] == 'idle':
                 continue
-            if csStr is None:
-                csStr = '['
+            if cs_str is None:
+                cs_str = '['
             else:
-                csStr += ', '
-            csStr += '%s:%s' % (cs["type"], cs["state"])
+                cs_str += ', '
+            cs_str += '%s:%s' % (cst["type"], cst["state"])
 
-        if csStr is None:
-            csStr = ''
+        if cs_str is None:
+            cs_str = ''
         else:
-            csStr += ']'
+            cs_str += ']'
 
-        return csStr
+        return cs_str
 
-    def __finishRun(self, comps, runData, hadError, switching=False):
-        """
-        Send run stats to Live and stash catchall.log in the run directory
-        """
-        duration = 0
-        try:
-            duration = runData.finalReport(comps, hadError, switching=switching)
-        finally:
-            self.__parent.saveCatchall(runData.runDirectory())
-
-        return duration
-
-    def __finishStop(self, callerName, hadError=False):
+    def __finish_stop(self, run_data, caller_name, had_error=False):
         # try to finish end-of-run reporting and move catchall.log to run dir
-        if self.__runData is None:
-            duration = 0
-        else:
+        if run_data is not None:
             try:
-                duration = self.__finishRun(self.__set, self.__runData,
-                                            hadError)
+                self.final_report(self.__set, run_data, had_error=had_error)
             except:
-                duration = 0
                 self.__logger.error("Could not finish run for %s (%s): %s" %
-                                    (self, callerName, exc_string()))
+                                    (self, caller_name, exc_string()))
+            finally:
+                self.__parent.saveCatchall(run_data.run_directory)
 
         # tell components to switch back to default logger (catchall.log)
         try:
-            self.resetLogging()
+            self.reset_logging()
         except:
             self.__logger.error("Could not stop logs for %s (%s): %s" %
-                                (self, callerName, exc_string()))
+                                (self, caller_name, exc_string()))
 
         # stop log servers for all components
         try:
-            self.__stopLogServers()
+            self.__stop_log_servers()
         except:
             self.__logger.error("Could not stop log servers for %s (%s): %s" %
-                                (self, callerName, exc_string()))
+                                (self, caller_name, exc_string()))
 
         # report event counts to Live
-        if self.__runData is not None:
+        sent_error = None
+        if run_data is None:
+            sent_error = "No run data"
+        else:
             try:
-                self.__runData.sendEventCounts(self.__set, False)
+                run_data.send_event_counts(self)
             except:
-                self.__logger.error("Could not send event counts"
-                                    " for %s (%s): %s" %
-                                    (self, callerName, exc_string()))
+                if sent_error is None:
+                    sent_error = exc_string()
 
-        # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
-        # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
-        try:
-            self.queueForSpade(self.__runData, duration)
-        except:
-            self.__logger.error("Could not queue SPADE files" +
-                                " for %s (%s): %s" %
-                                (self, callerName, exc_string()))
+            # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
+            # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
+            try:
+                self.__queue_for_spade(run_data)
+            except:
+                if sent_error is None:
+                    sent_error = exc_string()
 
-        # note that this run is finished
-        if self.__runData is not None:
-            self.__runData.setFinished()
+            # note that this run is finished
+            run_data.set_finished()
 
-    def __getReplayHubs(self):
+        if sent_error is not None:
+            self.__logger.error("Could not send event counts for %s (%s): %s" %
+                                (self, caller_name, sent_error))
+
+    def __get_replay_hubs(self):
         "Return the list of replay hubs in this runset"
-        replayHubs = []
-        for c in self.__set:
-            if c.isReplayHub:
-                replayHubs.append(c)
-        return replayHubs
+        replay_hubs = []
+        for comp in self.__set:
+            if comp.isReplayHub:
+                replay_hubs.append(comp)
+        return replay_hubs
+
+    @staticmethod
+    def __get_run_counts(bldrs, run_data):
+        """
+        Get the counts and times for all output streams
+        (physics, moni, sn, tcal)
+        """
+        physics_count = 0
+        first_time = 0
+        last_time = 0
+        first_good = 0
+        last_good = 0
+        moni_count = 0
+        moni_ticks = None
+        sn_count = 0
+        sn_ticks = None
+        tcal_count = 0
+        tcal_ticks = None
+
+        args = (run_data.run_number, )
+        logger = run_data
+        rslt = ComponentGroup.run_simple(OpGetRunData, bldrs, args, logger)
+
+        for comp in bldrs:
+            result = rslt[comp]
+            if not ComponentGroup.has_value(result):
+                run_data.error("Cannot get run data for %s: %s" %
+                               (comp.fullname, result))
+                continue
+
+            if not isinstance(result, list) and \
+                 not isinstance(result, tuple):
+                run_data.error("Bogus run data for %s: %s" %
+                               (comp.fullname, result))
+                continue
+
+            if comp.isComponent("eventBuilder"):
+                exp_num = 5
+                if len(result) == exp_num:
+                    (physics_count, first_time, last_time, first_good,
+                     last_good) = result
+                else:
+                    run_data.error(("Expected %d run data values from" +
+                                    " %s, got %d (%s)") %
+                                   (exp_num, comp.fullname, len(result),
+                                    result))
+            elif comp.isComponent("secondaryBuilders"):
+                if len(result) == 6:
+                    (tcal_count, tcal_ticks, sn_count, sn_ticks, moni_count,
+                     moni_ticks) = result
+                elif len(result) == 3:  # XXX remove after Sprecher release
+                    (tcal_count, sn_count, moni_count) = result
+                else:
+                    run_data.error(("Expected 3 or 6 run data values from" +
+                                    " %s, got %d (%s)") %
+                                   (comp.fullname, len(result), result))
+
+        return (physics_count, first_time, last_time, first_good, last_good,
+                moni_count, moni_ticks, sn_count, sn_ticks, tcal_count,
+                tcal_ticks)
 
     @classmethod
-    def __getRunDirectoryPath(cls, logDir, runNum):
-        return os.path.join(logDir, "daqrun%05d" % runNum)
+    def __get_run_directory_path(cls, log_dir, run_num):
+        return os.path.join(log_dir, "daqrun%05d" % run_num)
 
-    def __internalInitReplay(self, replayHubs):
-        op = ComponentOperation.GET_REPLAY_TIME
-        r = ComponentOperationGroup.runSimple(op, replayHubs, (), self.__logger)
+    def __internal_init_replay(self, replay_hubs):
+        rslt = ComponentGroup.run_simple(OpGetReplayTime, replay_hubs, (),
+                                         self.__logger)
 
         # find earliest first hit
         firsttime = None
-        for c in replayHubs:
-            result = r[c]
-            if result == ComponentOperation.RESULT_HANGING or \
-                result == ComponentOperation.RESULT_ERROR:
+        for comp in replay_hubs:
+            result = rslt[comp]
+            if not ComponentGroup.has_value(result):
                 self.__logger.error("Cannot get first replay time for %s: %s" %
-                                    (c.fullname, result))
+                                    (comp.fullname, result))
                 continue
-            elif result < 0:
+
+            if result < 0:
                 self.__logger.error("Got bad replay time for %s: %s" %
-                                    (c.fullname, result))
+                                    (comp.fullname, result))
                 continue
-            elif firsttime is None or result < firsttime:
+
+            if firsttime is None or result < firsttime:
                 firsttime = result
 
         if firsttime is None:
@@ -1607,179 +1788,77 @@ class RunSet(object):
         offset = long(walltime - firsttime)
 
         # set offset on all replay hubs
-        ComponentOperationGroup.runSimple(ComponentOperation.SET_REPLAY_OFFSET,
-                                          replayHubs, (offset, ), self.__logger,
-                                          errorName="setReplayOffset")
+        ComponentGroup.run_simple(OpSetReplayOffset, replay_hubs, (offset, ),
+                                  self.__logger, report_errors=True)
 
-    def __logDebug(self, debugBit, *args):
-        if (self.__debugBits & debugBit) != debugBit:
-            return
-
-        if len(args) == 1:
-            self.__logError(args[0])
-        else:
-            self.__logError(args[0] % args[1:])
-
-    def __logError(self, msg):
-        if self.__runData is not None and not self.__runData.isDestroyed:
-            logger = self.__runData
+    def __log_error(self, msg):
+        if self.__run_data is not None and not self.__run_data.isDestroyed:
+            logger = self.__run_data
         else:
             logger = self.__logger
 
         logger.error(msg)
 
-    def __reportFirstGoodTime(self, runData):
-        ebComp = None
-        for c in self.__set:
-            if c.isComponent("eventBuilder"):
-                ebComp = c
-                break
-
-        if ebComp is None:
-            runData.error("Cannot find eventBuilder in %s" % str(self))
-            return
-
-        firstTime = None
-        for _ in xrange(5):
-            val = runData.getSingleBeanField(ebComp, "backEnd",
-                                             "FirstEventTime")
-            if type(val) != Result:
-                firstTime = val
-                break
-            time.sleep(0.1)
-        if firstTime is None:
-            runData.error("Couldn't find first good time" +
-                          " for switched run %d" % runData.runNumber())
-        else:
-            runData.reportGoodTime("firstGoodTime", firstTime)
-
-    def __sortCmp(self, x, y):
-        if y.order() is None:
-            self.__logger.error('Comp %s cmdOrder is None' % str(y))
-            return -1
-        elif x.order() is None:
-            self.__logger.error('Comp %s cmdOrder is None' % str(x))
-            return 1
-        else:
-            return y.order() - x.order()
-
-    def __startComponents(self, quiet):
-        liveHost = None
-        livePort = None
-
-        tGroup = ComponentOperationGroup(ComponentOperation.CONFIG_LOGGING)
-
-        host = ip.getLocalIpAddr()
-
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP initLogs")
-        port = DAQPort.RUNCOMP_BASE
-        for c in self.__set:
-            # XXX replace with call to self.__stopLogServers()?
-            if c in self.__compLog:
-                try:
-                    self.__compLog[c].stopServing()
-                    self.__logger.error("Closed previous log for %s" % c)
-                except:
-                    self.__logger.error(("Could not close previous log" +
-                                         " for %s: %s") % (c, exc_string()))
-            self.__compLog[c] = \
-                self.createComponentLog(self.__runData.runDirectory(), c,
-                                        host, port, liveHost, livePort,
-                                        quiet=quiet)
-            tGroup.start(c, self.__runData, (host, port, liveHost, livePort))
-
-            port += 1
-
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP waitLogs")
-        tGroup.wait()
-        tGroup.reportErrors(self.__runData, "startLogging")
-
-        self.__runData.error("Starting run %d..." % self.__runData.runNumber())
-
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP bldSet")
-        srcSet, middleSet, bldrSet = self.__buildStartSets()
-        otherSet = bldrSet + middleSet
-
-        self.__state = RunSetState.STARTING
-
-        # start non-sources
-        #
-        self.__startSet("NonHubs", otherSet)
-
-        # start sources
-        #
-        self.__startSet("Hubs", srcSet)
-
-        # start thread to find latest first time from hubs
-        #
-        goodThread = FirstGoodTimeThread(srcSet[:], otherSet[:],
-                                         self.__runData, self.__runData)
-        goodThread.start()
-
-        for _ in xrange(20):
-            if not goodThread.isAlive():
-                break
-            time.sleep(0.5)
-
-        if goodThread.isAlive():
-            raise RunSetException("Could not get runset#%d latest first time" %
-                                  self.__id)
-
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP done")
-
-    def __startSet(self, setName, components):
+    def __log_state(self, text, comps):
         """
-        Start a set of components and verify that they are running
+        Debugging method which logs state information for all components
+        in the runset
         """
-        rstart = datetime.datetime.now()
-
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP start" + setName)
-        opData = (self.__runData.runNumber(), )
-        ComponentOperationGroup.runSimple(ComponentOperation.START_RUN,
-                                          components, opData, self.__runData,
-                                          errorName="start" + setName)
-
-        self.__logDebug(RunSetDebug.START_RUN,
-                        "STARTCOMP wait" + setName + "Chg")
-        self.__waitForStateChange(self.__runData, (RunSetState.RUNNING, ),
-                                  timeoutSecs=30, components=components)
-
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP chk" + setName)
-        badStates = self.__checkState(RunSetState.RUNNING, components)
-        self.__logDebug(RunSetDebug.START_RUN, "STARTCOMP bad%sStates %s",
-                        (setName, badStates))
-        if len(badStates) > 0:
-            raise RunSetException(("Could not start runset#%d run#%d" +
-                                   " %s components: %s") %
-                                  (self.__id, self.__runData.runNumber(),
-                                   setName, self.__badStateString(badStates)))
-        rend = datetime.datetime.now() - rstart
-        rsecs = float(rend.seconds) + (float(rend.microseconds) / 1000000.0)
-        self.__logger.error("Waited %.3f seconds for %s" % (rsecs, setName))
-
-    def __logState(self, text, comps):
         self.__logger.error("================= " + text + " =================")
-        op = ComponentOperation.GET_CONN_INFO
-        connInfo = ComponentOperationGroup.runSimple(op, comps, (),
-                                                     self.__logger)
-        for c in comps:
-            if not connInfo.has_key(c):
+        conn_info = ComponentGroup.run_simple(OpGetConnectionInfo, comps, (),
+                                              self.__logger)
+        for comp in comps:
+            if comp not in conn_info:
                 connstr = "???"
             else:
+                result = conn_info[comp]
+                if not ComponentGroup.has_value(result):
+                    self.__logger.error("Bad connection info for %s: %s" %
+                                        (comp.fullname, result))
+                    continue
+
                 connstr = None
-                for ci in connInfo[c]:
-                    if ci["state"].find("idle") < 0:
-                        if connstr is None:
-                            connstr = ""
-                        else:
-                            connstr += " "
-                        connstr += "%s(%s)#%s" % \
-                                   (ci["type"], ci["state"], ci["numChan"])
+                for info in result:
+                    if info["state"].find("idle") == 0:
+                        continue
+
+                    sstr = "%s(%s)#%s" % (info["type"], info["state"],
+                                          info["numChan"])
+                    if connstr is None:
+                        connstr = sstr
+                    else:
+                        connstr += " " + sstr
+
             if connstr is not None:
                 self.__logger.error("%s :: %s: %s" %
-                                    (text, c.fullname, connstr))
+                                    (text, comp.fullname, connstr))
 
-    def __removeComponent(self, comp):
+    def __queue_for_spade(self, run_data):
+        if run_data.log_directory is None:
+            run_data.error("Not logging to file so cannot queue to SPADE")
+            return
+
+        if run_data.spade_directory is not None:
+            if self.__spade_thread is not None:
+                if self.__spade_thread.is_alive():
+                    try:
+                        self.__spade_thread.join(0.001)
+                    except:
+                        pass
+                if self.__spade_thread.is_alive():
+                    run_data.error("Previous SpadeQueue thread is still"
+                                   " running!!!")
+
+            args = (run_data, run_data.spade_directory,
+                    run_data.copy_directory, run_data.log_directory,
+                    run_data.run_number)
+            thrd = threading.Thread(target=SpadeQueue.queueForSpade,
+                                    args=args)
+            thrd.start()
+
+            self.__spade_thread = thrd
+
+    def __remove_component(self, comp):
         try:
             self.__set.remove(comp)
         except ValueError:
@@ -1788,12 +1867,12 @@ class RunSet(object):
                                 (comp.fullname, self.__id))
 
         # clean up active log thread
-        if comp in self.__compLog:
+        if comp in self.__comp_log:
             try:
-                self.__compLog[comp].stopServing()
+                self.__comp_log[comp].stopServing()
             except:
                 pass
-            del self.__compLog[comp]
+            del self.__comp_log[comp]
 
         try:
             comp.close()
@@ -1801,150 +1880,248 @@ class RunSet(object):
             self.__logger.error("Close failed for %s: %s" %
                                 (comp.fullname, exc_string()))
 
-    def __stopComponents(self, srcSet, otherSet, connDict):
-        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING WAITCHK top")
-        states = ComponentOperationGroup.runSimple(ComponentOperation.GET_STATE,
-                                                   srcSet + otherSet, (),
-                                                   self.__logger)
+    def __report_run_start(self, moni_client, run_number, release, revision,
+                           started, start_time=None):
+        data = {
+            "runnum": run_number,
+            "release": release,
+            "revision": revision,
+            "started": started,
+        }
+
+        if start_time is None:
+            start_time = datetime.datetime.now()
+
+        moni_client.sendMoni("runstart", data, prio=Prio.SCP,
+                             time=start_time)
+
+    def __start_components(self, quiet):
+        live_host = None
+        live_port = None
+
+        self.__stop_log_servers()
+
+        log_host = ip.getLocalIpAddr()
+        log_port = DAQPort.RUNCOMP_BASE
+
+        tgroup = ComponentGroup(OpConfigureLogging)
+        for comp in self.__set:
+            self.__comp_log[comp] \
+                = self.create_component_log(self.__run_data.run_directory,
+                                            comp, log_host, log_port,
+                                            live_host, live_port, quiet=quiet)
+            args = (log_host, log_port, live_host, live_port)
+            tgroup.run_thread(comp, args, logger=self.__run_data)
+
+            log_port += 1
+
+        tgroup.wait()
+        tgroup.report_errors(self.__run_data, "startLogging")
+
+        self.__run_data.error("Starting run %d..." %
+                              (self.__run_data.run_number, ))
+
+        src_set, middle_set, bldr_set = self.__build_start_sets()
+        other_set = bldr_set + middle_set
+
+        self.__state = RunSetState.STARTING
+
+        # start non-sources
+        #
+        self.__start_set("NonHubs", other_set)
+
+        # start sources
+        #
+        self.__start_set("Hubs", src_set)
+
+        # start thread to find latest first time from hubs
+        #
+        good_thread = FirstGoodTimeThread(src_set[:], other_set[:], self,
+                                          self.__run_data, self.__run_data)
+        good_thread.start()
+
+        # wait up to 10 seconds for the thread to finish
+        #
+        for _ in range(100):
+            if good_thread.finished:
+                break
+            time.sleep(0.1)
+
+        if not good_thread.finished:
+            raise RunSetException("Could not get runset#%s latest first time" %
+                                  self.__id)
+
+    def __start_set(self, set_name, components):
+        """
+        Start a set of components and verify that they are running
+        """
+        rstart = datetime.datetime.now()
+
+        op_data = (self.__run_data.run_number, )
+        ComponentGroup.run_simple(OpStartRun, components, op_data,
+                                  self.__run_data, report_errors=True)
+
+        self.__wait_for_state_change(self.__run_data, (RunSetState.RUNNING, ),
+                                     timeout_secs=30, components=components)
+
+        bad_states = self.__check_state(RunSetState.RUNNING, components)
+        if len(bad_states) > 0:
+            raise RunSetException(("Could not start runset#%s run#%d" +
+                                   " %s components: %s") %
+                                  (self.__id, self.__run_data.run_number,
+                                   set_name,
+                                   self.__bad_state_string(bad_states)))
+        rend = datetime.datetime.now() - rstart
+        rsecs = float(rend.seconds) + (float(rend.microseconds) / 1000000.0)
+        self.__logger.error("Waited %.3f seconds for %s" % (rsecs, set_name))
+
+    def __stop_components(self, src_set, other_set, conn_dict):
+        states = ComponentGroup.run_simple(OpGetState, src_set + other_set, (),
+                                           self.__logger)
 
         changed = False
 
         # remove stopped components from appropriate dictionary
         #
         badlist = []
-        for oneset in (srcSet, otherSet):
+        for oneset in (src_set, other_set):
             copy = oneset[:]
-            for c in copy:
-                if states.has_key(c):
-                    stateStr = str(states[c])
+            for comp in copy:
+                is_valid = False
+                if comp not in states:
+                    state_str = self.STATE_DEAD
                 else:
-                    stateStr = self.STATE_DEAD
-                if stateStr != self.__state and stateStr != self.STATE_HANGING:
-                    self.__logDebug(RunSetDebug.STOP_RUN,
-                                    "STOPPING REMOVE %s (%s)", c, stateStr)
-                    oneset.remove(c)
-                    if c in connDict:
-                        del connDict[c]
+                    result = states[comp]
+                    if result == ComponentGroup.RESULT_HANGING:
+                        state_str = self.STATE_HANGING
+                    elif not ComponentGroup.has_value(result):
+                        state_str = self.STATE_ERROR
+                    else:
+                        state_str = str(result)
+                        is_valid = True
+                if is_valid and state_str != self.__state:
+                    oneset.remove(comp)
+                    if comp in conn_dict:
+                        del conn_dict[comp]
                     changed = True
                 else:
-                    badlist.append(c)
+                    badlist.append(comp)
 
         if len(badlist) > 0:
-            op = ComponentOperation.GET_CONN_INFO
-            allconn = ComponentOperationGroup.runSimple(op, badlist, (),
-                                                        self.__logger)
-            for c in badlist:
-                if not allconn.has_key(c):
-                    csStr = self.STATE_DEAD
+            allconn = ComponentGroup.run_simple(OpGetConnectionInfo, badlist,
+                                                (), self.__logger)
+            for comp in badlist:
+                if comp not in allconn:
+                    cs_str = self.STATE_DEAD
                 else:
-                    csDict = allconn[c]
-                    if not isinstance(csDict, dict):
-                        csStr = str(csDict)
+                    result = allconn[comp]
+                    if result == ComponentGroup.RESULT_HANGING:
+                        cs_str = self.STATE_HANGING
+                    elif not ComponentGroup.has_value(result):
+                        cs_str = self.STATE_ERROR
                     else:
-                        csStr = self.__connectorString(csDict)
-                if not c in connDict:
-                    connDict[c] = csStr
-                elif connDict[c] != csStr:
-                    connDict[c] = csStr
+                        if not isinstance(result, dict):
+                            cs_str = str(result)
+                        else:
+                            cs_str = self.__connector_string(result)
+                if comp not in conn_dict:
+                    conn_dict[comp] = cs_str
+                elif conn_dict[comp] != cs_str:
+                    conn_dict[comp] = cs_str
                     changed = True
 
         return changed
 
-    def __stopLogServers(self):
+    def __stop_log_servers(self):
         """
         Stop all log servers
         """
         # build list of components with active log servers
         loglist = []
-        for c in self.__set:
-            if c in self.__compLog:
-                loglist.append(c)
+        for comp in self.__set:
+            if comp in self.__comp_log:
+                loglist.append(comp)
 
         # stop listed log servers
-        ComponentOperationGroup.runSimple(ComponentOperation.STOP_LOGGING,
-                                          loglist, self.__compLog,
-                                          self.__logger,
-                                          errorName="stopLogging")
+        ComponentGroup.run_simple(OpStopLogging, loglist, self.__comp_log,
+                                  self.__logger, report_errors=True)
 
-    def __stopRunInternal(self, hadError=False, timeout=20):
+    def __stop_run_internal(self, run_data, timeout=20):
         """
         Stop all components in the runset
-        Return True if an error is encountered while stopping.
+        Return list of components which did not stop
         """
-        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING %s", self.__runData)
-        self.__runData.stop()
+        try:
+            # stop monitoring, watchdog, etc.
+            run_data.stop_tasks()
+        except:
+            run_data.exception("Cannot stop tasks")
 
-        srcSet = []
-        otherSet = []
+        src_set = []
+        other_set = []
 
-        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING buildSets")
-        for c in self.__set:
-            if c.isSource:
-                srcSet.append(c)
+        for comp in self.__set:
+            if comp.isSource:
+                src_set.append(comp)
             else:
-                otherSet.append(c)
+                other_set.append(comp)
 
         # stop from front to back
         #
-        otherSet.sort(lambda x, y: self.__sortCmp(y, x))
+        other_set.sort(key=lambda x: x.order())
 
         # start thread to find earliest last time from hubs
         #
-        goodThread = LastGoodTimeThread(srcSet[:], otherSet[:],
-                                        self.__runData, self.__runData)
-        goodThread.start()
+        good_thread = LastGoodTimeThread(src_set[:], other_set[:], self,
+                                         run_data, run_data)
+        good_thread.start()
 
         try:
             for i in range(0, 2):
-                if self.__runData is None:
+                if run_data is None:
                     break
 
-                self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING phase %d", i)
                 if i == 0:
                     rs_state = RunSetState.STOPPING
-                    op = ComponentOperation.STOP_RUN
+                    comp_op = OpStopRun
                     op_timeout = int(timeout * .75)
                 else:
                     rs_state = RunSetState.FORCING_STOP
-                    op = ComponentOperation.FORCED_STOP
+                    comp_op = OpForcedStop
                     op_timeout = int(timeout * .25)
 
-                connDict = self.__attemptToStop(srcSet, otherSet, rs_state,
-                                                op, op_timeout)
+                self.__attempt_to_stop(src_set, other_set, rs_state, comp_op,
+                                       op_timeout)
 
-                self.__logDebug(RunSetDebug.STOP_RUN,
-                                "STOPPING phase %d srcSet*%d otherSet[%s]",
-                                i, len(srcSet), str(otherSet))
-                if len(srcSet) == 0 and len(otherSet) == 0:
+                if len(src_set) == 0 and len(other_set) == 0:
                     break
         finally:
             # detector has stopped, no need to get last good time
             try:
-                goodThread.stop()
+                good_thread.stop()
             except:
-                # ignore problems stopping goodThread
+                # ignore problems stopping good_thread
                 pass
 
-        finalSet = srcSet + otherSet
-        if len(finalSet) > 0 and self.__runData is not None:
-            self.__runData.error("%s failed for %s" %
-                                 (op, listComponentRanges(finalSet)))
+        final_set = src_set + other_set
+        if len(final_set) > 0 and run_data is not None:
+            run_data.error("%s failed for %s" %
+                                  (comp_op.name,
+                                   listComponentRanges(final_set)))
 
-        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING reset")
-        if self.__runData is not None:
-            self.__runData.reset()
-        self.__logDebug(RunSetDebug.STOP_RUN, "STOPPING reset done")
+        if run_data is not None:
+            run_data.reset()
 
-        return finalSet
+        return final_set
 
-    def __validateSubrunDOMs(self, subrunData):
+    def __validate_subrun_doms(self, subrun_data):
         """
         Check that all DOMs in the subrun are valid.
         Convert (string, position) pairs in argument lists to mainboard IDs
         """
         doms = []
         not_found = []
-        for args in subrunData:
+        for args in subrun_data:
             # Look for (dommb, f0, ..., f4) or (name, f0, ..., f4)
             if len(args) == 6:
                 domid = args[0]
@@ -1975,34 +2152,44 @@ class RunSet(object):
             doms.append(args)
         return (doms, not_found)
 
-    def __waitForStateChange(self, logger, validStates,
-                             timeoutSecs=TIMEOUT_SECS, components=None):
+    def __wait_for_state_change(self, logger, valid_states,
+                                timeout_secs=TIMEOUT_SECS, components=None):
         """
-        Wait for state change, with a timeout of timeoutSecs (renewed each time
-        any component changes state).  Raise a ValueError if the state change
-        fails.
+        Wait for state change, with a timeout of timeout_secs (renewed each
+        time any component changes state).  Raise a ValueError if the state
+        change fails.
         """
-        if components is None:
-            waitList = self.__set[:]
-        else:
-            waitList = components[:]
+        if valid_states is None or len(valid_states) == 0:
+            raise RunSetException("No valid states specified")
 
-        startSecs = time.time()
-        endSecs = startSecs + timeoutSecs
-        while len(waitList) > 0 and time.time() < endSecs:
-            newList = waitList[:]
-            stateOp = ComponentOperation.GET_STATE
-            states = ComponentOperationGroup.runSimple(stateOp, waitList, (),
-                                                       self.__logger)
+        if components is None:
+            waitlist = self.__set[:]
+        else:
+            waitlist = components[:]
+
+        start_secs = time.time()
+        end_secs = start_secs + timeout_secs
+        while len(waitlist) > 0 and time.time() < end_secs:
+            new_list = waitlist[:]
+            states = ComponentGroup.run_simple(OpGetState, waitlist, (),
+                                               self.__logger)
             found_error = False
-            for c in waitList:
-                if states.has_key(c):
-                    stateStr = str(states[c])
+            for comp in waitlist:
+                if comp not in states:
+                    state_str = self.STATE_DEAD
                 else:
-                    stateStr = self.STATE_DEAD
-                if stateStr in validStates and stateStr != self.STATE_HANGING:
-                    newList.remove(c)
-                if stateStr.upper() == "ERROR":
+                    result = states[comp]
+                    if result == ComponentGroup.RESULT_HANGING:
+                        state_str = self.STATE_HANGING
+                    elif not ComponentGroup.has_value(result):
+                        state_str = self.STATE_ERROR
+                    else:
+                        state_str = str(result)
+                        is_valid = True
+                if state_str in valid_states and \
+                   state_str != self.STATE_HANGING:
+                    new_list.remove(comp)
+                if state_str.upper() == "ERROR":
                     found_error = True
                     break
 
@@ -2012,48 +2199,73 @@ class RunSet(object):
 
             # if one or more components changed state...
             #
-            if len(waitList) == len(newList):
+            if len(waitlist) == len(new_list):
                 time.sleep(1)
             else:
-                waitList = newList
-                if len(waitList) > 0:
-                    waitStr = listComponentRanges(waitList)
+                waitlist = new_list
+                if len(waitlist) > 0:
+                    wait_str = listComponentRanges(waitlist)
                     logger.info('%s: Waiting for %s %s' %
-                                (str(self), self.__state, waitStr))
+                                (str(self), self.__state, wait_str))
 
                 # reset timeout
                 #
-                endSecs = time.time() + timeoutSecs
+                end_secs = time.time() + timeout_secs
 
-        totalSecs = time.time() - startSecs
-        if len(waitList) > 0:
-            waitStr = listComponentRanges(waitList)
+        total_secs = time.time() - start_secs
+        if len(waitlist) > 0:
+            if len(valid_states) == 1:
+                state_str = valid_states[0]
+            else:
+                state_str = "(" + ", ".join(valid_states) + ")"
+            wait_str = listComponentRanges(waitlist)
             raise RunSetException(("Still waiting for %d components to" +
-                                   " leave %s after %d seconds (%s)") %
-                                  (len(waitList), self.__state, totalSecs,
-                                   waitStr))
+                                   " switch to %s after %d seconds (%s)") %
+                                  (len(waitlist), state_str, total_secs,
+                                   wait_str))
 
-        return totalSecs
+        return total_secs
 
-    def buildConnectionMap(self):
+    def build_connection_map(self):
         "Validate and fill the map of connections for each component"
-        self.__logDebug(RunSetDebug.START_RUN, "BldConnMap TOP")
-        connDict = {}
+        conn_dict = {}
 
         for comp in self.__set:
-            for n in comp.connectors():
-                if not n.name in connDict:
-                    connDict[n.name] = ConnTypeEntry(n.name)
-                connDict[n.name].add(n, comp)
+            for conn in comp.connectors():
+                if conn.name not in conn_dict:
+                    conn_dict[conn.name] = ConnTypeEntry(conn.name)
+                conn_dict[conn.name].add(conn, comp)
 
-        connMap = {}
+        conn_map = {}
 
-        for k in connDict:
+        for name in conn_dict:
             # XXX - this can raise ConnectionException
-            connDict[k].buildConnectionMap(connMap)
+            conn_dict[name].build_connection_map(conn_map)
 
-        self.__logDebug(RunSetDebug.START_RUN, "BldConnMap DONE")
-        return connMap
+        return conn_map
+
+    def client_statistics(self):
+        "Return RPC statistics for server->client calls"
+        return self.__parent.client_statistics()
+
+    def cluster_config(self):
+        if self.__run_data is None:
+            return None
+
+        clucfg = self.__run_data.cluster_configuration
+        if clucfg is None:
+            return None
+
+        desc = clucfg.description
+        if desc.endswith(".cfg"):
+            desc = desc[:-4]
+        if desc.endswith("-cluster"):
+            front = desc[:-8]
+            base = ClusterDescription.getClusterFromHostName()
+            if front == base:
+                return None
+
+        return desc
 
     def components(self):
         return self.__set[:]
@@ -2064,177 +2276,306 @@ class RunSet(object):
 
     def configure(self):
         "Configure all components in the runset"
-        self.__logDebug(RunSetDebug.START_RUN, "RSConfig TOP")
         self.__state = RunSetState.CONFIGURING
 
         data = (self.configName, )
-        ComponentOperationGroup.runSimple(ComponentOperation.CONFIG_COMP,
-                                          self.__set, data, self.__logger,
-                                          errorName="configure")
+        ComponentGroup.run_simple(OpConfigureComponent, self.__set, data,
+                                  self.__logger, report_errors=True)
 
-        cfgStates = (RunSetState.CONFIGURING, RunSetState.READY, )
-        self.__waitForStateChange(self.__logger, cfgStates, timeoutSecs=60)
+        cfg_states = (RunSetState.CONFIGURING, RunSetState.READY, )
+        self.__wait_for_state_change(self.__logger, cfg_states,
+                                     timeout_secs=60)
 
-        self.__waitForStateChange(self.__logger, (RunSetState.READY, ),
-                                  timeoutSecs=60)
+        self.__wait_for_state_change(self.__logger, (RunSetState.READY, ),
+                                     timeout_secs=60)
 
-        badStates = self.__checkState(RunSetState.READY)
-        if len(badStates) > 0:
-            msg = "Could not configure %s" % self.__badStateString(badStates)
+        bad_states = self.__check_state(RunSetState.READY)
+        if len(bad_states) > 0:
+            msg = "Could not configure %s" % \
+                  self.__bad_state_string(bad_states)
             self.__logger.error(msg)
             raise RunSetException(msg)
 
         self.__configured = True
-        self.__logDebug(RunSetDebug.START_RUN, "RSConfig DONE")
 
     def configured(self):
         return self.__configured
 
-    def connect(self, connMap, logger):
-        self.__logDebug(RunSetDebug.START_RUN, "RSConn TOP")
-
+    def connect(self, conn_map, logger):
         self.__state = RunSetState.CONNECTING
 
         # connect all components
         #
-        ComponentOperationGroup.runSimple(ComponentOperation.CONNECT,
-                                          self.__set, connMap, self.__logger,
-                                          errorName="logger")
+        ComponentGroup.run_simple(OpConnect, self.__set, conn_map,
+                                  self.__logger, report_errors=True)
 
         try:
-            self.__waitForStateChange(self.__logger, (RunSetState.CONNECTED, ),
-                                      timeoutSecs=20)
+            self.__wait_for_state_change(self.__logger,
+                                         (RunSetState.CONNECTED, ),
+                                         timeout_secs=20)
         except:
             # give up after 20 seconds
             pass
 
-        badStates = self.__checkState(RunSetState.CONNECTED)
-        if len(badStates) > 0:
-            errMsg = "Could not connect %s" % self.__badStateString(badStates)
-            raise RunSetException(errMsg)
+        bad_states = self.__check_state(RunSetState.CONNECTED)
+        if len(bad_states) > 0:
+            err_msg = "Could not connect %s" % \
+                      self.__bad_state_string(bad_states)
+            raise RunSetException(err_msg)
 
-        self.__logDebug(RunSetDebug.START_RUN, "RSConn DONE")
-
-    @staticmethod
-    def createComponentLog(runDir, comp, host, port, liveHost, livePort,
-                           quiet=True):
-        if not os.path.exists(runDir):
+    @classmethod
+    def create_component_log(cls, run_dir, comp, host, port, live_host,
+                             live_port, quiet=True):
+        if not os.path.exists(run_dir):
             raise RunSetException("Run directory \"%s\" does not exist" %
-                                  runDir)
+                                  run_dir)
 
-        logName = os.path.join(runDir, "%s-%d.log" % (comp.name, comp.num))
-        sock = LogSocketServer(port, comp.fullname, logName, quiet=quiet)
+        log_name = os.path.join(run_dir, "%s-%d.log" % (comp.name, comp.num))
+        sock = LogSocketServer(port, comp.fullname, log_name, quiet=quiet)
         sock.startServing()
 
         return sock
 
-    def createRunData(self, runNum, clusterConfig, runOptions, versionInfo,
-                      spadeDir, copyDir, logDir, testing=False):
-        return RunData(self, runNum, clusterConfig, self.__cfg,
-                       runOptions, versionInfo, spadeDir, copyDir, logDir,
-                       testing=testing)
+    def create_run_data(self, run_num, cluster_config, run_options,
+                        version_info, spade_dir, copy_dir, log_dir):
+        return RunData(self, run_num, cluster_config, self.__cfg,
+                       run_options, version_info, spade_dir, copy_dir, log_dir)
 
-    def createRunDir(self, logDir, runNum, backupExisting=True):
-        if not os.path.exists(logDir):
+    def create_run_dir(self, log_dir, run_num, backupExisting=True):
+        if not os.path.exists(log_dir):
             raise RunSetException("Log directory \"%s\" does not exist" %
-                                  logDir)
+                                  log_dir)
 
-        runDir = self.__getRunDirectoryPath(logDir, runNum)
-        if not os.path.exists(runDir):
-            os.makedirs(runDir)
+        run_dir = self.__get_run_directory_path(log_dir, run_num)
+        if not os.path.exists(run_dir):
+            os.makedirs(run_dir)
         elif not backupExisting:
-            if not os.path.isdir(runDir):
-                raise RunSetException("\"%s\" is not a directory" % runDir)
+            if not os.path.isdir(run_dir):
+                raise RunSetException("\"%s\" is not a directory" % run_dir)
         else:
             # back up existing run directory to daqrun#####.1 (or .2, etc.)
             #
             n = 1
             while True:
-                bakDir = "%s.%d" % (runDir, n)
-                if not os.path.exists(bakDir):
-                    os.rename(runDir, bakDir)
+                bak_dir = "%s.%d" % (run_dir, n)
+                if not os.path.exists(bak_dir):
+                    os.rename(run_dir, bak_dir)
                     break
                 n += 1
-            os.mkdir(runDir, 0755)
+            os.mkdir(run_dir, 0755)
 
-        return runDir
-
-    def createTaskManager(self, dashlog, liveMoniClient, runDir, runConfig,
-                          runOptions):
-        return TaskManager(self, dashlog, liveMoniClient, runDir, runConfig,
-                           runOptions)
+        return run_dir
 
     @classmethod
-    def cycleComponents(cls, compList, configDir, daqDataDir, logger,
-                        logPort, livePort, verbose, killWith9, eventCheck,
-                        checkExists=True):
+    def cycle_components(cls, comp_list, config_dir, daq_data_dir, logger,
+                         log_port, live_port, verbose, killWith9, eventCheck,
+                         checkExists=True):
 
         # sort list into a predictable order for unit tests
         #
-        logger.error("Cycling components %s" % listComponentRanges(compList))
+        logger.error("Cycling components %s" %
+                     (listComponentRanges(comp_list), ))
 
-        dryRun = False
-        ComponentManager.killComponents(compList, dryRun, verbose, killWith9)
-        ComponentManager.startComponents(compList, dryRun, verbose, configDir,
-                                         daqDataDir, logger.logPort,
-                                         logger.livePort, eventCheck,
-                                         checkExists=checkExists)
+        dry_run = False
+        ComponentManager.killComponents(comp_list, dry_run, verbose, killWith9)
+        ComponentManager.startComponents(comp_list, dry_run, verbose,
+                                         config_dir, daq_data_dir,
+                                         logger.logPort, logger.livePort,
+                                         eventCheck, checkExists=checkExists)
 
-    def destroy(self, ignoreComponents=False):
-        if not ignoreComponents and len(self.__set) > 0:
-            raise RunSetException('RunSet #%d is not empty' % self.__id)
+    def destroy(self, ignore_components=False):
+        if not ignore_components and len(self.__set) > 0:
+            raise RunSetException('RunSet #%s is not empty' % self.__id)
 
-        if self.__runData is not None:
-            self.__runData.destroy()
+        if self.__run_data is not None:
+            self.__run_data.destroy()
 
         self.__id = None
         self.__configured = False
         self.__state = RunSetState.DESTROYED
-        self.__runData = None
-
-    def debugBits(self):
-        return self.__debugBits
-
-    def getEventCounts(self):
-        "Return monitoring data for the run"
-        if self.__runData is None:
-            return {}
-
-        # only update event counts while RunSet is taking data
-        updateCounts = self.__state == RunSetState.RUNNING
-        return self.__runData.getEventCounts(self.__set, updateCounts)
+        self.__run_data = None
 
     @classmethod
-    def getRunSummary(cls, logDir, runNum):
-        "Return a dictionary summarizing the requested run"
-        runDir = cls.__getRunDirectoryPath(logDir, runNum)
-        if not os.path.exists(runDir):
-            raise RunSetException("No run directory found for run %d" % runNum)
+    def final_report(cls, comps, run_data, had_error=False, switching=False):
+        """
+        Gather end-of-run statistics and send them to various places
+        (Live, dash.log, run.xml)
+        This is "public" so it can be overridden by unit tests
+        """
 
-        return DashXMLLog.parse(runDir).summary()
+        if run_data is None or run_data.isDestroyed:
+            raise RunSetException("Run data is destroyed or not initialized")
+
+        # build list of endpoints (eventBuilder and secondaryBuilders)
+        bldrs = []
+        for comp in comps:
+            if comp.isBuilder:
+                bldrs.append(comp)
+
+        (physics_count, first_time, last_time, first_good, last_good,
+         moni_count, moni_ticks, sn_count, sn_ticks, tcal_count, tcal_ticks) \
+         = cls.__get_run_counts(bldrs, run_data)
+
+        # set end-of-run statistics
+        now = datetime.datetime.utcnow()
+        run_data.update_event_counts(physics_count, now, first_time,
+                                     last_time, moni_count, moni_ticks,
+                                     sn_count, sn_ticks, tcal_count,
+                                     tcal_ticks)
+        if run_data.first_physics_time is not None:
+            # starting payload time is more accurate, use it if available
+            first_time = run_data.first_physics_time
+
+        if physics_count is None or physics_count <= 0:
+            if physics_count is None:
+                run_data.error("Reset numEvts and duration for final report")
+                physics_count = 0
+            else:
+                run_data.error("Reset duration for final report")
+            duration = 0
+        else:
+            if first_time is None:
+                err_msg = "Starting time is not set"
+            elif last_time is None:
+                err_msg = "Ending time is not set"
+            elif last_time < first_time:
+                err_msg = "Ending time %s is before starting time %s" % \
+                          (last_time, first_time)
+            else:
+                err_msg = None
+                duration = (last_time - first_time) / 10000000000
+
+            if err_msg is not None:
+                run_data.error(err_msg)
+                had_error = True
+                duration = 0
+
+        run_data.write_run_xml(physics_count, moni_count, sn_count,
+                               tcal_count, first_time, last_time, first_good,
+                               last_good, had_error)
+
+        run_data.report_run_stop(physics_count, first_good, last_good,
+                                 had_error)
+
+        if switching:
+            cls.report_good_time(run_data, "lastGoodTime", last_time)
+
+        # report rates
+        if duration == 0:
+            rate_str = ""
+        else:
+            rate_str = " (%2.2f Hz)" % (float(physics_count) / float(duration))
+        run_data.error("%d physics events collected in %d seconds%s" %
+                       (physics_count, duration, rate_str))
+
+        if moni_count is None and sn_count is None and tcal_count is None:
+            run_data.error("!! secondary stream data is not available !!")
+        else:
+            if moni_count is None:
+                moni_count = 0
+            if sn_count is None:
+                sn_count = 0
+            if tcal_count is None:
+                tcal_count = 0
+            run_data.error("%d moni events, %d SN events, %d tcals" %
+                           (moni_count, sn_count, tcal_count))
+
+        # report run status
+        if not switching:
+            end_type = "terminated"
+        else:
+            end_type = "switched"
+        if had_error:
+            err_type = "WITH ERROR"
+        else:
+            err_type = "SUCCESSFULLY"
+        run_data.error("Run %s %s." % (end_type, err_type))
+
+        return duration
+
+    def finish_setup(self, run_data, start_time):
+        """
+        Tell Live that we're starting a new run, launch run-related threads
+        """
+
+        # reload the leapseconds file if it's changed,
+        #  complain if it's outdated
+        config_dir = run_data.run_configuration.configdir
+        self.__check_leapseconds(run_data, config_dir)
+
+        # send start-of-run message to Live
+        if run_data.has_moni_client:
+            self.__report_run_start(run_data.moni_client,
+                                    run_data.run_number,
+                                    run_data.release,
+                                    run_data.repo_revision,
+                                    True, start_time=start_time)
+
+        run_data.start_tasks(self)
+
+    def get_event_counts(self, run_num, run_data=None):
+        "Return monitoring data for the run"
+        if run_data is None:
+            run_data = self.__run_data
+
+        return run_data.get_event_counts(run_num, self)
+
+    def get_first_event_time(self, comp, run_data):
+        tgroup = ComponentGroup(OpGetSingleBeanField)
+        tgroup.run_thread(comp, ("backEnd", "FirstEventTime"),
+                          logger=run_data)
+        tgroup.wait(wait_secs=3, reps=10)
+
+        result = None
+        for thrd, rslt in list(tgroup.results(full_result=False).items()):
+            if thrd.component != comp:
+                self.__run_data.error("Found FirstEventTime result for"
+                                      " component %s (should be %s)" %
+                                      (thrd.component, comp))
+            elif result is not None:
+                self.__run_data.error("Found multiple FirstEventTime"
+                                      " results for %s" % (comp, ))
+            else:
+                result = rslt
+        if result is None:
+            return ComponentGroup.RESULT_ERROR
+        return result
+
+    @classmethod
+    def get_run_summary(cls, log_dir, run_num):
+        "Return a dictionary summarizing the requested run"
+        run_dir = cls.__get_run_directory_path(log_dir, run_num)
+        if not os.path.exists(run_dir):
+            raise RunSetException("No run directory found for run %d" %
+                                  (run_num, ))
+
+        return DashXMLLog.parse(run_dir).summary()
 
     @property
     def id(self):
         return self.__id
 
-    def initReplayHubs(self):
+    def init_replay_hubs(self):
         "Initialize all replay hubs"
-        self.__logDebug(RunSetDebug.START_RUN, "RSInitReplay TOP")
-        replayHubs = self.__getReplayHubs()
-        if len(replayHubs) == 0:
+        replay_hubs = self.__get_replay_hubs()
+        if len(replay_hubs) == 0:
             return
 
-        prevState = self.__state
+        prev_state = self.__state
         self.__state = RunSetState.INIT_REPLAY
 
         try:
-            self.__internalInitReplay(replayHubs)
+            self.__internal_init_replay(replay_hubs)
         finally:
-            self.__state = prevState
+            self.__state = prev_state
 
     @property
     def isDestroyed(self):
         return self.__state == RunSetState.DESTROYED
+
+    @property
+    def isIdle(self):
+        return self.__state == RunSetState.IDLE
 
     @property
     def isReady(self):
@@ -2257,8 +2598,8 @@ class RunSet(object):
 
         # check to see if the limit file exists
         try:
-            with open(alert_timestamp_fname, 'r') as fd:
-                tstamp = int(fd.read())
+            with open(alert_timestamp_fname, 'r') as fin:
+                tstamp = int(fin.read())
             diff = time.time() - tstamp
         except IOError:
             # could not open the alert timestamp file for reading
@@ -2272,36 +2613,50 @@ class RunSet(object):
             # ... we're still silenced
             return True
 
-        with open(alert_timestamp_fname, 'w') as fd:
-            fd.write("%d" % time.time())
+        with open(alert_timestamp_fname, 'w') as fout:
+            fout.write("%d" % time.time())
 
         return False
 
-    def logToDash(self, msg):
+    def log_to_dash(self, msg):
         "Used when the runset needs to add a log message to dash.log"
-        self.__logError(msg)
+        self.__log_error(msg)
 
-    def queueForSpade(self, runData, duration):
-        if runData is None:
-            self.__logger.error("No run data; cannot queue for SPADE")
+    @staticmethod
+    def report_good_time(run_data, name, pay_time):
+        if not run_data.has_moni_client:
             return
 
-        runData.queueForSpade(duration)
-
-    def reportRunStartFailure(self, runNum, release, revision):
         try:
-            moniClient = MoniClient("pdaq", "localhost", DAQPort.I3LIVE)
+            fulltime = PayloadTime.toDateTime(pay_time, high_precision=True)
+        except:
+            run_data.error("Cannot report %s: Bad value '%s'" %
+                           (name, pay_time))
+            return
+
+        value = {
+            "runnum": run_data.run_number,
+            "subrun": run_data.subrun_number,
+            "time": str(fulltime),
+        }
+
+        monitime = PayloadTime.toDateTime(pay_time)
+        run_data.send_moni(name, value, prio=Prio.SCP, time=monitime)
+
+    def report_run_start_failure(self, run_num, release, revision):
+        try:
+            moni_client = MoniClient("pdaq", "localhost", DAQPort.I3LIVE)
         except:
             self.__logger.error("Cannot create temporary client: " +
                                 exc_string())
             return
 
         try:
-            RunData.reportRunStartClass(moniClient, runNum, release, revision,
-                                        False)
+            self.__report_run_start(moni_client, run_num, release, revision,
+                                    False)
         finally:
             try:
-                moniClient.close()
+                moni_client.close()
             except:
                 self.__logger.error("Could not close temporary client: " +
                                     exc_string())
@@ -2310,86 +2665,87 @@ class RunSet(object):
         "Reset all components in the runset back to the idle state"
         self.__state = RunSetState.RESETTING
 
-        ComponentOperationGroup.runSimple(ComponentOperation.RESET_COMP,
-                                          self.__set, (), self.__logger,
-                                          errorName="reset")
+        ComponentGroup.run_simple(OpResetComponent, self.__set, (),
+                                  self.__logger, report_errors=True)
 
         try:
-            self.__waitForStateChange(self.__logger, (RunSetState.IDLE, ),
-                                      timeoutSecs=20)
+            self.__wait_for_state_change(self.__logger, (RunSetState.IDLE, ),
+                                         timeout_secs=20)
         except:
             # give up after 60 seconds
             pass
 
-        badComps = []
+        bad_comps = []
 
-        badStates = self.__checkState(RunSetState.IDLE)
-        if len(badStates) > 0:
+        bad_states = self.__check_state(RunSetState.IDLE)
+        if len(bad_states) > 0:
             self.__logger.error("Restarting %s after reset" %
-                                self.__badStateString(badStates))
-            for state in badStates:
-                badComps += badStates[state]
+                                self.__bad_state_string(bad_states))
+            for state in bad_states:
+                bad_comps += bad_states[state]
 
         self.__configured = False
-        self.__runData = None
+        self.__run_data = None
 
-        return badComps
+        return bad_comps
 
-    def resetLogging(self):
+    def reset_logging(self):
         "Reset logging for all components in the runset"
-        ComponentOperationGroup.runSimple(ComponentOperation.RESET_LOGGING,
-                                          self.__set, (), self.__logger,
-                                          errorName="resetLogging")
+        ComponentGroup.run_simple(OpResetLogging, self.__set, (), self.__logger,
+                                  report_errors=False)
 
-    def restartAllComponents(self, clusterConfig, configDir, daqDataDir,
-                             logPort, livePort, verbose, killWith9,
-                             eventCheck):
+    def restart_all_components(self, cluster_config, config_dir, daq_data_dir,
+                               log_port, live_port, verbose, killWith9,
+                               eventCheck):
         # restarted components are removed from self.__set, so we need to
         # pass in a copy of self.__set, because we'll need self.__set intact
-        self.restartComponents(self.__set[:], clusterConfig, configDir,
-                               daqDataDir, logPort, livePort, verbose,
-                               killWith9, eventCheck)
+        self.restart_components(self.__set[:], cluster_config, config_dir,
+                                daq_data_dir, log_port, live_port, verbose,
+                                killWith9, eventCheck)
 
-    def restartComponents(self, compList, clusterConfig, configDir, daqDataDir,
-                          logPort, livePort, verbose, killWith9, eventCheck):
+    def restart_components(self, comp_list, cluster_config, config_dir,
+                           daq_data_dir, log_port, live_port, verbose,
+                           killWith9, eventCheck):
         """
-        Remove all components in 'compList' (and which are found in
-        'clusterConfig') from the runset and restart them
+        Remove all components in 'comp_list' (and which are found in
+        'cluster_config') from the runset and restart them
         """
-        cluCfgList, missingList = clusterConfig.extractComponents(compList)
+        clu_cfg_list, missing_list \
+            = cluster_config.extractComponents(comp_list)
 
         # complain about missing components
-        if len(missingList) > 0:
+        if len(missing_list) > 0:
             self.__logger.error(("Cannot restart %s: Not found in" +
                                  " cluster config %s") %
-                                (listComponentRanges(missingList),
-                                 clusterConfig))
+                                (listComponentRanges(missing_list),
+                                 cluster_config))
 
         # remove remaining components from this runset
-        for comp in compList:
-            for nodeComp in cluCfgList:
-                if comp.name.lower() == nodeComp.name.lower() and \
-                   comp.num == nodeComp.id:
-                    self.__removeComponent(comp)
+        for comp in comp_list:
+            for node_comp in clu_cfg_list:
+                if comp.name.lower() == node_comp.name.lower() and \
+                   comp.num == node_comp.id:
+                    self.__remove_component(comp)
                     break
 
-        self.cycleComponents(cluCfgList, configDir, daqDataDir, self.__logger,
-                             logPort, livePort, verbose, killWith9, eventCheck)
+        self.cycle_components(clu_cfg_list, config_dir, daq_data_dir,
+                              self.__logger, log_port, live_port, verbose,
+                              killWith9, eventCheck)
 
-    def returnComponents(self, pool, clusterConfig, configDir, daqDataDir,
-                         logPort, livePort, verbose, killWith9, eventCheck):
-        badComps = self.reset()
-        if len(badComps) > 0:
-            self.restartComponents(badComps, clusterConfig, configDir,
-                                   daqDataDir, logPort, livePort, verbose,
-                                   killWith9, eventCheck)
+    def return_components(self, pool, cluster_config, config_dir, daq_data_dir,
+                          log_port, live_port, verbose, killWith9, eventCheck):
+        bad_comps = self.reset()
+        if len(bad_comps) > 0:
+            self.restart_components(bad_comps, cluster_config, config_dir,
+                                    daq_data_dir, log_port, live_port, verbose,
+                                    killWith9, eventCheck)
 
         # transfer components back to pool
         #
         while len(self.__set) > 0:
             comp = self.__set[0]
             del self.__set[0]
-            if not comp in badComps:
+            if comp not in bad_comps:
                 pool.add(comp)
             else:
                 self.__logger.error("Not returning unexpected component %s" %
@@ -2397,155 +2753,138 @@ class RunSet(object):
 
         # raise exception if one or more components could not be reset
         #
-        if len(badComps) > 0:
-            raise RunSetException('Could not reset %s' % str(badComps))
+        if len(bad_comps) > 0:
+            raise RunSetException('Could not reset %s' % str(bad_comps))
 
     @property
-    def runConfigData(self):
+    def run_config_data(self):
         return self.__cfg
 
-    def runNumber(self):
-        if self.__runData is None:
+    def run_number(self):
+        if self.__run_data is None:
             return None
 
-        return self.__runData.runNumber()
+        return self.__run_data.run_number
 
-    def sendEventCounts(self):
-        "Report run monitoring quantities"
-        if self.__runData is not None:
-            self.__runData.sendEventCounts(self.__set,
-                                           self.__state == RunSetState.RUNNING)
+    def send_event_counts(self):
+        return self.__run_data.send_event_counts(self)
 
-    def setDebugBits(self, debugBit):
-        if debugBit == 0:
-            self.__debugBits = 0
-        else:
-            self.__debugBits |= debugBit
+    def server_statistics(self):
+        "Return RPC statistics for client->server calls"
+        return self.__parent.server_statistics()
 
-        if self.__runData is not None:
-            self.__runData.setDebugBits(self.__debugBits)
-
-    def setError(self, callerName):
-        """
-        Used by WatchdogTask (via TaskManager) to stop the current run
-        """
-        if self.__state == RunSetState.RUNNING and self.__stopping is None:
-            try:
-                self.stopRun(callerName, hadError=True)
-            except:
-                pass
-
-    def setOrder(self, connMap, logger):
+    def set_order(self, conn_map, logger):
         "set the order in which components are started/stopped"
-        self.__logDebug(RunSetDebug.START_RUN, "RSOrder TOP")
 
         # build initial lists of source components
         #
-        allComps = {}
-        curLevel = []
-        for c in self.__set:
+        all_comps = {}
+        cur_level = []
+        for comp in self.__set:
             # complain if component has already been added
             #
-            if c in allComps:
-                logger.error('Found multiple instances of %s' % str(c))
+            if comp in all_comps:
+                logger.error('Found multiple instances of %s' % (comp, ))
                 continue
 
             # clear order
             #
-            c.setOrder(None)
+            comp.setOrder(None)
 
             # add component to the list
             #
-            allComps[c] = 1
+            all_comps[comp] = 1
 
             # if component is a source, save it to the initial list
             #
-            if c.isSource:
-                curLevel.append(c)
+            if comp.isSource:
+                cur_level.append(comp)
 
-        if len(curLevel) == 0:
+        if len(cur_level) == 0:
             raise RunSetException("No sources found")
 
         # walk through detector, setting order number for each component
         #
         level = 1
-        while len(allComps) > 0 and len(curLevel) > 0 and \
+        while len(all_comps) > 0 and len(cur_level) > 0 and \
                 level < len(self.__set) + 2:
             tmp = {}
-            for c in curLevel:
+            for comp in cur_level:
 
                 # if we've already ordered this component, skip it
                 #
-                if not c in allComps:
+                if comp not in all_comps:
                     continue
 
-                del allComps[c]
+                del all_comps[comp]
 
-                c.setOrder(level)
+                comp.setOrder(level)
 
-                if not connMap.has_key(c):
-                    if c.isSource:
-                        logger.warn('No connection map entry for %s' % str(c))
+                if comp not in conn_map:
+                    if comp.isSource:
+                        logger.warn('No connection map entry for %s' %
+                                    (comp, ))
                 else:
-                    for m in connMap[c]:
+                    for conn in conn_map[comp]:
                         # XXX hack -- ignore source->builder links
-                        if not c.isSource or \
-                             m.comp.name.lower() != "eventBuilder":
-                            tmp[m.comp] = 1
+                        if not comp.isSource or \
+                             conn.comp.name.lower() != "eventBuilder":
+                            tmp[conn.comp] = 1
 
-            curLevel = tmp.keys()
+            cur_level = list(tmp.keys())
             level += 1
 
-        if len(allComps) > 0:
-            errStr = 'Unordered:'
-            for c in allComps:
-                errStr += ' ' + str(c)
-            logger.error(errStr)
+        if len(all_comps) > 0:
+            err_str = 'Unordered:'
+            for comp in all_comps:
+                err_str += ' ' + str(comp)
+            logger.error(err_str)
 
-        for c in self.__set:
-            failStr = None
-            if not c.order():
-                if not failStr:
-                    failStr = 'No order set for ' + str(c)
+        for comp in self.__set:
+            fail_str = None
+            if not comp.order():
+                if not fail_str:
+                    fail_str = 'No order set for ' + str(comp)
                 else:
-                    failStr += ', ' + str(c)
-            if failStr:
-                raise RunSetException(failStr)
+                    fail_str += ', ' + str(comp)
+            if fail_str:
+                raise RunSetException(fail_str)
 
-        self.__logDebug(RunSetDebug.START_RUN, "RSOrder DONE")
+    def set_run_error(self, caller_name):
+        """
+        Used by WatchdogTask (via TaskManager) to stop the current run
+        """
+        if self.__state == RunSetState.RUNNING and self.__stopping is None:
+            try:
+                self.stop_run(caller_name, had_error=True)
+            except:
+                pass
 
     def size(self):
         return len(self.__set)
 
-    def startRun(self, runNum, clusterConfig, runOptions, versionInfo,
-                 spadeDir, copyDir=None, logDir=None, quiet=True):
+    def start_run(self, run_num, cluster_config, run_options, version_info,
+                  spade_dir, copy_dir=None, log_dir=None, quiet=True):
         "Start all components in the runset"
         self.__logger.error("Starting run #%d on \"%s\"" %
-                            (runNum, clusterConfig.description))
-        self.__logDebug(RunSetDebug.START_RUN, "STARTING %d - %s",
-                        runNum, clusterConfig.description)
+                            (run_num, cluster_config.description))
         if not self.__configured:
-            raise RunSetException("RunSet #%d is not configured" % self.__id)
-        if not self.__state == RunSetState.READY:
+            raise RunSetException("RunSet #%s is not configured" % self.__id)
+        if self.__state != RunSetState.READY:
             raise RunSetException("Cannot start runset from state \"%s\"" %
                                   self.__state)
 
-        self.__logDebug(RunSetDebug.START_RUN, "STARTING creRunData")
-        self.__runData = self.createRunData(runNum, clusterConfig,
-                                            runOptions, versionInfo,
-                                            spadeDir, copyDir, logDir)
-        self.__runData.setDebugBits(self.__debugBits)
+        self.__run_data = self.create_run_data(run_num, cluster_config,
+                                               run_options, version_info,
+                                               spade_dir, copy_dir, log_dir)
 
         # record the earliest possible start time
         #
-        startTime = datetime.datetime.now()
+        start_time = datetime.datetime.now()
 
-        self.__runData.connectToI3Live()
-        self.__logDebug(RunSetDebug.START_RUN, "STARTING startComps")
-        self.__startComponents(quiet)
-        self.__logDebug(RunSetDebug.START_RUN, "STARTING finishSetup")
-        self.__runData.finishSetup(self, startTime)
-        self.__logDebug(RunSetDebug.START_RUN, "STARTING done")
+        self.__run_data.connect_to_live()
+        self.__start_components(quiet)
+        self.finish_setup(self.__run_data, start_time)
 
     @property
     def state(self):
@@ -2556,290 +2895,302 @@ class RunSet(object):
         Return a dictionary of components in the runset
         and their current state
         """
-        states = ComponentOperationGroup.runSimple(ComponentOperation.GET_STATE,
-                                                   self.__set, (),
-                                                   self.__logger)
+        states = ComponentGroup.run_simple(OpGetState, self.__set, (),
+                                           self.__logger)
 
-        setStats = {}
-        for c in self.__set:
-            if states.has_key(c):
-                setStats[c] = str(states[c])
+        set_stats = {}
+        for comp in self.__set:
+            if comp not in states or \
+               not ComponentGroup.has_value(states[comp]):
+                set_stats[comp] = self.STATE_DEAD
             else:
-                setStats[c] = self.STATE_DEAD
+                set_stats[comp] = str(states[comp])
 
-        return setStats
+        return set_stats
 
-    def stopRun(self, callerName, hadError=False, timeout=20):
+    def stop_run(self, caller_name, had_error=False, timeout=20):
         """
         Stop all components in the runset
         Return True if an error is encountered while stopping.
         """
-        with self.__stopLock:
-            if self.__runData is None:
-                raise RunSetException("RunSet #%d is not running" % self.__id)
+        with self.__stop_lock:
+            run_data = self.__run_data
+            if run_data is None:
+                raise RunSetException("RunSet #%s is not running" % self.__id)
 
-            if self.__runData.finished():
-                self.__logger.error("Not double-stopping %s" % self.__runData)
+            if run_data.finished:
+                self.__logger.error("Not double-stopping %s" % run_data)
                 return
 
             if self.__stopping is not None:
-                msg = "Ignored %s stopRun() call, stopRun()" \
-                      " from %s is active" % (callerName, self.__stopping)
-                self.__runData.error(msg)
+                msg = "Ignored %s stop_run() call, stop_run()" \
+                      " from %s is active" % (caller_name, self.__stopping)
+                run_data.error(msg)
                 return False
 
-            if callerName != self.NORMAL_STOP:
-                self.__runData.error("Stopping the run (%s)" % callerName)
+            if caller_name != self.NORMAL_STOP:
+                run_data.error("Stopping the run (%s)" % caller_name)
 
-            self.__stopping = callerName
+            self.__stopping = caller_name
 
-        waitList = []
         try:
-            waitList = self.__stopRunInternal(hadError=hadError,
-                                              timeout=timeout)
+            waitlist = self.__stop_run_internal(run_data, timeout=timeout)
         except:
-            hadError = True
+            waitlist = []
+            had_error = True
             self.__logger.error("Could not stop run for %s (%s): %s" %
-                                (self, callerName, exc_string()))
+                                (self, caller_name, exc_string()))
             raise
         finally:
-            if len(waitList) > 0:
-                hadError = True
+            if len(waitlist) > 0:
+                had_error = True
             try:
-                self.__finishStop(callerName, hadError=hadError)
+                self.__finish_stop(run_data, caller_name, had_error=had_error)
             finally:
-                with self.__stopLock:
+                with self.__stop_lock:
                     self.__stopping = None
 
         # throw an exception if any component state is not READY
-        self.__checkStoppedComponents(waitList)
+        self.__check_stopped_components(waitlist)
 
-        return hadError
+        return had_error
 
     def stopping(self):
         return self.__stopping is not None
 
-    def subrun(self, id, data):
+    def subrun(self, sub_id, data):
         "Start a subrun with all components in the runset"
-        if self.__runData is None or self.__state != RunSetState.RUNNING:
-            raise RunSetException("RunSet #%d is not running" % self.__id)
+        if self.__run_data is None or self.__state != RunSetState.RUNNING:
+            raise RunSetException("RunSet #%s is not running" % self.__id)
 
         if len(data) > 0:
             try:
-                (newData, missingDoms) = self.__validateSubrunDOMs(data)
-                if len(missingDoms) > 0:
-                    if len(missingDoms) > 1:
-                        sStr = "s"
+                (new_data, missing_doms) = self.__validate_subrun_doms(data)
+                if len(missing_doms) > 0:
+                    if len(missing_doms) > 1:
+                        plural = "s"
                     else:
-                        sStr = ""
-                    self.__runData.warn(("Subrun %d: ignoring missing" +
-                                         " DOM%s %s") % (id, sStr,
-                                                         missingDoms))
+                        plural = ""
+                    self.__run_data.warn(("Subrun %d: ignoring missing" +
+                                          " DOM%s %s") % (sub_id, plural,
+                                                          missing_doms))
 
-                # newData has any missing DOMs deleted and any string/position
+                # new_data has any missing DOMs deleted and any string/position
                 # pairs converted to mainboard IDs
-                data = newData
+                data = new_data
             except InvalidSubrunData as inv:
                 raise RunSetException("Subrun %d: invalid argument list (%s)" %
-                                      (id, inv))
+                                      (sub_id, inv))
 
-            if len(missingDoms) > 1:
-                sStr = "s"
+            if len(missing_doms) > 1:
+                plural = "s"
             else:
-                sStr = ""
-            self.__runData.error("Subrun %d: flashing DOM%s (%s)" %
-                                 (id, sStr, str(data)))
+                plural = ""
+            self.__run_data.error("Subrun %d: flashing DOM%s (%s)" %
+                                  (sub_id, plural, str(data)))
         else:
-            self.__runData.error("Subrun %d: stopping flashers" % id)
-        for c in self.__set:
-            if c.isBuilder:
-                c.prepareSubrun(id)
+            self.__run_data.error("Subrun %d: stopping flashers" % sub_id)
+        for comp in self.__set:
+            if comp.isBuilder:
+                comp.prepareSubrun(sub_id)
 
-        self.__runData.setSubrunNumber(-id)
+        self.__run_data.set_subrun_number(-sub_id)
 
         hubs = []
-        for c in self.__set:
-            if c.isSource:
-                hubs.append(c)
+        for comp in self.__set:
+            if comp.isSource:
+                hubs.append(comp)
 
-        r = ComponentOperationGroup.runSimple(ComponentOperation.START_SUBRUN,
-                                              hubs, (data, ), self.__runData,
-                                              waitSecs=6)
+        times = ComponentGroup.run_simple(OpStartSubrun, hubs, (data, ),
+                                      self.__run_data, wait_secs=6,
+                                      report_errors=True)
 
-        badComps = []
+        bad_comps = []
 
-        latestTime = None
-        for c in hubs:
-            result = r[c]
-            if result is None or \
-                result == ComponentOperation.RESULT_HANGING or \
-                result == ComponentOperation.RESULT_ERROR:
-                badComps.append(c)
-            elif latestTime is None or result > latestTime:
-                latestTime = result
+        latest_time = None
+        for comp in hubs:
+            result = times[comp]
+            if not ComponentGroup.has_value(result):
+                bad_comps.append(comp)
+                continue
 
-        if latestTime is None:
+            if latest_time is None or result > latest_time:
+                latest_time = result
+
+        if latest_time is None:
             raise RunSetException("Couldn't start subrun on any string hubs")
 
-        if len(badComps) > 0:
+        if len(bad_comps) > 0:
             raise RunSetException("Couldn't start subrun on %s" %
-                                  listComponentRanges(badComps))
+                                  listComponentRanges(bad_comps))
 
-        for c in self.__set:
-            if c.isBuilder:
-                c.commitSubrun(id, latestTime)
+        for comp in self.__set:
+            if comp.isBuilder:
+                comp.commitSubrun(sub_id, latest_time)
 
-        self.__runData.setSubrunNumber(id)
+        self.__run_data.set_subrun_number(sub_id)
 
-    def subrunEvents(self, subrunNumber):
+    def subrun_events(self, subrun_number):
         "Get the number of events in the specified subrun"
-        for c in self.__set:
-            if c.isBuilder:
-                return c.subrunEvents(subrunNumber)
+        for comp in self.__set:
+            if comp.isBuilder:
+                return comp.subrunEvents(subrun_number)
 
-        raise RunSetException('RunSet #%d does not contain an event builder' %
+        raise RunSetException('RunSet #%s does not contain an event builder' %
                               self.__id)
 
     @staticmethod
-    def switchComponentLog(sock, runDir, comp):
-        if not os.path.exists(runDir):
+    def switch_component_log(sock, run_dir, comp):
+        if not os.path.exists(run_dir):
             raise RunSetException("Run directory \"%s\" does not exist" %
-                                  runDir)
+                                  run_dir)
 
-        logName = os.path.join(runDir, "%s-%d.log" % (comp.name, comp.num))
-        sock.setOutput(logName)
+        log_name = os.path.join(run_dir, "%s-%d.log" % (comp.name, comp.num))
+        sock.setOutput(log_name)
 
-    def switchRun(self, newNum):
+    def switch_run(self, new_num):
         "Switch all components in the runset to a new run"
-        if self.__runData is None:
-            raise RunSetException("RunSet #%d is not running" % self.__id)
+        if self.__run_data is None:
+            raise RunSetException("RunSet #%s is not running" % self.__id)
         if self.__state != RunSetState.RUNNING:
-            raise RunSetException("RunSet #%d is %s, not running" %
+            raise RunSetException("RunSet #%s is %s, not running" %
                                   (self.__id, self.__state))
-
-        # stop monitoring, watchdog, etc.
-        #
-        self.__runData.stop()
 
         # create new run data object
         #
-        newData = self.__runData.clone(self, newNum)
-        newData.connectToI3Live()
+        new_data = self.__run_data.clone(self, new_num)
+        new_data.connect_to_live()
 
-        newData.error("Switching to run %d..." % newNum)
+        new_data.error("Switching to run %d..." % new_num)
 
         # switch logs to new daqrun directory before switching components
         #
-        for c in self.__compLog:
-            self.switchComponentLog(self.__compLog[c], newData.runDirectory(),
-                                    c)
+        for comp in self.__comp_log:
+            self.switch_component_log(self.__comp_log[comp],
+                                      new_data.run_directory, comp)
+
+        try:
+            # stop monitoring, watchdog, etc.
+            self.__run_data.stop_tasks()
+        except:
+            self.__run_data.exception("Cannot stop tasks")
 
         # get lists of sources and of non-sources sorted back to front
         #
-        srcSet, middleSet, bldrSet = self.__buildStartSets()
+        src_set, middle_set, bldr_set = self.__build_start_sets()
 
         # record the earliest possible start time
         #
-        startTime = datetime.datetime.now()
+        start_time = datetime.datetime.now()
 
         # switch builders first
         #
-        for c in bldrSet:
-            c.switchToNewRun(newNum)
+        for comp in bldr_set:
+            comp.switchToNewRun(new_num)
 
         # switch non-builders in order
         #
-        for c in middleSet:
-            c.switchToNewRun(newNum)
+        for comp in middle_set:
+            comp.switchToNewRun(new_num)
 
         # switch sources in parallel
         #
-        ComponentOperationGroup.runSimple(ComponentOperation.SWITCH_RUN,
-                                          srcSet, (newNum, ), self.__runData,
-                                          errorName="switch")
+        ComponentGroup.run_simple(OpSwitchRun, src_set, (new_num, ),
+                                  self.__run_data, report_errors=True)
 
         # wait for builders to finish switching
         #
-        bldrSleep = 0.5
-        bldrMaxSleep = 30   # wait up to 30 seconds
-        for i in xrange(int(bldrMaxSleep / bldrSleep)):
-            for c in bldrSet:
-                num = c.getRunNumber()
-                if num == newNum:
-                    bldrSet.remove(c)
+        bldr_sleep = 0.5
+        bldr_max_sleep = 30   # wait up to 30 seconds
+        for i in range(int(bldr_max_sleep / bldr_sleep)):
+            for comp in bldr_set:
+                num = comp.getRunNumber()
+                if num == new_num:
+                    bldr_set.remove(comp)
 
-            if len(bldrSet) == 0:
+            if len(bldr_set) == 0:
                 break
 
             if i > 0 and i % 10 == 0:
-                self.__runData.error("Waiting for builders to switch"
-                                     " (after %.1f seconds): %s" %
-                                     ((i * bldrSleep), bldrSet))
-            time.sleep(bldrSleep)
+                self.__run_data.error("Waiting for builders to switch"
+                                      " (after %.1f seconds): %s" %
+                                      ((i * bldr_sleep), bldr_set))
+            time.sleep(bldr_sleep)
 
         # from this point, cache any failures until the end
-        savedEx = None
+        saved_ex = None
 
         # if there's a problem...
         #
-        if len(bldrSet) > 0:
-            badBldrs = []
-            for c in bldrSet:
-                badBldrs.append(c.fullname)
+        if len(bldr_set) > 0:
+            bad_bldrs = []
+            for comp in bldr_set:
+                bad_bldrs.append(comp.fullname)
             self.__state = RunSetState.ERROR
             try:
                 raise RunSetException("Still waiting for %s to finish"
-                                      " switching" % " ".join(badBldrs))
+                                      " switching" % " ".join(bad_bldrs))
             except:
-                savedEx = sys.exc_info()
+                saved_ex = sys.exc_info()
 
         # switch to new run data
         #
-        oldData = self.__runData
-        self.__runData = newData
+        old_data = self.__run_data
+        self.__run_data = new_data
 
         # finish new run data setup
         #
         try:
-            newData.finishSetup(self, startTime)
+            self.finish_setup(new_data, start_time)
         except:
-            if savedEx is None:
-                savedEx = sys.exc_info()
+            if saved_ex is None:
+                saved_ex = sys.exc_info()
 
         try:
-            duration = self.__finishRun(self.__set, oldData, False,
-                                        switching=True)
+            self.final_report(self.__set, old_data, had_error=False,
+                              switching=True)
         except:
-            if not savedEx:
-                savedEx = sys.exc_info()
+            if not saved_ex:
+                saved_ex = sys.exc_info()
+        finally:
+            self.__parent.saveCatchall(old_data.run_directory)
 
         try:
-            oldData.sendEventCounts(self.__set, False)
+            old_data.send_event_counts(self)
         except:
-            if not savedEx:
-                savedEx = sys.exc_info()
+            if not saved_ex:
+                saved_ex = sys.exc_info()
 
         try:
             # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
             # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
-            self.queueForSpade(oldData, duration)
+            self.__queue_for_spade(old_data)
         except:
-            if not savedEx:
-                savedEx = sys.exc_info()
+            if not saved_ex:
+                saved_ex = sys.exc_info()
+
+        # note that the old run is finished
+        old_data.set_finished()
 
         try:
-            self.__reportFirstGoodTime(newData)
+            new_data.report_first_good_time(self)
         except:
-            if not savedEx:
-                savedEx = sys.exc_info()
+            if not saved_ex:
+                saved_ex = sys.exc_info()
 
-        if savedEx:
-            raise savedEx[0], savedEx[1], savedEx[2]
+        if saved_ex:
+            raise saved_ex[0], saved_ex[1], saved_ex[2]
 
-    def updateRates(self):
-        if self.__runData is None:
+    def update_rates(self):
+        values = self.__run_data.update_counts_and_rate(self)
+        if values is None:
             return None
-        return self.__runData.updateRates(self.__set)
+
+        (num_evts, _, _, _, num_moni, _, num_sn, _, num_tcal, _) = values
+        rate = self.__run_data.rate
+
+        return (num_evts, rate, num_moni, num_sn, num_tcal)
+
 
 if __name__ == "__main__":
     pass

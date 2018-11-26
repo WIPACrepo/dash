@@ -24,6 +24,7 @@
 #     # a flasher run
 #     run.run(clusterConfig, runConfig, numSecs, flasherData)
 
+from __future__ import print_function
 
 import os
 import re
@@ -158,6 +159,7 @@ class LiveState(object):
     PARSE_NORMAL = 1
     PARSE_FLASH = 2
     PARSE_ALERTS = 3
+    PARSE_PAGES = 4
 
     def __init__(self,
                  liveCmd=os.path.join(os.environ["HOME"], "bin", "livecmd"),
@@ -197,7 +199,7 @@ class LiveState(object):
                   (self.__threadState, LiveRunState.str(self.__runState),
                    LightMode.str(self.__lightMode))
 
-        for key in self.__svcDict.keys():
+        for key in list(self.__svcDict.keys()):
             svc = self.__svcDict[key]
             summary += " %s[%s*%d]" % (key, LiveRunState.str(svc.state),
                                        svc.numStarts())
@@ -219,8 +221,12 @@ class LiveState(object):
 
         Returns the new parser state
         """
-        if len(line) == 0 or line.find("controlled by LiveControl") > 0 or \
-                line == "(None)" or line == "OK":
+        if len(line) == 0:
+            # blank lines shouldn't change parse state
+            return parseState
+
+        if line.find("controlled by LiveControl") > 0 or line == "(None)" or \
+                line == "OK":
             return self.PARSE_NORMAL
 
         if line.startswith("Flashing DOMs"):
@@ -238,18 +244,28 @@ class LiveState(object):
             if line.find("(None)") >= 0:
                 return self.PARSE_NORMAL
 
-            self.__logger.error("Ongoing Alert: " + line.rstrip())
+            if not line.find("PFServer is Running check") >= 0:
+                self.__logger.error("Ongoing Alert: %s" % (line, ))
             return self.PARSE_ALERTS
+
+        if line.startswith("Ongoing Pages:"):
+            return self.PARSE_PAGES
+
+        if parseState == self.PARSE_PAGES:
+            if line.find(" PAGE FROM ") >= 0:
+                return self.PARSE_PAGES
+
+            parseState = self.PARSE_NORMAL
 
         if line.find(": ") > 0:
             (front, back) = line.split(": ", 1)
             front = front.strip()
             back = back.strip()
 
-            if front == "DAQ thread":
+            if front == "DAQ thread" or front == "I3Live DAQ thread":
                 self.__threadState = back
                 return self.PARSE_NORMAL
-            elif front == "Run state":
+            elif front == "Run state" or front == "I3Live run state":
                 self.__runState = LiveRunState.get(back)
                 return self.PARSE_NORMAL
             elif front == "Current run":
@@ -271,13 +287,13 @@ class LiveState(object):
                 self.__config = back
                 return self.PARSE_NORMAL
             elif front.startswith("tstart") or front.startswith("tstop") or \
-                front.startswith("t_valid") or front == "livestart":
+                 front.startswith("t_valid") or front == "livestart":
                 # ignore start/stop times
                 return self.PARSE_NORMAL
             elif front == "physicsEvents" or \
                     front == "physicsEventsTime" or \
                     front == "walltimeEvents" or \
-                    front == "walltimeEventsTime"  or \
+                    front == "walltimeEventsTime" or \
                     front == "tcalEvents" or \
                     front == "moniEvents" or \
                     front == "snEvents" or \
@@ -287,7 +303,8 @@ class LiveState(object):
             elif front == "Target run stop time" or \
                  front == "Currently" or \
                  front == "Time since start" or \
-                 front == "Time until stop":
+                 front == "Time until stop" or \
+                 front == "Next run transition":
                 # ignore run time info
                 return self.PARSE_NORMAL
             elif front == "daqrelease":
@@ -355,7 +372,7 @@ class LiveState(object):
             self.logCmd(cmd)
 
         if self.__dryRun:
-            print cmd
+            print(cmd)
             return
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
@@ -394,7 +411,7 @@ class LiveState(object):
         Return the state string for the specified service
         from the most recent check()
         """
-        if not svcName in self.__svcDict:
+        if svcName not in self.__svcDict:
             return LiveRunState.UNKNOWN
         return LiveRunState.str(self.__svcDict[svcName].state)
 
@@ -445,7 +462,7 @@ class LiveRun(BaseRun):
         self.logCmd(cmd)
 
         if self.__dryRun:
-            print cmd
+            print(cmd)
             return True
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
@@ -499,7 +516,7 @@ class LiveRun(BaseRun):
         self.logCmd(cmd)
 
         if self.__dryRun:
-            print cmd
+            print(cmd)
             return True
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
@@ -590,7 +607,7 @@ class LiveRun(BaseRun):
         problem = False
         if dataPath is None or dataPath == "sleep":
             if self.__dryRun:
-                print "sleep %d" % secs
+                print("sleep %d" % secs)
             else:
                 time.sleep(secs)
         else:
@@ -599,7 +616,7 @@ class LiveRun(BaseRun):
             self.logCmd(cmd)
 
             if self.__dryRun:
-                print cmd
+                print(cmd)
                 return False
 
             proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
@@ -628,7 +645,7 @@ class LiveRun(BaseRun):
         self.logCmd(cmd)
 
         if self.__dryRun:
-            print cmd
+            print(cmd)
             runNum = self.__fakeRunNum
             self.__fakeRunNum += 1
             return (runNum, 0)
@@ -670,7 +687,7 @@ class LiveRun(BaseRun):
         self.logCmd(cmd)
 
         if self.__dryRun:
-            print cmd
+            print(cmd)
             return 1
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
@@ -784,10 +801,10 @@ class LiveRun(BaseRun):
         self.logCmd(cmd)
 
         if self.__dryRun:
-            print cmd
+            print(cmd)
             return
 
-        print "Setting runs per restart to %d" % numRestarts
+        print("Setting runs per restart to %d" % numRestarts)
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, close_fds=True,
@@ -852,12 +869,13 @@ class LiveRun(BaseRun):
 
     def switchRun(self, runNum):
         """Switch to a new run number without stopping any components"""
-        return True # Live handles this automatically
+        return True  # Live handles this automatically
 
     def waitForStopped(self, verbose=False):
         initStates = (self.__state.runState(), LiveRunState.STOPPING)
         return self.__waitForState(initStates, LiveRunState.STOPPED,
                                    60, 0, verbose=verbose)
+
 
 if __name__ == "__main__":
     run = LiveRun(showCmd=True, showCmdOutput=True, dryRun=False)

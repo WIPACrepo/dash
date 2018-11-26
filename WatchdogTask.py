@@ -3,7 +3,6 @@
 from CnCTask import CnCTask, TaskException
 from CnCThread import CnCThread
 from ComponentManager import listComponentRanges
-from RunSetDebug import RunSetDebug
 import sys
 
 from exc_string import exc_string, set_exc_string_encoding
@@ -271,7 +270,7 @@ class WatchData(object):
                 if beanName is None:
                     beanName = f.beanName()
                 elif beanName != f.beanName():
-                    self.__dashlog.error("NOT requesting fields from multiple" +
+                    self.__dashlog.error("NOT requesting fields from multiple"
                                          " beans (%s != %s)" %
                                          (beanName, f.beanName()))
                     continue
@@ -306,8 +305,6 @@ class WatchData(object):
         return unhealthy
 
     def addInputValue(self, otherComp, beanName, fieldName):
-        self.__mbeanClient.check(beanName, fieldName)
-
         if beanName not in self.__inputFields:
             self.__inputFields[beanName] = []
 
@@ -315,8 +312,6 @@ class WatchData(object):
         self.__inputFields[beanName].append(vw)
 
     def addOutputValue(self, otherComp, beanName, fieldName):
-        self.__mbeanClient.check(beanName, fieldName)
-
         if beanName not in self.__outputFields:
             self.__outputFields[beanName] = []
 
@@ -328,8 +323,6 @@ class WatchData(object):
         Watchdog triggers if field value drops below the threshold value
         (or, when lessThan==False, if value rises above the threshold
         """
-
-        self.__mbeanClient.check(beanName, fieldName)
 
         if beanName not in self.__thresholdFields:
             self.__thresholdFields[beanName] = []
@@ -547,6 +540,7 @@ class TrackEngineRule(WatchdogRule):
     def matches(self, comp):
         return comp.name == "trackEngine"
 
+
 class LocalTriggerRule(WatchdogRule):
     def initData(self, data, thisComp, components):
         if thisComp.name == "iceTopTrigger":
@@ -623,8 +617,8 @@ class SecondaryBuildersRule(WatchdogRule):
         data.addOutputValue(self.DISPATCH_COMP, "snBuilder",
                             "NumDispatchedData")
         # XXX - Disabled until there"s a simulated tcal stream
-        #data.addOutputValue(self.DISPATCH_COMP, "tcalBuilder",
-        #                  "NumDispatchedData")
+        # data.addOutputValue(self.DISPATCH_COMP, "tcalBuilder",
+        #                     "NumDispatchedData")
 
     def matches(self, comp):
         return comp.name == "secondaryBuilders"
@@ -633,23 +627,26 @@ class SecondaryBuildersRule(WatchdogRule):
 class WatchdogTask(CnCTask):
     NAME = "Watchdog"
     PERIOD = 10
-    DEBUG_BIT = RunSetDebug.WATCH_TASK
 
     # number of bad checks before the run is killed
     HEALTH_METER_FULL = 9
     # number of complaints printed before run is killed
     NUM_HEALTH_MSGS = 3
 
-    def __init__(self, taskMgr, runset, dashlog, period=None, rules=None):
+    def __init__(self, taskMgr, runset, dashlog, initial_health=None,
+                 period=None, rules=None):
         self.__threadList = {}
-        self.__healthMeter = self.HEALTH_METER_FULL
+        if initial_health is None:
+            self.__healthMeter = self.HEALTH_METER_FULL
+        else:
+            self.__healthMeter = int(initial_health)
+        self.__unhealthy_message = False
 
         if period is None:
             period = self.PERIOD
 
         super(WatchdogTask, self).__init__(self.NAME, taskMgr, dashlog,
-                                           self.DEBUG_BIT, self.NAME,
-                                           period)
+                                           self.NAME, period)
 
         WatchdogRule.initialize(runset)
 
@@ -710,7 +707,7 @@ class WatchdogTask(CnCTask):
         stagnant = []
         threshold = []
 
-        for c in self.__threadList.keys():
+        for c in list(self.__threadList.keys()):
             if self.__threadList[c].isAlive():
                 hanging.append(c)
             else:
@@ -721,29 +718,44 @@ class WatchdogTask(CnCTask):
             self.__threadList[c] = self.__threadList[c].get_new_thread()
             self.__threadList[c].start()
 
+        # watchdog starts out "extra healthy" to compensate for
+        #  laggy components at the start of each run
+        extra_healthy = self.__healthMeter > self.HEALTH_METER_FULL
+
         healthy = True
         if len(hanging) > 0:
-            self.logError("%s reports hanging components:\n    %s" %
-                          (self.NAME, listComponentRanges(hanging)))
+            if not extra_healthy:
+                self.logError("%s reports hanging components:\n    %s" %
+                              (self.NAME, listComponentRanges(hanging)))
             healthy = False
         if len(starved) > 0:
-            self.__logUnhealthy("starved", starved)
+            if not extra_healthy:
+                self.__logUnhealthy("starved", starved)
             healthy = False
         if len(stagnant) > 0:
-            self.__logUnhealthy("stagnant", stagnant)
+            if not extra_healthy:
+                self.__logUnhealthy("stagnant", stagnant)
             healthy = False
         if len(threshold) > 0:
-            self.__logUnhealthy("threshold", threshold)
+            if not extra_healthy:
+                self.__logUnhealthy("threshold", threshold)
             healthy = False
 
         if healthy:
+            if self.__unhealthy_message:
+                # only log this if we've logged the "unhealthy" message
+                self.__unhealthy_message = False
+                self.logError("Run is healthy again")
+            if extra_healthy:
+                self.__healthMeter -= 1
             if self.__healthMeter < self.HEALTH_METER_FULL:
                 self.__healthMeter = self.HEALTH_METER_FULL
-                self.logError("Run is healthy again")
         else:
             self.__healthMeter -= 1
             if self.__healthMeter > 0:
-                if self.__healthMeter % self.NUM_HEALTH_MSGS == 0:
+                if not extra_healthy and \
+                   self.__healthMeter % self.NUM_HEALTH_MSGS == 0:
+                    self.__unhealthy_message = True
                     self.logError("Run is unhealthy (%d checks left)" %
                                   self.__healthMeter)
             else:
@@ -756,7 +768,7 @@ class WatchdogTask(CnCTask):
 
     def close(self):
         savedEx = None
-        for thr in self.__threadList.values():
+        for thr in list(self.__threadList.values()):
             try:
                 thr.close()
             except:
@@ -767,6 +779,6 @@ class WatchdogTask(CnCTask):
             raise savedEx[0], savedEx[1], savedEx[2]
 
     def waitUntilFinished(self):
-        for c in self.__threadList.keys():
+        for c in list(self.__threadList.keys()):
             if self.__threadList[c].isAlive():
                 self.__threadList[c].join()

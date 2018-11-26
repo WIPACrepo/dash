@@ -6,6 +6,8 @@
 #
 # Logging classes
 
+from __future__ import print_function
+
 import datetime
 import os
 import select
@@ -60,15 +62,15 @@ class LogSocketServer(object):
         while self.__thread is not None:
             rd, rw, re = select.select(pr, pw, pe, 0.5)
             if len(re) != 0:
-                print >> self.__outfile, "Error on select was detected."
+                print("Error on select was detected.", file=self.__outfile)
             if len(rd) == 0:
                 continue
-            while 1:  # Slurp up waiting packets, return to select if EAGAIN
+            while True:  # Slurp up waiting packets, return to select if EAGAIN
                 try:
                     data = sock.recv(8192, socket.MSG_DONTWAIT)
                     if not self.__quiet:
-                        print "%s %s" % (self.__cname, data)
-                    print >> self.__outfile, "%s %s" % (self.__cname, data)
+                        print("%s %s" % (self.__cname, data))
+                    print("%s %s" % (self.__cname, data), file=self.__outfile)
                     self.__outfile.flush()
                 except:
                     break  # Go back to select so we don't busy-wait
@@ -87,15 +89,13 @@ class LogSocketServer(object):
         Windows version of listener - no select().
         """
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        #sock.setblocking(1)
-        #sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(("", self.__port))
         self.__serving = True
         while self.__thread is not None:
             data = sock.recv(8192)
             if not self.__quiet:
-                print "%s %s" % (self.__cname, data)
-            print >> self.__outfile, "%s %s" % (self.__cname, data)
+                print("%s %s" % (self.__cname, data))
+            print("%s %s" % (self.__cname, data), file=self.__outfile)
             self.__outfile.flush()
         sock.close()
         if self.__logpath:
@@ -175,7 +175,7 @@ class BaseFileAppender(BaseAppender):
         self.__fd = fd
 
     def _write(self, fd, time, msg):
-        print >> fd, "%s [%s] %s" % (self.getName(), time, msg)
+        print("%s [%s] %s" % (self.getName(), time, msg), file=fd)
         fd.flush()
 
     def close(self):
@@ -248,7 +248,7 @@ class DAQLog(object):
         "This is semi-private so CnCLogger can extend it"
         if level >= self.__level:
             if len(self.__appenderList) == 0:
-                raise LogException("No appenders have been added to %s: " %
+                raise LogException("No appenders have been added to %s: %s" %
                                    (self.__name, msg))
             for a in self.__appenderList:
                 a.write(msg, level=level)
@@ -413,7 +413,7 @@ if __name__ == "__main__":
     else:
         filename = logfile
 
-    print "Write log messages arriving on port %d to %s." % (port, filename)
+    print("Write log messages arriving on port %d to %s." % (port, filename))
 
     # if someone specifies a live ip and port connect to it and
     # send a few test messages
@@ -424,8 +424,8 @@ if __name__ == "__main__":
         try:
             liveIP, livePort = args.liveLog.split(':')
             livePort = int(livePort)
-            print "User specified a live logging destination, try to use it"
-            print "Dest: (%s:%d)" % (liveIP, livePort)
+            print("User specified a live logging destination, try to use it")
+            print("Dest: (%s:%d)" % (liveIP, livePort))
         except ValueError:
             sys.exit("ERROR: Bad livelog argument '%s'" % args.liveLog)
 
@@ -435,7 +435,7 @@ if __name__ == "__main__":
             logServer.startServing()
 
             log.openLog("localhost", port, liveIP, livePort)
-            for idx in xrange(100):
+            for idx in range(100):
                 msg = "Logging test message (%s) %d" % (args.logmsg, idx)
                 log.debug(msg)
                 sleep_time = random.uniform(0, 0.5)
@@ -448,7 +448,7 @@ if __name__ == "__main__":
             logger = LogSocketServer(port, "all-components", logfile)
             logger.startServing()
             try:
-                while 1:
+                while True:
                     pytime.sleep(1)
             except:
                 pass

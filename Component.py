@@ -8,11 +8,12 @@ class Component(object):
         self.__logLevel = logLevel
         self.__host = host
 
-    def __cmp__(self, other):
-        val = cmp(self.__name, other.__name)
-        if val == 0:
-            val = cmp(self.__id, other.__id)
-        return val
+    def __lt__(self, other):
+        if self.__name < other.__name:
+            return True
+        if self.__id < other.__id:
+            return True
+        return False
 
     def __str__(self):
         return self.fullname

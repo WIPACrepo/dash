@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import os
 import sys
 from math import log10
@@ -13,7 +15,7 @@ def nicknames(f):
     # Read the header line
     s = f.readline()
     domlist = []
-    while 1:
+    while True:
         s = f.readline()
 
         if len(s) == 0:
@@ -232,6 +234,7 @@ def createConfig(cursor, mbid, **kwargs):
     txt += "</domConfig>\n"
     return txt
 
+
 dom_db = dict()
 dom_db_by_omkey = dict()
 if "NICKNAMES" in os.environ:
@@ -291,22 +294,22 @@ if __name__ == '__main__':
     # Extract the engineering format
     vec = args.engFmt.split(",")
     if len(vec) != 5:
-        print >> sys.stderr, ("ERROR: engineering format "
-                              "spec is --E ATWD0,ATWD1,ATWD2,ATWD3,FADC")
+        print(("ERROR: engineering format "
+                              "spec is --E ATWD0,ATWD1,ATWD2,ATWD3,FADC"), file=sys.stderr)
         sys.exit(1)
     engFmt = (tuple([int(x) for x in vec[0:4]]), int(vec[4]))
 
     passwd = ""
     if args.passwd:
-        getpass("Enter password for user " + args.user + " on " + \
-                    args.dbHost + ": ")
+        getpass("Enter password for user %s on %s: " %
+                (args.user, args.dbHost))
 
     db = MySQLdb.connect(host=args.dbHost, user=args.user,
                          passwd=passwd, db="domprodtest")
 
     cmd = re.compile(r'(\d{1,2})([it])')
-    print "<?xml version='1.0' encoding='UTF-8'?>"
-    print "<domConfigList>"
+    print("<?xml version='1.0' encoding='UTF-8'?>")
+    print("<domConfigList>")
     for s in args.hubname:
         m = cmd.search(s)
         if m is None:
@@ -325,11 +328,11 @@ if __name__ == '__main__':
                 mbid = getByOmKey(k)[0]
                 mbidList.append(mbid)
             except KeyError:
-                print >>sys.stderr, "WARN:", k, "not found in nicknames"
+                print("WARN:", k, "not found in nicknames", file=sys.stderr)
 
         for mbid in mbidList:
-            print createConfig(db.cursor(), mbid,
+            print(createConfig(db.cursor(), mbid,
                                engFormat=engFmt,
                                span=args.span,
-                               gain=args.gain)
-    print "</domConfigList>"
+                               gain=args.gain))
+    print("</domConfigList>")

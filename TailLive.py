@@ -2,6 +2,8 @@
 #
 # Add color to `livecmd tail` output so it's more readable
 
+from __future__ import print_function
+
 import ast
 import datetime
 import os
@@ -49,7 +51,7 @@ def tail_logs(args):
     if args.print_colors:
         try:
             ColorFileParser(args.color_file).parse(LiveLog.COLORS)
-        except ColorException, cex:
+        except ColorException as cex:
             raise SystemExit(str(cex))
 
         ColorFileParser.print_formatted(LiveLog.COLORS)
@@ -150,8 +152,8 @@ class LiveLine(object):
                             re.DOTALL)
     TIME_FMT = "%Y-%m-%d %H:%M:%S,%f"
 
-    OLDLOG_PAT = re.compile(r"(\S+)\(([^\)\:]+)\:([^\)]+)\)\s+(\d+)" +
-                            r" \[(\d+-\d+-\d+ \d+:\d+:\d+)(\.\d+)?\]\s+(.*)$")
+    OLDLOG_PAT = re.compile(r"(\S+)\(([^\)\:]+)\:([^\)]+)\)\s+(\d+)"
+                            r" \[(\d+-\d+-\d+ \d+:\d+:\d+)(\.\d+)?\]\s+(.*)")
 
     def __init__(self, line):
         match = self.PREFIX_PAT.match(line)
@@ -184,10 +186,10 @@ class LiveLine(object):
             if debug:
                 attrs = [attr for attr in dir(node)
                          if not attr.startswith('__')]
-                print >>sys.stderr, node
+                print(node, file=sys.stderr)
                 for attrname in attrs:
-                    print >>sys.stderr, '    %s ==> %s' % \
-                        (attrname, getattr(node, attrname))
+                    print('    %s ==> %s' % \
+                        (attrname, getattr(node, attrname)), file=sys.stderr)
             raise ValueError(astr)
 
         return eval(astr)
@@ -201,12 +203,19 @@ class LiveLine(object):
                 dtstr = match.group(5)
                 if match.group(6) is not None:
                     dtstr += match.group(6)
+
+                endidx = match.end() + 4
+                if endidx >= len(line):
+                    value = match.group(7)
+                else:
+                    value = match.group(7) + line[endidx:]
+
                 payload = {
                     "service": match.group(1),
                     "varname": match.group(2),
                     "prio": prio,
                     "time": dtstr,
-                    "value": match.group(7),
+                    "value": value,
                 }
                 return DictData(DictData.TYPE_LOG, cls.__wrap_payload(payload))
 
@@ -401,7 +410,7 @@ class AllFiles(MultiFile):
             path = self.__file_list.pop(0)
             if os.path.exists(path):
                 return path
-            print >> sys.stderr, "File \"%s\" does not exist" % path
+            print("File \"%s\" does not exist" % path, file=sys.stderr)
 
 
 class AllLogs(MultiFile):
@@ -428,22 +437,36 @@ class LiveLog(object):
     # if the output isn't a terminal, don't add ANSI escapes
     TTYOUT = sys.stdout.isatty()
 
+    FIELD_ITS = "its"
+    FIELD_LIVE_MISC = "live_misc"
+    FIELD_LIVECONTROL = "livecontrol"
+    FIELD_PDAQ_HEALTH = "pdaq_health"
+    FIELD_PDAQ_INFO = "pdaq_info"
+    FIELD_PDAQ_LOAD = "pdaq_load"
+    FIELD_PDAQ_MISC = "pdaq_misc"
+    FIELD_PDAQ_OTHER = "pdaq_other"
+    FIELD_PDAQ_RATE = "pdaq_rate"
+    FIELD_PDAQ_REGISTERED = "pdaq_registered"
+    FIELD_PDAQ_WAIT = "pdaq_wait"
+    FIELD_PDAQ_WATCHDOG = "pdaq_watchdog"
+    FIELD_UNKNOWN = "unknown"
+
     # predefined fields and colors
     COLORS = {
-        ColorFileParser.DEFAULT_FIELD:
-        (ANSIEscapeCode.RED, ANSIEscapeCode.YELLOW),
-        "pdaq_rate": (ANSIEscapeCode.GREEN, ANSIEscapeCode.WHITE),
-        "pdaq_registered": (),
-        "pdaq_wait": (ANSIEscapeCode.MAGENTA, ANSIEscapeCode.WHITE),
-        "pdaq_load": (),
-        "pdaq_info": (ANSIEscapeCode.BLUE, ANSIEscapeCode.WHITE),
-        "pdaq_prep": (),
-        "pdaq_health": (ANSIEscapeCode.GREEN, ANSIEscapeCode.BLACK),
-        "live_misc": (ANSIEscapeCode.YELLOW, ANSIEscapeCode.BLACK),
-        "unknown": (ANSIEscapeCode.RED, ANSIEscapeCode.YELLOW,
-                    ANSIEscapeCode.BOLD_ON),
-        "its": None,
-        "livecontrol": (),
+        ColorFileParser.DEFAULT_FIELD: (ANSIEscapeCode.RED,
+                                        ANSIEscapeCode.YELLOW),
+        FIELD_PDAQ_RATE: (ANSIEscapeCode.GREEN, ANSIEscapeCode.WHITE),
+        FIELD_PDAQ_REGISTERED: (),
+        FIELD_PDAQ_WAIT: (ANSIEscapeCode.MAGENTA, ANSIEscapeCode.WHITE),
+        FIELD_PDAQ_LOAD: (),
+        FIELD_PDAQ_INFO: (ANSIEscapeCode.BLUE, ANSIEscapeCode.WHITE),
+        FIELD_PDAQ_HEALTH: (ANSIEscapeCode.GREEN, ANSIEscapeCode.BLACK),
+        FIELD_PDAQ_WATCHDOG: (ANSIEscapeCode.RED, ANSIEscapeCode.WHITE),
+        FIELD_LIVE_MISC: (ANSIEscapeCode.YELLOW, ANSIEscapeCode.BLACK),
+        FIELD_UNKNOWN: (ANSIEscapeCode.RED, ANSIEscapeCode.YELLOW,
+                        ANSIEscapeCode.BOLD_ON),
+        FIELD_ITS: None,
+        FIELD_LIVECONTROL: (),
     }
 
     def __init__(self, fd, show_all=False, pdaq_only=False, non_log=False,
@@ -457,7 +480,7 @@ class LiveLog(object):
         # get customized colors
         try:
             ColorFileParser(color_file).parse(self.COLORS)
-        except ColorException, cex:
+        except ColorException as cex:
             raise SystemExit(str(cex))
 
         super(LiveLog, self).__init__()
@@ -469,48 +492,52 @@ class LiveLog(object):
         if msg.find(" physics events") > 0 and \
                 msg.find(" moni events") > 0:
             # rate line
-            return self.string("pdaq_rate", date, msg)
+            return self.string(self.FIELD_PDAQ_RATE, date, msg)
 
         if msg.startswith("Registered "):
             # registered
             if self.__quiet:
                 return None
-            return self.string("pdaq_registered", date, msg)
+            return self.string(self.FIELD_PDAQ_REGISTERED, date, msg)
 
         if msg.startswith("Waiting for ") or \
                 (msg.startswith("RunSet #") and
                  msg.find("Waiting for ")):
             # waiting for
-            return self.string("pdaq_wait", date, msg)
+            return self.string(self.FIELD_PDAQ_WAIT, date, msg)
 
         if msg.startswith("Loading run configuration ") or \
                 msg.startswith("Loaded run configuration "):
             # run config
-            return self.string("pdaq_load", date, msg)
+            return self.string(self.FIELD_PDAQ_LOAD, date, msg)
 
         if msg.startswith("Starting run ") or \
                 msg.startswith("Version info: ") or \
                 msg.startswith("Run configuration: ") or \
                 msg.startswith("Cluster: "):
             # run start
-            return self.string("pdaq_info", date, msg)
+            return self.string(self.FIELD_PDAQ_INFO, date, msg)
 
         if msg.find(" physics events collected in ") > 0 or \
                 msg.find(" moni events, ") > 0 or \
                 msg.startswith("Run terminated "):
             # run end
-            return self.string("pdaq_info", date, msg)
+            return self.string(self.FIELD_PDAQ_INFO, date, msg)
 
         if msg.startswith("Cycling components") or \
                 msg.startswith("Built runset #"):
             # cycle components
-            return self.string("pdaq_misc", date, msg)
+            return self.string(self.FIELD_PDAQ_MISC, date, msg)
 
         if msg.startswith("Run is healthy again"):
             # whew
-            return self.string("pdaq_health", date, msg)
+            return self.string(self.FIELD_PDAQ_HEALTH, date, msg)
 
-        return self.string("pdaq_other", date, msg)
+        if msg.startswith("Watchdog reports"):
+            # whew
+            return self.string(self.FIELD_PDAQ_WATCHDOG, date, msg)
+
+        return self.string(self.FIELD_PDAQ_OTHER, date, msg)
 
     def __process(self, line):
         liveline = LiveLine(line)
@@ -520,16 +547,16 @@ class LiveLog(object):
             msg = data.data()
             if msg.find("flowed max message size in queue ITSQueue") > 0 or \
                     msg.startswith("Sent ITS Message: "):
-                field = "its"
+                field = self.FIELD_ITS
             elif msg.find("unable to send message") >= 0 and \
                     msg.find("in queue ITSQueue!!!") > 0:
-                field = "its"
+                field = self.FIELD_ITS
             else:
-                field = "its"
+                field = self.FIELD_UNKNOWN
 
             line = self.string(field, liveline.timestamp(), msg)
             if line is not None:
-                print line
+                print(line)
 
             return
 
@@ -538,10 +565,10 @@ class LiveLog(object):
 
         if svc == "livecontrol":
             if self.__show_all:
-                line = self.string("livecontrol", ddict["t"],
+                line = self.string(self.FIELD_LIVECONTROL, ddict["t"],
                                    str(ddict["payload"]))
                 if line is not None:
-                    print line
+                    print(line)
             return
 
         if self.__pdaq_only and svc != "pdaq":
@@ -549,9 +576,9 @@ class LiveLog(object):
 
         if "payload" not in ddict or \
            "varname" not in ddict["payload"]:
-            line = self.string("unknown", "BadDict ", str(ddict))
+            line = self.string(self.FIELD_UNKNOWN, "BadDict ", str(ddict))
             if line is not None:
-                print line
+                print(line)
             return
 
         varname = ddict["payload"]["varname"]
@@ -560,18 +587,19 @@ class LiveLog(object):
             line = self.__color_log(ddict["payload"]["time"],
                                     ddict["payload"]["value"])
             if line is not None:
-                print line
+                print(line)
             return
 
         if not self.__non_log:
             return
 
-        line = self.string("live_misc", ddict["t"], svc + ":" + varname)
+        line = self.string(self.FIELD_LIVE_MISC, ddict["t"],
+                           svc + ":" + varname)
         if line is not None:
-            print line
-        line = self.string("live_misc", "\t", str(ddict["payload"]))
+            print(line)
+        line = self.string(self.FIELD_LIVE_MISC, "\t", str(ddict["payload"]))
         if line is not None:
-            print line
+            print(line)
 
     def read_file(self):
         prevline = None
@@ -598,7 +626,7 @@ class LiveLog(object):
                 # line probably contained embedded newlines
                 prevline += line
             else:
-                print >> sys.stderr, "Ignoring bad line: " + line
+                print("Ignoring bad line: " + line, file=sys.stderr)
 
         if prevline is not None:
             self.__process(prevline.rstrip())
@@ -636,9 +664,12 @@ class LiveLog(object):
 
 if __name__ == "__main__":
     import argparse
+    from DumpThreads import DumpThreadsOnSignal
 
     parser = argparse.ArgumentParser()
     add_arguments(parser)
     args = parser.parse_args()
+
+    DumpThreadsOnSignal(fd=sys.stderr)
 
     tail_logs(args)

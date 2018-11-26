@@ -31,7 +31,7 @@ def listComponentRanges(compList):
     """
     compDict = {}
     for c in compList:
-        if not c.name in compDict:
+        if c.name not in compDict:
             compDict[c.name] = [c, ]
         else:
             compDict[c.name].append(c)
@@ -39,7 +39,7 @@ def listComponentRanges(compList):
     hasOrder = True
 
     pairList = []
-    for k in sorted(compDict.keys(), key=lambda nm: len(compDict[nm]),
+    for k in sorted(list(compDict.keys()), key=lambda nm: len(compDict[nm]),
                     reverse=True):
         if len(compDict[k]) == 1 and compDict[k][0].num == 0:
             if not hasOrder:
@@ -114,7 +114,6 @@ class ComponentManager(object):
         "replayhub": ("StringHub", "replay")
         }
 
-
     @classmethod
     def __convertDict(cls, compdicts):
         """
@@ -150,7 +149,8 @@ class ComponentManager(object):
             if not os.path.exists(dirname) and not dryRun:
                 try:
                     os.makedirs(dirname)
-                except OSError as (_, strerror):
+                except OSError as xxx_todo_changeme:
+                    (_, strerror) = xxx_todo_changeme.args
                     if fallbackDir is None:
                         einfo = sys.exc_info()
                         raise einfo[0], einfo[1], einfo[2]
@@ -274,7 +274,7 @@ class ComponentManager(object):
 
             for rid in cnc.rpc_runset_list_ids():
                 runsets[rid] = cnc.rpc_runset_state(rid)
-                if not runsets[rid] in inactiveStates:
+                if runsets[rid] not in inactiveStates:
                     active += 1
 
         return (runsets, active)
@@ -546,7 +546,7 @@ class ComponentManager(object):
 
     @classmethod
     def listComponents(cls):
-        return cls.__COMP_JAR_MAP.keys()
+        return list(cls.__COMP_JAR_MAP.keys())
 
     @classmethod
     def startComponents(cls, compList, dryRun, verbose, configDir, daqDataDir,
@@ -624,7 +624,6 @@ class ComponentManager(object):
                     jvmArgs += " -Dhitspool.maxfiles=%d" % \
                                (comp.hitspoolMaxFiles, )
 
-            #switches = "-g %s" % configDir
             switches = "-d %s" % daqDataDir
             switches += " -c %s:%d" % (myIP, DAQPort.CNCSERVER)
             if logPort is not None:
@@ -679,6 +678,7 @@ class ComponentManager(object):
                                       " for host: %s, cmd: %s") %
                                      (rtn_code, nodeName, cmd))
                         logger.error("Results '%s'" % results)
+
 
 if __name__ == '__main__':
     pass

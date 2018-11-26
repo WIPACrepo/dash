@@ -88,12 +88,12 @@ class CommonCode(unittest.TestCase):
                              (fullname, cfg.fullpath))
 
             domnames = cfg.getDomConfigs()
-            self.assertEquals(data[1], len(domnames),
+            self.assertEqual(data[1], len(domnames),
                               "Expected %s dom names in %s, not %s" %
                               (data[1], n, len(domnames)))
 
             trigcfg = cfg.getTriggerConfig()
-            self.assertEquals(data[2], trigcfg.basename,
+            self.assertEqual(data[2], trigcfg.basename,
                               "Expected trigger config %s in %s, not %s" %
                               (data[2], n, trigcfg.basename))
 
@@ -246,6 +246,7 @@ class CommonCode(unittest.TestCase):
             except:
                 self.fail('Unexpected component "%s"' % c)
 
+
 class DAQNewConfigTest(CommonCode):
     def testNames(self):
         self.runNamesTest(True)
@@ -291,6 +292,7 @@ class DAQOldConfigTest(CommonCode):
     def testReplay(self):
         self.runReplayTest(False)
 
+
 class DAQConfigTest(CommonCode):
     def testCheckPeriod(self):
         cfgDir = self.getConfigDir()
@@ -306,7 +308,6 @@ class DAQConfigTest(CommonCode):
         self.assertEqual(expVal, cfg.watchdogPeriod,
                          "Expected watchdog period for %s to be %d, not %s" %
                          (cfg.basename, expVal, cfg.watchdogPeriod))
-
 
 
 if __name__ == '__main__':

@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import os
 import re
 
@@ -42,8 +44,7 @@ if __name__ == "__main__":
 
     usage = False
     if len(sys.argv) == 1:
-        print >> sys.stderr, \
-            "%s: Please specify the number of minutes to pause" % sys.argv[0]
+        print("%s: Please specify the number of minutes to pause" % sys.argv[0], file=sys.stderr)
         raise SystemExit("Usage: %s minutes-to-pause" % sys.argv[0])
 
     try:
@@ -53,12 +54,12 @@ if __name__ == "__main__":
                          (sys.argv[0], sys.argv[1]))
 
     if len(sys.argv) > 2:
-        print >> sys.stderr, "%s: Ignoring extra arguments" % sys.argv[0]
+        print("%s: Ignoring extra arguments" % sys.argv[0], file=sys.stderr)
 
-    print "Pausing for %d minutes" % minutes
+    print("Pausing for %d minutes" % minutes)
     with open(os.path.join(os.environ["HOME"], ".paused"), "w") as fd:
-        print >> fd, str(minutes)
+        print(str(minutes), file=fd)
 
     if isSPTSActive(2):
-        print "Stopping current run"
+        print("Stopping current run")
         subprocess.call(["livecmd", "stop", "daq"])

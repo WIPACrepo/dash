@@ -8,17 +8,14 @@ from CnCExceptions import CnCServerException
 from CnCServer import CnCServer
 from DAQClient import DAQClient
 from DAQConst import DAQPort
-from DAQMocks import MockAppender, MockClusterConfig, MockCnCLogger, \
-    MockDefaultDomGeometryFile, MockLeapsecondFile, MockRunConfigFile, \
-    RunXMLValidator, SocketReaderFactory, SocketWriter
+from DAQMocks import MockClusterConfig, MockCnCLogger, \
+    MockDefaultDomGeometryFile, MockLeapsecondFile, MockLogger, \
+    MockRunConfigFile, SocketReaderFactory, SocketWriter
 from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet
 from locate_pdaq import set_pdaq_config_dir
 from utils import ip
-
-
-CAUGHT_WARNING = False
 
 
 class TinyMBeanClient(object):
@@ -35,7 +32,8 @@ class TinyMBeanClient(object):
                 fld == "EarliestLastChannelHitTime":
                 rtndict[fld] = 10
             else:
-                raise Exception("Unknown beanField \"%s.%s\"" % (beanname, fld))
+                raise Exception("Unknown beanField \"%s.%s\"" %
+                                (beanname, fld))
         return rtndict
 
 
@@ -63,8 +61,8 @@ class TinyClient(object):
         else:
             mStr = ' M#%d' % self.__mbeanPort
         return 'ID#%d %s#%d at %s:%d%s' % \
-            (self.__id, self.__name, self.__num, self.__host, \
-                 self.__port, mStr)
+            (self.__id, self.__name, self.__num, self.__host, self.__port,
+             mStr)
 
     def configure(self, cfgName=None):
         self.__state = 'ready'
@@ -90,13 +88,6 @@ class TinyClient(object):
         return False
 
     @property
-    def isBuilder(self):
-        return False
-
-    def isComponent(self, name, num=-1):
-        return self.__name == name and (num < 0 or self.__num == num)
-
-    @property
     def isReplayHub(self):
         return False
 
@@ -109,8 +100,8 @@ class TinyClient(object):
             raise Exception('Cannot log to I3Live')
 
         self.__log = SocketWriter(logIP, logPort)
-        self.__log.write_ts('Start of log at LOG=log(%s:%d)' % \
-                                (logIP, logPort))
+        self.__log.write_ts('Start of log at LOG=log(%s:%d)' %
+                            (logIP, logPort))
         self.__log.write_ts('Version info: BRANCH 0:0 unknown unknown')
 
     def map(self):
@@ -157,56 +148,120 @@ class TinyClient(object):
         self.__state = 'ready'
 
 
-class FakeTaskManager(object):
-    def __init__(self):
+class FakeRunData(object):
+    def __init__(self, runNum, runCfg, cluCfg):
+        self.__run_number = runNum
+        self.__run_config = runCfg
+        self.__cluster_config = cluCfg
+
+        self.__logger = None
+        self.__finished = False
+
+    def __str__(self):
+        return "FakeRunData[%d/%s/%s]" % \
+            (self.__run_number, self.__run_config.basename,
+             self.__cluster_config.description)
+
+    @property
+    def cluster_configuration(self):
+        return self.__cluster_config
+
+    def connect_to_live(self):
         pass
+
+    def error(self, logmsg):
+        if self.__logger is None:
+            raise Exception("Mock logger has not been set")
+        self.__logger.error(logmsg)
+
+    @property
+    def finished(self):
+        return self.__finished
+
+    @property
+    def has_moni_client(self):
+        return True
+
+    @property
+    def isErrorEnabled(self):
+        return self.__logger.isErrorEnabled
+
+    @property
+    def log_directory(self):
+        return None
 
     def reset(self):
         pass
 
-    def start(self):
+    @property
+    def run_configuration(self):
+        return self.__run_config
+
+    @property
+    def run_directory(self):
+        return "/bad/path"
+
+    @property
+    def run_number(self):
+        return self.__run_number
+
+    def send_event_counts(self, run_set=None):
         pass
 
-    def stop(self):
+    def set_finished(self):
+        self.__finished = True
+
+    def set_mock_logger(self, logger):
+        self.__logger = logger
+
+    def stop_tasks(self):
         pass
 
 
 class MockRunSet(RunSet):
     def __init__(self, parent, runConfig, compList, logger, clientLog=None):
+        self.__runConfig = runConfig
         self.__dashLog = logger
         self.__clientLog = clientLog
         self.__deadComp = []
 
         super(MockRunSet, self).__init__(parent, runConfig, compList, logger)
 
-    def createComponentLog(self, runDir, c, host, port, liveHost, livePort,
-                           quiet=True):
+    def create_component_log(self, runDir, comp, host, port, liveHost,
+                             livePort, quiet=True):
         return self.__clientLog
 
-    def createDashLog(self):
-        return self.__dashLog
+    def create_run_data(self, runNum, clusterConfig, runOptions, versionInfo,
+                        spade_dir, copy_dir=None, log_dir=None, testing=True):
+        mrd = FakeRunData(runNum, self.__runConfig, clusterConfig)
+        mrd.set_mock_logger(self.__dashLog)
+        return mrd
 
-    def createRunData(self, runNum, clusterConfigName, runOptions, versionInfo,
-                      spadeDir, copyDir=None, logDir=None):
-        return super(MockRunSet, self).createRunData(runNum,
-                                                     clusterConfigName,
-                                                     runOptions, versionInfo,
-                                                     spadeDir, copyDir,
-                                                     logDir, True)
+    def final_report(self, comps, runData, had_error=False, switching=False):
+        if switching:
+            verb = "switched"
+        else:
+            verb = "terminated"
+        if had_error:
+            result = "WITH ERROR"
+        else:
+            result = "SUCCESSFULLY"
+        self.__dashLog.error("Run %s %s." % (verb, result))
 
-    def createRunDir(self, logDir, runNum, backupExisting=True):
-        return None
+    def finish_setup(self, run_data, start_time):
+        self.__dashLog.error('Version info: BRANCH 0:0 unknown unknown')
+        self.__dashLog.error("Run configuration: %s" %
+                             (run_data.run_configuration.basename, ))
+        self.__dashLog.error("Cluster: %s" %
+                             (run_data.cluster_configuration.description, ))
 
-    def createTaskManager(self, dashlog, liveMoniClient, runDir, runCfg,
-                          moniType):
-        return FakeTaskManager()
-
-    def queueForSpade(self, runData, duration):
+    @staticmethod
+    def report_good_time(run_data, name, daq_time):
         pass
 
 
 class MockServer(CnCServer):
-    APPENDER = MockAppender('server')
+    APPENDER = MockLogger('server')
 
     def __init__(self, clusterConfigObject=None, copyDir=None,
                  runConfigDir=None, daqDataDir=None, spadeDir=None,
@@ -247,9 +302,6 @@ class MockServer(CnCServer):
 
     def saveCatchall(self, runDir):
         pass
-
-    def startLiveThread(self):
-        return None
 
 
 class TestDAQServer(unittest.TestCase):
@@ -292,8 +344,6 @@ class TestDAQServer(unittest.TestCase):
 
         set_pdaq_config_dir(None, override=True)
 
-        RunXMLValidator.setUp()
-
     def tearDown(self):
         try:
             self.__logFactory.tearDown()
@@ -310,8 +360,6 @@ class TestDAQServer(unittest.TestCase):
         MockServer.APPENDER.checkStatus(10)
 
         set_pdaq_config_dir(None, override=True)
-
-        RunXMLValidator.tearDown()
 
     def testRegister(self):
         logPort = 11853
@@ -523,34 +571,25 @@ class TestDAQServer(unittest.TestCase):
 
         moniType = RunOption.MONI_TO_NONE
 
-        global CAUGHT_WARNING
-        if not LIVE_IMPORT and not CAUGHT_WARNING:
-            CAUGHT_WARNING = True
-            logger.addExpectedTextRegexp(r"^Cannot import IceCube Live.*")
-
         logger.addExpectedText("Starting run %d..." % runNum)
 
         logger.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
         logger.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for Hubs")
 
-        self.assertEqual(dc.rpc_runset_start_run(setId, runNum, moniType), \
-                             'OK')
+        self.assertEqual(dc.rpc_runset_start_run(setId, runNum, moniType),
+                         'OK')
 
         logger.checkStatus(10)
         clientLogger.checkStatus(10)
 
-        logger.addExpectedText("Reset duration")
-
-        logger.addExpectedText("0 physics events collected in 0 seconds")
-        logger.addExpectedText("0 moni events, 0 SN events, 0 tcals")
         logger.addExpectedText("Run terminated SUCCESSFULLY")
+
+        logger.addExpectedText("Not logging to file so cannot queue to"
+                               " SPADE")
 
         self.assertEqual(dc.rpc_runset_stop_run(setId), 'OK')
 
         logger.checkStatus(10)
-
-        RunXMLValidator.validate(self, runNum, runConfig, cluCfg.description,
-                                 None, None, 0, 0, 0, 0, False)
 
         self.assertEqual(dc.rpc_component_count(), 0)
         self.assertEqual(dc.rpc_runset_count(), 1)
@@ -566,6 +605,7 @@ class TestDAQServer(unittest.TestCase):
 
         logger.checkStatus(10)
         clientLogger.checkStatus(10)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -11,7 +11,7 @@ if __name__ == "__main__":
                      default=None,
                      help="Run Config Directory")
     opt, args = parse.parse_args()
-    
+
     if opt.config_dir is not None:
         config_path = opt.config_dir
     else:

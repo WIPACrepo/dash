@@ -8,6 +8,7 @@ from DAQTime import DAQDateTime, PayloadTime
 from leapseconds import leapseconds, MJD
 from locate_pdaq import set_pdaq_config_dir
 
+
 class TestDAQTime(unittest.TestCase):
     TICKS_PER_SEC = 10000000000
     CUR_YEAR = None
@@ -77,55 +78,6 @@ class TestDAQTime(unittest.TestCase):
         dt = PayloadTime.toDateTime(self.TICKS_PER_SEC, high_precision=True)
         expStr = self.__dateFormat(self.CUR_YEAR, 1, 1, 0, 0, 1, 0,
                                    high_precision=True)
-        self.assertEqual(expStr, str(dt),
-                         "Expected date %s, not %s" % (expStr, dt))
-
-    def testPayloadTimeOneYear(self):
-        """ test cannot easily work as calculating the number of seconds in the
-        current year requires a nist file that passes the end of the year"""
-
-        leapObj = leapseconds.instance()
-        jan1_mjd = MJD(self.CUR_YEAR, 1, 1.)
-        expiry_mjd = leapObj.expiry
-        extra = leapObj.get_leap_offset(expiry_mjd.timestruct.tm_yday)
-        elapsed_seconds = (expiry_mjd - jan1_mjd) * 86400. + extra
-
-        est = expiry_mjd.timestruct
-
-        yrsecs = elapsed_seconds
-
-        # the LONG bit is actually important, otherwise we run into floating
-        # point precision issues
-        yrticks = long(yrsecs) * self.TICKS_PER_SEC + (self.TICKS_PER_SEC - 10000)
-
-        dt = PayloadTime.toDateTime(yrticks, high_precision=False)
-        expStr = self.__dateFormat(self.CUR_YEAR, est.tm_mon, est.tm_mday,
-                                   est.tm_hour, est.tm_min, est.tm_sec,
-                                   9999990000)
-        self.assertEqual(expStr, str(dt),
-                         "Expected date %s, not %s" % (expStr, dt))
-
-    def testPayloadTimeOneYearHP(self):
-        """test cannot easily work as calculating the number of seconds in the current
-        year requires a nist that passes the end of the year"""
-
-        leapObj = leapseconds.instance()
-        jan1_mjd = MJD(self.CUR_YEAR, 1, 1.)
-        expiry_mjd = leapObj.expiry
-        extra = leapObj.get_leap_offset(expiry_mjd.timestruct.tm_yday)
-        elapsed_seconds = (expiry_mjd - jan1_mjd) * 86400. + extra
-
-        est = expiry_mjd.timestruct
-        yrsecs = elapsed_seconds
-
-        # the LONG bit is actually important, otherwise we run into floating
-        # point precision issues
-        yrticks = long(yrsecs) * self.TICKS_PER_SEC + (self.TICKS_PER_SEC - 10000)
-        dt = PayloadTime.toDateTime(yrticks, high_precision=True)
-
-        expStr = self.__dateFormat(self.CUR_YEAR, est.tm_mon, est.tm_mday,
-                                   est.tm_hour, est.tm_min, est.tm_sec,
-                                   9999990000, high_precision=True)
         self.assertEqual(expStr, str(dt),
                          "Expected date %s, not %s" % (expStr, dt))
 
@@ -330,6 +282,7 @@ class TestDAQTime(unittest.TestCase):
         expStr = self.__dateFormat(2013, 8, 20, 11, 33, 19, 0)
         self.assertEqual(expStr, str(dt),
                          "Expected date %s, not %s" % (expStr, dt))
+
 
 if __name__ == '__main__':
     unittest.main()

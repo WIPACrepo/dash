@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import datetime
 import os
 import threading
@@ -7,10 +9,9 @@ import sys
 
 from CnCTask import CnCTask
 from CnCThread import CnCThread
-from DAQClient import BeanTimeoutException
+from DAQClient import BeanLoadException, BeanTimeoutException
 from LiveImports import Prio
 from RunOption import RunOption
-from RunSetDebug import RunSetDebug
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -26,9 +27,6 @@ class MonitorThread(CnCThread):
 
     def _run(self):
         raise NotImplementedError("Unimplemented")
-
-    def close(self):
-        super(MonitorThread, self).close()
 
     @property
     def dashlog(self):
@@ -50,6 +48,9 @@ class MonitorThread(CnCThread):
 
 
 class MBeanThread(MonitorThread):
+    # XXX Get rid of the !GET_DICTIONARY code after Tyranena is released
+    GET_DICTIONARY = True
+
     def __init__(self, comp, runDir, liveMoni, runOptions, dashlog,
                  reporter=None, refused=0):
         self.__comp = comp
@@ -58,12 +59,13 @@ class MBeanThread(MonitorThread):
         self.__runOptions = runOptions
         self.__reporter = reporter
         self.__refused = refused
-        self.__closeLock = threading.Lock()
+        self.__reporterLock = threading.Lock()
 
         self.__mbeanClient = comp.createMBeanClient()
 
-        self.__beanKeys = []
-        self.__beanFlds = {}
+        if not self.GET_DICTIONARY:
+            self.__beanKeys = []
+            self.__beanFlds = {}
 
         super(MBeanThread, self).__init__(comp.fullname, dashlog)
 
@@ -76,26 +78,45 @@ class MBeanThread(MonitorThread):
             if self.__runDir is not None:
                 return MonitorToFile(self.__runDir, self.__comp.filename)
         if RunOption.isMoniToLive(self.__runOptions) and \
-               self.__liveMoni is not None:
+           self.__liveMoni is not None:
             return MonitorToLive(self.__comp.filename, self.__liveMoni)
 
         return None
 
-    def _run(self):
-        if self.isClosed:
-            return
+    def __fetch_dictionary(self):
+        try:
+            beanDict = self.__mbeanClient.getDictionary()
+            self.__refused = 0
+        except BeanTimeoutException:
+            beanDict = None
+            if not self.isClosed:
+                self.__refused += 1
+        except BeanLoadException:
+            beanDict = None
+            if not self.isClosed:
+                self.__refused += 1
+                self.error("Could not load monitoring data from %s" %
+                           (self.__mbeanClient, ))
+        except:
+            beanDict = None
+            if not self.isClosed:
+                self.error("Ignoring %s: %s" %
+                           (self.__mbeanClient, exc_string()))
 
-        if self.__reporter is None:
-            # reload MBean info to pick up any dynamically created MBeans
-            self.__mbeanClient.reload()
+        if beanDict is not None:
+            if not isinstance(beanDict, dict):
+                self.error("%s getDictionary() returned %s, not dict (%s)" %
+                           (self.__mbeanClient.fullname,
+                            type(beanDict).__name__, beanDict))
+            elif len(beanDict) > 0:
+                # report monitoring data
+                    with self.__reporterLock:
+                        reporter = self.__reporter
+                    for key, data in beanDict.items():
+                        if not self.isClosed:
+                            reporter.send(datetime.datetime.now(), key, data)
 
-            self.__reporter = self.__create_reporter()
-            if self.__reporter is None:
-                return
-
-            self.__beanKeys = []
-            self.__beanFlds = {}
-
+    def __fetch_beans_slowly(self):
         if len(self.__beanKeys) == 0:
             self.__beanKeys = self.__mbeanClient.getBeanNames()
             self.__beanKeys.sort()
@@ -115,42 +136,74 @@ class MBeanThread(MonitorThread):
                 attrs = self.__mbeanClient.getAttributes(b, flds)
                 self.__refused = 0
             except BeanTimeoutException:
-                self.__refused += 1
+                attrs = None
+                if not self.isClosed:
+                    self.__refused += 1
                 break
+            except BeanLoadException:
+                attrs = None
+                if not self.isClosed:
+                    self.__refused += 1
+                    self.error("Could not load monitoring data from %s:%s" %
+                               (self.__mbeanClient, b))
             except:
                 attrs = None
-                self.error("Ignoring %s:%s: %s" %
-                           (str(self.__mbeanClient), b, exc_string()))
+                if not self.isClosed:
+                    self.error("Ignoring %s:%s: %s" %
+                               (self.__mbeanClient, b, exc_string()))
 
-            if attrs is not None and not isinstance(attrs, dict):
-                self.error("%s getAttributes(%s, %s) returned %s, not dict"
-                           " (%s)" %
-                           (self.__mbeanClient.fullname, b, flds,
-                            type(attrs), attrs))
-                continue
+            if attrs is not None:
+                if not isinstance(attrs, dict):
+                    self.error("%s getAttributes(%s, %s) returned %s, not dict"
+                               " (%s)" %
+                               (self.__mbeanClient.fullname, b, flds,
+                                type(attrs), attrs))
+                    continue
 
-            # report monitoring data
-            if attrs and len(attrs) > 0 and not self.isClosed:
-                self.__reporter.send(datetime.datetime.now(), b, attrs)
+                # report monitoring data
+                if len(attrs) > 0 and not self.isClosed:
+                    self.__reporter.send(datetime.datetime.now(), b, attrs)
+
+    def _run(self):
+        if self.isClosed:
+            return
+
+        if self.__reporter is None:
+            if not self.GET_DICTIONARY:
+                # reload MBean info to pick up any dynamically created MBeans
+                self.__mbeanClient.reload()
+
+            self.__reporter = self.__create_reporter()
+            if self.__reporter is None:
+                return
+
+            if not self.GET_DICTIONARY:
+                self.__beanKeys = []
+                self.__beanFlds = {}
+
+        if self.GET_DICTIONARY:
+            self.__fetch_dictionary()
+        else:
+            self.__fetch_beans_slowly()
 
         return self.__refused
 
     def close(self):
-        super(MBeanThread, self).close()
+        if not self.isClosed:
+            with self.__reporterLock:
+                if self.__reporter is not None:
+                    try:
+                        self.__reporter.close()
+                    except:
+                        self.error(("Could not close %s monitor thread: %s") %
+                                   (self.__mbeanClient.fullname, exc_string()))
 
-        with self.__closeLock:
-            if self.__reporter is not None:
-                try:
-                    self.__reporter.close()
-                except:
-                    self.error(("Could not close %s monitor thread: %s") %
-                               (self.__mbeanClient.fullname, exc_string()))
-                self.__reporter = None
+                super(MBeanThread, self).close()
 
     def get_new_thread(self):
         thrd = MBeanThread(self.__comp, self.__runDir, self.__liveMoni,
-                             self.__runOptions, self.dashlog,
-                             self.__reporter, self.__refused)
+                           self.__runOptions, self.dashlog,
+                           self.__reporter, self.__refused)
         return thrd
 
     @property
@@ -184,9 +237,13 @@ class CnCMoniThread(MonitorThread):
             if self.__reporter is None:
                 return
 
-        #sstats = self.__runset.serverStatistics()
-        #if sstats is not None and len(sstats) > 0 and not self.isClosed:
+        #sstats = self.__runset.server_statistics()
+        #if sstats is not None and len(sstats) > 0:
         #    self.__reporter.send(datetime.datetime.now(), "server", sstats)
+
+        cstats = self.__runset.client_statistics()
+        if cstats is not None and len(cstats) > 0:
+            self.__reporter.send(datetime.datetime.now(), "client", cstats)
 
     def get_new_thread(self):
         thrd = CnCMoniThread(self.__runset, self.__rundir,
@@ -216,11 +273,10 @@ class MonitorToFile(object):
     def send(self, now, beanName, attrs):
         with self.__fdLock:
             if self.__fd is not None:
-                print >> self.__fd, "%s: %s:" % (beanName, now)
+                print("%s: %s:" % (beanName, now), file=self.__fd)
                 for key in attrs:
-                    print >> self.__fd, "\t%s: %s" % \
-                        (key, str(attrs[key]))
-                print >> self.__fd
+                    print("\t%s: %s" % (key, attrs[key]), file=self.__fd)
+                print(file=self.__fd)
                 self.__fd.flush()
 
 
@@ -257,9 +313,10 @@ class MonitorToBoth(object):
 class MonitorTask(CnCTask):
     NAME = "Monitoring"
     PERIOD = 100
-    DEBUG_BIT = RunSetDebug.MONI_TASK
 
     MAX_REFUSED = 3
+
+    MONITOR_CNCSERVER = False
 
     def __init__(self, taskMgr, runset, dashlog, liveMoni, runDir, runOptions,
                  period=None):
@@ -267,8 +324,7 @@ class MonitorTask(CnCTask):
             period = self.PERIOD
 
         super(MonitorTask, self).__init__(self.NAME, taskMgr, dashlog,
-                                          self.DEBUG_BIT, self.NAME,
-                                          period)
+                                          self.NAME, period)
 
         self.__threadList = self.__createThreads(runset, dashlog, liveMoni,
                                                  runDir, runOptions)
@@ -284,14 +340,15 @@ class MonitorTask(CnCTask):
                 threadList[c] = self.createThread(c, runDir, liveMoni,
                                                   runOptions, dashlog)
 
-            toFile = RunOption.isMoniToFile(runOptions)
-            threadList["CnCServer"] = self.createCnCMoniThread(runset, runDir,
-                                                               toFile, dashlog)
+            if self.MONITOR_CNCSERVER:
+                toFile = RunOption.isMoniToFile(runOptions)
+                threadList["CnCServer"] \
+                    = self.createCnCMoniThread(runset, runDir, toFile, dashlog)
 
         return threadList
 
     def _check(self):
-        for c in self.__threadList.keys():
+        for c in list(self.__threadList.keys()):
             thrd = self.__threadList[c]
             if not thrd.isAlive():
                 if thrd.refused_count >= self.MAX_REFUSED:
@@ -315,7 +372,7 @@ class MonitorTask(CnCTask):
 
     def close(self):
         savedEx = None
-        for thr in self.__threadList.values():
+        for thr in list(self.__threadList.values()):
             try:
                 thr.close()
             except:
@@ -327,12 +384,12 @@ class MonitorTask(CnCTask):
 
     def numOpen(self):
         num = 0
-        for c in self.__threadList.keys():
+        for c in list(self.__threadList.keys()):
             if not self.__threadList[c].isClosed:
                 num += 1
         return num
 
     def waitUntilFinished(self):
-        for c in self.__threadList.keys():
+        for c in list(self.__threadList.keys()):
             if self.__threadList[c].isAlive():
                 self.__threadList[c].join()

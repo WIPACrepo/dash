@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import calendar
 import datetime
 import re
@@ -42,7 +44,7 @@ class DAQDateTime(object):
             self.__daqticks = daqticks
             self.__high_precision = True
         else:
-            self.__daqticks = (daqticks / 10000L) * 10000L
+            self.__daqticks = (daqticks / 10000) * 10000
             self.__high_precision = False
 
         self.leap = leapseconds.instance()
@@ -125,21 +127,16 @@ class DAQDateTime(object):
         return DAQDateTimeDelta(days, secs, long(usecs))
 
     def __str__(self):
+        fmt = "%d-%02d-%02d %02d:%02d:%02d"
         if self.__high_precision:
-            fmt = "%s.%010d"
+            fmt += ".%010d"
             ticks = self.__daqticks
         else:
-            fmt = "%s.%06d"
+            fmt += ".%06d"
             ticks = self.__daqticks / 10000
 
-        timeStr = "%d-%02d-%02d %02d:%02d:%02d" % (self.year,
-                                                   self.month,
-                                                   self.day,
-                                                   self.hour,
-                                                   self.minute,
-                                                   self.second)
-
-        return fmt % (timeStr, ticks)
+        return fmt % (self.year, self.month, self.day, self.hour, self.minute,
+                      self.second, ticks)
 
 
 class PayloadTime(object):
@@ -210,7 +207,7 @@ class PayloadTime(object):
                 ticks = 0
             else:
                 ticks = int(m.group(3))
-                for _ in xrange(10 - len(m.group(3))):
+                for _ in range(10 - len(m.group(3))):
                     ticks *= 10
 
         return DAQDateTime(pt.tm_year, pt.tm_mon,
@@ -250,11 +247,11 @@ class PayloadTime(object):
             july1_tuple = time.gmtime(calendar.timegm(raw_tuple))
             PayloadTime.has_leapsecond \
                 = leapseconds.instance().get_leap_offset(july1_tuple.tm_yday,
-                                                       year) > 0
+                                                         year) > 0
             if not PayloadTime.has_leapsecond:
                 # no mid-year leap second, so don't need to calculate
                 # seconds until June 30
-                PayloadTime.TIME_TILL_JUNE30 = sys.maxint
+                PayloadTime.TIME_TILL_JUNE30 = sys.maxsize
             else:
                 PayloadTime.TIME_TILL_JUNE30 = \
                     PayloadTime.__seconds_until_june30(year)
@@ -307,25 +304,31 @@ if __name__ == "__main__":
         dt0 = PayloadTime.fromString(base + ".0001000000")
         dt1 = PayloadTime.fromString(base + ".0001")
 
-        print dt0
-        print dt1
+        print(dt0)
+        print(dt1)
         raise SystemExit()
 
     for arg in args.time:
         try:
             try:
                 val = long(arg)
-                dt = PayloadTime.toDateTime(val, year=args.year,
-                                            high_precision=True)
-            except IOError as ioe:
-                print "Cannot convert %s" % str(val)
+                dt = None
+            except IOError:
+                print("Cannot convert %s" % str(val))
                 import traceback
                 traceback.print_exc()
                 continue
-            except:
+            except ValueError:
+                val = None
+            if val is not None:
+                dt = PayloadTime.toDateTime(val, year=args.year,
+                                            high_precision=True)
+                print("%s -> %s" % (arg, dt))
+            else:
                 dt = PayloadTime.fromString(arg, True)
-            print "%s -> %s" % (arg, dt)
+                print("\"%s\" -> %s" % (arg, dt))
+
         except:
-            print "Bad date: " + arg
+            print("Bad date: " + arg)
             import traceback
             traceback.print_exc()

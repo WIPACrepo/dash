@@ -9,9 +9,6 @@ class MockBean(object):
     def __init__(self, val):
         self.__val = val
 
-    def nextValue(self):
-        raise NotImplementedError()
-
     def _setValue(self, newVal):
         self.__val = newVal
 
@@ -73,7 +70,7 @@ class MockMBeanClient(object):
         self.__beanData = {}
 
     def __checkAddBean(self, name, fldName):
-        if not name in self.__beanData:
+        if name not in self.__beanData:
             self.__beanData[name] = {}
         if fldName in self.__beanData[name]:
             raise Exception("Cannot add duplicate bean %s.%s to %s" %
@@ -96,8 +93,8 @@ class MockMBeanClient(object):
         self.__beanData[name][fldName] = MockBeanTimeBomb(val, inc, bombTicks)
 
     def check(self, name, fldName):
-        if not name in self.__beanData or \
-           not fldName in self.__beanData[name]:
+        if name not in self.__beanData or \
+           fldName not in self.__beanData[name]:
             raise Exception("Unknown %s bean %s.%s" %
                             (self.fullname, name, fldName))
 
@@ -124,9 +121,6 @@ class MockComponent(object):
 
     def __str__(self):
         return self.fullname
-
-    def createMBeanClient(self):
-        return self.__mbeanClient
 
     @property
     def fullname(self):
@@ -219,7 +213,8 @@ class WatchdogDataTest(unittest.TestCase):
                 mbeanClient.addStagnant(beanName, inName, starveVal, failNum)
                 wd.addInputValue(other, beanName, inName)
             elif f == 1:
-                mbeanClient.addStagnant(beanName, outName, stagnantVal, failNum)
+                mbeanClient.addStagnant(beanName, outName, stagnantVal,
+                                        failNum)
                 wd.addOutputValue(other, beanName, outName)
 
             mbeanClient.addIncreasing(beanName, gtName, threshVal - failNum, 1)
@@ -230,8 +225,6 @@ class WatchdogDataTest(unittest.TestCase):
                 stagnant = []
                 threshold = []
                 rtnval = wd.check(starved, stagnant, threshold)
-                #print "\nRTN %s STV %s STG %s THR %s" % \
-                #      (rtnval, starved, stagnant, threshold)
 
                 nStarved = 0
                 nStagnant = 0
@@ -373,6 +366,7 @@ class WatchdogDataTest(unittest.TestCase):
                     if badRec.message().find(front) != 0:
                         self.fail(("Expected UnhealthyRecord %s to start" +
                                    " with \"%s\"") % (badRec, front))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -2,6 +2,7 @@
 
 from CnCTask import CnCTask
 
+
 class CnCSingleThreadTask(CnCTask):
     """
     A task which does one thing (or one set of things) on a regular basis.
@@ -14,19 +15,18 @@ class CnCSingleThreadTask(CnCTask):
         but (obviously) nothing will be sent to I3Live.
 
         `detailTimer` is a secondary timer which can be used to trigger an
-        additional, more detailed report at a lower interval than the usual one.
+        additional, more detailed report at a lower interval than the usual
+        one.
         """
         self.__runset = runset
         self.__needLiveMoni = needLiveMoni
         self.__liveMoniClient = liveMoni
-        self.__detailTimer = None
-
-        self.__thread = self.initializeThread(runset, dashlog, liveMoni)
         self.__badCount = 0
 
         if self.__needLiveMoni and self.__liveMoniClient is None:
             name = None
             period = None
+            self.__detailTimer = None
         else:
             name = self.NAME
             if period is None:
@@ -34,7 +34,9 @@ class CnCSingleThreadTask(CnCTask):
             self.__detailTimer = self.createDetailTimer(taskMgr)
 
         super(CnCSingleThreadTask, self).__init__(name, taskMgr, dashlog,
-                                                  self.DEBUG_BIT, name, period)
+                                                  name, period)
+
+        self.__thread = self.initializeThread(runset, dashlog, liveMoni)
 
     def _check(self):
         """
@@ -80,7 +82,6 @@ class CnCSingleThreadTask(CnCTask):
                 self.taskFailed()
                 # stop the interval timer so it won't be run again
                 self.endTimer()
-
 
     def _reset(self):
         "Reset tasks at the end of the run"
@@ -128,7 +129,7 @@ class CnCSingleThreadTask(CnCTask):
 
     def stopRunset(self, callerName):
         "Signal the runset that this run has failed"
-        self.__runset.setError(callerName)
+        self.__runset.set_run_error(callerName)
 
     def waitUntilFinished(self):
         "If a thread is running, wait until it's finished"

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import copy
 import shutil
 import tempfile
 import time
@@ -19,11 +20,9 @@ from LiveImports import LIVE_IMPORT
 from MonitorTask import MonitorTask
 from RateTask import RateTask
 from RunOption import RunOption
-from RunSet import RunSet, RunSetException
+from RunSet import RunData, RunSet, RunSetException
 from TaskManager import TaskManager
 from WatchdogTask import WatchdogTask
-
-ACTIVE_WARNING = False
 
 
 class MockComponentLogger(MockLogger):
@@ -81,30 +80,21 @@ class MockMBeanClient(object):
         pass
 
     def get(self, beanName, fieldName):
-        if not beanName in self.__beanData:
+        if beanName not in self.__beanData:
             raise ValueError("Unknown %s bean \"%s\"" % (str(self), beanName))
-        if not fieldName in self.__beanData[beanName]:
+        if fieldName not in self.__beanData[beanName]:
             raise ValueError("Unknown %s bean \"%s\" field \"%s\"" %
                              (str(self), beanName, fieldName))
 
         return self.__beanData[beanName][fieldName]
 
-    def getBeanFields(self, beanName):
-        if not beanName in self.__beanData:
-            raise ValueError("Unknown %s bean \"%s\"" % (str(self), beanName))
-
-        return self.__beanData[beanName].keys()
-
-    def getBeanNames(self):
-        return self.__beanData.keys()
-
     def getAttributes(self, beanName, fieldList):
-        if not beanName in self.__beanData:
+        if beanName not in self.__beanData:
             raise ValueError("Unknown %s bean \"%s\"" % (str(self), beanName))
 
         valMap = {}
         for f in fieldList:
-            if not f in self.__beanData[beanName]:
+            if f not in self.__beanData[beanName]:
                 raise ValueError("Unknown %s bean \"%s\" field \"%s\"" %
                                  (str(self), beanName, f))
 
@@ -112,13 +102,20 @@ class MockMBeanClient(object):
 
         return valMap
 
+    def getBeanNames(self):
+        return []
+
+    def getDictionary(self):
+        return copy.deepcopy(self.__beanData)
+
     def reload(self):
         pass
 
     def setData(self, beanName, fieldName, value):
-        if not beanName in self.__beanData:
+        if beanName not in self.__beanData:
             self.__beanData[beanName] = {}
         self.__beanData[beanName][fieldName] = value
+
 
 class MockComponent(object):
     def __init__(self, name, num=0, conn=None):
@@ -149,7 +146,7 @@ class MockComponent(object):
 
     def connectors(self):
         if self.__conn is None:
-            return []
+            raise SystemExit("No connectors for %s" % str(self))
         return self.__conn[:]
 
     def createMBeanClient(self):
@@ -157,7 +154,7 @@ class MockComponent(object):
 
     @property
     def filename(self):
-        return "%s-%s" % (self.__name, self.__num)
+        return "/dev/null"
 
     @property
     def fullname(self):
@@ -167,8 +164,8 @@ class MockComponent(object):
         if self.__num == 0:
             if self.__name.startswith("event"):
                 evtData = self.__mbean.get("backEnd", "EventData")
-                numEvts = int(evtData[0])
-                lastTime = long(evtData[1])
+                numEvts = int(evtData[1])
+                lastTime = long(evtData[2])
 
                 val = self.__mbean.get("backEnd", "FirstEventTime")
                 firstTime = long(val)
@@ -178,18 +175,8 @@ class MockComponent(object):
                 lastGood = long(good[1])
 
                 return (numEvts, firstTime, lastTime, firstGood, lastGood)
-            elif self.__name.startswith("secondary"):
-                for bldr in ("tcalBuilder", "snBuilder", "moniBuilder"):
-                    val = self.__mbean.get(bldr, "NumDispatchedData")
-                    if bldr == "tcalBuilder":
-                        numTcal = long(val)
-                    elif bldr == "snBuilder":
-                        numSN = long(val)
-                    elif bldr == "moniBuilder":
-                        numMoni = long(val)
-
-                return (numTcal, numSN, numMoni)
-        return (None, None, None)
+        raise SystemExit("Cannot return run data for \"%s\"" %
+                         (self.fullname, ))
 
     @property
     def is_dying(self):
@@ -228,9 +215,6 @@ class MockComponent(object):
     def order(self):
         return self.__order
 
-    def reset(self):
-        self.__state = "idle"
-
     def resetLogging(self):
         pass
 
@@ -266,75 +250,110 @@ class MostlyTaskManager(TaskManager):
                                                 runDir, runCfg, moniType)
 
     def createIntervalTimer(self, name, period):
-        if not name in self.TIMERS:
+        if name not in self.TIMERS:
             self.TIMERS[name] = MockIntervalTimer(name, self.WAITSECS)
 
         return self.TIMERS[name]
 
     def getTimer(self, name):
-        if not name in self.TIMERS:
-            return None
+        if name not in self.TIMERS:
+            raise SystemExit("Unknown timer \"%s\"" % (name, ))
 
         return self.TIMERS[name]
+
+
+class FakeMoniClient(object):
+    def __init__(self):
+        pass
+
+    def close(self):
+        pass
+
+    def sendMoni(self, name, data, prio=None, time=None):
+        pass
+
+
+class MostlyRunData(RunData):
+    def __init__(self, runSet, runNumber, clusterConfig, runConfig,
+                 runOptions, versionInfo, spadeDir, copyDir, logDir,
+                 dashlog=None):
+        self.__dashlog = dashlog
+
+        self.__taskMgr = None
+
+        super(MostlyRunData, self).__init__(runSet, runNumber, clusterConfig,
+                                            runConfig, runOptions,
+                                            versionInfo, spadeDir, copyDir,
+                                            logDir)
+
+    def create_dash_log(self):
+        if self.__dashlog is None:
+            raise Exception("dashLog has not been set")
+
+        return self.__dashlog
+
+    def create_moni_client(self, port):
+        return FakeMoniClient()
+
+    def create_task_manager(self, runset):
+        self.__taskMgr = MostlyTaskManager(runset, self.__dashlog,
+                                           self.moni_client,
+                                           self.run_directory,
+                                           self.run_configuration,
+                                           self.run_options)
+        return self.__taskMgr
+
+    @property
+    def task_manager(self):
+        return self.__taskMgr
 
 
 class MyRunSet(RunSet):
     FAIL_STATE = "fail"
 
     def __init__(self, parent, runConfig, compList, logger):
-        self.__taskMgr = None
+        self.__runConfig = runConfig
+
+        self.__rundata = None
+        self.__dashlog = None
         self.__failReset = None
-        self.__dashLog = None
 
         super(MyRunSet, self).__init__(parent, runConfig, compList, logger)
 
     @staticmethod
-    def createComponentLog(runDir, comp, host, port, liveHost, livePort,
-                           quiet=True):
+    def create_component_log(runDir, comp, host, port, liveHost, livePort,
+                             quiet=True):
         return MockComponentLogger(str(comp))
 
-    def createDashLog(self):
-        if self.__dashLog is None:
-            raise Exception("dashLog has not been set")
-
-        return self.__dashLog
-
-    def createRunData(self, runNum, clusterConfigName, runOptions, versionInfo,
-                      spadeDir, copyDir=None, logDir=None, testing=True):
-        return super(MyRunSet, self).createRunData(runNum, clusterConfigName,
-                                                   runOptions, versionInfo,
-                                                   spadeDir, copyDir, logDir,
-                                                   True)
-
-    def createRunDir(self, logDir, runNum, backupExisting=True):
-        return None
-
-    def createTaskManager(self, dashlog, liveMoniClient, runDir, runCfg,
-                          moniType):
-        self.__taskMgr = MostlyTaskManager(self, dashlog, liveMoniClient,
-                                           runDir, runCfg, moniType)
-        return self.__taskMgr
+    def create_run_data(self, runNum, clusterConfig, runOptions, versionInfo,
+                        spadeDir, copyDir=None, logDir=None):
+        rd = MostlyRunData(self, runNum, clusterConfig, self.__runConfig,
+                           runOptions, versionInfo, spadeDir, copyDir, logDir,
+                           dashlog=self.__dashlog)
+        self.__rundata = rd
+        return rd
 
     @classmethod
-    def cycleComponents(cls, compList, configDir, daqDataDir, logger, logPort,
-                        livePort, verbose, killWith9, eventCheck,
-                        checkExists=True):
+    def cycle_components(cls, compList, configDir, daqDataDir, logger, logPort,
+                         livePort, verbose, killWith9, eventCheck,
+                         checkExists=True):
         compStr = listComponentRanges(compList)
         logger.error("Cycling components %s" % compStr)
 
     def getTaskManager(self):
-        return self.__taskMgr
-
-    def setDashLog(self, dashLog):
-        self.__dashLog = dashLog
-
-    def queueForSpade(self, runData, duration):
-        pass
+        if self.__rundata is None:
+            raise SystemExit("RunData cannot be None")
+        return self.__rundata.task_manager
 
     def reset(self):
         if self.__failReset is not None:
             return (self.__failReset, )
         return {}
+
+    def set_dash_log(self, logger):
+        self.__dashlog = logger
+        if self.__rundata is not None:
+            self.__rundata.set_dash_log(logger)
 
     def setUnresetComponent(self, comp):
         self.__failReset = comp
@@ -342,11 +361,13 @@ class MyRunSet(RunSet):
 
 class MostlyCnCServer(CnCServer):
     def __init__(self, clusterConfigObject=None, copyDir=None,
-                 runConfigDir=None, daqDataDir=None, spadeDir=None):
+                 defaultLogDir=None, runConfigDir=None, daqDataDir=None,
+                 spadeDir=None):
         self.__clusterConfig = clusterConfigObject
         self.__logServer = None
 
         super(MostlyCnCServer, self).__init__(copyDir=copyDir,
+                                              defaultLogDir=defaultLogDir,
                                               runConfigDir=runConfigDir,
                                               daqDataDir=daqDataDir,
                                               spadeDir=spadeDir,
@@ -356,12 +377,12 @@ class MostlyCnCServer(CnCServer):
     def createRunset(self, runConfig, compList, logger):
         return MyRunSet(self, runConfig, compList, logger)
 
-    def cycleComponents(self, compList, runConfigDir, daqDataDir, logger,
-                        logPort, livePort, verbose=False, killWith9=False,
-                        eventCheck=False):
-        MyRunSet.cycleComponents(compList, runConfigDir, daqDataDir, logger,
-                                 logPort, livePort, verbose=verbose,
-                                 killWith9=killWith9, eventCheck=eventCheck)
+    def cycle_components(self, compList, runConfigDir, daqDataDir, logger,
+                         logPort, livePort, verbose=False, killWith9=False,
+                         eventCheck=False):
+        MyRunSet.cycle_components(compList, runConfigDir, daqDataDir, logger,
+                                  logPort, livePort, verbose=verbose,
+                                  killWith9=killWith9, eventCheck=eventCheck)
 
     def getClusterConfig(self, runConfig=None):
         return self.__clusterConfig
@@ -381,9 +402,6 @@ class MostlyCnCServer(CnCServer):
     def saveCatchall(self, runDir):
         pass
 
-    def startLiveThread(self):
-        return None
-
 
 class CnCRunSetTest(unittest.TestCase):
     HUB_NUMBER = 21
@@ -393,7 +411,6 @@ class CnCRunSetTest(unittest.TestCase):
         "stringHub": {
             "DataCollectorMonitor-00A": {
                 "MainboardId": "%012x" % EXAMPLE_DOM,
-                "HitRate": 0.0,
             },
             "sender": {
                 "NumHitsReceived": 0,
@@ -403,8 +420,6 @@ class CnCRunSetTest(unittest.TestCase):
             "stringhub": {
                 "NumberOfActiveAndTotalChannels": 0,
                 "TotalLBMOverflows": 0,
-                "HitRate": 0,
-                "HitRateLC": 0,
                 "LatestFirstChannelHitTime": -1,
                 "EarliestLastChannelHitTime": -1,
                 "NumberOfNonZombies": 60,
@@ -429,7 +444,7 @@ class CnCRunSetTest(unittest.TestCase):
         "eventBuilder": {
             "backEnd": {
                 "DiskAvailable": 2048,
-                "EventData": (0, 0),
+                "EventData": (0, 0, 0),
                 "FirstEventTime": 0,
                 "GoodTimes": (0, 0),
                 "NumBadEvents": 0,
@@ -493,9 +508,6 @@ class CnCRunSetTest(unittest.TestCase):
 
         numDOMs = 22
         numTotal = 60
-        #totalOverflows = 20
-        hitRate = 50.
-        hitRateLC = 25.
 
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
                            "NumberOfActiveAndTotalChannels",
@@ -505,17 +517,8 @@ class CnCRunSetTest(unittest.TestCase):
                            "TotalLBMOverflows",
                            20)
 
-        self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
-                           "HitRateLC",
-                           hitRateLC)
-        self.__setBeanData(comps, "stringHub", self.HUB_NUMBER, "stringhub",
-                           "HitRate",
-                           hitRate)
-
         liveMoni.addExpectedLiveMoni("activeDOMs", numDOMs)
         liveMoni.addExpectedLiveMoni("expectedDOMs", numTotal)
-        liveMoni.addExpectedLiveMoni("total_rate", hitRate)
-        liveMoni.addExpectedLiveMoni("total_ratelc", hitRateLC)
 
         timer.trigger()
 
@@ -561,13 +564,6 @@ class CnCRunSetTest(unittest.TestCase):
                            "FirstEventTime", False)
         self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
                            "DataCollectorMonitor-00A", "MainboardId")
-        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
-                           "DataCollectorMonitor-00A", "HitRate")
-
-        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
-                           "stringhub", "HitRateLC")
-        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
-                           "stringhub", "HitRate")
 
         self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
                            "stringhub", "EarliestLastChannelHitTime")
@@ -586,6 +582,9 @@ class CnCRunSetTest(unittest.TestCase):
                         firstTime, runNum):
         timer = rs.getTaskManager().getTimer(RateTask.NAME)
 
+        self.__setBeanData(comps, "eventBuilder", 0, "backEnd", "EventData",
+                           [runNum, 0, 0])
+
         dashLog.addExpectedRegexp(r"\s+0 physics events, 0 moni events," +
                                   r" 0 SN events, 0 tcals")
 
@@ -594,7 +593,7 @@ class CnCRunSetTest(unittest.TestCase):
         self.__waitForEmptyLog(dashLog, "Didn't get rate message")
 
         self.__setBeanData(comps, "eventBuilder", 0, "backEnd", "EventData",
-                           [numEvts, payTime])
+                           [runNum, numEvts, payTime])
         self.__setBeanData(comps, "eventBuilder", 0, "backEnd",
                            "FirstEventTime", firstTime)
         self.__setBeanData(comps, "eventBuilder", 0, "backEnd",
@@ -617,21 +616,20 @@ class CnCRunSetTest(unittest.TestCase):
         if liveMoni is not None:
             liveMoni.checkStatus(5)
 
-    def __checkWatchdogTask(self, comps, rs, dashLog, liveMoni):
+    def __checkWatchdogTask(self, comps, rs, dashLog, liveMoni,
+                            unhealthy=False):
         timer = rs.getTaskManager().getTimer(WatchdogTask.NAME)
 
         self.__setBeanData(comps, "eventBuilder", 0, "backEnd",
                            "DiskAvailable", 0)
 
+        if unhealthy:
+            dashLog.addExpectedRegexp("Watchdog reports starved components.*")
+            dashLog.addExpectedRegexp("Watchdog reports threshold components.*")
+
         timer.trigger()
 
         time.sleep(MostlyTaskManager.WAITSECS * 2.0)
-
-        dashLog.addExpectedRegexp("Watchdog reports threshold components.*")
-        #dashLog.addExpectedExact("Run is unhealthy (%d checks left)" %
-        #                         (WatchdogTask.HEALTH_METER_FULL - 1))
-
-        timer.trigger()
 
         self.__waitForEmptyLog(dashLog, "Didn't get watchdog message")
 
@@ -648,7 +646,7 @@ class CnCRunSetTest(unittest.TestCase):
     @classmethod
     def __loadBeanData(cls, compList):
         for c in compList:
-            if not c.name in cls.BEAN_DATA:
+            if c.name not in cls.BEAN_DATA:
                 raise Exception("No bean data found for %s" % str(c))
 
             for b in cls.BEAN_DATA[c.name]:
@@ -662,6 +660,7 @@ class CnCRunSetTest(unittest.TestCase):
         self.__copyDir = tempfile.mkdtemp()
         self.__runConfigDir = tempfile.mkdtemp()
         self.__spadeDir = tempfile.mkdtemp()
+        self.__logDir = tempfile.mkdtemp()
 
         set_pdaq_config_dir(self.__runConfigDir)
 
@@ -720,7 +719,7 @@ class CnCRunSetTest(unittest.TestCase):
         logger.checkStatus(5)
 
         dashLog = MockLogger("dashLog")
-        rs.setDashLog(dashLog)
+        rs.set_dash_log(dashLog)
 
         logger.addExpectedExact("Starting run #%d on \"%s\"" %
                                 (runNum, cluCfg.description))
@@ -737,13 +736,6 @@ class CnCRunSetTest(unittest.TestCase):
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
                            "stringhub", "LatestFirstChannelHitTime", 10)
 
-        global ACTIVE_WARNING
-        if not LIVE_IMPORT and not ACTIVE_WARNING:
-            ACTIVE_WARNING = True
-            dashLog.addExpectedExact("Cannot import IceCube Live code, so" +
-                                     " per-string active DOM stats wil not" +
-                                     " be reported")
-
         versionInfo = {
             "filename": "fName",
             "revision": "1234",
@@ -754,8 +746,8 @@ class CnCRunSetTest(unittest.TestCase):
             "repo_rev": "1repoRev",
         }
 
-        rs.startRun(runNum, cluCfg, RunOption.MONI_TO_NONE, versionInfo,
-                    "/tmp")
+        rs.start_run(runNum, cluCfg, RunOption.MONI_TO_NONE, versionInfo,
+                     spade_dir=self.__spadeDir, log_dir=self.__logDir)
 
         logger.checkStatus(5)
         dashLog.checkStatus(5)
@@ -776,11 +768,8 @@ class CnCRunSetTest(unittest.TestCase):
         else:
             hzStr = " (%2.2f Hz)" % self.__computeRateHz(0, numEvts, duration)
 
-        dashLog.addExpectedExact(("%d physics events collected "
-                                  "in %d seconds%s") % \
-                                     (numEvts,
-                                      duration,
-                                      hzStr))
+        dashLog.addExpectedExact("%d physics events collected in %d"
+                                 " seconds%s" % (numEvts, duration, hzStr))
 
         numMoni = 0
         numSN = 0
@@ -790,10 +779,13 @@ class CnCRunSetTest(unittest.TestCase):
                                  (numMoni, numSN, numTcal))
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
 
+        dashLog.addExpectedExact("Not logging to file so cannot queue to"
+                                 " SPADE")
+
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
                            "stringhub", "EarliestLastChannelHitTime", 20)
 
-        self.failIf(rs.stopRun(stopName), "stopRun() encountered error")
+        self.assertFalse(rs.stop_run(stopName), "stop_run() encountered error")
 
         logger.checkStatus(5)
         dashLog.checkStatus(5)
@@ -849,8 +841,11 @@ class CnCRunSetTest(unittest.TestCase):
         self.__runConfigDir = None
         self.__daqDataDir = None
         self.__spadeDir = None
+        self.__logDir = None
 
         set_pdaq_config_dir(None, override=True)
+
+        # from DAQMocks import LogChecker; LogChecker.DEBUG = True
 
         RunXMLValidator.setUp()
 
@@ -866,6 +861,8 @@ class CnCRunSetTest(unittest.TestCase):
             shutil.rmtree(self.__daqDataDir, ignore_errors=True)
         if self.__spadeDir is not None:
             shutil.rmtree(self.__spadeDir, ignore_errors=True)
+        if self.__logDir is not None:
+            shutil.rmtree(self.__logDir, ignore_errors=True)
 
         RunXMLValidator.tearDown()
 
@@ -962,6 +959,7 @@ class CnCRunSetTest(unittest.TestCase):
         self.__copyDir = tempfile.mkdtemp()
         self.__runConfigDir = tempfile.mkdtemp()
         self.__spadeDir = tempfile.mkdtemp()
+        self.__logDir = tempfile.mkdtemp()
 
         set_pdaq_config_dir(self.__runConfigDir)
 
@@ -983,6 +981,7 @@ class CnCRunSetTest(unittest.TestCase):
 
         self.__cnc = MostlyCnCServer(clusterConfigObject=cluCfg,
                                      copyDir=self.__copyDir,
+                                     defaultLogDir=self.__logDir,
                                      runConfigDir=self.__runConfigDir,
                                      daqDataDir=self.__daqDataDir,
                                      spadeDir=self.__spadeDir)
@@ -1034,7 +1033,7 @@ class CnCRunSetTest(unittest.TestCase):
         liveMoni.checkStatus(5)
 
         rs = self.__cnc.findRunset(rsId)
-        self.failIf(rs is None, "Could not find runset #%d" % rsId)
+        self.assertFalse(rs is None, "Could not find runset #%d" % rsId)
 
         time.sleep(1)
 
@@ -1042,7 +1041,7 @@ class CnCRunSetTest(unittest.TestCase):
             catchall.checkStatus(5)
 
         dashLog = MockLogger("dashLog")
-        rs.setDashLog(dashLog)
+        rs.set_dash_log(dashLog)
 
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
                            "stringhub", "LatestFirstChannelHitTime", 10)
@@ -1065,13 +1064,6 @@ class CnCRunSetTest(unittest.TestCase):
         catchall.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
         catchall.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for Hubs")
 
-        global ACTIVE_WARNING
-        if not LIVE_IMPORT and not ACTIVE_WARNING:
-            ACTIVE_WARNING = True
-            dashLog.addExpectedExact("Cannot import IceCube Live code, so" +
-                                     " per-string active DOM stats wil not" +
-                                     " be reported")
-
         self.__cnc.rpc_runset_start_run(rsId, runNum, RunOption.MONI_TO_LIVE)
 
         if catchall:
@@ -1087,7 +1079,10 @@ class CnCRunSetTest(unittest.TestCase):
                              firstTime, runNum)
         self.__checkMonitorTask(comps, rs, liveMoni)
         self.__checkActiveDOMsTask(comps, rs, liveMoni)
-        self.__checkWatchdogTask(comps, rs, dashLog, liveMoni)
+
+        for idx in range(5):
+            self.__checkWatchdogTask(comps, rs, dashLog, liveMoni,
+                                     unhealthy=(idx >= 3))
 
         if catchall:
             catchall.checkStatus(5)
@@ -1100,11 +1095,8 @@ class CnCRunSetTest(unittest.TestCase):
         else:
             hzStr = " (%2.2f Hz)" % self.__computeRateHz(0, numEvts, duration)
 
-        dashLog.addExpectedExact(("%d physics events collected "
-                                  "in %d seconds%s") % \
-                                     (numEvts,
-                                      duration,
-                                      hzStr))
+        dashLog.addExpectedExact("%d physics events collected in %d"
+                                 " seconds%s" % (numEvts, duration, hzStr))
 
         numMoni = 0
         numSN = 0
@@ -1113,6 +1105,9 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog.addExpectedExact("%d moni events, %d SN events, %d tcals" %
                                  (numMoni, numSN, numTcal))
         dashLog.addExpectedExact("Run terminated SUCCESSFULLY.")
+
+        dashLog.addExpectedExact("Not logging to file so cannot queue to"
+                                 " SPADE")
 
         self.__addRunStopMoni(liveMoni, firstTime, payTime, numEvts, runNum)
 
@@ -1144,6 +1139,7 @@ class CnCRunSetTest(unittest.TestCase):
 
         catchall.stopServing()
         liveMoni.stopServing()
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import os
 
 if os.name == 'nt':
@@ -32,7 +34,7 @@ else:
             maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
             if maxfd == resource.RLIM_INFINITY:
                 maxfd = 1024
-            for fd in xrange(0, maxfd):
+            for fd in range(0, maxfd):
                 try:
                     os.close(fd)
                 except OSError:
@@ -49,4 +51,4 @@ if __name__ == "__main__":
     d = Daemon()
     d.Daemonize()
     time.sleep(3)
-    print "Done."  # You WILL NOT see this output
+    print("Done.")  # You WILL NOT see this output

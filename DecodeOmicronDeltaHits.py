@@ -6,6 +6,8 @@ John Jacobsen, NPX Designs, Inc., john@mail.npxdesigns.com
 Started: Thu Feb  7 05:26:15 2008
 """
 
+from __future__ import print_function
+
 from icecube.daq.util import nextHit
 
 
@@ -19,13 +21,13 @@ def decode_hits(f):
             break
         if hit.atwd_avail:
             hit.decode_waveforms()
-        print "id=0x%s trig=0x%x chip=%d gt=%s" % (hit.mbid, hit.trigger,
-                                                   hit.atwd_chip, str(hit.utc))
+        print("id=0x%s trig=0x%x chip=%d gt=%s" % (hit.mbid, hit.trigger,
+                                                   hit.atwd_chip, str(hit.utc)))
         for chan in range(2, -1, -1):
             bins = hit.atwd[chan]
             if bins:
                 wfstr = " ".join([str(x) for x in bins])
-                print "atwd%d %s" % (chan, wfstr)
+                print("atwd%d %s" % (chan, wfstr))
                 break
 
 
@@ -41,6 +43,7 @@ def main():
 
     for f in args.files:
         decode_hits(open(f))
+
 
 if __name__ == "__main__":
     main()

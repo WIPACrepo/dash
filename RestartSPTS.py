@@ -2,6 +2,7 @@
 #
 # Keep SPTS busy
 
+from __future__ import print_function
 
 import MySQLdb
 import datetime
@@ -71,7 +72,7 @@ def getLiveDBName():
                 if line.startswith("["):
                     ridx = line.find("]")
                     if ridx < 0:
-                        print "Bad section marker \"%s\"" % line.rstrip()
+                        print("Bad section marker \"%s\"" % line.rstrip())
                         continue
 
                     section = line[1:ridx]
@@ -89,8 +90,8 @@ def getLiveDBName():
 
                 return line[pos + 1:].strip()
 
-    print "Cannot find %s, assuming Online DB is %s" % \
-        (liveConfigName, defaultName)
+    print("Cannot find %s, assuming Online DB is %s" % \
+        (liveConfigName, defaultName))
     return defaultName
 
 
@@ -142,7 +143,7 @@ def isPaused():
                 pause_minutes += tmp
             except:
                 import sys
-                print >> sys.stderr, "Bad 'paused' line: " + line
+                print("Bad 'paused' line: " + line, file=sys.stderr)
 
     # get the number of minutes since the file was written
     modtime_minutes = (time.time() - stat.st_mtime) / 60.0
@@ -190,9 +191,9 @@ def isSPTSActive(timeout_minutes, dbName="I3OmDb_test", verbose=False):
 
             minutes = minuteDiff(now, startTime)
             if verbose:
-                print "start %s min %d dur %d timeout %d" % \
+                print("start %s min %d dur %d timeout %d" % \
                     (str(startTime), minutes, MAX_DURATION_MINUTES,
-                     timeout_minutes)
+                     timeout_minutes))
             return minutes < MAX_DURATION_MINUTES + timeout_minutes
 
         raise SystemExit("Most recent run summary has null start and stop")
@@ -239,13 +240,13 @@ def readConfig(filename, config):
 
                 m = DATA_PAT.match(line)
                 if m is None:
-                    print "Bad %s line: %s" % (filename, line.rstrip())
+                    print("Bad %s line: %s" % (filename, line.rstrip()))
                     success = False
                     continue
 
                 key = m.group(1)
-                if not key in CONFIG_DATA:
-                    print "Unknown %s field \"%s\"" % (filename, key)
+                if key not in CONFIG_DATA:
+                    print("Unknown %s field \"%s\"" % (filename, key))
                     success = False
                     continue
 
@@ -278,7 +279,7 @@ def setNumberOfRestarts(numRestarts):
     proc.wait()
 
     if curNum != numRestarts:
-        print "Setting runs per restart to %d" % numRestarts
+        print("Setting runs per restart to %d" % numRestarts)
         cmd = "livecmd runs per restart %d" % numRestarts
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
@@ -286,7 +287,7 @@ def setNumberOfRestarts(numRestarts):
                                 shell=True)
         proc.stdin.close()
         for line in proc.stdout:
-            print line.rstrip()
+            print(line.rstrip())
         proc.stdout.close()
         proc.wait()
 
@@ -300,7 +301,7 @@ def startRuns(numStopless=None, verbose=False):
 
     # build the default configuration values
     config = {}
-    for k, vdict in CONFIG_DATA.iteritems():
+    for k, vdict in list(CONFIG_DATA.items()):
         if vdict["flag"] is not None and vdict["value"] is not None:
             config[k] = vdict["value"]
 
@@ -315,7 +316,7 @@ def startRuns(numStopless=None, verbose=False):
 
     # start runs
     args = ["livecmd", "start", "daq", ]
-    for k, v in config.iteritems():
+    for k, v in list(config.items()):
         if k == DURATION_NAME:
             v = "%ds" % getDurationFromString(v)
         if CONFIG_DATA[k]["flag"] is not None and v is not None:
@@ -323,7 +324,7 @@ def startRuns(numStopless=None, verbose=False):
             args.append(str(v))
 
     if verbose:
-        print str(args)
+        print(str(args))
 
     rtn = subprocess.call(args)
     if rtn != 0:
@@ -334,7 +335,6 @@ if __name__ == "__main__":
     import argparse
 
     from utils.Machineid import Machineid
-
 
     p = argparse.ArgumentParser()
 
@@ -365,7 +365,7 @@ if __name__ == "__main__":
     idle_minutes = 2 * 60    # two hours
     if isPaused():
         if args.verbose:
-            print "SPTS is paused"
+            print("SPTS is paused")
     else:
         dbName = args.dbName
         if dbName is None:
@@ -374,4 +374,4 @@ if __name__ == "__main__":
                                           verbose=args.verbose):
             startRuns(numStopless=NUM_STOPLESS_VALUE, verbose=args.verbose)
         elif args.verbose:
-            print "SPTS is active"
+            print("SPTS is active")

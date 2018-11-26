@@ -43,18 +43,18 @@ class FooRule(WatchdogRule):
         self.__testThresh = testThresh
 
     def initData(self, data, thisComp, components):
-        bar = None
+        foo = None
         for c in components:
-            if c.name == "bar":
-                bar = c
+            if c.name == "foo":
+                foo = c
                 break
-        if bar is None:
-            raise Exception("Cannot find \"bar\" component")
+        if foo is None:
+            raise Exception("Cannot find \"foo\" component")
 
         if self.__testIn:
-            data.addInputValue(bar, "inBean", "inFld")
+            data.addInputValue(foo, "inBean", "inFld")
         if self.__testOut:
-            data.addOutputValue(bar, "outBean", "outFld")
+            data.addOutputValue(foo, "outBean", "outFld")
         if self.__testThresh:
             data.addThresholdValue("threshBean", "threshFld", 10)
 
@@ -63,23 +63,26 @@ class FooRule(WatchdogRule):
 
 
 class WatchdogTaskTest(unittest.TestCase):
-    def __runFooTest(self, testIn, testOut, testThresh, addBarBeans=False):
+    def __buildFoo(self):
         foo = MockComponent("foo", 1)
         foo.setOrder(1)
         foo.mbean.addData("inBean", "inFld", 0)
         foo.mbean.addData("outBean", "outFld", 0)
         foo.mbean.addData("threshBean", "threshFld", 0)
+        return foo
 
+    def __buildBar(self, addBarBeans=False):
         bar = MockComponent("bar", 0)
         bar.setOrder(2)
         if addBarBeans:
             bar.mbean.addData("barBean", "barFld", 0)
 
-        runset = MockRunSet([foo, bar, ])
+        return bar
 
-        rules = (FooRule(testIn, testOut, testThresh),
-                 BarRule(addBarBeans))
-        self.__runTest(runset, rules, testIn, testOut, testThresh, False)
+    def __buildRunset(self, addBarBeans=False):
+        comps = (self.__buildFoo(), self.__buildBar(addBarBeans=addBarBeans))
+
+        return MockRunSet(comps)
 
     def __runTest(self, runset, rules, testIn, testOut, testThresh, testBoth):
         timer = MockIntervalTimer(WatchdogTask.NAME)
@@ -88,7 +91,7 @@ class WatchdogTaskTest(unittest.TestCase):
 
         logger = MockLogger("logger")
 
-        #from DAQMocks import LogChecker; LogChecker.DEBUG = True
+        # from DAQMocks import LogChecker; LogChecker.DEBUG = True
 
         tsk = WatchdogTask(taskMgr, runset, logger, rules=rules)
 
@@ -101,22 +104,21 @@ class WatchdogTaskTest(unittest.TestCase):
             endVal += 1
 
         for i in range(0, endVal):
-            #print "== Check %d" % i
             health = WatchdogTask.HEALTH_METER_FULL - i
             if testThresh:
                 health -= 1
             timer.trigger()
 
             if testThresh:
-                logger.addExpectedRegexp("Watchdog reports threshold" +
-                                         " components:.*")
+                logger.addExpectedRegexp(r"Watchdog reports threshold"
+                                         r" components:.*")
             if i > 0:
                 if testIn:
-                    logger.addExpectedRegexp("Watchdog reports starved" +
-                                             " components:.*")
+                    logger.addExpectedRegexp(r"Watchdog reports starved"
+                                             r" components:.*")
                 if (testOut and not testIn) or (testOut and testBoth):
-                    logger.addExpectedRegexp("Watchdog reports stagnant" +
-                                             " components:.*")
+                    logger.addExpectedRegexp(r"Watchdog reports stagnant"
+                                             r" components:.*")
                 if testIn or testOut or testThresh:
                     if health <= 0:
                         logger.addExpectedExact("Run is not healthy, stopping")
@@ -130,7 +132,7 @@ class WatchdogTaskTest(unittest.TestCase):
             logger.checkStatus(4)
 
         if testIn or testOut or testThresh:
-            self.failUnless(taskMgr.hasError(),
+            self.assertTrue(taskMgr.hasError(),
                             "TaskManager is not error state")
 
         tsk.close()
@@ -170,21 +172,16 @@ class WatchdogTaskTest(unittest.TestCase):
         runset = MockRunSet([foo, ])
 
         logger = MockLogger("logger")
-        logger.addExpectedRegexp("Couldn't create watcher for component" +
-                                 " %s#%d: .*" % (foo.name, foo.num))
+        logger.addExpectedRegexp(r"Couldn't create watcher for component"
+                                 r" %s#%d: .*" % (foo.name, foo.num))
 
         WatchdogTask(taskMgr, runset, logger, rules=(BadMatchRule(), ))
 
         logger.checkStatus(1)
 
     def testBadInitRule(self):
-        foo = MockComponent("foo", 1)
-        foo.setOrder(1)
-        foo.mbean.addData("inBean", "inFld", 0)
-        foo.mbean.addData("outBean", "outFld", 0)
-        foo.mbean.addData("threshBean", "threshFld", 0)
 
-        runset = MockRunSet([foo, ])
+        foo = self.__buildFoo()
 
         rules = (BadInitRule(), )
 
@@ -194,14 +191,15 @@ class WatchdogTaskTest(unittest.TestCase):
 
         logger = MockLogger("logger")
 
-        #from DAQMocks import LogChecker; LogChecker.DEBUG = True
+        # from DAQMocks import LogChecker; LogChecker.DEBUG = True
 
-        tsk = WatchdogTask(taskMgr, runset, logger, rules=rules)
+        tsk = WatchdogTask(taskMgr, MockRunSet((foo, )), logger, rules=rules)
 
         logger.checkStatus(5)
 
         for i in range(1, 4):
-            logger.addExpectedRegexp("Initialization failure #%d for %s %s.*" %
+            logger.addExpectedRegexp(r"Initialization failure #%d for"
+                                     r" %s %s.*" %
                                      (i, foo.fullname, str(rules[0])))
 
             timer.trigger()
@@ -211,19 +209,62 @@ class WatchdogTaskTest(unittest.TestCase):
             logger.checkStatus(5)
 
     def testFooInputUnhealthy(self):
-        self.__runFooTest(True, False, False)
+        testIn = True
+        testOut = False
+        testThresh = False
+        addBarBeans = False
+
+        runset = self.__buildRunset(addBarBeans=addBarBeans)
+
+        rules = (FooRule(testIn, testOut, testThresh), BarRule(addBarBeans))
+
+        self.__runTest(runset, rules, testIn, testOut, testThresh, False)
 
     def testFooOutputUnhealthy(self):
-        self.__runFooTest(False, True, False)
+        testIn = False
+        testOut = True
+        testThresh = False
+        addBarBeans = False
+
+        runset = self.__buildRunset(addBarBeans=addBarBeans)
+
+        rules = (FooRule(testIn, testOut, testThresh), BarRule(addBarBeans))
 
     def testFooThresholdUnhealthy(self):
-        self.__runFooTest(False, False, True)
+        testIn = False
+        testOut = False
+        testThresh = True
+        addBarBeans = False
+
+        runset = self.__buildRunset(addBarBeans=addBarBeans)
+
+        rules = (FooRule(testIn, testOut, testThresh), BarRule(addBarBeans))
+
+        self.__runTest(runset, rules, testIn, testOut, testThresh, False)
 
     def testFooAllUnhealthy(self):
-        self.__runFooTest(True, True, True)
+        testIn = True
+        testOut = True
+        testThresh = True
+        addBarBeans = False
+
+        runset = self.__buildRunset(addBarBeans=addBarBeans)
+
+        rules = (FooRule(testIn, testOut, testThresh), BarRule(addBarBeans))
+
+        self.__runTest(runset, rules, testIn, testOut, testThresh, False)
 
     def testFooUnhealthyWithBar(self):
-        self.__runFooTest(True, False, False, addBarBeans=True)
+        testIn = True
+        testOut = False
+        testThresh = False
+        addBarBeans = True
+
+        runset = self.__buildRunset(addBarBeans=addBarBeans)
+
+        rules = (FooRule(testIn, testOut, testThresh), BarRule(addBarBeans))
+
+        self.__runTest(runset, rules, testIn, testOut, testThresh, False)
 
     def testStandard(self):
         hub = MockComponent("stringHub", 0, 1)
@@ -251,7 +292,7 @@ class WatchdogTaskTest(unittest.TestCase):
         sb.mbean.addData("snBuilder", "NumDispatchedData", 0)
         sb.mbean.addData("snBuilder", "DiskAvailable", 0)
         sb.mbean.addData("moniBuilder", "NumDispatchedData", 0)
-        #sb.mbean.addData("tcalBuilder", "NumDispatchedData", 0)
+        # sb.mbean.addData("tcalBuilder", "NumDispatchedData", 0)
 
         compList = [hub, iit, gt, eb, sb, ]
 
@@ -263,6 +304,47 @@ class WatchdogTaskTest(unittest.TestCase):
         runset = MockRunSet(compList)
 
         self.__runTest(runset, None, True, True, True, True)
+
+    def testLongStartup(self):
+        timer = MockIntervalTimer(WatchdogTask.NAME)
+        taskMgr = MockTaskManager()
+        taskMgr.addIntervalTimer(timer)
+
+        logger = MockLogger("logger")
+
+        # from DAQMocks import LogChecker; LogChecker.DEBUG = True
+
+        foo = self.__buildFoo()
+
+        rules = (FooRule(True, False, False), )
+
+        max_health = WatchdogTask.HEALTH_METER_FULL + 6
+
+        tsk = WatchdogTask(taskMgr, MockRunSet((foo, )), logger,
+                           initial_health=max_health, rules=rules)
+
+        timer.trigger()
+        tsk.check()
+        tsk.waitUntilFinished()
+
+        for health in range(max_health - 1, 0, -1):
+            if health <= WatchdogTask.HEALTH_METER_FULL:
+                logger.addExpectedRegexp(r"Watchdog reports starved"
+                                         r" components:.*")
+                if health < WatchdogTask.HEALTH_METER_FULL and \
+                   ((health - 1) % WatchdogTask.NUM_HEALTH_MSGS) == 0:
+                    if health - 1 == 0:
+                        logger.addExpectedExact("Run is not healthy, stopping")
+                    else:
+                        logger.addExpectedRegexp(r"Run is unhealthy"
+                                                 r" \(\d+ checks left\)")
+
+            timer.trigger()
+
+            tsk.check()
+            tsk.waitUntilFinished()
+
+            logger.checkStatus(5)
 
 if __name__ == '__main__':
     unittest.main()

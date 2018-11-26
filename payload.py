@@ -5,10 +5,12 @@
 # If you find/fix any bugs or add improvements, please also broadcast them
 # on daq-dev@icecube.wisc.edu
 
+from __future__ import print_function
 
 import bz2
 import cStringIO
 import gzip
+import numbers
 import os
 import struct
 
@@ -16,6 +18,15 @@ import struct
 class PayloadException(Exception):
     "Payload exception"
     pass
+
+
+class StopMessage(object):
+    def __init__(self):
+        pass
+
+    @property
+    def bytes(self):
+        return struct.pack(">I", 4)
 
 
 class Payload(object):
@@ -65,6 +76,24 @@ class Payload(object):
     def envelope(self):
         return struct.pack(">2IQ", self.data_length + self.ENVELOPE_LENGTH,
                            self.payload_type_id(), self.__utime)
+
+    @classmethod
+    def extract_clock_bytes(cls, rawval):
+        if isinstance(rawval, numbers.Number):
+            tmpbytes = []
+            for _ in range(6):
+                tmpbytes.insert(0, rawval & 0xff)
+                rawval >>= 8
+            return tmpbytes
+
+        if isinstance(rawval, list) or isinstance(rawval, tuple):
+            if len(rawval) != 6:
+                raise PayloadException("Expected 6 clock bytes, not " +
+                                       len(rawval))
+            return rawval
+
+        raise PayloadException("Cannot convert %s to clock bytes" %
+                               (type(rawval).__name__, ))
 
     @property
     def has_data(self):
@@ -154,25 +183,48 @@ class SimpleHit(Payload):
     TYPE_ID = 1
     MIN_LENGTH = 38
 
-    def __init__(self, utime, data, keep_data=True):
-        "Create a simple hit"
+    def __init__(self, utime, data_or_trig_type, cfg_id=None, src_id=None,
+                 mbid=None, keep_data=True):
+        """Create a simple hit"""
 
-        flds = struct.unpack(">3iqh", data)
-        self.__trig_type = flds[0]
-        self.__cfg_id = flds[1]
-        self.__src_id = flds[2]
-        self.__mbid = flds[3]
-        if flds[4] != self.__trig_type:
+        if data_or_trig_type is not None and \
+           (cfg_id is None or src_id is None or mbid is None):
+            # assume 'trig_type' is actually binary data
+            flds = struct.unpack(">3iqh", data_or_trig_type)
+            self.__trig_type = flds[0]
+            self.__cfg_id = flds[1]
+            self.__src_id = flds[2]
+            self.__mbid = flds[3]
+            tmp_type = flds[4]
+        else:
+            self.__trig_type = data_or_trig_type
+            self.__cfg_id = cfg_id
+            self.__src_id = src_id
+            self.__mbid = mbid
+            tmp_type = data_or_trig_type
+            keep_data = False
+
+        if tmp_type != self.__trig_type:
             raise PayloadException("SimpleHit@%d: type %0x != mode %0x" %
-                                   (utime, self.__trig_type, flds[4]))
+                                   (utime, self.__trig_type, tmp_type))
 
-        super(SimpleHit, self).__init__(utime, data, keep_data=keep_data)
+        super(SimpleHit, self).__init__(utime, data_or_trig_type,
+                                        keep_data=keep_data)
 
     def __str__(self):
         "Payload description"
         return "SimpleHit@%d[%s %s cfg %d type %0x]" % \
             (self.utime, self.source_name(self.__src_id), self.mbid_str,
              self.__cfg_id, self.__trig_type)
+
+    @property
+    def bytes(self):
+        if self.has_data:
+            return super(SimpleHit, self).bytes
+
+        return struct.pack(">IIQIIIQH", self.MIN_LENGTH, self.TYPE_ID,
+                           self.utime, self.__trig_type, self.__cfg_id,
+                           self.__src_id, self.__mbid, self.__trig_type)
 
     @property
     def config_id(self):
@@ -712,7 +764,11 @@ class MonitorRecord(object):
     def __init__(self, utime, dom_id, domclock):
         self.__utime = utime
         self.__dom_id = dom_id
-        self.__clockbytes = domclock
+        self.__clock_bytes = Payload.extract_clock_bytes(domclock)
+
+    @property
+    def clockbytes(self):
+        return self.__clock_bytes[:]
 
     @property
     def dom_id(self):
@@ -721,9 +777,13 @@ class MonitorRecord(object):
     @property
     def domclock(self):
         val = 0
-        for byte in self.__clockbytes:
+        for byte in self.__clock_bytes:
             val = (val << 8) + byte
         return val
+
+    @property
+    def has_data(self):
+        return False
 
     @property
     def utime(self):
@@ -741,6 +801,20 @@ class MonitorASCII(MonitorRecord):
     def __str__(self):
         return "MonitorASCII@%d[dom %012x clk %d \"%s\"]" % \
             (self.utime, self.dom_id, self.domclock, self.__text)
+
+    @property
+    def bytes(self):
+        if self.has_data:
+            return super(MonitorASCII, self).bytes
+
+        txtlen = len(self.__text)
+        paylen = 34 + txtlen
+
+        clkstr = struct.pack(">%sB" % (len(self.clockbytes), ),
+                             *self.clockbytes)
+        return struct.pack(">IIQQHH%ds%ds" % (len(clkstr), len(self.__text)),
+                           paylen, Monitor.TYPE_ID, self.utime, self.dom_id,
+                           txtlen + 10, self.SUBTYPE_ID, clkstr, self.__text)
 
     @property
     def subtype(self):
@@ -821,6 +895,62 @@ class MonitorHardware(MonitorRecord):
     @property
     def subtype(self):
         return self.SUBTYPE_ID
+
+
+class Supernova(Payload):
+    TYPE_ID = 16
+    MAGIC_NUMBER = 300
+
+    def __init__(self, utime, data_or_dom_id, dom_clock=None,
+                 scaler_bytes=None, keep_data=False):
+        """Create a supernova payload"""
+
+        if data_or_dom_id is not None and \
+           (dom_clock is None or scaler_bytes is None):
+            scaler_len = len(data_or_dom_id) - 18
+            flds = struct.unpack(">QHH6B%dB" % (scaler_len, ), data_or_dom_id)
+            if flds[2] != self.MAGIC_NUMBER:
+                raise PayloadException("Supernova magic number is %d, not %d" %
+                                       (flds[2], self.MAGIC_NUMBER))
+            self.__dom_id = flds[0]
+            self.__clock_bytes = flds[3:9]
+            self.__scaler_bytes = flds[9:]
+        else:
+            self.__dom_id = data_or_dom_id
+            self.__clock_bytes = self.extract_clock_bytes(dom_clock)
+            self.__scaler_bytes = scaler_bytes
+
+        super(Supernova, self).__init__(utime, data_or_dom_id,
+                                        keep_data=keep_data)
+
+    def __str__(self):
+        return "Supernova@%d[dom %012x clk %012x scalerData*%d" % \
+            (self.utime, self.__dom_id, self.domclock,
+             len(self.__scaler_bytes))
+
+    @property
+    def bytes(self):
+        if self.has_data:
+            return super(Supernova, self).bytes
+
+        reclen = len(self.__scaler_bytes)
+        paylen = 34 + reclen
+
+        clkstr = struct.pack(">%sB" % (len(self.__clock_bytes), ),
+                             *self.__clock_bytes)
+        sclstr = struct.pack(">%sB" % (len(self.__scaler_bytes), ),
+                             *self.__scaler_bytes)
+
+        return struct.pack(">IIQQHH%ds%ds" % (len(self.__clock_bytes), reclen),
+                           paylen, self.TYPE_ID, self.utime, self.__dom_id,
+                           reclen + 10, self.MAGIC_NUMBER, clkstr, sclstr)
+
+    @property
+    def domclock(self):
+        val = 0
+        for byte in self.__clock_bytes:
+            val = (val << 8) + byte
+        return val
 
 
 class TimeCalibration(Payload):
@@ -1051,6 +1181,8 @@ class PayloadReader(object):
             return TimeCalibration(utime, rawdata, keep_data=keep_data)
         if type_id == Monitor.TYPE_ID:
             return Monitor.subtype(utime, rawdata, keep_data=keep_data)
+        if type_id == Supernova.TYPE_ID:
+            return Supernova(utime, rawdata, keep_data=keep_data)
 
         return UnknownPayload(type_id, utime, rawdata, keep_data=keep_data)
 
@@ -1064,7 +1196,7 @@ class PayloadReader(object):
 if __name__ == "__main__":
     def read_file(filename, max_payloads, write_simple_hits=False):
         if write_simple_hits and filename.startswith("HitSpool-"):
-            out = open("SimpleHit-" + fnm[9:], "w")
+            out = open("SimpleHit-" + filename[9:], "w")
         else:
             out = None
 
@@ -1074,7 +1206,7 @@ if __name__ == "__main__":
                     if max_payloads is not None and rdr.nrec > max_payloads:
                         break
 
-                    print str(pay)
+                    print(str(pay))
                     if out is not None:
                         out.write(pay.simple_hit)
         finally:

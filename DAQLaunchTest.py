@@ -8,7 +8,8 @@ import unittest
 from CachedConfigName import CachedConfigName
 from DAQConst import DAQPort
 from DAQLaunch import launch, kill
-from DAQMocks import MockClusterConfigFile, MockParallelShell, MockRunConfigFile
+from DAQMocks import MockClusterConfigFile, MockParallelShell, \
+    MockRunConfigFile
 
 
 class TestDAQLaunch(unittest.TestCase):
@@ -25,8 +26,8 @@ class TestDAQLaunch(unittest.TestCase):
         h1.addControlServer()
 
         cluHosts = {}
-        for name, host in compHostDict.items():
-            if not cluHosts.has_key(host):
+        for name, host in list(compHostDict.items()):
+            if host not in cluHosts:
                 cluHosts[host] = cluCfgFile.addHost(host)
             cluHosts[host].addComponent(name)
 
@@ -50,7 +51,7 @@ class TestDAQLaunch(unittest.TestCase):
         spadeDir = os.path.join(tmpdir, 'spade')
 
         compHostDict = {
-            "inIceTrigger" : "trigger",
+            "inIceTrigger": "trigger",
             "globalTrigger": "trigger",
             "eventBuilder": "builder",
             "secondaryBuilders": "builder",
@@ -62,7 +63,7 @@ class TestDAQLaunch(unittest.TestCase):
                                                     spadeDir, compHostDict)
 
         runCfgFile = MockRunConfigFile(configDir)
-        cfgName = runCfgFile.create(compHostDict.keys(), {})
+        cfgName = runCfgFile.create(list(compHostDict.keys()), {})
 
         copyDir = None
         logPort = None
@@ -90,12 +91,11 @@ class TestDAQLaunch(unittest.TestCase):
         tmpdir = tempfile.mkdtemp()
         configDir = os.path.join(tmpdir, 'cfg')
         daqDataDir = os.path.join(tmpdir, 'data')
-        #dashDir = os.path.join(tmpdir, 'dash')
         logDir = os.path.join(tmpdir, 'log')
         spadeDir = os.path.join(tmpdir, 'spade')
 
         compHostDict = {
-            "inIceTrigger" : "trigger",
+            "inIceTrigger": "trigger",
             "globalTrigger": "trigger",
             "eventBuilder": "builder",
             "secondaryBuilders": "builder",
@@ -107,11 +107,7 @@ class TestDAQLaunch(unittest.TestCase):
                                                     spadeDir, compHostDict)
 
         runCfgFile = MockRunConfigFile(configDir)
-        cfgName = runCfgFile.create(compHostDict.keys(), {})
-
-        #copyDir = None
-        #logPort = None
-        #livePort = DAQPort.I3LIVE_ZMQ
+        cfgName = runCfgFile.create(list(compHostDict.keys()), {})
 
         validate = False
         serverKill = True

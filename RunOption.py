@@ -23,9 +23,8 @@ class RunOption(object):
 
     @staticmethod
     def isLogToBoth(flags):
-        return RunOption.__isOption(flags,
-                                    (RunOption.LOG_TO_FILE | \
-                                         RunOption.LOG_TO_LIVE))
+        return RunOption.__isOption(flags, (RunOption.LOG_TO_FILE |
+                                            RunOption.LOG_TO_LIVE))
 
     @staticmethod
     def isLogToFile(flags):
@@ -41,9 +40,8 @@ class RunOption(object):
 
     @staticmethod
     def isMoniToBoth(flags):
-        return RunOption.__isOption(flags,
-                                    (RunOption.MONI_TO_FILE | \
-                                         RunOption.MONI_TO_LIVE))
+        return RunOption.__isOption(flags, (RunOption.MONI_TO_FILE |
+                                            RunOption.MONI_TO_LIVE))
 
     @staticmethod
     def isMoniToFile(flags):

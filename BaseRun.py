@@ -2,6 +2,8 @@
 #
 # Base class for managing pDAQ runs
 
+from __future__ import print_function
+
 import os
 import re
 import socket
@@ -102,7 +104,7 @@ class FlasherThread(threading.Thread):
             self.__run.logCmd(cmd)
 
             if self.__dry_run:
-                print cmd
+                print(cmd)
             else:
                 time.sleep(self.__initial_delay)
 
@@ -259,7 +261,7 @@ class FlasherScript(object):
         pairs.
         """
         if not os.path.isfile(path):
-            print "Flasher file \"%s\" does not exist" % path
+            print("Flasher file \"%s\" does not exist" % path)
             return None
 
         basedir = os.path.dirname(path)
@@ -302,7 +304,7 @@ class FlasherScript(object):
                 # handle 'livecmd flasher ...'
                 #
                 if len(words) > 2 and words[0] == "livecmd" and \
-                    words[1] == "flasher":
+                   words[1] == "flasher":
                     flashData += cls.__parse_flasher_options(words[2:],
                                                              basedir=basedir)
                     fullLine = None
@@ -314,8 +316,8 @@ class FlasherScript(object):
                     try:
                         flashData.append((None, int(words[1])))
                     except Exception:
-                        print "Bad flasher line#%d: %s (bad sleep time)" % \
-                              (linenum, fullLine)
+                        print("Bad flasher line#%d: %s (bad sleep time)" % \
+                              (linenum, fullLine))
                         failed = True
                     fullLine = None
                     continue
@@ -335,7 +337,7 @@ class FlasherScript(object):
                         name = cls.__clean_string(words[1])
                         durStr = cls.__clean_string(words[2])
                     else:
-                        print "Bad flasher line#%d: %s" % (linenum, line)
+                        print("Bad flasher line#%d: %s" % (linenum, line))
                         failed = True
                         fullLine = None
                         continue
@@ -348,7 +350,7 @@ class FlasherScript(object):
                         duration = int(name)
                         name = durStr
                     except:
-                        print "Bad flasher line#%d: %s" % (linenum, line)
+                        print("Bad flasher line#%d: %s" % (linenum, line))
                         failed = True
                         fullLine = None
                         continue
@@ -414,12 +416,10 @@ class Run(object):
             self.__run_killed = True
 
         try:
-            self.__cluster_cfg = \
-                DAQConfigParser.getClusterConfiguration(clusterCfgName,
-                                                        useActiveConfig=False,
-                                                        clusterDesc=clusterDesc,
-                                                        configDir=configDir,
-                                                        validate=False)
+            self.__cluster_cfg \
+                = DAQConfigParser.getClusterConfiguration\
+                (clusterCfgName, useActiveConfig=False,
+                 clusterDesc=clusterDesc, configDir=configDir, validate=False)
         except DAQConfigException:
             raise LaunchException("Cannot load configuration \"%s\": %s" %
                                   (clusterCfgName, exc_string()))
@@ -435,7 +435,7 @@ class Run(object):
             self.__mgr.stopRun()
 
         if not self.__dry_run and not self.__mgr.isStopped(True) and \
-            not self.__mgr.waitForStopped(verbose=verbose):
+           not self.__mgr.waitForStopped(verbose=verbose):
             raise RunException("Run %d did not stop" % self.__run_num)
 
         if self.__flash_thread is not None:
@@ -449,7 +449,7 @@ class Run(object):
         try:
             rtnval = self.__mgr.summarize(self.__run_num)
         except:
-            self.__mgr.logError("Cannot summarize run %d: %s" % \
+            self.__mgr.logError("Cannot summarize run %d: %s" %
                                 (self.__run_num, exc_string()))
             rtnval = False
 
@@ -652,16 +652,16 @@ class RunLogger(object):
             self.__fd = open(logfile, "a")
 
     def __logmsg(self, sep, msg):
-        print >>self.__fd, time.strftime("%Y-%m-%d %H:%M:%S") + " " + \
-            sep + " " + msg
+        print(time.strftime("%Y-%m-%d %H:%M:%S") + " " + \
+            sep + " " + msg, file=self.__fd)
 
     def error(self, msg):
-        print >>sys.stderr, "!! " + msg
+        print("!! %s" % (msg, ), file=sys.stderr)
         if self.__fd is not None:
             self.__logmsg("[ERROR]", msg)
 
     def info(self, msg):
-        print " " + msg
+        print(" " + msg)
         if self.__fd is not None:
             self.__logmsg("[INFO]", msg)
 
@@ -803,7 +803,7 @@ class BaseRun(object):
 
     def isUserStopped(self, refreshState=False):
         if refreshState:
-            print >>sys.stderr, "Not refreshing state in isUserStopped()"
+            print("Not refreshing state in isUserStopped()", file=sys.stderr)
         return self.__user_stopped
 
     def killComponents(self, dryRun=False):
@@ -958,11 +958,11 @@ class BaseRun(object):
 
     def stopOnSIGINT(self, signal, frame):
         self.__user_stopped = True
-        print "Caught signal, stopping run"
+        print("Caught signal, stopping run")
         if self.isRunning(True):
             self.stopRun()
             self.waitForStopped(verbose=True)
-        print "Exiting"
+        print("Exiting")
         raise SystemExit
 
     def stopRun(self):
@@ -981,7 +981,7 @@ class BaseRun(object):
 
         # calculate duration
         if summary["startTime"] == "None" or \
-            summary["endTime"] == "None":
+           summary["endTime"] == "None":
             duration = "???"
         else:
             try:
@@ -1052,7 +1052,7 @@ class BaseRun(object):
         self.logCmd(cmd)
 
         if self.__dry_run:
-            print cmd
+            print(cmd)
             return
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,

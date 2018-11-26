@@ -1,23 +1,22 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import shutil
 import tempfile
 import unittest
 from CnCServer import Connector, DAQPool
 
-from DAQMocks import MockAppender, MockDAQClient, MockLogger, MockRunConfigFile
+from DAQMocks import MockDAQClient, MockLogger, MockRunConfigFile
 
 LOUD = False
 
 
 class MyDAQPool(DAQPool):
-    def getClusterConfig(self, runConfig=None):
-        raise NotImplementedError("Unimplemented")
-
     def returnRunsetComponents(self, rs, verbose=False, killWith9=True,
                                eventCheck=False):
-        rs.returnComponents(self, None, None, None, None, None, None, None,
-                            None)
+        rs.return_components(self, None, None, None, None, None, None, None,
+                             None)
 
 
 class Node(object):
@@ -41,64 +40,13 @@ class Node(object):
 
     def getConnections(self):
         connectors = []
-        for k in self.outLinks.keys():
+        for k in list(self.outLinks.keys()):
             connectors.append(Connector(k, Connector.OUTPUT,
                                         self.getNextPort()))
-        for k in self.inLinks.keys():
+        for k in list(self.inLinks.keys()):
             connectors.append(Connector(k, Connector.INPUT,
                                         self.getNextPort()))
         return connectors
-
-    def getDescription(self):
-        rtnStr = str(self)
-
-        if len(self.outLinks) > 0:
-            rtnStr += ' OUT['
-
-            firstK = True
-            for k in self.outLinks.keys():
-                if firstK:
-                    firstK = False
-                else:
-                    rtnStr += ','
-
-                rtnStr += k + '='
-
-                firstL = True
-                for l in self.outLinks[k]:
-                    if firstL:
-                        firstL = False
-                    else:
-                        rtnStr += ','
-
-                    rtnStr += str(l)
-
-            rtnStr += ']'
-
-        if len(self.inLinks) > 0:
-            rtnStr += ' IN['
-
-            firstK = True
-            for k in self.inLinks.keys():
-                if firstK:
-                    firstK = False
-                else:
-                    rtnStr += ','
-
-                rtnStr += k + '='
-
-                firstL = True
-                for l in self.inLinks[k]:
-                    if firstL:
-                        firstL = False
-                    else:
-                        rtnStr += ','
-
-                    rtnStr += str(l)
-
-            rtnStr += ']'
-
-        return rtnStr
 
     def getNextPort(self):
         port = Node.CONN_PORT
@@ -111,7 +59,7 @@ class Node(object):
         else:
             links = self.inLinks
 
-        if not ioType in links:
+        if ioType not in links:
             links[ioType] = []
 
         links[ioType].append(comp)
@@ -122,9 +70,9 @@ class ConnectionTest(unittest.TestCase):
 
     def buildRunset(self, nodeList, extraLoud=True):
         if LOUD:
-            print '-- Nodes'
+            print('-- Nodes')
             for node in nodeList:
-                print node.getDescription()
+                print(node.getDescription())
 
         nodeLog = {}
 
@@ -132,7 +80,7 @@ class ConnectionTest(unittest.TestCase):
         port = -1
         for node in nodeList:
             key = '%s#%d' % (node.name, node.num)
-            nodeLog[key] = MockAppender('Log-%s' % key)
+            nodeLog[key] = MockLogger('Log-%s' % key)
             pool.add(MockDAQClient(node.name, node.num, None, port, 0,
                                    node.getConnections(), nodeLog[key],
                                    node.outLinks, extraLoud=extraLoud))
@@ -140,9 +88,9 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(pool.numComponents(), len(nodeList))
 
         if LOUD:
-            print '-- Pool has %s comps' % pool.numComponents()
+            print('-- Pool has %s comps' % pool.numComponents())
             for c in pool.components():
-                print '    %s' % str(c)
+                print('    %s' % str(c))
 
         numComps = pool.numComponents()
 
@@ -189,7 +137,8 @@ class ConnectionTest(unittest.TestCase):
                     tmpList.remove(t)
                     break
 
-            self.failIf(not node, 'Could not find component ' + str(comp))
+            self.assertFalse(not node,
+                             "Could not find component " + str(comp))
 
             # copy connector list
             #
@@ -205,8 +154,8 @@ class ConnectionTest(unittest.TestCase):
                         compConn.remove(c)
                         break
 
-                self.failIf(not conn, 'Could not find connector ' + typ +
-                            ' for component ' + str(comp))
+                self.assertFalse(not conn, "Could not find connector " + typ +
+                                 " for component " + str(comp))
 
             # remove all input connectors
             #
@@ -218,8 +167,8 @@ class ConnectionTest(unittest.TestCase):
                         compConn.remove(c)
                         break
 
-                self.failIf(not conn, 'Could not find connector ' + typ +
-                            ' for component ' + str(comp))
+                self.assertFalse(not conn, "Could not find connector " + typ +
+                                 " for component " + str(comp))
 
             # whine if any connectors are left
             #
@@ -232,7 +181,7 @@ class ConnectionTest(unittest.TestCase):
                          str(tmpList))
 
         if LOUD:
-            print '-- SET: ' + str(runset)
+            print('-- SET: ' + str(runset))
 
         if extraLoud:
             for key in nodeLog:
@@ -353,6 +302,7 @@ class ConnectionTest(unittest.TestCase):
         allNodes = [a1, a2, b1, b2, c, d, e, f, g, h, i]
 
         self.buildRunset(allNodes)
+
 
 if __name__ == '__main__':
     unittest.main()

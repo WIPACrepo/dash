@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 
 import os
 import sqlite3
@@ -46,8 +47,8 @@ def dump_db(args):
                 rmstr = ""
             else:
                 rmstr = " [NO FILE]"
-            print "%s [%s-%s] (%.02fs)%s" % \
-                (filename, start_val, stop_val, secs, rmstr)
+            print("%s [%s-%s] (%.02fs)%s" % \
+                (filename, start_val, stop_val, secs, rmstr))
     finally:
         conn.close()
 

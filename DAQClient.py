@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 
+import datetime
 import socket
 import threading
-import xmlrpclib
+try:
+    import xmlrpclib as xclient
+except ImportError:
+    import xmlrpc.client as xclient
 
 from CnCLogger import CnCLogger
 from DAQRPC import RPCClient
@@ -22,10 +26,10 @@ def unFixValue(obj):
     methods in icecube.daq.juggler.mbean.XMLRPCServer
     """
     if isinstance(obj, dict):
-        for k in obj.keys():
+        for k in list(obj.keys()):
             obj[k] = unFixValue(obj[k])
     elif isinstance(obj, list):
-        for i in xrange(0, len(obj)):
+        for i in range(0, len(obj)):
             obj[i] = unFixValue(obj[i])
     elif isinstance(obj, tuple):
         newObj = []
@@ -63,24 +67,34 @@ class MBeanClient(object):
     def __init__(self, compName, host, port):
         "Python interface to Java MBeanAgent"
         self.__compName = compName
-        self.__client = self.createRPCClient(host, port)
+        self.__client = self.createClient(host, port)
         self.__beanList = []
         self.__beanFields = {}
 
-        self.__loadLock = threading.Lock()
+        self.__beanLock = threading.Lock()
         self.__loadedInfo = False
 
+    def __str__(self):
+        return "MBeanClient(%s)" % (self.__compName, )
+
     def __loadBeanInfo(self):
-        "Get the bean names and fields from the remote client"
+        """
+        Get the bean names and fields from the remote client
+        Note that self.__beanLock is acquired before calling this method
+        """
 
         self.__loadedInfo = False
         try:
             self.__beanList = self.__client.mbean.listMBeans()
-        except (socket.error, xmlrpclib.Fault, xmlrpclib.ProtocolError):
-            raise BeanTimeoutException("Cannot get list of %s MBeans" %
-                                       self.__compName)
+        except socket.error as serr:
+            raise BeanTimeoutException("Cannot get list of %s MBeans"
+                                       " <socket error %s>" %
+                                       (self.__compName, serr))
+        except (xclient.Fault, xclient.ProtocolError) as xerr:
+            raise BeanTimeoutException("Cannot get list of %s MBeans: %s" %
+                                       (self.__compName, xerr))
         except:
-            raise BeanLoadException("Cannot get list of %s MBeans: %s " %
+            raise BeanLoadException("Cannot load list of %s MBeans: %s " %
                                     (self.__compName, exc_string()))
 
         failed = []
@@ -92,7 +106,7 @@ class MBeanClient(object):
                 failed.append(bean)
 
                 # make sure bean has an entry
-                if not bean in self.__beanFields:
+                if bean not in self.__beanFields:
                     self.__beanFields[bean] = []
 
         if len(failed) > 0:
@@ -105,47 +119,49 @@ class MBeanClient(object):
         "load bean info from the remote client if it hasn't yet been loaded"
 
         if not self.__loadedInfo:
-            self.__loadLock.acquire()
-            try:
+            with self.__beanLock:
                 if not self.__loadedInfo:
                     self.__loadBeanInfo()
-            finally:
-                self.__loadLock.release()
 
-    def check(self, bean, fld):
-        "throw an exception if the bean or field does not exist"
-        self.__lockAndLoad()
-
-        if bean not in self.__beanList:
-            msg = "Bean %s not in list of beans for %s" % \
-                (bean, self.__compName)
-            raise BeanFieldNotFoundException(msg)
-
-        if fld not in self.__beanFields[bean]:
-            msg = "Bean %s field %s not in list of bean fields for %s (%s)" % \
-                (bean, fld, self.__compName, str(self.__beanFields[bean]))
-            raise BeanFieldNotFoundException(msg)
-
-    def createRPCClient(self, host, port):
-        "create an RPC client"
+    def createClient(self, host, port):
+        "create an MBean RPC client"
         return RPCClient(host, port)
 
     def get(self, bean, fld):
         "get the value for a single MBean field"
-        self.check(bean, fld)
+        try:
+            with self.__beanLock:
+                val = self.__client.mbean.get(bean, fld)
+        except socket.error as serr:
+            raise BeanTimeoutException("Cannot get %s MBean \"%s:%s\":"
+                                       " <socket error %s>" %
+                                       (self.__compName, bean, fld, serr))
+        except (xclient.Fault, xclient.ProtocolError) as xerr:
+            raise BeanTimeoutException("Cannot get %s MBean \"%s:%s\": %s" %
+                                       (self.__compName, bean, fld, xerr))
+        except:
+            raise BeanLoadException("Cannot load %s MBean \"%s:%s\": %s" %
+                                    (self.__compName, bean, fld,
+                                     exc_string()))
 
-        return unFixValue(self.__client.mbean.get(bean, fld))
+        return unFixValue(val)
 
     def getAttributes(self, bean, fldList):
         "get the values for a list of MBean fields"
         try:
-            attrs = self.__client.mbean.getAttributes(bean, fldList)
-        except (socket.error, xmlrpclib.Fault, xmlrpclib.ProtocolError):
-            raise BeanTimeoutException("Cannot get %s mbean \"%s\" attributes"
-                                       " %s" % (self.__compName, bean, fldList))
+            with self.__beanLock:
+                attrs = self.__client.mbean.getAttributes(bean, fldList)
+        except socket.error as serr:
+            raise BeanTimeoutException("Cannot get %s MBean \"%s\""
+                                       " attributes <socket error %s>" %
+                                       (self.__compName, bean, serr))
+        except (xclient.Fault, xclient.ProtocolError) as xerr:
+            raise BeanTimeoutException("Cannot get %s MBean \"%s\":"
+                                       " attributes %s" %
+                                       (self.__compName, bean, xerr))
         except:
-            raise BeanLoadException("Cannot get %s mbean \"%s\" attributes"
-                                    " %s: %s" %
+            raise BeanLoadException("Cannot load %s MBean \"%s\""
+                                    " attributes %s: %s" %
                                     (self.__compName, bean, fldList,
                                      exc_string()))
 
@@ -155,7 +171,7 @@ class MBeanClient(object):
                                                   fldList, type(attrs), attrs))
 
         if len(attrs) > 0:
-            for k in attrs.keys():
+            for k in list(attrs.keys()):
                 attrs[k] = unFixValue(attrs[k])
         return attrs
 
@@ -175,6 +191,33 @@ class MBeanClient(object):
             raise BeanFieldNotFoundException(msg)
 
         return self.__beanFields[bean]
+
+    def getDictionary(self):
+        "get the value for all MBean fields"
+        with self.__beanLock:
+            try:
+                attrs = self.__client.mbean.getDictionary()
+            except socket.error as serr:
+                raise BeanTimeoutException("Cannot get %s MBean attributes:"
+                                           " <socket error %s>" %
+                                           (self.__compName, serr))
+            except (xclient.Fault, xclient.ProtocolError) as xerr:
+                raise BeanTimeoutException("Cannot get %s MBean attributes:"
+                                           " %s" % (self.__compName, xerr))
+            except:
+                raise BeanLoadException("Cannot load %s MBean attributes:"
+                                        " %s" %
+                                        (self.__compName, exc_string()))
+
+        if not isinstance(attrs, dict):
+            raise BeanException("%s getDictionary() should return dict,"
+                                " not %s (%s)" % \
+                                (self.__compName, type(attrs).__name__, attrs))
+
+        if len(attrs) > 0:
+            for k in list(attrs.keys()):
+                attrs[k] = unFixValue(attrs[k])
+        return attrs
 
     def reload(self):
         "reload MBean names and fields during the next request"
@@ -234,7 +277,7 @@ class DAQClientState(object):
     # internal state indicating that the client hasn't answered
     # some number of pings but has not been declared dead
     #
-    MISSING = 'MIA'
+    MISSING = 'missing'
 
     # internal state indicating that the client is
     # no longer responding to pings
@@ -245,6 +288,10 @@ class DAQClientState(object):
     # an XML-RPC call
     #
     HANGING = "hanging"
+
+    # internal state indicating that the most recent XML-RPC call failed
+    #
+    ERROR = "ERROR"
 
 
 class DAQClient(ComponentName):
@@ -556,7 +603,7 @@ class DAQClient(ComponentName):
         "Get current state"
         try:
             state = self.__client.xmlrpc.getState()
-        except (socket.error, xmlrpclib.Fault, xmlrpclib.ProtocolError):
+        except (socket.error, xclient.Fault, xclient.ProtocolError):
             state = None
         except:
             self.__log.error(exc_string())

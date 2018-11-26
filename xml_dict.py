@@ -4,8 +4,11 @@ associated doctests for xml_fmt or dict_xml_tree for examples of how this
 works.  The two functions contained here are for accessing attributes or
 values of the root element of the python dictionary passed to them."""
 
+from __future__ import print_function
+
 from lxml import etree
 from lxml.etree import Comment
+
 
 def get_attrib(xdict, attrib_name):
     if '__attribs__' not in xdict or \
@@ -14,10 +17,12 @@ def get_attrib(xdict, attrib_name):
 
     return xdict['__attribs__'][attrib_name]
 
+
 def set_attrib(xdict, attrib_name, value):
     if '__attribs__' not in xdict:
         xdict['__attribs__'] = {}
     xdict['__attribs__'][attrib_name] = value
+
 
 def get_value(xdict):
     if isinstance(xdict, list) and len(xdict) > 0:
@@ -58,7 +63,7 @@ class xml_dict(object):
         """
 
         ret = {}
-        attribs = dict(parent_element.items())
+        attribs = dict(list(parent_element.items()))
 
         # if the parent element has no children,
         # no attributes and only content, just set it to
@@ -116,12 +121,12 @@ class xml_dict(object):
         """
 
         try:
-            tag, contents = next(elem_dict.iteritems())
+            tag, contents = next(iter(list(elem_dict.items())))
         except Exception:
             raise
 
         if root is None:
-            root_tag = elem_dict.keys()
+            root_tag = list(elem_dict.keys())
             if '__root_comments__' in root_tag:
                 root_tag.remove('__root_comments__')
             root_tag = root_tag[0]
@@ -135,26 +140,29 @@ class xml_dict(object):
         else:
             elem = etree.SubElement(root, tag)
 
-        if not '__attribs__' in contents and\
-                not '__children__' in contents and \
-                not '__contents__' in contents:
+        if not isinstance(contents, dict) or \
+           ('__attribs__' not in contents and
+            '__children__' not in contents and
+            '__contents__' not in contents):
             elem.text = contents
             return elem
 
         # record all of the element attributes
         if '__attribs__' in contents:
-            for (key, value) in contents['__attribs__'].iteritems():
+            for (key, value) in list(contents['__attribs__'].items()):
                 elem.set(key, value)
 
         # record the contents
-        if '__contents__' in contents:
+        if '__contents__' in contents and \
+           (isinstance(contents['__contents__'], str) or
+            isinstance(contents['__contents__'], unicode)):
             elem.text = contents['__contents__']
 
         # iterate through children if there are any
         if '__children__' not in contents:
             return elem
 
-        for child_name, child_desc in contents['__children__'].iteritems():
+        for child_name, child_desc in list(contents['__children__'].items()):
             # a special case.  if the child name is a Comment then
             # build up all the comments
             if child_name == Comment:
@@ -163,13 +171,17 @@ class xml_dict(object):
                     elem.append(c)
             # a special case..  if the child_desc is a list with a string
             # element then build the child appropriately
-            elif isinstance(child_desc, list) and len(child_desc) == 1 and \
-                    (isinstance(child_desc[0], str) or child_desc[0] is None):
-                child_element = etree.SubElement(elem, child_name)
-                child_element.text = child_desc[0]
+            elif isinstance(child_desc, list):
+                if len(child_desc) == 1 and \
+                   (isinstance(child_desc[0], str) or child_desc[0] is None):
+                    child_element = etree.SubElement(elem, child_name)
+                    child_element.text = child_desc[0]
+                else:
+                    for entry in child_desc:
+                        xml_dict.dict_xml_tree({child_name: entry}, root=elem)
             else:
-                for entry in child_desc:
-                    xml_dict.dict_xml_tree({child_name: entry}, root=elem)
+                print("Not handling <%s>%s" % \
+                    (type(child_desc).__name__, child_desc), file=sys.stderr)
 
         return elem
 
@@ -184,6 +196,7 @@ class xml_dict(object):
 
     def __str__(self):
         return self.toString(self.xml_dict)
+
 
 if __name__ == "__main__":
     import doctest

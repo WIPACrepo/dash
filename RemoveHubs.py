@@ -2,6 +2,8 @@
 #
 # Create a new run configuration without one or more hubs
 
+from __future__ import print_function
+
 import os
 import sys
 
@@ -33,6 +35,9 @@ def add_arguments(parser):
     parser.add_argument("-o", "--outname", dest="out_cfg_name",
                         default=None,
                         help="New configuration file name")
+    parser.add_argument("-v", "--verbose", dest="verbose",
+                        action="store_true", default=False,
+                        help="Verbose mode")
     parser.add_argument("runConfig", nargs=1,
                         help="Original run configuration file")
     parser.add_argument("hubOrRack", nargs="+",
@@ -40,44 +45,8 @@ def add_arguments(parser):
                         " \"R06\"")
 
 
-def create_config(run_config, new_path, hub_list, rack_list, keep_hubs=False,
-                  force=False):
-    """
-    Build a new run configuration by removing the hubs and/or rakcks
-    Write the new run configuration file to "new_path"
-    """
-    if run_config is None:
-        raise SystemExit("No run configuration!")
-
-    if not new_path.endswith(".xml"):
-        new_path += ".xml"
-    if os.path.exists(new_path):
-        if force:
-            print >> sys.stderr, "WARNING: Overwriting %s" % new_path
-        else:
-            raise SystemExit(("WARNING: %s already exists\n" % new_path) +
-                             "Specify --force to overwrite this file")
-
-    # start with the list of hubs
-    if hub_list is None:
-        final_list = []
-    else:
-        final_list = hub_list[:]
-
-    # add rack hubs
-    if rack_list is not None and len(rack_list) > 0:
-        final_list += get_rack_hubs(rack_list)
-
-    # build new configuration
-    new_config = run_config.omit(final_list, keep_hubs)
-    if new_config is not None:
-        with open(new_path, 'w') as fd:
-            fd.write(new_config)
-        print "Created %s" % new_path
-
-
-def create_file_name(config_dir, file_name, hub_id_list, rack_list,
-                     keep=False):
+def __create_file_name(config_dir, file_name, hub_id_list, rack_list,
+                       keep=False):
     """
     Create a new file name from the original name and the list of hubs.
     """
@@ -93,17 +62,70 @@ def create_file_name(config_dir, file_name, hub_id_list, rack_list,
         join_str = "-no"
 
     racks = ""
-    if len(rack_list) > 1:
-        rack_names = ["_%02d" % r for r in rack_list]
-        rack_names[0] = rack_names[0][1:]
-        racks = join_str + "Racks" + ''.join(rack_names)
-    elif len(rack_list) == 1:
-        racks = join_str + "Rack%02d" % rack_list[0]
+    if rack_list is not None:
+        if len(rack_list) > 1:
+            rack_names = ["_%02d" % r for r in rack_list]
+            rack_names[0] = rack_names[0][1:]
+            racks = join_str + "Racks" + ''.join(rack_names)
+        elif len(rack_list) == 1:
+            racks = join_str + "Rack%02d" % rack_list[0]
     hub_names = [get_hub_name(h) for h in hub_id_list]
     join_list = ["%s%s" % (join_str, hub_name) for hub_name in hub_names]
     xstr = "%s%s%s" % (xstr, racks, ''.join(join_list))
 
     return os.path.join(config_dir, basename + xstr + ".xml")
+
+
+def create_config(run_config, hub_list, rack_list, new_name=None,
+                  keep_hubs=False, force=False, verbose=False):
+    """
+    Build a new run configuration by removing the hubs and/or racks
+    Write the new run configuration file to "new_path"
+    """
+    if run_config is None:
+        raise SystemExit("No run configuration!")
+
+    if new_name is None:
+        new_path = __create_file_name(run_config.configdir, run_config.basename,
+                                      hub_list, rack_list, keep_hubs)
+    else:
+        if new_name.startswith(run_config.configdir):
+            new_path = new_name
+        else:
+            new_path = os.path.join(run_config.configdir, new_name)
+        if not new_path.endswith(".xml"):
+            new_path += ".xml"
+
+    if os.path.exists(new_path):
+        if force:
+            print("WARNING: Overwriting %s" % new_path, file=sys.stderr)
+        else:
+            raise SystemExit(("WARNING: %s already exists\n" % new_path) +
+                             "Specify --force to overwrite this file")
+
+    # start with the list of hubs
+    if hub_list is None:
+        final_list = []
+    else:
+        final_list = hub_list[:]
+
+    # add rack hubs
+    if rack_list is not None and len(rack_list) > 0:
+        final_list += get_rack_hubs(rack_list)
+
+    # remove hubs from run config
+    new_config = run_config.omit(final_list, keep_hubs)
+    if new_config is None:
+        if verbose:
+            print("No hubs/racks removed from %s" % (run_config.basename, ))
+        return None
+
+    # write new configuration
+    with open(new_path, 'w') as fd:
+        fd.write(new_config)
+    if verbose:
+        print("Created %s" % (new_path, ))
+    return new_path
 
 
 def get_hub_name(num):
@@ -137,40 +159,16 @@ def main():
     "Main function"
     hostid = Machineid()
     if not hostid.is_build_host():
-        print >> sys.stderr, "-" * 60
-        print >> sys.stderr, \
-            "Warning: RemoveHubs.py should be run on the build machine"
-        print >> sys.stderr, "-" * 60
+        print("-" * 60, file=sys.stderr)
+        print("Warning: RemoveHubs.py should be run on the build machine",
+              file=sys.stderr)
+        print("-" * 60, file=sys.stderr)
 
     p = argparse.ArgumentParser()
     add_arguments(p)
     args = p.parse_args()
-    hub_list, rack_list = parse_hub_rack_strings(p, args.hubOrRack)
 
-    # verify that original run configuration file exists
-    if len(args.runConfig) != 1:
-        p.error("Unexpected number of runConfig arguments (%d)" %
-                len(args.runConfig))
-    rc_path = os.path.join(args.config_dir, args.runConfig[0])
-    if not rc_path.endswith(".xml"):
-        rc_path += ".xml"
-    if not os.path.exists(rc_path):
-        p.error("Run configuration \"%s\" does not exist" % args.runConfig[0])
-
-    if args.out_cfg_name is None:
-        new_path = create_file_name(args.config_dir, rc_path, hub_list,
-                                    rack_list, args.keep_hubs)
-    else:
-        new_path = os.path.join(args.config_dir, args.out_cfg_name)
-
-    try:
-        run_config = DAQConfigParser.parse(args.config_dir, rc_path)
-    except DAQConfigException as config_except:
-        print >> sys.stderr, "WARNING: Error parsing %s" % rc_path
-        raise SystemExit(config_except)
-
-    create_config(run_config, new_path, hub_list, rack_list,
-                  keep_hubs=args.keep_hubs, force=args.force)
+    remove_hubs(args)
 
 
 def parse_hub_rack_strings(parser, extra):
@@ -210,8 +208,32 @@ def parse_hub_rack_strings(parser, extra):
     return (hub_list, rack_list)
 
 
+def remove_hubs(args):
+    hub_list, rack_list = parse_hub_rack_strings(p, args.hubOrRack)
+
+    # verify that original run configuration file exists
+    if len(args.runConfig) != 1:
+        p.error("Unexpected number of runConfig arguments (%d)" %
+                len(args.runConfig))
+    rc_path = os.path.join(args.config_dir, args.runConfig[0])
+    if not rc_path.endswith(".xml"):
+        rc_path += ".xml"
+    if not os.path.exists(rc_path):
+        p.error("Run configuration \"%s\" does not exist" % args.runConfig[0])
+
+    try:
+        run_config = DAQConfigParser.parse(args.config_dir, rc_path)
+    except DAQConfigException as config_except:
+        print("WARNING: Error parsing %s" % rc_path, file=sys.stderr)
+        raise SystemExit(config_except)
+
+    new_path = create_config(run_config, hub_list, rack_list,
+                             new_name=args.out_cfg_name,
+                             keep_hubs=args.keep_hubs, force=args.force,
+                             verbose=args.verbose)
+
+
 if __name__ == "__main__":
     import argparse
-
 
     main()

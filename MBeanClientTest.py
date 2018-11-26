@@ -17,7 +17,7 @@ class MockMBeanAgent(object):
 
     def __validateBean(self, bean):
         self.__validateDict()
-        if not bean in self.__mbeanDict:
+        if bean not in self.__mbeanDict:
             raise MBeanAgentException("Unknown MBean \"%s\"" % bean)
         if isinstance(self.__mbeanDict[bean], Exception):
             tmp_except = self.__mbeanDict[bean]
@@ -26,7 +26,7 @@ class MockMBeanAgent(object):
     def __validateBeanField(self, bean, fld):
         self.__validateDict()
         self.__validateBean(bean)
-        if not fld in self.__mbeanDict[bean]:
+        if fld not in self.__mbeanDict[bean]:
             raise MBeanAgentException("Unknown MBean \"%s\" attribute \"%s\"" %
                                       (bean, fld))
         if isinstance(self.__mbeanDict[bean][fld], Exception):
@@ -42,11 +42,11 @@ class MockMBeanAgent(object):
 
     def listMBeans(self):
         self.__validateDict()
-        return self.__mbeanDict.keys()
+        return list(self.__mbeanDict.keys())
 
     def listGetters(self, bean):
         self.__validateBean(bean)
-        return self.__mbeanDict[bean].keys()
+        return list(self.__mbeanDict[bean].keys())
 
     def setMBeans(self, mbeanDict):
         self.__mbeanDict = mbeanDict
@@ -62,7 +62,7 @@ class MostlyMBeanClient(MBeanClient):
         self.__agent = agent
         super(MostlyMBeanClient, self).__init__(compName, host, port)
 
-    def createRPCClient(self, host, port):
+    def createClient(self, host, port):
         return MockRPCClient(host, port, self.__agent)
 
 
@@ -82,24 +82,22 @@ class TestMBeanClient(unittest.TestCase):
         try:
             client.get(bean, fld)
         except BeanLoadException as ble:
-            if not str(ble).startswith("Cannot get list of %s MBeans: " %
-                                       clientName):
+            if not str(ble).startswith("Cannot load %s MBean \"%s:%s\": " %
+                                       (clientName, bean, fld)):
                 self.fail("Unexpected exception: " + exc_string())
 
         agent.setMBeans({bean: MBeanAgentException("Test fail"), })
         try:
             client.get(bean, fld)
         except BeanLoadException as ble:
-            if not str(ble).startswith("Cannot load %s MBeans %s: " %
-                                       (clientName, [bean, ])):
+            if not str(ble).startswith("Cannot load %s MBean \"%s:%s\": " %
+                                       (clientName, bean, fld)):
                 self.fail("Unexpected exception: " + exc_string())
 
         agent.setMBeans({bean: {fld: val, }, })
         realVal = client.get(bean, fld)
         self.assertEqual(val, realVal, "Expected value \"%s\", not \"%s\"" %
                          (val, realVal))
-
-        agent.setMBeans(MBeanAgentException("Ignored"))
 
         beanList = client.getBeanNames()
         self.assertTrue(beanList is not None,
@@ -132,6 +130,7 @@ class TestMBeanClient(unittest.TestCase):
             self.fail("getBeanFields should throw an exception")
         except:
             pass
+
 
 if __name__ == '__main__':
     unittest.main()

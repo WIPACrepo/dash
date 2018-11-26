@@ -2,6 +2,8 @@
 #
 # Run standard pDAQ tests
 
+from __future__ import print_function
+
 import os
 import re
 import stat
@@ -105,20 +107,6 @@ class PDAQRun(object):
         except:
             traceback.print_exc()
 
-# configurations to run
-#
-RUN_LIST = (
-    PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
-    PDAQRun("spts64-dirtydozen-hlc-006", 0, 1,
-            (("flash-21", 60), (None, 10), ("flash-21", 45),
-             (None, 20), ("flash-21", 120))),
-    PDAQRun("spts64-dirtydozen-hitspool-15s-interval-8h-spool", HALF_HR),
-    PDAQRun("spts-dirtydozen-intervals3-snmix-014", HALF_HR),
-    PDAQRun("random-01", HALF_HR),
-    PDAQRun("replay-125659-local", EIGHT_HR),
-    PDAQRun("replay-125659-local", QUARTER_HR, numRuns=3),
-)
-
 
 class Deploy(object):
     DEPLOY_CLEAN = False
@@ -165,7 +153,7 @@ class Deploy(object):
                                   (clusterCfgName, exc_string()))
 
         if not self.__showCmd:
-            print "Deploying %s" % clusterCfg
+            print("Deploying %s" % clusterCfg)
 
         subdirs = None
         delete = True
@@ -191,16 +179,15 @@ class Deploy(object):
         for data in runList:
             ccDict[data.clusterConfig()] = 1
 
-        uniqList = ccDict.keys()
-        uniqList.sort()
+        uniqList = sorted(ccDict.keys())
 
         return uniqList
 
     def showHome(self):
         "Print the actual pDAQ home directory name"
-        print "==============================================================="
-        print "== PDAQ_HOME points to %s" % self.__pdaqHome
-        print "==============================================================="
+        print("===============================================================")
+        print("== PDAQ_HOME points to %s" % self.__pdaqHome)
+        print("===============================================================")
 
 
 def add_arguments(parser):
@@ -243,6 +230,21 @@ def add_arguments(parser):
                               " run commands"))
 
 
+# configurations to run
+#
+RUN_LIST = (
+    PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
+    PDAQRun("spts64-dirtydozen-hlc-006", 0, 1,
+            (("flash-21", 60), (None, 10), ("flash-21", 45),
+             (None, 20), ("flash-21", 120))),
+    PDAQRun("spts64-dirtydozen-hitspool-15s-interval-8h-spool", HALF_HR),
+    PDAQRun("spts-dirtydozen-intervals3-snmix-014", HALF_HR),
+    PDAQRun("random-01", HALF_HR),
+    PDAQRun("replay-125659-local", EIGHT_HR),
+    PDAQRun("replay-125659-local", QUARTER_HR, numRuns=3),
+)
+
+
 def run_tests(args):
     import signal
 
@@ -263,7 +265,7 @@ def run_tests(args):
     # Make sure expected environment variables are set
     #
     for nm in ("HOME", "PDAQ_HOME"):
-        if not nm in os.environ:
+        if nm not in os.environ:
             raise SystemExit("Environment variable '%s' has not been set" % nm)
 
     # run tests from pDAQ top-level directory

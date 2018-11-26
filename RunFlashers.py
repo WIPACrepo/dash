@@ -16,7 +16,7 @@ def add_arguments(parser):
                         help="DAQ run configuration")
     parser.add_argument("-d", "--flasher-delay", type=int, dest="flasherDelay",
                         default=120,
-                        help="Initial delay (in seconds) before" + \
+                        help="Initial delay (in seconds) before"
                         " flashers are started"),
     parser.add_argument("-F", "--flasher-list", dest="flasherList",
                         help=("File containing pairs of script names and"

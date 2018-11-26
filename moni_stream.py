@@ -6,6 +6,8 @@
 # parse_date() is a method which can convert date strings into
 # 'datetime.datetime' values
 
+from __future__ import print_function
+
 import ast
 import datetime
 import re
@@ -78,7 +80,7 @@ def moni_stream(filename, fix_values=True, fix_profile=False,
             is_profile = fix_profile and field == "ProfileTimes"
 
             if is_profile and isinstance(value, dict):
-                for dkey, dval in value.iteritems():
+                for dkey, dval in list(value.items()):
                     # only keep the "count" field
                     value[dkey] = int(dval[0])
 
@@ -155,7 +157,7 @@ def main():
 
     for fname in args.files:
         if not fname.endswith(".moni"):
-            print >>sys.stderr, "Not processing \"%s\"" % (fname, )
+            print("Not processing \"%s\"" % (fname, ), file=sys.stderr)
             continue
 
         prev_date = None
@@ -172,22 +174,22 @@ def main():
                 if first:
                     first = False
                 else:
-                    print
-                print "%s: %s:" % (category, datestr)
+                    print()
+                print("%s: %s:" % (category, datestr))
                 prev_date = datestr
                 prev_cat = category
 
             if isinstance(value, dict):
-                for dkey, dval in value.iteritems():
+                for dkey, dval in list(value.items()):
                     fullname = "%s+%s" % (field, dkey)
                     if delta_fields is not None and fullname in delta_fields:
                         dval = compute_delta(delta_values, category, fullname,
                                              dval)
-                    print "\t%s: %s" % (fullname, dval)
+                    print("\t%s: %s" % (fullname, dval))
             else:
                 if delta_fields is not None and field in delta_fields:
                     value = compute_delta(delta_values, category, field, value)
-                print "\t%s: %s" % (field, value)
+                print("\t%s: %s" % (field, value))
 
 
 if __name__ == "__main__":

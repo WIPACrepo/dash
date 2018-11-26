@@ -39,9 +39,3 @@ if __name__ == "__main__":
             print "Reason: %s" % errors
             print "-" * 60
             print "\n" * 2
-
-
-
-
-
-

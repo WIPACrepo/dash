@@ -78,7 +78,7 @@ def read_unix_proc(proc_unix_path="/proc/net/unix", debug=True):
                 if debug:
                     print "UNIX:"
                     print "\t", inode, ", ", proto_str, ", ", \
-                      type_str, ", ", file_str
+                        type_str, ", ", file_str
                 results[inode] = (proto_str, type_str, file_str)
     return results
 
@@ -336,8 +336,8 @@ def print_details(tcp_socket_map, udp_socket_map, unix_sockets, open_files):
                 (len(tcp_socket_map[key]), key)
 
         for entry in tcp_socket_map[key]:
-            print ("Local %-15s:%6d\tRemote: %15s:%6d\tState: %s "
-                   "(rx: %d, tx:%d)") % entry
+            print "Local %-15s:%6d\tRemote: %15s:%6d\tState: %s " \
+                "(rx: %d, tx:%d)" % entry
 
     # udp sockets
     print ""
@@ -348,8 +348,8 @@ def print_details(tcp_socket_map, udp_socket_map, unix_sockets, open_files):
             print "There are %d connections to %s" % \
                 (len(udp_socket_map[key]), key)
         for entry in udp_socket_map[key]:
-            print ("Local %-15s:%6d\tRemote: %15s:%6d\tState: %s "
-                   "(rx: %d, tx: %d)") % entry
+            print "Local %-15s:%6d\tRemote: %15s:%6d\tState: %s " \
+                "(rx: %d, tx: %d)" % entry
 
     # unix sockets
     print ""
