@@ -646,11 +646,8 @@ class ClusterDefaults(object):
 
 class ClusterDescription(ConfigXMLBase):
     LOCAL = "localhost"
-    PDAQ2 = "pdaq2"
     SPS = "sps"
     SPTS = "spts"
-    SPTSN = "sptsn"
-    SPTS64 = "spts64"
     MDFL = "mdfl"
 
     DBTYPE_TEST = "test"

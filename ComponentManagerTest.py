@@ -426,7 +426,7 @@ class ComponentManagerTest(unittest.TestCase):
         configName = "simpleConfig"
         CachedFile.writeCacheFile(configName, True)
 
-        clusterDesc = ClusterDescription.SPTS64
+        clusterDesc = "spts64"
 
         comps = ComponentManager.getActiveComponents(clusterDesc,
                                                      configDir=self.CONFIG_DIR,
@@ -471,7 +471,7 @@ class ComponentManagerTest(unittest.TestCase):
             })
         self.__srvr.addRunset(RunSetState.RUNNING, compdict)
 
-        clusterDesc = ClusterDescription.SPTS64
+        clusterDesc = "spts64"
 
         comps = ComponentManager.getActiveComponents(clusterDesc,
                                                      configDir=self.CONFIG_DIR,
