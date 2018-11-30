@@ -83,14 +83,14 @@ class Machineid(object):
         """
         Returns true if this is a known pdaq build machine
         """
-        return True if self.__host_type == self.BUILD_HOST else False
+        return self.__host_type == self.BUILD_HOST
 
     @property
     def is_control_host(self):
         """
         Returns true if this is a known pdaq control machine
         """
-        return True if self.__host_type == self.CONTROL_HOST else False
+        return self.__host_type == self.CONTROL_HOST
 
     @classmethod
     def is_host(cls, hostbits):
@@ -105,7 +105,7 @@ class Machineid(object):
         """
         Returns true if this is a known pdaq machine which writes data to SPADE
         """
-        return True if self.__host_type == self.CONTROL_HOST else False
+        return self.__host_type == self.CONTROL_HOST
 
     @property
     def is_unknown_host(self):
@@ -115,21 +115,21 @@ class Machineid(object):
         If an unknown host and an unknown cluster, it is assumed that you can
         run anything you want.
         """
-        return True if self.__host_type == self.UNKNOWN_HOST else False
+        return self.__host_type == self.UNKNOWN_HOST
 
     @property
     def is_sps_cluster(self):
         """Returns true if this is a member of the south pole cluster
         and false otherwise.
         """
-        return True if self.__cluster_type == self.SPS_CLUSTER else False
+        return self.__cluster_type == self.SPS_CLUSTER
 
     @property
     def is_spts_cluster(self):
         """Returns true if this is a member of the south pole teest system and
         false otherwise.
         """
-        return True if self.__cluster_type == self.SPTS_CLUSTER else False
+        return self.__cluster_type == self.SPTS_CLUSTER
 
     @property
     def is_unknown_cluster(self):
@@ -139,7 +139,7 @@ class Machineid(object):
         machines that do not need protection against running control
         scripts.
         """
-        return True if self.__cluster_type == self.UNKNOWN_CLUSTER else False
+        return self.__cluster_type == self.UNKNOWN_CLUSTER
 
     @property
     def hname(self):
