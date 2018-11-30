@@ -130,6 +130,11 @@ class Machineid(object):
         return (self.__host_type & self.UNKNOWN_HOST) == self.UNKNOWN_HOST
 
     @property
+    def is_mdfl_cluster(self):
+        "Returns true if this is a member of the MDFL test system"
+        return self.__cluster_type == self.MDFL_CLUSTER
+
+    @property
     def is_sps_cluster(self):
         "Returns true if this is a member of the south pole cluster"
         return self.__cluster_type == self.SPS_CLUSTER
