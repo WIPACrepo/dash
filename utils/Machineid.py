@@ -12,7 +12,9 @@ class Machineid(object):
     SPADE_HOSTS = ["2ndbuild", "evbuilder"]
 
     # cluster type constants
-    SPS_CLUSTER, SPTS_CLUSTER, UNKNOWN_CLUSTER = list(range(3))
+    UNKNOWN_CLUSTER = -1
+    SPS_CLUSTER = 1
+    SPTS_CLUSTER = 2
 
     # machine type constants
     BUILD_HOST = 0x1
@@ -36,43 +38,47 @@ class Machineid(object):
         else:
             self.__cluster_type = self.UNKNOWN_CLUSTER
 
+        # remove domain name and convert host name to lower case
+        host_name = self.__hname.split('.', 1)[0].lower()
+
         # now figure out what type of host this is
-        split_host_name = self.__hname.split('.', 1)[0].lower()
-        self.__host_type = 0x0
+        host_type = 0x0
         for h in self.BUILD_HOSTS:
-            if split_host_name.endswith(h):
+            if host_name.endswith(h):
                 # we are a build host
-                self.__host_type |= self.BUILD_HOST
+                host_type |= self.BUILD_HOST
                 break
         for h in self.CONTROL_HOSTS:
-            if split_host_name.endswith(h):
+            if host_name.endswith(h):
                 # we are a build host
-                self.__host_type |= self.CONTROL_HOST
+                host_type |= self.CONTROL_HOST
                 break
         for h in self.SPADE_HOSTS:
-            if split_host_name.endswith(h):
+            if host_name.endswith(h):
                 # we are a build host
-                self.__host_type |= self.CONTROL_HOST
+                host_type |= self.CONTROL_HOST
                 break
 
-        if self.__host_type == 0x0:
-            self.__host_type = self.UNKNOWN_HOST
+        if host_type == 0x0:
+            host_type = self.UNKNOWN_HOST
+
+        self.__host_type = host_type
 
     def __str__(self):
         """Produces the informal string representation of this class"""
 
         host_types = []
-        if (self.__host_type & self.BUILD_HOST) == self.BUILD_HOST:
+        if self.is_build_host:
             host_types.append("Build")
-        if (self.__host_type & self.CONTROL_HOST) == self.CONTROL_HOST:
+        if self.is_control_host:
             host_types.append("Control")
-        if (self.__host_type & self.SPADE_HOST) == self.SPADE_HOST:
+        if self.is_spade_host:
             host_types.append("SPADE")
         if len(host_types) == 0:
             host_types.append("Unknown")
         host_type_str = "/".join(host_types)
 
-        cluster_type_str = "Unknown"
+        cluster_type_str = "Unknown System"
         if self.__cluster_type == self.SPTS_CLUSTER:
             cluster_type_str = "South Pole Test System"
         elif self.__cluster_type == self.SPS_CLUSTER:
@@ -95,14 +101,6 @@ class Machineid(object):
         """
         return (self.__host_type & self.CONTROL_HOST) == self.CONTROL_HOST
 
-    @classmethod
-    def is_host(cls, hostbits):
-        """
-        Return True if this host is one of the types specified in 'hostbits'
-        """
-        hostid = Machineid()
-        return (hostid.__host_type & hostbits) != 0
-
     @property
     def is_spade_host(self):
         """
@@ -113,8 +111,7 @@ class Machineid(object):
     @property
     def is_unknown_host(self):
         """
-        Returns true if this is not a known pdaq build or control machine
-        and false otherwise.
+        Returns true if this is not a known pdaq build or control machine.
         If an unknown host and an unknown cluster, it is assumed that you can
         run anything you want.
         """
@@ -122,23 +119,19 @@ class Machineid(object):
 
     @property
     def is_sps_cluster(self):
-        """Returns true if this is a member of the south pole cluster
-        and false otherwise.
-        """
+        "Returns true if this is a member of the south pole cluster"
         return self.__cluster_type == self.SPS_CLUSTER
 
     @property
     def is_spts_cluster(self):
-        """Returns true if this is a member of the south pole teest system and
-        false otherwise.
-        """
+        "Returns true if this is a member of the south pole test system"
         return self.__cluster_type == self.SPTS_CLUSTER
 
     @property
     def is_unknown_cluster(self):
-        """Returns true if this is not member of any known pdaq cluster and
-        false otherwise.
-        This will be used in conjunction with isUnknownHost to identify
+        """
+        Returns true if this is not member of any known pdaq cluster.
+        This will be used in conjunction with is_unknown_host to identify
         machines that do not need protection against running control
         scripts.
         """
