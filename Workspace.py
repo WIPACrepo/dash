@@ -103,8 +103,8 @@ if __name__ == "__main__":
 
     if not args.nohostcheck:
         hostid = Machineid()
-        if not (hostid.is_build_host() or
-                (hostid.is_unknown_host() and hostid.is_unknown_cluster())):
+        if not (hostid.is_build_host or
+                (hostid.is_unknown_host and hostid.is_unknown_cluster)):
             # you should either be a build host or a totally unknown host
             raise SystemExit("Are you sure you are changing the workspace"
                              " on the correct host?")

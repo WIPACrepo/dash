@@ -109,7 +109,7 @@ def parseArgs():
 if __name__ == "__main__":
 
     hostid = Machineid()
-    if not hostid.is_build_host():
+    if not hostid.is_build_host:
         print("-" * 60, file=sys.stderr)
         print("Warning: AddHubs.py should be run on the build machine", file=sys.stderr)
         print("-" * 60, file=sys.stderr)

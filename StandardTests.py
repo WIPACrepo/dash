@@ -250,13 +250,13 @@ def run_tests(args):
 
     hostid = Machineid()
 
-    if hostid.is_sps_cluster():
+    if hostid.is_sps_cluster:
         raise SystemExit("Tests should not be run on SPS cluster")
 
     if not args.deploy and not args.run:
-        if hostid.is_build_host():
+        if hostid.is_build_host:
             args.deploy = True
-        elif hostid.is_control_host():
+        elif hostid.is_control_host:
             args.run = True
         else:
             raise SystemExit("Please specify --deploy or --run" +

@@ -337,8 +337,8 @@ if __name__ == "__main__":
     if not args.nohostcheck:
         # exit the program if it's not running on 'access' on SPS/SPTS
         hostid = Machineid()
-        if not (hostid.is_build_host() or
-                (hostid.is_unknown_host() and hostid.is_unknown_cluster())):
+        if not (hostid.is_build_host or
+                (hostid.is_unknown_host and hostid.is_unknown_cluster)):
             raise SystemExit("Are you sure you are deploying"
                              " from the correct host?")
 

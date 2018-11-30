@@ -158,7 +158,7 @@ def get_rack_hubs(rack_list):
 def main():
     "Main function"
     hostid = Machineid()
-    if not hostid.is_build_host():
+    if not hostid.is_build_host:
         print("-" * 60, file=sys.stderr)
         print("Warning: RemoveHubs.py should be run on the build machine",
               file=sys.stderr)

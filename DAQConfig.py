@@ -996,8 +996,8 @@ def main():
 
     if not args.nohostcheck:
         hostid = Machineid()
-        if (not (hostid.is_build_host() or hostid.is_control_host() or
-                 (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+        if (not (hostid.is_build_host or hostid.is_control_host or
+                 (hostid.is_unknown_host and hostid.is_unknown_cluster))):
             # to run daq launch you should either be a control host or
             # a totally unknown host
             print(("Are you sure you are running DAQConfig"

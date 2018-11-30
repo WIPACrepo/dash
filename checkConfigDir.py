@@ -419,7 +419,7 @@ if __name__ == "__main__":
     args = p.parse_args()
 
     hostid = Machineid()
-    if not hostid.is_sps_cluster():
+    if not hostid.is_sps_cluster:
         raise SystemExit("This script should only be run on SPS")
 
     chk = ConfigDirChecker(args.configdir)

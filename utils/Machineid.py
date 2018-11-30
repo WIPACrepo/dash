@@ -78,12 +78,14 @@ class Machineid(object):
         return "Host name: '%s'\nHost Type: '%s'\nCluster Type: '%s'" % (
             self.__hname, host_type_str, cluster_type_str)
 
+    @property
     def is_build_host(self):
         """
         Returns true if this is a known pdaq build machine
         """
         return True if self.__host_type == self.BUILD_HOST else False
 
+    @property
     def is_control_host(self):
         """
         Returns true if this is a known pdaq control machine
@@ -98,12 +100,14 @@ class Machineid(object):
         hostid = Machineid()
         return (hostid.__host_type & hostbits) != 0
 
+    @property
     def is_spade_host(self):
         """
         Returns true if this is a known pdaq machine which writes data to SPADE
         """
         return True if self.__host_type == self.CONTROL_HOST else False
 
+    @property
     def is_unknown_host(self):
         """
         Returns true if this is not a known pdaq build or control machine
@@ -113,18 +117,21 @@ class Machineid(object):
         """
         return True if self.__host_type == self.UNKNOWN_HOST else False
 
+    @property
     def is_sps_cluster(self):
         """Returns true if this is a member of the south pole cluster
         and false otherwise.
         """
         return True if self.__cluster_type == self.SPS_CLUSTER else False
 
+    @property
     def is_spts_cluster(self):
         """Returns true if this is a member of the south pole teest system and
         false otherwise.
         """
         return True if self.__cluster_type == self.SPTS_CLUSTER else False
 
+    @property
     def is_unknown_cluster(self):
         """Returns true if this is not member of any known pdaq cluster and
         false otherwise.

@@ -106,8 +106,8 @@ if __name__ == "__main__":
     if not args.nohostcheck:
         # exit if not running on expcont
         hostid = Machineid()
-        if (not (hostid.is_control_host() or
-                 (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+        if (not (hostid.is_control_host or
+                 (hostid.is_unknown_host and hostid.is_unknown_cluster))):
             raise SystemExit("Are you sure you are emergency-stopping the run"
                              " on the correct host?")
 

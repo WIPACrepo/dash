@@ -354,10 +354,10 @@ if __name__ == "__main__":
 
     if not args.nohostcheck:
         hostid = Machineid()
-        if hostid.is_sps_cluster():
+        if hostid.is_sps_cluster:
             raise SystemExit("This script should not be run on SPS")
-        if not (hostid.is_control_host() or
-                (hostid.is_unknown_host() and hostid.is_unknown_cluster())):
+        if not (hostid.is_control_host or
+                (hostid.is_unknown_host and hostid.is_unknown_cluster)):
             # you should either be a control host or a totally unknown host
             raise SystemExit("Are you sure you are restarting test runs"
                              " on the correct host?")

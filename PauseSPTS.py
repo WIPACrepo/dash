@@ -39,7 +39,7 @@ if __name__ == "__main__":
     from utils.Machineid import Machineid
 
     hostid = Machineid()
-    if hostid.is_sps_cluster():
+    if hostid.is_sps_cluster:
         raise SystemExit("This script should not be run on SPS")
 
     usage = False

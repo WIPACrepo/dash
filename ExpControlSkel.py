@@ -15,7 +15,7 @@ from cncrun import CnCRun
 from datetime import datetime
 from utils.Machineid import Machineid
 
-SVN_ID = "$Id: ExpControlSkel.py 17035 2018-06-08 18:17:03Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 17220 2018-11-30 17:46:21Z dglo $"
 
 
 class DOMArgumentException(Exception):
@@ -249,8 +249,8 @@ if __name__ == "__main__":
 
     if not args.nohostcheck:
         hostid = Machineid()
-        if not (hostid.is_control_host() or
-                (hostid.is_unknown_host() and hostid.is_unknown_cluster())):
+        if not (hostid.is_control_host or
+                (hostid.is_unknown_host and hostid.is_unknown_cluster)):
             # you should either be a control host or a totally unknown host
             raise SystemExit("Are you sure you are running ExpControlSkel "
                              "on the correct host?")
