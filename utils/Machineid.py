@@ -15,10 +15,10 @@ class Machineid(object):
     SPS_CLUSTER, SPTS_CLUSTER, UNKNOWN_CLUSTER = list(range(3))
 
     # machine type constants
-    UNKNOWN_HOST = 0x0
     BUILD_HOST = 0x1
     CONTROL_HOST = 0x2
     SPADE_HOST = 0x4
+    UNKNOWN_HOST = 0x8000
 
     def __init__(self, hostname=None):
         if hostname is None:
@@ -38,7 +38,7 @@ class Machineid(object):
 
         # now figure out what type of host this is
         split_host_name = self.__hname.split('.', 1)[0].lower()
-        self.__host_type = self.UNKNOWN_HOST
+        self.__host_type = 0x0
         for h in self.BUILD_HOSTS:
             if split_host_name.endswith(h):
                 # we are a build host
@@ -54,6 +54,9 @@ class Machineid(object):
                 # we are a build host
                 self.__host_type |= self.CONTROL_HOST
                 break
+
+        if self.__host_type == 0x0:
+            self.__host_type = self.UNKNOWN_HOST
 
     def __str__(self):
         """Produces the informal string representation of this class"""
@@ -83,14 +86,14 @@ class Machineid(object):
         """
         Returns true if this is a known pdaq build machine
         """
-        return self.__host_type == self.BUILD_HOST
+        return (self.__host_type & self.BUILD_HOST) == self.BUILD_HOST
 
     @property
     def is_control_host(self):
         """
         Returns true if this is a known pdaq control machine
         """
-        return self.__host_type == self.CONTROL_HOST
+        return (self.__host_type & self.CONTROL_HOST) == self.CONTROL_HOST
 
     @classmethod
     def is_host(cls, hostbits):
@@ -105,7 +108,7 @@ class Machineid(object):
         """
         Returns true if this is a known pdaq machine which writes data to SPADE
         """
-        return self.__host_type == self.CONTROL_HOST
+        return (self.__host_type & self.SPADE_HOST) == self.SPADE_HOST
 
     @property
     def is_unknown_host(self):
@@ -115,7 +118,7 @@ class Machineid(object):
         If an unknown host and an unknown cluster, it is assumed that you can
         run anything you want.
         """
-        return self.__host_type == self.UNKNOWN_HOST
+        return (self.__host_type & self.UNKNOWN_HOST) == self.UNKNOWN_HOST
 
     @property
     def is_sps_cluster(self):
