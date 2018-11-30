@@ -13,13 +13,13 @@ import threading
 import time
 
 from ANSIEscapeCode import ANSIEscapeCode
-from ClusterDescription import ClusterDescription
 from ComponentManager import ComponentManager
 from DAQConfig import DAQConfigException, DAQConfigParser
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from DAQTime import PayloadTime
 from locate_pdaq import find_pdaq_config, find_pdaq_trunk
+from utils.Machineid import Machineid
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -687,7 +687,8 @@ class BaseRun(object):
 
         self.__cnc = None
 
-        self.__db_type = ClusterDescription.getClusterDatabaseType()
+        mid = Machineid()
+        self.__update_db = mid.is_sps_cluster or mid.is_spts_cluster
 
         # check for needed executables
         #
@@ -781,7 +782,7 @@ class BaseRun(object):
         raise NotImplementedError()
 
     def ignoreDatabase(self):
-        return self.__db_type == ClusterDescription.DBTYPE_NONE
+        return not self.__update_db
 
     def isDead(self, refreshState=False):
         raise NotImplementedError()
@@ -1038,7 +1039,7 @@ class BaseRun(object):
 
         runCfgName - name of run configuration
         """
-        if self.__db_type == ClusterDescription.DBTYPE_NONE:
+        if not self.__update_db:
             return
 
         if self.__update_db_prog is None:

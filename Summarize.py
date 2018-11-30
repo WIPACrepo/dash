@@ -377,7 +377,7 @@ def summarize(args):
     if not args.show_clucfg:
         std_clucfg = None
     else:
-        clu_name = ClusterDescription.getClusterFromHostName()
+        clu_name = ClusterDescription.getClusterName()
         std_clucfg = strip_clucfg(clu_name)
 
     if len(args.files) > 0:

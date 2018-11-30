@@ -12,6 +12,7 @@ from xml.dom import minidom, Node
 from Component import Component
 from locate_pdaq import find_pdaq_config
 from xmlparser import XMLBadFileError, XMLFormatError, XMLParser
+from utils.Machineid import Machineid
 
 
 class ClusterDescriptionFormatError(XMLFormatError):
@@ -680,7 +681,7 @@ class ClusterDescription(ConfigXMLBase):
         self.__default_log_level = self.DEFAULT_LOG_LEVEL
 
         if configName is None:
-            configName = self.getClusterFromHostName()
+            configName = self.getClusterName()
 
         if configDir is None:
             configDir = find_pdaq_config()
@@ -1170,37 +1171,20 @@ class ClusterDescription(ConfigXMLBase):
             self.__pkg_install_dir = os.path.expanduser(self.__pkg_install_dir)
 
     @classmethod
-    def getClusterFromHostName(cls, hostname=None):
+    def getClusterName(cls, hostname=None):
         """
         Determine the cluster name from 'hostname'.
         Returned values are "sps", "spts", "spts64", or "localhost".
         If 'hostname' is not set, the host name of the current machine is used.
         """
 
-        if hostname is None:
-            try:
-                hostname = socket.gethostname()
-            except:
-                hostname = None
-
-        if hostname is not None:
-            # SPS is easy
-            if hostname.endswith("icecube.southpole.usap.gov"):
-                hname = hostname.split(".", 1)[0]
-                if hname == "pdaq2":
-                    return cls.PDAQ2
-                else:
-                    return cls.SPS
-            # try to identify test systems
-            if hostname.endswith("icecube.wisc.edu"):
-                hlist = hostname.split(".")
-                if len(hlist) > 4 and \
-                   (hlist[1] == cls.SPTS64 or hlist[1] == cls.SPTS):
-                    return hlist[1]
-                if len(hlist) > 4 and hlist[1] == cls.SPTSN:
-                    return cls.SPTS
-                if hostname.startswith("mdfl"):
-                    return cls.MDFL
+        mid = Machineid()
+        if mid.is_sps_cluster:
+            return cls.SPS
+        if mid.is_spts_cluster:
+            return cls.SPTS
+        if mid.is_mdfl_cluster:
+            return cls.MDFL
 
         return cls.LOCAL
 
@@ -1210,9 +1194,8 @@ class ClusterDescription(ConfigXMLBase):
         Determine the database type for the cluster description.
         'clu' should be one of the ClusterDescription constants
         """
-        if clu is None:
-            clu = cls.getClusterFromHostName()
-        if clu == cls.SPTS or clu == cls.SPTS64:
+        mid = Machineid()
+        if mid.is_spts_cluster:
             dbname = cls.getLiveDBName()
             if dbname is None or dbname == "I3OmDb_test":
                 return cls.DBTYPE_TEST
@@ -1220,9 +1203,9 @@ class ClusterDescription(ConfigXMLBase):
                 return cls.DBTYPE_PROD
             raise NotImplementedError(("Unknown database \"%s\" for" +
                                        " cluster \"%s\"") % (dbname, clu))
-        if clu == cls.SPS or clu == cls.PDAQ2:
+        if mid.is_sps_cluster:
             return cls.DBTYPE_PROD
-        if clu == cls.LOCAL or clu == cls.MDFL:
+        if mid.is_mdfl_cluster or mid.is_unknown_cluster: 
             return cls.DBTYPE_NONE
         raise NotImplementedError("Cannot guess database" +
                                   " for cluster \"%s\"" % clu)

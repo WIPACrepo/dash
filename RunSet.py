@@ -2261,7 +2261,7 @@ class RunSet(object):
             desc = desc[:-4]
         if desc.endswith("-cluster"):
             front = desc[:-8]
-            base = ClusterDescription.getClusterFromHostName()
+            base = ClusterDescription.getClusterName()
             if front == base:
                 return None
 

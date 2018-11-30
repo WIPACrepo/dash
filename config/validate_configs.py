@@ -64,7 +64,7 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
     # validate the cluster config
     # really odd file name rules..  but try to keep it consistent
     if cluster_xml_filename is None:
-        cluster_xml_filename = ClusterDescription.getClusterFromHostName()
+        cluster_xml_filename = ClusterDescription.getClusterName()
 
     if cluster_xml_filename.endswith('.xml'):
         # old cluster configs not supported
