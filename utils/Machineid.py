@@ -28,16 +28,21 @@ class Machineid(object):
         else:
             self.__hname = hostname
 
+        self.__cluster_type = self.__get_cluster_type()
+        self.__host_type = self.__get_host_type()
+
+    def __get_cluster_type(self):
         # figure out if we are part of a cluster
         if self.__hname.endswith("icecube.southpole.usap.gov"):
             # we are part of the south pole system
-            self.__cluster_type = self.SPS_CLUSTER
-        elif self.__hname.endswith("spts.icecube.wisc.edu"):
+            return self.SPS_CLUSTER
+        if self.__hname.endswith("spts.icecube.wisc.edu"):
             # we are part of the south pole TEST system
-            self.__cluster_type = self.SPTS_CLUSTER
-        else:
-            self.__cluster_type = self.UNKNOWN_CLUSTER
+            return self.SPTS_CLUSTER
 
+        return self.UNKNOWN_CLUSTER
+
+    def __get_host_type(self):
         # remove domain name and convert host name to lower case
         host_name = self.__hname.split('.', 1)[0].lower()
 
@@ -62,7 +67,7 @@ class Machineid(object):
         if host_type == 0x0:
             host_type = self.UNKNOWN_HOST
 
-        self.__host_type = host_type
+        return host_type
 
     def __str__(self):
         """Produces the informal string representation of this class"""
