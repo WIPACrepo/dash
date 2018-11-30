@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+#
+# Complete list of 'pdaq' subcommands
 
 from __future__ import print_function
 
@@ -23,18 +25,21 @@ def command(cls):
 
 class FakeArgParser(object):
     """
-    This is passed to commands' add_arguments() lists to build the list of
-    valid arguments for bash
+    This simulates ArgumentParser.add_arguments() in order to build
+    the list of valid arguments for bash
     """
     def __init__(self):
         self.__args = []
 
     def add_argument(self, *args, **kwargs):
+        "Simulates argparse.ArgumentParser.add_argument()"
         for a in args:
             if len(a) > 0 and a[0] == "-":
                 self.__args.append(a)
 
-    def get_arguments(self):
+    @property
+    def arguments(self):
+        "Return list of arguments"
         return self.__args
 
 
@@ -55,6 +60,8 @@ class BaseCmd(object):
     CMDTYPE_LD = "LD"
     # Command completion for workspace argument
     CMDTYPE_WS = "WS"
+    # Command completion for file argument
+    CMDTYPE_CHOICE = "Choice"
     # Command doesn't require any completion
     CMDTYPE_NONE = "None"
     # Command completion is unknown
@@ -68,8 +75,6 @@ class BaseCmd(object):
     def add_arguments(cls, parser):
         """
         Argument handling for this subcommand
-        NOTE: if the command is locked to a specific host type but the user may
-        want to run it elsewhere, add an option to set 'nohostcheck' to True
         """
         pass
 
@@ -122,7 +127,7 @@ class CmdDeploy(BaseCmd):
     @classmethod
     def is_valid_host(cls, args):
         "Deployment is done from the build host"
-        return Machineid.is_host(Machineid.BUILD_HOST)
+        return Machineid().is_build_host
 
     @classmethod
     def name(cls):
@@ -215,7 +220,7 @@ class CmdFlash(BaseCmd):
     @classmethod
     def is_valid_host(cls, args):
         "Flashers are run on the control host"
-        return Machineid.is_host(Machineid.CONTROL_HOST)
+        return Machineid().is_control_host
 
     @classmethod
     def name(cls):
@@ -298,7 +303,7 @@ class CmdKill(BaseCmd):
     @classmethod
     def is_valid_host(cls, args):
         "Only a control host can kill components"
-        return Machineid.is_host(Machineid.CONTROL_HOST)
+        return Machineid().is_control_host
 
     @classmethod
     def name(cls):
@@ -339,7 +344,7 @@ class CmdLaunch(BaseCmd):
     @classmethod
     def is_valid_host(cls, args):
         "Only a control host can launch components"
-        return Machineid.is_host(Machineid.CONTROL_HOST)
+        return Machineid().is_control_host
 
     @classmethod
     def name(cls):
@@ -413,7 +418,7 @@ class CmdRemoveHubs(BaseCmd):
     @classmethod
     def is_valid_host(cls, args):
         "Any host can have log files"
-        return Machineid.is_host(Machineid.BUILD_HOST)
+        return Machineid().is_build_host
 
     @classmethod
     def name(cls):
@@ -444,7 +449,7 @@ class CmdRun(BaseCmd):
     @classmethod
     def is_valid_host(cls, args):
         "Only a control host can start runs"
-        return Machineid.is_host(Machineid.CONTROL_HOST)
+        return Machineid().is_control_host
 
     @classmethod
     def name(cls):
@@ -475,7 +480,7 @@ class CmdRunNumber(BaseCmd):
     @classmethod
     def is_valid_host(cls, args):
         "Only a control host can get/set run numbers"
-        return Machineid.is_host(Machineid.CONTROL_HOST)
+        return Machineid().is_control_host
 
     @classmethod
     def name(cls):
@@ -537,7 +542,7 @@ class CmdStatus(BaseCmd):
     @classmethod
     def is_valid_host(cls, args):
         "Only a control host can check component status"
-        return Machineid.is_host(Machineid.CONTROL_HOST)
+        return Machineid().is_control_host
 
     @classmethod
     def name(cls):
@@ -568,7 +573,7 @@ class CmdStopRun(BaseCmd):
     @classmethod
     def is_valid_host(cls, args):
         "Only a control host can emergency-stop runs"
-        return Machineid.is_host(Machineid.CONTROL_HOST)
+        return Machineid().is_control_host
 
     @classmethod
     def name(cls):
@@ -602,8 +607,8 @@ class CmdStdTest(BaseCmd):
         """
         Run `pdaq deploy` on build host, run StandardTests on control host
         """
-        bits = Machineid.BUILD_HOST | Machineid.CONTROL_HOST
-        return Machineid.is_host(bits)
+        mid = Machineid()
+        return mid.is_build_host or mid.is_control_host
 
     @classmethod
     def name(cls):
@@ -671,7 +676,7 @@ class CmdTail(BaseCmd):
     @classmethod
     def is_valid_host(cls, args):
         "Only makes sense on expcont"
-        return Machineid.is_host(Machineid.CONTROL_HOST)
+        return Machineid().is_control_host
 
     @classmethod
     def name(cls):
@@ -709,7 +714,7 @@ class CmdWorkspace(BaseCmd):
     @classmethod
     def is_valid_host(cls, args):
         "Workspaces only exist on build host"
-        return Machineid.is_host(Machineid.BUILD_HOST)
+        return Machineid().is_build_host
 
     @classmethod
     def name(cls):
@@ -752,7 +757,7 @@ if __name__ == "__main__":
                 v.add_arguments(fakeargs)
             except:
                 pass
-        for a in fakeargs.get_arguments():
+        for a in fakeargs.arguments:
             print(a)
     else:
         for n in names:
