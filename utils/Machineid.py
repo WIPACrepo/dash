@@ -42,7 +42,7 @@ class Machineid(object):
                 return self.MDFL_CLUSTER
 
             hlist = self.__hname.split(".")
-            if len(hlist) > 4 and hlist[1] == "spts":
+            if len(hlist) > 4 and (hlist[1] == "spts" or hlist[1] == "sptsn"):
                 # we are part of the south pole TEST system
                 return self.SPTS_CLUSTER
 
