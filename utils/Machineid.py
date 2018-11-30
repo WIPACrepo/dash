@@ -15,6 +15,7 @@ class Machineid(object):
     UNKNOWN_CLUSTER = -1
     SPS_CLUSTER = 1
     SPTS_CLUSTER = 2
+    MDFL_CLUSTER = 3
 
     # machine type constants
     BUILD_HOST = 0x1
@@ -36,9 +37,15 @@ class Machineid(object):
         if self.__hname.endswith("icecube.southpole.usap.gov"):
             # we are part of the south pole system
             return self.SPS_CLUSTER
-        if self.__hname.endswith("spts.icecube.wisc.edu"):
-            # we are part of the south pole TEST system
-            return self.SPTS_CLUSTER
+        if self.__hname.endswith("icecube.wisc.edu"):
+            if self.__hname.startswith("mdfl"):
+                return self.MDFL_CLUSTER
+
+            hlist = self.__hname.split(".")
+            if len(hlist) > 4 and hlist[1] == "spts":
+                # we are part of the south pole TEST system
+                return self.SPTS_CLUSTER
+
 
         return self.UNKNOWN_CLUSTER
 
