@@ -369,6 +369,38 @@ class CmdLaunch(BaseCmd):
 
 
 @command
+class CmdSwitchEnv(BaseCmd):
+    @classmethod
+    def add_arguments(cls, parser):
+        from SwitchEnv import add_arguments
+        add_arguments(parser)
+
+    @classmethod
+    def cmdtype(cls):
+        return cls.CMDTYPE_CHOICE
+
+    @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Select the Python virtual environment for the cluster"
+
+    @classmethod
+    def is_valid_host(cls, args):
+        "Update is done from the build host"
+        mid = Machineid()
+        return mid.is_build_host or mid.is_unknown_host
+
+    @classmethod
+    def name(cls):
+        return "switchenv"
+
+    @classmethod
+    def run(cls, args):
+        from SwitchEnv import update_virtualenv
+        update_virtualenv(args)
+
+
+@command
 class CmdQueueLogs(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
