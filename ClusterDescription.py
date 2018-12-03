@@ -1244,6 +1244,11 @@ class ClusterDescription(ConfigXMLBase):
 
         return self.__host_map[name]
 
+    @property
+    def hosts(self):
+        for host in self.__host_map:
+            yield host
+
     def listHostComponentPairs(self):
         for host in list(self.__host_map.keys()):
             for comp in self.__host_map[host].getComponents():
