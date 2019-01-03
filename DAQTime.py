@@ -139,38 +139,47 @@ class DAQDateTime(object):
                       self.second, ticks)
 
 
-class PayloadTime(object):
-    # number of seconds in 11 months
-    ELEVEN_MONTHS = 60 * 60 * 24 * (365 - 31)
+class YearData(object):
+    # note that this is a dangerous
+    # bit of code near the new year as the payload
+    # times and the system clock are not coming from the same
+    # clock, there will be a slight processing delay etc
+    def __init__(self, year):
+        self.__year = year
 
-    # offset from epoch to start of year
-    TIME_OFFSET = None
+        # compute the number of seconds from the Unix epoch to January 1
+        jan1 = time.struct_time((year, 1, 1, 0, 0, 0, 0, 0, -1))
+        self.__jan1_offset = calendar.timegm(jan1)
 
-    # previous payload time
-    PREV_TIME = None
+        # does this year include a leap second?
+        raw_tuple = time.struct_time((year, 7, 1, 0, 0, 0, 0, 0, -1))
+        july1_tuple = time.gmtime(calendar.timegm(raw_tuple))
+        leapsec = leapseconds.instance().get_leap_offset(july1_tuple.tm_yday,
+                                                         year)
+        self.__has_leapsecond = leapsec > 0
 
-    # regular expression used to parse date/time strings
-    TIME_PAT = None
+        if self.__has_leapsecond:
+            self.__june30_offset = self.__seconds_until_june30(year)
+        else:
+            # no mid-year leap second, so don't need to calculate
+            # seconds until June 30
+            self.__june30_offset = sys.maxsize
 
-    # number of DAQ ticks in one second
-    TICKS_PER_SECOND = 10000000000
+    def __str__(self):
+        if not self.__has_leapsecond:
+            extra = ""
+        else:
+            extra = " (jun30off %d)" % (self.__june30_offset, )
+        return "%04d: %d%s" % (self.__year, self.__jan1_offset, extra)
 
-    # seconds till jul 30 of this year
-    TIME_TILL_JUNE30 = None
-
-    # current year
-    YEAR = None
-
-    # previous payload year
-    PREV_YEAR = None
-
-    @staticmethod
-    def __seconds_until_june30(year):
-        """For the given year calculate the number of seconds
+    @classmethod
+    def __seconds_until_june30(cls, year):
+        """
+        For the given year calculate the number of seconds
         to a potential leapsecond at 23:59:60 on june 30.
 
         This doesn't mean that there IS a leapsecond, just that
-        below this number of seconds past jan1 there is no danger
+        after this number of seconds past jan1 there is no danger
         of one.
         """
 
@@ -179,16 +188,47 @@ class PayloadTime(object):
 
         return (june30_1159_mjd - jan1_mjd) * 86400
 
-    @staticmethod
-    def fromString(timestr, high_precision=DAQDateTime.HIGH_PRECISION):
+    @property
+    def has_leapsecond(self):
+        return self.__has_leapsecond
+
+    @property
+    def jan1_offset(self):
+        return self.__jan1_offset
+
+    @property
+    def june30_offset(self):
+        return self.__june30_offset
+
+
+class PayloadTime(object):
+    # per-year data
+    YEAR_DATA = {}
+
+    # regular expression used to parse date/time strings
+    TIME_PAT = None
+
+    # number of seconds in 11 months
+    ELEVEN_MONTHS = 60 * 60 * 24 * (365 - 31)
+
+    # number of DAQ ticks in one second
+    TICKS_PER_SECOND = 10000000000
+
+    # current year
+    YEAR = None
+    # DAQ tick used when setting the current year
+    YEAR_TICKS = None
+
+    @classmethod
+    def fromString(cls, timestr, high_precision=DAQDateTime.HIGH_PRECISION):
         if not timestr:
             return None
 
-        if not PayloadTime.TIME_PAT:
-            PayloadTime.TIME_PAT = re.compile(r"(\S+-\S+-\S+\s+\d+:\d+:\d+)" +
+        if not cls.TIME_PAT:
+            cls.TIME_PAT = re.compile(r"(\S+-\S+-\S+\s+\d+:\d+:\d+)" +
                                               r"(\.(\d+))?")
 
-        m = PayloadTime.TIME_PAT.match(timestr)
+        m = cls.TIME_PAT.match(timestr)
         if not m:
             raise ValueError("Cannot parse date/time '%s'" % timestr)
 
@@ -216,74 +256,63 @@ class PayloadTime(object):
                            ticks,
                            high_precision=high_precision)
 
-    @staticmethod
-    def toDateTime(payTime, year=None,
+    @classmethod
+    def get_current_year(cls):
+        return time.gmtime().tm_year
+
+    @classmethod
+    def toDateTime(cls, payTime, year=None,
                    high_precision=DAQDateTime.HIGH_PRECISION):
         if payTime is None or isinstance(payTime, str):
             return None
 
         if year is None:
-            if PayloadTime.YEAR is None:
-                now = time.gmtime()
-                PayloadTime.YEAR = now.tm_year
-            year = PayloadTime.YEAR
+            recompute = cls.YEAR is None or \
+              cls.YEAR_TICKS + cls.ELEVEN_MONTHS < payTime or \
+              cls.YEAR_TICKS > payTime + cls.ELEVEN_MONTHS
 
-        # recompute start-of-year offset?
-        recompute = (PayloadTime.PREV_TIME is None or
-                     PayloadTime.PREV_YEAR is None or
-                     abs(payTime - PayloadTime.PREV_TIME) >
-                     PayloadTime.ELEVEN_MONTHS or
-                     PayloadTime.PREV_YEAR != year)
+            # if the year hasn't been set, or if time has gone backward,,,
+            if recompute:
+                # fetch the current year from the system time
+                cls.YEAR = cls.get_current_year()
+                cls.YEAR_TICKS = payTime
 
-        if recompute:
-            # note that this is a dangerous
-            # bit of code near the new year as the payload
-            # times and the system clock are not coming from the same
-            # clock, there will be a slight processing delay etc
-            jan1 = time.struct_time((year, 1, 1, 0, 0, 0, 0, 0, -1))
-            PayloadTime.TIME_OFFSET = calendar.timegm(jan1)
-            raw_tuple = time.struct_time((year, 7, 1, 0, 0, 0, 0, 0, -1))
-            # recompute tuple to fill in day of year
-            july1_tuple = time.gmtime(calendar.timegm(raw_tuple))
-            PayloadTime.has_leapsecond \
-                = leapseconds.instance().get_leap_offset(july1_tuple.tm_yday,
-                                                         year) > 0
-            if not PayloadTime.has_leapsecond:
-                # no mid-year leap second, so don't need to calculate
-                # seconds until June 30
-                PayloadTime.TIME_TILL_JUNE30 = sys.maxsize
-            else:
-                PayloadTime.TIME_TILL_JUNE30 = \
-                    PayloadTime.__seconds_until_june30(year)
+            # use the current year
+            year = cls.YEAR
 
-        PayloadTime.PREV_TIME = payTime
+        # precompute this year's data if we don't yet have it
+        if year not in cls.YEAR_DATA:
+            cls.YEAR_DATA[year] = YearData(year)
 
-        curSecOffset = (payTime / int(PayloadTime.TICKS_PER_SECOND))
-        subsec = payTime % PayloadTime.TICKS_PER_SECOND
+        # convert DAQ ticks to seconds, preserving subsecond count
+        curSecOffset = (payTime / int(cls.TICKS_PER_SECOND))
+        subsec = payTime % cls.TICKS_PER_SECOND
 
-        if not PayloadTime.has_leapsecond or \
-                curSecOffset < PayloadTime.TIME_TILL_JUNE30:
-            # no possibility of leapseconds to worry about
-
-            curTime = curSecOffset + PayloadTime.TIME_OFFSET
+        # if there's no possibility of a leapsecond...
+        if not cls.YEAR_DATA[year].has_leapsecond or \
+                curSecOffset < cls.YEAR_DATA[year].june30_offset:
+            # convert DAQ tick into number of seconds since the Unix epoch
+            curTime = curSecOffset + cls.YEAR_DATA[year].jan1_offset
             ts = time.gmtime(curTime)
 
+            # create a DAQDateTime object which includes the subsecond count
             return DAQDateTime(ts.tm_year, ts.tm_mon, ts.tm_mday, ts.tm_hour,
                                ts.tm_min, ts.tm_sec, subsec,
                                high_precision=high_precision)
 
-        # we have to worry about a potential leapsecond
-
-        # did we get a payload time exactly ON the leapsecond
-        if curSecOffset == PayloadTime.TIME_TILL_JUNE30:
+        # if we got a payload time exactly ON the leapsecond...
+        if curSecOffset == cls.YEAR_DATA[year].june30_offset:
+            # return a leapsecond object
             return DAQDateTime(year, 6, 30, 23, 59, 60, subsec,
                                high_precision=high_precision)
 
-        curTime = curSecOffset + PayloadTime.TIME_OFFSET
-        # there was a leapsecond
-        # assuming we only have to deal with ONE leapsecond
+        # convert DAQ tick into number of seconds since the Unix epoch
+        curTime = curSecOffset + cls.YEAR_DATA[year].jan1_offset
+
+        # get time quantities after subtracting ONE leapsecond
         ts = time.gmtime(curTime - 1)
 
+        # create a DAQDateTime object which includes the subsecond count
         return DAQDateTime(ts.tm_year, ts.tm_mon, ts.tm_mday, ts.tm_hour,
                            ts.tm_min, ts.tm_sec, subsec,
                            high_precision=high_precision)

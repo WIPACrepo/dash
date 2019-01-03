@@ -9,9 +9,24 @@ from leapseconds import leapseconds, MJD
 from locate_pdaq import set_pdaq_config_dir
 
 
+class MockPayloadTime(PayloadTime):
+    """
+    Wrapper which allows tests to change the "current" year
+    """
+    MOCK_YEAR = None
+
+    @classmethod
+    def get_current_year(cls):
+        return cls.MOCK_YEAR
+
+
 class TestDAQTime(unittest.TestCase):
     TICKS_PER_SEC = 10000000000
     CUR_YEAR = None
+
+    def __compare(self, name, valid, to_check):
+        self.assertEqual(valid, to_check,
+                         "Expected %s %s, not %s" % (name, valid, to_check))
 
     def __checkCompare(self, dt0, dt1, expResult):
         result = cmp(dt0, dt1)
@@ -44,8 +59,7 @@ class TestDAQTime(unittest.TestCase):
 
     def setUp(self):
         if self.CUR_YEAR is None:
-            now = time.gmtime()
-            self.CUR_YEAR = now.tm_year
+            self.CUR_YEAR = PayloadTime.get_current_year()
 
         set_pdaq_config_dir("src/test/resources/config", override=True)
 
@@ -282,6 +296,31 @@ class TestDAQTime(unittest.TestCase):
         expStr = self.__dateFormat(2013, 8, 20, 11, 33, 19, 0)
         self.assertEqual(expStr, str(dt),
                          "Expected date %s, not %s" % (expStr, dt))
+
+    def testNewYear(self):
+        MockPayloadTime.MOCK_YEAR = self.CUR_YEAR
+
+        one_day = 60 * 60 * 24
+        dec31_ticks = ((one_day * 365) - 1) * MockPayloadTime.TICKS_PER_SECOND
+
+        ny_eve = MockPayloadTime.toDateTime(dec31_ticks)
+        self.__compare("NY Eve year", self.CUR_YEAR, ny_eve.year)
+        self.__compare("NY Eve month", 12, ny_eve.month)
+        # ignore ny_eve.day, it could be the 30th if this is a leap year
+        self.__compare("NY Eve hour", 23, ny_eve.hour)
+        self.__compare("NY Eve minute", 59, ny_eve.minute)
+        self.__compare("NY Eve second", 59, ny_eve.second)
+
+        # Happy New Year!
+        MockPayloadTime.MOCK_YEAR = self.CUR_YEAR + 1
+
+        ny_day = MockPayloadTime.toDateTime(MockPayloadTime.TICKS_PER_SECOND)
+        self.__compare("NY Day year", self.CUR_YEAR + 1, ny_day.year)
+        self.__compare("NY Day month", 1, ny_day.month)
+        self.__compare("NY Day day", 1, ny_day.day)
+        self.__compare("NY Day hour", 0, ny_day.hour)
+        self.__compare("NY Day minute", 0, ny_day.minute)
+        self.__compare("NY Day second", 1, ny_day.second)
 
 
 if __name__ == '__main__':
