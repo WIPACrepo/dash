@@ -31,6 +31,10 @@ FOUR_HR = SECONDS_PER_HOUR * 4
 EIGHT_HR = SECONDS_PER_HOUR * 8
 
 
+# find top pDAQ directory
+PDAQ_HOME = find_pdaq_trunk()
+
+
 class PDAQRunException(Exception):
     pass
 
@@ -60,8 +64,7 @@ class PDAQRun(object):
                     path = None
                 else:
                     if self.TSTRSRC is None:
-                        metadir = find_pdaq_trunk()
-                        self.TSTRSRC = os.path.join(metadir, "src", "test",
+                        self.TSTRSRC = os.path.join(PDAQ_HOME, "src", "test",
                                                     "resources")
 
                     path = FlasherScript.findDataFile(pair[0],
@@ -109,8 +112,6 @@ class PDAQRun(object):
 
 
 class Deploy(object):
-    DEPLOY_CLEAN = False
-
     COMP_SUBPAT = r"(\S+):(\d+)\s*(\[(\S+)\])?"
 
     CFG_PAT = re.compile(r"^CONFIG:\s+(\S+)\s*$")
@@ -124,9 +125,6 @@ class Deploy(object):
         self.__showCmdOutput = showCmdOutput
         self.__dryRun = dryRun
         self.__clusterDesc = clusterDesc
-
-        homePath = os.environ["PDAQ_HOME"]
-        self.__pdaqHome = self.__getCurrentLocation(homePath)
 
     def __checkExists(self, name, path):
         if not os.path.exists(path):
@@ -157,20 +155,11 @@ class Deploy(object):
 
         subdirs = None
         delete = True
-        deepDryRun = False
-        traceLevel = 0
+        deep_dry_run = False
+        trace_level = 0
 
-        if Deploy.DEPLOY_CLEAN:
-            undeploy = True
-
-            DeployPDAQ.deploy(clusterCfg, os.environ["HOME"],
-                              os.environ["PDAQ_HOME"], subdirs, delete,
-                              self.__dryRun, deepDryRun, undeploy, traceLevel)
-
-        undeploy = False
-        DeployPDAQ.deploy(clusterCfg, os.environ["HOME"],
-                          os.environ["PDAQ_HOME"], subdirs, delete,
-                          self.__dryRun, deepDryRun, undeploy, traceLevel)
+        DeployPDAQ.deploy(clusterCfg, PDAQ_HOME, subdirs, delete,
+                          self.__dryRun, deep_dry_run, trace_level)
 
     @staticmethod
     def getUniqueClusterConfigs(runList):
@@ -186,7 +175,7 @@ class Deploy(object):
     def showHome(self):
         "Print the actual pDAQ home directory name"
         print("===============================================================")
-        print("== PDAQ_HOME points to %s" % self.__pdaqHome)
+        print("== PDAQ_HOME points to %s" % str(PDAQ_HOME))
         print("===============================================================")
 
 
@@ -262,15 +251,9 @@ def run_tests(args):
             raise SystemExit("Please specify --deploy or --run" +
                              " (unrecognized host %s)" % hostid.hname)
 
-    # Make sure expected environment variables are set
-    #
-    for nm in ("HOME", "PDAQ_HOME"):
-        if nm not in os.environ:
-            raise SystemExit("Environment variable '%s' has not been set" % nm)
-
     # run tests from pDAQ top-level directory
     #
-    os.chdir(os.environ["PDAQ_HOME"])
+    os.chdir(PDAQ_HOME)
 
     if args.deploy:
         deploy = Deploy(args.showCmd, args.showCmdOutput, args.dryRun,

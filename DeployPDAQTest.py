@@ -4,7 +4,6 @@ import os
 import tempfile
 import unittest
 
-from DAQMocks import MockParallelShell
 import DeployPDAQ
 from scmversion import SCM_REV_FILENAME
 
@@ -31,38 +30,85 @@ class MockClusterConfig(object):
         pass
 
 
+class MockCmdRunner(object):
+    def __init__(self):
+        self.__total_threads = None
+        self.__running_threads = None
+        self.__cmd_count = 0
+
+    def add_expected(self, topdir, subdirs, delete, dry_run, remoteHost,
+                     rtnCode, result="",
+                     nice_level=DeployPDAQ.NICE_LEVEL_DEFAULT,
+                     express=DeployPDAQ.EXPRESS_DEFAULT):
+        pass
+
+    def add_first(self, description, hostname, command):
+        self.__cmd_count += 1
+
+    def add_last(self, description, hostname, command):
+        self.__cmd_count += 1
+
+    def check(self):
+        return False
+
+    @property
+    def num_remaining_commands(self):
+        return 99
+
+    @property
+    def running_threads(self):
+        if self.__running_threads is None:
+            raise Exception("Threads have not been started")
+
+        self.__running_threads -= (self.__total_threads / 2)
+        return self.__running_threads
+
+    def start(self, num_threads=None):
+        if num_threads is None:
+            self.__total_threads = DeployPDAQ.CommandRunner.DEFAULT_THREADS
+        else:
+            self.__total_threads = int(num_threads)
+
+        self.__running_threads = self.__total_threads
+
+    @property
+    def total_threads(self):
+        return self.__total_threads
+
+    @property
+    def wait_seconds(self):
+        return 0
+
+
 class DeployPDAQTest(unittest.TestCase):
-    def __checkDeploy(self, hosts, subdirs, delete, dryRun, deepDryRun,
-                      undeploy, niceAdj=DeployPDAQ.NICE_ADJ_DEFAULT,
+    def __checkDeploy(self, hosts, subdirs, delete, dry_run, deep_dry_run,
+                      nice_level=DeployPDAQ.NICE_LEVEL_DEFAULT,
                       express=DeployPDAQ.EXPRESS_DEFAULT):
-        topDir = tempfile.mkdtemp()
-        os.mkdir(os.path.join(topDir, "target"))
+        top_dir = tempfile.mkdtemp()
+        os.mkdir(os.path.join(top_dir, "target"))
 
-        homeDir = os.path.join(topDir, "home")
-        os.mkdir(homeDir)
+        home_dir = os.path.join(top_dir, "home")
+        os.mkdir(home_dir)
 
-        homeCfg = os.path.join(homeDir, "config")
+        homeCfg = os.path.join(home_dir, "config")
         os.mkdir(homeCfg)
 
         config = MockClusterConfig(hosts)
 
-        parallel = MockParallelShell()
-        if undeploy:
-            for h in hosts:
-                parallel.addExpectedUndeploy(topDir, h)
-        else:
-            for h in hosts:
-                parallel.addExpectedRsync(topDir, subdirs, delete, deepDryRun,
-                                          h, 0, niceAdj=niceAdj,
-                                          express=express)
+        cmdrunner = MockCmdRunner()
+        for host in hosts:
+            cmdrunner.add_expected(top_dir, subdirs, delete, deep_dry_run,
+                                   host, 0, nice_level=nice_level,
+                                   express=express)
 
-        traceLevel = -1
+        trace_level = -1
 
-        DeployPDAQ.deploy(config, homeDir, topDir, subdirs, delete,
-                          dryRun, deepDryRun, undeploy, traceLevel,
-                          niceAdj=niceAdj, express=express, parallel=parallel)
+        DeployPDAQ.deploy(config, top_dir, subdirs, delete, dry_run,
+                          deep_dry_run, trace_level, nice_level=nice_level,
+                          express=express, home=home_dir,
+                          cmd_runner=cmdrunner)
 
-        parallel.check()
+        cmdrunner.check()
 
     def setUp(self):
         parent = os.path.dirname(SCM_REV_FILENAME)
@@ -75,112 +121,85 @@ class DeployPDAQTest(unittest.TestCase):
 
     def testDeployMin(self):
         delete = False
-        dryRun = False
-        deepDryRun = False
-        undeploy = False
+        dry_run = False
+        deep_dry_run = False
 
         hosts = ("foo", "bar")
 
         subdirs = ("ABC", "DEF")
 
-        self.__checkDeploy(hosts, subdirs, delete,
-                           dryRun, deepDryRun, undeploy)
+        self.__checkDeploy(hosts, subdirs, delete, dry_run, deep_dry_run)
 
     def testDeployDelete(self):
         delete = True
-        dryRun = False
-        deepDryRun = False
-        undeploy = False
+        dry_run = False
+        deep_dry_run = False
 
         hosts = ("foo", "bar")
 
         subdirs = ("ABC", "DEF")
 
-        self.__checkDeploy(hosts, subdirs, delete,
-                           dryRun, deepDryRun, undeploy)
+        self.__checkDeploy(hosts, subdirs, delete, dry_run, deep_dry_run)
 
     def testDeployDeepDryRun(self):
         delete = False
-        dryRun = False
-        deepDryRun = True
-        undeploy = False
+        dry_run = False
+        deep_dry_run = True
 
         hosts = ("foo", "bar")
 
         subdirs = ("ABC", "DEF")
 
-        self.__checkDeploy(hosts, subdirs, delete,
-                           dryRun, deepDryRun, undeploy)
+        self.__checkDeploy(hosts, subdirs, delete, dry_run, deep_dry_run)
 
     def testDeployDD(self):
         delete = True
-        dryRun = False
-        deepDryRun = True
-        undeploy = False
+        dry_run = False
+        deep_dry_run = True
 
         hosts = ("foo", "bar")
 
         subdirs = ("ABC", "DEF")
 
-        self.__checkDeploy(hosts, subdirs, delete,
-                           dryRun, deepDryRun, undeploy)
+        self.__checkDeploy(hosts, subdirs, delete, dry_run, deep_dry_run)
 
     def testDeployDryRun(self):
         delete = False
-        dryRun = False
-        deepDryRun = False
-        undeploy = False
+        dry_run = False
+        deep_dry_run = False
 
         hosts = ("foo", "bar")
 
         subdirs = ("ABC", "DEF")
 
-        self.__checkDeploy(hosts, subdirs, delete,
-                           dryRun, deepDryRun, undeploy)
-
-    def testDeployUndeploy(self):
-        delete = False
-        dryRun = False
-        deepDryRun = False
-        undeploy = True
-
-        hosts = ("foo", "bar")
-
-        subdirs = ("ABC", "DEF")
-
-        self.__checkDeploy(hosts, subdirs, delete,
-                           dryRun, deepDryRun, undeploy)
+        self.__checkDeploy(hosts, subdirs, delete, dry_run, deep_dry_run)
 
     def testDeployNice(self):
         delete = False
-        dryRun = False
-        deepDryRun = False
-        undeploy = False
-        niceAdj = 5
+        dry_run = False
+        deep_dry_run = False
+        nice_level = 5
 
         hosts = ("foo", "bar")
 
         subdirs = ("ABC", "DEF")
 
-        self.__checkDeploy(hosts, subdirs, delete,
-                           dryRun, deepDryRun, undeploy,
-                           niceAdj)
+        self.__checkDeploy(hosts, subdirs, delete, dry_run, deep_dry_run,
+                           nice_level)
 
     def testDeployExpress(self):
         delete = False
-        dryRun = False
-        deepDryRun = False
-        undeploy = False
-        niceAdj = 5
+        dry_run = False
+        deep_dry_run = False
+        nice_level = 5
         express = True
 
         hosts = ("foo", "bar")
 
         subdirs = ("ABC", "DEF")
 
-        self.__checkDeploy(hosts, subdirs, delete,
-                           dryRun, deepDryRun, undeploy,
-                           niceAdj, express)
+        self.__checkDeploy(hosts, subdirs, delete, dry_run, deep_dry_run,
+                           nice_level, express)
 
 
 if __name__ == '__main__':
