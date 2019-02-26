@@ -213,16 +213,16 @@ def __get_svn_info(dir):
     proc = subprocess.Popen(["svn", "info"], stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, cwd=dir)
     for line in proc.stdout:
-        if line.startswith("URL:"):
+        if line.startswith(b"URL:"):
             dir_url = line.split()[1].strip()
             continue
-        if line.startswith("Last Changed Date:"):
-            dstr = line.split(':', 1)[1].strip()
+        if line.startswith(b"Last Changed Date:"):
+            dstr = line.split(b':', 1)[1].strip()
 
             # only care about first 3 fields (date time timezone)
             dflds = dstr.split(None, 3)[:3]
 
-            (date, time) = __parse_date_time(" ".join(dflds),
+            (date, time) = __parse_date_time(" ".join(str(dflds)),
                                              "%Y-%m-%d %H:%M:%S")
             continue
     proc.stdout.close()
@@ -394,7 +394,8 @@ def get_scmversion(dir=None):
             info = __make_empty_info()
         else:
             # Return contents of file written when pdaq was deployed
-            line = file(SCM_REV_FILENAME).readline()
+            with open(SCM_REV_FILENAME) as fin:
+                line = fin.readline()
             flds = line.split(' ')
             if len(flds) != len(FIELD_NAMES):
                 raise SCMVersionError("Cannot load cached version: expected"
@@ -451,9 +452,8 @@ def store_scmversion(dir=None):
         print("SCMVersionError: " + str(exc), file=sys.stderr)
         return ""
 
-    svn_rev_file = file(SCM_REV_FILENAME, "w")
-    svn_rev_file.write(scmstr)
-    svn_rev_file.close()
+    with open(SCM_REV_FILENAME, "w") as svn_rev_file:
+        svn_rev_file.write(scmstr)
 
     return scmstr
 
