@@ -2124,7 +2124,7 @@ class MockParallelShell(object):
 
     def addExpectedRsync(self, dir, subdirs, delete, dryRun, remoteHost,
                          rtnCode, result="",
-                         niceAdj=DeployPDAQ.NICE_ADJ_DEFAULT,
+                         niceAdj=DeployPDAQ.NICE_LEVEL_DEFAULT,
                          express=DeployPDAQ.EXPRESS_DEFAULT):
 
         if express:
