@@ -11,6 +11,7 @@ from xml.dom import minidom, Node
 
 from Component import Component
 from locate_pdaq import find_pdaq_config
+from reraise import reraise_excinfo
 from xmlparser import XMLBadFileError, XMLFormatError, XMLParser
 from utils.Machineid import Machineid
 
@@ -702,7 +703,7 @@ class ClusterDescription(ConfigXMLBase):
                                                          suffix)
                 configName = retryName
             except XMLBadFileError:
-                raise saved_ex[0], saved_ex[1], saved_ex[2]
+                reraise_excinfo(saved_ex)
 
         derivedName, ext = os.path.splitext(os.path.basename(configName))
         if derivedName.endswith("-cluster"):
@@ -1202,7 +1203,7 @@ class ClusterDescription(ConfigXMLBase):
                                        " cluster \"%s\"") % (dbname, clu))
         if mid.is_sps_cluster:
             return cls.DBTYPE_PROD
-        if mid.is_mdfl_cluster or mid.is_unknown_cluster: 
+        if mid.is_mdfl_cluster or mid.is_unknown_cluster:
             return cls.DBTYPE_NONE
         raise NotImplementedError("Cannot guess database" +
                                   " for cluster \"%s\"" % clu)

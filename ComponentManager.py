@@ -20,6 +20,7 @@ from ParallelShell import ParallelShell
 from Process import find_python_process, list_processes
 from RunSetState import RunSetState
 from locate_pdaq import find_pdaq_trunk
+from reraise import reraise_excinfo
 
 
 SVN_ID = "$Id: DAQLaunch.py 13550 2012-03-08 23:12:05Z dglo $"
@@ -152,8 +153,7 @@ class ComponentManager(object):
                 except OSError as xxx_todo_changeme:
                     (_, strerror) = xxx_todo_changeme.args
                     if fallbackDir is None:
-                        einfo = sys.exc_info()
-                        raise einfo[0], einfo[1], einfo[2]
+                        reraise_exc_info(sys.exc_info())
                     else:
                         if logger is not None:
                             logger.error(("Problem making directory \"%s\"" +
@@ -310,8 +310,7 @@ class ComponentManager(object):
                                             validate=validate)
             except DAQConfigException as dce:
                 if str(dce).find("RELAXNG") >= 0:
-                    exc = sys.exc_info()
-                    raise exc[0], exc[1], exc[2]
+                    reraise_exc_info(sys.exc_info())
                 activeConfig = None
 
             if activeConfig is not None:

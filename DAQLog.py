@@ -17,6 +17,7 @@ import threading
 import time as pytime
 
 from LiveImports import LIVE_IMPORT, MoniClient, MoniPort, Prio, SERVICE_NAME
+from reraise import reraise_excinfo
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -270,7 +271,7 @@ class DAQLog(object):
                 savedEx = sys.exc_info()
         del self.__appenderList[:]
         if savedEx:
-            raise savedEx[0], savedEx[1], savedEx[2]
+            reraise_excinfo(savedEx)
 
     def debug(self, msg):
         self._logmsg(DAQLog.DEBUG, msg)

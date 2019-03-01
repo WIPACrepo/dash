@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
+import sys
+
 from CnCTask import CnCTask, TaskException
 from CnCThread import CnCThread
 from ComponentManager import listComponentRanges
-import sys
+from reraise import reraise_excinfo
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -205,7 +207,7 @@ class ValueWatcher(Watcher):
                                          " changing") % str(self))
 
             if tmpEx:
-                raise tmpEx[0], tmpEx[1], tmpEx[2]
+                reraise_excinfo(tmpEx)
 
         return self.__unchanged == 0
 
@@ -776,7 +778,7 @@ class WatchdogTask(CnCTask):
                     savedEx = sys.exc_info()
 
         if savedEx:
-            raise savedEx[0], savedEx[1], savedEx[2]
+            reraise_excinfo(savedEx)
 
     def waitUntilFinished(self):
         for c in list(self.__threadList.keys()):

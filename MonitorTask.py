@@ -12,6 +12,7 @@ from CnCThread import CnCThread
 from DAQClient import BeanLoadException, BeanTimeoutException
 from LiveImports import Prio
 from RunOption import RunOption
+from reraise import reraise_excinfo
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -380,7 +381,7 @@ class MonitorTask(CnCTask):
                     savedEx = sys.exc_info()
 
         if savedEx:
-            raise savedEx[0], savedEx[1], savedEx[2]
+            reraise_excinfo(savedEx)
 
     def numOpen(self):
         num = 0

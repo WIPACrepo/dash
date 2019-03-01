@@ -26,6 +26,7 @@ from RunSetState import RunSetState
 from TaskManager import TaskManager
 from UniqueID import UniqueID
 from leapseconds import leapseconds, LeapsecondException, MJD
+from reraise import reraise_excinfo
 from scmversion import get_scmversion_str
 from utils import ip
 from utils.DashXMLLog import DashXMLLog, DashXMLLogException
@@ -727,7 +728,7 @@ class RunData(object):
             self.__dashlog = None
 
         if saved_ex:
-            raise saved_ex[0], saved_ex[1], saved_ex[2]
+            reraise_excinfo(saved_ex)
 
     def error(self, msg):
         if self.__dashlog is not None:
@@ -3179,7 +3180,7 @@ class RunSet(object):
                 saved_ex = sys.exc_info()
 
         if saved_ex:
-            raise saved_ex[0], saved_ex[1], saved_ex[2]
+            reraise_excinfo(saved_ex)
 
     def update_rates(self):
         values = self.__run_data.update_counts_and_rate(self)

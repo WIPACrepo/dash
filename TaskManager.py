@@ -9,6 +9,7 @@ from IntervalTimer import IntervalTimer
 from MonitorTask import MonitorTask
 from RateTask import RateTask
 from WatchdogTask import WatchdogTask
+from reraise import reraise_excinfo
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -116,7 +117,7 @@ class TaskManager(threading.Thread):
         self.__stopping = False
 
         if savedEx:
-            raise savedEx[0], savedEx[1], savedEx[2]
+            reraise_excinfo(savedEx)
 
     @classmethod
     def createIntervalTimer(cls, name, period):
