@@ -7,7 +7,12 @@
 # J. Jacobsen, for UW-IceCube 2006-2007
 #
 
-import DocXMLRPCServer
+try:
+    from DocXMLRPCServer import DocXMLRPCServer
+    from xmlrpclib import ServerProxy
+except ModuleNotFoundError:
+    from xmlrpc.server import DocXMLRPCServer
+    from xmlrpc.client import ServerProxy
 import datetime
 import errno
 import math
@@ -17,10 +22,9 @@ import sys
 import threading
 import time
 import traceback
-import xmlrpclib
 
 
-class RPCClient(xmlrpclib.ServerProxy):
+class RPCClient(ServerProxy):
     """Generic class for accessing methods on remote objects
     WARNING: instantiating RPCClient sets socket default timeout duration!"""
 
@@ -41,15 +45,14 @@ class RPCClient(xmlrpclib.ServerProxy):
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         socket.setdefaulttimeout(timeout)
 
-        xmlrpclib.ServerProxy.__init__(self, "http://" + hostPort,
-                                       verbose=verbose)
+        ServerProxy.__init__(self, "http://" + hostPort, verbose=verbose)
 
     @classmethod
     def client_statistics(cls):
         return {}
 
 
-class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
+class RPCServer(DocXMLRPCServer):
     "Generic class for serving methods to remote objects"
     # also inherited: register_function
     def __init__(self, portnum, servername="localhost",
@@ -65,7 +68,7 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         self.__sock_count = 0
         self.__registered = False
 
-        DocXMLRPCServer.DocXMLRPCServer.__init__(self, ('', portnum),
+        DocXMLRPCServer.__init__(self, ('', portnum),
                                                  logRequests=False)
         # note that this has to be AFTER the init above as it can be
         # set to false in the __init__
@@ -117,7 +120,7 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         if self.__running:
             self.__running = False
             self.__is_shut_down.wait()
-        DocXMLRPCServer.DocXMLRPCServer.server_close(self)
+        DocXMLRPCServer.server_close(self)
 
     def server_statistics(self):
         # get statistics for server calls
