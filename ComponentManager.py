@@ -153,7 +153,7 @@ class ComponentManager(object):
                 except OSError as xxx_todo_changeme:
                     (_, strerror) = xxx_todo_changeme.args
                     if fallbackDir is None:
-                        reraise_exc_info(sys.exc_info())
+                        reraise_excinfo(sys.exc_info())
                     else:
                         if logger is not None:
                             logger.error(("Problem making directory \"%s\"" +
