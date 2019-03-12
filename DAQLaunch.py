@@ -43,6 +43,11 @@ def add_arguments_both(parser):
                         action="store_true", default=False,
                         help="just kill everything with extreme (-9)"
                         " prejudice")
+    parser.add_argument("-C", "--cluster-desc", dest="clusterDesc",
+                        help="Cluster description name.")
+    parser.add_argument("-S", "--server-kill", dest="serverKill",
+                        action="store_true", default=False,
+                        help="Kill all the components known by the server")
     parser.add_argument("-f", "--force", dest="force",
                         action="store_true", default=False,
                         help="kill components even if there is an active run")
@@ -53,9 +58,6 @@ def add_arguments_both(parser):
     parser.add_argument("-n", "--dry-run", dest="dryRun",
                         action="store_true", default=False,
                         help="\"Dry run\" only, don't actually do anything")
-    parser.add_argument("-S", "--server-kill", dest="serverKill",
-                        action="store_true", default=False,
-                        help="Kill all the components known by the server")
     parser.add_argument("-v", "--verbose", dest="verbose",
                         action="store_true", default=False,
                         help="Log output for all components to terminal")
@@ -70,8 +72,6 @@ def add_arguments_kill(_):
 
 
 def add_arguments_launch(parser, config_as_arg=True):
-    parser.add_argument("-C", "--cluster-desc", dest="clusterDesc",
-                        help="Cluster description name.")
     if config_as_arg:
         parser.add_argument("-c", "--config-name", dest="configName",
                             help="Configuration name")
@@ -113,9 +113,9 @@ def check_detector_state():
         raise SystemExit('To force a restart, rerun with the --force option')
 
 
-def kill(cfgDir, logger, args=None, clusterDesc=None, validate=None,
-         serverKill=None, verbose=None, dryRun=None, killWith9=None,
-         force=None, parallel=None):
+def kill(cfgDir, logger, parallel=None, args=None, clusterDesc=None,
+         validate=None, serverKill=None, verbose=None, dryRun=None,
+         killWith9=None, force=None):
     if args is not None:
         if clusterDesc is not None or validate is not None or \
            serverKill is not None or verbose is not None or \
@@ -153,10 +153,9 @@ def kill(cfgDir, logger, args=None, clusterDesc=None, validate=None,
             " any orphaned data", file=sys.stderr)
 
 
-def launch(cfgDir, dashDir, logger, args=None, clusterDesc=None,
-           configName=None, validate=None, verbose=None, dryRun=None,
-           eventCheck=None, parallel=None, forceRestart=None,
-           checkExists=True):
+def launch(cfgDir, dashDir, logger, parallel=None, checkExists=True,
+           args=None, clusterDesc=None, configName=None, validate=None,
+           verbose=None, dryRun=None, eventCheck=None, forceRestart=None):
     if args is not None:
         if clusterDesc is not None or configName is not None or \
            validate is not None or verbose is not None or \
