@@ -1,0 +1,59 @@
+#!/usr/bin/env python
+#
+# The pdaq ubercommand which invokes all valid subcommands
+
+import inspect
+import pdaq_commands
+
+
+class CmdProblem(object):
+    def __init__(self, name, errmsg):
+        self.__name = name
+        self.__errmsg = errmsg
+
+    def is_valid_host(self, args):
+        return True
+
+    def run(self, args):
+        print "Command '%s' cannot be run: %s" % (self.__name, self.__errmsg)
+
+
+def check_commands():
+    for name, obj in inspect.getmembers(pdaq_commands):
+        if inspect.isclass(obj) and name.startswith("Cmd"):
+            if obj not in pdaq_commands.COMMANDS:
+                print "%s is missing the @command decorator" % (obj.__name__, )
+
+
+if __name__ == "__main__":
+    import argparse
+
+    p = argparse.ArgumentParser()
+
+    sub = p.add_subparsers(dest="cmd")
+
+    cmdmap = {}
+    for v in pdaq_commands.COMMANDS:
+        try:
+            v.add_arguments(sub.add_parser(v.name(),
+                                           description=v.description(),
+                                           epilog=v.epilog(),
+            ))
+            cmdmap[v.name()] = v
+        except ImportError, ie:
+            # missing lxml can cause import problems on hubs
+            cmdmap[v.name()] = CmdProblem(v.name(), "%s: %s" % (type(ie), ie))
+
+    ns = p.parse_args()
+
+    # True if the user didn't tell us to ignore the host type
+    host_check = not hasattr(ns, 'nohostcheck') or not ns.nohostcheck
+
+    if host_check and not cmdmap[ns.cmd].is_valid_host(ns):
+        raise SystemExit("Are you sure you are running this"
+                         " on the correct host?")
+
+    try:
+        cmdmap[ns.cmd].run(ns)
+    except KeyboardInterrupt:
+        raise SystemExit("Interrupted.")

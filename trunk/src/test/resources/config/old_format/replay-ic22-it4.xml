@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<runConfig>
+    <replayFiles baseDir="/home/dglo">
+        <hits hub="21" source="HIT-stringHub#21" />
+        <hits hub="29" source="HIT-stringHub#29" />
+        <hits hub="30" source="HIT-stringHub#30" />
+        <hits hub="38" source="HIT-stringHub#38" />
+        <hits hub="39" source="HIT-stringHub#39" />
+        <hits hub="40" source="HIT-stringHub#40" />
+        <hits hub="46" source="HIT-stringHub#46" />
+        <hits hub="47" source="HIT-stringHub#47" />
+        <hits hub="48" source="HIT-stringHub#48" />
+        <hits hub="49" source="HIT-stringHub#49" />
+        <hits hub="50" source="HIT-stringHub#50" />
+        <hits hub="56" source="HIT-stringHub#56" />
+        <hits hub="57" source="HIT-stringHub#57" />
+        <hits hub="58" source="HIT-stringHub#58" />
+        <hits hub="59" source="HIT-stringHub#59" />
+        <hits hub="65" source="HIT-stringHub#65" />
+        <hits hub="66" source="HIT-stringHub#66" />
+        <hits hub="67" source="HIT-stringHub#67" />
+        <hits hub="72" source="HIT-stringHub#72" />
+        <hits hub="73" source="HIT-stringHub#73" />
+        <hits hub="74" source="HIT-stringHub#74" />
+        <hits hub="78" source="HIT-stringHub#78" />
+        <hits hub="201" source="HIT-stringHub#201" />
+        <hits hub="202" source="HIT-stringHub#202" />
+        <hits hub="203" source="HIT-stringHub#203" />
+        <hits hub="204" source="HIT-stringHub#204" />
+    </replayFiles>
+    <triggerConfig>sps-icecube-amanda-008</triggerConfig>
+    <runComponent name="inIceTrigger"/>
+    <runComponent name="iceTopTrigger"/>
+    <runComponent name="globalTrigger"/>
+    <runComponent name="eventBuilder"/>
+</runConfig>
