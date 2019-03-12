@@ -3003,13 +3003,20 @@ class RunSet(object):
                 hubs.append(comp)
 
         times = ComponentGroup.run_simple(OpStartSubrun, hubs, (data, ),
-                                      self.__run_data, wait_secs=6,
-                                      report_errors=True)
+                                          self.__run_data, wait_secs=6,
+                                          report_errors=True)
+
+        if times is None:
+            raise RunSetException("No values returned while starting subrun")
 
         bad_comps = []
 
         latest_time = None
         for comp in hubs:
+            if comp not in times:
+                bad_comps.append(comp)
+                continue
+
             result = times[comp]
             if not ComponentGroup.has_value(result):
                 bad_comps.append(comp)
