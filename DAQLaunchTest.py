@@ -7,9 +7,35 @@ import unittest
 
 from CachedConfigName import CachedConfigName
 from DAQConst import DAQPort
-from DAQLaunch import launch, kill
+from DAQLaunch import add_arguments_both, add_arguments_launch, \
+     add_arguments_kill, launch, kill
 from DAQMocks import MockClusterConfigFile, MockParallelShell, \
     MockRunConfigFile
+
+
+class MockArguments(object):
+    def __init__(self):
+        pass
+
+    def add_argument(self, *args, **kwargs):
+        """
+        Use 'dest' and 'default' keywords to create an argument attribute
+        """
+        if "dest" not in kwargs:
+            raise Exception("No 'dest' for %s" % str(args))
+        if "default" in kwargs:
+            dflt = kwargs["default"]
+        else:
+            dflt = None
+        setattr(self, kwargs["dest"], dflt)
+
+    def set_argument(self, name, value):
+        """
+        Update the value on an existing argument attribute
+        """
+        if not hasattr(self, name):
+            raise Exception("Unknown argument \"%s\"" % (name, ))
+        setattr(self, name, value)
 
 
 class TestDAQLaunch(unittest.TestCase):
@@ -69,12 +95,8 @@ class TestDAQLaunch(unittest.TestCase):
         logPort = None
         livePort = DAQPort.I3LIVE_ZMQ
 
-        validate = False
-        verbose = False
-        dryRun = False
-        evtChk = False
-        logger = None
         forceRestart = False
+        logger = None
         checkExists = False
 
         shell = MockParallelShell()
@@ -82,10 +104,19 @@ class TestDAQLaunch(unittest.TestCase):
                                 spadeDir, cluCfgFile.name, cfgName, copyDir,
                                 logPort, livePort, forceRestart=forceRestart)
 
-        launch(configDir, dashDir, logger, clusterDesc=cluCfgFile.name,
-               configName=cfgName, validate=validate, verbose=verbose,
-               dryRun=dryRun, eventCheck=evtChk, parallel=shell,
-               forceRestart=forceRestart, checkExists=checkExists)
+        args = MockArguments()
+        add_arguments_both(args)
+        add_arguments_launch(args)
+        args.set_argument("clusterDesc", cluCfgFile.name)
+        args.set_argument("configName", cfgName)
+        args.set_argument("validation", False)
+        args.set_argument("verbose", False)
+        args.set_argument("dryRun", False)
+        args.set_argument("eventCheck", False)
+        args.set_argument("forceRestart", forceRestart)
+
+        launch(configDir, dashDir, logger, args=args, parallel=shell,
+               checkExists=checkExists)
 
     def testKillOnlyCnC(self):
         tmpdir = tempfile.mkdtemp()
@@ -106,29 +137,32 @@ class TestDAQLaunch(unittest.TestCase):
                                                     daqDataDir, logDir,
                                                     spadeDir, compHostDict)
 
-        runCfgFile = MockRunConfigFile(configDir)
-        cfgName = runCfgFile.create(list(compHostDict.keys()), {})
-
-        validate = False
-        serverKill = True
-        verbose = False
-        dryRun = False
-        killWith9 = False
         logger = None
-        forceKill = True
+        killWith9 = False
 
         shell = MockParallelShell()
         shell.addExpectedPythonKill(True, killWith9=killWith9)
+
+        runCfgFile = MockRunConfigFile(configDir)
+        cfgName = runCfgFile.create(list(compHostDict.keys()), {})
 
         # set the cached config name
         cc = CachedConfigName()
         cc.setConfigName(cfgName)
         cc.writeCacheFile(writeActiveConfig=True)
 
-        kill(configDir, logger, clusterDesc=cluCfgFile.name,
-             validate=validate, serverKill=serverKill, verbose=verbose,
-             dryRun=dryRun, killWith9=killWith9, force=forceKill,
-             parallel=shell)
+        args = MockArguments()
+        add_arguments_both(args)
+        add_arguments_kill(args)
+        args.set_argument("clusterDesc", cluCfgFile.name)
+        args.set_argument("validation", False)
+        args.set_argument("serverKill", True)
+        args.set_argument("verbose", False)
+        args.set_argument("dryRun", False)
+        args.set_argument("killWith9", killWith9)
+        args.set_argument("force", True)
+
+        kill(configDir, logger, args=args, parallel=shell)
 
 
 if __name__ == '__main__':
