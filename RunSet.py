@@ -29,7 +29,8 @@ from leapseconds import leapseconds, LeapsecondException, MJD
 from reraise import reraise_excinfo
 from scmversion import get_scmversion_str
 from utils import ip
-from utils.DashXMLLog import DashXMLLog, DashXMLLogException
+from utils.DashXMLLog import DashXMLLog, DashXMLLogException, \
+     FileNotFoundException
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -44,6 +45,10 @@ class ConnectionException(RunSetException):
 
 
 class InvalidSubrunData(RunSetException):
+    pass
+
+
+class SummaryNotReady(RunSetException):
     pass
 
 
@@ -2550,7 +2555,10 @@ class RunSet(object):
             raise RunSetException("No run directory found for run %d" %
                                   (run_num, ))
 
-        return DashXMLLog.parse(run_dir).summary()
+        try:
+            return DashXMLLog.parse(run_dir).summary()
+        except FileNotFoundException:
+            raise SummaryNotReady("No summary found for run %d" % (run_num, ))
 
     @property
     def id(self):

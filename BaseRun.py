@@ -11,6 +11,7 @@ import subprocess
 import sys
 import threading
 import time
+import xmlrpclib
 
 from ANSIEscapeCode import ANSIEscapeCode
 from ComponentManager import ComponentManager
@@ -978,11 +979,21 @@ class BaseRun(object):
         cnc = self.cncConnection()
 
         # grab summary info from CnC
-        summary = cnc.rpc_run_summary(runNum)
+        for rep in range(10):
+            try:
+                summary = cnc.rpc_run_summary(runNum)
+                break
+            except xmlrpclib.Fault, fault:
+                if fault.faultString.find("SummaryNotReady") < 0:
+                    raise
+                summary = None
+                time.sleep(1)
 
         # calculate duration
-        if summary["startTime"] == "None" or \
-           summary["endTime"] == "None":
+        if summary is None:
+            raise ValueError("Cannot fetch run summary")
+            
+        if summary["startTime"] == "None" or summary["endTime"] == "None":
             duration = "???"
         else:
             try:
