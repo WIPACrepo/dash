@@ -850,6 +850,7 @@ class RunDataTest(unittest.TestCase):
             "run": str(run_num),
         }
 
+        path = None
         try:
             path = rdata.write_run_xml(num_evts, num_moni, num_sn, num_tcal,
                                        first_time, last_time, first_good,
